@@ -157,8 +157,7 @@ let AutoItemizePage: (typeof AutoItemizePageModule)['AutoItemizePage'];
 let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
 
 beforeEach(async () => {
-  ({ AutoItemizePage } =
-    (await import('./AutoItemizePage.js')) as typeof AutoItemizePageModule);
+  ({ AutoItemizePage } = (await import('./AutoItemizePage.js')) as typeof AutoItemizePageModule);
 
   // Import LocaleProvider dynamically to pick up mocked or real version
   ({ LocaleProvider } =
@@ -218,7 +217,9 @@ function makePaperlessDoc(): PaperlessDocumentDetailResponse {
 }
 
 function makeDryRunResponse(
-  lineOverrides: Array<Partial<{ description: string; totalAmount: number; confidence: number }>> = [],
+  lineOverrides: Array<
+    Partial<{ description: string; totalAmount: number; confidence: number }>
+  > = [],
   warnings: AutoItemizeDryRunResponse['warnings'] = [],
 ): AutoItemizeDryRunResponse {
   const defaultLines = lineOverrides.length
@@ -499,9 +500,7 @@ describe('AutoItemizePage', () => {
       mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([
-          { description: 'Tile work', totalAmount: 300, confidence: 0.9 },
-        ]),
+        makeDryRunResponse([{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }]),
       );
 
       renderPage();
@@ -893,7 +892,9 @@ describe('AutoItemizePage', () => {
       mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([{ description: 'Original description', totalAmount: 300, confidence: 0.9 }]),
+        makeDryRunResponse([
+          { description: 'Original description', totalAmount: 300, confidence: 0.9 },
+        ]),
       );
 
       renderPage();
@@ -1037,8 +1038,9 @@ describe('AutoItemizePage', () => {
       });
 
       const commitCallArgs = mockAutoItemize.mock.calls[1]!;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const linesArg = ((commitCallArgs[1] as unknown) as { lines: Array<Record<string, unknown>> }).lines;
+
+      const linesArg = (commitCallArgs[1] as unknown as { lines: Array<Record<string, unknown>> })
+        .lines;
       expect(linesArg).toHaveLength(2);
 
       // Neither row has an assignedBudgetLineId since none were assigned via the picker
@@ -1049,7 +1051,9 @@ describe('AutoItemizePage', () => {
 
   describe('invoicePatch in Save', () => {
     it('sends invoicePatch when metadata fields are edited before Save', async () => {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ invoiceNumber: 'INV-001', amount: 1000 }));
+      mockFetchInvoiceById.mockResolvedValue(
+        makeInvoice({ invoiceNumber: 'INV-001', amount: 1000 }),
+      );
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse());
       mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 900 });
@@ -1148,7 +1152,9 @@ describe('AutoItemizePage', () => {
     });
 
     it('does NOT send invoicePatch when no metadata changes', async () => {
-      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ invoiceNumber: 'INV-001', amount: 1000 }));
+      mockFetchInvoiceById.mockResolvedValue(
+        makeInvoice({ invoiceNumber: 'INV-001', amount: 1000 }),
+      );
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse());
       mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 1000 });

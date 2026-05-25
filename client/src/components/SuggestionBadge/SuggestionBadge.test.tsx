@@ -19,44 +19,25 @@ import type * as SuggestionBadgeModule from './SuggestionBadge.js';
 let SuggestionBadge: (typeof SuggestionBadgeModule)['SuggestionBadge'];
 
 beforeEach(async () => {
-  ({ SuggestionBadge } =
-    (await import('./SuggestionBadge.js')) as typeof SuggestionBadgeModule);
+  ({ SuggestionBadge } = (await import('./SuggestionBadge.js')) as typeof SuggestionBadgeModule);
 });
 
 describe('SuggestionBadge', () => {
   describe('rendering', () => {
     it('renders with suggested value in body text', () => {
-      render(
-        <SuggestionBadge
-          suggestedValue="1234.56"
-          fieldLabel="Amount"
-          onApply={jest.fn()}
-        />,
-      );
+      render(<SuggestionBadge suggestedValue="1234.56" fieldLabel="Amount" onApply={jest.fn()} />);
       // The component uses t('autoItemize.suggested', { value }) which resolves to
       // "LLM suggests: 1234.56" with the EN locale
       expect(screen.getByText(/1234\.56/)).toBeInTheDocument();
     });
 
     it('renders Apply button', () => {
-      render(
-        <SuggestionBadge
-          suggestedValue="100"
-          fieldLabel="Amount"
-          onApply={jest.fn()}
-        />,
-      );
+      render(<SuggestionBadge suggestedValue="100" fieldLabel="Amount" onApply={jest.fn()} />);
       expect(screen.getByRole('button')).toBeInTheDocument();
     });
 
     it('renders an emoji decoration (aria-hidden)', () => {
-      render(
-        <SuggestionBadge
-          suggestedValue="100"
-          fieldLabel="Amount"
-          onApply={jest.fn()}
-        />,
-      );
+      render(<SuggestionBadge suggestedValue="100" fieldLabel="Amount" onApply={jest.fn()} />);
       // The ✨ span has aria-hidden="true"
       const hiddenSpan = document.querySelector('[aria-hidden="true"]');
       expect(hiddenSpan).toBeInTheDocument();
@@ -66,26 +47,14 @@ describe('SuggestionBadge', () => {
   describe('Apply callback', () => {
     it('calls onApply when Apply button is clicked', () => {
       const onApply = jest.fn();
-      render(
-        <SuggestionBadge
-          suggestedValue="500"
-          fieldLabel="Amount"
-          onApply={onApply}
-        />,
-      );
+      render(<SuggestionBadge suggestedValue="500" fieldLabel="Amount" onApply={onApply} />);
       fireEvent.click(screen.getByRole('button'));
       expect(onApply).toHaveBeenCalledTimes(1);
     });
 
     it('does not call onApply until button is clicked', () => {
       const onApply = jest.fn();
-      render(
-        <SuggestionBadge
-          suggestedValue="500"
-          fieldLabel="Amount"
-          onApply={onApply}
-        />,
-      );
+      render(<SuggestionBadge suggestedValue="500" fieldLabel="Amount" onApply={onApply} />);
       expect(onApply).not.toHaveBeenCalled();
     });
   });
@@ -93,11 +62,7 @@ describe('SuggestionBadge', () => {
   describe('aria-label', () => {
     it('Apply button has aria-label containing fieldLabel', () => {
       render(
-        <SuggestionBadge
-          suggestedValue="999"
-          fieldLabel="Invoice Amount"
-          onApply={jest.fn()}
-        />,
+        <SuggestionBadge suggestedValue="999" fieldLabel="Invoice Amount" onApply={jest.fn()} />,
       );
       const btn = screen.getByRole('button');
       expect(btn).toHaveAttribute('aria-label');
@@ -106,11 +71,7 @@ describe('SuggestionBadge', () => {
 
     it('Apply button has aria-label containing suggestedValue', () => {
       render(
-        <SuggestionBadge
-          suggestedValue="999"
-          fieldLabel="Invoice Amount"
-          onApply={jest.fn()}
-        />,
+        <SuggestionBadge suggestedValue="999" fieldLabel="Invoice Amount" onApply={jest.fn()} />,
       );
       const btn = screen.getByRole('button');
       expect(btn.getAttribute('aria-label')).toContain('999');
@@ -161,13 +122,7 @@ describe('SuggestionBadge', () => {
     });
 
     it('shows suggestedValue in body when displayValue is not provided', () => {
-      render(
-        <SuggestionBadge
-          suggestedValue="750"
-          fieldLabel="Amount"
-          onApply={jest.fn()}
-        />,
-      );
+      render(<SuggestionBadge suggestedValue="750" fieldLabel="Amount" onApply={jest.fn()} />);
       expect(screen.getByText(/750/)).toBeInTheDocument();
     });
   });
@@ -188,13 +143,7 @@ describe('SuggestionBadge', () => {
 
   describe('button type', () => {
     it('Apply button has type="button" to prevent accidental form submit', () => {
-      render(
-        <SuggestionBadge
-          suggestedValue="100"
-          fieldLabel="Amount"
-          onApply={jest.fn()}
-        />,
-      );
+      render(<SuggestionBadge suggestedValue="100" fieldLabel="Amount" onApply={jest.fn()} />);
       expect(screen.getByRole('button')).toHaveAttribute('type', 'button');
     });
   });

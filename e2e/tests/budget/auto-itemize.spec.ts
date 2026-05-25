@@ -437,144 +437,63 @@ test.describe(
 // SKIPPED (#1564): modal-based flow removed. Replacement: invoice-auto-itemize-page.spec.ts Scenario 3.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe.skip(
-  '[SKIPPED #1564] Auto-itemize full happy-path flow (Scenario 2 — AC19)',
-  () => {
-    test(
-      'Click Auto-itemize → preview modal shows 3 rows → edit one → Apply → 3 Unassigned rows appear → Assign one to work item',
-      { tag: '@smoke' },
-      async ({ page, testPrefix }) => {
-        const detailPage = new InvoiceDetailPage(page);
-        let vendorId = '';
-        let invoiceId = '';
-        let workItemId = '';
-
-        try {
-          vendorId = await createVendorViaApi(page, `${testPrefix} AI-Happy Vendor`);
-          invoiceId = await createInvoiceViaApi(page, vendorId, {
-            amount: 1700,
-            date: '2026-06-01',
-            invoiceNumber: `${testPrefix}-AI-HP-001`,
-          });
-          workItemId = await createWorkItemViaApi(page, {
-            title: `${testPrefix} AI Happy WI`,
-          });
-
-          await mockConfigEnabled(page);
-          await mockDocumentLinks(page, invoiceId, [
-            { linkId: 'dl-e2e-hp1', docId: 43001, title: 'Bathroom Invoice' },
-          ]);
-          await mockAutoItemize(page, invoiceId);
-
-          await detailPage.goto(invoiceId);
-          await expect(detailPage.heading).toBeVisible();
-
-          // ── Click Auto-itemize ────────────────────────────────────────────
-          await detailPage.clickAutoItemizeButton();
-
-          // ── Preview modal opens with 3 rows ──────────────────────────────
-          const previewModal = detailPage.getAutoItemizePreviewModal();
-          await expect(previewModal).toBeVisible();
-
-          // Count input rows in the table body (not the header or totals row)
-          // Each data row has a checkbox in the first column
-          const rowCheckboxes = previewModal.locator(
-            'table tbody tr input[type="checkbox"]:not([aria-label*="Select all"])',
-          );
-          await expect(rowCheckboxes).toHaveCount(3);
-
-          // ── Edit the first row's description ─────────────────────────────
-          await detailPage.editPreviewLineDescription(0, 'Edited bathroom tiles description');
-
-          // Verify the edit was applied in the input
-          const firstDescInput = previewModal.locator('table tbody tr input[type="text"]').first();
-          await expect(firstDescInput).toHaveValue('Edited bathroom tiles description');
-
-          // ── Apply button is enabled ───────────────────────────────────────
-          const applyBtn = previewModal.getByRole('button', { name: 'Apply', exact: true });
-          await expect(applyBtn).not.toBeDisabled();
-
-          // ── Click Apply with mode=append ─────────────────────────────────
-          // Register waitForResponse BEFORE click
-          const applyPromise = page.waitForResponse(
-            (resp) =>
-              resp.url().includes('/auto-itemize') &&
-              resp.request().method() === 'POST' &&
-              resp.status() === 200,
-          );
-          await detailPage.clickApplyButton();
-          await applyPromise;
-
-          // ── Modal closes ─────────────────────────────────────────────────
-          await expect(previewModal).not.toBeVisible();
-
-          // ── Budget lines section must be re-loaded with the new mock data ─
-          // The commit response returns 3 isUnassigned=true lines.
-          // We wait for the reload by checking for the Unassigned badge appearance.
-          // Note: the actual table data comes from the real API after commit resolves,
-          // but since we mocked the commit endpoint (which returns the 3 lines), the
-          // component calls loadBudgetLines() after onApplied(). The GET
-          // /api/invoices/:id/budget-lines will hit the real server — but since we
-          // didn't actually persist anything, we instead verify the page doesn't crash
-          // and the modal closed. The Unassigned badge assertion requires real data,
-          // so we skip that in this mocked test and instead verify the modal closed
-          // cleanly and the budget lines section is still visible.
-          await expect(detailPage.budgetLinesSection).toBeVisible();
-
-          // The heading is still visible (page didn't crash or navigate away)
-          await expect(detailPage.heading).toBeVisible();
-
-          // Additional integration verification: Assign flow works
-          // Since we mocked the commit, we can't assert Unassigned rows were added
-          // to the real DB. The full integration path is tested separately below
-          // (Scenario 2b) where we seed data and use the real API.
-        } finally {
-          if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-          if (vendorId) await deleteVendorViaApi(page, vendorId);
-          if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-        }
-      },
-    );
-
-    test('After apply, budget lines section is refreshed — page stays stable', async ({
-      page,
-      testPrefix,
-    }) => {
-      // Skip on mobile — functional test
-      const viewportWidth = page.viewportSize()?.width ?? 1440;
-      if (viewportWidth < 1024) {
-        test.skip(true, 'Functional test — desktop/tablet only');
-        return;
-      }
-
+test.describe.skip('[SKIPPED #1564] Auto-itemize full happy-path flow (Scenario 2 — AC19)', () => {
+  test(
+    'Click Auto-itemize → preview modal shows 3 rows → edit one → Apply → 3 Unassigned rows appear → Assign one to work item',
+    { tag: '@smoke' },
+    async ({ page, testPrefix }) => {
       const detailPage = new InvoiceDetailPage(page);
       let vendorId = '';
       let invoiceId = '';
+      let workItemId = '';
 
       try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Refresh Vendor`);
+        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Happy Vendor`);
         invoiceId = await createInvoiceViaApi(page, vendorId, {
           amount: 1700,
           date: '2026-06-01',
+          invoiceNumber: `${testPrefix}-AI-HP-001`,
+        });
+        workItemId = await createWorkItemViaApi(page, {
+          title: `${testPrefix} AI Happy WI`,
         });
 
         await mockConfigEnabled(page);
         await mockDocumentLinks(page, invoiceId, [
-          { linkId: 'dl-e2e-ref1', docId: 44001, title: 'Invoice PDF' },
+          { linkId: 'dl-e2e-hp1', docId: 43001, title: 'Bathroom Invoice' },
         ]);
-
-        // Mock dry-run returns 3 lines, commit returns updated list
         await mockAutoItemize(page, invoiceId);
 
         await detailPage.goto(invoiceId);
         await expect(detailPage.heading).toBeVisible();
 
-        // Trigger the full flow
+        // ── Click Auto-itemize ────────────────────────────────────────────
         await detailPage.clickAutoItemizeButton();
+
+        // ── Preview modal opens with 3 rows ──────────────────────────────
         const previewModal = detailPage.getAutoItemizePreviewModal();
         await expect(previewModal).toBeVisible();
 
-        // Apply without editing
+        // Count input rows in the table body (not the header or totals row)
+        // Each data row has a checkbox in the first column
+        const rowCheckboxes = previewModal.locator(
+          'table tbody tr input[type="checkbox"]:not([aria-label*="Select all"])',
+        );
+        await expect(rowCheckboxes).toHaveCount(3);
+
+        // ── Edit the first row's description ─────────────────────────────
+        await detailPage.editPreviewLineDescription(0, 'Edited bathroom tiles description');
+
+        // Verify the edit was applied in the input
+        const firstDescInput = previewModal.locator('table tbody tr input[type="text"]').first();
+        await expect(firstDescInput).toHaveValue('Edited bathroom tiles description');
+
+        // ── Apply button is enabled ───────────────────────────────────────
+        const applyBtn = previewModal.getByRole('button', { name: 'Apply', exact: true });
+        await expect(applyBtn).not.toBeDisabled();
+
+        // ── Click Apply with mode=append ─────────────────────────────────
+        // Register waitForResponse BEFORE click
         const applyPromise = page.waitForResponse(
           (resp) =>
             resp.url().includes('/auto-itemize') &&
@@ -584,17 +503,95 @@ test.describe.skip(
         await detailPage.clickApplyButton();
         await applyPromise;
 
-        // Modal closes, page still functional
+        // ── Modal closes ─────────────────────────────────────────────────
         await expect(previewModal).not.toBeVisible();
+
+        // ── Budget lines section must be re-loaded with the new mock data ─
+        // The commit response returns 3 isUnassigned=true lines.
+        // We wait for the reload by checking for the Unassigned badge appearance.
+        // Note: the actual table data comes from the real API after commit resolves,
+        // but since we mocked the commit endpoint (which returns the 3 lines), the
+        // component calls loadBudgetLines() after onApplied(). The GET
+        // /api/invoices/:id/budget-lines will hit the real server — but since we
+        // didn't actually persist anything, we instead verify the page doesn't crash
+        // and the modal closed. The Unassigned badge assertion requires real data,
+        // so we skip that in this mocked test and instead verify the modal closed
+        // cleanly and the budget lines section is still visible.
         await expect(detailPage.budgetLinesSection).toBeVisible();
+
+        // The heading is still visible (page didn't crash or navigate away)
         await expect(detailPage.heading).toBeVisible();
+
+        // Additional integration verification: Assign flow works
+        // Since we mocked the commit, we can't assert Unassigned rows were added
+        // to the real DB. The full integration path is tested separately below
+        // (Scenario 2b) where we seed data and use the real API.
       } finally {
         if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
         if (vendorId) await deleteVendorViaApi(page, vendorId);
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       }
-    });
-  },
-);
+    },
+  );
+
+  test('After apply, budget lines section is refreshed — page stays stable', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Skip on mobile — functional test
+    const viewportWidth = page.viewportSize()?.width ?? 1440;
+    if (viewportWidth < 1024) {
+      test.skip(true, 'Functional test — desktop/tablet only');
+      return;
+    }
+
+    const detailPage = new InvoiceDetailPage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Refresh Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
+
+      await mockConfigEnabled(page);
+      await mockDocumentLinks(page, invoiceId, [
+        { linkId: 'dl-e2e-ref1', docId: 44001, title: 'Invoice PDF' },
+      ]);
+
+      // Mock dry-run returns 3 lines, commit returns updated list
+      await mockAutoItemize(page, invoiceId);
+
+      await detailPage.goto(invoiceId);
+      await expect(detailPage.heading).toBeVisible();
+
+      // Trigger the full flow
+      await detailPage.clickAutoItemizeButton();
+      const previewModal = detailPage.getAutoItemizePreviewModal();
+      await expect(previewModal).toBeVisible();
+
+      // Apply without editing
+      const applyPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/auto-itemize') &&
+          resp.request().method() === 'POST' &&
+          resp.status() === 200,
+      );
+      await detailPage.clickApplyButton();
+      await applyPromise;
+
+      // Modal closes, page still functional
+      await expect(previewModal).not.toBeVisible();
+      await expect(detailPage.budgetLinesSection).toBeVisible();
+      await expect(detailPage.heading).toBeVisible();
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: Document picker when 2+ docs are linked
@@ -834,7 +831,8 @@ test.describe.skip('[SKIPPED #1564] Auto-itemize mismatch warning (Scenario 5)',
 // not in AutoItemizePreviewModal. The error handling is in AutoItemizePage errorBanner.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe.skip('[SKIPPED #1564] Auto-itemize ITEMIZED_SUM_EXCEEDS_INVOICE on Apply (Scenario 6)', () => {
+test.describe
+  .skip('[SKIPPED #1564] Auto-itemize ITEMIZED_SUM_EXCEEDS_INVOICE on Apply (Scenario 6)', () => {
   test('Clicking Apply when commit returns 400 ITEMIZED_SUM_EXCEEDS_INVOICE shows inline error in modal', async ({
     page,
     testPrefix,
@@ -999,7 +997,8 @@ test.describe.skip('[SKIPPED #1564] Auto-itemize LLM unreachable (Scenario 7)', 
 // The test needs to be rewritten to use AutoItemizePage instead of the old modal POM.
 // For now, skip it — a replacement test can be added to invoice-auto-itemize-page.spec.ts.
 
-test.describe.skip('[SKIPPED #1564] Auto-itemize mode toggle (Scenario 8) — needs rewrite for AutoItemizePage', () => {
+test.describe
+  .skip('[SKIPPED #1564] Auto-itemize mode toggle (Scenario 8) — needs rewrite for AutoItemizePage', () => {
   test('Mode radio defaults to "Append" and can be switched to "Replace"', async ({
     page,
     testPrefix,
@@ -1068,7 +1067,8 @@ test.describe.skip('[SKIPPED #1564] Auto-itemize mode toggle (Scenario 8) — ne
 // Skip here to avoid false failures from the old modal POM.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe.skip('[SKIPPED #1564] Auto-itemize row include/exclude toggle (Scenario 9) — needs rewrite for AutoItemizePage', () => {
+test.describe
+  .skip('[SKIPPED #1564] Auto-itemize row include/exclude toggle (Scenario 9) — needs rewrite for AutoItemizePage', () => {
   test('Unchecking a row disables it and removes it from the apply payload', async ({
     page,
     testPrefix,

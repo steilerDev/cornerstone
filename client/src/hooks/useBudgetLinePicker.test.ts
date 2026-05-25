@@ -43,8 +43,7 @@ jest.unstable_mockModule('../lib/householdItemBudgetsApi.js', () => ({
   deleteHouseholdItemBudget: jest.fn(),
 }));
 
-const mockFetchBudgetCategories =
-  jest.fn<typeof BudgetCategoriesApiModule.fetchBudgetCategories>();
+const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiModule.fetchBudgetCategories>();
 
 jest.unstable_mockModule('../lib/budgetCategoriesApi.js', () => ({
   fetchBudgetCategories: mockFetchBudgetCategories,
@@ -429,7 +428,6 @@ describe('useBudgetLinePicker', () => {
   });
 
   describe('handleCreateBudgetLine', () => {
-
     it('calls onLineCreated callback on successful budget line creation', async () => {
       const onLineCreated = jest.fn();
       const wib = makeWib('new-wib-1');
@@ -443,7 +441,15 @@ describe('useBudgetLinePicker', () => {
       mockCreateWorkItemBudget.mockResolvedValue({ ...wib, invoiceLink: null });
       mockCreateInvoiceBudgetLine.mockResolvedValue({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        budgetLine: { id: 'ibl-1', invoiceId: 'inv-1', workItemBudgetId: 'new-wib-1', householdItemBudgetId: null, itemizedAmount: 200, createdAt: '', updatedAt: '' } as any,
+        budgetLine: {
+          id: 'ibl-1',
+          invoiceId: 'inv-1',
+          workItemBudgetId: 'new-wib-1',
+          householdItemBudgetId: null,
+          itemizedAmount: 200,
+          createdAt: '',
+          updatedAt: '',
+        } as any,
         remainingAmount: 800,
       });
 
@@ -794,9 +800,17 @@ describe('useBudgetLinePicker', () => {
       });
       // Return wib with plannedAmount that would be set from qty * price = 2 * 50 = 100
       mockCreateWorkItemBudget.mockResolvedValue({ ...wib, plannedAmount: 100, invoiceLink: null });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       mockCreateInvoiceBudgetLine.mockResolvedValue({
-        budgetLine: { id: 'ibl-1', invoiceId: 'inv-1', workItemBudgetId: 'new-wib-1', householdItemBudgetId: null, itemizedAmount: 100, createdAt: '', updatedAt: '' } as any,
+        budgetLine: {
+          id: 'ibl-1',
+          invoiceId: 'inv-1',
+          workItemBudgetId: 'new-wib-1',
+          householdItemBudgetId: null,
+          itemizedAmount: 100,
+          createdAt: '',
+          updatedAt: '',
+        } as any,
         remainingAmount: 900,
       });
       mockFetchWorkItemBudgets.mockResolvedValue([]);

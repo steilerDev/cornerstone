@@ -26,9 +26,7 @@ export function SuggestionBadge({
   return (
     <span className={`${styles.badge} ${className || ''}`}>
       <span aria-hidden="true">✨</span>
-      <span>
-        {t('autoItemize.suggested', { value: displayValue ?? suggestedValue })}
-      </span>
+      <span>{t('autoItemize.suggested', { value: displayValue ?? suggestedValue })}</span>
       <button
         type="button"
         className={styles.applyButton}

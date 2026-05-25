@@ -143,7 +143,7 @@
   font-size: var(--font-size-sm);
 }
 
-.modeSelector input[type="radio"] {
+.modeSelector input[type='radio'] {
   cursor: pointer;
 }
 
@@ -283,7 +283,7 @@
   text-align: center;
 }
 
-.tdCheckbox input[type="checkbox"] {
+.tdCheckbox input[type='checkbox'] {
   cursor: pointer;
 }
 

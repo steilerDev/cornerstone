@@ -256,9 +256,7 @@ describe('LinkedDocumentsSection — onItemize callback', () => {
     render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
 
     // Wait for config to load and cards to render
-    await waitFor(() =>
-      expect(screen.getByTestId('linked-card-link-inv-1')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByTestId('linked-card-link-inv-1')).toBeInTheDocument());
     await waitFor(() => expect(capturedOnItemize).toBeDefined());
 
     expect(capturedOnItemize).toBeDefined();
@@ -272,9 +270,7 @@ describe('LinkedDocumentsSection — onItemize callback', () => {
 
     render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
 
-    await waitFor(() =>
-      expect(screen.getByTestId('linked-card-link-inv-2')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByTestId('linked-card-link-inv-2')).toBeInTheDocument());
     await waitFor(() => expect(mockFetchConfig).toHaveBeenCalled());
 
     // Give config time to load
@@ -293,9 +289,7 @@ describe('LinkedDocumentsSection — onItemize callback', () => {
 
     render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
 
-    await waitFor(() =>
-      expect(screen.getByTestId('linked-card-link-wi-1')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByTestId('linked-card-link-wi-1')).toBeInTheDocument());
     await waitFor(() => expect(mockFetchConfig).toHaveBeenCalled());
 
     await act(async () => {
@@ -308,15 +302,11 @@ describe('LinkedDocumentsSection — onItemize callback', () => {
   it('clicking Itemize button navigates to auto-itemize page', async () => {
     mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true, currency: 'EUR' });
     const invoiceLink = makeInvoiceLink('link-inv-3');
-    mockUseDocumentLinks.mockReturnValue(
-      makeHook({ links: [invoiceLink], isLoading: false }),
-    );
+    mockUseDocumentLinks.mockReturnValue(makeHook({ links: [invoiceLink], isLoading: false }));
 
     render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
 
-    await waitFor(() =>
-      expect(screen.getByTestId('linked-card-link-inv-3')).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByTestId('linked-card-link-inv-3')).toBeInTheDocument());
     await waitFor(() => expect(capturedOnItemize).toBeDefined());
 
     // Click the Itemize button exposed by mock

@@ -310,16 +310,17 @@ export function AutoItemizePage() {
     tErrors,
   ]);
 
-  const handleApplySuggestion = useCallback((field: keyof MetadataEdits, value: string) => {
-    setMetadataEdits((prev) => ({ ...prev, [field]: value }));
-    setAnnounceMessage(t('autoItemize.suggestionApplied', { field }));
-  }, [t]);
+  const handleApplySuggestion = useCallback(
+    (field: keyof MetadataEdits, value: string) => {
+      setMetadataEdits((prev) => ({ ...prev, [field]: value }));
+      setAnnounceMessage(t('autoItemize.suggestionApplied', { field }));
+    },
+    [t],
+  );
 
   const handleLineToggle = useCallback((rowId: string) => {
     setLines((prev) =>
-      prev.map((line) =>
-        line.rowId === rowId ? { ...line, included: !line.included } : line,
-      ),
+      prev.map((line) => (line.rowId === rowId ? { ...line, included: !line.included } : line)),
     );
   }, []);
 
@@ -360,10 +361,13 @@ export function AutoItemizePage() {
     [],
   );
 
-  const handleAssignButtonClick = useCallback((rowId: string) => {
-    setActiveRowId(rowId);
-    picker.openPicker();
-  }, [picker]);
+  const handleAssignButtonClick = useCallback(
+    (rowId: string) => {
+      setActiveRowId(rowId);
+      picker.openPicker();
+    },
+    [picker],
+  );
 
   /**
    * Step 2: User selects a budget line from the filtered list.
@@ -373,9 +377,8 @@ export function AutoItemizePage() {
     (budgetLine: WorkItemBudgetLine | HouseholdItemBudgetLine) => {
       if (!activeRowId) return;
 
-      const lineType: 'work_item' | 'household_item' = 'workItemId' in budgetLine
-        ? 'work_item'
-        : 'household_item';
+      const lineType: 'work_item' | 'household_item' =
+        'workItemId' in budgetLine ? 'work_item' : 'household_item';
 
       setLines((prev) =>
         prev.map((l) =>
@@ -447,10 +450,7 @@ export function AutoItemizePage() {
   );
 
   const computedLineTotal = useMemo(
-    () =>
-      lines
-        .filter((l) => l.included)
-        .reduce((sum, line) => sum + (line.totalAmount ?? 0), 0),
+    () => lines.filter((l) => l.included).reduce((sum, line) => sum + (line.totalAmount ?? 0), 0),
     [lines],
   );
 
@@ -471,13 +471,15 @@ export function AutoItemizePage() {
     if (variancePercent <= 0.05) {
       return (
         <span className={styles.varianceWarning}>
-          <span aria-hidden="true">⚠</span> {t('autoItemize.varianceWarning', { amount: formatCurrency(Math.abs(variance)) })}
+          <span aria-hidden="true">⚠</span>{' '}
+          {t('autoItemize.varianceWarning', { amount: formatCurrency(Math.abs(variance)) })}
         </span>
       );
     }
     return (
       <span className={styles.varianceDanger}>
-        <span aria-hidden="true">✕</span> {t('autoItemize.varianceDanger', { amount: formatCurrency(Math.abs(variance)) })}
+        <span aria-hidden="true">✕</span>{' '}
+        {t('autoItemize.varianceDanger', { amount: formatCurrency(Math.abs(variance)) })}
       </span>
     );
   };
@@ -514,11 +516,7 @@ export function AutoItemizePage() {
           <div className={styles.errorColumn}>
             <FormError variant="banner" message={pageError || t('autoItemize.error')} />
             {pageStatus === 'error' && (
-              <button
-                type="button"
-                className={sharedStyles.btnPrimary}
-                onClick={handleRetry}
-              >
+              <button type="button" className={sharedStyles.btnPrimary} onClick={handleRetry}>
                 {t('autoItemize.retry')}
               </button>
             )}
@@ -536,10 +534,7 @@ export function AutoItemizePage() {
       <div className={styles.pageContainer}>
         <div className={styles.pageHeader}>
           <div>
-            <Link
-              to={`/budget/invoices/${invoiceId}`}
-              className={styles.breadcrumb}
-            >
+            <Link to={`/budget/invoices/${invoiceId}`} className={styles.breadcrumb}>
               {t('autoItemize.backToInvoice')}
             </Link>
           </div>
@@ -604,9 +599,7 @@ export function AutoItemizePage() {
                       suggestedValue={amountSuggestion.toString()}
                       fieldLabel={t('autoItemize.amount')}
                       displayValue={formatCurrency(amountSuggestion)}
-                      onApply={() =>
-                        handleApplySuggestion('amount', amountSuggestion.toString())
-                      }
+                      onApply={() => handleApplySuggestion('amount', amountSuggestion.toString())}
                     />
                   )}
                 </div>
@@ -667,7 +660,11 @@ export function AutoItemizePage() {
             {/* Mode selector */}
             <div className={styles.metadataCard}>
               <h3>{t('autoItemize.mode')}</h3>
-              <div className={styles.modeSelector} role="group" aria-label={t('autoItemize.modeLabel')}>
+              <div
+                className={styles.modeSelector}
+                role="group"
+                aria-label={t('autoItemize.modeLabel')}
+              >
                 <label>
                   <input
                     type="radio"
@@ -748,7 +745,9 @@ export function AutoItemizePage() {
                             type="text"
                             size={6}
                             value={line.unit ?? ''}
-                            onChange={(e) => handleLineFieldChange(line.rowId, 'unit', e.target.value)}
+                            onChange={(e) =>
+                              handleLineFieldChange(line.rowId, 'unit', e.target.value)
+                            }
                             aria-label={t('autoItemize.editUnitAriaLabel')}
                           />
                         </td>
@@ -892,12 +891,7 @@ export function AutoItemizePage() {
 
           {/* Preview column (document detail panel) */}
           <div className={styles.previewColumn}>
-            {document && (
-              <DocumentDetailPanel
-                document={document}
-                variant="sidebyside"
-              />
-            )}
+            {document && <DocumentDetailPanel document={document} variant="sidebyside" />}
           </div>
         </div>
       </div>
@@ -1106,11 +1100,7 @@ export function AutoItemizePage() {
         >
           <p>{t('autoItemize.cancelConfirmBody')}</p>
           <div className={styles.modalActions}>
-            <button
-              type="button"
-              className={sharedStyles.btnPrimary}
-              onClick={handleConfirmCancel}
-            >
+            <button type="button" className={sharedStyles.btnPrimary} onClick={handleConfirmCancel}>
               {t('autoItemize.discardChanges')}
             </button>
             <button

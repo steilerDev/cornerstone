@@ -7,10 +7,7 @@ import type {
   BudgetCategory,
   CreateInvoiceBudgetLineRequest,
 } from '@cornerstone/shared';
-import {
-  fetchWorkItemBudgets,
-  createWorkItemBudget,
-} from '../lib/workItemBudgetsApi.js';
+import { fetchWorkItemBudgets, createWorkItemBudget } from '../lib/workItemBudgetsApi.js';
 import {
   fetchHouseholdItemBudgets,
   createHouseholdItemBudget,
@@ -57,11 +54,7 @@ export interface UseBudgetLinePickerReturn {
   pickerState: PickerState;
   openPicker: () => void;
   closePicker: () => void;
-  handleSelectItem: (
-    itemId: string,
-    type: BudgetLineType,
-    itemTitle?: string,
-  ) => Promise<void>;
+  handleSelectItem: (itemId: string, type: BudgetLineType, itemTitle?: string) => Promise<void>;
   showCreateBudgetLineForm: () => Promise<void>;
   handleCreateBudgetLine: (e: FormEvent) => Promise<void>;
   setPickerState: React.Dispatch<React.SetStateAction<PickerState>>;
@@ -143,10 +136,7 @@ export function useBudgetLinePicker({
       });
 
       try {
-        const fetchFn =
-          type === 'work_item'
-            ? fetchWorkItemBudgets
-            : fetchHouseholdItemBudgets;
+        const fetchFn = type === 'work_item' ? fetchWorkItemBudgets : fetchHouseholdItemBudgets;
         const lines = await fetchFn(itemId);
 
         // Filter to only unlinked budget lines
@@ -176,16 +166,13 @@ export function useBudgetLinePicker({
 
   const showCreateBudgetLineForm = useCallback(async () => {
     try {
-      const [categoriesResponse, sourcesResponse, vendorsResponse] =
-        await Promise.all([
-          fetchBudgetCategories(),
-          fetchBudgetSources(),
-          fetchVendors({ pageSize: 100 }),
-        ]);
+      const [categoriesResponse, sourcesResponse, vendorsResponse] = await Promise.all([
+        fetchBudgetCategories(),
+        fetchBudgetSources(),
+        fetchVendors({ pageSize: 100 }),
+      ]);
 
-      const discretionaryId = sourcesResponse.budgetSources.find(
-        (s) => s.isDiscretionary,
-      )?.id;
+      const discretionaryId = sourcesResponse.budgetSources.find((s) => s.isDiscretionary)?.id;
 
       const initialForm: BudgetLineFormState = {
         description: '',
@@ -225,8 +212,7 @@ export function useBudgetLinePicker({
   const handleCreateBudgetLine = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
-      if (!pickerState.itemId || !pickerState.type || !pickerState.createForm)
-        return;
+      if (!pickerState.itemId || !pickerState.type || !pickerState.createForm) return;
 
       const form = pickerState.createForm;
 
@@ -236,9 +222,7 @@ export function useBudgetLinePicker({
         if (isNaN(plannedAmount) || plannedAmount < 0) {
           setPickerState((prev) => ({
             ...prev,
-            createError: t(
-              'invoiceDetail.budgetLines.picker.error.plannedAmountInvalid',
-            ),
+            createError: t('invoiceDetail.budgetLines.picker.error.plannedAmountInvalid'),
           }));
           return;
         }
@@ -250,18 +234,14 @@ export function useBudgetLinePicker({
         if (isNaN(qty) || qty <= 0) {
           setPickerState((prev) => ({
             ...prev,
-            createError: t(
-              'invoiceDetail.budgetLines.picker.error.quantityInvalid',
-            ),
+            createError: t('invoiceDetail.budgetLines.picker.error.quantityInvalid'),
           }));
           return;
         }
         if (isNaN(price) || price < 0) {
           setPickerState((prev) => ({
             ...prev,
-            createError: t(
-              'invoiceDetail.budgetLines.picker.error.unitPriceInvalid',
-            ),
+            createError: t('invoiceDetail.budgetLines.picker.error.unitPriceInvalid'),
           }));
           return;
         }
@@ -277,29 +257,18 @@ export function useBudgetLinePicker({
 
       try {
         const createFn =
-          pickerState.type === 'work_item'
-            ? createWorkItemBudget
-            : createHouseholdItemBudget;
+          pickerState.type === 'work_item' ? createWorkItemBudget : createHouseholdItemBudget;
         const payload = {
           description: form.description.trim() || null,
           plannedAmount,
           confidence: form.confidence,
-          budgetCategoryId:
-            pickerState.type === 'work_item'
-              ? form.budgetCategoryId || null
-              : null,
+          budgetCategoryId: pickerState.type === 'work_item' ? form.budgetCategoryId || null : null,
           budgetSourceId: form.budgetSourceId || null,
           vendorId: form.vendorId || null,
-          quantity:
-            form.pricingMode === 'unit' && form.quantity
-              ? parseFloat(form.quantity)
-              : null,
-          unit:
-            form.pricingMode === 'unit' && form.unit ? form.unit : null,
+          quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
+          unit: form.pricingMode === 'unit' && form.unit ? form.unit : null,
           unitPrice:
-            form.pricingMode === 'unit' && form.unitPrice
-              ? parseFloat(form.unitPrice)
-              : null,
+            form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
           includesVat: form.includesVat,
         };
         const newBudgetLine = await createFn(pickerState.itemId, payload);
@@ -327,23 +296,15 @@ export function useBudgetLinePicker({
           ) {
             try {
               const fetchFn =
-                pickerState.type === 'work_item'
-                  ? fetchWorkItemBudgets
-                  : fetchHouseholdItemBudgets;
+                pickerState.type === 'work_item' ? fetchWorkItemBudgets : fetchHouseholdItemBudgets;
               const lines = await fetchFn(pickerState.itemId!);
-              const unlinkedLines = lines.filter(
-                (bl) => bl.invoiceLink === null,
-              );
+              const unlinkedLines = lines.filter((bl) => bl.invoiceLink === null);
 
               let errorMsg: string;
               if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-                errorMsg = t(
-                  'invoiceDetail.budgetLines.picker.error.exceedsTotal',
-                );
+                errorMsg = t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
               } else {
-                errorMsg = t(
-                  'invoiceDetail.budgetLines.picker.error.alreadyLinked',
-                );
+                errorMsg = t('invoiceDetail.budgetLines.picker.error.alreadyLinked');
               }
 
               setPickerState((prev) => ({
@@ -380,14 +341,21 @@ export function useBudgetLinePicker({
           setPickerState((prev) => ({
             ...prev,
             isCreatingBudgetLine: false,
-            createError: t(
-              'invoiceDetail.budgetLines.picker.error.createFailed',
-            ),
+            createError: t('invoiceDetail.budgetLines.picker.error.createFailed'),
           }));
         }
       }
     },
-    [pickerState.itemId, pickerState.type, pickerState.createForm, t, invoiceId, onLineCreated, closePicker, eagerLinkInvoice],
+    [
+      pickerState.itemId,
+      pickerState.type,
+      pickerState.createForm,
+      t,
+      invoiceId,
+      onLineCreated,
+      closePicker,
+      eagerLinkInvoice,
+    ],
   );
 
   return {

@@ -166,24 +166,16 @@ describe('DocumentDetailPanel', () => {
   describe('variant prop', () => {
     it('default variant (no variant prop) shows close button', () => {
       render(<DocumentDetailPanel document={makeDoc()} onClose={jest.fn()} />);
-      expect(
-        screen.getByRole('button', { name: /close document details/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /close document details/i })).toBeInTheDocument();
     });
 
     it('variant="standalone" (explicit) shows close button', () => {
-      render(
-        <DocumentDetailPanel document={makeDoc()} onClose={jest.fn()} variant="standalone" />,
-      );
-      expect(
-        screen.getByRole('button', { name: /close document details/i }),
-      ).toBeInTheDocument();
+      render(<DocumentDetailPanel document={makeDoc()} onClose={jest.fn()} variant="standalone" />);
+      expect(screen.getByRole('button', { name: /close document details/i })).toBeInTheDocument();
     });
 
     it('variant="sidebyside" does NOT show close button', () => {
-      render(
-        <DocumentDetailPanel document={makeDoc()} variant="sidebyside" />,
-      );
+      render(<DocumentDetailPanel document={makeDoc()} variant="sidebyside" />);
       expect(
         screen.queryByRole('button', { name: /close document details/i }),
       ).not.toBeInTheDocument();
@@ -197,16 +189,12 @@ describe('DocumentDetailPanel', () => {
 
     it('variant="sidebyside" still renders document title', () => {
       render(<DocumentDetailPanel document={makeDoc()} variant="sidebyside" />);
-      expect(
-        screen.getByRole('heading', { name: 'Annual Report 2025' }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Annual Report 2025' })).toBeInTheDocument();
     });
 
     it('variant="standalone" calls onClose when close button is clicked', () => {
       const onClose = jest.fn();
-      render(
-        <DocumentDetailPanel document={makeDoc()} onClose={onClose} variant="standalone" />,
-      );
+      render(<DocumentDetailPanel document={makeDoc()} onClose={onClose} variant="standalone" />);
       fireEvent.click(screen.getByRole('button', { name: /close document details/i }));
       expect(onClose).toHaveBeenCalledTimes(1);
     });

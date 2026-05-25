@@ -221,14 +221,18 @@ export class AutoItemizePage {
 
     // Step 1 — Household Item search input (HouseholdItemPicker → SearchPicker plain <input type="text">)
     // Scoped to the right tab (div class*="tab" containing h3 "Household Item")
-    this.pickerHouseholdItemSearchInput = this.pickerModal.getByPlaceholder('Search household items...');
+    this.pickerHouseholdItemSearchInput = this.pickerModal.getByPlaceholder(
+      'Search household items...',
+    );
 
     // Step 2 — "← Back" button: returns to step 1
     // The modal title changes to "Select Budget Line for …" in step 2.
     // We scope the back button to the dialog element (which stays open during step transitions).
     // Use a broader dialog scope that matches both step titles.
     const anyPickerModal = page.locator('[role="dialog"]').filter({
-      has: page.locator('h2', { hasText: /Assign to Work Item or Household Item|Select Budget Line/i }),
+      has: page.locator('h2', {
+        hasText: /Assign to Work Item or Household Item|Select Budget Line/i,
+      }),
     });
     this.pickerBackButton = anyPickerModal.getByRole('button', { name: /← Back/i });
 
@@ -238,7 +242,9 @@ export class AutoItemizePage {
     });
 
     // Step 2 — Inline BudgetLineForm fieldset (class*="createBudgetLineFieldset")
-    this.pickerCreateBudgetLineFieldset = anyPickerModal.locator('[class*="createBudgetLineFieldset"]');
+    this.pickerCreateBudgetLineFieldset = anyPickerModal.locator(
+      '[class*="createBudgetLineFieldset"]',
+    );
   }
 
   /**
@@ -289,7 +295,11 @@ export class AutoItemizePage {
   suggestionBadge(field: 'amount' | 'date' | 'dueDate'): Locator {
     const inputId = field === 'dueDate' ? 'due-date' : field;
     // The badge is a sibling of the input, inside a field-control div or the field row
-    return this.page.locator(`#${inputId}`).locator('xpath=ancestor::div').locator('[class*="badge"]').first();
+    return this.page
+      .locator(`#${inputId}`)
+      .locator('xpath=ancestor::div')
+      .locator('[class*="badge"]')
+      .first();
   }
 
   /**

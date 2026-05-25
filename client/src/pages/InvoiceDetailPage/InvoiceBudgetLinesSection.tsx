@@ -134,7 +134,6 @@ export function InvoiceBudgetLinesSection({
     }
   }, [isBudgetLineMutating]);
 
-
   const openEditBudgetLineModal = (
     line: InvoiceBudgetLineDetailResponse,
     options?: { focusParentPicker?: boolean },
@@ -197,7 +196,6 @@ export function InvoiceBudgetLinesSection({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [picker.pickerState.isOpen, picker]);
-
 
   /**
    * Step 2: User submits selected budget lines with their itemized amounts.
@@ -407,7 +405,14 @@ export function InvoiceBudgetLinesSection({
       setRemainingAmount(response.remainingAmount);
       closeBudgetLineModal();
     },
-    [selectedBudgetLine, budgetLineFullForm, budgetLineItemizedAmount, invoiceId, t, closeBudgetLineModal],
+    [
+      selectedBudgetLine,
+      budgetLineFullForm,
+      budgetLineItemizedAmount,
+      invoiceId,
+      t,
+      closeBudgetLineModal,
+    ],
   );
 
   /**
@@ -839,11 +844,14 @@ export function InvoiceBudgetLinesSection({
                                     }
                                   }}
                                   className={styles.budgetLineCheckbox}
-                                  aria-label={t('invoiceDetail.budgetLines.picker.selectAriaLabel', {
-                                    description:
-                                      line.description ||
-                                      t('invoiceDetail.budgetLines.picker.budgetLineGeneric'),
-                                  })}
+                                  aria-label={t(
+                                    'invoiceDetail.budgetLines.picker.selectAriaLabel',
+                                    {
+                                      description:
+                                        line.description ||
+                                        t('invoiceDetail.budgetLines.picker.budgetLineGeneric'),
+                                    },
+                                  )}
                                 />
                                 <div className={styles.budgetLineInfo}>
                                   <label
@@ -1027,7 +1035,6 @@ export function InvoiceBudgetLinesSection({
           t={t}
         />
       )}
-
     </section>
   );
 }

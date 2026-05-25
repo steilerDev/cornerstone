@@ -77,6 +77,7 @@ Per-row picker UI and editable field aria-labels added to `autoItemize.*` in `de
 **Edit aria-labels pattern:**
 
 All edit aria-labels follow "X der Position bearbeiten" pattern (genitive "der Position" — of the line item):
+
 - `editDescriptionAriaLabel` → "Beschreibung der Position bearbeiten"
 - `editQuantityAriaLabel` → "Menge der Position bearbeiten"
 - `editUnitAriaLabel` → "Einheit der Position bearbeiten"

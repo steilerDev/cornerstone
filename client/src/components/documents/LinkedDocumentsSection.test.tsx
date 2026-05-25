@@ -785,5 +785,4 @@ describe('LinkedDocumentsSection', () => {
       expect(capturedLinkedDocumentIds).toEqual([]);
     });
   });
-
 });

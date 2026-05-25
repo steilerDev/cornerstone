@@ -51,11 +51,7 @@ export function LinkedDocumentCard({
       <div className={styles.body}>
         <h3 className={styles.title}>{title}</h3>
 
-        {created && (
-          <p className={styles.meta}>
-            {formatDate(created)}
-          </p>
-        )}
+        {created && <p className={styles.meta}>{formatDate(created)}</p>}
 
         {tags.length > 0 && (
           <div className={styles.tags}>

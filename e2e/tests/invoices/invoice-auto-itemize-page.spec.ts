@@ -98,12 +98,7 @@ async function createWorkItemBudgetViaApi(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Fake document link as returned by GET /api/document-links */
-function makeDocLink(opts: {
-  linkId: string;
-  docId: number;
-  title: string;
-  entityId: string;
-}) {
+function makeDocLink(opts: { linkId: string; docId: number; title: string; entityId: string }) {
   return {
     id: opts.linkId,
     entityType: 'invoice',
@@ -241,7 +236,11 @@ async function mockDocumentLinks(
 async function mockPaperlessDocument(page: Page, docId: number, title: string): Promise<void> {
   await page.route(`**/paperless/documents/${docId}`, async (route: Route) => {
     // Only intercept GET (not thumb/preview)
-    if (route.request().method() !== 'GET' || route.request().url().includes('/thumb') || route.request().url().includes('/preview')) {
+    if (
+      route.request().method() !== 'GET' ||
+      route.request().url().includes('/thumb') ||
+      route.request().url().includes('/preview')
+    ) {
       await route.continue();
       return;
     }
@@ -357,51 +356,55 @@ async function mockAutoItemizeBothPhases(
 // Scenario 1 & 2 — Itemize button visibility on LinkedDocumentCard
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Scenario 1 & 2 — Itemize button visibility on LinkedDocumentCard', { tag: ['@smoke'] }, () => {
-  test(
-    'Itemize button appears on LinkedDocumentCard when autoItemizeEnabled=true (Scenario 1)',
-    { tag: '@smoke' },
-    async ({ page, testPrefix }) => {
-      const detailPage = new InvoiceDetailPage(page);
-      let vendorId = '';
-      let invoiceId = '';
+test.describe(
+  'Scenario 1 & 2 — Itemize button visibility on LinkedDocumentCard',
+  { tag: ['@smoke'] },
+  () => {
+    test(
+      'Itemize button appears on LinkedDocumentCard when autoItemizeEnabled=true (Scenario 1)',
+      { tag: '@smoke' },
+      async ({ page, testPrefix }) => {
+        const detailPage = new InvoiceDetailPage(page);
+        let vendorId = '';
+        let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Page-Vis Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 1700,
-          date: '2026-06-01',
-          invoiceNumber: `${testPrefix}-AI-PAGE-VIS-001`,
-        });
+        try {
+          vendorId = await createVendorViaApi(page, `${testPrefix} AI-Page-Vis Vendor`);
+          invoiceId = await createInvoiceViaApi(page, vendorId, {
+            amount: 1700,
+            date: '2026-06-01',
+            invoiceNumber: `${testPrefix}-AI-PAGE-VIS-001`,
+          });
 
-        await mockConfig(page, true);
-        await mockDocumentLinks(page, invoiceId, [
-          { linkId: 'dl-page-vis-1', docId: 61001, title: 'Invoice Doc Alpha' },
-        ]);
+          await mockConfig(page, true);
+          await mockDocumentLinks(page, invoiceId, [
+            { linkId: 'dl-page-vis-1', docId: 61001, title: 'Invoice Doc Alpha' },
+          ]);
 
-        await detailPage.goto(invoiceId);
-        await expect(detailPage.heading).toBeVisible();
+          await detailPage.goto(invoiceId);
+          await expect(detailPage.heading).toBeVisible();
 
-        // ── Itemize button visible on the document card ─────────────────────
-        const itemizeBtn = detailPage.itemizeButton('Invoice Doc Alpha');
-        await expect(itemizeBtn).toBeVisible();
+          // ── Itemize button visible on the document card ─────────────────────
+          const itemizeBtn = detailPage.itemizeButton('Invoice Doc Alpha');
+          await expect(itemizeBtn).toBeVisible();
 
-        // ── "Details" button visible (renamed from "View" in story #1564) ───
-        const detailsBtn = detailPage.detailsButton('Invoice Doc Alpha');
-        await expect(detailsBtn).toBeVisible();
+          // ── "Details" button visible (renamed from "View" in story #1564) ───
+          const detailsBtn = detailPage.detailsButton('Invoice Doc Alpha');
+          await expect(detailsBtn).toBeVisible();
 
-        // ── Old "Auto-itemize" button is NOT in the budget lines section ─────
-        await expect(detailPage.autoItemizeButton()).not.toBeVisible();
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+          // ── Old "Auto-itemize" button is NOT in the budget lines section ─────
+          await expect(detailPage.autoItemizeButton()).not.toBeVisible();
+        } finally {
+          if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+          if (vendorId) await deleteVendorViaApi(page, vendorId);
+        }
+      },
+    );
 
-  test(
-    'Itemize button hidden when autoItemizeEnabled=false (Scenario 2)',
-    async ({ page, testPrefix }) => {
+    test('Itemize button hidden when autoItemizeEnabled=false (Scenario 2)', async ({
+      page,
+      testPrefix,
+    }) => {
       const detailPage = new InvoiceDetailPage(page);
       let vendorId = '';
       let invoiceId = '';
@@ -436,9 +439,9 @@ test.describe('Scenario 1 & 2 — Itemize button visibility on LinkedDocumentCar
         if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
         if (vendorId) await deleteVendorViaApi(page, vendorId);
       }
-    },
-  );
-});
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3 — Happy path: full itemize flow
@@ -473,9 +476,7 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
         const docTitle = 'Bathroom Invoice HP';
 
         await mockConfig(page, true);
-        await mockDocumentLinks(page, invoiceId, [
-          { linkId: 'dl-hp-1', docId, title: docTitle },
-        ]);
+        await mockDocumentLinks(page, invoiceId, [{ linkId: 'dl-hp-1', docId, title: docTitle }]);
         await mockPaperlessDocument(page, docId, docTitle);
         await mockAutoItemizeBothPhases(page, invoiceId);
 
@@ -523,7 +524,7 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
           (resp) =>
             resp.url().includes('/auto-itemize') &&
             resp.request().method() === 'POST' &&
-            !((resp.request().postDataJSON() as { dryRun?: boolean })?.dryRun),
+            !(resp.request().postDataJSON() as { dryRun?: boolean })?.dryRun,
         );
         await autoItemizePage.saveButton.click();
         await saveResponsePromise;
@@ -546,83 +547,83 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenario 4 — LLM suggestion badge (TOTAL_MISMATCH)', () => {
-  test(
-    'SuggestionBadge appears for amount mismatch; Apply updates the field',
-    async ({ page, testPrefix }) => {
-      const vw = page.viewportSize()?.width ?? 1440;
-      if (vw < 600) {
-        test.skip(true, 'Functional test — skip on very narrow mobile');
-        return;
-      }
+  test('SuggestionBadge appears for amount mismatch; Apply updates the field', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
 
-      const autoItemizePage = new AutoItemizePage(page);
-      let vendorId = '';
-      let invoiceId = '';
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        // Invoice amount = 1000, but LLM extracts 1700 (TOTAL_MISMATCH)
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Badge Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 1000,
-          date: '2026-06-01',
-        });
+    try {
+      // Invoice amount = 1000, but LLM extracts 1700 (TOTAL_MISMATCH)
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Badge Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1000,
+        date: '2026-06-01',
+      });
 
-        const docId = 63001;
-        const docTitle = 'Mismatch Invoice Badge';
+      const docId = 63001;
+      const docTitle = 'Mismatch Invoice Badge';
 
-        await mockPaperlessDocument(page, docId, docTitle);
-        await mockAutoItemizeDryRun(page, invoiceId, {
-          lines: THREE_LINES,
-          warnings: [
-            {
-              code: 'TOTAL_MISMATCH',
-              extractedTotal: 1700,
-              invoiceTotal: 1000,
-            },
-          ],
-        });
+      await mockPaperlessDocument(page, docId, docTitle);
+      await mockAutoItemizeDryRun(page, invoiceId, {
+        lines: THREE_LINES,
+        warnings: [
+          {
+            code: 'TOTAL_MISMATCH',
+            extractedTotal: 1700,
+            invoiceTotal: 1000,
+          },
+        ],
+      });
 
-        // Navigate directly to the page (bypass invoice detail)
-        await autoItemizePage.goto(invoiceId, docId);
+      // Navigate directly to the page (bypass invoice detail)
+      await autoItemizePage.goto(invoiceId, docId);
 
-        // ── Wait for lines to load ────────────────────────────────────────────
-        await autoItemizePage.waitForAnalyzingDone();
+      // ── Wait for lines to load ────────────────────────────────────────────
+      await autoItemizePage.waitForAnalyzingDone();
 
-        // ── SuggestionBadge should appear near the amount field ───────────────
-        // The badge renders when: amountSuggestion is truthy AND its string value
-        // differs from the current metadataEdits.amount.
-        // The invoice amount is 1000 and the suggestion is 1700, so they differ.
-        const badge = page.locator('[class*="badge"]').first();
-        await expect(badge).toBeVisible();
+      // ── SuggestionBadge should appear near the amount field ───────────────
+      // The badge renders when: amountSuggestion is truthy AND its string value
+      // differs from the current metadataEdits.amount.
+      // The invoice amount is 1000 and the suggestion is 1700, so they differ.
+      const badge = page.locator('[class*="badge"]').first();
+      await expect(badge).toBeVisible();
 
-        // Badge text shows the suggested value
-        await expect(badge).toContainText(/1[.,]700/);
+      // Badge text shows the suggested value
+      await expect(badge).toContainText(/1[.,]700/);
 
-        // ── Record current amount input value ─────────────────────────────────
-        const initialAmountValue = await autoItemizePage.totalAmountInput.inputValue();
-        expect(initialAmountValue).toBe('1000');
+      // ── Record current amount input value ─────────────────────────────────
+      const initialAmountValue = await autoItemizePage.totalAmountInput.inputValue();
+      expect(initialAmountValue).toBe('1000');
 
-        // ── Click the Apply button in the badge ───────────────────────────────
-        const applyBtn = badge.getByRole('button', { name: /Apply/i });
-        await expect(applyBtn).toBeVisible();
-        await applyBtn.click();
+      // ── Click the Apply button in the badge ───────────────────────────────
+      const applyBtn = badge.getByRole('button', { name: /Apply/i });
+      await expect(applyBtn).toBeVisible();
+      await applyBtn.click();
 
-        // ── Amount input should update to 1700 ────────────────────────────────
-        await expect(autoItemizePage.totalAmountInput).toHaveValue('1700');
+      // ── Amount input should update to 1700 ────────────────────────────────
+      await expect(autoItemizePage.totalAmountInput).toHaveValue('1700');
 
-        // ── Badge should disappear (suggestion == field value now) ────────────
-        await expect(badge).not.toBeVisible();
+      // ── Badge should disappear (suggestion == field value now) ────────────
+      await expect(badge).not.toBeVisible();
 
-        // ── Live region should announce the applied suggestion ─────────────────
-        // The live region is role="status" aria-atomic="true" class="srOnly"
-        // It is in the DOM but visually hidden (srOnly class). We check it has text.
-        await expect(autoItemizePage.liveRegion).not.toBeEmpty();
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // ── Live region should announce the applied suggestion ─────────────────
+      // The live region is role="status" aria-atomic="true" class="srOnly"
+      // It is in the DOM but visually hidden (srOnly class). We check it has text.
+      await expect(autoItemizePage.liveRegion).not.toBeEmpty();
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -630,103 +631,103 @@ test.describe('Scenario 4 — LLM suggestion badge (TOTAL_MISMATCH)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenario 5 — Cancel with dirty state', () => {
-  test(
-    'Cancel with dirty state shows Discard Changes modal; Keep Editing keeps the page open',
-    async ({ page, testPrefix }) => {
-      const vw = page.viewportSize()?.width ?? 1440;
-      if (vw < 600) {
-        test.skip(true, 'Functional test — skip on very narrow mobile');
-        return;
-      }
+  test('Cancel with dirty state shows Discard Changes modal; Keep Editing keeps the page open', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
 
-      const autoItemizePage = new AutoItemizePage(page);
-      let vendorId = '';
-      let invoiceId = '';
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Cancel Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 1700,
-          date: '2026-06-01',
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Cancel Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
 
-        const docId = 64001;
-        await mockPaperlessDocument(page, docId, 'Cancel Test Doc');
-        await mockAutoItemizeDryRun(page, invoiceId);
+      const docId = 64001;
+      await mockPaperlessDocument(page, docId, 'Cancel Test Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
 
-        await autoItemizePage.goto(invoiceId, docId);
-        await autoItemizePage.waitForAnalyzingDone();
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
 
-        // ── Dirty the form: toggle a line checkbox ────────────────────────────
-        await autoItemizePage.lineCheckbox(0).click();
-        await expect(autoItemizePage.lineCheckbox(0)).not.toBeChecked();
+      // ── Dirty the form: toggle a line checkbox ────────────────────────────
+      await autoItemizePage.lineCheckbox(0).click();
+      await expect(autoItemizePage.lineCheckbox(0)).not.toBeChecked();
 
-        // ── Click Cancel → modal should appear (form is dirty) ───────────────
-        await autoItemizePage.cancelButton.click();
-        await expect(autoItemizePage.cancelModal).toBeVisible();
+      // ── Click Cancel → modal should appear (form is dirty) ───────────────
+      await autoItemizePage.cancelButton.click();
+      await expect(autoItemizePage.cancelModal).toBeVisible();
 
-        // ── Modal title is "Discard Changes?" ─────────────────────────────────
-        await expect(autoItemizePage.cancelModal).toContainText(/Discard Changes/i);
+      // ── Modal title is "Discard Changes?" ─────────────────────────────────
+      await expect(autoItemizePage.cancelModal).toContainText(/Discard Changes/i);
 
-        // ── Click "Keep Editing" → modal closes, page still shown ────────────
-        await autoItemizePage.keepEditingButton.click();
-        await expect(autoItemizePage.cancelModal).not.toBeVisible();
-        await expect(autoItemizePage.pageTitle).toBeVisible();
+      // ── Click "Keep Editing" → modal closes, page still shown ────────────
+      await autoItemizePage.keepEditingButton.click();
+      await expect(autoItemizePage.cancelModal).not.toBeVisible();
+      await expect(autoItemizePage.pageTitle).toBeVisible();
 
-        // ── The dirty checkbox should still be unchecked ─────────────────────
-        await expect(autoItemizePage.lineCheckbox(0)).not.toBeChecked();
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // ── The dirty checkbox should still be unchecked ─────────────────────
+      await expect(autoItemizePage.lineCheckbox(0)).not.toBeChecked();
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 
-  test(
-    'Discard Changes in modal navigates back to invoice detail',
-    async ({ page, testPrefix }) => {
-      const vw = page.viewportSize()?.width ?? 1440;
-      if (vw < 600) {
-        test.skip(true, 'Functional test — skip on very narrow mobile');
-        return;
-      }
+  test('Discard Changes in modal navigates back to invoice detail', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
 
-      const autoItemizePage = new AutoItemizePage(page);
-      let vendorId = '';
-      let invoiceId = '';
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Discard Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 1700,
-          date: '2026-06-01',
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Discard Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
 
-        const docId = 64002;
-        await mockPaperlessDocument(page, docId, 'Discard Test Doc');
-        await mockAutoItemizeDryRun(page, invoiceId);
+      const docId = 64002;
+      await mockPaperlessDocument(page, docId, 'Discard Test Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
 
-        await autoItemizePage.goto(invoiceId, docId);
-        await autoItemizePage.waitForAnalyzingDone();
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
 
-        // Dirty the form
-        await autoItemizePage.lineCheckbox(0).click();
+      // Dirty the form
+      await autoItemizePage.lineCheckbox(0).click();
 
-        // Cancel → modal appears
-        await autoItemizePage.cancelButton.click();
-        await expect(autoItemizePage.cancelModal).toBeVisible();
+      // Cancel → modal appears
+      await autoItemizePage.cancelButton.click();
+      await expect(autoItemizePage.cancelModal).toBeVisible();
 
-        // ── Click "Discard Changes" → navigate back ───────────────────────────
-        await autoItemizePage.discardButton.click();
-        await expect(page).toHaveURL(/\/budget\/invoices\/[^/]+$/);
-        // Should not have auto-itemize in the URL
-        expect(page.url()).not.toContain('auto-itemize');
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // ── Click "Discard Changes" → navigate back ───────────────────────────
+      await autoItemizePage.discardButton.click();
+      await expect(page).toHaveURL(/\/budget\/invoices\/[^/]+$/);
+      // Should not have auto-itemize in the URL
+      expect(page.url()).not.toContain('auto-itemize');
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -734,50 +735,50 @@ test.describe('Scenario 5 — Cancel with dirty state', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenario 6 — Cancel clean state: direct navigation back', () => {
-  test(
-    'Cancel without any edits navigates back without showing modal',
-    async ({ page, testPrefix }) => {
-      const vw = page.viewportSize()?.width ?? 1440;
-      if (vw < 600) {
-        test.skip(true, 'Functional test — skip on very narrow mobile');
-        return;
-      }
+  test('Cancel without any edits navigates back without showing modal', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
 
-      const autoItemizePage = new AutoItemizePage(page);
-      let vendorId = '';
-      let invoiceId = '';
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Clean Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 1700,
-          date: '2026-06-01',
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Clean Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
 
-        const docId = 65001;
-        await mockPaperlessDocument(page, docId, 'Clean Cancel Doc');
-        await mockAutoItemizeDryRun(page, invoiceId);
+      const docId = 65001;
+      await mockPaperlessDocument(page, docId, 'Clean Cancel Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
 
-        await autoItemizePage.goto(invoiceId, docId);
-        await autoItemizePage.waitForAnalyzingDone();
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
 
-        // Do NOT touch any fields — form is clean
+      // Do NOT touch any fields — form is clean
 
-        // ── Click Cancel → immediate navigation (no modal) ────────────────────
-        await autoItemizePage.cancelButton.click();
+      // ── Click Cancel → immediate navigation (no modal) ────────────────────
+      await autoItemizePage.cancelButton.click();
 
-        // Should navigate back directly without any modal
-        await expect(page).toHaveURL(/\/budget\/invoices\/[^/]+$/);
-        expect(page.url()).not.toContain('auto-itemize');
+      // Should navigate back directly without any modal
+      await expect(page).toHaveURL(/\/budget\/invoices\/[^/]+$/);
+      expect(page.url()).not.toContain('auto-itemize');
 
-        // No cancel modal should have appeared
-        await expect(autoItemizePage.cancelModal).not.toBeVisible();
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // No cancel modal should have appeared
+      await expect(autoItemizePage.cancelModal).not.toBeVisible();
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -886,59 +887,59 @@ test.describe('Scenario 8 — Old auto-itemize button/modal absence (regression)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenario 9 — Error state: LLM failure on dry-run', () => {
-  test(
-    'LLM failure renders error banner and Retry button on AutoItemizePage',
-    async ({ page, testPrefix }) => {
-      const vw = page.viewportSize()?.width ?? 1440;
-      if (vw < 600) {
-        test.skip(true, 'Functional test — skip on very narrow mobile');
-        return;
-      }
+  test('LLM failure renders error banner and Retry button on AutoItemizePage', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
 
-      const autoItemizePage = new AutoItemizePage(page);
-      let vendorId = '';
-      let invoiceId = '';
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Err Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 900,
-          date: '2026-06-01',
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Err Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 900,
+        date: '2026-06-01',
+      });
 
-        const docId = 68001;
-        await mockPaperlessDocument(page, docId, 'Error Test Doc');
+      const docId = 68001;
+      await mockPaperlessDocument(page, docId, 'Error Test Doc');
 
-        // Dry-run returns LLM_UNREACHABLE (502)
-        await mockAutoItemizeDryRun(page, invoiceId, {
-          status: 502,
-          errorBody: {
-            error: {
-              code: 'LLM_UNREACHABLE',
-              message: 'The extraction service is unavailable. Please try again later.',
-              details: {},
-            },
+      // Dry-run returns LLM_UNREACHABLE (502)
+      await mockAutoItemizeDryRun(page, invoiceId, {
+        status: 502,
+        errorBody: {
+          error: {
+            code: 'LLM_UNREACHABLE',
+            message: 'The extraction service is unavailable. Please try again later.',
+            details: {},
           },
-        });
+        },
+      });
 
-        await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.goto(invoiceId, docId);
 
-        // ── Error banner visible ──────────────────────────────────────────────
-        // AutoItemizePage enters pageStatus='error' and renders FormError with variant="banner"
-        await expect(autoItemizePage.errorBanner).toBeVisible();
+      // ── Error banner visible ──────────────────────────────────────────────
+      // AutoItemizePage enters pageStatus='error' and renders FormError with variant="banner"
+      await expect(autoItemizePage.errorBanner).toBeVisible();
 
-        // ── Retry button visible ──────────────────────────────────────────────
-        await expect(autoItemizePage.retryButton).toBeVisible();
+      // ── Retry button visible ──────────────────────────────────────────────
+      await expect(autoItemizePage.retryButton).toBeVisible();
 
-        // ── No lines table (still in error state) ────────────────────────────
-        const rows = page.locator('table tbody tr:not([class*="totalsRow"])');
-        await expect(rows).toHaveCount(0);
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // ── No lines table (still in error state) ────────────────────────────
+      const rows = page.locator('table tbody tr:not([class*="totalsRow"])');
+      await expect(rows).toHaveCount(0);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -946,156 +947,156 @@ test.describe('Scenario 9 — Error state: LLM failure on dry-run', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenarios 10–12 — Responsive layout', { tag: '@responsive' }, () => {
-  test(
-    'Scenario 10: Desktop (1280×800) — side-by-side layout (two columns visible)',
-    async ({ page, testPrefix }) => {
-      await page.setViewportSize({ width: 1280, height: 800 });
+  test('Scenario 10: Desktop (1280×800) — side-by-side layout (two columns visible)', async ({
+    page,
+    testPrefix,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
 
-      const autoItemizePage = new AutoItemizePage(page);
-      let vendorId = '';
-      let invoiceId = '';
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Resp-Desk Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 1700,
-          date: '2026-06-01',
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Resp-Desk Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
 
-        const docId = 69001;
-        await mockPaperlessDocument(page, docId, 'Desktop Layout Doc');
-        await mockAutoItemizeDryRun(page, invoiceId);
+      const docId = 69001;
+      await mockPaperlessDocument(page, docId, 'Desktop Layout Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
 
-        await autoItemizePage.goto(invoiceId, docId);
-        await autoItemizePage.waitForAnalyzingDone();
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
 
-        // ── Both columns exist in DOM and are visible ─────────────────────────
-        await expect(autoItemizePage.formColumn).toBeVisible();
-        await expect(autoItemizePage.previewColumn).toBeVisible();
+      // ── Both columns exist in DOM and are visible ─────────────────────────
+      await expect(autoItemizePage.formColumn).toBeVisible();
+      await expect(autoItemizePage.previewColumn).toBeVisible();
 
-        // ── Verify side-by-side: both columns have non-zero width > 100px ─────
-        const formBounds = await autoItemizePage.formColumn.boundingBox();
-        const previewBounds = await autoItemizePage.previewColumn.boundingBox();
+      // ── Verify side-by-side: both columns have non-zero width > 100px ─────
+      const formBounds = await autoItemizePage.formColumn.boundingBox();
+      const previewBounds = await autoItemizePage.previewColumn.boundingBox();
 
-        expect(formBounds).not.toBeNull();
-        expect(previewBounds).not.toBeNull();
+      expect(formBounds).not.toBeNull();
+      expect(previewBounds).not.toBeNull();
 
-        // Both columns must have substantial width (not stacked/full-width)
-        expect(formBounds!.width).toBeGreaterThan(200);
-        expect(previewBounds!.width).toBeGreaterThan(200);
+      // Both columns must have substantial width (not stacked/full-width)
+      expect(formBounds!.width).toBeGreaterThan(200);
+      expect(previewBounds!.width).toBeGreaterThan(200);
 
-        // Both columns should be at the same vertical position (same row)
-        // Allow a few pixels of tolerance for padding/border
-        const verticalDiff = Math.abs(formBounds!.y - previewBounds!.y);
-        expect(verticalDiff).toBeLessThan(50);
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // Both columns should be at the same vertical position (same row)
+      // Allow a few pixels of tolerance for padding/border
+      const verticalDiff = Math.abs(formBounds!.y - previewBounds!.y);
+      expect(verticalDiff).toBeLessThan(50);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 
-  test(
-    'Scenario 11: Mobile (390×844) — single column, form first (above preview)',
-    async ({ page, testPrefix }) => {
-      await page.setViewportSize({ width: 390, height: 844 });
+  test('Scenario 11: Mobile (390×844) — single column, form first (above preview)', async ({
+    page,
+    testPrefix,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
 
-      const autoItemizePage = new AutoItemizePage(page);
-      let vendorId = '';
-      let invoiceId = '';
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Resp-Mob Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 1700,
-          date: '2026-06-01',
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Resp-Mob Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
 
-        const docId = 69002;
-        await mockPaperlessDocument(page, docId, 'Mobile Layout Doc');
-        await mockAutoItemizeDryRun(page, invoiceId);
+      const docId = 69002;
+      await mockPaperlessDocument(page, docId, 'Mobile Layout Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
 
-        await autoItemizePage.goto(invoiceId, docId);
-        await autoItemizePage.waitForAnalyzingDone();
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
 
-        // ── Both columns in DOM ───────────────────────────────────────────────
-        await expect(autoItemizePage.formColumn).toBeVisible();
-        // Preview column may be scrolled off-screen — check it's in DOM
-        await expect(autoItemizePage.previewColumn).toBeAttached();
+      // ── Both columns in DOM ───────────────────────────────────────────────
+      await expect(autoItemizePage.formColumn).toBeVisible();
+      // Preview column may be scrolled off-screen — check it's in DOM
+      await expect(autoItemizePage.previewColumn).toBeAttached();
 
-        // ── Single column: form column is full-width (≥300px) ────────────────
-        const formBounds = await autoItemizePage.formColumn.boundingBox();
-        expect(formBounds).not.toBeNull();
-        expect(formBounds!.width).toBeGreaterThan(300);
+      // ── Single column: form column is full-width (≥300px) ────────────────
+      const formBounds = await autoItemizePage.formColumn.boundingBox();
+      expect(formBounds).not.toBeNull();
+      expect(formBounds!.width).toBeGreaterThan(300);
 
-        // ── Form is above preview: form column's top y < preview column's top y
-        const previewBounds = await autoItemizePage.previewColumn.boundingBox();
-        expect(previewBounds).not.toBeNull();
+      // ── Form is above preview: form column's top y < preview column's top y
+      const previewBounds = await autoItemizePage.previewColumn.boundingBox();
+      expect(previewBounds).not.toBeNull();
 
-        // Form should appear first (lower y = higher on page)
-        // At ≤860px, CSS sets formColumn order=1, previewColumn order=2
-        expect(formBounds!.y).toBeLessThan(previewBounds!.y);
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // Form should appear first (lower y = higher on page)
+      // At ≤860px, CSS sets formColumn order=1, previewColumn order=2
+      expect(formBounds!.y).toBeLessThan(previewBounds!.y);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 
-  test(
-    'Scenario 12: Tablet breakpoint — single column below 860px threshold',
-    async ({ page, testPrefix }) => {
-      // Test at 850px (just below the 860px breakpoint)
-      await page.setViewportSize({ width: 850, height: 1100 });
+  test('Scenario 12: Tablet breakpoint — single column below 860px threshold', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Test at 850px (just below the 860px breakpoint)
+    await page.setViewportSize({ width: 850, height: 1100 });
 
-      const autoItemizePage = new AutoItemizePage(page);
-      let vendorId = '';
-      let invoiceId = '';
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Resp-Tab Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 1700,
-          date: '2026-06-01',
-        });
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Resp-Tab Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
 
-        const docId = 69003;
-        await mockPaperlessDocument(page, docId, 'Tablet Breakpoint Doc');
-        await mockAutoItemizeDryRun(page, invoiceId);
+      const docId = 69003;
+      await mockPaperlessDocument(page, docId, 'Tablet Breakpoint Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
 
-        await autoItemizePage.goto(invoiceId, docId);
-        await autoItemizePage.waitForAnalyzingDone();
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
 
-        // ── At 850px (below 860px breakpoint) → single column ─────────────────
-        const formBounds = await autoItemizePage.formColumn.boundingBox();
-        const previewBounds = await autoItemizePage.previewColumn.boundingBox();
+      // ── At 850px (below 860px breakpoint) → single column ─────────────────
+      const formBounds = await autoItemizePage.formColumn.boundingBox();
+      const previewBounds = await autoItemizePage.previewColumn.boundingBox();
 
-        expect(formBounds).not.toBeNull();
-        expect(previewBounds).not.toBeNull();
+      expect(formBounds).not.toBeNull();
+      expect(previewBounds).not.toBeNull();
 
-        // Single column: form and preview should have similar widths (both ~full-width)
-        // and form should be above preview (stacked layout)
-        expect(formBounds!.y).toBeLessThan(previewBounds!.y);
+      // Single column: form and preview should have similar widths (both ~full-width)
+      // and form should be above preview (stacked layout)
+      expect(formBounds!.y).toBeLessThan(previewBounds!.y);
 
-        // Now test at 870px (just above the 860px breakpoint) → two columns
-        await page.setViewportSize({ width: 870, height: 1100 });
+      // Now test at 870px (just above the 860px breakpoint) → two columns
+      await page.setViewportSize({ width: 870, height: 1100 });
 
-        // Re-fetch bounds after viewport change
-        const formBounds2 = await autoItemizePage.formColumn.boundingBox();
-        const previewBounds2 = await autoItemizePage.previewColumn.boundingBox();
+      // Re-fetch bounds after viewport change
+      const formBounds2 = await autoItemizePage.formColumn.boundingBox();
+      const previewBounds2 = await autoItemizePage.previewColumn.boundingBox();
 
-        expect(formBounds2).not.toBeNull();
-        expect(previewBounds2).not.toBeNull();
+      expect(formBounds2).not.toBeNull();
+      expect(previewBounds2).not.toBeNull();
 
-        // Two columns: they should be at similar y positions (side-by-side)
-        const verticalDiff = Math.abs(formBounds2!.y - previewBounds2!.y);
-        expect(verticalDiff).toBeLessThan(50);
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // Two columns: they should be at similar y positions (side-by-side)
+      const verticalDiff = Math.abs(formBounds2!.y - previewBounds2!.y);
+      expect(verticalDiff).toBeLessThan(50);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1123,209 +1124,210 @@ test.describe('Scenarios 10–12 — Responsive layout', { tag: '@responsive' },
 //  10. Navigation returns to invoice detail page
 
 test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () => {
-  test(
-    'Assign a seeded work-item budget line to the first extracted row; Save payload reflects the assignment',
-    async ({ page, testPrefix }) => {
-      // Skip on narrow mobile — functional test requires visible table
-      const vw = page.viewportSize()?.width ?? 1440;
-      if (vw < 600) {
-        test.skip(true, 'Functional test — skip on very narrow mobile');
-        return;
-      }
+  test('Assign a seeded work-item budget line to the first extracted row; Save payload reflects the assignment', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Skip on narrow mobile — functional test requires visible table
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
 
-      const autoItemizePage = new AutoItemizePage(page);
-      let vendorId = '';
-      let invoiceId = '';
-      let workItemId = '';
-      // budgetLineId is the work_item_budgets.id of the seeded budget line
-      let budgetLineId = '';
-      const budgetLineDescription = `${testPrefix} AI-Assign BL`;
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+    let workItemId = '';
+    // budgetLineId is the work_item_budgets.id of the seeded budget line
+    let budgetLineId = '';
+    const budgetLineDescription = `${testPrefix} AI-Assign BL`;
 
-      try {
-        // ── Seed: vendor, invoice, work item, work item budget ────────────────
-        vendorId = await createVendorViaApi(page, `${testPrefix} AI-Assign Vendor`);
-        invoiceId = await createInvoiceViaApi(page, vendorId, {
-          amount: 1700,
-          date: '2026-06-01',
-          invoiceNumber: `${testPrefix}-AI-ASSIGN-001`,
-        });
-        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AI-Assign WI` });
-        budgetLineId = await createWorkItemBudgetViaApi(page, workItemId, {
-          description: budgetLineDescription,
-          plannedAmount: 900,
-        });
+    try {
+      // ── Seed: vendor, invoice, work item, work item budget ────────────────
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Assign Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+        invoiceNumber: `${testPrefix}-AI-ASSIGN-001`,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AI-Assign WI` });
+      budgetLineId = await createWorkItemBudgetViaApi(page, workItemId, {
+        description: budgetLineDescription,
+        plannedAmount: 900,
+      });
 
-        const docId = 70001;
-        const docTitle = 'Assignment Test Doc';
+      const docId = 70001;
+      const docTitle = 'Assignment Test Doc';
 
-        await mockConfig(page, true);
-        await mockPaperlessDocument(page, docId, docTitle);
-        await mockAutoItemizeDryRun(page, invoiceId);
+      await mockConfig(page, true);
+      await mockPaperlessDocument(page, docId, docTitle);
+      await mockAutoItemizeDryRun(page, invoiceId);
 
-        await autoItemizePage.goto(invoiceId, docId);
-        await autoItemizePage.waitForAnalyzingDone();
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
 
-        // ── Verify "Assign…" button is visible in first row ────────────────────
-        const firstAssignBtn = autoItemizePage.lineAssignButton(0);
-        await expect(firstAssignBtn).toBeVisible();
-        await expect(firstAssignBtn).toContainText('Assign…');
+      // ── Verify "Assign…" button is visible in first row ────────────────────
+      const firstAssignBtn = autoItemizePage.lineAssignButton(0);
+      await expect(firstAssignBtn).toBeVisible();
+      await expect(firstAssignBtn).toContainText('Assign…');
 
-        // ── Verify second row also has "Assign…" (will remain unassigned) ──────
-        const secondAssignBtn = autoItemizePage.lineAssignButton(1);
-        await expect(secondAssignBtn).toBeVisible();
+      // ── Verify second row also has "Assign…" (will remain unassigned) ──────
+      const secondAssignBtn = autoItemizePage.lineAssignButton(1);
+      await expect(secondAssignBtn).toBeVisible();
 
-        // ── Click "Assign…" on first row → picker modal opens (step 1) ─────────
-        await firstAssignBtn.click();
-        await expect(autoItemizePage.pickerModal).toBeVisible();
-        await expect(autoItemizePage.pickerModal).toContainText('Assign to Work Item or Household Item');
+      // ── Click "Assign…" on first row → picker modal opens (step 1) ─────────
+      await firstAssignBtn.click();
+      await expect(autoItemizePage.pickerModal).toBeVisible();
+      await expect(autoItemizePage.pickerModal).toContainText(
+        'Assign to Work Item or Household Item',
+      );
 
-        // ── Step 1: Two side-by-side pickers visible ──────────────────────────
-        // WorkItemPicker renders a plain <input type="text"> with the hardcoded placeholder
-        await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
-        // HouseholdItemPicker renders a plain <input type="text"> with its hardcoded placeholder
-        await expect(autoItemizePage.pickerHouseholdItemSearchInput).toBeVisible();
+      // ── Step 1: Two side-by-side pickers visible ──────────────────────────
+      // WorkItemPicker renders a plain <input type="text"> with the hardcoded placeholder
+      await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
+      // HouseholdItemPicker renders a plain <input type="text"> with its hardcoded placeholder
+      await expect(autoItemizePage.pickerHouseholdItemSearchInput).toBeVisible();
 
-        // ── Type in the work-item search input to find the seeded WI ─────────
-        await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-Assign WI`);
+      // ── Type in the work-item search input to find the seeded WI ─────────
+      await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-Assign WI`);
 
-        // The SearchPicker opens a listbox with role="listbox" → role="option" buttons
-        const wiOption = autoItemizePage.pickerModal.getByRole('option', {
-          name: `${testPrefix} AI-Assign WI`,
-        });
-        await wiOption.waitFor({ state: 'visible' });
-        await wiOption.click();
+      // The SearchPicker opens a listbox with role="listbox" → role="option" buttons
+      const wiOption = autoItemizePage.pickerModal.getByRole('option', {
+        name: `${testPrefix} AI-Assign WI`,
+      });
+      await wiOption.waitFor({ state: 'visible' });
+      await wiOption.click();
 
-        // ── Step 2: Modal title changes; budget line list renders ─────────────
-        // After selecting a work item via WorkItemPicker.onSelectItem, the picker hook
-        // calls handleSelectItem(id, 'work_item', title) → pickerState.step=2 and
-        // fetches budget lines for the selected item.
-        const step2Modal = autoItemizePage.pickerStep2Modal();
-        await expect(step2Modal).toBeVisible();
+      // ── Step 2: Modal title changes; budget line list renders ─────────────
+      // After selecting a work item via WorkItemPicker.onSelectItem, the picker hook
+      // calls handleSelectItem(id, 'work_item', title) → pickerState.step=2 and
+      // fetches budget lines for the selected item.
+      const step2Modal = autoItemizePage.pickerStep2Modal();
+      await expect(step2Modal).toBeVisible();
 
-        // The seeded budget line appears as a button in the step-2 list
-        const budgetLineButton = autoItemizePage.pickerBudgetLineRow(
-          new RegExp(budgetLineDescription, 'i'),
-        );
-        await budgetLineButton.waitFor({ state: 'visible' });
-        await budgetLineButton.click();
+      // The seeded budget line appears as a button in the step-2 list
+      const budgetLineButton = autoItemizePage.pickerBudgetLineRow(
+        new RegExp(budgetLineDescription, 'i'),
+      );
+      await budgetLineButton.waitFor({ state: 'visible' });
+      await budgetLineButton.click();
 
-        // ── Picker modal closes after selection ───────────────────────────────
-        await expect(autoItemizePage.pickerModal).not.toBeVisible();
+      // ── Picker modal closes after selection ───────────────────────────────
+      await expect(autoItemizePage.pickerModal).not.toBeVisible();
 
-        // ── Row 1 now shows the assigned badge ───────────────────────────────
-        const firstAssignedBadge = autoItemizePage.lineAssignedBadge(0);
-        await expect(firstAssignedBadge).toBeVisible();
+      // ── Row 1 now shows the assigned badge ───────────────────────────────
+      const firstAssignedBadge = autoItemizePage.lineAssignedBadge(0);
+      await expect(firstAssignedBadge).toBeVisible();
 
-        // Badge shows the budget line description
-        const firstAssignedDesc = autoItemizePage.lineAssignedDescription(0);
-        await expect(firstAssignedDesc).toContainText(budgetLineDescription);
+      // Badge shows the budget line description
+      const firstAssignedDesc = autoItemizePage.lineAssignedDescription(0);
+      await expect(firstAssignedDesc).toContainText(budgetLineDescription);
 
-        // Clear button is present inside the badge
-        const clearBtn = autoItemizePage.lineClearAssignButton(0);
-        await expect(clearBtn).toBeVisible();
-        await expect(clearBtn).toHaveAttribute('aria-label', 'Clear budget line assignment');
+      // Clear button is present inside the badge
+      const clearBtn = autoItemizePage.lineClearAssignButton(0);
+      await expect(clearBtn).toBeVisible();
+      await expect(clearBtn).toHaveAttribute('aria-label', 'Clear budget line assignment');
 
-        // ── Row 1 no longer shows "Assign…" (replaced by badge) ───────────────
-        await expect(firstAssignBtn).not.toBeVisible();
+      // ── Row 1 no longer shows "Assign…" (replaced by badge) ───────────────
+      await expect(firstAssignBtn).not.toBeVisible();
 
-        // ── Row 2 still shows "Assign…" (not assigned) ────────────────────────
-        await expect(secondAssignBtn).toBeVisible();
+      // ── Row 2 still shows "Assign…" (not assigned) ────────────────────────
+      await expect(secondAssignBtn).toBeVisible();
 
-        // ── Click Save; intercept the commit POST to capture and verify payload ─
-        // Register waitForResponse BEFORE clicking Save.
-        let capturedRequestBody: Record<string, unknown> | null = null;
-        const commitResponsePromise = page.waitForResponse(async (resp) => {
-          if (
-            resp.url().includes(`/api/invoices/${invoiceId}/auto-itemize`) &&
-            resp.request().method() === 'POST'
-          ) {
-            const body = resp.request().postDataJSON() as Record<string, unknown> | null;
-            if (body && !((body as { dryRun?: boolean }).dryRun)) {
-              capturedRequestBody = body;
-              return true;
-            }
+      // ── Click Save; intercept the commit POST to capture and verify payload ─
+      // Register waitForResponse BEFORE clicking Save.
+      let capturedRequestBody: Record<string, unknown> | null = null;
+      const commitResponsePromise = page.waitForResponse(async (resp) => {
+        if (
+          resp.url().includes(`/api/invoices/${invoiceId}/auto-itemize`) &&
+          resp.request().method() === 'POST'
+        ) {
+          const body = resp.request().postDataJSON() as Record<string, unknown> | null;
+          if (body && !(body as { dryRun?: boolean }).dryRun) {
+            capturedRequestBody = body;
+            return true;
           }
-          return false;
+        }
+        return false;
+      });
+
+      // The commit POST is mocked by mockAutoItemizeDryRun only for dry-run.
+      // For the commit (dryRun: false) we need a separate mock that responds with
+      // a valid commit response. Set that up now, before clicking Save.
+      const now = '2026-05-24T00:00:00.000Z';
+      await page.route(`**/api/invoices/${invoiceId}/auto-itemize`, async (route: Route) => {
+        const reqBody = route.request().postDataJSON() as { dryRun: boolean } | null;
+        if (reqBody?.dryRun) {
+          // Let dry-run fall through to the already-installed mockAutoItemizeDryRun handler
+          await route.continue();
+          return;
+        }
+        // Commit: respond with valid budget lines response
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            budgetLines: [
+              {
+                id: `ibl-assign-e2e-0`,
+                workItemBudgetId: budgetLineId,
+                householdItemBudgetId: null,
+                itemizedAmount: 900.0,
+                description: budgetLineDescription,
+                plannedAmount: 900.0,
+                confidence: 'invoice',
+                budgetCategory: null,
+                budgetSource: null,
+                vendor: null,
+                quantity: null,
+                unit: null,
+                unitPrice: null,
+                includesVat: true,
+                createdAt: now,
+                updatedAt: now,
+                invoiceId,
+                origin: 'auto',
+                workItem: { id: workItemId, title: `${testPrefix} AI-Assign WI` },
+                householdItem: null,
+                isUnassigned: false,
+              },
+            ],
+            remainingAmount: 800,
+          }),
         });
+      });
 
-        // The commit POST is mocked by mockAutoItemizeDryRun only for dry-run.
-        // For the commit (dryRun: false) we need a separate mock that responds with
-        // a valid commit response. Set that up now, before clicking Save.
-        const now = '2026-05-24T00:00:00.000Z';
-        await page.route(`**/api/invoices/${invoiceId}/auto-itemize`, async (route: Route) => {
-          const reqBody = route.request().postDataJSON() as { dryRun: boolean } | null;
-          if (reqBody?.dryRun) {
-            // Let dry-run fall through to the already-installed mockAutoItemizeDryRun handler
-            await route.continue();
-            return;
-          }
-          // Commit: respond with valid budget lines response
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              budgetLines: [
-                {
-                  id: `ibl-assign-e2e-0`,
-                  workItemBudgetId: budgetLineId,
-                  householdItemBudgetId: null,
-                  itemizedAmount: 900.0,
-                  description: budgetLineDescription,
-                  plannedAmount: 900.0,
-                  confidence: 'invoice',
-                  budgetCategory: null,
-                  budgetSource: null,
-                  vendor: null,
-                  quantity: null,
-                  unit: null,
-                  unitPrice: null,
-                  includesVat: true,
-                  createdAt: now,
-                  updatedAt: now,
-                  invoiceId,
-                  origin: 'auto',
-                  workItem: { id: workItemId, title: `${testPrefix} AI-Assign WI` },
-                  householdItem: null,
-                  isUnassigned: false,
-                },
-              ],
-              remainingAmount: 800,
-            }),
-          });
-        });
+      await autoItemizePage.saveButton.click();
+      await commitResponsePromise;
 
-        await autoItemizePage.saveButton.click();
-        await commitResponsePromise;
+      // ── Verify captured payload ───────────────────────────────────────────
+      expect(capturedRequestBody).not.toBeNull();
 
-        // ── Verify captured payload ───────────────────────────────────────────
-        expect(capturedRequestBody).not.toBeNull();
+      // Cast through unknown to satisfy TypeScript (capturedRequestBody is initially typed as
+      // Record<string,unknown>|null but the not.toBeNull() assertion above narrows it at runtime)
+      const payload = capturedRequestBody as unknown as { lines?: unknown[] };
+      const linesPayload = payload.lines;
+      expect(Array.isArray(linesPayload)).toBe(true);
+      expect(linesPayload!.length).toBeGreaterThanOrEqual(2);
 
-        // Cast through unknown to satisfy TypeScript (capturedRequestBody is initially typed as
-        // Record<string,unknown>|null but the not.toBeNull() assertion above narrows it at runtime)
-        const payload = capturedRequestBody as unknown as { lines?: unknown[] };
-        const linesPayload = payload.lines;
-        expect(Array.isArray(linesPayload)).toBe(true);
-        expect(linesPayload!.length).toBeGreaterThanOrEqual(2);
+      // lines[0] must contain assignedBudgetLineId and assignedBudgetLineType: 'work_item'
+      const line0 = linesPayload![0] as Record<string, unknown>;
+      expect(line0.assignedBudgetLineId).toBe(budgetLineId);
+      expect(line0.assignedBudgetLineType).toBe('work_item');
 
-        // lines[0] must contain assignedBudgetLineId and assignedBudgetLineType: 'work_item'
-        const line0 = linesPayload![0] as Record<string, unknown>;
-        expect(line0.assignedBudgetLineId).toBe(budgetLineId);
-        expect(line0.assignedBudgetLineType).toBe('work_item');
+      // lines[1] must NOT contain assignedBudgetLineId
+      const line1 = linesPayload![1] as Record<string, unknown>;
+      expect(line1.assignedBudgetLineId).toBeUndefined();
 
-        // lines[1] must NOT contain assignedBudgetLineId
-        const line1 = linesPayload![1] as Record<string, unknown>;
-        expect(line1.assignedBudgetLineId).toBeUndefined();
-
-        // ── Navigation returns to invoice detail ──────────────────────────────
-        await expect(page).toHaveURL(/\/budget\/invoices\/[^/]+$/);
-        expect(page.url()).not.toContain('auto-itemize');
-
-      } finally {
-        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-        // budget line is deleted via work item cascade (work_item_budgets → cascade)
-      }
-    },
-  );
+      // ── Navigation returns to invoice detail ──────────────────────────────
+      await expect(page).toHaveURL(/\/budget\/invoices\/[^/]+$/);
+      expect(page.url()).not.toContain('auto-itemize');
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      // budget line is deleted via work item cascade (work_item_budgets → cascade)
+    }
+  });
 });

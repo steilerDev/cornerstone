@@ -159,7 +159,9 @@ describe('LinkedDocumentCard', () => {
       />,
     );
     // The button label is now "Details", not "View" (Story #1564 rename)
-    expect(screen.getByRole('button', { name: /View details: Invoice March/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /View details: Invoice March/i }),
+    ).toBeInTheDocument();
   });
 
   it('"Details" button calls onView prop with the link', () => {
@@ -359,9 +361,7 @@ describe('LinkedDocumentCard', () => {
         />,
       );
       // The Itemize button should be visible
-      expect(
-        screen.getByRole('button', { name: /Itemize.*Invoice March/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Itemize.*Invoice March/i })).toBeInTheDocument();
     });
 
     it('does NOT render Itemize button when onItemize prop is omitted', () => {
@@ -374,9 +374,7 @@ describe('LinkedDocumentCard', () => {
           // no onItemize
         />,
       );
-      expect(
-        screen.queryByRole('button', { name: /Itemize/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Itemize/i })).not.toBeInTheDocument();
     });
 
     it('calls onItemize with the link when Itemize button is clicked', () => {
@@ -419,9 +417,10 @@ describe('LinkedDocumentCard', () => {
           onItemize={jest.fn()}
         />,
       );
-      expect(
-        screen.getByRole('button', { name: /Itemize.*Invoice March/i }),
-      ).toHaveAttribute('type', 'button');
+      expect(screen.getByRole('button', { name: /Itemize.*Invoice March/i })).toHaveAttribute(
+        'type',
+        'button',
+      );
     });
 
     it('Itemize button is NOT shown when document is null (even with onItemize provided)', () => {
