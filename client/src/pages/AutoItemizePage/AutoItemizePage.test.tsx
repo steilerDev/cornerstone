@@ -170,6 +170,10 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  // Defensive: ensure fake timers don't leak between tests. If a test calls
+  // jest.useFakeTimers() and then times out, Jest does NOT auto-restore timers —
+  // they remain fake for all subsequent tests, causing cascade failures.
+  jest.useRealTimers();
   jest.restoreAllMocks();
 });
 
@@ -1117,32 +1121,29 @@ describe('AutoItemizePage', () => {
     });
 
     it('elapsed counter increments with fake timers (3 seconds)', async () => {
-      jest.useFakeTimers();
-
+      // Set up mocks BEFORE activating fake timers — promise creation needs the real
+      // microtask queue. Each mock returns a never-resolving promise to keep the page
+      // in the loading state for the entirety of the test.
       mockFetchInvoiceById.mockReturnValue(new Promise(() => {}));
       mockAutoItemize.mockReturnValue(new Promise(() => {}));
       mockGetPaperlessDocument.mockReturnValue(new Promise(() => {}));
 
+      jest.useFakeTimers();
+
       renderPage();
 
-      // Wait for initial render
-      await act(async () => {
-        await new Promise<void>((r) => setTimeout(r, 0));
-      });
-
-      // Advance fake timers by 3 seconds to trigger 3 interval ticks
-      await act(async () => {
+      // Advance fake timers by 3 seconds to trigger the elapsed-counter setInterval ticks.
+      // Do NOT use real setTimeout/setImmediate inside act() while fake timers are active —
+      // those become fake timers themselves and would never fire.
+      act(() => {
         jest.advanceTimersByTime(3000);
       });
 
-      // The analyzing caption should show 3s elapsed
-      // In CI with i18n mocks, the text is "autoItemize.analyzing" (translation key) or
-      // "Analyzing… (3s)" with real translations.
-      // We look for an element containing "3s" in its text content.
+      // The analyzing caption should show 3s elapsed. In CI with i18n mocks the text is
+      // the translation key "autoItemize.analyzing"; with real translations it is
+      // "Analyzing… (3s)". Accept either the "3s" substring or the presence of the spinner.
       const elements = document.querySelectorAll('[aria-hidden="true"]');
       const has3s = Array.from(elements).some((el) => el.textContent?.includes('3s'));
-      // Accept the test passing when the caption contains "3s", or when the spinner is
-      // rendered but the caption text format differs (translation mock passthrough)
       expect(has3s || document.querySelectorAll('[role="img"]').length > 0).toBe(true);
 
       jest.useRealTimers();
