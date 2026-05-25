@@ -92,7 +92,7 @@ jobs:
       - name: Run tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json
+        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json --maxWorkers=2 --workerIdleMemoryLimit=2048MB
 
       - name: Rename coverage for merge
         if: ${{ always() }}
