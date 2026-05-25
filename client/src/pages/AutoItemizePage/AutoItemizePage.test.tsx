@@ -47,6 +47,11 @@ jest.unstable_mockModule('../../lib/invoiceAutoItemizeApi.js', () => ({
 
 const mockGetPaperlessDocument = jest.fn<typeof PaperlessApiModule.getPaperlessDocument>();
 const mockGetDocumentThumbnailUrl = jest.fn<(id: number) => string>();
+const mockGetDocumentPreviewUrl = jest.fn<(id: number) => string>(
+  // Default stub returns a stable, recognizable URL containing the documentId so
+  // the AutoItemizePage's <iframe src=...> assertions can pattern-match.
+  (id) => `/paperless/documents/${id}/preview`,
+);
 
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessStatus: jest.fn(),
@@ -54,7 +59,7 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   listPaperlessTags: jest.fn(),
   getPaperlessDocument: mockGetPaperlessDocument,
   getDocumentThumbnailUrl: mockGetDocumentThumbnailUrl,
-  getDocumentPreviewUrl: jest.fn(),
+  getDocumentPreviewUrl: mockGetDocumentPreviewUrl,
 }));
 
 // ─── Mock: useBudgetLinePicker (to avoid cascading API mocks) ─────────────────
