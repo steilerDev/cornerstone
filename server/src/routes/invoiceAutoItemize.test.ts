@@ -894,39 +894,6 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
       expect(updatedInvoice.notes).toBe('test');
     });
 
-    // Fastify AJV default: removeAdditional=true strips unknown props instead of rejecting (see invoiceBudgetLines.test.ts:365)
-    it('silently strips disallowed status field (removeAdditional)', async () => {
-      const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
-      const vendorId = createTestVendor();
-      const invoiceId = createTestInvoice(vendorId, 1000);
-      linkDocument(invoiceId, 42);
-
-      const response = await app.inject({
-        method: 'POST',
-        url: `/api/invoices/${invoiceId}/auto-itemize`,
-        headers: { cookie },
-        payload: {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: false,
-          lines: [],
-          invoicePatch: { status: 'paid', notes: 'test' },
-        },
-      });
-
-      // removeAdditional strips status — request succeeds
-      expect(response.statusCode).toBe(200);
-      // status is unchanged — the disallowed field was stripped before reaching the service
-      const updatedInvoice = app.db
-        .select()
-        .from(schema.invoices)
-        .where(eq(schema.invoices.id, invoiceId))
-        .get()!;
-      expect(updatedInvoice.status).toBe('pending');
-      // notes is updated — the allowed field was applied
-      expect(updatedInvoice.notes).toBe('test');
-    });
-
     it('returns 400 when invoicePatch.amount is 0 (exclusiveMinimum: 0 violation)', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'pass');
       const vendorId = createTestVendor();

@@ -11,7 +11,7 @@
  * Uses renderWithRouter and mocks external API modules.
  */
 
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as InvoicesApiModule from '../../lib/invoicesApi.js';
@@ -524,12 +524,15 @@ describe('AutoItemizePage', () => {
       renderPage();
 
       await waitFor(() => {
-        // Description is rendered inside an <input>, so use getByDisplayValue
+        // Description is rendered inside a <textarea> in the new card UI
         expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
       });
 
-      // Find the checkbox for the line (aria-label contains description)
-      const checkbox = screen.getByRole('checkbox', { name: /Tile work/i }) as HTMLInputElement;
+      // In the new card UI, the checkbox is labeled "Include" (not the description).
+      // Scope the query to the card's <li> element to target the right checkbox.
+      const card = screen.getByDisplayValue('Tile work').closest('li');
+      expect(card).toBeInTheDocument();
+      const checkbox = within(card!).getByRole('checkbox', { name: /^Include$/i }) as HTMLInputElement;
       expect(checkbox.checked).toBe(true);
 
       fireEvent.click(checkbox);
@@ -692,11 +695,15 @@ describe('AutoItemizePage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('checkbox', { name: /Tile/i })).toBeInTheDocument();
+        // Description is rendered inside a <textarea> in the new card UI
+        expect(screen.getByDisplayValue('Tile')).toBeInTheDocument();
       });
 
+      // In the new card UI, the checkbox is labeled "Include" scoped to the card's <li>
+      const card = screen.getByDisplayValue('Tile').closest('li');
+      expect(card).toBeInTheDocument();
       // Uncheck the row
-      fireEvent.click(screen.getByRole('checkbox', { name: /Tile/i }));
+      fireEvent.click(within(card!).getByRole('checkbox', { name: /^Include$/i }));
 
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
