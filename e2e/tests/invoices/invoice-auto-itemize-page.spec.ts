@@ -1555,6 +1555,172 @@ test.describe('Scenario 16 — PDF iframe smoke: correct src and loading overlay
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Scenario 18 — No CSP "Refused to frame" console error when iframe loads (Bug #1579)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 18 — No CSP "Refused to frame" error when PDF iframe loads (Bug #1579)', () => {
+  test('PDF iframe loads without a CSP "Refused to frame" console error (AC-2)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    // Capture console errors BEFORE navigating so we don't miss early errors.
+    const cspErrors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && /Refused to frame/i.test(msg.text())) {
+        cspErrors.push(msg.text());
+      }
+    });
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-CSP Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 500,
+        date: '2026-06-01',
+      });
+
+      const docId = 75001;
+      await mockPaperlessDocument(page, docId, 'CSP Test Doc');
+
+      // Mock the preview endpoint to return a minimal 200 application/pdf response so
+      // the iframe src is valid and the browser can resolve it without a network error.
+      await page.route(`**/paperless/documents/${docId}/preview`, async (route: Route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/pdf',
+          body: '%PDF-1.4 test',
+        });
+      });
+
+      await mockAutoItemizeDryRun(page, invoiceId);
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // Dismiss the loading overlay by simulating the iframe load event (same pattern as Scenario 16).
+      await page.evaluate((iframeTitleAttr) => {
+        const iframe = document.querySelector<HTMLIFrameElement>(
+          `iframe[title="${iframeTitleAttr}"]`,
+        );
+        if (iframe) {
+          iframe.dispatchEvent(new Event('load'));
+        }
+      }, 'Invoice PDF preview');
+
+      // ── PDF iframe must be visible ──────────────────────────────────────────
+      // If the CSP fix is absent, the iframe would be blocked before this point.
+      //
+      // NOTE: In some CI environments the Playwright interceptor handles the
+      // preview request at the network layer (no actual framing occurs), so the
+      // "Refused to frame" error may never reach the console even without the fix.
+      // The primary server-side assertion (Content-Security-Policy header presence)
+      // is validated by the QA integration test for Bug #1579. This test guards the
+      // browser-visible side: iframe DOM present, no CSP console error observed.
+      // TODO #1579: if this test proves consistently clean due to mock-routing, consider
+      // promoting to an integration-level assertion on the CSP header value itself.
+      await expect(autoItemizePage.pdfIframe).toBeVisible();
+
+      // ── Fallback panel must NOT be visible (no error event) ────────────────
+      await expect(autoItemizePage.pdfFallback).not.toBeVisible();
+
+      // ── No "Refused to frame" CSP error must have been logged ──────────────
+      expect(
+        cspErrors,
+        `Expected no CSP framing errors but found: ${cspErrors.join('; ')}`,
+      ).toHaveLength(0);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 19 — PDF preview column sticks during desktop scroll (Bug #1579, AC-5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Scenario 19 — PDF preview column sticks during desktop scroll (Bug #1579, AC-5)',
+  { tag: '@responsive' },
+  () => {
+    test(
+      'Preview column bounding-box top is within ±10px after scrolling .pageBody by 400px (desktop)',
+      async ({ page, testPrefix }) => {
+        // Force desktop viewport so sticky positioning is active (≥860px).
+        await page.setViewportSize({ width: 1280, height: 800 });
+
+        const autoItemizePage = new AutoItemizePage(page);
+        let vendorId = '';
+        let invoiceId = '';
+
+        try {
+          vendorId = await createVendorViaApi(page, `${testPrefix} AI-Sticky Vendor`);
+          invoiceId = await createInvoiceViaApi(page, vendorId, {
+            amount: 1700,
+            date: '2026-06-01',
+          });
+
+          const docId = 76001;
+          await mockPaperlessDocument(page, docId, 'Sticky PDF Doc');
+          // Use THREE_LINES to ensure enough line cards to make the form column scrollable.
+          await mockAutoItemizeDryRun(page, invoiceId, { lines: THREE_LINES });
+
+          await autoItemizePage.goto(invoiceId, docId);
+          await autoItemizePage.waitForAnalyzingDone();
+
+          // ── Verify both columns are visible at desktop width ────────────────
+          await expect(autoItemizePage.formColumn).toBeVisible();
+          await expect(autoItemizePage.previewColumn).toBeVisible();
+
+          // ── Capture pre-scroll bounding box of the preview column ───────────
+          const preBounds = await autoItemizePage.previewColumn.boundingBox();
+          expect(preBounds, 'previewColumn must have a bounding box before scroll').not.toBeNull();
+
+          // ── Scroll .pageBody (the overflow-y: auto container) down 400px ────
+          // .pageBody is the direct scroll container; window.scrollBy would have
+          // no effect because the page body itself handles overflow.
+          await page.evaluate(() => {
+            const pageBody = document.querySelector('[class*="pageBody"]');
+            if (pageBody) {
+              pageBody.scrollBy(0, 400);
+            }
+          });
+
+          // Give the browser a frame to apply the sticky recalculation.
+          await page.evaluate(() => new Promise<void>((resolve) => {
+            requestAnimationFrame(() => resolve());
+          }));
+
+          // ── Capture post-scroll bounding box of the preview column ──────────
+          const postBounds = await autoItemizePage.previewColumn.boundingBox();
+          expect(postBounds, 'previewColumn must have a bounding box after scroll').not.toBeNull();
+
+          // ── Assert sticky: y (top) should remain within ±10px of pre-scroll y ─
+          // Playwright BoundingBox uses { x, y, width, height } where y = top edge.
+          const topDelta = Math.abs(postBounds!.y - preBounds!.y);
+          expect(
+            topDelta,
+            `Expected previewColumn.y to be stable (≤10px shift) after scrolling .pageBody ` +
+              `by 400px, but it shifted by ${topDelta}px ` +
+              `(pre=${preBounds!.y}, post=${postBounds!.y}). ` +
+              `Ensure .previewColumn has position:sticky in the desktop layout.`,
+          ).toBeLessThanOrEqual(10);
+
+          // ── Column must still be visible (not scrolled off-screen) ──────────
+          await expect(autoItemizePage.previewColumn).toBeVisible();
+        } finally {
+          if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+          if (vendorId) await deleteVendorViaApi(page, vendorId);
+        }
+      },
+    );
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Scenario 17 — VAT applies checkbox present; vatRate input absent
 // (New in story #1576 — vatRate input removed, replaced by VAT toggle checkbox)
 // ─────────────────────────────────────────────────────────────────────────────
