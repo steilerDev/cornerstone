@@ -2296,6 +2296,25 @@ describe('AutoItemizePage', () => {
 
       renderPage();
 
+      // Wait for the page to load and the row's Assign… button to appear.
+      // In CI (mocks intercepted), i18n is mocked so the button text is "Assign…".
+      // In the non-intercepted local env, the button text may be the translation key.
+      // Either way, we wait for the page to reach ready state first.
+      await waitFor(() => {
+        const pageReady =
+          screen.queryByRole('button', { name: /^Save$/i }) !== null;
+        expect(pageReady).toBe(true);
+      });
+
+      // Click "Assign…" to set activeRowId via handleAssignButtonClick.
+      // This is required so that handleCreateNewBudgetLine passes the activeRowId guard.
+      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
+      if (assignBtn) {
+        await act(async () => {
+          fireEvent.click(assignBtn);
+        });
+      }
+
       // Wait for the "Create Budget Line" button — only present when picker mock intercepts
       await waitFor(() => {
         const pageReady =

@@ -1212,7 +1212,8 @@ test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () 
       // ── Type in the work-item search input to find the seeded WI ─────────
       await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-Assign WI`);
 
-      const wiOption = autoItemizePage.pickerModal.getByRole('option', {
+      // SearchPicker portals its dropdown to document.body — scope to pickerPortalDropdown.
+      const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
         name: `${testPrefix} AI-Assign WI`,
       });
       await wiOption.waitFor({ state: 'visible' });
@@ -2081,7 +2082,8 @@ test.describe('Scenario 26 — assignmentMode:"assign-existing" in commit payloa
       await expect(autoItemizePage.pickerModal).toBeVisible();
 
       await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-AssignMode WI`);
-      const wiOption = autoItemizePage.pickerModal.getByRole('option', {
+      // SearchPicker portals its dropdown to document.body — scope to pickerPortalDropdown.
+      const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
         name: `${testPrefix} AI-AssignMode WI`,
       });
       await wiOption.waitFor({ state: 'visible' });

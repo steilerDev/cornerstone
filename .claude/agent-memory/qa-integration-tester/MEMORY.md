@@ -13,6 +13,8 @@
 
 **AutoItemizePage pre-existing failures**: 70 (from MEMORY, 2026-05-22) → 86 after Story #1600 additions. All new tests fail locally (mock not intercepted). The 12 passing tests are those that don't require mock interception (loading state, error branches reachable without mock).
 
+**activeRowId guard fix (2026-05-26)**: Tests 17-25 (`handleCreateNewBudgetLine — confidence + vendor + household prefill`) failed in CI because `setupPageWithLineAndOpenPicker` set `mockPickerStateOverride` to step 2 (making "Create Budget Line" visible) but never clicked "Assign…". Without clicking "Assign…", `activeRowId` is null and `handleCreateNewBudgetLine` exits early at the guard `if (!activeRowId) return`. Fix: after `renderPage()`, wait for Save button to appear (ready state), then `queryByRole('button', { name: /Assign…/i })` and `await act(async () => { fireEvent.click(assignBtn); })` before proceeding to click "Create Budget Line". The `act()` wrapper ensures React processes `setActiveRowId(rowId)` before the next interaction.
+
 **SearchPicker portal test — getBoundingClientRect stub required**: JSDOM doesn't implement `getBoundingClientRect`. Without stubbing it, `dropdownRect` remains `null` and the portal is never rendered. Stub via `Element.prototype.getBoundingClientRect = jest.fn().mockReturnValue({ top: 100, bottom: 140, ... })` in `beforeEach`. Restore with `jest.restoreAllMocks()` in `afterEach`. After this stub, all 5 new portal tests pass locally.
 
 ## Story #1596 — categoryMapping + category field tests (2026-05-26)

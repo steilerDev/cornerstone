@@ -122,7 +122,7 @@ test.describe('Create and link budget line — unit pricing (Scenario 1)', () =>
       // Step 1: search for the work item and select it
       const wiInput = detailPage.budgetLinePickerModal.getByPlaceholder('Search work items...');
       await wiInput.fill(wiTitle);
-      const option = detailPage.budgetLinePickerModal.getByRole('option', { name: wiTitle });
+      const option = page.getByRole('option', { name: wiTitle });
       await option.waitFor({ state: 'visible' });
       await option.click();
 
@@ -251,7 +251,7 @@ test.describe('Create and link budget line — from non-empty list (Scenario 2)'
       // Step 1: select the work item
       const wiInput = detailPage.budgetLinePickerModal.getByPlaceholder('Search work items...');
       await wiInput.fill(wiTitle);
-      const option = detailPage.budgetLinePickerModal.getByRole('option', { name: wiTitle });
+      const option = page.getByRole('option', { name: wiTitle });
       await option.waitFor({ state: 'visible' });
       await option.click();
 
@@ -342,7 +342,7 @@ test.describe('Create and link budget line — link error (Scenario 3)', () => {
 
       const wiInput = detailPage.budgetLinePickerModal.getByPlaceholder('Search work items...');
       await wiInput.fill(wiTitle);
-      const option = detailPage.budgetLinePickerModal.getByRole('option', { name: wiTitle });
+      const option = page.getByRole('option', { name: wiTitle });
       await option.waitFor({ state: 'visible' });
       await option.click();
 
@@ -430,7 +430,7 @@ test.describe('Create and link budget line — mobile responsive (Scenario 4)', 
       // Step 1: select work item
       const wiInput = detailPage.budgetLinePickerModal.getByPlaceholder('Search work items...');
       await wiInput.fill(wiTitle);
-      const option = detailPage.budgetLinePickerModal.getByRole('option', { name: wiTitle });
+      const option = page.getByRole('option', { name: wiTitle });
       await option.waitFor({ state: 'visible' });
       await option.click();
 
@@ -515,7 +515,7 @@ test.describe('Budget line picker — Escape key closes modal (Scenario 5)', () 
       // Step 1: select work item to reach step 2
       const wiInput = detailPage.budgetLinePickerModal.getByPlaceholder('Search work items...');
       await wiInput.fill(wiTitle);
-      const option = detailPage.budgetLinePickerModal.getByRole('option', { name: wiTitle });
+      const option = page.getByRole('option', { name: wiTitle });
       await option.waitFor({ state: 'visible' });
       await option.click();
 

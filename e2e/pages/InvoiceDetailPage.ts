@@ -1072,7 +1072,10 @@ export class InvoiceDetailPage {
     if (data.workItemPickerName) {
       const wiInput = this.budgetLinePickerModal.getByPlaceholder('Search work items...');
       await wiInput.fill(data.workItemPickerName);
-      const option = this.budgetLinePickerModal.getByRole('option', {
+      // WorkItemPicker wraps SearchPicker which portals its dropdown to document.body
+      // (via createPortal) — the role="option" elements are NOT inside the modal's DOM
+      // subtree. Scope to page.
+      const option = this.page.getByRole('option', {
         name: data.workItemPickerName,
       });
       await option.waitFor({ state: 'visible' });
