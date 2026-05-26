@@ -548,7 +548,10 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
 
         // ── Pick a category for the included lines (guard requires it for create-new mode) ──
         // Card 0 and Card 2 are included; Card 1 is excluded. Select the first real option.
-        await autoItemizePage.getLineCardCategorySelect(0).selectOption({ index: 1 });
+        // Wait for categories to load first (initializeStaticData() runs asynchronously on mount).
+        const catSelect0 = autoItemizePage.getLineCardCategorySelect(0);
+        await expect(catSelect0.locator('option').nth(1)).toBeAttached();
+        await catSelect0.selectOption({ index: 1 });
         await autoItemizePage.getLineCardCategorySelect(2).selectOption({ index: 1 });
 
         // ── Save → navigate back to invoice detail ───────────────────────────
@@ -2600,14 +2603,14 @@ test.describe('Scenario 31 — Category pre-filled from LLM dry-run response (#1
       await autoItemizePage.waitForAnalyzingDone();
 
       // ── First card Category select should be pre-filled with the provided category ─
+      // initializeStaticData() loads categories asynchronously on mount; wait until
+      // at least one non-placeholder option is rendered before asserting the value.
       const catSelect0 = autoItemizePage.getLineCardCategorySelect(0);
       await expect(catSelect0).toBeVisible();
+      await expect(catSelect0.locator('option').nth(1)).toBeAttached();
 
-      const selectedValue = await catSelect0.inputValue();
-      expect(
-        selectedValue,
-        `Expected Category select on card 0 to be pre-filled with "${firstCatId}" from LLM response but got "${selectedValue}"`,
-      ).toBe(firstCatId);
+      // Now assert the pre-filled value
+      await expect(catSelect0).toHaveValue(firstCatId as string);
 
       // ── Second and third cards should still have the placeholder (no category in fixture) ─
       const catSelect1 = autoItemizePage.getLineCardCategorySelect(1);

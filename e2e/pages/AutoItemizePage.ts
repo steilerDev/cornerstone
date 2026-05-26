@@ -340,13 +340,20 @@ export class AutoItemizePage {
     } else {
       inputId = field;
     }
-    // The badge is a sibling of the input, inside a field-control wrapper div.
-    // Use ancestor traversal: input → parent div (fieldControl) → parent div → badge span.
-    return this.page
-      .locator(`#${inputId}`)
-      .locator('xpath=ancestor::div')
-      .locator('[class*="badge"]')
-      .first();
+    // The badge is a sibling of the fieldControl div, inside the wrapping <div>:
+    //   <div class="fieldRow">
+    //     <label>…</label>
+    //     <div>                         ← 2 levels up from the input/textarea
+    //       <div class="fieldControl">  ← 1 level up from the input/textarea
+    //         <input|textarea id="…">
+    //       </div>
+    //       <span class="badge …">     ← sibling of fieldControl, same wrapping div
+    //     </div>
+    //   </div>
+    //
+    // Scope exactly 2 levels up (input → fieldControl → wrapping div) to avoid
+    // walking up to a common ancestor that contains badges from other fields.
+    return this.page.locator(`#${inputId}`).locator('xpath=../..').locator('[class*="badge"]');
   }
 
   /**
