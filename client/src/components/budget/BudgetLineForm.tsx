@@ -494,6 +494,7 @@ export function BudgetLineForm({
                   setSelectedParentType(type);
                   setSelectedParentId(id);
                 }}
+                onTabChange={(type) => setSelectedParentType(type)}
                 disabled={isMoving}
               />
               {/* Cross-table move hint */}

@@ -8,6 +8,7 @@ export interface ParentPickerProps {
   selectedType: 'work_item' | 'household_item';
   selectedId: string | null;
   onChange: (type: 'work_item' | 'household_item', id: string) => void;
+  onTabChange?: (type: 'work_item' | 'household_item') => void;
   disabled?: boolean;
 }
 
@@ -15,6 +16,7 @@ export function ParentPicker({
   selectedType,
   selectedId,
   onChange,
+  onTabChange,
   disabled = false,
 }: ParentPickerProps) {
   const { t } = useTranslation('budget');
@@ -39,7 +41,10 @@ export function ParentPicker({
           aria-selected={activeTab === 'work_item'}
           aria-controls={panelId}
           className={`${styles.tab} ${activeTab === 'work_item' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('work_item')}
+          onClick={() => {
+            setActiveTab('work_item');
+            onTabChange?.('work_item');
+          }}
           disabled={disabled}
         >
           {t('budgetLineForm.parentPickerWorkItemTab')}
@@ -51,7 +56,10 @@ export function ParentPicker({
           aria-selected={activeTab === 'household_item'}
           aria-controls={panelId}
           className={`${styles.tab} ${activeTab === 'household_item' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('household_item')}
+          onClick={() => {
+            setActiveTab('household_item');
+            onTabChange?.('household_item');
+          }}
           disabled={disabled}
         >
           {t('budgetLineForm.parentPickerHouseholdItemTab')}

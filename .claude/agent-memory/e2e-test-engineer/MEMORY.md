@@ -3,21 +3,20 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
-## AutoItemizePage E2E (Stories #1564/#1584/#1586–#1591, 2026-05-26) — `e2e/tests/invoices/invoice-auto-itemize-page.spec.ts`
+## AutoItemizePage E2E (Stories #1564/#1584/#1586–#1597, 2026-05-26) — `e2e/tests/invoices/invoice-auto-itemize-page.spec.ts`
 
-- Now 29 scenarios (Scenarios 21–29 added for UX fixes). @smoke on 1+2+3+8 (unchanged).
+- Now 32 scenarios (Scenarios 30–32 added for #1595/#1596/#1597). Scenario 17 DELETED (superseded by Scenario 22). @smoke on 1+2+3+8 (unchanged).
 - Category select locator: `lineRow(i).getByRole('combobox', { name: /Select budget category for line item/i })`. Funding source: same pattern with `/Select funding source for line item/i`. Both rendered as `<select>` with `aria-label` — use `getByRole('combobox')` NOT `locator('select')`.
 - VAT checkbox label: "Price includes VAT" (i18n key `autoItemize.includesVat`). NOT "VAT applies". Validate via `lineRow(i).locator('[class*="cardIncludeLabel"]').nth(1)`.
-- Variance indicator: `.varianceMatch` / `.varianceWarning` / `.varianceDanger` CSS classes on a `<span>` inside `.totalsCard`. `getVarianceIndicator()` uses multi-selector locator.
-- Category required validation: on Save with no category, `t('autoItemize.categoryRequiredError')` renders as `role="alert"` — filter via `hasText: /Please select a category.../i`. No POST sent (pageStatus → 'ready', setPageError in handleSave before any fetch).
-- `assignmentMode` field in commit payload: `"assign-existing"` when `assignedBudgetLineId` is set, `"create-new"` otherwise. Verify by intercepting commit POST body.
-- Mobile sticky: at ≤860px, `previewColumn` computed style is `position: static` (not sticky). Assert via `el.evaluate(() => window.getComputedStyle(el).position)`.
-- `requestAnimationFrame` in `page.evaluate()` must use `() => resolve()` wrapper — NOT `r` directly (TypeScript `FrameRequestCallback` incompatibility).
-- POM: `e2e/pages/AutoItemizePage.ts`. Picker modal: `[role="dialog"]` filtered by `h2` text `/Assign to Work Item or Household Item/i` (Modal uses `useId()` for aria-labelledby — NOT accessible name on dialog).
-- Per-row assignment locators: `[class*="assignButtonInTable"]`, `[class*="assignedBadge"]`, `[class*="clearAssignButton"]`.
+- **PICKER MODAL (updated for #1597 — ParentPicker reuse)**: Step 1 now uses `ParentPicker` with `role="tablist"` containing two `role="tab"` buttons. `getParentPickerWorkItemTab()` = `pickerModal.getByRole('tab', { name: /Work Item/i })`. `getParentPickerHouseholdItemTab()` = same with `/Household Item/i`. Active tab renders its SearchPicker; inactive tab's panel is UNMOUNTED (not hidden).
+- `pickerWorkItemSearchInput` = `pickerModal.getByPlaceholder('Work Item')` (placeholder = tab label text, NOT "Search work items..."). `pickerHouseholdItemSearchInput` = `pickerModal.getByPlaceholder('Household Item')`. Work Item tab is default-active.
+- `cardBottomRowPickerRow` CSS class wraps the Category + Funding Source selects row. `getLineCardPickerRow(i)` returns it. Located below `cardBottomRow` checkboxes.
+- Category pre-fill from LLM: `budgetCategoryId` field in dry-run response `lines[]` → pre-fills the Category select on that card. Verify via `catSelect.inputValue()`.
+- `assignmentMode` field in commit payload: `"assign-existing"` when `assignedBudgetLineId` is set, `"create-new"` otherwise.
+- Mobile sticky: at ≤860px, `previewColumn` computed style is `position: static`. Assert via `el.evaluate(() => window.getComputedStyle(el).position)`.
 - lineCheckbox() uses `.first()` — rows have multiple checkboxes (include + includesVat).
-- **UPDATED 2026-05-24**: Scenario 13 is NO LONGER fixme. Step 2 is now wired up in AutoItemizePage.tsx.
-- Picker modal step 1 locators: `pickerWorkItemSearchInput` = `pickerModal.getByPlaceholder('Search work items...')` (hardcoded prop); `pickerHouseholdItemSearchInput` = `pickerModal.getByPlaceholder('Search household items...')`. NO type-selection buttons — replaced by side-by-side WorkItemPicker + HouseholdItemPicker with h3 headings.
+- Per-row assignment locators: `[class*="assignButtonInTable"]`, `[class*="assignedBadge"]`, `[class*="clearAssignButton"]`.
+- `requestAnimationFrame` in `page.evaluate()` must use `() => resolve()` wrapper — NOT `r` directly (TypeScript `FrameRequestCallback` incompatibility).
 - Step 2 locators: `pickerStep2Modal()` returns dialog filtered by h2 `/Select Budget Line/i`; `pickerBudgetLineRow(nameOrIndex)` returns `[class*="pickerBudgetLineRow"]` buttons; `pickerBackButton` = `"← Back"` button; `pickerCreateBudgetLineButton` = `"Create Budget Line"`.
 - Step-1 search results: SearchPicker renders `role="listbox"` → `role="option"` buttons; use `getByRole('option', { name })` scoped to `pickerModal`.
 - After item selected via option click, modal title changes from "Assign to Work Item or Household Item" → "Select Budget Line for {itemTitle}". Wait on `pickerStep2Modal()` not `pickerModal`.
