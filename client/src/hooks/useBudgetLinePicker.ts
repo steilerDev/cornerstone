@@ -185,51 +185,54 @@ export function useBudgetLinePicker({
     }
   }, []);
 
-  const showCreateBudgetLineForm = useCallback(async (prefill?: Partial<BudgetLineFormState>) => {
-    try {
-      const [categoriesResponse, sourcesResponse, vendorsResponse] = await Promise.all([
-        fetchBudgetCategories(),
-        fetchBudgetSources(),
-        fetchVendors({ pageSize: 100 }),
-      ]);
+  const showCreateBudgetLineForm = useCallback(
+    async (prefill?: Partial<BudgetLineFormState>) => {
+      try {
+        const [categoriesResponse, sourcesResponse, vendorsResponse] = await Promise.all([
+          fetchBudgetCategories(),
+          fetchBudgetSources(),
+          fetchVendors({ pageSize: 100 }),
+        ]);
 
-      const discretionaryId = sourcesResponse.budgetSources.find((s) => s.isDiscretionary)?.id;
+        const discretionaryId = sourcesResponse.budgetSources.find((s) => s.isDiscretionary)?.id;
 
-      const initialForm: BudgetLineFormState = {
-        description: '',
-        plannedAmount: '',
-        confidence: 'invoice',
-        budgetCategoryId: '',
-        budgetSourceId: discretionaryId ?? '',
-        vendorId: '',
-        pricingMode: 'direct',
-        quantity: '',
-        unit: '',
-        unitPrice: '',
-        includesVat: true,
-        ...prefill,
-      };
+        const initialForm: BudgetLineFormState = {
+          description: '',
+          plannedAmount: '',
+          confidence: 'invoice',
+          budgetCategoryId: '',
+          budgetSourceId: discretionaryId ?? '',
+          vendorId: '',
+          pricingMode: 'direct',
+          quantity: '',
+          unit: '',
+          unitPrice: '',
+          includesVat: true,
+          ...prefill,
+        };
 
-      setPickerState((prev) => ({
-        ...prev,
-        showCreateForm: true,
-        createForm: initialForm,
-        categories: categoriesResponse.categories,
-        budgetSources: sourcesResponse.budgetSources,
-        vendors: vendorsResponse.vendors,
-        createError: null,
-      }));
-    } catch (err) {
-      const errorMsg =
-        err instanceof ApiClientError
-          ? err.error.message
-          : t('invoiceDetail.budgetLines.picker.loadFormError');
-      setPickerState((prev) => ({
-        ...prev,
-        error: errorMsg,
-      }));
-    }
-  }, [t]);
+        setPickerState((prev) => ({
+          ...prev,
+          showCreateForm: true,
+          createForm: initialForm,
+          categories: categoriesResponse.categories,
+          budgetSources: sourcesResponse.budgetSources,
+          vendors: vendorsResponse.vendors,
+          createError: null,
+        }));
+      } catch (err) {
+        const errorMsg =
+          err instanceof ApiClientError
+            ? err.error.message
+            : t('invoiceDetail.budgetLines.picker.loadFormError');
+        setPickerState((prev) => ({
+          ...prev,
+          error: errorMsg,
+        }));
+      }
+    },
+    [t],
+  );
 
   const handleCreateBudgetLine = useCallback(
     async (e: FormEvent) => {

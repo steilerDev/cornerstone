@@ -658,5 +658,4 @@ export class AutoItemizePage {
   getParentPickerHouseholdItemTab(): Locator {
     return this.pickerModal.getByRole('tab', { name: /Household Item/i });
   }
-
 }

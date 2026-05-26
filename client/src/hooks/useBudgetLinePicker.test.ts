@@ -1017,7 +1017,7 @@ describe('useBudgetLinePicker', () => {
     // Shared helper to set up the standard API mocks with a discretionary source
     function setupFormMocks() {
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       mockFetchBudgetSources.mockResolvedValue({
         budgetSources: [
           { id: 'disc-1', name: 'Discretionary', isDiscretionary: true } as any,

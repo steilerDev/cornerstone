@@ -525,12 +525,9 @@ export function AutoItemizePage() {
 
     // Resolve vendorId from row's vendorName against already-loaded vendors
     const vendors = picker.pickerState.vendors ?? [];
-    const vendorId =
-      row.vendorName
-        ? (vendors.find(
-            (v) => v.name.toLowerCase() === row.vendorName!.toLowerCase(),
-          )?.id ?? null)
-        : null;
+    const vendorId = row.vendorName
+      ? (vendors.find((v) => v.name.toLowerCase() === row.vendorName!.toLowerCase())?.id ?? null)
+      : null;
 
     // Resolve budgetSourceId: use row's value or fall back to discretionary
     const sources = picker.pickerState.budgetSources ?? [];
@@ -1431,17 +1428,16 @@ export function AutoItemizePage() {
                     </div>
                   )}
 
-                {!picker.pickerState.isLoading &&
-                  !picker.pickerState.showCreateForm && (
-                    <button
-                      type="button"
-                      ref={picker.createBudgetLineButtonRef}
-                      className={styles.addButton}
-                      onClick={handleCreateNewBudgetLine}
-                    >
-                      {t('invoiceDetail.budgetLines.picker.createLine')}
-                    </button>
-                  )}
+                {!picker.pickerState.isLoading && !picker.pickerState.showCreateForm && (
+                  <button
+                    type="button"
+                    ref={picker.createBudgetLineButtonRef}
+                    className={styles.addButton}
+                    onClick={handleCreateNewBudgetLine}
+                  >
+                    {t('invoiceDetail.budgetLines.picker.createLine')}
+                  </button>
+                )}
 
                 <button
                   type="button"

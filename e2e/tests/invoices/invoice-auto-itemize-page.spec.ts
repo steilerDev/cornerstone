@@ -2897,25 +2897,22 @@ test.describe('Scenario 34 — "Create Budget Line" visible with existing budget
 
       // ── Flaw 3 guard: form is pre-filled with extracted line data ──────────
       // Description: row.description = 'Bathroom tiles'
-      const descriptionInput = autoItemizePage.pickerCreateBudgetLineFieldset.locator(
-        '#budget-description',
-      );
+      const descriptionInput =
+        autoItemizePage.pickerCreateBudgetLineFieldset.locator('#budget-description');
       await expect(descriptionInput).toBeVisible();
       await expect(descriptionInput).toHaveValue(extractedDescription);
 
       // Planned amount: row.totalAmount = 900
       // BudgetLineForm uses #budget-planned-amount (direct mode) for the planned amount field
-      const amountInput = autoItemizePage.pickerCreateBudgetLineFieldset.locator(
-        '#budget-planned-amount',
-      );
+      const amountInput =
+        autoItemizePage.pickerCreateBudgetLineFieldset.locator('#budget-planned-amount');
       await expect(amountInput).toBeVisible();
       await expect(amountInput).toHaveValue(/^900/);
 
       // Confidence: 0.95 → 'invoice' → label "Invoice" in the select
       // BudgetLineForm renders <select id="budget-confidence">
-      const confidenceSelect = autoItemizePage.pickerCreateBudgetLineFieldset.locator(
-        '#budget-confidence',
-      );
+      const confidenceSelect =
+        autoItemizePage.pickerCreateBudgetLineFieldset.locator('#budget-confidence');
       await expect(confidenceSelect).toBeVisible();
       await expect(confidenceSelect).toHaveValue('invoice');
 

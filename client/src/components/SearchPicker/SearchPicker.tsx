@@ -323,7 +323,8 @@ export function SearchPicker<T>({
         disabled={disabled}
       />
 
-      {isOpen && dropdownRect &&
+      {isOpen &&
+        dropdownRect &&
         createPortal(
           <div
             data-search-picker-dropdown
@@ -347,75 +348,74 @@ export function SearchPicker<T>({
               if (e.key === 'Escape') setIsOpen(false);
             }}
           >
-          {/* Special options at the top */}
-          {specialOptions && specialOptions.length > 0 && (
-            <>
-              {specialOptions.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  className={`${styles.resultOption} ${styles.specialOption}`}
-                  onClick={() => handleSelectSpecial(opt)}
-                >
-                  <span className={`${styles.resultTitle} ${styles.specialOptionLabel}`}>
-                    {opt.label}
-                  </span>
-                </button>
-              ))}
-              {/* Divider between special options and search results */}
-              {(isLoading || results.length > 0) && (
-                <div className={styles.optionsDivider} role="separator" />
-              )}
-            </>
-          )}
-
-          {isLoading && <div className={styles.stateMessage}>{t('searching')}</div>}
-
-          {!isLoading && error && <div className={styles.errorMessage}>{error}</div>}
-
-          {!isLoading &&
-            !error &&
-            results.length > 0 &&
-            results.map((item) => {
-              const rendered = renderItem(item);
-              return (
-                <button
-                  key={rendered.id}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  className={styles.resultOption}
-                  onClick={() => handleSelect(item)}
-                >
-                  {renderSecondary !== undefined ? (
-                    <span className={styles.resultContent}>
-                      <span className={styles.resultTitle}>{rendered.label}</span>
-                      <span className={styles.resultSecondary}>{renderSecondary(item)}</span>
+            {/* Special options at the top */}
+            {specialOptions && specialOptions.length > 0 && (
+              <>
+                {specialOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className={`${styles.resultOption} ${styles.specialOption}`}
+                    onClick={() => handleSelectSpecial(opt)}
+                  >
+                    <span className={`${styles.resultTitle} ${styles.specialOptionLabel}`}>
+                      {opt.label}
                     </span>
-                  ) : (
-                    <span className={styles.resultTitle}>{rendered.label}</span>
-                  )}
-                </button>
-              );
-            })}
-
-          {!isLoading && !error && results.length === 0 && searchTerm.trim() && (
-            <div className={styles.stateMessage}>{resolvedNoResults}</div>
-          )}
-
-          {!isLoading &&
-            !error &&
-            results.length === 0 &&
-            !searchTerm.trim() &&
-            (!specialOptions || specialOptions.length === 0) && (
-              <div className={styles.stateMessage}>{resolvedEmptyHint}</div>
+                  </button>
+                ))}
+                {/* Divider between special options and search results */}
+                {(isLoading || results.length > 0) && (
+                  <div className={styles.optionsDivider} role="separator" />
+                )}
+              </>
             )}
+
+            {isLoading && <div className={styles.stateMessage}>{t('searching')}</div>}
+
+            {!isLoading && error && <div className={styles.errorMessage}>{error}</div>}
+
+            {!isLoading &&
+              !error &&
+              results.length > 0 &&
+              results.map((item) => {
+                const rendered = renderItem(item);
+                return (
+                  <button
+                    key={rendered.id}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className={styles.resultOption}
+                    onClick={() => handleSelect(item)}
+                  >
+                    {renderSecondary !== undefined ? (
+                      <span className={styles.resultContent}>
+                        <span className={styles.resultTitle}>{rendered.label}</span>
+                        <span className={styles.resultSecondary}>{renderSecondary(item)}</span>
+                      </span>
+                    ) : (
+                      <span className={styles.resultTitle}>{rendered.label}</span>
+                    )}
+                  </button>
+                );
+              })}
+
+            {!isLoading && !error && results.length === 0 && searchTerm.trim() && (
+              <div className={styles.stateMessage}>{resolvedNoResults}</div>
+            )}
+
+            {!isLoading &&
+              !error &&
+              results.length === 0 &&
+              !searchTerm.trim() &&
+              (!specialOptions || specialOptions.length === 0) && (
+                <div className={styles.stateMessage}>{resolvedEmptyHint}</div>
+              )}
           </div>,
           document.body,
-        )
-      }
+        )}
     </div>
   );
 }

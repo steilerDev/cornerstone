@@ -1045,7 +1045,9 @@ describe('portal rendering (Story #1600)', () => {
     const input = screen.getByPlaceholderText('Search...');
     await user.click(input);
 
-    await waitFor(() => expect(screen.getByRole('option', { name: 'Alpha Widget' })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: 'Alpha Widget' })).toBeInTheDocument(),
+    );
 
     await user.click(screen.getByRole('option', { name: 'Alpha Widget' }));
 

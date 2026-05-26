@@ -361,9 +361,7 @@ test.describe('Open modal — current source excluded from picker', { tag: '@res
 
       // Source A must NOT be in the dropdown.
       // SearchPicker portals its dropdown to document.body — scope to page.
-      await expect(
-        page.getByRole('option', { name: sourceAName }),
-      ).not.toBeVisible();
+      await expect(page.getByRole('option', { name: sourceAName })).not.toBeVisible();
 
       // Type source B's name — should appear
       await searchInput.fill(sourceBName);

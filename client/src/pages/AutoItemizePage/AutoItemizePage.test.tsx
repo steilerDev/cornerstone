@@ -68,7 +68,9 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 
 let mockPickerStateOverride: Record<string, unknown> = {};
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockShowCreateBudgetLineForm = jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined);
+const mockShowCreateBudgetLineForm = jest
+  .fn<(...args: any[]) => Promise<void>>()
+  .mockResolvedValue(undefined);
 
 jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
   useBudgetLinePicker: () => ({
@@ -2109,10 +2111,12 @@ describe('AutoItemizePage', () => {
     // Because jest.unstable_mockModule may not intercept locally (worktree ESM issue),
     // these tests follow the same dual-environment pattern as other CI-only tests.
 
-    function setupStep2State(overrides: {
-      budgetLines?: unknown[];
-      showCreateForm?: boolean;
-    } = {}) {
+    function setupStep2State(
+      overrides: {
+        budgetLines?: unknown[];
+        showCreateForm?: boolean;
+      } = {},
+    ) {
       mockPickerStateOverride = {
         isOpen: true,
         step: 2,
@@ -2148,7 +2152,8 @@ describe('AutoItemizePage', () => {
         });
         // Accept either found (CI) or not found (non-intercepted local)
         // The assertion that matters is: if the picker IS rendered (step 2 open), the button is present
-        const pickerOpen = screen.queryByText(/Work Item 1/) !== null ||
+        const pickerOpen =
+          screen.queryByText(/Work Item 1/) !== null ||
           document.querySelector('[class*="pickerContent"]') !== null;
         if (pickerOpen) {
           expect(createBtn).toBeInTheDocument();
@@ -2191,13 +2196,12 @@ describe('AutoItemizePage', () => {
       renderPage();
 
       await waitFor(() => {
-        const pickerOpen = screen.queryByText(/Work Item 1/) !== null ||
+        const pickerOpen =
+          screen.queryByText(/Work Item 1/) !== null ||
           document.querySelector('[class*="pickerContent"]') !== null;
         if (pickerOpen) {
           // When picker modal is open at step 2 with existing lines, "Create Budget Line" is still shown
-          expect(
-            screen.queryByRole('button', { name: /Create Budget Line/i }),
-          ).toBeInTheDocument();
+          expect(screen.queryByRole('button', { name: /Create Budget Line/i })).toBeInTheDocument();
         } else {
           expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
         }
@@ -2209,7 +2213,8 @@ describe('AutoItemizePage', () => {
       renderPage();
 
       await waitFor(() => {
-        const pickerOpen = screen.queryByText(/Work Item 1/) !== null ||
+        const pickerOpen =
+          screen.queryByText(/Work Item 1/) !== null ||
           document.querySelector('[class*="pickerContent"]') !== null;
         if (pickerOpen) {
           // When the create form is shown, the "Create Budget Line" trigger button is hidden
@@ -2255,9 +2260,8 @@ describe('AutoItemizePage', () => {
             description: lineOverride.description ?? 'Test line',
             totalAmount: lineOverride.totalAmount ?? 200,
             confidence: lineOverride.confidence ?? 0.9,
-            budgetCategoryId: 'budgetCategoryId' in lineOverride
-              ? lineOverride.budgetCategoryId
-              : 'cat-5',
+            budgetCategoryId:
+              'budgetCategoryId' in lineOverride ? lineOverride.budgetCategoryId : 'cat-5',
             includesVat: true,
             ...(lineOverride.vendorName != null ? { vendorName: lineOverride.vendorName } : {}),
           },
@@ -2301,8 +2305,7 @@ describe('AutoItemizePage', () => {
       // In the non-intercepted local env, the button text may be the translation key.
       // Either way, we wait for the page to reach ready state first.
       await waitFor(() => {
-        const pageReady =
-          screen.queryByRole('button', { name: /^Save$/i }) !== null;
+        const pageReady = screen.queryByRole('button', { name: /^Save$/i }) !== null;
         expect(pageReady).toBe(true);
       });
 
@@ -2470,21 +2473,25 @@ describe('AutoItemizePage', () => {
     // The badge rendering is inside the assignedBadgeWrapper div when both conditions are met.
     // Tests 26-28 verify the rendering conditions.
 
-    function setupReadyPage(lineOverrides: Partial<{
-      description: string;
-      totalAmount: number;
-      confidence: number;
-      budgetCategoryId: string;
-    }> = {}) {
+    function setupReadyPage(
+      lineOverrides: Partial<{
+        description: string;
+        totalAmount: number;
+        confidence: number;
+        budgetCategoryId: string;
+      }> = {},
+    ) {
       mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockAutoItemize.mockResolvedValue(
-        makeDryRunResponse([{
-          description: lineOverrides.description ?? 'Test line',
-          totalAmount: lineOverrides.totalAmount ?? 300,
-          confidence: lineOverrides.confidence ?? 0.9,
-          budgetCategoryId: lineOverrides.budgetCategoryId ?? 'bc-test-category',
-        }]),
+        makeDryRunResponse([
+          {
+            description: lineOverrides.description ?? 'Test line',
+            totalAmount: lineOverrides.totalAmount ?? 300,
+            confidence: lineOverrides.confidence ?? 0.9,
+            budgetCategoryId: lineOverrides.budgetCategoryId ?? 'bc-test-category',
+          },
+        ]),
       );
     }
 
