@@ -541,6 +541,7 @@
   cursor: pointer;
   transition: var(--transition-button);
   white-space: nowrap;
+  min-height: 44px;
 }
 
 .addButton:hover:not(:disabled) {
