@@ -222,8 +222,8 @@ export function AutoItemizePage() {
             ...line,
             included: true,
             rowId: `row-${idx}-${Math.random().toString(36).slice(2, 9)}`,
-            budgetCategoryId: null,
-            budgetSourceId: picker.pickerState.budgetSources?.[0]?.id ?? '',
+            budgetCategoryId: line.budgetCategoryId ?? null,
+            budgetSourceId: line.budgetSourceId ?? (picker.pickerState.budgetSources?.[0]?.id ?? null),
           }));
           setLines(linesWithInclude);
           setWarnings(_autoItemizeResult.warnings);
