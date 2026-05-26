@@ -1831,25 +1831,13 @@ describe('AutoItemizePage', () => {
         expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
       });
 
-      // The line has no assignedBudgetLineId (picker not used), so it gets create-new
-      // BUT the line also has no budgetCategoryId → the category guard would block save.
-      // To bypass the guard without a real category, we need to either:
-      // a) provide a dry-run line that already has a budgetCategoryId, OR
-      // b) accept that this test may hit the category guard.
-      // In practice, the category select starts empty (null), so save will be blocked.
-      // We test the create-new path indirectly via the existing save flow tests that
-      // succeed (those tests use an empty lines: [] payload from the excluded row path).
-
-      // Direct approach: verify that when the page has create-new lines but the
-      // category is missing, the payload is NOT sent. When category IS set (via
-      // programmatic change), the payload includes assignmentMode: 'create-new'.
-
-      // Find the category select for the first line and set a value
-      const categorySelects = document.querySelectorAll('select[id^="category-"]');
-      if (categorySelects.length > 0) {
-        // Simulate choosing a category directly on the DOM select
-        fireEvent.change(categorySelects[0]!, { target: { value: 'bc-test-category' } });
-      }
+      // The dry-run response already carries budgetCategoryId: 'bc-test-category'
+      // (the makeDryRunResponse factory defaults it). The line has no assignedBudgetLineId,
+      // so handleSave maps it to assignmentMode: 'create-new'.
+      // NOTE: do NOT fire a change event on the category select here — the select has no
+      // matching <option> for 'bc-test-category' (picker.pickerState.categories is null in
+      // the mock), so JSDOM resets select.value to '' and the onChange fires with '' → null,
+      // which clears the category and triggers the missingCategories guard, blocking save.
 
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
