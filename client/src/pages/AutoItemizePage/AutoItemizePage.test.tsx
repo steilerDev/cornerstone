@@ -87,6 +87,7 @@ jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
     showCreateBudgetLineForm: jest.fn(),
     handleCreateBudgetLine: jest.fn(),
     setPickerState: jest.fn(),
+    initializeStaticData: jest.fn<() => Promise<void>>().mockResolvedValue(),
     createBudgetLineButtonRef: { current: null },
   }),
 }));
