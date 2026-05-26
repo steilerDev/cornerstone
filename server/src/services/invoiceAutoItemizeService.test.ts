@@ -1727,7 +1727,7 @@ describe('invoiceAutoItemizeService', () => {
           workItemId: null,
           description: opts.description ?? 'Existing budget line',
           plannedAmount: opts.plannedAmount ?? 400,
-          confidence: 'estimate',
+          confidence: 'own_estimate',
           budgetCategoryId: null,
           budgetSourceId: 'discretionary-system',
           vendorId: null,

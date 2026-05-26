@@ -227,7 +227,7 @@ function makePaperlessDoc(): PaperlessDocumentDetailResponse {
 
 function makeDryRunResponse(
   lineOverrides: Array<
-    Partial<{ description: string; totalAmount: number; confidence: number }>
+    Partial<{ description: string; totalAmount: number; confidence: number; budgetCategoryId: string | null }>
   > = [],
   warnings: AutoItemizeDryRunResponse['warnings'] = [],
 ): AutoItemizeDryRunResponse {
@@ -236,8 +236,13 @@ function makeDryRunResponse(
         description: l.description ?? `Line ${i + 1}`,
         totalAmount: l.totalAmount ?? 100,
         confidence: l.confidence ?? 0.9,
+        // Provide a default budgetCategoryId so save-flow tests pass the category
+        // guard in handleSave (which blocks commit when budgetCategoryId is null/undefined
+        // and no assignedBudgetLineId is set). Pass budgetCategoryId: null explicitly
+        // in a line override to test the missing-category error path.
+        budgetCategoryId: 'budgetCategoryId' in l ? l.budgetCategoryId : 'bc-test-category',
       }))
-    : [{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }];
+    : [{ description: 'Tile work', totalAmount: 300, confidence: 0.9, budgetCategoryId: 'bc-test-category' }];
   return {
     lines: defaultLines,
     warnings,
@@ -1776,7 +1781,8 @@ describe('AutoItemizePage', () => {
       mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockAutoItemize.mockResolvedValueOnce(
-        makeDryRunResponse([{ description: 'No category line', totalAmount: 300, confidence: 0.9 }]),
+        // Explicitly pass budgetCategoryId: null to test the missing-category guard
+        makeDryRunResponse([{ description: 'No category line', totalAmount: 300, confidence: 0.9, budgetCategoryId: null }]),
       );
 
       renderPage();
