@@ -2148,7 +2148,12 @@ describe('invoiceAutoItemizeService', () => {
         .mockResolvedValueOnce(
           makeOkFetch(
             makeLlmResponseWithCategory([
-              { description: 'Mystery item', totalAmount: 100, confidence: 0.8, category: 'Unicorn category XYZ' },
+              {
+                description: 'Mystery item',
+                totalAmount: 100,
+                confidence: 0.8,
+                category: 'Unicorn category XYZ',
+              },
             ]),
           ),
         );

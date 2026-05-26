@@ -24,22 +24,40 @@ let capturedWorkItemOnChange: ((id: string) => void) | null = null;
 let capturedHouseholdItemOnChange: ((id: string) => void) | null = null;
 
 jest.unstable_mockModule('../WorkItemPicker/WorkItemPicker.js', () => ({
-  WorkItemPicker: (props: { value: string; onChange: (id: string) => void; placeholder: string; excludeIds: string[] }) => {
+  WorkItemPicker: (props: {
+    value: string;
+    onChange: (id: string) => void;
+    placeholder: string;
+    excludeIds: string[];
+  }) => {
     capturedWorkItemOnChange = props.onChange;
-    return React.createElement('div', {
-      'data-testid': 'work-item-picker',
-      'data-placeholder': props.placeholder,
-    }, 'WorkItemPicker');
+    return React.createElement(
+      'div',
+      {
+        'data-testid': 'work-item-picker',
+        'data-placeholder': props.placeholder,
+      },
+      'WorkItemPicker',
+    );
   },
 }));
 
 jest.unstable_mockModule('../HouseholdItemPicker/HouseholdItemPicker.js', () => ({
-  HouseholdItemPicker: (props: { value: string; onChange: (id: string) => void; placeholder: string; excludeIds: string[] }) => {
+  HouseholdItemPicker: (props: {
+    value: string;
+    onChange: (id: string) => void;
+    placeholder: string;
+    excludeIds: string[];
+  }) => {
     capturedHouseholdItemOnChange = props.onChange;
-    return React.createElement('div', {
-      'data-testid': 'household-item-picker',
-      'data-placeholder': props.placeholder,
-    }, 'HouseholdItemPicker');
+    return React.createElement(
+      'div',
+      {
+        'data-testid': 'household-item-picker',
+        'data-placeholder': props.placeholder,
+      },
+      'HouseholdItemPicker',
+    );
   },
 }));
 
@@ -67,9 +85,7 @@ describe('ParentPicker', () => {
       );
 
       const tabs = screen.getAllByRole('tab');
-      const workItemTab = tabs.find((t) =>
-        t.textContent?.toLowerCase().includes('work'),
-      )!;
+      const workItemTab = tabs.find((t) => t.textContent?.toLowerCase().includes('work'))!;
       expect(workItemTab).toBeDefined();
       // aria-selected should be "true" (attribute value is a string)
       expect(workItemTab.getAttribute('aria-selected')).toBe('true');
@@ -85,9 +101,7 @@ describe('ParentPicker', () => {
       );
 
       const tabs = screen.getAllByRole('tab');
-      const hhTab = tabs.find((t) =>
-        t.textContent?.toLowerCase().includes('household'),
-      )!;
+      const hhTab = tabs.find((t) => t.textContent?.toLowerCase().includes('household'))!;
       expect(hhTab).toBeDefined();
       expect(hhTab.getAttribute('aria-selected')).toBe('true');
     });
@@ -103,9 +117,9 @@ describe('ParentPicker', () => {
 
       // WorkItemPicker mock renders data-testid="work-item-picker"
       // (may not appear if mock doesn't intercept locally — assertion still validates structure)
-      const workItemTab = screen.getAllByRole('tab').find((t) =>
-        t.textContent?.toLowerCase().includes('work'),
-      )!;
+      const workItemTab = screen
+        .getAllByRole('tab')
+        .find((t) => t.textContent?.toLowerCase().includes('work'))!;
       expect(workItemTab.getAttribute('aria-selected')).toBe('true');
     });
 
@@ -118,9 +132,9 @@ describe('ParentPicker', () => {
         }),
       );
 
-      const hhTab = screen.getAllByRole('tab').find((t) =>
-        t.textContent?.toLowerCase().includes('household'),
-      )!;
+      const hhTab = screen
+        .getAllByRole('tab')
+        .find((t) => t.textContent?.toLowerCase().includes('household'))!;
       expect(hhTab.getAttribute('aria-selected')).toBe('true');
     });
   });
@@ -351,9 +365,9 @@ describe('ParentPicker', () => {
         }),
       );
 
-      const workItemTab = screen.getAllByRole('tab').find((t) =>
-        t.textContent?.toLowerCase().includes('work'),
-      )!;
+      const workItemTab = screen
+        .getAllByRole('tab')
+        .find((t) => t.textContent?.toLowerCase().includes('work'))!;
       const tabpanel = screen.getByRole('tabpanel');
       expect(tabpanel).toHaveAttribute('aria-labelledby', workItemTab.id);
       expect(workItemTab).toHaveAttribute('aria-controls', tabpanel.id);
@@ -368,9 +382,9 @@ describe('ParentPicker', () => {
         }),
       );
 
-      const hhTab = screen.getAllByRole('tab').find((t) =>
-        t.textContent?.toLowerCase().includes('household'),
-      )!;
+      const hhTab = screen
+        .getAllByRole('tab')
+        .find((t) => t.textContent?.toLowerCase().includes('household'))!;
       const tabpanel = screen.getByRole('tabpanel');
       expect(tabpanel).toHaveAttribute('aria-labelledby', hhTab.id);
       expect(hhTab).toHaveAttribute('aria-controls', tabpanel.id);
@@ -378,7 +392,9 @@ describe('ParentPicker', () => {
 
     it('multiple ParentPicker instances on the same page have unique tab and tabpanel ids', () => {
       render(
-        React.createElement(React.Fragment, null,
+        React.createElement(
+          React.Fragment,
+          null,
           React.createElement(ParentPicker, {
             selectedType: 'work_item',
             selectedId: null,

@@ -46,15 +46,12 @@ export function mapCategoryNameToId(
   if (byName) return byName.id;
 
   // 2. Exact match on translationKey
-  const byKey = categories.find(
-    (c) => c.translationKey && c.translationKey.toLowerCase() === norm,
-  );
+  const byKey = categories.find((c) => c.translationKey && c.translationKey.toLowerCase() === norm);
   if (byKey) return byKey.id;
 
   // 3. Partial containment
   const partial = categories.find(
-    (c) =>
-      c.name.toLowerCase().includes(norm) || norm.includes(c.name.toLowerCase()),
+    (c) => c.name.toLowerCase().includes(norm) || norm.includes(c.name.toLowerCase()),
   );
   if (partial) return partial.id;
 
@@ -62,9 +59,7 @@ export function mapCategoryNameToId(
   for (const [canonical, aliases] of Object.entries(SYNONYMS)) {
     if (aliases.includes(norm) || norm === canonical) {
       const syn = categories.find(
-        (c) =>
-          c.name.toLowerCase().includes(canonical) ||
-          canonical.includes(c.name.toLowerCase()),
+        (c) => c.name.toLowerCase().includes(canonical) || canonical.includes(c.name.toLowerCase()),
       );
       if (syn) return syn.id;
     }

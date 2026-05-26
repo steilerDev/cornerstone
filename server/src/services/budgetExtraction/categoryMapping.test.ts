@@ -19,7 +19,9 @@ interface CategoryRow {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeCategories(rows: Array<{ id: string; name: string; translationKey?: string | null }>): CategoryRow[] {
+function makeCategories(
+  rows: Array<{ id: string; name: string; translationKey?: string | null }>,
+): CategoryRow[] {
   return rows;
 }
 

@@ -27,7 +27,9 @@ export function SuggestionBadge({
   const { t } = useTranslation('budget');
 
   return (
-    <span className={`${styles.badge} ${multiLine ? styles.badgeMultiLine : ''} ${className || ''}`}>
+    <span
+      className={`${styles.badge} ${multiLine ? styles.badgeMultiLine : ''} ${className || ''}`}
+    >
       <span aria-hidden="true">✨</span>
       <span>{t('autoItemize.suggested', { value: displayValue ?? suggestedValue })}</span>
       <button
