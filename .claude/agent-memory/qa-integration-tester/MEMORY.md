@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1600 — AutoItemize assignment dialog tests (2026-05-26)
+
+**ExtractedLine optional fields**: `quantity`, `unit`, `unitPrice`, `vendorName` are optional (`?: number | string`) NOT nullable. Using `null` for these in test mock data causes TS2322. Use `undefined` (omit the field) or a conditional spread: `...(val != null ? { field: val } : {})`.
+
+**mockShowCreateBudgetLineForm type**: To make a `jest.fn()` accept `Partial<BudgetLineFormState>` arg (which CI-only code calls), type it as `jest.fn<(...args: any[]) => Promise<void>>()` with `// eslint-disable-next-line @typescript-eslint/no-explicit-any`. Typing as `jest.fn<() => Promise<void>>()` (0 args) causes TS2554 in test assertions.
+
+**mockPickerStateOverride pattern**: For AutoItemizePage tests that need the picker modal in different states (isOpen, step 2, etc.), declare a module-scope `let mockPickerStateOverride: Record<string, unknown> = {}` and spread it in the `jest.unstable_mockModule` factory for `useBudgetLinePicker`. Reset to `{}` in `beforeEach`. This lets individual tests set different picker states without changing the global mock factory.
+
+**AutoItemizePage pre-existing failures**: 70 (from MEMORY, 2026-05-22) → 86 after Story #1600 additions. All new tests fail locally (mock not intercepted). The 12 passing tests are those that don't require mock interception (loading state, error branches reachable without mock).
+
+**SearchPicker portal test — getBoundingClientRect stub required**: JSDOM doesn't implement `getBoundingClientRect`. Without stubbing it, `dropdownRect` remains `null` and the portal is never rendered. Stub via `Element.prototype.getBoundingClientRect = jest.fn().mockReturnValue({ top: 100, bottom: 140, ... })` in `beforeEach`. Restore with `jest.restoreAllMocks()` in `afterEach`. After this stub, all 5 new portal tests pass locally.
+
 ## Story #1596 — categoryMapping + category field tests (2026-05-26)
 
 **categoryMapping.ts cast pattern**: When asserting the `category` field on `result.lines[0]`, cast as `result.lines[0] as unknown as Record<string, unknown>` — casting directly to `Record<string, unknown>` gives TS2352 because `ExtractedLine` has no index signature.

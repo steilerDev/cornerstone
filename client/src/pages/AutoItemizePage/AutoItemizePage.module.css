@@ -338,6 +338,13 @@
   box-shadow: var(--shadow-focus);
 }
 
+.assignedBadgeWrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
 .assignedBadge {
   display: inline-flex;
   align-items: center;

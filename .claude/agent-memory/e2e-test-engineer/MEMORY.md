@@ -5,7 +5,8 @@
 
 ## AutoItemizePage E2E (Stories #1564/#1584/#1586–#1597, 2026-05-26) — `e2e/tests/invoices/invoice-auto-itemize-page.spec.ts`
 
-- Now 32 scenarios (Scenarios 30–32 added for #1595/#1596/#1597). Scenario 17 DELETED (superseded by Scenario 22). @smoke on 1+2+3+8 (unchanged).
+- Now 35 scenarios (Scenarios 33–35 added for #1600). Scenario 17 DELETED (superseded by Scenario 22). @smoke on 1+2+3+8 (unchanged).
+- **Story #1600 (portal + prefill + auto-created badge)**: `pickerPortalDropdown = page.locator('[data-search-picker-dropdown]')` — portal is in document.body, NOT in pickerModal. Scope option search to `pickerPortalDropdown`, NOT `pickerModal`. `autoCreatedBadge` = `page.locator('[class*="assignedBadge"] [class*="badge"]').filter({ hasText: /Auto-created/i })` — Badge has NO testId prop currently; frontend must add `testId="auto-created-badge"` for getByTestId() to work. BudgetLineForm `Add Line` submit button uses `xpath=ancestor::form` to scope the `getByRole('button', {name: /Add Line/i})` to the fieldset's form. docIds 93001/94001/95001 reserved for Scenarios 33/34/35.
 - Category select locator: `lineRow(i).getByRole('combobox', { name: /Select budget category for line item/i })`. Funding source: same pattern with `/Select funding source for line item/i`. Both rendered as `<select>` with `aria-label` — use `getByRole('combobox')` NOT `locator('select')`.
 - VAT checkbox label: "Price includes VAT" (i18n key `autoItemize.includesVat`). NOT "VAT applies". Validate via `lineRow(i).locator('[class*="cardIncludeLabel"]').nth(1)`.
 - **PICKER MODAL (updated for #1597 — ParentPicker reuse)**: Step 1 now uses `ParentPicker` with `role="tablist"` containing two `role="tab"` buttons. `getParentPickerWorkItemTab()` = `pickerModal.getByRole('tab', { name: /Work Item/i })`. `getParentPickerHouseholdItemTab()` = same with `/Household Item/i`. Active tab renders its SearchPicker; inactive tab's panel is UNMOUNTED (not hidden).

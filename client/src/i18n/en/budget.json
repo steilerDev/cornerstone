@@ -930,6 +930,7 @@
     "confidenceLabel": "Confidence: {{pct}}%",
     "assignButton": "Assign…",
     "assigned": "Assigned",
+    "createdFromAutoItemization": "Auto-created",
     "creatingNew": "(New)",
     "clearAssignmentAriaLabel": "Clear budget line assignment",
     "categoryLabel": "Category",
