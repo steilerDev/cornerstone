@@ -211,6 +211,17 @@ export function validateExtractedLines(body: unknown): ExtractionResult {
       budgetSourceId = line.budgetSourceId;
     }
 
+    let category: string | null | undefined;
+    if (line.category !== null && line.category !== undefined) {
+      if (typeof line.category === 'string') {
+        const trimmed = line.category.trim();
+        category = trimmed.length > 0 ? trimmed.slice(0, 30) : null;
+      } else {
+        // Non-fatal: ignore invalid types
+        category = undefined;
+      }
+    }
+
     lines.push({
       description: line.description,
       quantity,
@@ -225,6 +236,7 @@ export function validateExtractedLines(body: unknown): ExtractionResult {
       assignedBudgetLineType,
       assignmentMode,
       budgetCategoryId,
+      category,
       budgetSourceId,
     });
   }

@@ -357,3 +357,37 @@ describe('BudgetLineForm — onWheel blurs inputs to prevent scroll value change
     blurSpy.mockRestore();
   });
 });
+
+// ─── ParentPicker regression smoke (#1586 follow-up) ─────────────────────────
+
+describe('BudgetLineForm — ParentPicker regression smoke', () => {
+  it('renders without error (basic mount in direct mode)', () => {
+    const props = buildProps(buildDirectForm());
+    // BudgetLineForm should mount without throwing even with ParentPicker present
+    expect(() => render(<BudgetLineForm {...props} />)).not.toThrow();
+  });
+
+  it('renders without error (basic mount in unit mode)', () => {
+    const props = buildProps(buildUnitForm());
+    expect(() => render(<BudgetLineForm {...props} />)).not.toThrow();
+  });
+
+  it('Cancel button is present and calls onCancel', () => {
+    const onCancel = jest.fn();
+    const props = buildProps(buildDirectForm(), { onCancel });
+    render(<BudgetLineForm {...props} />);
+    const cancelBtn = screen.getByRole('button', { name: /^Cancel$/i });
+    fireEvent.click(cancelBtn);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('Submit button is present in direct mode (Add Line / Save Changes)', () => {
+    const props = buildProps(buildDirectForm());
+    render(<BudgetLineForm {...props} />);
+    // The submit button uses t('budgetLineForm.submitAdd') = "Add Line" (isEditing=false default)
+    // or t('budgetLineForm.submitSave') = "Save Changes" (isEditing=true).
+    // Use type="submit" to find it regardless of translated text.
+    const submitBtn = document.querySelector('button[type="submit"]');
+    expect(submitBtn).not.toBeNull();
+  });
+});

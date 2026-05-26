@@ -1,5 +1,5 @@
 .pageContainer {
-  height: 100%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -855,10 +855,36 @@
 }
 
 .cardBottomRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: auto auto;
+  gap: var(--spacing-2) var(--spacing-4);
   align-items: center;
+}
+
+.cardBottomRow > .cardIncludeLabel:nth-of-type(1) {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.cardBottomRow > .cardIncludeLabel:nth-of-type(2) {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+.cardBottomRow > .cardAssignZone {
+  grid-row: 1;
+  grid-column: 3;
+  justify-self: end;
+  margin-left: 0;
+}
+
+.cardBottomRowPickerRow {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  display: flex;
   gap: var(--spacing-4);
-  flex-wrap: wrap;
+  align-items: center;
 }
 
 .cardIncludeLabel {
@@ -872,10 +898,25 @@
 }
 
 .cardAssignZone {
-  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
+}
+
+@media (max-width: 860px) {
+  .cardBottomRow {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .cardBottomRow > .cardAssignZone {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .cardBottomRowPickerRow {
+    flex-wrap: wrap;
+  }
 }
 
 .totalsCard {

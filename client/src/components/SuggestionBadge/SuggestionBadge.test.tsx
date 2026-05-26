@@ -147,4 +147,52 @@ describe('SuggestionBadge', () => {
       expect(screen.getByRole('button')).toHaveAttribute('type', 'button');
     });
   });
+
+  describe('multiLine prop (#1590)', () => {
+    it('applies badgeMultiLine class to root span when multiLine=true', () => {
+      const { container } = render(
+        <SuggestionBadge
+          suggestedValue="line1\nline2"
+          fieldLabel="Notes"
+          onApply={jest.fn()}
+          multiLine={true}
+        />,
+      );
+      // CSS Modules map .badgeMultiLine to a generated class name at runtime.
+      // In jest/jsdom, CSS Modules are identity-mapped (class name equals the key).
+      expect(container.firstChild).toHaveClass('badgeMultiLine');
+    });
+
+    it('does NOT apply badgeMultiLine class when multiLine=false', () => {
+      const { container } = render(
+        <SuggestionBadge
+          suggestedValue="line1"
+          fieldLabel="Notes"
+          onApply={jest.fn()}
+          multiLine={false}
+        />,
+      );
+      expect(container.firstChild).not.toHaveClass('badgeMultiLine');
+    });
+
+    it('does NOT apply badgeMultiLine class when multiLine is absent (default)', () => {
+      const { container } = render(
+        <SuggestionBadge suggestedValue="line1" fieldLabel="Notes" onApply={jest.fn()} />,
+      );
+      expect(container.firstChild).not.toHaveClass('badgeMultiLine');
+    });
+
+    it('still renders the Apply button and suggested value when multiLine=true', () => {
+      render(
+        <SuggestionBadge
+          suggestedValue="multi line value"
+          fieldLabel="Notes"
+          onApply={jest.fn()}
+          multiLine={true}
+        />,
+      );
+      expect(screen.getByRole('button')).toBeInTheDocument();
+      expect(screen.getByText(/multi line value/)).toBeInTheDocument();
+    });
+  });
 });

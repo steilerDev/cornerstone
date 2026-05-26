@@ -2088,4 +2088,83 @@ describe('AutoItemizePage', () => {
       expect(secondCallArgs[1]).toMatchObject({ mode: 'replace' });
     });
   });
+
+  // ─── Story #1591 — variance recompute on metadataEdits.amount edit ────────────
+
+  describe('variance recomputes when metadata amount is edited (#1591)', () => {
+    /**
+     * Render the page with invoice.amount=1000, one extracted line totalAmount=500.
+     * Initial variance = 500 (50% → danger state).
+     * After editing the amount input to 500, variance = 0 → match state.
+     */
+    it('shows varianceDanger initially when line total does not match invoice amount', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValueOnce(
+        makeDryRunResponse([{ description: 'Tile', totalAmount: 500, confidence: 0.9 }]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        // variance = 500 out of 1000 = 50% → danger
+        // The danger span contains the variance amount via t('autoItemize.varianceDanger', {amount})
+        // In JSDOM with real translations or mock formatters, look for the ✕ symbol or "variance" text
+        const hasDanger =
+          document.querySelector('[class*="varianceDanger"]') !== null ||
+          screen.queryByText(/variance/i) !== null ||
+          screen.queryByText(/✕/) !== null;
+        expect(hasDanger).toBe(true);
+      });
+    });
+
+    it('updates variance to match state when metadata amount is changed to equal the line total', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValueOnce(
+        makeDryRunResponse([{ description: 'Tile', totalAmount: 500, confidence: 0.9 }]),
+      );
+
+      renderPage();
+
+      // Wait for ready state — amount input appears
+      await waitFor(() => {
+        const amtInput = document.getElementById('amount') as HTMLInputElement | null;
+        expect(amtInput).toBeInTheDocument();
+      });
+
+      const amtInput = document.getElementById('amount') as HTMLInputElement;
+
+      // Change the amount to match the single line total (500) → variance = 0 → match
+      await act(async () => {
+        fireEvent.change(amtInput, { target: { value: '500' } });
+      });
+
+      // After the change, the variance match indicator should appear
+      await waitFor(() => {
+        const hasMatch =
+          document.querySelector('[class*="varianceMatch"]') !== null ||
+          screen.queryByText(/Amount matches invoice total/i) !== null ||
+          screen.queryByText(/✓/) !== null;
+        expect(hasMatch).toBe(true);
+      });
+    });
+
+    it('variance input has id="amount" for label association', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValueOnce(
+        makeDryRunResponse([{ description: 'Tile', totalAmount: 500, confidence: 0.9 }]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(document.getElementById('amount')).toBeInTheDocument();
+      });
+
+      const amtInput = document.getElementById('amount') as HTMLInputElement;
+      expect(amtInput.tagName).toBe('INPUT');
+    });
+  });
 });

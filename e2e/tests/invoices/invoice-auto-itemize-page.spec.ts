@@ -29,8 +29,11 @@
  *   14. Status change: pending → paid → save → invoice detail shows "Paid"
  *   15. Extracted date suggestion: extractedInvoiceDate → SuggestionBadge → Apply → field updates
  *   16. PDF iframe smoke: iframe present, src contains preview URL
- *   17. VAT applies checkbox: present; vatRate input NOT in DOM
+ *   17. DELETED — superseded by Scenario 22 ("Price includes VAT" label regression guard)
  *   20. SuggestionBadge for invoiceNumber and notes (parallel to Scenario 15)
+ *   30. Card bottom row layout: Include + VAT labels co-linear; Category + Funding Source below (#1595)
+ *   31. Category pre-filled by LLM extraction: budgetCategoryId in dry-run response (#1596)
+ *   32. ParentPicker tabs (Work Item / Household Item) in assign modal (#1597)
  *
  * Mocking strategy:
  *   - GET /api/config: intercepted to inject autoItemizeEnabled: true/false
@@ -1747,73 +1750,9 @@ test.describe(
   },
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 17 — VAT applies checkbox present; vatRate input absent
-// (New in story #1576 — vatRate input removed, replaced by VAT toggle checkbox)
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Scenario 17 — VAT applies checkbox and no vatRate input', () => {
-  test('Each card has a VAT applies checkbox; vatRate number input is NOT in the DOM', async ({
-    page,
-    testPrefix,
-  }) => {
-    const vw = page.viewportSize()?.width ?? 1440;
-    if (vw < 600) {
-      test.skip(true, 'Functional test — skip on very narrow mobile');
-      return;
-    }
-
-    const autoItemizePage = new AutoItemizePage(page);
-    let vendorId = '';
-    let invoiceId = '';
-
-    try {
-      vendorId = await createVendorViaApi(page, `${testPrefix} AI-VAT Vendor`);
-      invoiceId = await createInvoiceViaApi(page, vendorId, {
-        amount: 1700,
-        date: '2026-06-01',
-      });
-
-      const docId = 74001;
-      await mockPaperlessDocument(page, docId, 'VAT Test Doc');
-      await mockAutoItemizeDryRun(page, invoiceId);
-
-      await autoItemizePage.goto(invoiceId, docId);
-      await autoItemizePage.waitForAnalyzingDone();
-
-      // ── VAT checkbox present on first card ────────────────────────────────
-      const vatCheckbox = autoItemizePage.lineVatCheckbox(0);
-      await expect(vatCheckbox).toBeVisible();
-
-      // The first line has includesVat: false, so VAT checkbox is initially checked
-      // (the component logic: checked={line.includesVat !== false})
-      // Since includesVat: false → checked={false !== false} = checked={false}
-      // Wait — re-reading: checked={line.includesVat !== false}
-      // If includesVat === false, then false !== false = false → unchecked
-      // If includesVat === null/undefined, then null/undefined !== false = true → checked
-      // THREE_LINES[0].includesVat = false → checkbox is unchecked initially
-      await expect(vatCheckbox).not.toBeChecked();
-
-      // ── Toggle VAT checkbox and verify it changes ─────────────────────────
-      await vatCheckbox.click();
-      await expect(vatCheckbox).toBeChecked();
-
-      // ── vatRate number input is NOT in the DOM (removed in story #1576) ───
-      // Previously, each row had a vatRate number input in the table.
-      // After the rework, there is NO vatRate input anywhere in the line cards.
-      const vatRateInput = page.locator('[class*="lineCard"] input[aria-label*="vat rate" i]');
-      await expect(vatRateInput).toHaveCount(0);
-
-      // Also verify via the card metric grid — only 4 metrics (qty, unit, unitPrice, amount)
-      const firstCard = autoItemizePage.lineRow(0);
-      const metricInputs = firstCard.locator('[class*="cardMetricInput"]');
-      await expect(metricInputs).toHaveCount(4);
-    } finally {
-      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
-    }
-  });
-});
+// Scenario 17 DELETED — superseded by Scenario 22 ("Price includes VAT" label + vatRate absence).
+// Scenario 22 covers: label reads "Price includes VAT" (not "VAT applies"), no vatRate input.
+// Keeping the docId 74001 reserved to avoid conflicts with existing test runs.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenarios 21–29 — UX fixes (stories #1584, #1586–#1591)
@@ -2496,6 +2435,251 @@ test.describe('Scenario 20 — Extracted invoiceNumber and notes SuggestionBadge
 
       // ── notes badge should disappear (suggestion == field value now) ──────
       await expect(notesBadge).not.toBeVisible();
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 30 — Card bottom row layout: checkboxes + picker row (#1595)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 30 — Card bottom row: checkbox labels and picker selects layout (#1595)', () => {
+  test('Include + VAT labels are on the same row; Category + Funding Source selects are on a separate row below', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 860) {
+      test.skip(true, 'Desktop layout test — skip below 860px');
+      return;
+    }
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-BottomRow Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
+
+      const docId = 90001;
+      await mockPaperlessDocument(page, docId, 'Bottom Row Layout Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── Locate the first line card's bottom row ──────────────────────────
+      const firstCard = autoItemizePage.lineRow(0);
+      const bottomRow = firstCard.locator('[class*="cardBottomRow"]');
+
+      // ── Include label and VAT label are co-linear (same y coordinate ±10px) ─
+      const includeLabel = bottomRow.locator('[class*="cardIncludeLabel"]').nth(0);
+      const vatLabel = bottomRow.locator('[class*="cardIncludeLabel"]').nth(1);
+
+      const includeBounds = await includeLabel.boundingBox();
+      const vatBounds = await vatLabel.boundingBox();
+
+      expect(includeBounds, 'Include checkbox label must have a bounding box').not.toBeNull();
+      expect(vatBounds, 'VAT checkbox label must have a bounding box').not.toBeNull();
+
+      const checkboxRowYDiff = Math.abs(includeBounds!.y - vatBounds!.y);
+      expect(
+        checkboxRowYDiff,
+        `Include label y=${includeBounds!.y} and VAT label y=${vatBounds!.y} should be co-linear (diff ≤10px) but differ by ${checkboxRowYDiff}px`,
+      ).toBeLessThanOrEqual(10);
+
+      // ── Category and Funding Source selects are on the row below the checkboxes ─
+      const catSelect = autoItemizePage.getLineCardCategorySelect(0);
+      const srcSelect = autoItemizePage.getLineCardFundingSourceSelect(0);
+
+      const catBounds = await catSelect.boundingBox();
+      const srcBounds = await srcSelect.boundingBox();
+
+      expect(catBounds, 'Category select must have a bounding box').not.toBeNull();
+      expect(srcBounds, 'Funding Source select must have a bounding box').not.toBeNull();
+
+      // Category and Funding Source selects are co-linear (same y ±10px)
+      const selectRowYDiff = Math.abs(catBounds!.y - srcBounds!.y);
+      expect(
+        selectRowYDiff,
+        `Category select y=${catBounds!.y} and Funding Source select y=${srcBounds!.y} should be co-linear (diff ≤10px) but differ by ${selectRowYDiff}px`,
+      ).toBeLessThanOrEqual(10);
+
+      // Select row is below the checkbox row (y > checkbox y)
+      expect(
+        catBounds!.y,
+        `Category select row (y=${catBounds!.y}) should be below Include label row (y=${includeBounds!.y})`,
+      ).toBeGreaterThan(includeBounds!.y + 5);
+
+      // Category select is left-aligned (x < viewport/2 = 640px)
+      expect(
+        catBounds!.x,
+        `Category select x=${catBounds!.x} should be in the left half of viewport (< ${1280 / 2}px)`,
+      ).toBeLessThan(1280 / 2);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 31 — Category pre-filled by LLM extraction (#1596)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 31 — Category pre-filled from LLM dry-run response (#1596)', () => {
+  test('Line card Category select is pre-filled when dry-run returns budgetCategoryId', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-CatPreFill Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 900,
+        date: '2026-06-01',
+      });
+
+      const docId = 91001;
+      await mockPaperlessDocument(page, docId, 'Category Prefill Doc');
+
+      // First, find a real budget category ID from the server so we can mock with a valid value.
+      // GET /api/budget-categories returns { budgetCategories: [{ id, translationKey, ... }] }
+      const catResp = await page.request.get('/api/budget-categories');
+      expect(catResp.ok(), `GET /api/budget-categories failed: ${catResp.status()}`).toBeTruthy();
+      const catBody = (await catResp.json()) as { budgetCategories: { id: string }[] };
+      const firstCatId =
+        catBody.budgetCategories.length > 0 ? catBody.budgetCategories[0].id : null;
+
+      // If server has no categories, assert directly so test fails visibly rather than skipping.
+      expect(
+        firstCatId,
+        'Expected at least one budget category to exist on the server for pre-fill test',
+      ).not.toBeNull();
+
+      // Mock dry-run to return first line with a known budgetCategoryId
+      const linesWithCategory = [
+        {
+          ...THREE_LINES[0],
+          budgetCategoryId: firstCatId,
+        },
+        THREE_LINES[1],
+        THREE_LINES[2],
+      ];
+
+      await mockAutoItemizeDryRun(page, invoiceId, { lines: linesWithCategory });
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── First card Category select should be pre-filled with the provided category ─
+      const catSelect0 = autoItemizePage.getLineCardCategorySelect(0);
+      await expect(catSelect0).toBeVisible();
+
+      const selectedValue = await catSelect0.inputValue();
+      expect(
+        selectedValue,
+        `Expected Category select on card 0 to be pre-filled with "${firstCatId}" from LLM response but got "${selectedValue}"`,
+      ).toBe(firstCatId);
+
+      // ── Second and third cards should still have the placeholder (no category in fixture) ─
+      const catSelect1 = autoItemizePage.getLineCardCategorySelect(1);
+      await expect(catSelect1).toHaveValue('');
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 32 — ParentPicker tab UX in assign modal (#1597)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 32 — ParentPicker tabs (Work Item / Household Item) in assign modal (#1597)', () => {
+  test('Assign modal shows Work Item and Household Item tabs; switching tab shows HI search input', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-ParentTab Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 900,
+        date: '2026-06-01',
+      });
+
+      const docId = 92001;
+      await mockPaperlessDocument(page, docId, 'Parent Picker Tabs Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── Open the assign picker modal on the first card ────────────────────
+      const assignBtn = autoItemizePage.lineAssignButton(0);
+      await expect(assignBtn).toBeVisible();
+      await assignBtn.click();
+
+      // ── Picker modal should open (step 1) ─────────────────────────────────
+      await expect(autoItemizePage.pickerModal).toBeVisible();
+
+      // ── Both "Work Item" and "Household Item" tabs are visible ────────────
+      // ParentPicker renders role="tab" buttons inside role="tablist"
+      const workItemTab = autoItemizePage.getParentPickerWorkItemTab();
+      const householdItemTab = autoItemizePage.getParentPickerHouseholdItemTab();
+
+      await expect(workItemTab).toBeVisible();
+      await expect(householdItemTab).toBeVisible();
+
+      // ── Work Item tab is selected by default ──────────────────────────────
+      await expect(workItemTab).toHaveAttribute('aria-selected', 'true');
+      await expect(householdItemTab).toHaveAttribute('aria-selected', 'false');
+
+      // ── Work Item search input is visible under the active Work Item tab ──
+      await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
+
+      // ── Click Household Item tab → its search input becomes visible ───────
+      await householdItemTab.click();
+      await expect(householdItemTab).toHaveAttribute('aria-selected', 'true');
+      await expect(workItemTab).toHaveAttribute('aria-selected', 'false');
+
+      // Household Item search input should now be visible
+      await expect(autoItemizePage.pickerHouseholdItemSearchInput).toBeVisible();
+
+      // Work Item search input should no longer be visible (tab panel swapped)
+      await expect(autoItemizePage.pickerWorkItemSearchInput).not.toBeVisible();
+
+      // ── Close modal without selecting (click outside or escape) ──────────
+      await page.keyboard.press('Escape');
+      await expect(autoItemizePage.pickerModal).not.toBeVisible();
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);

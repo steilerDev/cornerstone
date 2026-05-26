@@ -38,8 +38,10 @@
  *   - title: t('autoItemize.cancelConfirmTitle') = "Discard Changes?"
  *   - discardButton: t('autoItemize.discardChanges') = "Discard Changes"
  *   - keepEditingButton: t('autoItemize.keepEditing') = "Keep Editing"
- * - Budget line picker modal (same as story #1564):
+ * - Budget line picker modal (updated in story #1597 — ParentPicker reuse):
  *   - Step 1: "Assign to Work Item or Household Item"
+ *       Uses ParentPicker with role="tablist": "Work Item" tab + "Household Item" tab
+ *       Active tab shows its search input (Work Items or Household Items)
  *   - Step 2: "Select Budget Line for {itemTitle}"
  * - Layout columns: .formColumn and .previewColumn
  *   Breakpoint: @media (max-width: 860px) → single column, formColumn order:1, previewColumn order:2
@@ -121,13 +123,15 @@ export class AutoItemizePage {
   readonly formColumn: Locator;
   readonly previewColumn: Locator;
 
-  // ─── Per-row assignment picker modal (story #1564 Round 2) ─────────────────
+  // ─── Per-row assignment picker modal (story #1597 — ParentPicker reuse) ──────
   //
-  // The budget line picker modal has two steps (same logic as InvoiceBudgetLinesSection):
-  //  Step 1: Two side-by-side pickers (WorkItemPicker + HouseholdItemPicker)
+  // The budget line picker modal has two steps:
+  //  Step 1: ParentPicker with tab UX (Work Item tab / Household Item tab)
   //    - pickerModal: role="dialog" filtered by h2 "Assign to Work Item or Household Item"
-  //    - pickerWorkItemSearchInput: plain <input type="text"> placeholder="Search work items..."
-  //    - pickerHouseholdItemSearchInput: plain <input type="text"> placeholder="Search household items..."
+  //    - getParentPickerWorkItemTab(): role="tab" name="Work Item" (inside pickerModal)
+  //    - getParentPickerHouseholdItemTab(): role="tab" name="Household Item" (inside pickerModal)
+  //    - pickerWorkItemSearchInput: search input visible when Work Item tab is active
+  //    - pickerHouseholdItemSearchInput: search input visible when Household Item tab is active
   //  Step 2: Budget line list (modal title changes to step-2 title)
   //    - pickerBudgetLineRows: buttons class*="pickerBudgetLineRow"
   //    - pickerBackButton: "← Back" button
@@ -139,15 +143,17 @@ export class AutoItemizePage {
 
   /**
    * Search input for Work Items in step 1 of the picker modal.
-   * Rendered by WorkItemPicker → SearchPicker as a plain <input type="text">
-   * with placeholder "Search work items..." (hardcoded prop in AutoItemizePage.tsx).
+   * Rendered by ParentPicker → WorkItemPicker → SearchPicker as a plain <input type="text">
+   * with placeholder "Work Item" (t('budgetLineForm.parentPickerWorkItemTab')).
+   * Only visible when the Work Item tab is active (default state).
    */
   readonly pickerWorkItemSearchInput: Locator;
 
   /**
    * Search input for Household Items in step 1 of the picker modal.
-   * Rendered by HouseholdItemPicker → SearchPicker as a plain <input type="text">
-   * with placeholder "Search household items..." (hardcoded prop in AutoItemizePage.tsx).
+   * Rendered by ParentPicker → HouseholdItemPicker → SearchPicker as a plain <input type="text">
+   * with placeholder "Household Item" (t('budgetLineForm.parentPickerHouseholdItemTab')).
+   * Only visible when the Household Item tab is active (click householdItemTab to activate).
    */
   readonly pickerHouseholdItemSearchInput: Locator;
 
@@ -246,20 +252,23 @@ export class AutoItemizePage {
     this.formColumn = page.locator('[class*="formColumn"]');
     this.previewColumn = page.locator('[class*="previewColumn"]');
 
-    // ─── Per-row assignment picker modal (story #1564 Round 2) ───────────────
+    // ─── Per-row assignment picker modal (story #1597 — ParentPicker reuse) ─────
     // The Modal uses useId() for aria-labelledby — NOT accessible name on the dialog itself.
     // Filter by the h2 text to scope to the correct dialog.
     this.pickerModal = page.locator('[role="dialog"]').filter({
       has: page.locator('h2', { hasText: /Assign to Work Item or Household Item/i }),
     });
 
-    // Step 1 — Work Item search input (plain <input type="text"> placeholder="Search work items...")
-    this.pickerWorkItemSearchInput = this.pickerModal.getByPlaceholder('Search work items...');
+    // Step 1 — ParentPicker renders role="tablist" with "Work Item" + "Household Item" tabs.
+    // Each tab renders a SearchPicker whose placeholder = tab label:
+    //   WorkItemPicker → placeholder="Work Item" (t('budgetLineForm.parentPickerWorkItemTab'))
+    //   HouseholdItemPicker → placeholder="Household Item" (t('budgetLineForm.parentPickerHouseholdItemTab'))
+    // The active tab's panel is rendered; the inactive tab's panel is unmounted (not hidden).
+    // Work Item search input (visible when Work Item tab is active):
+    this.pickerWorkItemSearchInput = this.pickerModal.getByPlaceholder('Work Item');
 
-    // Step 1 — Household Item search input (plain <input type="text"> placeholder="Search household items...")
-    this.pickerHouseholdItemSearchInput = this.pickerModal.getByPlaceholder(
-      'Search household items...',
-    );
+    // Step 1 — Household Item search input (visible when Household Item tab is active):
+    this.pickerHouseholdItemSearchInput = this.pickerModal.getByPlaceholder('Household Item');
 
     // Step 2 — Back and Create buttons scoped to either modal step
     const anyPickerModal = page.locator('[role="dialog"]').filter({
@@ -559,5 +568,62 @@ export class AutoItemizePage {
    */
   getPdfPreviewIframe(): Locator {
     return this.pdfIframe;
+  }
+
+  // ─── New POM helpers for stories #1595, #1596, #1597 ─────────────────────────
+
+  /**
+   * Returns the metadata Amount input (#amount).
+   * Alias for totalAmountInput — provided for clarity in variance-update tests (#1591).
+   */
+  getMetadataAmountInput(): Locator {
+    return this.totalAmountInput;
+  }
+
+  /**
+   * Returns the two checkbox label elements (Include + VAT) in the cardBottomRow of card i.
+   * Both are <label class*="cardIncludeLabel"> elements.
+   * [0] = Include checkbox label, [1] = "Price includes VAT" label.
+   */
+  getLineCardCheckboxLabels(cardIndex: number): { include: Locator; vat: Locator } {
+    const row = this.lineRow(cardIndex).locator('[class*="cardBottomRow"]');
+    return {
+      include: row.locator('[class*="cardIncludeLabel"]').nth(0),
+      vat: row.locator('[class*="cardIncludeLabel"]').nth(1),
+    };
+  }
+
+  /**
+   * Returns the cardBottomRowPickerRow wrapper for the selects on card i.
+   * Contains the Category select and Funding Source select.
+   * <div class*="cardBottomRowPickerRow"> inside the lineCard.
+   */
+  getLineCardPickerRow(cardIndex: number): Locator {
+    return this.lineRow(cardIndex).locator('[class*="cardBottomRowPickerRow"]');
+  }
+
+  /**
+   * Returns the assign modal (step 1) — alias for pickerModal.
+   * Locates role="dialog" filtered by h2 "Assign to Work Item or Household Item".
+   */
+  getAssignModal(): Locator {
+    return this.pickerModal;
+  }
+
+  /**
+   * Returns the "Work Item" tab button inside the assign modal.
+   * ParentPicker renders role="tablist" with role="tab" buttons.
+   * i18n key: budgetLineForm.parentPickerWorkItemTab = "Work Item"
+   */
+  getParentPickerWorkItemTab(): Locator {
+    return this.pickerModal.getByRole('tab', { name: /Work Item/i });
+  }
+
+  /**
+   * Returns the "Household Item" tab button inside the assign modal.
+   * i18n key: budgetLineForm.parentPickerHouseholdItemTab = "Household Item"
+   */
+  getParentPickerHouseholdItemTab(): Locator {
+    return this.pickerModal.getByRole('tab', { name: /Household Item/i });
   }
 }

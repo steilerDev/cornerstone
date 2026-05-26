@@ -84,6 +84,17 @@
   }
 }
 
+/* Full-height layout opt-in: when a routed page has data-layout="full-height" on its root,
+   the AppShell main content gives up scroll responsibility so the page can manage it. */
+.mainContent:has(> main > [data-layout='full-height']) {
+  overflow-y: visible;
+}
+
+.mainContent:has(> main > [data-layout='full-height']) > main {
+  overflow: visible;
+  padding: 0;
+}
+
 @media print {
   .mainContent {
     overflow: visible !important;

@@ -12,6 +12,8 @@ export interface SuggestionBadgeProps {
   displayValue?: string;
   /** CSS class override */
   className?: string;
+  /** Allow multi-line text with line breaks */
+  multiLine?: boolean;
 }
 
 export function SuggestionBadge({
@@ -20,11 +22,12 @@ export function SuggestionBadge({
   onApply,
   displayValue,
   className,
+  multiLine = false,
 }: SuggestionBadgeProps) {
   const { t } = useTranslation('budget');
 
   return (
-    <span className={`${styles.badge} ${className || ''}`}>
+    <span className={`${styles.badge} ${multiLine ? styles.badgeMultiLine : ''} ${className || ''}`}>
       <span aria-hidden="true">✨</span>
       <span>{t('autoItemize.suggested', { value: displayValue ?? suggestedValue })}</span>
       <button

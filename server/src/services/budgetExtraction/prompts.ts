@@ -20,6 +20,7 @@ Your task is to extract line items AND document-level metadata fields from the p
       "unitPrice": number | null,
       "totalAmount": number,
       "includesVat": boolean | null,
+      "category": string | null,
       "vendorName": string | null,
       "confidence": number (0-1)
     }
@@ -47,8 +48,9 @@ IMPORTANT RULES:
    - If invoiceDate is null OR no payment terms found → dueDate = null
 7. invoiceNumber: extract the vendor's printed invoice identifier (e.g., "INV-2024-0123", "RE 2024-042") if clearly present. Output null if not found.
 8. notes: write ONE short sentence (≤120 chars) summarizing what this invoice covers (e.g., "Bathroom tile installation, March 2024"). Keep it factual and brief. Output null if you cannot determine the content.
-9. If no line items can be reliably extracted, return { "invoiceDate": null, "dueDate": null, "invoiceNumber": null, "notes": null, "lines": [] }.
-10. Output ONLY valid JSON, no markdown, no comments.`;
+9. category: extract ONE short noun phrase for the line's trade or material type (e.g., "Materials", "Labor", "Tile work", "Electrical", "Plumbing", "Roofing", "Painting", "Flooring"). Use English even on German invoices. Keep ≤ 30 characters. Output null if unclear.
+10. If no line items can be reliably extracted, return { "invoiceDate": null, "dueDate": null, "invoiceNumber": null, "notes": null, "lines": [] }.
+11. Output ONLY valid JSON, no markdown, no comments.`;
 
 export function buildUserPrompt(ocrText: string, hints: ExtractionHints): string {
   const vendorName = hints.vendorName ?? 'unknown';
