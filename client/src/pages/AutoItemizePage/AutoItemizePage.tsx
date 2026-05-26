@@ -48,6 +48,8 @@ interface LineWithInclude extends ExtractedLine {
   assignedBudgetLineType?: 'work_item' | 'household_item';
   assignedBudgetLineDescription?: string | null;
   inlineCreatedBudgetLineDraft?: BudgetLineFormState;
+  budgetCategoryId?: string | null;
+  budgetSourceId?: string | null;
 }
 
 interface MetadataEdits {
@@ -220,6 +222,8 @@ export function AutoItemizePage() {
             ...line,
             included: true,
             rowId: `row-${idx}-${Math.random().toString(36).slice(2, 9)}`,
+            budgetCategoryId: null,
+            budgetSourceId: picker.pickerState.budgetSources?.[0]?.id ?? '',
           }));
           setLines(linesWithInclude);
           setWarnings(_autoItemizeResult.warnings);
@@ -259,6 +263,22 @@ export function AutoItemizePage() {
     }),
     [invoice],
   );
+
+  // Re-default budgetSourceId when sources become available
+  useEffect(() => {
+    if (
+      picker.pickerState.budgetSources &&
+      picker.pickerState.budgetSources.length > 0 &&
+      lines.some((l) => !l.budgetSourceId)
+    ) {
+      const firstSourceId = picker.pickerState.budgetSources[0]?.id;
+      if (firstSourceId) {
+        setLines((prev) =>
+          prev.map((l) => (l.budgetSourceId ? l : { ...l, budgetSourceId: firstSourceId })),
+        );
+      }
+    }
+  }, [picker.pickerState.budgetSources]);
 
   // Track dirty state without synchronous setState in effect
   useEffect(() => {
@@ -316,6 +336,16 @@ export function AutoItemizePage() {
         patch.status = metadataEdits.status;
       }
 
+      // Validate that all included lines with create-new mode have a category
+      const missingCategories = includedLines.filter(
+        (l) => !l.assignedBudgetLineId && !l.budgetCategoryId,
+      );
+      if (missingCategories.length > 0) {
+        setPageError(t('autoItemize.categoryRequiredError'));
+        setPageStatus('ready');
+        return;
+      }
+
       // Map lines to payload, including assignedBudgetLineId and assignedBudgetLineType
       // Note: vatRate is omitted from the payload (dropped from UI)
       const linesPayload: ExtractedLine[] = includedLines.map((l) => ({
@@ -327,12 +357,17 @@ export function AutoItemizePage() {
         includesVat: l.includesVat,
         vendorName: l.vendorName,
         confidence: l.confidence,
+        budgetCategoryId: l.budgetCategoryId,
+        budgetSourceId: l.budgetSourceId || undefined,
         ...(l.assignedBudgetLineId && l.assignedBudgetLineType
           ? {
               assignedBudgetLineId: l.assignedBudgetLineId,
               assignedBudgetLineType: l.assignedBudgetLineType,
+              assignmentMode: 'assign-existing' as const,
             }
-          : {}),
+          : {
+              assignmentMode: 'create-new' as const,
+            }),
       }));
 
       await autoItemize(invoiceId, {
@@ -384,7 +419,7 @@ export function AutoItemizePage() {
   }, []);
 
   const handleLineFieldChange = useCallback(
-    (rowId: string, field: keyof ExtractedLine, value: unknown) => {
+    (rowId: string, field: keyof LineWithInclude, value: unknown) => {
       setLines((prev) =>
         prev.map((line) => {
           if (line.rowId !== rowId) return line;
@@ -393,7 +428,7 @@ export function AutoItemizePage() {
           let coercedValue: unknown = value;
 
           // For number fields, convert empty string to null, else parse
-          if (['quantity', 'unitPrice'].includes(field)) {
+          if (['quantity', 'unitPrice'].includes(field as string)) {
             if (value === '' || value === null) {
               coercedValue = null;
             } else if (typeof value === 'string') {
@@ -479,6 +514,8 @@ export function AutoItemizePage() {
             ...line,
             included: true,
             rowId: `row-${idx}-${Math.random().toString(36).slice(2, 9)}`,
+            budgetCategoryId: line.budgetCategoryId ?? null,
+            budgetSourceId: line.budgetSourceId ?? (picker.pickerState.budgetSources?.[0]?.id ?? null),
           }));
           setLines(linesWithInclude);
           setWarnings(result.warnings);
@@ -538,15 +575,16 @@ export function AutoItemizePage() {
     [extractedNotes, metadataEdits.notes],
   );
 
-  const computedLineTotal = useMemo(
-    () => lines.filter((l) => l.included).reduce((sum, line) => sum + (line.totalAmount ?? 0), 0),
-    [lines],
-  );
-
-  // Variance calculation
-  const invoiceAmount = invoice?.amount ?? 0;
-  const variance = computedLineTotal - invoiceAmount;
-  const variancePercent = invoiceAmount > 0 ? Math.abs(variance) / invoiceAmount : 0;
+  const { computedLineTotal, variance, variancePercent } = useMemo(() => {
+    const total = lines.filter((l) => l.included).reduce((sum, l) => sum + (l.totalAmount ?? 0), 0);
+    const inv = invoice?.amount ?? 0;
+    const v = total - inv;
+    return {
+      computedLineTotal: total,
+      variance: v,
+      variancePercent: inv > 0 ? Math.abs(v) / inv : 0,
+    };
+  }, [lines, invoice?.amount]);
 
   // Render variance indicator
   const renderVarianceIndicator = () => {
@@ -965,8 +1003,54 @@ export function AutoItemizePage() {
                               handleLineFieldChange(line.rowId, 'includesVat', e.target.checked)
                             }
                           />
-                          {t('autoItemize.vatApplies')}
+                          {t('autoItemize.includesVat')}
                         </label>
+
+                        {/* Category picker */}
+                        <div className={styles.cardMetricCell}>
+                          <label htmlFor={`category-${line.rowId}`} className={styles.cardPickerLabel}>
+                            {t('autoItemize.categoryLabel')}
+                          </label>
+                          <select
+                            id={`category-${line.rowId}`}
+                            className={styles.cardMetricInput}
+                            value={line.budgetCategoryId ?? ''}
+                            onChange={(e) =>
+                              handleLineFieldChange(line.rowId, 'budgetCategoryId', e.target.value || null)
+                            }
+                            aria-label={t('autoItemize.categoryAriaLabel')}
+                          >
+                            <option value="">{t('autoItemize.categoryPlaceholder')}</option>
+                            {picker.pickerState.categories?.map((cat) => (
+                              <option key={cat.id} value={cat.id}>
+                                {getCategoryDisplayName(tSettings, cat.name, cat.translationKey)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Funding Source picker */}
+                        <div className={styles.cardMetricCell}>
+                          <label htmlFor={`source-${line.rowId}`} className={styles.cardPickerLabel}>
+                            {t('autoItemize.fundingSourceLabel')}
+                          </label>
+                          <select
+                            id={`source-${line.rowId}`}
+                            className={styles.cardMetricInput}
+                            value={line.budgetSourceId ?? ''}
+                            onChange={(e) =>
+                              handleLineFieldChange(line.rowId, 'budgetSourceId', e.target.value)
+                            }
+                            aria-label={t('autoItemize.fundingSourceAriaLabel')}
+                          >
+                            {picker.pickerState.budgetSources?.map((src) => (
+                              <option key={src.id} value={src.id}>
+                                {src.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
                         <div className={styles.cardAssignZone}>
                           {!line.assignedBudgetLineId && !line.inlineCreatedBudgetLineDraft ? (
                             <button

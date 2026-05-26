@@ -1799,6 +1799,600 @@ test.describe('Scenario 17 — VAT applies checkbox and no vatRate input', () =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Scenarios 21–29 — UX fixes (stories #1584, #1586–#1591)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Scenario 21 — Notes wrap (#1586): long extractedNotes wraps without shrinking preview column
+test.describe('Scenario 21 — Long notes suggestion wraps without shrinking preview column (#1586)', () => {
+  test('With a 200+ char extractedNotes value, preview column stays ≥40% viewport width on desktop', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 860) {
+      test.skip(true, 'Desktop-only layout test');
+      return;
+    }
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-NotesWrap Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 900,
+        date: '2026-06-01',
+      });
+
+      const docId = 80001;
+      await mockPaperlessDocument(page, docId, 'Notes Wrap Doc');
+
+      // Build a notes string >200 chars to trigger wrapping
+      const longNotes =
+        'Facade cladding materials for the north and east elevations of the main structure. ' +
+        'Includes all adhesive, fasteners, and weatherproofing tape. ' +
+        'Installation not included. Reference order #2024-FACADE-NE.';
+      expect(longNotes.length).toBeGreaterThan(200);
+
+      await mockAutoItemizeDryRun(page, invoiceId, {
+        lines: THREE_LINES,
+        extractedNotes: longNotes,
+      });
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // The notes suggestion badge should be visible
+      const notesBadge = autoItemizePage.suggestionBadge('notes');
+      await expect(notesBadge).toBeVisible();
+
+      // After applying, the notes textarea shows the long text (wraps vertically)
+      const applyBtn = notesBadge.getByRole('button', { name: /Apply/i });
+      await applyBtn.click();
+      await expect(autoItemizePage.notesInput).toHaveValue(longNotes);
+
+      // Both columns still visible — preview column has not been squished below 40% vw
+      const previewBounds = await autoItemizePage.previewColumn.boundingBox();
+      expect(previewBounds).not.toBeNull();
+      // 40% of 1280px = 512px
+      expect(
+        previewBounds!.width,
+        `Expected preview column width ≥ ${0.4 * 1280}px (40% of viewport) but got ${previewBounds!.width}px`,
+      ).toBeGreaterThanOrEqual(0.4 * 1280);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// Scenario 22 — VAT label (#1587): no "VAT applies" text, label reads "Price includes VAT"
+test.describe('Scenario 22 — VAT checkbox label is "Price includes VAT" not "VAT applies" (#1587)', () => {
+  test('No element with text /VAT applies/i visible; VAT checkbox label reads "Price includes VAT"', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-VATLabel Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 900,
+        date: '2026-06-01',
+      });
+
+      const docId = 81001;
+      await mockPaperlessDocument(page, docId, 'VAT Label Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── No element with text "VAT applies" anywhere on the page ─────────────
+      await expect(page.getByText(/VAT applies/i)).not.toBeVisible();
+
+      // ── VAT checkbox label reads "Price includes VAT" ────────────────────────
+      // The label element wrapping the VAT checkbox
+      const vatLabel = autoItemizePage.lineRow(0).locator('[class*="cardIncludeLabel"]').nth(1);
+      await expect(vatLabel).toBeVisible();
+      await expect(vatLabel).toContainText(/Price includes VAT/i);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// Scenario 23 — Category picker on cards (#1588)
+test.describe('Scenario 23 — Category picker present on each line card (#1588)', () => {
+  test('Each line card contains a Category select with a placeholder option', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-CatPick Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
+
+      const docId = 82001;
+      await mockPaperlessDocument(page, docId, 'Category Picker Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── First card has a Category select ─────────────────────────────────────
+      const catSelect0 = autoItemizePage.getLineCardCategorySelect(0);
+      await expect(catSelect0).toBeVisible();
+
+      // ── Category select has a placeholder option (value="") ──────────────────
+      // The placeholder <option value="">Select category</option>
+      const placeholderOption = catSelect0.locator('option[value=""]');
+      await expect(placeholderOption).toHaveCount(1);
+      await expect(placeholderOption).toContainText(/Select category/i);
+
+      // ── Second and third cards also have Category selects ────────────────────
+      await expect(autoItemizePage.getLineCardCategorySelect(1)).toBeVisible();
+      await expect(autoItemizePage.getLineCardCategorySelect(2)).toBeVisible();
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// Scenario 24 — Funding source picker on cards (#1588)
+test.describe('Scenario 24 — Funding Source picker present on each line card (#1588)', () => {
+  test('Each line card contains a Funding Source select with at least one option', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-SrcPick Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
+
+      const docId = 83001;
+      await mockPaperlessDocument(page, docId, 'Funding Source Picker Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── First card has a Funding Source select ────────────────────────────────
+      const srcSelect0 = autoItemizePage.getLineCardFundingSourceSelect(0);
+      await expect(srcSelect0).toBeVisible();
+
+      // ── Funding source select has at least one option (real data from server) ──
+      const options = srcSelect0.locator('option');
+      await expect(options).not.toHaveCount(0);
+
+      // ── Second and third cards also have Funding Source selects ──────────────
+      await expect(autoItemizePage.getLineCardFundingSourceSelect(1)).toBeVisible();
+      await expect(autoItemizePage.getLineCardFundingSourceSelect(2)).toBeVisible();
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// Scenario 25 — Variance recompute on totalAmount edit (#1591)
+test.describe('Scenario 25 — Variance indicator recomputes on totalAmount edit without reload (#1591)', () => {
+  test('Editing a line totalAmount to deviate >5% switches variance indicator state', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      // Invoice amount = 1700, extracted total = 900+680+120 = 1700 → 0% variance → match state
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Variance Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
+
+      const docId = 84001;
+      await mockPaperlessDocument(page, docId, 'Variance Doc');
+      await mockAutoItemizeDryRun(page, invoiceId, { lines: THREE_LINES });
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── Initial state: invoice=1700, lines total=1700 → varianceMatch ────────
+      const indicator = autoItemizePage.getVarianceIndicator();
+      await expect(indicator).toBeVisible();
+      // Initial: ≤1% → varianceMatch CSS class
+      await expect(indicator).toHaveClass(/varianceMatch/);
+
+      // ── Edit first line totalAmount to 500 (total becomes 500+680+120=1300) ──
+      // Variance = |1300-1700|/1700 ≈ 23.5% → > 5% → varianceDanger
+      const totalInput = autoItemizePage.getLineCardTotalAmountInput(0);
+      await totalInput.fill('500');
+      // Trigger change event by tabbing away
+      await totalInput.press('Tab');
+
+      // ── Variance indicator should switch to danger (no page reload) ──────────
+      await expect(indicator).not.toHaveClass(/varianceMatch/);
+      await expect(indicator).toHaveClass(/varianceDanger/);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// Scenario 26 — Assign-existing payload flag (#1589)
+test.describe('Scenario 26 — assignmentMode:"assign-existing" in commit payload for assigned lines (#1589)', () => {
+  test('Assigned line has assignmentMode:"assign-existing"; unassigned line has assignmentMode:"create-new" in commit POST', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+    let workItemId = '';
+    let budgetLineId = '';
+    const budgetLineDescription = `${testPrefix} AI-AssignMode BL`;
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-AssignMode Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AI-AssignMode WI` });
+      budgetLineId = await createWorkItemBudgetViaApi(page, workItemId, {
+        description: budgetLineDescription,
+        plannedAmount: 900,
+      });
+
+      const docId = 85001;
+      await mockPaperlessDocument(page, docId, 'Assignment Mode Doc');
+      // Use a category for lines so they pass validation
+      await mockAutoItemizeDryRun(page, invoiceId, { lines: THREE_LINES });
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── Assign the first card to an existing budget line ─────────────────────
+      await autoItemizePage.lineAssignButton(0).click();
+      await expect(autoItemizePage.pickerModal).toBeVisible();
+
+      await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-AssignMode WI`);
+      const wiOption = autoItemizePage.pickerModal.getByRole('option', {
+        name: `${testPrefix} AI-AssignMode WI`,
+      });
+      await wiOption.waitFor({ state: 'visible' });
+      await wiOption.click();
+
+      const step2Modal = autoItemizePage.pickerStep2Modal();
+      await expect(step2Modal).toBeVisible();
+
+      const budgetLineButton = autoItemizePage.pickerBudgetLineRow(
+        new RegExp(budgetLineDescription, 'i'),
+      );
+      await budgetLineButton.waitFor({ state: 'visible' });
+      await budgetLineButton.click();
+      await expect(autoItemizePage.pickerModal).not.toBeVisible();
+
+      // ── Select a category on lines 2 and 3 so they pass validation ───────────
+      // Lines 2+3 will be "create-new" — they need a category to pass validation.
+      // Since the real category list comes from the server, we need to select one.
+      // Use the first available non-empty option.
+      const catSelect1 = autoItemizePage.getLineCardCategorySelect(1);
+      const catSelect2 = autoItemizePage.getLineCardCategorySelect(2);
+      // Get the first real option (skip placeholder value="")
+      const firstRealOption1 = catSelect1.locator('option').nth(1);
+      const firstRealOption2 = catSelect2.locator('option').nth(1);
+      const optionValue1 = await firstRealOption1.getAttribute('value');
+      const optionValue2 = await firstRealOption2.getAttribute('value');
+      if (optionValue1) await catSelect1.selectOption(optionValue1);
+      if (optionValue2) await catSelect2.selectOption(optionValue2);
+
+      // ── Intercept the commit POST and capture the request body ───────────────
+      let capturedBody: Record<string, unknown> | null = null;
+      const commitResponsePromise = page.waitForResponse(async (resp) => {
+        if (
+          resp.url().includes(`/api/invoices/${invoiceId}/auto-itemize`) &&
+          resp.request().method() === 'POST'
+        ) {
+          const body = resp.request().postDataJSON() as Record<string, unknown> | null;
+          if (body && !(body as { dryRun?: boolean }).dryRun) {
+            capturedBody = body;
+            return true;
+          }
+        }
+        return false;
+      });
+
+      // Mock the commit response so navigation proceeds
+      await page.route(`**/api/invoices/${invoiceId}/auto-itemize`, async (route: Route) => {
+        const reqBody = route.request().postDataJSON() as { dryRun?: boolean } | null;
+        if (reqBody?.dryRun) {
+          await route.continue();
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ budgetLines: [], remainingAmount: 0 }),
+        });
+      });
+
+      await autoItemizePage.saveButton.click();
+      await commitResponsePromise;
+
+      // ── Assert payload ────────────────────────────────────────────────────────
+      expect(capturedBody).not.toBeNull();
+      const linesPayload = (capturedBody as unknown as { lines?: unknown[] }).lines;
+      expect(Array.isArray(linesPayload)).toBe(true);
+      expect(linesPayload!.length).toBeGreaterThanOrEqual(2);
+
+      // Line 0 was assigned to an existing budget line → assignmentMode: "assign-existing"
+      const line0 = linesPayload![0] as Record<string, unknown>;
+      expect(line0.assignmentMode).toBe('assign-existing');
+      expect(line0.assignedBudgetLineId).toBe(budgetLineId);
+
+      // Line 1 was not assigned → assignmentMode: "create-new"
+      const line1 = linesPayload![1] as Record<string, unknown>;
+      expect(line1.assignmentMode).toBe('create-new');
+      expect(line1.assignedBudgetLineId).toBeUndefined();
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+    }
+  });
+});
+
+// Scenario 27 — Create-new requires category (#1588)
+test.describe('Scenario 27 — Save without category on a create-new line shows validation error (#1588)', () => {
+  test('Clicking Save with no category selected shows categoryRequiredError; no POST is sent', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-CatReq Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 1700,
+        date: '2026-06-01',
+      });
+
+      const docId = 86001;
+      await mockPaperlessDocument(page, docId, 'Category Required Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── Do NOT select a category on any line (all remain at placeholder) ─────
+      // Verify category selects are at placeholder value
+      const catSelect0 = autoItemizePage.getLineCardCategorySelect(0);
+      await expect(catSelect0).toHaveValue('');
+
+      // ── Track whether a commit POST was sent ──────────────────────────────────
+      let commitPostSent = false;
+      page.on('request', (req) => {
+        if (
+          req.url().includes(`/api/invoices/${invoiceId}/auto-itemize`) &&
+          req.method() === 'POST'
+        ) {
+          const body = req.postDataJSON() as { dryRun?: boolean } | null;
+          if (body && !body.dryRun) {
+            commitPostSent = true;
+          }
+        }
+      });
+
+      // ── Click Save ────────────────────────────────────────────────────────────
+      await autoItemizePage.saveButton.click();
+
+      // ── Error message should appear ───────────────────────────────────────────
+      // The error renders as a FormError banner (role="alert") inside the formColumn
+      // t('autoItemize.categoryRequiredError') = "Please select a category for all included line items"
+      const errorBanner = page.locator('[role="alert"]').filter({
+        hasText: /Please select a category for all included line items/i,
+      });
+      await expect(errorBanner).toBeVisible();
+
+      // ── No commit POST should have been sent ──────────────────────────────────
+      // Give a small time window for any spurious request to arrive
+      await page.waitForTimeout(300);
+      expect(commitPostSent, 'Expected no commit POST to be sent when category is missing').toBe(
+        false,
+      );
+
+      // ── Page should still be on the auto-itemize page ─────────────────────────
+      expect(page.url()).toContain('auto-itemize');
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// Scenario 28 — PDF preview sticky at desktop (#1590)
+test.describe(
+  'Scenario 28 — PDF preview column sticky during desktop scroll (#1590)',
+  { tag: '@responsive' },
+  () => {
+    test('Preview column bounding-box top is stable (≤10px shift) after form scroll on desktop (1280×800)', async ({
+      page,
+      testPrefix,
+    }) => {
+      // Already covered by Scenario 19 which tests the same sticky behaviour via .pageBody scroll.
+      // This scenario uses wheel scroll as an alternative method to verify stickiness.
+      await page.setViewportSize({ width: 1280, height: 800 });
+
+      const autoItemizePage = new AutoItemizePage(page);
+      let vendorId = '';
+      let invoiceId = '';
+
+      try {
+        vendorId = await createVendorViaApi(page, `${testPrefix} AI-StickyWheel Vendor`);
+        invoiceId = await createInvoiceViaApi(page, vendorId, {
+          amount: 1700,
+          date: '2026-06-01',
+        });
+
+        const docId = 87001;
+        await mockPaperlessDocument(page, docId, 'Sticky Wheel Doc');
+        await mockAutoItemizeDryRun(page, invoiceId, { lines: THREE_LINES });
+
+        await autoItemizePage.goto(invoiceId, docId);
+        await autoItemizePage.waitForAnalyzingDone();
+
+        await expect(autoItemizePage.formColumn).toBeVisible();
+        await expect(autoItemizePage.previewColumn).toBeVisible();
+
+        // ── Record pre-scroll position of preview column ──────────────────────
+        const preBounds = await autoItemizePage.previewColumn.boundingBox();
+        expect(preBounds).not.toBeNull();
+
+        // ── Scroll the .formColumn element programmatically ───────────────────
+        // formColumn has overflow-y: auto at ≥860px, making it the scroll container.
+        await autoItemizePage.formColumn.evaluate((el) => {
+          el.scrollBy(0, 500);
+        });
+
+        // Wait for a rendering frame to apply sticky recalculation
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) => {
+              requestAnimationFrame(() => resolve());
+            }),
+        );
+
+        // ── Record post-scroll position of preview column ──────────────────────
+        const postBounds = await autoItemizePage.previewColumn.boundingBox();
+        expect(postBounds).not.toBeNull();
+
+        // ── Sticky: top should remain within ±10px ────────────────────────────
+        const topDelta = Math.abs(postBounds!.y - preBounds!.y);
+        expect(
+          topDelta,
+          `Preview column top shifted by ${topDelta}px after formColumn scroll — expected ≤10px. ` +
+            `Ensure previewColumn has position:sticky (desktop). Pre=${preBounds!.y}, Post=${postBounds!.y}`,
+        ).toBeLessThanOrEqual(10);
+
+        await expect(autoItemizePage.previewColumn).toBeVisible();
+      } finally {
+        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// Scenario 29 — PDF preview non-sticky at mobile (#1590)
+test.describe(
+  'Scenario 29 — PDF preview column NOT sticky at mobile viewport (#1590)',
+  { tag: '@responsive' },
+  () => {
+    test('Preview column position changes after page scroll at mobile (390×844) — not sticky', async ({
+      page,
+      testPrefix,
+    }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+
+      const autoItemizePage = new AutoItemizePage(page);
+      let vendorId = '';
+      let invoiceId = '';
+
+      try {
+        vendorId = await createVendorViaApi(page, `${testPrefix} AI-MobNoStick Vendor`);
+        invoiceId = await createInvoiceViaApi(page, vendorId, {
+          amount: 1700,
+          date: '2026-06-01',
+        });
+
+        const docId = 88001;
+        await mockPaperlessDocument(page, docId, 'Mobile No Sticky Doc');
+        await mockAutoItemizeDryRun(page, invoiceId, { lines: THREE_LINES });
+
+        await autoItemizePage.goto(invoiceId, docId);
+        await autoItemizePage.waitForAnalyzingDone();
+
+        // ── At mobile the page uses normal document flow (no sticky) ──────────
+        // Verify previewColumn has position:static (CSS computed value)
+        const positionValue = await autoItemizePage.previewColumn.evaluate((el) =>
+          window.getComputedStyle(el).position,
+        );
+        expect(
+          positionValue,
+          `Expected previewColumn to have position:static at 390px viewport but got "${positionValue}". ` +
+            `The @media (max-width: 860px) rule should override to position:static.`,
+        ).toBe('static');
+      } finally {
+        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Scenario 20 — SuggestionBadge for invoiceNumber and notes (parallel to Scenario 15)
 // (New in bug fix #1581 — LLM now extracts invoiceNumber and notes at document level)
 // ─────────────────────────────────────────────────────────────────────────────

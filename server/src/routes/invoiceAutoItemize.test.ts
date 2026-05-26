@@ -1057,6 +1057,216 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
     });
   });
 
+  // ─── Story #1588 / #1589: assignmentMode, budgetCategoryId, budgetSourceId schema ─
+
+  describe('400 VALIDATION_ERROR — assignmentMode and per-line fields', () => {
+    it('accepts request with assignmentMode: "create-new"', async () => {
+      const { cookie } = await createUserWithSession(
+        'user-mode-create@test.com',
+        'UserModeCreate',
+        'pass',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'New line',
+              totalAmount: 200,
+              confidence: 0.9,
+              assignmentMode: 'create-new',
+            },
+          ],
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it('accepts request with assignmentMode: "assign-existing" and assignedBudgetLineId', async () => {
+      const { cookie } = await createUserWithSession(
+        'user-mode-existing@test.com',
+        'UserModeExisting',
+        'pass',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      // The service will throw NotFoundError because the budget line doesn't exist,
+      // but that means the schema passed validation (400 schema rejection is what we're preventing)
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Assign existing',
+              totalAmount: 200,
+              confidence: 0.9,
+              assignmentMode: 'assign-existing',
+              assignedBudgetLineId: 'some-budget-line-id',
+              assignedBudgetLineType: 'work_item',
+            },
+          ],
+        },
+      });
+
+      // 404 (not found for the budget line) means the schema was accepted
+      expect([200, 404]).toContain(response.statusCode);
+      if (response.statusCode === 404) {
+        const body = response.json<{ error: { code: string } }>();
+        expect(body.error.code).toBe('NOT_FOUND');
+      }
+    });
+
+    it('rejects request with assignmentMode: "invalid-value" with 400', async () => {
+      const { cookie } = await createUserWithSession(
+        'user-mode-invalid@test.com',
+        'UserModeInvalid',
+        'pass',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Bad mode',
+              totalAmount: 200,
+              confidence: 0.9,
+              assignmentMode: 'invalid-value',
+            },
+          ],
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<{ error: { code: string } }>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('rejects request with budgetCategoryId longer than 36 chars with 400', async () => {
+      const { cookie } = await createUserWithSession(
+        'user-cat-toolong@test.com',
+        'UserCatTooLong',
+        'pass',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Long category id',
+              totalAmount: 100,
+              confidence: 0.9,
+              // 37 characters — one over the maxLength: 36
+              budgetCategoryId: 'a'.repeat(37),
+            },
+          ],
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<{ error: { code: string } }>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('accepts request with budgetCategoryId exactly 36 chars', async () => {
+      const { cookie } = await createUserWithSession(
+        'user-cat-36@test.com',
+        'UserCat36',
+        'pass',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Line with category',
+              totalAmount: 100,
+              confidence: 0.9,
+              // exactly 36 chars (valid UUID length)
+              budgetCategoryId: 'a'.repeat(36),
+            },
+          ],
+        },
+      });
+
+      // The schema accepts it; service may reject it (unknown category FK) → 200 or non-400
+      expect(response.statusCode).not.toBe(400);
+    });
+
+    it('accepts request with budgetSourceId of valid maxLength', async () => {
+      const { cookie } = await createUserWithSession(
+        'user-src@test.com',
+        'UserSrc',
+        'pass',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      linkDocument(invoiceId, 42);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Line with source',
+              totalAmount: 100,
+              confidence: 0.9,
+              budgetSourceId: 'discretionary-system',
+            },
+          ],
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+  });
+
   // ─── Story #1576: dry-run response with extractedInvoiceDate / extractedDueDate ─
 
   describe('200 success — dry-run with extracted date fields (Story #1576)', () => {

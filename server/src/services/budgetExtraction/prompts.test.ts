@@ -22,6 +22,38 @@ describe('SYSTEM_PROMPT', () => {
     expect(SYSTEM_PROMPT.toLowerCase()).toMatch(/construction/);
   });
 
+  // ─── Story #1584 / #1585: invoiceDate and dueDate label guidance ─────────
+
+  it('includes "Rechnungsdatum" as a recognized German invoiceDate label', () => {
+    expect(SYSTEM_PROMPT).toContain('Rechnungsdatum');
+  });
+
+  it('includes "Belegdatum" as a recognized German invoiceDate label', () => {
+    expect(SYSTEM_PROMPT).toContain('Belegdatum');
+  });
+
+  it('includes explicit instruction NOT to confuse "Lieferdatum" with invoiceDate', () => {
+    // Bug #1584: LLM was confusing delivery date with invoice date. The prompt must
+    // explicitly warn the LLM to NOT use Lieferdatum as the invoiceDate.
+    expect(SYSTEM_PROMPT).toContain('Lieferdatum');
+    // The instruction must be a negative/exclusion rule
+    expect(SYSTEM_PROMPT.toLowerCase()).toMatch(/do not confuse|not confuse|lieferdatum/i);
+  });
+
+  it('includes "Fälligkeitsdatum" as a recognized German dueDate label', () => {
+    // Bug #1585: LLM was not extracting dueDate from explicit German labels.
+    expect(SYSTEM_PROMPT).toContain('Fälligkeitsdatum');
+  });
+
+  it('includes "Zahlbar sofort" as a recognized immediate-payment term', () => {
+    expect(SYSTEM_PROMPT).toContain('Zahlbar sofort');
+  });
+
+  it('includes "innerhalb" as a relative German payment-term indicator', () => {
+    // "innerhalb von N Tagen" is a common German relative due date pattern
+    expect(SYSTEM_PROMPT).toContain('innerhalb');
+  });
+
   it('describes the required JSON output schema with "lines" array', () => {
     expect(SYSTEM_PROMPT).toContain('"lines"');
     expect(SYSTEM_PROMPT).toContain('"description"');

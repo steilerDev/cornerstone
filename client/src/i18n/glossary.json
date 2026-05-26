@@ -31,6 +31,7 @@
     "Annotate": { "de": { "verb": "annotieren" } },
     "Callout": { "de": { "singular": "Sprechblase", "plural": "Sprechblasen" } },
     "Freehand": { "de": { "singular": "Freihand" } },
+    "Funding Source": { "de": { "singular": "Finanzierungsquelle", "plural": "Finanzierungsquellen" } },
     "Itemize": { "de": { "verb": "aufschlüsseln", "noun": "Aufschlüsselung" } }
   }
 }
