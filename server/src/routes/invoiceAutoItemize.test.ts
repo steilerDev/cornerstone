@@ -1201,11 +1201,7 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
     });
 
     it('accepts request with budgetCategoryId exactly 36 chars', async () => {
-      const { cookie } = await createUserWithSession(
-        'user-cat-36@test.com',
-        'UserCat36',
-        'pass',
-      );
+      const { cookie } = await createUserWithSession('user-cat-36@test.com', 'UserCat36', 'pass');
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 1000);
       linkDocument(invoiceId, 42);
@@ -1235,11 +1231,7 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
     });
 
     it('accepts request with budgetSourceId of valid maxLength', async () => {
-      const { cookie } = await createUserWithSession(
-        'user-src@test.com',
-        'UserSrc',
-        'pass',
-      );
+      const { cookie } = await createUserWithSession('user-src@test.com', 'UserSrc', 'pass');
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 1000);
       linkDocument(invoiceId, 42);

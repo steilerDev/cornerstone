@@ -229,7 +229,8 @@ export function AutoItemizePage() {
             included: true,
             rowId: `row-${idx}-${Math.random().toString(36).slice(2, 9)}`,
             budgetCategoryId: line.budgetCategoryId ?? null,
-            budgetSourceId: line.budgetSourceId ?? (picker.pickerState.budgetSources?.[0]?.id ?? null),
+            budgetSourceId:
+              line.budgetSourceId ?? picker.pickerState.budgetSources?.[0]?.id ?? null,
           }));
           setLines(linesWithInclude);
           setWarnings(_autoItemizeResult.warnings);
@@ -521,7 +522,8 @@ export function AutoItemizePage() {
             included: true,
             rowId: `row-${idx}-${Math.random().toString(36).slice(2, 9)}`,
             budgetCategoryId: line.budgetCategoryId ?? null,
-            budgetSourceId: line.budgetSourceId ?? (picker.pickerState.budgetSources?.[0]?.id ?? null),
+            budgetSourceId:
+              line.budgetSourceId ?? picker.pickerState.budgetSources?.[0]?.id ?? null,
           }));
           setLines(linesWithInclude);
           setWarnings(result.warnings);
@@ -1014,7 +1016,10 @@ export function AutoItemizePage() {
 
                         {/* Category picker */}
                         <div className={styles.cardMetricCell}>
-                          <label htmlFor={`category-${line.rowId}`} className={styles.cardPickerLabel}>
+                          <label
+                            htmlFor={`category-${line.rowId}`}
+                            className={styles.cardPickerLabel}
+                          >
                             {t('autoItemize.categoryLabel')}
                           </label>
                           <select
@@ -1022,7 +1027,11 @@ export function AutoItemizePage() {
                             className={styles.cardMetricInput}
                             value={line.budgetCategoryId ?? ''}
                             onChange={(e) =>
-                              handleLineFieldChange(line.rowId, 'budgetCategoryId', e.target.value || null)
+                              handleLineFieldChange(
+                                line.rowId,
+                                'budgetCategoryId',
+                                e.target.value || null,
+                              )
                             }
                             aria-label={t('autoItemize.categoryAriaLabel')}
                           >
@@ -1037,7 +1046,10 @@ export function AutoItemizePage() {
 
                         {/* Funding Source picker */}
                         <div className={styles.cardMetricCell}>
-                          <label htmlFor={`source-${line.rowId}`} className={styles.cardPickerLabel}>
+                          <label
+                            htmlFor={`source-${line.rowId}`}
+                            className={styles.cardPickerLabel}
+                          >
                             {t('autoItemize.fundingSourceLabel')}
                           </label>
                           <select

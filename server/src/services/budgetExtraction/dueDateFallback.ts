@@ -49,9 +49,7 @@ export function computeDueDateFallback(result: ExtractionResult): void {
   // Check for skonto clauses preferentially (longer NET term)
   // Pattern: "X% Skonto innerhalb N Tagen, sonst netto N2 Tage" → use N2
   if (dayOffset === null) {
-    const skontoMatch = notesLower.match(
-      /(?:sonst|then)\s*(?:netto)?\s*(\d+)\s*tag/i,
-    );
+    const skontoMatch = notesLower.match(/(?:sonst|then)\s*(?:netto)?\s*(\d+)\s*tag/i);
     if (skontoMatch) {
       dayOffset = parseInt(skontoMatch[1]!, 10);
     }
@@ -59,9 +57,7 @@ export function computeDueDateFallback(result: ExtractionResult): void {
 
   // Check for relative German payment term patterns
   if (dayOffset === null) {
-    const germanMatch = notesLower.match(
-      /innerhalb\s+(?:von\s+)?(\d+)\s*tag/i,
-    );
+    const germanMatch = notesLower.match(/innerhalb\s+(?:von\s+)?(\d+)\s*tag/i);
     if (germanMatch) {
       dayOffset = parseInt(germanMatch[1]!, 10);
     }
@@ -69,9 +65,7 @@ export function computeDueDateFallback(result: ExtractionResult): void {
 
   // Check for relative English payment term patterns
   if (dayOffset === null) {
-    const englishMatch = notesLower.match(
-      /(?:within|net)\s+(\d+)\s*(?:day|days)?/i,
-    );
+    const englishMatch = notesLower.match(/(?:within|net)\s+(\d+)\s*(?:day|days)?/i);
     if (englishMatch) {
       dayOffset = parseInt(englishMatch[1]!, 10);
     }

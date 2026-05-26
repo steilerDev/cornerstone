@@ -1620,7 +1620,7 @@ describe('invoiceAutoItemizeService', () => {
           paperlessDocumentId: 42,
           mode: 'append',
           dryRun: false,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           lines: [
             {
               description: 'Tile installation',
@@ -1656,7 +1656,7 @@ describe('invoiceAutoItemizeService', () => {
           paperlessDocumentId: 42,
           mode: 'append',
           dryRun: false,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           lines: [
             {
               description: 'Grout work',
@@ -1692,7 +1692,7 @@ describe('invoiceAutoItemizeService', () => {
           paperlessDocumentId: 42,
           mode: 'append',
           dryRun: false,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           lines: [
             {
               description: 'Plumbing fix',
@@ -1722,7 +1722,8 @@ describe('invoiceAutoItemizeService', () => {
     ): string {
       const wibId = uid('wib');
       const t = ts();
-      dbb.insert(schema.workItemBudgets)
+      dbb
+        .insert(schema.workItemBudgets)
         .values({
           id: wibId,
           workItemId: null,
@@ -1767,11 +1768,11 @@ describe('invoiceAutoItemizeService', () => {
           paperlessDocumentId: 42,
           mode: 'append',
           dryRun: false,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           lines: [
             {
-              description: 'Existing line',      // same as stored
-              totalAmount: 300,                   // same as stored plannedAmount
+              description: 'Existing line', // same as stored
+              totalAmount: 300, // same as stored plannedAmount
               confidence: 0.9,
               assignmentMode: 'assign-existing',
               assignedBudgetLineId: existingWibId,
@@ -1815,10 +1816,10 @@ describe('invoiceAutoItemizeService', () => {
           paperlessDocumentId: 42,
           mode: 'append',
           dryRun: false,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           lines: [
             {
-              description: 'New description',    // different from stored
+              description: 'New description', // different from stored
               totalAmount: 300,
               confidence: 0.9,
               assignmentMode: 'assign-existing',
@@ -1854,7 +1855,7 @@ describe('invoiceAutoItemizeService', () => {
           paperlessDocumentId: 42,
           mode: 'append',
           dryRun: false,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           lines: [
             {
               description: 'Existing budget line',

@@ -40,7 +40,10 @@ const schema = {
               type: ['string', 'null'],
               enum: ['work_item', 'household_item', null],
             },
-            assignmentMode: { type: ['string', 'null'], enum: ['create-new', 'assign-existing', null] },
+            assignmentMode: {
+              type: ['string', 'null'],
+              enum: ['create-new', 'assign-existing', null],
+            },
             budgetCategoryId: { type: ['string', 'null'], maxLength: 36 },
             budgetSourceId: { type: ['string', 'null'], maxLength: 36 },
           },

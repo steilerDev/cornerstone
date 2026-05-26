@@ -180,7 +180,7 @@ export function useBudgetLinePicker({
       }));
     } catch (err) {
       // Non-fatal: page can still render; users will see empty selects until retried via picker
-      // eslint-disable-next-line no-console
+
       console.warn('[useBudgetLinePicker] Failed to initialize static data:', err);
     }
   }, []);

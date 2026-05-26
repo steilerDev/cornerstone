@@ -228,7 +228,12 @@ function makePaperlessDoc(): PaperlessDocumentDetailResponse {
 
 function makeDryRunResponse(
   lineOverrides: Array<
-    Partial<{ description: string; totalAmount: number; confidence: number; budgetCategoryId: string | null }>
+    Partial<{
+      description: string;
+      totalAmount: number;
+      confidence: number;
+      budgetCategoryId: string | null;
+    }>
   > = [],
   warnings: AutoItemizeDryRunResponse['warnings'] = [],
 ): AutoItemizeDryRunResponse {
@@ -243,7 +248,14 @@ function makeDryRunResponse(
         // in a line override to test the missing-category error path.
         budgetCategoryId: 'budgetCategoryId' in l ? l.budgetCategoryId : 'bc-test-category',
       }))
-    : [{ description: 'Tile work', totalAmount: 300, confidence: 0.9, budgetCategoryId: 'bc-test-category' }];
+    : [
+        {
+          description: 'Tile work',
+          totalAmount: 300,
+          confidence: 0.9,
+          budgetCategoryId: 'bc-test-category',
+        },
+      ];
   return {
     lines: defaultLines,
     warnings,
@@ -1670,7 +1682,8 @@ describe('AutoItemizePage', () => {
       // Edit the line's totalAmount to 2000 (far above invoice)
       const amountInputs = screen.getAllByRole('spinbutton');
       const lineAmountInput = amountInputs.find(
-        (el) => (el as HTMLInputElement).value === '1000' &&
+        (el) =>
+          (el as HTMLInputElement).value === '1000' &&
           el.getAttribute('aria-label')?.toLowerCase().includes('total'),
       ) as HTMLInputElement | undefined;
 
@@ -1680,8 +1693,7 @@ describe('AutoItemizePage', () => {
         lineAmountInput ??
         (amountInputs.find(
           (el) =>
-            (el as HTMLInputElement).value === '1000' &&
-            (el as HTMLInputElement).id !== 'amount',
+            (el as HTMLInputElement).value === '1000' && (el as HTMLInputElement).id !== 'amount',
         ) as HTMLInputElement | undefined);
 
       if (targetInput) {
@@ -1785,7 +1797,14 @@ describe('AutoItemizePage', () => {
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockAutoItemize.mockResolvedValueOnce(
         // Explicitly pass budgetCategoryId: null to test the missing-category guard
-        makeDryRunResponse([{ description: 'No category line', totalAmount: 300, confidence: 0.9, budgetCategoryId: null }]),
+        makeDryRunResponse([
+          {
+            description: 'No category line',
+            totalAmount: 300,
+            confidence: 0.9,
+            budgetCategoryId: null,
+          },
+        ]),
       );
 
       renderPage();

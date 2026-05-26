@@ -25,7 +25,11 @@ import {
   ValidationError,
   ItemizedSumExceedsInvoiceError,
 } from '../errors/AppError.js';
-import { getProvider, validateExtractedLines, computeDueDateFallback } from './budgetExtraction/index.js';
+import {
+  getProvider,
+  validateExtractedLines,
+  computeDueDateFallback,
+} from './budgetExtraction/index.js';
 import * as paperlessService from './paperlessService.js';
 import * as invoiceBudgetLineService from './invoiceBudgetLineService.js';
 import * as invoiceService from './invoiceService.js';
@@ -243,8 +247,8 @@ export async function autoItemize(
 
           // Look up the budget line in the appropriate table
           let existingBudgetLine:
-            | (typeof workItemBudgets.$inferSelect)
-            | (typeof householdItemBudgets.$inferSelect)
+            | typeof workItemBudgets.$inferSelect
+            | typeof householdItemBudgets.$inferSelect
             | undefined = undefined;
 
           if (extractedLine.assignedBudgetLineType === 'work_item') {
@@ -355,7 +359,10 @@ export async function autoItemize(
                 eq(invoiceBudgetLines.invoiceId, invoiceId),
                 extractedLine.assignedBudgetLineType === 'work_item'
                   ? eq(invoiceBudgetLines.workItemBudgetId, extractedLine.assignedBudgetLineId)
-                  : eq(invoiceBudgetLines.householdItemBudgetId, extractedLine.assignedBudgetLineId),
+                  : eq(
+                      invoiceBudgetLines.householdItemBudgetId,
+                      extractedLine.assignedBudgetLineId,
+                    ),
               ),
             )
             .get();

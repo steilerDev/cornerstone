@@ -2393,8 +2393,8 @@ test.describe(
 
         // ── At mobile the page uses normal document flow (no sticky) ──────────
         // Verify previewColumn has position:static (CSS computed value)
-        const positionValue = await autoItemizePage.previewColumn.evaluate((el) =>
-          window.getComputedStyle(el).position,
+        const positionValue = await autoItemizePage.previewColumn.evaluate(
+          (el) => window.getComputedStyle(el).position,
         );
         expect(
           positionValue,
