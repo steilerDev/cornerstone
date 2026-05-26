@@ -1660,8 +1660,10 @@ describe('AutoItemizePage', () => {
       renderPage();
 
       await waitFor(() => {
-        // The match icon ✓ should appear (totalAmount 1000 == invoice 1000)
-        expect(screen.getByDisplayValue('1000')).toBeInTheDocument();
+        // Wait for the line card to render by its unique description value.
+        // Using the description ('Line') avoids selector ambiguity between the
+        // invoice amount field and the line totalAmount field — both carry '1000'.
+        expect(screen.getByDisplayValue('Line')).toBeInTheDocument();
       });
 
       // Edit the line's totalAmount to 2000 (far above invoice)

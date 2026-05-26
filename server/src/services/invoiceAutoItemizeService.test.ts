@@ -1602,7 +1602,7 @@ describe('invoiceAutoItemizeService', () => {
   // symlink. Cast the lines array through `unknown` to bypass ts-jest type checking.
 
   describe('per-line budgetCategoryId and budgetSourceId (#1588)', () => {
-    it('commit create-new with budgetCategoryId = "cat-123" → new WIB row has that category', async () => {
+    it('commit create-new with budgetCategoryId = "bc-household-items" → new WIB row has that category', async () => {
       const vendorId = insertVendor(db);
       const invoiceId = insertInvoice(db, vendorId, 1000);
       linkDocument(db, invoiceId, 42);
@@ -1610,6 +1610,7 @@ describe('invoiceAutoItemizeService', () => {
 
       const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
 
+      // Use a migration-seeded category (bc-household-items) to satisfy the FK constraint
       await autoItemize(
         db,
         config,
@@ -1626,7 +1627,7 @@ describe('invoiceAutoItemizeService', () => {
               totalAmount: 500,
               confidence: 0.9,
               assignmentMode: 'create-new',
-              budgetCategoryId: 'cat-123',
+              budgetCategoryId: 'bc-household-items',
             },
           ] as any,
         },
@@ -1635,7 +1636,7 @@ describe('invoiceAutoItemizeService', () => {
 
       const newWibs = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore);
       expect(newWibs).toHaveLength(1);
-      expect(newWibs[0]!.budgetCategoryId).toBe('cat-123');
+      expect(newWibs[0]!.budgetCategoryId).toBe('bc-household-items');
     });
 
     it('commit create-new with budgetSourceId = "discretionary-system" → new WIB uses that source', async () => {
