@@ -27,6 +27,12 @@ export interface ExtractedLine {
   assignedBudgetLineId?: string;
   /** Discriminator: which budget line FK family the ID refers to. Required when assignedBudgetLineId is set. */
   assignedBudgetLineType?: 'work_item' | 'household_item';
+  /** Assignment intent: 'assign-existing' links/updates an existing line; 'create-new' creates one. If absent, inferred from assignedBudgetLineId presence. */
+  assignmentMode?: 'create-new' | 'assign-existing';
+  /** Budget category ID for new budget line (create-new mode). Null = no category. */
+  budgetCategoryId?: string | null;
+  /** Budget source ID for new budget line (create-new mode). Falls back to discretionary if absent. */
+  budgetSourceId?: string | null;
 }
 
 export interface ExtractionHints {
