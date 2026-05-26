@@ -140,6 +140,12 @@ export function AutoItemizePage() {
     },
   });
 
+  // Eagerly load categories, sources, and vendors on mount
+  useEffect(() => {
+    picker.initializeStaticData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Timer effect for elapsed seconds counter
   useEffect(() => {
     if (pageStatus !== 'loading') {

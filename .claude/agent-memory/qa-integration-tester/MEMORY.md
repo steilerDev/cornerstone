@@ -3,11 +3,15 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
-## Story #1557 — New @cornerstone/shared type in worktree (2026-05-22)
+## Story #1557/1584-1591 — New @cornerstone/shared type in worktree (2026-05-22)
 
 **Root cause of TS2305 on new shared types**: `node_modules/@cornerstone/shared` is a symlink to `../../shared` (the ROOT project's shared, on main branch). When new types are added to the worktree's `shared/src/`, they are NOT visible to ts-jest type-checking in server tests or (via TypeScript's type resolution) in client tests — even though the Jest moduleNameMapper maps `@cornerstone/shared` → `<rootDir>/shared/src/index.ts` for runtime imports. TypeScript's diagnostic phase uses its own node_modules resolution.
 
-**Fix for local testing**: Copy the worktree's `shared/dist/` to the root project's `shared/dist/` — this updates the symlink target so TypeScript finds the new declaration files. Command: `cp -r .claude/worktrees/<name>/shared/dist/* shared/dist/`. This is safe to do locally; the root shared dist is not committed.
+**Fix for local testing (2-step)**: (1) Build the shared package: `npm run build --workspace=shared` (from worktree root). (2) Copy to root: `cp -r .claude/worktrees/<name>/shared/dist/* shared/dist/`. This is safe; root shared dist is not committed. Without rebuilding first, you only get whatever was already in dist (may be missing new fields).
+
+**Route/service test TS2307 for drizzle-orm**: Pre-existing worktree issue — server route and service tests that import `drizzle-orm` fail because the root `node_modules/drizzle-orm` resolution is broken in the worktree Jest context. These files cannot be tested locally; CI passes them. Do not attempt to fix.
+
+**`as any` cast pattern for new ExtractedLine fields in service tests**: Service tests that pass `assignmentMode`, `budgetCategoryId`, `budgetSourceId` in the `lines` array should use `] as any,` on the closing bracket, with `// eslint-disable-next-line @typescript-eslint/no-explicit-any` on the line before `lines:`.
 
 **Route test import workaround**: In route test files, avoid importing new shared types that don't exist in the root shared dist yet. Define a local inline interface instead (e.g., `interface AllLinkedDocumentIdsResponse { paperlessDocumentIds: number[]; }`) with a comment explaining the workaround.
 
