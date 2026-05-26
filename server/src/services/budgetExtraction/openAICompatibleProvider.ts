@@ -181,6 +181,36 @@ export function validateExtractedLines(body: unknown): ExtractionResult {
       assignedBudgetLineType = line.assignedBudgetLineType;
     }
 
+    let assignmentMode: 'create-new' | 'assign-existing' | undefined;
+    if (line.assignmentMode !== null && line.assignmentMode !== undefined) {
+      if (line.assignmentMode !== 'create-new' && line.assignmentMode !== 'assign-existing') {
+        throw new LlmInvalidResponseError(
+          `Line item at index ${i} has invalid "assignmentMode" (must be 'create-new' or 'assign-existing')`,
+        );
+      }
+      assignmentMode = line.assignmentMode;
+    }
+
+    let budgetCategoryId: string | null | undefined;
+    if (line.budgetCategoryId !== undefined) {
+      if (line.budgetCategoryId !== null && typeof line.budgetCategoryId !== 'string') {
+        throw new LlmInvalidResponseError(
+          `Line item at index ${i} has invalid "budgetCategoryId" (must be a string or null)`,
+        );
+      }
+      budgetCategoryId = line.budgetCategoryId;
+    }
+
+    let budgetSourceId: string | null | undefined;
+    if (line.budgetSourceId !== undefined) {
+      if (line.budgetSourceId !== null && typeof line.budgetSourceId !== 'string') {
+        throw new LlmInvalidResponseError(
+          `Line item at index ${i} has invalid "budgetSourceId" (must be a string or null)`,
+        );
+      }
+      budgetSourceId = line.budgetSourceId;
+    }
+
     lines.push({
       description: line.description,
       quantity,
@@ -193,6 +223,9 @@ export function validateExtractedLines(body: unknown): ExtractionResult {
       confidence: line.confidence,
       assignedBudgetLineId,
       assignedBudgetLineType,
+      assignmentMode,
+      budgetCategoryId,
+      budgetSourceId,
     });
   }
 

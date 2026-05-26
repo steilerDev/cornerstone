@@ -1,5 +1,6 @@
 name: Quality Gates
 
+# Touch (2026-05-26): force webhook re-registration after stuck check-suite delivery.
 on:
   pull_request:
     branches: [main, beta]

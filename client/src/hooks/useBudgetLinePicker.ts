@@ -59,6 +59,7 @@ export interface UseBudgetLinePickerReturn {
   handleCreateBudgetLine: (e: FormEvent) => Promise<void>;
   setPickerState: React.Dispatch<React.SetStateAction<PickerState>>;
   createBudgetLineButtonRef: React.RefObject<HTMLButtonElement | null>;
+  initializeStaticData: () => Promise<void>;
 }
 
 export function useBudgetLinePicker({
@@ -163,6 +164,26 @@ export function useBudgetLinePicker({
     },
     [pickerState.budgetSources, pickerState.vendors, pickerState.categories, t],
   );
+
+  const initializeStaticData = useCallback(async () => {
+    try {
+      const [categoriesResponse, sourcesResponse, vendorsResponse] = await Promise.all([
+        fetchBudgetCategories(),
+        fetchBudgetSources(),
+        fetchVendors({ pageSize: 100 }),
+      ]);
+      setPickerState((prev) => ({
+        ...prev,
+        categories: categoriesResponse.categories,
+        budgetSources: sourcesResponse.budgetSources,
+        vendors: vendorsResponse.vendors,
+      }));
+    } catch (err) {
+      // Non-fatal: page can still render; users will see empty selects until retried via picker
+      // eslint-disable-next-line no-console
+      console.warn('[useBudgetLinePicker] Failed to initialize static data:', err);
+    }
+  }, []);
 
   const showCreateBudgetLineForm = useCallback(async () => {
     try {
@@ -367,5 +388,6 @@ export function useBudgetLinePicker({
     handleCreateBudgetLine,
     setPickerState,
     createBudgetLineButtonRef,
+    initializeStaticData,
   };
 }

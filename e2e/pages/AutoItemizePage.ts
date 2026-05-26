@@ -507,4 +507,57 @@ export class AutoItemizePage {
       await this.page.waitForURL(/\/budget\/invoices\/[^/]+$/);
     }
   }
+
+  // ─── New POM helpers for UX fixes (stories #1586–#1591) ──────────────────────
+
+  /**
+   * Returns the Category select for the line card at the given 0-based index.
+   * Rendered as <select id="category-{rowId}" aria-label="Select budget category for line item">.
+   * Located inside the cardBottomRow via aria-label since the id uses a dynamic rowId.
+   */
+  getLineCardCategorySelect(cardIndex: number): Locator {
+    return this.lineRow(cardIndex).getByRole('combobox', {
+      name: /Select budget category for line item/i,
+    });
+  }
+
+  /**
+   * Returns the Funding Source select for the line card at the given 0-based index.
+   * Rendered as <select id="source-{rowId}" aria-label="Select funding source for line item">.
+   */
+  getLineCardFundingSourceSelect(cardIndex: number): Locator {
+    return this.lineRow(cardIndex).getByRole('combobox', {
+      name: /Select funding source for line item/i,
+    });
+  }
+
+  /**
+   * Returns the totalAmount metric input for the line card at the given 0-based index.
+   * Alias for lineTotal() — the 4th cardMetricInput (index 3) in the cardMetricGrid.
+   * (qty=0, unit=1, unitPrice=2, totalAmount=3)
+   */
+  getLineCardTotalAmountInput(cardIndex: number): Locator {
+    return this.lineTotal(cardIndex);
+  }
+
+  /**
+   * Returns the variance indicator span in the totals card.
+   * Renders as one of:
+   *   - <span class*="varianceMatch">  (≤1% deviation)
+   *   - <span class*="varianceWarning"> (1–5% deviation)
+   *   - <span class*="varianceDanger">  (>5% deviation)
+   */
+  getVarianceIndicator(): Locator {
+    return this.page.locator(
+      '[class*="varianceMatch"], [class*="varianceWarning"], [class*="varianceDanger"]',
+    );
+  }
+
+  /**
+   * Returns the PDF preview iframe.
+   * Alias for pdfIframe — provided for naming consistency with the spec.
+   */
+  getPdfPreviewIframe(): Locator {
+    return this.pdfIframe;
+  }
 }

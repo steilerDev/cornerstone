@@ -3,9 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
-## AutoItemizePage E2E (Story #1564, 2026-05-24) — `e2e/tests/invoices/invoice-auto-itemize-page.spec.ts`
+## AutoItemizePage E2E (Stories #1564/#1584/#1586–#1591, 2026-05-26) — `e2e/tests/invoices/invoice-auto-itemize-page.spec.ts`
 
-- 13 scenarios; @smoke on 1+2 (feature flag visibility), 3 (happy path), 8 (old modal absence).
+- Now 29 scenarios (Scenarios 21–29 added for UX fixes). @smoke on 1+2+3+8 (unchanged).
+- Category select locator: `lineRow(i).getByRole('combobox', { name: /Select budget category for line item/i })`. Funding source: same pattern with `/Select funding source for line item/i`. Both rendered as `<select>` with `aria-label` — use `getByRole('combobox')` NOT `locator('select')`.
+- VAT checkbox label: "Price includes VAT" (i18n key `autoItemize.includesVat`). NOT "VAT applies". Validate via `lineRow(i).locator('[class*="cardIncludeLabel"]').nth(1)`.
+- Variance indicator: `.varianceMatch` / `.varianceWarning` / `.varianceDanger` CSS classes on a `<span>` inside `.totalsCard`. `getVarianceIndicator()` uses multi-selector locator.
+- Category required validation: on Save with no category, `t('autoItemize.categoryRequiredError')` renders as `role="alert"` — filter via `hasText: /Please select a category.../i`. No POST sent (pageStatus → 'ready', setPageError in handleSave before any fetch).
+- `assignmentMode` field in commit payload: `"assign-existing"` when `assignedBudgetLineId` is set, `"create-new"` otherwise. Verify by intercepting commit POST body.
+- Mobile sticky: at ≤860px, `previewColumn` computed style is `position: static` (not sticky). Assert via `el.evaluate(() => window.getComputedStyle(el).position)`.
+- `requestAnimationFrame` in `page.evaluate()` must use `() => resolve()` wrapper — NOT `r` directly (TypeScript `FrameRequestCallback` incompatibility).
 - POM: `e2e/pages/AutoItemizePage.ts`. Picker modal: `[role="dialog"]` filtered by `h2` text `/Assign to Work Item or Household Item/i` (Modal uses `useId()` for aria-labelledby — NOT accessible name on dialog).
 - Per-row assignment locators: `[class*="assignButtonInTable"]`, `[class*="assignedBadge"]`, `[class*="clearAssignButton"]`.
 - lineCheckbox() uses `.first()` — rows have multiple checkboxes (include + includesVat).

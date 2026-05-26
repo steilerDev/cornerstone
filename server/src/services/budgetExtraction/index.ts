@@ -47,3 +47,4 @@ export {
   buildRequestBody,
   LLM_PROVIDERS,
 } from './providerProfiles.js';
+export { computeDueDateFallback } from './dueDateFallback.js';

@@ -211,6 +211,13 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `photoViewer.json` achieved exact parity (8 EN = 8 DE) with all #1475–#1477 keys present
 - `photoViewer.json` — 10 metadata sidepanel keys added 2026-05-19: `saving` → "Wird gespeichert..." (NOT "Speichern..."); `noArea` uses parenthesised lowercase `(kein Bereich)` as inline field fallback (distinct from `areas.noArea` = "Kein Bereich" heading form); parity now 19 EN = 19 DE
 
+## Auto-itemize UX Fixes — Issues #1584/#1591 (2026-05-26)
+
+- `autoItemize.vatApplies` removed (key deleted from both EN and DE)
+- `autoItemize.includesVat` updated: "inkl. MwSt." → "Preis inkl. MwSt." (aligns with `budgetLineForm.includesVatLabel` = "Preis inkl. MwSt. ({{vatRate}}%)")
+- New keys added: `categoryLabel` = "Kategorie", `categoryPlaceholder` = "Kategorie auswählen", `categoryAriaLabel` = "Budgetkategorie für Position auswählen", `fundingSourceLabel` = "Finanzierungsquelle", `fundingSourceAriaLabel` = "Finanzierungsquelle für Position auswählen", `categoryRequiredError` = "Bitte wählen Sie für alle einbezogenen Positionen eine Kategorie aus"
+- "Funding Source" not in glossary — used "Finanzierungsquelle" (natural German compound; consistent with `budgetLineForm.fundingSourceLabel`)
+
 ## Auto-itemize Feature — Issues #1547 + #1564 (2026-05-22 / 2026-05-24)
 
 - See [auto-itemize-patterns.md](auto-itemize-patterns.md) for full details
