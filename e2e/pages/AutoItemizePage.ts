@@ -491,8 +491,9 @@ export class AutoItemizePage {
   async waitForAnalyzingDone(): Promise<void> {
     // Wait for analyzing caption to disappear (indicates loading has ended)
     await this.analyzingCaption.waitFor({ state: 'hidden' });
-    // Then wait for at least the card list to appear
-    await this.page.locator('[role="list"][aria-label*="line"]').waitFor({ state: 'visible' });
+    // Then wait for at least the card list to appear.
+    // Use CSS class (locale-agnostic) instead of aria-label*="line" which fails in German locale.
+    await this.page.locator('[role="list"][class*="lineList"]').waitFor({ state: 'visible' });
   }
 
   /**
