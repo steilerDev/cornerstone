@@ -53,7 +53,7 @@ export function computeDueDateFallback(result: ExtractionResult): void {
       /(?:sonst|then)\s*(?:netto)?\s*(\d+)\s*tag/i,
     );
     if (skontoMatch) {
-      dayOffset = parseInt(skontoMatch[1], 10);
+      dayOffset = parseInt(skontoMatch[1]!, 10);
     }
   }
 
@@ -63,7 +63,7 @@ export function computeDueDateFallback(result: ExtractionResult): void {
       /innerhalb\s+(?:von\s+)?(\d+)\s*tag/i,
     );
     if (germanMatch) {
-      dayOffset = parseInt(germanMatch[1], 10);
+      dayOffset = parseInt(germanMatch[1]!, 10);
     }
   }
 
@@ -73,7 +73,7 @@ export function computeDueDateFallback(result: ExtractionResult): void {
       /(?:within|net)\s+(\d+)\s*(?:day|days)?/i,
     );
     if (englishMatch) {
-      dayOffset = parseInt(englishMatch[1], 10);
+      dayOffset = parseInt(englishMatch[1]!, 10);
     }
   }
 

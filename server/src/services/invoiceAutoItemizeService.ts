@@ -245,7 +245,7 @@ export async function autoItemize(
           let existingBudgetLine:
             | (typeof workItemBudgets.$inferSelect)
             | (typeof householdItemBudgets.$inferSelect)
-            | null = null;
+            | undefined = undefined;
 
           if (extractedLine.assignedBudgetLineType === 'work_item') {
             existingBudgetLine = db
@@ -261,7 +261,7 @@ export async function autoItemize(
               .get();
           }
 
-          if (!existingBudgetLine) {
+          if (existingBudgetLine === undefined) {
             throw new NotFoundError(
               `Budget line ${extractedLine.assignedBudgetLineId} (type: ${extractedLine.assignedBudgetLineType}) not found`,
             );
