@@ -340,7 +340,7 @@ test.describe(
           await expect(parentPickerFieldset).toBeVisible();
 
           // "Work Item" tab is active by default
-          const workItemTab = parentPickerFieldset.getByRole('button', {
+          const workItemTab = parentPickerFieldset.getByRole('tab', {
             name: 'Work Item',
             exact: true,
           });
