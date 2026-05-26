@@ -543,6 +543,11 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
         await secondCheckbox.click();
         await expect(secondCheckbox).not.toBeChecked();
 
+        // ── Pick a category for the included lines (guard requires it for create-new mode) ──
+        // Card 0 and Card 2 are included; Card 1 is excluded. Select the first real option.
+        await autoItemizePage.getLineCardCategorySelect(0).selectOption({ index: 1 });
+        await autoItemizePage.getLineCardCategorySelect(2).selectOption({ index: 1 });
+
         // ── Save → navigate back to invoice detail ───────────────────────────
         const saveResponsePromise = page.waitForResponse(
           (resp) =>
@@ -1055,10 +1060,12 @@ test.describe('Scenarios 10–12 — Responsive layout', { tag: '@responsive' },
       // Preview column may be scrolled off-screen — check it's in DOM
       await expect(autoItemizePage.previewColumn).toBeAttached();
 
-      // ── Single column: form column is full-width (≥300px) ────────────────
+      // ── Single column: form column is full-width (≥250px) ────────────────
+      // At 390px viewport the app shell (nav + padding) consumes ~100px, leaving ~290px
+      // for the content area. 250 validates the column is usably wide without being too tight.
       const formBounds = await autoItemizePage.formColumn.boundingBox();
       expect(formBounds).not.toBeNull();
-      expect(formBounds!.width).toBeGreaterThan(300);
+      expect(formBounds!.width).toBeGreaterThan(250);
 
       // ── Form is above preview ─────────────────────────────────────────────
       const previewBounds = await autoItemizePage.previewColumn.boundingBox();
@@ -1231,6 +1238,11 @@ test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () 
       // ── Second card still shows "Assign…" ────────────────────────────────
       await expect(secondAssignBtn).toBeVisible();
 
+      // ── Pick a category for unassigned cards 1 and 2 (guard requires it for create-new mode) ──
+      // Card 0 is in assign-existing mode (has assignedBudgetLineId) so no category needed.
+      await autoItemizePage.getLineCardCategorySelect(1).selectOption({ index: 1 });
+      await autoItemizePage.getLineCardCategorySelect(2).selectOption({ index: 1 });
+
       // ── Click Save; intercept commit POST to verify payload ───────────────
       let capturedRequestBody: Record<string, unknown> | null = null;
       const commitResponsePromise = page.waitForResponse(async (resp) => {
@@ -1386,6 +1398,11 @@ test.describe('Scenario 14 — Status field: change pending → paid', () => {
       // ── Card list and VAT checkbox unaffected ─────────────────────────────
       const cards = page.locator('[role="list"] li[class*="lineCard"]');
       await expect(cards).toHaveCount(3);
+
+      // ── Pick a category for all 3 cards (guard requires it for create-new mode) ──
+      await autoItemizePage.getLineCardCategorySelect(0).selectOption({ index: 1 });
+      await autoItemizePage.getLineCardCategorySelect(1).selectOption({ index: 1 });
+      await autoItemizePage.getLineCardCategorySelect(2).selectOption({ index: 1 });
 
       // ── Save → commits the status change ─────────────────────────────────
       const commitResponsePromise = page.waitForResponse(
