@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -10,7 +10,9 @@ import type {
   InvoiceStatus,
   WorkItemBudgetLine,
   HouseholdItemBudgetLine,
+  ConfidenceLevel,
 } from '@cornerstone/shared';
+import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { fetchInvoiceById } from '../../lib/invoicesApi.js';
 import { autoItemize } from '../../lib/invoiceAutoItemizeApi.js';
 import {
@@ -28,6 +30,8 @@ import { Modal } from '../../components/Modal/Modal.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import { ParentPicker } from '../../components/ParentPicker/ParentPicker.js';
 import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
 import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
@@ -46,6 +50,7 @@ interface LineWithInclude extends ExtractedLine {
   assignedBudgetLineId?: string;
   assignedBudgetLineType?: 'work_item' | 'household_item';
   assignedBudgetLineDescription?: string | null;
+  createdFromExtraction?: boolean;
   inlineCreatedBudgetLineDraft?: BudgetLineFormState;
   budgetCategoryId?: string | null;
   budgetSourceId?: string | null;
@@ -66,6 +71,17 @@ export function AutoItemizePage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { formatCurrency } = useFormatters();
+
+  // Badge variants for "Created from auto-itemization"
+  const createdFromExtractionVariants = useMemo(
+    (): BadgeVariantMap => ({
+      true: {
+        label: t('autoItemize.createdFromAutoItemization'),
+        className: badgeStyles.info,
+      },
+    }),
+    [t],
+  );
 
   // Page state - ALL hooks must be called unconditionally before any early return
   const [pageStatus, setPageStatus] = useState<PageStatus>('loading');
@@ -106,6 +122,7 @@ export function AutoItemizePage() {
   // Budget line picker state
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [lineFieldsEdited, setLineFieldsEdited] = useState(false);
+  const wasCreatedFromExtraction = useRef(false);
   const { t: tSettings } = useTranslation('settings');
 
   const picker = useBudgetLinePicker({
@@ -128,11 +145,13 @@ export function AutoItemizePage() {
                 assignedBudgetLineId: line.id,
                 assignedBudgetLineType: lineType,
                 assignedBudgetLineDescription: line.description,
+                createdFromExtraction: wasCreatedFromExtraction.current,
                 inlineCreatedBudgetLineDraft: undefined,
               }
             : l,
         ),
       );
+      wasCreatedFromExtraction.current = false;
       setLineFieldsEdited(true);
       picker.closePicker();
       setActiveRowId(null);
@@ -498,6 +517,54 @@ export function AutoItemizePage() {
     },
     [activeRowId, picker],
   );
+
+  const handleCreateNewBudgetLine = useCallback(() => {
+    if (!activeRowId) return;
+    const row = lines.find((l) => l.rowId === activeRowId);
+    if (!row) return;
+
+    // Resolve vendorId from row's vendorName against already-loaded vendors
+    const vendors = picker.pickerState.vendors ?? [];
+    const vendorId =
+      row.vendorName
+        ? (vendors.find(
+            (v) => v.name.toLowerCase() === row.vendorName!.toLowerCase(),
+          )?.id ?? null)
+        : null;
+
+    // Resolve budgetSourceId: use row's value or fall back to discretionary
+    const sources = picker.pickerState.budgetSources ?? [];
+    const discretionaryId = sources.find((s) => s.isDiscretionary)?.id;
+    const budgetSourceId = row.budgetSourceId ?? discretionaryId ?? '';
+
+    // Map numeric confidence (0..1) to ConfidenceLevel enum
+    const confidence: ConfidenceLevel =
+      row.confidence >= 0.85
+        ? 'invoice'
+        : row.confidence >= 0.6
+          ? 'quote'
+          : row.confidence >= 0.3
+            ? 'professional_estimate'
+            : 'own_estimate';
+
+    const prefill: Partial<BudgetLineFormState> = {
+      description: row.description ?? '',
+      plannedAmount: String(row.totalAmount ?? ''),
+      confidence,
+      budgetCategoryId:
+        picker.pickerState.type === 'household_item' ? '' : (row.budgetCategoryId ?? ''),
+      budgetSourceId,
+      vendorId: vendorId ?? '',
+      pricingMode: row.quantity != null && row.unitPrice != null ? 'unit' : 'direct',
+      quantity: row.quantity != null ? String(row.quantity) : '',
+      unit: row.unit ?? '',
+      unitPrice: row.unitPrice != null ? String(row.unitPrice) : '',
+      includesVat: row.includesVat !== false,
+    };
+
+    wasCreatedFromExtraction.current = true;
+    void picker.showCreateBudgetLineForm(prefill);
+  }, [activeRowId, lines, picker]);
 
   const handleRetry = useCallback(() => {
     if (!invoiceId || !documentId) return;
@@ -1024,32 +1091,42 @@ export function AutoItemizePage() {
                               {t('autoItemize.assignButton')}
                             </button>
                           ) : line.assignedBudgetLineId ? (
-                            <div className={styles.assignedBadge}>
-                              <span title={line.assignedBudgetLineDescription || undefined}>
-                                {line.assignedBudgetLineDescription || t('autoItemize.assigned')}
-                              </span>
-                              <button
-                                type="button"
-                                className={styles.clearAssignButton}
-                                onClick={() => {
-                                  setLines((prev) =>
-                                    prev.map((l) =>
-                                      l.rowId === line.rowId
-                                        ? {
-                                            ...l,
-                                            assignedBudgetLineId: undefined,
-                                            assignedBudgetLineType: undefined,
-                                            assignedBudgetLineDescription: undefined,
-                                          }
-                                        : l,
-                                    ),
-                                  );
-                                  setLineFieldsEdited(true);
-                                }}
-                                aria-label={t('autoItemize.clearAssignmentAriaLabel')}
-                              >
-                                ✕
-                              </button>
+                            <div className={styles.assignedBadgeWrapper}>
+                              <div className={styles.assignedBadge}>
+                                <span title={line.assignedBudgetLineDescription || undefined}>
+                                  {line.assignedBudgetLineDescription || t('autoItemize.assigned')}
+                                </span>
+                                <button
+                                  type="button"
+                                  className={styles.clearAssignButton}
+                                  onClick={() => {
+                                    setLines((prev) =>
+                                      prev.map((l) =>
+                                        l.rowId === line.rowId
+                                          ? {
+                                              ...l,
+                                              assignedBudgetLineId: undefined,
+                                              assignedBudgetLineType: undefined,
+                                              assignedBudgetLineDescription: undefined,
+                                              createdFromExtraction: undefined,
+                                            }
+                                          : l,
+                                      ),
+                                    );
+                                    setLineFieldsEdited(true);
+                                  }}
+                                  aria-label={t('autoItemize.clearAssignmentAriaLabel')}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                              {line.createdFromExtraction && (
+                                <Badge
+                                  variants={createdFromExtractionVariants}
+                                  value="true"
+                                  testId="auto-created-badge"
+                                />
+                              )}
                             </div>
                           ) : (
                             <div className={styles.assignedBadge}>
@@ -1267,14 +1344,6 @@ export function AutoItemizePage() {
                   !picker.pickerState.showCreateForm && (
                     <div className={styles.emptyState}>
                       <p>{t('invoiceDetail.budgetLines.picker.noUnlinkedLines')}</p>
-                      <button
-                        type="button"
-                        ref={picker.createBudgetLineButtonRef}
-                        className={styles.addButton}
-                        onClick={() => picker.showCreateBudgetLineForm()}
-                      >
-                        {t('invoiceDetail.budgetLines.picker.createLine')}
-                      </button>
                     </div>
                   )}
 
@@ -1360,6 +1429,18 @@ export function AutoItemizePage() {
                         </button>
                       ))}
                     </div>
+                  )}
+
+                {!picker.pickerState.isLoading &&
+                  !picker.pickerState.showCreateForm && (
+                    <button
+                      type="button"
+                      ref={picker.createBudgetLineButtonRef}
+                      className={styles.addButton}
+                      onClick={handleCreateNewBudgetLine}
+                    >
+                      {t('invoiceDetail.budgetLines.picker.createLine')}
+                    </button>
                   )}
 
                 <button

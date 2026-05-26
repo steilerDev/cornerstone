@@ -1010,4 +1010,144 @@ describe('useBudgetLinePicker', () => {
       expect(result.current.pickerState.showCreateForm).toBe(false);
     });
   });
+
+  // ─── Story #1600: showCreateBudgetLineForm prefill parameter ─────────────────
+
+  describe('showCreateBudgetLineForm — prefill parameter (Story #1600)', () => {
+    // Shared helper to set up the standard API mocks with a discretionary source
+    function setupFormMocks() {
+      mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockFetchBudgetSources.mockResolvedValue({
+        budgetSources: [
+          { id: 'disc-1', name: 'Discretionary', isDiscretionary: true } as any,
+          { id: 'loan-1', name: 'Loan', isDiscretionary: false } as any,
+        ],
+      });
+      mockFetchVendors.mockResolvedValue({
+        vendors: [],
+        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+      });
+    }
+
+    it('no args → defaults unchanged (description="", plannedAmount="", confidence="invoice")', async () => {
+      setupFormMocks();
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm();
+      });
+
+      expect(result.current.pickerState.createForm?.description).toBe('');
+      expect(result.current.pickerState.createForm?.plannedAmount).toBe('');
+      expect(result.current.pickerState.createForm?.confidence).toBe('invoice');
+      expect(result.current.pickerState.createForm?.pricingMode).toBe('direct');
+      expect(result.current.pickerState.createForm?.vendorId).toBe('');
+      expect(result.current.pickerState.createForm?.budgetCategoryId).toBe('');
+    });
+
+    it('prefill { description, plannedAmount } → those fields set, others defaulted', async () => {
+      setupFormMocks();
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm({
+          description: 'Bathroom tiles',
+          plannedAmount: '900',
+        });
+      });
+
+      expect(result.current.pickerState.createForm?.description).toBe('Bathroom tiles');
+      expect(result.current.pickerState.createForm?.plannedAmount).toBe('900');
+      // Other fields still at defaults
+      expect(result.current.pickerState.createForm?.confidence).toBe('invoice');
+      expect(result.current.pickerState.createForm?.vendorId).toBe('');
+    });
+
+    it('prefill { budgetSourceId: "loan-1" } → overrides discretionary default', async () => {
+      setupFormMocks();
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm({ budgetSourceId: 'loan-1' });
+      });
+
+      expect(result.current.pickerState.createForm?.budgetSourceId).toBe('loan-1');
+    });
+
+    it('prefill { confidence: "quote" } → createForm.confidence === "quote"', async () => {
+      setupFormMocks();
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm({ confidence: 'quote' });
+      });
+
+      expect(result.current.pickerState.createForm?.confidence).toBe('quote');
+    });
+
+    it('prefill { vendorId: "v-99" } → createForm.vendorId === "v-99"', async () => {
+      setupFormMocks();
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm({ vendorId: 'v-99' });
+      });
+
+      expect(result.current.pickerState.createForm?.vendorId).toBe('v-99');
+    });
+
+    it('prefill { budgetCategoryId: "" } → category empty (household-item path)', async () => {
+      setupFormMocks();
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm({ budgetCategoryId: '' });
+      });
+
+      expect(result.current.pickerState.createForm?.budgetCategoryId).toBe('');
+    });
+
+    it('prefill unit mode fields → pricingMode, quantity, unit, unitPrice all set', async () => {
+      setupFormMocks();
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm({
+          pricingMode: 'unit',
+          quantity: '20',
+          unit: 'm²',
+          unitPrice: '45',
+        });
+      });
+
+      expect(result.current.pickerState.createForm?.pricingMode).toBe('unit');
+      expect(result.current.pickerState.createForm?.quantity).toBe('20');
+      expect(result.current.pickerState.createForm?.unit).toBe('m²');
+      expect(result.current.pickerState.createForm?.unitPrice).toBe('45');
+    });
+
+    it('prefill does NOT clear createError (createError is cleared independently)', async () => {
+      setupFormMocks();
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm({ description: 'Flooring' });
+      });
+
+      // The hook always clears createError when opening create form
+      expect(result.current.pickerState.createError).toBeNull();
+    });
+
+    it('showCreateForm is true after call with prefill', async () => {
+      setupFormMocks();
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm({ description: 'Kitchen fittings' });
+      });
+
+      expect(result.current.pickerState.showCreateForm).toBe(true);
+    });
+  });
 });

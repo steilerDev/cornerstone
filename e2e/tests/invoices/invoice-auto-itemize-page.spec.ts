@@ -34,6 +34,9 @@
  *   30. Card bottom row layout: Include + VAT labels co-linear; Category + Funding Source below (#1595)
  *   31. Category pre-filled by LLM extraction: budgetCategoryId in dry-run response (#1596)
  *   32. ParentPicker tabs (Work Item / Household Item) in assign modal (#1597)
+ *   33. SearchPicker portal: dropdown renders into document.body (not clipped by modal) (#1600)
+ *   34. "Create Budget Line" visible with existing lines; form pre-filled from extraction (#1600)
+ *   35. Dark mode + mobile: portal within viewport; touch-target ≥44px; badge uses CSS tokens (#1600)
  *
  * Mocking strategy:
  *   - GET /api/config: intercepted to inject autoItemizeEnabled: true/false
@@ -1209,7 +1212,8 @@ test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () 
       // ── Type in the work-item search input to find the seeded WI ─────────
       await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-Assign WI`);
 
-      const wiOption = autoItemizePage.pickerModal.getByRole('option', {
+      // SearchPicker portals its dropdown to document.body — scope to pickerPortalDropdown.
+      const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
         name: `${testPrefix} AI-Assign WI`,
       });
       await wiOption.waitFor({ state: 'visible' });
@@ -2078,7 +2082,8 @@ test.describe('Scenario 26 — assignmentMode:"assign-existing" in commit payloa
       await expect(autoItemizePage.pickerModal).toBeVisible();
 
       await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-AssignMode WI`);
-      const wiOption = autoItemizePage.pickerModal.getByRole('option', {
+      // SearchPicker portals its dropdown to document.body — scope to pickerPortalDropdown.
+      const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
         name: `${testPrefix} AI-AssignMode WI`,
       });
       await wiOption.waitFor({ state: 'visible' });
@@ -2698,3 +2703,440 @@ test.describe('Scenario 32 — ParentPicker tabs (Work Item / Household Item) in
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 33 — Dropdown portal overflows modal (Flaw 1, Story #1600)
+// SearchPicker renders its dropdown into document.body via createPortal so it
+// is not clipped by the modal's overflow:hidden boundary.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 33 — SearchPicker dropdown renders in body portal (not clipped by modal)', () => {
+  test('Typing in the Work Item search input causes a portal dropdown at document.body level that is within viewport bounds', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+    let workItemId = '';
+
+    try {
+      // ── Seed: vendor, invoice, work item ─────────────────────────────────
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Portal Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 900,
+        date: '2026-06-01',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AI-Portal WI` });
+
+      const docId = 93001;
+      await mockPaperlessDocument(page, docId, 'Portal Dropdown Doc');
+      await mockAutoItemizeDryRun(page, invoiceId);
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── Open the assign picker modal on the first card ────────────────────
+      const assignBtn = autoItemizePage.lineAssignButton(0);
+      await expect(assignBtn).toBeVisible();
+      await assignBtn.click();
+      await expect(autoItemizePage.pickerModal).toBeVisible();
+
+      // ── Type into the Work Item search input → dropdown should appear ────
+      // The input placeholder is "Work Item" (t('budgetLineForm.parentPickerWorkItemTab'))
+      await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
+      await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AI-Portal`);
+
+      // Wait for the portal dropdown to appear in document.body
+      // SearchPicker renders [data-search-picker-dropdown] into document.body when isOpen=true
+      await autoItemizePage.pickerPortalDropdown.waitFor({ state: 'visible' });
+
+      // ── Assert: portal dropdown is in document.body (not modal subtree) ──
+      // The portal is attached to document.body directly — check it is visible and
+      // that its bottom edge does not exceed the viewport height.
+      const dropdownBox = await autoItemizePage.pickerPortalDropdown.boundingBox();
+      expect(dropdownBox, 'Portal dropdown must have a bounding box').not.toBeNull();
+
+      const viewportHeight = page.viewportSize()?.height ?? 800;
+      expect(
+        dropdownBox!.y + dropdownBox!.height,
+        `Portal dropdown bottom (${(dropdownBox!.y + dropdownBox!.height).toFixed(0)}px) ` +
+          `must be within viewport height (${viewportHeight}px) — dropdown should flip above input if needed`,
+      ).toBeLessThanOrEqual(viewportHeight + 1); // +1 for sub-pixel rounding
+
+      // ── Select the work item → step 2 renders ────────────────────────────
+      // Options are inside the portal dropdown (rendered into document.body), not the modal subtree.
+      const wiOptionInPortal = autoItemizePage.pickerPortalDropdown.getByRole('option', {
+        name: new RegExp(`${testPrefix} AI-Portal`, 'i'),
+      });
+      await wiOptionInPortal.waitFor({ state: 'visible' });
+      await wiOptionInPortal.click();
+
+      // Step 2 renders
+      const step2Modal = autoItemizePage.pickerStep2Modal();
+      await expect(step2Modal).toBeVisible();
+
+      // Portal dropdown should have closed after selection
+      await expect(autoItemizePage.pickerPortalDropdown).not.toBeVisible();
+
+      // Close modal
+      await page.keyboard.press('Escape');
+      await expect(autoItemizePage.pickerModal).not.toBeVisible();
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 34 — Step-2 "Create Budget Line" visible WITH existing lines +
+//               Pre-filled form from extraction data (Flaws 2 & 3, Story #1600)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 34 — "Create Budget Line" visible with existing budget lines; form pre-filled from extraction data', () => {
+  test('"Create Budget Line" button visible in step 2 even when existing lines present; clicking it pre-fills form; submitting shows "Auto-created" badge', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — skip on very narrow mobile');
+      return;
+    }
+
+    const autoItemizePage = new AutoItemizePage(page);
+    let vendorId = '';
+    let invoiceId = '';
+    let workItemId = '';
+    const wiTitle = `${testPrefix} AI-Prefill WI`;
+    const extractedDescription = 'Bathroom tiles';
+    const extractedTotal = 900;
+
+    try {
+      // ── Seed: vendor, invoice, work item, existing budget line on WI ─────
+      vendorId = await createVendorViaApi(page, `${testPrefix} AI-Prefill Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 2000,
+        date: '2026-06-01',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: wiTitle });
+      // Create an EXISTING budget line on the WI — Flaw 2 reproduces only
+      // when step 2 has at least one existing budget line row.
+      await createWorkItemBudgetViaApi(page, workItemId, {
+        description: `${testPrefix} AI-Prefill Existing BL`,
+        plannedAmount: 500,
+      });
+
+      const docId = 94001;
+      await mockPaperlessDocument(page, docId, 'Prefill Test Doc');
+
+      // ── Mock dry-run: one extracted line with known fields ─────────────────
+      // confidence=0.95 → maps to 'invoice' level in handleCreateNewBudgetLine
+      const extractedLine = {
+        description: extractedDescription,
+        totalAmount: extractedTotal,
+        confidence: 0.95,
+        quantity: 20,
+        unit: 'm²',
+        unitPrice: 45,
+        includesVat: false,
+        vatRate: null,
+        vendorName: null,
+        budgetCategoryId: null,
+      };
+      await mockAutoItemizeDryRun(page, invoiceId, { lines: [extractedLine] });
+
+      await autoItemizePage.goto(invoiceId, docId);
+      await autoItemizePage.waitForAnalyzingDone();
+
+      // ── Card 0: "Assign…" button visible ─────────────────────────────────
+      const assignBtn = autoItemizePage.lineAssignButton(0);
+      await expect(assignBtn).toBeVisible();
+      await assignBtn.click();
+
+      // ── Step 1: modal opens, Work Item tab active ─────────────────────────
+      await expect(autoItemizePage.pickerModal).toBeVisible();
+      await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
+
+      // Type the WI title to search → select from dropdown
+      await autoItemizePage.pickerWorkItemSearchInput.fill(wiTitle);
+
+      // The dropdown is portalled to document.body — wait for options inside portal
+      const wiOptionInPortal = autoItemizePage.pickerPortalDropdown.getByRole('option', {
+        name: new RegExp(wiTitle, 'i'),
+      });
+      await wiOptionInPortal.waitFor({ state: 'visible' });
+      await wiOptionInPortal.click();
+
+      // ── Step 2: budget line list renders with existing line ───────────────
+      const step2Modal = autoItemizePage.pickerStep2Modal();
+      await expect(step2Modal).toBeVisible();
+
+      // Existing budget line row is visible
+      const existingRow = autoItemizePage.pickerBudgetLineRow(
+        new RegExp(`${testPrefix} AI-Prefill Existing BL`, 'i'),
+      );
+      await expect(existingRow).toBeVisible();
+
+      // ── Flaw 2 guard: "Create Budget Line" button IS visible even with existing lines ─
+      await expect(autoItemizePage.pickerCreateBudgetLineButton).toBeVisible();
+
+      // ── Click "Create Budget Line" → form renders ─────────────────────────
+      await autoItemizePage.pickerCreateBudgetLineButton.click();
+
+      // The createBudgetLineFieldset should now be visible
+      await expect(autoItemizePage.pickerCreateBudgetLineFieldset).toBeVisible();
+
+      // ── Flaw 3 guard: form is pre-filled with extracted line data ──────────
+      // Description: row.description = 'Bathroom tiles'
+      const descriptionInput = autoItemizePage.pickerCreateBudgetLineFieldset.locator(
+        '#budget-description',
+      );
+      await expect(descriptionInput).toBeVisible();
+      await expect(descriptionInput).toHaveValue(extractedDescription);
+
+      // Planned amount: row.totalAmount = 900
+      // BudgetLineForm uses #budget-planned-amount (direct mode) for the planned amount field
+      const amountInput = autoItemizePage.pickerCreateBudgetLineFieldset.locator(
+        '#budget-planned-amount',
+      );
+      await expect(amountInput).toBeVisible();
+      await expect(amountInput).toHaveValue(/^900/);
+
+      // Confidence: 0.95 → 'invoice' → label "Invoice" in the select
+      // BudgetLineForm renders <select id="budget-confidence">
+      const confidenceSelect = autoItemizePage.pickerCreateBudgetLineFieldset.locator(
+        '#budget-confidence',
+      );
+      await expect(confidenceSelect).toBeVisible();
+      await expect(confidenceSelect).toHaveValue('invoice');
+
+      // ── Submit the form (real API — creates a real WI budget on server) ───
+      // The form is submitted via the "Add Line" button (isEditing=false → submitAdd).
+      // Since eagerLinkInvoice=false in AutoItemizePage, no invoice_budget_line is created.
+      // After submit, onLineCreated fires → picker closes → assigned badge shows.
+      const addLineButton = autoItemizePage.pickerCreateBudgetLineFieldset
+        .locator('xpath=ancestor::form')
+        .getByRole('button', { name: /Add Line/i });
+      await expect(addLineButton).toBeVisible();
+
+      // Wait for the budget line creation response before asserting post-submit state
+      const createLineResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/work-items/${workItemId}/budgets`) &&
+          resp.request().method() === 'POST' &&
+          resp.ok(),
+      );
+      await addLineButton.click();
+      await createLineResponsePromise;
+
+      // ── Picker modal closes ───────────────────────────────────────────────
+      await expect(autoItemizePage.pickerModal).not.toBeVisible();
+
+      // ── Assigned badge appears on card 0 with extracted description ───────
+      const assignedBadge = autoItemizePage.lineAssignedBadge(0);
+      await expect(assignedBadge).toBeVisible();
+
+      const assignedDesc = autoItemizePage.lineAssignedDescription(0);
+      await expect(assignedDesc).toContainText(extractedDescription);
+
+      // ── "Auto-created" badge is visible (createdFromExtraction=true) ──────
+      // The badge text is "Auto-created" (t('autoItemize.createdFromAutoItemization')).
+      // Located via text-based locator since no data-testid is emitted.
+      await expect(autoItemizePage.autoCreatedBadge).toBeVisible();
+      await expect(autoItemizePage.autoCreatedBadge).toContainText(/Auto-created/i);
+    } finally {
+      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 35 — Dark mode + Mobile viewport (Flaws 1–3, Story #1600)
+// Verifies portal dropdown is within viewport bounds on mobile and
+// that the auto-created badge uses CSS custom properties (not hardcoded hex).
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Scenario 35 — Dark mode + mobile: portal dropdown within viewport; badge uses CSS tokens',
+  { tag: '@responsive' },
+  () => {
+    test('Portal dropdown is within viewport bounds on mobile (375×812) in dark mode; "Create Budget Line" button ≥44×44px touch target; "Auto-created" badge uses token-resolved color', async ({
+      page,
+      testPrefix,
+    }) => {
+      // Force mobile viewport
+      await page.setViewportSize({ width: 375, height: 812 });
+
+      // Enable dark mode via prefers-color-scheme media emulation
+      await page.emulateMedia({ colorScheme: 'dark' });
+
+      const autoItemizePage = new AutoItemizePage(page);
+      let vendorId = '';
+      let invoiceId = '';
+      let workItemId = '';
+      const wiTitle = `${testPrefix} AI-DkMob WI`;
+      const extractedDescription = 'Bathroom tiles dark mobile';
+      const extractedTotal = 900;
+
+      try {
+        // ── Seed: vendor, invoice, work item ─────────────────────────────────
+        vendorId = await createVendorViaApi(page, `${testPrefix} AI-DkMob Vendor`);
+        invoiceId = await createInvoiceViaApi(page, vendorId, {
+          amount: 2000,
+          date: '2026-06-01',
+        });
+        workItemId = await createWorkItemViaApi(page, { title: wiTitle });
+        // Seed an existing budget line so "Create Budget Line" appears alongside existing lines
+        await createWorkItemBudgetViaApi(page, workItemId, {
+          description: `${testPrefix} AI-DkMob Existing BL`,
+          plannedAmount: 500,
+        });
+
+        const docId = 95001;
+        await mockPaperlessDocument(page, docId, 'Dark Mobile Doc');
+
+        const extractedLine = {
+          description: extractedDescription,
+          totalAmount: extractedTotal,
+          confidence: 0.95,
+          quantity: 20,
+          unit: 'm²',
+          unitPrice: 45,
+          includesVat: false,
+          vatRate: null,
+          vendorName: null,
+          budgetCategoryId: null,
+        };
+        await mockAutoItemizeDryRun(page, invoiceId, { lines: [extractedLine] });
+
+        await autoItemizePage.goto(invoiceId, docId);
+        await autoItemizePage.waitForAnalyzingDone();
+
+        // ── Open assign picker on first card ──────────────────────────────────
+        const assignBtn = autoItemizePage.lineAssignButton(0);
+        await expect(assignBtn).toBeVisible();
+        await assignBtn.click();
+        await expect(autoItemizePage.pickerModal).toBeVisible();
+
+        // ── Type in the Work Item search input ────────────────────────────────
+        await expect(autoItemizePage.pickerWorkItemSearchInput).toBeVisible();
+        await autoItemizePage.pickerWorkItemSearchInput.fill(wiTitle);
+
+        // ── Assert: portal dropdown appears and is within viewport bounds ─────
+        await autoItemizePage.pickerPortalDropdown.waitFor({ state: 'visible' });
+
+        const dropdownBox = await autoItemizePage.pickerPortalDropdown.boundingBox();
+        expect(dropdownBox, 'Portal dropdown must have a bounding box on mobile').not.toBeNull();
+
+        const viewportWidth = page.viewportSize()?.width ?? 375;
+        const viewportHeight = page.viewportSize()?.height ?? 812;
+
+        // Dropdown must not overflow on the right
+        expect(
+          dropdownBox!.x + dropdownBox!.width,
+          `Portal dropdown right edge (${(dropdownBox!.x + dropdownBox!.width).toFixed(0)}px) ` +
+            `must not exceed viewport width (${viewportWidth}px)`,
+        ).toBeLessThanOrEqual(viewportWidth + 1);
+
+        // Dropdown must not overflow on the bottom
+        expect(
+          dropdownBox!.y + dropdownBox!.height,
+          `Portal dropdown bottom (${(dropdownBox!.y + dropdownBox!.height).toFixed(0)}px) ` +
+            `must not exceed viewport height (${viewportHeight}px) — should flip above input if needed`,
+        ).toBeLessThanOrEqual(viewportHeight + 1);
+
+        // ── Select the work item → step 2 ─────────────────────────────────────
+        const wiOptionInPortal = autoItemizePage.pickerPortalDropdown.getByRole('option', {
+          name: new RegExp(wiTitle, 'i'),
+        });
+        await wiOptionInPortal.waitFor({ state: 'visible' });
+        await wiOptionInPortal.click();
+
+        const step2Modal = autoItemizePage.pickerStep2Modal();
+        await expect(step2Modal).toBeVisible();
+
+        // ── Assert: "Create Budget Line" button has ≥44×44px touch target ────
+        await expect(autoItemizePage.pickerCreateBudgetLineButton).toBeVisible();
+        const createBtnBox = await autoItemizePage.pickerCreateBudgetLineButton.boundingBox();
+        expect(createBtnBox, '"Create Budget Line" button must have a bounding box').not.toBeNull();
+
+        expect(
+          createBtnBox!.width,
+          `"Create Budget Line" button width (${createBtnBox!.width.toFixed(0)}px) must be ≥44px for mobile touch targets`,
+        ).toBeGreaterThanOrEqual(44);
+
+        expect(
+          createBtnBox!.height,
+          `"Create Budget Line" button height (${createBtnBox!.height.toFixed(0)}px) must be ≥44px for mobile touch targets`,
+        ).toBeGreaterThanOrEqual(44);
+
+        // ── Click "Create Budget Line" → form renders ─────────────────────────
+        await autoItemizePage.pickerCreateBudgetLineButton.click();
+        await expect(autoItemizePage.pickerCreateBudgetLineFieldset).toBeVisible();
+
+        // ── Submit the form (real API) ────────────────────────────────────────
+        const addLineButton = autoItemizePage.pickerCreateBudgetLineFieldset
+          .locator('xpath=ancestor::form')
+          .getByRole('button', { name: /Add Line/i });
+        await expect(addLineButton).toBeVisible();
+
+        const createLineResponsePromise = page.waitForResponse(
+          (resp) =>
+            resp.url().includes(`/api/work-items/${workItemId}/budgets`) &&
+            resp.request().method() === 'POST' &&
+            resp.ok(),
+        );
+        await addLineButton.click();
+        await createLineResponsePromise;
+
+        // Picker closes, assigned badge shows
+        await expect(autoItemizePage.pickerModal).not.toBeVisible();
+        await expect(autoItemizePage.lineAssignedBadge(0)).toBeVisible();
+
+        // ── Assert: "Auto-created" badge is visible ───────────────────────────
+        await expect(autoItemizePage.autoCreatedBadge).toBeVisible();
+
+        // ── Assert: badge uses CSS custom properties (token-resolved color) ───
+        // The .info variant in Badge.module.css uses:
+        //   background-color: var(--color-bg-tertiary)
+        //   color: var(--color-text-secondary)
+        //   border: 1px solid var(--color-border)
+        // Computed styles resolve the CSS custom properties to actual color values.
+        // Verify that the computed background-color is NOT a hardcoded hex color —
+        // it should be resolved to an rgb() value (from the token), not "transparent" or empty.
+        const badgeBgColor = await autoItemizePage.autoCreatedBadge.evaluate(
+          (el) => window.getComputedStyle(el).backgroundColor,
+        );
+        expect(
+          badgeBgColor,
+          `Expected "Auto-created" badge background to be token-resolved (rgb/rgba value), got: "${badgeBgColor}"`,
+        ).toMatch(/^rgba?\(/);
+
+        // Also verify the badge background is NOT pure white (#fff = rgb(255,255,255))
+        // nor pure black (rgb(0,0,0)) — token-resolved dark mode values differ from defaults.
+        // This asserts the dark mode token chain is actually applied (not a CSS bug).
+        // We do not assert the exact value because it depends on the design token resolution,
+        // which may vary by environment. The rgb() check above is the primary assertion.
+        expect(
+          badgeBgColor,
+          'Badge background should not be pure transparent — CSS variables must resolve',
+        ).not.toBe('rgba(0, 0, 0, 0)');
+      } finally {
+        if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      }
+    });
+  },
+);

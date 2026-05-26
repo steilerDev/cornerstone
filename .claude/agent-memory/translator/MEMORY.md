@@ -217,6 +217,7 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `autoItemize.includesVat` updated: "inkl. MwSt." → "Preis inkl. MwSt." (aligns with `budgetLineForm.includesVatLabel` = "Preis inkl. MwSt. ({{vatRate}}%)")
 - New keys added: `categoryLabel` = "Kategorie", `categoryPlaceholder` = "Kategorie auswählen", `categoryAriaLabel` = "Budgetkategorie für Position auswählen", `fundingSourceLabel` = "Finanzierungsquelle", `fundingSourceAriaLabel` = "Finanzierungsquelle für Position auswählen", `categoryRequiredError` = "Bitte wählen Sie für alle einbezogenen Positionen eine Kategorie aus"
 - "Funding Source" not in glossary — used "Finanzierungsquelle" (natural German compound; consistent with `budgetLineForm.fundingSourceLabel`)
+- `autoItemize.createdFromAutoItemization` badge label → "Automatisch erstellt" (2026-05-26): plain adverb+participle; glossary `Itemize` = "aufschlüsseln" not used for this badge — the concept is auto-*creation* of the budget line, not the act of itemizing
 
 ## Auto-itemize Feature — Issues #1547 + #1564 (2026-05-22 / 2026-05-24)
 

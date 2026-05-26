@@ -55,7 +55,7 @@ export interface UseBudgetLinePickerReturn {
   openPicker: () => void;
   closePicker: () => void;
   handleSelectItem: (itemId: string, type: BudgetLineType, itemTitle?: string) => Promise<void>;
-  showCreateBudgetLineForm: () => Promise<void>;
+  showCreateBudgetLineForm: (prefill?: Partial<BudgetLineFormState>) => Promise<void>;
   handleCreateBudgetLine: (e: FormEvent) => Promise<void>;
   setPickerState: React.Dispatch<React.SetStateAction<PickerState>>;
   createBudgetLineButtonRef: React.RefObject<HTMLButtonElement | null>;
@@ -185,7 +185,7 @@ export function useBudgetLinePicker({
     }
   }, []);
 
-  const showCreateBudgetLineForm = useCallback(async () => {
+  const showCreateBudgetLineForm = useCallback(async (prefill?: Partial<BudgetLineFormState>) => {
     try {
       const [categoriesResponse, sourcesResponse, vendorsResponse] = await Promise.all([
         fetchBudgetCategories(),
@@ -207,6 +207,7 @@ export function useBudgetLinePicker({
         unit: '',
         unitPrice: '',
         includesVat: true,
+        ...prefill,
       };
 
       setPickerState((prev) => ({

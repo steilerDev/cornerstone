@@ -605,8 +605,9 @@ export class BudgetSourcesPage {
     await input.click();
     // Type enough of the name to filter results.
     await input.fill(targetName);
-    // Wait for the dropdown option to appear and click it.
-    await this.moveModal.getByRole('option', { name: targetName }).click();
+    // SearchPicker portals its dropdown to document.body (via createPortal) — the
+    // role="option" elements are NOT inside the modal's DOM subtree. Scope to page.
+    await this.page.getByRole('option', { name: targetName }).click();
   }
 
   /**

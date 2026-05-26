@@ -176,6 +176,23 @@ export class AutoItemizePage {
    */
   readonly pickerCreateBudgetLineFieldset: Locator;
 
+  // ─── Story #1600: portal dropdown + auto-created badge ───────────────────────
+
+  /**
+   * Portalled dropdown rendered by SearchPicker into document.body.
+   * Has attribute [data-search-picker-dropdown] on the portal root element.
+   * Scoped to the full page (not pickerModal) because the portal is at body level.
+   */
+  readonly pickerPortalDropdown: Locator;
+
+  /**
+   * Badge displayed on the assigned zone when the budget line was created from
+   * the extraction prefill flow (createdFromExtraction=true).
+   * i18n key: autoItemize.createdFromAutoItemization = "Auto-created"
+   * Stable via data-testid="auto-created-badge".
+   */
+  readonly autoCreatedBadge: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -258,6 +275,13 @@ export class AutoItemizePage {
     this.pickerModal = page.locator('[role="dialog"]').filter({
       has: page.locator('h2', { hasText: /Assign to Work Item or Household Item/i }),
     });
+
+    // ─── Story #1600: portal dropdown + auto-created badge ───────────────────
+    // Portal dropdown is rendered into document.body by SearchPicker — scoped to page.
+    this.pickerPortalDropdown = page.locator('[data-search-picker-dropdown]');
+
+    // Auto-created badge: rendered as <Badge testId="auto-created-badge"> inside assignedBadge zone.
+    this.autoCreatedBadge = page.getByTestId('auto-created-badge');
 
     // Step 1 — ParentPicker renders role="tablist" with "Work Item" + "Household Item" tabs.
     // Each tab renders a SearchPicker whose placeholder = tab label:
@@ -634,4 +658,5 @@ export class AutoItemizePage {
   getParentPickerHouseholdItemTab(): Locator {
     return this.pickerModal.getByRole('tab', { name: /Household Item/i });
   }
+
 }

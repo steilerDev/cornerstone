@@ -930,6 +930,7 @@
     "confidenceLabel": "Konfidenz: {{pct}}%",
     "assignButton": "Zuweisen…",
     "assigned": "Zugewiesen",
+    "createdFromAutoItemization": "Automatisch erstellt",
     "creatingNew": "(Neu)",
     "clearAssignmentAriaLabel": "Budgetposition-Zuweisung löschen",
     "categoryLabel": "Kategorie",
