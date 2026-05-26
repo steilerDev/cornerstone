@@ -2059,13 +2059,14 @@ describe('invoiceAutoItemizeService', () => {
     }
 
     it('dry-run line with category matching a seeded budget category → budgetCategoryId is populated', async () => {
-      // Insert a budget category whose name matches the LLM-extracted category
+      // Use a unique name to avoid collision with migration-seeded categories (e.g. 'Materials')
+      const catName = `TestCat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const catId = 'bc-test-materials-' + uid('c');
       const t = ts();
       db.insert(schema.budgetCategories)
         .values({
           id: catId,
-          name: 'Materials',
+          name: catName,
           description: null,
           color: null,
           translationKey: null,
@@ -2085,7 +2086,7 @@ describe('invoiceAutoItemizeService', () => {
         .mockResolvedValueOnce(
           makeOkFetch(
             makeLlmResponseWithCategory([
-              { description: 'Cement bags', totalAmount: 150, confidence: 0.9, category: 'Materials' },
+              { description: 'Cement bags', totalAmount: 150, confidence: 0.9, category: catName },
             ]),
           ),
         );
