@@ -31,6 +31,8 @@ export interface ExtractedLine {
   assignmentMode?: 'create-new' | 'assign-existing';
   /** Budget category ID for new budget line (create-new mode). Null = no category. */
   budgetCategoryId?: string | null;
+  /** Raw LLM-extracted category name (e.g. "Materials", "Labor"). Server maps this to budgetCategoryId server-side. */
+  category?: string | null;
   /** Budget source ID for new budget line (create-new mode). Falls back to discretionary if absent. */
   budgetSourceId?: string | null;
 }

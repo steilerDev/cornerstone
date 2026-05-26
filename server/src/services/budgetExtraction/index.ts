@@ -48,3 +48,4 @@ export {
   LLM_PROVIDERS,
 } from './providerProfiles.js';
 export { computeDueDateFallback } from './dueDateFallback.js';
+export { mapCategoryNameToId } from './categoryMapping.js';

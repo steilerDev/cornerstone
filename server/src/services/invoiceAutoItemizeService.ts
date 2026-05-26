@@ -17,6 +17,7 @@ import {
   documentLinks,
   vendors,
   budgetSources,
+  budgetCategories,
 } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -29,6 +30,7 @@ import {
   getProvider,
   validateExtractedLines,
   computeDueDateFallback,
+  mapCategoryNameToId,
 } from './budgetExtraction/index.js';
 import * as paperlessService from './paperlessService.js';
 import * as invoiceBudgetLineService from './invoiceBudgetLineService.js';
@@ -151,6 +153,23 @@ export async function autoItemize(
         : (doc.content ?? '');
     const result = await provider.extract(ocrText, hints);
     computeDueDateFallback(result);
+
+    // Map LLM-extracted category names to budget category IDs
+    const allCategories = db
+      .select({
+        id: budgetCategories.id,
+        name: budgetCategories.name,
+        translationKey: budgetCategories.translationKey,
+      })
+      .from(budgetCategories)
+      .all();
+
+    for (const line of result.lines) {
+      if (line.category && !line.budgetCategoryId) {
+        line.budgetCategoryId = mapCategoryNameToId(line.category, allCategories);
+      }
+    }
+
     const warnings = computeWarnings(result.lines, invoice.amount);
 
     return {

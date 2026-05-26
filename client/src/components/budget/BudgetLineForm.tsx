@@ -12,8 +12,7 @@ import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { FormError } from '../FormError/index.js';
-import { WorkItemPicker } from '../WorkItemPicker/WorkItemPicker.js';
-import { HouseholdItemPicker } from '../HouseholdItemPicker/HouseholdItemPicker.js';
+import { ParentPicker } from '../ParentPicker/index.js';
 import styles from './BudgetLineForm.module.css';
 
 export interface BudgetLineFormProps {
@@ -434,49 +433,15 @@ export function BudgetLineForm({
             <legend className={styles.parentPickerLegend}>
               {t('budgetLineForm.parentPickerFieldsetLegend')}
             </legend>
-            <div className={styles.parentPickerTabs}>
-              <button
-                type="button"
-                className={`${styles.parentPickerTab} ${selectedParentType === 'work_item' ? styles.parentPickerTabActive : ''}`}
-                onClick={() => {
-                  setSelectedParentType('work_item');
-                  setSelectedParentId(null);
-                }}
-              >
-                {t('budgetLineForm.parentPickerWorkItemTab')}
-              </button>
-              <button
-                type="button"
-                className={`${styles.parentPickerTab} ${selectedParentType === 'household_item' ? styles.parentPickerTabActive : ''}`}
-                onClick={() => {
-                  setSelectedParentType('household_item');
-                  setSelectedParentId(null);
-                }}
-              >
-                {t('budgetLineForm.parentPickerHouseholdItemTab')}
-              </button>
-            </div>
-            <div className={styles.parentPickerBody}>
-              {selectedParentType === 'work_item' ? (
-                <WorkItemPicker
-                  value={selectedParentId ?? ''}
-                  onChange={(id: string) => {
-                    setSelectedParentId(id);
-                  }}
-                  placeholder={t('budgetLineForm.parentPickerWorkItemTab')}
-                  excludeIds={[]}
-                />
-              ) : (
-                <HouseholdItemPicker
-                  value={selectedParentId ?? ''}
-                  onChange={(id: string) => {
-                    setSelectedParentId(id);
-                  }}
-                  placeholder={t('budgetLineForm.parentPickerHouseholdItemTab')}
-                  excludeIds={[]}
-                />
-              )}
-            </div>
+            <ParentPicker
+              selectedType={selectedParentType}
+              selectedId={selectedParentId}
+              onChange={(type, id) => {
+                setSelectedParentType(type);
+                setSelectedParentId(id);
+              }}
+              disabled={isSaving}
+            />
             {parentPickerError && <p className={styles.parentPickerError}>{parentPickerError}</p>}
             <button
               type="button"
@@ -520,49 +485,18 @@ export function BudgetLineForm({
               </button>
             </div>
 
-            {/* Expanded view: type tabs + picker + optional move hint + buttons */}
+            {/* Expanded view: ParentPicker + optional move hint + buttons */}
             <div id="parent-picker-body" hidden={!isPickerExpanded}>
-              <div className={styles.parentPickerTabs}>
-                <button
-                  type="button"
-                  className={`${styles.parentPickerTab} ${selectedParentType === 'work_item' ? styles.parentPickerTabActive : ''}`}
-                  onClick={() => {
-                    setSelectedParentType('work_item');
-                    setSelectedParentId(null);
-                  }}
-                >
-                  {t('budgetLineForm.parentPickerWorkItemTab')}
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.parentPickerTab} ${selectedParentType === 'household_item' ? styles.parentPickerTabActive : ''}`}
-                  onClick={() => {
-                    setSelectedParentType('household_item');
-                    setSelectedParentId(null);
-                  }}
-                >
-                  {t('budgetLineForm.parentPickerHouseholdItemTab')}
-                </button>
-              </div>
-              <div className={styles.parentPickerBody}>
-                {selectedParentType === 'work_item' ? (
-                  <WorkItemPicker
-                    value={selectedParentId ?? ''}
-                    onChange={(id) => setSelectedParentId(id)}
-                    placeholder={t('budgetLineForm.parentPickerWorkItemTab')}
-                    excludeIds={[]}
-                    showItemsOnFocus={false}
-                  />
-                ) : (
-                  <HouseholdItemPicker
-                    value={selectedParentId ?? ''}
-                    onChange={(id) => setSelectedParentId(id)}
-                    placeholder={t('budgetLineForm.parentPickerHouseholdItemTab')}
-                    excludeIds={[]}
-                    showItemsOnFocus={false}
-                  />
-                )}
-              </div>
+              <ParentPicker
+                selectedType={selectedParentType}
+                selectedId={selectedParentId}
+                onChange={(type, id) => {
+                  setSelectedParentType(type);
+                  setSelectedParentId(id);
+                }}
+                onTabChange={(type) => setSelectedParentType(type)}
+                disabled={isMoving}
+              />
               {/* Cross-table move hint */}
               {currentParentType &&
                 currentParentType !== 'unassigned' &&

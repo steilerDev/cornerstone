@@ -340,7 +340,7 @@ test.describe(
           await expect(parentPickerFieldset).toBeVisible();
 
           // "Work Item" tab is active by default
-          const workItemTab = parentPickerFieldset.getByRole('button', {
+          const workItemTab = parentPickerFieldset.getByRole('tab', {
             name: 'Work Item',
             exact: true,
           });
@@ -460,7 +460,8 @@ test.describe('Assign unassigned budget line to household item (Scenario 3)', ()
       await expect(parentPickerFieldset).toBeVisible();
 
       // Click the "Household Item" tab to switch the picker
-      const hiTab = parentPickerFieldset.getByRole('button', {
+      // ParentPicker renders role="tablist" with role="tab" buttons — not plain role="button"
+      const hiTab = parentPickerFieldset.getByRole('tab', {
         name: 'Household Item',
         exact: true,
       });

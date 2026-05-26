@@ -28,8 +28,7 @@ import { Modal } from '../../components/Modal/Modal.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
-import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
-import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
+import { ParentPicker } from '../../components/ParentPicker/ParentPicker.js';
 import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
 import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
@@ -585,14 +584,14 @@ export function AutoItemizePage() {
 
   const { computedLineTotal, variance, variancePercent } = useMemo(() => {
     const total = lines.filter((l) => l.included).reduce((sum, l) => sum + (l.totalAmount ?? 0), 0);
-    const inv = invoice?.amount ?? 0;
+    const inv = parseFloat(metadataEdits.amount) || invoice?.amount || 0;
     const v = total - inv;
     return {
       computedLineTotal: total,
       variance: v,
       variancePercent: inv > 0 ? Math.abs(v) / inv : 0,
     };
-  }, [lines, invoice?.amount]);
+  }, [lines, metadataEdits.amount, invoice?.amount]);
 
   // Render variance indicator
   const renderVarianceIndicator = () => {
@@ -668,7 +667,7 @@ export function AutoItemizePage() {
 
   return (
     <>
-      <div className={styles.pageContainer}>
+      <div className={styles.pageContainer} data-layout="full-height">
         <div className={styles.pageHeader}>
           <div>
             <Link to={`/budget/invoices/${invoiceId}`} className={styles.breadcrumb}>
@@ -830,6 +829,7 @@ export function AutoItemizePage() {
                       fieldLabel={t('autoItemize.notes')}
                       displayValue={notesSuggestion}
                       onApply={() => handleApplySuggestion('notes', notesSuggestion)}
+                      multiLine
                     />
                   )}
                 </div>
@@ -1014,61 +1014,6 @@ export function AutoItemizePage() {
                           {t('autoItemize.includesVat')}
                         </label>
 
-                        {/* Category picker */}
-                        <div className={styles.cardMetricCell}>
-                          <label
-                            htmlFor={`category-${line.rowId}`}
-                            className={styles.cardPickerLabel}
-                          >
-                            {t('autoItemize.categoryLabel')}
-                          </label>
-                          <select
-                            id={`category-${line.rowId}`}
-                            className={styles.cardMetricInput}
-                            value={line.budgetCategoryId ?? ''}
-                            onChange={(e) =>
-                              handleLineFieldChange(
-                                line.rowId,
-                                'budgetCategoryId',
-                                e.target.value || null,
-                              )
-                            }
-                            aria-label={t('autoItemize.categoryAriaLabel')}
-                          >
-                            <option value="">{t('autoItemize.categoryPlaceholder')}</option>
-                            {picker.pickerState.categories?.map((cat) => (
-                              <option key={cat.id} value={cat.id}>
-                                {getCategoryDisplayName(tSettings, cat.name, cat.translationKey)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Funding Source picker */}
-                        <div className={styles.cardMetricCell}>
-                          <label
-                            htmlFor={`source-${line.rowId}`}
-                            className={styles.cardPickerLabel}
-                          >
-                            {t('autoItemize.fundingSourceLabel')}
-                          </label>
-                          <select
-                            id={`source-${line.rowId}`}
-                            className={styles.cardMetricInput}
-                            value={line.budgetSourceId ?? ''}
-                            onChange={(e) =>
-                              handleLineFieldChange(line.rowId, 'budgetSourceId', e.target.value)
-                            }
-                            aria-label={t('autoItemize.fundingSourceAriaLabel')}
-                          >
-                            {picker.pickerState.budgetSources?.map((src) => (
-                              <option key={src.id} value={src.id}>
-                                {src.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
                         <div className={styles.cardAssignZone}>
                           {!line.assignedBudgetLineId && !line.inlineCreatedBudgetLineDraft ? (
                             <button
@@ -1128,6 +1073,63 @@ export function AutoItemizePage() {
                               </button>
                             </div>
                           )}
+                        </div>
+
+                        <div className={styles.cardBottomRowPickerRow}>
+                          {/* Category picker */}
+                          <div className={styles.cardMetricCell}>
+                            <label
+                              htmlFor={`category-${line.rowId}`}
+                              className={styles.cardPickerLabel}
+                            >
+                              {t('autoItemize.categoryLabel')}
+                            </label>
+                            <select
+                              id={`category-${line.rowId}`}
+                              className={styles.cardMetricInput}
+                              value={line.budgetCategoryId ?? ''}
+                              onChange={(e) =>
+                                handleLineFieldChange(
+                                  line.rowId,
+                                  'budgetCategoryId',
+                                  e.target.value || null,
+                                )
+                              }
+                              aria-label={t('autoItemize.categoryAriaLabel')}
+                            >
+                              <option value="">{t('autoItemize.categoryPlaceholder')}</option>
+                              {picker.pickerState.categories?.map((cat) => (
+                                <option key={cat.id} value={cat.id}>
+                                  {getCategoryDisplayName(tSettings, cat.name, cat.translationKey)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Funding Source picker */}
+                          <div className={styles.cardMetricCell}>
+                            <label
+                              htmlFor={`source-${line.rowId}`}
+                              className={styles.cardPickerLabel}
+                            >
+                              {t('autoItemize.fundingSourceLabel')}
+                            </label>
+                            <select
+                              id={`source-${line.rowId}`}
+                              className={styles.cardMetricInput}
+                              value={line.budgetSourceId ?? ''}
+                              onChange={(e) =>
+                                handleLineFieldChange(line.rowId, 'budgetSourceId', e.target.value)
+                              }
+                              aria-label={t('autoItemize.fundingSourceAriaLabel')}
+                            >
+                              {picker.pickerState.budgetSources?.map((src) => (
+                                <option key={src.id} value={src.id}>
+                                  {src.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       </div>
                     </li>
@@ -1234,47 +1236,13 @@ export function AutoItemizePage() {
             {/* Step 1: Select item type and item */}
             {picker.pickerState.step === 1 && (
               <div className={styles.pickerStep}>
-                <div className={styles.tabsContainer}>
-                  <div className={styles.tab}>
-                    <h3 className={styles.tabTitle}>
-                      {t('invoiceDetail.budgetLines.picker.workItemTab')}
-                    </h3>
-                    <WorkItemPicker
-                      value=""
-                      onChange={(itemId) => {
-                        picker.handleSelectItem(itemId, 'work_item');
-                      }}
-                      onSelectItem={(item) => {
-                        picker.handleSelectItem(item.id, 'work_item', item.title);
-                      }}
-                      excludeIds={[]}
-                      placeholder="Search work items..."
-                      showItemsOnFocus
-                    />
-                  </div>
-
-                  <div className={styles.separator}>
-                    {t('invoiceDetail.budgetLines.picker.separator')}
-                  </div>
-
-                  <div className={styles.tab}>
-                    <h3 className={styles.tabTitle}>
-                      {t('invoiceDetail.budgetLines.picker.householdItemTab')}
-                    </h3>
-                    <HouseholdItemPicker
-                      value=""
-                      onChange={(itemId) => {
-                        picker.handleSelectItem(itemId, 'household_item');
-                      }}
-                      onSelectItem={(item) => {
-                        picker.handleSelectItem(item.id, 'household_item', item.name);
-                      }}
-                      excludeIds={[]}
-                      placeholder="Search household items..."
-                      showItemsOnFocus
-                    />
-                  </div>
-                </div>
+                <ParentPicker
+                  selectedType={picker.pickerState.type ?? 'work_item'}
+                  selectedId={picker.pickerState.itemId ?? null}
+                  onChange={(type, id) => {
+                    picker.handleSelectItem(id, type);
+                  }}
+                />
               </div>
             )}
 

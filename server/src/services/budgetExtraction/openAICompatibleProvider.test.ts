@@ -1188,3 +1188,135 @@ describe('fixture-driven mock extract tests', () => {
     });
   }
 });
+
+// ─── validateExtractedLines — category field (#1596) ─────────────────────────
+
+describe('validateExtractedLines — category field parsing', () => {
+  it('parses a string category value and includes it in the returned line', async () => {
+    const content = JSON.stringify({
+      lines: [
+        {
+          description: 'Tile work',
+          totalAmount: 200,
+          confidence: 0.9,
+          category: 'Materials',
+        },
+      ],
+    });
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(content));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    const result = await provider.extract('ocr text', {});
+
+    expect(result.lines).toHaveLength(1);
+    const line = result.lines[0] as unknown as Record<string, unknown>;
+    expect(line['category']).toBe('Materials');
+  });
+
+  it('trims leading and trailing whitespace from category', async () => {
+    const content = JSON.stringify({
+      lines: [
+        {
+          description: 'Labor',
+          totalAmount: 100,
+          confidence: 0.8,
+          category: '  Labor  ',
+        },
+      ],
+    });
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(content));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    const result = await provider.extract('ocr text', {});
+
+    const line = result.lines[0] as unknown as Record<string, unknown>;
+    expect(line['category']).toBe('Labor');
+  });
+
+  it('caps category at 30 characters', async () => {
+    const longCategory = 'A'.repeat(50);
+    const content = JSON.stringify({
+      lines: [
+        {
+          description: 'Item',
+          totalAmount: 50,
+          confidence: 0.7,
+          category: longCategory,
+        },
+      ],
+    });
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(content));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    const result = await provider.extract('ocr text', {});
+
+    const line = result.lines[0] as unknown as Record<string, unknown>;
+    const cat = line['category'] as string;
+    expect(cat).toBeDefined();
+    expect(cat.length).toBeLessThanOrEqual(30);
+    expect(cat).toBe('A'.repeat(30));
+  });
+
+  it('returns category=null when category is an empty string (after trim)', async () => {
+    const content = JSON.stringify({
+      lines: [
+        {
+          description: 'Item',
+          totalAmount: 50,
+          confidence: 0.7,
+          category: '   ',
+        },
+      ],
+    });
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(content));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    const result = await provider.extract('ocr text', {});
+
+    const line = result.lines[0] as unknown as Record<string, unknown>;
+    // Whitespace-only → trimmed to empty → treated as null
+    expect(line['category']).toBeNull();
+  });
+
+  it('returns category=undefined when category field is absent from the line', async () => {
+    const content = JSON.stringify({
+      lines: [
+        {
+          description: 'Item',
+          totalAmount: 50,
+          confidence: 0.7,
+          // no category key
+        },
+      ],
+    });
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(content));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    const result = await provider.extract('ocr text', {});
+
+    const line = result.lines[0] as unknown as Record<string, unknown>;
+    expect(line['category']).toBeUndefined();
+  });
+
+  it('ignores invalid (non-string) category types non-fatally — returns undefined', async () => {
+    const content = JSON.stringify({
+      lines: [
+        {
+          description: 'Item',
+          totalAmount: 50,
+          confidence: 0.7,
+          category: 12345, // number, not a string
+        },
+      ],
+    });
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(content));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    // Should NOT throw — non-string category is silently ignored
+    const result = await provider.extract('ocr text', {});
+
+    const line = result.lines[0] as unknown as Record<string, unknown>;
+    // Non-fatal: undefined (not null, not string)
+    expect(line['category']).toBeUndefined();
+  });
+});

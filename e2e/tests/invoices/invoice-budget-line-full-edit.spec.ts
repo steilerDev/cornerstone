@@ -293,7 +293,7 @@ test.describe('Same-table WI → WI move (Scenario 2)', { tag: '@responsive' }, 
         await changeButton.click();
 
         // Tabs appear: "Work Item" (active by default) and "Household Item"
-        const wiTab = parentPickerSection.getByRole('button', { name: 'Work Item' });
+        const wiTab = parentPickerSection.getByRole('tab', { name: 'Work Item' });
         await expect(wiTab).toBeVisible();
         // Work Item tab already active — no need to click
 
@@ -407,7 +407,7 @@ test.describe('Cross-table WI → HI move (Scenario 3)', { tag: '@responsive' },
       await changeButton.click();
 
       // Switch to Household Item tab
-      const hiTab = parentPickerSection.getByRole('button', { name: 'Household Item' });
+      const hiTab = parentPickerSection.getByRole('tab', { name: 'Household Item' });
       await expect(hiTab).toBeVisible();
       await hiTab.click();
 

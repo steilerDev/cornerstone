@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1596 — categoryMapping + category field tests (2026-05-26)
+
+**categoryMapping.ts cast pattern**: When asserting the `category` field on `result.lines[0]`, cast as `result.lines[0] as unknown as Record<string, unknown>` — casting directly to `Record<string, unknown>` gives TS2352 because `ExtractedLine` has no index signature.
+
+**invoiceAutoItemizeService category-mapping test**: The service test uses `db.insert(schema.budgetCategories).values({...})` with ALL columns including nullable `description: null, color: null`. Missing optional columns cause unexpected type errors in ts-jest strict mode.
+
+**BudgetLineForm submit button selector**: The submit button uses `type="submit"` (not `role="button"`), and its text comes from `t('budgetLineForm.submitAdd')` = "Add Line" or `t('budgetLineForm.submitSave')` = "Save Changes". Use `document.querySelector('button[type="submit"]')` to find it reliably.
+
+**AutoItemizePage variance tests**: Variance tests follow the same mock non-interception pattern as the rest of AutoItemizePage tests — they fail locally (70 failures pre-existing) but pass in CI. New tests added with the `#amount` input approach via `document.getElementById('amount')`.
+
+**openAICompatibleProvider.ts `category` TS error (TS2353)**: `openAICompatibleProvider.ts` line 239 has `category,` in the `lines.push()` object but `ExtractedLine` in the root shared dist doesn't have `category` yet → TS2353. This is a pre-existing worktree type mismatch; CI passes. Do not attempt to fix in test files.
+
 ## Story #1557/1584-1591 — New @cornerstone/shared type in worktree (2026-05-22)
 
 **Root cause of TS2305 on new shared types**: `node_modules/@cornerstone/shared` is a symlink to `../../shared` (the ROOT project's shared, on main branch). When new types are added to the worktree's `shared/src/`, they are NOT visible to ts-jest type-checking in server tests or (via TypeScript's type resolution) in client tests — even though the Jest moduleNameMapper maps `@cornerstone/shared` → `<rootDir>/shared/src/index.ts` for runtime imports. TypeScript's diagnostic phase uses its own node_modules resolution.

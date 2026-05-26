@@ -2032,4 +2032,141 @@ describe('invoiceAutoItemizeService', () => {
       expect(result.extractedNotes).toBeUndefined();
     });
   });
+
+  // ─── Story #1596 — dry-run category → budgetCategoryId mapping ───────────────
+
+  describe('dry-run category name → budgetCategoryId mapping (#1596)', () => {
+    /**
+     * Build an LLM response containing lines with a `category` field.
+     */
+    function makeLlmResponseWithCategory(
+      lines: Array<{
+        description: string;
+        totalAmount: number;
+        confidence: number;
+        category?: string | null;
+      }>,
+    ): object {
+      return {
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({ lines }),
+            },
+          },
+        ],
+      };
+    }
+
+    it('dry-run line with category matching a seeded budget category → budgetCategoryId is populated', async () => {
+      // Use a unique name to avoid collision with migration-seeded categories (e.g. 'Materials')
+      const catName = `TestCat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const catId = 'bc-test-materials-' + uid('c');
+      const t = ts();
+      db.insert(schema.budgetCategories)
+        .values({
+          id: catId,
+          name: catName,
+          description: null,
+          color: null,
+          translationKey: null,
+          sortOrder: 99,
+          createdAt: t,
+          updatedAt: t,
+        })
+        .run();
+
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 200);
+      linkDocument(db, invoiceId, 42);
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponseWithCategory([
+              { description: 'Cement bags', totalAmount: 150, confidence: 0.9, category: catName },
+            ]),
+          ),
+        );
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as unknown as { lines: Array<Record<string, unknown>>; warnings: unknown[] };
+
+      expect(result.lines).toHaveLength(1);
+      expect(result.lines[0]!['budgetCategoryId']).toBe(catId);
+    });
+
+    it('dry-run line with category=null → budgetCategoryId is null (no mapping)', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 100);
+      linkDocument(db, invoiceId, 42);
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponseWithCategory([
+              { description: 'Misc item', totalAmount: 100, confidence: 0.8, category: null },
+            ]),
+          ),
+        );
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as unknown as { lines: Array<Record<string, unknown>>; warnings: unknown[] };
+
+      expect(result.lines).toHaveLength(1);
+      // null category → no mapping applied → budgetCategoryId is null/undefined
+      const budgetCategoryId = result.lines[0]!['budgetCategoryId'];
+      expect(budgetCategoryId === null || budgetCategoryId === undefined).toBe(true);
+    });
+
+    it('dry-run line with unrecognized category string → budgetCategoryId is null', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 100);
+      linkDocument(db, invoiceId, 42);
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponseWithCategory([
+              { description: 'Mystery item', totalAmount: 100, confidence: 0.8, category: 'Unicorn category XYZ' },
+            ]),
+          ),
+        );
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as unknown as { lines: Array<Record<string, unknown>>; warnings: unknown[] };
+
+      expect(result.lines).toHaveLength(1);
+      const budgetCategoryId = result.lines[0]!['budgetCategoryId'];
+      // No matching category → null
+      expect(budgetCategoryId === null || budgetCategoryId === undefined).toBe(true);
+    });
+  });
 });
