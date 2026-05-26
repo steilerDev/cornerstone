@@ -73,20 +73,13 @@
   }
 }
 
+/* Grid item; default align-items: stretch fills the row height naturally.
+   No position: sticky is needed: the form column has its own internal overflow,
+   so siblings in the grid don't move when it scrolls. */
 .previewColumn {
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: var(--auto-itemize-header-height);
-  height: calc(100vh - var(--auto-itemize-header-height));
-}
-
-@media (max-width: 860px) {
-  .previewColumn {
-    position: static;
-    height: auto;
-    top: auto;
-  }
+  min-height: 0;
 }
 
 .metadataCard {
