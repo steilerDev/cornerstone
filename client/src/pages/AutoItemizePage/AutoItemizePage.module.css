@@ -40,7 +40,9 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-6);
   padding: var(--spacing-6);
-  align-items: start;
+  /* align-items defaults to stretch — grid items fill the row height.
+     formColumn uses overflow-y: auto to scroll internally; previewColumn
+     fills the height so the PDF iframe (flex: 1) gets a real height. */
   flex: 1;
   min-height: 0;
 }
