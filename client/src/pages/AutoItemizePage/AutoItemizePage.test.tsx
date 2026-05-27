@@ -67,7 +67,7 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 // pickerState without affecting the rest of the test suite (reset in beforeEach).
 
 let mockPickerStateOverride: Record<string, unknown> = {};
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 const mockShowCreateBudgetLineForm = jest
   .fn<(...args: any[]) => Promise<void>>()
   .mockResolvedValue(undefined);
