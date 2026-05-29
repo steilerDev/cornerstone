@@ -40,6 +40,9 @@ const config: Config = {
   // Locally, use up to 2 workers and recycle when heap exceeds 512 MB.
   // CI auto-detects workers (GitHub Actions sets CI=true).
   ...(isCI ? {} : { maxWorkers: 2, workerIdleMemoryLimit: '512M' }),
+  // Give workers up to 5 s to exit cleanly before force-killing them.
+  // Prevents hangs in sandbox CI environments where file-watcher cleanup stalls.
+  workerGracefulExitTimeout: 5000,
   projects: [
     {
       ...baseConfig,
