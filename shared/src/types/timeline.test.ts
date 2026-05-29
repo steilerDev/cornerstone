@@ -18,7 +18,6 @@ import type {
   TimelineResponse,
 } from './timeline.js';
 import type { AreaSummary } from './area.js';
-import type { VendorSummary } from './workItem.js';
 
 // ---------------------------------------------------------------------------
 // TimelineWorkItem interface

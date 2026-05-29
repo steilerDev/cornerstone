@@ -39,7 +39,6 @@ import type { AppConfig } from '../plugins/config.js';
 import type {
   ExtractedLine,
   ExtractionHints,
-  ExtractionResult,
   InvoiceBudgetLineListDetailResponse,
   InvoicePatchForAutoItemize,
   AutoItemizeDryRunResponse,

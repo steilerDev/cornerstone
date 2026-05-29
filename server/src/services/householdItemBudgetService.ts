@@ -1,12 +1,9 @@
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
   householdItems,
   householdItemBudgets,
-  workItems,
-  workItemBudgets,
-  invoiceBudgetLines,
 } from '../db/schema.js';
 import { createBudgetService } from './shared/budgetServiceFactory.js';
 import type { ResolvedBudgetRelations } from './shared/budgetServiceFactory.js';

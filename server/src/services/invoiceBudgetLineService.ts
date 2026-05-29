@@ -76,7 +76,7 @@ function resolveDetail(
   row: typeof invoiceBudgetLines.$inferSelect,
   areaMap: Map<string, AreaMapEntry>,
 ): InvoiceBudgetLineDetailResponse {
-  const budgetLineId = row.workItemBudgetId || row.householdItemBudgetId;
+  const _budgetLineId = row.workItemBudgetId || row.householdItemBudgetId;
   let budgetLineType: 'work_item' | 'household_item' | 'unassigned' = row.workItemBudgetId
     ? 'work_item'
     : 'household_item';
@@ -681,7 +681,7 @@ export function editAndMoveBudgetLine(
   // Step 7: Determine move type
   const isMoving = hasNewWorkItem || hasNewHouseholdItem;
   const newParentType = hasNewWorkItem ? 'work_item' : 'household_item';
-  const isCrossTable = isMoving && currentParentType !== newParentType;
+  const _isCrossTable = isMoving && currentParentType !== newParentType;
   const isSameTable = isMoving && currentParentType === newParentType;
 
   // Step 8: Run everything in a single transaction

@@ -5,7 +5,6 @@
  */
 
 import type { ConfidenceLevel } from './workItemBudget.js';
-import type { HouseholdItemCategory } from './householdItem.js';
 
 /**
  * Cost display mode for an entity.

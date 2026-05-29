@@ -105,7 +105,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
     return id;
   }
 
-  function createTestWorkItemBudget(workItemId: string, plannedAmount: number = 1000): string {
+  function _createTestWorkItemBudget(workItemId: string, plannedAmount: number = 1000): string {
     const id = `wib-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const now = new Date().toISOString();
 
@@ -124,7 +124,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
     return id;
   }
 
-  function createTestWorkItem(title: string, userId: string): string {
+  function _createTestWorkItem(title: string, userId: string): string {
     const id = `wi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const now = new Date().toISOString();
 
@@ -164,13 +164,13 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       const userId = createTestUser('test@example.com', 'Test User');
       const vendorId = createTestVendor('Test Vendor');
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
-      const budgetId = createTestHouseholdItemBudget(
+      const _budgetId = createTestHouseholdItemBudget(
         householdItemId,
         5000,
         'professional_estimate',
       );
 
-      const result = invoiceService.createInvoice(
+      const _result = invoiceService.createInvoice(
         db,
         vendorId,
         {
@@ -199,7 +199,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       const userId = createTestUser('test@example.com', 'Test User');
       const vendorId = createTestVendor('Test Vendor');
 
-      const result = invoiceService.createInvoice(
+      const _result = invoiceService.createInvoice(
         db,
         vendorId,
         {
@@ -221,7 +221,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       const userId = createTestUser('test@example.com', 'Test User');
       const vendorId = createTestVendor('Test Vendor');
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
-      const budgetId = createTestHouseholdItemBudget(householdItemId, 5000);
+      const _budgetId = createTestHouseholdItemBudget(householdItemId, 5000);
 
       const created = invoiceService.createInvoice(
         db,
@@ -233,7 +233,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         userId,
       );
 
-      const updated = invoiceService.updateInvoice(db, vendorId, created.id, {});
+      const _updated = invoiceService.updateInvoice(db, vendorId, created.id, {});
 
       // expect(updated.budgetLines?.[0]?.householdItemBudgetId).toBe(budgetId);
       // expect(updated.budgetLines?.[0]?.householdItemBudget).not.toBeNull();
@@ -248,7 +248,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       const userId = createTestUser('test@example.com', 'Test User');
       const vendorId = createTestVendor('Test Vendor');
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
-      const budgetId = createTestHouseholdItemBudget(householdItemId);
+      const _budgetId = createTestHouseholdItemBudget(householdItemId);
 
       const created = invoiceService.createInvoice(
         db,
@@ -262,7 +262,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
 
       // expect(created.budgetLines?.[0]?.householdItemBudgetId).toBe(budgetId);
 
-      const updated = invoiceService.updateInvoice(db, vendorId, created.id, {});
+      const _updated = invoiceService.updateInvoice(db, vendorId, created.id, {});
 
       // expect(updated.budgetLines?.[0]?.householdItemBudgetId).toBeNull();
       // expect(updated.budgetLines?.[0]?.householdItemBudget).toBeNull();
@@ -280,7 +280,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       const userId = createTestUser('test@example.com', 'Test User');
       const vendorId = createTestVendor('Test Vendor');
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
-      const budgetId = createTestHouseholdItemBudget(householdItemId, 5000, 'quote');
+      const _budgetId = createTestHouseholdItemBudget(householdItemId, 5000, 'quote');
 
       invoiceService.createInvoice(
         db,
@@ -296,7 +296,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       const result = invoiceService.listAllInvoices(db, {});
 
       expect(result.invoices).toHaveLength(1);
-      const invoice = result.invoices[0];
+      const _invoice = result.invoices[0];
       // expect(invoice.budgetLines?.[0]?.householdItemBudgetId).toBe(budgetId);
       // expect(invoice.budgetLines?.[0]?.householdItemBudget).not.toBeNull();
       // expect(invoice.budgetLines?.[0]?.householdItemBudget?.householdItemName).toBe('Kitchen Appliance');
@@ -321,7 +321,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       const result = invoiceService.listAllInvoices(db, {});
 
       expect(result.invoices).toHaveLength(1);
-      const invoice = result.invoices[0];
+      const _invoice = result.invoices[0];
       // expect(invoice.budgetLines?.[0]?.householdItemBudgetId).toBeNull();
       // expect(invoice.budgetLines?.[0]?.householdItemBudget).toBeNull();
     });
@@ -330,7 +330,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       const userId = createTestUser('test@example.com', 'Test User');
       const vendorId = createTestVendor('Test Vendor');
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
-      const budgetId = createTestHouseholdItemBudget(householdItemId);
+      const _budgetId = createTestHouseholdItemBudget(householdItemId);
 
       invoiceService.createInvoice(
         db,
@@ -372,7 +372,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       const userId = createTestUser('test@example.com', 'Test User');
       const vendorId = createTestVendor('Test Vendor');
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
-      const budgetId = createTestHouseholdItemBudget(householdItemId, 7500);
+      const _budgetId = createTestHouseholdItemBudget(householdItemId, 7500);
 
       const created = invoiceService.createInvoice(
         db,
@@ -384,7 +384,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
         userId,
       );
 
-      const retrieved = invoiceService.getInvoiceById(db, created.id);
+      const _retrieved = invoiceService.getInvoiceById(db, created.id);
 
       // expect(retrieved.budgetLines?.[0]?.householdItemBudgetId).toBe(budgetId);
       // expect(retrieved.budgetLines?.[0]?.householdItemBudget).not.toBeNull();

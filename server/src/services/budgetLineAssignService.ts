@@ -31,7 +31,7 @@ export function assignBudgetLine(
   db: DbType,
   budgetLineId: string,
   body: BudgetLineAssignRequest,
-  userId: string,
+  _userId: string,
 ): InvoiceBudgetLineDetailResponse {
   // Look up the work_item_budget row
   const wib = db.select().from(workItemBudgets).where(eq(workItemBudgets.id, budgetLineId)).get();

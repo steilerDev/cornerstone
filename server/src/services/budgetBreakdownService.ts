@@ -353,17 +353,6 @@ export function getBudgetBreakdown(
   }
 
   // ── Build hierarchical area breakdown ──────────────────────────────────────
-  interface EntityData<TItem> {
-    items: TItem[];
-    projectedMin: number;
-    projectedMax: number;
-    actualCost: number;
-    subsidyPayback: number;
-    rawProjectedMin: number;
-    rawProjectedMax: number;
-    minSubsidyPayback: number;
-  }
-
   function buildAreaBreakdown<TItem>(
     entityItems: Map<string | null, TItem[]>,
     allAreaRows: Array<{

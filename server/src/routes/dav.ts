@@ -559,7 +559,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
         // Also list all contacts
         const allContacts = fastify.db.select().from(vendorContacts).all();
         for (const contact of allContacts as any[]) {
-          const vendor = (allVendors as any[]).find((v: any) => v.id === contact.vendorId);
+          const _vendor = (allVendors as any[]).find((v: any) => v.id === contact.vendorId);
           const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;
           const props = `<D:getetag>"contact-${etag}"</D:getetag>
 <D:resourcetype/>

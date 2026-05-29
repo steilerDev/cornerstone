@@ -1219,7 +1219,7 @@ describe('Photo Routes', () => {
     });
 
     it('returns 413 when file exceeds photoMaxFileSizeMb', async () => {
-      const { cookie } = await createUserWithSession('annbig@example.com', 'AnnBig', 'password');
+      const { cookie: _cookie } = await createUserWithSession('annbig@example.com', 'AnnBig', 'password');
       // Set limit to 1 MB; config validator rejects 0, so use 1 and send a file > 1 MB.
       process.env.PHOTO_MAX_FILE_SIZE_MB = '1';
       await app.close();
@@ -1635,7 +1635,7 @@ describe('Photo Routes', () => {
     });
 
     it('returns 413 when annotation WebP exceeds PHOTO_MAX_FILE_SIZE_MB', async () => {
-      const { cookie } = await createUserWithSession('ann-sz@example.com', 'AnnSz', 'password');
+      const { cookie: _cookie } = await createUserWithSession('ann-sz@example.com', 'AnnSz', 'password');
       process.env.PHOTO_MAX_FILE_SIZE_MB = '1';
       await app.close();
       app = await buildApp();

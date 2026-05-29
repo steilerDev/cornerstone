@@ -10,7 +10,6 @@ import { buildRequestBody } from './providerProfiles.js';
 import type {
   BudgetExtractionProvider,
   ExtractedLine,
-  ExtractionHints,
   ExtractionResult,
   LlmConfig,
 } from './types.js';
