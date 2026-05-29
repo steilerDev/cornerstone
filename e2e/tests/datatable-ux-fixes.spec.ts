@@ -13,6 +13,23 @@
  * Desktop viewport only for column settings tests (the button is CSS-hidden on mobile).
  */
 
+/**
+ * Playwright 1.60.0 API availability notes (Issue #1572):
+ *
+ * ADOPTED in this file:
+ * - page.evaluateHandle(() => new DataTransfer()) — used in Scenario 5 (replaces
+ *   page.evaluate + elementHandle(); page.createDataTransfer() does not exist in
+ *   Playwright 1.60.0 — the correct cross-browser pattern is evaluateHandle)
+ * - test.abort()               — used in Scenarios 5 and 6 (broken-precondition guards)
+ *
+ * NOT ADOPTED (no callsite in current suite):
+ * - toHaveCSS({ pseudo: '::before' })  — no ::before/::after CSS assertions exist
+ * - locator.drop()                      — DataTable uses HTML5 DragEvent API, not pointer events
+ * - getByRole({ description: '...' })   — no same-role disambiguation needed currently
+ * - tracing.startHar()                  — adopted in budget-source-move.spec.ts and
+ *                                         photoAnnotation.spec.ts (flake HAR capture)
+ */
+
 import { test, expect } from '../fixtures/auth.js';
 import type { Page } from '@playwright/test';
 
@@ -260,7 +277,10 @@ test.describe('Column drag-and-drop insertion line', () => {
 
     // Need at least 2 draggable items for a drag operation
     if (handleCount < 2) {
-      test.skip();
+      test.abort(
+        `Precondition failed: expected ≥2 draggable column handles but found ${handleCount}. ` +
+        `Check that the DataTable renders column drag handles before this test runs.`,
+      );
       return;
     }
 
@@ -270,35 +290,32 @@ test.describe('Column drag-and-drop insertion line', () => {
 
     // When: dispatch a synthetic dragstart on the first item, then dragover on the second.
     // page.mouse simulation does NOT fire HTML5 drag events (dragstart/dragover/drop).
-    // Use page.evaluate() to dispatch DragEvents with a real DataTransfer object, because
-    // browsers set dataTransfer to null when using Playwright's dispatchEvent() with a plain
-    // object init — and the React handlers access e.dataTransfer without null checks.
-    const firstHandle = await firstItem.elementHandle();
-    const secondHandle = await secondItem.elementHandle();
-    expect(firstHandle).not.toBeNull();
-    expect(secondHandle).not.toBeNull();
+    // page.evaluateHandle(() => new DataTransfer()) (Playwright 1.60.0 pattern) creates a
+    // real browser-side DataTransfer JSHandle that can be passed directly to
+    // dispatchEvent() — no page.evaluate() indirection needed. Previously, browsers set
+    // dataTransfer to null when Playwright's dispatchEvent() received a plain JS init
+    // object. Note: page.createDataTransfer() does not exist in Playwright 1.60.0; the
+    // correct cross-browser pattern is page.evaluateHandle(() => new DataTransfer()).
+    const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
 
-    await page.evaluate(
-      ({ source, target }) => {
-        const dataTransfer = new DataTransfer();
-        // Fire dragstart on the first item to activate dragging React state
-        source.dispatchEvent(
-          new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer }),
-        );
-        // Fire dragover on the second item — the React onDragOver handler reads clientY
-        // to determine 'above'/'below' and sets dragOverState with the target's index
-        target.dispatchEvent(
-          new DragEvent('dragover', {
-            bubbles: true,
-            cancelable: true,
-            dataTransfer,
-            // clientY at the center of the target triggers 'above' or 'below' logic
-            clientY: target.getBoundingClientRect().top + 1,
-          }),
-        );
-      },
-      { source: firstHandle!, target: secondHandle! },
-    );
+    await firstItem.dispatchEvent('dragstart', {
+      bubbles: true,
+      cancelable: true,
+      dataTransfer,
+    });
+
+    // Fire dragover on the second item — React's onDragOver handler reads clientY
+    // to determine 'above'/'below' and sets dragOverState with the target's index.
+    // Use locator.boundingBox() to compute clientY without needing evaluate().
+    const bbox = await secondItem.boundingBox();
+    const clientY = bbox ? bbox.y + bbox.height / 2 : 0;
+
+    await secondItem.dispatchEvent('dragover', {
+      bubbles: true,
+      cancelable: true,
+      dataTransfer,
+      clientY,
+    });
 
     // Then: One of the column items has the drop-above or drop-below CSS class (insertion line)
     // These classes are applied via CSS ::before pseudo-elements using position:absolute.
@@ -340,7 +357,10 @@ test.describe('Column drag uses move semantics', () => {
     const dragHandles = popover.getByRole('button', { name: /drag to reorder/i });
     const handleCount = await dragHandles.count();
     if (handleCount < 1) {
-      test.skip();
+      test.abort(
+        `Precondition failed: expected ≥1 draggable column handle but found ${handleCount}. ` +
+        `Check that the DataTable renders column drag handles before this test runs.`,
+      );
       return;
     }
 
