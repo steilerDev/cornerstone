@@ -45,14 +45,14 @@ export function MilestonesPage() {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   // Table state
-  const [tableState, setTableState] = useState<TableState>({
+  const [tableState, setTableState] = useState<TableState>(() => ({
     search: '',
     filters: new Map(),
     sortBy: null,
     sortDir: null,
     page: 1,
     pageSize: 100,
-  });
+  }));
 
   // Load milestones on mount
   useEffect(() => {

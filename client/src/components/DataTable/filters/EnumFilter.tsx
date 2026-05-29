@@ -36,7 +36,7 @@ export function EnumFilter({
   const { t } = useTranslation('common');
 
   const parseValue = (v: string) => new Set(v ? v.split(',') : []);
-  const [selected, setSelected] = useState(parseValue(value));
+  const [selected, setSelected] = useState(() => parseValue(value));
 
   // Build childrenOf map from hierarchy for arbitrary depth support
   const childrenOf = new Map<string | null, string[]>();

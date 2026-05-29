@@ -83,14 +83,14 @@ export function UserManagementPage() {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Table state
-  const [tableState, setTableState] = useState<TableState>({
+  const [tableState, setTableState] = useState<TableState>(() => ({
     search: '',
     filters: new Map(),
     sortBy: null,
     sortDir: null,
     page: 1,
     pageSize: 100,
-  });
+  }));
 
   // Load users on mount
   useEffect(() => {

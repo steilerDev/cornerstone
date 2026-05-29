@@ -46,7 +46,7 @@ export function usePaperless(): UsePaperlessResult {
   const [selectedTags, setSelectedTagsState] = useState<number[]>([]);
   const [page, setPageState] = useState(1);
   const [fetchCount, setFetchCount] = useState(0);
-  const [tagCountMap, setTagCountMap] = useState<Map<number, number>>(new Map());
+  const [tagCountMap, setTagCountMap] = useState<Map<number, number>>(() => new Map());
 
   // Phase 1: fetch status on mount
   useEffect(() => {
