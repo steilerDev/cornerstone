@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 
 /**
  * usePrintExpansion — forces a Set<string> state to contain all provided keys
@@ -17,18 +17,18 @@ export function usePrintExpansion(
     setExpandedKeys(new Set(allKeys));
   }, [setExpandedKeys, allKeys]);
 
-  useEffect(() => {
-    let snapshot: Set<string> | null = null;
+  const snapshotRef = useRef<Set<string> | null>(null);
 
+  useEffect(() => {
     function handleBeforePrint() {
-      snapshot = new Set(expandedKeys);
+      snapshotRef.current = new Set(expandedKeys);
       forceExpand();
     }
 
     function handleAfterPrint() {
-      if (snapshot !== null) {
-        setExpandedKeys(snapshot);
-        snapshot = null;
+      if (snapshotRef.current !== null) {
+        setExpandedKeys(snapshotRef.current);
+        snapshotRef.current = null;
       }
     }
 
