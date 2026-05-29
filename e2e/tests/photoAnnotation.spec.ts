@@ -52,6 +52,7 @@ import { fileURLToPath } from 'url';
 import type { Page, Route, Request } from '@playwright/test';
 import { test, expect } from '../fixtures/auth.js';
 import { PhotoViewerPage } from '../pages/PhotoViewerPage.js';
+import type { AnnotationShape, RectangleShape, EllipseShape, ArrowShape, LineShape, FreehandShape, TextShape, MeasurementShape } from '../pages/PhotoViewerPage.js';
 import { DiaryEntryDetailPage } from '../pages/DiaryEntryDetailPage.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../fixtures/apiHelpers.js';
 
@@ -172,6 +173,7 @@ async function openAnnotator(viewer: PhotoViewerPage): Promise<void> {
  * 14. Clear Annotations → Modal appears → confirm → DELETE 204
  * 15. viewOriginalButton and clearAnnotationsButton disappear in-place
  */
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
 test(
   '[smoke] Photo annotation full lifecycle',
   { tag: '@smoke' },
@@ -234,6 +236,12 @@ test(
 
       await expect(viewer.svgOverlay).toBeVisible();
       await viewer.drawRectangle();
+
+      // Poll until rectangle shape appears in the annotator state model
+      await expect.poll(async () => {
+        const shapes = await viewer.getAnnotatorShapes();
+        return shapes.some(s => s.type === 'rectangle');
+      }, { timeout: 15_000 }).toBe(true);
 
       // ── Save annotation ────────────────────────────────────────────────────
       const [putResponse] = await Promise.all([
@@ -465,8 +473,8 @@ test('Save failure shows error banner and keeps annotator open', async ({
 // Scenario 4: Highlight tool draw and save
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (rect[data-shapeid]) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Highlight tool — draw highlight and save', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Highlight tool — draw highlight and save', async ({
   page,
   testPrefix,
 }: {
@@ -500,8 +508,11 @@ test.fixme('TODO: rewrite for Konva canvas — Highlight tool — draw highlight
 
     await viewer.drawRectangle(0.2, 0.2, 0.7, 0.5);
 
-    // A <rect data-shapeid> should appear (highlight renders as rect)
-    await expect(viewer.svgOverlay.locator('rect[data-shapeid]').first()).toBeVisible();
+    // Poll until highlight shape appears in the annotator state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'highlight');
+    }, { timeout: 15_000 }).toBe(true);
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -525,8 +536,8 @@ test.fixme('TODO: rewrite for Konva canvas — Highlight tool — draw highlight
 // Scenario 5: Arrow tool draw and save
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (line[data-shapeid]) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Arrow tool — draw arrow and save', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Arrow tool — draw arrow and save', async ({
   page,
   testPrefix,
 }: {
@@ -560,23 +571,21 @@ test.fixme('TODO: rewrite for Konva canvas — Arrow tool — draw arrow and sav
 
     await viewer.drawLine(0.2, 0.5, 0.7, 0.3);
 
-    // Arrow rendering contract: a <g data-shapeid> group containing a <line>
-    // shaft and a <polygon> arrowhead (no marker-end — the arrowhead is an
-    // explicit polygon child, not an SVG marker).
-    const arrowGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-    await expect(arrowGroup).toBeAttached({ timeout: 15_000 });
+    // Poll until arrow shape appears in the annotator state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'arrow');
+    }, { timeout: 15_000 }).toBe(true);
 
-    // The group must contain exactly one line (shaft) and one polygon (arrowhead)
-    await expect(arrowGroup.locator('line')).toHaveCount(1);
-    await expect(arrowGroup.locator('polygon')).toHaveCount(1);
-
-    // The polygon's points attribute should encode a triangle (three coordinate pairs)
-    const arrowPolygon = arrowGroup.locator('polygon');
-    const points = await arrowPolygon.getAttribute('points');
-    expect(points).not.toBeNull();
-    // A triangle arrowhead has exactly 3 coordinate pairs (6 numbers)
-    const coordPairs = (points ?? '').trim().split(/\s+/);
-    expect(coordPairs).toHaveLength(3);
+    // Optionally verify geometry fields are numbers
+    const shapes5 = await viewer.getAnnotatorShapes();
+    const arrow = shapes5.find(s => s.type === 'arrow') as ArrowShape | undefined;
+    if (arrow) {
+      expect(typeof arrow.x1).toBe('number');
+      expect(typeof arrow.y1).toBe('number');
+      expect(typeof arrow.x2).toBe('number');
+      expect(typeof arrow.y2).toBe('number');
+    }
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -599,8 +608,8 @@ test.fixme('TODO: rewrite for Konva canvas — Arrow tool — draw arrow and sav
 // Scenario 6: Line tool draw and save
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (line[data-shapeid]) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Line tool — draw line and save', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Line tool — draw line and save', async ({
   page,
   testPrefix,
 }: {
@@ -634,30 +643,21 @@ test.fixme('TODO: rewrite for Konva canvas — Line tool — draw line and save'
 
     await viewer.drawLine(0.2, 0.5, 0.7, 0.5);
 
-    // A <line data-shapeid> should appear (no marker-end for plain line).
-    // Use state:'attached' rather than state:'visible': an SVG <line> with
-    // y1 === y2 has a zero-height bounding box, so Playwright's visibility
-    // check fails even though the stroke renders correctly to the user.
-    const lineEl = viewer.svgOverlay.locator('line[data-shapeid]').first();
-    try {
-      await lineEl.waitFor({ state: 'attached', timeout: 15_000 });
-    } catch (e) {
-      const svgHtml = await page
-        .evaluate(() => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)')
-        .catch(() => '(eval failed)');
-      console.error('[DEBUG] Line shape not attached after drawLine. SVG innerHTML:', svgHtml);
-      throw e;
-    }
+    // Poll until line shape appears in the annotator state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'line');
+    }, { timeout: 15_000 }).toBe(true);
 
-    // Verify rendered geometry: horizontal line (y1 ≈ y2), expected stroke color and width
-    await expect(lineEl).toHaveAttribute('x1', /\d/);
-    await expect(lineEl).toHaveAttribute('x2', /\d/);
-    await expect(lineEl).toHaveAttribute('y1', /\d/);
-    await expect(lineEl).toHaveAttribute('y2', /\d/);
-    await expect(lineEl).toHaveAttribute('stroke-width', '1');
-    // Arrow has marker-end; plain line has marker-end="none" or absent
-    const markerEnd = await lineEl.getAttribute('marker-end');
-    expect(markerEnd === null || markerEnd === 'none').toBe(true);
+    // Verify geometry fields are numbers
+    const shapes6 = await viewer.getAnnotatorShapes();
+    const line6 = shapes6.find(s => s.type === 'line') as LineShape | undefined;
+    if (line6) {
+      expect(typeof line6.x1).toBe('number');
+      expect(typeof line6.y1).toBe('number');
+      expect(typeof line6.x2).toBe('number');
+      expect(typeof line6.y2).toBe('number');
+    }
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -680,8 +680,8 @@ test.fixme('TODO: rewrite for Konva canvas — Line tool — draw line and save'
 // Scenario 7: Line tool — Shift-snap to 45°
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; line[data-shapeid] + getAttribute('y1'/'y2') have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Line tool — Shift-snap constrains angle to 45° increments', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Line tool — Shift-snap constrains angle to 45° increments', async ({
   page,
   testPrefix,
 }: {
@@ -730,30 +730,19 @@ test.fixme('TODO: rewrite for Konva canvas — Line tool — Shift-snap constrai
     await page.mouse.up();
     await page.keyboard.up('Shift');
 
-    // The committed line should have y1 ≈ y2 (horizontal snap).
-    // Use state:'attached' rather than state:'visible': a horizontal SVG <line>
-    // (y1 === y2) has a zero-height bounding box, which causes Playwright's
-    // visibility check to fail even though the stroke is visually correct.
-    // The 15 s explicit timeout gives CI shards comfortable headroom beyond the
-    // default actionTimeout (5 s) for two async React state updates.
-    const lineEl = viewer.svgOverlay.locator('line[data-shapeid]').first();
-    try {
-      await lineEl.waitFor({ state: 'attached', timeout: 15_000 });
-    } catch (e) {
-      const svgHtml = await page
-        .evaluate(() => document.querySelector('[role="application"]')?.innerHTML ?? '(not found)')
-        .catch(() => '(eval failed)');
-      console.error(
-        '[DEBUG] Shift-snap: line shape not attached after Shift+drag. SVG innerHTML:',
-        svgHtml,
-      );
-      throw e;
-    }
+    // Poll until line shape appears in the annotator state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'line');
+    }, { timeout: 15_000 }).toBe(true);
 
-    const y1 = parseFloat((await lineEl.getAttribute('y1')) ?? '0');
-    const y2 = parseFloat((await lineEl.getAttribute('y2')) ?? '0');
-    // Allow ≤1px tolerance in image-space (SVG viewBox is 100px)
-    expect(Math.abs(y1 - y2)).toBeLessThan(2);
+    // Verify horizontal snap: y1 ≈ y2 (within 2px tolerance in image-space)
+    const shapes7 = await viewer.getAnnotatorShapes();
+    const line7 = shapes7.find(s => s.type === 'line') as LineShape | undefined;
+    expect(line7).toBeDefined();
+    if (line7) {
+      expect(Math.abs(line7.y1 - line7.y2)).toBeLessThan(2);
+    }
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -764,8 +753,8 @@ test.fixme('TODO: rewrite for Konva canvas — Line tool — Shift-snap constrai
 // Scenario 8: Ellipse tool draw and save
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (ellipse[data-shapeid]) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Ellipse tool — draw ellipse and save', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Ellipse tool — draw ellipse and save', async ({
   page,
   testPrefix,
 }: {
@@ -799,8 +788,11 @@ test.fixme('TODO: rewrite for Konva canvas — Ellipse tool — draw ellipse and
 
     await viewer.drawEllipse(0.2, 0.2, 0.7, 0.6);
 
-    // An <ellipse data-shapeid> should appear
-    await expect(viewer.svgOverlay.locator('ellipse[data-shapeid]').first()).toBeVisible();
+    // Poll until ellipse shape appears in the annotator state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'ellipse');
+    }, { timeout: 15_000 }).toBe(true);
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -823,8 +815,8 @@ test.fixme('TODO: rewrite for Konva canvas — Ellipse tool — draw ellipse and
 // Scenario 9: Ellipse — Shift-snap to circle
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; ellipse[data-shapeid] + getAttribute('rx'/'ry') have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Ellipse tool — Shift-snap produces circle (rx === ry)', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Ellipse tool — Shift-snap produces circle (rx === ry)', async ({
   page,
   testPrefix,
 }: {
@@ -872,13 +864,19 @@ test.fixme('TODO: rewrite for Konva canvas — Ellipse tool — Shift-snap produ
     await page.mouse.up();
     await page.keyboard.up('Shift');
 
-    const ellipseEl = viewer.svgOverlay.locator('ellipse[data-shapeid]').first();
-    await expect(ellipseEl).toBeVisible();
+    // Poll until ellipse shape appears in the annotator state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'ellipse');
+    }, { timeout: 15_000 }).toBe(true);
 
-    const rx = parseFloat((await ellipseEl.getAttribute('rx')) ?? '0');
-    const ry = parseFloat((await ellipseEl.getAttribute('ry')) ?? '0');
-    // Both radii should be equal (circle constraint)
-    expect(Math.abs(rx - ry)).toBeLessThan(1);
+    // Verify circle snap: rx === ry (within 1px tolerance)
+    const shapes9 = await viewer.getAnnotatorShapes();
+    const ellipse9 = shapes9.find(s => s.type === 'ellipse') as EllipseShape | undefined;
+    expect(ellipse9).toBeDefined();
+    if (ellipse9) {
+      expect(Math.abs(ellipse9.rx - ellipse9.ry)).toBeLessThan(1);
+    }
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -889,8 +887,8 @@ test.fixme('TODO: rewrite for Konva canvas — Ellipse tool — Shift-snap produ
 // Scenario 10: Text tool — click, type, Enter commits shape
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (text[data-shapeid]) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Text tool — tap to place, type text, Enter commits shape', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Text tool — tap to place, type text, Enter commits shape', async ({
   page,
   testPrefix,
 }: {
@@ -937,10 +935,11 @@ test.fixme('TODO: rewrite for Konva canvas — Text tool — tap to place, type 
     // Inline input closes
     await expect(viewer.inlineInput).not.toBeVisible();
 
-    // A <text data-shapeid> should appear in the SVG
-    const textEl = viewer.svgOverlay.locator('text[data-shapeid]').first();
-    await expect(textEl).toBeVisible();
-    expect(await textEl.textContent()).toBe('Inspection point');
+    // Poll until text shape appears in the annotator state model with the expected text
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'text' && (s as TextShape).text === 'Inspection point');
+    }, { timeout: 15_000 }).toBe(true);
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -963,8 +962,8 @@ test.fixme('TODO: rewrite for Konva canvas — Text tool — tap to place, type 
 // Scenario 11: Text tool — Escape discards draft
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (text[data-shapeid]) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Text tool — Escape discards the draft without adding a shape', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Text tool — Escape discards the draft without adding a shape', async ({
   page,
   testPrefix,
 }: {
@@ -1009,8 +1008,11 @@ test.fixme('TODO: rewrite for Konva canvas — Text tool — Escape discards the
     // Inline input closes
     await expect(viewer.inlineInput).not.toBeVisible();
 
-    // No text shape should have been committed
-    await expect(viewer.svgOverlay.locator('text[data-shapeid]')).toHaveCount(0);
+    // No text shape should have been committed — verify via state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.length;
+    }, { timeout: 15_000 }).toBe(0);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1026,8 +1028,8 @@ test.fixme('TODO: rewrite for Konva canvas — Text tool — Escape discards the
 // Scenario 13: Measurement tool — drag, type label, Enter commits with label
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (g[data-shapeid], text) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Measurement tool — drag, type label, Enter commits with label text', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Measurement tool — drag, type label, Enter commits with label text', async ({
   page,
   testPrefix,
 }: {
@@ -1062,16 +1064,11 @@ test.fixme('TODO: rewrite for Konva canvas — Measurement tool — drag, type l
     // Draw measurement and enter label
     await viewer.drawMeasurement(0.1, 0.5, 0.8, 0.5, '3.5m');
 
-    // A <g data-shapeid> should appear containing lines + text.
-    // Use waitFor with explicit timeout — actionTimeout (5 s) is too tight on CI;
-    // measurement commits via undoStack.commit() which requires an extra re-render.
-    const measureGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-    await measureGroup.waitFor({ state: 'visible', timeout: 15_000 });
-
-    // Text label should be present and contain our label
-    const labelText = measureGroup.locator('text').first();
-    await expect(labelText).toBeVisible();
-    expect(await labelText.textContent()).toBe('3.5m');
+    // Poll until measurement shape appears with the expected label
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'measurement' && (s as MeasurementShape).label === '3.5m');
+    }, { timeout: 15_000 }).toBe(true);
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -1094,8 +1091,8 @@ test.fixme('TODO: rewrite for Konva canvas — Measurement tool — drag, type l
 // Scenario 14: Measurement tool — Escape commits with empty label
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (g[data-shapeid], text + getAttribute) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Measurement tool — Escape commits line with empty label', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Measurement tool — Escape commits line with empty label', async ({
   page,
   testPrefix,
 }: {
@@ -1143,22 +1140,11 @@ test.fixme('TODO: rewrite for Konva canvas — Measurement tool — Escape commi
     // For measurement, Escape commits with whatever is in the field (empty)
     await expect(viewer.inlineInput).not.toBeVisible();
 
-    // The <g data-shapeid> should exist (line committed) ...
-    // Use waitFor with explicit timeout — same async commit path as Scenario 13.
-    const measureGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-    await measureGroup.waitFor({ state: 'visible', timeout: 15_000 });
-
-    // ... but should NOT contain a visible <text> child (empty label → display:none)
-    // The text element exists in DOM but has display:none when label is empty.
-    // We verify no text content is visible.
-    const textEls = measureGroup.locator('text');
-    const textCount = await textEls.count();
-    if (textCount > 0) {
-      // If a text element exists, it should be hidden or have empty content
-      const displayAttr = await textEls.first().getAttribute('display');
-      const textContent = await textEls.first().textContent();
-      expect(displayAttr === 'none' || textContent === '').toBe(true);
-    }
+    // Poll until measurement shape is committed with empty label
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'measurement' && (s as MeasurementShape).label === '');
+    }, { timeout: 15_000 }).toBe(true);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1169,8 +1155,8 @@ test.fixme('TODO: rewrite for Konva canvas — Measurement tool — Escape commi
 // Scenario 15: Freehand tool — drag stroke, commits polyline
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (polyline[data-shapeid] + getAttribute('points')) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Freehand tool — drag stroke commits polyline shape', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Freehand tool — drag stroke commits polyline shape', async ({
   page,
   testPrefix,
 }: {
@@ -1209,16 +1195,19 @@ test.fixme('TODO: rewrite for Konva canvas — Freehand tool — drag stroke com
       [0.7, 0.5],
     ]);
 
-    // A <polyline data-shapeid> should appear
-    await expect(viewer.svgOverlay.locator('polyline[data-shapeid]').first()).toBeVisible();
+    // Poll until freehand shape appears in the annotator state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'freehand');
+    }, { timeout: 15_000 }).toBe(true);
 
-    // Verify the polyline has points attribute with multiple coordinates
-    const polylineEl = viewer.svgOverlay.locator('polyline[data-shapeid]').first();
-    const pointsAttr = await polylineEl.getAttribute('points');
-    expect(pointsAttr).not.toBeNull();
-    // Should have at least 2 coordinate pairs
-    const pairCount = (pointsAttr ?? '').trim().split(/\s+/).length;
-    expect(pairCount).toBeGreaterThanOrEqual(2);
+    // Verify the freehand shape has at least 2 points
+    const shapes15 = await viewer.getAnnotatorShapes();
+    const freehand15 = shapes15.find(s => s.type === 'freehand') as FreehandShape | undefined;
+    expect(freehand15).toBeDefined();
+    if (freehand15) {
+      expect(freehand15.points.length).toBeGreaterThanOrEqual(2);
+    }
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -1241,9 +1230,9 @@ test.fixme('TODO: rewrite for Konva canvas — Freehand tool — drag stroke com
 // Scenario 16: [smoke] @responsive Freehand on mobile — pointer drag → polyline
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (polyline[data-shapeid]) have no DOM representation.
-test.fixme(
-  'TODO: rewrite for Konva canvas — [smoke] @responsive Freehand tool on mobile — pointer drag captures stroke',
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test(
+  '[smoke] @responsive Freehand tool on mobile — pointer drag captures stroke',
   { tag: ['@smoke', '@responsive'] },
   async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
     let entryId: string | null = null;
@@ -1278,11 +1267,12 @@ test.fixme(
         [0.7, 0.3],
       ]);
 
-      // A <polyline data-shapeid> should appear.
-      // Use waitFor with explicit timeout — mobile/touch events can be slower to
-      // flush on a 2-vCPU CI shard; freehand uses COMMIT_DRAFT → two async renders.
-      const polylineEl = viewer.svgOverlay.locator('polyline[data-shapeid]').first();
-      await polylineEl.waitFor({ state: 'visible', timeout: 15_000 });
+      // Poll until freehand shape appears in the annotator state model
+      // (mobile/touch events can be slower to flush on CI)
+      await expect.poll(async () => {
+        const shapes = await viewer.getAnnotatorShapes();
+        return shapes.some(s => s.type === 'freehand');
+      }, { timeout: 15_000 }).toBe(true);
 
       // Save and verify
       const [putResponse] = await Promise.all([
@@ -1306,9 +1296,9 @@ test.fixme(
 // Scenario 17: @responsive Measurement tool on tablet/mobile — inline input
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (g[data-shapeid]) have no DOM representation.
-test.fixme(
-  'TODO: rewrite for Konva canvas — @responsive Measurement tool — inline input appears after drag on mobile/tablet',
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test(
+  '@responsive Measurement tool — inline input appears after drag on mobile/tablet',
   { tag: '@responsive' },
   async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
     let entryId: string | null = null;
@@ -1348,10 +1338,11 @@ test.fixme(
       await page.keyboard.press('Enter');
       await expect(viewer.inlineInput).not.toBeVisible();
 
-      // Measurement group committed — use waitFor with explicit timeout to handle
-      // async state propagation (same undoStack.commit() path as Scenarios 13/14).
-      const measureGroup = viewer.svgOverlay.locator('g[data-shapeid]').first();
-      await measureGroup.waitFor({ state: 'visible', timeout: 15_000 });
+      // Poll until measurement shape appears in the annotator state model with the typed label
+      await expect.poll(async () => {
+        const shapes = await viewer.getAnnotatorShapes();
+        return shapes.some(s => s.type === 'measurement' && (s as MeasurementShape).label === '2.5m');
+      }, { timeout: 15_000 }).toBe(true);
     } finally {
       if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
       if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1363,8 +1354,8 @@ test.fixme(
 // Scenario 18: Undo removes the last shape; Redo restores it
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (rect[data-shapeid] count assertions) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Undo removes last committed shape; Redo restores it', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Undo removes last committed shape; Redo restores it', async ({
   page,
   testPrefix,
 }: {
@@ -1396,21 +1387,32 @@ test.fixme('TODO: rewrite for Konva canvas — Undo removes last committed shape
     // Draw a rectangle
     await viewer.activateTool('rectangle');
     await viewer.drawRectangle();
-    await expect(viewer.svgOverlay.locator('rect[data-shapeid]').first()).toBeVisible();
+
+    // Poll until 1 shape appears in the state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.length;
+    }, { timeout: 15_000 }).toBe(1);
 
     // Undo button should now be enabled
     await expect(viewer.undoButton).not.toBeDisabled();
 
-    // Click Undo → shape disappears
+    // Click Undo → shape count goes to 0
     await viewer.undoButton.click();
-    await expect(viewer.svgOverlay.locator('rect[data-shapeid]')).toHaveCount(0);
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.length;
+    }, { timeout: 15_000 }).toBe(0);
 
     // Redo button should now be enabled
     await expect(viewer.redoButton).not.toBeDisabled();
 
     // Click Redo → shape reappears
     await viewer.redoButton.click();
-    await expect(viewer.svgOverlay.locator('rect[data-shapeid]').first()).toBeVisible();
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.length === 1 && shapes[0]?.type === 'rectangle';
+    }, { timeout: 15_000 }).toBe(true);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1421,8 +1423,8 @@ test.fixme('TODO: rewrite for Konva canvas — Undo removes last committed shape
 // Scenario 19: Select tool moves a committed rectangle
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; rect[data-shapeid] + getAttribute('x') have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Select tool — drag moves a committed rectangle', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Select tool — drag moves a committed rectangle', async ({
   page,
   testPrefix,
 }: {
@@ -1455,11 +1457,17 @@ test.fixme('TODO: rewrite for Konva canvas — Select tool — drag moves a comm
     await viewer.activateTool('rectangle');
     await viewer.drawRectangle(0.3, 0.3, 0.6, 0.6);
 
-    const rectEl = viewer.svgOverlay.locator('rect[data-shapeid]').first();
-    await expect(rectEl).toBeVisible();
+    // Poll until rectangle shape appears in the state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'rectangle');
+    }, { timeout: 15_000 }).toBe(true);
 
-    // Capture original position
-    const originalX = parseFloat((await rectEl.getAttribute('x')) ?? '0');
+    // Capture original x position from state model
+    const initialShapes19 = await viewer.getAnnotatorShapes();
+    const initialRect19 = initialShapes19.find(s => s.type === 'rectangle') as RectangleShape | undefined;
+    expect(initialRect19).toBeDefined();
+    const initialX19 = initialRect19!.x;
 
     // Switch to Select tool and drag the rectangle to the right
     await viewer.activateTool('select');
@@ -1478,14 +1486,12 @@ test.fixme('TODO: rewrite for Konva canvas — Select tool — drag moves a comm
     await page.mouse.move(targetX, targetY, { steps: 5 });
     await page.mouse.up();
 
-    // Poll until the x attribute changes from originalX to account for the
-    // async React state propagation after handlePointerUp fires COMMIT_DRAFT.
-    await expect
-      .poll(async () => {
-        const xStr = await rectEl.getAttribute('x');
-        return parseFloat(xStr ?? '0');
-      })
-      .toBeGreaterThan(originalX);
+    // Poll until the x coordinate in the state model increases (shape moved right)
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      const rect = shapes.find(s => s.type === 'rectangle') as RectangleShape | undefined;
+      return rect ? rect.x : initialX19;
+    }, { timeout: 15_000 }).toBeGreaterThan(initialX19);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1496,8 +1502,8 @@ test.fixme('TODO: rewrite for Konva canvas — Select tool — drag moves a comm
 // Scenario 20: Select tool — Delete key removes selected shape
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; shape locators (rect[data-shapeid] count assertions) have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Select tool — Delete key removes the selected shape', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Select tool — Delete key removes the selected shape', async ({
   page,
   testPrefix,
 }: {
@@ -1529,7 +1535,12 @@ test.fixme('TODO: rewrite for Konva canvas — Select tool — Delete key remove
     // Draw a rectangle
     await viewer.activateTool('rectangle');
     await viewer.drawRectangle(0.3, 0.3, 0.6, 0.6);
-    await expect(viewer.svgOverlay.locator('rect[data-shapeid]').first()).toBeVisible();
+
+    // Poll until 1 shape appears in the state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.length;
+    }, { timeout: 15_000 }).toBe(1);
 
     // Switch to Select and click the rectangle to select it
     await viewer.activateTool('select');
@@ -1543,8 +1554,11 @@ test.fixme('TODO: rewrite for Konva canvas — Select tool — Delete key remove
     // Press Delete key
     await page.keyboard.press('Delete');
 
-    // The rect should be gone
-    await expect(viewer.svgOverlay.locator('rect[data-shapeid]')).toHaveCount(0);
+    // Poll until shape count goes to 0
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.length;
+    }, { timeout: 15_000 }).toBe(0);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1566,6 +1580,7 @@ test.fixme('TODO: rewrite for Konva canvas — Select tool — Delete key remove
  * 4. Toggle View Original (aria-pressed)
  * 5. Clear Annotations → DELETE 204 → buttons disappear in-place
  */
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
 test(
   '[smoke] @responsive Multi-tool lifecycle — draw 3 shapes, save, view original, clear',
   { tag: ['@smoke', '@responsive'] },
@@ -1595,10 +1610,20 @@ test(
       // Draw Rectangle (Konva canvas — no rect[data-shapeid] assertion)
       await viewer.activateTool('rectangle');
       await viewer.drawRectangle(0.1, 0.1, 0.4, 0.4);
+      // Poll until rectangle shape appears in the state model
+      await expect.poll(async () => {
+        const shapes = await viewer.getAnnotatorShapes();
+        return shapes.some(s => s.type === 'rectangle');
+      }, { timeout: 15_000 }).toBe(true);
 
       // Draw Ellipse (Konva canvas — no ellipse[data-shapeid] assertion)
       await viewer.activateTool('ellipse');
       await viewer.drawEllipse(0.5, 0.1, 0.9, 0.4);
+      // Poll until ellipse shape appears in the state model
+      await expect.poll(async () => {
+        const shapes = await viewer.getAnnotatorShapes();
+        return shapes.some(s => s.type === 'ellipse');
+      }, { timeout: 15_000 }).toBe(true);
 
       // Draw Freehand using drawFreehandTouch (synthetic PointerEvents) so this
       // step works on mobile WebKit (hasTouch=true) where page.mouse.* does not
@@ -1611,6 +1636,17 @@ test(
         [0.5, 0.8],
         [0.7, 0.6],
       ]);
+      // Poll until freehand shape appears in the state model
+      await expect.poll(async () => {
+        const shapes = await viewer.getAnnotatorShapes();
+        return shapes.some(s => s.type === 'freehand');
+      }, { timeout: 15_000 }).toBe(true);
+
+      // Verify all 3 shapes are present
+      await expect.poll(async () => {
+        const shapes = await viewer.getAnnotatorShapes();
+        return shapes.length;
+      }, { timeout: 15_000 }).toBe(3);
 
       // Save
       const [putResponse] = await Promise.all([
@@ -1750,8 +1786,8 @@ test('Tool palette — all 9 tools visible; switching tool updates aria-pressed'
 // Scenario 23: Color palette — selecting a color swatch changes active color
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Konva renders to <canvas>; rect[data-shapeid] + getAttribute('stroke') have no DOM representation.
-test.fixme('TODO: rewrite for Konva canvas — Color palette — selecting a swatch marks it aria-checked and new shapes use that color', async ({
+// Shape state is exposed via data-annotator-shapes attribute on [role="application"].
+test('Color palette — selecting a swatch marks it aria-checked and new shapes use that color', async ({
   page,
   testPrefix,
 }: {
@@ -1808,16 +1844,24 @@ test.fixme('TODO: rewrite for Konva canvas — Color palette — selecting a swa
     // The red swatch (pinned by index) should now be unchecked
     await expect(redSwatch).toHaveAttribute('aria-checked', 'false');
 
-    // Draw a rectangle — it should have stroke matching the blue color
+    // Draw a rectangle — it should have the blue color in the state model
     await viewer.activateTool('rectangle');
     await viewer.drawRectangle(0.2, 0.2, 0.6, 0.6);
 
-    const rectEl = viewer.svgOverlay.locator('rect[data-shapeid]').first();
-    await expect(rectEl).toBeVisible();
+    // Poll until rectangle shape appears in the state model
+    await expect.poll(async () => {
+      const shapes = await viewer.getAnnotatorShapes();
+      return shapes.some(s => s.type === 'rectangle');
+    }, { timeout: 15_000 }).toBe(true);
 
-    // The stroke attribute of the rect should be blue
-    const strokeAttr = await rectEl.getAttribute('stroke');
-    expect(strokeAttr).toBe('#3b82f6');
+    // Verify the rectangle uses the blue color (#3b82f6)
+    // RectangleShape uses the 'color' field for stroke
+    const shapes23 = await viewer.getAnnotatorShapes();
+    const rect23 = shapes23.find(s => s.type === 'rectangle') as RectangleShape | undefined;
+    expect(rect23).toBeDefined();
+    if (rect23) {
+      expect(rect23.color).toBe('#3b82f6');
+    }
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});

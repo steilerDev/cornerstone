@@ -38,19 +38,113 @@
  *   - annotator-save   — Save button
  *   - annotator-cancel — Cancel button
  *
- * SVG element types per tool (committed shapes in the SVG):
- *   rectangle  → <rect data-shapeid="...">
- *   highlight  → <rect data-shapeid="...">  (fill with opacity 0.4)
- *   arrow      → <line data-shapeid="...">  (with marker-end=url(#arrowhead))
- *   line       → <line data-shapeid="...">
- *   ellipse    → <ellipse data-shapeid="...">
- *   text       → <text data-shapeid="...">
- *   callout    → <g data-shapeid="..."> containing <rect>, <line>, <text>
- *   measurement → <g data-shapeid="..."> containing multiple <line>s + optional <text>
- *   freehand   → <polyline data-shapeid="...">
+ * Shape state (Konva canvas — NOT SVG DOM nodes):
+ *   All committed shapes are exposed as JSON on the [role="application"] container via
+ *   `data-annotator-shapes`. Read via `getAnnotatorShapes()`. Shape types mirror the
+ *   AnnotationShape union from useUndoStack.ts:
+ *     rectangle, highlight, arrow, line, ellipse, text, measurement, freehand
  */
 
 import type { Page, Locator } from '@playwright/test';
+
+// ── Annotator shape types (mirror of client/src/.../useUndoStack.ts) ─────────
+// Local copies so e2e/ does not import from client/ source.
+
+export interface RectangleShape {
+  type: 'rectangle';
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+  strokeWidth: number;
+}
+
+export interface HighlightShape {
+  type: 'highlight';
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+}
+
+export interface ArrowShape {
+  type: 'arrow';
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface LineShape {
+  type: 'line';
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface EllipseShape {
+  type: 'ellipse';
+  id: string;
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface TextShape {
+  type: 'text';
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  fontSize: number;
+  color: string;
+}
+
+export interface MeasurementShape {
+  type: 'measurement';
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  label: string;
+  stroke: string;
+  strokeWidth: number;
+  fontSize: number;
+  color: string;
+}
+
+export interface FreehandShape {
+  type: 'freehand';
+  id: string;
+  points: [number, number][];
+  stroke: string;
+  strokeWidth: number;
+}
+
+export type AnnotationShape =
+  | RectangleShape
+  | HighlightShape
+  | ArrowShape
+  | LineShape
+  | EllipseShape
+  | TextShape
+  | MeasurementShape
+  | FreehandShape;
 
 export type AnnotatorToolName =
   | 'select'
@@ -616,19 +710,23 @@ export class PhotoViewerPage {
   }
 
   /**
-   * Get the locator for a committed shape by its SVG element type and data-shapeid.
-   * Use the SVG element type: 'rect', 'line', 'ellipse', 'text', 'g', 'polyline'.
+   * Returns the current committed shapes from the annotator's state model.
+   *
+   * Reads the `data-annotator-shapes` JSON attribute from the [role="application"]
+   * canvas container. Updated reactively by PhotoAnnotator.tsx whenever
+   * `undoStack.shapes` changes (after every commit/undo/redo/clear).
+   *
+   * Returns an empty array if the annotator is not open or no shapes committed.
+   *
+   * @example
+   * await expect.poll(async () => {
+   *   const shapes = await viewer.getAnnotatorShapes();
+   *   return shapes.some(s => s.type === 'rectangle');
+   * }, { timeout: 15_000 }).toBe(true);
    */
-  shapeByType(svgTag: string): Locator {
-    return this.svgOverlay.locator(`[data-shapeid]`).filter({
-      has: this.page.locator(svgTag),
-    });
-  }
-
-  /**
-   * Count committed shapes in the SVG overlay (elements with data-shapeid).
-   */
-  committedShapeCount(): Locator {
-    return this.svgOverlay.locator('[data-shapeid]');
+  async getAnnotatorShapes(): Promise<AnnotationShape[]> {
+    const attr = await this.svgOverlay.getAttribute('data-annotator-shapes');
+    if (!attr) return [];
+    return JSON.parse(attr) as AnnotationShape[];
   }
 }
