@@ -279,7 +279,7 @@ test.describe('Column drag-and-drop insertion line', () => {
     if (handleCount < 2) {
       test.abort(
         `Precondition failed: expected ≥2 draggable column handles but found ${handleCount}. ` +
-        `Check that the DataTable renders column drag handles before this test runs.`,
+          `Check that the DataTable renders column drag handles before this test runs.`,
       );
       return;
     }
@@ -359,7 +359,7 @@ test.describe('Column drag uses move semantics', () => {
     if (handleCount < 1) {
       test.abort(
         `Precondition failed: expected ≥1 draggable column handle but found ${handleCount}. ` +
-        `Check that the DataTable renders column drag handles before this test runs.`,
+          `Check that the DataTable renders column drag handles before this test runs.`,
       );
       return;
     }
