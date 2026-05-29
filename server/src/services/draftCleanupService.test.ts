@@ -15,8 +15,6 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import type { AppConfig } from '../plugins/config.js';
-import * as NodeCron from 'node-cron';
-import * as DraftCleanupModule from './draftCleanupService.js';
 
 // ─── Mock node-cron ──────────────────────────────────────────────────────────
 
@@ -24,7 +22,7 @@ const mockCronTask = {
   stop: jest.fn(),
 };
 
-const mockCronSchedule = jest.fn<NodeCron['schedule']>();
+const mockCronSchedule = jest.fn<typeof import('node-cron').schedule>();
 
 jest.unstable_mockModule('node-cron', () => ({
   default: {
@@ -96,9 +94,9 @@ const mockLogger = {
 } as any;
 
 describe('draftCleanupService', () => {
-  let runOrphanCleanup: DraftCleanupModule['runOrphanCleanup'];
-  let initScheduler: DraftCleanupModule['initScheduler'];
-  let stopScheduler: DraftCleanupModule['stopScheduler'];
+  let runOrphanCleanup: typeof import('./draftCleanupService.js').runOrphanCleanup;
+  let initScheduler: typeof import('./draftCleanupService.js').initScheduler;
+  let stopScheduler: typeof import('./draftCleanupService.js').stopScheduler;
 
   let db: BetterSQLite3Database<typeof schema>;
   let sqlite: ReturnType<typeof Database>;
