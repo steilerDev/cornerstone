@@ -27,6 +27,7 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import type { Photo, AreaResponse } from '@cornerstone/shared';
+import type * as PhotoMetadataSidepanelModule from './PhotoMetadataSidepanel.js';
 
 // ─── ESM-compatible mocks (must be before dynamic imports) ────────────────────
 
@@ -86,7 +87,7 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 
 // ─── Dynamic imports (after mocks) ────────────────────────────────────────────
 
-let PhotoMetadataSidepanel: typeof import('./PhotoMetadataSidepanel.js').PhotoMetadataSidepanel;
+let PhotoMetadataSidepanel: PhotoMetadataSidepanelModule['PhotoMetadataSidepanel'];
 let LocaleProvider: (props: { children: React.ReactNode }) => React.ReactElement;
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────

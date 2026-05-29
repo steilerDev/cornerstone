@@ -6,6 +6,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { BaseBudgetLine, BudgetLineInvoiceLink } from '@cornerstone/shared';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
 import type { BudgetSectionProps } from './BudgetSection.js';
+import type * as BudgetSectionModule from './BudgetSection.js';
 
 // ─── Stub heavy child components ─────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ jest.unstable_mockModule('./InvoiceGroup.js', () => ({
 
 // ─── Import component under test after mocks ──────────────────────────────────
 
-let BudgetSection: (typeof import('./BudgetSection.js'))['BudgetSection'];
+let BudgetSection: BudgetSectionModule['BudgetSection'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

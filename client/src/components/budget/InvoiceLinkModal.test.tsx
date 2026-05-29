@@ -7,6 +7,7 @@ import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
 import type { InvoiceLinkModalProps } from './InvoiceLinkModal.js';
+import type * as InvoiceLinkModalModule from './InvoiceLinkModal.js';
 
 // ─── Module-scope mock functions ─────────────────────────────────────────────
 
@@ -88,7 +89,7 @@ jest.unstable_mockModule('../Toast/ToastContext.js', () => ({
 
 // ─── Import component after mocks ─────────────────────────────────────────────
 
-let InvoiceLinkModal: (typeof import('./InvoiceLinkModal.js'))['InvoiceLinkModal'];
+let InvoiceLinkModal: InvoiceLinkModalModule['InvoiceLinkModal'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

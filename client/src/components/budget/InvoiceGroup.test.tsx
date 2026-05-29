@@ -6,6 +6,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { BaseBudgetLine, BudgetLineInvoiceLink } from '@cornerstone/shared';
 import type { InvoiceGroupProps } from './InvoiceGroup.js';
+import type * as InvoiceGroupModule from './InvoiceGroup.js';
 
 // ─── Mock: formatters — provides useFormatters() hook used by InvoiceGroup ───
 
@@ -90,7 +91,7 @@ jest.unstable_mockModule('./BudgetLineCard.js', () => ({
 }));
 
 // ─── Import component under test after mocks ────────────────────────────────
-let InvoiceGroup: (typeof import('./InvoiceGroup.js'))['InvoiceGroup'];
+let InvoiceGroup: InvoiceGroupModule['InvoiceGroup'];
 let LocaleProvider: ({ children }: { children: React.ReactNode }) => React.ReactNode;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

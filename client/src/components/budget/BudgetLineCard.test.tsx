@@ -6,6 +6,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { BaseBudgetLine, BudgetLineInvoiceLink, ConfidenceLevel } from '@cornerstone/shared';
 import type { BudgetLineCardProps } from './BudgetLineCard.js';
+import type * as BudgetLineCardModule from './BudgetLineCard.js';
 
 // ─── Mock: formatters ──────────────────────────────────────────────────────────
 // jest.unstable_mockModule may not intercept in this worktree environment (known
@@ -85,7 +86,7 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 
 // ─── Dynamic import after mocks ────────────────────────────────────────────────
 
-let BudgetLineCard: (typeof import('./BudgetLineCard.js'))['BudgetLineCard'];
+let BudgetLineCard: BudgetLineCardModule['BudgetLineCard'];
 let LocaleProvider: ({ children }: { children: React.ReactNode }) => React.ReactNode;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────

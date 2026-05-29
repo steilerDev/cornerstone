@@ -4,11 +4,12 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { BudgetLineFormProps } from './BudgetLineForm.js';
+import type * as BudgetLineFormModule from './BudgetLineForm.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 
 // ─── Dynamic import (required for jest.unstable_mockModule pattern) ───────────
 
-let BudgetLineForm: (typeof import('./BudgetLineForm.js'))['BudgetLineForm'];
+let BudgetLineForm: BudgetLineFormModule['BudgetLineForm'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
