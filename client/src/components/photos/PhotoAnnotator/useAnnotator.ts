@@ -1,6 +1,6 @@
 import { useReducer, useCallback } from 'react';
 import { useUndoStack } from './useUndoStack.js';
-import type { AnnotationShape, RectangleShape, HighlightShape, TextShape } from './useUndoStack.js';
+import type { AnnotationShape } from './useUndoStack.js';
 import type { UseUndoStackResult } from './useUndoStack.js';
 import type { ANNOTATION_STROKE_WIDTH_RATIOS } from './annotationConstants.js';
 import { DEFAULT_COLOR, DEFAULT_STROKE_WIDTH, DEFAULT_FONT_SIZE } from './annotationConstants.js';

@@ -29,7 +29,6 @@ const MANAGE_ROUTE = '/settings/manage';
 const AREAS_PANEL_ID = 'areas-panel';
 const TRADES_PANEL_ID = 'trades-panel';
 const HI_CATEGORIES_PANEL_ID = 'hi-categories-panel';
-const BUDGET_CATEGORIES_PANEL_ID = 'budget-categories-panel';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers

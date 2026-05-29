@@ -10,7 +10,7 @@
  *   POST   /api/backups/:filename/restore
  */
 
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { writeFileSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildApp } from '../app.js';
@@ -18,7 +18,7 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import { disposableTempDir } from '../test-helpers/disposables.js';
 import type { FastifyInstance } from 'fastify';
-import type { ApiErrorResponse, BackupListResponse, BackupResponse } from '@cornerstone/shared';
+import type { ApiErrorResponse, BackupListResponse } from '@cornerstone/shared';
 import type { DisposableTempDir } from '../test-helpers/disposables.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

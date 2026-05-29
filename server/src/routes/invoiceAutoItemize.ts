@@ -9,7 +9,6 @@ import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as svc from '../services/invoiceAutoItemizeService.js';
 import type { AutoItemizeRequestBody } from '../services/invoiceAutoItemizeService.js';
-import type { InvoicePatchForAutoItemize } from '@cornerstone/shared';
 
 const schema = {
   body: {

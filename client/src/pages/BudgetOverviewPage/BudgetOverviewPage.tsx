@@ -45,7 +45,7 @@ export function BudgetOverviewPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Budget sources state
-  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
+  const [_budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
 
   // Add dropdown state
   const [addOpen, setAddOpen] = useState(false);

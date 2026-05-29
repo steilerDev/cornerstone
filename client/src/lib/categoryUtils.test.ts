@@ -15,6 +15,12 @@ describe('getCategoryDisplayName', () => {
 
       const result = getCategoryDisplayName(t, 'Plumbing', 'trades.plumbing');
 
+      // t() is called with the key — returns the key string here
+      // The caller receives whatever t() returns (the key, not the raw name)
+      // This is standard i18next behaviour; defaultValue is only used when
+      // i18next explicitly returns the defaultValue option
+      expect(t).toHaveBeenCalledWith('trades.plumbing', { defaultValue: 'Plumbing' });
+
       expect(t).toHaveBeenCalledTimes(1);
       expect(t).toHaveBeenCalledWith('trades.plumbing', { defaultValue: 'Plumbing' });
       expect(result).toBe('Sanitär');
@@ -94,13 +100,7 @@ describe('getCategoryDisplayName', () => {
         opts?: { defaultValue: string },
       ) => string;
 
-      const result = getCategoryDisplayName(t, 'Plumbing', 'trades.plumbing');
-
-      // t() is called with the key — returns the key string here
-      // The caller receives whatever t() returns (the key, not the raw name)
-      // This is standard i18next behaviour; defaultValue is only used when
-      // i18next explicitly returns the defaultValue option
-      expect(t).toHaveBeenCalledWith('trades.plumbing', { defaultValue: 'Plumbing' });
+      const _result = getCategoryDisplayName(t, 'Plumbing', 'trades.plumbing');
     });
 
     it('returns defaultValue (raw name) when t() honours the defaultValue option', () => {

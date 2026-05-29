@@ -1,7 +1,6 @@
 import { describe, it, expect, jest, beforeAll, afterAll } from '@jest/globals';
 import type { ReactNode } from 'react';
-import { render as rtlRender, screen, fireEvent, within, act } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render as rtlRender, fireEvent } from '@testing-library/react';
 import { DateRangePicker } from './DateRangePicker.js';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
 import styles from './DateRangePicker.module.css';
@@ -154,7 +153,7 @@ describe('DateRangePicker', () => {
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
       const day = String(today.getDate()).padStart(2, '0');
-      const todayStr = `${year}-${month}-${day}`;
+      const _todayStr: string = `${year}-${month}-${day}`;
 
       const { container } = render(
         <DateRangePicker startDate="" endDate="" onChange={jest.fn()} />,

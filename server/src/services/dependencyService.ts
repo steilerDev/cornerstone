@@ -13,7 +13,6 @@ import { NotFoundError, ValidationError, ConflictError } from '../errors/AppErro
 import { toWorkItemSummary } from './workItemService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { loadAreaMap } from './areaService.js';
-import type { AreaMapEntry } from './areaService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 

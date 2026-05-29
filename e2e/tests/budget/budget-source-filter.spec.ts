@@ -770,27 +770,6 @@ async function expandToLevel3(overviewPage: BudgetOverviewPage) {
     .click();
 }
 
-/**
- * Navigate to /budget/overview with a preset URL param (e.g. ?deselectedSources=<id>),
- * wait for load, then expand to Level 3.
- */
-async function navigateWithParamAndExpand(
-  page: PageParam,
-  overviewPage: BudgetOverviewPage,
-  paramString: string,
-) {
-  await page.goto(`${BUDGET_OVERVIEW_ROUTE}?${paramString}`);
-  await overviewPage.waitForLoaded();
-
-  await overviewPage.costBreakdownCard
-    .getByRole('button', { name: /expand work item budget by area/i })
-    .click();
-  await overviewPage.breakdownAreaToggle('Main Area').click();
-  await overviewPage.costBreakdownCard
-    .getByRole('button', { name: /Expand Main Work Item/i })
-    .click();
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Source badge on Level 3 rows (carry-over from #1354 — behavior unchanged)
 // ─────────────────────────────────────────────────────────────────────────────

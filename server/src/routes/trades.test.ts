@@ -7,7 +7,6 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
 import type {
-  TradeResponse,
   TradeListResponse,
   TradeSingleResponse,
   ApiErrorResponse,

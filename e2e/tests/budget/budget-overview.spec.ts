@@ -268,24 +268,6 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
 // Cost Breakdown area grouping
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Minimal BudgetBreakdown response with no area data. */
-function emptyBreakdownResponse() {
-  const emptyTotals = {
-    projectedMin: 0,
-    projectedMax: 0,
-    actualCost: 0,
-    subsidyPayback: 0,
-    rawProjectedMin: 0,
-    rawProjectedMax: 0,
-    minSubsidyPayback: 0,
-  };
-  return {
-    workItems: { areas: [], totals: emptyTotals },
-    householdItems: { areas: [], totals: emptyTotals },
-    subsidyAdjustments: [],
-  };
-}
-
 /** BudgetBreakdown response with a nested area hierarchy and a No Area entry. */
 function populatedBreakdownResponse() {
   return {

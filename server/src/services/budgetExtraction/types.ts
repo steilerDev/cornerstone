@@ -5,11 +5,11 @@
  * BudgetExtractionProvider and LlmConfig are server-only internal types.
  */
 
-import type { ExtractedLine, ExtractionHints, ExtractionResult } from '@cornerstone/shared';
-import type { LlmProvider } from './providerProfiles.js';
-
 export type { ExtractedLine, ExtractionHints, ExtractionResult } from '@cornerstone/shared';
 export type { LlmProvider } from './providerProfiles.js';
+
+import type { ExtractionHints, ExtractionResult } from '@cornerstone/shared';
+import type { LlmProvider } from './providerProfiles.js';
 
 export interface BudgetExtractionProvider {
   extract(ocrText: string, hints: ExtractionHints): Promise<ExtractionResult>;

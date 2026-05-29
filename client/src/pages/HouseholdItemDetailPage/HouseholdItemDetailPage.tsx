@@ -10,9 +10,7 @@ import type {
   Vendor,
   HouseholdItemSubsidyPaybackResponse,
   WorkItemSummary,
-  Invoice,
   HouseholdItemDepDetail,
-  HouseholdItemDepPredecessorType,
   MilestoneSummary,
   HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
@@ -48,10 +46,8 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
-import { fetchInvoices } from '../../lib/invoicesApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import {
-  createInvoiceBudgetLine,
   deleteInvoiceBudgetLine,
   editAndMoveBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
@@ -77,7 +73,7 @@ const HI_STATUS_VARIANTS = {
 };
 
 export function HouseholdItemDetailPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { formatCurrency: _formatCurrency, formatDate, formatTime: _formatTime, formatDateTime: _formatDateTime } = useFormatters();
   const { t } = useTranslation('householdItems');
   const { t: tSettings } = useTranslation('settings');
   const { t: tBudget } = useTranslation('budget');

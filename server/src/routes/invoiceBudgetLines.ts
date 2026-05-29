@@ -3,7 +3,6 @@ import { UnauthorizedError } from '../errors/AppError.js';
 import * as invoiceBudgetLineService from '../services/invoiceBudgetLineService.js';
 import type {
   CreateInvoiceBudgetLineRequest,
-  UpdateInvoiceBudgetLineRequest,
   EditAndMoveBudgetLineRequest,
 } from '@cornerstone/shared';
 

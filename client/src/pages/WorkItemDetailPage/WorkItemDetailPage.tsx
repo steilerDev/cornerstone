@@ -38,7 +38,6 @@ import {
   deleteWorkItemBudget,
 } from '../../lib/workItemBudgetsApi.js';
 import {
-  createInvoiceBudgetLine,
   deleteInvoiceBudgetLine,
   editAndMoveBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
@@ -96,7 +95,7 @@ interface DeletingDependency {
 }
 
 export default function WorkItemDetailPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { formatCurrency: _formatCurrency, formatDate, formatTime: _formatTime, formatDateTime: _formatDateTime } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();

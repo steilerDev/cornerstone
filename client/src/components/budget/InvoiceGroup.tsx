@@ -66,7 +66,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
 
   const statusBadgeClass = `${styles.statusBadge} ${styles[`status_${invoiceStatus}`] || ''}`;
 
-  const getStatusLabel = (status: string): string => {
+  const _getStatusLabel = (status: string): string => {
     if (status === 'quotation') return t('vendorDetail.quotedLabel');
     return t('vendorDetail.invoiceStatusLabels.paid'); // Default to "Invoiced" equivalent
   };

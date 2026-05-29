@@ -38,7 +38,6 @@ import {
   nextWeek,
   getMonthName,
   getDayName,
-  DAY_NAMES,
   getWeekDates,
 } from './calendarUtils.js';
 import { computeActualDuration } from '../../lib/formatters.js';

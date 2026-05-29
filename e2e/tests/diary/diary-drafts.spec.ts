@@ -330,9 +330,7 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       await upload1Promise;
 
       // The queue container should appear with at least one item
-      const queueContainer = page.locator('[aria-label]').filter({
-        has: page.locator('[class*="queueItem"]'),
-      });
+      // (declared but not used in assertions — upload queue managed internally)
 
       // At least one item should transition to succeeded (shown briefly then removed from queue)
       // Verify the upload zone is still visible (photo section rendered)

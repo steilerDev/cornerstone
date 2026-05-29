@@ -21,7 +21,6 @@ import {
   useAnnotator,
   type ToolName,
   type FontSizeKey,
-  type StrokeWidthKey,
 } from './useAnnotator.js';
 import type {
   AnnotationShape,
@@ -34,7 +33,6 @@ import { simplifyPolyline } from './simplify.js';
 import { ToolPalette } from './ToolPalette.js';
 import { ANNOTATION_FONT_FAMILY, drawShapeOnCanvas } from './canvasRenderer.js';
 import { FormError } from '../../FormError/FormError.js';
-import { Modal } from '../../Modal/Modal.js';
 import { getBaseUrl } from '../../../lib/apiClient.js';
 import { uploadAnnotation } from '../../../lib/photoApi.js';
 import styles from './PhotoAnnotator.module.css';
@@ -461,7 +459,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   );
 
   const handleStageMouseMove = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (_e: Konva.KonvaEventObject<MouseEvent>) => {
       if (inlineInput.isOpen) return;
       if (!stageRef.current || !draftShape) return;
 
@@ -480,7 +478,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   );
 
   const handleStageMouseUp = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (_e: Konva.KonvaEventObject<MouseEvent>) => {
       if (inlineInput.isOpen) return;
       if (!draftShape) return;
 
@@ -662,7 +660,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       }
 
       onSave(updatedPhoto);
-    } catch (err) {
+    } catch {
       setSaveError(t('saveError'));
       if (liveRegion) {
         liveRegion.textContent = t('saveError');
@@ -1003,7 +1001,7 @@ function renderKonvaShape(
   onChange: (id: string, updates: Partial<AnnotationShape>) => void,
   selectedTool: ToolName,
 ): React.ReactNode {
-  const isSelected = shape.id === selectedId;
+  const _isSelected = shape.id === selectedId;
 
   if (shape.type === 'rectangle') {
     return (

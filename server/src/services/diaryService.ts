@@ -17,7 +17,6 @@ import { diaryEntries, photos, users, workItems, invoices, milestones } from '..
 import {
   NotFoundError,
   ValidationError,
-  UnauthorizedError,
   InvalidMetadataError,
   ImmutableEntryError,
   InvalidEntryTypeError,

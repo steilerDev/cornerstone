@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, asc, desc, sql, or, and } from 'drizzle-orm';
+import { eq, asc, desc, sql, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { vendors, invoices, workItemBudgets, users, trades } from '../db/schema.js';

@@ -1,4 +1,4 @@
-import { useState, useRef, createContext, useContext, useMemo, useCallback } from 'react';
+import { useState, useRef, createContext, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -19,7 +19,6 @@ import { Badge } from '../Badge/Badge.js';
 import badgeStyles from '../Badge/Badge.module.css';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import { getSourceColorIndex, getSourceBadgeStyleKey } from '../../lib/budgetSourceColors.js';
-import sharedStyles from '../../styles/shared.module.css';
 import styles from './CostBreakdownTable.module.css';
 
 // Context to pass formatCurrency down to sub-components that aren't React components (can't use hooks)
@@ -71,23 +70,7 @@ function resolveProjected(
   return (projectedMin + projectedMax) / 2;
 }
 
-/**
- * Resolves the perspective-dependent cost for a single budget line.
- * Mirrors the cost logic in BudgetLineRow (Level 3) and used throughout
- * aggregate computation to ensure a single source of truth.
- */
-function resolveLineCost(line: BreakdownBudgetLine, perspective: CostPerspective): number {
-  if (line.hasInvoice && !line.isQuotation) return line.actualCost;
-  if (line.isQuotation) {
-    return resolveProjected(line.actualCost * 0.95, line.actualCost * 1.05, perspective);
-  }
-  const margin = CONFIDENCE_MARGINS[line.confidence];
-  return resolveProjected(
-    line.plannedAmount * (1 - margin),
-    line.plannedAmount * (1 + margin),
-    perspective,
-  );
-}
+
 
 /**
  * Formats cost with explicit minus sign.
@@ -806,7 +789,7 @@ export function CostBreakdownTable({
   /**
    * Sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback.
    */
-  const sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback;
+  const _sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback;
 
   // Empty state: only show early-return empty state if there are NO sources configured AND no items.
   // If sources are configured (even if all deselected, which prunes items), render the full table

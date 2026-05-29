@@ -8,7 +8,7 @@
  * for work_item budget lines, and is absent for household_item budget lines.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';

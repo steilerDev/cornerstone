@@ -26,7 +26,6 @@ import type {
   MilestoneSummaryForWorkItem,
   WorkItemMilestones,
 } from './workItem.js';
-import type { AreaSummary } from './area.js';
 
 // ---------------------------------------------------------------------------
 // WorkItemStatus type

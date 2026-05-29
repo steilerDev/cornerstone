@@ -29,11 +29,8 @@ import {
   isItemEnd,
   allocateLanes,
   getItemColor,
-  getContrastTextColor,
   getDayName,
   getDayNameNarrow,
-  DAY_NAMES,
-  DAY_NAMES_NARROW,
   formatDateForAria,
 } from './calendarUtils.js';
 import styles from './MonthGrid.module.css';
