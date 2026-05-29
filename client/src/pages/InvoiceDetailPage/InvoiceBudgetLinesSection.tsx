@@ -345,10 +345,10 @@ export function InvoiceBudgetLinesSection({
           : { householdItemBudgetId: newBudgetLine.id }),
         itemizedAmount: newBudgetLine.plannedAmount,
       };
-      const linkResponse = await createInvoiceBudgetLine(invoiceId, linkData);
+      await createInvoiceBudgetLine(invoiceId, linkData);
 
-      setBudgetLines((prev) => [...prev, linkResponse.budgetLine]);
-      setRemainingAmount(linkResponse.remainingAmount);
+      // Refresh from server so the table is authoritative after the eager link (#1594)
+      await loadBudgetLines();
       closePicker();
 
       setTimeout(() => {
