@@ -3,6 +3,14 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## React 19 iframe onError event — RESOLVED (2026-05-29)
+
+**Background**: `onError` on `<iframe>` is a dead prop in React 19 (confirmed via react-dom 19.2.6 source). Only `onErrorCapture` works. Bug was tracked as GitHub Issue #1614.
+
+**Fix landed**: `AutoItemizePage.tsx` was changed from `onError={...}` to `onErrorCapture={...}` on the `<iframe>`. The test `pdfFallback panel is rendered after iframe onError event` in `AutoItemizePage.test.tsx` was re-enabled (changed from `it.skip` back to `it`). `fireEvent.error(iframe)` now triggers `setPdfFailed(true)` via the capture-phase listener, and the fallback `role="region"` with `aria-label="PDF preview unavailable"` renders.
+
+**Test pattern confirmed working**: `await waitFor(() => Save button)` → `document.querySelector('iframe')` → `fireEvent.error(iframe)` inside `act` → `screen.findByRole('region', { name: /PDF preview unavailable/i })`.
+
 ## Story #1551 — Origin field + discretionary note tests (2026-05-29)
 
 **BreakdownBudgetLine.origin field**: `origin: 'manual' | 'auto'` was added to `BreakdownBudgetLine` in `shared/src/types/budgetBreakdown.ts`. Existing test fixtures (`buildBreakdownWithWI`, `buildBreakdownWithHI`, `buildBreakdownWithSourcedWI`) in `CostBreakdownTable.test.tsx` are missing this field — TypeScript should flag them in CI. New test fixtures must include `origin`.

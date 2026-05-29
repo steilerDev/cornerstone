@@ -1285,7 +1285,7 @@ export function AutoItemizePage() {
                   src={getDocumentPreviewUrl(parseInt(documentId, 10))}
                   title={t('autoItemize.pdfPreviewTitle')}
                   onLoad={() => setPdfLoaded(true)}
-                  onError={() => setPdfFailed(true)}
+                  onErrorCapture={() => setPdfFailed(true)}
                 />
               </div>
             ) : (

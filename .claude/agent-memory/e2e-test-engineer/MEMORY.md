@@ -15,7 +15,11 @@
 ## AutoItemizePage E2E (Stories #1564/#1584/#1586–#1597, 2026-05-26) — `e2e/tests/invoices/invoice-auto-itemize-page.spec.ts`
 
 - Now 35 scenarios (Scenarios 33–35 added for #1600). Scenario 17 DELETED (superseded by Scenario 22). @smoke on 1+2+3+8 (unchanged).
-- **Story #1600 (portal + prefill + auto-created badge)**: `pickerPortalDropdown = page.locator('[data-search-picker-dropdown]')` — portal is in document.body, NOT in pickerModal. Scope option search to `pickerPortalDropdown`, NOT `pickerModal`. `autoCreatedBadge` = `page.locator('[class*="assignedBadge"] [class*="badge"]').filter({ hasText: /Auto-created/i })` — Badge has NO testId prop currently; frontend must add `testId="auto-created-badge"` for getByTestId() to work. BudgetLineForm `Add Line` submit button uses `xpath=ancestor::form` to scope the `getByRole('button', {name: /Add Line/i})` to the fieldset's form. docIds 93001/94001/95001 reserved for Scenarios 33/34/35.
+- **Story #1600 (portal + prefill + auto-created badge)**: `pickerPortalDropdown = page.locator('[data-search-picker-dropdown]')` — portal is in document.body, NOT in pickerModal. Scope option search to `pickerPortalDropdown`, NOT `pickerModal`. `autoCreatedBadge` = `page.getByTestId('auto-created-badge')` — Badge DOES have `testId="auto-created-badge"` in prod. BudgetLineForm `Add Line` submit button: use `.locator('form').getByRole('button', {name: /Add Line/i})` — the form is a DESCENDANT of `createBudgetLineFieldset`, NOT an ancestor (`xpath=ancestor::form` searches upward and finds nothing). docIds 93001/94001/95001 reserved for Scenarios 33/34/35.
+- **#1583 POM fixes (PR #1612, 2026-05-29)**: `suggestionBadge()` uses `xpath=ancestor::div[contains(@class,"fieldRow")]` (not `xpath=../..`). `lineAssignedBadge()` uses `[class*="assignedBadge"]:not([class*="Wrapper"])` — CSS modules emit both `assignedBadge_<hash>` and `assignedBadgeWrapper_<hash>`, both match `class*="assignedBadge"` causing strict mode violation.
+- **#1594 Scenario 31 fix**: `GET /api/budget-categories` returns `{ categories: [...] }` (BudgetCategoryListResponse), NOT `{ budgetCategories: [...] }`.
+- **Scenario 11 mobile threshold**: Use viewport-relative `> viewportWidth * 0.6` not absolute `> 250` for form column width.
+- **Production regression #1611**: `InvoiceBudgetLinesSection` uses `eagerLinkInvoice: false` (since PR #1566). "Create Budget Line" in picker creates budget but does NOT link to invoice. `invoice-budget-line-create-and-link.spec.ts` Scenarios 1–3 test CORRECT behavior — filed bug #1611, NOT weakened.
 - Category select locator: `lineRow(i).getByRole('combobox', { name: /Select budget category for line item/i })`. Funding source: same pattern with `/Select funding source for line item/i`. Both rendered as `<select>` with `aria-label` — use `getByRole('combobox')` NOT `locator('select')`.
 - VAT checkbox label: "Price includes VAT" (i18n key `autoItemize.includesVat`). NOT "VAT applies". Validate via `lineRow(i).locator('[class*="cardIncludeLabel"]').nth(1)`.
 - **PICKER MODAL (updated for #1597 — ParentPicker reuse)**: Step 1 now uses `ParentPicker` with `role="tablist"` containing two `role="tab"` buttons. `getParentPickerWorkItemTab()` = `pickerModal.getByRole('tab', { name: /Work Item/i })`. `getParentPickerHouseholdItemTab()` = same with `/Household Item/i`. Active tab renders its SearchPicker; inactive tab's panel is UNMOUNTED (not hidden).
@@ -25,7 +29,7 @@
 - `assignmentMode` field in commit payload: `"assign-existing"` when `assignedBudgetLineId` is set, `"create-new"` otherwise.
 - Mobile sticky: at ≤860px, `previewColumn` computed style is `position: static`. Assert via `el.evaluate(() => window.getComputedStyle(el).position)`.
 - lineCheckbox() uses `.first()` — rows have multiple checkboxes (include + includesVat).
-- Per-row assignment locators: `[class*="assignButtonInTable"]`, `[class*="assignedBadge"]`, `[class*="clearAssignButton"]`.
+- Per-row assignment locators: `[class*="assignButtonInTable"]`, `[class*="assignedBadge"]:not([class*="Wrapper"])` (inner badge only), `[class*="clearAssignButton"]`.
 - `requestAnimationFrame` in `page.evaluate()` must use `() => resolve()` wrapper — NOT `r` directly (TypeScript `FrameRequestCallback` incompatibility).
 - Step 2 locators: `pickerStep2Modal()` returns dialog filtered by h2 `/Select Budget Line/i`; `pickerBudgetLineRow(nameOrIndex)` returns `[class*="pickerBudgetLineRow"]` buttons; `pickerBackButton` = `"← Back"` button; `pickerCreateBudgetLineButton` = `"Create Budget Line"`.
 - Step-1 search results: SearchPicker portals `role="listbox"` + `role="option"` to `document.body` (commit 3ba213fc, Story #1600). NEVER scope `getByRole('option')` to a modal locator — it will find nothing. Use `pickerPortalDropdown.getByRole('option', { name })` (AutoItemizePage) or `page.getByRole('option', { name })` (all other SearchPicker consumers). Fixed across: AutoItemizePage.ts (2 spec occurrences), BudgetSourcesPage.ts (POM), BudgetSourcesPage (2 spec occurrences), InvoiceDetailPage.ts (POM), invoice-budget-line-create-and-link.spec.ts (5 spec occurrences).
@@ -104,6 +108,13 @@
 - `THREE_EXTRACTED_LINES` fixture: sum = 900 + 680 + 120 = 1700. Invoice amount of 2000 triggers TOTAL_MISMATCH warning. Invoice amount of 100 triggers ITEMIZED_SUM_EXCEEDS_INVOICE.
 
 ## Budget Print + i18n Stale Skip Re-enable (PR #1447, 2026-05-17) — See print-and-i18n.md
+
+## Beta Regressions Added Post-2026-05-21 (triaged 2026-05-29)
+
+- `invoice-budget-line-create-and-link.spec.ts` Scenarios 1–4: REAL production regression from PR #1566 — `InvoiceBudgetLinesSection` sets `eagerLinkInvoice:false`, budget line create flow doesn't link to invoice. Filed as bug #1611. Tests NOT weakened — test correct expected behavior.
+- `auto-itemize-discretionary.spec.ts` Scenario 3: test design gap — `create-new` auto-itemize lines have `work_item_id=NULL` so excluded from breakdown INNER JOIN. `assign-existing` doesn't set `origin='auto'`. Marked `test.fixme()`. Need backend fix for breakdown to show unassigned lines OR auto-itemize service to set origin on assign-existing.
+- `invoice-auto-itemize-page.spec.ts` Scenario 35: `autoCreatedBadge` absent on WebKit tablet/mobile. Filed as bug #1613. Passes on Chromium (Scenario 34). Test tests correct behavior — not weakened.
+- `AutoItemizePage.test.tsx:1953` `findByRole('region', /PDF preview unavailable/)`: unit test flake/timing issue. NOT E2E scope. First seen in PR #1612 CI after `75c11f24` was merged to beta. Report to qa-integration-tester.
 
 ## Known Beta Flakes & Regressions (triaged 2026-05-17)
 

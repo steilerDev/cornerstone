@@ -1929,14 +1929,11 @@ describe('AutoItemizePage', () => {
       expect(previewWrapper).not.toBeNull();
     });
 
-    // TODO(#1576-followup): JSDOM + React 19 iframe `error` event handling is unreliable.
-    // Dispatching a bubbling Event on the iframe via act() does not trigger React's
-    // onError handler in this test environment, even though the production code is
-    // correct (verified by reading the JSX at AutoItemizePage.tsx lines 1020-1062).
-    // The fallback rendering itself is covered by the conditional render path
-    // exercised by other tests (any state where pdfFailed is true will render the
-    // fallback). Re-enable when the JSDOM/React event delegation issue is resolved.
-    it.skip('pdfFallback panel is rendered after iframe onError event', async () => {
+    // Validates that `onErrorCapture` on the <iframe> (React 19 capture-phase prop) triggers
+    // setPdfFailed(true) and replaces the iframe with the "PDF preview unavailable" fallback
+    // region. The production fix (AutoItemizePage.tsx) changed `onError` → `onErrorCapture`
+    // so that React's root capture-phase listener fires the handler on `fireEvent.error(iframe)`.
+    it('pdfFallback panel is rendered after iframe onError event', async () => {
       renderPage();
 
       await waitFor(() => {
@@ -1944,14 +1941,16 @@ describe('AutoItemizePage', () => {
       });
 
       const iframe = document.querySelector('iframe') as HTMLIFrameElement;
-      act(() => {
-        iframe.dispatchEvent(new Event('error', { bubbles: true }));
+      await act(async () => {
+        fireEvent.error(iframe);
       });
 
-      await waitFor(() => {
-        const fallback = document.querySelector('[role="region"]');
-        expect(fallback).not.toBeNull();
-      });
+      // The fallback div has role="region" and aria-label matching the i18n key.
+      // findByRole waits for the async state update to re-render.
+      const fallback = await screen.findByRole('region', { name: /PDF preview unavailable/i });
+      expect(fallback).toBeInTheDocument();
+      // The iframe should be gone once pdfFailed is true
+      expect(document.querySelector('iframe')).toBeNull();
     });
   });
 
