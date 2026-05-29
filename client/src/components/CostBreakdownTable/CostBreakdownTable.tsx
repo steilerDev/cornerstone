@@ -1,4 +1,4 @@
-import { useState, useRef, createContext, useContext, useMemo } from 'react';
+import { useState, useRef, createContext, use, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -25,7 +25,7 @@ import styles from './CostBreakdownTable.module.css';
 const FormatterContext = createContext<((amount: number) => string) | null>(null);
 
 function useFormatterContext() {
-  const formatter = useContext(FormatterContext);
+  const formatter = use(FormatterContext);
   if (!formatter) {
     throw new Error('useFormatterContext must be used within CostBreakdownTable');
   }
@@ -40,7 +40,7 @@ interface BreakdownContextValue {
 const BreakdownContext = createContext<BreakdownContextValue | null>(null);
 
 function useBreakdownContext() {
-  const context = useContext(BreakdownContext);
+  const context = use(BreakdownContext);
   if (!context) {
     throw new Error('useBreakdownContext must be used within CostBreakdownTable');
   }
@@ -84,8 +84,8 @@ function formatCost(amount: number, fc: (n: number) => string): string {
  * At sum level, uses green/red coloring (surplus vs deficit).
  *
  * Accepts formatCurrency as a parameter so it can be called from both
- * React components (inside FormatterContext.Provider) and from the root
- * CostBreakdownTable render (outside the provider).
+ * React components (inside FormatterContext) and from the root
+ * CostBreakdownTable render (outside the context).
  */
 function renderNet(
   rawCost: number,
@@ -893,8 +893,8 @@ export function CostBreakdownTable({
     : [];
 
   return (
-    <FormatterContext.Provider value={formatCurrency}>
-      <BreakdownContext.Provider
+    <FormatterContext value={formatCurrency}>
+      <BreakdownContext
         value={{
           budgetSources,
         }}
@@ -1275,8 +1275,8 @@ export function CostBreakdownTable({
               : t('overview.costBreakdown.sourceFilter.allSourcesAnnouncement')}
           </div>
         </section>
-      </BreakdownContext.Provider>
-    </FormatterContext.Provider>
+      </BreakdownContext>
+    </FormatterContext>
   );
 }
 
