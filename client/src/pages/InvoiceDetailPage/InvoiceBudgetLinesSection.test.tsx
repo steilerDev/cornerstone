@@ -882,9 +882,17 @@ describe('InvoiceBudgetLinesSection', () => {
       expect(screen.getByTestId('budget-line-form')).toBeInTheDocument();
     });
 
-    it('submit happy path — direct mode VAT included: calls createWorkItemBudget (not createInvoiceBudgetLine), then closes', async () => {
+    it('submit happy path — creates work item budget line AND eagerly links to invoice (#1611 fix)', async () => {
       const newBudgetLineStub = makeBudgetLineStub('wib-new-001', 500);
       mockCreateWorkItemBudget.mockResolvedValue(newBudgetLineStub);
+
+      // #1611 fix: eagerLinkInvoice is now true so createInvoiceBudgetLine MUST be called
+      const linkedLine = makeDetailLine('ibl-eager-001', {
+        workItemBudgetId: 'wib-new-001',
+        itemizedAmount: 500,
+        plannedAmount: 500,
+      });
+      mockCreateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(linkedLine, 1000.0));
 
       await openCreateFormWorkItemEmpty();
 
@@ -906,8 +914,16 @@ describe('InvoiceBudgetLinesSection', () => {
         );
       });
 
-      // createInvoiceBudgetLine is NOT called from the create flow (non-eager mode)
-      expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
+      // createInvoiceBudgetLine IS called immediately after creation (eagerLinkInvoice = true)
+      await waitFor(() => {
+        expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
+          INVOICE_ID,
+          expect.objectContaining({
+            workItemBudgetId: 'wib-new-001',
+            itemizedAmount: 500,
+          }),
+        );
+      });
 
       // Picker closes after success
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
