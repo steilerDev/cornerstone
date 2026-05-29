@@ -50,8 +50,8 @@ export function MilestoneForm({
   const [description, setDescription] = useState(milestone?.description ?? '');
   const [targetDate, setTargetDate] = useState(milestone?.targetDate ?? '');
   const [isCompleted, setIsCompleted] = useState(milestone?.isCompleted ?? false);
-  const [completedAt, setCompletedAt] = useState<string>(
-    () => (milestone?.completedAt ? toDateInputValue(milestone.completedAt) : ''),
+  const [completedAt, setCompletedAt] = useState<string>(() =>
+    milestone?.completedAt ? toDateInputValue(milestone.completedAt) : '',
   );
 
   // Work items to link — only used in create mode

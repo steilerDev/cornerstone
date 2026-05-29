@@ -311,7 +311,9 @@ export function BudgetSourcesPage() {
   const [linesError, setLinesError] = useState<Map<string, string>>(() => new Map());
 
   // Selection state for mass-move
-  const [sourceSelections, setSourceSelections] = useState<Map<string, Set<string>>>(() => new Map());
+  const [sourceSelections, setSourceSelections] = useState<Map<string, Set<string>>>(
+    () => new Map(),
+  );
   const [moveModalSourceId, setMoveModalSourceId] = useState<string | null>(null);
 
   // Translation-dependent label maps
