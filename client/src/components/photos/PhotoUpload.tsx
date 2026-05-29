@@ -219,8 +219,8 @@ export function PhotoUpload({
       {/* Photo queue with per-photo state */}
       {photoQueue.length > 0 && (
         <div className={styles.queueContainer} aria-label={t('photoUpload.queueAriaLabel')}>
-          {photoQueue.map((entry, index) => (
-            <div key={index} className={`${styles.queueItem} ${styles[`state-${entry.state}`]}`}>
+          {photoQueue.map((entry) => (
+            <div key={`${entry.file.name}-${entry.file.size}-${entry.file.lastModified}`} className={`${styles.queueItem} ${styles[`state-${entry.state}`]}`}>
               <div className={styles.queueItemHeader}>
                 <span className={styles.queueItemName}>{entry.file.name}</span>
                 <span className={styles.queueItemState}>

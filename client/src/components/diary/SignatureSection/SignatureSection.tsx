@@ -58,7 +58,7 @@ export function SignatureSection({
       {(signatures?.length ?? 0) > 0 && (
         <div className={styles.signaturesList}>
           {signatures!.map((sig, index) => (
-            <div key={index} className={styles.signatureItem}>
+            <div key={`${sig.signerType}-${sig.signerName}-${index}`} className={styles.signatureItem}>
               <SignatureCapture
                 signature={sig.signatureDataUrl ? sig : null}
                 onSignatureChange={(updated) => {

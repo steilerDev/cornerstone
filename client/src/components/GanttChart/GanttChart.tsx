@@ -1599,6 +1599,7 @@ export function GanttChartSkeleton() {
       <div className={styles.sidebarSkeleton}>
         <div className={styles.sidebarSkeletonHeader} style={{ height: HEADER_HEIGHT }} />
         {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
+          // eslint-disable-next-line @eslint-react/no-array-index-key -- static skeleton rows, never reorder
           <div key={i} className={styles.sidebarSkeletonRow} style={{ height: ROW_HEIGHT }}>
             <div
               className={`${styles.skeleton} ${styles.skeletonSidebarRow}`}
@@ -1613,6 +1614,7 @@ export function GanttChartSkeleton() {
         <div className={styles.skeletonHeader} style={{ height: HEADER_HEIGHT }} />
         <div className={styles.skeletonCanvas}>
           {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
+            // eslint-disable-next-line @eslint-react/no-array-index-key -- static skeleton rows, never reorder
             <div
               key={i}
               className={i % 2 === 0 ? styles.skeletonRowEven : styles.skeletonRowOdd}
