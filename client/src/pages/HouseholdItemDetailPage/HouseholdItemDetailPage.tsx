@@ -807,6 +807,11 @@ export function HouseholdItemDetailPage() {
     (prog) => !linkedSubsidies.some((linked) => linked.id === prog.id),
   );
 
+  const itemCategory = categories.find((c) => c.id === item.category);
+  const categoryDisplayName = itemCategory
+    ? getCategoryDisplayName(tSettings, itemCategory.name, itemCategory.translationKey)
+    : item.category;
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>
@@ -855,11 +860,7 @@ export function HouseholdItemDetailPage() {
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
               <span className={styles.categoryBadge}>
-                {(() => {
-                  const category = categories.find((c) => c.id === item.category);
-                  if (!category) return item.category;
-                  return getCategoryDisplayName(tSettings, category.name, category.translationKey);
-                })()}
+                {categoryDisplayName}
               </span>
               <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
             </div>
