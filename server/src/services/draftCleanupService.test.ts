@@ -15,8 +15,8 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import type { AppConfig } from '../plugins/config.js';
-import type * as NodeCron from 'node-cron';
-import type * as DraftCleanupModule from './draftCleanupService.js';
+import * as NodeCron from 'node-cron';
+import * as DraftCleanupModule from './draftCleanupService.js';
 
 // ─── Mock node-cron ──────────────────────────────────────────────────────────
 

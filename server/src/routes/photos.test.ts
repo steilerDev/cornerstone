@@ -26,7 +26,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { Photo, ApiErrorResponse } from '@cornerstone/shared';
-import type * as AppModule from '../app.js';
+import * as AppModule from '../app.js';
 import type * as UserServiceModule from '../services/userService.js';
 import type * as SessionServiceModule from '../services/sessionService.js';
 import { diaryEntries } from '../db/schema.js';
