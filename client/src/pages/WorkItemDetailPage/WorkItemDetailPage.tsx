@@ -299,13 +299,13 @@ export default function WorkItemDetailPage() {
   const [autosaveActualStart, setAutosaveActualStart] = useState<AutosaveState>('idle');
   const [autosaveActualEnd, setAutosaveActualEnd] = useState<AutosaveState>('idle');
   // Timeouts to auto-reset indicator back to idle after success/error
-  const autosaveResetRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const autosaveResetRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
-    if (autosaveResetRefs.current[key]) {
-      clearTimeout(autosaveResetRefs.current[key]);
+    if (autosaveResetRef.current[key]) {
+      clearTimeout(autosaveResetRef.current[key]);
     }
-    autosaveResetRefs.current[key] = setTimeout(() => {
+    autosaveResetRef.current[key] = setTimeout(() => {
       setter('idle');
     }, 2000);
   }

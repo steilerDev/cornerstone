@@ -156,7 +156,7 @@ export function HouseholdItemDetailPage() {
   const [autosaveActualDelivery, setAutosaveActualDelivery] = useState<AutosaveState>('idle');
   const [autosaveEarliestDelivery, setAutosaveEarliestDelivery] = useState<AutosaveState>('idle');
   const [autosaveLatestDelivery, setAutosaveLatestDelivery] = useState<AutosaveState>('idle');
-  const autosaveResetRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const autosaveResetRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Shared reload functions for budget-related data
   const reloadBudgetLines = async () => {
@@ -604,8 +604,8 @@ export function HouseholdItemDetailPage() {
   };
 
   function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
-    if (autosaveResetRefs.current[key]) clearTimeout(autosaveResetRefs.current[key]);
-    autosaveResetRefs.current[key] = setTimeout(() => setter('idle'), 2000);
+    if (autosaveResetRef.current[key]) clearTimeout(autosaveResetRef.current[key]);
+    autosaveResetRef.current[key] = setTimeout(() => setter('idle'), 2000);
   }
 
   const handleOrderDateBlur = async () => {
