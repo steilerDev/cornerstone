@@ -45,23 +45,6 @@
  *
  * Color palette (Story #1478):
  * 23. Selecting a different color swatch changes the active color for new shapes
- *
- * === Known limitation: Bug #1482 ===
- *
- * DiaryEntryDetailPage passes `photos={photosResult.photos}` to PhotoViewer
- * but does NOT pass `onPhotoAnnotated`. After a PUT /annotation save, the
- * `photos` prop is stale (annotatedAt still null), so "View Original" and
- * "Clear Annotations" buttons do not appear unless the parent refreshes.
- *
- * Workaround for Scenario 1 "View Original" flow and others that need annotatedAt:
- * after Save, we intercept GET /api/photos to inject the updated annotatedAt into
- * the response, then re-navigate to force the parent to pick up the updated photos.
- * This simulates what WILL happen once Bug #1482 is fixed (onPhotoAnnotated wired up).
- *
- * The "Clear Annotations" delete call IS handled internally in PhotoViewer via
- * the `handleClearAnnotation` which calls `onPhotoAnnotated?.(clearedPhoto)`,
- * updating the local photo state directly — so the Clear flow works without
- * this workaround once the viewer already shows an annotated photo.
  */
 
 import { readFileSync } from 'fs';
@@ -151,77 +134,6 @@ async function openAnnotator(viewer: PhotoViewerPage): Promise<void> {
   await expect(viewer.toolPalette).toBeVisible();
 }
 
-/**
- * Build a mock GET /api/photos response for use with Bug #1482 workaround.
- * Returns a route handler body string.
- */
-function buildAnnotatedPhotosMockBody(
-  photoId: string | null,
-  entryId: string | null,
-  annotatedAt: string,
-  fileUrl: string | null,
-  thumbnailUrl: string | null,
-): string {
-  return JSON.stringify({
-    photos: [
-      {
-        id: photoId,
-        entityType: 'diary_entry',
-        entityId: entryId,
-        originalFilename: 'test-photo.png',
-        mimeType: 'image/png',
-        fileSize: TEST_PHOTO_PNG.length,
-        width: 100,
-        height: 100,
-        takenAt: null,
-        caption: null,
-        sortOrder: 0,
-        createdBy: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        annotatedAt,
-        fileUrl,
-        thumbnailUrl,
-      },
-    ],
-  });
-}
-
-/**
- * Re-open the photo viewer after a successful save (Bug #1482 workaround):
- * - Install GET /api/photos mock with annotatedAt set
- * - Re-navigate to the diary entry detail page
- * - Re-open the photo viewer
- */
-async function reopenViewerWithAnnotatedPhoto(
-  page: Page,
-  detailPage: DiaryEntryDetailPage,
-  viewer: PhotoViewerPage,
-  entryId: string,
-  photoId: string,
-  annotatedAt: string,
-  fileUrl: string,
-  thumbnailUrl: string,
-): Promise<string> {
-  const photosApiGlob = `**/api/photos?entityType=diary_entry&entityId=${entryId}`;
-  await page.route(photosApiGlob, async (route: Route) => {
-    if (route.request().method() === 'GET') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: buildAnnotatedPhotosMockBody(photoId, entryId, annotatedAt, fileUrl, thumbnailUrl),
-      });
-    } else {
-      await route.continue();
-    }
-  });
-
-  await detailPage.goto(entryId);
-  await expect(detailPage.backButton).toBeVisible();
-  await openPhotoViewer(page, photoId, viewer);
-
-  return photosApiGlob;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: [smoke] Full annotation lifecycle
@@ -238,26 +150,22 @@ async function reopenViewerWithAnnotatedPhoto(
  * 6. Select is aria-pressed="true" by default
  * 7. Switch to Rectangle tool (aria-pressed="true")
  * 8. Draw a rectangle drag on the SVG overlay
- * 9. <rect> shape appears in the SVG DOM
- * 10. Click Save → PUT /api/photos/:id/annotation → 200 + annotatedAt
- * 11. Annotator closes; viewer in normal view mode (ToolPalette gone)
- * 12. Mock GET /api/photos with annotatedAt set; re-navigate to detail page
- * 13. Re-open viewer → viewOriginalButton visible
- * 14. Toggle View Original → img src contains variant=original
- * 15. Toggle back → src no longer contains variant=original
- * 16. Clear Annotations → Modal appears → confirm → DELETE 204
- * 17. viewOriginalButton and clearAnnotationsButton hidden
+ *    (Note: Konva renders to <canvas> — no rect[data-shapeid] in DOM; shape draw
+ *     still triggers the correct PUT payload on save)
+ * 9. Click Save → PUT /api/photos/:id/annotation → 200 + annotatedAt
+ * 10. Annotator closes; viewer in normal view mode (ToolPalette gone)
+ * 11. viewOriginalButton and clearAnnotationsButton appear in-place (no re-navigate)
+ * 12. Toggle View Original → img src contains variant=original
+ * 13. Toggle back → src no longer contains variant=original
+ * 14. Clear Annotations → Modal appears → confirm → DELETE 204
+ * 15. viewOriginalButton and clearAnnotationsButton disappear in-place
  */
-// Konva renders to <canvas>; shape locators (rect[data-shapeid]) have no DOM representation.
-test.fixme(
-  'TODO: rewrite for Konva canvas — [smoke] Photo annotation full lifecycle',
+test(
+  '[smoke] Photo annotation full lifecycle',
   { tag: '@smoke' },
   async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
     let entryId: string | null = null;
     let photoId: string | null = null;
-    let photoFileUrl: string | null = null;
-    let photoThumbnailUrl: string | null = null;
-    let photosApiGlob: string | null = null;
 
     // Canvas toBlob + PUT upload can take a few seconds
     test.setTimeout(30_000);
@@ -272,8 +180,6 @@ test.fixme(
 
       const uploadedPhoto = await uploadTestPhotoViaApi(page, entryId);
       photoId = uploadedPhoto.id;
-      photoFileUrl = uploadedPhoto.fileUrl;
-      photoThumbnailUrl = uploadedPhoto.thumbnailUrl;
 
       const detailPage = new DiaryEntryDetailPage(page);
       const viewer = new PhotoViewerPage(page);
@@ -284,7 +190,7 @@ test.fixme(
       // ── Open viewer ────────────────────────────────────────────────────────
       await openPhotoViewer(page, photoId, viewer);
 
-      // The annotate button must be enabled (photo has width=1, height=1)
+      // The annotate button must be enabled
       await expect(viewer.annotateButton).toBeEnabled();
 
       // ── Open annotator ─────────────────────────────────────────────────────
@@ -317,9 +223,6 @@ test.fixme(
       await expect(viewer.svgOverlay).toBeVisible();
       await viewer.drawRectangle();
 
-      // A <rect> should appear in the SVG (committed by pointerUp)
-      await expect(viewer.svgOverlay.locator('rect[data-shapeid]').first()).toBeVisible();
-
       // ── Save annotation ────────────────────────────────────────────────────
       const [putResponse] = await Promise.all([
         page.waitForResponse(
@@ -335,29 +238,14 @@ test.fixme(
         photo: { id: string; annotatedAt: string | null };
       };
       expect(putBody.photo.annotatedAt).not.toBeNull();
-      const savedAnnotatedAt = putBody.photo.annotatedAt!;
 
       // ── Annotator closed — viewer in normal mode ───────────────────────────
       await expect(viewer.toolPalette).not.toBeVisible();
       await expect(viewer.annotateButton).toBeVisible();
 
-      // Close the viewer
-      await viewer.closeButton.click();
-      await expect(viewer.modal).not.toBeVisible();
-
-      // ── Inject annotatedAt via GET /api/photos mock (Bug #1482 workaround) ─
-      photosApiGlob = await reopenViewerWithAnnotatedPhoto(
-        page,
-        detailPage,
-        viewer,
-        entryId,
-        photoId,
-        savedAnnotatedAt,
-        photoFileUrl!,
-        photoThumbnailUrl!,
-      );
-
-      // viewOriginalButton and clearAnnotationsButton present (annotatedAt is set)
+      // ── View Original and Clear Annotations appear in-place (Bug #1482 fixed) ─
+      // PhotoViewer now calls onPhotoAnnotated which updates currentPhoto immediately,
+      // so these buttons appear without any page reload or re-navigation.
       await expect(viewer.viewOriginalButton).toBeVisible();
       await expect(viewer.clearAnnotationsButton).toBeVisible();
 
@@ -385,10 +273,6 @@ test.fixme(
       const clearModal = page.getByRole('dialog');
       await expect(clearModal).toBeVisible();
 
-      // Remove the photos mock BEFORE confirming so the real DELETE can proceed
-      await page.unroute(photosApiGlob);
-      photosApiGlob = null;
-
       // Register waitForResponse BEFORE clicking confirm (race-condition safety)
       const [deleteResponse] = await Promise.all([
         page.waitForResponse(
@@ -402,11 +286,11 @@ test.fixme(
 
       expect(deleteResponse.status()).toBe(204);
 
-      // After DELETE, viewer updates annotatedAt=null → conditional buttons hide
+      // After DELETE, PhotoViewer updates currentPhoto (annotatedAt=null) in-place
+      // → conditional buttons disappear without re-navigation
       await expect(viewer.viewOriginalButton).not.toBeVisible();
       await expect(viewer.clearAnnotationsButton).not.toBeVisible();
     } finally {
-      await page.unrouteAll({ behavior: 'ignoreErrors' });
       if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
       if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
     }
@@ -1663,19 +1547,19 @@ test.fixme('TODO: rewrite for Konva canvas — Select tool — Delete key remove
  * Scenario 21 — Multi-tool lifecycle across all viewports:
  *
  * 1. Draw rectangle, ellipse, and freehand stroke
- * 2. Save → PUT returns 200
- * 3. Verify View Original toggle and Clear Annotations flow
+ *    (Note: Konva renders to <canvas> — shape DOM assertions are skipped;
+ *     drawFreehandTouch is still used for reliable cross-viewport pointer handling)
+ * 2. Save → PUT returns 200 + annotatedAt
+ * 3. viewOriginalButton and clearAnnotationsButton appear in-place (Bug #1482 fixed)
+ * 4. Toggle View Original (aria-pressed)
+ * 5. Clear Annotations → DELETE 204 → buttons disappear in-place
  */
-// Konva renders to <canvas>; shape locators (rect/ellipse/polyline[data-shapeid]) have no DOM representation.
-test.fixme(
-  'TODO: rewrite for Konva canvas — [smoke] @responsive Multi-tool lifecycle — draw 3 shapes, save, view original, clear',
+test(
+  '[smoke] @responsive Multi-tool lifecycle — draw 3 shapes, save, view original, clear',
   { tag: ['@smoke', '@responsive'] },
   async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
     let entryId: string | null = null;
     let photoId: string | null = null;
-    let photoFileUrl: string | null = null;
-    let photoThumbnailUrl: string | null = null;
-    let photosApiGlob: string | null = null;
 
     test.setTimeout(60_000);
 
@@ -1687,8 +1571,6 @@ test.fixme(
       });
       const uploadedPhoto = await uploadTestPhotoViaApi(page, entryId);
       photoId = uploadedPhoto.id;
-      photoFileUrl = uploadedPhoto.fileUrl;
-      photoThumbnailUrl = uploadedPhoto.thumbnailUrl;
 
       const detailPage = new DiaryEntryDetailPage(page);
       const viewer = new PhotoViewerPage(page);
@@ -1698,28 +1580,25 @@ test.fixme(
       await openPhotoViewer(page, photoId, viewer);
       await openAnnotator(viewer);
 
-      // Draw Rectangle
+      // Draw Rectangle (Konva canvas — no rect[data-shapeid] assertion)
       await viewer.activateTool('rectangle');
       await viewer.drawRectangle(0.1, 0.1, 0.4, 0.4);
-      await expect(viewer.svgOverlay.locator('rect[data-shapeid]').first()).toBeVisible();
 
-      // Draw Ellipse
+      // Draw Ellipse (Konva canvas — no ellipse[data-shapeid] assertion)
       await viewer.activateTool('ellipse');
       await viewer.drawEllipse(0.5, 0.1, 0.9, 0.4);
-      await expect(viewer.svgOverlay.locator('ellipse[data-shapeid]').first()).toBeVisible();
 
-      // Draw Freehand
-      // Use drawFreehandTouch (synthetic PointerEvents) so this step works on
-      // mobile WebKit (hasTouch=true) where page.mouse.* does not reliably fire
-      // the onPointerDown/Move/Up handlers on the SVG element.  The helper is
-      // safe to call on desktop viewports too.
+      // Draw Freehand using drawFreehandTouch (synthetic PointerEvents) so this
+      // step works on mobile WebKit (hasTouch=true) where page.mouse.* does not
+      // reliably fire the onPointerDown/Move/Up handlers on the SVG element.
+      // The helper is safe to call on desktop viewports too.
+      // (Konva canvas — no polyline[data-shapeid] assertion)
       await viewer.activateTool('freehand');
       await viewer.drawFreehandTouch(0.1, 0.7, [
         [0.3, 0.6],
         [0.5, 0.8],
         [0.7, 0.6],
       ]);
-      await expect(viewer.svgOverlay.locator('polyline[data-shapeid]').first()).toBeVisible();
 
       // Save
       const [putResponse] = await Promise.all([
@@ -1735,23 +1614,11 @@ test.fixme(
         photo: { annotatedAt: string | null };
       };
       expect(putBody.photo.annotatedAt).not.toBeNull();
-      const savedAnnotatedAt = putBody.photo.annotatedAt!;
 
+      // ── Annotator closed — viewer in normal mode ───────────────────────────
       await expect(viewer.toolPalette).not.toBeVisible();
-      await viewer.closeButton.click();
 
-      // Bug #1482 workaround: re-navigate with mock
-      photosApiGlob = await reopenViewerWithAnnotatedPhoto(
-        page,
-        detailPage,
-        viewer,
-        entryId,
-        photoId,
-        savedAnnotatedAt,
-        photoFileUrl!,
-        photoThumbnailUrl!,
-      );
-
+      // ── View Original and Clear Annotations appear in-place (Bug #1482 fixed) ─
       await expect(viewer.viewOriginalButton).toBeVisible();
       await expect(viewer.clearAnnotationsButton).toBeVisible();
 
@@ -1766,9 +1633,6 @@ test.fixme(
       const clearModal = page.getByRole('dialog');
       await expect(clearModal).toBeVisible();
 
-      await page.unroute(photosApiGlob);
-      photosApiGlob = null;
-
       const [deleteResponse] = await Promise.all([
         page.waitForResponse(
           (resp) =>
@@ -1779,10 +1643,10 @@ test.fixme(
       ]);
       expect(deleteResponse.status()).toBe(204);
 
+      // After DELETE, buttons disappear in-place
       await expect(viewer.viewOriginalButton).not.toBeVisible();
       await expect(viewer.clearAnnotationsButton).not.toBeVisible();
     } finally {
-      await page.unrouteAll({ behavior: 'ignoreErrors' });
       if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
       if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
     }

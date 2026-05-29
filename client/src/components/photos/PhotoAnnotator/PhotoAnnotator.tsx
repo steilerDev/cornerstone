@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import '../../../lib/konvaInit.js';
 import type Konva from 'konva';
 import {
   Stage,
@@ -871,7 +872,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
             {draftShape && renderDraftShape(draftShape, state)}
 
             {/* Transformer for selected shape */}
-            {state.selectedShapeId && <Transformer ref={transformerRef} />}
+            {state.selectedShapeId && <Transformer ref={transformerRef} rotateAnchorAngle={45} />}
 
             {/* Endpoint handles for line-family shapes */}
             {state.selectedShapeId &&

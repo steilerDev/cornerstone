@@ -111,6 +111,7 @@ export function PhotoViewer({
 
   const handleAnnotationSave = useCallback(
     (updatedPhoto: Photo) => {
+      setCurrentPhoto(updatedPhoto);
       setIsAnnotating(false);
       setShowingOriginal(false);
       onPhotoAnnotated?.(updatedPhoto);
@@ -132,6 +133,7 @@ export function PhotoViewer({
         ...currentPhoto,
         annotatedAt: null,
       };
+      setCurrentPhoto(clearedPhoto);
       onPhotoAnnotated?.(clearedPhoto);
       setShowClearConfirm(false);
       clearBtnRef.current?.focus();
