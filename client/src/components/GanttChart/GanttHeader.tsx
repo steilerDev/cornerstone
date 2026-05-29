@@ -37,12 +37,12 @@ export const GanttHeader = memo(function GanttHeader({
       aria-hidden="true"
       data-testid="gantt-header"
     >
-      {cells.map((cell, idx) => {
+      {cells.map((cell) => {
         if (zoom === 'day') {
           // Two-row sub-header: weekday above, day number below
           return (
             <div
-              key={idx}
+              key={cell.date.toISOString()}
               className={`${styles.headerCell} ${cell.isToday ? styles.headerCellToday : ''}`}
               style={{ left: cell.x, width: cell.width }}
               aria-label={cell.date.toLocaleDateString(localeString, {
@@ -59,7 +59,7 @@ export const GanttHeader = memo(function GanttHeader({
 
         return (
           <div
-            key={idx}
+            key={cell.date.toISOString()}
             className={`${styles.headerCell} ${cell.isToday ? styles.headerCellToday : ''}`}
             style={{ left: cell.x, width: cell.width }}
           >

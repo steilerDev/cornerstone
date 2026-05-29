@@ -482,7 +482,7 @@ export function DiaryEntryForm({
             {(deliveryMaterials?.length ?? 0) > 0 && (
               <div className={styles.materialsList}>
                 {deliveryMaterials!.map((material, index) => (
-                  <div key={index} className={styles.materialChip}>
+                  <div key={`${material}-${index}`} className={styles.materialChip}>
                     <span>{material}</span>
                     <button
                       type="button"
