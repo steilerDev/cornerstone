@@ -134,6 +134,13 @@ export function AutoItemizePage() {
       // Determine the type from the returned budget line object
       // WorkItemBudgetLine has workItemId, HouseholdItemBudgetLine has householdItemId
       const lineType = 'workItemId' in line ? 'work_item' : 'household_item';
+      // Snapshot the ref value NOW (before setLines) so the updater closure captures
+      // the correct value regardless of when React executes the deferred updater.
+      // Reading wasCreatedFromExtraction.current INSIDE the setLines updater causes a
+      // race on WebKit: the ref is reset to false before the updater executes (React 18
+      // automatic batching defers updater execution after the synchronous reset).
+      const fromExtraction = wasCreatedFromExtraction.current;
+      wasCreatedFromExtraction.current = false;
       // Store the assigned budget line ID, type, and description on the row
       // Note: when eagerLinkInvoice is false, invoiceBudgetLineId will be null
       // Use line.id (the work_item_budget or household_item_budget ID) instead
@@ -145,13 +152,12 @@ export function AutoItemizePage() {
                 assignedBudgetLineId: line.id,
                 assignedBudgetLineType: lineType,
                 assignedBudgetLineDescription: line.description,
-                createdFromExtraction: wasCreatedFromExtraction.current,
+                createdFromExtraction: fromExtraction,
                 inlineCreatedBudgetLineDraft: undefined,
               }
             : l,
         ),
       );
-      wasCreatedFromExtraction.current = false;
       setLineFieldsEdited(true);
       picker.closePicker();
       setActiveRowId(null);
