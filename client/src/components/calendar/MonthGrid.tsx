@@ -113,7 +113,6 @@ export function MonthGrid({
           const fullName = getDayName(i, localeString);
           const narrowName = getDayNameNarrow(i, localeString);
           return (
-            // eslint-disable-next-line @eslint-react/no-array-index-key -- static 7-element weekday header, never reorders
             <div key={i} className={styles.headerCell} role="columnheader" aria-label={fullName}>
               {/* Full name on tablet+, narrow initial on mobile */}
               <span className={styles.dayNameFull}>{fullName}</span>

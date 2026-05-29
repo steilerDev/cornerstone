@@ -238,7 +238,10 @@ export default function DiaryEntryDetailPage() {
             entry.entryType === 'issue') &&
           Array.isArray((entry.metadata as { signatures?: DiarySignatureEntry[] }).signatures) &&
           (entry.metadata as { signatures: DiarySignatureEntry[] }).signatures.map((sig, i) => (
-            <div key={`${sig.signerType}-${sig.signerName}-${i}`} className={styles.signatureSection}>
+            <div
+              key={`${sig.signerType}-${sig.signerName}-${i}`}
+              className={styles.signatureSection}
+            >
               <SignatureDisplay
                 signatureDataUrl={sig.signatureDataUrl}
                 signerName={sig.signerName}
