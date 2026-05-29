@@ -30,6 +30,7 @@ import { eq } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { ValidationError } from '../errors/AppError.js';
+import type * as PhotoServiceModule from './photoService.js';
 
 // ─── Mock sharp BEFORE any module import that uses it ─────────────────────────
 
@@ -72,7 +73,7 @@ jest.unstable_mockModule('sharp', () => ({
 
 // ─── Dynamic imports (must come AFTER jest.unstable_mockModule) ─────────────
 
-let photoService: typeof import('./photoService.js');
+let photoService: typeof PhotoServiceModule;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
