@@ -120,7 +120,10 @@ export function BudgetSection<T extends BaseBudgetLine>({
       setInvoiceEditForm(null);
       setInvoiceEditItemizedAmount('');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : tBudget('invoiceDetail.budgetLines.editError.saveFailed');
+      const msg =
+        err instanceof Error
+          ? err.message
+          : tBudget('invoiceDetail.budgetLines.editError.saveFailed');
       setInvoiceEditError(msg);
     } finally {
       setInvoiceEditMutating(false);

@@ -11,12 +11,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import React from 'react';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
-import type {
-  BudgetSource,
-  Vendor,
-  BudgetCategory,
-  ConfidenceLevel,
-} from '@cornerstone/shared';
+import type { BudgetSource, Vendor, BudgetCategory, ConfidenceLevel } from '@cornerstone/shared';
 import type { EditBudgetLineModalProps, EditableBudgetLine } from './EditBudgetLineModal.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 
@@ -27,21 +22,56 @@ let EditBudgetLineModal: (typeof import('./EditBudgetLineModal.js'))['EditBudget
 // ─── Type factory helpers ──────────────────────────────────────────────────────
 
 function makeCategory(name = 'Flooring'): BudgetCategory {
-  return { id: `cat-${name.toLowerCase()}`, name, description: null, color: null, translationKey: null, sortOrder: 0, createdAt: '', updatedAt: '' };
+  return {
+    id: `cat-${name.toLowerCase()}`,
+    name,
+    description: null,
+    color: null,
+    translationKey: null,
+    sortOrder: 0,
+    createdAt: '',
+    updatedAt: '',
+  };
 }
 
 function makeVendor(): Vendor {
-  return { id: 'v-1', name: 'Acme', trade: null, phone: null, email: null, address: null, notes: null, createdBy: null, createdAt: '', updatedAt: '' };
+  return {
+    id: 'v-1',
+    name: 'Acme',
+    trade: null,
+    phone: null,
+    email: null,
+    address: null,
+    notes: null,
+    createdBy: null,
+    createdAt: '',
+    updatedAt: '',
+  };
 }
 
 function makeBudgetSource(): BudgetSource {
   return {
-    id: 'src-1', name: 'Savings', sourceType: 'savings',
-    totalAmount: 50000, usedAmount: 0, availableAmount: 50000,
-    claimedAmount: 0, unclaimedAmount: 0, paidAmount: 0, actualAvailableAmount: 50000,
-    projectedAmount: 0, projectedMinAmount: 0, projectedMaxAmount: 0,
-    interestRate: null, terms: null, notes: null, status: 'active',
-    isDiscretionary: false, createdBy: null, createdAt: '', updatedAt: '',
+    id: 'src-1',
+    name: 'Savings',
+    sourceType: 'savings',
+    totalAmount: 50000,
+    usedAmount: 0,
+    availableAmount: 50000,
+    claimedAmount: 0,
+    unclaimedAmount: 0,
+    paidAmount: 0,
+    actualAvailableAmount: 50000,
+    projectedAmount: 0,
+    projectedMinAmount: 0,
+    projectedMaxAmount: 0,
+    interestRate: null,
+    terms: null,
+    notes: null,
+    status: 'active',
+    isDiscretionary: false,
+    createdBy: null,
+    createdAt: '',
+    updatedAt: '',
   };
 }
 
@@ -94,9 +124,7 @@ function buildForm(overrides?: Partial<BudgetLineFormState>): BudgetLineFormStat
   };
 }
 
-function buildProps(
-  overrides?: Partial<EditBudgetLineModalProps>,
-): EditBudgetLineModalProps {
+function buildProps(overrides?: Partial<EditBudgetLineModalProps>): EditBudgetLineModalProps {
   return {
     line: buildLine(),
     fullForm: buildForm(),
@@ -226,7 +254,9 @@ describe('EditBudgetLineModal', () => {
     render(<EditBudgetLineModal {...buildProps({ onClose })} />);
 
     // Real Modal renders a close button with aria-label containing "Close" or aria-label="Close dialog"
-    const closeBtn = document.querySelector('[role="dialog"] button[aria-label]') as HTMLButtonElement;
+    const closeBtn = document.querySelector(
+      '[role="dialog"] button[aria-label]',
+    ) as HTMLButtonElement;
     expect(closeBtn).toBeTruthy();
     fireEvent.click(closeBtn);
 

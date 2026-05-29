@@ -982,8 +982,9 @@ export function InvoiceBudgetLinesSection({
       )}
 
       {/* Edit budget line modal */}
-      {budgetLineModalMode === 'edit' && selectedBudgetLine && (
-        selectedBudgetLine.parentItemType === 'unassigned' ? (
+      {budgetLineModalMode === 'edit' &&
+        selectedBudgetLine &&
+        (selectedBudgetLine.parentItemType === 'unassigned' ? (
           <UnassignedEditModal
             line={selectedBudgetLine}
             onAssign={handleAssignBudgetLine}
@@ -1064,8 +1065,7 @@ export function InvoiceBudgetLinesSection({
             budgetCategories={picker.pickerState.categories ?? undefined}
             modalTitle={t('invoiceDetail.budgetLines.modal.editTitle')}
           />
-        )
-      )}
+        ))}
 
       {/* Delete budget line modal */}
       {budgetLineModalMode === 'remove' && selectedBudgetLine && (

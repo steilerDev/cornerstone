@@ -1,10 +1,5 @@
 import { type FormEvent } from 'react';
-import type {
-  BudgetCategory,
-  BudgetSource,
-  ConfidenceLevel,
-  Vendor,
-} from '@cornerstone/shared';
+import type { BudgetCategory, BudgetSource, ConfidenceLevel, Vendor } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { BudgetLineForm } from './BudgetLineForm.js';
@@ -81,10 +76,7 @@ export function EditBudgetLineModal({
   };
 
   return (
-    <Modal
-      title={modalTitle}
-      onClose={onClose}
-    >
+    <Modal title={modalTitle} onClose={onClose}>
       <BudgetLineForm
         form={fullForm}
         onSubmit={onSubmit}

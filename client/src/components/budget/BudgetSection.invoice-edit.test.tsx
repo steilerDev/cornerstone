@@ -127,15 +127,13 @@ jest.unstable_mockModule('./BudgetLineForm.js', () => ({
 // ─── Stub SubsidyLinkSection ──────────────────────────────────────────────────
 
 jest.unstable_mockModule('./SubsidyLinkSection.js', () => ({
-  SubsidyLinkSection: () =>
-    React.createElement('div', { 'data-testid': 'subsidy-link-section' }),
+  SubsidyLinkSection: () => React.createElement('div', { 'data-testid': 'subsidy-link-section' }),
 }));
 
 // ─── Stub BudgetCostOverview ──────────────────────────────────────────────────
 
 jest.unstable_mockModule('./BudgetCostOverview.js', () => ({
-  BudgetCostOverview: () =>
-    React.createElement('div', { 'data-testid': 'budget-cost-overview' }),
+  BudgetCostOverview: () => React.createElement('div', { 'data-testid': 'budget-cost-overview' }),
 }));
 
 // ─── Stub InvoiceGroup (captures onEdit; renders edit-btn testids) ────────────
@@ -180,21 +178,56 @@ let LocaleProvider: ({ children }: { children: React.ReactNode }) => React.React
 // ─── Type factory helpers ──────────────────────────────────────────────────────
 
 function makeCategory(): BudgetCategory {
-  return { id: 'cat-1', name: 'Flooring', description: null, color: null, translationKey: null, sortOrder: 0, createdAt: '', updatedAt: '' };
+  return {
+    id: 'cat-1',
+    name: 'Flooring',
+    description: null,
+    color: null,
+    translationKey: null,
+    sortOrder: 0,
+    createdAt: '',
+    updatedAt: '',
+  };
 }
 
 function makeVendor(): Vendor {
-  return { id: 'v-1', name: 'Acme', trade: null, phone: null, email: null, address: null, notes: null, createdBy: null, createdAt: '', updatedAt: '' };
+  return {
+    id: 'v-1',
+    name: 'Acme',
+    trade: null,
+    phone: null,
+    email: null,
+    address: null,
+    notes: null,
+    createdBy: null,
+    createdAt: '',
+    updatedAt: '',
+  };
 }
 
 function makeBudgetSource(): BudgetSource {
   return {
-    id: 'src-1', name: 'Savings', sourceType: 'savings',
-    totalAmount: 50000, usedAmount: 0, availableAmount: 50000,
-    claimedAmount: 0, unclaimedAmount: 0, paidAmount: 0, actualAvailableAmount: 50000,
-    projectedAmount: 0, projectedMinAmount: 0, projectedMaxAmount: 0,
-    interestRate: null, terms: null, notes: null, status: 'active',
-    isDiscretionary: false, createdBy: null, createdAt: '', updatedAt: '',
+    id: 'src-1',
+    name: 'Savings',
+    sourceType: 'savings',
+    totalAmount: 50000,
+    usedAmount: 0,
+    availableAmount: 50000,
+    claimedAmount: 0,
+    unclaimedAmount: 0,
+    paidAmount: 0,
+    actualAvailableAmount: 50000,
+    projectedAmount: 0,
+    projectedMinAmount: 0,
+    projectedMaxAmount: 0,
+    interestRate: null,
+    terms: null,
+    notes: null,
+    status: 'active',
+    isDiscretionary: false,
+    createdBy: null,
+    createdAt: '',
+    updatedAt: '',
   };
 }
 
@@ -377,15 +410,17 @@ describe('BudgetSection — invoice-edit wiring', () => {
     }
     // Fallback: call captured onEdit directly if available
     if (capturedInvoiceGroupOnEdit) {
-      act(() => { capturedInvoiceGroupOnEdit!(line); });
+      act(() => {
+        capturedInvoiceGroupOnEdit!(line);
+      });
       return;
     }
     // Last resort: expand group and find edit button by aria-label
     const toggleBtn = document.querySelector<HTMLButtonElement>('button[aria-expanded="false"]');
     if (toggleBtn) fireEvent.click(toggleBtn);
-    const editBtn = screen.getAllByRole('button').find(
-      (b) => b.getAttribute('aria-label')?.toLowerCase().includes('edit budget line'),
-    );
+    const editBtn = screen
+      .getAllByRole('button')
+      .find((b) => b.getAttribute('aria-label')?.toLowerCase().includes('edit budget line'));
     if (editBtn) fireEvent.click(editBtn);
   }
 
@@ -396,8 +431,10 @@ describe('BudgetSection — invoice-edit wiring', () => {
    */
   function isModalOpen(): boolean {
     // Real Modal creates a portal with role="dialog"
-    return document.querySelector('[role="dialog"]') !== null ||
-      document.querySelector('[data-testid="edit-budget-line-modal"]') !== null;
+    return (
+      document.querySelector('[role="dialog"]') !== null ||
+      document.querySelector('[data-testid="edit-budget-line-modal"]') !== null
+    );
   }
 
   function isModalClosed(): boolean {
@@ -414,7 +451,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
@@ -432,7 +471,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
@@ -482,7 +523,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
@@ -514,7 +557,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
@@ -543,7 +588,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
@@ -570,7 +617,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
@@ -590,7 +639,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
   it('form submit calls onInvoiceLineEdit with line, form, itemizedAmount and closes modal on success', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const onInvoiceLineEdit = jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined);
+    const onInvoiceLineEdit = jest
+      .fn<(...args: any[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
     const link = buildInvoiceLink('inv-1', 'ibl-1', { itemizedAmount: 500 });
     const line = buildLine('line-sub', link);
 
@@ -614,8 +665,12 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
     expect(onInvoiceLineEdit).toHaveBeenCalledTimes(1);
     // First arg = line, second = form state, third = itemizedAmount string
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const calls = onInvoiceLineEdit.mock.calls[0] as unknown as [BaseBudgetLine, BudgetLineFormState, string];
+
+    const calls = onInvoiceLineEdit.mock.calls[0] as unknown as [
+      BaseBudgetLine,
+      BudgetLineFormState,
+      string,
+    ];
     const [calledLine, , calledItemized] = calls;
     expect(calledLine.id).toBe('line-sub');
     expect(calledItemized).toBe('500');
@@ -697,7 +752,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
   it('onMove in modal calls onInvoiceLineMove with lineId, parentType, parentId', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const onInvoiceLineMove = jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined);
+    const onInvoiceLineMove = jest
+      .fn<(...args: any[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
     const link = buildInvoiceLink('inv-1');
     const line = buildLine('line-move', link);
 
@@ -705,7 +762,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
           onInvoiceLineMove,
         })}
       />,
@@ -732,7 +791,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
   it('modal closes after successful move (CI only — requires BudgetLineForm mock)', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const onInvoiceLineMove = jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined);
+    const onInvoiceLineMove = jest
+      .fn<(...args: any[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
     const link = buildInvoiceLink('inv-1');
     const line = buildLine('line-moveclose', link);
 
@@ -740,7 +801,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
           onInvoiceLineMove,
         })}
       />,
@@ -773,7 +836,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
           onInvoiceLineMove,
         })}
       />,
@@ -808,7 +873,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
@@ -818,8 +885,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
     // Cancel via: mocked BudgetLineForm cancel button, OR real modal close button
     const cancelBtn =
-      screen.queryByTestId('form-cancel') ??
-      screen.queryByRole('button', { name: /close/i });
+      screen.queryByTestId('form-cancel') ?? screen.queryByRole('button', { name: /close/i });
 
     if (cancelBtn) {
       fireEvent.click(cancelBtn);
@@ -835,7 +901,10 @@ describe('BudgetSection — invoice-edit wiring', () => {
     const onInvoiceLineEdit = jest
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .fn<(...args: any[]) => Promise<void>>(
-        () => new Promise<void>((resolve) => { resolveSubmit = resolve; }),
+        () =>
+          new Promise<void>((resolve) => {
+            resolveSubmit = resolve;
+          }),
       );
     const link = buildInvoiceLink('inv-1');
     const line = buildLine('line-mutate', link);
@@ -857,8 +926,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
     // Attempt cancel while mutating
     const cancelBtn =
-      screen.queryByTestId('form-cancel') ??
-      screen.queryByRole('button', { name: /close/i });
+      screen.queryByTestId('form-cancel') ?? screen.queryByRole('button', { name: /close/i });
     if (cancelBtn) {
       fireEvent.click(cancelBtn);
     }
@@ -884,7 +952,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([linkedLine, unlinkedLine], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
@@ -918,7 +988,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
         {...buildProps([unlinkedLine], {
           budgetSectionHook: hookReturn,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
@@ -941,7 +1013,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
           budgetLineType: 'work_item',
           parentEntityId: 'wi-42',
           parentEntityLabel: 'Kitchen Renovation',
@@ -975,7 +1049,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
         {...buildProps([line], {
           budgetSectionHook: buildHookReturn({ openEditBudgetForm }),
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
@@ -1014,14 +1090,18 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onInvoiceLineEdit: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+          onInvoiceLineEdit: jest
+            .fn<(...args: any[]) => Promise<void>>()
+            .mockResolvedValue(undefined),
         })}
       />,
     );
 
     // Manually invoke handler with a line that has no invoiceLink
     if (capturedInvoiceGroupOnEdit) {
-      act(() => { capturedInvoiceGroupOnEdit!(line); });
+      act(() => {
+        capturedInvoiceGroupOnEdit!(line);
+      });
     }
 
     // Modal should NOT have opened (guard: if (!line.invoiceLink) return)

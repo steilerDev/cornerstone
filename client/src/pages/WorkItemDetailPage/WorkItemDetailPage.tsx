@@ -614,11 +614,9 @@ export default function WorkItemDetailPage() {
       budgetCategoryId: form.budgetCategoryId || null,
       budgetSourceId: form.budgetSourceId || null,
       vendorId: form.vendorId || null,
-      quantity:
-        form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
+      quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
       unit: form.pricingMode === 'unit' ? form.unit || null : null,
-      unitPrice:
-        form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
+      unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
       includesVat: form.includesVat,
     };
 
