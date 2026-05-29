@@ -1,6 +1,6 @@
 ---
 name: photo-annotator-e2e
-description: Photo Annotator E2E test patterns, tool interactions, POM helpers, and known Bug #1482 workaround
+description: Photo Annotator E2E test patterns, tool interactions, POM helpers — Bug #1482 fixed 2026-05-29
 metadata:
   type: project
 ---
@@ -36,18 +36,30 @@ New POM helper methods: `activateTool(name)`, `drawRectangle()`, `drawLine()`, `
 | measurement | `<g data-shapeid>` with lines + text   |
 | freehand    | `<polyline data-shapeid>`              |
 
-## Known Bug #1482 Workaround
+## Bug #1482 — FIXED (2026-05-29, commit 0184aaaf)
 
-DiaryEntryDetailPage does NOT pass `onPhotoAnnotated` to PhotoViewer. After Save,
-the parent's photo list is stale (annotatedAt still null). To test View Original /
-Clear Annotations, we:
+DiaryEntryDetailPage now passes `onPhotoAnnotated` to PhotoViewer. After a
+successful PUT /annotation, PhotoViewer calls `onPhotoAnnotated(updatedPhoto)`
+which updates `currentPhoto` state immediately — no page reload or re-navigation
+required.
 
-1. Intercept `GET /api/photos?entityType=diary_entry&entityId={id}` with a mock that
-   includes `annotatedAt: savedAnnotatedAt`
-2. Re-navigate to the diary entry detail page to force fresh photo load
-3. Re-open the viewer
+**Removed from test file:**
+- `buildAnnotatedPhotosMockBody()` helper function
+- `reopenViewerWithAnnotatedPhoto()` helper function
+- `photosApiGlob` local variables
+- `page.route()` GET /api/photos mocks
+- Close-viewer + re-navigate-with-mock flow
 
-The helper `reopenViewerWithAnnotatedPhoto()` encapsulates this pattern.
+**New pattern (Scenarios 1 and 21):** After PUT 200, assert in-place:
+```ts
+await expect(viewer.viewOriginalButton).toBeVisible();
+await expect(viewer.clearAnnotationsButton).toBeVisible();
+```
+After DELETE 204 (clear), assert in-place:
+```ts
+await expect(viewer.viewOriginalButton).not.toBeVisible();
+await expect(viewer.clearAnnotationsButton).not.toBeVisible();
+```
 
 ## Tool Interactions
 
@@ -101,12 +113,15 @@ callout smoke) for future diagnosis if failures recur.
 **DO NOT** record `waitFor({ state: 'visible' })` without explicit timeout for shape
 appearance in SVG — always use `{ timeout: 15_000 }` for annotator shape commits.
 
-## Test Count (Story #1478 addition)
+## Test Count
 
-- Scenarios 1–3: from Story #1473 (foundation), kept as-is
-- Scenarios 4–23: 20 new test cases added in Story #1478
-- @smoke tags: scenarios 1, 12, 16, 21
+- Scenarios 1–3: from Story #1473 (foundation); all ACTIVE
+- Scenarios 4–20, 23: 18 scenarios, all `test.fixme` (Konva canvas migration pending)
+- Scenario 21: ACTIVE (Bug #1482 fix removed fixme)
+- Scenario 22: ACTIVE (tool palette aria-pressed — no canvas shape assertions)
+- @smoke tags: scenarios 1, 16, 21 (scenario 12 callout was removed)
 - @responsive tags: scenarios 16, 17, 21
+- 5 active tests total; 17 fixme tests
 
 **Why:** `@responsive` runs on tablet+mobile projects (grep: `/@responsive/`).
 `@smoke` runs in the fast CI E2E Smoke Tests job.

@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1482/#1569 — PhotoViewer + konvaInit tests (2026-05-29)
+
+**ALL client JSDOM tests fail locally (Node 20 / Jest 30 clearMocksOnScope)**: `jest-environment-jsdom` v30 on Node 20 throws `TypeError: this._moduleMocker.clearMocksOnScope is not a function`. Every client test fails with this error. CI uses Node 24 where it works. This is NOT caused by our test code — it's a sandbox environment limitation. Verify by running any existing client test and seeing the same error.
+
+**react-konva mock DATA_FORWARDED_PROPS pattern**: To expose non-DOM Konva props in test assertions, add to `DATA_FORWARDED_PROPS` in `__mocks__/react-konva.ts`. E.g., `rotateAnchorAngle: 'data-rotate-anchor-angle'` → stub renders `data-rotate-anchor-angle="45"` as a DOM attribute. Backward compatible — only adds new attributes.
+
+**useAnnotator mock override pattern for PhotoAnnotator tests**: Use a module-scope `let annotatorStateOverride: {...} | null = null` variable and `jest.unstable_mockModule('./useAnnotator.js', ...)` with a `React.useReducer`-based implementation. Set the override before `renderAnnotator()` to inject `selectedShapeId` and `shapes`. Reset in `afterEach`. This enables the Transformer to render with pre-selected state. `React` is in scope from the top-level import inside the ESM factory.
+
+**konvaInit.test.ts — import pattern**: `import Konva from 'konva'` auto-resolves to `__mocks__/konva.ts` via jest moduleNameMapper (no `jest.mock()` needed). Then `await import('./konvaInit.js')` in `beforeAll` triggers the side-effect. Assert `(Konva as any).legacyTextRendering === true`.
+
+**PhotoViewer mock annotator save — use spread + annotatedAt**: Mock `onSave` must pass `{ ...photo, annotatedAt: '...' }` (spread the real photo prop) so the #1482 fix test starts from a photo with `annotatedAt=null` and sees the buttons appear after save. Old mock passed `{ id: 'annotated' }` which was missing all other Photo fields.
+
 ## Story #1603 — EditBudgetLineModal + BudgetSection invoice-edit tests (2026-05-29)
 
 **No-mock approach for EditBudgetLineModal.test.tsx**: Testing a component that wraps Modal+BudgetLineForm — do NOT mock Modal.js or BudgetLineForm.js. Use the real DOM: find `role="dialog"` for the portal, `#budget-description` for description input, `#budget-planned-amount` for amount, `#budget-confidence` for confidence select, `#budget-itemized-amount` for the itemized field. Real Modal handles Escape key via document `keydown` listener. Backdrop has `class*="modalBackdrop"`. Close button has `aria-label` containing "Close". Cancel button: `getByRole('button', { name: /^cancel$/i })`.
