@@ -7,7 +7,6 @@ import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
 import type { InvoiceLinkModalProps } from './InvoiceLinkModal.js';
-import type * as InvoiceLinkModalModule from './InvoiceLinkModal.js';
 
 // ─── Module-scope mock functions ─────────────────────────────────────────────
 

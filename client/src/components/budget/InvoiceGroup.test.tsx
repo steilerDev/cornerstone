@@ -6,7 +6,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { BaseBudgetLine, BudgetLineInvoiceLink } from '@cornerstone/shared';
 import type { InvoiceGroupProps } from './InvoiceGroup.js';
-import type * as InvoiceGroupModule from './InvoiceGroup.js';
 
 // ─── Mock: formatters — provides useFormatters() hook used by InvoiceGroup ───
 

@@ -40,7 +40,6 @@ import {
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import type { Photo } from '@cornerstone/shared';
-import type * as PhotoAnnotatorModule from './PhotoAnnotator.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyMock = jest.MockedFunction<(...args: any[]) => any>;

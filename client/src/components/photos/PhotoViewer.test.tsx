@@ -36,7 +36,6 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import React from 'react';
 import type { Photo } from '@cornerstone/shared';
-import type * as PhotoViewerModule from './PhotoViewer.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyMock = jest.MockedFunction<(...args: any[]) => any>;

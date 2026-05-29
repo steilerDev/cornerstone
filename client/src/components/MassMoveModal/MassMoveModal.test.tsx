@@ -7,7 +7,6 @@ import type React from 'react';
 import type { BudgetSource, BudgetSourceListResponse } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type { MassMoveModalProps } from './MassMoveModal.js';
-import type * as MassMoveModalModule from './MassMoveModal.js';
 
 // ─── Module-scope mock functions ─────────────────────────────────────────────
 

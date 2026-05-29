@@ -27,7 +27,6 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import type { Photo, AreaResponse } from '@cornerstone/shared';
-import type * as PhotoMetadataSidepanelModule from './PhotoMetadataSidepanel.js';
 
 // ─── ESM-compatible mocks (must be before dynamic imports) ────────────────────
 

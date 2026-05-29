@@ -6,7 +6,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { BaseBudgetLine, BudgetLineInvoiceLink } from '@cornerstone/shared';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
 import type { BudgetSectionProps } from './BudgetSection.js';
-import type * as BudgetSectionModule from './BudgetSection.js';
 
 // ─── Stub heavy child components ─────────────────────────────────────────────
 
