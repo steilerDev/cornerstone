@@ -3,6 +3,15 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## Discretionary Note + Auto-Origin Badge E2E (Story #1551, 2026-05-29) — `e2e/tests/budget/auto-itemize-discretionary.spec.ts`
+
+- 4 scenarios (+ 1 sub-scenario 2b). @smoke on Scenario 1.
+- `discretionaryNote` POM locator: `page.locator('[role="note"][class*="discretionaryNote"]')` — added to AutoItemizePage.ts.
+- Note condition: `picker.pickerState.budgetSources` must contain `isDiscretionary:true` source AND ≥1 line `budgetSourceId` === that id. Mocked via `GET /api/budget-sources` intercept (GET only, skip sub-paths like `/budget-sources/:id/budget-lines`).
+- `origin='auto'` lines are NOT creatable via `POST /api/work-items/:id/budgets` (schema blocks `origin`). Must use auto-itemize commit path: create doc link → POST `/api/invoices/:id/auto-itemize { dryRun:false, lines, mode:'append', paperlessDocumentId }`. Commit path validates doc link in DB but does NOT call Paperless — safe without Paperless container.
+- Auto-origin badge selector: `page.locator('[aria-label*="automatically"]')` (i18n: "Budget line was created automatically via auto-itemization").
+- Discretionary source id is hardcoded as `'discretionary-system'` (seeded by migration 0021).
+
 ## AutoItemizePage E2E (Stories #1564/#1584/#1586–#1597, 2026-05-26) — `e2e/tests/invoices/invoice-auto-itemize-page.spec.ts`
 
 - Now 35 scenarios (Scenarios 33–35 added for #1600). Scenario 17 DELETED (superseded by Scenario 22). @smoke on 1+2+3+8 (unchanged).

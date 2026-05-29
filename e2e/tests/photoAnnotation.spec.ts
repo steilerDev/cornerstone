@@ -134,6 +134,7 @@ async function openAnnotator(viewer: PhotoViewerPage): Promise<void> {
   await expect(viewer.toolPalette).toBeVisible();
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: [smoke] Full annotation lifecycle
 // ─────────────────────────────────────────────────────────────────────────────

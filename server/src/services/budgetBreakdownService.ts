@@ -58,6 +58,7 @@ export function getBudgetBreakdown(
     confidence: string;
     budgetCategoryId: string | null;
     budgetSourceId: string | null;
+    origin: string;
   }>(
     sql`SELECT
       wi.id                  AS workItemId,
@@ -68,7 +69,8 @@ export function getBudgetBreakdown(
       wib.planned_amount     AS plannedAmount,
       wib.confidence         AS confidence,
       wib.budget_category_id AS budgetCategoryId,
-      wib.budget_source_id   AS budgetSourceId
+      wib.budget_source_id   AS budgetSourceId,
+      wib.origin             AS origin
     FROM work_items wi
     INNER JOIN work_item_budgets wib ON wib.work_item_id = wi.id
     ORDER BY wi.area_id ASC, wi.title ASC`,
@@ -110,6 +112,7 @@ export function getBudgetBreakdown(
     confidence: string;
     budgetCategoryId: string | null;
     budgetSourceId: string | null;
+    origin: string;
   }>(
     sql`SELECT
       hi.id                     AS householdItemId,
@@ -120,7 +123,8 @@ export function getBudgetBreakdown(
       hib.planned_amount        AS plannedAmount,
       hib.confidence            AS confidence,
       hib.budget_category_id    AS budgetCategoryId,
-      hib.budget_source_id      AS budgetSourceId
+      hib.budget_source_id      AS budgetSourceId,
+      hib.origin                AS origin
     FROM household_items hi
     INNER JOIN household_item_budgets hib ON hib.household_item_id = hi.id
     ORDER BY hi.area_id ASC, hi.name ASC`,
@@ -571,6 +575,7 @@ export function getBudgetBreakdown(
       hasInvoice: wiLineInvoiceMap.has(row.budgetLineId),
       isQuotation,
       budgetSourceId: row.budgetSourceId ?? null,
+      origin: (row.origin === 'auto' ? 'auto' : 'manual') as 'manual' | 'auto',
     });
 
     item.projectedMin += min;
@@ -735,6 +740,7 @@ export function getBudgetBreakdown(
       hasInvoice: hiLineInvoiceMap.has(row.budgetLineId),
       isQuotation,
       budgetSourceId: row.budgetSourceId ?? null,
+      origin: (row.origin === 'auto' ? 'auto' : 'manual') as 'manual' | 'auto',
     });
 
     item.projectedMin += min;
