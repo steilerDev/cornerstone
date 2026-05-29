@@ -85,7 +85,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   const transformerRef = useRef<Konva.Transformer>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
   const liveRegionRef = useRef<HTMLDivElement>(null);
-  const fontSizePerTool = useRef<Partial<Record<ToolName, FontSizeKey>>>({});
+  const fontSizePerToolRef = useRef<Partial<Record<ToolName, FontSizeKey>>>({});
   const shapesNodesRef = useRef<Map<string, Konva.Node>>(new Map());
 
   // Konva image object
@@ -96,7 +96,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     : `${getBaseUrl()}/photos/${photo.id}/file`;
 
   function getActiveFontSizeKey(): FontSizeKey {
-    return fontSizePerTool.current[state.selectedTool] ?? state.activeFontSizeKey;
+    return fontSizePerToolRef.current[state.selectedTool] ?? state.activeFontSizeKey;
   }
 
   function getActiveFontSizePx(): number {
@@ -818,7 +818,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           }
         }}
         onSelectFontSize={(key) => {
-          fontSizePerTool.current[state.selectedTool] = key as FontSizeKey;
+          fontSizePerToolRef.current[state.selectedTool] = key as FontSizeKey;
           dispatch({ type: 'SET_FONT_SIZE', key: key as FontSizeKey });
           if (state.selectedShapeId) {
             const shape = state.shapes.find((s) => s.id === state.selectedShapeId);

@@ -162,7 +162,7 @@ export function GanttChart({
   const chartScrollRef = useRef<HTMLDivElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const headerScrollRef = useRef<HTMLDivElement>(null);
-  const isScrollSyncing = useRef(false);
+  const isScrollSyncingRef = useRef(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
   // CSS color values read from computed styles (updated on theme change)
@@ -1100,13 +1100,13 @@ export function GanttChart({
    * Uses requestAnimationFrame to prevent jank on large datasets.
    */
   const handleChartScroll = useCallback(() => {
-    if (isScrollSyncing.current) return;
+    if (isScrollSyncingRef.current) return;
 
     const chartEl = chartScrollRef.current;
     if (!chartEl) return;
 
     requestAnimationFrame(() => {
-      isScrollSyncing.current = true;
+      isScrollSyncingRef.current = true;
 
       if (sidebarScrollRef.current) {
         sidebarScrollRef.current.scrollTop = chartEl.scrollTop;
@@ -1116,7 +1116,7 @@ export function GanttChart({
         headerScrollRef.current.scrollLeft = chartEl.scrollLeft;
       }
 
-      isScrollSyncing.current = false;
+      isScrollSyncingRef.current = false;
     });
   }, []);
 
@@ -1125,19 +1125,19 @@ export function GanttChart({
    * This is called when the user scrolls the sidebar independently.
    */
   const handleSidebarScroll = useCallback(() => {
-    if (isScrollSyncing.current) return;
+    if (isScrollSyncingRef.current) return;
 
     const sidebarEl = sidebarScrollRef.current;
     if (!sidebarEl) return;
 
     requestAnimationFrame(() => {
-      isScrollSyncing.current = true;
+      isScrollSyncingRef.current = true;
 
       if (chartScrollRef.current) {
         chartScrollRef.current.scrollTop = sidebarEl.scrollTop;
       }
 
-      isScrollSyncing.current = false;
+      isScrollSyncingRef.current = false;
     });
   }, []);
 

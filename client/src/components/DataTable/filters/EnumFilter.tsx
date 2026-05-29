@@ -151,7 +151,7 @@ export function EnumFilter({
   };
 
   // Set indeterminate state on parent checkboxes
-  const parentCheckboxRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const parentCheckboxRef = useRef<Map<string, HTMLInputElement>>(new Map());
 
   return (
     <div className={styles.filterContent}>
@@ -192,10 +192,10 @@ export function EnumFilter({
               <input
                 ref={(el) => {
                   if (el && isParent) {
-                    parentCheckboxRefs.current.set(option.value, el);
+                    parentCheckboxRef.current.set(option.value, el);
                     el.indeterminate = isIndeterminate(option.value);
                   } else if (isParent) {
-                    parentCheckboxRefs.current.delete(option.value);
+                    parentCheckboxRef.current.delete(option.value);
                   }
                 }}
                 type="checkbox"
