@@ -92,15 +92,7 @@ export function InvoiceBudgetLinesSection({
   const [selectedLineIds, setSelectedLineIds] = useState<Set<string>>(() => new Set());
   const [itemizedAmounts, setItemizedAmounts] = useState<Record<string, number>>({});
 
-  // Use the picker hook with a no-op callback (InvoiceBudgetLinesSection uses multi-select, not eager link)
-  const picker = useBudgetLinePicker({
-    invoiceId,
-    invoiceAmount: invoiceTotal,
-    onLineCreated: () => {}, // No-op: InvoiceBudgetLinesSection handles linking via handleAddSelectedLines
-    eagerLinkInvoice: false, // Don't auto-link in the create flow
-  });
-
-  // Load budget lines on mount
+  // Load budget lines on mount (defined before picker so onLineCreated can reference it)
   const loadBudgetLines = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -118,6 +110,17 @@ export function InvoiceBudgetLinesSection({
       setIsLoading(false);
     }
   }, [invoiceId, t]);
+
+  // Use the picker hook — eagerLinkInvoice defaults to true so the create-new flow
+  // calls createInvoiceBudgetLine automatically before invoking onLineCreated.
+  const picker = useBudgetLinePicker({
+    invoiceId,
+    invoiceAmount: invoiceTotal,
+    onLineCreated: () => {
+      // Reload budget lines after a new line is created and eagerly linked to the invoice
+      void loadBudgetLines();
+    },
+  });
 
   useEffect(() => {
     void loadBudgetLines();
