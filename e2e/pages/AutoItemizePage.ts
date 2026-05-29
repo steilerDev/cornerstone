@@ -385,20 +385,25 @@ export class AutoItemizePage {
     } else {
       inputId = field;
     }
-    // The badge is a sibling of the fieldControl div, inside the wrapping <div>:
+    // The badge is a sibling of the fieldControl div, inside the anonymous wrapping <div>
+    // that is the second child of the .fieldRow grid:
     //   <div class="fieldRow">
     //     <label>…</label>
-    //     <div>                         ← 2 levels up from the input/textarea
-    //       <div class="fieldControl">  ← 1 level up from the input/textarea
+    //     <div>                         ← anonymous grid-col-2 wrapper
+    //       <div class="fieldControl">  ← parent of the input/textarea
     //         <input|textarea id="…">
     //       </div>
-    //       <span class="badge …">     ← sibling of fieldControl, same wrapping div
+    //       <span class="badge …">     ← SuggestionBadge — sibling of fieldControl
     //     </div>
     //   </div>
     //
-    // Scope exactly 2 levels up (input → fieldControl → wrapping div) to avoid
-    // walking up to a common ancestor that contains badges from other fields.
-    return this.page.locator(`#${inputId}`).locator('xpath=../..').locator('[class*="badge"]');
+    // Walk up to the nearest .fieldRow ancestor to scope correctly, then find the
+    // badge within that row only (avoids picking up badges from adjacent fields).
+    return this.page
+      .locator(`#${inputId}`)
+      .locator('xpath=ancestor::div[contains(@class,"fieldRow")]')
+      .locator('[class*="badge"]')
+      .first();
   }
 
   /**
@@ -509,10 +514,22 @@ export class AutoItemizePage {
   /**
    * Returns the assigned badge container for the row at the given 0-based index.
    * Present when line.assignedBudgetLineId is set.
-   * class*="assignedBadge"
+   *
+   * The TSX renders:
+   *   <div class*="assignedBadgeWrapper">       ← outer wrapper
+   *     <div class*="assignedBadge">            ← inner badge (this is what we want)
+   *       <span>{description}</span>
+   *       <button aria-label="Clear…">✕</button>
+   *     </div>
+   *     {createdFromExtraction && <Badge .../>}
+   *   </div>
+   *
+   * Both "assignedBadge_<hash>" and "assignedBadgeWrapper_<hash>" contain the
+   * substring "assignedBadge", so class*="assignedBadge" would match both.
+   * Use :not([class*="Wrapper"]) to target only the inner badge div.
    */
   lineAssignedBadge(index: number): Locator {
-    return this.lineRow(index).locator('[class*="assignedBadge"]');
+    return this.lineRow(index).locator('[class*="assignedBadge"]:not([class*="Wrapper"])');
   }
 
   /**

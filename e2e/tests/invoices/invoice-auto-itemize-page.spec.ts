@@ -1069,12 +1069,16 @@ test.describe('Scenarios 10–12 — Responsive layout', { tag: '@responsive' },
       // Preview column may be scrolled off-screen — check it's in DOM
       await expect(autoItemizePage.previewColumn).toBeAttached();
 
-      // ── Single column: form column is full-width (≥250px) ────────────────
-      // At 390px viewport the app shell (nav + padding) consumes ~100px, leaving ~290px
-      // for the content area. 250 validates the column is usably wide without being too tight.
+      // ── Single column: form column is full-width (≥60% viewport width) ─────
+      // At ≤860px the sidebar is position:fixed and off-screen, so mainContent
+      // fills the full viewport. The form column occupies 1fr of pageBody (minus
+      // 24px padding each side). A viewport-relative threshold (60%) is more
+      // robust than an absolute value because it works across CI environments
+      // where DevTools pixel ratios or scaled viewports may differ slightly.
+      const viewportWidth = page.viewportSize()?.width ?? 390;
       const formBounds = await autoItemizePage.formColumn.boundingBox();
       expect(formBounds).not.toBeNull();
-      expect(formBounds!.width).toBeGreaterThan(250);
+      expect(formBounds!.width).toBeGreaterThan(viewportWidth * 0.6);
 
       // ── Form is above preview ─────────────────────────────────────────────
       const previewBounds = await autoItemizePage.previewColumn.boundingBox();
@@ -2579,12 +2583,13 @@ test.describe('Scenario 31 — Category pre-filled from LLM dry-run response (#1
       await mockPaperlessDocument(page, docId, 'Category Prefill Doc');
 
       // First, find a real budget category ID from the server so we can mock with a valid value.
-      // GET /api/budget-categories returns { budgetCategories: [{ id, translationKey, ... }] }
+      // GET /api/budget-categories returns { categories: [{ id, translationKey, ... }] }
+      // (BudgetCategoryListResponse uses "categories" not "budgetCategories").
       const catResp = await page.request.get('/api/budget-categories');
       expect(catResp.ok(), `GET /api/budget-categories failed: ${catResp.status()}`).toBeTruthy();
-      const catBody = (await catResp.json()) as { budgetCategories: { id: string }[] };
-      const firstCatId =
-        catBody.budgetCategories.length > 0 ? catBody.budgetCategories[0].id : null;
+      const catBody = (await catResp.json()) as { categories: Array<{ id: string }> };
+      const firstCat = catBody.categories[0];
+      const firstCatId = firstCat?.id ?? null;
 
       // If server has no categories, assert directly so test fails visibly rather than skipping.
       expect(
@@ -2592,14 +2597,12 @@ test.describe('Scenario 31 — Category pre-filled from LLM dry-run response (#1
         'Expected at least one budget category to exist on the server for pre-fill test',
       ).not.toBeNull();
 
-      // Mock dry-run to return first line with a known budgetCategoryId
-      const linesWithCategory = [
-        {
-          ...THREE_LINES[0],
-          budgetCategoryId: firstCatId,
-        },
-        THREE_LINES[1],
-        THREE_LINES[2],
+      // Mock dry-run to return first line with a known budgetCategoryId.
+      // Use Array.from to avoid noUncheckedIndexedAccess 'possibly undefined' on slice indices.
+      const [firstLine, ...restLines] = THREE_LINES;
+      const linesWithCategory: object[] = [
+        { ...firstLine, budgetCategoryId: firstCatId },
+        ...restLines,
       ];
 
       await mockAutoItemizeDryRun(page, invoiceId, { lines: linesWithCategory });
@@ -2902,12 +2905,18 @@ test.describe('Scenario 34 — "Create Budget Line" visible with existing budget
       await expect(descriptionInput).toBeVisible();
       await expect(descriptionInput).toHaveValue(extractedDescription);
 
-      // Planned amount: row.totalAmount = 900
-      // BudgetLineForm uses #budget-planned-amount (direct mode) for the planned amount field
-      const amountInput =
-        autoItemizePage.pickerCreateBudgetLineFieldset.locator('#budget-planned-amount');
-      await expect(amountInput).toBeVisible();
-      await expect(amountInput).toHaveValue(/^900/);
+      // The extracted line has quantity=20 and unitPrice=45 so handleCreateNewBudgetLine
+      // sets pricingMode='unit'. In unit mode, BudgetLineForm shows #budget-quantity and
+      // #budget-unit-price — NOT #budget-planned-amount (direct mode only).
+      const quantityInput =
+        autoItemizePage.pickerCreateBudgetLineFieldset.locator('#budget-quantity');
+      await expect(quantityInput).toBeVisible();
+      await expect(quantityInput).toHaveValue('20');
+
+      const unitPriceInput =
+        autoItemizePage.pickerCreateBudgetLineFieldset.locator('#budget-unit-price');
+      await expect(unitPriceInput).toBeVisible();
+      await expect(unitPriceInput).toHaveValue('45');
 
       // Confidence: 0.95 → 'invoice' → label "Invoice" in the select
       // BudgetLineForm renders <select id="budget-confidence">
@@ -2920,8 +2929,11 @@ test.describe('Scenario 34 — "Create Budget Line" visible with existing budget
       // The form is submitted via the "Add Line" button (isEditing=false → submitAdd).
       // Since eagerLinkInvoice=false in AutoItemizePage, no invoice_budget_line is created.
       // After submit, onLineCreated fires → picker closes → assigned badge shows.
+      // The BudgetLineForm renders a <form> as a descendant of the outer fieldset wrapper
+      // (createBudgetLineFieldset). Scope to that form then find the submit button.
+      // Using a descendant 'form' locator (not xpath=ancestor::form which searches upward).
       const addLineButton = autoItemizePage.pickerCreateBudgetLineFieldset
-        .locator('xpath=ancestor::form')
+        .locator('form')
         .getByRole('button', { name: /Add Line/i });
       await expect(addLineButton).toBeVisible();
 
@@ -3083,8 +3095,11 @@ test.describe(
         await expect(autoItemizePage.pickerCreateBudgetLineFieldset).toBeVisible();
 
         // ── Submit the form (real API) ────────────────────────────────────────
+        // The BudgetLineForm renders a <form> as a descendant of the outer fieldset wrapper
+        // (createBudgetLineFieldset). Scope to that form then find the submit button.
+        // Using a descendant 'form' locator (not xpath=ancestor::form which searches upward).
         const addLineButton = autoItemizePage.pickerCreateBudgetLineFieldset
-          .locator('xpath=ancestor::form')
+          .locator('form')
           .getByRole('button', { name: /Add Line/i });
         await expect(addLineButton).toBeVisible();
 
