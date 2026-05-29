@@ -62,6 +62,10 @@
       "sourceBadge": {
         "ariaLabel": "Budget source: {{name}}",
         "unassigned": "Unassigned"
+      },
+      "autoOriginBadge": {
+        "label": "Auto-itemized",
+        "ariaLabel": "Budget line was created automatically via auto-itemization"
       }
     }
   },
@@ -913,6 +917,7 @@
     "modeAppend": "Append to existing lines",
     "modeReplace": "Replace existing lines",
     "extractedLines": "Extracted Line Items",
+    "discretionaryFundingNote": "New lines will be funded from your Discretionary Funding source. You can reassign each line's funding source below.",
     "lineItemsListLabel": "Extracted line items",
     "included": "Include",
     "description": "Description",

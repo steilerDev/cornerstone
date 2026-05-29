@@ -729,6 +729,14 @@ export function AutoItemizePage() {
     );
   }
 
+  // Hoist discretionary funding note condition computation
+  const budgetSources = picker.pickerState.budgetSources ?? [];
+  const discretionarySourceId = budgetSources.find((s) => s.isDiscretionary)?.id;
+  const hasDiscretionaryLines =
+    discretionarySourceId !== undefined &&
+    lines.length > 0 &&
+    lines.some((l) => l.budgetSourceId === discretionarySourceId);
+
   return (
     <>
       <div className={styles.pageContainer} data-layout="full-height">
@@ -956,6 +964,29 @@ export function AutoItemizePage() {
             {/* Lines list */}
             <div className={styles.metadataCard}>
               <h3 className={styles.sectionTitle}>{t('autoItemize.extractedLines')}</h3>
+              {hasDiscretionaryLines && (
+                <p
+                  role="note"
+                  className={styles.discretionaryNote}
+                  aria-label={t('autoItemize.discretionaryFundingNote')}
+                >
+                  <svg
+                    className={styles.discretionaryNoteIcon}
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <circle cx="8" cy="8" r="6.5" />
+                    <line x1="8" y1="5.5" x2="8" y2="5.5" strokeLinecap="round" strokeWidth="2" />
+                    <line x1="8" y1="7.5" x2="8" y2="11" strokeLinecap="round" />
+                  </svg>
+                  <span>{t('autoItemize.discretionaryFundingNote')}</span>
+                </p>
+              )}
               <ul
                 role="list"
                 className={styles.lineList}

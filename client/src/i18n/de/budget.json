@@ -62,6 +62,10 @@
       "sourceBadge": {
         "ariaLabel": "Budgetquelle: {{name}}",
         "unassigned": "Nicht zugewiesen"
+      },
+      "autoOriginBadge": {
+        "label": "Auto-erstellt",
+        "ariaLabel": "Diese Budgetposition wurde automatisch per Aufschlüsselung erstellt"
       }
     }
   },
@@ -913,6 +917,7 @@
     "modeAppend": "Zu bestehenden Positionen hinzufügen",
     "modeReplace": "Bestehende Positionen ersetzen",
     "extractedLines": "Extrahierte Positionen",
+    "discretionaryFundingNote": "Neue Positionen werden aus Ihrer Diskretionären Finanzierungsquelle finanziert. Sie können die Finanzierungsquelle für jede Position unten neu zuweisen.",
     "lineItemsListLabel": "Extrahierte Positionen",
     "included": "Einbeziehen",
     "description": "Beschreibung",

@@ -228,3 +228,11 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `de/errors.json` LLM_NOT_CONFIGURED updated: "Auto-Itemisierung" → "Automatische Positionsextraktion"
 - Story #1564 Round 2: 19 keys added (`unit`, `includesVat`, `vatRate`, edit aria-labels, picker keys); duplicate `amount` removed; `pickerHouseholdItemType` = "Haushaltsartikel" (glossary wins over spec's "Haushaltsposten")
 - Edit aria-label pattern: "X der Position bearbeiten"; toggle exception: `editIncludesVatAriaLabel` = "MwSt.-Einschluss umschalten"
+
+## Auto-itemize Discretionary Funding & autoOriginBadge — Issue #1551 (2026-05-29)
+
+- `autoItemize.discretionaryFundingNote`: "Diskretionäre Finanzierungsquelle" — adjective form of `sources.sourceTypes.discretionary` = "Diskretionär" + glossary "Funding Source" = "Finanzierungsquelle"
+- `overview.costBreakdown.autoOriginBadge.label`: "Auto-erstellt" (13 chars, fits badge) — short compound preferred over "Automatisch erstellt" (20 chars)
+- `autoOriginBadge.ariaLabel`: uses glossary "Budgetposition" and glossary noun `Aufschlüsselung` (from `Itemize` glossary entry)
+- "Auto-itemized" as participial adjective in badge → "Auto-erstellt"; in aria-label → "per Aufschlüsselung erstellt"
+- Proposed glossary additions (need product-owner approval): "Discretionary Funding" → `{ "de": { "singular": "Diskretionäre Finanzierung" } }`; "Auto-itemized" → `{ "de": { "adjective": "automatisch aufgeschlüsselt", "short": "Auto-erstellt" } }`

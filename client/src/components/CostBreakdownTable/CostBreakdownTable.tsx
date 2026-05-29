@@ -251,6 +251,13 @@ function BudgetLineRow({
           ) : (
             <ConfidenceBadge confidence={line.confidence} />
           )}
+          {line.origin === 'auto' && (
+            <Badge
+              variants={{ auto: { label: t('overview.costBreakdown.autoOriginBadge.label'), className: badgeStyles.autoOrigin } }}
+              value="auto"
+              ariaLabel={t('overview.costBreakdown.autoOriginBadge.ariaLabel')}
+            />
+          )}
           <span
             className={styles.sourceBadgeDot}
             style={{ backgroundColor: `var(--color-source-${getSourceColorIndex(sourceId)}-dot)` }}

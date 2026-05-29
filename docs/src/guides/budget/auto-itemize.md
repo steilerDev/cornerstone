@@ -136,6 +136,31 @@ The row's pill changes from "Unassigned" to the linked item's name -- and a clic
 You can assign an Unassigned line to a work item or household item exactly once. After that, the parent is locked in -- there is no "reassign to a different work item" action. If you assign a line to the wrong target, delete it from the invoice and re-create it manually with the right parent.
 :::
 
+## Funding source
+
+Every budget line is funded by one of your [financing sources](financing-sources) -- your construction loan, savings, a subsidy, and so on. But when a language model reads an invoice, it has no way of knowing which pot of money you intend to draw on for each row. A line that says "Bathroom tiles -- 480 EUR" tells you nothing about whether you are paying for it out of your loan or your savings.
+
+So auto-extracted lines all start out funded by the built-in **Discretionary Funding** source. Think of it as a holding bay: the line is recorded and counted, but parked against a neutral source until you decide where the money really comes from.
+
+You will see this called out in two places:
+
+- **In the preview.** Before you apply, an informational note in the **Auto-itemize Preview** reminds you that the new lines will be created against Discretionary Funding, and that you can reassign each line's funding source afterwards. Nothing is locked in -- it is just a sensible default to get the lines recorded quickly.
+- **On the Budget Overview.** Once applied, every auto-created line carries an **"Auto-itemized"** badge alongside its source attribution badge. The badge makes the freshly-extracted lines easy to spot, so you can sweep through and move them onto the right source instead of hunting for which lines still need attention.
+
+### Reassign a line's funding source
+
+When you know which source should fund a line, change it on the [Budget Overview](budget-overview) or from the line's edit view:
+
+1. Open **Budget > Overview** (or the work item / household item the line is assigned to).
+2. Find the line -- the **"Auto-itemized"** badge marks the ones still on Discretionary Funding.
+3. Edit the line and pick the correct financing source from the source selector, then save.
+
+If a whole batch of lines belongs to the same source -- for example, everything on one invoice -- the [Financing Sources](financing-sources) page lets you multi-select lines and move them in a single operation. The depletion totals on both the old and new source update immediately.
+
+:::tip Funding source is not the same as the linked item
+Reassigning the **funding source** (which pot of money pays for the line) is separate from assigning the line to a **work item or household item** (what the line is for). You can change a line's funding source as often as you like; the work item assignment, by contrast, is [one-shot](#7-assign-each-line-to-a-work-item-or-household-item).
+:::
+
 ## What data leaves your server
 
 Cornerstone sends two things to your LLM provider when you click Auto-itemize:

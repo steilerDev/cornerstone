@@ -120,6 +120,15 @@ See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `rol
 - `parentPickerTab` and `modeBtn` in BudgetLineForm.module.css missing `:focus-visible` (pre-existing gap, WCAG 2.4.7 Medium)
 - New i18n keys (namespace `budget`): `linkedItemLegend`, `changeParentButton`, `cancelChangeParentButton`, `moveButton`, `movingButton`, `moveCrossTableHint`, `moveCrossTableHintReverse`
 
+## Story #1551 — Discretionary Funding + Auto-origin badge
+
+- AutoItemizePage already has a per-line "Funding Source" `<select>` that pre-fills to discretionary — recommended informational note above `.lineList`, not a column
+- Note style: `--color-primary-bg` bg, `--color-border` border, `3px solid --color-primary` left border, `--radius-md`, `--spacing-3 --spacing-4` padding — purely semantic tokens, dark mode handled automatically
+- New `.autoOrigin` Badge variant: `--color-primary-bg` bg, `--color-primary-badge-text` text, `1px solid --color-primary` border — blue-tinted, distinct from `.info` (gray)
+- `.info` badge already used for "Auto-created" assignment badge in AutoItemizePage; `.autoOrigin` is a separate semantic (data origin vs. assignment label)
+- `BreakdownBudgetLine` shared type must expose `origin: 'manual' | 'auto'` — backend/shared coordination required
+- `getSourceBadgeStyleKey(null)` returns `'sourceUnassigned'` (italic gray), `getSourceColorIndex(null)` returns `0`
+
 ## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
 
 - `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic` — distinguishes from work-item "not_started" badge

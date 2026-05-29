@@ -450,6 +450,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -469,6 +470,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -520,6 +522,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -553,6 +556,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -583,6 +587,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -611,6 +616,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -632,6 +638,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
   // ─── onSubmit calls onInvoiceLineEdit and closes on success ───────────────
 
   it('form submit calls onInvoiceLineEdit with line, form, itemizedAmount and closes modal on success', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const onInvoiceLineEdit = jest
       .fn<(...args: any[]) => Promise<void>>()
       .mockResolvedValue(undefined);
@@ -744,6 +751,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
   // ─── onMove calls onInvoiceLineMove ───────────────────────────────────────
 
   it('onMove in modal calls onInvoiceLineMove with lineId, parentType, parentId', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const onInvoiceLineMove = jest
       .fn<(...args: any[]) => Promise<void>>()
       .mockResolvedValue(undefined);
@@ -753,6 +761,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -781,6 +790,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
   });
 
   it('modal closes after successful move (CI only — requires BudgetLineForm mock)', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const onInvoiceLineMove = jest
       .fn<(...args: any[]) => Promise<void>>()
       .mockResolvedValue(undefined);
@@ -790,6 +800,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -824,6 +835,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -860,6 +872,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -938,6 +951,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([linkedLine, unlinkedLine], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -973,7 +987,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([unlinkedLine], {
           budgetSectionHook: hookReturn,
-
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -998,6 +1012,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -1033,7 +1048,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           budgetSectionHook: buildHookReturn({ openEditBudgetForm }),
-
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),
@@ -1074,6 +1089,7 @@ describe('BudgetSection — invoice-edit wiring', () => {
     renderSection(
       <BudgetSection
         {...buildProps([line], {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onInvoiceLineEdit: jest
             .fn<(...args: any[]) => Promise<void>>()
             .mockResolvedValue(undefined),

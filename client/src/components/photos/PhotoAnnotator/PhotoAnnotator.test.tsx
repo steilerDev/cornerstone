@@ -925,7 +925,7 @@ describe('PhotoAnnotator', () => {
       // The filterProps update in react-konva.ts (DATA_FORWARDED_PROPS) is correct,
       // so when mock intercepts in CI, the prop will be forwarded.
       // Log a clear message so this is traceable.
-
+      // eslint-disable-next-line no-console
       console.warn(
         '[#1569 test] Transformer not found — useAnnotator mock did not intercept. ' +
           'This is expected locally (systemic worktree issue). Test will pass in CI.',

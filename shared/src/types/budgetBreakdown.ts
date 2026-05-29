@@ -29,6 +29,7 @@ export interface BreakdownBudgetLine {
   hasInvoice: boolean;
   isQuotation: boolean;
   budgetSourceId: string | null;
+  origin: 'manual' | 'auto';
 }
 
 /**

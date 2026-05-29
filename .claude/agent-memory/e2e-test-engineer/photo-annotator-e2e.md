@@ -44,7 +44,6 @@ which updates `currentPhoto` state immediately — no page reload or re-navigati
 required.
 
 **Removed from test file:**
-
 - `buildAnnotatedPhotosMockBody()` helper function
 - `reopenViewerWithAnnotatedPhoto()` helper function
 - `photosApiGlob` local variables
@@ -52,14 +51,11 @@ required.
 - Close-viewer + re-navigate-with-mock flow
 
 **New pattern (Scenarios 1 and 21):** After PUT 200, assert in-place:
-
 ```ts
 await expect(viewer.viewOriginalButton).toBeVisible();
 await expect(viewer.clearAnnotationsButton).toBeVisible();
 ```
-
 After DELETE 204 (clear), assert in-place:
-
 ```ts
 await expect(viewer.viewOriginalButton).not.toBeVisible();
 await expect(viewer.clearAnnotationsButton).not.toBeVisible();

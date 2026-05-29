@@ -219,6 +219,14 @@
   border: 1px solid var(--color-border);
 }
 
+/* Auto-origin badge (e.g., "Auto-itemized") */
+.autoOrigin {
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-badge-text);
+  border: 1px solid var(--color-primary);
+  font-style: italic;
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {

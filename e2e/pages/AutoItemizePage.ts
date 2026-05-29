@@ -193,6 +193,21 @@ export class AutoItemizePage {
    */
   readonly autoCreatedBadge: Locator;
 
+  // ─── Story #1551: discretionary funding note ─────────────────────────────────
+
+  /**
+   * Informational note rendered when ≥1 extracted line uses the discretionary
+   * budget source. Rendered as:
+   *   <p role="note" className={styles.discretionaryNote} aria-label={...}>
+   *
+   * Present only when:
+   *   - picker.pickerState.budgetSources contains an isDiscretionary=true source
+   *   - at least one line.budgetSourceId === that discretionary source's id
+   *
+   * Selector: `[role="note"][class*="discretionaryNote"]`
+   */
+  readonly discretionaryNote: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -282,6 +297,12 @@ export class AutoItemizePage {
 
     // Auto-created badge: rendered as <Badge testId="auto-created-badge"> inside assignedBadge zone.
     this.autoCreatedBadge = page.getByTestId('auto-created-badge');
+
+    // ─── Story #1551: discretionary funding note ─────────────────────────────
+    // <p role="note" className={styles.discretionaryNote}> rendered when ≥1 line
+    // uses the discretionary budget source. CSS Modules emit the class as
+    // "discretionaryNote_<hash>", so class*="discretionaryNote" matches reliably.
+    this.discretionaryNote = page.locator('[role="note"][class*="discretionaryNote"]');
 
     // Step 1 — ParentPicker renders role="tablist" with "Work Item" + "Household Item" tabs.
     // Each tab renders a SearchPicker whose placeholder = tab label:
