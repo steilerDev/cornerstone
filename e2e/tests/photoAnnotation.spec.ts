@@ -47,13 +47,26 @@
  * 23. Selecting a different color swatch changes the active color for new shapes
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'url';
 import type { Page, Route, Request } from '@playwright/test';
 import { test, expect } from '../fixtures/auth.js';
 import { PhotoViewerPage } from '../pages/PhotoViewerPage.js';
 import { DiaryEntryDetailPage } from '../pages/DiaryEntryDetailPage.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../fixtures/apiHelpers.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HAR capture for flake diagnosis (Playwright 1.60.0 tracing.startHar)
+// ─────────────────────────────────────────────────────────────────────────────
+test.beforeEach(async ({ page }, testInfo) => {
+  mkdirSync('playwright-output/hars', { recursive: true });
+  const harPath = `playwright-output/hars/${testInfo.project.name}_${testInfo.workerIndex}_${testInfo.title.replace(/[^a-z0-9]/gi, '_')}.har`;
+  await page.context().tracing.startHar(harPath, { content: 'omit' });
+});
+
+test.afterEach(async ({ page }) => {
+  await page.context().tracing.stopHar();
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

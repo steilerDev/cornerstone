@@ -20,10 +20,24 @@
  * - All routes are unregistered in finally blocks.
  */
 
+import { mkdirSync } from 'node:fs';
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
 import { API } from '../../fixtures/testData.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HAR capture for flake diagnosis (Playwright 1.60.0 tracing.startHar)
+// ─────────────────────────────────────────────────────────────────────────────
+test.beforeEach(async ({ page }, testInfo) => {
+  mkdirSync('playwright-output/hars', { recursive: true });
+  const harPath = `playwright-output/hars/${testInfo.project.name}_${testInfo.workerIndex}_${testInfo.title.replace(/[^a-z0-9]/gi, '_')}.har`;
+  await page.context().tracing.startHar(harPath, { content: 'omit' });
+});
+
+test.afterEach(async ({ page }) => {
+  await page.context().tracing.stopHar();
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers
