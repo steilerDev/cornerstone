@@ -25,6 +25,19 @@
 - Commit POST intercept: use `page.waitForResponse()` with predicate `postDataJSON().dryRun === false` BEFORE the click; capture body into closure variable for later assertion.
 - `createWorkItemBudgetViaApi(page, wiId, {description, plannedAmount})` — seeds a real WI budget row for picker tests; budget line cascades on WI deletion so no separate cleanup needed.
 
+## Invoice-Linked Budget Line Edit from WI/HI Detail Pages (Bug #1603, 2026-05-29) — `e2e/tests/budget/invoice-linked-budget-line-edit.spec.ts`
+
+- 9 scenarios. @smoke on 1, 6, 9 (WI happy path, HI happy path, mobile). @responsive on 1 and 6.
+- **InvoiceGroup accordion**: `BudgetSection` renders invoice-linked lines inside `InvoiceGroup` components (collapsible accordion). Toggle: `budgetSection.locator('[class*="toggleBtn"]').first()` — has `aria-expanded`. MUST expand before the Edit button inside is accessible. Content panel: `[id^="invoice-group-"]`.
+- **Edit button in BudgetLineCard**: `aria-label="Edit budget line: {description}"`. Use `page.getByRole('button', { name: /Edit budget line.*{desc}/i })` to open the edit modal.
+- **EditBudgetLineModal**: rendered by `BudgetSection` (not the page itself). Modal title = `'Edit Budget Line'` (from i18n `invoiceDetail.budgetLines.modal.editTitle`). Located via `page.getByRole('dialog', { name: 'Edit Budget Line' })`.
+- **Form inputs**: `#budget-description`, `#budget-planned-amount`, `#budget-itemized-amount` (all inside the modal).
+- **Save**: `editModal.getByRole('button', { name: /Save Changes|Saving/i })`. PATCH to `/api/invoices/:invoiceId/budget-lines/:invoiceBudgetLineId`.
+- **HI budget line**: POST to `/api/household-items/:id/budgets` with `householdItemBudgetId` in the invoice link payload.
+- **Parent picker**: same as invoice-budget-line-full-edit.spec.ts patterns — expand via "Change" ghost button, search input via `parentPickerSection.getByRole('textbox')`, options portal to `document.body`.
+- **Server error**: `page.route('**/api/invoices/**/budget-lines/**', ...)` with method check for PATCH. Unroute in finally. Error renders as `editModal.locator('[role="alert"]')`.
+- **InvoiceDetailPage.openBudgetLineMenu() / clickBudgetLineMenuItem()** available at lines 999/1027 of InvoiceDetailPage.ts POM.
+
 ## Document Linking System-wide Hide E2E (Story #1557, 2026-05-22) — `e2e/tests/documents/document-linking.spec.ts`
 
 - Scenarios 7a/7b added to existing `document-linking.spec.ts` — no new file.
