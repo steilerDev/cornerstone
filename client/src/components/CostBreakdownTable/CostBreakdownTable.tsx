@@ -822,7 +822,11 @@ export function CostBreakdownTable({
     ? budgetSources.map((source: BudgetSourceSummaryBreakdown) => {
         const colorIndex = getSourceColorIndex(source.id);
         const isSelected = !deselectedSourceIds.has(source.id);
-        const allocatedCost = resolveProjected(source.projectedMin, source.projectedMax, perspective);
+        const allocatedCost = resolveProjected(
+          source.projectedMin,
+          source.projectedMax,
+          perspective,
+        );
         const payback = resolveProjected(
           source.subsidyPaybackMin,
           source.subsidyPaybackMax,
@@ -1112,11 +1116,7 @@ export function CostBreakdownTable({
                   </tr>
                   {adjSectionExpanded &&
                     subsidyAdjustments.map((adj: SubsidyAdjustment) => {
-                      const adjExcess = resolveProjected(
-                        adj.minExcess,
-                        adj.maxExcess,
-                        perspective,
-                      );
+                      const adjExcess = resolveProjected(adj.minExcess, adj.maxExcess, perspective);
                       return (
                         <tr key={adj.subsidyProgramId} className={styles.rowLevel1}>
                           <td className={`${styles.colName} ${styles.cellLevel1Name}`}>

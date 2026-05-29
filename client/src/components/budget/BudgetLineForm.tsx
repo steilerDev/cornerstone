@@ -285,10 +285,7 @@ export function BudgetLineForm({
 
               <div className={styles.computedTotal}>
                 <label className={styles.label}>{t('budgetLineForm.totalLabel')}</label>
-                <div className={styles.computedValue}>
-                  €
-                  {computedTotal}
-                </div>
+                <div className={styles.computedValue}>€{computedTotal}</div>
               </div>
             </div>
 

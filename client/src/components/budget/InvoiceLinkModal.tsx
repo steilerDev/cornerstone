@@ -203,15 +203,16 @@ export function InvoiceLinkModal({
 
   const parsedAmount = parseFloat(itemizedAmount);
   const amountAvailable = remainingAmount - parsedAmount;
-  const amountIndicator = selectedInvoice && !isNaN(parsedAmount) ? (
-    <div
-      className={`${styles.amountIndicator} ${amountAvailable < 0 ? styles.amountIndicatorWarning : ''}`}
-    >
-      {amountAvailable < 0
-        ? `${formatCurrency(Math.abs(amountAvailable))} over available`
-        : `${formatCurrency(amountAvailable)} will remain`}
-    </div>
-  ) : null;
+  const amountIndicator =
+    selectedInvoice && !isNaN(parsedAmount) ? (
+      <div
+        className={`${styles.amountIndicator} ${amountAvailable < 0 ? styles.amountIndicatorWarning : ''}`}
+      >
+        {amountAvailable < 0
+          ? `${formatCurrency(Math.abs(amountAvailable))} over available`
+          : `${formatCurrency(amountAvailable)} will remain`}
+      </div>
+    ) : null;
 
   return (
     <Modal

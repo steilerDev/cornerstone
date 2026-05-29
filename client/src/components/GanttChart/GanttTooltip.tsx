@@ -209,8 +209,9 @@ function WorkItemTooltipContent({
   // the dependencies block and removing the trailing separator from the variance branch.
   const hasOwner = data.assignedUserName !== null;
 
-  const durationVariance =
-    hasBothDurations ? data.actualDurationDays! - data.plannedDurationDays! : null;
+  const durationVariance = hasBothDurations
+    ? data.actualDurationDays! - data.plannedDurationDays!
+    : null;
   const absDurationVariance = durationVariance !== null ? Math.abs(durationVariance) : 0;
   const varianceLabel =
     durationVariance !== null && durationVariance !== 0
@@ -219,9 +220,7 @@ function WorkItemTooltipContent({
         : `-${absDurationVariance}`
       : null;
   const varianceDayWord =
-    absDurationVariance === 1
-      ? t('gantt.tooltip.duration.day')
-      : t('gantt.tooltip.duration.days');
+    absDurationVariance === 1 ? t('gantt.tooltip.duration.day') : t('gantt.tooltip.duration.days');
   const varianceClass =
     durationVariance !== null && durationVariance > 0
       ? styles.detailValueOverPlan

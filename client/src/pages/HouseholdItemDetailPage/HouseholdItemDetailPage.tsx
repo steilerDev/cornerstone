@@ -859,9 +859,7 @@ export function HouseholdItemDetailPage() {
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
-              <span className={styles.categoryBadge}>
-                {categoryDisplayName}
-              </span>
+              <span className={styles.categoryBadge}>{categoryDisplayName}</span>
               <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
             </div>
           </div>
