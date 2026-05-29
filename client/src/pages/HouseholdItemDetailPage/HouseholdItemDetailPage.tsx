@@ -273,7 +273,12 @@ export function HouseholdItemDetailPage() {
       }
     }
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    const itemCategory = categories.find((c) => c.id === item.category);
+  const categoryDisplayName = itemCategory
+    ? getCategoryDisplayName(tSettings, itemCategory.name, itemCategory.translationKey)
+    : item.category;
+
+  return () => document.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleteModal, isDeleting, deleteError]);
 
@@ -765,11 +770,7 @@ export function HouseholdItemDetailPage() {
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
               <span className={styles.categoryBadge}>
-                {(() => {
-                  const category = categories.find((c) => c.id === item.category);
-                  if (!category) return item.category;
-                  return getCategoryDisplayName(tSettings, category.name, category.translationKey);
-                })()}
+                {categoryDisplayName}
               </span>
               <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
             </div>

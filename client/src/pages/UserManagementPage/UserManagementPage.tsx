@@ -420,7 +420,11 @@ export function UserManagementPage() {
     };
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
-    return () => {
+    const deactivateModalMessageParts = deactivatingUser
+    ? t('userManagement.deactivateModal.message', { name: '\u0000' }).split('\u0000')
+    : null;
+
+  return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
@@ -616,18 +620,13 @@ export function UserManagementPage() {
             </div>
           )}
           <p>
-            {(() => {
-              const parts = t('userManagement.deactivateModal.message', {
-                name: '\u0000',
-              }).split('\u0000');
-              return (
-                <>
-                  {parts[0]}
-                  <strong>{deactivatingUser.displayName}</strong>
-                  {parts[1]}
-                </>
-              );
-            })()}
+            {deactivateModalMessageParts && (
+              <>
+                {deactivateModalMessageParts[0]}
+                <strong>{deactivatingUser!.displayName}</strong>
+                {deactivateModalMessageParts[1]}
+              </>
+            )}
           </p>
         </Modal>
       )}

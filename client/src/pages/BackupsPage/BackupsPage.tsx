@@ -159,7 +159,11 @@ export function BackupsPage() {
 
   // If restore has been initiated, show the restarting message
   if (restoreInitiated) {
-    return (
+    const deleteModalMessageParts = deleteTarget
+    ? t('backups.deleteModal.message', { filename: '\u0000' }).split('\u0000')
+    : null;
+
+  return (
       <PageLayout
         maxWidth="narrow"
         title={t('backups.pageTitle')}
@@ -309,18 +313,13 @@ export function BackupsPage() {
             </div>
           )}
           <p>
-            {(() => {
-              const parts = t('backups.deleteModal.message', {
-                filename: '\u0000',
-              }).split('\u0000');
-              return (
-                <>
-                  {parts[0]}
-                  <strong>{deleteTarget.filename}</strong>
-                  {parts[1]}
-                </>
-              );
-            })()}
+            {deleteModalMessageParts && (
+              <>
+                {deleteModalMessageParts[0]}
+                <strong>{deleteTarget!.filename}</strong>
+                {deleteModalMessageParts[1]}
+              </>
+            )}
           </p>
           <p className={styles.warningText}>{t('backups.deleteModal.warning')}</p>
         </Modal>

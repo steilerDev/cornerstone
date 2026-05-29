@@ -820,6 +820,81 @@ export function CostBreakdownTable({
   const hiSectionExpanded = expandedKeys.has(hiSectionKey);
   const availFundsExpanded = expandedKeys.has(availFundsKey);
 
+  // Subsidy adjustments section state (extracted from JSX)
+  const adjSectionKey = 'adj-section';
+  const adjSectionExpanded = expandedKeys.has(adjSectionKey);
+
+  // Source detail rows for expanded available-funds section
+  const sourceDetailRows: React.ReactNode[] = availFundsExpanded
+    ? budgetSources.map((source: BudgetSourceSummaryBreakdown) => {
+        const colorIndex = getSourceColorIndex(source.id);
+        const isSelected = !deselectedSourceIds.has(source.id);
+        const allocatedCost = resolveProjected(source.projectedMin, source.projectedMax, perspective);
+        const payback = resolveProjected(
+          source.subsidyPaybackMin,
+          source.subsidyPaybackMax,
+          perspective,
+        );
+        const net = source.totalAmount + payback - allocatedCost;
+        const rowStyle = {
+          '--chip-dot': `var(--color-source-${colorIndex}-dot)`,
+        } as React.CSSProperties;
+        const displayName =
+          source.id === 'unassigned'
+            ? t('overview.costBreakdown.sourceFilter.unassigned')
+            : source.name;
+        return (
+          <tr
+            key={source.id}
+            role="button"
+            tabIndex={0}
+            aria-pressed={isSelected}
+            aria-label={
+              isSelected
+                ? t('overview.costBreakdown.sourceRow.selectedAriaLabel', { name: displayName })
+                : t('overview.costBreakdown.sourceRow.deselectedAriaLabel', { name: displayName })
+            }
+            className={`${styles.rowSourceDetail} ${styles.rowSourceDetailToggle}`}
+            style={rowStyle}
+            onClick={() => onSourceToggle(source.id === 'unassigned' ? null : source.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSourceToggle(source.id === 'unassigned' ? null : source.id);
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                onSelectAllSources();
+              }
+            }}
+          >
+            <td className={styles.colName}>
+              <div className={`${styles.nameContent} ${styles.nameIndented}`}>
+                <span
+                  className={styles.sourceDot}
+                  style={{ backgroundColor: 'var(--chip-dot)' }}
+                  aria-hidden="true"
+                />
+                <span>{displayName}</span>
+              </div>
+            </td>
+            <td className={styles.colBudget}>
+              <span className={styles.valueNegative}>
+                {formatCost(allocatedCost, formatCurrency)}
+              </span>
+            </td>
+            <td className={styles.colPayback}>
+              <span className={styles.valuePositive}>{formatCurrency(payback)}</span>
+            </td>
+            <td className={styles.colRemaining}>
+              <span className={net >= 0 ? styles.valuePositive : styles.valueNegative}>
+                {formatCurrency(net)}
+              </span>
+            </td>
+          </tr>
+        );
+      })
+    : [];
+
   return (
     <FormatterContext.Provider value={formatCurrency}>
       <BreakdownContext.Provider
@@ -1016,67 +1091,62 @@ export function CostBreakdownTable({
               </tbody>
 
               {/* ===== SUBSIDY ADJUSTMENTS SECTION ===== */}
-              {subsidyAdjustments.length > 0 &&
-                (() => {
-                  const adjSectionKey = 'adj-section';
-                  const adjSectionExpanded = expandedKeys.has(adjSectionKey);
-                  return (
-                    <tbody>
-                      <tr className={styles.rowLevel0}>
-                        <td className={styles.colName}>
-                          <div className={styles.nameContent}>
-                            <button
-                              type="button"
-                              className={styles.expandBtn}
-                              aria-expanded={adjSectionExpanded}
-                              aria-label="Expand subsidy adjustments"
-                              onClick={() => toggle(adjSectionKey)}
-                            >
-                              <ChevronSvg
-                                className={`${styles.chevron} ${adjSectionExpanded ? styles.chevronOpen : ''}`}
-                              />
-                            </button>
-                            <span>{t('overview.costBreakdown.subsidyAdjustments')}</span>
-                          </div>
-                        </td>
-                        <td className={styles.colBudget} />
-                        <td className={styles.colPayback} colSpan={2}>
-                          <span className={styles.adjustmentValue}>
-                            {formatCost(resolvedTotalExcess, formatCurrency)}
-                          </span>
-                        </td>
-                      </tr>
-                      {adjSectionExpanded &&
-                        subsidyAdjustments.map((adj: SubsidyAdjustment) => {
-                          const adjExcess = resolveProjected(
-                            adj.minExcess,
-                            adj.maxExcess,
-                            perspective,
-                          );
-                          return (
-                            <tr key={adj.subsidyProgramId} className={styles.rowLevel1}>
-                              <td className={`${styles.colName} ${styles.cellLevel1Name}`}>
-                                <div className={styles.adjustmentName}>
-                                  <span>{adj.name}</span>
-                                  <span className={styles.adjustmentHint}>
-                                    {t('overview.costBreakdown.oversubscribed', {
-                                      amount: formatCurrency(adj.maximumAmount),
-                                    })}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className={styles.colBudget} />
-                              <td className={styles.colPayback} colSpan={2}>
-                                <span className={styles.adjustmentValue}>
-                                  {formatCost(adjExcess, formatCurrency)}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  );
-                })()}
+              {subsidyAdjustments.length > 0 && (
+                <tbody>
+                  <tr className={styles.rowLevel0}>
+                    <td className={styles.colName}>
+                      <div className={styles.nameContent}>
+                        <button
+                          type="button"
+                          className={styles.expandBtn}
+                          aria-expanded={adjSectionExpanded}
+                          aria-label="Expand subsidy adjustments"
+                          onClick={() => toggle(adjSectionKey)}
+                        >
+                          <ChevronSvg
+                            className={`${styles.chevron} ${adjSectionExpanded ? styles.chevronOpen : ''}`}
+                          />
+                        </button>
+                        <span>{t('overview.costBreakdown.subsidyAdjustments')}</span>
+                      </div>
+                    </td>
+                    <td className={styles.colBudget} />
+                    <td className={styles.colPayback} colSpan={2}>
+                      <span className={styles.adjustmentValue}>
+                        {formatCost(resolvedTotalExcess, formatCurrency)}
+                      </span>
+                    </td>
+                  </tr>
+                  {adjSectionExpanded &&
+                    subsidyAdjustments.map((adj: SubsidyAdjustment) => {
+                      const adjExcess = resolveProjected(
+                        adj.minExcess,
+                        adj.maxExcess,
+                        perspective,
+                      );
+                      return (
+                        <tr key={adj.subsidyProgramId} className={styles.rowLevel1}>
+                          <td className={`${styles.colName} ${styles.cellLevel1Name}`}>
+                            <div className={styles.adjustmentName}>
+                              <span>{adj.name}</span>
+                              <span className={styles.adjustmentHint}>
+                                {t('overview.costBreakdown.oversubscribed', {
+                                  amount: formatCurrency(adj.maximumAmount),
+                                })}
+                              </span>
+                            </div>
+                          </td>
+                          <td className={styles.colBudget} />
+                          <td className={styles.colPayback} colSpan={2}>
+                            <span className={styles.adjustmentValue}>
+                              {formatCost(adjExcess, formatCurrency)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              )}
 
               {/* ===== SUMMARY SECTION (no column tints) ===== */}
               <tbody>
@@ -1142,93 +1212,7 @@ export function CostBreakdownTable({
                 </tr>
 
                 {/* Source detail rows as toggle buttons */}
-                {availFundsExpanded &&
-                  (() => {
-                    const sourceRows: React.ReactNode[] = [];
-
-                    budgetSources.forEach((source: BudgetSourceSummaryBreakdown) => {
-                      const colorIndex = getSourceColorIndex(source.id);
-                      const isSelected = !deselectedSourceIds.has(source.id);
-                      const allocatedCost = resolveProjected(
-                        source.projectedMin,
-                        source.projectedMax,
-                        perspective,
-                      );
-                      const payback = resolveProjected(
-                        source.subsidyPaybackMin,
-                        source.subsidyPaybackMax,
-                        perspective,
-                      );
-                      const net = source.totalAmount + payback - allocatedCost;
-                      const rowStyle = {
-                        '--chip-dot': `var(--color-source-${colorIndex}-dot)`,
-                      } as React.CSSProperties;
-                      const displayName =
-                        source.id === 'unassigned'
-                          ? t('overview.costBreakdown.sourceFilter.unassigned')
-                          : source.name;
-
-                      sourceRows.push(
-                        <tr
-                          key={source.id}
-                          role="button"
-                          tabIndex={0}
-                          aria-pressed={isSelected}
-                          aria-label={
-                            isSelected
-                              ? t('overview.costBreakdown.sourceRow.selectedAriaLabel', {
-                                  name: displayName,
-                                })
-                              : t('overview.costBreakdown.sourceRow.deselectedAriaLabel', {
-                                  name: displayName,
-                                })
-                          }
-                          className={`${styles.rowSourceDetail} ${styles.rowSourceDetailToggle}`}
-                          style={rowStyle}
-                          onClick={() =>
-                            onSourceToggle(source.id === 'unassigned' ? null : source.id)
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              onSourceToggle(source.id === 'unassigned' ? null : source.id);
-                            } else if (e.key === 'Escape') {
-                              e.preventDefault();
-                              onSelectAllSources();
-                            }
-                          }}
-                        >
-                          <td className={styles.colName}>
-                            <div className={`${styles.nameContent} ${styles.nameIndented}`}>
-                              <span
-                                className={styles.sourceDot}
-                                style={{ backgroundColor: 'var(--chip-dot)' }}
-                                aria-hidden="true"
-                              />
-                              <span>{displayName}</span>
-                            </div>
-                          </td>
-                          <td className={styles.colBudget}>
-                            <span className={styles.valueNegative}>
-                              {formatCost(allocatedCost, formatCurrency)}
-                            </span>
-                          </td>
-                          <td className={styles.colPayback}>
-                            <span className={styles.valuePositive}>{formatCurrency(payback)}</span>
-                          </td>
-                          <td className={styles.colRemaining}>
-                            <span
-                              className={net >= 0 ? styles.valuePositive : styles.valueNegative}
-                            >
-                              {formatCurrency(net)}
-                            </span>
-                          </td>
-                        </tr>,
-                      );
-                    });
-
-                    return sourceRows;
-                  })()}
+                {availFundsExpanded && sourceDetailRows}
 
                 {/* Remaining Budget row */}
                 <tr className={`${styles.rowLevel0} ${styles.rowSummary}`}>
