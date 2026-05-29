@@ -273,12 +273,7 @@ export function HouseholdItemDetailPage() {
       }
     }
     document.addEventListener('keydown', handleKeyDown);
-    const itemCategory = categories.find((c) => c.id === item.category);
-  const categoryDisplayName = itemCategory
-    ? getCategoryDisplayName(tSettings, itemCategory.name, itemCategory.translationKey)
-    : item.category;
-
-  return () => document.removeEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeleteModal, isDeleting, deleteError]);
 
@@ -721,6 +716,11 @@ export function HouseholdItemDetailPage() {
   const availableSubsidies = allSubsidyPrograms.filter(
     (prog) => !linkedSubsidies.some((linked) => linked.id === prog.id),
   );
+
+  const itemCategory = categories.find((c) => c.id === item.category);
+  const categoryDisplayName = itemCategory
+    ? getCategoryDisplayName(tSettings, itemCategory.name, itemCategory.translationKey)
+    : item.category;
 
   return (
     <div className={styles.container}>

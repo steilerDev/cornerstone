@@ -420,11 +420,7 @@ export function UserManagementPage() {
     };
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
-    const deactivateModalMessageParts = deactivatingUser
-    ? t('userManagement.deactivateModal.message', { name: '\u0000' }).split('\u0000')
-    : null;
-
-  return () => {
+    return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
@@ -470,6 +466,10 @@ export function UserManagementPage() {
       </div>
     );
   };
+
+  const deactivateModalMessageParts = deactivatingUser
+    ? t('userManagement.deactivateModal.message', { name: '\u0000' }).split('\u0000')
+    : null;
 
   return (
     <PageLayout

@@ -385,76 +385,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    // Endpoint handles for selected line-family shapes
-  const selectedShape = state.selectedShapeId
-    ? state.shapes.find((s) => s.id === state.selectedShapeId) ?? null
-    : null;
-  const selectedLineShape =
-    selectedShape &&
-    (selectedShape.type === 'arrow' ||
-      selectedShape.type === 'line' ||
-      selectedShape.type === 'measurement')
-      ? selectedShape
-      : null;
-  const endpointRadius = selectedLineShape
-    ? Math.max(8, selectedLineShape.strokeWidth * 1.5)
-    : 0;
-  const endpointHandles = selectedLineShape ? (
-    <>
-      <Circle
-        id={`endpoint-${selectedLineShape.id}-start`}
-        x={selectedLineShape.x1}
-        y={selectedLineShape.y1}
-        radius={endpointRadius}
-        fill="#ffffff"
-        stroke={selectedLineShape.stroke}
-        strokeWidth={2}
-        draggable
-        onDragMove={(e) => {
-          const pos = e.target.position();
-          dispatch({
-            type: 'UPDATE_SHAPE',
-            shape: { ...selectedLineShape, x1: pos.x, y1: pos.y },
-          });
-        }}
-        onDragEnd={(e) => {
-          const newX1 = e.target.x();
-          const newY1 = e.target.y();
-          const updated = { ...selectedLineShape, x1: newX1, y1: newY1 };
-          undoStack.commit(
-            undoStack.shapes.map((s) => (s.id === selectedLineShape.id ? updated : s)),
-          );
-        }}
-      />
-      <Circle
-        id={`endpoint-${selectedLineShape.id}-end`}
-        x={selectedLineShape.x2}
-        y={selectedLineShape.y2}
-        radius={endpointRadius}
-        fill="#ffffff"
-        stroke={selectedLineShape.stroke}
-        strokeWidth={2}
-        draggable
-        onDragMove={(e) => {
-          const pos = e.target.position();
-          dispatch({
-            type: 'UPDATE_SHAPE',
-            shape: { ...selectedLineShape, x2: pos.x, y2: pos.y },
-          });
-        }}
-        onDragEnd={(e) => {
-          const newX2 = e.target.x();
-          const newY2 = e.target.y();
-          const updated = { ...selectedLineShape, x2: newX2, y2: newY2 };
-          undoStack.commit(
-            undoStack.shapes.map((s) => (s.id === selectedLineShape.id ? updated : s)),
-          );
-        }}
-      />
-    </>
-  ) : null;
-
-  return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [
     inlineInput.isOpen,
     state.selectedShapeId,
@@ -853,6 +784,72 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       </section>
     );
   }
+
+  // Endpoint handles for selected line-family shapes
+  const selectedLineShapeForHandles = state.selectedShapeId
+    ? (state.shapes.find((s) => s.id === state.selectedShapeId) ?? null)
+    : null;
+  const isLineShape =
+    selectedLineShapeForHandles !== null &&
+    (selectedLineShapeForHandles.type === 'arrow' ||
+      selectedLineShapeForHandles.type === 'line' ||
+      selectedLineShapeForHandles.type === 'measurement');
+  const selectedLineShape = isLineShape ? selectedLineShapeForHandles! : null;
+  const endpointRadius = selectedLineShape ? Math.max(8, selectedLineShape.strokeWidth * 1.5) : 0;
+  const endpointHandles = selectedLineShape ? (
+    <>
+      <Circle
+        id={`endpoint-${selectedLineShape.id}-start`}
+        x={selectedLineShape.x1}
+        y={selectedLineShape.y1}
+        radius={endpointRadius}
+        fill="#ffffff"
+        stroke={selectedLineShape.stroke}
+        strokeWidth={2}
+        draggable
+        onDragMove={(e) => {
+          const pos = e.target.position();
+          dispatch({
+            type: 'UPDATE_SHAPE',
+            shape: { ...selectedLineShape, x1: pos.x, y1: pos.y },
+          });
+        }}
+        onDragEnd={(e) => {
+          const newX1 = e.target.x();
+          const newY1 = e.target.y();
+          const updated = { ...selectedLineShape, x1: newX1, y1: newY1 };
+          undoStack.commit(
+            undoStack.shapes.map((s) => (s.id === selectedLineShape.id ? updated : s)),
+          );
+        }}
+      />
+      <Circle
+        id={`endpoint-${selectedLineShape.id}-end`}
+        x={selectedLineShape.x2}
+        y={selectedLineShape.y2}
+        radius={endpointRadius}
+        fill="#ffffff"
+        stroke={selectedLineShape.stroke}
+        strokeWidth={2}
+        draggable
+        onDragMove={(e) => {
+          const pos = e.target.position();
+          dispatch({
+            type: 'UPDATE_SHAPE',
+            shape: { ...selectedLineShape, x2: pos.x, y2: pos.y },
+          });
+        }}
+        onDragEnd={(e) => {
+          const newX2 = e.target.x();
+          const newY2 = e.target.y();
+          const updated = { ...selectedLineShape, x2: newX2, y2: newY2 };
+          undoStack.commit(
+            undoStack.shapes.map((s) => (s.id === selectedLineShape.id ? updated : s)),
+          );
+        }}
+      />
+    </>
+  ) : null;
 
   return (
     <section aria-label={t('region')} className={styles.annotator}>
