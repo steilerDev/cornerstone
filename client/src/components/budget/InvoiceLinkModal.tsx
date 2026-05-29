@@ -33,7 +33,7 @@ export function InvoiceLinkModal({
   onSuccess,
   onClose,
 }: InvoiceLinkModalProps) {
-  const { formatCurrency, formatDate } = useFormatters();
+  const { formatCurrency, formatDate: _formatDate } = useFormatters();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchInput, setSearchInput] = useState<string>('');
@@ -67,7 +67,7 @@ export function InvoiceLinkModal({
           setSelectedInvoice(firstInvoice);
           await loadRemainingAmount(firstInvoice.id);
         }
-      } catch (err) {
+      } catch {
         setError({
           message: 'Failed to load invoices. Please try again.',
         });

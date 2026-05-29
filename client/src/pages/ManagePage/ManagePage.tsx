@@ -67,7 +67,7 @@ function AreasTab() {
     createArea,
     updateArea,
     deleteArea,
-    refetch,
+    refetch: _refetch,
   } = useAreas();
 
   // Create form state
@@ -588,7 +588,7 @@ function TradesTab() {
     createTrade,
     updateTrade,
     deleteTrade,
-    refetch,
+    refetch: _refetch,
   } = useTrades();
 
   // Create form state

@@ -7,7 +7,6 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
-import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
 import type * as InvoicesPageTypes from './InvoicesPage.js';
 

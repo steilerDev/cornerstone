@@ -395,11 +395,11 @@ describe('usePhotos', () => {
     });
 
     it('clears uploadProgress entry on upload failure', async () => {
-      let capturedProgressCallback: ((percent: number) => void) | undefined;
+      let _capturedProgressCallback: ((percent: number) => void) | undefined;
 
       mockUploadPhotoApi.mockImplementationOnce(
         (_entityType, _entityId, _file, _caption, onProgress) => {
-          capturedProgressCallback = onProgress as (percent: number) => void;
+          _capturedProgressCallback = onProgress as (percent: number) => void;
           return Promise.reject(new Error('Upload failed'));
         },
       );

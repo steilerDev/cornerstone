@@ -11,7 +11,7 @@
  *   - Keyboard navigation: Enter/Space clicks the card, Delete key calls onDelete
  */
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { Photo } from '@cornerstone/shared';
 import { PhotoCard } from './PhotoCard.js';

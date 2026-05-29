@@ -214,32 +214,6 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
   return tree;
 }
 
-// Flatten area tree to AreaGroup[] for rendering
-function flattenAreaTree(nodes: AreaNode[]): AreaGroup[] {
-  const result: AreaGroup[] = [];
-
-  const traverse = (node: AreaNode) => {
-    result.push({
-      areaId: node.areaId,
-      areaName: node.areaName,
-      areaColor: node.areaColor,
-      depth: node.depth,
-      ancestors: node.ancestors,
-      parentGroups: node.parentGroups,
-      totalLines: node.totalLines,
-    });
-    for (const child of node.children) {
-      traverse(child);
-    }
-  };
-
-  for (const node of nodes) {
-    traverse(node);
-  }
-
-  return result;
-}
-
 // Helper to get the localized invoice status label
 function getInvoiceStatusLabel(line: BudgetSourceBudgetLine, t: (key: string) => string): string {
   if (line.invoiceLink === null) {

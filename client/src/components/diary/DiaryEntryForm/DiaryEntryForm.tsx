@@ -6,13 +6,9 @@ import type {
   DiaryInspectionOutcome,
   DiaryIssueSeverity,
   DiaryIssueResolution,
-  DailyLogMetadata,
-  SiteVisitMetadata,
-  DeliveryMetadata,
-  IssueMetadata,
   DiarySignatureEntry,
 } from '@cornerstone/shared';
-import shared from '../../../styles/shared.module.css';
+import _shared from '../../../styles/shared.module.css';
 import { SignatureSection } from '../SignatureSection/index.js';
 import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
 import styles from './DiaryEntryForm.module.css';

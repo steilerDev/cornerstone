@@ -470,7 +470,7 @@ export function getDayNameNarrow(day: number, locale = 'en-US'): string {
 }
 
 // Default English fallbacks for backward compatibility
-const MONTH_NAMES_DEFAULT = [
+const _MONTH_NAMES_DEFAULT = [
   'January',
   'February',
   'March',

@@ -3,9 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   InvoiceBudgetLineDetailResponse,
-  Vendor,
   BudgetCategory,
-  BudgetSource,
   EditAndMoveBudgetLineRequest,
 } from '@cornerstone/shared';
 import {
@@ -1104,8 +1102,8 @@ function UnassignedEditModal({
   line,
   onAssign,
   onClose,
-  error,
-  isMutating,
+  _error,
+  _isMutating,
   focusParentPicker,
   t,
   tSettings,

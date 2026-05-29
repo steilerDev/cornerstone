@@ -164,7 +164,7 @@ describe('DateFilter', () => {
 
     it('when both dates are empty, onChange receives empty string', () => {
       const mockOnChange = jest.fn();
-      const { rerender, container } = render(
+      const { rerender: _rerender, container } = render(
         <DateFilter value="from:2026-03-15" onChange={mockOnChange} />,
       );
       const dayBtn15 = findDayButton(container, 15);
@@ -232,7 +232,7 @@ describe('DateFilter', () => {
 
   describe('calendar interaction', () => {
     it('hovering over a date after start shows range highlight', () => {
-      const { rerender, container } = render(
+      const { rerender: _rerender, container } = render(
         <DateFilter value="from:2026-03-15" onChange={jest.fn()} />,
       );
       const dayBtn25 = findDayButton(container, 25);

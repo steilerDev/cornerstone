@@ -3,8 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryDetail,
-  DailyLogMetadata,
-  SiteVisitMetadata,
   DiarySignatureEntry,
 } from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
@@ -25,13 +23,13 @@ import shared from '../../styles/shared.module.css';
 import styles from './DiaryEntryDetailPage.module.css';
 
 export default function DiaryEntryDetailPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const { formatCurrency: _formatCurrency, formatDate, formatTime: _formatTime, formatDateTime } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('diary');
   const { showToast } = useToast();
-  const { user } = useAuth();
-  const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
+  const { user: _user } = useAuth();
+  const [_vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
 
   useEffect(() => {
     void fetchVendors({ pageSize: 100 })

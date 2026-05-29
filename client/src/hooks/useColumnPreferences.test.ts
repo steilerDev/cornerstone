@@ -15,11 +15,6 @@ import type * as UseColumnPreferencesModule from './useColumnPreferences.js';
 
 let useColumnPreferences: (typeof UseColumnPreferencesModule)['useColumnPreferences'];
 
-interface TestItem {
-  id: string;
-  title: string;
-  amount: number;
-}
 
 const COLUMNS: Array<{
   key: string;
