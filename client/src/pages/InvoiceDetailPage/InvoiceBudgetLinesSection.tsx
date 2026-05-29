@@ -1102,8 +1102,6 @@ function UnassignedEditModal({
   line,
   onAssign,
   onClose,
-  _error,
-  _isMutating,
   focusParentPicker,
   t,
   tSettings,
