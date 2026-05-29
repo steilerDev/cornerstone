@@ -846,6 +846,10 @@ describe('InvoiceBudgetLinesSection', () => {
       // Drive form state: set plannedAmount to '500' (includesVat defaults to true in initial form)
       fireEvent.change(screen.getByTestId('form-planned-amount'), { target: { value: '500' } });
 
+      // After eager link, loadBudgetLines() refreshes from server (#1594).
+      // Seed the mock BEFORE submit so the refresh returns the newly linked line.
+      mockFetchInvoiceBudgetLines.mockResolvedValueOnce(makeListResponse([linkedLine], 1000.0));
+
       await act(async () => {
         fireEvent.submit(screen.getByTestId('budget-line-form'));
       });
