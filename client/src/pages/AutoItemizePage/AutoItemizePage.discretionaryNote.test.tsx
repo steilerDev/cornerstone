@@ -93,7 +93,9 @@ jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
     openPicker: jest.fn(),
     closePicker: jest.fn(),
     handleSelectItem: jest.fn(),
-    showCreateBudgetLineForm: jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined),
+    showCreateBudgetLineForm: jest
+      .fn<(...args: any[]) => Promise<void>>()
+      .mockResolvedValue(undefined),
     handleCreateBudgetLine: jest.fn(),
     setPickerState: jest.fn(),
     initializeStaticData: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -474,10 +476,7 @@ describe('AutoItemizePage — discretionary funding note', () => {
 
     // Picker has a discretionary source, but line uses a different source
     mockPickerStateOverride = {
-      budgetSources: [
-        makeBudgetSource(OTHER_ID, false),
-        makeBudgetSource(DISC_ID, true),
-      ],
+      budgetSources: [makeBudgetSource(OTHER_ID, false), makeBudgetSource(DISC_ID, true)],
     };
 
     mockFetchInvoiceById.mockResolvedValue(makeInvoice());
@@ -537,10 +536,7 @@ describe('AutoItemizePage — discretionary funding note', () => {
 
   it('does NOT show discretionary note when sources exist but none are discretionary', async () => {
     mockPickerStateOverride = {
-      budgetSources: [
-        makeBudgetSource('bank-loan', false),
-        makeBudgetSource('savings', false),
-      ],
+      budgetSources: [makeBudgetSource('bank-loan', false), makeBudgetSource('savings', false)],
     };
 
     mockFetchInvoiceById.mockResolvedValue(makeInvoice());

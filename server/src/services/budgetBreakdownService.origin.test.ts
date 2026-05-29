@@ -53,7 +53,13 @@ describe('budgetBreakdownService — origin field on budget lines', () => {
 
   async function createUserWithSession(): Promise<{ cookie: string }> {
     const email = `user-${idCounter++}@example.com`;
-    const user = await userService.createLocalUser(app.db, email, 'Test User', 'password', 'member');
+    const user = await userService.createLocalUser(
+      app.db,
+      email,
+      'Test User',
+      'password',
+      'member',
+    );
     const token = sessionService.createSession(app.db, user.id, 3600);
     return { cookie: `cornerstone_session=${token}` };
   }
@@ -147,10 +153,7 @@ describe('budgetBreakdownService — origin field on budget lines', () => {
   /**
    * Fetch the breakdown via the API and return the first WI budget line found.
    */
-  async function fetchFirstWIBudgetLine(
-    cookie: string,
-    deselectedSources?: string,
-  ) {
+  async function fetchFirstWIBudgetLine(cookie: string, deselectedSources?: string) {
     const url = deselectedSources
       ? `/api/budget/breakdown?deselectedSources=${encodeURIComponent(deselectedSources)}`
       : '/api/budget/breakdown';
@@ -166,10 +169,7 @@ describe('budgetBreakdownService — origin field on budget lines', () => {
   /**
    * Fetch the breakdown via the API and return the first HI budget line found.
    */
-  async function fetchFirstHIBudgetLine(
-    cookie: string,
-    deselectedSources?: string,
-  ) {
+  async function fetchFirstHIBudgetLine(cookie: string, deselectedSources?: string) {
     const url = deselectedSources
       ? `/api/budget/breakdown?deselectedSources=${encodeURIComponent(deselectedSources)}`
       : '/api/budget/breakdown';
@@ -234,7 +234,13 @@ describe('budgetBreakdownService — origin field on budget lines', () => {
 
     app.db
       .insert(schema.workItems)
-      .values({ id: wiId, title: `Mixed WI`, status: 'not_started', createdAt: now, updatedAt: now })
+      .values({
+        id: wiId,
+        title: `Mixed WI`,
+        status: 'not_started',
+        createdAt: now,
+        updatedAt: now,
+      })
       .run();
 
     app.db
@@ -444,7 +450,11 @@ describe('budgetBreakdownService — origin field on budget lines', () => {
     // Line assigned to kept source with origin='auto'
     insertHouseholdItemLine({ origin: 'auto', budgetSourceId: sourceId, plannedAmount: 600 });
     // Line assigned to deselected source (filtered out)
-    insertHouseholdItemLine({ origin: 'manual', budgetSourceId: otherSourceId, plannedAmount: 300 });
+    insertHouseholdItemLine({
+      origin: 'manual',
+      budgetSourceId: otherSourceId,
+      plannedAmount: 300,
+    });
 
     const line = await fetchFirstHIBudgetLine(cookie, otherSourceId);
     expect(line).not.toBeNull();
@@ -495,7 +505,7 @@ describe('budgetBreakdownService — origin field on budget lines', () => {
 
   // ─── invoice + origin coexist ─────────────────────────────────────────────────
 
-  it("WI auto-origin line also has correct hasInvoice and actualCost when an invoice exists", async () => {
+  it('WI auto-origin line also has correct hasInvoice and actualCost when an invoice exists', async () => {
     const { cookie } = await createUserWithSession();
 
     const now = new Date().toISOString();
@@ -504,7 +514,13 @@ describe('budgetBreakdownService — origin field on budget lines', () => {
 
     app.db
       .insert(schema.workItems)
-      .values({ id: wiId, title: 'Invoiced WI', status: 'not_started', createdAt: now, updatedAt: now })
+      .values({
+        id: wiId,
+        title: 'Invoiced WI',
+        status: 'not_started',
+        createdAt: now,
+        updatedAt: now,
+      })
       .run();
 
     app.db

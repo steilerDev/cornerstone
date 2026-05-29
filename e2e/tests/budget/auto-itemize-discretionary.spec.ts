@@ -174,7 +174,10 @@ async function mockBudgetSources(page: Page): Promise<void> {
     }
     // Skip sub-resource paths like /api/budget-sources/:id/budget-lines
     if (
-      route.request().url().match(/\/budget-sources\/[^?/]+\//) !== null
+      route
+        .request()
+        .url()
+        .match(/\/budget-sources\/[^?/]+\//) !== null
     ) {
       await route.continue();
       return;
@@ -385,89 +388,89 @@ test(
 // Scenario 2: Discretionary note is absent when lines use a non-discretionary source
 // ─────────────────────────────────────────────────────────────────────────────
 
-test(
-  'Scenario 2: AutoItemizePage does NOT show the discretionary note when lines use a non-discretionary source',
-  async ({ page, testPrefix }) => {
-    // Skip on mobile
-    const viewportWidth = page.viewportSize()?.width ?? 1440;
-    if (viewportWidth < 860) {
-      test.skip(true, 'Functional test — desktop/tablet only (≥860px)');
-      return;
-    }
+test('Scenario 2: AutoItemizePage does NOT show the discretionary note when lines use a non-discretionary source', async ({
+  page,
+  testPrefix,
+}) => {
+  // Skip on mobile
+  const viewportWidth = page.viewportSize()?.width ?? 1440;
+  if (viewportWidth < 860) {
+    test.skip(true, 'Functional test — desktop/tablet only (≥860px)');
+    return;
+  }
 
-    const autoItemizePage = new AutoItemizePage(page);
-    let vendorId = '';
-    let invoiceId = '';
+  const autoItemizePage = new AutoItemizePage(page);
+  let vendorId = '';
+  let invoiceId = '';
 
-    try {
-      vendorId = await createVendorViaApi(page, `${testPrefix} No Disc Vendor`);
-      invoiceId = await createInvoiceViaApi(page, vendorId, {
-        amount: 1590,
-        date: '2026-06-01',
-        invoiceNumber: `${testPrefix}-NODISC-001`,
-      });
+  try {
+    vendorId = await createVendorViaApi(page, `${testPrefix} No Disc Vendor`);
+    invoiceId = await createInvoiceViaApi(page, vendorId, {
+      amount: 1590,
+      date: '2026-06-01',
+      invoiceNumber: `${testPrefix}-NODISC-001`,
+    });
 
-      await mockConfigEnabled(page);
-      await mockBudgetSources(page);
+    await mockConfigEnabled(page);
+    await mockBudgetSources(page);
 
-      const MOCK_DOC_ID = 88002;
-      await mockPaperlessDocument(page, MOCK_DOC_ID);
+    const MOCK_DOC_ID = 88002;
+    await mockPaperlessDocument(page, MOCK_DOC_ID);
 
-      // Lines use the non-discretionary source — note must NOT appear
-      await mockAutoItemizeDryRun(page, invoiceId, NON_DISCRETIONARY_SOURCE_ID);
+    // Lines use the non-discretionary source — note must NOT appear
+    await mockAutoItemizeDryRun(page, invoiceId, NON_DISCRETIONARY_SOURCE_ID);
 
-      await page.goto(`/budget/invoices/${invoiceId}/auto-itemize/${MOCK_DOC_ID}`);
-      await autoItemizePage.waitForAnalyzingDone();
+    await page.goto(`/budget/invoices/${invoiceId}/auto-itemize/${MOCK_DOC_ID}`);
+    await autoItemizePage.waitForAnalyzingDone();
 
-      // Assert: note is not visible
-      await expect(autoItemizePage.discretionaryNote).not.toBeVisible();
-    } finally {
-      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
-    }
-  },
-);
+    // Assert: note is not visible
+    await expect(autoItemizePage.discretionaryNote).not.toBeVisible();
+  } finally {
+    if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+    if (vendorId) await deleteVendorViaApi(page, vendorId);
+  }
+});
 
 // Also verify: when budgetSourceId is null on lines, note is also absent
-test(
-  'Scenario 2b: AutoItemizePage does NOT show the discretionary note when lines have null budgetSourceId',
-  async ({ page, testPrefix }) => {
-    const viewportWidth = page.viewportSize()?.width ?? 1440;
-    if (viewportWidth < 860) {
-      test.skip(true, 'Functional test — desktop/tablet only (≥860px)');
-      return;
-    }
+test('Scenario 2b: AutoItemizePage does NOT show the discretionary note when lines have null budgetSourceId', async ({
+  page,
+  testPrefix,
+}) => {
+  const viewportWidth = page.viewportSize()?.width ?? 1440;
+  if (viewportWidth < 860) {
+    test.skip(true, 'Functional test — desktop/tablet only (≥860px)');
+    return;
+  }
 
-    const autoItemizePage = new AutoItemizePage(page);
-    let vendorId = '';
-    let invoiceId = '';
+  const autoItemizePage = new AutoItemizePage(page);
+  let vendorId = '';
+  let invoiceId = '';
 
-    try {
-      vendorId = await createVendorViaApi(page, `${testPrefix} Null Src Vendor`);
-      invoiceId = await createInvoiceViaApi(page, vendorId, {
-        amount: 1590,
-        date: '2026-06-01',
-      });
+  try {
+    vendorId = await createVendorViaApi(page, `${testPrefix} Null Src Vendor`);
+    invoiceId = await createInvoiceViaApi(page, vendorId, {
+      amount: 1590,
+      date: '2026-06-01',
+    });
 
-      await mockConfigEnabled(page);
-      await mockBudgetSources(page);
+    await mockConfigEnabled(page);
+    await mockBudgetSources(page);
 
-      const MOCK_DOC_ID = 88003;
-      await mockPaperlessDocument(page, MOCK_DOC_ID);
+    const MOCK_DOC_ID = 88003;
+    await mockPaperlessDocument(page, MOCK_DOC_ID);
 
-      // Lines have null budgetSourceId — hasDiscretionaryLines is false
-      await mockAutoItemizeDryRun(page, invoiceId, null);
+    // Lines have null budgetSourceId — hasDiscretionaryLines is false
+    await mockAutoItemizeDryRun(page, invoiceId, null);
 
-      await page.goto(`/budget/invoices/${invoiceId}/auto-itemize/${MOCK_DOC_ID}`);
-      await autoItemizePage.waitForAnalyzingDone();
+    await page.goto(`/budget/invoices/${invoiceId}/auto-itemize/${MOCK_DOC_ID}`);
+    await autoItemizePage.waitForAnalyzingDone();
 
-      await expect(autoItemizePage.discretionaryNote).not.toBeVisible();
-    } finally {
-      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
-    }
-  },
-);
+    await expect(autoItemizePage.discretionaryNote).not.toBeVisible();
+  } finally {
+    if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+    if (vendorId) await deleteVendorViaApi(page, vendorId);
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: Budget Overview shows the auto-origin badge on auto-itemized lines
@@ -484,165 +487,162 @@ test(
 //   The resulting budget line appears in the budget overview as "Unassigned" (no parent
 //   work item). The auto-origin badge is rendered by BudgetLineRow when line.origin === 'auto'.
 
-test(
-  'Scenario 3: Budget Overview cost breakdown shows the auto-origin badge on auto-itemized lines',
-  async ({ page, testPrefix }) => {
-    // Skip on mobile — budget overview cost breakdown requires enough horizontal space
-    const viewportWidth = page.viewportSize()?.width ?? 1440;
-    if (viewportWidth < 768) {
-      test.skip(true, 'Budget overview cost breakdown is desktop/tablet only');
-      return;
-    }
+test('Scenario 3: Budget Overview cost breakdown shows the auto-origin badge on auto-itemized lines', async ({
+  page,
+  testPrefix,
+}) => {
+  // Skip on mobile — budget overview cost breakdown requires enough horizontal space
+  const viewportWidth = page.viewportSize()?.width ?? 1440;
+  if (viewportWidth < 768) {
+    test.skip(true, 'Budget overview cost breakdown is desktop/tablet only');
+    return;
+  }
 
-    const overviewPage = new BudgetOverviewPage(page);
-    let vendorId = '';
-    let invoiceId = '';
-    let docLinkId = '';
+  const overviewPage = new BudgetOverviewPage(page);
+  let vendorId = '';
+  let invoiceId = '';
+  let docLinkId = '';
 
-    try {
-      // Step 1: Create vendor + invoice
-      vendorId = await createVendorViaApi(page, `${testPrefix} AutoOrigin Badge Vendor`);
-      invoiceId = await createInvoiceViaApi(page, vendorId, {
-        amount: 500,
-        date: '2026-06-01',
-        invoiceNumber: `${testPrefix}-AUTOBADGE-001`,
-      });
+  try {
+    // Step 1: Create vendor + invoice
+    vendorId = await createVendorViaApi(page, `${testPrefix} AutoOrigin Badge Vendor`);
+    invoiceId = await createInvoiceViaApi(page, vendorId, {
+      amount: 500,
+      date: '2026-06-01',
+      invoiceNumber: `${testPrefix}-AUTOBADGE-001`,
+    });
 
-      // Step 2: Create a document link (fake Paperless doc id) so the commit path
-      // can validate the link exists in the DB without a real Paperless server.
-      const FAKE_DOC_ID = 88010;
-      docLinkId = await createDocumentLinkViaApi(page, 'invoice', invoiceId, FAKE_DOC_ID);
+    // Step 2: Create a document link (fake Paperless doc id) so the commit path
+    // can validate the link exists in the DB without a real Paperless server.
+    const FAKE_DOC_ID = 88010;
+    docLinkId = await createDocumentLinkViaApi(page, 'invoice', invoiceId, FAKE_DOC_ID);
 
-      // Step 3: Call the auto-itemize commit endpoint (dryRun=false) with one extracted line.
-      // This inserts a work_item_budgets row with origin='auto' and work_item_id=NULL.
-      const commitResp = await page.request.post(
-        `/api/invoices/${invoiceId}/auto-itemize`,
-        {
-          data: {
-            paperlessDocumentId: FAKE_DOC_ID,
-            mode: 'append',
-            dryRun: false,
-            lines: [
-              {
-                description: `${testPrefix} Auto-itemized roofing line`,
-                quantity: 5,
-                unit: 'm²',
-                unitPrice: 40.0,
-                totalAmount: 200.0,
-                includesVat: false,
-                vatRate: 0.19,
-                vendorName: null,
-                confidence: 0.88,
-                assignedBudgetLineId: null,
-                assignedBudgetLineType: null,
-                assignmentMode: null,
-                budgetCategoryId: null,
-                budgetSourceId: null,
-              },
-            ],
+    // Step 3: Call the auto-itemize commit endpoint (dryRun=false) with one extracted line.
+    // This inserts a work_item_budgets row with origin='auto' and work_item_id=NULL.
+    const commitResp = await page.request.post(`/api/invoices/${invoiceId}/auto-itemize`, {
+      data: {
+        paperlessDocumentId: FAKE_DOC_ID,
+        mode: 'append',
+        dryRun: false,
+        lines: [
+          {
+            description: `${testPrefix} Auto-itemized roofing line`,
+            quantity: 5,
+            unit: 'm²',
+            unitPrice: 40.0,
+            totalAmount: 200.0,
+            includesVat: false,
+            vatRate: 0.19,
+            vendorName: null,
+            confidence: 0.88,
+            assignedBudgetLineId: null,
+            assignedBudgetLineType: null,
+            assignmentMode: null,
+            budgetCategoryId: null,
+            budgetSourceId: null,
           },
-        },
-      );
-      expect(
-        commitResp.ok(),
-        `POST auto-itemize commit failed: ${commitResp.status()} — ${await commitResp.text()}`,
-      ).toBeTruthy();
+        ],
+      },
+    });
+    expect(
+      commitResp.ok(),
+      `POST auto-itemize commit failed: ${commitResp.status()} — ${await commitResp.text()}`,
+    ).toBeTruthy();
 
-      // Step 4: Navigate to budget overview and wait for data to load
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
+    // Step 4: Navigate to budget overview and wait for data to load
+    await overviewPage.goto();
+    await overviewPage.waitForLoaded();
 
-      // Step 5: The auto-itemized line is unassigned (work_item_id=NULL). In the
-      // CostBreakdownTable, unassigned budget lines appear under the Work Items section
-      // in a "No Area" grouping. Expand the Work Items section first.
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
+    // Step 5: The auto-itemized line is unassigned (work_item_id=NULL). In the
+    // CostBreakdownTable, unassigned budget lines appear under the Work Items section
+    // in a "No Area" grouping. Expand the Work Items section first.
+    await overviewPage.costBreakdownCard
+      .getByRole('button', { name: /expand work item budget by area/i })
+      .click();
 
-      // The "No Area" area row should now be visible (it contains unassigned items/lines)
-      // Expand it to reveal the budget line rows
-      const noAreaToggle = overviewPage.costBreakdownCard.getByRole('button', {
-        name: /expand no area/i,
-      });
-      // The "No Area" row may be a section that expands directly to lines without an
-      // intermediate work-item row (since origin='auto' lines have no work item).
-      // Wait for the toggle to appear and click it.
-      await noAreaToggle.waitFor({ state: 'visible' });
-      await noAreaToggle.click();
+    // The "No Area" area row should now be visible (it contains unassigned items/lines)
+    // Expand it to reveal the budget line rows
+    const noAreaToggle = overviewPage.costBreakdownCard.getByRole('button', {
+      name: /expand no area/i,
+    });
+    // The "No Area" row may be a section that expands directly to lines without an
+    // intermediate work-item row (since origin='auto' lines have no work item).
+    // Wait for the toggle to appear and click it.
+    await noAreaToggle.waitFor({ state: 'visible' });
+    await noAreaToggle.click();
 
-      // Step 6: Assert the auto-origin badge is present on the page.
-      // aria-label = t('overview.costBreakdown.autoOriginBadge.ariaLabel')
-      //            = "Budget line was created automatically via auto-itemization"
-      const autoOriginBadge = page.locator('[aria-label*="automatically"]');
-      await expect(autoOriginBadge).toBeVisible();
-    } finally {
-      if (docLinkId) await deleteDocumentLinkViaApi(page, docLinkId);
-      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
-    }
-  },
-);
+    // Step 6: Assert the auto-origin badge is present on the page.
+    // aria-label = t('overview.costBreakdown.autoOriginBadge.ariaLabel')
+    //            = "Budget line was created automatically via auto-itemization"
+    const autoOriginBadge = page.locator('[aria-label*="automatically"]');
+    await expect(autoOriginBadge).toBeVisible();
+  } finally {
+    if (docLinkId) await deleteDocumentLinkViaApi(page, docLinkId);
+    if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+    if (vendorId) await deleteVendorViaApi(page, vendorId);
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: Budget Overview shows NO auto-origin badge on manually created lines
 // ─────────────────────────────────────────────────────────────────────────────
 
-test(
-  'Scenario 4: Budget Overview cost breakdown shows NO auto-origin badge on manually created lines',
-  async ({ page, testPrefix }) => {
-    const viewportWidth = page.viewportSize()?.width ?? 1440;
-    if (viewportWidth < 768) {
-      test.skip(true, 'Budget overview cost breakdown is desktop/tablet only');
-      return;
+test('Scenario 4: Budget Overview cost breakdown shows NO auto-origin badge on manually created lines', async ({
+  page,
+  testPrefix,
+}) => {
+  const viewportWidth = page.viewportSize()?.width ?? 1440;
+  if (viewportWidth < 768) {
+    test.skip(true, 'Budget overview cost breakdown is desktop/tablet only');
+    return;
+  }
+
+  const overviewPage = new BudgetOverviewPage(page);
+  let workItemId = '';
+  let budgetLineId = '';
+
+  try {
+    // Create a work item with a manual (origin='manual') budget line via the WI budget API.
+    // The POST /api/work-items/:id/budgets schema does not accept `origin`, so any line
+    // created this way will have origin='manual' (the DB column default).
+    workItemId = await createWorkItemViaApi(page, {
+      title: `${testPrefix} Manual Budget WI`,
+    });
+
+    budgetLineId = await createWorkItemBudgetViaApi(page, workItemId, {
+      description: `${testPrefix} Manual roofing estimate`,
+      plannedAmount: 300,
+    });
+
+    // Navigate to budget overview
+    await overviewPage.goto();
+    await overviewPage.waitForLoaded();
+
+    // Expand Work Items section
+    await overviewPage.costBreakdownCard
+      .getByRole('button', { name: /expand work item budget by area/i })
+      .click();
+
+    // Expand the "No Area" section (or the work item row, whichever is visible)
+    // The work item created without an area will appear under "No Area"
+    const noAreaToggle = overviewPage.costBreakdownCard.getByRole('button', {
+      name: /expand no area/i,
+    });
+    await noAreaToggle.waitFor({ state: 'visible' });
+    await noAreaToggle.click();
+
+    // Expand the work item row to reveal its budget lines
+    await overviewPage.breakdownAreaToggle(testPrefix + ' Manual Budget WI').click();
+
+    // Assert: no auto-origin badge is present
+    // The badge only appears when line.origin === 'auto'. A manually created line
+    // has origin='manual', so the Badge component is not rendered.
+    const autoOriginBadge = page.locator('[aria-label*="automatically"]');
+    await expect(autoOriginBadge).not.toBeVisible();
+  } finally {
+    if (workItemId && budgetLineId) {
+      await deleteWorkItemBudgetViaApi(page, workItemId, budgetLineId);
     }
-
-    const overviewPage = new BudgetOverviewPage(page);
-    let workItemId = '';
-    let budgetLineId = '';
-
-    try {
-      // Create a work item with a manual (origin='manual') budget line via the WI budget API.
-      // The POST /api/work-items/:id/budgets schema does not accept `origin`, so any line
-      // created this way will have origin='manual' (the DB column default).
-      workItemId = await createWorkItemViaApi(page, {
-        title: `${testPrefix} Manual Budget WI`,
-      });
-
-      budgetLineId = await createWorkItemBudgetViaApi(page, workItemId, {
-        description: `${testPrefix} Manual roofing estimate`,
-        plannedAmount: 300,
-      });
-
-      // Navigate to budget overview
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
-
-      // Expand Work Items section
-      await overviewPage.costBreakdownCard
-        .getByRole('button', { name: /expand work item budget by area/i })
-        .click();
-
-      // Expand the "No Area" section (or the work item row, whichever is visible)
-      // The work item created without an area will appear under "No Area"
-      const noAreaToggle = overviewPage.costBreakdownCard.getByRole('button', {
-        name: /expand no area/i,
-      });
-      await noAreaToggle.waitFor({ state: 'visible' });
-      await noAreaToggle.click();
-
-      // Expand the work item row to reveal its budget lines
-      await overviewPage.breakdownAreaToggle(testPrefix + ' Manual Budget WI').click();
-
-      // Assert: no auto-origin badge is present
-      // The badge only appears when line.origin === 'auto'. A manually created line
-      // has origin='manual', so the Badge component is not rendered.
-      const autoOriginBadge = page.locator('[aria-label*="automatically"]');
-      await expect(autoOriginBadge).not.toBeVisible();
-    } finally {
-      if (workItemId && budgetLineId) {
-        await deleteWorkItemBudgetViaApi(page, workItemId, budgetLineId);
-      }
-      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-    }
-  },
-);
+    if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+  }
+});

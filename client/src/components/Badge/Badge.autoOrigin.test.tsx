@@ -35,18 +35,14 @@ describe('Badge — autoOrigin variant', () => {
   // ─── class applied ────────────────────────────────────────────────────────
 
   it("applies the autoOrigin CSS class when value='auto'", () => {
-    const { container } = render(
-      <Badge variants={AUTO_ORIGIN_VARIANTS} value="auto" />,
-    );
+    const { container } = render(<Badge variants={AUTO_ORIGIN_VARIANTS} value="auto" />);
     const span = container.querySelector('span');
     // identity-obj-proxy returns the key as its value, so badgeStyles.autoOrigin === 'autoOrigin'
     expect(span?.getAttribute('class') ?? '').toContain('autoOrigin');
   });
 
   it('also applies the base badge CSS class with the autoOrigin variant', () => {
-    const { container } = render(
-      <Badge variants={AUTO_ORIGIN_VARIANTS} value="auto" />,
-    );
+    const { container } = render(<Badge variants={AUTO_ORIGIN_VARIANTS} value="auto" />);
     const span = container.querySelector('span');
     const cls = span?.getAttribute('class') ?? '';
     expect(cls).toContain('badge');
@@ -54,9 +50,7 @@ describe('Badge — autoOrigin variant', () => {
   });
 
   it("renders the Auto-itemized label text when value='auto'", () => {
-    const { container } = render(
-      <Badge variants={AUTO_ORIGIN_VARIANTS} value="auto" />,
-    );
+    const { container } = render(<Badge variants={AUTO_ORIGIN_VARIANTS} value="auto" />);
     const span = container.querySelector('span');
     expect(span?.textContent).toBe('Auto-itemized');
   });
@@ -87,17 +81,13 @@ describe('Badge — autoOrigin variant', () => {
       auto: { label: 'Auto-itemized', className: badgeStyles.autoOrigin },
       manual: { label: 'Manual', className: '' },
     };
-    const { container } = render(
-      <Badge variants={MIXED_VARIANTS} value="manual" />,
-    );
+    const { container } = render(<Badge variants={MIXED_VARIANTS} value="manual" />);
     const span = container.querySelector('span');
     expect(span?.getAttribute('class') ?? '').not.toContain('autoOrigin');
   });
 
-  it("does NOT apply the autoOrigin CSS class for an unknown value", () => {
-    const { container } = render(
-      <Badge variants={AUTO_ORIGIN_VARIANTS} value="unknown" />,
-    );
+  it('does NOT apply the autoOrigin CSS class for an unknown value', () => {
+    const { container } = render(<Badge variants={AUTO_ORIGIN_VARIANTS} value="unknown" />);
     const span = container.querySelector('span');
     // The variant for 'unknown' is undefined, so className is not added
     expect(span?.getAttribute('class') ?? '').not.toContain('autoOrigin');

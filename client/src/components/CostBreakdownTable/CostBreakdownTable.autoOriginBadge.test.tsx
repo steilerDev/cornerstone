@@ -228,7 +228,8 @@ describe('CostBreakdownTable — autoOrigin badge on BudgetLineRow', () => {
     expandToBudgetLineLevel(container, 'Auto Line Item');
 
     // The badge text comes from the real i18n setup: 'Auto-itemized'
-    const badge = screen.queryByText('Auto-itemized') ??
+    const badge =
+      screen.queryByText('Auto-itemized') ??
       screen.queryByText(/auto.itemized/i) ??
       screen.queryByText('overview.costBreakdown.autoOriginBadge.label');
     expect(badge).not.toBeNull();
@@ -242,8 +243,7 @@ describe('CostBreakdownTable — autoOrigin badge on BudgetLineRow', () => {
     expandToBudgetLineLevel(container, 'Auto ARIA Item');
 
     // The real translated aria-label
-    const expectedAriaLabel =
-      'Budget line was created automatically via auto-itemization';
+    const expectedAriaLabel = 'Budget line was created automatically via auto-itemization';
     const fallbackKeyAriaLabel = 'overview.costBreakdown.autoOriginBadge.ariaLabel';
 
     const badgeEl =
@@ -284,7 +284,7 @@ describe('CostBreakdownTable — autoOrigin badge on BudgetLineRow', () => {
 
   // ─── DOM order: after confidence badge, before source dot ──────────────────
 
-  it("auto-origin badge appears after the confidence badge in DOM order", () => {
+  it('auto-origin badge appears after the confidence badge in DOM order', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithLine({
         origin: 'auto',
@@ -300,9 +300,10 @@ describe('CostBreakdownTable — autoOrigin badge on BudgetLineRow', () => {
     // Find the .nameContent that contains the .autoOrigin badge — only the BudgetLineRow
     // renders both .autoOrigin and .sourceBadgeDot inside the same .nameContent. Other row
     // levels also render .nameContent but without .sourceBadgeDot, so .pop()/querySelector are wrong.
-    const nameContent = Array.from(container.querySelectorAll<HTMLElement>('.nameContent')).find(
-      (el) => el.querySelector('.autoOrigin') !== null,
-    ) ?? null;
+    const nameContent =
+      Array.from(container.querySelectorAll<HTMLElement>('.nameContent')).find(
+        (el) => el.querySelector('.autoOrigin') !== null,
+      ) ?? null;
     expect(nameContent).not.toBeNull();
 
     const children = Array.from(nameContent!.querySelectorAll('span'));
@@ -331,7 +332,7 @@ describe('CostBreakdownTable — autoOrigin badge on BudgetLineRow', () => {
     void children; // suppress unused warning
   });
 
-  it("auto-origin badge appears before the source badge label in DOM order", () => {
+  it('auto-origin badge appears before the source badge label in DOM order', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithLine({ origin: 'auto', itemTitle: 'DOM Order Source Item' }),
     );
@@ -339,9 +340,10 @@ describe('CostBreakdownTable — autoOrigin badge on BudgetLineRow', () => {
     expandToBudgetLineLevel(container, 'DOM Order Source Item');
 
     // Same targeted lookup: find the .nameContent that actually contains the autoOrigin badge.
-    const nameContent = Array.from(container.querySelectorAll<HTMLElement>('.nameContent')).find(
-      (el) => el.querySelector('.autoOrigin') !== null,
-    ) ?? null;
+    const nameContent =
+      Array.from(container.querySelectorAll<HTMLElement>('.nameContent')).find(
+        (el) => el.querySelector('.autoOrigin') !== null,
+      ) ?? null;
     expect(nameContent).not.toBeNull();
 
     const autoOriginEl = container.querySelector('.autoOrigin');
@@ -357,7 +359,7 @@ describe('CostBreakdownTable — autoOrigin badge on BudgetLineRow', () => {
 
   // ─── Badge present under source-filter mode ────────────────────────────────
 
-  it("auto-origin badge still present when deselectedSourceIds does not filter out the line", () => {
+  it('auto-origin badge still present when deselectedSourceIds does not filter out the line', () => {
     const { container } = renderWithRouter(
       buildBreakdownWithLine({
         origin: 'auto',

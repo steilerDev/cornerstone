@@ -253,7 +253,12 @@ function BudgetLineRow({
           )}
           {line.origin === 'auto' && (
             <Badge
-              variants={{ auto: { label: t('overview.costBreakdown.autoOriginBadge.label'), className: badgeStyles.autoOrigin } }}
+              variants={{
+                auto: {
+                  label: t('overview.costBreakdown.autoOriginBadge.label'),
+                  className: badgeStyles.autoOrigin,
+                },
+              }}
               value="auto"
               ariaLabel={t('overview.costBreakdown.autoOriginBadge.ariaLabel')}
             />
