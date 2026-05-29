@@ -504,56 +504,56 @@ test('Scenario 2b: AutoItemizePage does NOT show the discretionary note when lin
 //  b) invoiceAutoItemizeService.ts: set origin='auto' when using assign-existing mode
 //
 // When fixed, reinstate this test with the correct navigation path.
-test.fixme(
-  'Scenario 3: Budget Overview cost breakdown shows the auto-origin badge on auto-itemized lines',
-  async ({ page, testPrefix }) => {
-    const overviewPage = new BudgetOverviewPage(page);
-    let vendorId = '';
-    let invoiceId = '';
-    let docLinkId = '';
+test.fixme('Scenario 3: Budget Overview cost breakdown shows the auto-origin badge on auto-itemized lines', async ({
+  page,
+  testPrefix,
+}) => {
+  const overviewPage = new BudgetOverviewPage(page);
+  let vendorId = '';
+  let invoiceId = '';
+  let docLinkId = '';
 
-    try {
-      vendorId = await createVendorViaApi(page, `${testPrefix} AutoOrigin Badge Vendor`);
-      invoiceId = await createInvoiceViaApi(page, vendorId, {
-        amount: 500,
-        date: '2026-06-01',
-        invoiceNumber: `${testPrefix}-AUTOBADGE-001`,
-      });
+  try {
+    vendorId = await createVendorViaApi(page, `${testPrefix} AutoOrigin Badge Vendor`);
+    invoiceId = await createInvoiceViaApi(page, vendorId, {
+      amount: 500,
+      date: '2026-06-01',
+      invoiceNumber: `${testPrefix}-AUTOBADGE-001`,
+    });
 
-      const FAKE_DOC_ID = 88010;
-      docLinkId = await createDocumentLinkViaApi(page, 'invoice', invoiceId, FAKE_DOC_ID);
+    const FAKE_DOC_ID = 88010;
+    docLinkId = await createDocumentLinkViaApi(page, 'invoice', invoiceId, FAKE_DOC_ID);
 
-      await page.request.post(`/api/invoices/${invoiceId}/auto-itemize`, {
-        data: {
-          paperlessDocumentId: FAKE_DOC_ID,
-          mode: 'append',
-          dryRun: false,
-          lines: [
-            {
-              description: `${testPrefix} Auto-itemized roofing line`,
-              totalAmount: 200.0,
-              includesVat: false,
-              confidence: 0.88,
-              assignmentMode: 'create-new',
-              budgetCategoryId: null,
-              budgetSourceId: null,
-            },
-          ],
-        },
-      });
+    await page.request.post(`/api/invoices/${invoiceId}/auto-itemize`, {
+      data: {
+        paperlessDocumentId: FAKE_DOC_ID,
+        mode: 'append',
+        dryRun: false,
+        lines: [
+          {
+            description: `${testPrefix} Auto-itemized roofing line`,
+            totalAmount: 200.0,
+            includesVat: false,
+            confidence: 0.88,
+            assignmentMode: 'create-new',
+            budgetCategoryId: null,
+            budgetSourceId: null,
+          },
+        ],
+      },
+    });
 
-      await overviewPage.goto();
-      await overviewPage.waitForLoaded();
+    await overviewPage.goto();
+    await overviewPage.waitForLoaded();
 
-      const autoOriginBadge = page.locator('[aria-label*="automatically"]');
-      await expect(autoOriginBadge).toBeVisible();
-    } finally {
-      if (docLinkId) await deleteDocumentLinkViaApi(page, docLinkId);
-      if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
-    }
-  },
-);
+    const autoOriginBadge = page.locator('[aria-label*="automatically"]');
+    await expect(autoOriginBadge).toBeVisible();
+  } finally {
+    if (docLinkId) await deleteDocumentLinkViaApi(page, docLinkId);
+    if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+    if (vendorId) await deleteVendorViaApi(page, vendorId);
+  }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: Budget Overview shows NO auto-origin badge on manually created lines
