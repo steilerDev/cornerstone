@@ -37,10 +37,7 @@ import type {
   TradeSummary,
 } from '@cornerstone/shared';
 import { schedule } from './schedulingEngine.js';
-import type {
-  SchedulingWorkItem,
-  SchedulingDependency,
-} from './schedulingEngine.js';
+import type { SchedulingWorkItem, SchedulingDependency } from './schedulingEngine.js';
 import { resolveAreaAncestors } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 

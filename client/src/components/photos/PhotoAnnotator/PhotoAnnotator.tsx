@@ -17,11 +17,7 @@ import {
 } from 'react-konva';
 import { nanoid } from 'nanoid';
 import type { Photo } from '@cornerstone/shared';
-import {
-  useAnnotator,
-  type ToolName,
-  type FontSizeKey,
-} from './useAnnotator.js';
+import { useAnnotator, type ToolName, type FontSizeKey } from './useAnnotator.js';
 import type {
   AnnotationShape,
   TextShape,

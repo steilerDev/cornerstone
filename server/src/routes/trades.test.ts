@@ -6,11 +6,7 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
-import type {
-  TradeListResponse,
-  TradeSingleResponse,
-  ApiErrorResponse,
-} from '@cornerstone/shared';
+import type { TradeListResponse, TradeSingleResponse, ApiErrorResponse } from '@cornerstone/shared';
 import { trades, vendors } from '../db/schema.js';
 
 describe('Trade Routes', () => {

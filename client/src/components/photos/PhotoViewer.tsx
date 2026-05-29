@@ -466,4 +466,3 @@ function EraserIcon() {
     </svg>
   );
 }
-

@@ -22,7 +22,12 @@ interface InvoiceFormState {
 }
 
 export function InvoiceDetailPage() {
-  const { formatCurrency, formatDate, formatTime: _formatTime, formatDateTime: _formatDateTime } = useFormatters();
+  const {
+    formatCurrency,
+    formatDate,
+    formatTime: _formatTime,
+    formatDateTime: _formatDateTime,
+  } = useFormatters();
   const { t } = useTranslation('budget');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

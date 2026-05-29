@@ -88,7 +88,11 @@ interface SourceBarChartProps {
   formatPercent: (value: number) => string;
 }
 
-function SourceBarChart({ source, formatCurrency, formatPercent: _formatPercent }: SourceBarChartProps) {
+function SourceBarChart({
+  source,
+  formatCurrency,
+  formatPercent: _formatPercent,
+}: SourceBarChartProps) {
   const { t } = useTranslation('budget');
   const [hoveredSegment, setHoveredSegment] = useState<BudgetBarSegment | null>(null);
   const handleSegmentHover = useCallback((seg: BudgetBarSegment | null) => {

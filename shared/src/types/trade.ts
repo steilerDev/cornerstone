@@ -4,7 +4,6 @@
  * Vendors are associated with trades to indicate their area of expertise.
  */
 
-
 /**
  * Trade summary shape used in vendor and work item responses.
  */

@@ -15,7 +15,6 @@ import type * as UseColumnPreferencesModule from './useColumnPreferences.js';
 
 let useColumnPreferences: (typeof UseColumnPreferencesModule)['useColumnPreferences'];
 
-
 const COLUMNS: Array<{
   key: string;
   label: string;

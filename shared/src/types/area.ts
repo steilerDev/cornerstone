@@ -4,7 +4,6 @@
  * Areas can have parent-child relationships (e.g., Kitchen > Kitchen Cabinets).
  */
 
-
 /**
  * A single ancestor entry in the area parent chain.
  * Contains only the fields needed for breadcrumb rendering.

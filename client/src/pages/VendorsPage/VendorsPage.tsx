@@ -52,7 +52,13 @@ export function VendorsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Table state management with URL sync
-  const { tableState, searchInput: _searchInput, setSearch: _setSearch, toApiParams, setFilter: _setFilter } = useTableState({
+  const {
+    tableState,
+    searchInput: _searchInput,
+    setSearch: _setSearch,
+    toApiParams,
+    setFilter: _setFilter,
+  } = useTableState({
     defaultPageSize: 25,
   });
   const [searchParams, setSearchParams] = useSearchParams();

@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type {
-  DiaryEntryDetail,
-  DiarySignatureEntry,
-} from '@cornerstone/shared';
+import type { DiaryEntryDetail, DiarySignatureEntry } from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
@@ -23,7 +20,12 @@ import shared from '../../styles/shared.module.css';
 import styles from './DiaryEntryDetailPage.module.css';
 
 export default function DiaryEntryDetailPage() {
-  const { formatCurrency: _formatCurrency, formatDate, formatTime: _formatTime, formatDateTime } = useFormatters();
+  const {
+    formatCurrency: _formatCurrency,
+    formatDate,
+    formatTime: _formatTime,
+    formatDateTime,
+  } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('diary');

@@ -70,8 +70,6 @@ function resolveProjected(
   return (projectedMin + projectedMax) / 2;
 }
 
-
-
 /**
  * Formats cost with explicit minus sign.
  * Must be called with the formatCurrency function from useFormatterContext or useFormatters.

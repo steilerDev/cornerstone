@@ -18,7 +18,12 @@ interface PasswordFormErrors {
 
 export function ProfilePage() {
   const { t } = useTranslation('settings');
-  const { formatCurrency: _formatCurrency, formatDate, formatTime: _formatTime, formatDateTime: _formatDateTime } = useFormatters();
+  const {
+    formatCurrency: _formatCurrency,
+    formatDate,
+    formatTime: _formatTime,
+    formatDateTime: _formatDateTime,
+  } = useFormatters();
   const { user, isLoading, error: loadError, refreshAuth } = useAuth();
   const { locale, setLocale } = useLocale();
 
