@@ -31,7 +31,7 @@ import { API } from '../../fixtures/testData.js';
 // ─────────────────────────────────────────────────────────────────────────────
 test.beforeEach(async ({ page }, testInfo) => {
   mkdirSync('playwright-output/hars', { recursive: true });
-  const harPath = `playwright-output/hars/${testInfo.title.replace(/[^a-z0-9]/gi, '_')}.har`;
+  const harPath = `playwright-output/hars/${testInfo.project.name}_${testInfo.workerIndex}_${testInfo.title.replace(/[^a-z0-9]/gi, '_')}.har`;
   await page.context().tracing.startHar(harPath, { content: 'omit' });
 });
 

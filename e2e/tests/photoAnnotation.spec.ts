@@ -47,8 +47,7 @@
  * 23. Selecting a different color swatch changes the active color for new shapes
  */
 
-import { readFileSync } from 'fs';
-import { mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'url';
 import type { Page, Route, Request } from '@playwright/test';
 import { test, expect } from '../fixtures/auth.js';
@@ -61,7 +60,7 @@ import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../fixtures/apiH
 // ─────────────────────────────────────────────────────────────────────────────
 test.beforeEach(async ({ page }, testInfo) => {
   mkdirSync('playwright-output/hars', { recursive: true });
-  const harPath = `playwright-output/hars/${testInfo.title.replace(/[^a-z0-9]/gi, '_')}.har`;
+  const harPath = `playwright-output/hars/${testInfo.project.name}_${testInfo.workerIndex}_${testInfo.title.replace(/[^a-z0-9]/gi, '_')}.har`;
   await page.context().tracing.startHar(harPath, { content: 'omit' });
 });
 
