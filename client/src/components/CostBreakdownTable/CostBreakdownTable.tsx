@@ -689,7 +689,7 @@ export function CostBreakdownTable({
 }: CostBreakdownTableProps) {
   const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
   const [perspective, setPerspective] = useState<CostPerspective>('avg');
   const budgetSources: BudgetSourceSummaryBreakdown[] = breakdown.budgetSources ?? [];
 
