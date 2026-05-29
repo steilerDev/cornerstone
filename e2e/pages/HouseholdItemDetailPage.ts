@@ -71,8 +71,10 @@ export class HouseholdItemDetailPage {
     // areaBreadcrumbNav retained for negative assertions (must NOT be visible).
     this.areaBreadcrumbNav = page.getByRole('navigation', { name: /area path/i });
 
-    // Budget section
-    this.budgetSection = page.locator('[class*="budgetSection"], [class*="budget"]').first();
+    // Budget section — scoped by h2 heading text (mirrors WorkItemDetailPage.ts pattern)
+    this.budgetSection = page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { level: 2, name: 'Budget', exact: true }) });
 
     // Documents section
     this.documentsHeading = page.getByRole('heading', { level: 2, name: 'Documents', exact: true });

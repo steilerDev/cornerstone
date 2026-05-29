@@ -32,6 +32,7 @@ import { FormError } from '../../components/FormError/FormError.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { useBudgetLinePicker } from '../../hooks/useBudgetLinePicker.js';
+import { EditBudgetLineModal } from '../../components/budget/EditBudgetLineModal.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoiceBudgetLinesSection.module.css';
 
@@ -982,46 +983,88 @@ export function InvoiceBudgetLinesSection({
 
       {/* Edit budget line modal */}
       {budgetLineModalMode === 'edit' && selectedBudgetLine && (
-        <EditBudgetLineModal
-          line={selectedBudgetLine}
-          fullForm={
-            budgetLineFullForm ??
-            ({
-              description: '',
-              plannedAmount: '',
-              confidence: 'own_estimate',
-              budgetCategoryId: '',
-              budgetSourceId: '',
-              vendorId: '',
-              pricingMode: 'direct',
-              quantity: '',
-              unit: '',
-              unitPrice: '',
-              includesVat: true,
-            } as BudgetLineFormState)
-          }
-          onFullFormChange={(updates) =>
-            setBudgetLineFullForm((prev) => (prev ? { ...prev, ...updates } : null))
-          }
-          itemizedAmount={budgetLineItemizedAmount}
-          onItemizedAmountChange={setBudgetLineItemizedAmount}
-          onSubmit={
-            selectedBudgetLine.parentItemType === 'unassigned'
-              ? () => {}
-              : handleBudgetLineFullEditSubmit
-          }
-          onMove={handleMoveBudgetLine}
-          onAssign={handleAssignBudgetLine}
-          onClose={closeBudgetLineModal}
-          error={budgetLineFormError}
-          isMutating={isBudgetLineMutating}
-          focusParentPicker={openedWithFocusParentPicker}
-          budgetSources={picker.pickerState.budgetSources ?? []}
-          vendors={picker.pickerState.vendors ?? []}
-          budgetCategories={picker.pickerState.categories ?? undefined}
-          t={t}
-          tSettings={tSettings}
-        />
+        selectedBudgetLine.parentItemType === 'unassigned' ? (
+          <UnassignedEditModal
+            line={selectedBudgetLine}
+            onAssign={handleAssignBudgetLine}
+            onClose={closeBudgetLineModal}
+            error={budgetLineFormError}
+            isMutating={isBudgetLineMutating}
+            focusParentPicker={openedWithFocusParentPicker}
+            t={t}
+            tSettings={tSettings}
+          />
+        ) : (
+          <EditBudgetLineModal
+            line={{
+              id: selectedBudgetLine.id,
+              description: selectedBudgetLine.budgetLineDescription,
+              plannedAmount: selectedBudgetLine.plannedAmount,
+              confidence: selectedBudgetLine.confidence,
+              budgetCategory: selectedBudgetLine.categoryId
+                ? ({
+                    id: selectedBudgetLine.categoryId,
+                    name: selectedBudgetLine.categoryName ?? '',
+                    translationKey: selectedBudgetLine.categoryTranslationKey ?? '',
+                    description: '',
+                    color: selectedBudgetLine.categoryColor ?? '',
+                    sortOrder: 0,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  } as BudgetCategory)
+                : null,
+              budgetSource: selectedBudgetLine.budgetSourceId
+                ? { id: selectedBudgetLine.budgetSourceId, name: '' }
+                : null,
+              vendor: selectedBudgetLine.vendorId
+                ? { id: selectedBudgetLine.vendorId, name: '' }
+                : null,
+              quantity: selectedBudgetLine.quantity,
+              unit: selectedBudgetLine.unit,
+              unitPrice: selectedBudgetLine.unitPrice,
+              includesVat: selectedBudgetLine.includesVat ?? true,
+              invoiceLink: {
+                invoiceBudgetLineId: selectedBudgetLine.id,
+                invoiceId: selectedBudgetLine.invoiceId,
+                itemizedAmount: selectedBudgetLine.itemizedAmount,
+              },
+              parentItemType: selectedBudgetLine.parentItemType as 'work_item' | 'household_item',
+              parentItemId: selectedBudgetLine.parentItemId,
+              parentItemTitle: selectedBudgetLine.parentItemTitle,
+            }}
+            fullForm={
+              budgetLineFullForm ??
+              ({
+                description: '',
+                plannedAmount: '',
+                confidence: 'own_estimate',
+                budgetCategoryId: '',
+                budgetSourceId: '',
+                vendorId: '',
+                pricingMode: 'direct',
+                quantity: '',
+                unit: '',
+                unitPrice: '',
+                includesVat: true,
+              } as BudgetLineFormState)
+            }
+            onFullFormChange={(updates) =>
+              setBudgetLineFullForm((prev) => (prev ? { ...prev, ...updates } : null))
+            }
+            itemizedAmount={budgetLineItemizedAmount}
+            onItemizedAmountChange={setBudgetLineItemizedAmount}
+            onSubmit={handleBudgetLineFullEditSubmit}
+            onMove={handleMoveBudgetLine}
+            onClose={closeBudgetLineModal}
+            error={budgetLineFormError}
+            isMutating={isBudgetLineMutating}
+            focusParentPicker={openedWithFocusParentPicker}
+            budgetSources={picker.pickerState.budgetSources ?? []}
+            vendors={picker.pickerState.vendors ?? []}
+            budgetCategories={picker.pickerState.categories ?? undefined}
+            modalTitle={t('invoiceDetail.budgetLines.modal.editTitle')}
+          />
+        )
       )}
 
       {/* Delete budget line modal */}
@@ -1040,125 +1083,76 @@ export function InvoiceBudgetLinesSection({
 }
 
 // ============================================================================
-// Sub-component: EditBudgetLineModal
+// Sub-component: UnassignedEditModal (local, for unassigned budget lines only)
 // ============================================================================
 
-interface EditBudgetLineModalProps {
+interface UnassignedEditModalProps {
   line: InvoiceBudgetLineDetailResponse;
-  fullForm: BudgetLineFormState;
-  onFullFormChange: (updates: Partial<BudgetLineFormState>) => void;
-  itemizedAmount: string;
-  onItemizedAmountChange: (value: string) => void;
-  onSubmit: (e: FormEvent) => void;
-  onMove: (parentType: 'work_item' | 'household_item', parentId: string) => Promise<void>;
   onAssign?: (body: BudgetLineAssignRequest) => Promise<void>;
   onClose: () => void;
   error: string;
   isMutating: boolean;
   focusParentPicker?: boolean;
-  budgetSources: BudgetSource[];
-  vendors: Vendor[];
-  budgetCategories?: BudgetCategory[];
   t: (key: string, opts?: Record<string, unknown>) => string;
   tSettings: (key: string) => string;
 }
 
-function EditBudgetLineModal({
+function UnassignedEditModal({
   line,
-  fullForm,
-  onFullFormChange,
-  itemizedAmount,
-  onItemizedAmountChange,
-  onSubmit,
-  onMove,
   onAssign,
   onClose,
   error,
   isMutating,
   focusParentPicker,
-  budgetSources,
-  vendors,
-  budgetCategories,
   t,
   tSettings,
-}: EditBudgetLineModalProps) {
-  const isUnassigned = line.parentItemType === 'unassigned';
-
+}: UnassignedEditModalProps) {
   return (
     <Modal title={t('invoiceDetail.budgetLines.modal.editTitle')} onClose={onClose}>
-      {isUnassigned ? (
-        // For unassigned budget lines, show the BudgetLineForm with parent picker
-        <BudgetLineForm
-          form={{
-            description: line.budgetLineDescription || '',
-            plannedAmount: line.plannedAmount.toString(),
-            confidence: line.confidence,
-            budgetCategoryId: line.categoryId || '',
-            budgetSourceId: '',
-            vendorId: '',
-            pricingMode: 'direct',
-            quantity: '',
-            unit: '',
-            unitPrice: '',
-            includesVat: false,
-          }}
-          onSubmit={() => {}}
-          onFormChange={() => {}}
-          onCancel={onClose}
-          error={null}
-          isSaving={false}
-          isEditing={true}
-          confidenceLabels={CONFIDENCE_LABELS}
-          budgetSources={[]}
-          vendors={[]}
-          budgetCategories={
-            line.categoryName
-              ? ([
-                  {
-                    id: line.categoryId || '',
-                    name: line.categoryName,
-                    translationKey: line.categoryTranslationKey || '',
-                  },
-                ] as BudgetCategory[])
-              : []
-          }
-          staticCategoryLabel={
-            line.categoryName
-              ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
-              : undefined
-          }
-          isUnassigned={true}
-          focusParentPicker={focusParentPicker}
-          onAssign={onAssign}
-          assignBudgetLineId={line.workItemBudgetId ?? undefined}
-        />
-      ) : (
-        // For assigned budget lines, show the full BudgetLineForm with move support
-        <BudgetLineForm
-          form={fullForm}
-          onSubmit={onSubmit}
-          onFormChange={onFullFormChange}
-          onCancel={onClose}
-          error={error}
-          isSaving={isMutating}
-          isEditing={true}
-          confidenceLabels={CONFIDENCE_LABELS}
-          budgetSources={budgetSources}
-          vendors={vendors}
-          budgetCategories={budgetCategories}
-          staticCategoryLabel={
-            line.categoryName
-              ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
-              : undefined
-          }
-          currentParentType={line.parentItemType as 'work_item' | 'household_item' | 'unassigned'}
-          currentParentId={line.parentItemId ?? null}
-          currentParentLabel={line.parentItemTitle ?? null}
-          onMove={onMove}
-          itemizedAmount={itemizedAmount}
-          onItemizedAmountChange={onItemizedAmountChange}
-        />
-      )}
+      <BudgetLineForm
+        form={{
+          description: line.budgetLineDescription || '',
+          plannedAmount: line.plannedAmount.toString(),
+          confidence: line.confidence,
+          budgetCategoryId: line.categoryId || '',
+          budgetSourceId: '',
+          vendorId: '',
+          pricingMode: 'direct',
+          quantity: '',
+          unit: '',
+          unitPrice: '',
+          includesVat: false,
+        }}
+        onSubmit={() => {}}
+        onFormChange={() => {}}
+        onCancel={onClose}
+        error={null}
+        isSaving={false}
+        isEditing={true}
+        confidenceLabels={CONFIDENCE_LABELS}
+        budgetSources={[]}
+        vendors={[]}
+        budgetCategories={
+          line.categoryName
+            ? ([
+                {
+                  id: line.categoryId || '',
+                  name: line.categoryName,
+                  translationKey: line.categoryTranslationKey || '',
+                },
+              ] as BudgetCategory[])
+            : []
+        }
+        staticCategoryLabel={
+          line.categoryName
+            ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
+            : undefined
+        }
+        isUnassigned={true}
+        focusParentPicker={focusParentPicker}
+        onAssign={onAssign}
+        assignBudgetLineId={line.workItemBudgetId ?? undefined}
+      />
     </Modal>
   );
 }

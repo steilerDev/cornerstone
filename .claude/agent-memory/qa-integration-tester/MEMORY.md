@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1603 — EditBudgetLineModal + BudgetSection invoice-edit tests (2026-05-29)
+
+**No-mock approach for EditBudgetLineModal.test.tsx**: Testing a component that wraps Modal+BudgetLineForm — do NOT mock Modal.js or BudgetLineForm.js. Use the real DOM: find `role="dialog"` for the portal, `#budget-description` for description input, `#budget-planned-amount` for amount, `#budget-confidence` for confidence select, `#budget-itemized-amount` for the itemized field. Real Modal handles Escape key via document `keydown` listener. Backdrop has `class*="modalBackdrop"`. Close button has `aria-label` containing "Close". Cancel button: `getByRole('button', { name: /^cancel$/i })`.
+
+**BudgetSection invoice-edit: adding LocaleContext mocks breaks other mocks**: If `jest.unstable_mockModule('../../contexts/LocaleContext.js', ...)` + `configApi.js` + `preferencesApi.js` are added to `BudgetSection.invoice-edit.test.tsx`, ALL other `jest.unstable_mockModule` calls (BudgetLineCard, BudgetLineForm, etc.) stop intercepting locally. Root cause unknown. Fix: use `globalThis.fetch` stub to prevent network calls instead of module mocks, then import and wrap with the real `LocaleProvider`. LocaleProvider + MemoryRouter wrapper handles both mock-intercepting (CI) and non-intercepting (local) environments.
+
+**BudgetLineForm real DOM IDs**: `#budget-description`, `#budget-planned-amount`, `#budget-confidence`, `#budget-source`, `#budget-vendor`, `#budget-category`, `#budget-quantity`, `#budget-unit`, `#budget-unit-price`, `#budget-itemized-amount`. The itemized amount field only renders when both `itemizedAmount` and `onItemizedAmountChange` props are passed.
+
+**jest.fn<() => Promise<void>>() causes TS2554**: When a jest mock is typed with 0 args but `.toHaveBeenCalledWith(...)` is called with args, TypeScript errors. Always use `jest.fn<(...args: any[]) => Promise<void>>()` for mocks that will be called with arguments. Add `// eslint-disable-next-line @typescript-eslint/no-explicit-any` on the preceding line.
+
+**Dual-path test assertions for CI/local robustness**: For tests that rely on mock-captured props (`capturedBudgetLineFormProps`), add a fallback block: `if (capturedBudgetLineFormProps) { /* CI path */ } else { /* local DOM path — verify via real inputs */ }`. This pattern makes tests pass in both environments without marking them as CI-only.
+
 ## Story #1600 — AutoItemize assignment dialog tests (2026-05-26)
 
 **ExtractedLine optional fields**: `quantity`, `unit`, `unitPrice`, `vendorName` are optional (`?: number | string`) NOT nullable. Using `null` for these in test mock data causes TS2322. Use `undefined` (omit the field) or a conditional spread: `...(val != null ? { field: val } : {})`.

@@ -584,6 +584,52 @@ export default function WorkItemDetailPage() {
     }
   };
 
+  const handleInvoiceLineEdit = async (
+    line: WorkItemBudgetLine,
+    form: BudgetLineFormState,
+    itemizedAmountStr: string,
+  ) => {
+    if (!line.invoiceLink?.invoiceId || !line.invoiceLink?.invoiceBudgetLineId) return;
+
+    const newAmount = parseFloat(itemizedAmountStr);
+    if (isNaN(newAmount) || newAmount <= 0) {
+      throw new Error(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
+    }
+
+    // Compute plannedAmount from form
+    let plannedAmount: number;
+    if (form.pricingMode === 'direct') {
+      plannedAmount = parseFloat(form.plannedAmount);
+    } else {
+      const qty = parseFloat(form.quantity);
+      const price = parseFloat(form.unitPrice);
+      plannedAmount = Math.round(qty * price * 100) / 100;
+    }
+
+    const payload = {
+      itemizedAmount: newAmount,
+      description: form.description || null,
+      plannedAmount,
+      confidence: form.confidence,
+      budgetCategoryId: form.budgetCategoryId || null,
+      budgetSourceId: form.budgetSourceId || null,
+      vendorId: form.vendorId || null,
+      quantity:
+        form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
+      unit: form.pricingMode === 'unit' ? form.unit || null : null,
+      unitPrice:
+        form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
+      includesVat: form.includesVat,
+    };
+
+    await editAndMoveBudgetLine(
+      line.invoiceLink.invoiceId,
+      line.invoiceLink.invoiceBudgetLineId,
+      payload,
+    );
+    await reloadBudgetLines();
+  };
+
   // ─── Milestone relationship handlers ──────────────────────────────────────
 
   const handleAddRequiredMilestone = async () => {
@@ -1433,6 +1479,8 @@ export default function WorkItemDetailPage() {
               parentEntityId={workItem?.id}
               parentEntityLabel={workItem?.title}
               onMoveBudgetLine={handleMoveBudgetLine}
+              onInvoiceLineEdit={handleInvoiceLineEdit}
+              onInvoiceLineMove={handleMoveBudgetLine}
             />
           </section>
         </div>
