@@ -1112,6 +1112,12 @@ describe('InvoiceBudgetLinesSection', () => {
       });
       mockCreateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(linkedLine, 1100.0));
 
+      // Override with two sequential returns: one for mount, one for post-add refresh.
+      // This makes toHaveBeenCalledTimes(2) deterministic regardless of beforeEach default.
+      mockFetchInvoiceBudgetLines
+        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL))
+        .mockResolvedValueOnce(makeListResponse([linkedLine], 1100.0));
+
       renderSection(INVOICE_ID, INVOICE_TOTAL);
 
       await waitFor(() =>
@@ -1144,6 +1150,7 @@ describe('InvoiceBudgetLinesSection', () => {
         fireEvent.click(screen.getByRole('button', { name: /Add Selected Lines/i }));
       });
 
+      // createInvoiceBudgetLine called with the correct payload
       await waitFor(() =>
         expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
           INVOICE_ID,
@@ -1156,6 +1163,79 @@ describe('InvoiceBudgetLinesSection', () => {
 
       // createWorkItemBudget was NOT called (existing line path)
       expect(mockCreateWorkItemBudget).not.toHaveBeenCalled();
+
+      // fetchInvoiceBudgetLines called twice: once on mount, once after the add operation
+      await waitFor(() =>
+        expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2),
+      );
+
+      // Picker is closed after a successful add (dialog no longer in DOM)
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('error path — createInvoiceBudgetLine BUDGET_LINE_ALREADY_LINKED: refreshes list and keeps picker open with error', async () => {
+      const existingLine = makeBudgetLineStub('wib-already-linked-001', 300);
+      mockFetchWorkItemBudgets.mockResolvedValue([existingLine]);
+
+      // Override fetchInvoiceBudgetLines: mount call + post-error refresh call
+      mockFetchInvoiceBudgetLines
+        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL))
+        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL));
+
+      // Configure the create call to fail with BUDGET_LINE_ALREADY_LINKED
+      mockCreateInvoiceBudgetLine.mockRejectedValue(
+        new MockApiClientError(409, { code: 'BUDGET_LINE_ALREADY_LINKED' }),
+      );
+
+      renderSection(INVOICE_ID, INVOICE_TOTAL);
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Budget Line/i })).not.toBeDisabled(),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Budget Line/i }));
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('work-item-picker'));
+      });
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Add Selected Lines/i })).toBeInTheDocument(),
+      );
+
+      // Select the checkbox and set an itemized amount
+      const checkbox = screen.getByRole('checkbox');
+      await act(async () => {
+        fireEvent.click(checkbox);
+      });
+
+      const amountInput = screen.getByRole('spinbutton', {
+        name: /Itemized amount for/i,
+      });
+      fireEvent.change(amountInput, { target: { value: '300' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Add Selected Lines/i }));
+      });
+
+      // fetchInvoiceBudgetLines called twice: once on mount, once after the error
+      await waitFor(() =>
+        expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2),
+      );
+
+      // Picker stays open (dialog remains in the DOM)
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      // Picker error shows the localized alreadyLinked message
+      await waitFor(() =>
+        expect(
+          screen.getByText('This budget line is already linked to another invoice.'),
+        ).toBeInTheDocument(),
+      );
+
+      // Focus was NOT moved to the new line row (setTimeout block only runs on success path)
+      // Verified implicitly: the dialog is still open so closePicker was never called
+      expect(screen.queryByRole('dialog')).toBeInTheDocument();
     });
   });
 
