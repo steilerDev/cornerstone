@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeAll, afterEach } from '@jest/globals';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { CostBreakdownTable as CostBreakdownTableType } from './CostBreakdownTable.js';
 import type { BudgetBreakdown, BudgetOverview } from '@cornerstone/shared';

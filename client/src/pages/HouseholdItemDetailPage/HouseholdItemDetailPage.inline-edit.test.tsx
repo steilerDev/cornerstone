@@ -389,11 +389,11 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
     });
   }
 
-  // ─── Schedule row display ──────────────────────────────────────────────────
   afterEach(() => {
     jest.clearAllMocks();
   });
 
+  // ─── Schedule row display ──────────────────────────────────────────────────
 
   describe('Schedule row — target vs actual date display', () => {
     it('shows "Target Date" label when actualDeliveryDate is null', async () => {
