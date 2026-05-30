@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import { getBudgetOverview } from '../services/budgetOverviewService.js';
 import { getBudgetBreakdown } from '../services/budgetBreakdownService.js';
+import { getBudgetStats } from '../services/budgetStatsService.js';
 
 export default async function budgetOverviewRoutes(fastify: FastifyInstance) {
   /**
@@ -42,5 +43,13 @@ export default async function budgetOverviewRoutes(fastify: FastifyInstance) {
 
     const breakdown = getBudgetBreakdown(fastify.db, deselectedSources);
     return reply.status(200).send({ breakdown });
+  });
+
+  fastify.get('/stats', async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
+    const stats = getBudgetStats(fastify.db);
+    return reply.status(200).send({ stats });
   });
 }

@@ -196,6 +196,9 @@ export type {
   OversubscribedSubsidy,
 } from './types/budgetOverview.js';
 
+// Budget Stats
+export type { BudgetStats, BudgetStatsResponse } from './types/budgetStats.js';
+
 // Budget Breakdown
 export type {
   CostDisplay,
