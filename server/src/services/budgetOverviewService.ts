@@ -36,6 +36,44 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  *   Actual Paid     = SUM(invoice_budget_lines.itemized_amount WHERE work_item_budget_id IS NOT NULL AND invoices.status IN ('paid', 'claimed'))
  */
 export function getBudgetOverview(db: DbType): BudgetOverview {
+  // ─── Library Adoption Opportunity: SQLite percentile functions ────────────
+  //
+  // better-sqlite3 12.10.0 (PR #1527) ships SQLite 3.53.1, which exposes
+  // native aggregate functions:
+  //
+  //   percentile_cont(0.5) WITHIN GROUP (ORDER BY column)  -- interpolated median
+  //   percentile_disc(0.75) WITHIN GROUP (ORDER BY column) -- discrete P75 (actual sample)
+  //
+  // No extension loading is required; these are builtins in SQLite ≥ 3.53.
+  //
+  // Future analytics that would benefit from these:
+  //
+  //   Median planned_amount across all budget lines:
+  //     SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY planned_amount)
+  //     FROM work_item_budgets WHERE work_item_id IS NOT NULL
+  //
+  //   75th-percentile invoice amount (useful for outlier detection):
+  //     SELECT percentile_disc(0.75) WITHIN GROUP (ORDER BY amount)
+  //     FROM invoices WHERE status != 'cancelled'
+  //
+  //   Median work-item duration (days) for project timeline insights:
+  //     SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_days)
+  //     FROM work_items WHERE duration_days IS NOT NULL
+  //
+  // Edge cases to remember when implementing:
+  //   - Both functions return NULL for an empty (or all-NULL) input set.
+  //     Always COALESCE(percentile_cont(...), 0) or handle NULL in the caller.
+  //   - percentile_cont interpolates between values (may produce non-integer
+  //     results for integer columns). percentile_disc always returns an actual
+  //     value from the dataset.
+  //   - The WITHIN GROUP clause is required; the argument N must be a literal
+  //     float constant in [0, 1].
+  //
+  // When implementing: use db.get<{ value: number | null }>(sql`SELECT
+  //   COALESCE(percentile_cont(0.5) WITHIN GROUP (ORDER BY planned_amount), 0)
+  //   AS value FROM work_item_budgets WHERE work_item_id IS NOT NULL`)
+  // and surface the result as a new field on the BudgetOverview type.
+  // ─────────────────────────────────────────────────────────────────────────
   // ── 1. Available funds from active budget sources ──────────────────────────
   const sourcesRow = db.get<{ availableFunds: number | null; sourceCount: number }>(
     sql`SELECT
