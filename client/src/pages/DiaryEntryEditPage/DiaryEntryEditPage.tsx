@@ -590,7 +590,7 @@ export default function DiaryEntryEditPage() {
 
       {error && <div className={styles.errorBanner}>{error}</div>}
 
-      <form className={styles.form} onSubmit={handleSubmit}>
+      <form className={styles.form} onSubmit={handleSubmit} noValidate>
         <DiaryEntryForm
           entryType={entry.entryType as any}
           entryDate={entryDate}
