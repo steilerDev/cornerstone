@@ -48,6 +48,7 @@
 import type { Page, Locator } from '@playwright/test';
 
 // ── Annotator shape types (mirror of client/src/.../useUndoStack.ts) ─────────
+// SOURCE: client/src/components/photos/PhotoAnnotator/useUndoStack.ts — keep in sync
 // Local copies so e2e/ does not import from client/ source.
 
 export interface RectangleShape {

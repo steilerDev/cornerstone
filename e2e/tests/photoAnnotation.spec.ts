@@ -52,7 +52,7 @@ import { fileURLToPath } from 'url';
 import type { Page, Route, Request } from '@playwright/test';
 import { test, expect } from '../fixtures/auth.js';
 import { PhotoViewerPage } from '../pages/PhotoViewerPage.js';
-import type { AnnotationShape, RectangleShape, EllipseShape, ArrowShape, LineShape, FreehandShape, TextShape, MeasurementShape } from '../pages/PhotoViewerPage.js';
+import type { RectangleShape, EllipseShape, ArrowShape, LineShape, FreehandShape, TextShape, MeasurementShape } from '../pages/PhotoViewerPage.js';
 import { DiaryEntryDetailPage } from '../pages/DiaryEntryDetailPage.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../fixtures/apiHelpers.js';
 
