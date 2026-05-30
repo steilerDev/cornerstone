@@ -47,6 +47,29 @@ export function getBudgetBreakdown(
   db: DbType,
   deselectedSources: Set<string> = new Set(),
 ): BudgetBreakdown {
+  // ─── Library Adoption Opportunity: SQLite percentile functions ────────────
+  //
+  // See budgetOverviewService.ts for full details. In the breakdown context,
+  // percentile functions could power:
+  //
+  //   Median cost per area (for heatmap or outlier badges):
+  //     SELECT area_id,
+  //            percentile_cont(0.5) WITHIN GROUP (ORDER BY planned_amount) AS median_planned
+  //     FROM work_item_budgets wib
+  //     JOIN work_items wi ON wi.id = wib.work_item_id
+  //     GROUP BY wi.area_id
+  //
+  //   P90 invoice amount per budget category (flagging unusually large invoices):
+  //     SELECT wib.budget_category_id,
+  //            percentile_disc(0.9) WITHIN GROUP (ORDER BY ibl.itemized_amount) AS p90_amount
+  //     FROM invoice_budget_lines ibl
+  //     JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
+  //     WHERE ibl.work_item_budget_id IS NOT NULL
+  //     GROUP BY wib.budget_category_id
+  //
+  // These are NOT currently implemented (no caller exists). Filed for visibility
+  // per issue #1571 (better-sqlite3 12.10.0 library adoption).
+  // ─────────────────────────────────────────────────────────────────────────
   // ── 1. Query A: Work item budget lines with area assignment ──────────────
   const workItemLineRows = db.all<{
     workItemId: string;
