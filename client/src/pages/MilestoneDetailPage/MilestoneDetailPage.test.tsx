@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
@@ -215,6 +215,10 @@ describe('MilestoneDetailPage', () => {
       </MemoryRouter>,
     );
   }
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
   // ─── Loading state ──────────────────────────────────────────────────────────
 

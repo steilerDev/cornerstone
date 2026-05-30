@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { WorkItemDetail, WorkItemSummary } from '@cornerstone/shared';
@@ -349,6 +349,10 @@ describe('WorkItemDetailPage', () => {
       </MemoryRouter>,
     );
   }
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
   describe('initial render', () => {
     it('shows loading state initially', async () => {

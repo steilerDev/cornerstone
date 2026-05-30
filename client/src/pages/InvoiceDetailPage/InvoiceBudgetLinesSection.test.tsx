@@ -429,6 +429,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  jest.clearAllMocks();
   jest.restoreAllMocks();
 });
 

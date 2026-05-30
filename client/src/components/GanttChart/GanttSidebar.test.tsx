@@ -5,7 +5,7 @@
  * Tests item rendering, muted state for undated items, click/keyboard interactions,
  * and accessibility attributes. Issue #449: Household item rows.
  */
-import { jest, describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { jest, describe, it, expect, beforeAll, afterAll, afterEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttSidebar } from './GanttSidebar.js';
 import type { UnifiedRow } from './GanttSidebar.js';
@@ -55,6 +55,10 @@ function makeHI(overrides: Partial<TimelineHouseholdItem> = {}): TimelineHouseho
 function makeHIRow(hi: TimelineHouseholdItem): UnifiedRow {
   return { kind: 'householdItem', item: hi };
 }
+
+afterEach(() => {
+  jest.clearAllMocks();
+});
 
 describe('GanttSidebar', () => {
   // ── Rendering ──────────────────────────────────────────────────────────────
