@@ -54,7 +54,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   //
   //   75th-percentile invoice amount (useful for outlier detection):
   //     SELECT percentile_disc(0.75) WITHIN GROUP (ORDER BY amount)
-  //     FROM invoices WHERE status != 'cancelled'
+  //     FROM invoices WHERE status IN ('pending', 'paid', 'claimed')
   //
   //   Median work-item duration (days) for project timeline insights:
   //     SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY duration_days)

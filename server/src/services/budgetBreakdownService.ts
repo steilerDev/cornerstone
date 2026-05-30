@@ -60,10 +60,12 @@ export function getBudgetBreakdown(
   //     GROUP BY wi.area_id
   //
   //   P90 invoice amount per budget category (flagging unusually large invoices):
-  //     SELECT budget_category_id,
-  //            percentile_disc(0.9) WITHIN GROUP (ORDER BY itemized_amount) AS p90_amount
-  //     FROM invoice_budget_lines
-  //     GROUP BY budget_category_id
+  //     SELECT wib.budget_category_id,
+  //            percentile_disc(0.9) WITHIN GROUP (ORDER BY ibl.itemized_amount) AS p90_amount
+  //     FROM invoice_budget_lines ibl
+  //     JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
+  //     WHERE ibl.work_item_budget_id IS NOT NULL
+  //     GROUP BY wib.budget_category_id
   //
   // These are NOT currently implemented (no caller exists). Filed for visibility
   // per issue #1571 (better-sqlite3 12.10.0 library adoption).
