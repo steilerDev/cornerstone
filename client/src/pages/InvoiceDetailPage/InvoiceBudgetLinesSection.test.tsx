@@ -1166,9 +1166,7 @@ describe('InvoiceBudgetLinesSection', () => {
       expect(mockCreateWorkItemBudget).not.toHaveBeenCalled();
 
       // fetchInvoiceBudgetLines called twice: once on mount, once after the add operation
-      await waitFor(() =>
-        expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2),
-      );
+      await waitFor(() => expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2));
 
       // Picker is closed after a successful add (dialog no longer in DOM)
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -1220,9 +1218,7 @@ describe('InvoiceBudgetLinesSection', () => {
       });
 
       // fetchInvoiceBudgetLines called twice: once on mount, once after the error
-      await waitFor(() =>
-        expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2),
-      );
+      await waitFor(() => expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2));
 
       // Picker stays open (dialog remains in the DOM)
       expect(screen.getByRole('dialog')).toBeInTheDocument();
