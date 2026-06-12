@@ -6,12 +6,13 @@
 ## Shard 3 Promotion Blocker Fix (2026-06-12) — `e2e/tests/budget/budget-source-filter.spec.ts`
 
 - `Rapid debounce coalesces requests` test was flaky: asserted `filteredRequestCount.toBe(1)` which fails when CI runner serializes clicks beyond the 50ms debounce window. Fixed in PR #1665.
-- `Perspective toggle changes Cost value in source row` was SECOND flaky test in shard 3: read `textContent()` immediately after `click()` on radio buttons without waiting for React re-render. On WebKit (tablet/mobile), React state updates can be deferred, causing stale reads. Fixed in PR #1666.
-- **FIX pattern for stale-read race**: After `click()` on any element that triggers a React state update + re-render, use `await expect(locator).not.toHaveText(previousValue)` BEFORE calling `textContent()`. Playwright retries until the value changes.
-- **Do NOT use**: `const text = await locator.textContent()` immediately after a click that should change the text. This is racy on WebKit.
-- `page.on('request', ...)` listeners added in tests MUST be removed. Uncleaned listeners persist on the page object for the test lifetime.
-- **Pattern**: "count API requests" tests are inherently timing-sensitive. Replace with state assertions (`aria-pressed`, URL params, visible text). See "waitForResponse before action" rule.
-- The shard 3 failure was intermittent (30% per attempt, ~9% for both attempts): hides on beta PRs (retries:1 recovers), visible on main PRs (maxFailures:1 stops shard after first unrecovered failure).
+- `Perspective toggle changes Cost value in source row` was SECOND flaky test in shard 3 (PRs #1666 + #1668). Root cause: radio button clicks not registering if the perspective toggle is outside viewport after Available Funds expansion. Fix: `scrollIntoViewIfNeeded()` before each radio click + `await expect(costCell).not.toBeEmpty()` before reading avgText. Compare `minText !== maxText` directly.
+- `Multi-deselection: both IDs appear in URL` test: `refetchB` predicate must include `SOURCE_B_ID` to prevent spurious SOURCE_A_ID-only requests from being captured between refetchA resolving and Equity click. Fixed in PR #1667.
+- **Shard 3 distribution** (budget-source-filter.spec.ts): shard 3 starts at instance 23 (0-indexed) in the file. Instance 23 = desktop test #24 = Perspective toggle. Total shard: 75 instances from budget-source-filter + 33 from budget-source-lines + 28 from budget-source-move + 4 from budget-sources = 140 instances.
+- **FIX pattern for viewport/scroll issues**: When testing elements that require EXPANSION of a container section first, add `scrollIntoViewIfNeeded()` before clicking radio buttons or other interactive elements that might have shifted out of view due to the expansion.
+- **FIX pattern for stale-read race**: Use `await expect(locator).not.toBeEmpty()` BEFORE reading a baseline value with `textContent()`. Then after an action, use `await expect(locator).not.toHaveText(prevValue)` to wait for React re-render before reading the new value.
+- **Multi-deselection watchdog**: For tests with two sequential `waitForResponse` calls where the second predicate must match a MORE SPECIFIC URL (e.g., containing BOTH IDs), always make the predicate specific enough to avoid matching spurious intermediate requests.
+- The shard 3 failure was intermittent (30% per attempt): hides on beta PRs (retries:1 recovers), visible on main PRs (maxFailures:1 stops shard after first unrecovered failure). Identified by consistent ~92s "Run E2E tests" step vs ~107s on passing runs (16s difference = 2 × 7s expect.timeout failures).
 
 ## Discretionary Note + Auto-Origin Badge E2E (Story #1551, 2026-05-29) — `e2e/tests/budget/auto-itemize-discretionary.spec.ts`
 
