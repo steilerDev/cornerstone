@@ -62,6 +62,20 @@ import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
+function MilestoneIconSvg() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 10 10"
+      width="10"
+      height="10"
+      aria-hidden="true"
+    >
+      <polygon points="5,0 10,5 5,10 0,5" fill="currentColor" />
+    </svg>
+  );
+}
+
 const HI_STATUS_VARIANTS = {
   planned: { label: 'Planned', className: badgeStyles.planned! },
   purchased: { label: 'Purchased', className: badgeStyles.purchased! },
@@ -735,20 +749,6 @@ export function HouseholdItemDetailPage() {
       setIsDeleting(false);
     }
   };
-
-  function MilestoneIconSvg() {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 10 10"
-        width="10"
-        height="10"
-        aria-hidden="true"
-      >
-        <polygon points="5,0 10,5 5,10 0,5" fill="currentColor" />
-      </svg>
-    );
-  }
 
   if (isLoading) {
     return (

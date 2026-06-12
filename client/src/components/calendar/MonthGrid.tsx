@@ -63,6 +63,12 @@ export interface MonthGridProps {
 }
 
 // ---------------------------------------------------------------------------
+// Stable empty-array default (avoids unstable reference on every render)
+// ---------------------------------------------------------------------------
+
+const EMPTY_HOUSEHOLD_ITEMS: TimelineHouseholdItem[] = [];
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -71,7 +77,7 @@ export function MonthGrid({
   month,
   workItems,
   milestones,
-  householdItems = [],
+  householdItems = EMPTY_HOUSEHOLD_ITEMS,
   onMilestoneClick,
   hoveredItemId = null,
   onItemMouseEnter,

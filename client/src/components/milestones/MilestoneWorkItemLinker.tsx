@@ -25,6 +25,12 @@ interface MilestoneWorkItemLinkerProps {
 }
 
 // ---------------------------------------------------------------------------
+// Stable empty-array default (avoids unstable reference on every render)
+// ---------------------------------------------------------------------------
+
+const EMPTY_DEPENDENT_WORK_ITEMS: WorkItemDependentSummary[] = [];
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -40,7 +46,7 @@ interface MilestoneWorkItemLinkerProps {
 export function MilestoneWorkItemLinker({
   milestoneId: _milestoneId,
   linkedWorkItems,
-  dependentWorkItems = [],
+  dependentWorkItems = EMPTY_DEPENDENT_WORK_ITEMS,
   isLinking,
   onLink,
   onUnlink,

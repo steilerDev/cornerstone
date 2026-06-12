@@ -63,6 +63,12 @@ export interface WeekGridProps {
 }
 
 // ---------------------------------------------------------------------------
+// Stable empty-array default (avoids unstable reference on every render)
+// ---------------------------------------------------------------------------
+
+const EMPTY_HOUSEHOLD_ITEMS: TimelineHouseholdItem[] = [];
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -70,7 +76,7 @@ export function WeekGrid({
   weekDate,
   workItems,
   milestones,
-  householdItems = [],
+  householdItems = EMPTY_HOUSEHOLD_ITEMS,
   onMilestoneClick,
   hoveredItemId = null,
   onItemMouseEnter,

@@ -131,14 +131,21 @@ const TOOLTIP_HIDE_DELAY = 80;
 const TOOLTIP_ID = 'calendar-view-tooltip';
 
 // ---------------------------------------------------------------------------
+// Stable empty-array defaults (avoids unstable reference on every render)
+// ---------------------------------------------------------------------------
+
+const EMPTY_HOUSEHOLD_ITEMS: TimelineHouseholdItem[] = [];
+const EMPTY_DEPENDENCIES: TimelineDependency[] = [];
+
+// ---------------------------------------------------------------------------
 // CalendarView component
 // ---------------------------------------------------------------------------
 
 export function CalendarView({
   workItems,
   milestones,
-  householdItems = [],
-  dependencies = [],
+  householdItems = EMPTY_HOUSEHOLD_ITEMS,
+  dependencies = EMPTY_DEPENDENCIES,
   onMilestoneClick,
 }: CalendarViewProps) {
   const { t } = useTranslation('schedule');
