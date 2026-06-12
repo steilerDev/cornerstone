@@ -463,6 +463,23 @@
   }
 }
 
+/* Touch targets for form buttons on mobile */
+@media (max-width: 767px) {
+  .submitButton,
+  .cancelButton {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .assignSubmitButton {
+    min-height: 44px;
+  }
+
+  .ghostCancelButton {
+    min-height: 44px;
+  }
+}
+
 /* Mobile parent picker tabs: full width */
 @media (max-width: 639px) {
   .parentPickerTabs {
