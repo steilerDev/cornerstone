@@ -1804,6 +1804,8 @@ test.describe('Source detail row columns', { tag: '@responsive' }, () => {
   });
 
   test('Perspective toggle changes Cost value in source row', async ({ page }) => {
+    // Bank Loan: projectedMin=30000, projectedMax=35000.
+    // Min and Max perspectives produce DIFFERENT currency strings (€30,000 vs €35,000).
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountOverviewRoutes(
       page,
@@ -1817,29 +1819,35 @@ test.describe('Source detail row columns', { tag: '@responsive' }, () => {
 
       await overviewPage.availableFundsButton().click();
 
+      // Wait for source row and cost cell to be visible and populated
       const row = overviewPage.sourceRow('Bank Loan');
+      await expect(row).toBeVisible();
       const costCell = row.locator('td').nth(1);
+      await expect(costCell).not.toBeEmpty();
 
-      // Read the initial "avg" cost value (projectedMin=30000, projectedMax=35000 → avg=32500)
-      const avgText = await costCell.textContent();
+      // Read current "avg" value from the cell
+      const avgText = (await costCell.textContent()) ?? '';
 
-      // Click Min perspective — wait for the DOM value to CHANGE before reading.
-      // Using toHaveText() with not.toEqual() ensures React commits the re-render
-      // before we capture the value, preventing a stale-read race on WebKit.
-      await overviewPage.costBreakdownCard.getByRole('radio', { name: 'Min' }).click();
-      // Wait for the cell to update (React state change + re-render)
-      await expect(costCell).not.toHaveText(avgText ?? '');
-      const minText = await costCell.textContent();
+      // Click Min perspective. Use scrollIntoViewIfNeeded to ensure the radio is
+      // in the viewport before clicking (handles cases where Available Funds expansion
+      // might push the perspective toggle partially out of view on some viewports).
+      const minRadio = overviewPage.costBreakdownCard.getByRole('radio', { name: 'Min' });
+      await minRadio.scrollIntoViewIfNeeded();
+      await minRadio.click();
+      // Wait for the cost cell to reflect the Min value (React re-render committed)
+      await expect(costCell).not.toHaveText(avgText);
+      const minText = (await costCell.textContent()) ?? '';
 
-      // Click Max perspective — wait for the DOM value to change from minText
-      await overviewPage.costBreakdownCard.getByRole('radio', { name: 'Max' }).click();
-      await expect(costCell).not.toHaveText(minText ?? '');
-      const maxText = await costCell.textContent();
+      // Click Max perspective
+      const maxRadio = overviewPage.costBreakdownCard.getByRole('radio', { name: 'Max' });
+      await maxRadio.scrollIntoViewIfNeeded();
+      await maxRadio.click();
+      // Wait for the cost cell to reflect the Max value (different from Min)
+      await expect(costCell).not.toHaveText(minText);
+      const maxText = (await costCell.textContent()) ?? '';
 
-      // Bank Loan has projectedMin=30000 ≠ projectedMax=35000, so at least two values differ.
-      // All three perspective values cannot be the same.
-      const allSame = minText === avgText && avgText === maxText;
-      expect(allSame).toBe(false);
+      // Min (30000) and Max (35000) must display different values
+      expect(minText).not.toBe(maxText);
     } finally {
       await teardown();
     }
