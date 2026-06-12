@@ -36,6 +36,11 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 - [ ] **No one-off components**: Every new UI component must be designed as a reusable shared component in `client/src/components/`.
 - [ ] **Compose shared CSS classes**: CSS utility classes (buttons, modals, loading, empty states, sr-only) must use `composes:` from `client/src/styles/shared.module.css`. Never duplicate shared class definitions.
 
+## Frontend — React Hooks
+
+- [ ] **useEffect resource cleanup**: Any `useEffect` that calls `setTimeout`, `setInterval`, `addEventListener`, or similar must return a cleanup function (`return () => clearTimeout(id)` / `return () => clearTimeout(timer)` / `return () => removeEventListener(...)`). Omitting cleanup causes the ESLint rule `web-api-no-leaked-timeout` to warn and can produce memory leaks and stale callbacks.
+- [ ] **No side effects in render**: Avoid `new Date()`, `Math.random()`, or other side effects at the top level of functional components or outside hooks. Move to `useMemo` or `useEffect`. ESLint `@eslint-react/purity` enforces this.
+
 ## Frontend — Accessibility & Responsiveness
 
 - [ ] **ARIA labels**: All interactive elements (buttons, links, inputs) must have accessible names via `aria-label`, `aria-labelledby`, or visible text content.
@@ -77,6 +82,8 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 - [ ] **E2E route coverage**: Every application route must have at least smoke-level E2E test coverage. The E2E test engineer verifies route coverage as part of every E2E task.
 - [ ] **E2E post-mutation assertions**: After actions that trigger a data mutation (clicking a button, selecting a picker item), use Playwright's retrying assertions (`toContainText()`, `toHaveText()`, `toBeVisible()`) rather than reading the DOM immediately with `textContent()` + sync `expect()`. `waitForResponse()` resolves at the network level before React re-renders the DOM — a sync DOM read immediately after it will see stale content.
 - [ ] **E2E text locators after label changes**: When a production PR renames a UI label, update all E2E test locators that match that text. Regex locators like `/hide linked/i` silently break when the label changes to "Hide already-linked documents" (no contiguous match). Prefer `data-testid` attributes for stability; when using text regex, keep the pattern broad enough to survive minor rewording (e.g. `/hide.*linked/i`).
+- [ ] **E2E canvas interaction coordinates**: When interacting with a Konva `<canvas>` (or any element centered inside a flex container), use `page.locator('canvas').first().boundingBox()` — NOT the parent container's bounding box — to calculate mouse coordinates. A flex-centered canvas occupies only a portion of its parent; coordinates derived from the parent land outside the canvas and Konva's `getPointerPosition()` returns null, silently preventing shape commits.
+- [ ] **E2E stale CI (E2E Cache Warmup cancelled)**: If a PR shows "E2E Cache Warmup cancelled" in CI (QG fails even though all test/lint/docker jobs pass), the branch is stale relative to beta. Rebase onto the latest `origin/beta` and force-push to trigger a fresh CI run.
 
 ## i18n — Translations
 
