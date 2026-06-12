@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
@@ -16,6 +17,29 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
   // Filter work items to those on the critical path
   const criticalItems = workItems.filter((item) => criticalPath.includes(item.id));
 
+  // Find the next incomplete critical item with the earliest endDate
+  const incompleteCritical = criticalItems
+    .filter((item) => item.status !== 'completed' && item.endDate)
+    .sort((a, b) => (a.endDate || '').localeCompare(b.endDate || ''));
+
+  const nextItem = incompleteCritical[0] ?? null;
+  const deadline = nextItem?.endDate ?? null;
+
+  // Compute days remaining — use useMemo so date construction is not in the render body.
+  // All hooks must be called unconditionally before any early returns.
+  const daysRemaining = useMemo(() => {
+    if (!deadline) return 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const parts = deadline.split('-').map(Number);
+    const year = parts[0]!; // split ensures at least 1 part or throws
+    const month = parts[1]!; // must be YYYY-MM-DD format
+    const day = parts[2]!; // must be YYYY-MM-DD format
+    const deadlineDate = new Date(year, month - 1, day);
+    const diff = deadlineDate.getTime() - today.getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  }, [deadline]);
+
   if (criticalItems.length === 0) {
     return (
       <p data-testid="critical-empty" className={styles.emptyState}>
@@ -24,35 +48,12 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
     );
   }
 
-  // Find the next incomplete critical item with the earliest endDate
-  const incompleteCritical = criticalItems
-    .filter((item) => item.status !== 'completed' && item.endDate)
-    .sort((a, b) => (a.endDate || '').localeCompare(b.endDate || ''));
-
-  if (incompleteCritical.length === 0) {
+  if (!nextItem) {
     return (
       <p data-testid="critical-empty" className={styles.emptyState}>
         {t('cards.criticalPath.emptyAllCompleted')}
       </p>
     );
-  }
-
-  const nextItem = incompleteCritical[0]!; // guarded by length check at line 32
-  const deadline = nextItem.endDate;
-
-  // Compute days remaining
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  let daysRemaining = 0;
-  if (deadline) {
-    const parts = deadline.split('-').map(Number);
-    const year = parts[0]!; // split ensures at least 1 part or throws
-    const month = parts[1]!; // must be YYYY-MM-DD format
-    const day = parts[2]!; // must be YYYY-MM-DD format
-    const deadlineDate = new Date(year, month - 1, day);
-    const diff = deadlineDate.getTime() - today.getTime();
-    daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
   }
 
   // Determine health indicator
