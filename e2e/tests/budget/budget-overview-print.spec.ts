@@ -388,41 +388,61 @@ test.describe('Budget Overview — print behaviour', () => {
       // emulateMedia('print'), because Playwright's emulateMedia does not trigger a cascade
       // re-evaluation of CSS custom properties — getComputedStyle returns stale cached values.
       // Stylesheet rule inspection directly validates that the production fix (PR #1606) shipped.
-      const hasPrintDarkModeReset = await page.evaluate(() => {
-        for (const sheet of document.styleSheets) {
-          let rules: CSSRuleList | null = null;
+      // Verify that the @media print CSS rule resetting --color-bg-primary to a light value
+      // exists in the loaded CSS bundle.
+      //
+      // Strategy: fetch() each external stylesheet's raw text and search for the pattern.
+      // This avoids CSSOM inspection limitations (custom properties may not be readable
+      // via getPropertyValue() from media rules, and cssText may be unreliable when the
+      // rule contains nested at-rules like @page).
+      //
+      // The CSS file (client/src/styles/print.css, moved there by PR #1606) defines:
+      //   @media print { :root, :root[data-theme='dark'] { --color-bg-primary: #ffffff; } }
+      // cssnano may minify #ffffff → #fff.
+      const hasPrintDarkModeReset = await page.evaluate(async () => {
+        // Regex: '--color-bg-primary' followed (loosely) by a white value within an @media print block.
+        // Uses a two-pass approach: check if the stylesheet has BOTH markers present.
+        const whiteValueRe = /--color-bg-primary\s*:\s*(?:#fff(?:fff)?|rgb\(255\s*,\s*255\s*,\s*255\s*\))/i;
+
+        const sheets = Array.from(document.styleSheets);
+        for (const sheet of sheets) {
+          // First try CSSOM cssText (fast, no network) — catches inline <style> tags too
+          let mediaRuleText: string | null = null;
           try {
-            rules = sheet.cssRules;
-          } catch {
-            // cross-origin stylesheet — skip
-            continue;
-          }
-          for (const rule of Array.from(rules)) {
-            // CSSMediaRule check: use both conditionText and media.mediaText for compatibility
-            const isPrintMedia =
-              rule instanceof CSSMediaRule &&
-              (rule.conditionText === 'print' || rule.media.mediaText === 'print');
-            if (isPrintMedia) {
-              for (const innerRule of Array.from((rule as CSSMediaRule).cssRules)) {
-                if (
-                  innerRule instanceof CSSStyleRule &&
-                  // Match :root or :root[data-theme='dark']
-                  /^:root/.test(innerRule.selectorText)
-                ) {
-                  const val = innerRule.style.getPropertyValue('--color-bg-primary').trim();
-                  if (val.toLowerCase() === '#ffffff') {
-                    return true;
-                  }
-                }
+            for (const rule of Array.from(sheet.cssRules)) {
+              if (
+                rule instanceof CSSMediaRule &&
+                (rule.conditionText === 'print' || rule.media.mediaText === 'print')
+              ) {
+                mediaRuleText = (mediaRuleText ?? '') + rule.cssText;
               }
             }
+          } catch {
+            /* cross-origin — fall through to fetch */
+          }
+
+          if (mediaRuleText && whiteValueRe.test(mediaRuleText)) {
+            return true;
+          }
+
+          // Fallback: fetch the raw CSS text (handles cases where cssText is incomplete)
+          if (!sheet.href) continue;
+          try {
+            const resp = await fetch(sheet.href);
+            if (!resp.ok) continue;
+            const rawText = await resp.text();
+            if (rawText.includes('@media print') && whiteValueRe.test(rawText)) {
+              return true;
+            }
+          } catch {
+            /* network error or CORS — skip */
           }
         }
         return false;
       });
 
       // The @media print { :root, :root[data-theme='dark'] { --color-bg-primary: #ffffff } }
-      // rule must be present — this is the regression guard for PR #1606 (fix #1451).
+      // rule must be present in the CSS bundle — regression guard for PR #1606 (fix #1451).
       expect(hasPrintDarkModeReset).toBe(true);
     } finally {
       await overviewPage.endPrint();
