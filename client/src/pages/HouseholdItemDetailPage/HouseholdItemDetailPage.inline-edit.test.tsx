@@ -4,7 +4,7 @@
  * Tests for inline date editing and section structure on HouseholdItemDetailPage.
  * Story #467: Inline date and dependency editing on Household Item Detail Page.
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -388,6 +388,10 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       expect(screen.getByLabelText('Order Date')).toBeInTheDocument();
     });
   }
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
   // ─── Schedule row display ──────────────────────────────────────────────────
 

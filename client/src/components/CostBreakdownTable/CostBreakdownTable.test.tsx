@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeAll } from '@jest/globals';
+import { jest, describe, it, expect, beforeAll, afterEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { CostBreakdownTable as CostBreakdownTableType } from './CostBreakdownTable.js';
@@ -78,6 +78,10 @@ let CostBreakdownTable: typeof CostBreakdownTableType;
 beforeAll(async () => {
   const module = await import('./CostBreakdownTable.js');
   CostBreakdownTable = module.CostBreakdownTable;
+});
+
+afterEach(() => {
+  jest.clearAllMocks();
 });
 
 /**

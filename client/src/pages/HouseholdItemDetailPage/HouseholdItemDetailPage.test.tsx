@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
@@ -380,6 +380,10 @@ describe('HouseholdItemDetailPage', () => {
       </MemoryRouter>,
     );
   }
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
   describe('loading state', () => {
     it('shows loading state initially', async () => {
