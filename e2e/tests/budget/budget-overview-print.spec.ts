@@ -402,7 +402,8 @@ test.describe('Budget Overview — print behaviour', () => {
       const hasPrintDarkModeReset = await page.evaluate(async () => {
         // Regex: '--color-bg-primary' followed (loosely) by a white value within an @media print block.
         // Uses a two-pass approach: check if the stylesheet has BOTH markers present.
-        const whiteValueRe = /--color-bg-primary\s*:\s*(?:#fff(?:fff)?|rgb\(255\s*,\s*255\s*,\s*255\s*\))/i;
+        const whiteValueRe =
+          /--color-bg-primary\s*:\s*(?:#fff(?:fff)?|rgb\(255\s*,\s*255\s*,\s*255\s*\))/i;
 
         const sheets = Array.from(document.styleSheets);
         for (const sheet of sheets) {

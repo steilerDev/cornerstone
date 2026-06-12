@@ -83,6 +83,7 @@ Root cause: CI server under 8-worker load can take >7s for `getDiaryEntry()` to 
 (isLoading=true shows a loading div, not the full UI).
 
 Fix:
+
 1. `test.slow()` — triples test timeout (15s → 45s)
 2. `await expect(editPage.heading).toBeVisible({ timeout: 15_000 })` — wait for page content
 3. `await expect(editPage.draftBadge).toBeVisible({ timeout: 15_000 })` — explicit 15s timeout
@@ -110,14 +111,21 @@ Playwright's `page.emulateMedia({ media: 'print' })` tells Chromium to evaluate 
 const hasPrintReset = await page.evaluate(() => {
   for (const sheet of document.styleSheets) {
     let rules: CSSRuleList | null = null;
-    try { rules = sheet.cssRules; } catch { continue; } // skip cross-origin
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue;
+    } // skip cross-origin
     for (const rule of Array.from(rules)) {
-      const isPrint = rule instanceof CSSMediaRule &&
+      const isPrint =
+        rule instanceof CSSMediaRule &&
         (rule.conditionText === 'print' || rule.media.mediaText === 'print');
       if (isPrint) {
         for (const inner of Array.from((rule as CSSMediaRule).cssRules)) {
           if (inner instanceof CSSStyleRule && /^:root/.test(inner.selectorText)) {
-            if (inner.style.getPropertyValue('--color-bg-primary').trim().toLowerCase() === '#ffffff')
+            if (
+              inner.style.getPropertyValue('--color-bg-primary').trim().toLowerCase() === '#ffffff'
+            )
               return true;
           }
         }
