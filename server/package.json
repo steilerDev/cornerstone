@@ -23,11 +23,11 @@
     "drizzle-orm": "0.45.2",
     "fastify": "5.8.5",
     "fastify-plugin": "5.1.0",
-    "ical-generator": "10.2.0",
+    "ical-generator": "11.0.0",
     "node-cron": "4.2.1",
     "openid-client": "6.8.4",
     "sharp": "0.34.5",
-    "tar": "^7.5.15",
+    "tar": "^7.5.16",
     "vcard-creator": "1.0.0"
   },
   "devDependencies": {

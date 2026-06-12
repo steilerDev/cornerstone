@@ -11,19 +11,19 @@
   },
   "dependencies": {
     "@cornerstone/shared": "*",
-    "i18next": "26.2.0",
+    "i18next": "26.3.1",
     "konva": "10.3.0",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
     "react-i18next": "17.0.8",
     "react-konva": "19.2.4",
-    "react-router-dom": "7.15.1"
+    "react-router-dom": "7.17.0"
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
     "@babel/preset-react": "7.29.7",
     "@babel/preset-typescript": "7.29.7",
-    "@types/react": "19.2.14",
+    "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "babel-loader": "10.1.1",
     "copy-webpack-plugin": "14.0.0",
