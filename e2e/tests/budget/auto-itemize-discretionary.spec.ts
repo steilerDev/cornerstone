@@ -1,59 +1,35 @@
 /**
- * E2E tests for Story #1551: Discretionary funding note and auto-origin badge.
+ * E2E tests for Story #1551: Discretionary funding note on AutoItemizePage.
  *
- * Story #1551 added two UI elements:
- *
- * (a) Discretionary note on AutoItemizePage preview:
- *     A <p role="note" class*="discretionaryNote"> rendered above the line-item cards
- *     when ≥1 extracted line's budgetSourceId equals the system discretionary source id.
- *     The note is sourced from picker.pickerState.budgetSources (fetched from
- *     GET /api/budget-sources on mount). The discretionary source is identified by
- *     isDiscretionary=true.
- *
- * (b) "Auto-itemized" Badge on Budget Overview cost-breakdown rows:
- *     A <Badge ariaLabel="Budget line was created automatically via auto-itemization"> rendered
- *     when line.origin === 'auto' in the BudgetLineRow inside the CostBreakdownTable.
+ * Story #1551 added a discretionary note to AutoItemizePage:
+ *   A <p role="note" class*="discretionaryNote"> rendered above the line-item cards
+ *   when ≥1 extracted line's budgetSourceId equals the system discretionary source id.
+ *   The note is sourced from picker.pickerState.budgetSources (fetched from
+ *   GET /api/budget-sources on mount). The discretionary source is identified by
+ *   isDiscretionary=true.
  *
  * Scenarios:
  *   1. [smoke] AutoItemizePage shows the discretionary note when ≥1 line uses the discretionary source.
- *   2. AutoItemizePage does NOT show the note when lines use a non-discretionary source (or null).
- *   3. Budget Overview cost breakdown shows the auto-origin badge on auto-itemized lines.
- *   4. Budget Overview cost breakdown shows NO auto-origin badge on manually created lines.
+ *   2. AutoItemizePage does NOT show the note when lines use a non-discretionary source.
+ *   2b. AutoItemizePage does NOT show the note when lines have null budgetSourceId.
  *
- * Auto-origin line creation approach (Scenarios 3 & 4):
- *   The `origin` field is NOT writable via the work-item-budgets CREATE/UPDATE API
- *   (workItemBudgets.ts schema uses additionalProperties:false and does not include `origin`).
- *   To create a real auto-origin line, we use the auto-itemize commit flow:
- *     1. Create a vendor + invoice + document link (POST /api/document-links)
- *     2. Call POST /api/invoices/:id/auto-itemize { dryRun: false, lines: [...], mode: 'append',
- *        paperlessDocumentId: <docId> }
- *   The commit path does NOT call Paperless — it only validates the document link exists
- *   in the DB, then inserts work_item_budgets rows with origin='auto'.
- *   The auto-itemize commit inserts budget lines with work_item_id=NULL initially; they appear
- *   in the budget overview as "Unassigned" (no work item context required for the badge test).
+ * Note: Story #1551 also added an "Auto-itemized" badge to the Budget Overview
+ * (CostBreakdownTable). That badge was removed in PR #1655 (Issue #1615) because it could
+ * never render in practice. Scenarios 3 & 4 (badge tests) were deleted at that time.
  *
- *   For Scenario 3, we navigate to Budget Overview and assert the badge is visible on ANY
- *   row with aria-label*="automatically". The budget line is unassigned and appears in the
- *   "No Area" → budget lines section without a parent work item row.
- *   For Scenario 4, we create a normal manual budget line via the work-item budgets API and
- *   assert no aria-label*="automatically" exists in that work item's expanded row.
- *
- * Mocking strategy (Scenarios 1 & 2 only):
+ * Mocking strategy:
  *   - GET /api/budget-sources: intercepted to return a minimal source list including the
  *     system discretionary source (id='discretionary-system', isDiscretionary=true) and
  *     one non-discretionary source.
  *   - POST /api/invoices/:id/auto-itemize: intercepted for the dry-run call that AutoItemizePage
  *     fires on mount (dryRun=true).
- *   - GET /paperless/documents/:docId: intercepted to return a mock document (prevents
- *     the page from making a real Paperless request on mount).
- *
- * Scenarios 3 & 4 use REAL API calls throughout — no page.route() mocking.
+ *   - GET /api/paperless/documents/:docId: intercepted to return a mock document (prevents
+ *     real Paperless requests when no Paperless server is running in the E2E environment).
+ *   - GET /api/config: intercepted to inject autoItemizeEnabled: true.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { AutoItemizePage } from '../../pages/AutoItemizePage.js';
-import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
-import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
 import type { Page, Route } from '@playwright/test';
 
@@ -87,62 +63,6 @@ async function createInvoiceViaApi(
 
 async function deleteInvoiceViaApi(page: Page, vendorId: string, invoiceId: string): Promise<void> {
   await page.request.delete(`${API.vendors}/${vendorId}/invoices/${invoiceId}`);
-}
-
-/**
- * Create a document link between an invoice and a (fake) Paperless document id.
- * Returns the document link id.
- *
- * NOTE: The server validates that the paperlessDocumentId is linked to the invoice
- * before allowing a commit auto-itemize call, so this link must exist in the DB first.
- * The document itself does not need to exist in a running Paperless server — the commit
- * path does NOT call the Paperless API.
- */
-async function createDocumentLinkViaApi(
-  page: Page,
-  entityType: 'invoice',
-  entityId: string,
-  paperlessDocumentId: number,
-): Promise<string> {
-  const resp = await page.request.post('/api/document-links', {
-    data: { entityType, entityId, paperlessDocumentId },
-  });
-  expect(resp.ok(), `POST document-link failed: ${resp.status()}`).toBeTruthy();
-  const body = (await resp.json()) as { documentLink: { id: string } };
-  return body.documentLink.id;
-}
-
-async function deleteDocumentLinkViaApi(page: Page, id: string): Promise<void> {
-  await page.request.delete(`/api/document-links/${id}`);
-}
-
-/**
- * Create a work item budget line via the REST API (creates a manual line, origin='manual').
- * Returns the budget line id.
- */
-async function createWorkItemBudgetViaApi(
-  page: Page,
-  workItemId: string,
-  data: { description: string; plannedAmount: number },
-): Promise<string> {
-  const resp = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
-    data: {
-      ...data,
-      confidence: 'own_estimate',
-      budgetSourceId: 'discretionary-system',
-    },
-  });
-  expect(resp.ok(), `POST work item budget failed: ${resp.status()}`).toBeTruthy();
-  const body = (await resp.json()) as { budget: { id: string } };
-  return body.budget.id;
-}
-
-async function deleteWorkItemBudgetViaApi(
-  page: Page,
-  workItemId: string,
-  budgetId: string,
-): Promise<void> {
-  await page.request.delete(`${API.workItems}/${workItemId}/budgets/${budgetId}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -342,6 +262,11 @@ test(
       return;
     }
 
+    // Triple timeouts for this test — AutoItemizePage fires multiple async operations on
+    // mount (Paperless status, invoice fetch, document fetch, dry-run LLM call), which
+    // can collectively exceed the default 15s test timeout on loaded CI runners.
+    test.slow();
+
     const autoItemizePage = new AutoItemizePage(page);
     let vendorId = '';
     let invoiceId = '';
@@ -368,8 +293,22 @@ test(
       // This triggers `hasDiscretionaryLines=true` in AutoItemizePage, showing the note.
       await mockAutoItemizeDryRun(page, invoiceId, DISCRETIONARY_SOURCE_ID);
 
+      // Register a waitForResponse listener BEFORE navigation to ensure we don't miss
+      // the dry-run response. The AutoItemizePage fires the dry-run on mount, so the
+      // listener must be attached before page.goto() is called.
+      const dryRunDonePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/invoices/${invoiceId}/auto-itemize`) &&
+          resp.request().method() === 'POST' &&
+          resp.status() === 200,
+      );
+
       // Navigate directly to the AutoItemizePage
       await page.goto(`/budget/invoices/${invoiceId}/auto-itemize/${MOCK_DOC_ID}`);
+
+      // Wait for the dry-run response to arrive (ensures the component has received data)
+      // before calling waitForAnalyzingDone() which polls for the DOM to settle.
+      await dryRunDonePromise;
 
       // Wait for the analysis (dry-run) to complete and card list to render
       await autoItemizePage.waitForAnalyzingDone();
@@ -399,6 +338,8 @@ test('Scenario 2: AutoItemizePage does NOT show the discretionary note when line
     return;
   }
 
+  test.slow();
+
   const autoItemizePage = new AutoItemizePage(page);
   let vendorId = '';
   let invoiceId = '';
@@ -420,7 +361,16 @@ test('Scenario 2: AutoItemizePage does NOT show the discretionary note when line
     // Lines use the non-discretionary source — note must NOT appear
     await mockAutoItemizeDryRun(page, invoiceId, NON_DISCRETIONARY_SOURCE_ID);
 
+    // Register dry-run response listener before navigation
+    const dryRunDonePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/api/invoices/${invoiceId}/auto-itemize`) &&
+        resp.request().method() === 'POST' &&
+        resp.status() === 200,
+    );
+
     await page.goto(`/budget/invoices/${invoiceId}/auto-itemize/${MOCK_DOC_ID}`);
+    await dryRunDonePromise;
     await autoItemizePage.waitForAnalyzingDone();
 
     // Assert: note is not visible
@@ -442,6 +392,8 @@ test('Scenario 2b: AutoItemizePage does NOT show the discretionary note when lin
     return;
   }
 
+  test.slow();
+
   const autoItemizePage = new AutoItemizePage(page);
   let vendorId = '';
   let invoiceId = '';
@@ -462,7 +414,16 @@ test('Scenario 2b: AutoItemizePage does NOT show the discretionary note when lin
     // Lines have null budgetSourceId — hasDiscretionaryLines is false
     await mockAutoItemizeDryRun(page, invoiceId, null);
 
+    // Register dry-run response listener before navigation
+    const dryRunDonePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/api/invoices/${invoiceId}/auto-itemize`) &&
+        resp.request().method() === 'POST' &&
+        resp.status() === 200,
+    );
+
     await page.goto(`/budget/invoices/${invoiceId}/auto-itemize/${MOCK_DOC_ID}`);
+    await dryRunDonePromise;
     await autoItemizePage.waitForAnalyzingDone();
 
     await expect(autoItemizePage.discretionaryNote).not.toBeVisible();
@@ -473,148 +434,17 @@ test('Scenario 2b: AutoItemizePage does NOT show the discretionary note when lin
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Budget Overview shows the auto-origin badge on auto-itemized lines
+// Scenarios 3 & 4: Auto-origin badge — REMOVED (PR #1655 / Issue #1615)
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// Auto-origin line creation approach:
-//   `origin` is NOT writable via POST/PATCH /api/work-items/:id/budgets. It is only set
-//   to 'auto' by the invoice auto-itemize commit flow. We therefore:
-//     1. Create a vendor + invoice + a real document link in the DB (fake docId)
-//     2. Call POST /api/invoices/:id/auto-itemize { dryRun: false, lines: [...],
-//        mode: 'append', paperlessDocumentId: <fake> }
-//   The commit path does NOT call Paperless — it only checks the document link exists.
-//   The inserted work_item_budgets row has origin='auto' (set by the service).
-//   The resulting budget line appears in the budget overview as "Unassigned" (no parent
-//   work item). The auto-origin badge is rendered by BudgetLineRow when line.origin === 'auto'.
-
-// Scenario 3 is fixme due to a production design gap exposed during E2E fix work (#1583/#1594):
+// Story #1551 (PR #1610) added an "Auto-itemized" badge to BudgetLineRow when
+// line.origin === 'auto'. PR #1655 removed this badge entirely because:
+//   - Product feedback: not useful — no one needs to distinguish auto-itemized lines
+//     in the overview.
+//   - The badge could never render in practice (auto-itemize 'create-new' lines have
+//     work_item_id=NULL and are excluded by the INNER JOIN in budgetBreakdownService).
 //
-// The auto-origin badge (origin='auto') renders in CostBreakdownTable on budget line rows.
-// However:
-//  - auto-itemize 'create-new' creates lines with work_item_id=NULL, which are EXCLUDED from
-//    the breakdown service (INNER JOIN work_items ON wib.work_item_id = wi.id).
-//  - auto-itemize 'assign-existing' links to a pre-existing work item budget line BUT does NOT
-//    set origin='auto' on that existing row — the origin stays 'manual'.
-//
-// Result: there is currently no auto-itemize path that produces a line visible in the breakdown
-// with origin='auto'. The badge is only testable at the unit level (CostBreakdownTable.autoOriginBadge.test.tsx).
-//
-// This needs a production fix in one of:
-//  a) budgetBreakdownService.ts: change INNER JOIN to LEFT JOIN + include unassigned lines
-//  b) invoiceAutoItemizeService.ts: set origin='auto' when using assign-existing mode
-//
-// When fixed, reinstate this test with the correct navigation path.
-test.fixme('Scenario 3: Budget Overview cost breakdown shows the auto-origin badge on auto-itemized lines', async ({
-  page,
-  testPrefix,
-}) => {
-  const overviewPage = new BudgetOverviewPage(page);
-  let vendorId = '';
-  let invoiceId = '';
-  let docLinkId = '';
-
-  try {
-    vendorId = await createVendorViaApi(page, `${testPrefix} AutoOrigin Badge Vendor`);
-    invoiceId = await createInvoiceViaApi(page, vendorId, {
-      amount: 500,
-      date: '2026-06-01',
-      invoiceNumber: `${testPrefix}-AUTOBADGE-001`,
-    });
-
-    const FAKE_DOC_ID = 88010;
-    docLinkId = await createDocumentLinkViaApi(page, 'invoice', invoiceId, FAKE_DOC_ID);
-
-    await page.request.post(`/api/invoices/${invoiceId}/auto-itemize`, {
-      data: {
-        paperlessDocumentId: FAKE_DOC_ID,
-        mode: 'append',
-        dryRun: false,
-        lines: [
-          {
-            description: `${testPrefix} Auto-itemized roofing line`,
-            totalAmount: 200.0,
-            includesVat: false,
-            confidence: 0.88,
-            assignmentMode: 'create-new',
-            budgetCategoryId: null,
-            budgetSourceId: null,
-          },
-        ],
-      },
-    });
-
-    await overviewPage.goto();
-    await overviewPage.waitForLoaded();
-
-    const autoOriginBadge = page.locator('[aria-label*="automatically"]');
-    await expect(autoOriginBadge).toBeVisible();
-  } finally {
-    if (docLinkId) await deleteDocumentLinkViaApi(page, docLinkId);
-    if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
-    if (vendorId) await deleteVendorViaApi(page, vendorId);
-  }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Budget Overview shows NO auto-origin badge on manually created lines
-// ─────────────────────────────────────────────────────────────────────────────
-
-test('Scenario 4: Budget Overview cost breakdown shows NO auto-origin badge on manually created lines', async ({
-  page,
-  testPrefix,
-}) => {
-  const viewportWidth = page.viewportSize()?.width ?? 1440;
-  if (viewportWidth < 768) {
-    test.skip(true, 'Budget overview cost breakdown is desktop/tablet only');
-    return;
-  }
-
-  const overviewPage = new BudgetOverviewPage(page);
-  let workItemId = '';
-  let budgetLineId = '';
-
-  try {
-    // Create a work item with a manual (origin='manual') budget line via the WI budget API.
-    // The POST /api/work-items/:id/budgets schema does not accept `origin`, so any line
-    // created this way will have origin='manual' (the DB column default).
-    workItemId = await createWorkItemViaApi(page, {
-      title: `${testPrefix} Manual Budget WI`,
-    });
-
-    budgetLineId = await createWorkItemBudgetViaApi(page, workItemId, {
-      description: `${testPrefix} Manual roofing estimate`,
-      plannedAmount: 300,
-    });
-
-    // Navigate to budget overview
-    await overviewPage.goto();
-    await overviewPage.waitForLoaded();
-
-    // Expand Work Items section
-    await overviewPage.costBreakdownCard
-      .getByRole('button', { name: /expand work item budget by area/i })
-      .click();
-
-    // Expand the "No Area" section (or the work item row, whichever is visible)
-    // The work item created without an area will appear under "No Area"
-    const noAreaToggle = overviewPage.costBreakdownCard.getByRole('button', {
-      name: /expand no area/i,
-    });
-    await noAreaToggle.waitFor({ state: 'visible' });
-    await noAreaToggle.click();
-
-    // Expand the work item row to reveal its budget lines
-    await overviewPage.breakdownAreaToggle(testPrefix + ' Manual Budget WI').click();
-
-    // Assert: no auto-origin badge is present
-    // The badge only appears when line.origin === 'auto'. A manually created line
-    // has origin='manual', so the Badge component is not rendered.
-    const autoOriginBadge = page.locator('[aria-label*="automatically"]');
-    await expect(autoOriginBadge).not.toBeVisible();
-  } finally {
-    if (workItemId && budgetLineId) {
-      await deleteWorkItemBudgetViaApi(page, workItemId, budgetLineId);
-    }
-    if (workItemId) await deleteWorkItemViaApi(page, workItemId);
-  }
-});
+// Scenario 3 was already test.fixme (data-path gap). Scenario 4 tested the negative
+// case (badge absent on manual lines). Both scenarios are deleted per Issue #1615's
+// cleanup scope — the badge CSS class, unit tests, and i18n keys were all removed in
+// PR #1655. No E2E tests for a removed UI element are needed.

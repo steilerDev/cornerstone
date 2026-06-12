@@ -556,6 +556,14 @@ export class AutoItemizePage {
    *
    * The caption hides when pageStatus transitions from 'loading' → 'ready'/'error'.
    * The role="list" appears when pageStatus === 'ready' and lines are set.
+   *
+   * IMPORTANT: callers that use page.goto() to navigate directly (rather than clicking
+   * through the app) must register a page.waitForResponse() for the dry-run POST request
+   * BEFORE calling page.goto(), and await it before calling this method. Otherwise there
+   * is a race: if this is called before the component mounts, analyzingCaption is absent
+   * (treated as "hidden"), the caption check resolves immediately, and the lineList check
+   * may timeout waiting for the full load on a slow CI runner. See auto-itemize-discretionary
+   * tests for the correct waitForResponse pattern.
    */
   async waitForAnalyzingDone(): Promise<void> {
     // Wait for analyzing caption to disappear (indicates loading has ended)
