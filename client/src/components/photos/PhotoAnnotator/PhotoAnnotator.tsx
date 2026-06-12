@@ -899,6 +899,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         style={{ position: 'relative' }}
         role="application"
         aria-label={t('canvas')}
+        data-annotator-shapes={JSON.stringify(undoStack.shapes)}
       >
         <Stage
           ref={stageRef}
