@@ -76,7 +76,7 @@ The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Won
 
 ### Orchestration Skills
 
-The orchestrator uses four skills to drive work. Each skill contains the full operational checklist with exact commands and agent coordination. The orchestrator delegates all work — never writes production code, tests, or architectural artifacts directly.
+The orchestrator uses the following skills to drive work. Each skill contains the full operational checklist with exact commands and agent coordination.
 
 | Skill         | Purpose                                                                    | Input                                                           |
 | ------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
@@ -86,7 +86,9 @@ The orchestrator uses four skills to drive work. Each skill contains the full op
 | `/release`    | Promote `beta` to `main`: sync, PR, CI, approval loop, docs, merge         | Optional epic issue number (standalone if omitted)              |
 | `/epic-run`   | Autonomous end-to-end epic: plan, develop all stories, close               | Epic description or issue number                                |
 
-## Acceptance & Validation
+See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases in a single session (only pauses for promotion approval). Use `/release` standalone to promote `beta` to `main` without a prior epic definition.
+
+### Acceptance & Validation
 
 Every epic has two phases: **Development** (`/develop`) where QA + E2E + security review each story PR; and **Epic validation** (`/epic-close`) where E2E coverage is confirmed and UAT runs before promotion. The only human gate is `beta` → `main` — the user approves after reviewing the change inventory. Feedback goes to `/tmp/notes.md`; fixes loop autonomously until approved.
 
@@ -100,7 +102,33 @@ Every epic has two phases: **Development** (`/develop`) where QA + E2E + securit
 - **Test agents own all tests** — `qa-integration-tester` owns unit and integration tests; `e2e-test-engineer` owns Playwright E2E browser tests. Developer agents do not write tests.
 - **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and `e2e-test-engineer`.
 
-## Git & Commit Conventions
+### Delegation Enforcement
+
+The orchestrator launches all implementation agents directly using specs produced by the `dev-team-lead`. The dev-team-lead never launches sub-agents — it operates in three modes (spec, review, commit) and never modifies production files.
+
+The orchestrator runs a **trailer verification** after every commit:
+
+1. Commit trailers must include appropriate co-authors for production file changes
+2. Files under `server/` or `shared/` → must have `backend-developer` trailer
+3. Files under `client/` (except `client/src/i18n/de/` and `client/src/i18n/glossary.json`) → must have `frontend-developer` trailer
+4. Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `translator` trailer
+5. Files under `e2e/` → must have `e2e-test-engineer` trailer
+
+Commits that change production files without the appropriate Haiku co-author trailers are rejected and re-committed with corrected trailers.
+
+Production files: any file under `server/`, `client/`, or `shared/`.
+
+### Agent Attribution
+
+All agents must clearly identify themselves:
+
+- **Commits**: `Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>` — see each agent's definition file for the exact trailer.
+- **GitHub comments**: prefix with `**[agent-name]**` (e.g., `**[backend-developer]** This endpoint...`)
+- **Orchestrator**: when committing work produced by an agent, use that agent's name in the trailer.
+
+## Git & Branching
+
+### Commit Conventions
 
 All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 
@@ -111,18 +139,52 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). Note: `Fixes #N` only auto-closes issues when the commit reaches `main` (not `beta`).
 - **Always commit, push to a feature branch, and create a PR after work is complete.** Lint, format, and audit fixes are handled by the CI auto-fix bot on `beta`. Do not leave work uncommitted or unpushed. Never push directly to `main` or `beta`.
 
+### Branching Strategy
+
+**Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
+
+- **Branch naming**: `<type>/<issue-number>-<short-description>` (e.g., `feat/42-work-item-crud`, `fix/55-budget-calc`)
+- **Never push a `worktree-<anything>` branch.** Sessions run in git worktrees with auto-generated branch names. Before pushing, always rename the branch to match the naming convention above: `git branch -m <type>/<issue-number>-<short-description>`. If the scope of work is not yet clear, determine it before pushing — do not publish placeholder branch names.
+
+### Session Isolation (Worktrees)
+
+**Sessions run in git worktrees.** The user starts each session in a worktree manually.
+
+**Rebase onto `beta` at session start.** Worktrees are created from `main`. Before doing any work in a fresh session, rebase to `beta`: `git rebase origin/beta`. Skip only if the branch is already based on `beta`.
+
+**NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
+
+### Release Model
+
+Cornerstone uses a two-tier release model:
+
+| Branch | Purpose                                                 | Release Type                            | Docker Tags              |
+| ------ | ------------------------------------------------------- | --------------------------------------- | ------------------------ |
+| `beta` | Integration branch — feature PRs land here              | Beta pre-release (e.g., `1.7.0-beta.1`) | `1.7.0-beta.1`, `beta`   |
+| `main` | Stable releases — `beta` promoted after epic completion | Full release (e.g., `1.7.0`)            | `1.7.0`, `1.7`, `latest` |
+
+**Merge strategies:**
+
+- **Feature PR -> `beta`**: Squash merge (clean history)
+- **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
+
+- **Hotfixes:** Cherry-pick any `main` hotfix back to `beta` immediately. See `/release` for merge-back, release summary, and DockerHub sync details.
+
+### Branch Protection
+
+Both `main` and `beta` require PRs with passing `Quality Gates`. `main` additionally requires `E2E Gates`. Force pushes and deletions are blocked on both branches.
+
+Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers static analysis, unit tests, Docker build, and E2E smoke tests — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
+
 ### Local Validation Policy
 
-**Do NOT run `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build` manually.** Lint, format, and audit issues are handled by the CI auto-fix bot (`.github/workflows/auto-fix.yml`), which runs on every push to `beta` and creates a fix PR if needed. Unfixable lint issues are surfaced during `/epic-close` (step 2b: Lint Health Check).
-
-- CI auto-fix bot: `npm run lint:fix` + `npm run format` + `npm audit fix` (runs on `beta` push, creates PR if changes needed)
-- CI Quality Gates: typecheck + test + build (runs on every PR)
+**Do NOT run `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build` manually.** Lint, format, and audit issues are handled by the CI auto-fix bot (`.github/workflows/auto-fix.yml`), which runs `npm run lint:fix` + `npm run format` + `npm audit fix` on every push to `beta` and creates a fix PR if needed. Unfixable lint issues are surfaced during `/epic-close` (step 2b: Lint Health Check). CI Quality Gates (typecheck + test + build) runs on every PR.
 
 To validate your work: **commit and push**. After pushing, **always wait for the required CI gates to pass** before proceeding to the next step. When running tests locally: only run specific files (`npx jest path/to/specific.test.ts --maxWorkers=1`), never the full suite — the sandbox is resource-constrained and CI owns full validation.
 
 The only exception is the QA agent running a specific test file it just wrote (e.g., `npx jest path/to/new.test.ts`) to verify correctness before committing — but never `npm test` (the full suite).
 
-#### CI Gate Polling (canonical pattern)
+### CI Gate Polling (canonical pattern)
 
 `gh pr checks --watch` does not support GitHub Rulesets (only legacy branch protection). Use the polling loops below to watch the required gate checks by name.
 
@@ -150,7 +212,7 @@ echo "Waiting for Quality Gates + E2E Gates..."; SECONDS=0; while true; do if [ 
 
 Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s. Timeouts prevent agents from polling indefinitely if CI hangs.
 
-#### CI Skip-Directive Quirks (two failure modes when CI stops firing)
+### CI Skip-Directive Quirks (two failure modes when CI stops firing)
 
 Two distinct GitHub Actions quirks can leave a PR `MERGEABLE` but `BLOCKED` because the required `Quality Gates` / `E2E Gates` checks did not run on the current HEAD. Diagnose with `gh pr view <PR> --json mergeable,mergeStateStatus,headRefOid` (state `BLOCKED`/`MERGEABLE`) and `gh api repos/steilerDev/cornerstone/commits/<sha>/check-runs` (empty or missing the required check names). The two failure modes look similar but require different fixes — pick by checking the head commit's message.
 
@@ -190,69 +252,6 @@ When `gh` or `git push` commands fail with a GitHub rate-limit error (primary AP
 - Log each retry attempt with its wait duration so the user can see progress
 
 Apply the same policy when polling CI gates — if `gh pr checks` fails with a rate-limit error, the polling loop's normal sleep already absorbs short-lived throttling; for persistent rate-limit errors, extend the sleep per the backoff schedule above.
-
-### Agent Attribution
-
-All agents must clearly identify themselves:
-
-- **Commits**: `Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>` — see each agent's definition file for the exact trailer.
-- **GitHub comments**: prefix with `**[agent-name]**` (e.g., `**[backend-developer]** This endpoint...`)
-- **Orchestrator**: when committing work produced by an agent, use that agent's name in the trailer.
-
-### Delegation Enforcement
-
-The orchestrator launches all implementation agents directly using specs produced by the `dev-team-lead`. The dev-team-lead never launches sub-agents — it operates in three modes (spec, review, commit) and never modifies production files.
-
-The orchestrator runs a **trailer verification** after every commit:
-
-1. Commit trailers must include appropriate co-authors for production file changes
-2. Files under `server/` or `shared/` → must have `backend-developer` trailer
-3. Files under `client/` (except `client/src/i18n/de/` and `client/src/i18n/glossary.json`) → must have `frontend-developer` trailer
-4. Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `translator` trailer
-5. Files under `e2e/` → must have `e2e-test-engineer` trailer
-
-Commits that change production files without the appropriate Haiku co-author trailers are rejected and re-committed with corrected trailers.
-
-Production files: any file under `server/`, `client/`, or `shared/`.
-
-### Branching Strategy
-
-**Never commit directly to `main` or `beta`.** All changes go through feature branches and pull requests.
-
-- **Branch naming**: `<type>/<issue-number>-<short-description>` (e.g., `feat/42-work-item-crud`, `fix/55-budget-calc`)
-- **Never push a `worktree-<anything>` branch.** Worktree branches carry auto-generated names. Before pushing, always rename the branch to match the naming convention above: `git branch -m <type>/<issue-number>-<short-description>`. If the scope of work is not yet clear, determine it before pushing — do not publish placeholder branch names.
-
-### Session Isolation (Worktrees)
-
-**Sessions run in git worktrees.** The user starts each session in a worktree manually. If the branch has a randomly generated name, rename it once scope is clear: `git branch -m <type>/<issue-number>-<short-description>`.
-
-**Rebase onto `beta` at session start.** Worktrees are created from `main`. Before doing any work in a fresh session, rebase to `beta`: `git rebase origin/beta`. Skip only if the branch is already based on `beta`.
-
-**NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
-
-See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases in a single session (only pauses for promotion approval). Use `/release` standalone to promote `beta` to `main` without a prior epic definition.
-
-### Release Model
-
-Cornerstone uses a two-tier release model:
-
-| Branch | Purpose                                                 | Release Type                            | Docker Tags              |
-| ------ | ------------------------------------------------------- | --------------------------------------- | ------------------------ |
-| `beta` | Integration branch — feature PRs land here              | Beta pre-release (e.g., `1.7.0-beta.1`) | `1.7.0-beta.1`, `beta`   |
-| `main` | Stable releases — `beta` promoted after epic completion | Full release (e.g., `1.7.0`)            | `1.7.0`, `1.7`, `latest` |
-
-**Merge strategies:**
-
-- **Feature PR -> `beta`**: Squash merge (clean history)
-- **`beta` -> `main`** (epic promotion): Merge commit (preserves individual commits so semantic-release can analyze them)
-
-- **Hotfixes:** Cherry-pick any `main` hotfix back to `beta` immediately. See `/release` for merge-back, release summary, and DockerHub sync details.
-
-### Branch Protection
-
-Both `main` and `beta` require PRs with passing `Quality Gates`. `main` additionally requires `E2E Gates`. Force pushes and deletions are blocked on both branches.
-
-Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers static analysis, unit tests, Docker build, and E2E smoke tests — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
 
 ## Tech Stack
 
@@ -376,7 +375,21 @@ Before creating a new UI component, check if an existing shared component can be
 5. All CSS values must use design tokens from `tokens.css` — no hardcoded colors, spacing, radii, or font sizes
 6. Stylelint enforces token usage automatically
 
-## Testing Approach
+### Internationalization & Translation
+
+The application supports multiple locales (English and German) via `i18next` and `react-i18next`. All agents must follow these conventions:
+
+- **Frontend**: All user-facing strings must use `t()` — never hardcode text in JSX. Translation files: `client/src/i18n/{lang}/{namespace}.json`. Dev agents write English (`en`) keys only; never write non-English translations.
+- **Translator owns non-English locales**: `translator` agent translates new keys and enforces glossary compliance.
+- **Glossary**: `client/src/i18n/glossary.json` — domain-specific terms only (Work Item, Invoice, etc.). Translator proposes new terms; product-owner approves. To add a locale: update `glossary.json` `_meta.locales`, create `client/src/i18n/{locale}/` namespace files, register in `client/src/i18n/index.ts`.
+- **Backend**: API error responses use `ErrorCode` enum values; frontend translates via `translateApiError()`. `CURRENCY` env var (default: `EUR`) exposed via `GET /api/config`.
+- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
+- **Testing**: QA verifies keys exist in both locales. E2E verifies locale detection and switching.
+- **Specs**: Dev-team-lead specs must include translation namespace, English keys to add, and a Translator Spec section.
+
+## Testing
+
+### Testing Approach
 
 - **Unit & integration tests**: Jest with ts-jest (co-located with source: `foo.test.ts` next to `foo.ts`)
 - **API integration tests**: Fastify's `app.inject()` method (no HTTP server needed)
@@ -397,6 +410,15 @@ Coverage is enforced through three mechanisms:
 - **CI**: 6 Jest shards upload a `coverage-report` artifact (retained 30 days) — inspect via the CI run for per-file percentages.
 - **Test file parity**: dev-team-lead `[MODE: review]` rejects production files without a corresponding test file (`VERDICT: CHANGES_REQUIRED` → routed to `qa-integration-tester`).
 - **Local**: QA runs `npx jest path/to/file.test.ts --coverage --coverageReporters=text --maxWorkers=1` before committing; 95%+ required.
+
+### Test Failure Debugging Protocol
+
+When tests fail during development, a structured diagnostic protocol determines whether the failure is in the test, the production code, or the spec — preventing wasted fix loops (e.g., weakening a correct test to make broken code pass).
+
+- **Source-of-truth hierarchy**: Spec/Contract > Production code > Test code
+- **Rule**: Correct tests must not be weakened to accommodate buggy code; correct code must not be broken to satisfy a wrong test
+- **Protocol owner**: The `dev-team-lead` runs the diagnostic decision tree during `[MODE: review]` when test failures are present in the review input. See the dev-team-lead agent definition for the full classification table and escalation rules.
+- **Test agents report, not diagnose**: `qa-integration-tester` and `e2e-test-engineer` submit structured failure reports but do not determine whether the fault lies in code or tests — that judgment belongs to the dev-team-lead.
 
 ## Development Workflow
 
@@ -481,24 +503,3 @@ Any agent making a decision that affects other agents (e.g., a new naming conven
 ### Agent Memory Maintenance
 
 When a code change invalidates information in agent memory (e.g., fixing a bug documented in memory, changing a public API, updating routes), the implementing agent must update the relevant agent memory files.
-
-### Test Failure Debugging Protocol
-
-When tests fail during development, a structured diagnostic protocol determines whether the failure is in the test, the production code, or the spec — preventing wasted fix loops (e.g., weakening a correct test to make broken code pass).
-
-- **Source-of-truth hierarchy**: Spec/Contract > Production code > Test code
-- **Rule**: Correct tests must not be weakened to accommodate buggy code; correct code must not be broken to satisfy a wrong test
-- **Protocol owner**: The `dev-team-lead` runs the diagnostic decision tree during `[MODE: review]` when test failures are present in the review input. See the dev-team-lead agent definition for the full classification table and escalation rules.
-- **Test agents report, not diagnose**: `qa-integration-tester` and `e2e-test-engineer` submit structured failure reports but do not determine whether the fault lies in code or tests — that judgment belongs to the dev-team-lead.
-
-### Internationalization & Translation
-
-The application supports multiple locales (English and German) via `i18next` and `react-i18next`. All agents must follow these conventions:
-
-- **Frontend**: All user-facing strings must use `t()` — never hardcode text in JSX. Translation files: `client/src/i18n/{lang}/{namespace}.json`. Dev agents write English (`en`) keys only; never write non-English translations.
-- **Translator owns non-English locales**: `translator` agent translates new keys and enforces glossary compliance.
-- **Glossary**: `client/src/i18n/glossary.json` — domain-specific terms only (Work Item, Invoice, etc.). Translator proposes new terms; product-owner approves. To add a locale: update `glossary.json` `_meta.locales`, create `client/src/i18n/{locale}/` namespace files, register in `client/src/i18n/index.ts`.
-- **Backend**: API error responses use `ErrorCode` enum values; frontend translates via `translateApiError()`. `CURRENCY` env var (default: `EUR`) exposed via `GET /api/config`.
-- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
-- **Testing**: QA verifies keys exist in both locales. E2E verifies locale detection and switching.
-- **Specs**: Dev-team-lead specs must include translation namespace, English keys to add, and a Translator Spec section.
