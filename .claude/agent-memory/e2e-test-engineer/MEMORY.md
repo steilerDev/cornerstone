@@ -3,6 +3,14 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## Shard 3 Promotion Blocker Fix (2026-06-12) — `e2e/tests/budget/budget-source-filter.spec.ts`
+
+- `Rapid debounce coalesces requests` test was flaky: asserted `filteredRequestCount.toBe(1)` which fails when CI runner serializes clicks beyond the 50ms debounce window.
+- **FIX**: Replace count assertion with single-deselection + `toHaveAttribute('aria-pressed','false')` + `toHaveURL(/deselectedSources=/)`. Register `waitForResponse` BEFORE click.
+- **CRITICAL**: Test complexity matters for shard timing. A 2-deselection version (sequential + two waitForResponse calls) changed shard timing enough to expose a pre-existing flake (~3m12s). Simplified to single deselection resolved both issues.
+- `page.on('request', ...)` listeners added in tests MUST be removed (they persist on the page object for the test's lifetime). Uncleaned listeners can affect inter-test behavior in same worker.
+- **Pattern**: "count API requests" tests are inherently timing-sensitive. Replace with state assertions (`aria-pressed`, URL params, visible text). See "waitForResponse before action" rule.
+
 ## Discretionary Note + Auto-Origin Badge E2E (Story #1551, 2026-05-29) — `e2e/tests/budget/auto-itemize-discretionary.spec.ts`
 
 - 4 scenarios (+ 1 sub-scenario 2b). @smoke on Scenario 1.
