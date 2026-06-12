@@ -817,6 +817,10 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
   test('Clicking a draft entry card navigates to /diary/:id/edit, not /diary/:id', async ({
     page,
   }) => {
+    // Triple default timeouts — the server under 8-worker CI load can respond slowly
+    // to getDiaryEntry(), causing the badge to appear >7s after navigation.
+    test.slow();
+
     const diaryPage = new DiaryPage(page);
     const editPage = new DiaryEntryEditPage(page);
     let draftId: string | null = null;
@@ -838,8 +842,14 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
       await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`));
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
 
-      // Edit page should be loaded with draft badge
-      await expect(editPage.draftBadge).toBeVisible();
+      // Wait for the edit page to finish loading the entry from the API.
+      // The heading only renders after getDiaryEntry() returns and setEntry(data) fires.
+      // On loaded CI runners with 8 parallel workers, the server response can be slow —
+      // use an explicit timeout that exceeds the default 7s project-level expect.timeout.
+      await expect(editPage.heading).toBeVisible({ timeout: 15_000 });
+
+      // Edit page should show the draft badge (entry.status === 'draft')
+      await expect(editPage.draftBadge).toBeVisible({ timeout: 15_000 });
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
