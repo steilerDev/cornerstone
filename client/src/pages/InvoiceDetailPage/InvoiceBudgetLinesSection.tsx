@@ -222,11 +222,7 @@ export function InvoiceBudgetLinesSection({
           itemizedAmount: amount,
         };
 
-        const response = await createInvoiceBudgetLine(invoiceId, createData);
-
-        // Update state with new line and remaining amount
-        setBudgetLines((prev) => [...prev, response.budgetLine]);
-        setRemainingAmount(response.remainingAmount);
+        await createInvoiceBudgetLine(invoiceId, createData);
       } catch (err) {
         let errorMsg = t('invoiceDetail.budgetLines.picker.error.linkFailed');
 
@@ -244,6 +240,7 @@ export function InvoiceBudgetLinesSection({
           ...picker.pickerState,
           error: errorMsg,
         });
+        await loadBudgetLines();
         return;
       }
     }
@@ -251,6 +248,7 @@ export function InvoiceBudgetLinesSection({
     // Clear selection and close picker on success
     setSelectedLineIds(new Set());
     setItemizedAmounts({});
+    await loadBudgetLines();
     picker.closePicker();
 
     // Focus the newly added row after a short delay
