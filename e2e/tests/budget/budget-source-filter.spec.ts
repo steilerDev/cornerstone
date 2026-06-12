@@ -1020,10 +1020,15 @@ test.describe('Deselect triggers server refetch', { tag: '@responsive' }, () => 
       await expect(overviewPage.sourceRow('Bank Loan')).toHaveAttribute('aria-pressed', 'false');
       await refetchA;
 
-      // Deselect Equity — new refetch should include both IDs
+      // Deselect Equity — new refetch must include BOTH source IDs.
+      // The predicate requires SOURCE_B_ID to prevent refetchB from accidentally
+      // resolving on a spurious SOURCE_A_ID-only re-request that the component might
+      // emit between refetchA resolving and the Equity click being processed.
       const refetchB = page.waitForResponse(
         (resp) =>
-          resp.url().includes('/api/budget/breakdown') && resp.url().includes('deselectedSources='),
+          resp.url().includes('/api/budget/breakdown') &&
+          resp.url().includes('deselectedSources=') &&
+          resp.url().includes(SOURCE_B_ID),
       );
       await overviewPage.sourceRow('Equity').click();
       // aria-pressed for Equity updates from URL state before server response
