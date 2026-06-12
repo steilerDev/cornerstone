@@ -1815,15 +1815,24 @@ test.describe('Source detail row columns', { tag: '@responsive' }, () => {
       const row = overviewPage.sourceRow('Bank Loan');
       const costCell = row.locator('td').nth(1);
 
+      // Read the initial "avg" cost value (projectedMin=30000, projectedMax=35000 → avg=32500)
       const avgText = await costCell.textContent();
 
+      // Click Min perspective — wait for the DOM value to CHANGE before reading.
+      // Using toHaveText() with not.toEqual() ensures React commits the re-render
+      // before we capture the value, preventing a stale-read race on WebKit.
       await overviewPage.costBreakdownCard.getByRole('radio', { name: 'Min' }).click();
+      // Wait for the cell to update (React state change + re-render)
+      await expect(costCell).not.toHaveText(avgText ?? '');
       const minText = await costCell.textContent();
 
+      // Click Max perspective — wait for the DOM value to change from minText
       await overviewPage.costBreakdownCard.getByRole('radio', { name: 'Max' }).click();
+      await expect(costCell).not.toHaveText(minText ?? '');
       const maxText = await costCell.textContent();
 
-      // Bank Loan has projectedMin=30000 ≠ projectedMax=35000, so at least two values differ
+      // Bank Loan has projectedMin=30000 ≠ projectedMax=35000, so at least two values differ.
+      // All three perspective values cannot be the same.
       const allSame = minText === avgText && avgText === maxText;
       expect(allSame).toBe(false);
     } finally {
