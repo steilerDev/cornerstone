@@ -5,11 +5,13 @@
 
 ## Shard 3 Promotion Blocker Fix (2026-06-12) — `e2e/tests/budget/budget-source-filter.spec.ts`
 
-- `Rapid debounce coalesces requests` test was flaky: asserted `filteredRequestCount.toBe(1)` which fails when CI runner serializes clicks beyond the 50ms debounce window.
-- **FIX**: Replace count assertion with single-deselection + `toHaveAttribute('aria-pressed','false')` + `toHaveURL(/deselectedSources=/)`. Register `waitForResponse` BEFORE click.
-- **CRITICAL**: Test complexity matters for shard timing. A 2-deselection version (sequential + two waitForResponse calls) changed shard timing enough to expose a pre-existing flake (~3m12s). Simplified to single deselection resolved both issues.
-- `page.on('request', ...)` listeners added in tests MUST be removed (they persist on the page object for the test's lifetime). Uncleaned listeners can affect inter-test behavior in same worker.
+- `Rapid debounce coalesces requests` test was flaky: asserted `filteredRequestCount.toBe(1)` which fails when CI runner serializes clicks beyond the 50ms debounce window. Fixed in PR #1665.
+- `Perspective toggle changes Cost value in source row` was SECOND flaky test in shard 3: read `textContent()` immediately after `click()` on radio buttons without waiting for React re-render. On WebKit (tablet/mobile), React state updates can be deferred, causing stale reads. Fixed in PR #1666.
+- **FIX pattern for stale-read race**: After `click()` on any element that triggers a React state update + re-render, use `await expect(locator).not.toHaveText(previousValue)` BEFORE calling `textContent()`. Playwright retries until the value changes.
+- **Do NOT use**: `const text = await locator.textContent()` immediately after a click that should change the text. This is racy on WebKit.
+- `page.on('request', ...)` listeners added in tests MUST be removed. Uncleaned listeners persist on the page object for the test lifetime.
 - **Pattern**: "count API requests" tests are inherently timing-sensitive. Replace with state assertions (`aria-pressed`, URL params, visible text). See "waitForResponse before action" rule.
+- The shard 3 failure was intermittent (30% per attempt, ~9% for both attempts): hides on beta PRs (retries:1 recovers), visible on main PRs (maxFailures:1 stops shard after first unrecovered failure).
 
 ## Discretionary Note + Auto-Origin Badge E2E (Story #1551, 2026-05-29) — `e2e/tests/budget/auto-itemize-discretionary.spec.ts`
 
