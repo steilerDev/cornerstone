@@ -567,10 +567,16 @@ test.describe('Claimed invoice warning gates confirm button', { tag: '@responsiv
       // Confirm button must be disabled (understood not checked)
       await expect(sourcesPage.moveModalConfirmButton).toBeDisabled();
 
-      // Check "I understand"
+      // Check "I understand" — click the label text (NOT .check() on the input) to
+      // avoid the mobile WebKit double-toggle bug where nested checkbox inputs fire
+      // two click events (once on input, once via synthetic label propagation).
       const understoodCheckbox = sourcesPage.moveModalUnderstoodCheckbox;
       await understoodCheckbox.waitFor({ state: 'visible' });
-      await understoodCheckbox.check();
+      await sourcesPage.clickMoveModalUnderstoodLabel();
+
+      // Verify the checkbox DOM state is checked before asserting button state
+      // (ensures React onChange has propagated before the next assertion)
+      await expect(understoodCheckbox).toBeChecked();
 
       // Confirm button must now be enabled
       await expect(sourcesPage.moveModalConfirmButton).toBeEnabled();

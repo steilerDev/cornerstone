@@ -570,6 +570,16 @@ export class BudgetSourcesPage {
   }
 
   /**
+   * Click the "I understand" label text to toggle the understood checkbox.
+   * Must NOT use .check() on the input — nested checkbox inputs in labels
+   * double-fire on mobile WebKit (click input → toggle, then synthetic label
+   * click → toggle back). Clicking the label span fires only one toggle.
+   */
+  async clickMoveModalUnderstoodLabel(): Promise<void> {
+    await this.moveModal.locator('[class*="understoodLabel"]').click();
+  }
+
+  /**
    * The FormError banner inside the move modal (shown on API error).
    * FormError renders a div with the CSS module class "banner" and role="alert".
    * Differentiated from the claimed-invoice warning block via the CSS class name.
