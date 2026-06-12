@@ -52,7 +52,15 @@ import { fileURLToPath } from 'url';
 import type { Page, Route, Request } from '@playwright/test';
 import { test, expect } from '../fixtures/auth.js';
 import { PhotoViewerPage } from '../pages/PhotoViewerPage.js';
-import type { RectangleShape, EllipseShape, ArrowShape, LineShape, FreehandShape, TextShape, MeasurementShape } from '../pages/PhotoViewerPage.js';
+import type {
+  RectangleShape,
+  EllipseShape,
+  ArrowShape,
+  LineShape,
+  FreehandShape,
+  TextShape,
+  MeasurementShape,
+} from '../pages/PhotoViewerPage.js';
 import { DiaryEntryDetailPage } from '../pages/DiaryEntryDetailPage.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../fixtures/apiHelpers.js';
 
@@ -238,10 +246,15 @@ test(
       await viewer.drawRectangle();
 
       // Poll until rectangle shape appears in the annotator state model
-      await expect.poll(async () => {
-        const shapes = await viewer.getAnnotatorShapes();
-        return shapes.some(s => s.type === 'rectangle');
-      }, { timeout: 15_000 }).toBe(true);
+      await expect
+        .poll(
+          async () => {
+            const shapes = await viewer.getAnnotatorShapes();
+            return shapes.some((s) => s.type === 'rectangle');
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true);
 
       // ── Save annotation ────────────────────────────────────────────────────
       const [putResponse] = await Promise.all([
@@ -509,10 +522,15 @@ test('Highlight tool — draw highlight and save', async ({
     await viewer.drawRectangle(0.2, 0.2, 0.7, 0.5);
 
     // Poll until highlight shape appears in the annotator state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'highlight');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some((s) => s.type === 'highlight');
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -572,14 +590,19 @@ test('Arrow tool — draw arrow and save', async ({
     await viewer.drawLine(0.2, 0.5, 0.7, 0.3);
 
     // Poll until arrow shape appears in the annotator state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'arrow');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some((s) => s.type === 'arrow');
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Optionally verify geometry fields are numbers
     const shapes5 = await viewer.getAnnotatorShapes();
-    const arrow = shapes5.find(s => s.type === 'arrow') as ArrowShape | undefined;
+    const arrow = shapes5.find((s) => s.type === 'arrow') as ArrowShape | undefined;
     if (arrow) {
       expect(typeof arrow.x1).toBe('number');
       expect(typeof arrow.y1).toBe('number');
@@ -647,14 +670,19 @@ test('Line tool — draw line and save', async ({
     await viewer.drawLine(0.2, 0.2, 0.7, 0.7);
 
     // Poll until line shape appears in the annotator state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'line');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some((s) => s.type === 'line');
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Verify geometry fields are numbers
     const shapes6 = await viewer.getAnnotatorShapes();
-    const line6 = shapes6.find(s => s.type === 'line') as LineShape | undefined;
+    const line6 = shapes6.find((s) => s.type === 'line') as LineShape | undefined;
     if (line6) {
       expect(typeof line6.x1).toBe('number');
       expect(typeof line6.y1).toBe('number');
@@ -734,14 +762,19 @@ test('Line tool — diagonal drag commits line shape with correct geometry', asy
     await page.mouse.up();
 
     // Poll until line shape appears in the annotator state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'line');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some((s) => s.type === 'line');
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Verify geometry: x2 > x1 and y2 > y1 (diagonal down-right)
     const shapes7 = await viewer.getAnnotatorShapes();
-    const line7 = shapes7.find(s => s.type === 'line') as LineShape | undefined;
+    const line7 = shapes7.find((s) => s.type === 'line') as LineShape | undefined;
     expect(line7).toBeDefined();
     if (line7) {
       expect(line7.x2).toBeGreaterThan(line7.x1);
@@ -793,10 +826,15 @@ test('Ellipse tool — draw ellipse and save', async ({
     await viewer.drawEllipse(0.2, 0.2, 0.7, 0.6);
 
     // Poll until ellipse shape appears in the annotator state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'ellipse');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some((s) => s.type === 'ellipse');
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -871,14 +909,19 @@ test('Ellipse tool — wide drag commits ellipse with correct rx and ry in state
     await page.mouse.up();
 
     // Poll until ellipse shape appears in the annotator state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'ellipse');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some((s) => s.type === 'ellipse');
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Verify geometry: rx > ry (wide ellipse) and both positive
     const shapes9 = await viewer.getAnnotatorShapes();
-    const ellipse9 = shapes9.find(s => s.type === 'ellipse') as EllipseShape | undefined;
+    const ellipse9 = shapes9.find((s) => s.type === 'ellipse') as EllipseShape | undefined;
     expect(ellipse9).toBeDefined();
     if (ellipse9) {
       expect(ellipse9.rx).toBeGreaterThan(0);
@@ -930,7 +973,10 @@ test('Text tool — tap to place, type text, Enter commits shape', async ({
 
     // Click the Konva canvas to open the inline input
     const stageBox10 = await viewer.getKonvaStageBox();
-    await page.mouse.click(stageBox10.x + stageBox10.width * 0.3, stageBox10.y + stageBox10.height * 0.3);
+    await page.mouse.click(
+      stageBox10.x + stageBox10.width * 0.3,
+      stageBox10.y + stageBox10.height * 0.3,
+    );
 
     // Inline input should open
     await expect(viewer.inlineInput).toBeVisible();
@@ -943,10 +989,17 @@ test('Text tool — tap to place, type text, Enter commits shape', async ({
     await expect(viewer.inlineInput).not.toBeVisible();
 
     // Poll until text shape appears in the annotator state model with the expected text
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'text' && (s as TextShape).text === 'Inspection point');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some(
+            (s) => s.type === 'text' && (s as TextShape).text === 'Inspection point',
+          );
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -1003,7 +1056,10 @@ test('Text tool — Escape discards the draft without adding a shape', async ({
 
     // Click to open inline input
     const stageBox11 = await viewer.getKonvaStageBox();
-    await page.mouse.click(stageBox11.x + stageBox11.width * 0.4, stageBox11.y + stageBox11.height * 0.4);
+    await page.mouse.click(
+      stageBox11.x + stageBox11.width * 0.4,
+      stageBox11.y + stageBox11.height * 0.4,
+    );
 
     await expect(viewer.inlineInput).toBeVisible();
 
@@ -1015,10 +1071,15 @@ test('Text tool — Escape discards the draft without adding a shape', async ({
     await expect(viewer.inlineInput).not.toBeVisible();
 
     // No text shape should have been committed — verify via state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.length;
-    }, { timeout: 15_000 }).toBe(0);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.length;
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(0);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1071,10 +1132,17 @@ test('Measurement tool — drag, type label, Enter commits with label text', asy
     await viewer.drawMeasurement(0.1, 0.5, 0.8, 0.5, '3.5m');
 
     // Poll until measurement shape appears with the expected label
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'measurement' && (s as MeasurementShape).label === '3.5m');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some(
+            (s) => s.type === 'measurement' && (s as MeasurementShape).label === '3.5m',
+          );
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Save and verify
     const [putResponse] = await Promise.all([
@@ -1131,11 +1199,18 @@ test('Measurement tool — Escape commits line with empty label', async ({
 
     // Drag measurement line
     const stageBox14 = await viewer.getKonvaStageBox();
-    await page.mouse.move(stageBox14.x + stageBox14.width * 0.2, stageBox14.y + stageBox14.height * 0.5);
+    await page.mouse.move(
+      stageBox14.x + stageBox14.width * 0.2,
+      stageBox14.y + stageBox14.height * 0.5,
+    );
     await page.mouse.down();
-    await page.mouse.move(stageBox14.x + stageBox14.width * 0.7, stageBox14.y + stageBox14.height * 0.5, {
-      steps: 5,
-    });
+    await page.mouse.move(
+      stageBox14.x + stageBox14.width * 0.7,
+      stageBox14.y + stageBox14.height * 0.5,
+      {
+        steps: 5,
+      },
+    );
     await page.mouse.up();
 
     // Inline input appears — press Escape without typing
@@ -1146,10 +1221,17 @@ test('Measurement tool — Escape commits line with empty label', async ({
     await expect(viewer.inlineInput).not.toBeVisible();
 
     // Poll until measurement shape is committed with empty label
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'measurement' && (s as MeasurementShape).label === '');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some(
+            (s) => s.type === 'measurement' && (s as MeasurementShape).label === '',
+          );
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1201,14 +1283,19 @@ test('Freehand tool — drag stroke commits polyline shape', async ({
     ]);
 
     // Poll until freehand shape appears in the annotator state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'freehand');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some((s) => s.type === 'freehand');
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Verify the freehand shape has at least 2 points
     const shapes15 = await viewer.getAnnotatorShapes();
-    const freehand15 = shapes15.find(s => s.type === 'freehand') as FreehandShape | undefined;
+    const freehand15 = shapes15.find((s) => s.type === 'freehand') as FreehandShape | undefined;
     expect(freehand15).toBeDefined();
     if (freehand15) {
       expect(freehand15.points.length).toBeGreaterThanOrEqual(2);
@@ -1274,10 +1361,15 @@ test(
 
       // Poll until freehand shape appears in the annotator state model
       // (mobile/touch events can be slower to flush on CI)
-      await expect.poll(async () => {
-        const shapes = await viewer.getAnnotatorShapes();
-        return shapes.some(s => s.type === 'freehand');
-      }, { timeout: 15_000 }).toBe(true);
+      await expect
+        .poll(
+          async () => {
+            const shapes = await viewer.getAnnotatorShapes();
+            return shapes.some((s) => s.type === 'freehand');
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true);
 
       // Save and verify
       const [putResponse] = await Promise.all([
@@ -1344,10 +1436,17 @@ test(
       await expect(viewer.inlineInput).not.toBeVisible();
 
       // Poll until measurement shape appears in the annotator state model with the typed label
-      await expect.poll(async () => {
-        const shapes = await viewer.getAnnotatorShapes();
-        return shapes.some(s => s.type === 'measurement' && (s as MeasurementShape).label === '2.5m');
-      }, { timeout: 15_000 }).toBe(true);
+      await expect
+        .poll(
+          async () => {
+            const shapes = await viewer.getAnnotatorShapes();
+            return shapes.some(
+              (s) => s.type === 'measurement' && (s as MeasurementShape).label === '2.5m',
+            );
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true);
     } finally {
       if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
       if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1394,30 +1493,45 @@ test('Undo removes last committed shape; Redo restores it', async ({
     await viewer.drawRectangle();
 
     // Poll until 1 shape appears in the state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.length;
-    }, { timeout: 15_000 }).toBe(1);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.length;
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(1);
 
     // Undo button should now be enabled
     await expect(viewer.undoButton).not.toBeDisabled();
 
     // Click Undo → shape count goes to 0
     await viewer.undoButton.click();
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.length;
-    }, { timeout: 15_000 }).toBe(0);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.length;
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(0);
 
     // Redo button should now be enabled
     await expect(viewer.redoButton).not.toBeDisabled();
 
     // Click Redo → shape reappears
     await viewer.redoButton.click();
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.length === 1 && shapes[0]?.type === 'rectangle';
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.length === 1 && shapes[0]?.type === 'rectangle';
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1463,14 +1577,21 @@ test('Select tool — drag moves a committed rectangle', async ({
     await viewer.drawRectangle(0.3, 0.3, 0.6, 0.6);
 
     // Poll until rectangle shape appears in the state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'rectangle');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some((s) => s.type === 'rectangle');
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Capture original x position from state model
     const initialShapes19 = await viewer.getAnnotatorShapes();
-    const initialRect19 = initialShapes19.find(s => s.type === 'rectangle') as RectangleShape | undefined;
+    const initialRect19 = initialShapes19.find((s) => s.type === 'rectangle') as
+      | RectangleShape
+      | undefined;
     expect(initialRect19).toBeDefined();
     const initialX19 = initialRect19!.x;
 
@@ -1491,11 +1612,16 @@ test('Select tool — drag moves a committed rectangle', async ({
     await page.mouse.up();
 
     // Poll until the x coordinate in the state model increases (shape moved right)
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      const rect = shapes.find(s => s.type === 'rectangle') as RectangleShape | undefined;
-      return rect ? rect.x : initialX19;
-    }, { timeout: 15_000 }).toBeGreaterThan(initialX19);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          const rect = shapes.find((s) => s.type === 'rectangle') as RectangleShape | undefined;
+          return rect ? rect.x : initialX19;
+        },
+        { timeout: 15_000 },
+      )
+      .toBeGreaterThan(initialX19);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1541,10 +1667,15 @@ test('Select tool — Delete key removes the selected shape', async ({
     await viewer.drawRectangle(0.3, 0.3, 0.6, 0.6);
 
     // Poll until 1 shape appears in the state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.length;
-    }, { timeout: 15_000 }).toBe(1);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.length;
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(1);
 
     // Switch to Select and click the rectangle to select it
     await viewer.activateTool('select');
@@ -1552,16 +1683,24 @@ test('Select tool — Delete key removes the selected shape', async ({
     const stageBox20 = await viewer.getKonvaStageBox();
 
     // Click the center of the drawn rectangle
-    await page.mouse.click(stageBox20.x + stageBox20.width * 0.45, stageBox20.y + stageBox20.height * 0.45);
+    await page.mouse.click(
+      stageBox20.x + stageBox20.width * 0.45,
+      stageBox20.y + stageBox20.height * 0.45,
+    );
 
     // Press Delete key
     await page.keyboard.press('Delete');
 
     // Poll until shape count goes to 0
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.length;
-    }, { timeout: 15_000 }).toBe(0);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.length;
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(0);
   } finally {
     if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
@@ -1614,19 +1753,29 @@ test(
       await viewer.activateTool('rectangle');
       await viewer.drawRectangle(0.1, 0.1, 0.4, 0.4);
       // Poll until rectangle shape appears in the state model
-      await expect.poll(async () => {
-        const shapes = await viewer.getAnnotatorShapes();
-        return shapes.some(s => s.type === 'rectangle');
-      }, { timeout: 15_000 }).toBe(true);
+      await expect
+        .poll(
+          async () => {
+            const shapes = await viewer.getAnnotatorShapes();
+            return shapes.some((s) => s.type === 'rectangle');
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true);
 
       // Draw Ellipse (Konva canvas — no ellipse[data-shapeid] assertion)
       await viewer.activateTool('ellipse');
       await viewer.drawEllipse(0.5, 0.1, 0.9, 0.4);
       // Poll until ellipse shape appears in the state model
-      await expect.poll(async () => {
-        const shapes = await viewer.getAnnotatorShapes();
-        return shapes.some(s => s.type === 'ellipse');
-      }, { timeout: 15_000 }).toBe(true);
+      await expect
+        .poll(
+          async () => {
+            const shapes = await viewer.getAnnotatorShapes();
+            return shapes.some((s) => s.type === 'ellipse');
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true);
 
       // Draw Freehand using drawFreehandTouch (synthetic PointerEvents) so this
       // step works on mobile WebKit (hasTouch=true) where page.mouse.* does not
@@ -1640,16 +1789,26 @@ test(
         [0.7, 0.6],
       ]);
       // Poll until freehand shape appears in the state model
-      await expect.poll(async () => {
-        const shapes = await viewer.getAnnotatorShapes();
-        return shapes.some(s => s.type === 'freehand');
-      }, { timeout: 15_000 }).toBe(true);
+      await expect
+        .poll(
+          async () => {
+            const shapes = await viewer.getAnnotatorShapes();
+            return shapes.some((s) => s.type === 'freehand');
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true);
 
       // Verify all 3 shapes are present
-      await expect.poll(async () => {
-        const shapes = await viewer.getAnnotatorShapes();
-        return shapes.length;
-      }, { timeout: 15_000 }).toBe(3);
+      await expect
+        .poll(
+          async () => {
+            const shapes = await viewer.getAnnotatorShapes();
+            return shapes.length;
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(3);
 
       // Save
       const [putResponse] = await Promise.all([
@@ -1852,15 +2011,20 @@ test('Color palette — selecting a swatch marks it aria-checked and new shapes 
     await viewer.drawRectangle(0.2, 0.2, 0.6, 0.6);
 
     // Poll until rectangle shape appears in the state model
-    await expect.poll(async () => {
-      const shapes = await viewer.getAnnotatorShapes();
-      return shapes.some(s => s.type === 'rectangle');
-    }, { timeout: 15_000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const shapes = await viewer.getAnnotatorShapes();
+          return shapes.some((s) => s.type === 'rectangle');
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
 
     // Verify the rectangle uses the blue color (#3b82f6)
     // RectangleShape uses the 'color' field for stroke
     const shapes23 = await viewer.getAnnotatorShapes();
-    const rect23 = shapes23.find(s => s.type === 'rectangle') as RectangleShape | undefined;
+    const rect23 = shapes23.find((s) => s.type === 'rectangle') as RectangleShape | undefined;
     expect(rect23).toBeDefined();
     if (rect23) {
       expect(rect23.color).toBe('#3b82f6');

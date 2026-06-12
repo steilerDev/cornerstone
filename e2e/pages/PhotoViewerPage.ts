@@ -389,12 +389,7 @@ export class PhotoViewerPage {
    * Always use a diagonal drag (both X and Y differ) to ensure the shape commits.
    * Default params produce a 45° diagonal on the left half of the canvas.
    */
-  async drawLine(
-    startXPct = 0.2,
-    startYPct = 0.2,
-    endXPct = 0.7,
-    endYPct = 0.7,
-  ): Promise<void> {
+  async drawLine(startXPct = 0.2, startYPct = 0.2, endXPct = 0.7, endYPct = 0.7): Promise<void> {
     const box = await this.getKonvaStageBox();
 
     const startX = box.x + box.width * startXPct;
@@ -416,12 +411,7 @@ export class PhotoViewerPage {
    * For a 100×100 canvas, MIN_SIZE = 5 — so both axes must differ by > 5px.
    * Default params produce an ellipse spanning 40% of each axis.
    */
-  async drawEllipse(
-    startXPct = 0.2,
-    startYPct = 0.2,
-    endXPct = 0.6,
-    endYPct = 0.6,
-  ): Promise<void> {
+  async drawEllipse(startXPct = 0.2, startYPct = 0.2, endXPct = 0.6, endYPct = 0.6): Promise<void> {
     const box = await this.getKonvaStageBox();
 
     const startX = box.x + box.width * startXPct;
