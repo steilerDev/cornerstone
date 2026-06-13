@@ -76,7 +76,7 @@ To delete a selected shape, press `Delete` or `Backspace`.
 
 ### Inline Text Input
 
-When you place text, callouts, or measurement labels, an inline editor appears anchored to the rendered shape position. The text in the editor matches what will be rendered (same font, size, and colour) so you can see your label in context as you type.
+When you place text or measurement labels, an inline editor appears anchored to the rendered shape position. The text in the editor matches what will be rendered (same font, size, and colour) so you can see your label in context as you type.
 
 ## Saving and Resetting
 

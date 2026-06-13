@@ -5,7 +5,7 @@ title: Auto-itemize Invoices
 
 # Auto-itemize Invoices
 
-When a vendor sends you a PDF invoice, Cornerstone can read the line items off the page for you and turn them into budget lines you only need to review -- not type out. You scan or import the invoice into Paperless-ngx, link it to a Cornerstone invoice, and click **Auto-itemize**. A language model reads the OCR text and proposes one budget line per row on the invoice. You edit, accept, and assign each line to the work item or household item it belongs to.
+When a vendor sends you a PDF invoice, Cornerstone can read the line items off the page for you and turn them into budget lines you only need to review -- not type out. You scan or import the invoice into Paperless-ngx, link it to a Cornerstone invoice, and click **Auto-itemize** on the linked document. A language model reads the OCR text and proposes one budget line per row on the invoice. Cornerstone then opens a dedicated **Auto-itemize** page with the original PDF on one side and the extracted lines on the other, so you can edit, assign, and save each line against the document it came from.
 
 This feature is **opt-in** and disabled by default. You connect Cornerstone to any LLM provider that speaks the OpenAI chat-completions API -- Google Gemini, Anthropic, OpenAI, or a self-hosted model running on your own machine. Cornerstone never sends the binary PDF off your server; only the OCR text and a few invoice details (vendor name, total, date) leave your host.
 
@@ -17,7 +17,7 @@ Before you can auto-itemize, three things must be in place:
 2. **An LLM provider is configured.** Cornerstone needs an LLM endpoint to send the OCR text to (next section).
 3. **At least one Paperless document is linked to the invoice you want to itemize.** See [Linking Documents](/guides/documents/linking-documents).
 
-When all three are in place, the **Auto-itemize** button appears in the Linked Budget Lines section header on the invoice detail page, right next to **+ Add Itemization**.
+When all three are in place, an **Auto-itemize** action appears on each linked-document card in the **Documents** section of the invoice detail page. Clicking it opens the dedicated Auto-itemize page for that document.
 
 ## Configure your LLM provider
 
@@ -80,85 +80,82 @@ The numbers above are rough estimates for a typical one-page construction invoic
 
 ### Verify the configuration
 
-The easiest way to verify: open any invoice that has at least one linked Paperless document. If you see an **Auto-itemize** button in the budget-lines section header, the LLM provider is configured correctly. If not, double-check the three required variables and that the container was restarted.
+The easiest way to verify: open any invoice that has at least one linked Paperless document. If you see an **Auto-itemize** action on the linked-document card in the **Documents** section, the LLM provider is configured correctly. If not, double-check the three required variables and that the container was restarted.
 
 ## Walkthrough
 
 This walkthrough assumes you have an invoice in Cornerstone with at least one Paperless document linked to it -- typically the PDF the vendor sent you.
 
-### 1. Open the invoice
+### 1. Open the invoice and start auto-itemize
 
-Navigate to **Budget > Invoices** and open the invoice you want to itemize. Scroll to the **Linked Budget Lines** section.
+Navigate to **Budget > Invoices** and open the invoice you want to itemize. Scroll to the **Documents** section, find the linked invoice PDF, and click its **Auto-itemize** action.
 
-### 2. Click Auto-itemize
+Cornerstone opens the dedicated **Auto-itemize** page. A spinner with an elapsed-seconds counter shows while it fetches the OCR text from Paperless and sends it to your LLM provider. There is no document-picker step -- you choose which document to itemize when you click its action on the card.
 
-Click the **Auto-itemize** button in the section header (next to **+ Add Itemization**). A spinner appears while Cornerstone fetches the OCR text from Paperless and sends it to your LLM provider.
+### 2. Review the page layout
 
-### 3. Pick a document (if needed)
+When extraction finishes, the page shows two columns:
 
-If the invoice has more than one Paperless document linked, a picker modal opens listing each document with its title and date. Click the document you want to analyze. The modal closes and extraction starts.
+- **Left column -- the form.** The invoice metadata fields at the top, a mode selector, and one card per extracted line item.
+- **Right column -- the PDF preview.** The original document renders inline so you can check each extracted line against the source page without leaving the screen. If the PDF cannot be embedded, a fallback panel offers an **Open in Paperless-ngx** link instead.
 
-If the invoice has exactly one document linked, this step is skipped.
+On narrow screens the PDF preview moves below the form.
 
-### 4. Review the preview
+### 3. Review and correct the invoice metadata
 
-When extraction finishes, the **Auto-itemize Preview** modal opens. It shows:
+The top card shows the invoice's **number, amount, date, due date, notes, and status**, pre-filled with the current invoice values. Where the model read a different value off the document than what is on the invoice, a **suggestion badge** appears next to the field -- click it to apply the extracted value. Anything you change here is written back to the invoice when you save.
 
-- **One row per extracted line item**, with editable description, quantity, unit, unit price, and total amount fields. Each row has an include / exclude checkbox -- uncheck rows you do not want to save.
-- A **mode selector** (append / replace, defaults to append):
-  - **Append** -- add the extracted lines to the invoice on top of whatever is already there.
-  - **Replace** -- delete previously auto-extracted lines on this invoice and use only the new ones. Manually-added lines are always preserved.
-- A **totals row** comparing the sum of included lines against the invoice amount. If the difference is more than 1%, a warning banner appears at the top of the modal.
+### 4. Choose append or replace
 
-### 5. Edit, exclude, or correct lines
+The **mode selector** controls how the new lines combine with what is already on the invoice:
 
-Click any cell to edit it. OCR is not perfect: descriptions sometimes have stray characters, quantities may be missing, and the LLM occasionally invents a line that does not exist on the invoice. Treat the preview as a draft -- fix what is wrong, uncheck what should not be saved, and add anything that was missed manually after applying.
+- **Append** (default) -- add the extracted lines on top of whatever is already there.
+- **Replace** -- delete previously auto-extracted lines on this invoice and use only the new ones. Manually-added lines are always preserved.
 
-### 6. Click Apply
+### 5. Edit, exclude, or correct each line
 
-Click **Apply**. The modal closes, the invoice page refreshes, and your new lines appear in the Linked Budget Lines table -- each one tagged with an **Unassigned** pill in the "Linked Item" column.
+Each extracted line is a card with editable **description, quantity, unit, unit price, and total amount** fields, plus an **include** checkbox -- uncheck a card to leave that line out. A coloured confidence dot shows how sure the model was about each row.
 
-:::note What's an Unassigned line?
-Auto-extracted lines do not know which work item or household item they belong to. They land as "Unassigned" so you can record the line item the moment you see the PDF and decide where it rolls up later. Unassigned lines still count toward your financing-source totals and category aggregates, but they do **not** appear in any single work item's budget rollup until you assign them.
-:::
+OCR is not perfect: descriptions sometimes have stray characters, quantities may be missing, and the model occasionally invents a line that does not exist on the invoice. Treat every card as a draft -- fix what is wrong, uncheck what should not be saved, and use the PDF preview to confirm against the source.
 
-### 7. Assign each line to a work item or household item
+A **totals card** at the bottom sums the included lines and compares them against the invoice amount, showing a green match, an amber warning (within 5%), or a red mismatch.
 
-Each Unassigned row has an inline **Assign…** button. Click it to open the assignment picker:
+### 6. Assign each line and set its category and funding source
 
-- Switch between the **Work Item** and **Household Item** tabs at the top of the picker.
-- Use the search field to find the target item.
-- Click the item, then click **Save**.
+Each line card carries inline **Category** and **Funding source** pickers, plus an **Assign** button:
 
-The row's pill changes from "Unassigned" to the linked item's name -- and a click on that name jumps to the item's detail page. From here the line behaves like any other budget line: it shows up on the work item or household item's Budget tab, contributes to that item's totals, and feeds into the budget overview rollups.
+- **Category / Funding source.** Pick the budget category and which financing source pays for the line directly on the card. New lines default their funding source to **Discretionary Funding** (see [Funding source](#funding-source) below).
+- **Assign.** Click **Assign** to open the two-step picker. First choose the target **work item** or **household item**; then either pick an existing budget line on that item to link to, or click **Create new** to add a fresh line (pre-filled from the extracted row). A line created from the extraction is marked with a **"Created from auto-itemization"** badge so you can tell it apart. Clear an assignment with the **✕** next to it to re-assign or switch to create-new.
 
-:::caution Assignment is one-shot
-You can assign an Unassigned line to a work item or household item exactly once. After that, the parent is locked in -- there is no "reassign to a different work item" action. If you assign a line to the wrong target, delete it from the invoice and re-create it manually with the right parent.
+A line you do not assign to any item is still saved against the invoice and counts toward financing-source totals and category aggregates, but it does not roll up into a single work item's budget until you assign it.
+
+### 7. Save
+
+Click **Save**. Cornerstone writes the included lines (and any metadata changes) and returns you to the invoice. If you try to leave with unsaved edits, a confirmation dialog asks whether to discard them.
+
+:::tip You can move an assigned line later
+Unlike the old one-shot flow, an invoice-linked budget line is no longer locked to its first parent. You can later edit any invoice-linked line -- including auto-itemized ones -- and **move it to a different work item or household item** from the line's edit view. See [Inline budget line editing](work-item-budgets#editing-invoice-linked-budget-lines).
 :::
 
 ## Funding source
 
 Every budget line is funded by one of your [financing sources](financing-sources) -- your construction loan, savings, a subsidy, and so on. But when a language model reads an invoice, it has no way of knowing which pot of money you intend to draw on for each row. A line that says "Bathroom tiles -- 480 EUR" tells you nothing about whether you are paying for it out of your loan or your savings.
 
-So auto-extracted lines all start out funded by the built-in **Discretionary Funding** source. Think of it as a holding bay: the line is recorded and counted, but parked against a neutral source until you decide where the money really comes from.
+So auto-extracted lines default to the built-in **Discretionary Funding** source. Think of it as a holding bay: the line is recorded and counted, but parked against a neutral source until you decide where the money really comes from. You can override the funding source per line directly on the Auto-itemize page using each card's **Funding source** picker.
 
-You will see this called out in two places:
-
-- **In the preview.** Before you apply, an informational note in the **Auto-itemize Preview** reminds you that the new lines will be created against Discretionary Funding, and that you can reassign each line's funding source afterwards. Nothing is locked in -- it is just a sensible default to get the lines recorded quickly.
-- **On the Budget Overview.** Once applied, every auto-created line carries an **"Auto-itemized"** badge alongside its source attribution badge. The badge makes the freshly-extracted lines easy to spot, so you can sweep through and move them onto the right source instead of hunting for which lines still need attention.
+A note in the **extracted lines** section of the Auto-itemize page reminds you, before you save, that any lines still on Discretionary Funding can be moved onto a real source at any time -- nothing is locked in. It is just a sensible default to get lines recorded quickly.
 
 ### Reassign a line's funding source
 
-When you know which source should fund a line, change it on the [Budget Overview](budget-overview) or from the line's edit view:
+When you know which source should fund a line, change it from the line's edit view:
 
-1. Open **Budget > Overview** (or the work item / household item the line is assigned to).
-2. Find the line -- the **"Auto-itemized"** badge marks the ones still on Discretionary Funding.
-3. Edit the line and pick the correct financing source from the source selector, then save.
+1. Open the work item or household item the line is assigned to (or **Budget > Overview**).
+2. Edit the line and pick the correct financing source from the source selector, then save.
 
 If a whole batch of lines belongs to the same source -- for example, everything on one invoice -- the [Financing Sources](financing-sources) page lets you multi-select lines and move them in a single operation. The depletion totals on both the old and new source update immediately.
 
 :::tip Funding source is not the same as the linked item
-Reassigning the **funding source** (which pot of money pays for the line) is separate from assigning the line to a **work item or household item** (what the line is for). You can change a line's funding source as often as you like; the work item assignment, by contrast, is [one-shot](#7-assign-each-line-to-a-work-item-or-household-item).
+Reassigning the **funding source** (which pot of money pays for the line) is separate from assigning the line to a **work item or household item** (what the line is for). You can change either independently and as often as you like -- both the funding source and the parent item assignment can be edited later from the line's edit view.
 :::
 
 ## What data leaves your server
