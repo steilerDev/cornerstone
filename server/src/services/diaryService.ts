@@ -13,7 +13,7 @@ import type { SQL } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import type { areas } from '../db/schema.js';
-import { diaryEntries, photos, users, workItems, invoices, milestones } from '../db/schema.js';
+import { diaryEntries, photos, users, workItems, invoices, milestones, vendors } from '../db/schema.js';
 import {
   NotFoundError,
   ValidationError,
@@ -185,8 +185,17 @@ function toDiarySummary(
   photoCount: number,
   sourceEntityTitle: string | null = null,
   sourceEntityArea: AreaSummary | null = null,
+  db?: DbType,
 ): DiaryEntrySummary {
   const metadata = parseMetadata(entry.metadata);
+  // Denormalize vendorName for daily_log entries
+  if (entry.entryType === 'daily_log' && metadata && db) {
+    const dlm = metadata as DailyLogMetadata;
+    if (dlm.vendorId) {
+      const vendorRow = db.select({ name: vendors.name }).from(vendors).where(eq(vendors.id, dlm.vendorId)).get();
+      dlm.vendorName = vendorRow?.name ?? null;
+    }
+  }
   const isSigned = Boolean(
     metadata &&
     'signatures' in metadata &&
@@ -222,6 +231,7 @@ function toDiarySummary(
 function validateMetadata(
   entryType: string,
   metadata: DiaryEntryMetadata | null | undefined,
+  db: DbType,
 ): void {
   if (!metadata) return;
 
@@ -285,6 +295,35 @@ function validateMetadata(
               'daily_log signature entry signedAt must be a non-empty string if provided',
             );
           }
+        }
+      }
+      // Validate vendorId is a string or null, and references an existing vendor
+      if (dlm.vendorId !== undefined && dlm.vendorId !== null) {
+        if (typeof dlm.vendorId !== 'string' || dlm.vendorId.trim().length === 0) {
+          throw new InvalidMetadataError('daily_log vendorId must be a non-empty string or null');
+        }
+        const vendor = db.select({ id: vendors.id }).from(vendors).where(eq(vendors.id, dlm.vendorId)).get();
+        if (!vendor) {
+          throw new InvalidMetadataError(`daily_log vendorId "${dlm.vendorId}" does not reference an existing vendor`);
+        }
+      }
+      // Validate workStart is HH:mm or null
+      const HH_MM_REGEX = /^\d{2}:\d{2}$/;
+      if (dlm.workStart !== undefined && dlm.workStart !== null) {
+        if (typeof dlm.workStart !== 'string' || !HH_MM_REGEX.test(dlm.workStart)) {
+          throw new InvalidMetadataError('daily_log workStart must be a valid HH:mm time string or null');
+        }
+      }
+      // Validate workEnd is HH:mm or null
+      if (dlm.workEnd !== undefined && dlm.workEnd !== null) {
+        if (typeof dlm.workEnd !== 'string' || !HH_MM_REGEX.test(dlm.workEnd)) {
+          throw new InvalidMetadataError('daily_log workEnd must be a valid HH:mm time string or null');
+        }
+      }
+      // Cross-field: end must be strictly after start when both present
+      if (dlm.workStart && dlm.workEnd) {
+        if (dlm.workEnd <= dlm.workStart) {
+          throw new InvalidMetadataError('daily_log workEnd must be strictly after workStart');
         }
       }
       break;
@@ -522,6 +561,7 @@ export function listDiaryEntries(
       photoCountMap.get(row.entry.id) ?? 0,
       sourceEntityTitle,
       sourceEntityArea,
+      db,
     );
   });
 
@@ -581,6 +621,7 @@ export function getDiaryEntry(db: DbType, id: string): DiaryEntryDetail {
     photoCount?.count ?? 0,
     sourceEntityTitle,
     sourceEntityArea,
+    db,
   );
 }
 
@@ -625,7 +666,7 @@ export function createDiaryEntry(
   }
 
   // Validate metadata (both drafts and saved entries enforce type validation)
-  validateMetadata(data.entryType, data.metadata);
+  validateMetadata(data.entryType, data.metadata, db);
 
   // Validate metadata size
   if (data.metadata !== null && data.metadata !== undefined) {
@@ -686,6 +727,7 @@ export function createDiaryEntry(
     0,
     null,
     null,
+    db,
   );
 }
 
@@ -740,7 +782,7 @@ export function updateDiaryEntry(
 
   // Validate metadata if provided
   if (data.metadata !== undefined) {
-    validateMetadata(entry.entryType, data.metadata);
+    validateMetadata(entry.entryType, data.metadata, db);
   }
 
   // Validate metadata size
@@ -800,6 +842,7 @@ export function updateDiaryEntry(
     photoCount?.count ?? 0,
     sourceEntityTitle,
     sourceEntityArea,
+    db,
   );
 }
 
@@ -933,7 +976,7 @@ export function promoteDiaryEntry(
   }
 
   // Validate merged metadata
-  validateMetadata(entryType, finalMetadata);
+  validateMetadata(entryType, finalMetadata, db);
 
   // Validate metadata size
   if (finalMetadata !== null && finalMetadata !== undefined) {

@@ -11,6 +11,9 @@ import type {
 import _shared from '../../../styles/shared.module.css';
 import { SignatureSection } from '../SignatureSection/index.js';
 import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
+import { SearchPicker } from '../../SearchPicker/SearchPicker.js';
+import { fetchVendors } from '../../../lib/vendorsApi.js';
+import { computeWorkDuration } from '../../../lib/formatters.js';
 import styles from './DiaryEntryForm.module.css';
 
 export interface DiaryEntryFormProps {
@@ -33,6 +36,13 @@ export interface DiaryEntryFormProps {
   onDailyLogWorkersChange?: (workers: number | null) => void;
   dailyLogSignatures?: DiarySignatureEntry[] | null;
   onDailyLogSignaturesChange?: (sigs: DiarySignatureEntry[] | null) => void;
+  dailyLogVendorId?: string | null;
+  onDailyLogVendorIdChange?: (id: string | null) => void;
+  dailyLogVendorName?: string | null;
+  dailyLogWorkStart?: string | null;
+  onDailyLogWorkStartChange?: (time: string | null) => void;
+  dailyLogWorkEnd?: string | null;
+  onDailyLogWorkEndChange?: (time: string | null) => void;
   /** site_visit metadata */
   siteVisitInspectorName?: string | null;
   onSiteVisitInspectorNameChange?: (name: string | null) => void;
@@ -136,6 +146,13 @@ export function DiaryEntryForm({
   onDailyLogWorkersChange,
   dailyLogSignatures,
   onDailyLogSignaturesChange,
+  dailyLogVendorId,
+  onDailyLogVendorIdChange,
+  dailyLogVendorName,
+  dailyLogWorkStart,
+  onDailyLogWorkStartChange,
+  dailyLogWorkEnd,
+  onDailyLogWorkEndChange,
   // site_visit
   siteVisitInspectorName,
   onSiteVisitInspectorNameChange,
@@ -165,6 +182,11 @@ export function DiaryEntryForm({
   const severityOptions = useSeverityOptions();
   const resolutionStatusOptions = useResolutionStatusOptions();
   const materialInputRef = React.useRef<HTMLInputElement>(null);
+
+  const workDurationHours = useMemo(
+    () => computeWorkDuration(dailyLogWorkStart, dailyLogWorkEnd),
+    [dailyLogWorkStart, dailyLogWorkEnd],
+  );
 
   const handleAddMaterial = () => {
     const input = materialInputRef.current;
@@ -328,6 +350,87 @@ export function DiaryEntryForm({
               />
             </div>
           </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="daily-log-vendor" className={styles.label}>
+              {t('form.vendor')}
+            </label>
+            <SearchPicker
+              id="daily-log-vendor"
+              value={dailyLogVendorId ?? ''}
+              onChange={(id) => onDailyLogVendorIdChange?.(id || null)}
+              excludeIds={[]}
+              disabled={disabled}
+              placeholder={t('form.dailyLogVendorPlaceholder')}
+              searchFn={async (query) => {
+                const res = await fetchVendors({ q: query, pageSize: 50 });
+                return res.vendors;
+              }}
+              renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
+              showItemsOnFocus
+              initialTitle={dailyLogVendorName ?? undefined}
+            />
+          </div>
+
+          <div className={styles.formRowTwoCol}>
+            <div className={styles.formGroup}>
+              <label htmlFor="work-start-time" className={styles.label}>
+                {t('form.workStartTime')}
+              </label>
+              <input
+                type="time"
+                id="work-start-time"
+                className={`${styles.input} ${validationErrors.dailyLogWorkTime ? styles.inputError : ''}`}
+                step="60"
+                value={dailyLogWorkStart ?? ''}
+                onChange={(e) => onDailyLogWorkStartChange?.(e.target.value || null)}
+                onBlur={onFieldBlur}
+                disabled={disabled}
+                aria-invalid={!!validationErrors.dailyLogWorkTime}
+                aria-describedby={validationErrors.dailyLogWorkTime ? 'work-time-error' : undefined}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label htmlFor="work-end-time" className={styles.label}>
+                {t('form.workEndTime')}
+              </label>
+              <input
+                type="time"
+                id="work-end-time"
+                className={`${styles.input} ${validationErrors.dailyLogWorkTime ? styles.inputError : ''}`}
+                step="60"
+                value={dailyLogWorkEnd ?? ''}
+                onChange={(e) => onDailyLogWorkEndChange?.(e.target.value || null)}
+                onBlur={onFieldBlur}
+                disabled={disabled}
+                aria-invalid={!!validationErrors.dailyLogWorkTime}
+                aria-describedby={validationErrors.dailyLogWorkTime ? 'work-time-error' : undefined}
+              />
+            </div>
+          </div>
+
+          {validationErrors.dailyLogWorkTime && (
+            <div id="work-time-error" className={styles.errorText} role="alert">
+              {validationErrors.dailyLogWorkTime}
+            </div>
+          )}
+
+          {workDurationHours !== null && (
+            <div className={styles.formGroup}>
+              <span className={styles.label} id="duration-label">
+                {t('form.workDuration')}
+              </span>
+              <span
+                className={styles.durationValue}
+                aria-labelledby="duration-label"
+                role="status"
+                aria-atomic="true"
+              >
+                {workDurationHours.toFixed(2)} h
+              </span>
+            </div>
+          )}
 
           <SignatureSection
             signatures={dailyLogSignatures}

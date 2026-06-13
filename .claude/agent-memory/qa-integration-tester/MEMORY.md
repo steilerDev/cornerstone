@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1672 — diary vendor + work-time field test patterns (2026-06-13)
+
+**Server TS1343 on Node 22**: The local worktree tsconfig still fails with TS1343 on `import.meta.url` in `migrate.ts` even on Node 22 — all server service tests that call `runMigrations` fail locally. CI passes. Pattern confirmed: add tests and verify they compile cleanly, expect CI green.
+
+**DailyLogMetadata local type alias**: `DailyLogMetadata` from `@cornerstone/shared` is imported by production code but not by the test file; define a local alias `type DailyLogMetadataTest = { vendorId?: ..., vendorName?: ..., workStart?: ..., workEnd?: ... }` to cast metadata for inspection without re-importing the shared type.
+
+**SearchPicker label in jsdom**: DiaryEntryForm's vendor SearchPicker (`id="daily-log-vendor"`) is not a native input — `getByLabelText` won't find it. Assert the label text via `screen.getByText('Vendor')` instead.
+
+**DiaryMetadataSummaryProps not exported**: The component interface is private. Reconstruct it in the test file: `interface DiaryMetadataSummaryProps { entryType: DiaryEntryType; metadata: unknown; }`.
+
+**DiaryMetadataSummary coverage approach**: Import `DiaryEntryType` from `@cornerstone/shared` for the local props type. Use `document.querySelector('[data-testid=...]')` to assert branch routing. Cover all 5 branches (daily_log, site_visit, delivery, issue, auto-event) plus StatusPill color variants to reach 100% statements/lines.
+
 ## React 19 iframe onError event — RESOLVED (2026-05-29)
 
 **Background**: `onError` on `<iframe>` is a dead prop in React 19 (confirmed via react-dom 19.2.6 source). Only `onErrorCapture` works. Bug was tracked as GitHub Issue #1614.

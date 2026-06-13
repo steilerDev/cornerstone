@@ -75,6 +75,20 @@ export class DiaryEntryEditPage {
   readonly temperatureInput: Locator;
   readonly workersInput: Locator;
 
+  // daily_log — vendor, time, duration (Story #1672)
+  // dailyLogVendorSearch: the text input inside the SearchPicker (id="daily-log-vendor").
+  // When no vendor is selected, the SearchPicker renders a plain <input type="text"> with id="daily-log-vendor".
+  // When a vendor is selected (selectedItem set), the SearchPicker renders a selectedDisplay div with a
+  // clear button (aria-label from t('aria.clearSelection') = "Clear selection").
+  readonly dailyLogVendorSearch: Locator;
+  readonly dailyLogVendorClearButton: Locator;
+  readonly workStartTimeInput: Locator;
+  readonly workEndTimeInput: Locator;
+  // role="status" aria-atomic="true" — visible only when both times are set and end > start
+  readonly workDurationDisplay: Locator;
+  // id="work-time-error", role="alert" — shown when end ≤ start at save-attempt
+  readonly workTimeValidationError: Locator;
+
   // site_visit-specific fields
   readonly inspectorNameInput: Locator;
   readonly outcomeSelect: Locator;
@@ -130,6 +144,17 @@ export class DiaryEntryEditPage {
     this.weatherSelect = page.locator('#weather');
     this.temperatureInput = page.locator('#temperature');
     this.workersInput = page.locator('#workers');
+
+    // daily_log — vendor, time, duration (Story #1672)
+    // The SearchPicker renders a plain <input type="text"> with id="daily-log-vendor" when no
+    // vendor is selected. Once a vendor is chosen, the picker hides the input and shows a
+    // selectedDisplay div — use dailyLogVendorClearButton to clear it.
+    this.dailyLogVendorSearch = page.locator('#daily-log-vendor');
+    this.dailyLogVendorClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });
+    this.workStartTimeInput = page.locator('#work-start-time');
+    this.workEndTimeInput = page.locator('#work-end-time');
+    this.workDurationDisplay = page.locator('[role="status"][aria-atomic="true"]');
+    this.workTimeValidationError = page.locator('#work-time-error');
 
     // site_visit fields
     this.inspectorNameInput = page.locator('#inspector-name');

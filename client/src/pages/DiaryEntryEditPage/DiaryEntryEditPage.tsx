@@ -94,6 +94,10 @@ export default function DiaryEntryEditPage() {
   const [dailyLogTemperature, setDailyLogTemperature] = useState<number | null>(null);
   const [dailyLogWorkers, setDailyLogWorkers] = useState<number | null>(null);
   const [dailyLogSignatures, setDailyLogSignatures] = useState<DiarySignatureEntry[] | null>(null);
+  const [dailyLogVendorId, setDailyLogVendorId] = useState<string | null>(null);
+  const [dailyLogVendorName, setDailyLogVendorName] = useState<string | null>(null);
+  const [dailyLogWorkStart, setDailyLogWorkStart] = useState<string | null>(null);
+  const [dailyLogWorkEnd, setDailyLogWorkEnd] = useState<string | null>(null);
 
   // site_visit metadata
   const [siteVisitInspectorName, setSiteVisitInspectorName] = useState<string | null>(null);
@@ -161,6 +165,9 @@ export default function DiaryEntryEditPage() {
     dailyLogTemperature,
     dailyLogWorkers,
     dailyLogSignatures,
+    dailyLogVendorId,
+    dailyLogWorkStart,
+    dailyLogWorkEnd,
     siteVisitInspectorName,
     siteVisitOutcome,
     siteVisitSignatures,
@@ -273,6 +280,10 @@ export default function DiaryEntryEditPage() {
       setDailyLogTemperature(m.temperatureCelsius || null);
       setDailyLogWorkers(m.workersOnSite || null);
       setDailyLogSignatures(m.signatures || null);
+      setDailyLogVendorId(m.vendorId ?? null);
+      setDailyLogVendorName(m.vendorName ?? null);
+      setDailyLogWorkStart(m.workStart ?? null);
+      setDailyLogWorkEnd(m.workEnd ?? null);
     } else if (data.entryType === 'site_visit') {
       const m = data.metadata as SiteVisitMetadata;
       setSiteVisitInspectorName(m.inspectorName || null);
@@ -318,6 +329,12 @@ export default function DiaryEntryEditPage() {
       }
     }
 
+    if (entry?.entryType === 'daily_log') {
+      if (dailyLogWorkStart && dailyLogWorkEnd && dailyLogWorkEnd <= dailyLogWorkStart) {
+        errors.dailyLogWorkTime = t('validation.workTimeEndBeforeStart');
+      }
+    }
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -330,6 +347,9 @@ export default function DiaryEntryEditPage() {
       if (dailyLogWorkers !== null) metadata.workersOnSite = dailyLogWorkers;
       if (dailyLogSignatures && dailyLogSignatures.length > 0)
         metadata.signatures = dailyLogSignatures;
+      if (dailyLogVendorId) metadata.vendorId = dailyLogVendorId;
+      if (dailyLogWorkStart) metadata.workStart = dailyLogWorkStart;
+      if (dailyLogWorkEnd) metadata.workEnd = dailyLogWorkEnd;
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -611,6 +631,13 @@ export default function DiaryEntryEditPage() {
           onDailyLogWorkersChange={setDailyLogWorkers}
           dailyLogSignatures={dailyLogSignatures}
           onDailyLogSignaturesChange={setDailyLogSignatures}
+          dailyLogVendorId={dailyLogVendorId}
+          onDailyLogVendorIdChange={setDailyLogVendorId}
+          dailyLogVendorName={dailyLogVendorName}
+          dailyLogWorkStart={dailyLogWorkStart}
+          onDailyLogWorkStartChange={setDailyLogWorkStart}
+          dailyLogWorkEnd={dailyLogWorkEnd}
+          onDailyLogWorkEndChange={setDailyLogWorkEnd}
           // site_visit
           siteVisitInspectorName={siteVisitInspectorName}
           onSiteVisitInspectorNameChange={setSiteVisitInspectorName}

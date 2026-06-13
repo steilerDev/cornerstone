@@ -20,6 +20,12 @@
   gap: var(--spacing-4);
 }
 
+.formRowTwoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-4);
+}
+
 .label {
   display: block;
   font-weight: var(--font-weight-medium);
@@ -118,6 +124,13 @@
   margin-top: var(--spacing-2);
   font-size: var(--font-size-sm);
   color: var(--color-danger);
+}
+
+.durationValue {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  line-height: 1.5;
 }
 
 /* ============================================================
@@ -247,6 +260,10 @@
   .formRow {
     grid-template-columns: 1fr;
     gap: var(--spacing-3);
+  }
+
+  .formRowTwoCol {
+    grid-template-columns: 1fr;
   }
 
   .input,

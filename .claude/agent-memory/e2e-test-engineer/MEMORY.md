@@ -3,6 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## Daily Log Time+Vendor E2E (Story #1672, 2026-06-13) — `e2e/tests/diary/diary-daily-log-time-vendor.spec.ts`
+
+- `createVendorViaApi`/`deleteVendorViaApi` added to `e2e/fixtures/apiHelpers.ts` (POST/DELETE `/api/vendors`, returns `{ vendor: { id } }`).
+- DiaryEntryEditPage POM: 6 new locators — `dailyLogVendorSearch` (`#daily-log-vendor`), `dailyLogVendorClearButton` (`getByRole('button', { name: 'Clear selection', exact: true })`), `workStartTimeInput` (`#work-start-time`), `workEndTimeInput` (`#work-end-time`), `workDurationDisplay` (`[role="status"][aria-atomic="true"]`), `workTimeValidationError` (`#work-time-error`).
+- **SearchPicker vendor interaction**: `fill()` the input → wait for `[data-search-picker-dropdown]` → click option via `portalDropdown.getByRole('option', { name })`. Portal is in `document.body`, not scoped to any modal.
+- **SearchPicker with no `initialTitle`**: DiaryEntryEditPage does NOT pass `initialTitle` to the vendor SearchPicker. When an entry is loaded with a pre-saved vendorId, the picker shows the empty search input (not selectedDisplay). Vendor can only be cleared in the SAME session after selecting it via UI (not after page reload).
+- **Duration display stale-read race on WebKit**: After filling time inputs, use `await expect(workDurationDisplay).not.toHaveText('0.00 h')` BEFORE `textContent()`. The duration display updates asynchronously via React `useMemo`.
+- **Validation blocking save**: In Scenario 3 (end ≤ start), use `submitButton.click()` directly, NOT `editPage.save()` — `save()` waits for a PATCH response that never fires when validation blocks the submit.
+- `workDurationDisplay` locator is unique on diary edit page — no other `[role="status"][aria-atomic="true"]` elements appear there.
+
 ## Shard 3 Promotion Blocker Fix (2026-06-12) — `e2e/tests/budget/budget-source-filter.spec.ts`
 
 - `Rapid debounce coalesces requests` test was flaky: asserted `filteredRequestCount.toBe(1)` which fails when CI runner serializes clicks beyond the 50ms debounce window. Fixed in PR #1665.

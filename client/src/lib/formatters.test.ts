@@ -249,6 +249,52 @@ describe('formatDateTime', () => {
   });
 });
 
+// ─── computeWorkDuration ─────────────────────────────────────────────────────
+
+import { computeWorkDuration } from './formatters.js';
+
+describe('computeWorkDuration', () => {
+  it("('08:00','16:30') returns 8.5", () => {
+    expect(computeWorkDuration('08:00', '16:30')).toBe(8.5);
+  });
+
+  it("('09:00','09:06') returns 0.1", () => {
+    expect(computeWorkDuration('09:00', '09:06')).toBe(0.1);
+  });
+
+  it("(null,'16:00') returns null — missing start", () => {
+    expect(computeWorkDuration(null, '16:00')).toBeNull();
+  });
+
+  it("('08:00',null) returns null — missing end", () => {
+    expect(computeWorkDuration('08:00', null)).toBeNull();
+  });
+
+  it("('08:00','08:00') returns null — equal times", () => {
+    expect(computeWorkDuration('08:00', '08:00')).toBeNull();
+  });
+
+  it("('16:00','08:00') returns null — end before start", () => {
+    expect(computeWorkDuration('16:00', '08:00')).toBeNull();
+  });
+
+  it("('8:00','16:00') returns null — invalid format (no leading zero)", () => {
+    expect(computeWorkDuration('8:00', '16:00')).toBeNull();
+  });
+
+  it("('08:00','16') returns null — invalid end format (no minutes)", () => {
+    expect(computeWorkDuration('08:00', '16')).toBeNull();
+  });
+
+  it('(undefined, undefined) returns null', () => {
+    expect(computeWorkDuration(undefined, undefined)).toBeNull();
+  });
+
+  it("('00:00','23:59') returns 23.98", () => {
+    expect(computeWorkDuration('00:00', '23:59')).toBe(23.98);
+  });
+});
+
 // ─── computeActualDuration ────────────────────────────────────────────────────
 
 describe('computeActualDuration', () => {

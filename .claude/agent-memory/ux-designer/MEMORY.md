@@ -129,6 +129,17 @@ See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `rol
 - `BreakdownBudgetLine` shared type must expose `origin: 'manual' | 'auto'` — backend/shared coordination required
 - `getSourceBadgeStyleKey(null)` returns `'sourceUnassigned'` (italic gray), `getSourceColorIndex(null)` returns `0`
 
+## DiaryEntryForm Patterns (Story #1672)
+
+- `daily_log` metadata section: `.metadataSection` with `background: var(--color-bg-secondary)`, `border: 1px solid var(--color-border)`, `border-radius: var(--radius-md)`, `padding: var(--spacing-4)`
+- `.formRow` uses `grid-template-columns: repeat(auto-fit, minmax(200px, 1fr))` — do NOT use this for time pickers; use explicit `.formRowTwoCol` (`1fr 1fr`) so columns never wrap on tablet
+- Vendor selector: use `SearchPicker` with `showItemsOnFocus`; `fetchVendors({ q: query, pageSize: 20 })` as `searchFn`; `id` prop flows to inner `<input>` for label association
+- Time inputs: native `<input type="time" step="60">` reusing `.input` class; cross-field validation error goes BELOW the `.formRowTwoCol`, not inside either column; single `validationErrors.dailyLogWorkTime` key for both inputs
+- Duration display: `role="status" aria-atomic="true"` (do NOT add redundant `aria-live`); conditionally rendered in DOM (not hidden); `font-weight: var(--font-weight-semibold)` on value
+- `DiaryMetadataSummary` daily_log branch: vendor, start, end, duration all render as plain `.item` spans; no new CSS; duration computed client-side (not stored in metadata)
+- `DailyLogMetadata` type needs: `vendorId?: string | null`, `vendorName?: string | null` (server-side denormalized), `workStart?: string | null`, `workEnd?: string | null`
+- Check for i18n key collision: `form.vendor` already exists for delivery entry type — use `form.dailyLogVendor` if label differs
+
 ## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
 
 - `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic` — distinguishes from work-item "not_started" badge
