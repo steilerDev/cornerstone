@@ -148,6 +148,28 @@ export function computeActualDuration(
   return diffDays >= 0 ? diffDays : null;
 }
 
+/**
+ * Computes work duration in hours from two HH:mm time strings.
+ * Returns hours rounded to 2 decimal places, or null if either input is
+ * null/undefined, invalid, or if end ≤ start.
+ */
+export function computeWorkDuration(
+  start: string | null | undefined,
+  end: string | null | undefined,
+): number | null {
+  if (!start || !end) return null;
+  const HH_MM = /^\d{2}:\d{2}$/;
+  if (!HH_MM.test(start) || !HH_MM.test(end)) return null;
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  if (sh === undefined || sm === undefined || eh === undefined || em === undefined) return null;
+  const startMinutes = sh * 60 + sm;
+  const endMinutes = eh * 60 + em;
+  const diffMinutes = endMinutes - startMinutes;
+  if (diffMinutes <= 0) return null;
+  return Math.round((diffMinutes / 60) * 100) / 100;
+}
+
 import { useLocale } from '../contexts/LocaleContext.js';
 
 /**
