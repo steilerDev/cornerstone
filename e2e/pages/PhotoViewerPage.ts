@@ -38,19 +38,114 @@
  *   - annotator-save   — Save button
  *   - annotator-cancel — Cancel button
  *
- * SVG element types per tool (committed shapes in the SVG):
- *   rectangle  → <rect data-shapeid="...">
- *   highlight  → <rect data-shapeid="...">  (fill with opacity 0.4)
- *   arrow      → <line data-shapeid="...">  (with marker-end=url(#arrowhead))
- *   line       → <line data-shapeid="...">
- *   ellipse    → <ellipse data-shapeid="...">
- *   text       → <text data-shapeid="...">
- *   callout    → <g data-shapeid="..."> containing <rect>, <line>, <text>
- *   measurement → <g data-shapeid="..."> containing multiple <line>s + optional <text>
- *   freehand   → <polyline data-shapeid="...">
+ * Shape state (Konva canvas — NOT SVG DOM nodes):
+ *   All committed shapes are exposed as JSON on the [role="application"] container via
+ *   `data-annotator-shapes`. Read via `getAnnotatorShapes()`. Shape types mirror the
+ *   AnnotationShape union from useUndoStack.ts:
+ *     rectangle, highlight, arrow, line, ellipse, text, measurement, freehand
  */
 
 import type { Page, Locator } from '@playwright/test';
+
+// ── Annotator shape types (mirror of client/src/.../useUndoStack.ts) ─────────
+// SOURCE: client/src/components/photos/PhotoAnnotator/useUndoStack.ts — keep in sync
+// Local copies so e2e/ does not import from client/ source.
+
+export interface RectangleShape {
+  type: 'rectangle';
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+  strokeWidth: number;
+}
+
+export interface HighlightShape {
+  type: 'highlight';
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  color: string;
+}
+
+export interface ArrowShape {
+  type: 'arrow';
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface LineShape {
+  type: 'line';
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface EllipseShape {
+  type: 'ellipse';
+  id: string;
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+  stroke: string;
+  strokeWidth: number;
+}
+
+export interface TextShape {
+  type: 'text';
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+  fontSize: number;
+  color: string;
+}
+
+export interface MeasurementShape {
+  type: 'measurement';
+  id: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  label: string;
+  stroke: string;
+  strokeWidth: number;
+  fontSize: number;
+  color: string;
+}
+
+export interface FreehandShape {
+  type: 'freehand';
+  id: string;
+  points: [number, number][];
+  stroke: string;
+  strokeWidth: number;
+}
+
+export type AnnotationShape =
+  | RectangleShape
+  | HighlightShape
+  | ArrowShape
+  | LineShape
+  | EllipseShape
+  | TextShape
+  | MeasurementShape
+  | FreehandShape;
 
 export type AnnotatorToolName =
   | 'select'
@@ -135,11 +230,20 @@ export class PhotoViewerPage {
   // ── PhotoAnnotator drawing surface ───────────────────────────────────────────
 
   /**
-   * SVG overlay on which pointer events are dispatched to draw shapes.
-   * role="application", aria-label matching i18n key "canvas".
-   * Shapes appear as children of this element.
+   * The [role="application"] container div — used to read `data-annotator-shapes`.
+   * NOTE: This is the outer flex container. For mouse interaction coordinates,
+   * use `getKonvaStageBox()` which returns the Konva canvas bounding box.
    */
   readonly svgOverlay: Locator;
+
+  /**
+   * The first Konva canvas element inside the annotator.
+   * Mouse events must target this element (or use its bounding box) so that
+   * Konva's `getPointerPosition()` maps viewport coordinates to stage-space
+   * coordinates correctly. The [role="application"] container is a flex-centered
+   * wrapper that may be much larger than the canvas when the photo is small.
+   */
+  readonly konvaCanvas: Locator;
 
   // ── PhotoAnnotator inline text input ────────────────────────────────────────
 
@@ -195,8 +299,14 @@ export class PhotoViewerPage {
     this.measurementToolButton = page.getByTestId('tool-measurement');
     this.freehandToolButton = page.getByTestId('tool-freehand');
 
-    // SVG canvas — role="application" inside the annotator canvas area
+    // Annotator container (role="application") — used for data-annotator-shapes reads
     this.svgOverlay = page.locator('[role="application"]');
+
+    // Konva canvas element — used for mouse coordinate calculations.
+    // The [role="application"] is a flex-centered container; the actual Konva Stage
+    // canvas is a child element with the exact stage dimensions. All drawing helpers
+    // use this element's bounding box so Konva's getPointerPosition() maps correctly.
+    this.konvaCanvas = this.svgOverlay.locator('canvas').first();
 
     // Inline text input for Text/Callout/Measurement
     this.inlineInput = page.getByTestId('annotator-inline-input');
@@ -209,6 +319,22 @@ export class PhotoViewerPage {
   }
 
   // ── Helper methods ───────────────────────────────────────────────────────────
+
+  /**
+   * Returns the bounding box of the Konva canvas element (stage coordinates origin).
+   *
+   * IMPORTANT: Always use this instead of `svgOverlay.boundingBox()` for mouse
+   * interaction coordinates. The [role="application"] div is a flex-centered
+   * container that may be much larger than the actual Konva canvas (e.g. when the
+   * photo is 100×100 but the viewer is 800×600). Konva's `getPointerPosition()`
+   * computes stage-space coordinates as `(clientX - stageContainer.left, clientY - stageContainer.top)`,
+   * so mouse events must land within the canvas bounds to register correctly.
+   */
+  async getKonvaStageBox(): Promise<{ x: number; y: number; width: number; height: number }> {
+    const box = await this.konvaCanvas.boundingBox();
+    if (!box) throw new Error('Konva canvas not visible');
+    return box;
+  }
 
   /**
    * Activate a named annotation tool by clicking its button.
@@ -232,8 +358,8 @@ export class PhotoViewerPage {
   }
 
   /**
-   * Draw a rectangle on the SVG overlay by simulating pointer events.
-   * Coordinates are percentages of the SVG bounding box (0–1).
+   * Draw a rectangle on the Konva canvas by simulating pointer events.
+   * Coordinates are percentages of the Konva canvas bounding box (0–1).
    */
   async drawRectangle(
     startXPct = 0.2,
@@ -241,13 +367,12 @@ export class PhotoViewerPage {
     endXPct = 0.6,
     endYPct = 0.6,
   ): Promise<void> {
-    const svgBox = await this.svgOverlay.boundingBox();
-    if (!svgBox) throw new Error('SVG overlay not visible');
+    const box = await this.getKonvaStageBox();
 
-    const startX = svgBox.x + svgBox.width * startXPct;
-    const startY = svgBox.y + svgBox.height * startYPct;
-    const endX = svgBox.x + svgBox.width * endXPct;
-    const endY = svgBox.y + svgBox.height * endYPct;
+    const startX = box.x + box.width * startXPct;
+    const startY = box.y + box.height * startYPct;
+    const endX = box.x + box.width * endXPct;
+    const endY = box.y + box.height * endYPct;
 
     await this.page.mouse.move(startX, startY);
     await this.page.mouse.down();
@@ -257,64 +382,47 @@ export class PhotoViewerPage {
 
   /**
    * Draw a line from (startXPct, startYPct) to (endXPct, endYPct) using pointer events.
-   * Optionally hold Shift for angle-snap (45° increments).
+   *
+   * IMPORTANT: The Konva annotator commits the shape only if both:
+   *   abs(endX - startX) > MIN_SIZE AND abs(endY - startY) > MIN_SIZE (both in stage px).
+   * For a 100×100 canvas, MIN_SIZE = 5 — so both axes must differ by > 5px.
+   * Always use a diagonal drag (both X and Y differ) to ensure the shape commits.
+   * Default params produce a 45° diagonal on the left half of the canvas.
    */
-  async drawLine(
-    startXPct = 0.2,
-    startYPct = 0.5,
-    endXPct = 0.7,
-    endYPct = 0.5,
-    shiftSnap = false,
-  ): Promise<void> {
-    const svgBox = await this.svgOverlay.boundingBox();
-    if (!svgBox) throw new Error('SVG overlay not visible');
+  async drawLine(startXPct = 0.2, startYPct = 0.2, endXPct = 0.7, endYPct = 0.7): Promise<void> {
+    const box = await this.getKonvaStageBox();
 
-    const startX = svgBox.x + svgBox.width * startXPct;
-    const startY = svgBox.y + svgBox.height * startYPct;
-    const endX = svgBox.x + svgBox.width * endXPct;
-    const endY = svgBox.y + svgBox.height * endYPct;
+    const startX = box.x + box.width * startXPct;
+    const startY = box.y + box.height * startYPct;
+    const endX = box.x + box.width * endXPct;
+    const endY = box.y + box.height * endYPct;
 
-    if (shiftSnap) {
-      await this.page.keyboard.down('Shift');
-    }
     await this.page.mouse.move(startX, startY);
     await this.page.mouse.down();
     await this.page.mouse.move(endX, endY, { steps: 5 });
     await this.page.mouse.up();
-    if (shiftSnap) {
-      await this.page.keyboard.up('Shift');
-    }
   }
 
   /**
    * Draw an ellipse by dragging from (startXPct, startYPct) to (endXPct, endYPct).
-   * Optionally hold Shift for circle-snap.
+   *
+   * IMPORTANT: The Konva annotator commits the shape only if both:
+   *   abs(endX - startX) > MIN_SIZE AND abs(endY - startY) > MIN_SIZE (both in stage px).
+   * For a 100×100 canvas, MIN_SIZE = 5 — so both axes must differ by > 5px.
+   * Default params produce an ellipse spanning 40% of each axis.
    */
-  async drawEllipse(
-    startXPct = 0.2,
-    startYPct = 0.2,
-    endXPct = 0.6,
-    endYPct = 0.6,
-    shiftSnap = false,
-  ): Promise<void> {
-    const svgBox = await this.svgOverlay.boundingBox();
-    if (!svgBox) throw new Error('SVG overlay not visible');
+  async drawEllipse(startXPct = 0.2, startYPct = 0.2, endXPct = 0.6, endYPct = 0.6): Promise<void> {
+    const box = await this.getKonvaStageBox();
 
-    const startX = svgBox.x + svgBox.width * startXPct;
-    const startY = svgBox.y + svgBox.height * startYPct;
-    const endX = svgBox.x + svgBox.width * endXPct;
-    const endY = svgBox.y + svgBox.height * endYPct;
+    const startX = box.x + box.width * startXPct;
+    const startY = box.y + box.height * startYPct;
+    const endX = box.x + box.width * endXPct;
+    const endY = box.y + box.height * endYPct;
 
-    if (shiftSnap) {
-      await this.page.keyboard.down('Shift');
-    }
     await this.page.mouse.move(startX, startY);
     await this.page.mouse.down();
     await this.page.mouse.move(endX, endY, { steps: 5 });
     await this.page.mouse.up();
-    if (shiftSnap) {
-      await this.page.keyboard.up('Shift');
-    }
   }
 
   /**
@@ -322,11 +430,10 @@ export class PhotoViewerPage {
    * Returns after the inline input is committed and the text shape appears.
    */
   async placeText(xPct = 0.3, yPct = 0.3, text = 'Hello'): Promise<void> {
-    const svgBox = await this.svgOverlay.boundingBox();
-    if (!svgBox) throw new Error('SVG overlay not visible');
+    const box = await this.getKonvaStageBox();
 
-    const clickX = svgBox.x + svgBox.width * xPct;
-    const clickY = svgBox.y + svgBox.height * yPct;
+    const clickX = box.x + box.width * xPct;
+    const clickY = box.y + box.height * yPct;
 
     await this.page.mouse.click(clickX, clickY);
     // Inline input should open
@@ -356,13 +463,12 @@ export class PhotoViewerPage {
     endYPct = 0.5,
     label = '5m',
   ): Promise<void> {
-    const svgBox = await this.svgOverlay.boundingBox();
-    if (!svgBox) throw new Error('SVG overlay not visible');
+    const box = await this.getKonvaStageBox();
 
-    const startX = svgBox.x + svgBox.width * startXPct;
-    const startY = svgBox.y + svgBox.height * startYPct;
-    const endX = svgBox.x + svgBox.width * endXPct;
-    const endY = svgBox.y + svgBox.height * endYPct;
+    const startX = box.x + box.width * startXPct;
+    const startY = box.y + box.height * startYPct;
+    const endX = box.x + box.width * endXPct;
+    const endY = box.y + box.height * endYPct;
 
     await this.page.mouse.move(startX, startY);
     await this.page.mouse.down();
@@ -390,17 +496,16 @@ export class PhotoViewerPage {
       [0.7, 0.3],
     ],
   ): Promise<void> {
-    const svgBox = await this.svgOverlay.boundingBox();
-    if (!svgBox) throw new Error('SVG overlay not visible');
+    const box = await this.getKonvaStageBox();
 
-    const startX = svgBox.x + svgBox.width * startXPct;
-    const startY = svgBox.y + svgBox.height * startYPct;
+    const startX = box.x + box.width * startXPct;
+    const startY = box.y + box.height * startYPct;
 
     await this.page.mouse.move(startX, startY);
     await this.page.mouse.down();
 
     for (const [xPct, yPct] of waypoints) {
-      await this.page.mouse.move(svgBox.x + svgBox.width * xPct, svgBox.y + svgBox.height * yPct, {
+      await this.page.mouse.move(box.x + box.width * xPct, box.y + box.height * yPct, {
         steps: 3,
       });
     }
@@ -409,19 +514,19 @@ export class PhotoViewerPage {
   }
 
   /**
-   * Draw a freehand stroke on touch/mobile viewports using synthetic PointerEvents.
+   * Draw a freehand stroke on all viewports using Playwright mouse events.
    *
-   * On WebKit with hasTouch=true, `page.mouse.*` calls do not reliably propagate
-   * `pointerdown`/`pointermove`/`pointerup` events to React's onPointer* handlers.
-   * Instead, we dispatch PointerEvents directly on the SVG element via
-   * `svgOverlay.evaluate(...)`, which fires them synchronously in the browser
-   * context regardless of viewport type. Each segment between waypoints is
-   * subdivided into 3 steps so that FreehandTool.onPointerMove captures enough
-   * intermediate points for simplifyPolyline to retain ≥ 2 points after RDP.
+   * Previously this method dispatched synthetic PointerEvents to the SVG overlay,
+   * which was a workaround for the old SVG-based annotator where page.mouse.* did
+   * not reliably fire on WebKit/hasTouch. The Konva-based annotator uses
+   * onMouseDown/Move/Up on the Konva Stage, which Playwright's page.mouse.* fires
+   * correctly on all viewports and browsers. The synthetic PointerEvent approach
+   * is not needed and is incorrect for Konva (Konva registers mouse listeners on
+   * the canvas container div, not the outer [role="application"] parent).
    *
-   * This helper is safe to call on desktop viewports as well — the synthetic
-   * dispatch targets the element's event listeners directly, bypassing the
-   * mouse-model entirely.
+   * Coordinates are percentages of the Konva canvas bounding box (0–1). Each
+   * segment is subdivided into 3 steps to give FreehandTool enough intermediate
+   * points for simplifyPolyline to retain ≥ 2 points after RDP.
    */
   async drawFreehandTouch(
     startXPct = 0.1,
@@ -432,79 +537,34 @@ export class PhotoViewerPage {
       [0.7, 0.3],
     ],
   ): Promise<void> {
-    const svgBox = await this.svgOverlay.boundingBox();
-    if (!svgBox) throw new Error('SVG overlay not visible');
+    const box = await this.getKonvaStageBox();
 
-    const points: Array<[number, number]> = [
-      [svgBox.x + svgBox.width * startXPct, svgBox.y + svgBox.height * startYPct],
-      ...waypoints.map(([x, y]): [number, number] => [
-        svgBox.x + svgBox.width * x,
-        svgBox.y + svgBox.height * y,
-      ]),
-    ];
+    const startX = box.x + box.width * startXPct;
+    const startY = box.y + box.height * startYPct;
 
-    // Phase 1: dispatch pointerdown and let React flush the SET_DRAFT state update.
-    // If all events fire in one synchronous JS task, React batches the state updates
-    // so handlePointerMove sees stale state (draftShape === null) and returns early.
-    // Splitting into two evaluate calls — with an rAF yield in between — lets React
-    // commit the SET_DRAFT before pointermove events arrive.
-    await this.svgOverlay.evaluate((el: Element, pt: [number, number]) => {
-      el.dispatchEvent(
-        new PointerEvent('pointerdown', {
-          pointerId: 1,
-          pointerType: 'touch',
-          isPrimary: true,
-          clientX: pt[0],
-          clientY: pt[1],
-          bubbles: true,
-          cancelable: true,
-        }),
-      );
-    }, points[0]);
+    await this.page.mouse.move(startX, startY);
+    await this.page.mouse.down();
 
-    // Yield one animation frame so React flushes the SET_DRAFT state update
-    // before pointermove events arrive.
-    await this.page.evaluate(
-      () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
-    );
+    for (const [xPct, yPct] of waypoints) {
+      await this.page.mouse.move(box.x + box.width * xPct, box.y + box.height * yPct, {
+        steps: 3,
+      });
+    }
 
-    // Phase 2: dispatch pointermove (subdivided per segment) + pointerup.
-    await this.svgOverlay.evaluate((el: Element, pts: Array<[number, number]>) => {
-      const dispatch = (type: string, x: number, y: number) => {
-        el.dispatchEvent(
-          new PointerEvent(type, {
-            pointerId: 1,
-            pointerType: 'touch',
-            isPrimary: true,
-            clientX: x,
-            clientY: y,
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
-      };
-
-      // Walk each segment, subdividing into 3 steps to give FreehandTool
-      // enough intermediate points to survive RDP simplification (≥ 2 points).
-      for (let i = 1; i < pts.length; i++) {
-        const [x0, y0] = pts[i - 1];
-        const [x1, y1] = pts[i];
-        for (let s = 1; s <= 3; s++) {
-          dispatch('pointermove', x0 + (x1 - x0) * (s / 3), y0 + (y1 - y0) * (s / 3));
-        }
-      }
-
-      // Fire pointerup at the last point
-      dispatch('pointerup', pts[pts.length - 1][0], pts[pts.length - 1][1]);
-    }, points);
+    await this.page.mouse.up();
   }
 
   /**
-   * Draw a line (or measurement) drag on touch/mobile viewports using synthetic PointerEvents.
+   * Draw a line (or measurement) drag on all viewports using Playwright mouse events.
    *
-   * Mirrors drawFreehandTouch but for a simple two-point drag (start → end).
-   * Subdivides the segment into 5 steps to ensure the tool's onPointerMove
-   * handler receives intermediate events. Safe to call on desktop viewports.
+   * Previously this method dispatched synthetic PointerEvents to work around React
+   * state batching on the SVG-based annotator. The Konva-based annotator uses
+   * onMouseDown/Move/Up on the Konva Stage (not React pointer handlers), which
+   * Playwright's page.mouse.* fires correctly on all viewports. Using steps: 5 in
+   * the intermediate move ensures the tool's onMouseMove fires multiple times before
+   * mouseup, giving Konva's draftShape update time to propagate.
+   *
+   * Coordinates are percentages of the Konva canvas bounding box (0–1).
    */
   async drawLineTouch(
     startXPct = 0.15,
@@ -512,87 +572,17 @@ export class PhotoViewerPage {
     endXPct = 0.75,
     endYPct = 0.5,
   ): Promise<void> {
-    const svgBox = await this.svgOverlay.boundingBox();
-    if (!svgBox) throw new Error('SVG overlay not visible');
+    const box = await this.getKonvaStageBox();
 
-    const startX = svgBox.x + svgBox.width * startXPct;
-    const startY = svgBox.y + svgBox.height * startYPct;
-    const endX = svgBox.x + svgBox.width * endXPct;
-    const endY = svgBox.y + svgBox.height * endYPct;
+    const startX = box.x + box.width * startXPct;
+    const startY = box.y + box.height * startYPct;
+    const endX = box.x + box.width * endXPct;
+    const endY = box.y + box.height * endYPct;
 
-    // Three-phase dispatch to work around React state batching:
-    // MeasurementTool reads state.draftShape.x2/y2 in onPointerUp (via React state,
-    // not a module-level variable). All events within one synchronous evaluate()
-    // call are batched by React, so onPointerUp would see stale x2=startX
-    // (distance === 0 → discard). Three separate evaluate() calls with rAF yields
-    // ensure each phase flushes before the next one reads state.
-
-    // Phase 1: pointerdown → rAF → React commits SET_DRAFT (x2=startX, y2=startY)
-    await this.svgOverlay.evaluate(
-      (el: Element, pt: [number, number]) => {
-        el.dispatchEvent(
-          new PointerEvent('pointerdown', {
-            pointerId: 1,
-            pointerType: 'touch',
-            isPrimary: true,
-            clientX: pt[0],
-            clientY: pt[1],
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
-      },
-      [startX, startY] as [number, number],
-    );
-    await this.page.evaluate(
-      () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
-    );
-
-    // Phase 2: pointermove (5 steps) → rAF → React commits final x2=endX, y2=endY
-    await this.svgOverlay.evaluate(
-      (el: Element, coords: [number, number, number, number]) => {
-        const [sx, sy, ex, ey] = coords;
-        const dispatch = (type: string, x: number, y: number) => {
-          el.dispatchEvent(
-            new PointerEvent(type, {
-              pointerId: 1,
-              pointerType: 'touch',
-              isPrimary: true,
-              clientX: x,
-              clientY: y,
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
-        };
-        // Subdivide into 5 steps so the tool's onPointerMove fires multiple times
-        for (let s = 1; s <= 5; s++) {
-          dispatch('pointermove', sx + (ex - sx) * (s / 5), sy + (ey - sy) * (s / 5));
-        }
-      },
-      [startX, startY, endX, endY] as [number, number, number, number],
-    );
-    await this.page.evaluate(
-      () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
-    );
-
-    // Phase 3: pointerup — state.draftShape.x2/y2 now reflects the final endpoint
-    await this.svgOverlay.evaluate(
-      (el: Element, pt: [number, number]) => {
-        el.dispatchEvent(
-          new PointerEvent('pointerup', {
-            pointerId: 1,
-            pointerType: 'touch',
-            isPrimary: true,
-            clientX: pt[0],
-            clientY: pt[1],
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
-      },
-      [endX, endY] as [number, number],
-    );
+    await this.page.mouse.move(startX, startY);
+    await this.page.mouse.down();
+    await this.page.mouse.move(endX, endY, { steps: 5 });
+    await this.page.mouse.up();
   }
 
   /**
@@ -616,19 +606,23 @@ export class PhotoViewerPage {
   }
 
   /**
-   * Get the locator for a committed shape by its SVG element type and data-shapeid.
-   * Use the SVG element type: 'rect', 'line', 'ellipse', 'text', 'g', 'polyline'.
+   * Returns the current committed shapes from the annotator's state model.
+   *
+   * Reads the `data-annotator-shapes` JSON attribute from the [role="application"]
+   * canvas container. Updated reactively by PhotoAnnotator.tsx whenever
+   * `undoStack.shapes` changes (after every commit/undo/redo/clear).
+   *
+   * Returns an empty array if the annotator is not open or no shapes committed.
+   *
+   * @example
+   * await expect.poll(async () => {
+   *   const shapes = await viewer.getAnnotatorShapes();
+   *   return shapes.some(s => s.type === 'rectangle');
+   * }, { timeout: 15_000 }).toBe(true);
    */
-  shapeByType(svgTag: string): Locator {
-    return this.svgOverlay.locator(`[data-shapeid]`).filter({
-      has: this.page.locator(svgTag),
-    });
-  }
-
-  /**
-   * Count committed shapes in the SVG overlay (elements with data-shapeid).
-   */
-  committedShapeCount(): Locator {
-    return this.svgOverlay.locator('[data-shapeid]');
+  async getAnnotatorShapes(): Promise<AnnotationShape[]> {
+    const attr = await this.svgOverlay.getAttribute('data-annotator-shapes');
+    if (!attr) return [];
+    return JSON.parse(attr) as AnnotationShape[];
   }
 }

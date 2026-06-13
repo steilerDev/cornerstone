@@ -161,3 +161,16 @@ Detailed security findings and controls verified per PR. Summary table in MEMORY
 ## EPIC-01 Auth (PRs #55-#82, 2026-02-16) and EPIC-03 Work Items (PRs #97-#106, 2026-02-17)
 
 All approved. No high/critical findings. Medium findings (rate limiting, security headers) in PR #57 above. Work items PRs (#102, #103) had medium findings for input sanitization in notes/subtasks (addressed in same PRs).
+
+---
+
+## PR #1554 — Story #1553: Full edit + linked-item move for invoice budget lines (2026-05-22)
+
+**Status**: COMMENTED (no blocking findings — APPROVED)
+
+**Summary**: New `editAndMoveBudgetLine()` service function handles 4 scenarios: in-place edit, same-table move, cross-table move (WIB→HIB or HIB→WIB), and combined. All operations wrapped in `db.transaction()`. Target-existence and BUDGET_LINE_ALREADY_LINKED guards run inside the transaction (no TOCTOU). All three PATCH route handlers (invoiceBudgetLines, workItemBudgets, householdItemBudgets) check `request.user` before calling service. All queries use Drizzle ORM parameterized. No cross-scope pivot possible (single-tenant, ownership checked by parent-ID match).
+
+**NON-BLOCKING Findings**:
+
+1. (Low) Move fields `newWorkItemId`/`newHouseholdItemId` accept empty string — no `minLength: 1` on string branch. Service throws `NotFoundError` as backstop. Affects `workItemBudgets.ts:80-81`, `householdItemBudgets.ts:83-84`, `invoiceBudgetLines.ts:57-68`. Fix: add `minLength: 1`.
+2. (Informational) WIB and HIB PATCH schemas missing `minProperties: 1` — empty body `{}` passes schema, causes no-op update. Pre-existing gap extended by new move fields. IBL PATCH schema correctly has `minProperties: 1`.

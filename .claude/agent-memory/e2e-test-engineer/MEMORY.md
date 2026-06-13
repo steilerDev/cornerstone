@@ -3,6 +3,74 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## Shard 3 Promotion Blocker Fix (2026-06-12) — `e2e/tests/budget/budget-source-filter.spec.ts`
+
+- `Rapid debounce coalesces requests` test was flaky: asserted `filteredRequestCount.toBe(1)` which fails when CI runner serializes clicks beyond the 50ms debounce window. Fixed in PR #1665.
+- `Perspective toggle changes Cost value in source row` was SECOND flaky test in shard 3: read `textContent()` immediately after `click()` on radio buttons without waiting for React re-render. On WebKit (tablet/mobile), React state updates can be deferred, causing stale reads. Fixed in PR #1666.
+- **FIX pattern for stale-read race**: After `click()` on any element that triggers a React state update + re-render, use `await expect(locator).not.toHaveText(previousValue)` BEFORE calling `textContent()`. Playwright retries until the value changes.
+- **Do NOT use**: `const text = await locator.textContent()` immediately after a click that should change the text. This is racy on WebKit.
+- `page.on('request', ...)` listeners added in tests MUST be removed. Uncleaned listeners persist on the page object for the test lifetime.
+- **Pattern**: "count API requests" tests are inherently timing-sensitive. Replace with state assertions (`aria-pressed`, URL params, visible text). See "waitForResponse before action" rule.
+- The shard 3 failure was intermittent (30% per attempt, ~9% for both attempts): hides on beta PRs (retries:1 recovers), visible on main PRs (maxFailures:1 stops shard after first unrecovered failure).
+
+## Discretionary Note + Auto-Origin Badge E2E (Story #1551, 2026-05-29) — `e2e/tests/budget/auto-itemize-discretionary.spec.ts`
+
+- 4 scenarios (+ 1 sub-scenario 2b). @smoke on Scenario 1.
+- `discretionaryNote` POM locator: `page.locator('[role="note"][class*="discretionaryNote"]')` — added to AutoItemizePage.ts.
+- Note condition: `picker.pickerState.budgetSources` must contain `isDiscretionary:true` source AND ≥1 line `budgetSourceId` === that id. Mocked via `GET /api/budget-sources` intercept (GET only, skip sub-paths like `/budget-sources/:id/budget-lines`).
+- `origin='auto'` lines are NOT creatable via `POST /api/work-items/:id/budgets` (schema blocks `origin`). Must use auto-itemize commit path: create doc link → POST `/api/invoices/:id/auto-itemize { dryRun:false, lines, mode:'append', paperlessDocumentId }`. Commit path validates doc link in DB but does NOT call Paperless — safe without Paperless container.
+- Auto-origin badge selector: `page.locator('[aria-label*="automatically"]')` (i18n: "Budget line was created automatically via auto-itemization").
+- Discretionary source id is hardcoded as `'discretionary-system'` (seeded by migration 0021).
+
+## AutoItemizePage E2E (Stories #1564/#1584/#1586–#1597, 2026-05-26) — `e2e/tests/invoices/invoice-auto-itemize-page.spec.ts`
+
+- Now 35 scenarios (Scenarios 33–35 added for #1600). Scenario 17 DELETED (superseded by Scenario 22). @smoke on 1+2+3+8 (unchanged).
+- **Story #1600 (portal + prefill + auto-created badge)**: `pickerPortalDropdown = page.locator('[data-search-picker-dropdown]')` — portal is in document.body, NOT in pickerModal. Scope option search to `pickerPortalDropdown`, NOT `pickerModal`. `autoCreatedBadge` = `page.getByTestId('auto-created-badge')` — Badge DOES have `testId="auto-created-badge"` in prod. BudgetLineForm `Add Line` submit button: use `.locator('form').getByRole('button', {name: /Add Line/i})` — the form is a DESCENDANT of `createBudgetLineFieldset`, NOT an ancestor (`xpath=ancestor::form` searches upward and finds nothing). docIds 93001/94001/95001 reserved for Scenarios 33/34/35.
+- **#1583 POM fixes (PR #1612, 2026-05-29)**: `suggestionBadge()` uses `xpath=ancestor::div[contains(@class,"fieldRow")]` (not `xpath=../..`). `lineAssignedBadge()` uses `[class*="assignedBadge"]:not([class*="Wrapper"])` — CSS modules emit both `assignedBadge_<hash>` and `assignedBadgeWrapper_<hash>`, both match `class*="assignedBadge"` causing strict mode violation.
+- **#1594 Scenario 31 fix**: `GET /api/budget-categories` returns `{ categories: [...] }` (BudgetCategoryListResponse), NOT `{ budgetCategories: [...] }`.
+- **Scenario 11 mobile threshold**: Use viewport-relative `> viewportWidth * 0.6` not absolute `> 250` for form column width.
+- **Production regression #1611**: `InvoiceBudgetLinesSection` uses `eagerLinkInvoice: false` (since PR #1566). "Create Budget Line" in picker creates budget but does NOT link to invoice. `invoice-budget-line-create-and-link.spec.ts` Scenarios 1–3 test CORRECT behavior — filed bug #1611, NOT weakened.
+- Category select locator: `lineRow(i).getByRole('combobox', { name: /Select budget category for line item/i })`. Funding source: same pattern with `/Select funding source for line item/i`. Both rendered as `<select>` with `aria-label` — use `getByRole('combobox')` NOT `locator('select')`.
+- VAT checkbox label: "Price includes VAT" (i18n key `autoItemize.includesVat`). NOT "VAT applies". Validate via `lineRow(i).locator('[class*="cardIncludeLabel"]').nth(1)`.
+- **PICKER MODAL (updated for #1597 — ParentPicker reuse)**: Step 1 now uses `ParentPicker` with `role="tablist"` containing two `role="tab"` buttons. `getParentPickerWorkItemTab()` = `pickerModal.getByRole('tab', { name: /Work Item/i })`. `getParentPickerHouseholdItemTab()` = same with `/Household Item/i`. Active tab renders its SearchPicker; inactive tab's panel is UNMOUNTED (not hidden).
+- `pickerWorkItemSearchInput` = `pickerModal.getByPlaceholder('Work Item')` (placeholder = tab label text, NOT "Search work items..."). `pickerHouseholdItemSearchInput` = `pickerModal.getByPlaceholder('Household Item')`. Work Item tab is default-active.
+- `cardBottomRowPickerRow` CSS class wraps the Category + Funding Source selects row. `getLineCardPickerRow(i)` returns it. Located below `cardBottomRow` checkboxes.
+- Category pre-fill from LLM: `budgetCategoryId` field in dry-run response `lines[]` → pre-fills the Category select on that card. Verify via `catSelect.inputValue()`.
+- `assignmentMode` field in commit payload: `"assign-existing"` when `assignedBudgetLineId` is set, `"create-new"` otherwise.
+- Mobile sticky: at ≤860px, `previewColumn` computed style is `position: static`. Assert via `el.evaluate(() => window.getComputedStyle(el).position)`.
+- lineCheckbox() uses `.first()` — rows have multiple checkboxes (include + includesVat).
+- Per-row assignment locators: `[class*="assignButtonInTable"]`, `[class*="assignedBadge"]:not([class*="Wrapper"])` (inner badge only), `[class*="clearAssignButton"]`.
+- `requestAnimationFrame` in `page.evaluate()` must use `() => resolve()` wrapper — NOT `r` directly (TypeScript `FrameRequestCallback` incompatibility).
+- Step 2 locators: `pickerStep2Modal()` returns dialog filtered by h2 `/Select Budget Line/i`; `pickerBudgetLineRow(nameOrIndex)` returns `[class*="pickerBudgetLineRow"]` buttons; `pickerBackButton` = `"← Back"` button; `pickerCreateBudgetLineButton` = `"Create Budget Line"`.
+- Step-1 search results: SearchPicker portals `role="listbox"` + `role="option"` to `document.body` (commit 3ba213fc, Story #1600). NEVER scope `getByRole('option')` to a modal locator — it will find nothing. Use `pickerPortalDropdown.getByRole('option', { name })` (AutoItemizePage) or `page.getByRole('option', { name })` (all other SearchPicker consumers). Fixed across: AutoItemizePage.ts (2 spec occurrences), BudgetSourcesPage.ts (POM), BudgetSourcesPage (2 spec occurrences), InvoiceDetailPage.ts (POM), invoice-budget-line-create-and-link.spec.ts (5 spec occurrences).
+- After item selected via option click, modal title changes from "Assign to Work Item or Household Item" → "Select Budget Line for {itemTitle}". Wait on `pickerStep2Modal()` not `pickerModal`.
+- eagerLinkInvoice: false in useBudgetLinePicker for AutoItemizePage — budget line is NOT immediately linked to invoice; linking is deferred to the Save commit POST payload.
+- Commit POST intercept: use `page.waitForResponse()` with predicate `postDataJSON().dryRun === false` BEFORE the click; capture body into closure variable for later assertion.
+- `createWorkItemBudgetViaApi(page, wiId, {description, plannedAmount})` — seeds a real WI budget row for picker tests; budget line cascades on WI deletion so no separate cleanup needed.
+
+## Invoice-Linked Budget Line Edit from WI/HI Detail Pages (Bug #1603, 2026-05-29) — `e2e/tests/budget/invoice-linked-budget-line-edit.spec.ts`
+
+- 9 scenarios. @smoke on 1, 6, 9 (WI happy path, HI happy path, mobile). @responsive on 1 and 6.
+- **InvoiceGroup accordion**: `BudgetSection` renders invoice-linked lines inside `InvoiceGroup` components (collapsible accordion). Toggle: `budgetSection.locator('[class*="toggleBtn"]').first()` — has `aria-expanded`. MUST expand before the Edit button inside is accessible. Content panel: `[id^="invoice-group-"]`.
+- **Edit button in BudgetLineCard**: `aria-label="Edit budget line: {description}"`. Use `page.getByRole('button', { name: /Edit budget line.*{desc}/i })` to open the edit modal.
+- **EditBudgetLineModal**: rendered by `BudgetSection` (not the page itself). Modal title = `'Edit Budget Line'` (from i18n `invoiceDetail.budgetLines.modal.editTitle`). Located via `page.getByRole('dialog', { name: 'Edit Budget Line' })`.
+- **Form inputs**: `#budget-description`, `#budget-planned-amount`, `#budget-itemized-amount` (all inside the modal).
+- **Save**: `editModal.getByRole('button', { name: /Save Changes|Saving/i })`. PATCH to `/api/invoices/:invoiceId/budget-lines/:invoiceBudgetLineId`.
+- **HI budget line**: POST to `/api/household-items/:id/budgets` with `householdItemBudgetId` in the invoice link payload.
+- **Parent picker**: same as invoice-budget-line-full-edit.spec.ts patterns — expand via "Change" ghost button, search input via `parentPickerSection.getByRole('textbox')`, options portal to `document.body`.
+- **Server error**: `page.route('**/api/invoices/**/budget-lines/**', ...)` with method check for PATCH. Unroute in finally. Error renders as `editModal.locator('[role="alert"]')`.
+- **InvoiceDetailPage.openBudgetLineMenu() / clickBudgetLineMenuItem()** available at lines 999/1027 of InvoiceDetailPage.ts POM.
+
+## Document Linking System-wide Hide E2E (Story #1557, 2026-05-22) — `e2e/tests/documents/document-linking.spec.ts`
+
+- Scenarios 7a/7b added to existing `document-linking.spec.ts` — no new file.
+- `mockSystemLinkedIds(page, ids)` helper intercepts `GET **/api/document-links/linked-ids` → `{ paperlessDocumentIds: ids }`. Unroute with `page.unroute('**/api/document-links/linked-ids')` in finally.
+- The "Hide already-linked documents" checkbox is only rendered when `linkedDocumentIds.length > 0` in `DocumentBrowser`. For it to appear the system-linked-ids mock MUST return a non-empty array.
+- Toggle label i18n key: `documents:browser.hideLinked` = `"Hide already-linked documents"`. Locate via `getByRole('checkbox', { name: /hide already-linked documents/i })`.
+- Picker modal resolved via `getByRole('dialog', { name: 'Add Document' })` — Playwright resolves `aria-labelledby="picker-title"` (h2 = "Add Document" from `linkedDocuments.addDocumentModal`).
+- `cleanupMocks(page)` unroutes `**/api/document-links**` and `**/api/document-links?*` — does NOT unroute `**/api/document-links/linked-ids`. Call that separately in finally.
+- `linkedDocumentIds` passed to `DocumentBrowser` = union of `systemLinkedIds.ids` + entity-own link doc IDs. `systemLinkedIds.fetch()` is called when picker opens (`showPicker` effect).
+
 ## Photo Annotator E2E (Story #1478, 2026-05-18) — See photo-annotator-e2e.md
 
 - 23 scenarios total. PR #1526 migrated annotator to Konva canvas — 21 tests are `test.fixme()`, 2 kept active (Scenarios 2, 22).
@@ -16,7 +84,47 @@
 - Inline input testid: `annotator-inline-input`. Tool buttons: `tool-{name}`. Action bar: `annotator-save`, `annotator-cancel`, `annotator-undo`, `annotator-redo`.
 - **MOBILE WEBKIT TOUCH / REACT STATE BATCHING** (fixed 2026-05-19): `page.mouse.*` does not fire `onPointerDown/Move/Up` on SVG elements in WebKit/hasTouch viewports. Use `svgOverlay.evaluate(el => el.dispatchEvent(new PointerEvent(...)))` instead. CRITICAL: dispatching all events in ONE synchronous evaluate() causes React to batch all state updates — `handlePointerMove` sees stale `state.draftShape=null` and bails. **Must split into multiple evaluate() calls with `page.evaluate(() => new Promise(r => requestAnimationFrame(r)))` yield between pointerdown and pointermove/pointerup.** FreehandTool (uses module-level capturedPoints): 2-phase OK. MeasurementTool (reads state.draftShape.x2/y2 in onPointerUp): needs 3-phase (pointerdown + rAF + pointermove-batch + rAF + pointerup). See PhotoViewerPage.ts `drawFreehandTouch` and `drawLineTouch` helpers.
 
+## Invoice Budget Line Full Edit + Parent Move E2E (Story #1553, 2026-05-22) — `e2e/tests/invoices/invoice-budget-line-full-edit.spec.ts` + `invoice-budget-line-edit-remove.spec.ts`
+
+- 6 scenarios; @smoke on Scenarios 1 (edit fields) and 2 (WI→WI move); @responsive on 1 and 2.
+- Edit modal: `page.getByRole('dialog', { name: 'Edit Budget Line' })` (uses accessible name, NOT aria-labelledby filter — EditBudgetLineModal passes `title=` to Modal component which sets it as accessible name).
+- Description input: `#budget-description` (inside edit modal). Itemized amount: `#budget-itemized-amount`.
+- **OLD modal used `#budget-line-amount` — replaced by unified BudgetLineForm using `#budget-itemized-amount`** (commit 5f5cb79b).
+- Parent picker fieldset: `editModal.locator('fieldset[class*="parentPickerSection"]')` — present for assigned (non-unassigned) lines.
+- "Change" ghost button: `parentPickerSection.getByRole('button', { name: 'Change' })` — collapses/expands picker.
+- **Picker search input (WI or HI): `parentPickerSection.getByRole('textbox')` — NOT `getByRole('combobox')`**. SearchPicker uses plain `<input type="text">` with no ARIA combobox role.
+- "Move to selected item" button: `parentPickerSection.getByRole('button', { name: /Move to selected item|Moving/i })`.
+- Cross-table move hint: `parentPickerSection.locator('[role="status"]').filter({ hasText: /transfer/i })`.
+- Error on failed move: `parentPickerSection.locator('[class*="parentPickerError"]')` — paragraph rendered in picker.
+- BUDGET_LINE_ALREADY_LINKED guard: server returns 409. Error surfaced via `movePickerError` state → `parentPickerError` CSS class paragraph (NOT role="alert"). Modal stays open.
+- **Save button (full edit submit): `editModal.getByRole('button', { name: /Save Changes|Saving/i })` — button text is "Save Changes" (budgetLineForm.submitSave i18n key), NOT bare "Save"**.
+- `expect.stringContaining()` NOT valid in `toHaveValue()` — use regex `/pattern/` instead.
+- **WI/HI detail page DOES wire `onMoveBudgetLine`** (commit e924b70f). Scenario 5 asserts parent picker IS visible with "Change" button present. Old assertion `not.toBeVisible()` was fixed to `toBeVisible()` in commit 5ab0cdab.
+- WI inline edit Save button: `wiDetailPage.budgetSection.locator('[class*="submitButton"]').filter({ visible: true })`.
+- WI inline save response: `PATCH /api/work-items/:workItemId/budgets/:budgetId` (NOT /budget-lines/).
+
+## Auto-Itemize E2E (Story #1547, 2026-05-22) — `e2e/tests/budget/auto-itemize.spec.ts`
+
+- 9 scenarios; @smoke on Scenarios 1 (visibility) and 2 (happy path AC19); @responsive on 1 and 2.
+- Mocking strategy: `page.route('**/api/config', ...)` injects `autoItemizeEnabled:true/false`. `page.route('**/api/document-links', ...)` filtered by URL params for `entityType=invoice&entityId=<id>`. `page.route('**/api/invoices/<id>/auto-itemize', ...)` discriminates dry-run vs commit via `request.postDataJSON().dryRun`.
+- Modal locators: use `page.locator('[role="dialog"]').filter({ has: page.locator('h2', { hasText: '...' }) })` since Modal uses `useId()` for aria-labelledby — NOT accessible name on the dialog itself. Preview modal h2 = "Review extracted line items". Doc picker h2 = "Choose document to analyze".
+- Auto-itemize button aria-label = "Extract line items from a linked Paperless document" (from i18n key `autoItemize.buttonAriaLabel`) — use this as stable locator, not button text.
+- `autoItemizeError` banner renders inside the `<section>` (NOT a portal) as `<div role="alert">`. Located via `budgetLinesSection.locator('[role="alert"]').filter({ visible: true }).first()`.
+- **DOUBLE role="alert" inside AutoItemizePreviewModal**: When the modal shows an error, it wraps `<FormError>` in `<div role="alert"><FormError .../></div>`. Since `FormError` variant='banner' (default) also renders `role="alert"`, there are TWO nested role="alert" elements. Use `.last()` to get the innermost (the FormError with the text). Strict mode violation if you use a single-match locator.
+- **waitForResponse before click**: In Scenario 7 (and all scenarios that trigger a network request), `page.waitForResponse()` MUST be called before the action that triggers it. Calling it after the click risks a race where the response arrives before the listener is registered.
+- Mismatch warning: `[class*="warningBlock"]` inside preview modal. Currency amounts rendered by `formatCurrency` (en-US = `€1,700.00`; de-DE = `1.700,00 €`). Always use locale-agnostic regex `/1[.,]700/` in assertions — never hardcode a locale-specific format.
+- After mockAutoItemize commit returns successfully, the component calls `loadBudgetLines()` which hits the real GET endpoint. Since we mocked the POST (commit) but not the GET, the budget lines table shows whatever the real server has (empty for test invoice). This is intentional — the AC19 scenario verifies modal flow and clean close, not actual DB persistence (tested by backend integration tests).
+- Scenarios 3–9 skip on mobile (`viewportWidth < 1024`) — functional tests, not layout tests.
+- `THREE_EXTRACTED_LINES` fixture: sum = 900 + 680 + 120 = 1700. Invoice amount of 2000 triggers TOTAL_MISMATCH warning. Invoice amount of 100 triggers ITEMIZED_SUM_EXCEEDS_INVOICE.
+
 ## Budget Print + i18n Stale Skip Re-enable (PR #1447, 2026-05-17) — See print-and-i18n.md
+
+## Beta Regressions Added Post-2026-05-21 (triaged 2026-05-29)
+
+- `invoice-budget-line-create-and-link.spec.ts` Scenarios 1–4: REAL production regression from PR #1566 — `InvoiceBudgetLinesSection` sets `eagerLinkInvoice:false`, budget line create flow doesn't link to invoice. Filed as bug #1611. Tests NOT weakened — test correct expected behavior.
+- `auto-itemize-discretionary.spec.ts` Scenario 3: test design gap — `create-new` auto-itemize lines have `work_item_id=NULL` so excluded from breakdown INNER JOIN. `assign-existing` doesn't set `origin='auto'`. Marked `test.fixme()`. Need backend fix for breakdown to show unassigned lines OR auto-itemize service to set origin on assign-existing.
+- `invoice-auto-itemize-page.spec.ts` Scenario 35: `autoCreatedBadge` absent on WebKit tablet/mobile. Filed as bug #1613. Passes on Chromium (Scenario 34). Test tests correct behavior — not weakened.
+- `AutoItemizePage.test.tsx:1953` `findByRole('region', /PDF preview unavailable/)`: unit test flake/timing issue. NOT E2E scope. First seen in PR #1612 CI after `75c11f24` was merged to beta. Report to qa-integration-tester.
 
 ## Known Beta Flakes & Regressions (triaged 2026-05-17)
 
@@ -52,6 +160,19 @@
 - **Photo immediate appearance test (Scenario 6 sub-test)**: must mock BOTH `POST /api/photos` (201 + `{ photo: mockPhoto }`) AND `GET **/api/photos?entityType=diary_entry&entityId={id}` (200 + `{ photos: [mockPhoto] }`). The GET mock is required because `onUpload={() => photosResult.refresh()}` triggers a refetch that the server can't satisfy (real photo was never stored). Use `page.unrouteAll()` in finally.
 - **Scenario 8 in diary-r2-uat.spec.ts**: Migrated from `create-photo-input` on create form to `photo-file-input` on edit page (post-#1435 flow). Now tests: goto /diary/new → selectType → waitForURL(/diary\/.+\/edit$/) → assert photo-file-input present, has accept=image/\*, has multiple=''. Uses `deleteDiaryEntryViaApi` for cleanup — import added to file.
 - **`create-photo-input` testId is GONE** post-#1435. Only `photo-file-input` (on edit page) exists.
+
+## Orphan Budget Line Assignment E2E (Story #1545, 2026-05-21) — PR #1548
+
+- No REST API creates `work_item_budgets` with `work_item_id=NULL`. Seed via Docker exec: `execSync("docker exec <cornerstoneContainerId> node -e \"...\"")`. Container has `node` binary (confirmed by HEALTHCHECK). `better-sqlite3` at `/app/server/node_modules/`. Read container ID from `e2e/test-results/.state/containers.json`.
+- Unassigned badge selector: `locator('[class*="badge"]', { hasText: 'Unassigned' })`. Has `aria-label="Unassigned — no work item or household item linked"`.
+- Assign button selector: `locator('[class*="assignButton"]', { hasText: 'Assign…' })`. Only present when `line.parentItemType === 'unassigned'`.
+- Edit modal title "Edit Budget Line": `page.getByRole('dialog', { name: 'Edit Budget Line' })`. Same modal renders differently for assigned vs unassigned lines.
+- Parent picker fieldset: `editModal.locator('fieldset[class*="parentPickerSection"]')`. Only visible for unassigned lines (`isUnassigned={true}` in BudgetLineForm props).
+- Assign submit button: `parentPickerFieldset.locator('[class*="assignSubmitButton"]')`. **BUG**: Button text is "Work Item" (uses wrong i18n key `budgetLineForm.parentPickerWorkItemTab`) — use CSS selector, NOT button text.
+- After HI assignment: original `work_item_budgets` row is DELETED by service (replaced by `household_item_budgets`). No need to call `deleteOrphanWorkItemBudget` in cleanup.
+- Assign endpoint: `POST /api/budget-lines/:id/assign` where `:id` is `work_item_budget.id` (NOT `invoice_budget_line.id`).
+- Line rows have `data-row-id` attribute: `locator('tr[data-row-id]').filter({ hasText: description })`.
+- Test file: `e2e/tests/budget/budget-line-assign.spec.ts` (6 scenarios; @smoke on 1 and 2; @responsive on 1 and 2).
 
 ## InvoiceBudgetLinesSection Picker (Issue #1401, 2026-05-10)
 

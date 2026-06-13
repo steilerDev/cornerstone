@@ -5,7 +5,7 @@
  * EPIC-06 Story 6.3 — Timeline Data API
  */
 
-import { eq, isNotNull, or } from 'drizzle-orm';
+import { isNotNull, or } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
@@ -37,11 +37,7 @@ import type {
   TradeSummary,
 } from '@cornerstone/shared';
 import { schedule } from './schedulingEngine.js';
-import type {
-  SchedulingWorkItem,
-  SchedulingDependency,
-  ScheduleResult,
-} from './schedulingEngine.js';
+import type { SchedulingWorkItem, SchedulingDependency } from './schedulingEngine.js';
 import { resolveAreaAncestors } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 

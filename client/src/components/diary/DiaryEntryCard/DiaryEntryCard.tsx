@@ -13,7 +13,6 @@ interface DiaryEntryCardProps {
 }
 
 function getSourceEntityRoute(entry: DiaryEntrySummary): string | null {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
   if (!entry.sourceEntityType || !entry.sourceEntityId) {
     return null;
   }

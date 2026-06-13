@@ -4,11 +4,13 @@ import { jest } from '@jest/globals';
 const mockListDocumentLinks = jest.fn<() => Promise<unknown>>();
 const mockCreateDocumentLink = jest.fn<() => Promise<unknown>>();
 const mockDeleteDocumentLink = jest.fn<() => Promise<unknown>>();
+const mockListAllLinkedDocumentIds = jest.fn<() => Promise<unknown>>();
 
 jest.unstable_mockModule('../lib/documentLinksApi.js', () => ({
   listDocumentLinks: mockListDocumentLinks,
   createDocumentLink: mockCreateDocumentLink,
   deleteDocumentLink: mockDeleteDocumentLink,
+  listAllLinkedDocumentIds: mockListAllLinkedDocumentIds,
 }));
 
 class MockApiClientError extends Error {
@@ -42,6 +44,7 @@ jest.unstable_mockModule('../lib/apiClient.js', () => ({
 import type * as UseDocumentLinksModule from './useDocumentLinks.js';
 
 let useDocumentLinks: (typeof UseDocumentLinksModule)['useDocumentLinks'];
+let useAllLinkedDocumentIds: (typeof UseDocumentLinksModule)['useAllLinkedDocumentIds'];
 
 const makeLink = (id: string, paperlessDocumentId = 42) => ({
   id,
@@ -67,10 +70,12 @@ const makeLink = (id: string, paperlessDocumentId = 42) => ({
 });
 
 beforeEach(async () => {
-  ({ useDocumentLinks } = (await import('./useDocumentLinks.js')) as typeof UseDocumentLinksModule);
+  ({ useDocumentLinks, useAllLinkedDocumentIds } =
+    (await import('./useDocumentLinks.js')) as typeof UseDocumentLinksModule);
   mockListDocumentLinks.mockReset();
   mockCreateDocumentLink.mockReset();
   mockDeleteDocumentLink.mockReset();
+  mockListAllLinkedDocumentIds.mockReset();
 
   // Default: returns empty list
   mockListDocumentLinks.mockResolvedValue([]);
@@ -381,5 +386,127 @@ describe('useDocumentLinks', () => {
       expect(result.current.links).toHaveLength(2);
       expect(result.current.links.map((l) => l.id)).toEqual(['link-1', 'link-3']);
     });
+  });
+});
+
+describe('useAllLinkedDocumentIds', () => {
+  it('does NOT call listAllLinkedDocumentIds on mount — initial state is ids=[], isLoading=false, error=null', () => {
+    const { result } = renderHook(() => useAllLinkedDocumentIds());
+
+    expect(mockListAllLinkedDocumentIds).not.toHaveBeenCalled();
+    expect(result.current.ids).toEqual([]);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('calls listAllLinkedDocumentIds when fetch() is invoked; sets isLoading=true during fetch then ids to result', async () => {
+    mockListAllLinkedDocumentIds.mockResolvedValueOnce([10, 20, 42]);
+
+    const { result } = renderHook(() => useAllLinkedDocumentIds());
+
+    // Should not have been called yet
+    expect(mockListAllLinkedDocumentIds).not.toHaveBeenCalled();
+
+    // Start the fetch, checking isLoading goes true
+    let fetchPromise: Promise<void>;
+    act(() => {
+      fetchPromise = result.current.fetch();
+    });
+    // isLoading should be true while in-flight
+    expect(result.current.isLoading).toBe(true);
+
+    await act(async () => {
+      await fetchPromise;
+    });
+
+    expect(mockListAllLinkedDocumentIds).toHaveBeenCalledTimes(1);
+    expect(result.current.ids).toEqual([10, 20, 42]);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('handles ApiClientError — sets error to the error message, isLoading=false, ids unchanged', async () => {
+    mockListAllLinkedDocumentIds.mockRejectedValueOnce(
+      new MockApiClientError(401, { code: 'UNAUTHORIZED', message: 'Not authenticated' }),
+    );
+
+    const { result } = renderHook(() => useAllLinkedDocumentIds());
+
+    await act(async () => {
+      await result.current.fetch();
+    });
+
+    expect(result.current.error).toBe('Not authenticated');
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.ids).toEqual([]);
+  });
+
+  it('handles ApiClientError with no message — uses fallback message', async () => {
+    mockListAllLinkedDocumentIds.mockRejectedValueOnce(
+      new MockApiClientError(500, { code: 'INTERNAL_ERROR' }),
+    );
+
+    const { result } = renderHook(() => useAllLinkedDocumentIds());
+
+    await act(async () => {
+      await result.current.fetch();
+    });
+
+    expect(result.current.error).toBe('Failed to load linked document IDs.');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('handles NetworkError — sets error to network error message', async () => {
+    mockListAllLinkedDocumentIds.mockRejectedValueOnce(new MockNetworkError('Connection refused'));
+
+    const { result } = renderHook(() => useAllLinkedDocumentIds());
+
+    await act(async () => {
+      await result.current.fetch();
+    });
+
+    expect(result.current.error).toContain('Network error');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('handles unknown error — sets error to generic message', async () => {
+    mockListAllLinkedDocumentIds.mockRejectedValueOnce(new Error('Something unexpected'));
+
+    const { result } = renderHook(() => useAllLinkedDocumentIds());
+
+    await act(async () => {
+      await result.current.fetch();
+    });
+
+    expect(result.current.error).toBe('An unexpected error occurred.');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('fetch callback reference is stable across re-renders', () => {
+    const { result, rerender } = renderHook(() => useAllLinkedDocumentIds());
+
+    const fetchRef1 = result.current.fetch;
+    rerender();
+    const fetchRef2 = result.current.fetch;
+
+    expect(fetchRef1).toBe(fetchRef2);
+  });
+
+  it('calling fetch() a second time replaces ids with the new response', async () => {
+    mockListAllLinkedDocumentIds
+      .mockResolvedValueOnce([10, 20]) // first call
+      .mockResolvedValueOnce([30, 40, 50]); // second call
+
+    const { result } = renderHook(() => useAllLinkedDocumentIds());
+
+    await act(async () => {
+      await result.current.fetch();
+    });
+    expect(result.current.ids).toEqual([10, 20]);
+
+    await act(async () => {
+      await result.current.fetch();
+    });
+    expect(result.current.ids).toEqual([30, 40, 50]);
   });
 });

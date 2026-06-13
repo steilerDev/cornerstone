@@ -78,7 +78,7 @@ export function DiaryFilterBar({
   onClearAll,
   filterMode = 'all',
   onFilterModeChange,
-  isCollapsed = false,
+  isCollapsed: _isCollapsed = false,
   draftsVisible = false,
   onDraftsVisibleChange,
 }: DiaryFilterBarProps) {

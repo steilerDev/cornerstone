@@ -9,7 +9,7 @@
  * entries with no sourceEntityType.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, waitFor, render, within } from '@testing-library/react';
+import { screen, waitFor, render } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryDetail } from '@cornerstone/shared';

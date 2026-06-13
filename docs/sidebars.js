@@ -42,6 +42,7 @@ const sidebars = {
         'guides/budget/work-item-budgets',
         'guides/budget/vendors-and-invoices',
         'guides/budget/invoice-deposits',
+        'guides/budget/auto-itemize',
         'guides/budget/subsidies',
         'guides/budget/budget-overview',
       ],

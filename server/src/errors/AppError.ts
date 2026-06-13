@@ -141,6 +141,16 @@ export class BudgetLineAlreadyLinkedError extends AppError {
   }
 }
 
+export class BudgetLineAlreadyAssignedError extends AppError {
+  constructor(
+    message = 'Budget line is already assigned to a parent item',
+    details?: Record<string, unknown>,
+  ) {
+    super('BUDGET_LINE_ALREADY_ASSIGNED', 409, message, details);
+    this.name = 'BudgetLineAlreadyAssignedError';
+  }
+}
+
 export class ItemizedSumExceedsInvoiceError extends AppError {
   constructor(
     message = 'Sum of itemized amounts would exceed the invoice total',
@@ -313,5 +323,37 @@ export class PayloadTooLargeError extends AppError {
   constructor(message = 'Payload too large') {
     super('PAYLOAD_TOO_LARGE', 413, message);
     this.name = 'PayloadTooLargeError';
+  }
+}
+
+// LLM errors carry diagnostic context (underlying fetch error, response body,
+// parse error) in `details` for the server log. `suppressDetails: true` keeps
+// `details` out of the API response — the response body can echo prompts
+// (vendor names, amounts from OCR) so we never want it leaving the host.
+export class LlmUnreachableError extends AppError {
+  constructor(message = 'LLM provider is unreachable', details?: Record<string, unknown>) {
+    super('LLM_UNREACHABLE', 502, message, details, true);
+    this.name = 'LlmUnreachableError';
+  }
+}
+
+export class LlmInvalidResponseError extends AppError {
+  constructor(message = 'LLM returned an invalid response', details?: Record<string, unknown>) {
+    super('LLM_INVALID_RESPONSE', 502, message, details, true);
+    this.name = 'LlmInvalidResponseError';
+  }
+}
+
+export class LlmUpstreamError extends AppError {
+  constructor(message = 'LLM upstream error', details?: Record<string, unknown>) {
+    super('LLM_UPSTREAM_ERROR', 502, message, details, true);
+    this.name = 'LlmUpstreamError';
+  }
+}
+
+export class LlmNotConfiguredError extends AppError {
+  constructor(message = 'LLM gateway is not configured', details?: Record<string, unknown>) {
+    super('LLM_NOT_CONFIGURED', 503, message, details);
+    this.name = 'LlmNotConfiguredError';
   }
 }

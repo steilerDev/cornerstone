@@ -54,6 +54,13 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   backupDir: '/tmp/test-backups',
   backupCadence: undefined,
   backupRetention: undefined,
+  llmBaseUrl: undefined,
+  llmApiKey: undefined,
+  llmModel: undefined,
+  llmRequestTimeoutMs: 30000,
+  llmMaxTokens: 16384,
+  llmProvider: 'generic',
+  autoItemizeEnabled: false,
   ...overrides,
 });
 

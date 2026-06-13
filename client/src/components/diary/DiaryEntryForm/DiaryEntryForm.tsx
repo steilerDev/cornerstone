@@ -6,13 +6,9 @@ import type {
   DiaryInspectionOutcome,
   DiaryIssueSeverity,
   DiaryIssueResolution,
-  DailyLogMetadata,
-  SiteVisitMetadata,
-  DeliveryMetadata,
-  IssueMetadata,
   DiarySignatureEntry,
 } from '@cornerstone/shared';
-import shared from '../../../styles/shared.module.css';
+import _shared from '../../../styles/shared.module.css';
 import { SignatureSection } from '../SignatureSection/index.js';
 import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
 import styles from './DiaryEntryForm.module.css';
@@ -486,7 +482,7 @@ export function DiaryEntryForm({
             {(deliveryMaterials?.length ?? 0) > 0 && (
               <div className={styles.materialsList}>
                 {deliveryMaterials!.map((material, index) => (
-                  <div key={index} className={styles.materialChip}>
+                  <div key={`${material}-${index}`} className={styles.materialChip}>
                     <span>{material}</span>
                     <button
                       type="button"

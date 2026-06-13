@@ -330,9 +330,7 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       await upload1Promise;
 
       // The queue container should appear with at least one item
-      const queueContainer = page.locator('[aria-label]').filter({
-        has: page.locator('[class*="queueItem"]'),
-      });
+      // (declared but not used in assertions — upload queue managed internally)
 
       // At least one item should transition to succeeded (shown briefly then removed from queue)
       // Verify the upload zone is still visible (photo section rendered)
@@ -580,11 +578,8 @@ test.describe('Promote draft — happy path (Scenario 9)', { tag: '@responsive' 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 10: Promote draft — validation error
 // ─────────────────────────────────────────────────────────────────────────────
-// Skipped pending #1434 — the role=alert never appears after clicking Save on
-// an empty-body draft. Production code path inspects as correct; needs trace
-// investigation. Server-side validation on /promote still enforces the rule.
 test.describe('Promote draft — validation error (Scenario 10)', () => {
-  test.skip('Clicking Save with empty body shows validation error; URL unchanged; entry stays draft', async ({
+  test('Clicking Save with empty body shows validation error; URL unchanged; entry stays draft', async ({
     page,
   }) => {
     const editPage = new DiaryEntryEditPage(page);
@@ -822,6 +817,10 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
   test('Clicking a draft entry card navigates to /diary/:id/edit, not /diary/:id', async ({
     page,
   }) => {
+    // Triple default timeouts — the server under 8-worker CI load can respond slowly
+    // to getDiaryEntry(), causing the badge to appear >7s after navigation.
+    test.slow();
+
     const diaryPage = new DiaryPage(page);
     const editPage = new DiaryEntryEditPage(page);
     let draftId: string | null = null;
@@ -839,12 +838,22 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
       await expect(diaryPage.entryCard(draftId)).toBeVisible();
       await diaryPage.entryCard(draftId).click();
 
-      // Should navigate to /diary/:id/edit
-      await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`));
+      // Should navigate to /diary/:id/edit.
+      // Pass an explicit timeout (3× the 10s navigationTimeout) to match test.slow().
+      // test.slow() triples actionTimeout and expect.timeout but NOT navigationTimeout
+      // (which is set at the project config level). On loaded CI runners the SPA
+      // router + React re-render after the click can exceed the default 10s.
+      await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`), { timeout: 30_000 });
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
 
-      // Edit page should be loaded with draft badge
-      await expect(editPage.draftBadge).toBeVisible();
+      // Wait for the edit page to finish loading the entry from the API.
+      // The heading only renders after getDiaryEntry() returns and setEntry(data) fires.
+      // On loaded CI runners with 8 parallel workers, the server response can be slow —
+      // use an explicit timeout that exceeds the default 7s project-level expect.timeout.
+      await expect(editPage.heading).toBeVisible({ timeout: 15_000 });
+
+      // Edit page should show the draft badge (entry.status === 'draft')
+      await expect(editPage.draftBadge).toBeVisible({ timeout: 15_000 });
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }

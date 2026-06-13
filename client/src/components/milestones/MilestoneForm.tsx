@@ -50,7 +50,7 @@ export function MilestoneForm({
   const [description, setDescription] = useState(milestone?.description ?? '');
   const [targetDate, setTargetDate] = useState(milestone?.targetDate ?? '');
   const [isCompleted, setIsCompleted] = useState(milestone?.isCompleted ?? false);
-  const [completedAt, setCompletedAt] = useState<string>(
+  const [completedAt, setCompletedAt] = useState<string>(() =>
     milestone?.completedAt ? toDateInputValue(milestone.completedAt) : '',
   );
 

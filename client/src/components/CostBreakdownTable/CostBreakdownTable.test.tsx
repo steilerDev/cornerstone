@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeAll } from '@jest/globals';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { jest, describe, it, expect, beforeAll, afterEach } from '@jest/globals';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { CostBreakdownTable as CostBreakdownTableType } from './CostBreakdownTable.js';
 import type { BudgetBreakdown, BudgetOverview } from '@cornerstone/shared';
@@ -78,6 +78,10 @@ let CostBreakdownTable: typeof CostBreakdownTableType;
 beforeAll(async () => {
   const module = await import('./CostBreakdownTable.js');
   CostBreakdownTable = module.CostBreakdownTable;
+});
+
+afterEach(() => {
+  jest.clearAllMocks();
 });
 
 /**
@@ -329,6 +333,7 @@ function buildBreakdownWithWI(
                   hasInvoice,
                   isQuotation: false,
                   budgetSourceId: null,
+                  origin: 'manual' as const,
                 },
               ],
             },
@@ -445,6 +450,7 @@ function buildBreakdownWithHI(
                   hasInvoice: actualCost > 0,
                   isQuotation: false,
                   budgetSourceId: null,
+                  origin: 'manual' as const,
                 },
               ],
             },
@@ -538,6 +544,7 @@ function buildBreakdownWithSourcedWI(opts: {
                   hasInvoice: false,
                   isQuotation: false,
                   budgetSourceId: opts.budgetSourceId,
+                  origin: 'manual' as const,
                 },
               ],
             },
@@ -2653,6 +2660,7 @@ describe('CostBreakdownTable', () => {
                             hasInvoice: false,
                             isQuotation: false,
                             budgetSourceId: null,
+                            origin: 'manual' as const,
                           },
                         ]
                       : [],
@@ -2934,6 +2942,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           hasInvoice: false,
           isQuotation: false,
           budgetSourceId: null,
+          origin: 'manual' as const,
         },
       ],
     };
@@ -3019,6 +3028,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
           hasInvoice: false,
           isQuotation: false,
           budgetSourceId: null,
+          origin: 'manual' as const,
         },
       ],
     };
@@ -3558,6 +3568,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-1',
+                    origin: 'manual' as const,
                   },
                   {
                     id: 'pb-line-b',
@@ -3568,6 +3579,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-2',
+                    origin: 'manual' as const,
                   },
                 ],
               },
@@ -3659,6 +3671,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-zc-1',
+                    origin: 'manual' as const,
                   },
                   {
                     id: 'zc-line-b',
@@ -3669,6 +3682,7 @@ describe('Bug #586 — item expand state is independent per category', () => {
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-zc-2',
+                    origin: 'manual' as const,
                   },
                 ],
               },
@@ -3836,6 +3850,7 @@ describe('Server-driven render path (#1360)', () => {
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-1360-a',
+                    origin: 'manual' as const,
                   },
                 ],
               },
@@ -4109,6 +4124,7 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-a',
+                    origin: 'manual' as const,
                   },
                 ],
               },
@@ -4331,6 +4347,7 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-a',
+                    origin: 'manual' as const,
                   },
                 ],
               },

@@ -11,7 +11,6 @@
  *   - NotFoundError is thrown for unknown household items or budget IDs
  */
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';

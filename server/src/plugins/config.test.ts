@@ -39,6 +39,14 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         backupCadence: undefined,
         backupRetention: undefined,
         backupEnabled: true,
+        // LLM auto-itemization fields (Story #1546)
+        llmBaseUrl: undefined,
+        llmApiKey: undefined,
+        llmModel: undefined,
+        llmRequestTimeoutMs: 30000,
+        llmMaxTokens: 16384,
+        llmProvider: 'generic',
+        autoItemizeEnabled: false,
       });
     });
 
@@ -79,6 +87,14 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         backupCadence: undefined,
         backupRetention: undefined,
         backupEnabled: true,
+        // LLM auto-itemization fields (Story #1546)
+        llmBaseUrl: undefined,
+        llmApiKey: undefined,
+        llmModel: undefined,
+        llmRequestTimeoutMs: 30000,
+        llmMaxTokens: 16384,
+        llmProvider: 'generic',
+        autoItemizeEnabled: false,
       });
     });
   });
@@ -121,6 +137,14 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         backupCadence: undefined,
         backupRetention: undefined,
         backupEnabled: true,
+        // LLM auto-itemization fields (Story #1546)
+        llmBaseUrl: undefined,
+        llmApiKey: undefined,
+        llmModel: undefined,
+        llmRequestTimeoutMs: 30000,
+        llmMaxTokens: 16384,
+        llmProvider: 'generic',
+        autoItemizeEnabled: false,
       });
     });
 
@@ -158,6 +182,14 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         backupCadence: undefined,
         backupRetention: undefined,
         backupEnabled: true,
+        // LLM auto-itemization fields (Story #1546)
+        llmBaseUrl: undefined,
+        llmApiKey: undefined,
+        llmModel: undefined,
+        llmRequestTimeoutMs: 30000,
+        llmMaxTokens: 16384,
+        llmProvider: 'generic',
+        autoItemizeEnabled: false,
       });
     });
   });
@@ -639,6 +671,223 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
     it('Scenario 39: DIARY_DRAFT_RETENTION_DAYS unset → defaults to 30', () => {
       const config = loadConfig({});
       expect(config.diaryDraftRetentionDays).toBe(30);
+    });
+  });
+
+  // ─── Story #1546: LLM Auto-Itemization Configuration ─────────────────────
+
+  describe('LLM Auto-Itemization Configuration (Story #1546)', () => {
+    it('all three LLM env vars set → autoItemizeEnabled is true', () => {
+      const config = loadConfig({
+        LLM_BASE_URL: 'https://api.openai.com/v1',
+        LLM_API_KEY: 'sk-test-key',
+        LLM_MODEL: 'gpt-4o',
+      });
+
+      expect(config.autoItemizeEnabled).toBe(true);
+      expect(config.llmBaseUrl).toBe('https://api.openai.com/v1');
+      expect(config.llmApiKey).toBe('sk-test-key');
+      expect(config.llmModel).toBe('gpt-4o');
+    });
+
+    it('missing LLM_BASE_URL → autoItemizeEnabled is false', () => {
+      const config = loadConfig({
+        LLM_API_KEY: 'sk-test-key',
+        LLM_MODEL: 'gpt-4o',
+      });
+
+      expect(config.autoItemizeEnabled).toBe(false);
+      expect(config.llmBaseUrl).toBeUndefined();
+    });
+
+    it('missing LLM_API_KEY → autoItemizeEnabled is false', () => {
+      const config = loadConfig({
+        LLM_BASE_URL: 'https://api.openai.com/v1',
+        LLM_MODEL: 'gpt-4o',
+      });
+
+      expect(config.autoItemizeEnabled).toBe(false);
+      expect(config.llmApiKey).toBeUndefined();
+    });
+
+    it('missing LLM_MODEL → autoItemizeEnabled is false', () => {
+      const config = loadConfig({
+        LLM_BASE_URL: 'https://api.openai.com/v1',
+        LLM_API_KEY: 'sk-test-key',
+      });
+
+      expect(config.autoItemizeEnabled).toBe(false);
+      expect(config.llmModel).toBeUndefined();
+    });
+
+    it('none of the LLM env vars set → autoItemizeEnabled is false', () => {
+      const config = loadConfig({});
+      expect(config.autoItemizeEnabled).toBe(false);
+      expect(config.llmBaseUrl).toBeUndefined();
+      expect(config.llmApiKey).toBeUndefined();
+      expect(config.llmModel).toBeUndefined();
+    });
+
+    it('empty string LLM_BASE_URL treated as unset → autoItemizeEnabled is false', () => {
+      const config = loadConfig({
+        LLM_BASE_URL: '',
+        LLM_API_KEY: 'sk-test-key',
+        LLM_MODEL: 'gpt-4o',
+      });
+
+      expect(config.autoItemizeEnabled).toBe(false);
+      expect(config.llmBaseUrl).toBeUndefined();
+    });
+
+    it('LLM_REQUEST_TIMEOUT_MS defaults to 30000', () => {
+      const config = loadConfig({});
+      expect(config.llmRequestTimeoutMs).toBe(30000);
+    });
+
+    it('LLM_REQUEST_TIMEOUT_MS=60000 parses as integer 60000', () => {
+      const config = loadConfig({ LLM_REQUEST_TIMEOUT_MS: '60000' });
+      expect(config.llmRequestTimeoutMs).toBe(60000);
+    });
+
+    it('LLM_REQUEST_TIMEOUT_MS=abc → throws configuration validation error', () => {
+      expect(() => loadConfig({ LLM_REQUEST_TIMEOUT_MS: 'abc' })).toThrow(
+        'LLM_REQUEST_TIMEOUT_MS must be a positive integer',
+      );
+    });
+
+    it('LLM_REQUEST_TIMEOUT_MS=0 → throws configuration validation error (must be positive)', () => {
+      expect(() => loadConfig({ LLM_REQUEST_TIMEOUT_MS: '0' })).toThrow(
+        'LLM_REQUEST_TIMEOUT_MS must be a positive integer',
+      );
+    });
+
+    it('LLM_REQUEST_TIMEOUT_MS=-1 → throws configuration validation error', () => {
+      expect(() => loadConfig({ LLM_REQUEST_TIMEOUT_MS: '-1' })).toThrow(
+        'LLM_REQUEST_TIMEOUT_MS must be a positive integer',
+      );
+    });
+
+    it('LLM_MAX_TOKENS defaults to 16384', () => {
+      const config = loadConfig({});
+      expect(config.llmMaxTokens).toBe(16384);
+    });
+
+    it('LLM_MAX_TOKENS=32000 parses as integer 32000', () => {
+      const config = loadConfig({ LLM_MAX_TOKENS: '32000' });
+      expect(config.llmMaxTokens).toBe(32000);
+    });
+
+    it('LLM_MAX_TOKENS=abc → throws configuration validation error', () => {
+      expect(() => loadConfig({ LLM_MAX_TOKENS: 'abc' })).toThrow(
+        'LLM_MAX_TOKENS must be a positive integer',
+      );
+    });
+
+    it('LLM_MAX_TOKENS=0 → throws configuration validation error (must be positive)', () => {
+      expect(() => loadConfig({ LLM_MAX_TOKENS: '0' })).toThrow(
+        'LLM_MAX_TOKENS must be a positive integer',
+      );
+    });
+
+    it('LLM_BASE_URL with file:// scheme → throws validation error (SSRF prevention)', () => {
+      expect(() =>
+        loadConfig({
+          LLM_BASE_URL: 'file:///etc/passwd',
+          LLM_API_KEY: 'key',
+          LLM_MODEL: 'model',
+        }),
+      ).toThrow('LLM_BASE_URL must use http or https scheme, got: file');
+    });
+
+    it('LLM_BASE_URL with invalid URL → throws validation error', () => {
+      expect(() =>
+        loadConfig({
+          LLM_BASE_URL: 'not-a-url',
+          LLM_API_KEY: 'key',
+          LLM_MODEL: 'model',
+        }),
+      ).toThrow('LLM_BASE_URL must be a valid URL, got: not-a-url');
+    });
+
+    it('LLM_BASE_URL with http:// scheme → accepted (valid for local Ollama etc.)', () => {
+      const config = loadConfig({
+        LLM_BASE_URL: 'http://localhost:11434/v1',
+        LLM_API_KEY: 'ollama',
+        LLM_MODEL: 'llama3',
+      });
+
+      expect(config.autoItemizeEnabled).toBe(true);
+      expect(config.llmBaseUrl).toBe('http://localhost:11434/v1');
+    });
+  });
+
+  describe('LLM Provider Resolution', () => {
+    const baseEnv = {
+      LLM_API_KEY: 'sk-test',
+      LLM_MODEL: 'test-model',
+    };
+
+    it.each([
+      ['https://api.anthropic.com/v1', 'anthropic'],
+      ['https://api.openai.com/v1', 'openai'],
+      ['https://generativelanguage.googleapis.com/v1beta/openai', 'gemini'],
+      ['http://localhost:11434/v1', 'ollama'],
+      ['http://ollama:11434/v1', 'ollama'],
+    ] as const)('auto-detects %s as %s when LLM_PROVIDER unset', (url, expected) => {
+      const config = loadConfig({ ...baseEnv, LLM_BASE_URL: url });
+      expect(config.llmProvider).toBe(expected);
+    });
+
+    it('falls back to generic for unknown hosts', () => {
+      const config = loadConfig({
+        ...baseEnv,
+        LLM_BASE_URL: 'https://openrouter.ai/api/v1',
+      });
+      expect(config.llmProvider).toBe('generic');
+    });
+
+    it('explicit LLM_PROVIDER overrides auto-detection', () => {
+      const config = loadConfig({
+        ...baseEnv,
+        LLM_BASE_URL: 'https://api.anthropic.com/v1',
+        LLM_PROVIDER: 'openai',
+      });
+      expect(config.llmProvider).toBe('openai');
+    });
+
+    it('LLM_PROVIDER is case-insensitive and trims whitespace', () => {
+      const config = loadConfig({
+        ...baseEnv,
+        LLM_BASE_URL: 'https://example.com',
+        LLM_PROVIDER: '  ANTHROPIC  ',
+      });
+      expect(config.llmProvider).toBe('anthropic');
+    });
+
+    it('rejects unknown LLM_PROVIDER values', () => {
+      expect(() =>
+        loadConfig({
+          ...baseEnv,
+          LLM_BASE_URL: 'https://example.com',
+          LLM_PROVIDER: 'bedrock',
+        }),
+      ).toThrow(/LLM_PROVIDER must be one of/);
+    });
+
+    it('defaults to generic when LLM is not configured at all', () => {
+      const config = loadConfig({});
+      expect(config.llmProvider).toBe('generic');
+      expect(config.autoItemizeEnabled).toBe(false);
+    });
+
+    it('llmProvider is in the /api/config-loaded log (no secrets)', () => {
+      // The config object exposes llmProvider — covered by the route-level test
+      // that asserts secrets are NOT in the response. We only verify the shape here.
+      const config = loadConfig({
+        ...baseEnv,
+        LLM_BASE_URL: 'https://api.anthropic.com/v1',
+      });
+      expect(config).toHaveProperty('llmProvider', 'anthropic');
     });
   });
 });

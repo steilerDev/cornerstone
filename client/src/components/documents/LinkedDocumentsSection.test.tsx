@@ -1,14 +1,19 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { jest } from '@jest/globals';
-import type { UseDocumentLinksResult } from '../../hooks/useDocumentLinks.js';
+import type {
+  UseDocumentLinksResult,
+  UseAllLinkedDocumentIdsResult,
+} from '../../hooks/useDocumentLinks.js';
 import type { DocumentLinkWithMetadata, PaperlessDocumentSearchResult } from '@cornerstone/shared';
 
 // ─── Mock: useDocumentLinks hook ─────────────────────────────────────────────
 
 const mockUseDocumentLinks = jest.fn<() => UseDocumentLinksResult>();
+const mockUseAllLinkedDocumentIds = jest.fn<() => UseAllLinkedDocumentIdsResult>();
 
 jest.unstable_mockModule('../../hooks/useDocumentLinks.js', () => ({
   useDocumentLinks: mockUseDocumentLinks,
+  useAllLinkedDocumentIds: mockUseAllLinkedDocumentIds,
 }));
 
 // ─── Mock: paperlessApi (for getPaperlessStatus) ──────────────────────────────
@@ -48,13 +53,40 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   NetworkError: class MockNetworkError extends Error {},
 }));
 
+// ─── Mock: configApi (for auto-itemize enabled flag) ─────────────────────────
+// LinkedDocumentsSection unconditionally imports fetchConfig; mock must be present
+// so all tests get a predictable (disabled) auto-itemize default.
+// The onItemize-specific tests live in LinkedDocumentsSection.onItemize.test.tsx.
+
+const mockFetchConfig = jest.fn<() => Promise<unknown>>();
+
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: mockFetchConfig,
+}));
+
+// ─── Mock: react-router-dom useNavigate ──────────────────────────────────────
+// LinkedDocumentsSection unconditionally calls useNavigate(); mock must be present.
+// Use a minimal mock (no `...actual` spread) — pulling in the full react-router-dom
+// module via `await import` retains the whole library per-test and causes Jest
+// workers to OOM. This file does not render <Routes>/<Link>/etc., so the real
+// module is not needed.
+
+jest.unstable_mockModule('react-router-dom', () => ({
+  useNavigate: () => jest.fn(),
+}));
+
 // ─── Mock: child components (to avoid transitive dependency issues) ───────────
+
+// Capture linkedDocumentIds for assertions in system-wide filter tests
+let capturedLinkedDocumentIds: number[] | undefined;
 
 jest.unstable_mockModule('./DocumentBrowser.js', () => ({
   DocumentBrowser: function MockDocumentBrowser(props: {
     onSelect?: (doc: PaperlessDocumentSearchResult) => void;
     mode?: string;
+    linkedDocumentIds?: number[];
   }) {
+    capturedLinkedDocumentIds = props.linkedDocumentIds;
     const mockDoc: PaperlessDocumentSearchResult = {
       id: 99,
       title: 'Test Doc',
@@ -91,6 +123,7 @@ jest.unstable_mockModule('./LinkedDocumentCard.js', () => ({
     link: DocumentLinkWithMetadata;
     onView?: (link: DocumentLinkWithMetadata) => void;
     onUnlink?: (link: DocumentLinkWithMetadata) => void;
+    onItemize?: (link: DocumentLinkWithMetadata) => void;
   }) {
     return (
       <div data-testid={`linked-card-${props.link.id}`}>
@@ -116,6 +149,16 @@ const makeHook = (overrides: Partial<UseDocumentLinksResult> = {}): UseDocumentL
   addLink: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   removeLink: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   refresh: jest.fn(),
+  ...overrides,
+});
+
+const makeAllLinkedIdsHook = (
+  overrides: Partial<UseAllLinkedDocumentIdsResult> = {},
+): UseAllLinkedDocumentIdsResult => ({
+  ids: [],
+  isLoading: false,
+  error: null,
+  fetch: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   ...overrides,
 });
 
@@ -180,11 +223,16 @@ beforeEach(async () => {
     (await import('./LinkedDocumentsSection.js')) as typeof LinkedDocumentsSectionModule);
 
   mockUseDocumentLinks.mockReset();
+  mockUseAllLinkedDocumentIds.mockReset();
   mockGetPaperlessStatus.mockReset();
+  mockFetchConfig.mockReset();
+  capturedLinkedDocumentIds = undefined;
 
-  // Default: configured paperless, no links
+  // Default: configured paperless, no links, auto-itemize disabled
   mockUseDocumentLinks.mockReturnValue(makeHook());
+  mockUseAllLinkedDocumentIds.mockReturnValue(makeAllLinkedIdsHook());
   mockGetPaperlessStatus.mockResolvedValue(makeConfiguredStatus());
+  mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false, currency: 'EUR' });
 });
 
 afterEach(() => {
@@ -651,6 +699,90 @@ describe('LinkedDocumentsSection', () => {
       expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
       // The unlink modal body should mention "this work item" for work_item entity
       expect(screen.getByText(/this work item/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('system-wide linked IDs filter', () => {
+    it('clicking "+ Add Document" calls systemLinkedIds.fetch() once', async () => {
+      const fetchSpy = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+      mockUseAllLinkedDocumentIds.mockReturnValue(makeAllLinkedIdsHook({ fetch: fetchSpy }));
+
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Document/i }));
+
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    });
+
+    it('fetch() is not called on initial render — only on picker open', () => {
+      const fetchSpy = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+      mockUseAllLinkedDocumentIds.mockReturnValue(makeAllLinkedIdsHook({ fetch: fetchSpy }));
+
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+
+      // fetch should NOT have been called yet — picker hasn't opened
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('merges system-wide IDs with current entity link IDs when passing linkedDocumentIds to DocumentBrowser', async () => {
+      // System has document 10 linked elsewhere
+      mockUseAllLinkedDocumentIds.mockReturnValue(makeAllLinkedIdsHook({ ids: [10] }));
+      // Current entity has document 42 linked
+      const entityLink = makeLink('link-1');
+      // makeLink sets paperlessDocumentId=42 and document.id=42
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [entityLink] }));
+
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Document/i }));
+
+      await waitFor(() => expect(screen.getByTestId('document-browser')).toBeInTheDocument());
+
+      expect(capturedLinkedDocumentIds).toBeDefined();
+      expect(capturedLinkedDocumentIds).toContain(10);
+      expect(capturedLinkedDocumentIds).toContain(42);
+    });
+
+    it('deduplicates: system IDs [42] + entity link with doc.id=42 → DocumentBrowser receives [42] once', async () => {
+      mockUseAllLinkedDocumentIds.mockReturnValue(makeAllLinkedIdsHook({ ids: [42] }));
+      const entityLink = makeLink('link-1'); // document.id = 42
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [entityLink] }));
+
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Document/i }));
+
+      await waitFor(() => expect(screen.getByTestId('document-browser')).toBeInTheDocument());
+
+      expect(capturedLinkedDocumentIds).toBeDefined();
+      // 42 should appear exactly once despite being in both systemIds and entity links
+      const occurrences = capturedLinkedDocumentIds!.filter((id) => id === 42).length;
+      expect(occurrences).toBe(1);
+    });
+
+    it('passes empty linkedDocumentIds when both systemLinkedIds.ids=[] and hook.links=[]', async () => {
+      mockUseAllLinkedDocumentIds.mockReturnValue(makeAllLinkedIdsHook({ ids: [] }));
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [] }));
+
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Document/i })).not.toBeDisabled(),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Document/i }));
+
+      await waitFor(() => expect(screen.getByTestId('document-browser')).toBeInTheDocument());
+
+      expect(capturedLinkedDocumentIds).toEqual([]);
     });
   });
 });

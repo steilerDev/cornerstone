@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 
 import styles from './SearchPicker.module.css';
@@ -67,6 +68,8 @@ export function SearchPicker<T>({
   const [initialTitleCleared, setInitialTitleCleared] = useState(false);
   // Track whether the user has explicitly selected a special option
   const [specialSelected, setSpecialSelected] = useState(false);
+  // Portal dropdown positioning
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
 
   // The currently selected special option (if value matches one)
   // Only match a special option when the user explicitly chose one
@@ -79,10 +82,22 @@ export function SearchPicker<T>({
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Update dropdown rect for portal positioning
+  const updateDropdownRect = useCallback(() => {
+    if (inputRef.current) {
+      setDropdownRect(inputRef.current.getBoundingClientRect());
+    }
+  }, []);
+
   // Close dropdown on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        // Also check if the click was inside the portal dropdown
+        const portalEl = document.querySelector('[data-search-picker-dropdown]');
+        if (portalEl && portalEl.contains(event.target as Node)) {
+          return;
+        }
         setIsOpen(false);
       }
     }
@@ -95,6 +110,21 @@ export function SearchPicker<T>({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
+
+  // Recalculate position on scroll/resize while dropdown is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    updateDropdownRect();
+
+    window.addEventListener('scroll', updateDropdownRect, true);
+    window.addEventListener('resize', updateDropdownRect);
+
+    return () => {
+      window.removeEventListener('scroll', updateDropdownRect, true);
+      window.removeEventListener('resize', updateDropdownRect);
+    };
+  }, [isOpen, updateDropdownRect]);
 
   // Reset when value is cleared externally (e.g. after form submission)
   useEffect(() => {
@@ -285,78 +315,107 @@ export function SearchPicker<T>({
         value={searchTerm}
         onChange={(e) => handleInputChange(e.target.value)}
         onFocus={handleFocus}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setIsOpen(false);
+          }
+        }}
         disabled={disabled}
       />
 
-      {isOpen && (
-        <div className={styles.dropdown} role="listbox">
-          {/* Special options at the top */}
-          {specialOptions && specialOptions.length > 0 && (
-            <>
-              {specialOptions.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  className={`${styles.resultOption} ${styles.specialOption}`}
-                  onClick={() => handleSelectSpecial(opt)}
-                >
-                  <span className={`${styles.resultTitle} ${styles.specialOptionLabel}`}>
-                    {opt.label}
-                  </span>
-                </button>
-              ))}
-              {/* Divider between special options and search results */}
-              {(isLoading || results.length > 0) && (
-                <div className={styles.optionsDivider} role="separator" />
-              )}
-            </>
-          )}
-
-          {isLoading && <div className={styles.stateMessage}>{t('searching')}</div>}
-
-          {!isLoading && error && <div className={styles.errorMessage}>{error}</div>}
-
-          {!isLoading &&
-            !error &&
-            results.length > 0 &&
-            results.map((item) => {
-              const rendered = renderItem(item);
-              return (
-                <button
-                  key={rendered.id}
-                  type="button"
-                  role="option"
-                  aria-selected={false}
-                  className={styles.resultOption}
-                  onClick={() => handleSelect(item)}
-                >
-                  {renderSecondary !== undefined ? (
-                    <span className={styles.resultContent}>
-                      <span className={styles.resultTitle}>{rendered.label}</span>
-                      <span className={styles.resultSecondary}>{renderSecondary(item)}</span>
+      {isOpen &&
+        dropdownRect &&
+        createPortal(
+          <div
+            data-search-picker-dropdown
+            style={{
+              position: 'fixed',
+              top: (() => {
+                const VIEWPORT_PADDING = 8;
+                const DROPDOWN_HEIGHT = 300;
+                const spaceBelow = window.innerHeight - dropdownRect.bottom;
+                const flipAbove = spaceBelow < DROPDOWN_HEIGHT + VIEWPORT_PADDING;
+                return flipAbove
+                  ? Math.max(4, dropdownRect.top - DROPDOWN_HEIGHT - 4)
+                  : dropdownRect.bottom + 4;
+              })(),
+              left: dropdownRect.left,
+              width: dropdownRect.width,
+            }}
+            className={styles.portalDropdown}
+            role="listbox"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') setIsOpen(false);
+            }}
+          >
+            {/* Special options at the top */}
+            {specialOptions && specialOptions.length > 0 && (
+              <>
+                {specialOptions.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className={`${styles.resultOption} ${styles.specialOption}`}
+                    onClick={() => handleSelectSpecial(opt)}
+                  >
+                    <span className={`${styles.resultTitle} ${styles.specialOptionLabel}`}>
+                      {opt.label}
                     </span>
-                  ) : (
-                    <span className={styles.resultTitle}>{rendered.label}</span>
-                  )}
-                </button>
-              );
-            })}
-
-          {!isLoading && !error && results.length === 0 && searchTerm.trim() && (
-            <div className={styles.stateMessage}>{resolvedNoResults}</div>
-          )}
-
-          {!isLoading &&
-            !error &&
-            results.length === 0 &&
-            !searchTerm.trim() &&
-            (!specialOptions || specialOptions.length === 0) && (
-              <div className={styles.stateMessage}>{resolvedEmptyHint}</div>
+                  </button>
+                ))}
+                {/* Divider between special options and search results */}
+                {(isLoading || results.length > 0) && (
+                  <div className={styles.optionsDivider} role="separator" />
+                )}
+              </>
             )}
-        </div>
-      )}
+
+            {isLoading && <div className={styles.stateMessage}>{t('searching')}</div>}
+
+            {!isLoading && error && <div className={styles.errorMessage}>{error}</div>}
+
+            {!isLoading &&
+              !error &&
+              results.length > 0 &&
+              results.map((item) => {
+                const rendered = renderItem(item);
+                return (
+                  <button
+                    key={rendered.id}
+                    type="button"
+                    role="option"
+                    aria-selected={false}
+                    className={styles.resultOption}
+                    onClick={() => handleSelect(item)}
+                  >
+                    {renderSecondary !== undefined ? (
+                      <span className={styles.resultContent}>
+                        <span className={styles.resultTitle}>{rendered.label}</span>
+                        <span className={styles.resultSecondary}>{renderSecondary(item)}</span>
+                      </span>
+                    ) : (
+                      <span className={styles.resultTitle}>{rendered.label}</span>
+                    )}
+                  </button>
+                );
+              })}
+
+            {!isLoading && !error && results.length === 0 && searchTerm.trim() && (
+              <div className={styles.stateMessage}>{resolvedNoResults}</div>
+            )}
+
+            {!isLoading &&
+              !error &&
+              results.length === 0 &&
+              !searchTerm.trim() &&
+              (!specialOptions || specialOptions.length === 0) && (
+                <div className={styles.stateMessage}>{resolvedEmptyHint}</div>
+              )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

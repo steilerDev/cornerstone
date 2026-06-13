@@ -5,7 +5,7 @@
 
 import type { SubtaskResponse } from './subtask.js';
 import type { DependencyType } from './dependency.js';
-import type { PaginatedResponse, PaginationMeta } from './pagination.js';
+import type { PaginationMeta } from './pagination.js';
 import type { WorkItemBudgetLine } from './workItemBudget.js';
 import type { AreaSummary } from './area.js';
 import type { TradeSummary } from './trade.js';

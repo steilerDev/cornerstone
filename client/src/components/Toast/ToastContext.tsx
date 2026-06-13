@@ -43,21 +43,21 @@ interface ToastProviderProps {
 
 export function ToastProvider({ children }: ToastProviderProps) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const nextId = useRef(0);
-  const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  const nextIdRef = useRef(0);
+  const timersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const dismissToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-    const timer = timers.current.get(id);
+    const timer = timersRef.current.get(id);
     if (timer !== undefined) {
       clearTimeout(timer);
-      timers.current.delete(id);
+      timersRef.current.delete(id);
     }
   }, []);
 
   const showToast = useCallback(
     (variant: ToastVariant, message: string) => {
-      const id = nextId.current++;
+      const id = nextIdRef.current++;
       const toast: Toast = { id, variant, message };
 
       setToasts((prev) => {
@@ -70,7 +70,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
         dismissToast(id);
       }, DISMISS_DURATION[variant]);
 
-      timers.current.set(id, timer);
+      timersRef.current.set(id, timer);
     },
     [dismissToast],
   );

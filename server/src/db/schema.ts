@@ -338,9 +338,7 @@ export const workItemBudgets = sqliteTable(
   'work_item_budgets',
   {
     id: text('id').primaryKey(),
-    workItemId: text('work_item_id')
-      .notNull()
-      .references(() => workItems.id, { onDelete: 'cascade' }),
+    workItemId: text('work_item_id').references(() => workItems.id, { onDelete: 'cascade' }),
     description: text('description'),
     plannedAmount: real('planned_amount').notNull().default(0),
     confidence: text('confidence', {
@@ -362,6 +360,9 @@ export const workItemBudgets = sqliteTable(
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
+    origin: text('origin', { enum: ['manual', 'auto'] })
+      .notNull()
+      .default('manual'),
   },
   (table) => ({
     workItemIdIdx: index('idx_work_item_budgets_work_item_id').on(table.workItemId),
@@ -757,6 +758,9 @@ export const householdItemBudgets = sqliteTable(
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
+    origin: text('origin', { enum: ['manual', 'auto'] })
+      .notNull()
+      .default('manual'),
   },
   (table) => ({
     householdItemIdIdx: index('idx_household_item_budgets_household_item_id').on(

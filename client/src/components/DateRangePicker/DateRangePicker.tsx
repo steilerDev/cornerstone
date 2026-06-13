@@ -84,7 +84,12 @@ function ChevronRightIcon() {
   );
 }
 
-export function DateRangePicker({ startDate, endDate, onChange, ariaLabel }: DateRangePickerProps) {
+export function DateRangePicker({
+  startDate,
+  endDate,
+  onChange,
+  ariaLabel: _ariaLabel,
+}: DateRangePickerProps) {
   const { t } = useTranslation('common');
   const { locale } = useLocale();
 

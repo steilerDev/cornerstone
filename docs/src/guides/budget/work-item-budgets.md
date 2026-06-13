@@ -40,6 +40,17 @@ When multiple budget lines on the same work item share an invoice, they collapse
 
 See [Invoices & Vendors](vendors-and-invoices) for details on managing invoices and the linking workflow.
 
+## Editing Invoice-Linked Budget Lines
+
+Budget lines that are linked to an invoice -- including lines created by [auto-itemize](auto-itemize) -- can be edited in place, without unlinking them first. The same edit modal is available wherever the line appears: the work item's **Budget** tab, the household item's **Budget** tab, and the invoice detail page's **Linked Budget Lines** section.
+
+Click **Edit** on the line to open the modal. From there you can:
+
+- **Change the line details** -- description, planned amount, category, financing source, vendor, confidence level, VAT handling, and the itemized amount that ties the line to its invoice.
+- **Move the line to a different parent item.** A parent picker lets you re-home the line on another work item or household item. This replaces the old behaviour where an invoice-linked line was permanently bound to the first item it was assigned to -- if a line landed on the wrong work item (a common case with auto-itemized lines), you can now move it across instead of deleting and re-creating it.
+
+The invoice link, itemized amount, and invoice-group membership are preserved through the move; only the parent item changes.
+
 ## Multiple Budget Lines per Work Item
 
 A single work item can have multiple budget lines. For example, "Renovate bathroom" might have separate budget lines for plumbing, electrical, and tiling -- each in a different category and potentially funded by different financing sources.

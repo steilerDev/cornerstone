@@ -30,6 +30,24 @@ export interface AppConfig {
   backupCadence?: string;
   backupRetention?: number;
   backupEnabled: boolean;
+  llmBaseUrl?: string;
+  llmApiKey?: string;
+  llmModel?: string;
+  llmRequestTimeoutMs: number;
+  /**
+   * Maximum output tokens per LLM call. Caps cost on runaway/inject-attack
+   * calls and bounds latency. Default 16384 handles 100+ line invoices on
+   * every supported provider. Increase if your invoices regularly exceed
+   * this (the symptom is LLM_INVALID_RESPONSE with finishReason="length").
+   */
+  llmMaxTokens: number;
+  /**
+   * Provider profile that shapes the outbound request body. Set explicitly
+   * via `LLM_PROVIDER`, otherwise auto-detected from `LLM_BASE_URL`, with
+   * fallback to `'generic'`. See `services/budgetExtraction/providerProfiles.ts`.
+   */
+  llmProvider: 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'generic';
+  autoItemizeEnabled: boolean;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -251,6 +269,70 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
 
   const backupEnabled = !!backupDir;
 
+  // LLM configuration (for auto-itemization via OpenAI-compatible gateway)
+  const llmBaseUrl = getValue('LLM_BASE_URL');
+  const llmApiKey = getValue('LLM_API_KEY');
+  const llmModel = getValue('LLM_MODEL');
+
+  // Validate LLM_BASE_URL scheme if provided
+  if (llmBaseUrl) {
+    try {
+      const parsed = new URL(llmBaseUrl);
+      const allowedSchemes = ['http:', 'https:'];
+      if (!allowedSchemes.includes(parsed.protocol)) {
+        errors.push(
+          `LLM_BASE_URL must use http or https scheme, got: ${parsed.protocol.replace(':', '')}`,
+        );
+      }
+    } catch {
+      errors.push(`LLM_BASE_URL must be a valid URL, got: ${llmBaseUrl}`);
+    }
+  }
+
+  // Parse and validate LLM_REQUEST_TIMEOUT_MS
+  const llmRequestTimeoutMsStr = getValue('LLM_REQUEST_TIMEOUT_MS') ?? '30000';
+  const llmRequestTimeoutMs = parseInt(llmRequestTimeoutMsStr, 10);
+  if (isNaN(llmRequestTimeoutMs) || llmRequestTimeoutMs <= 0) {
+    errors.push(
+      `LLM_REQUEST_TIMEOUT_MS must be a positive integer, got: ${llmRequestTimeoutMsStr}`,
+    );
+  }
+
+  // Parse and validate LLM_MAX_TOKENS (default 16384 — handles 100+ line invoices
+  // on every supported provider, stays under OpenAI gpt-4o-mini's 16K binding cap).
+  const llmMaxTokensStr = getValue('LLM_MAX_TOKENS') ?? '16384';
+  const llmMaxTokens = parseInt(llmMaxTokensStr, 10);
+  if (isNaN(llmMaxTokens) || llmMaxTokens <= 0) {
+    errors.push(`LLM_MAX_TOKENS must be a positive integer, got: ${llmMaxTokensStr}`);
+  }
+
+  // Auto-itemization is enabled when all three LLM env vars are set
+  const autoItemizeEnabled = !!(llmBaseUrl && llmApiKey && llmModel);
+
+  // Resolve LLM provider: explicit env var wins, otherwise auto-detect from URL,
+  // fall back to 'generic' when both are unavailable.
+  const llmProviderEnv = getValue('LLM_PROVIDER');
+  const validProviders = ['openai', 'anthropic', 'gemini', 'ollama', 'generic'] as const;
+  type ProviderTuple = typeof validProviders;
+  let llmProvider: ProviderTuple[number] = 'generic';
+  if (llmProviderEnv) {
+    const normalized = llmProviderEnv.trim().toLowerCase();
+    if ((validProviders as readonly string[]).includes(normalized)) {
+      llmProvider = normalized as ProviderTuple[number];
+    } else {
+      errors.push(
+        `LLM_PROVIDER must be one of ${validProviders.join(', ')}, got: ${llmProviderEnv}`,
+      );
+    }
+  } else if (llmBaseUrl) {
+    // Inline auto-detect — keep config plugin free of service imports.
+    const url = llmBaseUrl.toLowerCase();
+    if (url.includes('api.anthropic.com')) llmProvider = 'anthropic';
+    else if (url.includes('api.openai.com')) llmProvider = 'openai';
+    else if (url.includes('generativelanguage.googleapis.com')) llmProvider = 'gemini';
+    else if (url.includes(':11434') || /\bollama\b/.test(url)) llmProvider = 'ollama';
+  }
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -284,6 +366,13 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     backupCadence,
     backupRetention,
     backupEnabled,
+    llmBaseUrl,
+    llmApiKey,
+    llmModel,
+    llmRequestTimeoutMs,
+    llmMaxTokens,
+    llmProvider,
+    autoItemizeEnabled,
   };
 }
 
@@ -292,7 +381,7 @@ export default fp(
     // Load and validate configuration
     const config = loadConfig(process.env);
 
-    // Log the configuration (excluding sensitive values like oidcClientSecret)
+    // Log the configuration (excluding sensitive values like oidcClientSecret, llmApiKey)
     fastify.log.info(
       {
         port: config.port,
@@ -316,6 +405,9 @@ export default fp(
         currency: config.currency,
         backupEnabled: config.backupEnabled,
         backupDir: config.backupDir,
+        autoItemizeEnabled: config.autoItemizeEnabled,
+        llmProvider: config.llmProvider,
+        llmMaxTokens: config.llmMaxTokens,
       },
       'Configuration loaded',
     );

@@ -176,4 +176,32 @@ describe('usePrintExpansion', () => {
     const cycle2Snapshot = setExpandedKeys.mock.calls[1]![0] as Set<string>;
     expect([...cycle2Snapshot].sort()).toEqual(['x', 'y']);
   });
+
+  it('afterprint restores snapshot even when expandedKeys changes between beforeprint and afterprint (ref survives re-run)', () => {
+    const allKeys = new Set(['a', 'b', 'c']);
+    let expandedKeys = new Set(['a']);
+
+    const { rerender } = renderHook(
+      ({ keys }: { keys: Set<string> }) => usePrintExpansion(keys, setExpandedKeys, allKeys),
+      { initialProps: { keys: expandedKeys } },
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event('beforeprint'));
+    });
+
+    // Simulate forceExpand → parent re-render with all keys expanded → effect re-run
+    expandedKeys = new Set(['a', 'b', 'c']);
+    rerender({ keys: expandedKeys });
+
+    act(() => {
+      window.dispatchEvent(new Event('afterprint'));
+    });
+
+    const restoreCall = setExpandedKeys.mock.calls.find(
+      ([arg]) => arg instanceof Set && arg.size === 1 && arg.has('a'),
+    );
+    expect(restoreCall).toBeDefined();
+    expect([...(restoreCall![0] as Set<string>)]).toEqual(['a']);
+  });
 });

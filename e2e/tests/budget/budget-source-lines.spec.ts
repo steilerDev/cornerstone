@@ -768,13 +768,16 @@ test.describe('Lines cache — second expand does not refetch', { tag: '@respons
 
       // Re-expand — should NOT trigger a second fetch (served from cache)
       await sourcesPage.expandSourceLines(sourceName);
-      // Wait a tick for any potential in-flight request
-      await page.waitForTimeout(300);
 
-      expect(fetchCount).toBe(1);
-
-      // Panel is visible again
+      // Wait for the panel to be visible before checking fetchCount.
+      // The panel renders immediately from the cached data (no network request),
+      // so panel visibility is the correct readiness signal.
+      // Using expect().toBeVisible() is a retrying assertion — it waits for
+      // the DOM to settle without an arbitrary sleep timer.
       await expect(sourcesPage.getLinesPanelById(sourceId)).toBeVisible();
+
+      // After panel visible, confirm no additional fetch was made
+      expect(fetchCount).toBe(1);
     } finally {
       if (sourceId) await page.unroute(budgetLinesUrl(sourceId));
       if (sourceId) await deleteSourceViaApi(page, sourceId);

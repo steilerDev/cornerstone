@@ -209,6 +209,37 @@ function WorkItemTooltipContent({
   // the dependencies block and removing the trailing separator from the variance branch.
   const hasOwner = data.assignedUserName !== null;
 
+  const durationVariance = hasBothDurations
+    ? data.actualDurationDays! - data.plannedDurationDays!
+    : null;
+  const absDurationVariance = durationVariance !== null ? Math.abs(durationVariance) : 0;
+  const varianceLabel =
+    durationVariance !== null && durationVariance !== 0
+      ? durationVariance > 0
+        ? `+${absDurationVariance}`
+        : `-${absDurationVariance}`
+      : null;
+  const varianceDayWord =
+    absDurationVariance === 1 ? t('gantt.tooltip.duration.day') : t('gantt.tooltip.duration.days');
+  const varianceClass =
+    durationVariance !== null && durationVariance > 0
+      ? styles.detailValueOverPlan
+      : styles.detailValueUnderPlan;
+  const durationVarianceRow =
+    durationVariance === null ? null : durationVariance === 0 ? (
+      <div className={styles.detailRow}>
+        <span className={styles.detailLabel}>{t('gantt.tooltip.duration.variance')}</span>
+        <span className={styles.detailValue}>{t('gantt.tooltip.duration.onPlan')}</span>
+      </div>
+    ) : (
+      <div className={styles.detailRow}>
+        <span className={styles.detailLabel}>{t('gantt.tooltip.duration.variance')}</span>
+        <span className={`${styles.detailValue} ${varianceClass}`}>
+          {varianceLabel} {varianceDayWord}
+        </span>
+      </div>
+    );
+
   return (
     <>
       {/* Header: title + status badge */}
@@ -247,33 +278,7 @@ function WorkItemTooltipContent({
               {formatDuration(data.actualDurationDays ?? null)}
             </span>
           </div>
-          {(() => {
-            const variance = data.actualDurationDays! - data.plannedDurationDays!;
-            if (variance === 0) {
-              return (
-                <div className={styles.detailRow}>
-                  <span className={styles.detailLabel}>{t('gantt.tooltip.duration.variance')}</span>
-                  <span className={styles.detailValue}>{t('gantt.tooltip.duration.onPlan')}</span>
-                </div>
-              );
-            }
-            const absVariance = Math.abs(variance);
-            const label = variance > 0 ? `+${absVariance}` : `-${absVariance}`;
-            const dayWord =
-              absVariance === 1
-                ? t('gantt.tooltip.duration.day')
-                : t('gantt.tooltip.duration.days');
-            const varianceClass =
-              variance > 0 ? styles.detailValueOverPlan : styles.detailValueUnderPlan;
-            return (
-              <div className={styles.detailRow}>
-                <span className={styles.detailLabel}>{t('gantt.tooltip.duration.variance')}</span>
-                <span className={`${styles.detailValue} ${varianceClass}`}>
-                  {label} {dayWord}
-                </span>
-              </div>
-            );
-          })()}
+          {durationVarianceRow}
         </>
       ) : data.plannedDurationDays != null ? (
         <div className={styles.detailRow}>

@@ -396,7 +396,7 @@ export function SignatureCapture({
     );
   }
 
-  const showVendorFreeform =
+  const _showVendorFreeform =
     signerType === 'vendor' &&
     (!vendors || vendors.length === 0 || selectedVendorId === '__other__');
 

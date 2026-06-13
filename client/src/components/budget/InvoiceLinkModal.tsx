@@ -33,7 +33,7 @@ export function InvoiceLinkModal({
   onSuccess,
   onClose,
 }: InvoiceLinkModalProps) {
-  const { formatCurrency, formatDate } = useFormatters();
+  const { formatCurrency, formatDate: _formatDate } = useFormatters();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchInput, setSearchInput] = useState<string>('');
@@ -67,7 +67,7 @@ export function InvoiceLinkModal({
           setSelectedInvoice(firstInvoice);
           await loadRemainingAmount(firstInvoice.id);
         }
-      } catch (err) {
+      } catch {
         setError({
           message: 'Failed to load invoices. Please try again.',
         });
@@ -201,6 +201,19 @@ export function InvoiceLinkModal({
     }
   };
 
+  const parsedAmount = parseFloat(itemizedAmount);
+  const amountAvailable = remainingAmount - parsedAmount;
+  const amountIndicator =
+    selectedInvoice && !isNaN(parsedAmount) ? (
+      <div
+        className={`${styles.amountIndicator} ${amountAvailable < 0 ? styles.amountIndicatorWarning : ''}`}
+      >
+        {amountAvailable < 0
+          ? `${formatCurrency(Math.abs(amountAvailable))} over available`
+          : `${formatCurrency(amountAvailable)} will remain`}
+      </div>
+    ) : null;
+
   return (
     <Modal
       title="Link to Invoice"
@@ -327,23 +340,7 @@ export function InvoiceLinkModal({
                 required
                 onWheel={(e) => e.currentTarget.blur()}
               />
-              {(() => {
-                const amount = parseFloat(itemizedAmount);
-                if (isNaN(amount)) {
-                  return null;
-                }
-                const available = remainingAmount - amount;
-                const isOverLimit = available < 0;
-                return (
-                  <div
-                    className={`${styles.amountIndicator} ${isOverLimit ? styles.amountIndicatorWarning : ''}`}
-                  >
-                    {isOverLimit
-                      ? `${formatCurrency(Math.abs(available))} over available`
-                      : `${formatCurrency(available)} will remain`}
-                  </div>
-                );
-              })()}
+              {amountIndicator}
             </div>
           )}
           {!selectedInvoice && (

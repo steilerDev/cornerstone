@@ -23,17 +23,11 @@ import {
   subsidyPrograms,
   invoices,
   invoiceBudgetLines,
-  trades,
 } from '../db/schema.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
-import {
-  getDescendantIds,
-  loadAreaMap,
-  resolveAreaAncestors,
-  resolveAreaFilter,
-} from './areaService.js';
+import { loadAreaMap, resolveAreaAncestors, resolveAreaFilter } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 import { toUserSummary, toAreaSummary, toVendorSummaryWithTrade } from './shared/converters.js';
 import { validateVendorId, validateAreaId } from './shared/validators.js';

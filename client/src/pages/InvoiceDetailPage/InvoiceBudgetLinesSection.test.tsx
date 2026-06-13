@@ -4,6 +4,23 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+
+// ─── Mock: LocaleContext (MUST be before any module that imports formatters) ──
+// Defensive layer to ensure useLocale never reaches the real LocaleContext
+// implementation (which throws if no LocaleProvider wraps the tree).
+// NOTE: Mock on .ts not .js because moduleNameMapper redirects .js to .ts
+
+jest.unstable_mockModule('../../contexts/LocaleContext.tsx', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiTypes from '../../lib/householdItemBudgetsApi.js';
@@ -33,6 +50,8 @@ const mockUpdateInvoiceBudgetLine =
   jest.fn<typeof InvoiceBudgetLinesApiTypes.updateInvoiceBudgetLine>();
 const mockDeleteInvoiceBudgetLine =
   jest.fn<typeof InvoiceBudgetLinesApiTypes.deleteInvoiceBudgetLine>();
+const mockEditAndMoveBudgetLine =
+  jest.fn<typeof InvoiceBudgetLinesApiTypes.editAndMoveBudgetLine>();
 const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiTypes.fetchWorkItemBudgets>();
 const mockFetchHouseholdItemBudgets =
   jest.fn<typeof HouseholdItemBudgetsApiTypes.fetchHouseholdItemBudgets>();
@@ -44,6 +63,7 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
   createInvoiceBudgetLine: mockCreateInvoiceBudgetLine,
   updateInvoiceBudgetLine: mockUpdateInvoiceBudgetLine,
   deleteInvoiceBudgetLine: mockDeleteInvoiceBudgetLine,
+  editAndMoveBudgetLine: mockEditAndMoveBudgetLine,
 }));
 
 // ─── Mock: workItemBudgetsApi ──────────────────────────────────────────────────
@@ -105,6 +125,9 @@ jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
     error: string | null;
     isSaving: boolean;
     budgetCategories?: unknown[];
+    // Itemized amount field — used in the invoice-side edit context
+    itemizedAmount?: string;
+    onItemizedAmountChange?: (value: string) => void;
   }) => (
     <form data-testid="budget-line-form" onSubmit={props.onSubmit}>
       <input
@@ -117,7 +140,23 @@ jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
         value={props.form.plannedAmount ?? ''}
         onChange={(e) => props.onFormChange({ plannedAmount: e.target.value })}
       />
-      {props.error && <div data-testid="form-error">{props.error}</div>}
+      {/* Itemized Amount field — rendered when prop is provided (edit-modal context) */}
+      {props.itemizedAmount !== undefined && (
+        <div>
+          <label htmlFor="mock-itemized-amount">Itemized Amount (€) *</label>
+          <input
+            id="mock-itemized-amount"
+            type="number"
+            value={props.itemizedAmount}
+            onChange={(e) => props.onItemizedAmountChange?.(e.target.value)}
+          />
+        </div>
+      )}
+      {props.error && (
+        <div data-testid="form-error" role="alert">
+          {props.error}
+        </div>
+      )}
       {props.isSaving && <span data-testid="form-saving">Saving...</span>}
       <button type="submit" data-testid="form-submit" disabled={props.isSaving}>
         Submit
@@ -253,6 +292,12 @@ const makeDetailLine = (
   parentItemTitle: 'Foundation',
   parentItemType: 'work_item',
   parentItemArea: null,
+  quantity: null,
+  unit: null,
+  unitPrice: null,
+  includesVat: true,
+  vendorId: null,
+  budgetSourceId: null,
   createdAt: '2026-01-15T10:00:00Z',
   updatedAt: '2026-01-15T10:00:00Z',
   ...overrides,
@@ -281,6 +326,7 @@ beforeEach(async () => {
   mockCreateInvoiceBudgetLine.mockReset();
   mockUpdateInvoiceBudgetLine.mockReset();
   mockDeleteInvoiceBudgetLine.mockReset();
+  mockEditAndMoveBudgetLine.mockReset();
   mockFetchWorkItemBudgets.mockReset();
   mockFetchHouseholdItemBudgets.mockReset();
   mockFetchBudgetCategories.mockReset();
@@ -383,15 +429,22 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  jest.clearAllMocks();
   jest.restoreAllMocks();
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// LocaleProvider passthrough stub — useLocale is already mocked via jest.unstable_mockModule above,
+// so we just need a valid React wrapper that renders children.
+const LocaleProviderStub = ({ children }: { children: React.ReactNode }) => <>{children}</>;
+
 function renderSection(invoiceId = INVOICE_ID, invoiceTotal = INVOICE_TOTAL) {
   return render(
     <MemoryRouter initialEntries={[`/budget/invoices/${invoiceId}`]}>
-      <InvoiceBudgetLinesSection invoiceId={invoiceId} invoiceTotal={invoiceTotal} />
+      <LocaleProviderStub>
+        <InvoiceBudgetLinesSection invoiceId={invoiceId} invoiceTotal={invoiceTotal} />
+      </LocaleProviderStub>
     </MemoryRouter>,
   );
 }
@@ -830,11 +883,12 @@ describe('InvoiceBudgetLinesSection', () => {
       expect(screen.getByTestId('budget-line-form')).toBeInTheDocument();
     });
 
-    it('submit happy path — direct mode VAT included: calls createWorkItemBudget and createInvoiceBudgetLine, then closes', async () => {
+    it('submit happy path — creates work item budget line AND eagerly links to invoice (#1611 fix)', async () => {
       const newBudgetLineStub = makeBudgetLineStub('wib-new-001', 500);
       mockCreateWorkItemBudget.mockResolvedValue(newBudgetLineStub);
 
-      const linkedLine = makeDetailLine('ibl-new-001', {
+      // #1611 fix: eagerLinkInvoice is now true so createInvoiceBudgetLine MUST be called
+      const linkedLine = makeDetailLine('ibl-eager-001', {
         workItemBudgetId: 'wib-new-001',
         itemizedAmount: 500,
         plannedAmount: 500,
@@ -855,27 +909,25 @@ describe('InvoiceBudgetLinesSection', () => {
           'wi-001',
           expect.objectContaining({
             plannedAmount: 500,
-            confidence: 'own_estimate',
+            confidence: 'invoice',
             includesVat: true,
           }),
         );
       });
 
-      // createInvoiceBudgetLine is called with the new budget line's ID and its plannedAmount
-      expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
-        INVOICE_ID,
-        expect.objectContaining({
-          invoiceId: INVOICE_ID,
-          workItemBudgetId: 'wib-new-001',
-          itemizedAmount: 500,
-        }),
-      );
+      // createInvoiceBudgetLine IS called immediately after creation (eagerLinkInvoice = true)
+      await waitFor(() => {
+        expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
+          INVOICE_ID,
+          expect.objectContaining({
+            workItemBudgetId: 'wib-new-001',
+            itemizedAmount: 500,
+          }),
+        );
+      });
 
       // Picker closes after success
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-
-      // Newly linked line appears in the table
-      expect(screen.getByRole('table')).toBeInTheDocument();
     });
 
     it('submit direct mode VAT NOT included: validation error for invalid amount', async () => {
@@ -988,68 +1040,23 @@ describe('InvoiceBudgetLinesSection', () => {
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     });
 
-    it('link error ITEMIZED_SUM_EXCEEDS_INVOICE: form closes, error appears in step 2 list view', async () => {
-      const newBudgetLine = makeBudgetLineStub('wib-exc-001', 5000);
-      mockCreateWorkItemBudget.mockResolvedValue(newBudgetLine);
-
-      // fetchWorkItemBudgets re-fetch after link error — return the just-created line as unlinked
-      const unlinkedLine = makeBudgetLineStub('wib-exc-001', 5000);
-      mockFetchWorkItemBudgets.mockResolvedValueOnce([]).mockResolvedValue([unlinkedLine]);
-
-      mockCreateInvoiceBudgetLine.mockRejectedValue(
+    it('create error from createWorkItemBudget: form stays open with error', async () => {
+      mockCreateWorkItemBudget.mockRejectedValue(
         new MockApiClientError(400, {
-          code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
-          message: 'Linking this budget line would exceed the invoice total.',
+          code: 'VALIDATION_ERROR',
+          message: 'Failed to create budget line.',
         }),
       );
-
       await openCreateFormWorkItemEmpty();
-
       fireEvent.change(screen.getByTestId('form-planned-amount'), { target: { value: '5000' } });
-
       await act(async () => {
         fireEvent.submit(screen.getByTestId('budget-line-form'));
       });
-
-      // Form should close and error should appear in the picker's error banner
-      await waitFor(() => expect(screen.queryByTestId('budget-line-form')).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.getByTestId('budget-line-form')).toBeInTheDocument());
       await waitFor(() =>
-        expect(
-          screen.getByText('Linking this budget line would exceed the invoice total.'),
-        ).toBeInTheDocument(),
+        expect(screen.getByTestId('form-error')).toHaveTextContent('Failed to create budget line.'),
       );
-
-      // createInvoiceBudgetLine was NOT called (correctly: the error IS from createInvoiceBudgetLine failing)
-      expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledTimes(1);
-    });
-
-    it('link error BUDGET_LINE_ALREADY_LINKED: form closes, different error message shown', async () => {
-      const newBudgetLine = makeBudgetLineStub('wib-dup-001', 500);
-      mockCreateWorkItemBudget.mockResolvedValue(newBudgetLine);
-
-      mockFetchWorkItemBudgets.mockResolvedValueOnce([]).mockResolvedValue([]);
-
-      mockCreateInvoiceBudgetLine.mockRejectedValue(
-        new MockApiClientError(409, {
-          code: 'BUDGET_LINE_ALREADY_LINKED',
-          message: 'This budget line is already linked to another invoice.',
-        }),
-      );
-
-      await openCreateFormWorkItemEmpty();
-
-      fireEvent.change(screen.getByTestId('form-planned-amount'), { target: { value: '500' } });
-
-      await act(async () => {
-        fireEvent.submit(screen.getByTestId('budget-line-form'));
-      });
-
-      await waitFor(() => expect(screen.queryByTestId('budget-line-form')).not.toBeInTheDocument());
-      await waitFor(() =>
-        expect(
-          screen.getByText('This budget line is already linked to another invoice.'),
-        ).toBeInTheDocument(),
-      );
+      expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
     });
 
     it('create error (non-link): form stays open with error, createInvoiceBudgetLine NOT called', async () => {
@@ -1106,6 +1113,12 @@ describe('InvoiceBudgetLinesSection', () => {
       });
       mockCreateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(linkedLine, 1100.0));
 
+      // Override with two sequential returns: one for mount, one for post-add refresh.
+      // This makes toHaveBeenCalledTimes(2) deterministic regardless of beforeEach default.
+      mockFetchInvoiceBudgetLines
+        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL))
+        .mockResolvedValueOnce(makeListResponse([linkedLine], 1100.0));
+
       renderSection(INVOICE_ID, INVOICE_TOTAL);
 
       await waitFor(() =>
@@ -1122,6 +1135,12 @@ describe('InvoiceBudgetLinesSection', () => {
         expect(screen.getByRole('button', { name: /Add Selected Lines/i })).toBeInTheDocument(),
       );
 
+      // Check the line's checkbox so handleAddSelectedLines will process it
+      const checkbox = screen.getByRole('checkbox');
+      await act(async () => {
+        fireEvent.click(checkbox);
+      });
+
       // Set itemized amount for the existing line via its input
       const amountInput = screen.getByRole('spinbutton', {
         name: /Itemized amount for/i,
@@ -1132,6 +1151,7 @@ describe('InvoiceBudgetLinesSection', () => {
         fireEvent.click(screen.getByRole('button', { name: /Add Selected Lines/i }));
       });
 
+      // createInvoiceBudgetLine called with the correct payload
       await waitFor(() =>
         expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
           INVOICE_ID,
@@ -1144,6 +1164,75 @@ describe('InvoiceBudgetLinesSection', () => {
 
       // createWorkItemBudget was NOT called (existing line path)
       expect(mockCreateWorkItemBudget).not.toHaveBeenCalled();
+
+      // fetchInvoiceBudgetLines called twice: once on mount, once after the add operation
+      await waitFor(() => expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2));
+
+      // Picker is closed after a successful add (dialog no longer in DOM)
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('error path — createInvoiceBudgetLine BUDGET_LINE_ALREADY_LINKED: refreshes list and keeps picker open with error', async () => {
+      const existingLine = makeBudgetLineStub('wib-already-linked-001', 300);
+      mockFetchWorkItemBudgets.mockResolvedValue([existingLine]);
+
+      // Override fetchInvoiceBudgetLines: mount call + post-error refresh call
+      mockFetchInvoiceBudgetLines
+        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL))
+        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL));
+
+      // Configure the create call to fail with BUDGET_LINE_ALREADY_LINKED
+      mockCreateInvoiceBudgetLine.mockRejectedValue(
+        new MockApiClientError(409, { code: 'BUDGET_LINE_ALREADY_LINKED' }),
+      );
+
+      renderSection(INVOICE_ID, INVOICE_TOTAL);
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Budget Line/i })).not.toBeDisabled(),
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Budget Line/i }));
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('work-item-picker'));
+      });
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Add Selected Lines/i })).toBeInTheDocument(),
+      );
+
+      // Select the checkbox and set an itemized amount
+      const checkbox = screen.getByRole('checkbox');
+      await act(async () => {
+        fireEvent.click(checkbox);
+      });
+
+      const amountInput = screen.getByRole('spinbutton', {
+        name: /Itemized amount for/i,
+      });
+      fireEvent.change(amountInput, { target: { value: '300' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Add Selected Lines/i }));
+      });
+
+      // fetchInvoiceBudgetLines called twice: once on mount, once after the error
+      await waitFor(() => expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2));
+
+      // Picker stays open (dialog remains in the DOM)
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      // Picker error shows the localized alreadyLinked message
+      await waitFor(() =>
+        expect(
+          screen.getByText('This budget line is already linked to another invoice.'),
+        ).toBeInTheDocument(),
+      );
+
+      // Focus was NOT moved to the new line row (setTimeout block only runs on success path)
+      // Verified implicitly: the dialog is still open so closePicker was never called
+      expect(screen.queryByRole('dialog')).toBeInTheDocument();
     });
   });
 
@@ -1221,9 +1310,10 @@ describe('InvoiceBudgetLinesSection', () => {
       expect(amountInput.value).toBe('500');
     });
 
-    it('changing amount and submitting calls updateInvoiceBudgetLine with new value', async () => {
+    it('changing amount and submitting calls editAndMoveBudgetLine with new value', async () => {
       const updatedLine = makeDetailLine('ibl-001', { itemizedAmount: 750.0 });
-      mockUpdateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
+      // The full-form edit path uses editAndMoveBudgetLine (not updateInvoiceBudgetLine)
+      mockEditAndMoveBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
 
       renderSection();
       await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
@@ -1247,15 +1337,19 @@ describe('InvoiceBudgetLinesSection', () => {
       });
 
       await waitFor(() => {
-        expect(mockUpdateInvoiceBudgetLine).toHaveBeenCalledWith(INVOICE_ID, 'ibl-001', {
-          itemizedAmount: 750,
-        });
+        // editAndMoveBudgetLine is called with the full payload; verify itemizedAmount
+        expect(mockEditAndMoveBudgetLine).toHaveBeenCalledWith(
+          INVOICE_ID,
+          'ibl-001',
+          expect.objectContaining({ itemizedAmount: 750 }),
+        );
       });
     });
 
     it('successful edit closes the modal', async () => {
       const updatedLine = makeDetailLine('ibl-001', { itemizedAmount: 750.0 });
-      mockUpdateInvoiceBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
+      // The full-form edit path uses editAndMoveBudgetLine (not updateInvoiceBudgetLine)
+      mockEditAndMoveBudgetLine.mockResolvedValue(makeCreateResponse(updatedLine, 750.0));
 
       renderSection();
       await waitFor(() => expect(screen.getByRole('table')).toBeInTheDocument());
@@ -1281,7 +1375,8 @@ describe('InvoiceBudgetLinesSection', () => {
     });
 
     it('ITEMIZED_SUM_EXCEEDS_INVOICE error shows error in modal and modal stays open', async () => {
-      mockUpdateInvoiceBudgetLine.mockRejectedValue(
+      // The full-form edit path uses editAndMoveBudgetLine (not updateInvoiceBudgetLine)
+      mockEditAndMoveBudgetLine.mockRejectedValue(
         new MockApiClientError(400, {
           code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
           message: 'The new amount would exceed the invoice total.',

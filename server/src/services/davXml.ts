@@ -4,9 +4,9 @@
  */
 
 // XML namespace URIs
-const NAMESPACE_DAV = 'DAV:';
-const NAMESPACE_CALDAV = 'urn:ietf:params:xml:ns:caldav';
-const NAMESPACE_CARDDAV = 'urn:ietf:params:xml:ns:carddav';
+const _NAMESPACE_DAV = 'DAV:';
+const _NAMESPACE_CALDAV = 'urn:ietf:params:xml:ns:caldav';
+const _NAMESPACE_CARDDAV = 'urn:ietf:params:xml:ns:carddav';
 
 /**
  * Parse the Depth header from a PROPFIND request.

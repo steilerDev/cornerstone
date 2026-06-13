@@ -68,22 +68,32 @@ function getAreaWithAncestors(
 /**
  * Resolve the full detail for a single invoice budget line row.
  * Queries the budget line table, category, and parent item.
+ * Handles orphan work_item_budget rows (work_item_id IS NULL).
+ * Returns budget-line pricing/source/vendor fields for edit form pre-population.
  */
 function resolveDetail(
   db: DbType,
   row: typeof invoiceBudgetLines.$inferSelect,
   areaMap: Map<string, AreaMapEntry>,
 ): InvoiceBudgetLineDetailResponse {
-  const budgetLineId = row.workItemBudgetId || row.householdItemBudgetId;
-  const budgetLineType = row.workItemBudgetId ? 'work_item' : 'household_item';
+  const _budgetLineId = row.workItemBudgetId || row.householdItemBudgetId;
+  let budgetLineType: 'work_item' | 'household_item' | 'unassigned' = row.workItemBudgetId
+    ? 'work_item'
+    : 'household_item';
 
   let budgetLineDescription: string | null = null;
   let plannedAmount = 0;
   let confidence: ConfidenceLevel = 'own_estimate';
   let categoryId: string | null = null;
-  let parentItemId = '';
-  let parentItemTitle = '';
+  let parentItemId: string | null = null;
+  let parentItemTitle: string | null = null;
   let parentItemArea: AreaSummary | null = null;
+  let quantity: number | null = null;
+  let unit: string | null = null;
+  let unitPrice: number | null = null;
+  let includesVat = true;
+  let vendorId: string | null = null;
+  let budgetSourceId: string | null = null;
 
   if (row.workItemBudgetId) {
     const wib = db
@@ -98,14 +108,28 @@ function resolveDetail(
     plannedAmount = wib.plannedAmount;
     confidence = wib.confidence as ConfidenceLevel;
     categoryId = wib.budgetCategoryId;
+    quantity = wib.quantity;
+    unit = wib.unit;
+    unitPrice = wib.unitPrice;
+    includesVat = wib.includesVat;
+    vendorId = wib.vendorId;
+    budgetSourceId = wib.budgetSourceId;
 
-    const wi = db.select().from(workItems).where(eq(workItems.id, wib.workItemId)).get();
-    if (!wi) {
-      throw new NotFoundError('Work item not found');
+    // Check if this is an orphan (unassigned) budget line
+    if (wib.workItemId === null) {
+      budgetLineType = 'unassigned';
+      parentItemId = null;
+      parentItemTitle = null;
+      parentItemArea = null;
+    } else {
+      const wi = db.select().from(workItems).where(eq(workItems.id, wib.workItemId)).get();
+      if (!wi) {
+        throw new NotFoundError('Work item not found');
+      }
+      parentItemId = wi.id;
+      parentItemTitle = wi.title;
+      parentItemArea = getAreaWithAncestors(wi.areaId, areaMap);
     }
-    parentItemId = wi.id;
-    parentItemTitle = wi.title;
-    parentItemArea = getAreaWithAncestors(wi.areaId, areaMap);
   } else if (row.householdItemBudgetId) {
     const hib = db
       .select()
@@ -119,6 +143,12 @@ function resolveDetail(
     plannedAmount = hib.plannedAmount;
     confidence = hib.confidence as ConfidenceLevel;
     categoryId = hib.budgetCategoryId;
+    quantity = hib.quantity;
+    unit = hib.unit;
+    unitPrice = hib.unitPrice;
+    includesVat = hib.includesVat;
+    vendorId = hib.vendorId;
+    budgetSourceId = hib.budgetSourceId;
 
     const hi = db
       .select()
@@ -160,8 +190,14 @@ function resolveDetail(
     categoryTranslationKey,
     parentItemId,
     parentItemTitle,
-    parentItemType: budgetLineType,
+    parentItemType: budgetLineType as 'work_item' | 'household_item' | 'unassigned',
     parentItemArea,
+    quantity,
+    unit,
+    unitPrice,
+    includesVat,
+    vendorId,
+    budgetSourceId,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -532,6 +568,379 @@ export function getInvoiceBudgetLinesForInvoice(
 
   return {
     budgetLines,
+    remainingAmount,
+  };
+}
+
+/**
+ * Get the full detail for a single invoice budget line by its ID.
+ * Used by assignment and other operations that need to return the full detail.
+ */
+export function getBudgetLineDetail(
+  db: DbType,
+  invoiceBudgetLineId: string,
+): InvoiceBudgetLineDetailResponse {
+  const row = db
+    .select()
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.id, invoiceBudgetLineId))
+    .get();
+
+  if (!row) {
+    throw new NotFoundError('Invoice budget line not found');
+  }
+
+  const areaMap = loadAreaMap(db);
+  return resolveDetail(db, row, areaMap);
+}
+
+interface EditAndMoveBudgetLineData {
+  itemizedAmount?: number;
+  description?: string | null;
+  plannedAmount?: number;
+  confidence?: ConfidenceLevel;
+  budgetCategoryId?: string | null;
+  budgetSourceId?: string | null;
+  vendorId?: string | null;
+  quantity?: number | null;
+  unit?: string | null;
+  unitPrice?: number | null;
+  includesVat?: boolean;
+  newWorkItemId?: string | null;
+  newHouseholdItemId?: string | null;
+}
+
+/**
+ * Edit and optionally move an invoice budget line.
+ * Handles four scenarios: (1) in-place field edit only, (2) same-table parent move,
+ * (3) cross-table parent move, (4) any combination of the above.
+ *
+ * Validates mutual exclusion of move fields, itemized amount > 0, and itemized sum guard.
+ * For cross-table moves, drops subsidy links silently (matching assignToHouseholdItem precedent).
+ * Returns the updated invoice budget line detail and remaining amount.
+ */
+export function editAndMoveBudgetLine(
+  db: DbType,
+  invoiceId: string,
+  lineId: string,
+  data: EditAndMoveBudgetLineData,
+): InvoiceBudgetLineCreateResponse {
+  // Step 1: Validate mutual exclusion of move fields
+  const hasNewWorkItem = data.newWorkItemId !== undefined && data.newWorkItemId !== null;
+  const hasNewHouseholdItem =
+    data.newHouseholdItemId !== undefined && data.newHouseholdItemId !== null;
+
+  if (hasNewWorkItem && hasNewHouseholdItem) {
+    throw new ValidationError('Cannot specify both newWorkItemId and newHouseholdItemId');
+  }
+
+  // Step 2: Verify invoice exists
+  const invoice = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
+  if (!invoice) {
+    throw new NotFoundError('Invoice not found');
+  }
+
+  // Step 3: Verify IBL exists and belongs to this invoice
+  const ibl = db.select().from(invoiceBudgetLines).where(eq(invoiceBudgetLines.id, lineId)).get();
+  if (!ibl) {
+    throw new NotFoundError('Invoice budget line not found');
+  }
+  if (ibl.invoiceId !== invoiceId) {
+    throw new NotFoundError('Invoice budget line not found in this invoice');
+  }
+
+  // Step 4: Determine current parent type
+  const currentParentType = ibl.workItemBudgetId ? 'work_item' : 'household_item';
+
+  // Step 5: Validate itemized amount if provided
+  if (data.itemizedAmount !== undefined) {
+    if (data.itemizedAmount <= 0) {
+      throw new ValidationError('itemizedAmount must be greater than 0');
+    }
+  }
+
+  // Step 6: Check itemized sum guard if itemizedAmount is changing
+  const newItemizedAmount = data.itemizedAmount ?? ibl.itemizedAmount;
+  if (newItemizedAmount !== ibl.itemizedAmount) {
+    const otherRows = db
+      .select()
+      .from(invoiceBudgetLines)
+      .where(
+        sql`${invoiceBudgetLines.invoiceId} = ${invoiceId} AND ${invoiceBudgetLines.id} != ${lineId}`,
+      )
+      .all();
+    const otherTotal = otherRows.reduce((sum, row) => sum + row.itemizedAmount, 0);
+    const newTotal = otherTotal + newItemizedAmount;
+    if (newTotal > invoice.amount) {
+      throw new ItemizedSumExceedsInvoiceError(
+        `Sum of itemized amounts (${newTotal}) would exceed invoice total (${invoice.amount})`,
+      );
+    }
+  }
+
+  // Step 7: Determine move type
+  const isMoving = hasNewWorkItem || hasNewHouseholdItem;
+  const newParentType = hasNewWorkItem ? 'work_item' : 'household_item';
+  const _isCrossTable = isMoving && currentParentType !== newParentType;
+  const isSameTable = isMoving && currentParentType === newParentType;
+
+  // Step 8: Run everything in a single transaction
+  const result = db.transaction(() => {
+    const now = new Date().toISOString();
+
+    // Build budget-line field updates (only fields present in data, excluding move fields)
+    const budgetLineUpdates: Record<string, unknown> = { updatedAt: now };
+    if ('description' in data) budgetLineUpdates.description = data.description;
+    if ('plannedAmount' in data) budgetLineUpdates.plannedAmount = data.plannedAmount;
+    if ('confidence' in data) budgetLineUpdates.confidence = data.confidence;
+    if ('budgetCategoryId' in data) budgetLineUpdates.budgetCategoryId = data.budgetCategoryId;
+    if ('budgetSourceId' in data) budgetLineUpdates.budgetSourceId = data.budgetSourceId;
+    if ('vendorId' in data) budgetLineUpdates.vendorId = data.vendorId;
+    if ('quantity' in data) budgetLineUpdates.quantity = data.quantity;
+    if ('unit' in data) budgetLineUpdates.unit = data.unit;
+    if ('unitPrice' in data) budgetLineUpdates.unitPrice = data.unitPrice;
+    if ('includesVat' in data) budgetLineUpdates.includesVat = data.includesVat;
+
+    if (!isMoving) {
+      // Case: no move (in-place edit)
+      if (ibl.workItemBudgetId) {
+        db.update(workItemBudgets)
+          .set(budgetLineUpdates)
+          .where(eq(workItemBudgets.id, ibl.workItemBudgetId))
+          .run();
+      } else if (ibl.householdItemBudgetId) {
+        db.update(householdItemBudgets)
+          .set(budgetLineUpdates)
+          .where(eq(householdItemBudgets.id, ibl.householdItemBudgetId))
+          .run();
+      }
+
+      // Update IBL itemized amount if provided
+      if (data.itemizedAmount !== undefined) {
+        db.update(invoiceBudgetLines)
+          .set({ itemizedAmount: data.itemizedAmount, updatedAt: now })
+          .where(eq(invoiceBudgetLines.id, lineId))
+          .run();
+      }
+
+      return lineId;
+    } else if (isSameTable) {
+      // Case: same-table move
+      const targetId = hasNewWorkItem ? data.newWorkItemId! : data.newHouseholdItemId!;
+
+      if (currentParentType === 'work_item') {
+        // Validate target work item exists
+        const wi = db.select().from(workItems).where(eq(workItems.id, targetId)).get();
+        if (!wi) {
+          throw new NotFoundError('Work item not found');
+        }
+
+        // Apply budget-line field updates and set new parent FK
+        budgetLineUpdates.workItemId = targetId;
+        db.update(workItemBudgets)
+          .set(budgetLineUpdates)
+          .where(eq(workItemBudgets.id, ibl.workItemBudgetId!))
+          .run();
+      } else {
+        // Validate target household item exists
+        const hi = db.select().from(householdItems).where(eq(householdItems.id, targetId)).get();
+        if (!hi) {
+          throw new NotFoundError('Household item not found');
+        }
+
+        // Apply budget-line field updates and set new parent FK
+        budgetLineUpdates.householdItemId = targetId;
+        db.update(householdItemBudgets)
+          .set(budgetLineUpdates)
+          .where(eq(householdItemBudgets.id, ibl.householdItemBudgetId!))
+          .run();
+      }
+
+      // Update IBL if itemized amount provided
+      if (data.itemizedAmount !== undefined) {
+        db.update(invoiceBudgetLines)
+          .set({ itemizedAmount: data.itemizedAmount, updatedAt: now })
+          .where(eq(invoiceBudgetLines.id, lineId))
+          .run();
+      }
+
+      return lineId;
+    } else {
+      // Case: cross-table move (WIB → HIB or HIB → WIB)
+      const targetId = hasNewWorkItem ? data.newWorkItemId! : data.newHouseholdItemId!;
+
+      if (currentParentType === 'work_item') {
+        // WIB → HIB move
+        // Validate target household item exists
+        const hi = db.select().from(householdItems).where(eq(householdItems.id, targetId)).get();
+        if (!hi) {
+          throw new NotFoundError('Household item not found');
+        }
+
+        // Read the full current budget-line row (WIB)
+        const wib = db
+          .select()
+          .from(workItemBudgets)
+          .where(eq(workItemBudgets.id, ibl.workItemBudgetId!))
+          .get();
+
+        if (!wib) {
+          throw new NotFoundError('Work item budget line not found');
+        }
+
+        // Determine budgetCategoryId: use form value if provided, else existing WIB's value or fallback
+        const finalCategoryId =
+          data.budgetCategoryId !== undefined
+            ? data.budgetCategoryId
+            : wib.budgetCategoryId || 'bc-household-items';
+
+        // Insert new HIB row
+        const newHibId = 'hib-' + randomUUID();
+        const newHibDescription = 'description' in data ? data.description : wib.description;
+        const newHibPlannedAmount =
+          'plannedAmount' in data ? data.plannedAmount : wib.plannedAmount;
+        const newHibConfidence = 'confidence' in data ? data.confidence : wib.confidence;
+        const newHibBudgetSourceId =
+          'budgetSourceId' in data ? data.budgetSourceId : wib.budgetSourceId;
+        const newHibVendorId = 'vendorId' in data ? data.vendorId : wib.vendorId;
+        const newHibQuantity = 'quantity' in data ? data.quantity : wib.quantity;
+        const newHibUnit = 'unit' in data ? data.unit : wib.unit;
+        const newHibUnitPrice = 'unitPrice' in data ? data.unitPrice : wib.unitPrice;
+        const newHibIncludesVat = 'includesVat' in data ? data.includesVat : wib.includesVat;
+
+        db.insert(householdItemBudgets)
+          .values({
+            id: newHibId,
+            householdItemId: targetId,
+            description: newHibDescription,
+            plannedAmount: newHibPlannedAmount,
+            confidence: newHibConfidence,
+            budgetCategoryId: finalCategoryId,
+            budgetSourceId: newHibBudgetSourceId,
+            vendorId: newHibVendorId,
+            quantity: newHibQuantity,
+            unit: newHibUnit,
+            unitPrice: newHibUnitPrice,
+            includesVat: newHibIncludesVat,
+            createdBy: wib.createdBy,
+            createdAt: wib.createdAt,
+            updatedAt: now,
+            origin: wib.origin,
+          })
+          .run();
+
+        // Update IBL: repoint to new HIB
+        db.update(invoiceBudgetLines)
+          .set({
+            workItemBudgetId: null,
+            householdItemBudgetId: newHibId,
+            itemizedAmount: data.itemizedAmount ?? ibl.itemizedAmount,
+            updatedAt: now,
+          })
+          .where(eq(invoiceBudgetLines.id, lineId))
+          .run();
+
+        // Delete old WIB row
+        db.delete(workItemBudgets).where(eq(workItemBudgets.id, ibl.workItemBudgetId!)).run();
+      } else {
+        // HIB → WIB move
+        // Validate target work item exists
+        const wi = db.select().from(workItems).where(eq(workItems.id, targetId)).get();
+        if (!wi) {
+          throw new NotFoundError('Work item not found');
+        }
+
+        // Read the full current budget-line row (HIB)
+        const hib = db
+          .select()
+          .from(householdItemBudgets)
+          .where(eq(householdItemBudgets.id, ibl.householdItemBudgetId!))
+          .get();
+
+        if (!hib) {
+          throw new NotFoundError('Household item budget line not found');
+        }
+
+        // Determine budgetCategoryId: use form value if provided, else existing HIB's value
+        const finalCategoryId =
+          data.budgetCategoryId !== undefined ? data.budgetCategoryId : hib.budgetCategoryId;
+
+        // Insert new WIB row
+        const newWibId = 'wib-' + randomUUID();
+        const newWibDescription = 'description' in data ? data.description : hib.description;
+        const newWibPlannedAmount =
+          'plannedAmount' in data ? data.plannedAmount : hib.plannedAmount;
+        const newWibConfidence = 'confidence' in data ? data.confidence : hib.confidence;
+        const newWibBudgetSourceId =
+          'budgetSourceId' in data ? data.budgetSourceId : hib.budgetSourceId;
+        const newWibVendorId = 'vendorId' in data ? data.vendorId : hib.vendorId;
+        const newWibQuantity = 'quantity' in data ? data.quantity : hib.quantity;
+        const newWibUnit = 'unit' in data ? data.unit : hib.unit;
+        const newWibUnitPrice = 'unitPrice' in data ? data.unitPrice : hib.unitPrice;
+        const newWibIncludesVat = 'includesVat' in data ? data.includesVat : hib.includesVat;
+
+        db.insert(workItemBudgets)
+          .values({
+            id: newWibId,
+            workItemId: targetId,
+            description: newWibDescription,
+            plannedAmount: newWibPlannedAmount,
+            confidence: newWibConfidence,
+            budgetCategoryId: finalCategoryId,
+            budgetSourceId: newWibBudgetSourceId,
+            vendorId: newWibVendorId,
+            quantity: newWibQuantity,
+            unit: newWibUnit,
+            unitPrice: newWibUnitPrice,
+            includesVat: newWibIncludesVat,
+            createdBy: hib.createdBy,
+            createdAt: hib.createdAt,
+            updatedAt: now,
+            origin: hib.origin,
+          })
+          .run();
+
+        // Update IBL: repoint to new WIB
+        db.update(invoiceBudgetLines)
+          .set({
+            workItemBudgetId: newWibId,
+            householdItemBudgetId: null,
+            itemizedAmount: data.itemizedAmount ?? ibl.itemizedAmount,
+            updatedAt: now,
+          })
+          .where(eq(invoiceBudgetLines.id, lineId))
+          .run();
+
+        // Delete old HIB row
+        db.delete(householdItemBudgets)
+          .where(eq(householdItemBudgets.id, ibl.householdItemBudgetId!))
+          .run();
+      }
+
+      return lineId;
+    }
+  });
+
+  // Step 9: Fetch fresh IBL detail
+  const updated = db
+    .select()
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.id, result))
+    .get()!;
+  const areaMap = loadAreaMap(db);
+  const budgetLine = resolveDetail(db, updated, areaMap);
+
+  // Step 10: Calculate remaining amount
+  const allRows = db
+    .select()
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.invoiceId, invoiceId))
+    .all();
+  const itemizedTotal = allRows.reduce((sum, row) => sum + row.itemizedAmount, 0);
+  const remainingAmount = invoice.amount - itemizedTotal;
+
+  return {
+    budgetLine,
     remainingAmount,
   };
 }

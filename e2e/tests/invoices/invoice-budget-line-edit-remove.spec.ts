@@ -118,9 +118,9 @@ async function createAndLinkBudgetLine(
 // Trigger aria-label format: "Budget line actions for {description}"
 //
 // Edit modal: Modal with title="Edit Budget Line" (i18n: invoiceDetail.budgetLines.modal.editTitle)
-//   Form input: #budget-line-amount
-//   Save: button[form="budget-line-edit-form"][type="submit"] with text "Save" (common:button.save)
-//         or "Saving…" (budget:invoiceDetail.budgetLines.form.saving)
+//   Form input: #budget-itemized-amount (unified BudgetLineForm — full form fields)
+//   Save: getByRole('button', { name: /Save Changes|Saving/i })
+//         "Save Changes" (budgetLineForm.submitSave) or "Saving…" (budgetLineForm.submitSaving)
 //   Cancel: btnSecondary with text "Cancel" (common:button.cancel)
 //
 // Remove modal: Modal with title="Remove Budget Line" (i18n: ...modal.removeTitle)
@@ -232,8 +232,8 @@ test.describe('Budget line edit modal (Scenario 1)', { tag: '@responsive' }, () 
         const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
         await expect(editModal).toBeVisible();
 
-        // Amount input pre-populated with 300
-        const amountInput = page.locator('#budget-line-amount');
+        // Itemized amount input pre-populated with 300
+        const amountInput = page.locator('#budget-itemized-amount');
         await expect(amountInput).toBeVisible();
         await expect(amountInput).toHaveValue('300');
 
@@ -248,7 +248,7 @@ test.describe('Budget line edit modal (Scenario 1)', { tag: '@responsive' }, () 
             resp.request().method() === 'PATCH' &&
             resp.status() === 200,
         );
-        const saveButton = editModal.getByRole('button', { name: /Save|Saving/i });
+        const saveButton = editModal.getByRole('button', { name: /Save Changes|Saving/i });
         await saveButton.click();
         await patchPromise;
 
@@ -405,7 +405,7 @@ test.describe('Budget line edit modal — cancel (Scenario 3)', () => {
       await expect(editModal).toBeVisible();
 
       // Change the amount but cancel
-      const amountInput = page.locator('#budget-line-amount');
+      const amountInput = page.locator('#budget-itemized-amount');
       await amountInput.clear();
       await amountInput.fill('999');
 
@@ -554,7 +554,7 @@ test.describe('Budget line edit — ITEMIZED_SUM_EXCEEDS_INVOICE (Scenario 5)', 
       const editModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
       await expect(editModal).toBeVisible();
 
-      const amountInput = page.locator('#budget-line-amount');
+      const amountInput = page.locator('#budget-itemized-amount');
       await amountInput.clear();
       // Try to set amount to 600 — exceeds invoice total of 500
       await amountInput.fill('600');
@@ -566,7 +566,7 @@ test.describe('Budget line edit — ITEMIZED_SUM_EXCEEDS_INVOICE (Scenario 5)', 
           resp.status() === 400,
       );
 
-      const saveButton = editModal.getByRole('button', { name: /Save|Saving/i });
+      const saveButton = editModal.getByRole('button', { name: /Save Changes|Saving/i });
       await saveButton.click();
       await patchErrorPromise;
 
@@ -647,7 +647,7 @@ test.describe('Budget line edit/remove — mobile viewport (Scenario 6)', () => 
       await expect(editModal).toBeVisible();
 
       // Form input accessible
-      const amountInput = page.locator('#budget-line-amount');
+      const amountInput = page.locator('#budget-itemized-amount');
       await amountInput.scrollIntoViewIfNeeded();
       await expect(amountInput).toBeVisible();
 
@@ -662,7 +662,7 @@ test.describe('Budget line edit/remove — mobile viewport (Scenario 6)', () => 
           resp.status() === 200,
       );
 
-      const saveButton = editModal.getByRole('button', { name: /Save|Saving/i });
+      const saveButton = editModal.getByRole('button', { name: /Save Changes|Saving/i });
       await saveButton.scrollIntoViewIfNeeded();
       await saveButton.click();
       await patchPromise;

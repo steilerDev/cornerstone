@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import type { ToolName, StrokeWidthKey, FontSizeKey } from './useAnnotator.js';
+import type { ToolName, StrokeWidthKey } from './useAnnotator.js';
 import { ANNOTATION_COLORS } from './annotationConstants.js';
 import styles from './ToolPalette.module.css';
 

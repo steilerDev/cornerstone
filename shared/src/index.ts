@@ -142,12 +142,26 @@ export type {
   InvoiceBudgetLineSummary,
   CreateInvoiceBudgetLineRequest,
   UpdateInvoiceBudgetLineRequest,
+  EditAndMoveBudgetLineRequest,
   InvoiceBudgetLineResponse,
   InvoiceBudgetLineListResponse,
   InvoiceBudgetLineDetailResponse,
   InvoiceBudgetLineCreateResponse,
   InvoiceBudgetLineListDetailResponse,
+  BudgetLineAssignRequest,
+  BudgetLineAssignResponse,
 } from './types/invoiceBudgetLine.js';
+
+// Budget Extraction (LLM-powered line item extraction)
+export type { ExtractedLine, ExtractionHints, ExtractionResult } from './types/budgetExtraction.js';
+
+// Invoice Auto-Itemize (EPIC-16 Story #1547)
+export type {
+  InvoicePatchForAutoItemize,
+  AutoItemizeRequest,
+  AutoItemizeWarning,
+  AutoItemizeDryRunResponse,
+} from './types/invoiceAutoItemize.js';
 
 // Budget Sources
 export type {
@@ -271,6 +285,7 @@ export type {
   CreateDocumentLinkRequest,
   DocumentLinkResponse,
   DocumentLinkListResponse,
+  AllLinkedDocumentIdsResponse,
 } from './types/document.js';
 
 // Household Items

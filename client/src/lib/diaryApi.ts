@@ -1,6 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
 import type {
-  DiaryEntrySummary,
   DiaryEntryDetail,
   DiaryEntryListResponse,
   DiaryEntryListQuery,

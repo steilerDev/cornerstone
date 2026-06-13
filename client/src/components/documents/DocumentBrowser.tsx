@@ -17,10 +17,13 @@ interface DocumentBrowserProps {
 
 const GRID_ID = 'document-grid';
 
+// Stable empty-array default (avoids unstable reference on every render)
+const EMPTY_LINKED_DOCUMENT_IDS: number[] = [];
+
 export function DocumentBrowser({
   mode = 'page',
   onSelect,
-  linkedDocumentIds = [],
+  linkedDocumentIds = EMPTY_LINKED_DOCUMENT_IDS,
 }: DocumentBrowserProps) {
   const { t } = useTranslation('documents');
   const hook = usePaperless();

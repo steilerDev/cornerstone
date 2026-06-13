@@ -1,29 +1,19 @@
-import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   InvoiceBudgetLineDetailResponse,
-  WorkItemBudgetLine,
-  HouseholdItemBudgetLine,
-  Vendor,
   BudgetCategory,
-  CreateInvoiceBudgetLineRequest,
+  EditAndMoveBudgetLineRequest,
 } from '@cornerstone/shared';
 import {
   fetchInvoiceBudgetLines,
   createInvoiceBudgetLine,
-  updateInvoiceBudgetLine,
   deleteInvoiceBudgetLine,
+  editAndMoveBudgetLine,
 } from '../../lib/invoiceBudgetLinesApi.js';
-import { fetchWorkItemBudgets, createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
-import {
-  fetchHouseholdItemBudgets,
-  createHouseholdItemBudget,
-} from '../../lib/householdItemBudgetsApi.js';
-import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
-import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
-import type { BudgetSource } from '@cornerstone/shared';
+import { assignBudgetLine } from '../../lib/budgetLineAssignApi.js';
+import type { BudgetLineAssignRequest } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -34,9 +24,13 @@ import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
-import { OverflowMenu, type OverflowMenuItem } from '../../components/OverflowMenu/index.js';
+import { OverflowMenu } from '../../components/OverflowMenu/index.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
+import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
+import { useBudgetLinePicker } from '../../hooks/useBudgetLinePicker.js';
+import { EditBudgetLineModal } from '../../components/budget/EditBudgetLineModal.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoiceBudgetLinesSection.module.css';
 
@@ -46,33 +40,9 @@ interface InvoiceBudgetLinesSectionProps {
 }
 
 /**
- * Budget line type discriminator for the two-step picker.
- */
-type BudgetLineType = 'work_item' | 'household_item';
-
-/**
  * Budget line modal modes.
  */
 type BudgetLineModalMode = 'edit' | 'remove' | null;
-
-interface PickerState {
-  step: 1 | 2;
-  type?: BudgetLineType;
-  itemId?: string;
-  itemTitle?: string;
-  budgetLines: (WorkItemBudgetLine | HouseholdItemBudgetLine)[];
-  isLoading: boolean;
-  error?: string;
-  itemizedAmounts?: Record<string, number>;
-  showCreateForm?: boolean;
-  // Rich form state (replaces createFormData)
-  createForm?: BudgetLineFormState;
-  categories?: BudgetCategory[];
-  budgetSources?: BudgetSource[];
-  vendors?: Vendor[];
-  isCreatingBudgetLine?: boolean;
-  createError?: string | null;
-}
 
 export function InvoiceBudgetLinesSection({
   invoiceId,
@@ -82,40 +52,46 @@ export function InvoiceBudgetLinesSection({
   const { t: tSettings } = useTranslation('settings');
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
+
+  const unassignedBadgeVariants: BadgeVariantMap = useMemo(
+    () => ({
+      unassigned: {
+        label: t('invoiceDetail.budgetLines.unassigned'),
+        className: badgeStyles.iblUnassigned,
+      },
+    }),
+    [t],
+  );
   const [budgetLines, setBudgetLines] = useState<InvoiceBudgetLineDetailResponse[]>([]);
   const [remainingAmount, setRemainingAmount] = useState(invoiceTotal);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Picker modal state
-  const [showPicker, setShowPicker] = useState(false);
-  const [pickerState, setPickerState] = useState<PickerState>({
-    step: 1,
-    budgetLines: [],
-    isLoading: false,
-  });
-
   // Budget line modal state
   const [budgetLineModalMode, setBudgetLineModalMode] = useState<BudgetLineModalMode>(null);
   const [selectedBudgetLine, setSelectedBudgetLine] =
     useState<InvoiceBudgetLineDetailResponse | null>(null);
-  const [budgetLineFormAmount, setBudgetLineFormAmount] = useState('');
   const [budgetLineFormError, setBudgetLineFormError] = useState('');
   const [isBudgetLineMutating, setIsBudgetLineMutating] = useState(false);
+  const [assigningLineId, setAssigningLineId] = useState<string | null>(null);
+  const [openedWithFocusParentPicker, setOpenedWithFocusParentPicker] = useState(false);
+
+  // Full form state for editing assigned budget lines
+  const [budgetLineFullForm, setBudgetLineFullForm] = useState<BudgetLineFormState | null>(null);
+  const [budgetLineItemizedAmount, setBudgetLineItemizedAmount] = useState('');
 
   // Focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const pickerModalRef = useRef<HTMLDivElement>(null);
   const remainingAmountRef = useRef<HTMLTableCellElement>(null);
   const newLineRowRef = useRef<HTMLTableRowElement>(null);
-  const createBudgetLineButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Load budget lines on mount
-  useEffect(() => {
-    void loadBudgetLines();
-  }, [invoiceId]);
+  // Multi-select state for step 2 of the picker (InvoiceBudgetLinesSection-specific UX)
+  const [selectedLineIds, setSelectedLineIds] = useState<Set<string>>(() => new Set());
+  const [itemizedAmounts, setItemizedAmounts] = useState<Record<string, number>>({});
 
-  const loadBudgetLines = async () => {
+  // Load budget lines on mount (defined before picker so onLineCreated can reference it)
+  const loadBudgetLines = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -131,23 +107,70 @@ export function InvoiceBudgetLinesSection({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [invoiceId, t]);
 
-  const closeBudgetLineModal = () => {
+  // Use the picker hook — eagerLinkInvoice defaults to true so the create-new flow
+  // calls createInvoiceBudgetLine automatically before invoking onLineCreated.
+  const picker = useBudgetLinePicker({
+    invoiceId,
+    invoiceAmount: invoiceTotal,
+    onLineCreated: () => {
+      // Reload budget lines after a new line is created and eagerly linked to the invoice
+      void loadBudgetLines();
+    },
+  });
+
+  useEffect(() => {
+    void loadBudgetLines();
+  }, [loadBudgetLines]);
+
+  const closeBudgetLineModal = useCallback(() => {
     if (!isBudgetLineMutating) {
       setBudgetLineModalMode(null);
       setSelectedBudgetLine(null);
-      setBudgetLineFormAmount('');
       setBudgetLineFormError('');
+      setOpenedWithFocusParentPicker(false);
+      setBudgetLineFullForm(null);
+      setBudgetLineItemizedAmount('');
+      setError(null);
     }
-  };
+  }, [isBudgetLineMutating]);
 
-  const openEditBudgetLineModal = (line: InvoiceBudgetLineDetailResponse) => {
+  const openEditBudgetLineModal = (
+    line: InvoiceBudgetLineDetailResponse,
+    options?: { focusParentPicker?: boolean },
+  ) => {
     setSelectedBudgetLine(line);
-    setBudgetLineFormAmount(line.itemizedAmount.toString());
     setBudgetLineFormError('');
+    setOpenedWithFocusParentPicker(options?.focusParentPicker ?? false);
+
+    // Initialize full form state for assigned lines
+    if (line.parentItemType !== 'unassigned') {
+      // Derive pricingMode: if both quantity and unitPrice are non-null, use 'unit'; else 'direct'
+      const pricingMode = line.quantity !== null && line.unitPrice !== null ? 'unit' : 'direct';
+
+      setBudgetLineFullForm({
+        description: line.budgetLineDescription ?? '',
+        plannedAmount: line.plannedAmount.toString(),
+        confidence: line.confidence,
+        budgetCategoryId: line.categoryId ?? '',
+        budgetSourceId: line.budgetSourceId ?? '',
+        vendorId: line.vendorId ?? '',
+        pricingMode,
+        quantity: line.quantity !== null ? line.quantity.toString() : '',
+        unit: line.unit ?? '',
+        unitPrice: line.unitPrice !== null ? line.unitPrice.toString() : '',
+        includesVat: line.includesVat ?? true,
+      });
+      setBudgetLineItemizedAmount(line.itemizedAmount.toString());
+    }
+
     setBudgetLineModalMode('edit');
   };
+
+  const openAssignModal = useCallback((line: InvoiceBudgetLineDetailResponse) => {
+    openEditBudgetLineModal(line, { focusParentPicker: true });
+  }, []);
 
   const openRemoveBudgetLineModal = (line: InvoiceBudgetLineDetailResponse) => {
     setSelectedBudgetLine(line);
@@ -157,351 +180,81 @@ export function InvoiceBudgetLinesSection({
 
   // Focus into picker modal when it opens
   useEffect(() => {
-    if (showPicker && pickerModalRef.current) {
-      setTimeout(() => {
+    if (picker.pickerState.isOpen && pickerModalRef.current) {
+      const timeoutId = setTimeout(() => {
         pickerModalRef.current?.focus();
       }, 0);
+      return () => clearTimeout(timeoutId);
     }
-  }, [showPicker]);
-
-  const closePicker = useCallback(() => {
-    setShowPicker(false);
-    setPickerState({ step: 1, budgetLines: [], isLoading: false });
-    setTimeout(() => {
-      addButtonRef.current?.focus();
-    }, 0);
-  }, []);
+  }, [picker.pickerState.isOpen]);
 
   // Close modals on Escape key
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape' && showPicker) {
-        closePicker();
+      if (e.key === 'Escape' && picker.pickerState.isOpen) {
+        picker.closePicker();
       }
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showPicker, closePicker]);
+  }, [picker.pickerState.isOpen, picker]);
 
   /**
-   * Step 1: User selects a work item or household item.
-   * Fetch its budget lines and move to step 2.
+   * Step 2: User submits selected budget lines with their itemized amounts.
+   * Create invoice budget line links for all selected lines.
    */
-  const handleSelectItem = async (itemId: string, type: BudgetLineType, itemTitle?: string) => {
-    setPickerState({
-      step: 2,
-      type,
-      itemId,
-      itemTitle: itemTitle ?? itemId,
-      budgetLines: [],
-      isLoading: true,
-      itemizedAmounts: {},
-    });
+  const handleAddSelectedLines = async () => {
+    if (!picker.pickerState.itemId || !picker.pickerState.type) return;
 
-    try {
-      const fetchFn = type === 'work_item' ? fetchWorkItemBudgets : fetchHouseholdItemBudgets;
-      const lines = await fetchFn(itemId);
+    // Create links for all selected lines
+    for (const line of picker.pickerState.budgetLines) {
+      if (!selectedLineIds.has(line.id)) continue;
 
-      // Filter to only unlinked budget lines
-      const unlinkedLines = lines.filter((bl) => bl.invoiceLink === null);
+      const amount = itemizedAmounts[line.id] ?? 0;
+      if (amount <= 0) continue;
 
-      setPickerState({
-        step: 2,
-        type,
-        itemId,
-        itemTitle: itemTitle ?? itemId,
-        budgetLines: unlinkedLines,
-        isLoading: false,
-        itemizedAmounts: {},
-      });
-    } catch (err) {
-      const errorMsg =
-        err instanceof ApiClientError
-          ? err.error.message
-          : t('invoiceDetail.budgetLines.picker.loadError');
+      try {
+        const createData = {
+          invoiceId,
+          ...(picker.pickerState.type === 'work_item'
+            ? { workItemBudgetId: line.id }
+            : { householdItemBudgetId: line.id }),
+          itemizedAmount: amount,
+        };
 
-      setPickerState({
-        step: 2,
-        type,
-        itemId,
-        itemTitle: itemTitle ?? itemId,
-        budgetLines: [],
-        isLoading: false,
-        error: errorMsg,
-        itemizedAmounts: {},
-      });
-    }
-  };
+        await createInvoiceBudgetLine(invoiceId, createData);
+      } catch (err) {
+        let errorMsg = t('invoiceDetail.budgetLines.picker.error.linkFailed');
 
-  /**
-   * Show the rich budget line form for creating a new budget line.
-   */
-  const showCreateBudgetLineForm = async () => {
-    try {
-      const [categoriesResponse, sourcesResponse, vendorsResponse] = await Promise.all([
-        fetchBudgetCategories(),
-        fetchBudgetSources(),
-        fetchVendors({ pageSize: 100 }),
-      ]);
-
-      const discretionaryId = sourcesResponse.budgetSources.find((s) => s.isDiscretionary)?.id;
-
-      const initialForm: BudgetLineFormState = {
-        ...emptyCreateForm(),
-        budgetSourceId: discretionaryId ?? '',
-      };
-
-      setPickerState((prev) => ({
-        ...prev,
-        showCreateForm: true,
-        createForm: initialForm,
-        categories: categoriesResponse.categories,
-        budgetSources: sourcesResponse.budgetSources,
-        vendors: vendorsResponse.vendors,
-        createError: null,
-      }));
-    } catch (err) {
-      const errorMsg =
-        err instanceof ApiClientError
-          ? err.error.message
-          : t('invoiceDetail.budgetLines.picker.loadFormError');
-      setPickerState((prev) => ({
-        ...prev,
-        error: errorMsg,
-      }));
-    }
-  };
-
-  /**
-   * Handle creating a new budget line via the rich form and auto-linking it to the invoice.
-   */
-  const handleCreateBudgetLine = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!pickerState.itemId || !pickerState.type || !pickerState.createForm) return;
-
-    const form = pickerState.createForm;
-
-    let plannedAmount: number;
-    if (form.pricingMode === 'direct') {
-      plannedAmount = parseFloat(form.plannedAmount);
-      if (isNaN(plannedAmount) || plannedAmount < 0) {
-        setPickerState((prev) => ({
-          ...prev,
-          createError: t('invoiceDetail.budgetLines.picker.error.plannedAmountInvalid'),
-        }));
-        return;
-      }
-      const multiplier = form.includesVat ? 1 : 1.19;
-      plannedAmount = Math.round(plannedAmount * multiplier * 100) / 100;
-    } else {
-      const qty = parseFloat(form.quantity);
-      const price = parseFloat(form.unitPrice);
-      if (isNaN(qty) || qty <= 0) {
-        setPickerState((prev) => ({
-          ...prev,
-          createError: t('invoiceDetail.budgetLines.picker.error.quantityInvalid'),
-        }));
-        return;
-      }
-      if (isNaN(price) || price < 0) {
-        setPickerState((prev) => ({
-          ...prev,
-          createError: t('invoiceDetail.budgetLines.picker.error.unitPriceInvalid'),
-        }));
-        return;
-      }
-      plannedAmount = Math.round(qty * price * 100) / 100;
-    }
-
-    setPickerState((prev) => ({
-      ...prev,
-      isCreatingBudgetLine: true,
-      createError: null,
-      error: undefined,
-    }));
-
-    try {
-      const createFn =
-        pickerState.type === 'work_item' ? createWorkItemBudget : createHouseholdItemBudget;
-      const payload = {
-        description: form.description.trim() || null,
-        plannedAmount,
-        confidence: form.confidence,
-        budgetCategoryId: pickerState.type === 'work_item' ? form.budgetCategoryId || null : null,
-        budgetSourceId: form.budgetSourceId || null,
-        vendorId: form.vendorId || null,
-        quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
-        unit: form.pricingMode === 'unit' && form.unit ? form.unit : null,
-        unitPrice:
-          form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
-        includesVat: form.includesVat,
-      };
-      const newBudgetLine = await createFn(pickerState.itemId, payload);
-
-      const linkData: CreateInvoiceBudgetLineRequest = {
-        invoiceId,
-        ...(pickerState.type === 'work_item'
-          ? { workItemBudgetId: newBudgetLine.id }
-          : { householdItemBudgetId: newBudgetLine.id }),
-        itemizedAmount: newBudgetLine.plannedAmount,
-      };
-      const linkResponse = await createInvoiceBudgetLine(invoiceId, linkData);
-
-      setBudgetLines((prev) => [...prev, linkResponse.budgetLine]);
-      setRemainingAmount(linkResponse.remainingAmount);
-      closePicker();
-
-      setTimeout(() => {
-        newLineRowRef.current?.focus();
-      }, 100);
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        if (
-          err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE' ||
-          err.error.code === 'BUDGET_LINE_ALREADY_LINKED'
-        ) {
-          try {
-            const fetchFn =
-              pickerState.type === 'work_item' ? fetchWorkItemBudgets : fetchHouseholdItemBudgets;
-            const lines = await fetchFn(pickerState.itemId!);
-            const unlinkedLines = lines.filter((bl) => bl.invoiceLink === null);
-
-            let errorMsg: string;
-            if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-              errorMsg = t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
-            } else {
-              errorMsg = t('invoiceDetail.budgetLines.picker.error.alreadyLinked');
-            }
-
-            setPickerState((prev) => ({
-              ...prev,
-              showCreateForm: false,
-              createForm: undefined,
-              budgetLines: unlinkedLines,
-              isCreatingBudgetLine: false,
-              createError: null,
-              error: errorMsg,
-            }));
-          } catch {
-            setPickerState((prev) => ({
-              ...prev,
-              showCreateForm: false,
-              createForm: undefined,
-              isCreatingBudgetLine: false,
-              createError: null,
-              error:
-                err instanceof ApiClientError
-                  ? err.error.message
-                  : t('invoiceDetail.budgetLines.picker.loadError'),
-            }));
+        if (err instanceof ApiClientError) {
+          if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
+            errorMsg = t('invoiceDetail.budgetLines.picker.error.alreadyLinked');
+          } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
+            errorMsg = t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
+          } else {
+            errorMsg = err.error.message;
           }
-          return;
         }
 
-        setPickerState((prev) => ({
-          ...prev,
-          isCreatingBudgetLine: false,
-          createError: err.error.message,
-        }));
-      } else {
-        setPickerState((prev) => ({
-          ...prev,
-          isCreatingBudgetLine: false,
-          createError: t('invoiceDetail.budgetLines.picker.error.createFailed'),
-        }));
+        picker.setPickerState({
+          ...picker.pickerState,
+          error: errorMsg,
+        });
+        await loadBudgetLines();
+        return;
       }
     }
-  };
 
-  /**
-   * Step 2: User selects a budget line from the filtered list.
-   * Create the invoice budget line link.
-   */
-  const handleSelectBudgetLine = async (
-    budgetLine: WorkItemBudgetLine | HouseholdItemBudgetLine,
-  ) => {
-    if (!pickerState.itemId || !pickerState.type) return;
+    // Clear selection and close picker on success
+    setSelectedLineIds(new Set());
+    setItemizedAmounts({});
+    await loadBudgetLines();
+    picker.closePicker();
 
-    try {
-      const createData = {
-        invoiceId,
-        ...(pickerState.type === 'work_item'
-          ? { workItemBudgetId: budgetLine.id }
-          : { householdItemBudgetId: budgetLine.id }),
-        itemizedAmount: budgetLine.plannedAmount,
-      };
-
-      const response = await createInvoiceBudgetLine(invoiceId, createData);
-
-      // Update state with new line and remaining amount
-      const newBudgetLines = [...budgetLines, response.budgetLine];
-      setBudgetLines(newBudgetLines);
-      setRemainingAmount(response.remainingAmount);
-      closePicker();
-
-      // Focus the newly added row after a short delay
-      setTimeout(() => {
-        newLineRowRef.current?.focus();
-      }, 100);
-    } catch (err) {
-      let errorMsg = t('invoiceDetail.budgetLines.picker.error.linkFailed');
-
-      if (err instanceof ApiClientError) {
-        if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
-          errorMsg = t('invoiceDetail.budgetLines.picker.error.alreadyLinked');
-        } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-          errorMsg = t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
-        } else {
-          errorMsg = err.error.message;
-        }
-      }
-
-      setPickerState({
-        ...pickerState,
-        error: errorMsg,
-      });
-    }
-  };
-
-  /**
-   * Handle edit budget line submit.
-   */
-  const handleBudgetLineEditSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!selectedBudgetLine) return;
-
-    const newAmount = parseFloat(budgetLineFormAmount);
-    if (isNaN(newAmount) || newAmount < 0) {
-      setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.amountInvalid'));
-      return;
-    }
-
-    setIsBudgetLineMutating(true);
-    setBudgetLineFormError('');
-
-    try {
-      const response = await updateInvoiceBudgetLine(invoiceId, selectedBudgetLine.id, {
-        itemizedAmount: newAmount,
-      });
-
-      setBudgetLines((prev) =>
-        prev.map((line) => (line.id === selectedBudgetLine.id ? response.budgetLine : line)),
-      );
-      setRemainingAmount(response.remainingAmount);
-      closeBudgetLineModal();
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-          setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.exceedsTotal'));
-        } else {
-          setBudgetLineFormError(translateApiError(err.error.code, tErrors));
-        }
-      } else {
-        setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.saveFailed'));
-      }
-    } finally {
-      setIsBudgetLineMutating(false);
-    }
+    // Focus the newly added row after a short delay
+    setTimeout(() => {
+      newLineRowRef.current?.focus();
+    }, 100);
   };
 
   /**
@@ -528,6 +281,160 @@ export function InvoiceBudgetLinesSection({
     }
   };
 
+  /**
+   * Handle full form submission for editing assigned budget lines.
+   */
+  const handleBudgetLineFullEditSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedBudgetLine || !budgetLineFullForm) return;
+
+    const newAmount = parseFloat(budgetLineItemizedAmount);
+    if (isNaN(newAmount) || newAmount <= 0) {
+      setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.amountInvalid'));
+      return;
+    }
+
+    setIsBudgetLineMutating(true);
+    setBudgetLineFormError('');
+
+    try {
+      // Compute plannedAmount from form
+      let plannedAmount: number;
+      if (budgetLineFullForm.pricingMode === 'direct') {
+        plannedAmount = parseFloat(budgetLineFullForm.plannedAmount);
+      } else {
+        const qty = parseFloat(budgetLineFullForm.quantity);
+        const price = parseFloat(budgetLineFullForm.unitPrice);
+        plannedAmount = Math.round(qty * price * 100) / 100;
+      }
+
+      const payload: EditAndMoveBudgetLineRequest = {
+        itemizedAmount: newAmount,
+        description: budgetLineFullForm.description || null,
+        plannedAmount,
+        confidence: budgetLineFullForm.confidence,
+        budgetCategoryId: budgetLineFullForm.budgetCategoryId || null,
+        budgetSourceId: budgetLineFullForm.budgetSourceId || null,
+        vendorId: budgetLineFullForm.vendorId || null,
+        quantity:
+          budgetLineFullForm.pricingMode === 'unit' && budgetLineFullForm.quantity
+            ? parseFloat(budgetLineFullForm.quantity)
+            : null,
+        unit: budgetLineFullForm.pricingMode === 'unit' ? budgetLineFullForm.unit || null : null,
+        unitPrice:
+          budgetLineFullForm.pricingMode === 'unit' && budgetLineFullForm.unitPrice
+            ? parseFloat(budgetLineFullForm.unitPrice)
+            : null,
+        includesVat: budgetLineFullForm.includesVat,
+      };
+
+      const response = await editAndMoveBudgetLine(invoiceId, selectedBudgetLine.id, payload);
+      setBudgetLines((prev) =>
+        prev.map((line) => (line.id === selectedBudgetLine.id ? response.budgetLine : line)),
+      );
+      setRemainingAmount(response.remainingAmount);
+      closeBudgetLineModal();
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
+          setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.exceedsTotal'));
+        } else if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
+          setBudgetLineFormError(translateApiError('BUDGET_LINE_ALREADY_LINKED', tErrors));
+        } else {
+          setBudgetLineFormError(translateApiError(err.error.code, tErrors));
+        }
+      } else {
+        setBudgetLineFormError(t('invoiceDetail.budgetLines.editError.saveFailed'));
+      }
+    } finally {
+      setIsBudgetLineMutating(false);
+    }
+  };
+
+  /**
+   * Handle moving a budget line to a new parent.
+   */
+  const handleMoveBudgetLine = useCallback(
+    async (newParentType: 'work_item' | 'household_item', newParentId: string) => {
+      if (!selectedBudgetLine || !budgetLineFullForm) return;
+
+      const newAmount = parseFloat(budgetLineItemizedAmount);
+      if (isNaN(newAmount) || newAmount <= 0) {
+        throw new Error(t('invoiceDetail.budgetLines.editError.amountInvalid'));
+      }
+
+      let plannedAmount: number;
+      if (budgetLineFullForm.pricingMode === 'direct') {
+        plannedAmount = parseFloat(budgetLineFullForm.plannedAmount);
+      } else {
+        plannedAmount =
+          Math.round(
+            parseFloat(budgetLineFullForm.quantity) *
+              parseFloat(budgetLineFullForm.unitPrice) *
+              100,
+          ) / 100;
+      }
+
+      const payload: EditAndMoveBudgetLineRequest = {
+        itemizedAmount: newAmount,
+        description: budgetLineFullForm.description || null,
+        plannedAmount,
+        confidence: budgetLineFullForm.confidence,
+        budgetCategoryId: budgetLineFullForm.budgetCategoryId || null,
+        budgetSourceId: budgetLineFullForm.budgetSourceId || null,
+        vendorId: budgetLineFullForm.vendorId || null,
+        quantity:
+          budgetLineFullForm.pricingMode === 'unit' && budgetLineFullForm.quantity
+            ? parseFloat(budgetLineFullForm.quantity)
+            : null,
+        unit: budgetLineFullForm.pricingMode === 'unit' ? budgetLineFullForm.unit || null : null,
+        unitPrice:
+          budgetLineFullForm.pricingMode === 'unit' && budgetLineFullForm.unitPrice
+            ? parseFloat(budgetLineFullForm.unitPrice)
+            : null,
+        includesVat: budgetLineFullForm.includesVat,
+        ...(newParentType === 'work_item'
+          ? { newWorkItemId: newParentId }
+          : { newHouseholdItemId: newParentId }),
+      };
+
+      const response = await editAndMoveBudgetLine(invoiceId, selectedBudgetLine.id, payload);
+      setBudgetLines((prev) =>
+        prev.map((line) => (line.id === selectedBudgetLine.id ? response.budgetLine : line)),
+      );
+      setRemainingAmount(response.remainingAmount);
+      closeBudgetLineModal();
+    },
+    [
+      selectedBudgetLine,
+      budgetLineFullForm,
+      budgetLineItemizedAmount,
+      invoiceId,
+      t,
+      closeBudgetLineModal,
+    ],
+  );
+
+  /**
+   * Handle assigning an unassigned budget line.
+   */
+  const handleAssignBudgetLine = useCallback(
+    async (body: BudgetLineAssignRequest) => {
+      if (!selectedBudgetLine?.workItemBudgetId) return;
+      const wibId = selectedBudgetLine.workItemBudgetId;
+      setAssigningLineId(selectedBudgetLine.id);
+
+      try {
+        await assignBudgetLine(wibId, body);
+        await loadBudgetLines();
+        closeBudgetLineModal();
+      } finally {
+        setAssigningLineId(null);
+      }
+    },
+    [selectedBudgetLine, closeBudgetLineModal, loadBudgetLines],
+  );
+
   // Determine remaining color
   const getRemainingColor = () => {
     if (remainingAmount > 0.01) return 'warning'; // > 0
@@ -536,32 +443,16 @@ export function InvoiceBudgetLinesSection({
   };
 
   /**
-   * Create an empty budget line form state.
-   */
-  const emptyCreateForm = (): BudgetLineFormState => ({
-    description: '',
-    plannedAmount: '',
-    confidence: 'own_estimate',
-    budgetCategoryId: '',
-    budgetSourceId: '',
-    vendorId: '',
-    pricingMode: 'direct',
-    quantity: '',
-    unit: '',
-    unitPrice: '',
-    includesVat: true,
-  });
-
-  /**
    * Focus into the description field when the create form opens.
    */
   useEffect(() => {
-    if (pickerState.showCreateForm) {
-      setTimeout(() => {
+    if (picker.pickerState.showCreateForm) {
+      const timeoutId = setTimeout(() => {
         document.getElementById('budget-description')?.focus();
       }, 0);
+      return () => clearTimeout(timeoutId);
     }
-  }, [pickerState.showCreateForm]);
+  }, [picker.pickerState.showCreateForm]);
 
   return (
     <section aria-labelledby="budget-lines-title" className={styles.section}>
@@ -579,18 +470,20 @@ export function InvoiceBudgetLinesSection({
             </span>
           )}
         </h2>
-        <button
-          type="button"
-          ref={addButtonRef}
-          className={sharedStyles.btnPrimary}
-          disabled={isLoading}
-          onClick={() => {
-            setShowPicker(true);
-            setError(null);
-          }}
-        >
-          + {t('invoiceDetail.budgetLines.addButton')}
-        </button>
+        <div className={styles.buttonGroup}>
+          <button
+            type="button"
+            ref={addButtonRef}
+            className={sharedStyles.btnPrimary}
+            disabled={isLoading}
+            onClick={() => {
+              picker.openPicker();
+              setError(null);
+            }}
+          >
+            + {t('invoiceDetail.budgetLines.addButton')}
+          </button>
+        </div>
       </div>
 
       {/* Error banner */}
@@ -672,14 +565,39 @@ export function InvoiceBudgetLinesSection({
                     <span>{formatCurrency(line.itemizedAmount)}</span>
                   </td>
                   <td className={styles.tdLinkedItem}>
-                    <Link
-                      to={`/project/${line.parentItemType === 'work_item' ? 'work-items' : 'household-items'}/${line.parentItemId}`}
-                      className={styles.linkedItemLink}
-                    >
-                      {line.parentItemTitle}
-                    </Link>
-                    {line.parentItemType === 'work_item' && (
-                      <AreaBreadcrumb area={line.parentItemArea ?? null} variant="compact" />
+                    {line.parentItemType === 'unassigned' ? (
+                      <div className={styles.unassignedCell}>
+                        <Badge
+                          variants={unassignedBadgeVariants}
+                          value="unassigned"
+                          ariaLabel={t('invoiceDetail.budgetLines.unassignedAriaLabel')}
+                        />
+                        <button
+                          type="button"
+                          className={styles.assignButton}
+                          disabled={assigningLineId === line.id}
+                          onClick={() => openAssignModal(line)}
+                          aria-label={t('invoiceDetail.budgetLines.assignAriaLabel', {
+                            description: line.budgetLineDescription || 'budget line',
+                          })}
+                        >
+                          {assigningLineId === line.id
+                            ? t('invoiceDetail.budgetLines.assigningButton')
+                            : t('invoiceDetail.budgetLines.assignButton')}
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Link
+                          to={`/project/${line.parentItemType === 'work_item' ? 'work-items' : 'household-items'}/${line.parentItemId}`}
+                          className={styles.linkedItemLink}
+                        >
+                          {line.parentItemTitle}
+                        </Link>
+                        {line.parentItemType === 'work_item' && (
+                          <AreaBreadcrumb area={line.parentItemArea ?? null} variant="compact" />
+                        )}
+                      </>
                     )}
                   </td>
                   <td className={styles.tdActions}>
@@ -731,9 +649,9 @@ export function InvoiceBudgetLinesSection({
       )}
 
       {/* Add Budget Line picker modal (two-step) */}
-      {showPicker && (
+      {picker.pickerState.isOpen && (
         <div className={styles.pickerModal}>
-          <div className={styles.modalBackdrop} onClick={closePicker} />
+          <div className={styles.modalBackdrop} onClick={picker.closePicker} />
           <div
             ref={pickerModalRef}
             className={styles.modalContent}
@@ -744,16 +662,16 @@ export function InvoiceBudgetLinesSection({
           >
             <div className={styles.modalHeader}>
               <h2 id="picker-title" className={styles.modalTitle}>
-                {pickerState.step === 1
+                {picker.pickerState.step === 1
                   ? t('invoiceDetail.budgetLines.picker.title')
                   : t('invoiceDetail.budgetLines.picker.step2Title', {
-                      itemTitle: pickerState.itemTitle,
+                      itemTitle: picker.pickerState.itemTitle,
                     })}
               </h2>
               <button
                 type="button"
                 className={styles.modalClose}
-                onClick={closePicker}
+                onClick={picker.closePicker}
                 aria-label={t('invoiceDetail.budgetLines.picker.closeAriaLabel')}
               >
                 ×
@@ -762,7 +680,7 @@ export function InvoiceBudgetLinesSection({
 
             <div className={styles.modalBody}>
               {/* Step 1: Select item type and item */}
-              {pickerState.step === 1 && (
+              {picker.pickerState.step === 1 && (
                 <div className={styles.pickerStep}>
                   <div className={styles.tabsContainer}>
                     <div className={styles.tab}>
@@ -772,10 +690,10 @@ export function InvoiceBudgetLinesSection({
                       <WorkItemPicker
                         value=""
                         onChange={(itemId) => {
-                          void handleSelectItem(itemId, 'work_item');
+                          picker.handleSelectItem(itemId, 'work_item');
                         }}
                         onSelectItem={(item) => {
-                          void handleSelectItem(item.id, 'work_item', item.title);
+                          picker.handleSelectItem(item.id, 'work_item', item.title);
                         }}
                         excludeIds={[]}
                         placeholder="Search work items..."
@@ -794,10 +712,10 @@ export function InvoiceBudgetLinesSection({
                       <HouseholdItemPicker
                         value=""
                         onChange={(itemId) => {
-                          void handleSelectItem(itemId, 'household_item');
+                          picker.handleSelectItem(itemId, 'household_item');
                         }}
                         onSelectItem={(item) => {
-                          void handleSelectItem(item.id, 'household_item', item.name);
+                          picker.handleSelectItem(item.id, 'household_item', item.name);
                         }}
                         excludeIds={[]}
                         placeholder="Search household items..."
@@ -809,50 +727,50 @@ export function InvoiceBudgetLinesSection({
               )}
 
               {/* Step 2: Select budget line and set itemized amounts */}
-              {pickerState.step === 2 && (
+              {picker.pickerState.step === 2 && (
                 <div className={styles.pickerStep}>
-                  {pickerState.isLoading && (
+                  {picker.pickerState.isLoading && (
                     <div className={styles.loadingState}>
                       {t('invoiceDetail.budgetLines.picker.loadingLines')}
                     </div>
                   )}
 
-                  {pickerState.error && (
+                  {picker.pickerState.error && (
                     <div className={styles.errorBanner} role="alert">
-                      {pickerState.error}
+                      {picker.pickerState.error}
                     </div>
                   )}
 
-                  {!pickerState.isLoading &&
-                    pickerState.budgetLines.length === 0 &&
-                    !pickerState.error &&
-                    !pickerState.showCreateForm && (
+                  {!picker.pickerState.isLoading &&
+                    picker.pickerState.budgetLines.length === 0 &&
+                    !picker.pickerState.error &&
+                    !picker.pickerState.showCreateForm && (
                       <div className={styles.emptyState}>
                         <p>{t('invoiceDetail.budgetLines.picker.noUnlinkedLines')}</p>
                         <button
                           type="button"
-                          ref={createBudgetLineButtonRef}
+                          ref={picker.createBudgetLineButtonRef}
                           className={styles.addButton}
-                          onClick={() => void showCreateBudgetLineForm()}
+                          onClick={() => picker.showCreateBudgetLineForm()}
                         >
                           {t('invoiceDetail.budgetLines.picker.createLine')}
                         </button>
                       </div>
                     )}
 
-                  {!pickerState.isLoading &&
-                    pickerState.showCreateForm &&
-                    pickerState.createForm && (
+                  {!picker.pickerState.isLoading &&
+                    picker.pickerState.showCreateForm &&
+                    picker.pickerState.createForm && (
                       <div className={styles.createBudgetLineForm}>
                         <fieldset className={styles.createBudgetLineFieldset}>
                           <legend className={styles.srOnly}>
                             {t('invoiceDetail.budgetLines.createFormLegend')}
                           </legend>
                           <BudgetLineForm
-                            form={pickerState.createForm}
-                            onSubmit={(e) => void handleCreateBudgetLine(e)}
+                            form={picker.pickerState.createForm}
+                            onSubmit={(e) => picker.handleCreateBudgetLine(e)}
                             onFormChange={(updates) =>
-                              setPickerState((prev) => ({
+                              picker.setPickerState((prev) => ({
                                 ...prev,
                                 createForm: prev.createForm
                                   ? { ...prev.createForm, ...updates }
@@ -860,25 +778,25 @@ export function InvoiceBudgetLinesSection({
                               }))
                             }
                             onCancel={() => {
-                              setPickerState((prev) => ({
+                              picker.setPickerState((prev) => ({
                                 ...prev,
                                 showCreateForm: false,
                                 createForm: undefined,
                                 createError: null,
                               }));
                               setTimeout(() => {
-                                createBudgetLineButtonRef.current?.focus();
+                                picker.createBudgetLineButtonRef.current?.focus();
                               }, 0);
                             }}
-                            error={pickerState.createError ?? null}
-                            isSaving={pickerState.isCreatingBudgetLine ?? false}
+                            error={picker.pickerState.createError ?? null}
+                            isSaving={picker.pickerState.isCreatingBudgetLine ?? false}
                             isEditing={false}
                             confidenceLabels={CONFIDENCE_LABELS}
-                            budgetSources={pickerState.budgetSources ?? []}
-                            vendors={pickerState.vendors ?? []}
+                            budgetSources={picker.pickerState.budgetSources ?? []}
+                            vendors={picker.pickerState.vendors ?? []}
                             budgetCategories={
-                              pickerState.type === 'work_item'
-                                ? (pickerState.categories ?? [])
+                              picker.pickerState.type === 'work_item'
+                                ? (picker.pickerState.categories ?? [])
                                 : undefined
                             }
                           />
@@ -886,50 +804,92 @@ export function InvoiceBudgetLinesSection({
                       </div>
                     )}
 
-                  {!pickerState.isLoading &&
-                    pickerState.budgetLines.length > 0 &&
-                    !pickerState.showCreateForm && (
+                  {!picker.pickerState.isLoading &&
+                    picker.pickerState.budgetLines.length > 0 &&
+                    !picker.pickerState.showCreateForm && (
                       <>
                         <div className={styles.budgetLineList}>
-                          {pickerState.budgetLines.map((line) => {
-                            const itemizedAmount = pickerState.itemizedAmounts?.[line.id] ?? 0;
+                          {picker.pickerState.budgetLines.map((line) => {
+                            const isSelected = selectedLineIds.has(line.id);
+                            const amount = itemizedAmounts[line.id] ?? 0;
                             return (
-                              <div key={line.id} className={styles.pickerBudgetLineRow}>
+                              <div
+                                key={line.id}
+                                className={styles.pickerBudgetLineRow}
+                                data-testid={`budget-line-row-${line.id}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  id={`budget-line-check-${line.id}`}
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedLineIds((prev) => new Set([...prev, line.id]));
+                                      // Auto-populate with planned amount
+                                      setItemizedAmounts((prev) => ({
+                                        ...prev,
+                                        [line.id]: line.plannedAmount,
+                                      }));
+                                    } else {
+                                      setSelectedLineIds((prev) => {
+                                        const next = new Set(prev);
+                                        next.delete(line.id);
+                                        return next;
+                                      });
+                                      setItemizedAmounts((prev) => {
+                                        const next = { ...prev };
+                                        delete next[line.id];
+                                        return next;
+                                      });
+                                    }
+                                  }}
+                                  className={styles.budgetLineCheckbox}
+                                  aria-label={t(
+                                    'invoiceDetail.budgetLines.picker.selectAriaLabel',
+                                    {
+                                      description:
+                                        line.description ||
+                                        t('invoiceDetail.budgetLines.picker.budgetLineGeneric'),
+                                    },
+                                  )}
+                                />
                                 <div className={styles.budgetLineInfo}>
-                                  <div className={styles.budgetLineDesc}>
-                                    {line.description ||
-                                      t('invoiceDetail.budgetLines.picker.unnamedBudgetLine')}
-                                  </div>
-                                  <div className={styles.budgetLineDetails}>
-                                    {line.budgetCategory && (
-                                      <span className={styles.budgetLineCategory}>
-                                        {getCategoryDisplayName(
-                                          tSettings,
-                                          line.budgetCategory.name,
-                                          line.budgetCategory.translationKey,
-                                        )}
+                                  <label
+                                    htmlFor={`budget-line-check-${line.id}`}
+                                    className={styles.budgetLineLabel}
+                                  >
+                                    <div className={styles.budgetLineDesc}>
+                                      {line.description ||
+                                        t('invoiceDetail.budgetLines.picker.unnamedBudgetLine')}
+                                    </div>
+                                    <div className={styles.budgetLineDetails}>
+                                      {line.budgetCategory && (
+                                        <span className={styles.budgetLineCategory}>
+                                          {getCategoryDisplayName(
+                                            tSettings,
+                                            line.budgetCategory.name,
+                                            line.budgetCategory.translationKey,
+                                          )}
+                                        </span>
+                                      )}
+                                      <span className={styles.budgetLinePlanned}>
+                                        {t('invoiceDetail.budgetLines.picker.plannedLabel', {
+                                          amount: formatCurrency(line.plannedAmount),
+                                        })}
                                       </span>
-                                    )}
-                                    <span className={styles.budgetLinePlanned}>
-                                      {t('invoiceDetail.budgetLines.picker.plannedLabel', {
-                                        amount: formatCurrency(line.plannedAmount),
-                                      })}
-                                    </span>
-                                  </div>
+                                    </div>
+                                  </label>
                                 </div>
                                 <div className={styles.pickerBudgetLineAmount}>
                                   <input
                                     type="number"
-                                    value={itemizedAmount > 0 ? itemizedAmount.toString() : ''}
+                                    value={amount > 0 ? amount.toString() : ''}
                                     onChange={(e) => {
                                       const newAmount = parseFloat(e.target.value) || 0;
-                                      setPickerState({
-                                        ...pickerState,
-                                        itemizedAmounts: {
-                                          ...pickerState.itemizedAmounts,
-                                          [line.id]: newAmount,
-                                        },
-                                      });
+                                      setItemizedAmounts((prev) => ({
+                                        ...prev,
+                                        [line.id]: newAmount,
+                                      }));
                                     }}
                                     className={styles.pickerAmountInput}
                                     placeholder="0.00"
@@ -944,6 +904,7 @@ export function InvoiceBudgetLinesSection({
                                       },
                                     )}
                                     onWheel={(e) => e.currentTarget.blur()}
+                                    disabled={!isSelected}
                                   />
                                 </div>
                               </div>
@@ -958,111 +919,40 @@ export function InvoiceBudgetLinesSection({
                           </span>
                           <span
                             className={`${styles.remainingAmount} ${
-                              pickerState.itemizedAmounts &&
-                              Object.values(pickerState.itemizedAmounts).reduce(
-                                (sum, v) => sum + v,
-                                0,
-                              ) > invoiceTotal
+                              Object.values(itemizedAmounts).reduce((sum, v) => sum + v, 0) >
+                              invoiceTotal
                                 ? styles.remainingExceeds
                                 : ''
                             }`}
                           >
                             {formatCurrency(
                               invoiceTotal -
-                                (pickerState.itemizedAmounts
-                                  ? Object.values(pickerState.itemizedAmounts).reduce(
-                                      (sum, v) => sum + v,
-                                      0,
-                                    )
-                                  : 0),
+                                Object.values(itemizedAmounts).reduce((sum, v) => sum + v, 0),
                             )}
                           </span>
                         </div>
 
-                        {/* Create links for all entered amounts */}
+                        {/* Add Selected Lines button */}
                         <button
                           type="button"
                           className={styles.addButton}
-                          onClick={async () => {
-                            if (
-                              !pickerState.itemId ||
-                              !pickerState.type ||
-                              !pickerState.itemizedAmounts
-                            )
-                              return;
-
-                            // Create links for all lines with amounts entered
-                            for (const line of pickerState.budgetLines) {
-                              const amount = pickerState.itemizedAmounts[line.id] ?? 0;
-                              if (amount > 0) {
-                                try {
-                                  const createData = {
-                                    invoiceId,
-                                    ...(pickerState.type === 'work_item'
-                                      ? { workItemBudgetId: line.id }
-                                      : { householdItemBudgetId: line.id }),
-                                    itemizedAmount: amount,
-                                  };
-
-                                  const response = await createInvoiceBudgetLine(
-                                    invoiceId,
-                                    createData,
-                                  );
-
-                                  // Update state with new line and remaining amount
-                                  const newBudgetLines = [...budgetLines, response.budgetLine];
-                                  setBudgetLines(newBudgetLines);
-                                  setRemainingAmount(response.remainingAmount);
-                                } catch (err) {
-                                  let errorMsg = t(
-                                    'invoiceDetail.budgetLines.picker.error.linkFailed',
-                                  );
-
-                                  if (err instanceof ApiClientError) {
-                                    if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
-                                      errorMsg = t(
-                                        'invoiceDetail.budgetLines.picker.error.alreadyLinked',
-                                      );
-                                    } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
-                                      errorMsg = t(
-                                        'invoiceDetail.budgetLines.picker.error.exceedsTotal',
-                                      );
-                                    } else {
-                                      errorMsg = err.error.message;
-                                    }
-                                  }
-
-                                  setPickerState({
-                                    ...pickerState,
-                                    error: errorMsg,
-                                  });
-                                  return;
-                                }
-                              }
-                            }
-
-                            closePicker();
-
-                            // Focus the newly added row after a short delay
-                            setTimeout(() => {
-                              newLineRowRef.current?.focus();
-                            }, 100);
-                          }}
+                          onClick={() => void handleAddSelectedLines()}
                           disabled={
-                            !pickerState.itemizedAmounts ||
-                            Object.values(pickerState.itemizedAmounts).reduce(
-                              (sum, v) => sum + v,
-                              0,
-                            ) === 0
+                            selectedLineIds.size === 0 ||
+                            Array.from(selectedLineIds).every(
+                              (id) => (itemizedAmounts[id] ?? 0) <= 0,
+                            )
                           }
                         >
                           {t('invoiceDetail.budgetLines.picker.addSelectedLines')}
                         </button>
+
+                        {/* Create Budget Line button (alongside list) */}
                         <button
                           type="button"
-                          ref={createBudgetLineButtonRef}
+                          ref={picker.createBudgetLineButtonRef}
                           className={styles.addButton}
-                          onClick={() => void showCreateBudgetLineForm()}
+                          onClick={() => picker.showCreateBudgetLineForm()}
                         >
                           {t('invoiceDetail.budgetLines.picker.createLine')}
                         </button>
@@ -1072,7 +962,14 @@ export function InvoiceBudgetLinesSection({
                   <button
                     type="button"
                     className={styles.backButton}
-                    onClick={() => setPickerState({ step: 1, budgetLines: [], isLoading: false })}
+                    onClick={() =>
+                      picker.setPickerState((prev) => ({
+                        ...prev,
+                        step: 1,
+                        budgetLines: [],
+                        isLoading: false,
+                      }))
+                    }
                   >
                     {t('invoiceDetail.budgetLines.picker.backButton')}
                   </button>
@@ -1084,18 +981,90 @@ export function InvoiceBudgetLinesSection({
       )}
 
       {/* Edit budget line modal */}
-      {budgetLineModalMode === 'edit' && selectedBudgetLine && (
-        <EditBudgetLineModal
-          line={selectedBudgetLine}
-          formAmount={budgetLineFormAmount}
-          onFormAmountChange={setBudgetLineFormAmount}
-          onSubmit={handleBudgetLineEditSubmit}
-          onClose={closeBudgetLineModal}
-          error={budgetLineFormError}
-          isMutating={isBudgetLineMutating}
-          t={t}
-        />
-      )}
+      {budgetLineModalMode === 'edit' &&
+        selectedBudgetLine &&
+        (selectedBudgetLine.parentItemType === 'unassigned' ? (
+          <UnassignedEditModal
+            line={selectedBudgetLine}
+            onAssign={handleAssignBudgetLine}
+            onClose={closeBudgetLineModal}
+            error={budgetLineFormError}
+            isMutating={isBudgetLineMutating}
+            focusParentPicker={openedWithFocusParentPicker}
+            t={t}
+            tSettings={tSettings}
+          />
+        ) : (
+          <EditBudgetLineModal
+            line={{
+              id: selectedBudgetLine.id,
+              description: selectedBudgetLine.budgetLineDescription,
+              plannedAmount: selectedBudgetLine.plannedAmount,
+              confidence: selectedBudgetLine.confidence,
+              budgetCategory: selectedBudgetLine.categoryId
+                ? ({
+                    id: selectedBudgetLine.categoryId,
+                    name: selectedBudgetLine.categoryName ?? '',
+                    translationKey: selectedBudgetLine.categoryTranslationKey ?? '',
+                    description: '',
+                    color: selectedBudgetLine.categoryColor ?? '',
+                    sortOrder: 0,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  } as BudgetCategory)
+                : null,
+              budgetSource: selectedBudgetLine.budgetSourceId
+                ? { id: selectedBudgetLine.budgetSourceId, name: '' }
+                : null,
+              vendor: selectedBudgetLine.vendorId
+                ? { id: selectedBudgetLine.vendorId, name: '' }
+                : null,
+              quantity: selectedBudgetLine.quantity,
+              unit: selectedBudgetLine.unit,
+              unitPrice: selectedBudgetLine.unitPrice,
+              includesVat: selectedBudgetLine.includesVat ?? true,
+              invoiceLink: {
+                invoiceBudgetLineId: selectedBudgetLine.id,
+                invoiceId: selectedBudgetLine.invoiceId,
+                itemizedAmount: selectedBudgetLine.itemizedAmount,
+              },
+              parentItemType: selectedBudgetLine.parentItemType as 'work_item' | 'household_item',
+              parentItemId: selectedBudgetLine.parentItemId,
+              parentItemTitle: selectedBudgetLine.parentItemTitle,
+            }}
+            fullForm={
+              budgetLineFullForm ??
+              ({
+                description: '',
+                plannedAmount: '',
+                confidence: 'own_estimate',
+                budgetCategoryId: '',
+                budgetSourceId: '',
+                vendorId: '',
+                pricingMode: 'direct',
+                quantity: '',
+                unit: '',
+                unitPrice: '',
+                includesVat: true,
+              } as BudgetLineFormState)
+            }
+            onFullFormChange={(updates) =>
+              setBudgetLineFullForm((prev) => (prev ? { ...prev, ...updates } : null))
+            }
+            itemizedAmount={budgetLineItemizedAmount}
+            onItemizedAmountChange={setBudgetLineItemizedAmount}
+            onSubmit={handleBudgetLineFullEditSubmit}
+            onMove={handleMoveBudgetLine}
+            onClose={closeBudgetLineModal}
+            error={budgetLineFormError}
+            isMutating={isBudgetLineMutating}
+            focusParentPicker={openedWithFocusParentPicker}
+            budgetSources={picker.pickerState.budgetSources ?? []}
+            vendors={picker.pickerState.vendors ?? []}
+            budgetCategories={picker.pickerState.categories ?? undefined}
+            modalTitle={t('invoiceDetail.budgetLines.modal.editTitle')}
+          />
+        ))}
 
       {/* Delete budget line modal */}
       {budgetLineModalMode === 'remove' && selectedBudgetLine && (
@@ -1113,79 +1082,74 @@ export function InvoiceBudgetLinesSection({
 }
 
 // ============================================================================
-// Sub-component: EditBudgetLineModal
+// Sub-component: UnassignedEditModal (local, for unassigned budget lines only)
 // ============================================================================
 
-interface EditBudgetLineModalProps {
+interface UnassignedEditModalProps {
   line: InvoiceBudgetLineDetailResponse;
-  formAmount: string;
-  onFormAmountChange: (amount: string) => void;
-  onSubmit: (e: FormEvent) => void;
+  onAssign?: (body: BudgetLineAssignRequest) => Promise<void>;
   onClose: () => void;
   error: string;
   isMutating: boolean;
+  focusParentPicker?: boolean;
   t: (key: string, opts?: Record<string, unknown>) => string;
+  tSettings: (key: string) => string;
 }
 
-function EditBudgetLineModal({
-  formAmount,
-  onFormAmountChange,
-  onSubmit,
+function UnassignedEditModal({
+  line,
+  onAssign,
   onClose,
-  error,
-  isMutating,
+  focusParentPicker,
   t,
-}: EditBudgetLineModalProps) {
+  tSettings,
+}: UnassignedEditModalProps) {
   return (
-    <Modal
-      title={t('invoiceDetail.budgetLines.modal.editTitle')}
-      onClose={onClose}
-      footer={
-        <div className={styles.modalActions}>
-          <button
-            type="button"
-            className={sharedStyles.btnSecondary}
-            onClick={onClose}
-            disabled={isMutating}
-          >
-            {t('common:button.cancel')}
-          </button>
-          <button
-            type="submit"
-            className={sharedStyles.btnPrimary}
-            form="budget-line-edit-form"
-            disabled={isMutating || !formAmount}
-          >
-            {isMutating ? t('invoiceDetail.budgetLines.form.saving') : t('common:button.save')}
-          </button>
-        </div>
-      }
-    >
-      <form id="budget-line-edit-form" onSubmit={onSubmit} noValidate>
-        {error && <FormError message={error} />}
-
-        <p className={styles.editModalHint}>{t('invoiceDetail.budgetLines.form.itemizedAmount')}</p>
-
-        <div className={styles.formField}>
-          <label htmlFor="budget-line-amount" className={styles.label}>
-            {t('invoiceDetail.budgetLines.form.itemizedAmount')}
-            <span className={styles.required}>{t('invoiceDetail.budgetLines.form.required')}</span>
-          </label>
-          <input
-            type="number"
-            id="budget-line-amount"
-            value={formAmount}
-            onChange={(e) => onFormAmountChange(e.target.value)}
-            className={sharedStyles.input}
-            placeholder="0.00"
-            min="0"
-            step="0.01"
-            required
-            disabled={isMutating}
-            onWheel={(e) => e.currentTarget.blur()}
-          />
-        </div>
-      </form>
+    <Modal title={t('invoiceDetail.budgetLines.modal.editTitle')} onClose={onClose}>
+      <BudgetLineForm
+        form={{
+          description: line.budgetLineDescription || '',
+          plannedAmount: line.plannedAmount.toString(),
+          confidence: line.confidence,
+          budgetCategoryId: line.categoryId || '',
+          budgetSourceId: '',
+          vendorId: '',
+          pricingMode: 'direct',
+          quantity: '',
+          unit: '',
+          unitPrice: '',
+          includesVat: false,
+        }}
+        onSubmit={() => {}}
+        onFormChange={() => {}}
+        onCancel={onClose}
+        error={null}
+        isSaving={false}
+        isEditing={true}
+        confidenceLabels={CONFIDENCE_LABELS}
+        budgetSources={[]}
+        vendors={[]}
+        budgetCategories={
+          line.categoryName
+            ? ([
+                {
+                  id: line.categoryId || '',
+                  name: line.categoryName,
+                  translationKey: line.categoryTranslationKey || '',
+                },
+              ] as BudgetCategory[])
+            : []
+        }
+        staticCategoryLabel={
+          line.categoryName
+            ? getCategoryDisplayName(tSettings, line.categoryName, line.categoryTranslationKey)
+            : undefined
+        }
+        isUnassigned={true}
+        focusParentPicker={focusParentPicker}
+        onAssign={onAssign}
+        assignBudgetLineId={line.workItemBudgetId ?? undefined}
+      />
     </Modal>
   );
 }

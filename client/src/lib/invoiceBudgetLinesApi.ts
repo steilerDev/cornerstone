@@ -1,10 +1,11 @@
 import { get, post, patch, del } from './apiClient.js';
 import type {
-  InvoiceBudgetLineDetailResponse,
   InvoiceBudgetLineCreateResponse,
   InvoiceBudgetLineListDetailResponse,
   CreateInvoiceBudgetLineRequest,
   UpdateInvoiceBudgetLineRequest,
+  // TODO: EditAndMoveBudgetLineRequest exported by backend-developer in shared types
+  EditAndMoveBudgetLineRequest,
 } from '@cornerstone/shared';
 
 /**
@@ -46,4 +47,19 @@ export function updateInvoiceBudgetLine(
  */
 export function deleteInvoiceBudgetLine(invoiceId: string, lineId: string): Promise<void> {
   return del<void>(`/invoices/${invoiceId}/budget-lines/${lineId}`);
+}
+
+/**
+ * Edits and optionally moves an invoice budget line to a new parent.
+ * Supports moving the line between work items and household items.
+ */
+export function editAndMoveBudgetLine(
+  invoiceId: string,
+  lineId: string,
+  data: EditAndMoveBudgetLineRequest,
+): Promise<InvoiceBudgetLineCreateResponse> {
+  return patch<InvoiceBudgetLineCreateResponse>(
+    `/invoices/${invoiceId}/budget-lines/${lineId}`,
+    data,
+  );
 }

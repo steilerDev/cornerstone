@@ -29,6 +29,7 @@
   "MUTUALLY_EXCLUSIVE_BUDGET_LINK": "Diese Budgetposition ist bereits mit einer anderen Rechnung verknüpft.",
   "ITEMIZED_SUM_EXCEEDS_INVOICE": "Die Summe der aufgeschlüsselten Beträge übersteigt den Rechnungsbetrag.",
   "BUDGET_LINE_ALREADY_LINKED": "Diese Budgetposition ist bereits mit einer Rechnung verknüpft.",
+  "BUDGET_LINE_ALREADY_ASSIGNED": "Diese Budgetposition ist bereits einem Arbeitspaket oder Haushaltsartikel zugeordnet.",
   "RATE_LIMIT_EXCEEDED": "Zu viele Anfragen. Bitte kurz warten und erneut versuchen.",
   "ACCOUNT_LOCKED": "Dieses Konto wurde aufgrund zu vieler fehlgeschlagener Anmeldeversuche vorübergehend gesperrt.",
   "INVALID_METADATA": "Die Eintragsmetadaten sind ungültig.",
@@ -37,5 +38,9 @@
   "BACKUP_NOT_CONFIGURED": "Sicherung ist nicht konfiguriert. Setzen Sie die Umgebungsvariable BACKUP_DIR.",
   "BACKUP_IN_PROGRESS": "Eine Sicherungs- oder Wiederherstellungsoperation läuft bereits.",
   "BACKUP_NOT_FOUND": "Das angeforderte Sicherungsarchiv wurde nicht gefunden.",
-  "RESTORE_FAILED": "Die Wiederherstellung ist fehlgeschlagen. Der Server befindet sich möglicherweise in einem inkonsistenten Zustand."
+  "RESTORE_FAILED": "Die Wiederherstellung ist fehlgeschlagen. Der Server befindet sich möglicherweise in einem inkonsistenten Zustand.",
+  "LLM_NOT_CONFIGURED": "Automatische Positionsextraktion ist auf diesem Server nicht konfiguriert.",
+  "LLM_UNREACHABLE": "Der Extraktionsdienst ist nicht erreichbar. Bitte versuchen Sie es später erneut.",
+  "LLM_INVALID_RESPONSE": "Der Extraktionsdienst hat eine ungültige Antwort zurückgegeben.",
+  "LLM_UPSTREAM_ERROR": "Der Extraktionsdienst hat einen Fehler zurückgegeben."
 }

@@ -36,6 +36,37 @@
   min-width: 24px;
 }
 
+.buttonGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  margin-right: var(--spacing-1);
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-top-color: var(--color-primary);
+    opacity: 0.8;
+  }
+}
+
 .addButton {
   padding: var(--spacing-2) var(--spacing-3);
   background-color: var(--color-primary);
@@ -237,6 +268,40 @@
 
 .linkedItemLink:hover {
   text-decoration: underline;
+}
+
+.unassignedCell {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.assignButton {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.assignButton:hover:not(:disabled) {
+  color: var(--color-primary-hover);
+  opacity: 0.85;
+}
+
+.assignButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.assignButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .tdActions {
@@ -568,8 +633,8 @@
 
 .pickerBudgetLineRow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-2);
   padding: var(--spacing-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -579,6 +644,29 @@
 .pickerBudgetLineRow:hover {
   background-color: var(--color-bg-secondary);
   border-color: var(--color-border-strong);
+}
+
+.budgetLineCheckbox {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: var(--spacing-0-5);
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.budgetLineCheckbox:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.budgetLineLabel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
 }
 
 .pickerBudgetLineAmount {
@@ -601,6 +689,12 @@
   outline: none;
   border-color: var(--color-primary);
   box-shadow: var(--shadow-focus-subtle);
+}
+
+.pickerAmountInput:disabled {
+  background-color: var(--color-bg-tertiary);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* ---- Remaining to allocate indicator ---- */
@@ -806,6 +900,10 @@
   .sectionHeader {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .buttonGroup {
+    flex-direction: column;
   }
 
   .addButton {

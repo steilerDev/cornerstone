@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryType,
-  DiaryEntrySummary,
   DailyLogMetadata,
   SiteVisitMetadata,
   DeliveryMetadata,
@@ -95,7 +94,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
             <span className={styles.deliveryLabel}>{t('entryForm.materialsLabel')}</span>
             <div className={styles.materialsList}>
               {m.materials.map((material, idx) => (
-                <span key={idx} className={styles.materialTag}>
+                <span key={`${material}-${idx}`} className={styles.materialTag}>
                   {material}
                 </span>
               ))}

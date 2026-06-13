@@ -644,4 +644,68 @@ describe('documentLinkService', () => {
       }).not.toThrow();
     });
   });
+
+  // ─── getAllLinkedDocumentIds() ─────────────────────────────────────────────
+
+  describe('getAllLinkedDocumentIds()', () => {
+    it('returns empty array when no links exist', () => {
+      const result = documentLinkService.getAllLinkedDocumentIds(db);
+
+      expect(result).toEqual([]);
+    });
+
+    it('returns one ID when one link exists', () => {
+      const workItemId = insertTestWorkItem();
+      insertRawDocumentLink('work_item', workItemId, 42);
+
+      const result = documentLinkService.getAllLinkedDocumentIds(db);
+
+      expect(result).toHaveLength(1);
+      expect(result).toContain(42);
+    });
+
+    it('returns deduplicated IDs — document #42 linked to two different entities returns [42] once', () => {
+      const workItem1 = insertTestWorkItem('Item 1');
+      const workItem2 = insertTestWorkItem('Item 2');
+      // Same document #42 linked to two different work items
+      insertRawDocumentLink('work_item', workItem1, 42);
+      insertRawDocumentLink('work_item', workItem2, 42);
+
+      const result = documentLinkService.getAllLinkedDocumentIds(db);
+
+      expect(result).toHaveLength(1);
+      expect(result).toContain(42);
+    });
+
+    it('returns deduplicated IDs — same document linked to different entity types returns it once', () => {
+      const workItemId = insertTestWorkItem();
+      const vendorId = insertTestVendor();
+      const invoiceId = insertTestInvoice(vendorId);
+      // Same document #42 linked to both a work item and an invoice
+      insertRawDocumentLink('work_item', workItemId, 42);
+      insertRawDocumentLink('invoice', invoiceId, 42);
+
+      const result = documentLinkService.getAllLinkedDocumentIds(db);
+
+      expect(result).toHaveLength(1);
+      expect(result).toContain(42);
+    });
+
+    it('returns multiple distinct IDs when multiple different documents are linked', () => {
+      const workItem1 = insertTestWorkItem('Item 1');
+      const workItem2 = insertTestWorkItem('Item 2');
+      const vendorId = insertTestVendor();
+      const invoiceId = insertTestInvoice(vendorId);
+      insertRawDocumentLink('work_item', workItem1, 10);
+      insertRawDocumentLink('work_item', workItem2, 20);
+      insertRawDocumentLink('invoice', invoiceId, 30);
+
+      const result = documentLinkService.getAllLinkedDocumentIds(db);
+
+      expect(result).toHaveLength(3);
+      expect(result).toContain(10);
+      expect(result).toContain(20);
+      expect(result).toContain(30);
+    });
+  });
 });

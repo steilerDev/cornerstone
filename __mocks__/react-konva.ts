@@ -15,10 +15,19 @@ type AnyProps = Record<string, unknown> & { children?: React.ReactNode };
 
 const DOM_SAFE_PROPS = new Set(['className', 'style', 'id', 'aria-label', 'role']);
 
+// Props that are forwarded as data-* attributes so tests can assert on them.
+// Each entry maps the prop name to its data-* attribute name.
+const DATA_FORWARDED_PROPS: Record<string, string> = {
+  rotateAnchorAngle: 'data-rotate-anchor-angle',
+};
+
 function filterProps(props: AnyProps): Record<string, unknown> {
   const safe: Record<string, unknown> = { 'data-konva-stub': true };
   for (const [k, v] of Object.entries(props)) {
     if (DOM_SAFE_PROPS.has(k)) safe[k] = v;
+    if (Object.prototype.hasOwnProperty.call(DATA_FORWARDED_PROPS, k)) {
+      safe[DATA_FORWARDED_PROPS[k]!] = String(v);
+    }
   }
   return safe;
 }

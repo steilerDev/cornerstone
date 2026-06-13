@@ -4,8 +4,6 @@
  * Vendors are associated with trades to indicate their area of expertise.
  */
 
-import type { PaginatedResponse } from './pagination.js';
-
 /**
  * Trade summary shape used in vendor and work item responses.
  */

@@ -60,6 +60,21 @@ export default tseslint.config(
     },
   },
 
+  // Test files (unit + integration) — relax React-Compiler-focused rules
+  // that don't apply to mocks and test scaffolding. These rules optimize
+  // production rendering; test code never ships.
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', '**/__mocks__/**/*.{ts,tsx}'],
+    rules: {
+      '@eslint-react/component-hook-factories': 'off',
+      '@eslint-react/no-unnecessary-use-prefix': 'off',
+      '@eslint-react/no-array-index-key': 'off',
+      '@eslint-react/use-state': 'off',
+      '@eslint-react/exhaustive-deps': 'off',
+      '@eslint-react/set-state-in-effect': 'off',
+    },
+  },
+
   // Disable formatting rules that conflict with Prettier
   prettierConfig,
 );

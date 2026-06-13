@@ -98,6 +98,16 @@ Once linked, enter the **itemized amount** for each budget line -- the portion o
 The Remaining row helps you ensure the full invoice amount is allocated. If the remaining amount is zero, the invoice is fully distributed across budget lines.
 :::
 
+:::tip Skip the typing with Auto-itemize
+If the invoice has a Paperless document linked and you have configured an LLM provider, an **Auto-itemize** action appears on the linked-document card in the **Documents** section. Cornerstone reads the OCR text from the PDF and proposes one budget line per row on a dedicated review page with the PDF shown alongside -- you only review and assign them. See [Auto-itemize Invoices](auto-itemize) for the full guide.
+:::
+
+### Unassigned Budget Lines
+
+Budget lines can exist on an invoice without yet being linked to a work item or household item -- they are called **Unassigned** and show up with a muted pill in the "Linked Item" column. This happens when you add a budget line directly on the invoice and leave the parent picker empty to decide later. (Auto-itemize, by contrast, lets you assign each extracted line to its target right on the [review page](auto-itemize) before you save.)
+
+Each Unassigned row has an inline **Assign…** button. Clicking it opens a picker with two tabs -- **Work Item** and **Household Item** -- where you choose the target and save. Unassigned lines still count toward your financing-source and category totals, but they do not appear on any single work item's Budget tab until they are assigned. If you assign a line to the wrong item, you can change it later -- invoice-linked lines can be edited and [moved to a different parent item](work-item-budgets#editing-invoice-linked-budget-lines).
+
 ### How to Link from an Item Detail Page
 
 You can also link budget lines to invoices directly from the work item or household item detail page. On the **Budget** tab, each budget line that is not yet linked to an invoice shows a link action that lets you select an existing invoice.

@@ -47,6 +47,29 @@ export function getBudgetBreakdown(
   db: DbType,
   deselectedSources: Set<string> = new Set(),
 ): BudgetBreakdown {
+  // ─── Library Adoption Opportunity: SQLite percentile functions ────────────
+  //
+  // See budgetOverviewService.ts for full details. In the breakdown context,
+  // percentile functions could power:
+  //
+  //   Median cost per area (for heatmap or outlier badges):
+  //     SELECT area_id,
+  //            percentile_cont(0.5) WITHIN GROUP (ORDER BY planned_amount) AS median_planned
+  //     FROM work_item_budgets wib
+  //     JOIN work_items wi ON wi.id = wib.work_item_id
+  //     GROUP BY wi.area_id
+  //
+  //   P90 invoice amount per budget category (flagging unusually large invoices):
+  //     SELECT wib.budget_category_id,
+  //            percentile_disc(0.9) WITHIN GROUP (ORDER BY ibl.itemized_amount) AS p90_amount
+  //     FROM invoice_budget_lines ibl
+  //     JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
+  //     WHERE ibl.work_item_budget_id IS NOT NULL
+  //     GROUP BY wib.budget_category_id
+  //
+  // These are NOT currently implemented (no caller exists). Filed for visibility
+  // per issue #1571 (better-sqlite3 12.10.0 library adoption).
+  // ─────────────────────────────────────────────────────────────────────────
   // ── 1. Query A: Work item budget lines with area assignment ──────────────
   const workItemLineRows = db.all<{
     workItemId: string;
@@ -58,6 +81,7 @@ export function getBudgetBreakdown(
     confidence: string;
     budgetCategoryId: string | null;
     budgetSourceId: string | null;
+    origin: string;
   }>(
     sql`SELECT
       wi.id                  AS workItemId,
@@ -68,7 +92,8 @@ export function getBudgetBreakdown(
       wib.planned_amount     AS plannedAmount,
       wib.confidence         AS confidence,
       wib.budget_category_id AS budgetCategoryId,
-      wib.budget_source_id   AS budgetSourceId
+      wib.budget_source_id   AS budgetSourceId,
+      wib.origin             AS origin
     FROM work_items wi
     INNER JOIN work_item_budgets wib ON wib.work_item_id = wi.id
     ORDER BY wi.area_id ASC, wi.title ASC`,
@@ -110,6 +135,7 @@ export function getBudgetBreakdown(
     confidence: string;
     budgetCategoryId: string | null;
     budgetSourceId: string | null;
+    origin: string;
   }>(
     sql`SELECT
       hi.id                     AS householdItemId,
@@ -120,7 +146,8 @@ export function getBudgetBreakdown(
       hib.planned_amount        AS plannedAmount,
       hib.confidence            AS confidence,
       hib.budget_category_id    AS budgetCategoryId,
-      hib.budget_source_id      AS budgetSourceId
+      hib.budget_source_id      AS budgetSourceId,
+      hib.origin                AS origin
     FROM household_items hi
     INNER JOIN household_item_budgets hib ON hib.household_item_id = hi.id
     ORDER BY hi.area_id ASC, hi.name ASC`,
@@ -349,17 +376,6 @@ export function getBudgetBreakdown(
   }
 
   // ── Build hierarchical area breakdown ──────────────────────────────────────
-  interface EntityData<TItem> {
-    items: TItem[];
-    projectedMin: number;
-    projectedMax: number;
-    actualCost: number;
-    subsidyPayback: number;
-    rawProjectedMin: number;
-    rawProjectedMax: number;
-    minSubsidyPayback: number;
-  }
-
   function buildAreaBreakdown<TItem>(
     entityItems: Map<string | null, TItem[]>,
     allAreaRows: Array<{
@@ -571,6 +587,7 @@ export function getBudgetBreakdown(
       hasInvoice: wiLineInvoiceMap.has(row.budgetLineId),
       isQuotation,
       budgetSourceId: row.budgetSourceId ?? null,
+      origin: (row.origin === 'auto' ? 'auto' : 'manual') as 'manual' | 'auto',
     });
 
     item.projectedMin += min;
@@ -735,6 +752,7 @@ export function getBudgetBreakdown(
       hasInvoice: hiLineInvoiceMap.has(row.budgetLineId),
       isQuotation,
       budgetSourceId: row.budgetSourceId ?? null,
+      origin: (row.origin === 'auto' ? 'auto' : 'manual') as 'manual' | 'auto',
     });
 
     item.projectedMin += min;

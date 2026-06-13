@@ -5,15 +5,18 @@ import styles from './DocumentDetailPanel.module.css';
 
 interface DocumentDetailPanelProps {
   document: PaperlessDocumentSearchResult;
-  onClose: () => void;
+  onClose?: () => void;
   /** Optional Paperless-ngx base URL to generate "View in Paperless" link. */
   paperlessBaseUrl?: string;
+  /** Layout variant: 'standalone' (default) or 'sidebyside' for auto-itemize page */
+  variant?: 'standalone' | 'sidebyside';
 }
 
 export function DocumentDetailPanel({
   document,
   onClose,
   paperlessBaseUrl,
+  variant = 'standalone',
 }: DocumentDetailPanelProps) {
   const { t } = useTranslation('documents');
   const thumbUrl = getDocumentThumbnailUrl(document.id);
@@ -21,23 +24,29 @@ export function DocumentDetailPanel({
     ? `${paperlessBaseUrl}/documents/${document.id}/details`
     : null;
 
+  const panelClassName = [styles.panel, variant === 'sidebyside' ? styles.sidebyside : undefined]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <div
       id="detail-panel"
-      className={styles.panel}
+      className={panelClassName}
       role="region"
       aria-label={t('documentDetail.detailsLabel', { title: document.title })}
     >
       <div className={styles.header}>
         <h3 className={styles.panelTitle}>{document.title}</h3>
-        <button
-          type="button"
-          className={styles.closeButton}
-          onClick={onClose}
-          aria-label={t('documentDetail.closeDetails')}
-        >
-          &#x2715;
-        </button>
+        {variant !== 'sidebyside' && onClose && (
+          <button
+            type="button"
+            className={styles.closeButton}
+            onClick={onClose}
+            aria-label={t('documentDetail.closeDetails')}
+          >
+            &#x2715;
+          </button>
+        )}
       </div>
       <div className={styles.content}>
         <div className={styles.thumbSection}>

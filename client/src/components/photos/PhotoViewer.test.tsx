@@ -2,6 +2,7 @@
  * Unit tests for PhotoViewer component.
  *
  * Story #1473: Photo Annotator Foundation
+ * Story #1482: setCurrentPhoto called on save/clear so buttons update immediately
  * Story #1497: Lightbox Delete for Non-Draft Entries
  *
  * Tests:
@@ -17,6 +18,8 @@
  *   - Clicking Clear Annotations opens confirmation modal
  *   - Cancelling clear modal closes it without calling clearAnnotation
  *   - Confirming clear modal calls clearAnnotation(id) and updates photo
+ *   - (#1482) After annotation save, view-original and clear-annotations buttons appear immediately
+ *   - (#1482) After clear annotation confirmed, view-original and clear-annotations buttons disappear immediately
  *   - Delete button hidden when onDelete not provided
  *   - Delete button hidden when editable=false
  *   - Delete button visible regardless of annotation state (gated only by editable + onDelete)
@@ -53,9 +56,15 @@ jest.unstable_mockModule('../../lib/photoApi.js', () => ({
 }));
 
 // ─── Mock PhotoAnnotator to avoid deep rendering ──────────────────────────────
+//
+// The save button passes back a photo that has annotatedAt set (simulating a
+// successful annotation save). This is required for the #1482 fix tests:
+// after onSave fires, setCurrentPhoto(updatedPhoto) must make the
+// view-original and clear-annotations buttons appear immediately.
 
 jest.unstable_mockModule('./PhotoAnnotator/PhotoAnnotator.js', () => ({
   PhotoAnnotator: ({
+    photo,
     onSave,
     onCancel,
   }: {
@@ -70,7 +79,11 @@ jest.unstable_mockModule('./PhotoAnnotator/PhotoAnnotator.js', () => ({
         'button',
         {
           'data-testid': 'annotator-save-mock',
-          onClick: () => onSave({ id: 'annotated' } as unknown as Photo),
+          onClick: () =>
+            onSave({
+              ...photo,
+              annotatedAt: '2026-05-29T10:00:00.000Z',
+            } as Photo),
         },
         'Save',
       ),
@@ -253,6 +266,62 @@ describe('PhotoViewer', () => {
     // Annotator gone, regular photo viewer back
     expect(screen.queryByTestId('mock-photo-annotator')).not.toBeInTheDocument();
     expect(screen.getByTestId('photo-viewer-annotate')).toBeInTheDocument();
+  });
+
+  // ─── #1482 fix: setCurrentPhoto on save/clear ─────────────────────────────
+  //
+  // Before the fix, saving an annotation did not call setCurrentPhoto, so the
+  // view-original and clear-annotations buttons only appeared after a parent
+  // re-render. After the fix, handleAnnotationSave calls setCurrentPhoto(updatedPhoto)
+  // immediately, so the buttons appear without needing an external state update.
+
+  it('#1482 — after annotation save with annotatedAt set, view-original button appears immediately', () => {
+    // Start with a photo that has no annotation
+    const photo = makePhoto({ id: 'p-fix', width: 800, height: 600, annotatedAt: null });
+    renderViewer([photo]);
+
+    // Confirm the button is absent before annotating
+    expect(screen.queryByTestId('photo-viewer-view-original')).not.toBeInTheDocument();
+
+    // Enter annotating mode and click Save (the mock onSave passes annotatedAt='2026-05-29T...')
+    fireEvent.click(screen.getByTestId('photo-viewer-annotate'));
+    fireEvent.click(screen.getByTestId('annotator-save-mock'));
+
+    // The annotator should be gone (save exited annotating mode)
+    expect(screen.queryByTestId('mock-photo-annotator')).not.toBeInTheDocument();
+
+    // Both annotation-dependent buttons must now be visible — no parent re-render needed
+    expect(screen.getByTestId('photo-viewer-view-original')).toBeInTheDocument();
+    expect(screen.getByTestId('photo-viewer-clear-annotations')).toBeInTheDocument();
+  });
+
+  it('#1482 — after clear annotation confirmed, view-original and clear-annotations buttons disappear immediately', async () => {
+    // Start with a photo that already has an annotation
+    const photo = makePhoto({ id: 'p-clear-fix', annotatedAt: '2026-05-17T10:00:00.000Z' });
+    renderViewer([photo]);
+
+    // Confirm buttons are visible at the start
+    expect(screen.getByTestId('photo-viewer-view-original')).toBeInTheDocument();
+    expect(screen.getByTestId('photo-viewer-clear-annotations')).toBeInTheDocument();
+
+    // Click "Clear Annotations" to open the confirmation modal
+    fireEvent.click(screen.getByTestId('photo-viewer-clear-annotations'));
+
+    // Confirm via the modal's confirm button
+    const modal = screen.getByTestId('mock-modal');
+    const confirmBtn = within(modal).getByRole('button', { name: /Clear annotations/i });
+
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+      await Promise.resolve();
+    });
+
+    // After clearAnnotation resolves, setCurrentPhoto(clearedPhoto) fires with annotatedAt=null
+    // so the annotation-dependent buttons must disappear immediately
+    await waitFor(() => {
+      expect(screen.queryByTestId('photo-viewer-view-original')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('photo-viewer-clear-annotations')).not.toBeInTheDocument();
+    });
   });
 
   // ─── View Original button ─────────────────────────────────────────────────

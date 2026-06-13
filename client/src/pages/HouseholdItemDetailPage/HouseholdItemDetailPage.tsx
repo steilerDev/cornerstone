@@ -10,9 +10,7 @@ import type {
   Vendor,
   HouseholdItemSubsidyPaybackResponse,
   WorkItemSummary,
-  Invoice,
   HouseholdItemDepDetail,
-  HouseholdItemDepPredecessorType,
   MilestoneSummary,
   HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
@@ -48,12 +46,8 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
-import { fetchInvoices } from '../../lib/invoicesApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
-import {
-  createInvoiceBudgetLine,
-  deleteInvoiceBudgetLine,
-} from '../../lib/invoiceBudgetLinesApi.js';
+import { deleteInvoiceBudgetLine, editAndMoveBudgetLine } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useAreas } from '../../hooks/useAreas.js';
@@ -68,6 +62,20 @@ import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
+function MilestoneIconSvg() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 10 10"
+      width="10"
+      height="10"
+      aria-hidden="true"
+    >
+      <polygon points="5,0 10,5 5,10 0,5" fill="currentColor" />
+    </svg>
+  );
+}
+
 const HI_STATUS_VARIANTS = {
   planned: { label: 'Planned', className: badgeStyles.planned! },
   purchased: { label: 'Purchased', className: badgeStyles.purchased! },
@@ -76,9 +84,15 @@ const HI_STATUS_VARIANTS = {
 };
 
 export function HouseholdItemDetailPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const {
+    formatCurrency: _formatCurrency,
+    formatDate,
+    formatTime: _formatTime,
+    formatDateTime: _formatDateTime,
+  } = useFormatters();
   const { t } = useTranslation('householdItems');
   const { t: tSettings } = useTranslation('settings');
+  const { t: tBudget } = useTranslation('budget');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -156,7 +170,7 @@ export function HouseholdItemDetailPage() {
   const [autosaveActualDelivery, setAutosaveActualDelivery] = useState<AutosaveState>('idle');
   const [autosaveEarliestDelivery, setAutosaveEarliestDelivery] = useState<AutosaveState>('idle');
   const [autosaveLatestDelivery, setAutosaveLatestDelivery] = useState<AutosaveState>('idle');
-  const autosaveResetRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const autosaveResetRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Shared reload functions for budget-related data
   const reloadBudgetLines = async () => {
@@ -513,9 +527,99 @@ export function HouseholdItemDetailPage() {
     reloadBudgetLines();
   };
 
+  const handleMoveBudgetLine = async (
+    budgetLineId: string,
+    newParentType: 'work_item' | 'household_item',
+    newParentId: string,
+  ) => {
+    const budgetLine = budgetLines.find((line) => line.id === budgetLineId);
+    if (!budgetLine) return;
+
+    setInlineError(null);
+
+    try {
+      // If the line has an invoice link, use the invoice budget line endpoint
+      if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
+        const moveData =
+          newParentType === 'work_item'
+            ? { newWorkItemId: newParentId }
+            : { newHouseholdItemId: newParentId };
+
+        await editAndMoveBudgetLine(
+          budgetLine.invoiceLink.invoiceId,
+          budgetLine.invoiceLink.invoiceBudgetLineId,
+          moveData,
+        );
+      } else {
+        // No invoice link — check if it's a same-table or cross-table move
+        if (newParentType === 'work_item') {
+          // Cross-table move without invoice link is not supported
+          throw new Error(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
+        }
+
+        // Same-table household item to household item move
+        await updateHouseholdItemBudget(item!.id, budgetLineId, {
+          newHouseholdItemId: newParentId,
+        });
+      }
+
+      // Reload budget lines to reflect the move
+      await reloadBudgetLines();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to move budget line. Please try again.';
+      setInlineError(message);
+      throw err; // Re-throw so BudgetSection's handleMove can display inline error
+    }
+  };
+
+  const handleInvoiceLineEdit = async (
+    line: HouseholdItemBudgetLine,
+    form: BudgetLineFormState,
+    itemizedAmountStr: string,
+  ) => {
+    if (!line.invoiceLink?.invoiceId || !line.invoiceLink?.invoiceBudgetLineId) return;
+
+    const newAmount = parseFloat(itemizedAmountStr);
+    if (isNaN(newAmount) || newAmount <= 0) {
+      throw new Error(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
+    }
+
+    // Compute plannedAmount from form
+    let plannedAmount: number;
+    if (form.pricingMode === 'direct') {
+      plannedAmount = parseFloat(form.plannedAmount);
+    } else {
+      const qty = parseFloat(form.quantity);
+      const price = parseFloat(form.unitPrice);
+      plannedAmount = Math.round(qty * price * 100) / 100;
+    }
+
+    const payload = {
+      itemizedAmount: newAmount,
+      description: form.description || null,
+      plannedAmount,
+      confidence: form.confidence,
+      budgetCategoryId: form.budgetCategoryId || null,
+      budgetSourceId: form.budgetSourceId || null,
+      vendorId: form.vendorId || null,
+      quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
+      unit: form.pricingMode === 'unit' ? form.unit || null : null,
+      unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
+      includesVat: form.includesVat,
+    };
+
+    await editAndMoveBudgetLine(
+      line.invoiceLink.invoiceId,
+      line.invoiceLink.invoiceBudgetLineId,
+      payload,
+    );
+    await reloadBudgetLines();
+  };
+
   function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
-    if (autosaveResetRefs.current[key]) clearTimeout(autosaveResetRefs.current[key]);
-    autosaveResetRefs.current[key] = setTimeout(() => setter('idle'), 2000);
+    if (autosaveResetRef.current[key]) clearTimeout(autosaveResetRef.current[key]);
+    autosaveResetRef.current[key] = setTimeout(() => setter('idle'), 2000);
   }
 
   const handleOrderDateBlur = async () => {
@@ -646,20 +750,6 @@ export function HouseholdItemDetailPage() {
     }
   };
 
-  function MilestoneIconSvg() {
-    return (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 10 10"
-        width="10"
-        height="10"
-        aria-hidden="true"
-      >
-        <polygon points="5,0 10,5 5,10 0,5" fill="currentColor" />
-      </svg>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className={styles.container}>
@@ -717,6 +807,11 @@ export function HouseholdItemDetailPage() {
     (prog) => !linkedSubsidies.some((linked) => linked.id === prog.id),
   );
 
+  const itemCategory = categories.find((c) => c.id === item.category);
+  const categoryDisplayName = itemCategory
+    ? getCategoryDisplayName(tSettings, itemCategory.name, itemCategory.translationKey)
+    : item.category;
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>
@@ -764,13 +859,7 @@ export function HouseholdItemDetailPage() {
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
-              <span className={styles.categoryBadge}>
-                {(() => {
-                  const category = categories.find((c) => c.id === item.category);
-                  if (!category) return item.category;
-                  return getCategoryDisplayName(tSettings, category.name, category.translationKey);
-                })()}
-              </span>
+              <span className={styles.categoryBadge}>{categoryDisplayName}</span>
               <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
             </div>
           </div>
@@ -1324,6 +1413,11 @@ export function HouseholdItemDetailPage() {
             onUnlinkInvoice={handleUnlinkInvoice}
             isUnlinking={isUnlinkingInvoice}
             inlineError={inlineError}
+            parentEntityId={item?.id}
+            parentEntityLabel={item?.name}
+            onMoveBudgetLine={handleMoveBudgetLine}
+            onInvoiceLineEdit={handleInvoiceLineEdit}
+            onInvoiceLineMove={handleMoveBudgetLine}
           />
         </section>
 

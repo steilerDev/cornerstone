@@ -79,6 +79,9 @@ const updateBudgetSchema = {
       unit: { type: ['string', 'null'], maxLength: 100 },
       unitPrice: { type: ['number', 'null'], minimum: 0 },
       includesVat: { type: 'boolean' },
+      // Move fields — provide to change parent; mutually exclusive
+      newHouseholdItemId: { type: ['string', 'null'] },
+      newWorkItemId: { type: ['string', 'null'] },
     },
     additionalProperties: false,
   },

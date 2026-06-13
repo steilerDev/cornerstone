@@ -10,7 +10,7 @@ import type {
   UpdateWorkItemBudgetRequest,
   InvoiceStatus,
 } from '@cornerstone/shared';
-import { NotFoundError } from '../errors/AppError.js';
+import { NotFoundError, ValidationError } from '../errors/AppError.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -21,7 +21,7 @@ function toWorkItemBudgetLine(
 ): WorkItemBudgetLine {
   return {
     id: row.id,
-    workItemId: row.workItemId,
+    workItemId: row.workItemId!,
     description: row.description,
     plannedAmount: row.plannedAmount,
     confidence: rel.confidence,
@@ -114,7 +114,94 @@ export function updateWorkItemBudget(
   budgetId: string,
   data: UpdateWorkItemBudgetRequest,
 ): WorkItemBudgetLine {
+  // Check if this is a move request (cross-table or same-table)
+  const hasNewWorkItem = data.newWorkItemId !== undefined && data.newWorkItemId !== null;
+  const hasNewHouseholdItem =
+    data.newHouseholdItemId !== undefined && data.newHouseholdItemId !== null;
+
+  if (hasNewWorkItem || hasNewHouseholdItem) {
+    // Handle move with the cross-table transaction pattern
+    return updateAndMoveWorkItemBudget(db, workItemId, budgetId, data);
+  }
+
+  // No move - use factory update
   return service.update(db, workItemId, budgetId, data);
+}
+
+function updateAndMoveWorkItemBudget(
+  db: DbType,
+  workItemId: string,
+  budgetId: string,
+  data: UpdateWorkItemBudgetRequest,
+): WorkItemBudgetLine {
+  // Validate mutual exclusion of move fields
+  const hasNewWorkItem = data.newWorkItemId !== undefined && data.newWorkItemId !== null;
+  const hasNewHouseholdItem =
+    data.newHouseholdItemId !== undefined && data.newHouseholdItemId !== null;
+
+  if (hasNewWorkItem && hasNewHouseholdItem) {
+    throw new ValidationError('Cannot specify both newWorkItemId and newHouseholdItemId');
+  }
+
+  // Cross-table moves are not supported for WI/HI PATCH endpoints
+  // (it doesn't make logical sense to move a work item budget to a household item from within the work item context)
+  if (hasNewHouseholdItem) {
+    throw new ValidationError(
+      'Cross-table moves from work item budgets are not supported. Use invoice budget line editing for complex moves.',
+    );
+  }
+
+  // If no move, use factory update
+  if (!hasNewWorkItem) {
+    return service.update(db, workItemId, budgetId, data);
+  }
+
+  // Handle same-table move: WI → WI
+  const targetId = data.newWorkItemId!;
+
+  // Verify source work item exists
+  const wi = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
+  if (!wi) {
+    throw new NotFoundError('Work item not found');
+  }
+
+  // Verify the budget line exists and belongs to this work item
+  const wib = db.select().from(workItemBudgets).where(eq(workItemBudgets.id, budgetId)).get();
+  if (!wib) {
+    throw new NotFoundError('Budget line not found');
+  }
+  if (wib.workItemId !== workItemId) {
+    throw new NotFoundError('Budget line not found for this work item');
+  }
+
+  // Validate target work item exists
+  const targetWi = db.select().from(workItems).where(eq(workItems.id, targetId)).get();
+  if (!targetWi) {
+    throw new NotFoundError('Target work item not found');
+  }
+
+  db.transaction(() => {
+    const now = new Date().toISOString();
+
+    // Build update fields for the budget line (non-move fields)
+    const updates: Record<string, unknown> = { updatedAt: now, workItemId: targetId };
+    if ('description' in data) updates.description = data.description;
+    if ('plannedAmount' in data) updates.plannedAmount = data.plannedAmount;
+    if ('confidence' in data) updates.confidence = data.confidence;
+    if ('budgetCategoryId' in data) updates.budgetCategoryId = data.budgetCategoryId;
+    if ('budgetSourceId' in data) updates.budgetSourceId = data.budgetSourceId;
+    if ('vendorId' in data) updates.vendorId = data.vendorId;
+    if ('quantity' in data) updates.quantity = data.quantity;
+    if ('unit' in data) updates.unit = data.unit;
+    if ('unitPrice' in data) updates.unitPrice = data.unitPrice;
+    if ('includesVat' in data) updates.includesVat = data.includesVat;
+
+    // Update budget line with new parent and field updates
+    db.update(workItemBudgets).set(updates).where(eq(workItemBudgets.id, budgetId)).run();
+  });
+
+  // Fetch from the new target work item
+  return service.list(db, targetId).find((b) => b.id === budgetId)!;
 }
 
 export function deleteWorkItemBudget(db: DbType, workItemId: string, budgetId: string): void {

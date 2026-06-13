@@ -5,4 +5,6 @@
 export interface AppConfigResponse {
   /** ISO 4217 currency code configured via CURRENCY env var. Default: 'EUR'. */
   currency: string;
+  /** Whether LLM auto-itemization is enabled (all LLM env vars are set). */
+  autoItemizeEnabled: boolean;
 }

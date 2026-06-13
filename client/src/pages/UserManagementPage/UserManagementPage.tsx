@@ -83,14 +83,14 @@ export function UserManagementPage() {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Table state
-  const [tableState, setTableState] = useState<TableState>({
+  const [tableState, setTableState] = useState<TableState>(() => ({
     search: '',
     filters: new Map(),
     sortBy: null,
     sortDir: null,
     page: 1,
     pageSize: 100,
-  });
+  }));
 
   // Load users on mount
   useEffect(() => {
@@ -467,6 +467,10 @@ export function UserManagementPage() {
     );
   };
 
+  const deactivateModalMessageParts = deactivatingUser
+    ? t('userManagement.deactivateModal.message', { name: '\u0000' }).split('\u0000')
+    : null;
+
   return (
     <PageLayout
       maxWidth="narrow"
@@ -616,18 +620,13 @@ export function UserManagementPage() {
             </div>
           )}
           <p>
-            {(() => {
-              const parts = t('userManagement.deactivateModal.message', {
-                name: '\u0000',
-              }).split('\u0000');
-              return (
-                <>
-                  {parts[0]}
-                  <strong>{deactivatingUser.displayName}</strong>
-                  {parts[1]}
-                </>
-              );
-            })()}
+            {deactivateModalMessageParts && (
+              <>
+                {deactivateModalMessageParts[0]}
+                <strong>{deactivatingUser!.displayName}</strong>
+                {deactivateModalMessageParts[1]}
+              </>
+            )}
           </p>
         </Modal>
       )}

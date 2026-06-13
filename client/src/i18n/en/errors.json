@@ -29,6 +29,7 @@
   "MUTUALLY_EXCLUSIVE_BUDGET_LINK": "This budget line is already linked to a different invoice.",
   "ITEMIZED_SUM_EXCEEDS_INVOICE": "The sum of itemized amounts exceeds the invoice total.",
   "BUDGET_LINE_ALREADY_LINKED": "This budget line is already linked to an invoice.",
+  "BUDGET_LINE_ALREADY_ASSIGNED": "This budget line is already assigned to a work item or household item.",
   "RATE_LIMIT_EXCEEDED": "Too many requests. Please wait a moment before trying again.",
   "ACCOUNT_LOCKED": "This account has been temporarily locked due to too many failed login attempts.",
   "INVALID_METADATA": "The entry metadata is invalid.",
@@ -37,5 +38,9 @@
   "BACKUP_NOT_CONFIGURED": "Backup is not configured. Set the BACKUP_DIR environment variable.",
   "BACKUP_IN_PROGRESS": "A backup or restore operation is already in progress.",
   "BACKUP_NOT_FOUND": "The requested backup archive was not found.",
-  "RESTORE_FAILED": "The restore operation failed. The server may be in an inconsistent state."
+  "RESTORE_FAILED": "The restore operation failed. The server may be in an inconsistent state.",
+  "LLM_NOT_CONFIGURED": "Auto-itemization is not configured on this server.",
+  "LLM_UNREACHABLE": "The extraction service is unavailable. Please try again later.",
+  "LLM_INVALID_RESPONSE": "The extraction service returned an invalid response.",
+  "LLM_UPSTREAM_ERROR": "The extraction service returned an error."
 }

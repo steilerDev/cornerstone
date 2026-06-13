@@ -215,4 +215,34 @@ describe('documentLinksApi', () => {
       );
     });
   });
+
+  describe('listAllLinkedDocumentIds', () => {
+    it('calls GET /document-links/linked-ids and returns the paperlessDocumentIds array', async () => {
+      const mockIds = [10, 20, 42];
+      mockGet.mockResolvedValueOnce({ paperlessDocumentIds: mockIds });
+
+      const result = await documentLinksApi.listAllLinkedDocumentIds();
+
+      expect(mockGet).toHaveBeenCalledWith('/document-links/linked-ids');
+      expect(result).toEqual(mockIds);
+    });
+
+    it('returns empty array when the response contains paperlessDocumentIds: []', async () => {
+      mockGet.mockResolvedValueOnce({ paperlessDocumentIds: [] });
+
+      const result = await documentLinksApi.listAllLinkedDocumentIds();
+
+      expect(mockGet).toHaveBeenCalledWith('/document-links/linked-ids');
+      expect(result).toEqual([]);
+    });
+
+    it('returns a single-element array when one document is linked', async () => {
+      mockGet.mockResolvedValueOnce({ paperlessDocumentIds: [42] });
+
+      const result = await documentLinksApi.listAllLinkedDocumentIds();
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toBe(42);
+    });
+  });
 });

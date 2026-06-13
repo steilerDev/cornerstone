@@ -23,6 +23,7 @@ export function PhotoGrid({
     return (
       <div className={styles.grid} role="list" aria-label="Loading photos">
         {Array.from({ length: 6 }).map((_, i) => (
+          // eslint-disable-next-line @eslint-react/no-array-index-key -- static skeleton placeholders, never reorder
           <div key={i} className={`${styles.card} ${styles.skeleton}`} role="listitem" />
         ))}
       </div>

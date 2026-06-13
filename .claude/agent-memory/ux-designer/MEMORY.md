@@ -97,7 +97,7 @@ See `annotator-a11y-audit.md` for full findings. Key items:
 ## HI / Invoice Patterns (Stories 4.3–4.10)
 
 - `--spacing-xs` / `--spacing-sm` are NOT valid tokens — use `--spacing-1` through `--spacing-16`
-- `--color-warning-bg` does NOT exist; for warning bg use `--color-hi-status-in-transit-bg`
+- `--color-warning-bg` EXISTS in tokens.css (`#fff7ed`, dark: `rgba(251,146,60,0.1)`) — use it for warning banners
 - HI Detail: section cards use `border: 1px solid var(--color-border)` NOT `box-shadow: var(--shadow-sm)`
 - RECURRING BUG: `outline: 2px solid var(--color-primary)` on focus-visible — flagged PRs #402, #414
 
@@ -108,3 +108,32 @@ See `pr-1490-measurement-freehand.md`. Medium: `labelAttrs { display:'none' }` d
 ## Story 4.9 — Invoice Linking for HI Budget Lines (Issue #413)
 
 See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `role="radio"`), "Linked To" column hidden at tablet.
+
+## Story #1553 — Full Edit for Budget Lines (PR #1554 reviewed)
+
+- `BudgetLineForm` parent-picker extends to edit path (not just unassigned): show collapsed "Linked item" row with "Change" button when `currentParentId` is set
+- Entity type pill: WI = `--color-status-in-progress-*`; HI = `--color-hi-status-scheduled-*`; `--radius-full`
+- Cross-table move hint: `role="status" aria-atomic="true"` (do NOT add `aria-live` separately)
+- `--color-warning-bg` / `--color-warning` / `--color-warning-text-on-light` — all exist and have dark mode overrides
+- Modal width: `min(540px, calc(100vw - 2rem))` for full-edit modal
+- RECURRING A11Y BUG: `aria-controls` with conditional rendering — if the button and its target are in mutually exclusive branches, `aria-controls` referent never exists in DOM simultaneously. Fix: keep both in DOM, toggle with `hidden` prop, update `aria-expanded` dynamically.
+- `parentPickerTab` and `modeBtn` in BudgetLineForm.module.css missing `:focus-visible` (pre-existing gap, WCAG 2.4.7 Medium)
+- New i18n keys (namespace `budget`): `linkedItemLegend`, `changeParentButton`, `cancelChangeParentButton`, `moveButton`, `movingButton`, `moveCrossTableHint`, `moveCrossTableHintReverse`
+
+## Story #1551 — Discretionary Funding + Auto-origin badge
+
+- AutoItemizePage already has a per-line "Funding Source" `<select>` that pre-fills to discretionary — recommended informational note above `.lineList`, not a column
+- Note style: `--color-primary-bg` bg, `--color-border` border, `3px solid --color-primary` left border, `--radius-md`, `--spacing-3 --spacing-4` padding — purely semantic tokens, dark mode handled automatically
+- New `.autoOrigin` Badge variant: `--color-primary-bg` bg, `--color-primary-badge-text` text, `1px solid --color-primary` border — blue-tinted, distinct from `.info` (gray)
+- `.info` badge already used for "Auto-created" assignment badge in AutoItemizePage; `.autoOrigin` is a separate semantic (data origin vs. assignment label)
+- `BreakdownBudgetLine` shared type must expose `origin: 'manual' | 'auto'` — backend/shared coordination required
+- `getSourceBadgeStyleKey(null)` returns `'sourceUnassigned'` (italic gray), `getSourceColorIndex(null)` returns `0`
+
+## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
+
+- `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic` — distinguishes from work-item "not_started" badge
+- IBL table `tdLinkedItem` cell: `display:flex; align-items:center; gap:var(--spacing-2)` wrapper (`unassignedCell`) holding badge + inline "Assign…" ghost button
+- Parent picker section in BudgetLineForm: inset panel with `--color-bg-tertiary` bg + `--color-border` border + `--radius-md`
+- Modal width for edit with picker visible: `min(640px, calc(100vw - 2rem))`
+- Focus auto-advance: use `requestAnimationFrame` (not `setTimeout`) for React 19 concurrent rendering
+- RECURRING BUG pattern: `BadgeVariantMap` entries must include BOTH `label` (translated) AND `className` (CSS module class) — missing className means the CSS variant rule has no effect; missing i18n means hardcoded English text visible to users. PR #1548 shipped `UNASSIGNED_BADGE_VARIANTS` without `className: badgeStyles.iblUnassigned` — the `.iblUnassigned` style rule was dead on arrival.

@@ -1,13 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { eq, asc, sql, inArray } from 'drizzle-orm';
+import { eq, asc, sql, inArray, and, isNotNull } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
   budgetSources,
   workItemBudgets,
   householdItemBudgets,
-  invoiceBudgetLines,
-  invoices,
   users,
   workItems,
   householdItems,
@@ -28,7 +26,6 @@ import type {
   BudgetSourceBudgetLinesResponse,
   CreateBudgetSourceRequest,
   UpdateBudgetSourceRequest,
-  UserSummary,
   BudgetLineInvoiceLink,
   ConfidenceLevel,
   MoveBudgetLinesRequest,
@@ -846,7 +843,8 @@ function buildWorkItemBudgetLine(
   line: typeof workItemBudgets.$inferSelect,
   areaMap: Map<string, AreaMapEntry>,
 ): BudgetSourceBudgetLine {
-  const workItem = db.select().from(workItems).where(eq(workItems.id, line.workItemId)).get();
+  // Caller filters orphan rows out before calling this function; workItemId is guaranteed non-null
+  const workItem = db.select().from(workItems).where(eq(workItems.id, line.workItemId!)).get();
   const area =
     workItem && workItem.areaId
       ? db.select().from(areas).where(eq(areas.id, workItem.areaId)).get()
@@ -887,7 +885,7 @@ function buildWorkItemBudgetLine(
     createdBy: toUserSummary(createdByUser),
     createdAt: line.createdAt,
     updatedAt: line.updatedAt,
-    parentId: line.workItemId,
+    parentId: line.workItemId!,
     parentName: workItem?.title ?? '(Unknown Work Item)',
     area: toAreaSummary(area, area ? resolveAreaAncestors(area.id, areaMap) : []),
     hasClaimedInvoice: invoiceData.hasClaimedInvoice,
@@ -994,11 +992,11 @@ export function getBudgetSourceBudgetLines(
   // Load area map once for efficient ancestor resolution
   const areaMap = loadAreaMap(db);
 
-  // Fetch work item budget lines
+  // Fetch work item budget lines (exclude orphan/unassigned rows — they have no parent work item)
   const wibRows = db
     .select()
     .from(workItemBudgets)
-    .where(eq(workItemBudgets.budgetSourceId, sourceId))
+    .where(and(eq(workItemBudgets.budgetSourceId, sourceId), isNotNull(workItemBudgets.workItemId)))
     .all();
   const workItemLines = wibRows
     .map((line) => buildWorkItemBudgetLine(db, line, areaMap))

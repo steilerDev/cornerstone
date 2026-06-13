@@ -7,7 +7,6 @@
  * Also covers the ADR-029 change: quotation invoices must now contribute to actualCost.
  */
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';

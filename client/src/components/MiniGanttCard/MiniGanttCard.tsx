@@ -154,6 +154,31 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
     );
   }
 
+  const todayLocal = new Date();
+  const todayNoon = new Date(
+    todayLocal.getFullYear(),
+    todayLocal.getMonth(),
+    todayLocal.getDate(),
+    12,
+    0,
+    0,
+    0,
+  );
+  const todayX = dateToX(todayNoon, windowStart);
+  const todayMarker =
+    todayX >= 0 && todayX <= CHART_WIDTH ? (
+      <line
+        key="today-marker"
+        x1={todayX}
+        y1={HEADER_HEIGHT}
+        x2={todayX}
+        y2={svgHeight}
+        stroke={colors.todayMarker}
+        strokeWidth="2"
+        opacity="0.8"
+      />
+    ) : null;
+
   return (
     <div
       className={styles.container}
@@ -225,32 +250,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         })}
 
         {/* Today marker line */}
-        {(() => {
-          const todayLocal = new Date();
-          const todayNoon = new Date(
-            todayLocal.getFullYear(),
-            todayLocal.getMonth(),
-            todayLocal.getDate(),
-            12,
-            0,
-            0,
-            0,
-          );
-          const x = dateToX(todayNoon, windowStart);
-          if (x < 0 || x > CHART_WIDTH) return null;
-          return (
-            <line
-              key="today-marker"
-              x1={x}
-              y1={HEADER_HEIGHT}
-              x2={x}
-              y2={svgHeight}
-              stroke={colors.todayMarker}
-              strokeWidth="2"
-              opacity="0.8"
-            />
-          );
-        })()}
+        {todayMarker}
 
         {/* Work item bars rendered by row */}
         {filteredWorkItems.map((item, rowIndex) => {

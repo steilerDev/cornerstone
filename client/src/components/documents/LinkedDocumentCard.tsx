@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DocumentLinkWithMetadata } from '@cornerstone/shared';
 import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
+import { formatDate } from '../../lib/formatters.js';
 import styles from './LinkedDocumentCard.module.css';
 
 interface LinkedDocumentCardProps {
@@ -9,6 +10,7 @@ interface LinkedDocumentCardProps {
   paperlessBaseUrl: string | null;
   onView: (link: DocumentLinkWithMetadata) => void;
   onUnlink: (link: DocumentLinkWithMetadata) => void;
+  onItemize?: (link: DocumentLinkWithMetadata) => void;
 }
 
 export function LinkedDocumentCard({
@@ -16,6 +18,7 @@ export function LinkedDocumentCard({
   paperlessBaseUrl,
   onView,
   onUnlink,
+  onItemize,
 }: LinkedDocumentCardProps) {
   const { t } = useTranslation('documents');
   const [thumbError, setThumbError] = useState(false);
@@ -48,15 +51,7 @@ export function LinkedDocumentCard({
       <div className={styles.body}>
         <h3 className={styles.title}>{title}</h3>
 
-        {created && (
-          <p className={styles.meta}>
-            {new Date(created).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            })}
-          </p>
-        )}
+        {created && <p className={styles.meta}>{formatDate(created)}</p>}
 
         {tags.length > 0 && (
           <div className={styles.tags}>
@@ -76,9 +71,20 @@ export function LinkedDocumentCard({
             type="button"
             className={styles.viewButton}
             onClick={() => onView(link)}
-            aria-label={`${t('documentCard.view')}: ${title}`}
+            aria-label={t('documentCard.detailsAriaLabel', { title })}
           >
-            {t('documentCard.view')}
+            {t('documentCard.details')}
+          </button>
+        )}
+
+        {hasDocument && onItemize && (
+          <button
+            type="button"
+            className={styles.itemizeButton}
+            onClick={() => onItemize(link)}
+            aria-label={`${t('documentCard.itemize')}: ${title}`}
+          >
+            <span aria-hidden="true">⚡</span> {t('documentCard.itemize')}
           </button>
         )}
 

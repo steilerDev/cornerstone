@@ -1,3 +1,4 @@
+import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   BaseBudgetLine,
@@ -7,12 +8,14 @@ import type {
   SubsidyProgram,
 } from '@cornerstone/shared';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
+import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { CONFIDENCE_LABELS, effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { BudgetLineCard } from './BudgetLineCard.js';
 import { BudgetLineForm } from './BudgetLineForm.js';
 import { SubsidyLinkSection } from './SubsidyLinkSection.js';
 import { BudgetCostOverview, type SubsidyPaybackData } from './BudgetCostOverview.js';
 import { InvoiceGroup } from './InvoiceGroup.js';
+import { EditBudgetLineModal, type EditableBudgetLine } from './EditBudgetLineModal.js';
 import styles from './BudgetSection.module.css';
 
 export interface BudgetSectionProps<T extends BaseBudgetLine> {
@@ -34,6 +37,19 @@ export interface BudgetSectionProps<T extends BaseBudgetLine> {
   isUnlinking?: Record<string, boolean>;
   inlineError?: string | null;
   oversubscribedSubsidyIds?: Set<string>;
+  parentEntityId?: string;
+  parentEntityLabel?: string;
+  onMoveBudgetLine?: (
+    budgetLineId: string,
+    newParentType: 'work_item' | 'household_item',
+    newParentId: string,
+  ) => Promise<void>;
+  onInvoiceLineEdit?: (line: T, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>;
+  onInvoiceLineMove?: (
+    budgetLineId: string,
+    newParentType: 'work_item' | 'household_item',
+    newParentId: string,
+  ) => Promise<void>;
 }
 
 export function BudgetSection<T extends BaseBudgetLine>({
@@ -55,8 +71,21 @@ export function BudgetSection<T extends BaseBudgetLine>({
   isUnlinking,
   inlineError,
   oversubscribedSubsidyIds,
+  parentEntityId,
+  parentEntityLabel,
+  onMoveBudgetLine,
+  onInvoiceLineEdit,
+  onInvoiceLineMove,
 }: BudgetSectionProps<T>) {
   const { t } = useTranslation(budgetLineType === 'household_item' ? 'householdItems' : 'budget');
+  const { t: tBudget } = useTranslation('budget');
+
+  // Invoice edit modal state
+  const [invoiceEditLine, setInvoiceEditLine] = useState<T | null>(null);
+  const [invoiceEditForm, setInvoiceEditForm] = useState<BudgetLineFormState | null>(null);
+  const [invoiceEditItemizedAmount, setInvoiceEditItemizedAmount] = useState('');
+  const [invoiceEditError, setInvoiceEditError] = useState('');
+  const [invoiceEditMutating, setInvoiceEditMutating] = useState(false);
 
   const {
     openAddBudgetForm,
@@ -76,6 +105,86 @@ export function BudgetSection<T extends BaseBudgetLine>({
     setDeletingBudgetId,
     setSelectedSubsidyId,
   } = budgetSectionHook;
+
+  // Handle invoice line edit submission
+  const handleInvoiceEditSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!invoiceEditLine || !invoiceEditForm || !onInvoiceLineEdit) return;
+
+    setInvoiceEditMutating(true);
+    setInvoiceEditError('');
+
+    try {
+      await onInvoiceLineEdit(invoiceEditLine, invoiceEditForm, invoiceEditItemizedAmount);
+      setInvoiceEditLine(null);
+      setInvoiceEditForm(null);
+      setInvoiceEditItemizedAmount('');
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : tBudget('invoiceDetail.budgetLines.editError.saveFailed');
+      setInvoiceEditError(msg);
+    } finally {
+      setInvoiceEditMutating(false);
+    }
+  };
+
+  // Handle invoice line move
+  const handleInvoiceEditMove = async (
+    newParentType: 'work_item' | 'household_item',
+    newParentId: string,
+  ) => {
+    if (!invoiceEditLine || !onInvoiceLineMove) return;
+    setInvoiceEditMutating(true);
+    setInvoiceEditError('');
+
+    try {
+      await onInvoiceLineMove(invoiceEditLine.id, newParentType, newParentId);
+      setInvoiceEditLine(null);
+      setInvoiceEditForm(null);
+      setInvoiceEditItemizedAmount('');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : tBudget('budgetLineForm.parentPickerError');
+      setInvoiceEditError(msg);
+    } finally {
+      setInvoiceEditMutating(false);
+    }
+  };
+
+  // Close invoice edit modal
+  const closeInvoiceEditModal = () => {
+    if (!invoiceEditMutating) {
+      setInvoiceEditLine(null);
+      setInvoiceEditForm(null);
+      setInvoiceEditItemizedAmount('');
+      setInvoiceEditError('');
+    }
+  };
+
+  // Open invoice edit modal when a line is edited
+  const handleInvoiceLineEditClick = (line: T) => {
+    if (!line.invoiceLink) return;
+
+    setInvoiceEditLine(line);
+    setInvoiceEditItemizedAmount(line.invoiceLink.itemizedAmount.toString());
+
+    // Pre-fill form
+    const pricingMode = line.quantity !== null && line.unitPrice !== null ? 'unit' : 'direct';
+    setInvoiceEditForm({
+      description: line.description ?? '',
+      plannedAmount: line.plannedAmount.toString(),
+      confidence: line.confidence,
+      budgetCategoryId: line.budgetCategory?.id ?? '',
+      budgetSourceId: line.budgetSource?.id ?? '',
+      vendorId: line.vendor?.id ?? '',
+      pricingMode,
+      quantity: line.quantity !== null ? line.quantity.toString() : '',
+      unit: line.unit ?? '',
+      unitPrice: line.unitPrice !== null ? line.unitPrice.toString() : '',
+      includesVat: line.includesVat ?? true,
+    });
+  };
 
   // Group budget lines by invoice ID
   const invoiceGroups = new Map<string, T[]>();
@@ -148,7 +257,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
               itemizedTotal={itemizedTotal}
               plannedTotal={plannedTotal}
               lines={groupLines}
-              onEdit={openEditBudgetForm}
+              onEdit={onInvoiceLineEdit ? handleInvoiceLineEditClick : openEditBudgetForm}
               onDelete={handleDeleteBudgetLine}
               isDeleting={Object.fromEntries(
                 groupLines.map((l) => [l.id, deletingBudgetId === l.id]),
@@ -180,6 +289,15 @@ export function BudgetSection<T extends BaseBudgetLine>({
                 vendors={vendors}
                 budgetCategories={budgetCategories}
                 staticCategoryLabel={staticCategoryLabel}
+                currentParentType={budgetLineType ?? undefined}
+                currentParentId={parentEntityId ?? undefined}
+                currentParentLabel={parentEntityLabel ?? undefined}
+                onMove={
+                  onMoveBudgetLine
+                    ? async (newParentType, newParentId) =>
+                        onMoveBudgetLine(line.id, newParentType, newParentId)
+                    : undefined
+                }
               />
             ) : (
               <BudgetLineCard
@@ -224,6 +342,45 @@ export function BudgetSection<T extends BaseBudgetLine>({
           vendors={vendors}
           budgetCategories={budgetCategories}
           staticCategoryLabel={staticCategoryLabel}
+        />
+      )}
+
+      {/* Invoice edit modal */}
+      {invoiceEditLine && invoiceEditForm && (
+        <EditBudgetLineModal
+          line={{
+            id: invoiceEditLine.id,
+            description: invoiceEditLine.description,
+            plannedAmount: invoiceEditLine.plannedAmount,
+            confidence: invoiceEditLine.confidence,
+            budgetCategory: invoiceEditLine.budgetCategory ?? null,
+            budgetSource: invoiceEditLine.budgetSource ?? null,
+            vendor: invoiceEditLine.vendor ?? null,
+            quantity: invoiceEditLine.quantity,
+            unit: invoiceEditLine.unit,
+            unitPrice: invoiceEditLine.unitPrice,
+            includesVat: invoiceEditLine.includesVat ?? true,
+            invoiceLink: invoiceEditLine.invoiceLink,
+            parentItemType: budgetLineType as 'work_item' | 'household_item' | undefined,
+            parentItemId: parentEntityId,
+            parentItemTitle: parentEntityLabel,
+          }}
+          fullForm={invoiceEditForm}
+          onFullFormChange={(updates) =>
+            setInvoiceEditForm((prev) => (prev ? { ...prev, ...updates } : null))
+          }
+          itemizedAmount={invoiceEditItemizedAmount}
+          onItemizedAmountChange={setInvoiceEditItemizedAmount}
+          onSubmit={handleInvoiceEditSubmit}
+          onMove={handleInvoiceEditMove}
+          onClose={closeInvoiceEditModal}
+          error={invoiceEditError}
+          isMutating={invoiceEditMutating}
+          budgetSources={budgetSources}
+          vendors={vendors}
+          budgetCategories={budgetCategories}
+          confidenceLabels={CONFIDENCE_LABELS}
+          modalTitle={tBudget('invoiceDetail.budgetLines.modal.editTitle')}
         />
       )}
 

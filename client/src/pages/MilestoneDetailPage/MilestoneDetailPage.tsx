@@ -26,7 +26,12 @@ import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './MilestoneDetailPage.module.css';
 
 export function MilestoneDetailPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const {
+    formatCurrency: _formatCurrency,
+    formatDate,
+    formatTime: _formatTime,
+    formatDateTime: _formatDateTime,
+  } = useFormatters();
   const { t } = useTranslation('schedule');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

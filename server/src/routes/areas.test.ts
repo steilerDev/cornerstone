@@ -6,12 +6,7 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
-import type {
-  AreaResponse,
-  AreaListResponse,
-  AreaSingleResponse,
-  ApiErrorResponse,
-} from '@cornerstone/shared';
+import type { AreaListResponse, AreaSingleResponse, ApiErrorResponse } from '@cornerstone/shared';
 import { areas, workItems, householdItems } from '../db/schema.js';
 
 describe('Area Routes', () => {

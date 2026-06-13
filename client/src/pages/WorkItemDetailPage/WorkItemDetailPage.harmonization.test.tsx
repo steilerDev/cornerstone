@@ -13,7 +13,7 @@
  * - Empty notes: "No notes yet. Use the form above to add one."
  * - Empty subtasks: "No subtasks yet. Add one above."
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { WorkItemDetail } from '@cornerstone/shared';
@@ -362,6 +362,10 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
       </MemoryRouter>,
     );
   }
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
   // ── Scenario 1: Loading state ──────────────────────────────────────────────
 

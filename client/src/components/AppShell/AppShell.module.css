@@ -84,6 +84,14 @@
   }
 }
 
+/* Full-height layout opt-in: pages with data-layout="full-height" want to manage
+   their own internal scrolling (header + scrollable column). We only drop the
+   pageContent padding so the page can occupy the full mainContent area; we keep
+   mainContent's overflow-y: auto so the sidebar's sticky positioning still works. */
+.mainContent:has(> main > [data-layout='full-height']) > main {
+  padding: 0;
+}
+
 @media print {
   .mainContent {
     overflow: visible !important;

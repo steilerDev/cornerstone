@@ -73,6 +73,68 @@ await expect
   .toBe('Projekt');
 ```
 
+## diary-drafts Scenario 14: use test.slow() + explicit 15s timeout + heading wait (PR #1663)
+
+Scenario 14 ("Clicking a draft entry card navigates to /diary/:id/edit") fails with
+"element(s) not found" on `getByTestId('draft-status-badge')` after 7s.
+
+Root cause: CI server under 8-worker load can take >7s for `getDiaryEntry()` to respond
+(SQLite contention + container resource limits). During loading, the badge is NOT in DOM
+(isLoading=true shows a loading div, not the full UI).
+
+Fix:
+
+1. `test.slow()` — triples test timeout (15s → 45s)
+2. `await expect(editPage.heading).toBeVisible({ timeout: 15_000 })` — wait for page content
+3. `await expect(editPage.draftBadge).toBeVisible({ timeout: 15_000 })` — explicit 15s timeout
+
+The `heading` is only rendered after `setEntry(data)` fires (API call complete), making it
+a reliable indicator that the full edit page UI has loaded. Both 2 and 3 need explicit
+`{ timeout: 15_000 }` because project-level `expect.timeout: 7_000` is not enough.
+
+This pattern should be applied to any test that waits for a single-route page's content
+to load from API (not just navigation to the URL).
+
 ## Budget Overview print test: startPrint() timing
 
 `startPrint()` dispatches `beforeprint` then calls `emulateMedia('print')`. The React `usePrintExpansion` hook calls `setExpandedKeys(allKeys)` asynchronously. The `waitForFunction` pattern `section.querySelector('[aria-expanded="true"]')` resolves too early (any expanded row, not specifically the deep Kellerbau row). For deep nesting assertions, either use `waitFor({ state: 'visible' })` on the specific row or a more specific `waitForFunction` condition.
+
+## CRITICAL: emulateMedia('print') does NOT re-evaluate CSS custom properties (PR #1663, 2026-06-12) — VERIFIED WORKING
+
+Playwright's `page.emulateMedia({ media: 'print' })` tells Chromium to evaluate `@media print` CSS rules for rendering/layout, but CSS custom property values cached in `getComputedStyle` are NOT re-evaluated. Reading `getComputedStyle(documentElement).getPropertyValue('--color-bg-primary')` after `emulateMedia('print')` still returns the screen-mode value (e.g., dark mode's `#1a1a2e`), not the print reset value (`#ffffff`).
+
+**Root cause**: Chromium's CSS custom property cascade is computed at page load and not invalidated by DevTools media type emulation.
+
+**Fix for tests asserting CSS custom property resets in print mode**: Use `document.styleSheets` inspection to verify the print CSS rule EXISTS in the bundle rather than asserting the runtime computed value:
+
+```typescript
+const hasPrintReset = await page.evaluate(() => {
+  for (const sheet of document.styleSheets) {
+    let rules: CSSRuleList | null = null;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue;
+    } // skip cross-origin
+    for (const rule of Array.from(rules)) {
+      const isPrint =
+        rule instanceof CSSMediaRule &&
+        (rule.conditionText === 'print' || rule.media.mediaText === 'print');
+      if (isPrint) {
+        for (const inner of Array.from((rule as CSSMediaRule).cssRules)) {
+          if (inner instanceof CSSStyleRule && /^:root/.test(inner.selectorText)) {
+            if (
+              inner.style.getPropertyValue('--color-bg-primary').trim().toLowerCase() === '#ffffff'
+            )
+              return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+});
+expect(hasPrintReset).toBe(true);
+```
+
+This directly validates the production fix (PR #1606 moved the rule to `client/src/styles/print.css`) and is deterministic. Do NOT use `getComputedStyle` + `emulateMedia` for CSS custom property assertions in print mode.

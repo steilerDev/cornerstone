@@ -1,0 +1,22 @@
+@keyframes spinnerRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  display: block;
+  animation: spinnerRotate 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.arc {
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    opacity: 0.5;
+  }
+}

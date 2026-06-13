@@ -239,6 +239,221 @@ export class InvoiceDetailPage {
    */
   readonly removeBudgetLineModal: Locator;
 
+  // ─── Full Edit + Parent Move locators (Issue #1553) ──────────────────────
+
+  /**
+   * Description input in the full BudgetLineForm inside the Edit modal: #budget-description
+   */
+  readonly budgetLineFormDescription: Locator;
+
+  /**
+   * Itemized amount input rendered in the invoice-side edit context: #budget-itemized-amount
+   */
+  readonly budgetLineItemizedAmount: Locator;
+
+  /**
+   * "Linked item" legend text inside the parent picker fieldset (collapsed state).
+   * Scoped to editBudgetLineModal.
+   */
+  readonly linkedItemLegend: Locator;
+
+  /**
+   * "Change" ghost button in the collapsed parent-picker row.
+   * Clicking this expands the full parent picker tabs + search.
+   * Scoped to editBudgetLineModal.
+   */
+  readonly changeParentButton: Locator;
+
+  /**
+   * "Move to selected item" submit button in the expanded parent picker.
+   * Scoped to editBudgetLineModal.
+   */
+  readonly moveButton: Locator;
+
+  /**
+   * "Cancel" ghost button inside the expanded parent picker (collapses picker without moving).
+   * Uses .last() because the modal-level Cancel button is also in scope.
+   * Scoped to editBudgetLineModal.
+   */
+  readonly cancelChangeButton: Locator;
+
+  /**
+   * Cross-table move hint banner: role="status" with text about "transfer".
+   * Visible only when the picker is expanded and a different table type is selected.
+   * Scoped to editBudgetLineModal.
+   */
+  readonly moveHintBanner: Locator;
+
+  // ─── Auto-itemize (Issue #1547, redesigned in Issue #1564) ─────────────────
+  //
+  // Story #1564 redesigned the auto-itemize flow as a full page instead of a modal.
+  // The "Auto-itemize" button in InvoiceBudgetLinesSection was REMOVED.
+  // The "Itemize" button now appears on each LinkedDocumentCard (in LinkedDocumentsSection)
+  //   when: entityType='invoice' AND config.autoItemizeEnabled=true.
+  // Clicking "Itemize" navigates to /budget/invoices/:id/auto-itemize/:documentId.
+  //
+  // REMOVED components (story #1564):
+  //   - AutoItemizePreviewModal
+  //   - DocumentPickerModal
+  //   - "Auto-itemize" button in InvoiceBudgetLinesSection header
+  //
+  // ADDED (story #1564):
+  //   - "Itemize" button on LinkedDocumentCard (in LinkedDocumentsSection)
+  //     Translation key: documents:documentCard.itemize = "Itemize"
+  //     aria-label: `${t('documentCard.itemize')}: ${title}` = "Itemize: {docTitle}"
+  //   - "Details" button renamed from "View" (same button, new label)
+  //     Translation key: documents:documentCard.details = "Details"
+  //     aria-label: t('documentCard.detailsAriaLabel', { title }) = "View details: {title}"
+  //
+  // For the new AutoItemizePage POM, see: e2e/pages/AutoItemizePage.ts
+
+  // ─── LinkedDocumentCard helpers (Issue #1564) ────────────────────────────────
+
+  /**
+   * Returns the "Itemize" button locator for a specific document card.
+   * Only present when entityType=invoice AND autoItemizeEnabled=true.
+   * Scoped to the documentsSection.
+   *
+   * aria-label pattern: "Itemize: {documentTitle}"
+   */
+  itemizeButton(documentTitle: string): Locator {
+    return this.documentsSection.getByRole('button', {
+      name: new RegExp(`Itemize.*${documentTitle}`, 'i'),
+    });
+  }
+
+  /**
+   * Returns the "Details" button locator for a specific document card.
+   * Renamed from "View" in story #1564.
+   * Scoped to the documentsSection.
+   *
+   * aria-label pattern: "View details: {documentTitle}"
+   */
+  detailsButton(documentTitle: string): Locator {
+    return this.documentsSection.getByRole('button', {
+      name: new RegExp(`View details.*${documentTitle}`, 'i'),
+    });
+  }
+
+  /**
+   * Returns a locator for the OLD "Auto-itemize" button that was in the budget lines
+   * section header. After story #1564 this button NO LONGER EXISTS.
+   * Use this locator ONLY to assert absence (expect(...).not.toBeVisible()).
+   *
+   * @deprecated The auto-itemize button was removed in story #1564.
+   *             Use itemizeButton() on the LinkedDocumentCard instead.
+   */
+  autoItemizeButton(): Locator {
+    return this.budgetLinesSection.getByRole('button', {
+      name: 'Extract line items from a linked Paperless document',
+    });
+  }
+
+  /**
+   * @deprecated Alias kept for backward compat with tests written before story #1564.
+   * The "Auto-itemize" button in the budget lines section was removed.
+   * Use autoItemizeButton() and assert its absence, or use itemizeButton() on the card.
+   */
+  getAutoItemizeButton(): Locator {
+    return this.autoItemizeButton();
+  }
+
+  /**
+   * @deprecated Removed in story #1564. The DocumentPickerModal no longer exists.
+   * The new flow navigates directly to /auto-itemize/:documentId when Itemize is clicked.
+   */
+  getDocumentPickerModal(): Locator {
+    return this.page.locator('[role="dialog"]').filter({
+      has: this.page.locator('h2', { hasText: 'Choose document to analyze' }),
+    });
+  }
+
+  /**
+   * @deprecated Removed in story #1564. The AutoItemizePreviewModal no longer exists.
+   * Use AutoItemizePage POM instead.
+   */
+  getAutoItemizePreviewModal(): Locator {
+    return this.page.locator('[role="dialog"]').filter({
+      has: this.page.locator('h2', { hasText: 'Review extracted line items' }),
+    });
+  }
+
+  /**
+   * @deprecated Removed in story #1564. The mismatch warning is now in AutoItemizePage.
+   */
+  getMismatchWarningBanner(): Locator {
+    return this.getAutoItemizePreviewModal().locator('[class*="warningBlock"]');
+  }
+
+  /**
+   * @deprecated Removed in story #1564. The empty state is now in AutoItemizePage.
+   */
+  getEmptyStateMessage(): Locator {
+    return this.getAutoItemizePreviewModal().locator('[class*="emptyState"]');
+  }
+
+  /**
+   * @deprecated Removed in story #1564. The old auto-itemize button was removed.
+   * Use itemizeButton(documentTitle).click() on the LinkedDocumentCard instead.
+   */
+  async clickAutoItemizeButton(): Promise<void> {
+    const btn = this.getAutoItemizeButton();
+    await btn.waitFor({ state: 'visible' });
+    await btn.click();
+  }
+
+  /**
+   * @deprecated Removed in story #1564. DocumentPickerModal was removed.
+   */
+  async selectDocument(title: string): Promise<void> {
+    const pickerModal = this.getDocumentPickerModal();
+    await pickerModal.waitFor({ state: 'visible' });
+    await pickerModal.getByRole('button', { name: title }).click();
+  }
+
+  /**
+   * @deprecated Removed in story #1564. AutoItemizePreviewModal was removed.
+   */
+  async editPreviewLineDescription(index: number, newDescription: string): Promise<void> {
+    const previewModal = this.getAutoItemizePreviewModal();
+    await previewModal.waitFor({ state: 'visible' });
+    const descInput = previewModal.locator('table tbody tr input[type="text"]').nth(index);
+    await descInput.clear();
+    await descInput.fill(newDescription);
+  }
+
+  /**
+   * @deprecated Removed in story #1564. AutoItemizePreviewModal was removed.
+   */
+  async toggleIncludeLine(index: number): Promise<void> {
+    const previewModal = this.getAutoItemizePreviewModal();
+    await previewModal.waitFor({ state: 'visible' });
+    const rowCheckboxes = previewModal.locator(
+      'table tbody tr input[type="checkbox"]:not([aria-label*="Select all"])',
+    );
+    await rowCheckboxes.nth(index).click();
+  }
+
+  /**
+   * @deprecated Removed in story #1564. AutoItemizePreviewModal was removed.
+   */
+  async selectMode(mode: 'append' | 'replace'): Promise<void> {
+    const previewModal = this.getAutoItemizePreviewModal();
+    await previewModal.waitFor({ state: 'visible' });
+    const radio = previewModal.locator(`input[type="radio"][value="${mode}"]`);
+    await radio.click();
+  }
+
+  /**
+   * @deprecated Removed in story #1564. AutoItemizePreviewModal was removed.
+   */
+  async clickApplyButton(): Promise<void> {
+    const previewModal = this.getAutoItemizePreviewModal();
+    await previewModal.waitFor({ state: 'visible' });
+    const applyBtn = previewModal.getByRole('button', { name: 'Apply', exact: true });
+    await applyBtn.click();
+  }
+
   constructor(page: Page) {
     this.page = page;
 
@@ -380,8 +595,12 @@ export class InvoiceDetailPage {
     // ─── Budget Line Picker locators (Issue #1401) ────────────────────────
     this.budgetLinePickerModal = page.locator('[role="dialog"][aria-labelledby="picker-title"]');
 
+    // The visible text is `+ Add Budget Line` but the `+` is a literal text node and
+    // `Add Budget Line` comes from i18n; accessible-name normalization can collapse
+    // whitespace inconsistently across React renders. Match the i18n text only so
+    // the locator is resilient to the optional `+` prefix.
     this.pickerAddBudgetLineButton = this.budgetLinesSection.getByRole('button', {
-      name: /\+ Add Budget Line/i,
+      name: /Add Budget Line/i,
     });
 
     this.pickerCreateBudgetLineButton = this.budgetLinePickerModal.getByRole('button', {
@@ -419,6 +638,42 @@ export class InvoiceDetailPage {
     // DeleteBudgetLineModal renders via the shared Modal component.
     // Title: "Remove Budget Line" (i18n: budget:invoiceDetail.budgetLines.modal.removeTitle).
     this.removeBudgetLineModal = page.getByRole('dialog', { name: 'Remove Budget Line' });
+
+    // ─── Full Edit + Parent Move locators (Issue #1553) ──────────────────────
+    // These locators are scoped to the Edit Budget Line modal and work alongside
+    // the existing editBudgetLineModal locator above.
+
+    // Description input in the full BudgetLineForm: #budget-description
+    this.budgetLineFormDescription = page.locator('#budget-description');
+
+    // Itemized amount input in invoice-side edit context: #budget-itemized-amount
+    this.budgetLineItemizedAmount = page.locator('#budget-itemized-amount');
+
+    // The "Linked item" legend/label inside the collapsed parent picker fieldset.
+    // Scoped to the edit modal to avoid matching other BudgetLineForm instances.
+    this.linkedItemLegend = this.editBudgetLineModal.getByText('Linked item');
+
+    // "Change" ghost button in the collapsed parent-picker row.
+    // Scoped to the edit modal.
+    this.changeParentButton = this.editBudgetLineModal.getByRole('button', { name: 'Change' });
+
+    // "Move to selected item" button in the expanded parent picker.
+    // Scoped to the edit modal.
+    this.moveButton = this.editBudgetLineModal.getByRole('button', {
+      name: /Move to selected item|Moving/i,
+    });
+
+    // "Cancel" ghost button inside the expanded parent picker (collapses picker).
+    // Uses .last() because the outer Cancel button (closes modal) is also in scope.
+    this.cancelChangeButton = this.editBudgetLineModal
+      .getByRole('button', { name: 'Cancel' })
+      .last();
+
+    // Cross-table move hint banner: role="status" with text about "transfer".
+    // Visible only when the picker is expanded and a different table type is selected.
+    this.moveHintBanner = this.editBudgetLineModal
+      .locator('[role="status"]')
+      .filter({ hasText: /transfer/i });
   }
 
   /**
@@ -817,7 +1072,10 @@ export class InvoiceDetailPage {
     if (data.workItemPickerName) {
       const wiInput = this.budgetLinePickerModal.getByPlaceholder('Search work items...');
       await wiInput.fill(data.workItemPickerName);
-      const option = this.budgetLinePickerModal.getByRole('option', {
+      // WorkItemPicker wraps SearchPicker which portals its dropdown to document.body
+      // (via createPortal) — the role="option" elements are NOT inside the modal's DOM
+      // subtree. Scope to page.
+      const option = this.page.getByRole('option', {
         name: data.workItemPickerName,
       });
       await option.waitFor({ state: 'visible' });

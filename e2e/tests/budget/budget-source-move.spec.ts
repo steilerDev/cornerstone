@@ -20,10 +20,24 @@
  * - All routes are unregistered in finally blocks.
  */
 
+import { mkdirSync } from 'node:fs';
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
 import { API } from '../../fixtures/testData.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HAR capture for flake diagnosis (Playwright 1.60.0 tracing.startHar)
+// ─────────────────────────────────────────────────────────────────────────────
+test.beforeEach(async ({ page }, testInfo) => {
+  mkdirSync('playwright-output/hars', { recursive: true });
+  const harPath = `playwright-output/hars/${testInfo.project.name}_${testInfo.workerIndex}_${testInfo.title.replace(/[^a-z0-9]/gi, '_')}.har`;
+  await page.context().tracing.startHar(harPath, { content: 'omit' });
+});
+
+test.afterEach(async ({ page }) => {
+  await page.context().tracing.stopHar();
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers
@@ -225,6 +239,7 @@ test.describe('Select lines → action bar appears', { tag: ['@smoke', '@respons
         // Check first line
         const checkbox1 = sourcesPage.getLineCheckbox(sourceId, 'Hardwood floor installation');
         await checkbox1.waitFor({ state: 'visible' });
+        await checkbox1.scrollIntoViewIfNeeded();
         await checkbox1.check();
 
         // After first check: action bar should show "1 line selected"
@@ -232,9 +247,12 @@ test.describe('Select lines → action bar appears', { tag: ['@smoke', '@respons
         await expect(actionBar).toBeVisible();
         await expect(actionBar).toContainText('1 line selected');
 
-        // Check second line
+        // Check second line — the sticky action bar is now visible at bottom of viewport.
+        // Use scrollIntoViewIfNeeded() + click({ force: true }) to bypass potential
+        // coverage by the sticky action bar on narrow viewports after the first check.
         const checkbox2 = sourcesPage.getLineCheckbox(sourceId, 'Subfloor preparation');
-        await checkbox2.check();
+        await checkbox2.scrollIntoViewIfNeeded();
+        await checkbox2.click({ force: true });
 
         // Action bar updates to "2 lines selected"
         await expect(actionBar).toContainText('2 lines selected');
@@ -340,6 +358,7 @@ test.describe('Open modal — current source excluded from picker', { tag: '@res
 
       const checkbox = sourcesPage.getLineCheckbox(sourceAId, 'Hardwood floor installation');
       await checkbox.waitFor({ state: 'visible' });
+      await checkbox.scrollIntoViewIfNeeded();
       await checkbox.check();
 
       // Open the move modal
@@ -359,14 +378,13 @@ test.describe('Open modal — current source excluded from picker', { tag: '@res
       await searchInput.waitFor({ state: 'visible' });
       await searchInput.fill(sourceAName);
 
-      // Source A must NOT be in the dropdown
-      await expect(
-        sourcesPage.moveModal.getByRole('option', { name: sourceAName }),
-      ).not.toBeVisible();
+      // Source A must NOT be in the dropdown.
+      // SearchPicker portals its dropdown to document.body — scope to page.
+      await expect(page.getByRole('option', { name: sourceAName })).not.toBeVisible();
 
       // Type source B's name — should appear
       await searchInput.fill(sourceBName);
-      await expect(sourcesPage.moveModal.getByRole('option', { name: sourceBName })).toBeVisible();
+      await expect(page.getByRole('option', { name: sourceBName })).toBeVisible();
 
       // Cancel the modal
       await sourcesPage.moveModalCancelButton.click();
@@ -459,6 +477,7 @@ test.describe(
 
           const checkbox = sourcesPage.getLineCheckbox(sourceAId, 'Window installation');
           await checkbox.waitFor({ state: 'visible' });
+          await checkbox.scrollIntoViewIfNeeded();
           await checkbox.check();
 
           // Open the move modal
@@ -538,6 +557,7 @@ test.describe('Claimed invoice warning gates confirm button', { tag: '@responsiv
       // Select the claimed line
       const checkbox = sourcesPage.getLineCheckbox(sourceAId, 'Claimed invoice line');
       await checkbox.waitFor({ state: 'visible' });
+      await checkbox.scrollIntoViewIfNeeded();
       await checkbox.check();
 
       // Open move modal
@@ -554,10 +574,16 @@ test.describe('Claimed invoice warning gates confirm button', { tag: '@responsiv
       // Confirm button must be disabled (understood not checked)
       await expect(sourcesPage.moveModalConfirmButton).toBeDisabled();
 
-      // Check "I understand"
+      // Check "I understand" — click the label text (NOT .check() on the input) to
+      // avoid the mobile WebKit double-toggle bug where nested checkbox inputs fire
+      // two click events (once on input, once via synthetic label propagation).
       const understoodCheckbox = sourcesPage.moveModalUnderstoodCheckbox;
       await understoodCheckbox.waitFor({ state: 'visible' });
-      await understoodCheckbox.check();
+      await sourcesPage.clickMoveModalUnderstoodLabel();
+
+      // Verify the checkbox DOM state is checked before asserting button state
+      // (ensures React onChange has propagated before the next assertion)
+      await expect(understoodCheckbox).toBeChecked();
 
       // Confirm button must now be enabled
       await expect(sourcesPage.moveModalConfirmButton).toBeEnabled();
@@ -624,6 +650,7 @@ test.describe('API error → FormError in modal', { tag: '@responsive' }, () => 
       // Select a line
       const checkbox = sourcesPage.getLineCheckbox(sourceAId, 'Hardwood floor installation');
       await checkbox.waitFor({ state: 'visible' });
+      await checkbox.scrollIntoViewIfNeeded();
       await checkbox.check();
 
       // Open move modal
@@ -818,8 +845,12 @@ test.describe('Parent item card tri-state click', { tag: '@responsive' }, () => 
       await expect(actionBar).toContainText('2 lines selected');
       await expect(parentCard).toHaveAttribute('aria-checked', 'true');
 
-      // Toggle off — click again to deselect all
-      await parentCard.click();
+      // Toggle off — click again to deselect all.
+      // The sticky action bar is now visible at the bottom of the viewport.
+      // scrollIntoViewIfNeeded() + click({ force: true }) ensures the click lands
+      // on the parentCard even if the action bar overlaps it on narrow viewports.
+      await parentCard.scrollIntoViewIfNeeded();
+      await parentCard.click({ force: true });
 
       await expect(
         sourcesPage.getLineCheckbox(sourceId, 'Hardwood floor installation'),
@@ -867,6 +898,7 @@ test.describe('Mixed aria-checked and nav icon isolation', { tag: '@responsive' 
       // Select only one of the two lines under "Flooring"
       const cb = sourcesPage.getLineCheckbox(sourceId, 'Hardwood floor installation');
       await cb.waitFor({ state: 'visible' });
+      await cb.scrollIntoViewIfNeeded();
       await cb.check();
 
       // Parent card must show "mixed" when only a subset of its lines are selected

@@ -88,7 +88,11 @@ interface SourceBarChartProps {
   formatPercent: (value: number) => string;
 }
 
-function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChartProps) {
+function SourceBarChart({
+  source,
+  formatCurrency,
+  formatPercent: _formatPercent,
+}: SourceBarChartProps) {
   const { t } = useTranslation('budget');
   const [hoveredSegment, setHoveredSegment] = useState<BudgetBarSegment | null>(null);
   const handleSegmentHover = useCallback((seg: BudgetBarSegment | null) => {
@@ -299,15 +303,17 @@ export function BudgetSourcesPage() {
   const [deleteError, setDeleteError] = useState<string>('');
 
   // Budget lines expansion state
-  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(() => new Set());
   const [linesCache, setLinesCache] = useState<Map<string, BudgetSourceBudgetLinesResponse>>(
-    new Map(),
+    () => new Map(),
   );
-  const [linesLoading, setLinesLoading] = useState<Set<string>>(new Set());
-  const [linesError, setLinesError] = useState<Map<string, string>>(new Map());
+  const [linesLoading, setLinesLoading] = useState<Set<string>>(() => new Set());
+  const [linesError, setLinesError] = useState<Map<string, string>>(() => new Map());
 
   // Selection state for mass-move
-  const [sourceSelections, setSourceSelections] = useState<Map<string, Set<string>>>(new Map());
+  const [sourceSelections, setSourceSelections] = useState<Map<string, Set<string>>>(
+    () => new Map(),
+  );
   const [moveModalSourceId, setMoveModalSourceId] = useState<string | null>(null);
 
   // Translation-dependent label maps

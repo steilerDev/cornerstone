@@ -193,3 +193,11 @@ export interface DocumentLinkResponse {
 export interface DocumentLinkListResponse {
   documentLinks: DocumentLinkWithMetadata[];
 }
+
+/**
+ * Response for GET /api/document-links/linked-ids
+ * Returns the distinct set of Paperless-ngx document IDs linked anywhere in the system.
+ */
+export interface AllLinkedDocumentIdsResponse {
+  paperlessDocumentIds: number[];
+}

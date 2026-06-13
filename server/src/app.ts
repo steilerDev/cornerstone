@@ -31,6 +31,8 @@ import vendorRoutes from './routes/vendors.js';
 import invoiceRoutes from './routes/invoices.js';
 import standaloneInvoiceRoutes from './routes/standaloneInvoices.js';
 import invoiceBudgetLineRoutes from './routes/invoiceBudgetLines.js';
+import invoiceAutoItemizeRoutes from './routes/invoiceAutoItemize.js';
+import budgetLineAssignRoutes from './routes/budgetLineAssign.js';
 import invoiceDepositRoutes from './routes/invoiceDeposits.js';
 import subsidyProgramRoutes from './routes/subsidyPrograms.js';
 import workItemVendorRoutes from './routes/workItemVendors.js';
@@ -166,6 +168,12 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Invoice budget line routes (nested under invoices)
   await app.register(invoiceBudgetLineRoutes, { prefix: '/api/invoices/:invoiceId/budget-lines' });
+
+  // Invoice auto-itemize routes (EPIC-16 Story #1547: LLM-powered line extraction)
+  await app.register(invoiceAutoItemizeRoutes, { prefix: '/api/invoices' });
+
+  // Budget line assignment routes (cross-resource, for assigning orphan budget lines)
+  await app.register(budgetLineAssignRoutes, { prefix: '/api/budget-lines' });
 
   // Invoice deposit routes (nested under invoices, both vendor-scoped and standalone)
   await app.register(invoiceDepositRoutes, {

@@ -34,5 +34,6 @@ When a vendor submits an **invoice**, you link the relevant budget lines to the 
 - [Financing Sources](financing-sources) -- Track funding sources, inline expansion of attached lines, and mass-move
 - [Work Item Budgets](work-item-budgets) -- Add cost estimates to work items
 - [Invoices](vendors-and-invoices) -- Track invoices and link them to budget lines (vendors are managed from Settings)
+- [Auto-itemize Invoices](auto-itemize) -- Extract line items from invoice PDFs using your own LLM provider
 - [Subsidies](subsidies) -- Manage subsidy programs
 - [Budget Overview](budget-overview) -- Area-grouped cost breakdown, source attribution badges, per-source filter, clickable tiles, and print output

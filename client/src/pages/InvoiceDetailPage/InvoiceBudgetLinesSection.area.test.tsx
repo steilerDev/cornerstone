@@ -8,7 +8,7 @@
  * for work_item budget lines, and is absent for household_item budget lines.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
@@ -35,6 +35,7 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
   createInvoiceBudgetLine: jest.fn(),
   updateInvoiceBudgetLine: jest.fn(),
   deleteInvoiceBudgetLine: jest.fn(),
+  editAndMoveBudgetLine: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
@@ -103,6 +104,12 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
       this.name = 'ApiClientError';
     }
   },
+  NetworkError: class MockNetworkError extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'NetworkError';
+    }
+  },
 }));
 
 jest.unstable_mockModule('../../lib/formatters.js', () => ({
@@ -146,6 +153,12 @@ function makeWorkItemLine(
     parentItemTitle: 'Foundation',
     parentItemType: 'work_item',
     parentItemArea: null,
+    quantity: null,
+    unit: null,
+    unitPrice: null,
+    includesVat: true,
+    vendorId: null,
+    budgetSourceId: null,
     createdAt: '2026-01-15T10:00:00Z',
     updatedAt: '2026-01-15T10:00:00Z',
     ...overrides,
@@ -172,6 +185,12 @@ function makeHouseholdItemLine(
     parentItemTitle: 'Standing Desk',
     parentItemType: 'household_item',
     parentItemArea: null,
+    quantity: null,
+    unit: null,
+    unitPrice: null,
+    includesVat: true,
+    vendorId: null,
+    budgetSourceId: null,
     createdAt: '2026-01-15T10:00:00Z',
     updatedAt: '2026-01-15T10:00:00Z',
     ...overrides,

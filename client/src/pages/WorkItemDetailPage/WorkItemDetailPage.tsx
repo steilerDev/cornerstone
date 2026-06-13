@@ -37,10 +37,7 @@ import {
   updateWorkItemBudget,
   deleteWorkItemBudget,
 } from '../../lib/workItemBudgetsApi.js';
-import {
-  createInvoiceBudgetLine,
-  deleteInvoiceBudgetLine,
-} from '../../lib/invoiceBudgetLinesApi.js';
+import { deleteInvoiceBudgetLine, editAndMoveBudgetLine } from '../../lib/invoiceBudgetLinesApi.js';
 import { listNotes, createNote, updateNote, deleteNote } from '../../lib/notesApi.js';
 import {
   listSubtasks,
@@ -95,7 +92,12 @@ interface DeletingDependency {
 }
 
 export default function WorkItemDetailPage() {
-  const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+  const {
+    formatCurrency: _formatCurrency,
+    formatDate,
+    formatTime: _formatTime,
+    formatDateTime: _formatDateTime,
+  } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -104,6 +106,7 @@ export default function WorkItemDetailPage() {
   const fromView = locationState?.view;
   const { user } = useAuth();
   const { t } = useTranslation('workItems');
+  const { t: tBudget } = useTranslation('budget');
   const { areas } = useAreas();
 
   // Household item labels (moved from module level to use i18n)
@@ -296,13 +299,13 @@ export default function WorkItemDetailPage() {
   const [autosaveActualStart, setAutosaveActualStart] = useState<AutosaveState>('idle');
   const [autosaveActualEnd, setAutosaveActualEnd] = useState<AutosaveState>('idle');
   // Timeouts to auto-reset indicator back to idle after success/error
-  const autosaveResetRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const autosaveResetRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   function triggerAutosaveReset(setter: (v: AutosaveState) => void, key: string) {
-    if (autosaveResetRefs.current[key]) {
-      clearTimeout(autosaveResetRefs.current[key]);
+    if (autosaveResetRef.current[key]) {
+      clearTimeout(autosaveResetRef.current[key]);
     }
-    autosaveResetRefs.current[key] = setTimeout(() => {
+    autosaveResetRef.current[key] = setTimeout(() => {
       setter('idle');
     }, 2000);
   }
@@ -534,6 +537,96 @@ export default function WorkItemDetailPage() {
     setShowInvoiceLinkModal(false);
     setInvoiceLinkingBudgetId(null);
     reloadBudgetLines();
+  };
+
+  const handleMoveBudgetLine = async (
+    budgetLineId: string,
+    newParentType: 'work_item' | 'household_item',
+    newParentId: string,
+  ) => {
+    const budgetLine = budgetLines.find((line) => line.id === budgetLineId);
+    if (!budgetLine) return;
+
+    setInlineError(null);
+
+    try {
+      // If the line has an invoice link, use the invoice budget line endpoint
+      if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
+        const moveData =
+          newParentType === 'work_item'
+            ? { newWorkItemId: newParentId }
+            : { newHouseholdItemId: newParentId };
+
+        await editAndMoveBudgetLine(
+          budgetLine.invoiceLink.invoiceId,
+          budgetLine.invoiceLink.invoiceBudgetLineId,
+          moveData,
+        );
+      } else {
+        // No invoice link — check if it's a same-table or cross-table move
+        if (newParentType === 'household_item') {
+          // Cross-table move without invoice link is not supported
+          throw new Error(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
+        }
+
+        // Same-table work item to work item move
+        await updateWorkItemBudget(workItem!.id, budgetLineId, {
+          newWorkItemId: newParentId,
+        });
+      }
+
+      // Reload budget lines to reflect the move
+      await reloadBudgetLines();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to move budget line. Please try again.';
+      setInlineError(message);
+      throw err; // Re-throw so BudgetSection's handleMove can display inline error
+    }
+  };
+
+  const handleInvoiceLineEdit = async (
+    line: WorkItemBudgetLine,
+    form: BudgetLineFormState,
+    itemizedAmountStr: string,
+  ) => {
+    if (!line.invoiceLink?.invoiceId || !line.invoiceLink?.invoiceBudgetLineId) return;
+
+    const newAmount = parseFloat(itemizedAmountStr);
+    if (isNaN(newAmount) || newAmount <= 0) {
+      throw new Error(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
+    }
+
+    // Compute plannedAmount from form
+    let plannedAmount: number;
+    if (form.pricingMode === 'direct') {
+      plannedAmount = parseFloat(form.plannedAmount);
+    } else {
+      const qty = parseFloat(form.quantity);
+      const price = parseFloat(form.unitPrice);
+      plannedAmount = Math.round(qty * price * 100) / 100;
+    }
+
+    const payload = {
+      itemizedAmount: newAmount,
+      description: form.description || null,
+      plannedAmount,
+      confidence: form.confidence,
+      budgetCategoryId: form.budgetCategoryId || null,
+      budgetSourceId: form.budgetSourceId || null,
+      vendorId: form.vendorId || null,
+      quantity: form.pricingMode === 'unit' && form.quantity ? parseFloat(form.quantity) : null,
+      unit: form.pricingMode === 'unit' ? form.unit || null : null,
+      unitPrice: form.pricingMode === 'unit' && form.unitPrice ? parseFloat(form.unitPrice) : null,
+      includesVat: form.includesVat,
+    };
+
+    await editAndMoveBudgetLine(
+      line.invoiceLink.invoiceId,
+      line.invoiceLink.invoiceBudgetLineId,
+      payload,
+    );
+    await reloadBudgetLines();
   };
 
   // ─── Milestone relationship handlers ──────────────────────────────────────
@@ -1148,6 +1241,90 @@ export default function WorkItemDetailPage() {
   const linkedSubsidyIds = new Set(linkedSubsidies.map((s) => s.id));
   const availableSubsidies = allSubsidyPrograms.filter((s) => !linkedSubsidyIds.has(s.id));
 
+  // Delay indicator: shown when not_started and scheduled start is in the past
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const isDelayed =
+    workItem.status === 'not_started' && !!workItem.startDate && workItem.startDate < todayStr;
+  const delayDays = isDelayed
+    ? Math.floor(
+        (new Date(todayStr).getTime() - new Date(workItem.startDate!).getTime()) /
+          (1000 * 60 * 60 * 24),
+      )
+    : 0;
+  const delayIndicator = isDelayed ? (
+    <div className={styles.delayIndicator} role="status" aria-live="polite">
+      <span aria-hidden="true">⚠</span>
+      {t('detail.schedule.delayed', {
+        count: delayDays,
+        unit: delayDays === 1 ? t('detail.schedule.day') : t('detail.schedule.days')!,
+      })}
+    </div>
+  ) : null;
+
+  // Available milestones for 'required' and 'linked' milestone pickers
+  const requiredMilestoneIds = new Set(workItemMilestones.required.map((m) => m.id));
+  const availableRequiredMilestones = allMilestones.filter((m) => !requiredMilestoneIds.has(m.id));
+  const requiredMilestonePicker =
+    availableRequiredMilestones.length > 0 ? (
+      <div className={styles.linkPickerRow}>
+        <select
+          className={styles.linkPickerSelect}
+          value={selectedRequiredMilestoneId}
+          onChange={(e) => setSelectedRequiredMilestoneId(e.target.value)}
+          aria-label="Select required milestone to add"
+        >
+          <option value="">{t('detail.constraints.selectMilestonePlaceholder')}</option>
+          {availableRequiredMilestones.map((m) => (
+            <option key={m.id} value={String(m.id)}>
+              {m.title} — {formatDate(m.targetDate)}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className={styles.addButton}
+          onClick={handleAddRequiredMilestone}
+          disabled={!selectedRequiredMilestoneId || isAddingRequiredMilestone}
+        >
+          {isAddingRequiredMilestone
+            ? t('detail.constraints.adding')
+            : t('detail.constraints.addMilestone')}
+        </button>
+      </div>
+    ) : null;
+
+  const linkedMilestoneIds = new Set(workItemMilestones.linked.map((m) => m.id));
+  const availableLinkedMilestones = allMilestones.filter((m) => !linkedMilestoneIds.has(m.id));
+  const linkedMilestonePicker =
+    availableLinkedMilestones.length > 0 ? (
+      <div className={styles.linkPickerRow}>
+        <select
+          className={styles.linkPickerSelect}
+          value={selectedLinkedMilestoneId}
+          onChange={(e) => setSelectedLinkedMilestoneId(e.target.value)}
+          aria-label="Select milestone to link"
+        >
+          <option value="">{t('detail.constraints.selectMilestonePlaceholder')}</option>
+          {availableLinkedMilestones.map((m) => (
+            <option key={m.id} value={String(m.id)}>
+              {m.title} — {formatDate(m.targetDate)}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className={styles.addButton}
+          onClick={handleAddLinkedMilestone}
+          disabled={!selectedLinkedMilestoneId || isAddingLinkedMilestone}
+        >
+          {isAddingLinkedMilestone
+            ? t('detail.constraints.linking')
+            : t('detail.constraints.linkMilestone')}
+        </button>
+      </div>
+    ) : null;
+
   return (
     <div className={styles.container}>
       {/* Inline error banner */}
@@ -1315,24 +1492,7 @@ export default function WorkItemDetailPage() {
               </div>
             </div>
             {/* Delay indicator: shown when not_started and scheduled start is in the past */}
-            {(() => {
-              if (workItem.status !== 'not_started' || !workItem.startDate) return null;
-              const today = new Date();
-              const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-              if (workItem.startDate >= todayStr) return null;
-              const startMs = new Date(workItem.startDate).getTime();
-              const todayMs = new Date(todayStr).getTime();
-              const delayDays = Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24));
-              return (
-                <div className={styles.delayIndicator} role="status" aria-live="polite">
-                  <span aria-hidden="true">⚠</span>
-                  {t('detail.schedule.delayed', {
-                    count: delayDays,
-                    unit: delayDays === 1 ? t('detail.schedule.day') : t('detail.schedule.days')!,
-                  })}
-                </div>
-              );
-            })()}
+            {delayIndicator}
           </section>
 
           {/* Area */}
@@ -1382,6 +1542,11 @@ export default function WorkItemDetailPage() {
               onUnlinkInvoice={handleUnlinkInvoice}
               isUnlinking={isUnlinkingInvoice}
               inlineError={inlineError}
+              parentEntityId={workItem?.id}
+              parentEntityLabel={workItem?.title}
+              onMoveBudgetLine={handleMoveBudgetLine}
+              onInvoiceLineEdit={handleInvoiceLineEdit}
+              onInvoiceLineMove={handleMoveBudgetLine}
             />
           </section>
         </div>
@@ -1835,37 +2000,7 @@ export default function WorkItemDetailPage() {
                 ))}
               </div>
 
-              {(() => {
-                const requiredIds = new Set(workItemMilestones.required.map((m) => m.id));
-                const available = allMilestones.filter((m) => !requiredIds.has(m.id));
-                return available.length > 0 ? (
-                  <div className={styles.linkPickerRow}>
-                    <select
-                      className={styles.linkPickerSelect}
-                      value={selectedRequiredMilestoneId}
-                      onChange={(e) => setSelectedRequiredMilestoneId(e.target.value)}
-                      aria-label="Select required milestone to add"
-                    >
-                      <option value="">{t('detail.constraints.selectMilestonePlaceholder')}</option>
-                      {available.map((m) => (
-                        <option key={m.id} value={String(m.id)}>
-                          {m.title} — {formatDate(m.targetDate)}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className={styles.addButton}
-                      onClick={handleAddRequiredMilestone}
-                      disabled={!selectedRequiredMilestoneId || isAddingRequiredMilestone}
-                    >
-                      {isAddingRequiredMilestone
-                        ? t('detail.constraints.adding')
-                        : t('detail.constraints.addMilestone')}
-                    </button>
-                  </div>
-                ) : null;
-              })()}
+              {requiredMilestonePicker}
             </div>
 
             {/* Linked Milestones subsection */}
@@ -1902,37 +2037,7 @@ export default function WorkItemDetailPage() {
                 ))}
               </div>
 
-              {(() => {
-                const linkedIds = new Set(workItemMilestones.linked.map((m) => m.id));
-                const available = allMilestones.filter((m) => !linkedIds.has(m.id));
-                return available.length > 0 ? (
-                  <div className={styles.linkPickerRow}>
-                    <select
-                      className={styles.linkPickerSelect}
-                      value={selectedLinkedMilestoneId}
-                      onChange={(e) => setSelectedLinkedMilestoneId(e.target.value)}
-                      aria-label="Select milestone to link"
-                    >
-                      <option value="">{t('detail.constraints.selectMilestonePlaceholder')}</option>
-                      {available.map((m) => (
-                        <option key={m.id} value={String(m.id)}>
-                          {m.title} — {formatDate(m.targetDate)}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className={styles.addButton}
-                      onClick={handleAddLinkedMilestone}
-                      disabled={!selectedLinkedMilestoneId || isAddingLinkedMilestone}
-                    >
-                      {isAddingLinkedMilestone
-                        ? t('detail.constraints.linking')
-                        : t('detail.constraints.linkMilestone')}
-                    </button>
-                  </div>
-                ) : null;
-              })()}
+              {linkedMilestonePicker}
             </div>
           </section>
         </div>

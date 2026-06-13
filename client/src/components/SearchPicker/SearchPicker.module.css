@@ -88,6 +88,22 @@
   overflow-y: auto;
 }
 
+.portalDropdown {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  max-height: 300px;
+  overflow-y: auto;
+  z-index: calc(var(--z-modal) + 100);
+}
+
+@media (max-width: 767px) {
+  .portalDropdown {
+    max-height: 250px;
+  }
+}
+
 .resultOption {
   display: flex;
   align-items: center;

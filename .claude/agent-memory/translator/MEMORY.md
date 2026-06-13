@@ -50,6 +50,9 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/budget.json` — Issue #1356 (2026-04-25): `sourceFilter` rework — removed `label`, `allSources`, `clearAriaLabel`, `chipSelected`, `chipNotSelected`, `activeAnnouncement`; added `statusAnnouncement`; added new blocks `sourceRow.*` and `availableFunds.*`
 - **Pre-existing gap** (as of 2026-04-25, outside #1356 scope): `sources.lines.typeColumnHeader` and `sources.lines.statusColumnHeader` exist in `en` but not `de` — needs a dedicated spec to fix
 - `de/budget.json` — `invoiceDetail.budgetLines` block added 2026-05-10 (Issue #1401): `createFormLegend` + `autoLinkedSuccess`
+- `de/budget.json` — Issue #1545 (2026-05-21): `invoiceDetail.budgetLines.unassigned`, `unassignedAriaLabel`, `assignButton`, `assigningButton`, `assignAriaLabel`, `assignedSuccess`, `assignParentRequired` added; `budgetLineForm.parentPickerLabel`, `parentPickerWorkItemTab`, `parentPickerHouseholdItemTab`, `parentPickerSeparator`, `parentPickerFieldsetLegend`, `parentPickerError` added
+- `de/errors.json` — `BUDGET_LINE_ALREADY_ASSIGNED` had glossary violations ("Arbeitselement" → "Arbeitspaket", "Haushaltsgegenstand" → "Haushaltsartikel") — corrected 2026-05-21 (Issue #1545)
+- `de/budget.json` — `budgetLineForm` parent-move keys added 2026-05-22 (Issue #1553): `linkedItemLegend`, `changeParentButton`, `cancelChangeParentButton`, `moveButton`, `movingButton`, `moveCrossTableHint`, `moveCrossTableHintReverse`, `itemizedAmountLabel` — see [parent-move-patterns.md](parent-move-patterns.md)
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)
@@ -168,6 +171,20 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `unknownError` → "Unbekannter Upload-Fehler"
 - **Duplicate key issue in en/diary.json**: The English file has duplicate top-level keys (`filterBar`, `createPage`, `editPage`). In JSON the last occurrence wins. The de/ file must be kept as a single flat object — never duplicate keys. New keys from the second English occurrence are appended to the existing de/ section.
 
+## Budget Line Assignment Patterns — Issue #1545 (2026-05-21)
+
+- `invoiceDetail.budgetLines.unassigned` → "Nicht zugewiesen" (glossary: Unassigned = "Nicht zugewiesen"; same as source-filter and source-badge contexts)
+- `unassignedAriaLabel` → "Nicht zugewiesen – kein Arbeitspaket oder Haushaltsartikel verknüpft" (en-dash separating state from elaboration)
+- `assignButton` → "Zuweisen…" (ellipsis = opens dialog/picker, consistent with German UI convention)
+- `assigningButton` → "Wird zugewiesen…" (progressive: "Wird [Verb]…" pattern)
+- `assignAriaLabel` → "{{description}} einem Arbeitspaket oder Haushaltsartikel zuweisen" (dative "einem" before Arbeitspaket; "oder einem" elided because Haushaltsartikel takes the same dative article)
+- `assignedSuccess` → "Budgetposition '{{lineDescription}}' wurde {{parentItemName}} zugewiesen" (passive past, glossary term "Budgetposition")
+- `assignParentRequired` → "Bitte wählen Sie ein Arbeitspaket oder einen Haushaltsartikel aus" ("ein" for neuter Arbeitspaket; "einen" for masculine Haushaltsartikel — correct article agreement)
+- `budgetLineForm.parentPickerLabel` → "Zuweisen zu" (short label; "Assign to" rendered as "Zuweisen zu" not "Zuweisung an" — verb-based label consistent with action buttons)
+- `parentPickerFieldsetLegend` → "Arbeitspaket oder Haushaltsartikel zuweisen" (infinitive phrase for fieldset legends)
+- `parentPickerError` → "Budgetposition konnte nicht zugewiesen werden. Bitte versuchen Sie es erneut." (standard error message pattern)
+- **Glossary violation found and fixed**: frontend-developer used "Arbeitselement" and "Haushaltsgegenstand" in `de/errors.json` `BUDGET_LINE_ALREADY_ASSIGNED` — always scan errors.json for non-glossary terms when new error codes are added
+
 ## photoAnnotator Namespace Patterns (Issue #1475, 2026-05-18)
 
 - Namespace `photoAnnotator` added in Story #1483 (foundation); geometric tools added in Issue #1475
@@ -193,3 +210,29 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - "Annotate" verb added to glossary: `{ "de": { "verb": "annotieren" } }` — loanword preferred over "markieren" (used for Highlight) or "anmerken"
 - `photoViewer.json` achieved exact parity (8 EN = 8 DE) with all #1475–#1477 keys present
 - `photoViewer.json` — 10 metadata sidepanel keys added 2026-05-19: `saving` → "Wird gespeichert..." (NOT "Speichern..."); `noArea` uses parenthesised lowercase `(kein Bereich)` as inline field fallback (distinct from `areas.noArea` = "Kein Bereich" heading form); parity now 19 EN = 19 DE
+
+## Auto-itemize UX Fixes — Issues #1584/#1591 (2026-05-26)
+
+- `autoItemize.vatApplies` removed (key deleted from both EN and DE)
+- `autoItemize.includesVat` updated: "inkl. MwSt." → "Preis inkl. MwSt." (aligns with `budgetLineForm.includesVatLabel` = "Preis inkl. MwSt. ({{vatRate}}%)")
+- New keys added: `categoryLabel` = "Kategorie", `categoryPlaceholder` = "Kategorie auswählen", `categoryAriaLabel` = "Budgetkategorie für Position auswählen", `fundingSourceLabel` = "Finanzierungsquelle", `fundingSourceAriaLabel` = "Finanzierungsquelle für Position auswählen", `categoryRequiredError` = "Bitte wählen Sie für alle einbezogenen Positionen eine Kategorie aus"
+- "Funding Source" not in glossary — used "Finanzierungsquelle" (natural German compound; consistent with `budgetLineForm.fundingSourceLabel`)
+- `autoItemize.createdFromAutoItemization` badge label → "Automatisch erstellt" (2026-05-26): plain adverb+participle; glossary `Itemize` = "aufschlüsseln" not used for this badge — the concept is auto-_creation_ of the budget line, not the act of itemizing
+
+## Auto-itemize Feature — Issues #1547 + #1564 (2026-05-22 / 2026-05-24)
+
+- See [auto-itemize-patterns.md](auto-itemize-patterns.md) for full details
+- "Auto-itemize" button → "Positionen Extrahieren" (`{Noun} {Verb}` capitalised pattern)
+- "Auto-itemization" as noun concept in errors → "Automatische Positionsextraktion" (not "Auto-Itemisierung")
+- "Itemize manually" → "manuell aufschlüsseln" (consistent with column `itemized` = "Aufgeschlüsselt")
+- `de/errors.json` LLM_NOT_CONFIGURED updated: "Auto-Itemisierung" → "Automatische Positionsextraktion"
+- Story #1564 Round 2: 19 keys added (`unit`, `includesVat`, `vatRate`, edit aria-labels, picker keys); duplicate `amount` removed; `pickerHouseholdItemType` = "Haushaltsartikel" (glossary wins over spec's "Haushaltsposten")
+- Edit aria-label pattern: "X der Position bearbeiten"; toggle exception: `editIncludesVatAriaLabel` = "MwSt.-Einschluss umschalten"
+
+## Auto-itemize Discretionary Funding & autoOriginBadge — Issue #1551 (2026-05-29)
+
+- `autoItemize.discretionaryFundingNote`: "Diskretionäre Finanzierungsquelle" — adjective form of `sources.sourceTypes.discretionary` = "Diskretionär" + glossary "Funding Source" = "Finanzierungsquelle"
+- `overview.costBreakdown.autoOriginBadge.label`: "Auto-erstellt" (13 chars, fits badge) — short compound preferred over "Automatisch erstellt" (20 chars)
+- `autoOriginBadge.ariaLabel`: uses glossary "Budgetposition" and glossary noun `Aufschlüsselung` (from `Itemize` glossary entry)
+- "Auto-itemized" as participial adjective in badge → "Auto-erstellt"; in aria-label → "per Aufschlüsselung erstellt"
+- Proposed glossary additions (need product-owner approval): "Discretionary Funding" → `{ "de": { "singular": "Diskretionäre Finanzierung" } }`; "Auto-itemized" → `{ "de": { "adjective": "automatisch aufgeschlüsselt", "short": "Auto-erstellt" } }`

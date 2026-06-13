@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import '../../../lib/konvaInit.js';
 import type Konva from 'konva';
 import {
   Stage,
@@ -16,12 +17,7 @@ import {
 } from 'react-konva';
 import { nanoid } from 'nanoid';
 import type { Photo } from '@cornerstone/shared';
-import {
-  useAnnotator,
-  type ToolName,
-  type FontSizeKey,
-  type StrokeWidthKey,
-} from './useAnnotator.js';
+import { useAnnotator, type ToolName, type FontSizeKey } from './useAnnotator.js';
 import type {
   AnnotationShape,
   TextShape,
@@ -33,7 +29,6 @@ import { simplifyPolyline } from './simplify.js';
 import { ToolPalette } from './ToolPalette.js';
 import { ANNOTATION_FONT_FAMILY, drawShapeOnCanvas } from './canvasRenderer.js';
 import { FormError } from '../../FormError/FormError.js';
-import { Modal } from '../../Modal/Modal.js';
 import { getBaseUrl } from '../../../lib/apiClient.js';
 import { uploadAnnotation } from '../../../lib/photoApi.js';
 import styles from './PhotoAnnotator.module.css';
@@ -85,7 +80,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   const transformerRef = useRef<Konva.Transformer>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
   const liveRegionRef = useRef<HTMLDivElement>(null);
-  const fontSizePerTool = useRef<Partial<Record<ToolName, FontSizeKey>>>({});
+  const fontSizePerToolRef = useRef<Partial<Record<ToolName, FontSizeKey>>>({});
   const shapesNodesRef = useRef<Map<string, Konva.Node>>(new Map());
 
   // Konva image object
@@ -96,7 +91,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     : `${getBaseUrl()}/photos/${photo.id}/file`;
 
   function getActiveFontSizeKey(): FontSizeKey {
-    return fontSizePerTool.current[state.selectedTool] ?? state.activeFontSizeKey;
+    return fontSizePerToolRef.current[state.selectedTool] ?? state.activeFontSizeKey;
   }
 
   function getActiveFontSizePx(): number {
@@ -460,7 +455,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   );
 
   const handleStageMouseMove = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (_e: Konva.KonvaEventObject<MouseEvent>) => {
       if (inlineInput.isOpen) return;
       if (!stageRef.current || !draftShape) return;
 
@@ -479,7 +474,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   );
 
   const handleStageMouseUp = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (_e: Konva.KonvaEventObject<MouseEvent>) => {
       if (inlineInput.isOpen) return;
       if (!draftShape) return;
 
@@ -661,7 +656,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       }
 
       onSave(updatedPhoto);
-    } catch (err) {
+    } catch {
       setSaveError(t('saveError'));
       if (liveRegion) {
         liveRegion.textContent = t('saveError');
@@ -785,6 +780,72 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     );
   }
 
+  // Endpoint handles for selected line-family shapes
+  const selectedLineShapeForHandles = state.selectedShapeId
+    ? (state.shapes.find((s) => s.id === state.selectedShapeId) ?? null)
+    : null;
+  const isLineShape =
+    selectedLineShapeForHandles !== null &&
+    (selectedLineShapeForHandles.type === 'arrow' ||
+      selectedLineShapeForHandles.type === 'line' ||
+      selectedLineShapeForHandles.type === 'measurement');
+  const selectedLineShape = isLineShape ? selectedLineShapeForHandles! : null;
+  const endpointRadius = selectedLineShape ? Math.max(8, selectedLineShape.strokeWidth * 1.5) : 0;
+  const endpointHandles = selectedLineShape ? (
+    <>
+      <Circle
+        id={`endpoint-${selectedLineShape.id}-start`}
+        x={selectedLineShape.x1}
+        y={selectedLineShape.y1}
+        radius={endpointRadius}
+        fill="#ffffff"
+        stroke={selectedLineShape.stroke}
+        strokeWidth={2}
+        draggable
+        onDragMove={(e) => {
+          const pos = e.target.position();
+          dispatch({
+            type: 'UPDATE_SHAPE',
+            shape: { ...selectedLineShape, x1: pos.x, y1: pos.y },
+          });
+        }}
+        onDragEnd={(e) => {
+          const newX1 = e.target.x();
+          const newY1 = e.target.y();
+          const updated = { ...selectedLineShape, x1: newX1, y1: newY1 };
+          undoStack.commit(
+            undoStack.shapes.map((s) => (s.id === selectedLineShape.id ? updated : s)),
+          );
+        }}
+      />
+      <Circle
+        id={`endpoint-${selectedLineShape.id}-end`}
+        x={selectedLineShape.x2}
+        y={selectedLineShape.y2}
+        radius={endpointRadius}
+        fill="#ffffff"
+        stroke={selectedLineShape.stroke}
+        strokeWidth={2}
+        draggable
+        onDragMove={(e) => {
+          const pos = e.target.position();
+          dispatch({
+            type: 'UPDATE_SHAPE',
+            shape: { ...selectedLineShape, x2: pos.x, y2: pos.y },
+          });
+        }}
+        onDragEnd={(e) => {
+          const newX2 = e.target.x();
+          const newY2 = e.target.y();
+          const updated = { ...selectedLineShape, x2: newX2, y2: newY2 };
+          undoStack.commit(
+            undoStack.shapes.map((s) => (s.id === selectedLineShape.id ? updated : s)),
+          );
+        }}
+      />
+    </>
+  ) : null;
+
   return (
     <section aria-label={t('region')} className={styles.annotator}>
       <ToolPalette
@@ -818,7 +879,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           }
         }}
         onSelectFontSize={(key) => {
-          fontSizePerTool.current[state.selectedTool] = key as FontSizeKey;
+          fontSizePerToolRef.current[state.selectedTool] = key as FontSizeKey;
           dispatch({ type: 'SET_FONT_SIZE', key: key as FontSizeKey });
           if (state.selectedShapeId) {
             const shape = state.shapes.find((s) => s.id === state.selectedShapeId);
@@ -838,6 +899,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         style={{ position: 'relative' }}
         role="application"
         aria-label={t('canvas')}
+        data-annotator-shapes={JSON.stringify(undoStack.shapes)}
       >
         <Stage
           ref={stageRef}
@@ -871,76 +933,10 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
             {draftShape && renderDraftShape(draftShape, state)}
 
             {/* Transformer for selected shape */}
-            {state.selectedShapeId && <Transformer ref={transformerRef} />}
+            {state.selectedShapeId && <Transformer ref={transformerRef} rotateAnchorAngle={45} />}
 
             {/* Endpoint handles for line-family shapes */}
-            {state.selectedShapeId &&
-              (() => {
-                const sel = state.shapes.find((s) => s.id === state.selectedShapeId);
-                if (
-                  !sel ||
-                  (sel.type !== 'arrow' && sel.type !== 'line' && sel.type !== 'measurement')
-                ) {
-                  return null;
-                }
-
-                const endpointRadius = Math.max(8, sel.strokeWidth * 1.5);
-
-                return (
-                  <>
-                    <Circle
-                      id={`endpoint-${sel.id}-start`}
-                      x={sel.x1}
-                      y={sel.y1}
-                      radius={endpointRadius}
-                      fill="#ffffff"
-                      stroke={sel.stroke}
-                      strokeWidth={2}
-                      draggable
-                      onDragMove={(e) => {
-                        const pos = e.target.position();
-                        dispatch({
-                          type: 'UPDATE_SHAPE',
-                          shape: { ...sel, x1: pos.x, y1: pos.y },
-                        });
-                      }}
-                      onDragEnd={(e) => {
-                        const newX1 = e.target.x();
-                        const newY1 = e.target.y();
-                        const updated = { ...sel, x1: newX1, y1: newY1 };
-                        undoStack.commit(
-                          undoStack.shapes.map((s) => (s.id === sel.id ? updated : s)),
-                        );
-                      }}
-                    />
-                    <Circle
-                      id={`endpoint-${sel.id}-end`}
-                      x={sel.x2}
-                      y={sel.y2}
-                      radius={endpointRadius}
-                      fill="#ffffff"
-                      stroke={sel.stroke}
-                      strokeWidth={2}
-                      draggable
-                      onDragMove={(e) => {
-                        const pos = e.target.position();
-                        dispatch({
-                          type: 'UPDATE_SHAPE',
-                          shape: { ...sel, x2: pos.x, y2: pos.y },
-                        });
-                      }}
-                      onDragEnd={(e) => {
-                        const newX2 = e.target.x();
-                        const newY2 = e.target.y();
-                        const updated = { ...sel, x2: newX2, y2: newY2 };
-                        undoStack.commit(
-                          undoStack.shapes.map((s) => (s.id === sel.id ? updated : s)),
-                        );
-                      }}
-                    />
-                  </>
-                );
-              })()}
+            {endpointHandles}
           </Layer>
         </Stage>
 
@@ -1002,7 +998,7 @@ function renderKonvaShape(
   onChange: (id: string, updates: Partial<AnnotationShape>) => void,
   selectedTool: ToolName,
 ): React.ReactNode {
-  const isSelected = shape.id === selectedId;
+  const _isSelected = shape.id === selectedId;
 
   if (shape.type === 'rectangle') {
     return (

@@ -5,7 +5,6 @@
  */
 
 import type { ConfidenceLevel } from './workItemBudget.js';
-import type { HouseholdItemCategory } from './householdItem.js';
 
 /**
  * Cost display mode for an entity.
@@ -29,6 +28,7 @@ export interface BreakdownBudgetLine {
   hasInvoice: boolean;
   isQuotation: boolean;
   budgetSourceId: string | null;
+  origin: 'manual' | 'auto';
 }
 
 /**
