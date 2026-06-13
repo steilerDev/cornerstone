@@ -67,6 +67,7 @@ Key docs changes: vendors-and-invoices.md was substantially rewritten to documen
 Docs site already had `guides/budget/auto-itemize.md` and `guides/diary/photo-annotation.md` from prior PRs (#1547/#1552, photo-annotator epic). Both needed accuracy fixes for the final shipped state. No NEW pages added; no sidebar changes.
 
 Key shipped-state corrections made (watch for these drifting again):
+
 - **Auto-itemize is a DEDICATED PAGE, not a modal.** Route: `/budget/invoices/:id/auto-itemize/:documentId` (`client/src/pages/AutoItemizePage`). Triggered from the **Auto-itemize action on each linked-document card** in the invoice Documents section (`LinkedDocumentsSection.tsx`, gated on `config.autoItemizeEnabled`), NOT a button next to "+ Add Itemization". Two-column layout: form left, PDF iframe preview right. Per-row category + funding-source pickers + Assign button (two-step picker: item then budget line, or create-new). Editable invoice metadata with LLM suggestion badges. The old "Auto-itemize Preview modal" + "Unassigned pills added after Apply" flow is GONE.
 - **The "Auto-itemized" badge on Budget Overview was REMOVED** (#1655/#1615 - product feedback, no user value). Do not document it. `origin` field still exists in DB/backend but is not exposed in UI.
 - **Invoice-linked budget lines can now be EDITED and MOVED to a different parent item** (#1607/#1554) via shared `EditBudgetLineModal` (`onMove` prop). The old "assignment is one-shot / locked in" rule is GONE. Available from work item Budget tab, household item Budget tab, and invoice detail. Documented in `work-item-budgets.md#editing-invoice-linked-budget-lines` (anchor used as cross-ref target from auto-itemize.md and vendors-and-invoices.md).
@@ -78,4 +79,5 @@ Task briefs may mislabel features: the brief called the photo annotator "EPIC-16
 `.env.example` was already fully in sync with `server/src/plugins/config.ts` (all 6 LLM vars present, OIDC/Paperless/LLM/Backup commented out with placeholders). config.ts env-var extraction: `grep -oE "[A-Z][A-Z_]+"` picks up `EUR` (a default value) as a false positive -- ignore it.
 
 ## Build Note (still true)
+
 `npm run docs:build` fails in worktrees with webpack `ProgressPlugin` ValidationError (node_modules corruption, NOT content). Build reaches the webpack bundling stage, so MDX/content/link loading succeeded. Validate internal links/anchors statically with grep instead; CI does the real build.
