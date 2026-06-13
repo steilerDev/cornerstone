@@ -46,6 +46,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
     formatDateTime: fmtDateTime,
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
     computeActualDuration: jest.fn(),
+    computeWorkDuration: jest.fn(),
     useFormatters: () => ({
       formatCurrency: fmtCurrency,
       formatDate: fmtDate,
