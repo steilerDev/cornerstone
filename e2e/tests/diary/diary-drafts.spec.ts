@@ -838,8 +838,12 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
       await expect(diaryPage.entryCard(draftId)).toBeVisible();
       await diaryPage.entryCard(draftId).click();
 
-      // Should navigate to /diary/:id/edit
-      await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`));
+      // Should navigate to /diary/:id/edit.
+      // Pass an explicit timeout (3× the 10s navigationTimeout) to match test.slow().
+      // test.slow() triples actionTimeout and expect.timeout but NOT navigationTimeout
+      // (which is set at the project config level). On loaded CI runners the SPA
+      // router + React re-render after the click can exceed the default 10s.
+      await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`), { timeout: 30_000 });
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
 
       // Wait for the edit page to finish loading the entry from the API.
