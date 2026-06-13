@@ -1,70 +1,30 @@
-# v2.6.0 Release Summary
-
-A feature-packed release that brings **in-browser photo annotation**, **staged-payment deposits** for invoices, and a much smoother **diary draft flow**. Migration 0032 (invoice deposits) runs automatically on first start -- no manual steps required.
+# v2.7.0 Release Summary
 
 ## What's New
 
-### Photo Annotation
+This release turns invoice itemization into a one-click, AI-assisted workflow and makes budget bookkeeping far more forgiving. Cornerstone can now read the line items off a vendor's PDF invoice for you, you can edit and re-home invoice-linked budget lines without deleting them, and a brand-new in-app editor lets you mark up diary photos directly in the browser. No manual migration steps are required.
 
-Mark up diary photos directly in the browser. Open any diary photo in the viewer, click **Annotate**, and you get a full drawing canvas with nine tools:
+### Highlights
 
-- **Select**, **Rectangle**, **Highlight**, **Arrow**, **Line**, **Ellipse**, **Text**, **Measurement** (dimension line with end ticks and a movable label), and **Freehand**
-- Six colours, four stroke widths, five font sizes -- pick before you draw, or change them on a selected shape to update it live
-- Drag to move, endpoint handles to reshape, undo/redo for everything including live edits
-- Annotated copies are saved as separate WebP files (quality 0.92); the original is preserved, and you can switch between **View original** and **View annotated** at any time
-- A **Reset to original** button discards your current annotations and starts over
-- Photo grids and viewers expose a quick-action **Edit** button that opens the viewer directly in annotation mode
+- **Auto-itemize Invoices (LLM-powered)** -- Open a linked invoice PDF and let Cornerstone extract its line items for you. A dedicated review page shows the original document side-by-side with the extracted lines, each on its own card with editable amounts, a confidence indicator, and inline category, funding-source, and item-assignment pickers. Works with any OpenAI-compatible provider -- Google Gemini, Anthropic, OpenAI, or a self-hosted Ollama model -- auto-detected from the endpoint you configure. The feature is **opt-in and off by default**: nothing leaves your server until you set the LLM environment variables, and even then only the document's OCR text and a few invoice details are sent -- never the PDF itself or your API key.
 
-Signed diary entries cannot be annotated -- finish your markup before collecting signatures.
+- **Photo Annotation Editor** -- A Shottr-style markup editor for diary photos, right in the browser. Open any diary photo and annotate it with arrows, rectangles, ellipses, lines, text labels, dimension measurements, freehand strokes, and translucent highlights. It is optimized for touch and Apple Pencil, fully non-destructive (the original is always preserved, with a **View original** toggle and **Reset to original** action), and the annotated copy is saved alongside the original.
 
-See the [Photo Annotation guide](https://steilerDev.github.io/cornerstone/guides/diary/photo-annotation) for the full walkthrough.
+- **Inline budget line editing & move** -- Edit invoice-linked budget lines directly from the Work Item and Household Item detail pages -- no need to unlink first. You can now also **move a line to a different work item or household item**, so a line that landed on the wrong item (a common case with auto-itemized lines) can be re-homed instead of deleted and re-created.
 
-### Invoice Deposits (Staged Payments)
+- **Document viewer "hide already-linked" toggle** -- The document picker gains a system-wide filter that hides any document already linked anywhere in Cornerstone, making it easy to find documents you have not filed yet.
 
-Track invoices that are paid in stages -- a deposit on signing, a milestone payment, and a final balance.
+### Notable Fixes
 
-- Add any number of deposits to an invoice from the **Deposits** section on the invoice detail page
-- Each deposit has its own amount, due date, status (Pending / Paid / Claimed), paid/claimed dates, and optional description
-- The form refuses to save if deposits would exceed the invoice total
-- Quick actions to **mark paid** and **mark claimed** -- with revert support to fix mistakes
-- Budget rollups across every linked work item and household item are now **deposit-aware**: `actualCostPaid` and `actualCostClaimed` reflect deposit-level status, so paid and claimed amounts show real cash flow rather than waiting for the full invoice to settle
-- Deposits cascade-delete with the parent invoice
+- Print/export of the Budget Overview now restores your expansion state afterwards and resets dark-mode styling correctly for a clean printout.
+- The Budget Overview no longer shows a redundant "Auto-itemized" badge that provided no useful information.
+- Diary entry editing no longer triggers spurious native form-validation popups.
+- Save buttons on budget forms now meet the 44px minimum touch-target size on mobile.
 
-See the [Invoice Deposits guide](https://steilerDev.github.io/cornerstone/guides/budget/invoice-deposits).
-
-### Diary Drafts Overhaul
-
-Creating a diary entry no longer needs a separate "create" step.
-
-- Click a type card (Daily Log, Site Visit, Delivery, Issue, General Note) and Cornerstone immediately creates a **draft entry** and opens the edit page -- you start typing right away
-- Photos uploaded to a draft persist immediately, so you don't have to remember to "save" before attaching them
-- Auto-save runs continuously with a live status indicator (`Saving...`, `Saved`, or "save failed -- will retry")
-- Drafts are tagged with a **Draft** badge and **hidden from the diary list by default**; a dedicated **Drafts** filter chip toggles their visibility
-- Click **Save** to promote the draft to a full entry, or **Discard Draft** to delete it (and its photos) permanently
-- Abandoned drafts are cleaned up automatically after `DIARY_DRAFT_RETENTION_DAYS` days (default: 30; set to `0` to disable)
-
-### Photo Viewer Improvements
-
-- New **photo metadata sidepanel** with upload date, description, and area assignment
-- **Edit** quick-action button on the photo grid that opens the viewer directly in annotation mode
-- **Delete photo** action from the lightbox for entries that aren't signed
-- Thumbnail cache busting -- annotated thumbnails update immediately
-- Mobile-friendly: the metadata sidepanel collapses on small screens
-
-## Configuration
-
-New environment variable:
-
-| Variable                     | Default | Description                                                                   |
-| ---------------------------- | ------- | ----------------------------------------------------------------------------- |
-| `DIARY_DRAFT_RETENTION_DAYS` | `30`    | Days an untouched draft sits before automatic cleanup. Set to `0` to disable. |
-
-No other configuration changes are required. Migration 0032 adds the `invoice_deposits` table and runs automatically on container start.
-
-## What to Update
+## Upgrade
 
 ```bash
 docker pull steilerdev/cornerstone:latest
 ```
 
-Restart your container. Schema migrations run on first boot.
+Restart your container. Schema migrations run automatically on first boot. To enable Auto-itemize, set the `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL` environment variables -- see the [Auto-itemize guide](https://steilerDev.github.io/cornerstone/guides/budget/auto-itemize) for provider examples.
