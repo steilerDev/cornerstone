@@ -658,11 +658,7 @@ describe('DiaryEntryForm', () => {
 
   describe('daily_log vendor + work-time fields', () => {
     it('daily_log renders vendor SearchPicker with label "Vendor"', () => {
-      render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'daily_log' })}
-        />,
-      );
+      render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log' })} />);
       // The SearchPicker for the vendor field has an associated label element
       // with "Vendor" text (the id="daily-log-vendor" ties them together).
       const vendorLabel = screen.getByText('Vendor');
@@ -686,9 +682,7 @@ describe('DiaryEntryForm', () => {
     it('calls onDailyLogWorkStartChange on start input change', () => {
       const onDailyLogWorkStartChange = jest.fn();
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'daily_log', onDailyLogWorkStartChange })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onDailyLogWorkStartChange })} />,
       );
       const input = document.getElementById('work-start-time')!;
       fireEvent.change(input, { target: { value: '08:00' } });
@@ -698,9 +692,7 @@ describe('DiaryEntryForm', () => {
     it('calls onDailyLogWorkEndChange on end input change', () => {
       const onDailyLogWorkEndChange = jest.fn();
       render(
-        <DiaryEntryForm
-          {...makeProps({ entryType: 'daily_log', onDailyLogWorkEndChange })}
-        />,
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onDailyLogWorkEndChange })} />,
       );
       const input = document.getElementById('work-end-time')!;
       fireEvent.change(input, { target: { value: '16:30' } });

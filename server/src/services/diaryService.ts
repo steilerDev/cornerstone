@@ -13,7 +13,15 @@ import type { SQL } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import type { areas } from '../db/schema.js';
-import { diaryEntries, photos, users, workItems, invoices, milestones, vendors } from '../db/schema.js';
+import {
+  diaryEntries,
+  photos,
+  users,
+  workItems,
+  invoices,
+  milestones,
+  vendors,
+} from '../db/schema.js';
 import {
   NotFoundError,
   ValidationError,
@@ -192,7 +200,11 @@ function toDiarySummary(
   if (entry.entryType === 'daily_log' && metadata && db) {
     const dlm = metadata as DailyLogMetadata;
     if (dlm.vendorId) {
-      const vendorRow = db.select({ name: vendors.name }).from(vendors).where(eq(vendors.id, dlm.vendorId)).get();
+      const vendorRow = db
+        .select({ name: vendors.name })
+        .from(vendors)
+        .where(eq(vendors.id, dlm.vendorId))
+        .get();
       dlm.vendorName = vendorRow?.name ?? null;
     }
   }
@@ -302,22 +314,32 @@ function validateMetadata(
         if (typeof dlm.vendorId !== 'string' || dlm.vendorId.trim().length === 0) {
           throw new InvalidMetadataError('daily_log vendorId must be a non-empty string or null');
         }
-        const vendor = db.select({ id: vendors.id }).from(vendors).where(eq(vendors.id, dlm.vendorId)).get();
+        const vendor = db
+          .select({ id: vendors.id })
+          .from(vendors)
+          .where(eq(vendors.id, dlm.vendorId))
+          .get();
         if (!vendor) {
-          throw new InvalidMetadataError(`daily_log vendorId "${dlm.vendorId}" does not reference an existing vendor`);
+          throw new InvalidMetadataError(
+            `daily_log vendorId "${dlm.vendorId}" does not reference an existing vendor`,
+          );
         }
       }
       // Validate workStart is HH:mm or null
       const HH_MM_REGEX = /^\d{2}:\d{2}$/;
       if (dlm.workStart !== undefined && dlm.workStart !== null) {
         if (typeof dlm.workStart !== 'string' || !HH_MM_REGEX.test(dlm.workStart)) {
-          throw new InvalidMetadataError('daily_log workStart must be a valid HH:mm time string or null');
+          throw new InvalidMetadataError(
+            'daily_log workStart must be a valid HH:mm time string or null',
+          );
         }
       }
       // Validate workEnd is HH:mm or null
       if (dlm.workEnd !== undefined && dlm.workEnd !== null) {
         if (typeof dlm.workEnd !== 'string' || !HH_MM_REGEX.test(dlm.workEnd)) {
-          throw new InvalidMetadataError('daily_log workEnd must be a valid HH:mm time string or null');
+          throw new InvalidMetadataError(
+            'daily_log workEnd must be a valid HH:mm time string or null',
+          );
         }
       }
       // Cross-field: end must be strictly after start when both present

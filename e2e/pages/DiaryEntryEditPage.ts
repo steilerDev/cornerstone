@@ -150,7 +150,10 @@ export class DiaryEntryEditPage {
     // vendor is selected. Once a vendor is chosen, the picker hides the input and shows a
     // selectedDisplay div — use dailyLogVendorClearButton to clear it.
     this.dailyLogVendorSearch = page.locator('#daily-log-vendor');
-    this.dailyLogVendorClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });
+    this.dailyLogVendorClearButton = page.getByRole('button', {
+      name: 'Clear selection',
+      exact: true,
+    });
     this.workStartTimeInput = page.locator('#work-start-time');
     this.workEndTimeInput = page.locator('#work-end-time');
     this.workDurationDisplay = page.locator('[role="status"][aria-atomic="true"]');

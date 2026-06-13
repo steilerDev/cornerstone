@@ -75,11 +75,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
             {t('metadata.workEnd')} {m.workEnd}
           </span>
         )}
-        {workDuration !== null && (
-          <span className={styles.item}>
-            {workDuration.toFixed(2)} h
-          </span>
-        )}
+        {workDuration !== null && <span className={styles.item}>{workDuration.toFixed(2)} h</span>}
       </div>
     );
   }

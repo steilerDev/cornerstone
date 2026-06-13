@@ -115,171 +115,171 @@ test.describe('Vendor selection happy path (Scenario 1)', () => {
 // Scenario 2: Time entry + duration happy path
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Time entry and duration display (Scenario 2)', () => {
-  test(
-    'Filling start 08:00 and end 16:30 shows "8.50 h" duration in form; times shown on detail page',
-    async ({ page, testPrefix }) => {
-      const editPage = new DiaryEntryEditPage(page);
-      const detailPage = new DiaryEntryDetailPage(page);
-      let entryId: string | null = null;
+  test('Filling start 08:00 and end 16:30 shows "8.50 h" duration in form; times shown on detail page', async ({
+    page,
+    testPrefix,
+  }) => {
+    const editPage = new DiaryEntryEditPage(page);
+    const detailPage = new DiaryEntryDetailPage(page);
+    let entryId: string | null = null;
 
-      try {
-        entryId = await createDailyLogEntry(page, testPrefix);
+    try {
+      entryId = await createDailyLogEntry(page, testPrefix);
 
-        await editPage.goto(entryId);
-        await expect(editPage.heading).toBeVisible();
+      await editPage.goto(entryId);
+      await expect(editPage.heading).toBeVisible();
 
-        // Fill work start and end time
-        await editPage.workStartTimeInput.waitFor({ state: 'visible' });
-        await editPage.workStartTimeInput.fill('08:00');
-        await editPage.workEndTimeInput.fill('16:30');
+      // Fill work start and end time
+      await editPage.workStartTimeInput.waitFor({ state: 'visible' });
+      await editPage.workStartTimeInput.fill('08:00');
+      await editPage.workEndTimeInput.fill('16:30');
 
-        // Trigger blur to ensure React state update fires (onFieldBlur is wired for saved entries)
-        await editPage.workEndTimeInput.press('Tab');
+      // Trigger blur to ensure React state update fires (onFieldBlur is wired for saved entries)
+      await editPage.workEndTimeInput.press('Tab');
 
-        // Duration should appear: 16:30 - 08:00 = 510 minutes = 8.5 hours = "8.50 h"
-        await expect(editPage.workDurationDisplay).toBeVisible();
-        await expect(editPage.workDurationDisplay).not.toHaveText('');
-        // Wait for React to commit the duration value (avoids stale-read race on WebKit)
-        await expect(editPage.workDurationDisplay).not.toHaveText('0.00 h');
-        const durationText = await editPage.workDurationDisplay.textContent();
-        expect(durationText?.trim()).toBe('8.50 h');
+      // Duration should appear: 16:30 - 08:00 = 510 minutes = 8.5 hours = "8.50 h"
+      await expect(editPage.workDurationDisplay).toBeVisible();
+      await expect(editPage.workDurationDisplay).not.toHaveText('');
+      // Wait for React to commit the duration value (avoids stale-read race on WebKit)
+      await expect(editPage.workDurationDisplay).not.toHaveText('0.00 h');
+      const durationText = await editPage.workDurationDisplay.textContent();
+      expect(durationText?.trim()).toBe('8.50 h');
 
-        // Save the entry
-        await editPage.save();
+      // Save the entry
+      await editPage.save();
 
-        // Navigate to detail page
-        await page.waitForURL(new RegExp(`/diary/${entryId}$`));
-        await detailPage.backButton.waitFor({ state: 'visible' });
+      // Navigate to detail page
+      await page.waitForURL(new RegExp(`/diary/${entryId}$`));
+      await detailPage.backButton.waitFor({ state: 'visible' });
 
-        // Verify start time, end time, and duration in the metadata summary
-        await expect(detailPage.dailyLogMetadata).toBeVisible();
-        const metadataText = await detailPage.dailyLogMetadata.textContent();
-        expect(metadataText).toContain('08:00');
-        expect(metadataText).toContain('16:30');
-        expect(metadataText).toContain('8.50 h');
-      } finally {
-        if (entryId) await deleteDiaryEntryViaApi(page, entryId);
-      }
-    },
-  );
+      // Verify start time, end time, and duration in the metadata summary
+      await expect(detailPage.dailyLogMetadata).toBeVisible();
+      const metadataText = await detailPage.dailyLogMetadata.textContent();
+      expect(metadataText).toContain('08:00');
+      expect(metadataText).toContain('16:30');
+      expect(metadataText).toContain('8.50 h');
+    } finally {
+      if (entryId) await deleteDiaryEntryViaApi(page, entryId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: End ≤ start validation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('End-time ≤ start-time validation (Scenario 3)', () => {
-  test(
-    'Setting end before start shows validation error and does not persist times',
-    async ({ page, testPrefix }) => {
-      const editPage = new DiaryEntryEditPage(page);
-      let entryId: string | null = null;
+  test('Setting end before start shows validation error and does not persist times', async ({
+    page,
+    testPrefix,
+  }) => {
+    const editPage = new DiaryEntryEditPage(page);
+    let entryId: string | null = null;
 
-      try {
-        entryId = await createDailyLogEntry(page, testPrefix);
+    try {
+      entryId = await createDailyLogEntry(page, testPrefix);
 
-        await editPage.goto(entryId);
-        await expect(editPage.heading).toBeVisible();
+      await editPage.goto(entryId);
+      await expect(editPage.heading).toBeVisible();
 
-        // Fill end time ≤ start time
-        await editPage.workStartTimeInput.waitFor({ state: 'visible' });
-        await editPage.workStartTimeInput.fill('16:00');
-        await editPage.workEndTimeInput.fill('08:00');
+      // Fill end time ≤ start time
+      await editPage.workStartTimeInput.waitFor({ state: 'visible' });
+      await editPage.workStartTimeInput.fill('16:00');
+      await editPage.workEndTimeInput.fill('08:00');
 
-        // Duration must NOT appear (end < start → computeWorkDuration returns null)
-        await expect(editPage.workDurationDisplay).not.toBeVisible();
+      // Duration must NOT appear (end < start → computeWorkDuration returns null)
+      await expect(editPage.workDurationDisplay).not.toBeVisible();
 
-        // Attempt to save — submit button click should trigger validation
-        await editPage.submitButton.click();
+      // Attempt to save — submit button click should trigger validation
+      await editPage.submitButton.click();
 
-        // Validation error should appear
-        await expect(editPage.workTimeValidationError).toBeVisible();
-        await expect(editPage.workTimeValidationError).toContainText(
-          'End time must be after start time',
-        );
+      // Validation error should appear
+      await expect(editPage.workTimeValidationError).toBeVisible();
+      await expect(editPage.workTimeValidationError).toContainText(
+        'End time must be after start time',
+      );
 
-        // URL should not have changed (still on /edit)
-        expect(page.url()).toContain('/edit');
+      // URL should not have changed (still on /edit)
+      expect(page.url()).toContain('/edit');
 
-        // Reload the page and confirm times were NOT persisted
-        await editPage.goto(entryId);
-        await expect(editPage.heading).toBeVisible();
-        await editPage.workStartTimeInput.waitFor({ state: 'visible' });
+      // Reload the page and confirm times were NOT persisted
+      await editPage.goto(entryId);
+      await expect(editPage.heading).toBeVisible();
+      await editPage.workStartTimeInput.waitFor({ state: 'visible' });
 
-        const startValue = await editPage.workStartTimeInput.inputValue();
-        const endValue = await editPage.workEndTimeInput.inputValue();
-        expect(startValue).toBe('');
-        expect(endValue).toBe('');
-      } finally {
-        if (entryId) await deleteDiaryEntryViaApi(page, entryId);
-      }
-    },
-  );
+      const startValue = await editPage.workStartTimeInput.inputValue();
+      const endValue = await editPage.workEndTimeInput.inputValue();
+      expect(startValue).toBe('');
+      expect(endValue).toBe('');
+    } finally {
+      if (entryId) await deleteDiaryEntryViaApi(page, entryId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: All fields then clear vendor (within same edit session)
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Clear vendor after selection (Scenario 4)', () => {
-  test(
-    'Vendor selected in UI can be cleared; after clear and save, vendor no longer appears in summary',
-    async ({ page, testPrefix }) => {
-      const editPage = new DiaryEntryEditPage(page);
-      const detailPage = new DiaryEntryDetailPage(page);
-      let entryId: string | null = null;
-      let vendorId: string | null = null;
-      const vendorName = `${testPrefix} ClearVendor`;
+  test('Vendor selected in UI can be cleared; after clear and save, vendor no longer appears in summary', async ({
+    page,
+    testPrefix,
+  }) => {
+    const editPage = new DiaryEntryEditPage(page);
+    const detailPage = new DiaryEntryDetailPage(page);
+    let entryId: string | null = null;
+    let vendorId: string | null = null;
+    const vendorName = `${testPrefix} ClearVendor`;
 
-      try {
-        vendorId = await createVendorViaApi(page, { name: vendorName });
-        entryId = await createDailyLogEntry(page, testPrefix);
+    try {
+      vendorId = await createVendorViaApi(page, { name: vendorName });
+      entryId = await createDailyLogEntry(page, testPrefix);
 
-        // Open edit page
-        await editPage.goto(entryId);
-        await expect(editPage.heading).toBeVisible();
+      // Open edit page
+      await editPage.goto(entryId);
+      await expect(editPage.heading).toBeVisible();
 
-        // Select vendor via SearchPicker
-        await editPage.dailyLogVendorSearch.click();
-        await editPage.dailyLogVendorSearch.fill(vendorName);
-        const portalDropdown = page.locator('[data-search-picker-dropdown]');
-        await expect(portalDropdown).toBeVisible();
-        const vendorOption = portalDropdown.getByRole('option', { name: vendorName });
-        await expect(vendorOption).toBeVisible();
-        await vendorOption.click();
+      // Select vendor via SearchPicker
+      await editPage.dailyLogVendorSearch.click();
+      await editPage.dailyLogVendorSearch.fill(vendorName);
+      const portalDropdown = page.locator('[data-search-picker-dropdown]');
+      await expect(portalDropdown).toBeVisible();
+      const vendorOption = portalDropdown.getByRole('option', { name: vendorName });
+      await expect(vendorOption).toBeVisible();
+      await vendorOption.click();
 
-        // Confirm vendor selected — clear button is visible, search input is hidden
-        await expect(editPage.dailyLogVendorClearButton).toBeVisible();
-        await expect(editPage.dailyLogVendorSearch).not.toBeVisible();
+      // Confirm vendor selected — clear button is visible, search input is hidden
+      await expect(editPage.dailyLogVendorClearButton).toBeVisible();
+      await expect(editPage.dailyLogVendorSearch).not.toBeVisible();
 
-        // Also fill times to exercise the full set of new fields
-        await editPage.workStartTimeInput.fill('09:00');
-        await editPage.workEndTimeInput.fill('17:00');
+      // Also fill times to exercise the full set of new fields
+      await editPage.workStartTimeInput.fill('09:00');
+      await editPage.workEndTimeInput.fill('17:00');
 
-        // Now clear the vendor using the clear (×) button
-        await editPage.dailyLogVendorClearButton.click();
+      // Now clear the vendor using the clear (×) button
+      await editPage.dailyLogVendorClearButton.click();
 
-        // After clearing: search input is visible again, clear button is gone
-        await expect(editPage.dailyLogVendorSearch).toBeVisible();
-        await expect(editPage.dailyLogVendorClearButton).not.toBeVisible();
+      // After clearing: search input is visible again, clear button is gone
+      await expect(editPage.dailyLogVendorSearch).toBeVisible();
+      await expect(editPage.dailyLogVendorClearButton).not.toBeVisible();
 
-        // Save the entry (vendor should be null, times should be saved)
-        await editPage.save();
-        await page.waitForURL(new RegExp(`/diary/${entryId}$`));
-        await detailPage.backButton.waitFor({ state: 'visible' });
+      // Save the entry (vendor should be null, times should be saved)
+      await editPage.save();
+      await page.waitForURL(new RegExp(`/diary/${entryId}$`));
+      await detailPage.backButton.waitFor({ state: 'visible' });
 
-        // Vendor name must NOT appear in summary (vendorId was cleared)
-        await expect(detailPage.dailyLogMetadata).toBeVisible();
-        const metadataText = await detailPage.dailyLogMetadata.textContent();
-        expect(metadataText).not.toContain(vendorName);
+      // Vendor name must NOT appear in summary (vendorId was cleared)
+      await expect(detailPage.dailyLogMetadata).toBeVisible();
+      const metadataText = await detailPage.dailyLogMetadata.textContent();
+      expect(metadataText).not.toContain(vendorName);
 
-        // Times are still present
-        expect(metadataText).toContain('09:00');
-        expect(metadataText).toContain('17:00');
-      } finally {
-        if (entryId) await deleteDiaryEntryViaApi(page, entryId);
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // Times are still present
+      expect(metadataText).toContain('09:00');
+      expect(metadataText).toContain('17:00');
+    } finally {
+      if (entryId) await deleteDiaryEntryViaApi(page, entryId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -324,51 +324,51 @@ test.describe('Edit page loads for bare daily_log (Scenario 5)', { tag: '@respon
 // Scenario 6: Responsive — time inputs usable, no horizontal overflow
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout (Scenario 6)', { tag: '@responsive' }, () => {
-  test(
-    'Time inputs are visible and there is no horizontal overflow on the edit page',
-    async ({ page, testPrefix }) => {
-      const editPage = new DiaryEntryEditPage(page);
-      let entryId: string | null = null;
+  test('Time inputs are visible and there is no horizontal overflow on the edit page', async ({
+    page,
+    testPrefix,
+  }) => {
+    const editPage = new DiaryEntryEditPage(page);
+    let entryId: string | null = null;
 
-      try {
-        entryId = await createDailyLogEntry(page, testPrefix);
+    try {
+      entryId = await createDailyLogEntry(page, testPrefix);
 
-        await editPage.goto(entryId);
-        await expect(editPage.heading).toBeVisible();
+      await editPage.goto(entryId);
+      await expect(editPage.heading).toBeVisible();
 
-        // Both time inputs must be visible and interactive
-        await expect(editPage.workStartTimeInput).toBeVisible();
-        await expect(editPage.workEndTimeInput).toBeVisible();
+      // Both time inputs must be visible and interactive
+      await expect(editPage.workStartTimeInput).toBeVisible();
+      await expect(editPage.workEndTimeInput).toBeVisible();
 
-        // Inputs must be enabled (not disabled)
-        await expect(editPage.workStartTimeInput).toBeEnabled();
-        await expect(editPage.workEndTimeInput).toBeEnabled();
+      // Inputs must be enabled (not disabled)
+      await expect(editPage.workStartTimeInput).toBeEnabled();
+      await expect(editPage.workEndTimeInput).toBeEnabled();
 
-        // No horizontal overflow: scrollWidth should equal clientWidth on <body>
-        const hasHorizontalOverflow = await page.evaluate(() => {
-          return document.body.scrollWidth > document.body.clientWidth;
-        });
-        expect(hasHorizontalOverflow).toBe(false);
+      // No horizontal overflow: scrollWidth should equal clientWidth on <body>
+      const hasHorizontalOverflow = await page.evaluate(() => {
+        return document.body.scrollWidth > document.body.clientWidth;
+      });
+      expect(hasHorizontalOverflow).toBe(false);
 
-        // At mobile viewport (≤767px), the two time inputs should be stacked vertically
-        // (single column). At wider viewports they may be side-by-side. Either layout is valid;
-        // just confirm both are reachable and no clipping occurs.
-        const viewportWidth = page.viewportSize()?.width ?? 1440;
+      // At mobile viewport (≤767px), the two time inputs should be stacked vertically
+      // (single column). At wider viewports they may be side-by-side. Either layout is valid;
+      // just confirm both are reachable and no clipping occurs.
+      const viewportWidth = page.viewportSize()?.width ?? 1440;
 
-        if (viewportWidth <= 767) {
-          // On mobile: verify inputs don't overflow their container
-          const startBox = await editPage.workStartTimeInput.boundingBox();
-          const endBox = await editPage.workEndTimeInput.boundingBox();
+      if (viewportWidth <= 767) {
+        // On mobile: verify inputs don't overflow their container
+        const startBox = await editPage.workStartTimeInput.boundingBox();
+        const endBox = await editPage.workEndTimeInput.boundingBox();
 
-          if (startBox && endBox) {
-            // Both inputs must fit within the viewport width
-            expect(startBox.x + startBox.width).toBeLessThanOrEqual(viewportWidth + 1);
-            expect(endBox.x + endBox.width).toBeLessThanOrEqual(viewportWidth + 1);
-          }
+        if (startBox && endBox) {
+          // Both inputs must fit within the viewport width
+          expect(startBox.x + startBox.width).toBeLessThanOrEqual(viewportWidth + 1);
+          expect(endBox.x + endBox.width).toBeLessThanOrEqual(viewportWidth + 1);
         }
-      } finally {
-        if (entryId) await deleteDiaryEntryViaApi(page, entryId);
       }
-    },
-  );
+    } finally {
+      if (entryId) await deleteDiaryEntryViaApi(page, entryId);
+    }
+  });
 });

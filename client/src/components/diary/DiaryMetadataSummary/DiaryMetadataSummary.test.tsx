@@ -43,22 +43,14 @@ describe('DiaryMetadataSummary', () => {
     });
 
     it('does not render vendor span when vendorName is absent', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="daily_log"
-          metadata={{ weather: 'sunny' }}
-        />,
-      );
+      render(<DiaryMetadataSummary entryType="daily_log" metadata={{ weather: 'sunny' }} />);
       // Only vendor-related i18n prefix would identify the span
       expect(screen.queryByText(/ACME/)).not.toBeInTheDocument();
     });
 
     it('does not render vendor span when vendorName is null', () => {
       const { container } = render(
-        <DiaryMetadataSummary
-          entryType="daily_log"
-          metadata={{ vendorName: null }}
-        />,
+        <DiaryMetadataSummary entryType="daily_log" metadata={{ vendorName: null }} />,
       );
       // Component should render without crash; no vendor text present
       expect(container.querySelector('[data-testid="daily-log-metadata"]')).toBeInTheDocument();
@@ -70,22 +62,12 @@ describe('DiaryMetadataSummary', () => {
 
   describe('daily_log workStart / workEnd', () => {
     it('renders workStart when present', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="daily_log"
-          metadata={{ workStart: '08:00' }}
-        />,
-      );
+      render(<DiaryMetadataSummary entryType="daily_log" metadata={{ workStart: '08:00' }} />);
       expect(screen.getByText(/08:00/)).toBeInTheDocument();
     });
 
     it('renders workEnd when present', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="daily_log"
-          metadata={{ workEnd: '16:30' }}
-        />,
-      );
+      render(<DiaryMetadataSummary entryType="daily_log" metadata={{ workEnd: '16:30' }} />);
       expect(screen.getByText(/16:30/)).toBeInTheDocument();
     });
   });
@@ -104,12 +86,7 @@ describe('DiaryMetadataSummary', () => {
     });
 
     it('does not render duration span when only workStart is present', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="daily_log"
-          metadata={{ workStart: '08:00' }}
-        />,
-      );
+      render(<DiaryMetadataSummary entryType="daily_log" metadata={{ workStart: '08:00' }} />);
       expect(screen.queryByText(/\.00 h|\.50 h/)).not.toBeInTheDocument();
     });
 
@@ -138,32 +115,17 @@ describe('DiaryMetadataSummary', () => {
 
   describe('daily_log pre-existing fields', () => {
     it('renders weather emoji + label when weather is present', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="daily_log"
-          metadata={{ weather: 'sunny' }}
-        />,
-      );
+      render(<DiaryMetadataSummary entryType="daily_log" metadata={{ weather: 'sunny' }} />);
       expect(screen.getByText(/sunny/)).toBeInTheDocument();
     });
 
     it('renders temperature when temperatureCelsius is present', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="daily_log"
-          metadata={{ temperatureCelsius: 22 }}
-        />,
-      );
+      render(<DiaryMetadataSummary entryType="daily_log" metadata={{ temperatureCelsius: 22 }} />);
       expect(screen.getByText(/22/)).toBeInTheDocument();
     });
 
     it('renders workers count when workersOnSite is present', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="daily_log"
-          metadata={{ workersOnSite: 5 }}
-        />,
-      );
+      render(<DiaryMetadataSummary entryType="daily_log" metadata={{ workersOnSite: 5 }} />);
       expect(screen.getByText(/5/)).toBeInTheDocument();
     });
   });
@@ -185,12 +147,7 @@ describe('DiaryMetadataSummary', () => {
     });
 
     it('site_visit does not render daily-log-metadata testid', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="site_visit"
-          metadata={{ inspectorName: 'Bob' }}
-        />,
-      );
+      render(<DiaryMetadataSummary entryType="site_visit" metadata={{ inspectorName: 'Bob' }} />);
       expect(document.querySelector('[data-testid="daily-log-metadata"]')).not.toBeInTheDocument();
     });
   });
@@ -240,12 +197,7 @@ describe('DiaryMetadataSummary', () => {
     });
 
     it('renders StatusPill with newValue for invoice_status', () => {
-      render(
-        <DiaryMetadataSummary
-          entryType="invoice_status"
-          metadata={{ newValue: 'paid' }}
-        />,
-      );
+      render(<DiaryMetadataSummary entryType="invoice_status" metadata={{ newValue: 'paid' }} />);
       expect(screen.getByText('paid')).toBeInTheDocument();
     });
 
@@ -261,10 +213,7 @@ describe('DiaryMetadataSummary', () => {
 
     it('StatusPill renders "failed" newValue (danger color branch)', () => {
       render(
-        <DiaryMetadataSummary
-          entryType="work_item_status"
-          metadata={{ newValue: 'failed' }}
-        />,
+        <DiaryMetadataSummary entryType="work_item_status" metadata={{ newValue: 'failed' }} />,
       );
       expect(screen.getByText('failed')).toBeInTheDocument();
     });
@@ -281,10 +230,7 @@ describe('DiaryMetadataSummary', () => {
 
     it('StatusPill renders "completed" newValue (success color branch)', () => {
       render(
-        <DiaryMetadataSummary
-          entryType="work_item_status"
-          metadata={{ newValue: 'completed' }}
-        />,
+        <DiaryMetadataSummary entryType="work_item_status" metadata={{ newValue: 'completed' }} />,
       );
       expect(screen.getByText('completed')).toBeInTheDocument();
     });
@@ -294,9 +240,7 @@ describe('DiaryMetadataSummary', () => {
 
   describe('null metadata', () => {
     it('renders null (no output) for daily_log when metadata is null', () => {
-      const { container } = render(
-        <DiaryMetadataSummary entryType="daily_log" metadata={null} />,
-      );
+      const { container } = render(<DiaryMetadataSummary entryType="daily_log" metadata={null} />);
       // When metadata is null, the component renders null — container is empty
       expect(container.firstChild).toBeNull();
     });
