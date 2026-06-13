@@ -1286,21 +1286,21 @@ test.describe('Subsidy oversubscription consistency', () => {
       await expect(smallRow).toHaveAttribute('aria-pressed', 'true');
 
       // Small Source: subsidyPaybackMin=0, subsidyPaybackMax=0 in filtered response
-      // Payback cell must show 0 (formatted) — not exceeding the 5000 cost
+      // Payback cell must show 0 (formatted) — not exceeding the 5000 cost.
+      // Use retrying assertion (toContainText) to wait for React to commit the
+      // re-render after the network response, avoiding stale-DOM reads.
       const paybackCell = smallRow.locator('td').nth(2);
-      const paybackText = await paybackCell.textContent();
-      // payback is 0 so should render as €0 (or locale equivalent) — does not exceed cost
-      expect(paybackText).toMatch(/[€\d]/);
+      await expect(paybackCell).toContainText(/[€\d]/);
 
       // The Payback rendered value must not numerically exceed Cost for Small Source.
       // Cost is €5,000; payback for Small Source is €0 in filtered response.
       // We verify payback <= cost by checking the net value cell is non-negative
       // (net = totalAmount + payback - cost = 10000 + 0 - 5000 = 5000 > 0).
       const netCell = smallRow.locator('td').nth(3);
-      const netText = await netCell.textContent();
       // Net must contain a currency value (positive = no oversubscription)
-      expect(netText).toMatch(/[€\d]/);
+      await expect(netCell).toContainText(/[€\d]/);
       // Net should NOT show a negative value (which would indicate payback > cost)
+      const netText = await netCell.textContent();
       expect(netText).not.toMatch(/^-/);
     } finally {
       await teardown();
