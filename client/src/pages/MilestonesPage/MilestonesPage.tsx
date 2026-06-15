@@ -75,7 +75,6 @@ export function MilestonesPage() {
     };
 
     loadMilestones();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);
 
   const reloadMilestones = async () => {

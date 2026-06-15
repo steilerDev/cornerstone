@@ -99,9 +99,11 @@ export function BudgetLineForm({
 
   // Initialize selectedParentType when editing an assigned line
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- initializing picker state from prop */
     if (currentParentType && currentParentType !== 'unassigned') {
       setSelectedParentType(currentParentType);
     }
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [currentParentType]);
 
   // Handle parent assignment

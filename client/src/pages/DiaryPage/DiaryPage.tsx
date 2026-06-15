@@ -52,9 +52,11 @@ export default function DiaryPage() {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const announcementRef = useRef<HTMLDivElement>(null);
 
+  /* eslint-disable @eslint-react/set-state-in-effect -- synchronously sync URL page to component state on page param change */
   useEffect(() => {
     if (urlPage !== currentPage) setCurrentPage(urlPage);
   }, [urlPage, currentPage]);
+  /* eslint-enable @eslint-react/set-state-in-effect */
 
   useEffect(() => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -75,7 +77,7 @@ export default function DiaryPage() {
 
   useEffect(() => {
     void loadEntries();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadEntries is defined in the component body; the filter primitives are the intended deps
   }, [searchQuery, dateFrom, dateTo, filterMode, typeFilterStr, statusFilter, currentPage]);
 
   const loadEntries = async () => {

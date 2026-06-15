@@ -62,7 +62,9 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (user) {
+      /* eslint-disable @eslint-react/set-state-in-effect -- syncing displayName from auth user state */
       setDisplayName(user.displayName);
+      /* eslint-enable @eslint-react/set-state-in-effect */
     }
   }, [user]);
 

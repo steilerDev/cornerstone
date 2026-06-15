@@ -1084,6 +1084,7 @@ function BudgetCategoriesTab() {
 
   useEffect(() => {
     void loadCategories();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadCategories is defined in component body; effect runs only once on mount
   }, []);
 
   const loadCategories = async () => {
@@ -1640,6 +1641,7 @@ function HouseholdItemCategoriesTab() {
 
   useEffect(() => {
     void loadCategories();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadCategories is defined in component body; effect runs only once on mount
   }, []);
 
   const loadCategories = async () => {

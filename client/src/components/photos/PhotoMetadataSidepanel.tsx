@@ -38,6 +38,7 @@ export function PhotoMetadataSidepanel({
 
   // Load areas on mount
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- initializing loading and data state from async operation */
     setIsLoadingAreas(true);
     fetchAreas()
       .then((resp) => {
@@ -49,13 +50,16 @@ export function PhotoMetadataSidepanel({
       .finally(() => {
         setIsLoadingAreas(false);
       });
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, []);
 
   // Reset form when photo changes
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- resetting form state in response to photo change */
     setCaption(photo.caption ?? '');
     setAreaId(photo.areaId ?? '');
     setError(null);
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [photo.id, photo.caption, photo.areaId]);
 
   const handleSave = useCallback(async () => {

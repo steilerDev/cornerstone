@@ -28,7 +28,9 @@ export function ParentPicker({
 
   // Sync local tab state when prop changes
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- syncing local tab state with prop changes */
     setActiveTab(selectedType);
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [selectedType]);
 
   return (

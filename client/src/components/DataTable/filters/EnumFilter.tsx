@@ -39,6 +39,7 @@ export function EnumFilter({
   const [selected, setSelected] = useState(() => parseValue(value));
 
   // Build childrenOf map from hierarchy for arbitrary depth support
+  // eslint-disable-next-line @eslint-react/exhaustive-deps -- childrenOf is a derived value; this memo's correctness does not require its identity stability
   const childrenOf = new Map<string | null, string[]>();
   if (hierarchy) {
     for (const item of hierarchy) {

@@ -39,8 +39,10 @@ export function useVendorContacts(vendorId: string): UseVendorContactsResult {
   // Load contacts on mount and when refresh is triggered
   useEffect(() => {
     if (!vendorId) {
+      /* eslint-disable @eslint-react/set-state-in-effect -- clearing contacts when vendor is unset */
       setContacts([]);
       setIsLoading(false);
+      /* eslint-enable @eslint-react/set-state-in-effect */
       return;
     }
 

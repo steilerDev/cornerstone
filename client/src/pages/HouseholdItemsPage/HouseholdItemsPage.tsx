@@ -87,7 +87,7 @@ export function HouseholdItemsPage() {
   // Load household items when table state changes
   useEffect(() => {
     void loadHouseholdItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadHouseholdItems is defined in component body; effect re-runs on intended trigger only
   }, [
     tableState.search,
     tableState.sortBy,
@@ -384,6 +384,7 @@ export function HouseholdItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- tSettings is a stable i18n function
     [t, tCommon, categories, formatCurrency, formatDate, hiStatusVariants, vendors, areas],
   );
 

@@ -113,7 +113,6 @@ export function UserManagementPage() {
     };
 
     void loadUsersData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);
 
   const reloadUsers = async () => {

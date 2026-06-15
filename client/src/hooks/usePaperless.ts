@@ -80,8 +80,10 @@ export function usePaperless(): UsePaperlessResult {
     if (status === null) return;
 
     if (!status.configured || !status.reachable) {
+      /* eslint-disable @eslint-react/set-state-in-effect -- clearing loading state when Paperless is not configured/reachable */
       setIsLoading(false);
       setTagCountMap(new Map());
+      /* eslint-enable @eslint-react/set-state-in-effect */
       return;
     }
 

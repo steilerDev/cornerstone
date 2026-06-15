@@ -85,7 +85,9 @@ export function SearchPicker<T>({
   // Update dropdown rect for portal positioning
   const updateDropdownRect = useCallback(() => {
     if (inputRef.current) {
+      /* eslint-disable @eslint-react/set-state-in-effect -- updating derived portal position from input rect */
       setDropdownRect(inputRef.current.getBoundingClientRect());
+      /* eslint-enable @eslint-react/set-state-in-effect */
     }
   }, []);
 
@@ -128,6 +130,7 @@ export function SearchPicker<T>({
 
   // Reset when value is cleared externally (e.g. after form submission)
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- syncing picker state with external value changes */
     if (value === '') {
       setSelectedItem(null);
       setSearchTerm('');
@@ -137,6 +140,7 @@ export function SearchPicker<T>({
         setSpecialSelected(true);
       }
     }
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [value, specialOptions]);
 
   // Cleanup debounce on unmount

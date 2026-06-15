@@ -58,8 +58,10 @@ export default function DiaryEntryDetailPage() {
 
   useEffect(() => {
     if (!id) {
+      /* eslint-disable @eslint-react/set-state-in-effect -- initializing error and loading state based on route params */
       setError(t('detailPage.invalidEntryId'));
       setIsLoading(false);
+      /* eslint-enable @eslint-react/set-state-in-effect */
       return;
     }
 
