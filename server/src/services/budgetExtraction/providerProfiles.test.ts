@@ -210,9 +210,9 @@ describe('buildRequestBody', () => {
       expect(body.response_format).toEqual({ type: 'json_object' });
     });
 
-    it('openai + reasoning model (o3-mini) → reasoning_effort is "none"', () => {
+    it('openai + reasoning model (o3-mini) → reasoning_effort is "low"', () => {
       const body = buildRequestBody({ ...common, model: 'o3-mini', provider: 'openai' });
-      expect(body.reasoning_effort).toBe('none');
+      expect(body.reasoning_effort).toBe('low');
     });
 
     it('openai + reasoning model (o3-mini) → response_format still json_object', () => {
@@ -220,9 +220,9 @@ describe('buildRequestBody', () => {
       expect(body.response_format).toEqual({ type: 'json_object' });
     });
 
-    it('openai + reasoning model (gpt-5) → reasoning_effort is "none"', () => {
+    it('openai + reasoning model (gpt-5) → reasoning_effort is "low"', () => {
       const body = buildRequestBody({ ...common, model: 'gpt-5', provider: 'openai' });
-      expect(body.reasoning_effort).toBe('none');
+      expect(body.reasoning_effort).toBe('low');
     });
 
     it('openai + existing test-model fixture is not a reasoning model → reasoning_effort key absent', () => {
