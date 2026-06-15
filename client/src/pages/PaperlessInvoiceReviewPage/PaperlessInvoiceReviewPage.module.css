@@ -1,0 +1,599 @@
+.pageContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-6);
+}
+
+.mainColumn {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.card {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+}
+
+.cardTitle {
+  margin: 0 0 var(--spacing-4) 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.required {
+  color: var(--color-danger);
+  margin-left: var(--spacing-1);
+}
+
+.suggestionRow {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-top: var(--spacing-2);
+}
+
+/* Line Card Styles */
+
+.lineList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.lineCard {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  transition: border-color var(--transition-normal);
+}
+
+.lineCard:focus-within {
+  border-color: var(--color-border-strong);
+}
+
+.lineCardExcluded {
+  opacity: 0.45;
+  background: var(--color-bg-secondary);
+}
+
+.lineCardExcluded > .cardBottomRow {
+  opacity: 1;
+}
+
+.cardTopRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.cardDescriptionInput {
+  flex: 1;
+  width: 100%;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: transparent;
+  font-family: inherit;
+  resize: none;
+  overflow: hidden;
+  field-sizing: content;
+  min-height: calc(var(--font-size-sm) * 1.5 + var(--spacing-2) * 2);
+  transition: var(--transition-input);
+}
+
+.cardDescriptionInput:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.confidenceDot {
+  flex-shrink: 0;
+  width: var(--spacing-2);
+  height: var(--spacing-2);
+  border-radius: var(--radius-circle);
+  margin-top: var(--spacing-2);
+  cursor: default;
+}
+
+.confidenceDot[data-confidence="high"] {
+  background-color: var(--color-success);
+}
+
+.confidenceDot[data-confidence="medium"] {
+  background-color: var(--color-warning);
+}
+
+.confidenceDot[data-confidence="low"] {
+  background-color: var(--color-danger);
+}
+
+.cardMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-3);
+}
+
+@media (max-width: 600px) {
+  .cardMetricGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.cardMetricCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.cardMetricLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.cardPickerLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.cardMetricInput {
+  width: 100%;
+  padding: var(--spacing-1-5) var(--spacing-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: transparent;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  transition: var(--transition-input);
+}
+
+.cardMetricInput:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.cardBottomRow {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  grid-template-rows: auto auto;
+  gap: var(--spacing-2) var(--spacing-4);
+  align-items: center;
+}
+
+.cardBottomRow > .cardIncludeLabel:nth-of-type(1) {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.cardBottomRow > .cardIncludeLabel:nth-of-type(2) {
+  grid-row: 1;
+  grid-column: 2;
+}
+
+.cardBottomRow > .cardAssignZone {
+  grid-row: 1;
+  grid-column: 3;
+  justify-self: end;
+  margin-left: 0;
+}
+
+.cardBottomRowPickerRow {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--spacing-4);
+  align-items: center;
+}
+
+.cardIncludeLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cardAssignZone {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.emptyMessage {
+  color: var(--color-text-muted);
+  font-style: italic;
+  text-align: center;
+  padding: var(--spacing-4) 0;
+  margin: 0;
+}
+
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  min-height: 300px;
+}
+
+.loadingMessage {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  min-height: 300px;
+  padding: var(--spacing-6);
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-lg);
+}
+
+.errorText {
+  margin: 0;
+  color: var(--color-danger-text-on-light);
+  text-align: center;
+  max-width: 600px;
+}
+
+.actionBar {
+  display: flex;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  position: sticky;
+  bottom: 0;
+  justify-content: flex-end;
+}
+
+@media (max-width: 767px) {
+  .pageContainer {
+    padding: var(--spacing-3);
+    gap: var(--spacing-4);
+  }
+
+  .mainColumn {
+    gap: var(--spacing-3);
+  }
+
+  .card {
+    padding: var(--spacing-3);
+  }
+
+  .cardTitle {
+    margin-bottom: var(--spacing-3);
+  }
+
+  .actionBar {
+    flex-direction: column;
+    padding: var(--spacing-3);
+    gap: var(--spacing-2);
+  }
+
+  .actionBar button {
+    width: 100%;
+  }
+}
+
+/* Budget line picker styles */
+
+.budgetLineList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.budgetLineDetails {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.budgetLineCategory {
+  background-color: var(--color-bg-secondary);
+  padding: var(--spacing-0-5) var(--spacing-1);
+  border-radius: var(--radius-sm);
+}
+
+.budgetLinePlanned {
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Create Budget Line Form */
+
+.createBudgetLineForm {
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.createBudgetLineFieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Picker modal and assigned badge styles */
+
+.pickerContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.pickerStep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.assignButtonInTable {
+  padding: var(--spacing-1-5) var(--spacing-2);
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-primary-text);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  transition: var(--transition-button);
+}
+
+.assignButtonInTable:hover {
+  background: var(--color-primary-hover);
+}
+
+.assignButtonInTable:active {
+  background: var(--color-primary-active);
+}
+
+.assignButtonInTable:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.assignedBadgeWrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.assignedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1-5) var(--spacing-2);
+  background: var(--color-primary-bg);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.clearAssignButton {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clearAssignButton:hover {
+  color: var(--color-danger);
+}
+
+.clearAssignButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.errorBanner {
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-text-on-light);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-8);
+  text-align: center;
+}
+
+.pickerBudgetLineRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-primary);
+  cursor: pointer;
+  transition: var(--transition-button);
+  text-align: left;
+}
+
+.pickerBudgetLineRow:hover {
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border-strong);
+}
+
+.pickerBudgetLineRow:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.budgetLineInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.budgetLineDesc {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.addButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button);
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.addButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.addButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.addButton:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+.backButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.backButton:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.backButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* Responsive adjustments for line cards */
+
+@media (max-width: 860px) {
+  .cardBottomRow {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .cardBottomRow > .cardAssignZone {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .cardBottomRowPickerRow {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 1023px) {
+  .cardMetricInput,
+  .cardDescriptionInput {
+    min-height: 44px;
+  }
+
+  .cardIncludeLabel input[type='checkbox'] {
+    width: 20px;
+    height: 20px;
+  }
+}

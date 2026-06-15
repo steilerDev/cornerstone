@@ -9,9 +9,11 @@ interface DocumentCardProps {
   onSelect: (doc: PaperlessDocumentSearchResult) => void;
   /** Optional id of the associated detail panel for aria-controls pairing. */
   ariaControls?: string;
+  /** Paperless-ngx base URL for "Open in Paperless" link; if null or undefined, link is hidden. */
+  paperlessUrl?: string | null;
 }
 
-export function DocumentCard({ document, isSelected, onSelect, ariaControls }: DocumentCardProps) {
+export function DocumentCard({ document, isSelected, onSelect, ariaControls, paperlessUrl }: DocumentCardProps) {
   const { t } = useTranslation('documents');
   const thumbUrl = getDocumentThumbnailUrl(document.id);
 
@@ -58,6 +60,24 @@ export function DocumentCard({ document, isSelected, onSelect, ariaControls }: D
         <div className={styles.thumbFallback} aria-hidden="true">
           <span className={styles.thumbFallbackIcon}>&#128196;</span>
         </div>
+        {paperlessUrl && (
+          <a
+            href={`${paperlessUrl}/documents/${document.id}/details`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.openInPaperlessButton}
+            aria-label={t('documentCard.openInPaperlessAriaLabel', { title: document.title })}
+            title={t('documentCard.openInPaperless')}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="16" height="16" aria-hidden="true">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+          </a>
+        )}
       </div>
       <div className={styles.body}>
         <h3 className={styles.title}>{document.title}</h3>

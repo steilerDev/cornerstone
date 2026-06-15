@@ -35,6 +35,7 @@
       "de": { "singular": "Finanzierungsquelle", "plural": "Finanzierungsquellen" }
     },
     "Itemize": { "de": { "verb": "aufschlüsseln", "noun": "Aufschlüsselung" } },
-    "Orientation": { "de": { "singular": "Ausrichtung", "plural": "Ausrichtungen" } }
+    "Orientation": { "de": { "singular": "Ausrichtung", "plural": "Ausrichtungen" } },
+    "Correspondent": { "de": { "singular": "Korrespondent", "plural": "Korrespondenten" } }
   }
 }

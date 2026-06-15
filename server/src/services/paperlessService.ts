@@ -17,6 +17,7 @@ import type {
   PaperlessDocumentListResponse,
   PaperlessDocumentListQuery,
   PaperlessTagListResponse,
+  PaperlessCorrespondentListResponse,
   PaperlessStatusResponse,
 } from '@cornerstone/shared';
 import { AppError } from '../errors/AppError.js';
@@ -493,4 +494,28 @@ export async function listTags(baseUrl: string, token: string): Promise<Paperles
   const tagsMap = await fetchTagsMap(baseUrl, token);
   const tags = [...tagsMap.values()].sort((a, b) => a.id - b.id);
   return { tags };
+}
+
+/**
+ * List all correspondents available in Paperless-ngx, sorted by ID ascending.
+ * EPIC-18 Story #1679: Added for Paperless-first invoice creation workflow.
+ */
+export async function listCorrespondents(
+  baseUrl: string,
+  token: string,
+): Promise<PaperlessCorrespondentListResponse> {
+  interface RawPaperlessCorrespondent {
+    id: number;
+    name: string;
+  }
+
+  const data = await fetchPaperless<{ count: number; results: RawPaperlessCorrespondent[] }>(
+    baseUrl,
+    token,
+    '/api/correspondents/?page_size=1000',
+  );
+  const correspondents = data.results
+    .map((r) => ({ id: r.id, name: r.name }))
+    .sort((a, b) => a.id - b.id);
+  return { correspondents };
 }

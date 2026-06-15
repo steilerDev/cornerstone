@@ -3,6 +3,35 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## Paperless correspondent query param name (2026-06-15) — `e2e/tests/invoices/paperless-first-invoice.spec.ts`
+
+- `listPaperlessDocuments()` sends `?correspondent=<id>` (integer, per `paperlessApi.ts` line 27: `params.set('correspondent', ...)`)
+- NOT `?correspondentId=` — that is the DocumentBrowser/usePaperless PROP name, not the URL param
+- Always check URL param as `url.searchParams.get('correspondent')` in route mocks
+- `usePaperless` hook receives `correspondentId` prop → sends `correspondent` param in HTTP request
+
+## LinkedDocumentsSection defaultHideLinked change (Story #1679, 2026-06-15) — `document-linking.spec.ts` Scenario 7
+
+- `LinkedDocumentsSection` now passes `defaultHideLinked={true}` to `DocumentBrowser` (line 420 of LinkedDocumentsSection.tsx)
+- `InvoicePaperlessPickerModal` also passes `defaultHideLinked={true}` with `linkedDocumentIds={[]}`
+- With empty `linkedDocumentIds`, `defaultHideLinked=true` doesn't hide anything (client-side filter excludes nothing)
+- Updated Scenario 7a (now tests toggle defaults ON, initially 1 doc visible) and 7b (renamed "checked by default")
+- When `linkedDocumentIds` has entries, docs with those IDs are hidden by default
+
+## SearchPicker Display Mode in E2E (2026-06-15) — `e2e/pages/PaperlessInvoiceReviewPage.ts`
+
+- When SearchPicker has `initialTitle + value` set (pre-filled), it renders `<div class*="selectedDisplay">` NOT the `<input id="...">`. Assert `vendorSelectedDisplay` = `[class*="card"].first() [class*="selectedDisplay"]`, NOT `#vendor-picker`.
+- `#vendor-picker` input only present when SearchPicker is in search/input mode (no pre-fill or pre-fill cleared).
+- `handleSave` on PaperlessInvoiceReviewPage validates each included line has `budgetCategoryId` OR `assignedBudgetLineId`. MOCK_EXTRACTED_LINES have neither — must inject `budgetCategoryId` via `page.request.get(API.budgetCategories)` before mocking preview.
+
+## PaperlessInvoiceReviewPage CSS Module vs TSX class-name mismatch (fix/1679, 2026-06-15)
+
+- **Root cause**: TSX was reworked to use new class names (`lineList`, `lineCard`, `lineCardExcluded`, `cardTopRow`, `cardMetricGrid`, `assignedBadge`, `pickerBudgetLineRow`, etc.) mirroring AutoItemizePage, but `PaperlessInvoiceReviewPage.module.css` was NOT updated — it still only defines old names (`linesList`, `lineItem`, `lineItemExcluded`, `pageContainer`, `mainColumn`, `card`, etc.). All the new class refs resolve to `undefined` in JS/CSS Modules.
+- **DOM impact**: `<ul>` with `styles.lineList` → no class attribute (className=undefined). `<li>` with `styles.lineCard` → `className="undefined "` (literal string).
+- **POM fix** (2026-06-15): `lineItemsList` changed from `page.locator('[class*="linesList"]')` to `page.getByRole('list', { name: 'Extracted line items' })` (uses explicit `role="list"` + `aria-label` from i18n key `autoItemize.lineItemsListLabel` = "Extracted line items"). `getLineItem(index)` and `getLineItemCount()` changed from `lineItemsList.locator('[class*="lineItem"]')` to `lineItemsList.locator('li')`.
+- **Class names that DO exist** in PaperlessInvoiceReviewPage.module.css: `pageContainer`, `mainColumn`, `card`, `cardTitle`, `field`, `label`, `required`, `suggestionRow`, `linesList`, `lineItem`, `lineItemExcluded`, `emptyMessage`, `loadingState`, `loadingMessage`, `errorState`, `errorText`, `actionBar`. Class-based locators using `[class*="card"]`, `[class*="loadingState"]`, `[class*="errorState"]` are fine.
+- **Production bug** also exists (visually unstyled line cards) — not fixed here (out of E2E scope). Filed as separate concern.
+
 ## Diary Mobile Filter Panel E2E (Bug #1688, 2026-06-15) — `e2e/tests/diary/diary-mobile-filters.spec.ts`
 
 - 6 scenarios; all tagged `@responsive` so mobile+tablet+desktop projects execute them.
@@ -31,6 +60,36 @@
 - Fix in 59099a40 added `test.slow()` + `waitForURL timeout: 30_000` + `toBeVisible timeout: 15_000`. Still not enough.
 - Error: `expect(editPage.heading).toBeVisible({ timeout: 15_000 })` fails — "Edit Diary Entry" h1 not found after navigation to /diary/:id/edit. The SPA router completes but the API response for `getDiaryEntry()` exceeds 15s under heavy CI load.
 - This failure is PRE-EXISTING on beta (not introduced by any current PR). Safe to merge over.
+## Paperless Mock: MUST include /api/paperless/tags (2026-06-15)
+
+- `usePaperless` Phase 2 calls `listPaperlessTags()` in a `Promise.all()` alongside `listPaperlessDocuments()`. If `/api/paperless/tags` is NOT mocked, the `Promise.all` rejects → `usePaperless` enters error state → `DocumentBrowser` renders `role="alert"` div instead of `#document-grid` → `waitForDocumentsLoaded()` times out.
+- **ALWAYS mock tags** in any test that opens DocumentBrowser (picker modal OR LinkedDocumentsSection): `await page.route('**/api/paperless/tags', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tags: [] }) }))`.
+- The `document-linking.spec.ts` proven pattern (used in `mockPaperlessForLinking()`) mocks: status + documents + tags + thumb. The `paperless-first-invoice.spec.ts` initially only mocked status + documents + correspondents — missing tags was the bug.
+
+## DocumentBrowser Two-Stage Loading Race (fixed 2026-06-15) — `e2e/pages/PaperlessPickerModal.ts`
+
+- `DocumentBrowser` has TWO async loading stages before card buttons appear in the DOM:
+  1. Status check (`hook.status === null`) — shows a separate `div.infoState[aria-busy="true"]`, the `#document-grid` element is NOT mounted yet
+  2. Document fetch (`hook.isLoading`) — `#document-grid[aria-busy="true"]` with skeleton cards
+- After both stages: `#document-grid[aria-busy="false"]` with real `DocumentCard` divs (role="button")
+- **`waitForDocumentsLoaded()` pattern**: `grid.waitFor({ state: 'visible' })` (covers stage 1) then `expect(grid).toHaveAttribute('aria-busy', 'false', { timeout: 10000 })` (covers stage 2)
+- `DocumentCard` root is `role="button"` (a `<div>` — NOT `<button>`). aria-label = `"Document: {{title}}{{date}}"`. No nested `role="button"` inside — "Open in Paperless" is `role="link"`. `getByRole('button', { name: /title/i })` is unambiguous.
+- `#document-grid` scoped to `this.modal` (dialog locator) is correct — grid has a unique ID in the page.
+- `import { expect } from '@playwright/test'` is valid in POM files (confirmed in `apiHelpers.ts`).
+- Call `waitForDocumentsLoaded()` in: `selectDocument()` (always), and any spec that calls `getDocumentCard()` directly after `waitForPickerModal()`.
+
+## Paperless-First Invoice E2E (Story #1679, 2026-06-15) — `e2e/tests/invoices/paperless-first-invoice.spec.ts` + `paperless-first-invoice-fallbacks.spec.ts`
+
+- NO Paperless testcontainer needed — all Paperless endpoints (`/api/paperless/status`, `/paperless/documents`, `/paperless/correspondents`, `/paperless/documents/:id`) and LLM endpoints (`/api/invoices/auto-itemize/preview`, `/api/invoices/auto-itemize/commit`) mocked via `page.route()`.
+- New POMs: `PaperlessPickerModal.ts` (modal dialog locating via `getByRole('dialog', { name: /Select Invoice Document/i })`), `PaperlessInvoiceReviewPage.ts`.
+- **`InvoicesPage.clickNewInvoice()`**: waits for button enabled (`aria-disabled !== 'true'`) before click — button is disabled while config+status loads.
+- **`PaperlessInvoiceReviewPage` requires location state**: page reads `documentId` from React Router `location.state`. MUST navigate through the full picker flow (not `page.goto()` directly) to pass state. `page.goto('/budget/invoices/new/paperless')` with no state shows error guard.
+- **Correspondent SearchPicker portal**: dropdown portals to `document.body` — use `page.locator('[data-search-picker-dropdown]')` scoped to `page`, NOT to `modal`.
+- **DocumentCard "Open in Paperless" link**: `getByRole('link', { name: /Open '?{title}'? in Paperless/i })` inside modal. `href = {paperlessUrl}/documents/{id}/details`, `target="_blank"`, `rel="noopener noreferrer"`.
+- **i18n namespace discovery**: `InvoicePaperlessPickerModal` uses `useTranslation(['invoices', 'documents'])` with `t('invoices:pickerModal.title')` — but there's no `invoices.json`. Keys are in `budget.json` under `invoices.pickerModal.*`. The `invoices:` prefix refers to the `budget.json` `invoices` top-level key via i18next namespace fallback.
+- **Confirm button disabled when no vendor**: `disabled={!vendorId}` in JSX. Can't click a disabled button in Playwright — assert `toBeDisabled()` directly.
+- **Mock pattern for preview endpoint**: `page.route('**/api/invoices/auto-itemize/preview', ...)` — no invoice ID in the URL (new endpoint path for create-from-scratch flow vs. `**/api/invoices/:id/auto-itemize`).
+- InvoicesPage POM extended with: `clickNewInvoice()`, `waitForPickerModal()`, `waitForManualModal()`.
 
 ## Orientations + Mobile Photo Capture E2E (Story #1674, 2026-06-15) — `e2e/tests/orientations.spec.ts`, `e2e/tests/photo-capture-flow.spec.ts`, `e2e/pages/OrientationsPage.ts`
 

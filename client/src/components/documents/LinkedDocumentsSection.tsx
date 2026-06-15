@@ -418,6 +418,8 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                       .filter((id): id is number => id !== undefined),
                   ]),
                 )}
+                defaultHideLinked={true}
+                paperlessUrl={paperlessStatus?.paperlessUrl ?? null}
               />
             </div>
           </div>

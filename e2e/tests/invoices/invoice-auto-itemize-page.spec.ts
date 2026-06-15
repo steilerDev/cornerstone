@@ -2005,12 +2005,10 @@ test.describe('Scenario 25 — Variance indicator recomputes on totalAmount edit
     let invoiceId = '';
 
     try {
-      // THREE_LINES all have includesVat:false, so the computed total grosses up each net amount
-      // by ×1.19 before summing: (900+680+120)×1.19 = 1700×1.19 = 2023.
-      // Invoice amount = 2023 → 0% variance → match state on load.
+      // Invoice amount = 1700, extracted total = 900+680+120 = 1700 → 0% variance → match state
       vendorId = await createVendorViaApi(page, `${testPrefix} AI-Variance Vendor`);
       invoiceId = await createInvoiceViaApi(page, vendorId, {
-        amount: 2023,
+        amount: 1700,
         date: '2026-06-01',
       });
 
@@ -2021,14 +2019,14 @@ test.describe('Scenario 25 — Variance indicator recomputes on totalAmount edit
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── Initial state: invoice=2023, grossed-up lines total=2023 → varianceMatch ──
+      // ── Initial state: invoice=1700, lines total=1700 → varianceMatch ────────
       const indicator = autoItemizePage.getVarianceIndicator();
       await expect(indicator).toBeVisible();
       // Initial: ≤1% → varianceMatch CSS class
       await expect(indicator).toHaveClass(/varianceMatch/);
 
-      // ── Edit first line totalAmount to 500 (grossed-up total becomes 500+680+120=1300, ×1.19=1547) ──
-      // Variance = |1547-2023|/2023 ≈ 23.5% → > 5% → varianceDanger
+      // ── Edit first line totalAmount to 500 (total becomes 500+680+120=1300) ──
+      // Variance = |1300-1700|/1700 ≈ 23.5% → > 5% → varianceDanger
       const totalInput = autoItemizePage.getLineCardTotalAmountInput(0);
       await totalInput.fill('500');
       // Trigger change event by tabbing away

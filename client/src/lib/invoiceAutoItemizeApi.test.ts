@@ -472,3 +472,332 @@ describe('invoiceAutoItemizeApi', () => {
     });
   });
 });
+
+// ─── Story #1679: previewAutoItemize and commitAutoItemizeCreate ───────────────
+
+import { previewAutoItemize, commitAutoItemizeCreate } from './invoiceAutoItemizeApi.js';
+import type {
+  AutoItemizePreviewRequest,
+  AutoItemizePreviewResponse,
+  AutoItemizeCommitRequest,
+  AutoItemizeCommitResponse,
+  Invoice,
+} from '@cornerstone/shared';
+
+function makePreviewAutoItemizeResponse(
+  overrides: Partial<AutoItemizePreviewResponse> = {},
+): AutoItemizePreviewResponse {
+  return {
+    lines: [
+      {
+        description: 'Tile installation',
+        totalAmount: 500,
+        confidence: 0.88,
+        budgetCategoryId: null,
+        budgetSourceId: null,
+      },
+    ],
+    suggestedVendorId: 'vendor-42',
+    extractedInvoiceDate: '2026-03-01',
+    extractedDueDate: '2026-04-01',
+    extractedInvoiceNumber: 'INV-2026-003',
+    extractedNotes: 'Payment due on invoice date',
+    ...overrides,
+  };
+}
+
+function makeAutoItemizeCommitResponse(): AutoItemizeCommitResponse {
+  const invoice: Invoice = {
+    id: 'inv-new-1',
+    vendorId: 'vendor-42',
+    vendorName: 'Builder Corp',
+    invoiceNumber: 'INV-2026-003',
+    amount: 500,
+    date: '2026-03-01',
+    dueDate: '2026-04-01',
+    status: 'pending',
+    notes: null,
+    budgetLines: [],
+    remainingAmount: 500,
+    deposits: [],
+    finalPaymentAmount: 500,
+    createdBy: null,
+    createdAt: '2026-03-01T00:00:00Z',
+    updatedAt: '2026-03-01T00:00:00Z',
+  };
+  return {
+    invoice,
+    budgetLines: [],
+    remainingAmount: 0,
+  };
+}
+
+describe('previewAutoItemize', () => {
+  let mockFetch2: jest.MockedFunction<typeof globalThis.fetch>;
+
+  beforeEach(() => {
+    mockFetch2 = jest.fn<typeof globalThis.fetch>();
+    globalThis.fetch = mockFetch2;
+  });
+
+  it('sends POST request to /api/invoices/auto-itemize/preview', async () => {
+    mockFetch2.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => makePreviewAutoItemizeResponse(),
+    } as Response);
+
+    const body: AutoItemizePreviewRequest = { paperlessDocumentId: 99 };
+    await previewAutoItemize(body);
+
+    expect(mockFetch2).toHaveBeenCalledWith(
+      '/api/invoices/auto-itemize/preview',
+      expect.any(Object),
+    );
+  });
+
+  it('uses POST HTTP method', async () => {
+    mockFetch2.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => makePreviewAutoItemizeResponse(),
+    } as Response);
+
+    await previewAutoItemize({ paperlessDocumentId: 99 });
+
+    expect(mockFetch2).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('sends paperlessDocumentId in the request body', async () => {
+    mockFetch2.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => makePreviewAutoItemizeResponse(),
+    } as Response);
+
+    await previewAutoItemize({ paperlessDocumentId: 42 });
+
+    const [, init] = mockFetch2.mock.calls[0] as [string, RequestInit];
+    const sentBody = JSON.parse(init.body as string) as AutoItemizePreviewRequest;
+    expect(sentBody.paperlessDocumentId).toBe(42);
+  });
+
+  it('returns the parsed AutoItemizePreviewResponse with lines and suggestedVendorId', async () => {
+    const mockResponse = makePreviewAutoItemizeResponse();
+    mockFetch2.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await previewAutoItemize({ paperlessDocumentId: 42 });
+
+    expect(result).toEqual(mockResponse);
+    expect(result.lines).toHaveLength(1);
+    expect(result.suggestedVendorId).toBe('vendor-42');
+  });
+
+  it('returns null suggestedVendorId when no vendor match', async () => {
+    const mockResponse = makePreviewAutoItemizeResponse({ suggestedVendorId: null });
+    mockFetch2.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await previewAutoItemize({ paperlessDocumentId: 42 });
+
+    expect(result.suggestedVendorId).toBeNull();
+  });
+
+  it('returns extracted metadata fields when present', async () => {
+    const mockResponse = makePreviewAutoItemizeResponse({
+      extractedInvoiceDate: '2026-05-15',
+      extractedDueDate: '2026-06-15',
+      extractedInvoiceNumber: 'RE-999',
+    });
+    mockFetch2.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => mockResponse,
+    } as Response);
+
+    const result = await previewAutoItemize({ paperlessDocumentId: 42 });
+
+    expect(result.extractedInvoiceDate).toBe('2026-05-15');
+    expect(result.extractedDueDate).toBe('2026-06-15');
+    expect(result.extractedInvoiceNumber).toBe('RE-999');
+  });
+
+  it('throws ApiClientError for 503 LLM_NOT_CONFIGURED response', async () => {
+    mockFetch2.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+      json: async () => ({
+        error: { code: 'LLM_NOT_CONFIGURED', message: 'LLM not configured' },
+      }),
+    } as Response);
+
+    await expect(previewAutoItemize({ paperlessDocumentId: 42 })).rejects.toThrow(ApiClientError);
+  });
+});
+
+describe('commitAutoItemizeCreate', () => {
+  let mockFetch3: jest.MockedFunction<typeof globalThis.fetch>;
+
+  beforeEach(() => {
+    mockFetch3 = jest.fn<typeof globalThis.fetch>();
+    globalThis.fetch = mockFetch3;
+  });
+
+  it('sends POST request to /api/invoices/auto-itemize/commit', async () => {
+    mockFetch3.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => makeAutoItemizeCommitResponse(),
+    } as Response);
+
+    const body: AutoItemizeCommitRequest = {
+      paperlessDocumentId: 99,
+      vendorId: 'vendor-1',
+      invoice: {
+        invoiceNumber: 'INV-001',
+        amount: 500,
+        date: '2026-03-01',
+        dueDate: null,
+        status: 'pending',
+        notes: null,
+      },
+      lines: [],
+    };
+    await commitAutoItemizeCreate(body);
+
+    expect(mockFetch3).toHaveBeenCalledWith(
+      '/api/invoices/auto-itemize/commit',
+      expect.any(Object),
+    );
+  });
+
+  it('uses POST HTTP method', async () => {
+    mockFetch3.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => makeAutoItemizeCommitResponse(),
+    } as Response);
+
+    const body: AutoItemizeCommitRequest = {
+      paperlessDocumentId: 42,
+      vendorId: 'vendor-1',
+      invoice: {
+        invoiceNumber: null,
+        amount: 100,
+        date: '2026-01-01',
+        dueDate: null,
+        status: 'pending',
+        notes: null,
+      },
+      lines: [],
+    };
+    await commitAutoItemizeCreate(body);
+
+    expect(mockFetch3).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('serializes vendorId, paperlessDocumentId, invoice, and lines in the body', async () => {
+    mockFetch3.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => makeAutoItemizeCommitResponse(),
+    } as Response);
+
+    const body: AutoItemizeCommitRequest = {
+      paperlessDocumentId: 42,
+      vendorId: 'vendor-99',
+      invoice: {
+        invoiceNumber: 'INV-TEST',
+        amount: 250,
+        date: '2026-03-15',
+        dueDate: null,
+        status: 'pending',
+        notes: 'test note',
+      },
+      lines: [
+        {
+          description: 'Labor',
+          totalAmount: 250,
+          confidence: 0.9,
+          budgetCategoryId: null,
+          budgetSourceId: null,
+          assignmentMode: 'create-new',
+        },
+      ],
+    };
+    await commitAutoItemizeCreate(body);
+
+    const [, init] = mockFetch3.mock.calls[0] as [string, RequestInit];
+    const sentBody = JSON.parse(init.body as string) as AutoItemizeCommitRequest;
+    expect(sentBody.vendorId).toBe('vendor-99');
+    expect(sentBody.paperlessDocumentId).toBe(42);
+    expect(sentBody.invoice.amount).toBe(250);
+    expect(sentBody.lines).toHaveLength(1);
+  });
+
+  it('returns AutoItemizeCommitResponse with invoice, budgetLines, and remainingAmount', async () => {
+    const mockResponse = makeAutoItemizeCommitResponse();
+    mockFetch3.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: async () => mockResponse,
+    } as Response);
+
+    const body: AutoItemizeCommitRequest = {
+      paperlessDocumentId: 42,
+      vendorId: 'vendor-1',
+      invoice: {
+        invoiceNumber: null,
+        amount: 500,
+        date: '2026-03-01',
+        dueDate: null,
+        status: 'pending',
+        notes: null,
+      },
+      lines: [],
+    };
+    const result = await commitAutoItemizeCreate(body);
+
+    expect(result.invoice.id).toBe('inv-new-1');
+    expect(result.budgetLines).toHaveLength(0);
+    expect(result.remainingAmount).toBe(0);
+  });
+
+  it('throws ApiClientError for 400 VALIDATION_ERROR response', async () => {
+    mockFetch3.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: { code: 'VALIDATION_ERROR', message: 'vendorId is required' },
+      }),
+    } as Response);
+
+    const body: AutoItemizeCommitRequest = {
+      paperlessDocumentId: 42,
+      vendorId: '',
+      invoice: {
+        invoiceNumber: null,
+        amount: 100,
+        date: '2026-01-01',
+        dueDate: null,
+        status: 'pending',
+        notes: null,
+      },
+      lines: [],
+    };
+    await expect(commitAutoItemizeCreate(body)).rejects.toThrow(ApiClientError);
+  });
+});

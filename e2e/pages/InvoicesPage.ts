@@ -35,6 +35,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { PaperlessPickerModal } from './PaperlessPickerModal.js';
 
 export const INVOICES_ROUTE = '/budget/invoices';
 
@@ -169,6 +170,44 @@ export class InvoicesPage {
     });
     // Error banner inside the modal (role="alert" inside the modal's form area)
     this.createErrorBanner = this.createModal.locator('[role="alert"]');
+  }
+
+  /**
+   * Click the "New Invoice" button.
+   * When Paperless+LLM are configured, this opens the PaperlessPickerModal.
+   * Otherwise it opens the manual create modal.
+   * Note: the button may be briefly disabled (aria-disabled) while config/status loads.
+   */
+  async clickNewInvoice(): Promise<void> {
+    // Wait for the button to become enabled (config+status fetch resolves)
+    await this.newInvoiceButton.waitFor({ state: 'visible' });
+    await this.page.waitForFunction(
+      (btnTestId) => {
+        const el = document.querySelector(`[data-testid="${btnTestId}"]`) as HTMLButtonElement | null;
+        return el && !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+      },
+      'new-invoice-button',
+    );
+    await this.newInvoiceButton.click();
+  }
+
+  /**
+   * Wait for the Paperless picker modal to open and return a PaperlessPickerModal instance.
+   * Use after clickNewInvoice() when Paperless+LLM are configured.
+   */
+  async waitForPickerModal(): Promise<PaperlessPickerModal> {
+    const pickerModal = new PaperlessPickerModal(this.page);
+    await pickerModal.waitForVisible();
+    return pickerModal;
+  }
+
+  /**
+   * Wait for the manual create modal to open and return its Locator.
+   * Use after clickNewInvoice() when Paperless is not configured, or after manual escape.
+   */
+  async waitForManualModal(): Promise<Locator> {
+    await this.createModal.waitFor({ state: 'visible' });
+    return this.createModal;
   }
 
   /**

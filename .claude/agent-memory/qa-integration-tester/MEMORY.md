@@ -11,13 +11,19 @@
 
 ## Story #1677 — effectiveLineAmount VAT gross-up tests (2026-06-15)
 
-**Coverage: budget.ts needs effectivePlannedAmount tested too**: When adding tests for `effectiveLineAmount`, the coverage tool also measures `effectivePlannedAmount` (same file). Add tests for it to reach 100% on `shared/src/types/budget.ts`. Import via `import { CONFIDENCE_MARGINS, effectivePlannedAmount, effectiveLineAmount } from './budget.js'`.
+## Story #1679 — Paperless-first invoice creation test patterns (2026-06-15)
 
-**makeDryRunResponse includesVat support**: The helper in `AutoItemizePage.test.tsx` had a typed `Partial<{description,totalAmount,confidence,budgetCategoryId}>` override type — adding `includesVat: boolean` to that union and using `...('includesVat' in l ? { includesVat: l.includesVat } : {})` in the spread passes optional includesVat through to mock lines.
+**DocumentBrowser toggle visibility change**: Story #1679 changed the toggle condition from `linkedDocumentIds.length > 0` to `linkedDocumentIds !== undefined`. Old test said `linkedDocumentIds={[]}` → no toggle. New code shows toggle for `[]`. Always update old tests that assert old behavior when a behavioral change is intentional. The default `EMPTY_LINKED_DOCUMENT_IDS = []` means the toggle always renders (even when no prop is passed).
 
-**LLM mock with includesVat**: `setupDryRunFetch()` takes only `{ description, totalAmount, confidence }` — it does NOT support includesVat. For dry-run tests needing includesVat on lines, reset mockFetch and queue the 3 responses manually (doc + tags + LLM) with the includesVat field embedded in the LLM JSON `lines` array.
+**InvoicePaperlessPickerModal production bug (2026-06-15)**: `InvoicePaperlessPickerModal.tsx` line 104 passes `className={styles.correspondentPicker}` to `SearchPicker`, but `SearchPickerProps` does not include `className`. This causes TS2322 in ts-jest, failing all 14 tests in `InvoicePaperlessPickerModal.test.tsx`. The test file is correct — the production code needs a fix (remove/wrap the `className` prop). Reported as a bug to frontend-developer.
 
-**Server service test drizzle-orm failure still pre-existing**: On Node 22 (not just Node 20), `invoiceAutoItemizeService.test.ts` still fails locally with TS2307 `Cannot find module 'drizzle-orm/better-sqlite3'`. All 9 new VAT tests will pass in CI. Client VAT tests also fail locally due to mock non-interception.
+**DocumentCard onError handler coverage**: `onError` on `<img>` is covered by `fireEvent.error(img)`. `onKeyDown stopPropagation` on an `<a>` is covered by `fireEvent.keyDown(screen.getByRole('link'), { key: 'Enter' })`. Both are otherwise uncovered in JSDOM environments — add explicit tests for these event handlers to reach 100%.
+
+**paperlessApi.test.ts ALL tests fail locally on Node 20**: All 17 tests (including 2 new `listPaperlessCorrespondents` tests) fail locally because `jest.unstable_mockModule('./apiClient.js', ...)` does not intercept in Node 20. CI (Node 24) passes. Pre-existing issue — new tests follow the same pattern and are expected to pass in CI.
+
+**persistLines must be called inside db.transaction()**: The function has no internal transaction — callers must wrap it. Route tests for `POST /api/invoices/auto-itemize/commit` exercise this via `commitAutoItemizeCreate` which wraps in a transaction internally.
+
+**LLM mock for previewAutoItemize must include chosenVendorName**: The service reads `llmResult.chosenVendorName` to resolve vendor. Mock LLM JSON: `{ lines: [...], chosenVendorName: "Builder Co" }`.
 
 **PaperlessInvoiceReviewPage spinner detection — confidence dots conflict**: The component renders `<span role="img">` for per-line confidence dots AND `<svg role="img" aria-label="Loading">` for the Spinner. Detecting loading state with `[role="img"]` wrongly matches confidence dots in ready state. Use `[role="img"][aria-label="Loading"]` to target only the Spinner. Also use `screen.queryAllByText(...)` (not `queryByText`) for /Analyzing/i since loading state may render that text in multiple elements (h1 title + h2 heading).
 

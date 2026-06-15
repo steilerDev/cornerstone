@@ -59,7 +59,7 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
  * Resolves deposits via invoiceDepositService.
  * If knownVendorName is provided, skips the vendor DB lookup.
  */
-function toInvoice(
+export function toInvoice(
   db: DbType,
   row: typeof invoices.$inferSelect,
   knownVendorName?: string,
@@ -130,7 +130,7 @@ function toInvoice(
  * Assert that a vendor exists, throwing NotFoundError if not.
  * Returns the vendor name so callers can pass it to toInvoice() without an extra lookup.
  */
-function assertVendorExists(db: DbType, vendorId: string): string {
+export function assertVendorExists(db: DbType, vendorId: string): string {
   const vendor = db.select().from(vendors).where(eq(vendors.id, vendorId)).get();
   if (!vendor) {
     throw new NotFoundError('Vendor not found');
