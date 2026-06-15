@@ -412,11 +412,16 @@ export function SearchPicker<T>({
               <div className={styles.stateMessage}>{resolvedNoResults}</div>
             )}
 
+            {!isLoading && !error && results.length === 0 && !searchTerm.trim() && emptyHint && (
+              <div className={styles.stateMessage}>{emptyHint}</div>
+            )}
+
             {!isLoading &&
               !error &&
               results.length === 0 &&
               !searchTerm.trim() &&
-              (!specialOptions || specialOptions.length === 0) && (
+              (!specialOptions || specialOptions.length === 0) &&
+              !emptyHint && (
                 <div className={styles.stateMessage}>{resolvedEmptyHint}</div>
               )}
           </div>,

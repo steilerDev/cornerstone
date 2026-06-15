@@ -1,8 +1,10 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Photo } from '@cornerstone/shared';
+import type { Photo, AreaResponse } from '@cornerstone/shared';
 import { uploadPhoto } from '../../lib/photoApi.js';
+import { fetchAreas } from '../../lib/areasApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import PhotoMetadataModal from './PhotoMetadataModal.js';
 import styles from './PhotoUpload.module.css';
 
 export interface PhotoUploadProps {
@@ -20,6 +22,7 @@ interface PhotoEntry {
   file: File;
   state: PhotoUploadState;
   errorMessage?: string;
+  metadata?: { caption: string | null; areaId: string | null; orientationId: string | null };
 }
 
 export function PhotoUpload({
@@ -32,10 +35,19 @@ export function PhotoUpload({
 }: PhotoUploadProps) {
   const { t } = useTranslation('diary');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const takePhotoButtonRef = useRef<HTMLButtonElement>(null);
+  const uploadButtonRef = useRef<HTMLButtonElement>(null);
+  const modalTriggerRef = useRef<HTMLButtonElement | null>(null);
+
   const [isDragging, setIsDragging] = useState(false);
   const [photoQueue, setPhotoQueue] = useState<PhotoEntry[]>([]);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [modalFileIndex, setModalFileIndex] = useState<number | null>(null);
+  const [areas, setAreas] = useState<AreaResponse[]>([]);
   const uploadingCountRef = useRef(0);
 
   useEffect(() => {
@@ -45,6 +57,13 @@ export function PhotoUpload({
       return window.matchMedia('(hover: none)').matches;
     });
     /* eslint-enable @eslint-react/set-state-in-effect */
+  }, []);
+
+  // Load areas on mount
+  useEffect(() => {
+    fetchAreas()
+      .then((resp) => setAreas(resp.areas || []))
+      .catch(() => setAreas([]));
   }, []);
 
   // Notify parent of uploading count changes
@@ -103,7 +122,15 @@ export function PhotoUpload({
       try {
         uploadingCountRef.current += 1;
 
-        const photo = await uploadPhoto(entityType, entityId, entry.file);
+        const photo = await uploadPhoto(
+          entityType,
+          entityId,
+          entry.file,
+          entry.metadata?.caption ?? undefined,
+          undefined,
+          entry.metadata?.areaId ?? undefined,
+          entry.metadata?.orientationId ?? undefined,
+        );
         onUpload(photo);
 
         // Remove from queue after 2s (user sees success state briefly)
@@ -154,11 +181,44 @@ export function PhotoUpload({
     }
   }, [photoQueue, uploadSinglePhoto]);
 
-  const handleFiles = (files: File[]) => {
-    setPhotoQueue((prev) => [
-      ...prev,
-      ...files.map((file) => ({ file, state: 'queued' as const })),
-    ]);
+  const handleFiles = (files: File[], triggerButton?: HTMLButtonElement | null) => {
+    if (files.length === 0) return;
+    modalTriggerRef.current = triggerButton ?? null;
+    setPendingFiles(files);
+    setModalFileIndex(0);
+  };
+
+  const handleModalSave = (metadata: {
+    caption: string | null;
+    areaId: string | null;
+    orientationId: string | null;
+  }) => {
+    const file = pendingFiles[modalFileIndex!];
+    if (!file) return;
+    // Add to upload queue with metadata
+    setPhotoQueue((prev) => [...prev, { file, state: 'queued', metadata }]);
+
+    const next = modalFileIndex! + 1;
+    if (next < pendingFiles.length) {
+      setModalFileIndex(next);
+    } else {
+      // Done with all files
+      setPendingFiles([]);
+      setModalFileIndex(null);
+      modalTriggerRef.current?.focus();
+    }
+  };
+
+  const handleModalCancel = () => {
+    // Discard current file, advance to next
+    const next = modalFileIndex! + 1;
+    if (next < pendingFiles.length) {
+      setModalFileIndex(next);
+    } else {
+      setPendingFiles([]);
+      setModalFileIndex(null);
+      modalTriggerRef.current?.focus();
+    }
   };
 
   const handleRetry = (entry: PhotoEntry) => {
@@ -173,47 +233,103 @@ export function PhotoUpload({
     setPhotoQueue((prev) => prev.filter((p) => p.file !== entry.file));
   };
 
-  const buttonLabel = isTouchDevice
-    ? t('photoUpload.buttonTakePhoto')
-    : t('photoUpload.buttonUploadPhotos');
-
   const isProcessing = photoQueue.some((p) => p.state === 'queued' || p.state === 'uploading');
 
   return (
     <div className={styles.container}>
-      {/* Drag-and-drop zone */}
-      <div
-        ref={dropZoneRef}
-        className={`${styles.dropZone} ${isDragging ? styles.dropZoneActive : ''}`}
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        role="region"
-        aria-label={t('photoUpload.dropZoneAriaLabel')}
-        data-testid="photo-upload-zone"
-      >
-        <div className={styles.dropZoneContent}>
-          <p className={styles.dropZoneText}>{t('photoUpload.dropZoneText')}</p>
+      {/* Mobile: Two-button pair */}
+      {isTouchDevice ? (
+        <div className={styles.mobileButtonPair}>
+          {/* Take photo — camera capture */}
           <button
+            ref={takePhotoButtonRef}
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || isProcessing}
-            className={styles.uploadButton}
-            aria-label={buttonLabel}
+            className={styles.captureButton}
+            disabled={disabled}
+            onClick={() => cameraInputRef.current?.click()}
+            aria-label={t('photoUpload.buttonTakePhoto')}
           >
-            {isProcessing ? t('photoUpload.uploading') : buttonLabel}
+            <CameraIcon aria-hidden="true" />
+            {t('photoUpload.buttonTakePhoto')}
+          </button>
+          {/* Upload from library */}
+          <button
+            ref={uploadButtonRef}
+            type="button"
+            className={styles.uploadPhotoButton}
+            disabled={disabled}
+            onClick={() => libraryInputRef.current?.click()}
+            aria-label={t('photoUpload.buttonUploadPhotos')}
+          >
+            <UploadIcon aria-hidden="true" />
+            {t('photoUpload.buttonUploadPhotos')}
           </button>
         </div>
-      </div>
+      ) : (
+        /* Desktop: Drag-and-drop zone + single button */
+        <div
+          ref={dropZoneRef}
+          className={`${styles.dropZone} ${isDragging ? styles.dropZoneActive : ''}`}
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          role="region"
+          aria-label={t('photoUpload.dropZoneAriaLabel')}
+          data-testid="photo-upload-zone"
+        >
+          <div className={styles.dropZoneContent}>
+            <p className={styles.dropZoneText}>{t('photoUpload.dropZoneText')}</p>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled || isProcessing}
+              className={styles.uploadButton}
+              aria-label={t('photoUpload.buttonUploadPhotos')}
+            >
+              {isProcessing ? t('photoUpload.uploading') : t('photoUpload.buttonUploadPhotos')}
+            </button>
+          </div>
+        </div>
+      )}
 
-      {/* Hidden file input */}
+      {/* Hidden file inputs */}
+      {/* Camera input (touch devices: Take photo) */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={(e) => {
+          const files = Array.from(e.currentTarget.files ?? []);
+          if (files.length > 0) handleFiles(files, takePhotoButtonRef.current);
+          e.currentTarget.value = '';
+        }}
+        className={styles.fileInput}
+        aria-hidden="true"
+        data-testid="photo-camera-input"
+      />
+      {/* Library input (touch devices: Upload photo) */}
+      <input
+        ref={libraryInputRef}
+        type="file"
+        multiple
+        accept="image/*"
+        onChange={(e) => {
+          const files = Array.from(e.currentTarget.files ?? []);
+          if (files.length > 0) handleFiles(files, uploadButtonRef.current);
+          e.currentTarget.value = '';
+        }}
+        className={styles.fileInput}
+        aria-hidden="true"
+        data-testid="photo-library-input"
+      />
+      {/* Desktop file input */}
       <input
         ref={fileInputRef}
         type="file"
         multiple
         accept="image/*"
-        capture="environment"
         onChange={handleFileInputChange}
         className={styles.fileInput}
         aria-hidden="true"
@@ -264,6 +380,46 @@ export function PhotoUpload({
           ))}
         </div>
       )}
+
+      {/* PhotoMetadataModal for per-file metadata capture */}
+      {modalFileIndex !== null && pendingFiles[modalFileIndex] && (
+        <PhotoMetadataModal
+          file={pendingFiles[modalFileIndex]}
+          entityType={entityType}
+          areas={areas}
+          onSave={handleModalSave}
+          onCancel={handleModalCancel}
+        />
+      )}
     </div>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function UploadIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path
+        d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

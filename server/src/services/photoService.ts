@@ -19,9 +19,9 @@ import sharp from 'sharp';
 import { eq, and, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { photos, users, areas } from '../db/schema.js';
+import { photos, users, areas, orientations } from '../db/schema.js';
 import { ValidationError } from '../errors/AppError.js';
-import type { Photo, PhotoEntityType } from '@cornerstone/shared';
+import type { Photo, PhotoEntityType, OrientationSummary } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -51,12 +51,13 @@ function getExtensionForMimeType(mimeType: string): string {
 }
 
 /**
- * Map a photos DB row + user to a Photo shape.
+ * Map a photos DB row + user + orientation to a Photo shape.
  * Includes cache-buster version param in thumbnailUrl based on annotatedAt (or updatedAt as fallback).
  */
 function toPhoto(
   row: typeof photos.$inferSelect,
   user: typeof users.$inferSelect | null | undefined,
+  orientation: typeof orientations.$inferSelect | null | undefined,
 ): Photo {
   // Use annotatedAt if present (annotation was made), otherwise use updatedAt for cache busting
   const cacheVersion = row.annotatedAt ?? row.updatedAt;
@@ -74,6 +75,10 @@ function toPhoto(
     takenAt: row.takenAt,
     caption: row.caption,
     areaId: row.areaId,
+    orientationId: row.orientationId ?? null,
+    orientation: orientation
+      ? { id: orientation.id, name: orientation.name, description: orientation.description }
+      : null,
     sortOrder: row.sortOrder,
     createdBy: user ? { id: user.id, displayName: user.displayName } : null,
     createdAt: row.createdAt,
@@ -108,7 +113,8 @@ function resolveCreatedBy(db: DbType, createdBy: string | null): typeof users.$i
  * @param userId User ID of uploader
  * @param caption Optional caption
  * @param areaId Optional area ID
- * @throws ValidationError if MIME type not allowed
+ * @param orientationId Optional orientation ID
+ * @throws ValidationError if MIME type not allowed or orientation not found
  * @returns Photo object with metadata and URLs
  */
 export async function uploadPhoto(
@@ -122,10 +128,19 @@ export async function uploadPhoto(
   userId: string,
   caption?: string | null,
   areaId?: string | null,
+  orientationId?: string | null,
 ): Promise<Photo> {
   // Validate MIME type
   if (!ALLOWED_MIME_TYPES.has(mimeType)) {
     throw new ValidationError(`MIME type not allowed: ${mimeType}`);
+  }
+
+  // Validate orientationId if provided and not null
+  if (orientationId !== undefined && orientationId !== null) {
+    const orientation = db.select().from(orientations).where(eq(orientations.id, orientationId)).get();
+    if (!orientation) {
+      throw new ValidationError('Orientation not found');
+    }
   }
 
   const photoId = randomUUID();
@@ -202,6 +217,7 @@ export async function uploadPhoto(
       takenAt,
       caption: caption ?? null,
       areaId: areaId ?? null,
+      orientationId: orientationId ?? null,
       sortOrder: 0,
       createdBy: userId,
       createdAt: now,
@@ -210,7 +226,7 @@ export async function uploadPhoto(
 
     db.insert(photos).values(row).run();
 
-    // Fetch the inserted row with user info
+    // Fetch the inserted row with user info and orientation
     const insertedRow = db.select().from(photos).where(eq(photos.id, photoId)).get();
 
     if (!insertedRow) {
@@ -218,7 +234,10 @@ export async function uploadPhoto(
     }
 
     const user = resolveCreatedBy(db, insertedRow.createdBy);
-    return toPhoto(insertedRow, user);
+    const orientation = insertedRow.orientationId
+      ? db.select().from(orientations).where(eq(orientations.id, insertedRow.orientationId)).get()
+      : null;
+    return toPhoto(insertedRow, user, orientation);
   } catch (error) {
     // Clean up files on error
     try {
@@ -240,7 +259,10 @@ export function getPhoto(db: DbType, id: string): Photo | null {
   if (!row) return null;
 
   const user = resolveCreatedBy(db, row.createdBy);
-  return toPhoto(row, user);
+  const orientation = row.orientationId
+    ? db.select().from(orientations).where(eq(orientations.id, row.orientationId)).get()
+    : null;
+  return toPhoto(row, user, orientation);
 }
 
 /**
@@ -258,19 +280,27 @@ export function getPhotosForEntity(db: DbType, entityType: string, entityId: str
 
   return rows.map((row) => {
     const user = resolveCreatedBy(db, row.createdBy);
-    return toPhoto(row, user);
+    const orientation = row.orientationId
+      ? db.select().from(orientations).where(eq(orientations.id, row.orientationId)).get()
+      : null;
+    return toPhoto(row, user, orientation);
   });
 }
 
 /**
- * Update a photo's caption and/or sort order.
+ * Update a photo's caption, areaId, orientationId and/or sort order.
  *
  * @returns Updated Photo object or null if not found
  */
 export function updatePhoto(
   db: DbType,
   id: string,
-  updates: { caption?: string | null; areaId?: string | null; sortOrder?: number },
+  updates: {
+    caption?: string | null;
+    areaId?: string | null;
+    orientationId?: string | null;
+    sortOrder?: number;
+  },
 ): Photo | null {
   const row = db.select().from(photos).where(eq(photos.id, id)).get();
   if (!row) return null;
@@ -280,6 +310,18 @@ export function updatePhoto(
     const area = db.select().from(areas).where(eq(areas.id, updates.areaId)).get();
     if (!area) {
       throw new ValidationError('Area not found');
+    }
+  }
+
+  // Validate orientationId if provided and not null
+  if (updates.orientationId !== undefined && updates.orientationId !== null) {
+    const orientation = db
+      .select()
+      .from(orientations)
+      .where(eq(orientations.id, updates.orientationId))
+      .get();
+    if (!orientation) {
+      throw new ValidationError('Orientation not found');
     }
   }
 
@@ -294,6 +336,9 @@ export function updatePhoto(
   if (updates.areaId !== undefined) {
     updateData.areaId = updates.areaId;
   }
+  if (updates.orientationId !== undefined) {
+    updateData.orientationId = updates.orientationId;
+  }
   if (updates.sortOrder !== undefined) {
     updateData.sortOrder = updates.sortOrder;
   }
@@ -304,7 +349,10 @@ export function updatePhoto(
   if (!updated) return null;
 
   const user = resolveCreatedBy(db, updated.createdBy);
-  return toPhoto(updated, user);
+  const orientation = updated.orientationId
+    ? db.select().from(orientations).where(eq(orientations.id, updated.orientationId)).get()
+    : null;
+  return toPhoto(updated, user, orientation);
 }
 
 /**

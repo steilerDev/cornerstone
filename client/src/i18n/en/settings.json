@@ -105,6 +105,7 @@
     "tabs": {
       "areas": "Areas",
       "trades": "Trades",
+      "orientations": "Orientations",
       "budgetCategories": "Budget Categories",
       "householdItemCategories": "Household Item Categories"
     },
@@ -189,6 +190,43 @@
         "updateError": "Failed to update trade. Please try again.",
         "deleteError": "Failed to delete trade. Please try again.",
         "deleteConflict": "This trade cannot be deleted because it is currently in use."
+      }
+    },
+    "orientations": {
+      "tabLabel": "Orientations",
+      "createTitle": "Create orientation",
+      "createDescription": "Add an orientation to tag photos with a direction (e.g. South – Street).",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. South",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "e.g. Street-facing",
+      "sortOrderLabel": "Sort order",
+      "createButton": "Create orientation",
+      "creating": "Creating…",
+      "existingTitle": "Orientations ({{count}})",
+      "emptyState": "No orientations yet. Create one above to tag your photos with a direction.",
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "deleteTitle": "Delete orientation",
+      "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?",
+      "deleteWarning": "This action cannot be undone.",
+      "deleteButton": "Delete",
+      "deleting": "Deleting…",
+      "validation": {
+        "nameRequired": "Name is required.",
+        "nameTooLong": "Name must be 100 characters or fewer."
+      },
+      "messages": {
+        "created": "Orientation \"{{name}}\" created.",
+        "updated": "Orientation \"{{name}}\" updated.",
+        "deleted": "Orientation \"{{name}}\" deleted.",
+        "createError": "Failed to create orientation. Please try again.",
+        "updateError": "Failed to update orientation. Please try again.",
+        "deleteError": "Failed to delete orientation. Please try again.",
+        "loadError": "Failed to load orientations."
       }
     },
     "budgetCategories": {

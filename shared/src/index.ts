@@ -39,6 +39,17 @@ export type {
   TradeListQuery,
 } from './types/trade.js';
 
+// Orientations
+export type {
+  OrientationSummary,
+  OrientationResponse,
+  OrientationListResponse,
+  OrientationSingleResponse,
+  CreateOrientationRequest,
+  UpdateOrientationRequest,
+  OrientationListQuery,
+} from './types/orientation.js';
+
 // Work Items
 export type {
   WorkItem,

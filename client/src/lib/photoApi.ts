@@ -8,8 +8,10 @@ export function uploadPhoto(
   entityType: string,
   entityId: string,
   file: File,
-  caption?: string,
-  onProgress?: (percent: number) => void,
+  caption?: string | null,
+  onProgress?: ((percent: number) => void) | null,
+  areaId?: string | null,
+  orientationId?: string | null,
 ): Promise<Photo> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -51,6 +53,8 @@ export function uploadPhoto(
     formData.append('entityType', entityType);
     formData.append('entityId', entityId);
     if (caption) formData.append('caption', caption);
+    if (areaId) formData.append('areaId', areaId);
+    if (orientationId) formData.append('orientationId', orientationId);
 
     xhr.send(formData);
   });

@@ -640,15 +640,16 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
     expect(overflow).toBe(false);
   });
 
-  test('All four tabs are accessible/scrollable on all viewports', async ({ page }) => {
+  test('All five tabs are accessible/scrollable on all viewports', async ({ page }) => {
     await page.goto(MANAGE_ROUTE);
     await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
       state: 'visible',
     });
 
-    // All tab buttons must be present in the DOM (even if scrollable on mobile)
+    // All tab buttons must be present in the DOM (even if scrollable on mobile).
+    // Story #1674 added the Orientations tab — now 5 total.
     const tabs = page.getByRole('tab');
-    await expect(tabs).toHaveCount(4);
+    await expect(tabs).toHaveCount(5);
   });
 });
 

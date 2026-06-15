@@ -927,6 +927,8 @@ describe('DiaryEntryEditPage', () => {
         takenAt: null,
         caption: null,
         areaId: null,
+        orientationId: null,
+        orientation: null,
         sortOrder: 0,
         createdBy: { id: 'user-1', displayName: 'Alice Builder' },
         createdAt: '2026-03-14T09:00:00.000Z',

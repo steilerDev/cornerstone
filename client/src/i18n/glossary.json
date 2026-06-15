@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
     "locales": ["de"],
-    "lastUpdated": "2026-05-24"
+    "lastUpdated": "2026-06-15"
   },
   "terms": {
     "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
@@ -34,6 +34,7 @@
     "Funding Source": {
       "de": { "singular": "Finanzierungsquelle", "plural": "Finanzierungsquellen" }
     },
-    "Itemize": { "de": { "verb": "aufschlüsseln", "noun": "Aufschlüsselung" } }
+    "Itemize": { "de": { "verb": "aufschlüsseln", "noun": "Aufschlüsselung" } },
+    "Orientation": { "de": { "singular": "Ausrichtung", "plural": "Ausrichtungen" } }
   }
 }

@@ -5,6 +5,8 @@
  * using the same polymorphic entity_type + entity_id pattern as document links.
  */
 
+import type { OrientationSummary } from './orientation.js';
+
 export type PhotoEntityType = 'diary_entry' | 'room' | 'surface' | 'test';
 
 /**
@@ -22,6 +24,8 @@ export interface Photo {
   takenAt: string | null;
   caption: string | null;
   areaId: string | null;
+  orientationId: string | null;
+  orientation: OrientationSummary | null;
   sortOrder: number;
   createdBy: { id: string; displayName: string } | null;
   createdAt: string;
@@ -32,11 +36,12 @@ export interface Photo {
 }
 
 /**
- * Request to update photo metadata (caption, area, and sort order).
+ * Request to update photo metadata (caption, area, orientation, and sort order).
  */
 export interface UpdatePhotoRequest {
   caption?: string | null;
   areaId?: string | null;
+  orientationId?: string | null;
   sortOrder?: number;
 }
 
