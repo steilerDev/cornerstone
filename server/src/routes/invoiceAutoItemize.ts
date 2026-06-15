@@ -16,68 +16,6 @@ import type {
   AutoItemizeCommitRequest,
 } from '@cornerstone/shared';
 
-const schema = {
-  body: {
-    type: 'object',
-    required: ['paperlessDocumentId', 'mode', 'dryRun'],
-    properties: {
-      paperlessDocumentId: { type: 'integer', minimum: 1 },
-      mode: { type: 'string', enum: ['append', 'replace'] },
-      dryRun: { type: 'boolean' },
-      lines: {
-        type: 'array',
-        maxItems: 200,
-        items: {
-          type: 'object',
-          required: ['description', 'totalAmount', 'confidence'],
-          properties: {
-            description: { type: 'string', minLength: 1, maxLength: 1000 },
-            quantity: { type: ['number', 'null'] },
-            unit: { type: ['string', 'null'], maxLength: 100 },
-            unitPrice: { type: ['number', 'null'] },
-            totalAmount: { type: 'number', minimum: 0 },
-            includesVat: { type: ['boolean', 'null'] },
-            vatRate: { type: ['number', 'null'] },
-            vendorName: { type: ['string', 'null'] },
-            confidence: { type: 'number', minimum: 0, maximum: 1 },
-            assignedBudgetLineId: { type: ['string', 'null'] },
-            assignedBudgetLineType: {
-              type: ['string', 'null'],
-              enum: ['work_item', 'household_item', null],
-            },
-            assignmentMode: {
-              type: ['string', 'null'],
-              enum: ['create-new', 'assign-existing', null],
-            },
-            budgetCategoryId: { type: ['string', 'null'], maxLength: 36 },
-            budgetSourceId: { type: ['string', 'null'], maxLength: 36 },
-          },
-          additionalProperties: false,
-        },
-      },
-      invoicePatch: {
-        type: 'object',
-        minProperties: 1,
-        additionalProperties: false,
-        properties: {
-          invoiceNumber: { type: ['string', 'null'], maxLength: 255 },
-          amount: { type: 'number', exclusiveMinimum: 0 },
-          date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
-          dueDate: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
-          notes: { type: ['string', 'null'], maxLength: 10000 },
-          status: { type: 'string', enum: ['pending', 'paid', 'claimed', 'quotation'] },
-        },
-      },
-    },
-    additionalProperties: false,
-  },
-  params: {
-    type: 'object',
-    required: ['invoiceId'],
-    properties: { invoiceId: { type: 'string' } },
-  },
-};
-
 // Per-line JSON schema for both existing and new endpoints
 const lineItemSchema = {
   type: 'object',

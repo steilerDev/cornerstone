@@ -152,6 +152,14 @@ See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `rol
 - New wrapper component: `InvoicePaperlessPickerModal` at `client/src/components/invoices/` (justified — invoice-creation-specific chrome + reusable)
 - "Open in Paperless" URL pattern: `{paperlessUrl}/documents/{document.id}/details` (matches DocumentDetailPanel existing pattern)
 
+## PR #1681 — Paperless Invoice Picker (CHANGES_REQUIRED)
+
+- `--color-danger-text` = white (text ON danger bg) — NEVER use as border or text on `--color-danger-bg`; use `--color-danger-border` for border and `--color-danger-text-on-light` for red text on light bg
+- RECURRING BUG: when a page is refactored from a source page, CSS class migration is often incomplete — always grep all `styles.*` references in TSX against defined classes in the module to catch missing definitions
+- Inline `style={{ backgroundColor: 'var(--token)' }}` bypasses stylelint; use `data-level` attribute + CSS attribute selectors instead
+- GH PR review `--comment` via `--body-file` still fails silently; use `gh api repos/.../issues/{N}/comments` instead (issues API works for PR comments)
+- z-index: `z-index: 1` on absolute overlays inside card should be `var(--z-dropdown)` — prevents stacking collision with other card overlays (e.g. unlink button from #1680)
+
 ## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
 
 - `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic` — distinguishes from work-item "not_started" badge

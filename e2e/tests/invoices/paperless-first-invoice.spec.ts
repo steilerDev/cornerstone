@@ -456,6 +456,9 @@ test.describe('Scenario 2 — Correspondent filter', () => {
     await pickerModal.correspondentPortalDropdown.waitFor({ state: 'visible' });
     await pickerModal.correspondentPortalDropdown.getByRole('option', { name: 'Builder Co' }).click();
 
+    // Wait for grid to finish re-fetching with the correspondent filter applied
+    await pickerModal.waitForDocumentsLoaded();
+
     // After correspondent selection, the filtered list shows only doc 1
     await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).toBeVisible();
     // Doc 2 should no longer be visible
@@ -463,6 +466,8 @@ test.describe('Scenario 2 — Correspondent filter', () => {
 
     // Clear the correspondent — input resets and full list is restored
     await pickerModal.clearCorrespondent();
+    // Wait for grid to finish re-fetching the full unfiltered list
+    await pickerModal.waitForDocumentsLoaded();
     await expect(pickerModal.getDocumentCard(MOCK_DOC_2.title)).toBeVisible();
   });
 });

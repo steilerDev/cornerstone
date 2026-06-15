@@ -1,5 +1,5 @@
 .pickerModal {
-  max-width: 900px;
+  max-width: min(900px, calc(100vw - 2rem));
   width: 90vw;
   max-height: 90vh;
 }

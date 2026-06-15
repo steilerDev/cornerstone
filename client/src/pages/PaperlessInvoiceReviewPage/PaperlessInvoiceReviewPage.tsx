@@ -577,12 +577,12 @@ export function PaperlessInvoiceReviewPage() {
               >
                 {lines.map((line) => {
                   const pct = Math.round(line.confidence * 100);
-                  const confidenceColor =
+                  const confidenceLevel =
                     line.confidence >= 0.85
-                      ? 'var(--color-success)'
+                      ? 'high'
                       : line.confidence >= 0.6
-                        ? 'var(--color-warning)'
-                        : 'var(--color-danger)';
+                        ? 'medium'
+                        : 'low';
 
                   return (
                     <li
@@ -603,7 +603,7 @@ export function PaperlessInvoiceReviewPage() {
                         <span
                           role="img"
                           className={styles.confidenceDot}
-                          style={{ backgroundColor: confidenceColor }}
+                          data-confidence={confidenceLevel}
                           title={`${pct}%`}
                           aria-label={t('autoItemize.confidenceLabel', { pct })}
                         />

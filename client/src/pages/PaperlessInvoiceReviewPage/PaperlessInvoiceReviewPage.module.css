@@ -23,7 +23,7 @@
 .cardTitle {
   margin: 0 0 var(--spacing-4) 0;
   font-size: var(--font-size-lg);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
@@ -121,6 +121,18 @@
   border-radius: var(--radius-circle);
   margin-top: var(--spacing-2);
   cursor: default;
+}
+
+.confidenceDot[data-confidence="high"] {
+  background-color: var(--color-success);
+}
+
+.confidenceDot[data-confidence="medium"] {
+  background-color: var(--color-warning);
+}
+
+.confidenceDot[data-confidence="low"] {
+  background-color: var(--color-danger);
 }
 
 .cardMetricGrid {
@@ -257,13 +269,13 @@
   min-height: 300px;
   padding: var(--spacing-6);
   background-color: var(--color-danger-bg);
-  border: 1px solid var(--color-danger-text);
+  border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-lg);
 }
 
 .errorText {
   margin: 0;
-  color: var(--color-danger-text);
+  color: var(--color-danger-text-on-light);
   text-align: center;
   max-width: 600px;
 }
@@ -363,6 +375,197 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* Picker modal and assigned badge styles */
+
+.pickerContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.pickerStep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.assignButtonInTable {
+  padding: var(--spacing-1-5) var(--spacing-2);
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-primary-text);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+  transition: background-color 150ms ease;
+}
+
+.assignButtonInTable:hover {
+  background: var(--color-primary-hover);
+}
+
+.assignButtonInTable:active {
+  background: var(--color-primary-active);
+}
+
+.assignButtonInTable:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.assignedBadgeWrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.assignedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  padding: var(--spacing-1-5) var(--spacing-2);
+  background: var(--color-primary-bg);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.clearAssignButton {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clearAssignButton:hover {
+  color: var(--color-danger);
+}
+
+.clearAssignButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.errorBanner {
+  background-color: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger-text-on-light);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-8);
+  text-align: center;
+}
+
+.pickerBudgetLineRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-primary);
+  cursor: pointer;
+  transition: var(--transition-button);
+  text-align: left;
+}
+
+.pickerBudgetLineRow:hover {
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border-strong);
+}
+
+.pickerBudgetLineRow:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.budgetLineInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.budgetLineDesc {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.addButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button);
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.addButton:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.addButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.addButton:disabled {
+  background-color: var(--color-text-placeholder);
+  cursor: not-allowed;
+}
+
+.backButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.backButton:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.backButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 /* Responsive adjustments for line cards */
