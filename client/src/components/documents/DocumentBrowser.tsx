@@ -41,6 +41,12 @@ export function DocumentBrowser({
   const [hideLinked, setHideLinked] = useState(defaultHideLinked);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Forward correspondent prop changes to the hook
+  useEffect(() => {
+    hook.setCorrespondent(correspondentId ?? null);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- setCorrespondent is stable callback; only depend on correspondentId to trigger filter updates
+  }, [correspondentId]);
+
   // Debounced search — intentionally omits hook.search from dep array to prevent infinite loop
   useEffect(() => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
