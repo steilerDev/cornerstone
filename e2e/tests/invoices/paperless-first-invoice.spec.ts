@@ -221,9 +221,10 @@ async function mockDocuments(
 ): Promise<void> {
   await page.route('**/paperless/documents**', async (route: Route) => {
     const url = new URL(route.request().url());
-    const corrParam = url.searchParams.get('correspondentId');
+    // The client sends ?correspondent=<id> (integer param name, per paperlessApi.ts)
+    const corrParam = url.searchParams.get('correspondent');
     if (opts.filteredByCorrespondentId !== undefined && corrParam !== null) {
-      // Return filtered list when correspondentId is provided
+      // Return filtered list when correspondent param is provided
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -418,7 +419,8 @@ test.describe('Scenario 2 — Correspondent filter', () => {
     let lastDocRequestHadCorrespondent = false;
     await page.route('**/paperless/documents**', async (route: Route) => {
       const url = new URL(route.request().url());
-      const corrParam = url.searchParams.get('correspondentId');
+      // The client sends ?correspondent=<id> (integer param name, per paperlessApi.ts)
+      const corrParam = url.searchParams.get('correspondent');
       lastDocRequestHadCorrespondent = corrParam !== null && corrParam !== '';
       if (lastDocRequestHadCorrespondent) {
         await route.fulfill({

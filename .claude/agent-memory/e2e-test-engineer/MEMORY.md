@@ -3,6 +3,21 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## Paperless correspondent query param name (2026-06-15) — `e2e/tests/invoices/paperless-first-invoice.spec.ts`
+
+- `listPaperlessDocuments()` sends `?correspondent=<id>` (integer, per `paperlessApi.ts` line 27: `params.set('correspondent', ...)`)
+- NOT `?correspondentId=` — that is the DocumentBrowser/usePaperless PROP name, not the URL param
+- Always check URL param as `url.searchParams.get('correspondent')` in route mocks
+- `usePaperless` hook receives `correspondentId` prop → sends `correspondent` param in HTTP request
+
+## LinkedDocumentsSection defaultHideLinked change (Story #1679, 2026-06-15) — `document-linking.spec.ts` Scenario 7
+
+- `LinkedDocumentsSection` now passes `defaultHideLinked={true}` to `DocumentBrowser` (line 420 of LinkedDocumentsSection.tsx)
+- `InvoicePaperlessPickerModal` also passes `defaultHideLinked={true}` with `linkedDocumentIds={[]}`
+- With empty `linkedDocumentIds`, `defaultHideLinked=true` doesn't hide anything (client-side filter excludes nothing)
+- Updated Scenario 7a (now tests toggle defaults ON, initially 1 doc visible) and 7b (renamed "checked by default")
+- When `linkedDocumentIds` has entries, docs with those IDs are hidden by default
+
 ## SearchPicker Display Mode in E2E (2026-06-15) — `e2e/pages/PaperlessInvoiceReviewPage.ts`
 
 - When SearchPicker has `initialTitle + value` set (pre-filled), it renders `<div class*="selectedDisplay">` NOT the `<input id="...">`. Assert `vendorSelectedDisplay` = `[class*="card"].first() [class*="selectedDisplay"]`, NOT `#vendor-picker`.
