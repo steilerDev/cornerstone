@@ -13,6 +13,7 @@ import type {
   DiaryIssueSeverity,
   DiaryIssueResolution,
   DiarySignatureEntry,
+  ManualDiaryEntryType,
 } from '@cornerstone/shared';
 import {
   getDiaryEntry,
@@ -615,7 +616,7 @@ export default function DiaryEntryEditPage() {
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
         <DiaryEntryForm
-          entryType={entry.entryType as any}
+          entryType={entry.entryType as ManualDiaryEntryType}
           entryDate={entryDate}
           title={title}
           body={body}

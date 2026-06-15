@@ -9,6 +9,13 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type * as schemaTypes from '../db/schema.js';
+import type {
+  UpdatePhotoRequest,
+  ReorderPhotosRequest,
+  PhotoEntityType,
+} from '@cornerstone/shared';
 import { createReadStream } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import {
@@ -21,11 +28,6 @@ import {
 import * as photoService from '../services/photoService.js';
 import * as photoAnnotationService from '../services/photoAnnotationService.js';
 import { diaryEntries } from '../db/schema.js';
-import type {
-  UpdatePhotoRequest,
-  ReorderPhotosRequest,
-  PhotoEntityType,
-} from '@cornerstone/shared';
 
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
@@ -33,7 +35,10 @@ import type {
  * Check if a diary entry is signed (has non-empty signatures array in metadata).
  * Returns true if signed, false if not signed or entry not found.
  */
-function isDiaryEntrySigned(db: any, diaryEntryId: string): boolean {
+function isDiaryEntrySigned(
+  db: BetterSQLite3Database<typeof schemaTypes>,
+  diaryEntryId: string,
+): boolean {
   const entry = db
     .select({ metadata: diaryEntries.metadata })
     .from(diaryEntries)

@@ -97,8 +97,8 @@ describe('TimelineWorkItem interface', () => {
       area: null,
     };
 
-    expect((item as any).tags).toBeUndefined();
-    expect((item as any).tagIds).toBeUndefined();
+    expect((item as unknown as Record<string, unknown>).tags).toBeUndefined();
+    expect((item as unknown as Record<string, unknown>).tagIds).toBeUndefined();
   });
 
   it('accepts optional requiredMilestoneIds array', () => {
@@ -447,6 +447,6 @@ describe('TimelineResponse interface', () => {
       dateRange: null,
     };
 
-    expect((response.workItems[0] as any).tags).toBeUndefined();
+    expect((response.workItems[0] as unknown as Record<string, unknown>).tags).toBeUndefined();
   });
 });

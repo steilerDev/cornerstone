@@ -16,14 +16,15 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 function toWorkItemBudgetLine(
   _db: DbType,
-  row: typeof workItemBudgets.$inferSelect,
+  row: unknown,
   rel: ResolvedBudgetRelations,
 ): WorkItemBudgetLine {
+  const typedRow = row as typeof workItemBudgets.$inferSelect;
   return {
-    id: row.id,
-    workItemId: row.workItemId!,
-    description: row.description,
-    plannedAmount: row.plannedAmount,
+    id: typedRow.id,
+    workItemId: typedRow.workItemId!,
+    description: typedRow.description,
+    plannedAmount: typedRow.plannedAmount,
     confidence: rel.confidence,
     confidenceMargin: rel.confidenceMargin,
     budgetCategory: rel.budgetCategory,
@@ -44,13 +45,13 @@ function toWorkItemBudgetLine(
           vendorName: rel.invoiceLink.vendorName,
         }
       : null,
-    quantity: row.quantity ?? null,
-    unit: row.unit ?? null,
-    unitPrice: row.unitPrice ?? null,
-    includesVat: row.includesVat ?? true,
+    quantity: typedRow.quantity ?? null,
+    unit: typedRow.unit ?? null,
+    unitPrice: typedRow.unitPrice ?? null,
+    includesVat: typedRow.includesVat ?? true,
     createdBy: rel.createdBy,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    createdAt: typedRow.createdAt,
+    updatedAt: typedRow.updatedAt,
   };
 }
 
@@ -65,20 +66,22 @@ function buildInsertValues(
   _db: DbType,
   workItemId: string,
   userId: string,
-  data: CreateWorkItemBudgetRequest,
-): Record<string, any> {
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- data is CreateWorkItemBudgetRequest at runtime
+  const typedData = data as any;
   return {
     workItemId,
-    description: data.description ?? null,
-    plannedAmount: data.plannedAmount,
-    confidence: data.confidence ?? 'own_estimate',
-    budgetCategoryId: data.budgetCategoryId ?? null,
-    budgetSourceId: data.budgetSourceId ?? null,
-    vendorId: data.vendorId ?? null,
-    quantity: data.quantity ?? null,
-    unit: data.unit ?? null,
-    unitPrice: data.unitPrice ?? null,
-    includesVat: data.includesVat ?? true,
+    description: typedData.description ?? null,
+    plannedAmount: typedData.plannedAmount,
+    confidence: typedData.confidence ?? 'own_estimate',
+    budgetCategoryId: typedData.budgetCategoryId ?? null,
+    budgetSourceId: typedData.budgetSourceId ?? null,
+    vendorId: typedData.vendorId ?? null,
+    quantity: typedData.quantity ?? null,
+    unit: typedData.unit ?? null,
+    unitPrice: typedData.unitPrice ?? null,
+    includesVat: typedData.includesVat ?? true,
     createdBy: userId,
   };
 }
@@ -105,7 +108,7 @@ export function createWorkItemBudget(
   userId: string,
   data: CreateWorkItemBudgetRequest,
 ): WorkItemBudgetLine {
-  return service.create(db, workItemId, userId, data);
+  return service.create(db, workItemId, userId, data as unknown as Record<string, unknown>);
 }
 
 export function updateWorkItemBudget(
@@ -125,7 +128,7 @@ export function updateWorkItemBudget(
   }
 
   // No move - use factory update
-  return service.update(db, workItemId, budgetId, data);
+  return service.update(db, workItemId, budgetId, data as unknown as Record<string, unknown>);
 }
 
 function updateAndMoveWorkItemBudget(
@@ -153,7 +156,7 @@ function updateAndMoveWorkItemBudget(
 
   // If no move, use factory update
   if (!hasNewWorkItem) {
-    return service.update(db, workItemId, budgetId, data);
+    return service.update(db, workItemId, budgetId, data as unknown as Record<string, unknown>);
   }
 
   // Handle same-table move: WI → WI

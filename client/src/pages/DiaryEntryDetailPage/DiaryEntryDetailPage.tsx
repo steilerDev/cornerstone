@@ -416,6 +416,7 @@ function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLin
   const getDefaultLabel = (): string => {
     try {
       const key = `detailPage.sourceType.${sourceType}`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic i18n key constructed at runtime, not in static namespace type
       const label = t(key as any);
       // If translation key not found, it returns the key itself, so fallback to sourceType
       return label === key ? sourceType : label;

@@ -367,7 +367,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
         expect(result).toHaveLength(1);
         // HI budget lines don't expose an invoices array
-        expect((result[0] as any).invoices).toBeUndefined();
+        expect((result[0] as unknown as Record<string, unknown>).invoices).toBeUndefined();
       });
 
       it('returns invoice aggregates from household_item_budget_id column', () => {
@@ -627,6 +627,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         expect(() => {
           createWorkItemBudget(db, workItemId, 'user-001', {
             plannedAmount: 100,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Invalid enum value for test
             confidence: 'invalid_level' as any,
           });
         }).toThrow(ValidationError);
@@ -797,7 +798,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
           budgetSourceId: 'discretionary-system',
         });
 
-        expect((result as any).invoices).toBeUndefined();
+        expect((result as unknown as Record<string, unknown>).invoices).toBeUndefined();
       });
     });
   });
@@ -940,6 +941,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         });
 
         expect(() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Invalid enum value for test
           updateWorkItemBudget(db, workItemId, line.id, { confidence: 'bad_level' as any });
         }).toThrow(ValidationError);
       });
@@ -1075,6 +1077,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const updated = updateHouseholdItemBudget(db, hiId, line.id, {
           description: 'Updated',
           budgetCategoryId: otherCategoryId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test config object with dynamic value
         } as any);
 
         // budgetCategoryId from the request is stripped — bc-household-items stays
@@ -1629,6 +1632,7 @@ describe('resolveRelationsBatch()', () => {
         id,
         workItemId: opts.workItemId,
         plannedAmount: opts.plannedAmount ?? 100,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test default value cast
         confidence: (opts.confidence ?? 'own_estimate') as any,
         budgetCategoryId: opts.budgetCategoryId ?? null,
         budgetSourceId: opts.budgetSourceId ?? null,

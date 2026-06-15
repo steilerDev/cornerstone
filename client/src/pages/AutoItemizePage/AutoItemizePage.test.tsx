@@ -69,12 +69,12 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 let mockPickerStateOverride: Record<string, unknown> = {};
 
 const mockShowCreateBudgetLineForm = jest
-  .fn<(...args: any[]) => Promise<void>>()
+  .fn<(prefill?: Record<string, unknown>) => Promise<void>>()
   .mockResolvedValue(undefined);
 
 // Captured onLineCreated callback — allows regression tests for #1613 to invoke
 // the callback directly and assert the resulting DOM state (e.g. auto-created-badge).
-type OnLineCreatedFn = (...args: any[]) => void;
+type OnLineCreatedFn = (line: unknown, invoiceBudgetLineId: string | null) => void;
 let capturedOnLineCreated: OnLineCreatedFn | null = null;
 
 jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
@@ -2026,7 +2026,6 @@ describe('AutoItemizePage', () => {
       });
 
       // Before onLoad fires, the overlay should be present (pdfLoaded starts false)
-      const overlay = document.querySelector('[aria-hidden="true"][class*="pdfLoadingOverlay"]');
       // The overlay may or may not be found depending on CSS module class name handling.
       // Use a more robust selector: look for the spinner inside the preview wrapper.
       const previewWrapper = document.querySelector('iframe');
