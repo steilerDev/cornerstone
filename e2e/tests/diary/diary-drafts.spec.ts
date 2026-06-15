@@ -319,20 +319,30 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       // Get the hidden file input
       const fileInput = page.getByTestId('photo-file-input');
 
-      // Register POST /api/photos response listener before uploading
+      await fileInput.setInputFiles([file1, file2]);
+
+      // PR #1674 introduced PhotoMetadataModal: selecting files opens a modal asking for
+      // caption, area, and orientation before uploading. Each file gets its own modal step.
+      // After saving file 1, the modal stays open showing file 2. After saving file 2, it closes.
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
+
+      // Register POST /api/photos response listener BEFORE clicking Save so we don't miss it.
       const upload1Promise = page.waitForResponse(
         (resp) => resp.url().includes('/api/photos') && resp.request().method() === 'POST',
       );
 
-      await fileInput.setInputFiles([file1, file2]);
+      // Save file 1 metadata — modal stays open (now shows file 2)
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
 
-      // Wait for first upload to complete
+      // Save file 2 metadata — modal closes after last file
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+      await expect(modal).not.toBeVisible();
+
+      // Wait for first upload to complete (both are now in-flight)
       await upload1Promise;
 
-      // The queue container should appear with at least one item
-      // (declared but not used in assertions — upload queue managed internally)
-
-      // At least one item should transition to succeeded (shown briefly then removed from queue)
       // Verify the upload zone is still visible (photo section rendered)
       await expect(page.getByTestId('photo-upload-zone')).toBeVisible();
     } finally {
@@ -485,13 +495,23 @@ test.describe('Photo upload failure and retry (Scenario 8)', () => {
         ),
       };
 
-      // Wait for first upload to fail
+      const fileInput = page.getByTestId('photo-file-input');
+
+      // Register the response listener BEFORE selecting files so we don't miss it.
       const firstUploadResponse = page.waitForResponse(
         (resp) => resp.url().includes('/api/photos') && resp.request().method() === 'POST',
       );
 
-      const fileInput = page.getByTestId('photo-file-input');
       await fileInput.setInputFiles([minimalFile]);
+
+      // PR #1674 introduced PhotoMetadataModal: selecting a file opens a modal for metadata
+      // before uploading. Save the modal to trigger the upload.
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+      await expect(modal).not.toBeVisible();
+
+      // Now wait for the first (failing) upload response
       await firstUploadResponse;
 
       // The failed state should show a retry button

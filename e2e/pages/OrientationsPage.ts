@@ -148,9 +148,16 @@ export class OrientationsPage {
     return this.panel.getByText('No orientations yet.', { exact: false });
   }
 
-  /** Locator for a list row identified by its orientation name. */
+  /**
+   * Locator for an orientation list row identified by its name.
+   *
+   * NOTE: The ManagePage.tsx OrientationsTab uses `styles.listItem` and `styles.listContainer`
+   * which are not defined in ManagePage.module.css (see bug #1681). As a result the outer row
+   * `<div>` has no CSS class. We identify rows by the `[class*="itemName"]` text content and
+   * use it as the stable anchor.
+   */
   getOrientationRow(name: string): Locator {
-    return this.panel.locator('[class*="listItem"]').filter({ hasText: name });
+    return this.panel.locator('[class*="itemName"]').filter({ hasText: name });
   }
 
   // ──────────────────────────────────────────────────────────────────────
@@ -162,20 +169,24 @@ export class OrientationsPage {
    * @param name    The current orientation name (identifies the row)
    * @param updates Fields to update (only provided fields are changed)
    * @returns After the PATCH 200 response.
+   *
+   * NOTE: The outer row div has no CSS class (styles.listItem undefined in ManagePage.module.css,
+   * see bug #1681). We find the Edit button directly in the panel by its aria-label.
    */
   async editOrientation(
     name: string,
     updates: { name?: string; description?: string; sortOrder?: number },
   ): Promise<void> {
-    const row = this.getOrientationRow(name);
-    await row
+    // Click the Edit button found by aria-label (unique per orientation name)
+    await this.panel
       .getByRole('button', { name: `Edit ${name}`, exact: true })
       .click();
 
-    // Inline edit form appears; locate by dynamic id
-    // The edit inputs use id="edit-name-{id}" etc. but since we're scoped to
-    // the row we can use more generic selectors.
-    const editForm = row.locator('form');
+    // The inline edit form replaces the row display. Disambiguate from the create form (also a
+    // <form> in the panel) by filtering on the edit inputs' id prefix.
+    const editForm = this.panel
+      .locator('form')
+      .filter({ has: this.page.locator('[id^="edit-name-"]') });
 
     if (updates.name !== undefined) {
       await editForm.locator('[id^="edit-name-"]').fill(updates.name);
@@ -201,10 +212,12 @@ export class OrientationsPage {
    * Click Delete on the orientation row, then confirm in the modal.
    * @param name The orientation name whose Delete button to click.
    * @returns After the DELETE 204 response.
+   *
+   * NOTE: The outer row div has no CSS class (styles.listItem undefined in ManagePage.module.css,
+   * see bug #1681). We find the Delete button directly in the panel by its aria-label.
    */
   async deleteOrientation(name: string): Promise<void> {
-    const row = this.getOrientationRow(name);
-    await row
+    await this.panel
       .getByRole('button', { name: `Delete ${name}`, exact: true })
       .click();
 

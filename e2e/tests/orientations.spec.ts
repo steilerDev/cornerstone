@@ -129,10 +129,10 @@ test.describe('Orientations tab — create name-only (Scenario 3)', { tag: '@res
         // Success banner appears
         await expect(orientationsPage.successMessage).toBeVisible();
 
-        // Item appears in the list
-        const row = orientationsPage.getOrientationRow(orientationName);
-        await expect(row).toBeVisible();
-        await expect(row.locator('[class*="itemName"]')).toHaveText(orientationName);
+        // Item appears in the list — getOrientationRow() returns the itemName element
+        const nameEl = orientationsPage.getOrientationRow(orientationName);
+        await expect(nameEl).toBeVisible();
+        await expect(nameEl).toHaveText(orientationName);
       } finally {
         if (orientationId) await deleteOrientationViaApi(page, orientationId);
       }
@@ -167,11 +167,15 @@ test.describe(
           // Success banner
           await expect(orientationsPage.successMessage).toBeVisible();
 
-          // Row contains both name and description
-          const row = orientationsPage.getOrientationRow(orientationName);
-          await expect(row).toBeVisible();
-          await expect(row.locator('[class*="itemName"]')).toHaveText(orientationName);
-          await expect(row.locator('[class*="itemDescription"]')).toHaveText(orientationDesc);
+          // Name and description both appear in the list.
+          // getOrientationRow() returns the itemName element; description is a sibling element.
+          const nameEl = orientationsPage.getOrientationRow(orientationName);
+          await expect(nameEl).toBeVisible();
+          await expect(nameEl).toHaveText(orientationName);
+          // Description is rendered as a sibling [class*="itemDescription"] in the same container
+          await expect(
+            orientationsPage.panel.locator('[class*="itemDescription"]').filter({ hasText: orientationDesc }),
+          ).toBeVisible();
         } finally {
           if (orientationId) await deleteOrientationViaApi(page, orientationId);
         }
@@ -203,7 +207,7 @@ test.describe(
     );
 
     test(
-      'Submitting with whitespace-only name shows validation error',
+      'Create button stays disabled when name contains only whitespace',
       async ({ page }) => {
         await page.goto(ORIENTATIONS_TAB_URL);
         await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
@@ -211,15 +215,18 @@ test.describe(
         });
 
         const orientationsPage = new OrientationsPage(page);
-        // Fill with spaces only — button becomes enabled (React trims on submit)
-        await orientationsPage.nameInput.fill('   ');
-        // Button should now be enabled (value is truthy before trim)
-        // but submitting should show a validation error
-        await orientationsPage.createButton.click();
 
-        // After submit the button disables again and error appears
-        await expect(orientationsPage.createError).toBeVisible();
-        await expect(orientationsPage.createError).toContainText('required');
+        // Initially the button is disabled (empty name)
+        await expect(orientationsPage.createButton).toBeDisabled();
+
+        // Fill with spaces only — the button disabled check is `!newName.trim()`.
+        // Since '   '.trim() === '' which is falsy, !'' = true → button stays DISABLED.
+        await orientationsPage.nameInput.fill('   ');
+        await expect(orientationsPage.createButton).toBeDisabled();
+
+        // Clear the field — button still disabled
+        await orientationsPage.nameInput.fill('');
+        await expect(orientationsPage.createButton).toBeDisabled();
       },
     );
   },
@@ -281,9 +288,8 @@ test.describe('Orientations tab — delete (Scenario 7)', { tag: '@responsive' }
         // Item exists before deletion
         await expect(orientationsPage.getOrientationRow(orientationName)).toBeVisible();
 
-        // Verify confirmation modal appears — check it is visible when Delete button is clicked
-        const row = orientationsPage.getOrientationRow(orientationName);
-        await row
+        // Verify confirmation modal appears — click Delete button (found in panel by aria-label)
+        await orientationsPage.panel
           .getByRole('button', { name: `Delete ${orientationName}`, exact: true })
           .click();
 

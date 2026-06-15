@@ -429,14 +429,16 @@ test.describe('PhotoMetadataModal — multiple files, save all (Scenario 7)', ()
 
         const modal = page.getByRole('dialog', { name: 'Add photo details' });
 
-        // First modal — save
+        // First modal — save.
+        // After saving file 1, the modal immediately re-renders showing file 2 (does NOT close
+        // between sequential files). Only assert not-visible AFTER the LAST file is processed.
         await modal.waitFor({ state: 'visible' });
         await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
-        await expect(modal).not.toBeVisible();
 
-        // Second modal — save
+        // Second modal — save (modal was still visible, now showing file 2)
         await modal.waitFor({ state: 'visible' });
         await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+        // Modal closes only after the last file is processed
         await expect(modal).not.toBeVisible();
 
         // Both files should appear in the queue while the uploads are in-flight (delayed 400ms).
@@ -480,15 +482,16 @@ test.describe('PhotoMetadataModal — multiple files, cancel first (Scenario 8)'
 
         const modal = page.getByRole('dialog', { name: 'Add photo details' });
 
-        // First modal — cancel (discard first file)
+        // First modal — cancel (discard first file).
+        // After cancelling file 1, the modal immediately re-renders showing file 2 (does NOT close
+        // between sequential files). Only assert not-visible AFTER the LAST file is processed.
         await modal.waitFor({ state: 'visible' });
         await modal.getByRole('button', { name: 'Cancel', exact: true }).click();
-        await expect(modal).not.toBeVisible();
 
-        // Second modal must appear (for the second file)
+        // Second modal — save (modal was still visible, now showing file 2)
         await modal.waitFor({ state: 'visible' });
-        // Save the second file
         await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+        // Modal closes only after the last file is processed
         await expect(modal).not.toBeVisible();
 
         // Queue shows only the second file (first was cancelled) while upload is in-flight
