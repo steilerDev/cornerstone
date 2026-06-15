@@ -99,9 +99,7 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: jest
     .fn<
-      (
-        params?: unknown,
-      ) => Promise<{
+      (params?: unknown) => Promise<{
         vendors: unknown[];
         pagination: { page: number; pageSize: number; totalItems: number; totalPages: number };
       }>

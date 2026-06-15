@@ -62,27 +62,27 @@ export function SignatureSection({
               key={`${sig.signerType}-${sig.signerName}-${index}`} // eslint-disable-line @eslint-react/no-array-index-key -- signatures list may have duplicates; composite key with signerType+name+index is stable
               className={styles.signatureItem}
             >
-                <SignatureCapture
-                  signature={sig.signatureDataUrl ? sig : null}
-                  onSignatureChange={(updated) => {
-                    handleSignatureUpdate(index, updated);
-                  }}
-                  signerName={sig.signerName}
-                  onSignerNameChange={(name) => {
-                    onSignatureChange(index, { ...sig, signerName: name });
-                  }}
-                  signerType={sig.signerType}
-                  onSignerTypeChange={(type) => {
-                    onSignatureChange(index, {
-                      ...sig,
-                      signerType: type,
-                      signerName: type === 'self' ? currentUserName || '' : '',
-                    });
-                  }}
-                  disabled={disabled}
-                  currentUserName={currentUserName}
-                  vendors={vendors}
-                />
+              <SignatureCapture
+                signature={sig.signatureDataUrl ? sig : null}
+                onSignatureChange={(updated) => {
+                  handleSignatureUpdate(index, updated);
+                }}
+                signerName={sig.signerName}
+                onSignerNameChange={(name) => {
+                  onSignatureChange(index, { ...sig, signerName: name });
+                }}
+                signerType={sig.signerType}
+                onSignerTypeChange={(type) => {
+                  onSignatureChange(index, {
+                    ...sig,
+                    signerType: type,
+                    signerName: type === 'self' ? currentUserName || '' : '',
+                  });
+                }}
+                disabled={disabled}
+                currentUserName={currentUserName}
+                vendors={vendors}
+              />
             </div>
           ))}
         </div>

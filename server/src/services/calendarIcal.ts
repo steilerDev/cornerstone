@@ -113,10 +113,10 @@ export function buildCalendar(
     // Prefer actual delivery date if set
     const startDate: string | null = hi.actualDeliveryDate
       ? toDateOnly(hi.actualDeliveryDate)
-      : hi.earliestDeliveryDate ?? hi.targetDeliveryDate;
+      : (hi.earliestDeliveryDate ?? hi.targetDeliveryDate);
     const endDate: string | null = hi.actualDeliveryDate
       ? toDateOnly(hi.actualDeliveryDate)
-      : hi.latestDeliveryDate ?? hi.targetDeliveryDate;
+      : (hi.latestDeliveryDate ?? hi.targetDeliveryDate);
 
     // Skip if no delivery dates are available
     if (!startDate || !endDate) continue;
