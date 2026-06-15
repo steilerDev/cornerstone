@@ -166,7 +166,7 @@ export function usePaperless(options?: UsePaperlessOptions): UsePaperlessResult 
 
   const setCorrespondent = useCallback((id: number | null) => {
     setCorrespondentIdState(id);
-    setPageState(1);
+    setPage(1);
   }, []);
 
   return {
