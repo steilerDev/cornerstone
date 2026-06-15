@@ -262,7 +262,7 @@ describe('isOpenAiReasoningModel', () => {
     ['gpt-5.5', true],
     ['gpt-5.4-mini', true],
     ['codex-mini', true],
-    ['O1-MINI', true],  // uppercase — case-insensitive
+    ['O1-MINI', true], // uppercase — case-insensitive
   ] as const)('returns true for reasoning model %s', (model, expected) => {
     expect(isOpenAiReasoningModel(model)).toBe(expected);
   });
@@ -274,7 +274,7 @@ describe('isOpenAiReasoningModel', () => {
     ['gpt-3.5-turbo', false],
     ['claude-3-haiku-20240307', false],
     ['gemini-2.5-flash', false],
-    ['test-model', false],  // the fixture used in existing buildRequestBody tests
+    ['test-model', false], // the fixture used in existing buildRequestBody tests
   ] as const)('returns false for non-reasoning model %s', (model, expected) => {
     expect(isOpenAiReasoningModel(model)).toBe(expected);
   });

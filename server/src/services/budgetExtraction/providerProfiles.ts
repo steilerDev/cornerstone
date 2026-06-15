@@ -157,9 +157,9 @@ export interface RequestBodyInput {
 export function isOpenAiReasoningModel(model: string): boolean {
   const m = model.toLowerCase().trim();
   return (
-    /^o[134](-|$)/.test(m) ||  // o1, o1-mini, o1-preview, o3, o3-mini, o4-mini
-    m.startsWith('gpt-5') ||    // gpt-5, gpt-5.5, gpt-5.4-mini, etc.
-    m.includes('codex-mini')    // codex-mini (reasoning variant)
+    /^o[134](-|$)/.test(m) || // o1, o1-mini, o1-preview, o3, o3-mini, o4-mini
+    m.startsWith('gpt-5') || // gpt-5, gpt-5.5, gpt-5.4-mini, etc.
+    m.includes('codex-mini') // codex-mini (reasoning variant)
   );
 }
 
