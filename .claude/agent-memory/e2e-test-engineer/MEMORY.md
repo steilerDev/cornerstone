@@ -3,6 +3,15 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## Diary Mobile Filter Panel E2E (Bug #1688, 2026-06-15) — `e2e/tests/diary/diary-mobile-filters.spec.ts`
+
+- 6 scenarios; all tagged `@responsive` so mobile+tablet+desktop projects execute them.
+- Mobile-only (Scenarios 1–5): runtime `if (viewportWidth > 767) test.skip()` — MOBILE_MAX_WIDTH = 767 matches CSS `@media (max-width: 767px)`.
+- Desktop/tablet-only (Scenario 6): runtime `if (viewportWidth <= 767) test.skip()`.
+- POM reused: `DiaryPage.mobileFilterToggle`, `DiaryPage.searchInput`, `DiaryPage.openFiltersIfCollapsed()`.
+- Mode chip test-ids: `mode-filter-all`, `mode-filter-manual`, `mode-filter-automatic`.
+- No API mocking — all scenarios navigate to /diary and interact with filter UI only.
+
 ## Overlay Unlink Button E2E (fix/1680, 2026-06-15) — `e2e/tests/documents/document-linking.spec.ts`
 
 - New `describe` block: `'Document Linking — Unlink via Overlay Button (Scenario 4)'` — 3 scenarios (4a desktop confirm, 4b desktop cancel, 4c mobile @responsive).

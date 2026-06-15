@@ -7,6 +7,7 @@
   border-radius: var(--radius-md);
   background-color: var(--color-bg-primary);
   padding: var(--spacing-4);
+  position: relative;
 }
 
 .mobileToggle {
@@ -189,6 +190,10 @@
 @media (max-width: 767px) {
   .mobileToggle {
     display: block;
+  }
+
+  .filterBar {
+    overflow: visible;
   }
 
   .filters {
