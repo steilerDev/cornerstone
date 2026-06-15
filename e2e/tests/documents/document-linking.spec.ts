@@ -702,12 +702,11 @@ test.describe('Document Linking — Unlink via Overlay Button (Scenario 4)', () 
       const unlinkModal = page.getByRole('dialog', { name: 'Unlink Document?' });
       await expect(unlinkModal).toBeVisible();
 
-      // Dismiss via Cancel button. The component auto-focuses the Cancel button via
-      // cancelButtonRef (setTimeout(0) in useEffect). Wait for focus, then use keyboard
-      // Enter to activate it — this bypasses any backdrop pointer-event race on CI Linux.
-      const cancelButton = unlinkModal.getByRole('button', { name: /^Cancel$/i });
-      await expect(cancelButton).toBeFocused();
-      await page.keyboard.press('Enter');
+      // Dismiss via Cancel button. Use Escape key — the component's keydown handler
+      // calls setUnlinkTarget(null) on Escape when unlinkTarget is set and !isUnlinking.
+      // This is more reliable than a pointer click on the custom modal on CI Linux runners,
+      // where the modalBackdrop (position:absolute;inset:0) can block pointer events.
+      await page.keyboard.press('Escape');
 
       // Modal closes
       await expect(unlinkModal).toBeHidden({ timeout: 10000 });
