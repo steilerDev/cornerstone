@@ -343,8 +343,11 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       // Wait for first upload to complete (both are now in-flight)
       await upload1Promise;
 
-      // Verify the upload zone is still visible (photo section rendered)
-      await expect(page.getByTestId('photo-upload-zone')).toBeVisible();
+      // Verify the photo upload section is still visible (photo section rendered).
+      // On touch devices (tablet/mobile), isTouchDevice=true so the mobile button pair
+      // renders instead of the drag-and-drop zone (data-testid="photo-upload-zone").
+      // Use "Upload Photos" button which exists in both touch and non-touch layouts.
+      await expect(page.getByRole('button', { name: 'Upload Photos' }).first()).toBeVisible();
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
@@ -1017,10 +1020,25 @@ test.describe(
             state: 'visible',
           });
 
-          // Photo upload zone should be visible (not hidden behind scroll)
-          const photoUploadZone = page.getByTestId('photo-upload-zone');
-          await photoUploadZone.scrollIntoViewIfNeeded();
-          await expect(photoUploadZone).toBeVisible();
+          // The photo upload section should be visible (not hidden behind scroll).
+          // On touch devices (tablet/mobile), PhotoUpload renders a mobile button pair
+          // (isTouchDevice=true via `hover: none`) instead of the drag-and-drop zone
+          // (data-testid="photo-upload-zone"). Use viewport width as a proxy for
+          // touch device detection, matching the same threshold used in photo-capture-flow.spec.ts.
+          const viewportWidth = page.viewportSize()?.width ?? 1920;
+          const isMobileOrTablet = viewportWidth <= 1024;
+
+          if (isMobileOrTablet) {
+            // Touch device: mobile button pair is shown; "Upload Photos" button is the anchor
+            const uploadBtn = page.getByRole('button', { name: 'Upload Photos' }).first();
+            await uploadBtn.scrollIntoViewIfNeeded();
+            await expect(uploadBtn).toBeVisible();
+          } else {
+            // Desktop: drag-and-drop zone with data-testid="photo-upload-zone"
+            const photoUploadZone = page.getByTestId('photo-upload-zone');
+            await photoUploadZone.scrollIntoViewIfNeeded();
+            await expect(photoUploadZone).toBeVisible();
+          }
 
           // No horizontal scroll
           const hasHorizontalScroll = await page.evaluate(() => {
