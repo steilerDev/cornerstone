@@ -103,9 +103,8 @@ export function SignatureCapture({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !signature) {
-      /* eslint-disable @eslint-react/set-state-in-effect -- checking signature state and initializing dependent state on effect */
       setHasStrokes(false);
-      /* eslint-enable @eslint-react/set-state-in-effect */
+
       return;
     }
 

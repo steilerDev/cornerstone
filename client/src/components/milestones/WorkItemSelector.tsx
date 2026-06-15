@@ -79,9 +79,7 @@ export function WorkItemSelector({
   // Update anchor rect for portal positioning
   const updateAnchorRect = useCallback(() => {
     if (containerRef.current) {
-      /* eslint-disable @eslint-react/set-state-in-effect -- measures anchor rect for portal positioning; invoked from an effect */
       setAnchorRect(containerRef.current.getBoundingClientRect());
-      /* eslint-enable @eslint-react/set-state-in-effect */
     }
   }, []);
 

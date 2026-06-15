@@ -686,10 +686,7 @@ export function BudgetSourcesPage() {
       }
       void handleToggleLines(sourceId);
     },
-    [
-      expandedSources,
-      handleToggleLines,
-    ],
+    [expandedSources, handleToggleLines],
   );
 
   if (isLoading) {

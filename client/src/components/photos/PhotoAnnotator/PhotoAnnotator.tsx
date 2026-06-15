@@ -232,7 +232,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         liveRegionRef.current.textContent = t('shapeAddedMeasurement');
       }
     }
-  // eslint-disable-next-line @eslint-react/exhaustive-deps -- getActiveFontSizePx is a stable component-scope helper; adding it would create a dependency cycle
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- getActiveFontSizePx is a stable component-scope helper; adding it would create a dependency cycle
   }, [
     inlineInput,
     state.shapes,

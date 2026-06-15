@@ -85,9 +85,7 @@ export function SearchPicker<T>({
   // Update dropdown rect for portal positioning
   const updateDropdownRect = useCallback(() => {
     if (inputRef.current) {
-      /* eslint-disable @eslint-react/set-state-in-effect -- updating derived portal position from input rect */
       setDropdownRect(inputRef.current.getBoundingClientRect());
-      /* eslint-enable @eslint-react/set-state-in-effect */
     }
   }, []);
 

@@ -289,8 +289,7 @@ export function SourceBudgetLinePanel({
   const isEmpty = workItemLines.length === 0 && householdItemLines.length === 0;
 
   // Build area trees for both work item and household item lines
-  const workItemAreaTree = useMemo(() => buildAreaTree(workItemLines),
-    [workItemLines]);
+  const workItemAreaTree = useMemo(() => buildAreaTree(workItemLines), [workItemLines]);
   const householdItemAreaTree = useMemo(
     () => buildAreaTree(householdItemLines),
     [householdItemLines],
