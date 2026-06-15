@@ -122,6 +122,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
   // Focus into picker modal when it opens
   useEffect(() => {
     if (showPicker) {
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-fetch -- systemLinkedIds.fetch is a custom hook method (useAllLinkedDocumentIds), not the Web Fetch API; no AbortController applies
       void systemLinkedIds.fetch();
       const timer = setTimeout(() => {
         pickerModalRef.current?.focus();
