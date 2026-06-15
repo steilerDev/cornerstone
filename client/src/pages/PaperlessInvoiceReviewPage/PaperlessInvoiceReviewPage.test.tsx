@@ -89,7 +89,6 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 
 let mockPickerStateOverride: Record<string, unknown> = {};
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockShowCreateBudgetLineForm = jest
   .fn<(...args: any[]) => Promise<void>>()
   .mockResolvedValue(undefined);
@@ -461,7 +460,7 @@ describe('PaperlessInvoiceReviewPage', () => {
   describe('loading state', () => {
     it('shows a spinner / analyzing caption on mount before APIs resolve', async () => {
       // Never resolve — stays in loading state (fetch stub also never resolves)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       globalThis.fetch = jest
         .fn()
         .mockReturnValue(new Promise<any>(() => {})) as unknown as typeof fetch;
@@ -523,7 +522,7 @@ describe('PaperlessInvoiceReviewPage', () => {
     it('does not show the Create Invoice button in loading state', async () => {
       // Override fetch stub to never resolve — keeps the page in loading state
       // regardless of whether module mocks are intercepted or not.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       globalThis.fetch = jest
         .fn()
         .mockReturnValue(new Promise<any>(() => {})) as unknown as typeof fetch;
