@@ -313,9 +313,9 @@ describe('HouseholdItemSummary interface', () => {
     };
 
     // These fields should not exist on the type
-    expect((summary as any).room).toBeUndefined();
-    expect((summary as any).tagIds).toBeUndefined();
-    expect((summary as any).tags).toBeUndefined();
+    expect((summary as unknown as Record<string, unknown>).room).toBeUndefined();
+    expect((summary as unknown as Record<string, unknown>).tagIds).toBeUndefined();
+    expect((summary as unknown as Record<string, unknown>).tags).toBeUndefined();
   });
 });
 
@@ -431,7 +431,7 @@ describe('HouseholdItemDetail interface', () => {
     expect(detail.subsidies).toHaveLength(0);
 
     // Confirm no tags field
-    expect((detail as any).tags).toBeUndefined();
+    expect((detail as unknown as Record<string, unknown>).tags).toBeUndefined();
   });
 });
 
@@ -462,7 +462,7 @@ describe('CreateHouseholdItemRequest interface', () => {
   it('has no room field (replaced by areaId)', () => {
     const request: CreateHouseholdItemRequest = { name: 'Chair' };
     // room was removed; should not exist on the type
-    expect((request as any).room).toBeUndefined();
+    expect((request as unknown as Record<string, unknown>).room).toBeUndefined();
   });
 
   it('accepts areaId as optional string', () => {
@@ -532,7 +532,7 @@ describe('UpdateHouseholdItemRequest interface', () => {
 
   it('has no room field (replaced by areaId)', () => {
     const request: UpdateHouseholdItemRequest = {};
-    expect((request as any).room).toBeUndefined();
+    expect((request as Record<string, unknown>).room).toBeUndefined();
   });
 
   it('allows updating areaId', () => {
@@ -600,8 +600,8 @@ describe('HouseholdItemListQuery interface', () => {
 
   it('has no room or tagId filter (removed in migration 0028)', () => {
     const query: HouseholdItemListQuery = {};
-    expect((query as any).room).toBeUndefined();
-    expect((query as any).tagId).toBeUndefined();
+    expect((query as Record<string, unknown>).room).toBeUndefined();
+    expect((query as Record<string, unknown>).tagId).toBeUndefined();
   });
 
   it('accepts vendorId filter parameter', () => {
@@ -682,8 +682,8 @@ describe('HouseholdItemListResponse type', () => {
     expect(paginated.pagination.totalItems).toBe(1);
     expect(response.items[0]!.name).toBe('Sofa');
     // Verify no old fields
-    expect((response.items[0]! as any).room).toBeUndefined();
-    expect((response.items[0]! as any).tagIds).toBeUndefined();
+    expect((response.items[0]! as unknown as Record<string, unknown>).room).toBeUndefined();
+    expect((response.items[0]! as unknown as Record<string, unknown>).tagIds).toBeUndefined();
   });
 
   it('handles empty list correctly', () => {
@@ -743,7 +743,7 @@ describe('HouseholdItemResponse interface', () => {
     expect(response.householdItem.dependencies).toHaveLength(0);
     expect(response.householdItem.subsidies).toHaveLength(0);
     // Confirm tags field is gone
-    expect((response.householdItem as any).tags).toBeUndefined();
+    expect((response.householdItem as unknown as Record<string, unknown>).tags).toBeUndefined();
   });
 });
 
@@ -833,6 +833,6 @@ describe('HouseholdItem entity interface', () => {
       updatedAt: '2025-01-01T00:00:00Z',
     };
 
-    expect((item as any).room).toBeUndefined();
+    expect((item as unknown as Record<string, unknown>).room).toBeUndefined();
   });
 });

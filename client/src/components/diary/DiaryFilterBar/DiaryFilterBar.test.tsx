@@ -3,6 +3,7 @@
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, render } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import userEvent from '@testing-library/user-event';
 import type { DiaryEntryType } from '@cornerstone/shared';
 import { DiaryFilterBar } from './DiaryFilterBar.js';
@@ -31,7 +32,7 @@ describe('DiaryFilterBar', () => {
     localStorage.clear();
   });
 
-  const renderFilterBar = (overrides: Partial<typeof defaultProps> = {}) =>
+  const renderFilterBar = (overrides: Partial<ComponentProps<typeof DiaryFilterBar>> = {}) =>
     render(<DiaryFilterBar {...defaultProps} {...overrides} />);
 
   // ─── Rendering ─────────────────────────────────────────────────────────────
@@ -420,7 +421,7 @@ describe('DiaryFilterBar', () => {
       renderFilterBar({
         draftsVisible: true,
         onDraftsVisibleChange: jest.fn<(v: boolean) => void>(),
-      } as any);
+      });
       const chip = screen.getByTestId('status-filter-drafts');
       expect(chip).toBeInTheDocument();
       expect(chip).toHaveAttribute('aria-pressed', 'true');
@@ -430,7 +431,7 @@ describe('DiaryFilterBar', () => {
       renderFilterBar({
         draftsVisible: false,
         onDraftsVisibleChange: jest.fn<(v: boolean) => void>(),
-      } as any);
+      });
       const chip = screen.getByTestId('status-filter-drafts');
       expect(chip).toBeInTheDocument();
       expect(chip).toHaveAttribute('aria-pressed', 'false');
@@ -442,7 +443,7 @@ describe('DiaryFilterBar', () => {
       renderFilterBar({
         draftsVisible: true,
         onDraftsVisibleChange,
-      } as any);
+      });
 
       await user.click(screen.getByTestId('status-filter-drafts'));
 
@@ -455,7 +456,7 @@ describe('DiaryFilterBar', () => {
       renderFilterBar({
         draftsVisible: false,
         onDraftsVisibleChange,
-      } as any);
+      });
 
       await user.click(screen.getByTestId('status-filter-drafts'));
 
@@ -471,7 +472,7 @@ describe('DiaryFilterBar', () => {
         onFilterModeChange,
         draftsVisible: false,
         onDraftsVisibleChange,
-      } as any);
+      });
 
       // Drafts chip group exists as a distinct accessible group
       expect(screen.getByRole('group', { name: /filter by draft status/i })).toBeInTheDocument();

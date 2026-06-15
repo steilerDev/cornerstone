@@ -163,7 +163,7 @@ export function resolveRelationsBatch(
   const userIds = new Set(rows.map((r) => r.createdBy).filter(Boolean) as string[]);
 
   // Bulk-fetch lookup tables
-  const categoryMap = new Map<string, any>();
+  const categoryMap = new Map<string, typeof budgetCategories.$inferSelect>();
   if (categoryIds.size > 0) {
     const categories = db
       .select()
@@ -173,7 +173,7 @@ export function resolveRelationsBatch(
     categories.forEach((cat) => categoryMap.set(cat.id, cat));
   }
 
-  const sourceMap = new Map<string, any>();
+  const sourceMap = new Map<string, typeof budgetSources.$inferSelect>();
   if (sourceIds.size > 0) {
     const sources = db
       .select()
@@ -183,7 +183,7 @@ export function resolveRelationsBatch(
     sources.forEach((src) => sourceMap.set(src.id, src));
   }
 
-  const vendorMap = new Map<string, any>();
+  const vendorMap = new Map<string, typeof vendors.$inferSelect>();
   if (vendorIds.size > 0) {
     const vendorList = db
       .select()
@@ -193,7 +193,7 @@ export function resolveRelationsBatch(
     vendorList.forEach((v) => vendorMap.set(v.id, v));
   }
 
-  const userMap = new Map<string, any>();
+  const userMap = new Map<string, typeof users.$inferSelect>();
   if (userIds.size > 0) {
     const userList = db
       .select()
@@ -351,13 +351,13 @@ export interface BudgetServiceFactoryConfig<
     budgetIdColumn: string;
     blockDeleteOnInvoices: boolean;
   };
-  toLine: (db: DbType, row: any, relations: ResolvedBudgetRelations) => BudgetLine;
+  toLine: (db: DbType, row: unknown, relations: ResolvedBudgetRelations) => BudgetLine;
   buildInsertValues: (
     db: DbType,
     entityId: string,
     userId: string,
-    data: any,
-  ) => Record<string, any>;
+    data: Record<string, unknown>,
+  ) => Record<string, unknown>;
   assertEntityExists: (db: DbType, entityId: string) => void;
 }
 
@@ -424,9 +424,10 @@ export function getLinkedInvoices(db: DbType, budgetId: string, invoiceBudgetIdC
 export function createBudgetService<
   EntityRow,
   BudgetLine,
-  CreateRequest extends Record<string, any>,
-  UpdateRequest extends Record<string, any>,
+  CreateRequest extends Record<string, unknown>,
+  UpdateRequest extends Record<string, unknown>,
 >(config: BudgetServiceFactoryConfig<EntityRow, BudgetLine, CreateRequest, UpdateRequest>) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Schema generic deliberately erased to accept any table schema
   const table = config.budgetTable as any;
   const findBudgetLine = (db: DbType, entityId: string, budgetId: string) =>
     db
@@ -434,7 +435,8 @@ export function createBudgetService<
       .from(config.budgetTable)
       .where(and(eq(table.id, budgetId), eq(table[config.budgetEntityIdColumn], entityId)))
       .get();
-  const toResult = (db: DbType, row: any): BudgetLine =>
+  const toResult = (db: DbType, row: unknown): BudgetLine =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Rows from dynamic tables have unknown schema
     config.toLine(db, row, resolveRelations(db, row as any, config.invoiceHandler?.budgetIdColumn));
 
   return {
@@ -448,37 +450,40 @@ export function createBudgetService<
         .all();
       const relationsMap = resolveRelationsBatch(
         db,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- rows come from a dynamically-selected budget table with no shared static schema
         rows as any,
         config.invoiceHandler?.budgetIdColumn,
       );
-      return rows.map((row: any) => config.toLine(db, row, relationsMap.get(row.id)!));
+      return rows.map((row) => config.toLine(db, row, relationsMap.get(row.id)!));
     },
 
     create(db: DbType, entityId: string, userId: string, data: CreateRequest): BudgetLine {
       config.assertEntityExists(db, entityId);
 
-      if (data.plannedAmount === undefined || data.plannedAmount === null) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- CreateRequest generic doesn't preserve property types; all known requests have plannedAmount
+      const typedData = data as any;
+      if (typedData.plannedAmount === undefined || typedData.plannedAmount === null) {
         throw new ValidationError('plannedAmount is required');
       }
-      if (data.plannedAmount < 0) {
+      if (typedData.plannedAmount < 0) {
         throw new ValidationError('plannedAmount must be >= 0');
       }
 
-      validateDescription(data.description);
+      validateDescription(typedData.description);
 
-      if (data.confidence !== undefined) {
-        validateConfidence(data.confidence);
+      if (typedData.confidence !== undefined) {
+        validateConfidence(typedData.confidence);
       }
 
-      if (data.budgetCategoryId) {
-        validateBudgetCategoryId(db, data.budgetCategoryId);
+      if (typedData.budgetCategoryId) {
+        validateBudgetCategoryId(db, typedData.budgetCategoryId);
       }
-      if (!data.budgetSourceId) {
+      if (!typedData.budgetSourceId) {
         throw new ValidationError('budgetSourceId is required');
       }
-      validateBudgetSourceId(db, data.budgetSourceId);
-      if (data.vendorId) {
-        validateVendorId(db, data.vendorId);
+      validateBudgetSourceId(db, typedData.budgetSourceId);
+      if (typedData.vendorId) {
+        validateVendorId(db, typedData.vendorId);
       }
 
       const id = randomUUID();
@@ -500,67 +505,69 @@ export function createBudgetService<
         throw new NotFoundError('Budget line not found');
       }
 
-      const updates: Partial<any> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- UpdateRequest generic doesn't preserve property types
+      const typedData = data as any;
+      const updates: Partial<Record<string, unknown>> = {};
 
       if ('description' in data) {
-        validateDescription(data.description);
-        updates.description = data.description ?? null;
+        validateDescription(typedData.description);
+        updates.description = typedData.description ?? null;
       }
 
       if ('plannedAmount' in data) {
-        if (data.plannedAmount === undefined || data.plannedAmount === null) {
+        if (typedData.plannedAmount === undefined || typedData.plannedAmount === null) {
           throw new ValidationError('plannedAmount cannot be null');
         }
-        if (data.plannedAmount < 0) {
+        if (typedData.plannedAmount < 0) {
           throw new ValidationError('plannedAmount must be >= 0');
         }
-        updates.plannedAmount = data.plannedAmount;
+        updates.plannedAmount = typedData.plannedAmount;
       }
 
       if ('confidence' in data) {
-        if (data.confidence === undefined) {
+        if (typedData.confidence === undefined) {
           throw new ValidationError('confidence cannot be undefined if key is provided');
         }
-        validateConfidence(data.confidence);
-        updates.confidence = data.confidence;
+        validateConfidence(typedData.confidence);
+        updates.confidence = typedData.confidence;
       }
 
       if ('budgetCategoryId' in data) {
-        if (data.budgetCategoryId) {
-          validateBudgetCategoryId(db, data.budgetCategoryId);
+        if (typedData.budgetCategoryId) {
+          validateBudgetCategoryId(db, typedData.budgetCategoryId);
         }
-        updates.budgetCategoryId = data.budgetCategoryId ?? null;
+        updates.budgetCategoryId = typedData.budgetCategoryId ?? null;
       }
 
       if ('budgetSourceId' in data) {
-        if (!data.budgetSourceId) {
+        if (!typedData.budgetSourceId) {
           throw new ValidationError('budgetSourceId cannot be removed');
         }
-        validateBudgetSourceId(db, data.budgetSourceId);
-        updates.budgetSourceId = data.budgetSourceId;
+        validateBudgetSourceId(db, typedData.budgetSourceId);
+        updates.budgetSourceId = typedData.budgetSourceId;
       }
 
       if ('vendorId' in data) {
-        if (data.vendorId) {
-          validateVendorId(db, data.vendorId);
+        if (typedData.vendorId) {
+          validateVendorId(db, typedData.vendorId);
         }
-        updates.vendorId = data.vendorId ?? null;
+        updates.vendorId = typedData.vendorId ?? null;
       }
 
       if ('quantity' in data) {
-        updates.quantity = data.quantity ?? null;
+        updates.quantity = typedData.quantity ?? null;
       }
 
       if ('unit' in data) {
-        updates.unit = data.unit ?? null;
+        updates.unit = typedData.unit ?? null;
       }
 
       if ('unitPrice' in data) {
-        updates.unitPrice = data.unitPrice ?? null;
+        updates.unitPrice = typedData.unitPrice ?? null;
       }
 
       if ('includesVat' in data) {
-        updates.includesVat = data.includesVat ?? true;
+        updates.includesVat = typedData.includesVat ?? true;
       }
 
       updates.updatedAt = new Date().toISOString();

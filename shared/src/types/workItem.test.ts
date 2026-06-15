@@ -88,7 +88,7 @@ describe('VendorSummary interface', () => {
       trade: null,
     };
 
-    expect((vendor as any).specialty).toBeUndefined();
+    expect((vendor as unknown as Record<string, unknown>).specialty).toBeUndefined();
   });
 });
 
@@ -193,8 +193,8 @@ describe('WorkItemSummary interface', () => {
       updatedAt: '2026-01-01T00:00:00Z',
     };
 
-    expect((summary as any).tags).toBeUndefined();
-    expect((summary as any).tagIds).toBeUndefined();
+    expect((summary as unknown as Record<string, unknown>).tags).toBeUndefined();
+    expect((summary as unknown as Record<string, unknown>).tagIds).toBeUndefined();
   });
 
   it('accepts all 3 work item status values', () => {
@@ -323,8 +323,8 @@ describe('WorkItemDetail interface', () => {
       updatedAt: '2026-01-01T00:00:00Z',
     };
 
-    expect((detail as any).tags).toBeUndefined();
-    expect((detail as any).tagIds).toBeUndefined();
+    expect((detail as unknown as Record<string, unknown>).tags).toBeUndefined();
+    expect((detail as unknown as Record<string, unknown>).tagIds).toBeUndefined();
   });
 });
 
@@ -398,7 +398,7 @@ describe('CreateWorkItemRequest interface', () => {
 
   it('does not have tagIds field', () => {
     const request: CreateWorkItemRequest = { title: 'Test' };
-    expect((request as any).tagIds).toBeUndefined();
+    expect((request as unknown as Record<string, unknown>).tagIds).toBeUndefined();
   });
 });
 
@@ -441,7 +441,7 @@ describe('UpdateWorkItemRequest interface', () => {
 
   it('does not have tagIds field', () => {
     const request: UpdateWorkItemRequest = {};
-    expect((request as any).tagIds).toBeUndefined();
+    expect((request as Record<string, unknown>).tagIds).toBeUndefined();
   });
 });
 
@@ -502,7 +502,7 @@ describe('WorkItemListQuery interface', () => {
 
   it('does not have tagId filter', () => {
     const query: WorkItemListQuery = {};
-    expect((query as any).tagId).toBeUndefined();
+    expect((query as Record<string, unknown>).tagId).toBeUndefined();
   });
 
   it('allows empty query', () => {
@@ -659,7 +659,7 @@ describe('WorkItemListResponse type', () => {
     expect(response.items[0]!.title).toBe('Pave Driveway');
     expect(response.pagination.totalItems).toBe(1);
     // Confirm no tags on list items
-    expect((response.items[0]! as any).tags).toBeUndefined();
+    expect((response.items[0]! as unknown as Record<string, unknown>).tags).toBeUndefined();
   });
 });
 

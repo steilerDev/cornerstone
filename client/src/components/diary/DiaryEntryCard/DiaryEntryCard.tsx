@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
+import type { TFunction } from 'i18next';
 import { useFormatters } from '../../../lib/formatters.js';
 import { Badge } from '../../Badge/Badge.js';
 import badgeStyles from '../../Badge/Badge.module.css';
@@ -33,9 +34,10 @@ function getSourceEntityRoute(entry: DiaryEntrySummary): string | null {
   }
 }
 
-function getSourceEntityLabel(sourceType: string, t: any): string {
+function getSourceEntityLabel(sourceType: string, t: TFunction): string {
   const key = `detailPage.sourceType.${sourceType}`;
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic i18n key constructed at runtime, not in static namespace type
     const label = t(key as any);
     // If translation key not found, it returns the key itself
     return label === key ? sourceType : label;

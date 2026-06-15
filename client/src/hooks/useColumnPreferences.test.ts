@@ -57,7 +57,7 @@ afterEach(() => {
 describe('useColumnPreferences', () => {
   describe('initial state from defaults', () => {
     it('initializes visibleColumns from columns with defaultVisible !== false', () => {
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       expect(result.current.visibleColumns.has('title')).toBe(true);
       expect(result.current.visibleColumns.has('amount')).toBe(true);
@@ -65,18 +65,23 @@ describe('useColumnPreferences', () => {
     });
 
     it('includes columns without explicit defaultVisible (treated as true)', () => {
-      const columns = [
+      const columns: Array<{
+        key: string;
+        label: string;
+        defaultVisible?: boolean;
+        render: () => string;
+      }> = [
         { key: 'name', label: 'Name', render: () => '' }, // no defaultVisible
         { key: 'hidden', label: 'Hidden', defaultVisible: false, render: () => '' },
       ];
-      const { result } = renderHook(() => useColumnPreferences('test-page', columns as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', columns));
 
       expect(result.current.visibleColumns.has('name')).toBe(true);
       expect(result.current.visibleColumns.has('hidden')).toBe(false);
     });
 
     it('returns isLoaded=true immediately (preferences available synchronously)', () => {
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
       expect(result.current.isLoaded).toBe(true);
     });
   });
@@ -89,7 +94,7 @@ describe('useColumnPreferences', () => {
         ]),
       );
 
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       await waitFor(() => {
         expect(result.current.visibleColumns.has('title')).toBe(true);
@@ -101,7 +106,7 @@ describe('useColumnPreferences', () => {
     it('falls back to defaults when no matching preference exists', async () => {
       mockUsePreferences.mockReturnValue(makeUsePreferencesResult([]));
 
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       await waitFor(() => {
         expect(result.current.visibleColumns.has('title')).toBe(true);
@@ -115,7 +120,7 @@ describe('useColumnPreferences', () => {
         makeUsePreferencesResult([makePreference('table.test-page.columns', 'not-valid-json{{{')]),
       );
 
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       await waitFor(() => {
         // Should use defaults when JSON parse fails
@@ -132,7 +137,7 @@ describe('useColumnPreferences', () => {
         ]),
       );
 
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       await waitFor(() => {
         // Should use the 'test-page' key, not 'invoices'
@@ -145,7 +150,7 @@ describe('useColumnPreferences', () => {
   describe('toggleColumn', () => {
     it('removes a visible column from visibleColumns', async () => {
       jest.useFakeTimers();
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       act(() => {
         result.current.toggleColumn('title');
@@ -156,7 +161,7 @@ describe('useColumnPreferences', () => {
 
     it('adds a hidden column to visibleColumns', () => {
       jest.useFakeTimers();
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       act(() => {
         result.current.toggleColumn('id'); // id is hidden by default
@@ -167,7 +172,7 @@ describe('useColumnPreferences', () => {
 
     it('debounces upsert — rapid toggles result in one upsert call', async () => {
       jest.useFakeTimers();
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       act(() => {
         result.current.toggleColumn('title');
@@ -190,7 +195,7 @@ describe('useColumnPreferences', () => {
 
     it('saves updated visible columns as JSON after debounce', async () => {
       jest.useFakeTimers();
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       act(() => {
         result.current.toggleColumn('id'); // add id to visible
@@ -219,7 +224,7 @@ describe('useColumnPreferences', () => {
         ]),
       );
 
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       await waitFor(() => {
         expect(result.current.visibleColumns.has('title')).toBe(false);
@@ -236,7 +241,7 @@ describe('useColumnPreferences', () => {
 
     it('saves defaults to preferences after debounce', async () => {
       jest.useFakeTimers();
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS as any));
+      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
 
       act(() => {
         result.current.resetToDefaults();

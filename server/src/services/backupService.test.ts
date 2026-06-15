@@ -355,6 +355,7 @@ describe('backupService', () => {
 
   describe('createBackup() — guard conditions', () => {
     it('throws BackupNotConfiguredError (code BACKUP_NOT_CONFIGURED) when backupEnabled is false', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Minimal mock db for this guard test
       const db = {} as any;
       const config = makeConfig({ backupEnabled: false });
 
@@ -444,6 +445,7 @@ describe('backupService', () => {
         $client: {
           backup: mockBackup,
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Mock db structure for error testing
       } as any;
 
       const config = makeConfig({

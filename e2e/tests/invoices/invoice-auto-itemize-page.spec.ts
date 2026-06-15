@@ -53,6 +53,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { AutoItemizePage } from '../../pages/AutoItemizePage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import type { Page, Route } from '@playwright/test';
+import type { ExtractedLine } from '@cornerstone/shared';
 import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -334,7 +335,7 @@ async function mockAutoItemizeBothPhases(
   page: Page,
   invoiceId: string,
   opts: {
-    dryRunLines?: object[];
+    dryRunLines?: ExtractedLine[];
     dryRunWarnings?: object[];
     commitStatus?: number;
   } = {},
@@ -357,7 +358,7 @@ async function mockAutoItemizeBothPhases(
         status: commitStatus,
         contentType: 'application/json',
         body: JSON.stringify({
-          budgetLines: lines.map((line: any, idx) => ({
+          budgetLines: lines.map((line, idx) => ({
             id: `ibl-e2e-page-${idx + 1}`,
             workItemBudgetId: null,
             householdItemBudgetId: null,

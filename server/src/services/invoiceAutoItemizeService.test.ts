@@ -25,6 +25,7 @@ import {
   LlmNotConfiguredError,
 } from '../errors/AppError.js';
 import type { AppConfig } from '../plugins/config.js';
+import type { ExtractedLine } from '@cornerstone/shared';
 
 // ─── DB & helpers ──────────────────────────────────────────────────────────────
 
@@ -1402,9 +1403,9 @@ describe('invoiceAutoItemizeService', () => {
             paperlessDocumentId: 42,
             mode: 'append',
             dryRun: false,
-
             lines: [
               { description: 'Net item', totalAmount: 500, confidence: 0.9, includesVat: false },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
             ] as any,
           },
           PAPERLESS_AUTH,
@@ -1428,9 +1429,9 @@ describe('invoiceAutoItemizeService', () => {
             paperlessDocumentId: 42,
             mode: 'append',
             dryRun: false,
-
             lines: [
               { description: 'Net item', totalAmount: 500, confidence: 0.9, includesVat: false },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
             ] as any,
           },
           PAPERLESS_AUTH,
@@ -1457,9 +1458,9 @@ describe('invoiceAutoItemizeService', () => {
           paperlessDocumentId: 42,
           mode: 'append',
           dryRun: false,
-
           lines: [
             { description: 'Net line', totalAmount: 500, confidence: 0.9, includesVat: false },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -1531,7 +1532,7 @@ describe('invoiceAutoItemizeService', () => {
                 assignedBudgetLineType: 'work_item',
                 includesVat: false,
               },
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
             ] as any,
           },
           PAPERLESS_AUTH,
@@ -1589,7 +1590,7 @@ describe('invoiceAutoItemizeService', () => {
                 assignedBudgetLineType: 'work_item',
                 includesVat: false,
               },
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
             ] as any,
           },
           PAPERLESS_AUTH,
@@ -2008,6 +2009,7 @@ describe('invoiceAutoItemizeService', () => {
               assignmentMode: 'create-new',
               budgetCategoryId: 'bc-household-items',
             },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2044,6 +2046,7 @@ describe('invoiceAutoItemizeService', () => {
               assignmentMode: 'create-new',
               budgetSourceId: 'discretionary-system',
             },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2080,6 +2083,7 @@ describe('invoiceAutoItemizeService', () => {
               assignmentMode: 'create-new',
               // no budgetSourceId provided
             },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2157,6 +2161,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineId: existingWibId,
               assignedBudgetLineType: 'work_item',
             },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2205,6 +2210,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineId: existingWibId,
               assignedBudgetLineType: 'work_item',
             },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2245,6 +2251,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineType: 'work_item',
               budgetSourceId: 'discretionary-system', // same, no change
             },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2265,9 +2272,7 @@ describe('invoiceAutoItemizeService', () => {
       linkDocument(db, invoiceId, 42);
       const existingWibId = insertStandaloneWIB(db, { plannedAmount: 300 });
       const config = makeConfig();
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const linePayload: any = [
+      const linePayload: ExtractedLine[] = [
         {
           description: 'Existing budget line',
           totalAmount: 300,

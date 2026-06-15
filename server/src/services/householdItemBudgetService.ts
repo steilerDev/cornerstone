@@ -16,14 +16,15 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 function toHouseholdItemBudgetLine(
   _db: DbType,
-  row: typeof householdItemBudgets.$inferSelect,
+  row: unknown,
   rel: ResolvedBudgetRelations,
 ): HouseholdItemBudgetLine {
+  const typedRow = row as typeof householdItemBudgets.$inferSelect;
   return {
-    id: row.id,
-    householdItemId: row.householdItemId,
-    description: row.description,
-    plannedAmount: row.plannedAmount,
+    id: typedRow.id,
+    householdItemId: typedRow.householdItemId,
+    description: typedRow.description,
+    plannedAmount: typedRow.plannedAmount,
     confidence: rel.confidence,
     confidenceMargin: rel.confidenceMargin,
     budgetCategory: rel.budgetCategory,
@@ -44,13 +45,13 @@ function toHouseholdItemBudgetLine(
           vendorName: rel.invoiceLink.vendorName,
         }
       : null,
-    quantity: row.quantity ?? null,
-    unit: row.unit ?? null,
-    unitPrice: row.unitPrice ?? null,
-    includesVat: row.includesVat ?? true,
+    quantity: typedRow.quantity ?? null,
+    unit: typedRow.unit ?? null,
+    unitPrice: typedRow.unitPrice ?? null,
+    includesVat: typedRow.includesVat ?? true,
     createdBy: rel.createdBy,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    createdAt: typedRow.createdAt,
+    updatedAt: typedRow.updatedAt,
   };
 }
 
@@ -65,20 +66,22 @@ function buildInsertValues(
   _db: DbType,
   householdItemId: string,
   userId: string,
-  data: CreateHouseholdItemBudgetRequest,
-): Record<string, any> {
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- data is CreateHouseholdItemBudgetRequest at runtime
+  const typedData = data as any;
   return {
     householdItemId,
-    description: data.description ?? null,
-    plannedAmount: data.plannedAmount,
-    confidence: data.confidence ?? 'own_estimate',
+    description: typedData.description ?? null,
+    plannedAmount: typedData.plannedAmount,
+    confidence: typedData.confidence ?? 'own_estimate',
     budgetCategoryId: 'bc-household-items',
-    budgetSourceId: data.budgetSourceId ?? null,
-    vendorId: data.vendorId ?? null,
-    quantity: data.quantity ?? null,
-    unit: data.unit ?? null,
-    unitPrice: data.unitPrice ?? null,
-    includesVat: data.includesVat ?? true,
+    budgetSourceId: typedData.budgetSourceId ?? null,
+    vendorId: typedData.vendorId ?? null,
+    quantity: typedData.quantity ?? null,
+    unit: typedData.unit ?? null,
+    unitPrice: typedData.unitPrice ?? null,
+    includesVat: typedData.includesVat ?? true,
     createdBy: userId,
   };
 }
@@ -109,7 +112,7 @@ export function createHouseholdItemBudget(
   data: CreateHouseholdItemBudgetRequest,
 ): HouseholdItemBudgetLine {
   const { budgetCategoryId: _ignored, ...safeData } = data;
-  return service.create(db, householdItemId, userId, safeData);
+  return service.create(db, householdItemId, userId, safeData as unknown as Record<string, unknown>);
 }
 
 export function updateHouseholdItemBudget(
@@ -130,7 +133,7 @@ export function updateHouseholdItemBudget(
 
   // No move - filter out budgetCategoryId (always 'bc-household-items' for HI budgets) and use factory update
   const { budgetCategoryId: _ignored, ...safeData } = data;
-  return service.update(db, householdItemId, budgetId, safeData);
+  return service.update(db, householdItemId, budgetId, safeData as unknown as Record<string, unknown>);
 }
 
 function updateAndMoveHouseholdItemBudget(
