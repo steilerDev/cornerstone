@@ -15,22 +15,25 @@ jest.unstable_mockModule('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-// Mock Modal to render children directly so we can assert on form content
+// Mock Modal to render children and footer so we can assert on form content and action buttons
 jest.unstable_mockModule('../Modal/Modal.js', () => ({
   Modal: ({
     title,
     onClose,
     children,
+    footer,
   }: {
     title: string;
     onClose: () => void;
     children: React.ReactNode;
+    footer?: React.ReactNode;
   }) => (
     <div data-testid="modal" data-title={title}>
       <button data-testid="modal-close" onClick={onClose}>
         X
       </button>
       {children}
+      {footer && <div className="modalFooter">{footer}</div>}
     </div>
   ),
 }));

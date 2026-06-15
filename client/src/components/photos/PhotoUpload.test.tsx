@@ -129,6 +129,9 @@ describe('PhotoUpload', () => {
   afterEach(() => {
     restoreXhrMock();
     localStorage.clear();
+    capturedModalOnSave = null;
+    capturedModalOnCancel = null;
+    capturedModalFile = null;
   });
 
   // ─── Fixture helpers ────────────────────────────────────────────────────────
@@ -206,6 +209,11 @@ describe('PhotoUpload', () => {
         fireEvent.change(fileInput, { target: { files: [makeFile('bad-photo.jpg')] } });
       });
 
+      // Drive the modal to completion so the file is enqueued for upload
+      await act(async () => {
+        capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
+      });
+
       // Fire XHR error event for the local environment (no-op in CI where mock intercepted)
       await act(async () => {
         const xhr = xhrInstances[0];
@@ -234,6 +242,11 @@ describe('PhotoUpload', () => {
         fireEvent.change(fileInput, { target: { files: [makeFile('fail.jpg')] } });
       });
 
+      // Drive the modal to completion so the file is enqueued for upload
+      await act(async () => {
+        capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
+      });
+
       // Fire XHR error for the local environment (no-op in CI)
       await act(async () => {
         xhrInstances[0]?._handlers['error']?.();
@@ -252,6 +265,11 @@ describe('PhotoUpload', () => {
       const fileInput = screen.getByTestId('photo-file-input');
       await act(async () => {
         fireEvent.change(fileInput, { target: { files: [makeFile('error-photo.jpg')] } });
+      });
+
+      // Drive the modal to completion so the file is enqueued for upload
+      await act(async () => {
+        capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
       });
 
       // Fire XHR error for the local environment (no-op in CI)
@@ -282,6 +300,11 @@ describe('PhotoUpload', () => {
       const fileInput = screen.getByTestId('photo-file-input');
       await act(async () => {
         fireEvent.change(fileInput, { target: { files: [makeFile('retry-photo.jpg')] } });
+      });
+
+      // Drive the modal to completion so the file is enqueued for upload
+      await act(async () => {
+        capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
       });
 
       // Trigger failure for the first upload (local env: fire XHR error)
@@ -322,6 +345,11 @@ describe('PhotoUpload', () => {
       const fileInput = screen.getByTestId('photo-file-input');
       await act(async () => {
         fireEvent.change(fileInput, { target: { files: [makeFile('retry-success.jpg')] } });
+      });
+
+      // Drive the modal to completion so the file is enqueued for upload
+      await act(async () => {
+        capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
       });
 
       // Trigger first upload failure (local env)
@@ -411,6 +439,11 @@ describe('PhotoUpload', () => {
       });
     });
 
+    // Drive the modal to completion so the file is enqueued for upload
+    await act(async () => {
+      capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
+    });
+
     // File was added to queue and stays in uploading state due to hanging mock
     await waitFor(() => {
       expect(screen.getByText('dropped.jpg')).toBeInTheDocument();
@@ -462,6 +495,11 @@ describe('PhotoUpload', () => {
       fireEvent.change(fileInput, { target: { files: [makeFile('to-remove.jpg')] } });
     });
 
+    // Drive the modal to completion so the file is enqueued for upload
+    await act(async () => {
+      capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
+    });
+
     // Wait for the item to appear in the queue (uploading state — upload is hanging)
     await waitFor(() => {
       expect(screen.getByText('to-remove.jpg')).toBeInTheDocument();
@@ -508,6 +546,11 @@ describe('PhotoUpload', () => {
     const fileInput = screen.getByTestId('photo-file-input');
     await act(async () => {
       fireEvent.change(fileInput, { target: { files: [makeFile('weird.jpg')] } });
+    });
+
+    // Drive the modal to completion so the file is enqueued for upload
+    await act(async () => {
+      capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
     });
 
     // Trigger XHR error in local env (produces proper Error, not unknown fallback)
