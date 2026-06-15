@@ -166,11 +166,7 @@ describe('PhotoMetadataSidepanel', () => {
     isAnnotating?: boolean;
   }) {
     return render(
-      React.createElement(
-        LocaleProvider,
-        null,
-        React.createElement(PhotoMetadataSidepanel, props),
-      ),
+      React.createElement(LocaleProvider, null, React.createElement(PhotoMetadataSidepanel, props)),
     );
   }
 
