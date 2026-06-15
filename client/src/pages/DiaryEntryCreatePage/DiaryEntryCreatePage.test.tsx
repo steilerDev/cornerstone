@@ -50,10 +50,19 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
-  fetchVendors: jest.fn<(params?: unknown) => Promise<{ vendors: unknown[]; pagination: { page: number; pageSize: number; totalItems: number; totalPages: number } }>>().mockResolvedValue({
-    vendors: [],
-    pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-  }),
+  fetchVendors: jest
+    .fn<
+      (
+        params?: unknown,
+      ) => Promise<{
+        vendors: unknown[];
+        pagination: { page: number; pageSize: number; totalItems: number; totalPages: number };
+      }>
+    >()
+    .mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    }),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
@@ -63,17 +72,31 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 // Mock authApi so the real AuthProvider (used as fallback when the module mock does not
 // intercept in this environment) resolves immediately without making network requests.
 jest.unstable_mockModule('../../lib/authApi.js', () => ({
-  getAuthMe: jest.fn<() => Promise<{ user: { id: string; displayName: string; email: string; role: string; authProvider: string; createdAt: string }; oidcEnabled: boolean }>>().mockResolvedValue({
-    user: {
-      id: 'user-1',
-      displayName: 'Alice Builder',
-      email: 'alice@example.com',
-      role: 'admin',
-      authProvider: 'local',
-      createdAt: '2026-01-01T00:00:00Z',
-    },
-    oidcEnabled: false,
-  }),
+  getAuthMe: jest
+    .fn<
+      () => Promise<{
+        user: {
+          id: string;
+          displayName: string;
+          email: string;
+          role: string;
+          authProvider: string;
+          createdAt: string;
+        };
+        oidcEnabled: boolean;
+      }>
+    >()
+    .mockResolvedValue({
+      user: {
+        id: 'user-1',
+        displayName: 'Alice Builder',
+        email: 'alice@example.com',
+        role: 'admin',
+        authProvider: 'local',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+      oidcEnabled: false,
+    }),
   logout: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 

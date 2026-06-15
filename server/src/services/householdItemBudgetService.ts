@@ -112,7 +112,12 @@ export function createHouseholdItemBudget(
   data: CreateHouseholdItemBudgetRequest,
 ): HouseholdItemBudgetLine {
   const { budgetCategoryId: _ignored, ...safeData } = data;
-  return service.create(db, householdItemId, userId, safeData as unknown as Record<string, unknown>);
+  return service.create(
+    db,
+    householdItemId,
+    userId,
+    safeData as unknown as Record<string, unknown>,
+  );
 }
 
 export function updateHouseholdItemBudget(
@@ -133,7 +138,12 @@ export function updateHouseholdItemBudget(
 
   // No move - filter out budgetCategoryId (always 'bc-household-items' for HI budgets) and use factory update
   const { budgetCategoryId: _ignored, ...safeData } = data;
-  return service.update(db, householdItemId, budgetId, safeData as unknown as Record<string, unknown>);
+  return service.update(
+    db,
+    householdItemId,
+    budgetId,
+    safeData as unknown as Record<string, unknown>,
+  );
 }
 
 function updateAndMoveHouseholdItemBudget(

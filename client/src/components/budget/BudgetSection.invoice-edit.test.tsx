@@ -453,7 +453,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,
@@ -472,7 +478,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,
@@ -523,7 +535,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,
@@ -556,7 +574,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,
@@ -586,7 +610,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,
@@ -614,7 +644,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,
@@ -635,7 +671,9 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
   it('form submit calls onInvoiceLineEdit with line, form, itemizedAmount and closes modal on success', async () => {
     const onInvoiceLineEdit = jest
-      .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+      .fn<
+        (line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>
+      >()
       .mockResolvedValue(undefined);
     const link = buildInvoiceLink('inv-1', 'ibl-1', { itemizedAmount: 500 });
     const line = buildLine('line-sub', link);
@@ -680,8 +718,10 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
   it('when onInvoiceLineEdit rejects, modal stays open and error is set', async () => {
     const onInvoiceLineEdit = jest
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+
+      .fn<
+        (line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>
+      >()
       .mockImplementation(() => Promise.reject(new Error('Network timeout')));
     const link = buildInvoiceLink('inv-1', 'ibl-1', { itemizedAmount: 500 });
     const line = buildLine('line-err', link);
@@ -715,8 +755,10 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
   it('when onInvoiceLineEdit rejects with non-Error, fallback message is used', async () => {
     const onInvoiceLineEdit = jest
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+
+      .fn<
+        (line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>
+      >()
       .mockImplementation(() => Promise.reject('plain string error'));
     const link = buildInvoiceLink('inv-1');
     const line = buildLine('line-fallback', link);
@@ -747,7 +789,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
   it('onMove in modal calls onInvoiceLineMove with lineId, parentType, parentId', async () => {
     const onInvoiceLineMove = jest
-      .fn<(budgetLineId: string, newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>()
+      .fn<
+        (
+          budgetLineId: string,
+          newParentType: 'work_item' | 'household_item',
+          newParentId: string,
+        ) => Promise<void>
+      >()
       .mockResolvedValue(undefined);
     const link = buildInvoiceLink('inv-1');
     const line = buildLine('line-move', link);
@@ -756,7 +804,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
           onInvoiceLineMove,
         })}
@@ -783,7 +837,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
   it('modal closes after successful move (CI only — requires BudgetLineForm mock)', async () => {
     const onInvoiceLineMove = jest
-      .fn<(budgetLineId: string, newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>()
+      .fn<
+        (
+          budgetLineId: string,
+          newParentType: 'work_item' | 'household_item',
+          newParentId: string,
+        ) => Promise<void>
+      >()
       .mockResolvedValue(undefined);
     const link = buildInvoiceLink('inv-1');
     const line = buildLine('line-moveclose', link);
@@ -792,7 +852,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
           onInvoiceLineMove,
         })}
@@ -816,7 +882,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
   it('move error: modal stays open (CI only — requires BudgetLineForm mock)', async () => {
     const onInvoiceLineMove = jest
-      .fn<(budgetLineId: string, newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>()
+      .fn<
+        (
+          budgetLineId: string,
+          newParentType: 'work_item' | 'household_item',
+          newParentId: string,
+        ) => Promise<void>
+      >()
       .mockImplementation(() => Promise.reject(new Error('Move failed')));
     const link = buildInvoiceLink('inv-1');
     const line = buildLine('line-moverr', link);
@@ -825,7 +897,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
           onInvoiceLineMove,
         })}
@@ -861,7 +939,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,
@@ -939,7 +1023,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([linkedLine, unlinkedLine], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,
@@ -975,7 +1065,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
           budgetSectionHook: hookReturn,
 
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,
@@ -999,7 +1095,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
           budgetLineType: 'work_item',
           parentEntityId: 'wi-42',
@@ -1035,7 +1137,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
           budgetSectionHook: buildHookReturn({ openEditBudgetForm }),
 
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,
@@ -1075,7 +1183,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
       <BudgetSection
         {...buildProps([line], {
           onInvoiceLineEdit: jest
-            .fn<(line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>>()
+            .fn<
+              (
+                line: BaseBudgetLine,
+                form: BudgetLineFormState,
+                itemizedAmount: string,
+              ) => Promise<void>
+            >()
             .mockResolvedValue(undefined),
         })}
       />,

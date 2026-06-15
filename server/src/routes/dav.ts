@@ -2,7 +2,11 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type { DescriptionMap } from '../services/calendarIcal.js';
 import type * as schemaTypes from '../db/schema.js';
-import type { TimelineWorkItem, TimelineMilestone, TimelineHouseholdItem } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 import { eq } from 'drizzle-orm';
 import { UnauthorizedError, NotFoundError } from '../errors/AppError.js';
 import * as davTokenService from '../services/davTokenService.js';
@@ -121,7 +125,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
    * Root collection: lists calendars and addressbooks.
    */
   fastify.propfind<{ Body: string }>('/', { preHandler: davAuth }, async (request, reply) => {
-    const depth = davXml.parseDepth(request.headers as Record<string, string | string[] | undefined>);
+    const depth = davXml.parseDepth(
+      request.headers as Record<string, string | string[] | undefined>,
+    );
 
     const rootProps = `<D:resourcetype><D:collection/></D:resourcetype>
 <D:displayname>Cornerstone</D:displayname>
@@ -215,7 +221,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/calendars/',
     { preHandler: davAuth },
     async (request, reply) => {
-      const depth = davXml.parseDepth(request.headers as Record<string, string | string[] | undefined>);
+      const depth = davXml.parseDepth(
+        request.headers as Record<string, string | string[] | undefined>,
+      );
       const responses: string[] = [];
 
       // The home set itself is a plain collection
@@ -259,7 +267,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/calendars/default/',
     { preHandler: davAuth },
     async (request, reply) => {
-      const depth = davXml.parseDepth(request.headers as Record<string, string | string[] | undefined>);
+      const depth = davXml.parseDepth(
+        request.headers as Record<string, string | string[] | undefined>,
+      );
       const etag = calendarIcal.computeCalendarETag(fastify.db);
 
       ensureDailyReschedule(fastify.db);
@@ -393,9 +403,10 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
     // Use type-prefixed ETag to match PROPFIND depth 1 responses
     const typedEtag = `${type}-${etag}`;
-    const displayName = type === 'wi' || type === 'milestone'
-      ? (event as TimelineWorkItem | TimelineMilestone).title
-      : (event as TimelineHouseholdItem).name;
+    const displayName =
+      type === 'wi' || type === 'milestone'
+        ? (event as TimelineWorkItem | TimelineMilestone).title
+        : (event as TimelineHouseholdItem).name;
     const props = `<D:getetag>"${typedEtag}"</D:getetag>
 <D:resourcetype/>
 <D:displayname>${escapeXml(displayName)}</D:displayname>
@@ -459,11 +470,11 @@ export default async function davRoutes(fastify: FastifyInstance) {
           let event: TimelineWorkItem | TimelineMilestone | TimelineHouseholdItem | null = null;
 
           if (type === 'wi') {
-            event = (timeline.workItems).find((wi) => wi.id === id) ?? null;
+            event = timeline.workItems.find((wi) => wi.id === id) ?? null;
           } else if (type === 'milestone') {
-            event = (timeline.milestones).find((m) => String(m.id) === id) ?? null;
+            event = timeline.milestones.find((m) => String(m.id) === id) ?? null;
           } else if (type === 'hi') {
-            event = (timeline.householdItems).find((hi) => hi.id === id) ?? null;
+            event = timeline.householdItems.find((hi) => hi.id === id) ?? null;
           }
 
           if (!event) {
@@ -494,7 +505,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/addressbooks/',
     { preHandler: davAuth },
     async (request, reply) => {
-      const depth = davXml.parseDepth(request.headers as Record<string, string | string[] | undefined>);
+      const depth = davXml.parseDepth(
+        request.headers as Record<string, string | string[] | undefined>,
+      );
       const responses: string[] = [];
 
       // The home set itself is a plain collection
@@ -538,7 +551,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/addressbooks/default/',
     { preHandler: davAuth },
     async (request, reply) => {
-      const depth = davXml.parseDepth(request.headers as Record<string, string | string[] | undefined>);
+      const depth = davXml.parseDepth(
+        request.headers as Record<string, string | string[] | undefined>,
+      );
       const etag = vendorVcard.computeAddressBookETag(fastify.db);
 
       const responses: string[] = [];
@@ -568,7 +583,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
         // Also list all contacts
         const allContacts = fastify.db.select().from(vendorContacts).all();
         for (const contact of allContacts) {
-          const _vendor = (allVendors).find((v) => v.id === contact.vendorId);
+          const _vendor = allVendors.find((v) => v.id === contact.vendorId);
           const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;
           const props = `<D:getetag>"contact-${etag}"</D:getetag>
 <D:resourcetype/>
@@ -696,7 +711,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
         const allContacts = fastify.db.select().from(vendorContacts).all();
         for (const contact of allContacts) {
-          const vendor = (allVendors).find((v) => v.id === contact.vendorId);
+          const vendor = allVendors.find((v) => v.id === contact.vendorId);
           if (!vendor) continue;
           const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;
           const vcf = vendorVcard.buildContactVcard(contact, vendor.name, baseUrl);

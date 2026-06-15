@@ -1077,7 +1077,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
         const updated = updateHouseholdItemBudget(db, hiId, line.id, {
           description: 'Updated',
           budgetCategoryId: otherCategoryId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test config object with dynamic value
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Test config object with dynamic value
         } as any);
 
         // budgetCategoryId from the request is stripped — bc-household-items stays

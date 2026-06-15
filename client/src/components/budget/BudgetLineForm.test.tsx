@@ -170,7 +170,31 @@ describe('BudgetLineForm — description, category, source, vendor fields', () =
   });
 
   it('renders funding source select', () => {
-    const budgetSources: BudgetSource[] = [{ id: 'src-1', name: 'Loan', totalAmount: 100000, sourceType: 'savings', usedAmount: 0, availableAmount: 100000, claimedAmount: 0, unclaimedAmount: 0, paidAmount: 0, actualAvailableAmount: 100000, projectedAmount: 0, projectedMinAmount: 0, projectedMaxAmount: 0, interestRate: null, terms: null, notes: null, status: 'active', isDiscretionary: false, createdBy: null, createdAt: '', updatedAt: '' }];
+    const budgetSources: BudgetSource[] = [
+      {
+        id: 'src-1',
+        name: 'Loan',
+        totalAmount: 100000,
+        sourceType: 'savings',
+        usedAmount: 0,
+        availableAmount: 100000,
+        claimedAmount: 0,
+        unclaimedAmount: 0,
+        paidAmount: 0,
+        actualAvailableAmount: 100000,
+        projectedAmount: 0,
+        projectedMinAmount: 0,
+        projectedMaxAmount: 0,
+        interestRate: null,
+        terms: null,
+        notes: null,
+        status: 'active',
+        isDiscretionary: false,
+        createdBy: null,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
     const props = buildProps(buildDirectForm(), { budgetSources });
     render(<BudgetLineForm {...props} />);
     expect(screen.getByRole('combobox', { name: /Funding Source/i })).toBeInTheDocument();
@@ -178,7 +202,31 @@ describe('BudgetLineForm — description, category, source, vendor fields', () =
 
   it('funding source select onChange calls onFormChange with budgetSourceId', () => {
     const onFormChange = jest.fn();
-    const budgetSources: BudgetSource[] = [{ id: 'src-1', name: 'Loan', totalAmount: 100000, sourceType: 'savings', usedAmount: 0, availableAmount: 100000, claimedAmount: 0, unclaimedAmount: 0, paidAmount: 0, actualAvailableAmount: 100000, projectedAmount: 0, projectedMinAmount: 0, projectedMaxAmount: 0, interestRate: null, terms: null, notes: null, status: 'active', isDiscretionary: false, createdBy: null, createdAt: '', updatedAt: '' }];
+    const budgetSources: BudgetSource[] = [
+      {
+        id: 'src-1',
+        name: 'Loan',
+        totalAmount: 100000,
+        sourceType: 'savings',
+        usedAmount: 0,
+        availableAmount: 100000,
+        claimedAmount: 0,
+        unclaimedAmount: 0,
+        paidAmount: 0,
+        actualAvailableAmount: 100000,
+        projectedAmount: 0,
+        projectedMinAmount: 0,
+        projectedMaxAmount: 0,
+        interestRate: null,
+        terms: null,
+        notes: null,
+        status: 'active',
+        isDiscretionary: false,
+        createdBy: null,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
     const props = buildProps(buildDirectForm(), { onFormChange, budgetSources });
     render(<BudgetLineForm {...props} />);
     fireEvent.change(screen.getByRole('combobox', { name: /Funding Source/i }), {
@@ -195,7 +243,20 @@ describe('BudgetLineForm — description, category, source, vendor fields', () =
 
   it('vendor select onChange calls onFormChange with vendorId', () => {
     const onFormChange = jest.fn();
-    const vendors: Vendor[] = [{ id: 'v-1', name: 'Acme', trade: null, phone: null, email: null, address: null, notes: null, createdBy: null, createdAt: '', updatedAt: '' }];
+    const vendors: Vendor[] = [
+      {
+        id: 'v-1',
+        name: 'Acme',
+        trade: null,
+        phone: null,
+        email: null,
+        address: null,
+        notes: null,
+        createdBy: null,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
     const props = buildProps(buildDirectForm(), { onFormChange, vendors });
     render(<BudgetLineForm {...props} />);
     fireEvent.change(screen.getByRole('combobox', { name: /Vendor/i }), {
@@ -211,7 +272,18 @@ describe('BudgetLineForm — description, category, source, vendor fields', () =
   });
 
   it('renders dynamic category select when budgetCategories is provided', () => {
-    const budgetCategories: BudgetCategory[] = [{ id: 'cat-1', name: 'Electrical', translationKey: null, description: null, color: null, sortOrder: 0, createdAt: '', updatedAt: '' }];
+    const budgetCategories: BudgetCategory[] = [
+      {
+        id: 'cat-1',
+        name: 'Electrical',
+        translationKey: null,
+        description: null,
+        color: null,
+        sortOrder: 0,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
     const props = buildProps(buildDirectForm(), { budgetCategories });
     render(<BudgetLineForm {...props} />);
     expect(screen.getByRole('combobox', { name: /Category/i })).toBeInTheDocument();
@@ -283,7 +355,18 @@ describe('BudgetLineForm — description, category, source, vendor fields', () =
 
   it('category select onChange calls onFormChange with budgetCategoryId', () => {
     const onFormChange = jest.fn();
-    const budgetCategories: BudgetCategory[] = [{ id: 'cat-1', name: 'Electrical', translationKey: null, description: null, color: null, sortOrder: 0, createdAt: '', updatedAt: '' }];
+    const budgetCategories: BudgetCategory[] = [
+      {
+        id: 'cat-1',
+        name: 'Electrical',
+        translationKey: null,
+        description: null,
+        color: null,
+        sortOrder: 0,
+        createdAt: '',
+        updatedAt: '',
+      },
+    ];
     const props = buildProps(buildDirectForm(), { onFormChange, budgetCategories });
     render(<BudgetLineForm {...props} />);
     fireEvent.change(screen.getByRole('combobox', { name: /Category/i }), {

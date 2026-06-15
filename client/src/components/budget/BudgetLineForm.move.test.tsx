@@ -116,7 +116,10 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
 
   // Scenario 1: Collapsed state when currentParentType is provided
   it('renders collapsed parent row with entity type pill, label, and "Change" button when currentParentId and onMove provided', () => {
-    const onMove = jest.fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>();
+    const onMove =
+      jest.fn<
+        (newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>
+      >();
     const props = buildBaseProps({
       currentParentType: 'work_item',
       currentParentId: 'wi-1',
@@ -143,7 +146,10 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
 
   // Scenario 2: Expanding the picker with "Change" click
   it('clicking "Change" expands the picker with type tabs; Work Item tab active by default for WI parent', () => {
-    const onMove = jest.fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>();
+    const onMove =
+      jest.fn<
+        (newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>
+      >();
     const props = buildBaseProps({
       currentParentType: 'work_item',
       currentParentId: 'wi-1',
@@ -164,7 +170,10 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
 
   // Scenario 3: Switching to Household Item tab
   it('switching to "Household Item" tab clears selection and shows HouseholdItemPicker', () => {
-    const onMove = jest.fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>();
+    const onMove =
+      jest.fn<
+        (newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>
+      >();
     const props = buildBaseProps({
       currentParentType: 'work_item',
       currentParentId: 'wi-1',
@@ -191,7 +200,10 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
 
   // Scenario 4: moveHint appears for cross-table selection
   it('selecting a different entity type tab from current parent shows moveHint with role="status"', () => {
-    const onMove = jest.fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>();
+    const onMove =
+      jest.fn<
+        (newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>
+      >();
     const props = buildBaseProps({
       currentParentType: 'work_item',
       currentParentId: 'wi-1',
@@ -213,7 +225,10 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
 
   // Scenario 5: No moveHint when same entity type selected
   it('no moveHint when selected tab matches current parent type', () => {
-    const onMove = jest.fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>();
+    const onMove =
+      jest.fn<
+        (newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>
+      >();
     const props = buildBaseProps({
       currentParentType: 'work_item',
       currentParentId: 'wi-1',
@@ -230,7 +245,10 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
 
   // Scenario 6: "Move" button disabled when no selection, enabled when selection made
   it('"Move to selected item" button is disabled when no picker selection; enabled when selection made', async () => {
-    const onMove = jest.fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>();
+    const onMove =
+      jest.fn<
+        (newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>
+      >();
     const props = buildBaseProps({
       currentParentType: 'work_item',
       currentParentId: 'wi-1',
@@ -256,7 +274,10 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
 
   // Scenario 7: "Cancel" in expanded state collapses back
   it('clicking "Cancel" in expanded state collapses back to current parent row', () => {
-    const onMove = jest.fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>();
+    const onMove =
+      jest.fn<
+        (newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>
+      >();
     const props = buildBaseProps({
       currentParentType: 'work_item',
       currentParentId: 'wi-1',
@@ -289,7 +310,9 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
 
   // Scenario 8: onMove called with correct args when "Move" clicked
   it('onMove called with correct (newParentType, newParentId) when "Move" clicked', async () => {
-    const onMove = jest.fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>().mockResolvedValue(undefined);
+    const onMove = jest
+      .fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>()
+      .mockResolvedValue(undefined);
     const props = buildBaseProps({
       currentParentType: 'work_item',
       currentParentId: 'wi-1',
@@ -318,7 +341,9 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
 
   // Scenario 9: onMove throws → parentPickerError displayed
   it('onMove throws → movePickerError is displayed', async () => {
-    const onMove = jest.fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>().mockRejectedValue(new Error('Network error'));
+    const onMove = jest
+      .fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>()
+      .mockRejectedValue(new Error('Network error'));
     const props = buildBaseProps({
       currentParentType: 'work_item',
       currentParentId: 'wi-1',

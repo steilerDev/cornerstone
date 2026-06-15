@@ -160,8 +160,8 @@ describe('Migration 0023: Require budgetSourceId', () => {
       // Verify it's NULL before migration
       const before = sqlite
         .prepare('SELECT budget_source_id FROM work_item_budgets WHERE id = ?')
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- better-sqlite3 result from dynamic query
-.get('wib-001') as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- better-sqlite3 result from dynamic query
+        .get('wib-001') as any;
       expect(before.budget_source_id).toBeNull();
 
       // Apply migration
@@ -170,8 +170,8 @@ describe('Migration 0023: Require budgetSourceId', () => {
       // Verify it's now discretionary-system
       const after = sqlite
         .prepare('SELECT budget_source_id FROM work_item_budgets WHERE id = ?')
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- better-sqlite3 result from dynamic query
-.get('wib-001') as any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- better-sqlite3 result from dynamic query
+        .get('wib-001') as any;
       expect(after.budget_source_id).toBe('discretionary-system');
     });
 

@@ -1405,7 +1405,7 @@ describe('invoiceAutoItemizeService', () => {
             dryRun: false,
             lines: [
               { description: 'Net item', totalAmount: 500, confidence: 0.9, includesVat: false },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
             ] as any,
           },
           PAPERLESS_AUTH,
@@ -1431,7 +1431,7 @@ describe('invoiceAutoItemizeService', () => {
             dryRun: false,
             lines: [
               { description: 'Net item', totalAmount: 500, confidence: 0.9, includesVat: false },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
             ] as any,
           },
           PAPERLESS_AUTH,
@@ -1460,7 +1460,7 @@ describe('invoiceAutoItemizeService', () => {
           dryRun: false,
           lines: [
             { description: 'Net line', totalAmount: 500, confidence: 0.9, includesVat: false },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -1532,7 +1532,7 @@ describe('invoiceAutoItemizeService', () => {
                 assignedBudgetLineType: 'work_item',
                 includesVat: false,
               },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
             ] as any,
           },
           PAPERLESS_AUTH,
@@ -1590,7 +1590,7 @@ describe('invoiceAutoItemizeService', () => {
                 assignedBudgetLineType: 'work_item',
                 includesVat: false,
               },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
             ] as any,
           },
           PAPERLESS_AUTH,
@@ -2009,7 +2009,7 @@ describe('invoiceAutoItemizeService', () => {
               assignmentMode: 'create-new',
               budgetCategoryId: 'bc-household-items',
             },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2046,7 +2046,7 @@ describe('invoiceAutoItemizeService', () => {
               assignmentMode: 'create-new',
               budgetSourceId: 'discretionary-system',
             },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2083,7 +2083,7 @@ describe('invoiceAutoItemizeService', () => {
               assignmentMode: 'create-new',
               // no budgetSourceId provided
             },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2161,7 +2161,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineId: existingWibId,
               assignedBudgetLineType: 'work_item',
             },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2210,7 +2210,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineId: existingWibId,
               assignedBudgetLineType: 'work_item',
             },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -2251,7 +2251,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineType: 'work_item',
               budgetSourceId: 'discretionary-system', // same, no change
             },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
