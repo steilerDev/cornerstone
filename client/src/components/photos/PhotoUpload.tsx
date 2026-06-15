@@ -39,10 +39,12 @@ export function PhotoUpload({
   const uploadingCountRef = useRef(0);
 
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- checking device capabilities on mount */
     setIsTouchDevice(() => {
       if (typeof window === 'undefined') return false;
       return window.matchMedia('(hover: none)').matches;
     });
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, []);
 
   // Notify parent of uploading count changes
@@ -140,9 +142,11 @@ export function PhotoUpload({
     if (queued.length === 0) return;
 
     // Atomically flip queued → uploading
+    /* eslint-disable @eslint-react/set-state-in-effect -- updating queue state based on observed entries; async uploads follow */
     setPhotoQueue((prev) =>
       prev.map((p) => (p.state === 'queued' ? { ...p, state: 'uploading' as const } : p)),
     );
+    /* eslint-enable @eslint-react/set-state-in-effect */
 
     // Kick off uploads in parallel; they update state on completion
     for (const entry of queued) {

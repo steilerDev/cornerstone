@@ -167,7 +167,7 @@ export function AutoItemizePage() {
   // Eagerly load categories, sources, and vendors on mount
   useEffect(() => {
     picker.initializeStaticData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker is stable, only initialize once on mount
   }, []);
 
   // Timer effect for elapsed seconds counter
@@ -280,6 +280,7 @@ export function AutoItemizePage() {
     };
 
     void loadData();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker.pickerState identity changes each render; its data is stable so the effect re-runs on the listed deps only
   }, [invoiceId, documentId, t, tErrors]);
 
   // Track dirty state
@@ -304,11 +305,14 @@ export function AutoItemizePage() {
     ) {
       const firstSourceId = picker.pickerState.budgetSources[0]?.id;
       if (firstSourceId) {
+        /* eslint-disable @eslint-react/set-state-in-effect -- initializes editable lines from extraction result */
         setLines((prev) =>
           prev.map((l) => (l.budgetSourceId ? l : { ...l, budgetSourceId: firstSourceId })),
         );
+        /* eslint-enable @eslint-react/set-state-in-effect */
       }
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker.pickerState identity changes each render; data is stable
   }, [picker.pickerState.budgetSources]);
 
   // Track dirty state without synchronous setState in effect
@@ -614,6 +618,7 @@ export function AutoItemizePage() {
     };
 
     void loadData();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker.pickerState identity changes each render; its data is stable so the effect re-runs on the listed deps only
   }, [invoiceId, documentId, t, tErrors]);
 
   // Suggest amount from warnings

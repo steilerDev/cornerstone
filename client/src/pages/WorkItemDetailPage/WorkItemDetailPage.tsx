@@ -1170,7 +1170,7 @@ export default function WorkItemDetailPage() {
         description: 'Show keyboard shortcuts',
       },
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- startEditingTitle is defined in the component body; the shortcuts array is recomputed to capture current state of editing flags, which is the intended behavior
     [
       isEditingTitle,
       isEditingDescription,

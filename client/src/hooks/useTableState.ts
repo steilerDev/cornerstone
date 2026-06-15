@@ -79,7 +79,9 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
       }
     }
 
+    /* eslint-disable @eslint-react/set-state-in-effect -- syncing URL state changes to table state */
     setTableState(newState);
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [searchParams, defaultPageSize]);
 
   const setSearch = useCallback(

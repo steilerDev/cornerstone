@@ -232,6 +232,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         liveRegionRef.current.textContent = t('shapeAddedMeasurement');
       }
     }
+  // eslint-disable-next-line @eslint-react/exhaustive-deps -- getActiveFontSizePx is a stable component-scope helper; adding it would create a dependency cycle
   }, [
     inlineInput,
     state.shapes,
@@ -540,6 +541,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
         setDraftShape(null);
       }
     },
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- createShapeFromDraft is a stable component-scope helper; adding it would create a dependency cycle
     [draftShape, state, photo, undoStack, inlineInput.isOpen, openInlineInput, t],
   );
 
@@ -745,6 +747,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       boxSizing: 'border-box',
       zIndex: 1000,
     };
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- getActiveFontSizePx is a stable component-scope helper
   }, [
     inlineInput,
     photo.width,

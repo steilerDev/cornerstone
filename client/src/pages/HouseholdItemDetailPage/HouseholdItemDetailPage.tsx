@@ -245,17 +245,19 @@ export function HouseholdItemDetailPage() {
   useEffect(() => {
     if (!id) return;
     void loadItem();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadItem is defined in component body; effect re-runs on intended trigger only
   }, [id]);
 
   useEffect(() => {
     if (item) {
+      /* eslint-disable @eslint-react/set-state-in-effect -- resets local date inputs when the item changes from server fetch */
       setLocalOrderDate(item.orderDate || '');
       setLocalActualDeliveryDate(item.actualDeliveryDate || '');
       setLocalEarliestDeliveryDate(item.earliestDeliveryDate || '');
       setLocalLatestDeliveryDate(item.latestDeliveryDate || '');
+      /* eslint-enable @eslint-react/set-state-in-effect */
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- item identity changes on fetch; [item?.id] captures when the item object itself changes
   }, [item?.id]);
 
   useEffect(() => {
@@ -288,7 +290,7 @@ export function HouseholdItemDetailPage() {
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- closeDeleteModal is defined in component body; effect re-runs on intended trigger only
   }, [showDeleteModal, isDeleting, deleteError]);
 
   // Add Dependency modal: focus trap and Escape key handler
@@ -309,6 +311,7 @@ export function HouseholdItemDetailPage() {
       }
     };
     void loadPredecessors();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- mount-only predecessor load; intentionally does not re-run when allWorkItems/allMilestones change
   }, []);
 
   // Handle click outside the dependency dropdown

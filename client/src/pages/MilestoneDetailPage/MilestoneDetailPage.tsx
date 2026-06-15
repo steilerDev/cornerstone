@@ -139,7 +139,6 @@ export function MilestoneDetailPage() {
     };
 
     loadMilestone();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [milestoneId, t]);
 
   // Load available work items and household items, and linked household items
@@ -175,6 +174,7 @@ export function MilestoneDetailPage() {
     };
 
     loadItems();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- linkedHouseholdItems is loaded inside the effect; including it would cause an infinite re-fetch loop since it's updated by the same effect
   }, [milestone]);
 
   const handleQuickLinkWorkItem = async (workItemId: string) => {

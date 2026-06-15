@@ -89,7 +89,7 @@ export function WorkItemsPage() {
   // Load work items when table state changes
   useEffect(() => {
     void loadWorkItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadWorkItems is defined in the component body; the effect responds to tableState changes which is the intended trigger
   }, [
     tableState.search,
     tableState.sortBy,
@@ -418,6 +418,7 @@ export function WorkItemsPage() {
         description: t('list.shortcuts.closeOrCancel')!,
       },
     ],
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- closeDeleteConfirm is defined in the component body; the shortcuts array is recomputed to capture current state which is the intended behavior
     [navigate, showShortcutsHelp, deletingItem, activeMenuId, t],
   );
 

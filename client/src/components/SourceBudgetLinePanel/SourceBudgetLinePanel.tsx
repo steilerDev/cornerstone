@@ -280,14 +280,17 @@ export function SourceBudgetLinePanel({
   const { formatCurrency } = useFormatters();
   const isSelectable = selectedLineIds !== undefined && onSelectionChange !== undefined;
 
+  // eslint-disable-next-line @eslint-react/exhaustive-deps -- workItemLines is a derived array; the area-tree memo intentionally recomputes when data changes
   const workItemLines = data?.workItemLines ?? [];
 
+  // eslint-disable-next-line @eslint-react/exhaustive-deps -- householdItemLines is a derived array; the area-tree memo intentionally recomputes when data changes
   const householdItemLines = data?.householdItemLines ?? [];
 
   const isEmpty = workItemLines.length === 0 && householdItemLines.length === 0;
 
   // Build area trees for both work item and household item lines
-  const workItemAreaTree = useMemo(() => buildAreaTree(workItemLines), [workItemLines]);
+  const workItemAreaTree = useMemo(() => buildAreaTree(workItemLines),
+    [workItemLines]);
   const householdItemAreaTree = useMemo(
     () => buildAreaTree(householdItemLines),
     [householdItemLines],

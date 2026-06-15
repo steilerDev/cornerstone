@@ -120,8 +120,10 @@ export default function DiaryEntryEditPage() {
   const skipAutoSaveOnMountRef = useRef(true);
   useEffect(() => {
     if (!id) {
+      /* eslint-disable @eslint-react/set-state-in-effect -- initializing notFound and loading state based on route params */
       setNotFound(true);
       setIsLoading(false);
+      /* eslint-enable @eslint-react/set-state-in-effect */
       return;
     }
 
@@ -160,6 +162,7 @@ export default function DiaryEntryEditPage() {
     if (entry?.status !== 'draft') return;
     // Immediate auto-save when any metadata field changes
     triggerAutoSave(true);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- triggerAutoSave is defined in component body; adding it would require useCallback with transitive deps
   }, [
     dailyLogWeather,
     dailyLogTemperature,

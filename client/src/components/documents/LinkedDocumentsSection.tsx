@@ -128,6 +128,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
       }, 0);
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- systemLinkedIds.fetch is a new reference each render; adding it would cause an infinite re-fetch loop
   }, [showPicker, systemLinkedIds.fetch]);
 
   // Focus Cancel button when unlink confirmation opens

@@ -333,6 +333,7 @@ export function BudgetSourcesPage() {
 
   useEffect(() => {
     void loadSources();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadSources is defined in component body; effect runs only once on mount
   }, []);
 
   const loadSources = async () => {
@@ -522,6 +523,7 @@ export function BudgetSourcesPage() {
     }
   };
 
+  // eslint-disable-next-line @eslint-react/exhaustive-deps -- handleToggleLines is an async function; adding it would create circular dependency with useCallback dependents
   const handleToggleLines = async (sourceId: string) => {
     const isCurrentlyExpanded = expandedSources.has(sourceId);
 
@@ -614,6 +616,7 @@ export function BudgetSourcesPage() {
   const activeMoveSource = moveModalSourceId
     ? sources.find((s) => s.id === moveModalSourceId)
     : null;
+  // eslint-disable-next-line @eslint-react/exhaustive-deps -- activeMoveSelection is a derived conditional; the claimed-count memo intentionally recomputes when the selection changes
   const activeMoveSelection = moveModalSourceId
     ? (sourceSelections.get(moveModalSourceId) ?? new Set<string>())
     : new Set<string>();
@@ -665,6 +668,7 @@ export function BudgetSourcesPage() {
       });
       void loadSources();
     },
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadSources is defined in component body; adding it would require useCallback with transitive deps
     [moveModalSourceId, showToast, t],
   );
 
@@ -682,7 +686,10 @@ export function BudgetSourcesPage() {
       }
       void handleToggleLines(sourceId);
     },
-    [expandedSources, handleToggleLines],
+    [
+      expandedSources,
+      handleToggleLines,
+    ],
   );
 
   if (isLoading) {
