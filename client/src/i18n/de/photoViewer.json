@@ -15,11 +15,24 @@
   "area": "Bereich",
   "areaPlaceholder": "Bereich auswählen...",
   "noArea": "(kein Bereich)",
+  "orientation": "Ausrichtung",
   "saveButton": "Speichern",
   "saving": "Wird gespeichert...",
   "saveError": "Metadaten konnten nicht gespeichert werden",
   "delete": "Foto löschen",
   "deleteConfirmTitle": "Foto löschen?",
   "deleteConfirmBody": "Dieses Foto wird dauerhaft entfernt. Diese Aktion kann nicht rückgängig gemacht werden.",
-  "deleteConfirmAction": "Löschen"
+  "deleteConfirmAction": "Löschen",
+  "metadataToggle": "Foto-Metadaten ein-/ausblenden",
+  "photoMetadataModal": {
+    "title": "Fotodetails hinzufügen",
+    "descriptionLabel": "Beschreibung",
+    "descriptionPlaceholder": "Beschreibung hinzufügen… (optional)",
+    "areaLabel": "Bereich",
+    "orientationLabel": "Ausrichtung",
+    "cancel": "Abbrechen",
+    "saveAndUpload": "Speichern & Hochladen",
+    "saving": "Wird gespeichert…",
+    "noOrientationsHint": "Keine Ausrichtungen konfiguriert. Fügen Sie diese unter Einstellungen → Ausrichtungen hinzu."
+  }
 }

@@ -5,6 +5,7 @@ import { updatePhoto } from '../../lib/photoApi.js';
 import { fetchAreas } from '../../lib/areasApi.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { SearchPicker } from '../SearchPicker/index.js';
+import { OrientationPicker } from '../OrientationPicker/index.js';
 import styles from './PhotoMetadataSidepanel.module.css';
 
 /**
@@ -30,6 +31,7 @@ export function PhotoMetadataSidepanel({
 
   const [caption, setCaption] = useState(photo.caption ?? '');
   const [areaId, setAreaId] = useState(photo.areaId ?? '');
+  const [orientationId, setOrientationId] = useState(photo.orientationId ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [areas, setAreas] = useState<AreaResponse[]>([]);
@@ -58,9 +60,10 @@ export function PhotoMetadataSidepanel({
     /* eslint-disable @eslint-react/set-state-in-effect -- resetting form state in response to photo change */
     setCaption(photo.caption ?? '');
     setAreaId(photo.areaId ?? '');
+    setOrientationId(photo.orientationId ?? '');
     setError(null);
     /* eslint-enable @eslint-react/set-state-in-effect */
-  }, [photo.id, photo.caption, photo.areaId]);
+  }, [photo.id, photo.caption, photo.areaId, photo.orientationId]);
 
   const handleSave = useCallback(async () => {
     setError(null);
@@ -70,6 +73,7 @@ export function PhotoMetadataSidepanel({
       const updated = await updatePhoto(photo.id, {
         caption: caption === '' ? null : caption,
         areaId: areaId === '' ? null : areaId,
+        orientationId: orientationId === '' ? null : orientationId,
       });
 
       onPhotoUpdated?.(updated);
@@ -80,7 +84,7 @@ export function PhotoMetadataSidepanel({
     } finally {
       setIsSaving(false);
     }
-  }, [photo.id, caption, areaId, onPhotoUpdated]);
+  }, [photo.id, caption, areaId, orientationId, onPhotoUpdated]);
 
   const searchAreas = useCallback(async (query: string) => {
     return fetchAreas({ search: query }).then((resp) => resp.areas || []);
@@ -91,7 +95,10 @@ export function PhotoMetadataSidepanel({
     return null;
   }
 
-  const hasChanges = caption !== (photo.caption ?? '') || areaId !== (photo.areaId ?? '');
+  const hasChanges =
+    caption !== (photo.caption ?? '') ||
+    areaId !== (photo.areaId ?? '') ||
+    orientationId !== (photo.orientationId ?? '');
   const isDisabled = isSaving || isLoadingAreas;
 
   const renderAreaItem = (area: AreaResponse) => ({
@@ -169,6 +176,25 @@ export function PhotoMetadataSidepanel({
                 initialTitle={
                   areas.find((a) => a.id === areaId)?.name ||
                   (areaId === '' ? t('noArea') : undefined)
+                }
+              />
+            </div>
+          </div>
+
+          {/* Orientation picker */}
+          <div className={styles.section}>
+            <label htmlFor="photo-orientation" className={styles.label}>
+              {t('photoViewer:orientation')}
+            </label>
+            <div className={styles.areaPicker}>
+              <OrientationPicker
+                id="photo-orientation"
+                value={orientationId}
+                onChange={setOrientationId}
+                disabled={isDisabled}
+                nullable={true}
+                initialOrientationName={
+                  photo.orientation?.name || (orientationId === '' ? undefined : undefined)
                 }
               />
             </div>

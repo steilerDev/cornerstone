@@ -15,6 +15,7 @@ let capturedRenderSecondary: ((item: any) => string | null) | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let capturedSpecialOptions: any[] | undefined;
 let capturedOnChange: ((id: string) => void) | null = null;
+let capturedEmptyHint: string | undefined = undefined;
 
 const mockFetchOrientations = jest.fn<typeof import('../../lib/orientationApi.js').fetchOrientations>();
 
@@ -33,12 +34,14 @@ jest.unstable_mockModule('../SearchPicker/SearchPicker.js', () => ({
     capturedRenderSecondary = props.renderSecondary;
     capturedSpecialOptions = props.specialOptions;
     capturedOnChange = props.onChange;
+    capturedEmptyHint = props.emptyHint;
     return (
       <div
         data-testid="search-picker-mock"
         data-value={props.value}
         data-placeholder={props.placeholder}
         data-show-items-on-focus={String(props.showItemsOnFocus)}
+        data-empty-hint={props.emptyHint}
       />
     );
   },
@@ -55,6 +58,7 @@ beforeEach(async () => {
   capturedRenderSecondary = null;
   capturedSpecialOptions = undefined;
   capturedOnChange = null;
+  capturedEmptyHint = undefined;
   mockFetchOrientations.mockReset();
 });
 
@@ -62,6 +66,7 @@ const makeOrientation = (overrides: Partial<OrientationResponse> = {}): Orientat
   id: 'orient-1',
   name: 'North',
   description: 'Facing north',
+  sortOrder: 0,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   ...overrides,
@@ -165,5 +170,13 @@ describe('OrientationPicker', () => {
 
     const picker = screen.getByTestId('search-picker-mock');
     expect(picker.getAttribute('data-value')).toBe('orient-99');
+  });
+
+  it('emptyHint prop is forwarded to SearchPicker', () => {
+    render(<OrientationPicker value="" onChange={jest.fn()} emptyHint="No orientations available" />);
+
+    const picker = screen.getByTestId('search-picker-mock');
+    expect(picker.getAttribute('data-empty-hint')).toBe('No orientations available');
+    expect(capturedEmptyHint).toBe('No orientations available');
   });
 });

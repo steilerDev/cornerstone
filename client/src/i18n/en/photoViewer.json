@@ -15,6 +15,7 @@
   "area": "Area",
   "areaPlaceholder": "Select an area...",
   "noArea": "(no area)",
+  "orientation": "Orientation",
   "saveButton": "Save",
   "saving": "Saving...",
   "saveError": "Failed to save metadata",
@@ -22,5 +23,16 @@
   "deleteConfirmTitle": "Delete this photo?",
   "deleteConfirmBody": "This photo will be permanently removed. This action cannot be undone.",
   "deleteConfirmAction": "Delete",
-  "metadataToggle": "Toggle photo metadata"
+  "metadataToggle": "Toggle photo metadata",
+  "photoMetadataModal": {
+    "title": "Add photo details",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Add a description… (optional)",
+    "areaLabel": "Area",
+    "orientationLabel": "Orientation",
+    "cancel": "Cancel",
+    "saveAndUpload": "Save & upload",
+    "saving": "Saving…",
+    "noOrientationsHint": "No orientations configured. Add them in Settings → Orientations."
+  }
 }
