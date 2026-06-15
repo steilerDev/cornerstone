@@ -1,5 +1,9 @@
 import type { ConfidenceLevel, BaseBudgetLine } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS, effectivePlannedAmount, effectiveLineAmount } from '@cornerstone/shared';
+import {
+  CONFIDENCE_MARGINS,
+  effectivePlannedAmount,
+  effectiveLineAmount,
+} from '@cornerstone/shared';
 
 // Re-export for convenience in client code
 export { CONFIDENCE_MARGINS, effectivePlannedAmount, effectiveLineAmount };
