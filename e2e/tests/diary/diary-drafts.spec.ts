@@ -346,8 +346,15 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       // Verify the photo upload section is still visible (photo section rendered).
       // On touch devices (tablet/mobile), isTouchDevice=true so the mobile button pair
       // renders instead of the drag-and-drop zone (data-testid="photo-upload-zone").
-      // Use "Upload Photos" button which exists in both touch and non-touch layouts.
-      await expect(page.getByRole('button', { name: 'Upload Photos' }).first()).toBeVisible();
+      // Use viewport width as a proxy for touch-device detection.
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      if (viewportWidth <= 1024) {
+        // Touch device: mobile button pair; use "Upload Photos" button as anchor
+        await expect(page.getByRole('button', { name: 'Upload Photos' }).first()).toBeVisible();
+      } else {
+        // Desktop: drag-and-drop zone always present (wrapper div, not affected by isProcessing)
+        await expect(page.getByTestId('photo-upload-zone')).toBeVisible();
+      }
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
