@@ -1,8 +1,8 @@
 import type { ConfidenceLevel, BaseBudgetLine } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS, effectivePlannedAmount } from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS, effectivePlannedAmount, effectiveLineAmount } from '@cornerstone/shared';
 
 // Re-export for convenience in client code
-export { CONFIDENCE_MARGINS, effectivePlannedAmount };
+export { CONFIDENCE_MARGINS, effectivePlannedAmount, effectiveLineAmount };
 
 /**
  * Human-readable labels for confidence levels used in budget forms and displays.

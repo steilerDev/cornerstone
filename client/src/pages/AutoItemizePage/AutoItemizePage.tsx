@@ -34,7 +34,7 @@ import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { ParentPicker } from '../../components/ParentPicker/ParentPicker.js';
 import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
-import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
+import { CONFIDENCE_LABELS, effectiveLineAmount } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizePage.module.css';
 
@@ -653,7 +653,13 @@ export function AutoItemizePage() {
   );
 
   const { computedLineTotal, variance, variancePercent } = useMemo(() => {
-    const total = lines.filter((l) => l.included).reduce((sum, l) => sum + (l.totalAmount ?? 0), 0);
+    const total = lines
+      .filter((l) => l.included)
+      .reduce(
+        (sum, l) =>
+          sum + effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
+        0,
+      );
     const inv = parseFloat(metadataEdits.amount) || invoice?.amount || 0;
     const v = total - inv;
     return {
