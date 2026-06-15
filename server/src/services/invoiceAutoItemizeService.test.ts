@@ -1402,7 +1402,7 @@ describe('invoiceAutoItemizeService', () => {
             paperlessDocumentId: 42,
             mode: 'append',
             dryRun: false,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
             lines: [
               { description: 'Net item', totalAmount: 500, confidence: 0.9, includesVat: false },
             ] as any,
@@ -1428,7 +1428,7 @@ describe('invoiceAutoItemizeService', () => {
             paperlessDocumentId: 42,
             mode: 'append',
             dryRun: false,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
             lines: [
               { description: 'Net item', totalAmount: 500, confidence: 0.9, includesVat: false },
             ] as any,
@@ -1457,7 +1457,7 @@ describe('invoiceAutoItemizeService', () => {
           paperlessDocumentId: 42,
           mode: 'append',
           dryRun: false,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           lines: [
             { description: 'Net line', totalAmount: 500, confidence: 0.9, includesVat: false },
           ] as any,

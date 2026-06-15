@@ -36,10 +36,7 @@ import { ROUTES } from '../../fixtures/testData.js';
  * so the locale is applied synchronously on the next navigation without waiting
  * for the preferences API response.
  */
-async function setLanguage(
-  page: Page,
-  lang: 'en' | 'de' | 'system',
-): Promise<void> {
+async function setLanguage(page: Page, lang: 'en' | 'de' | 'system'): Promise<void> {
   // Persist preference server-side
   await page.request.patch('/api/users/me/preferences', {
     data: { key: 'locale', value: lang },
