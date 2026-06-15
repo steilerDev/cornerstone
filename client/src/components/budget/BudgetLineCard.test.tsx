@@ -85,7 +85,9 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 
 // ─── Dynamic import after mocks ────────────────────────────────────────────────
 
-let BudgetLineCard: (typeof import('./BudgetLineCard.js'))['BudgetLineCard'];
+import type * as BudgetLineCardModule from './BudgetLineCard.js';
+
+let BudgetLineCard: (typeof BudgetLineCardModule)['BudgetLineCard'];
 let LocaleProvider: ({ children }: { children: React.ReactNode }) => React.ReactNode;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────

@@ -29,6 +29,7 @@ import { eq } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import type { Photo } from '@cornerstone/shared';
+import type * as PhotoAnnotationServiceModule from './photoAnnotationService.js';
 
 // ─── Mock sharp BEFORE any module import that uses it ─────────────────────────
 
@@ -81,7 +82,7 @@ jest.unstable_mockModule('./photoService.js', () => ({
 
 // ─── Dynamic imports (must come AFTER jest.unstable_mockModule) ─────────────
 
-let photoAnnotationService: typeof import('./photoAnnotationService.js');
+let photoAnnotationService: typeof PhotoAnnotationServiceModule;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

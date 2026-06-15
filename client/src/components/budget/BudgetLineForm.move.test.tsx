@@ -49,7 +49,9 @@ jest.unstable_mockModule('../HouseholdItemPicker/HouseholdItemPicker.js', () => 
 
 // ─── Dynamic import ───────────────────────────────────────────────────────────
 
-let BudgetLineForm: (typeof import('./BudgetLineForm.js'))['BudgetLineForm'];
+import type * as BudgetLineFormModule from './BudgetLineForm.js';
+
+let BudgetLineForm: (typeof BudgetLineFormModule)['BudgetLineForm'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

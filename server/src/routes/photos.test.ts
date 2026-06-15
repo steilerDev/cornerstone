@@ -26,6 +26,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { Photo, ApiErrorResponse } from '@cornerstone/shared';
+import type * as AppModule from '../app.js';
+import type * as UserServiceModule from '../services/userService.js';
+import type * as SessionServiceModule from '../services/sessionService.js';
 import { diaryEntries } from '../db/schema.js';
 
 // ─── Mock photoService BEFORE importing app ────────────────────────────────────
@@ -66,9 +69,9 @@ jest.unstable_mockModule('../services/photoService.js', () => ({
 
 // ─── Dynamic imports (after mocks) ───────────────────────────────────────────
 
-let buildApp: typeof import('../app.js').buildApp;
-let userService: typeof import('../services/userService.js');
-let sessionService: typeof import('../services/sessionService.js');
+let buildApp: typeof AppModule.buildApp;
+let userService: typeof UserServiceModule;
+let sessionService: typeof SessionServiceModule;
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 

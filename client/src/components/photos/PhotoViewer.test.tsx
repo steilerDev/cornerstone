@@ -132,7 +132,9 @@ jest.unstable_mockModule('./PhotoMetadataSidepanel.js', () => ({
 
 // ─── Dynamic imports ──────────────────────────────────────────────────────────
 
-let PhotoViewer: typeof import('./PhotoViewer.js').PhotoViewer;
+import type * as PhotoViewerModule from './PhotoViewer.js';
+
+let PhotoViewer: (typeof PhotoViewerModule)['PhotoViewer'];
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 

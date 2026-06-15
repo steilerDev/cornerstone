@@ -17,6 +17,7 @@
  * on WebKit tablet — and language correctness is not viewport-specific.
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { ROUTES } from '../../fixtures/testData.js';
 
@@ -36,7 +37,7 @@ import { ROUTES } from '../../fixtures/testData.js';
  * for the preferences API response.
  */
 async function setLanguage(
-  page: import('@playwright/test').Page,
+  page: Page,
   lang: 'en' | 'de' | 'system',
 ): Promise<void> {
   // Persist preference server-side
@@ -55,7 +56,7 @@ async function setLanguage(
  * Used in test teardown to prevent language state leaking between tests.
  * We reset both localStorage (client-side) and the server preference.
  */
-async function resetToEnglish(page: import('@playwright/test').Page): Promise<void> {
+async function resetToEnglish(page: Page): Promise<void> {
   // Reset server-side preference
   await page.request.patch('/api/users/me/preferences', {
     data: { key: 'locale', value: 'en' },

@@ -288,7 +288,9 @@ jest.unstable_mockModule('./geometry.js', () => ({
 
 // ─── Dynamic imports ──────────────────────────────────────────────────────────
 
-let PhotoAnnotator: typeof import('./PhotoAnnotator.js').PhotoAnnotator;
+import type * as PhotoAnnotatorModule from './PhotoAnnotator.js';
+
+let PhotoAnnotator: (typeof PhotoAnnotatorModule)['PhotoAnnotator'];
 
 // ─── Image stub: make imageLoaded=true synchronously ─────────────────────────
 //

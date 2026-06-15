@@ -90,7 +90,9 @@ jest.unstable_mockModule('./BudgetLineCard.js', () => ({
 }));
 
 // ─── Import component under test after mocks ────────────────────────────────
-let InvoiceGroup: (typeof import('./InvoiceGroup.js'))['InvoiceGroup'];
+import type * as InvoiceGroupModule from './InvoiceGroup.js';
+
+let InvoiceGroup: (typeof InvoiceGroupModule)['InvoiceGroup'];
 let LocaleProvider: ({ children }: { children: React.ReactNode }) => React.ReactNode;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

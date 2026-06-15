@@ -86,7 +86,9 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 
 // ─── Dynamic imports (after mocks) ────────────────────────────────────────────
 
-let PhotoMetadataSidepanel: typeof import('./PhotoMetadataSidepanel.js').PhotoMetadataSidepanel;
+import type * as PhotoMetadataSidepanelModule from './PhotoMetadataSidepanel.js';
+
+let PhotoMetadataSidepanel: (typeof PhotoMetadataSidepanelModule)['PhotoMetadataSidepanel'];
 let LocaleProvider: (props: { children: React.ReactNode }) => React.ReactElement;
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
