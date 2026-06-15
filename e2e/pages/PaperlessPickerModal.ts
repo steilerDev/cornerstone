@@ -13,8 +13,14 @@
  * - DocumentBrowser in modal mode with defaultHideLinked=true
  * - Hide-linked toggle: checkbox labelled by "Hide already-linked documents"
  *   (documents.json: browser.hideLinked)
- * - Document cards: DocumentCard components — each rendered as a button
+ * - Document grid: id="document-grid", role="list"
+ *   aria-busy="true"  → loading state (skeletons rendered)
+ *   aria-busy="false" → documents loaded and card buttons present
+ *   NOTE: the grid element is only mounted after hook.status resolves from null
+ *   (while status=null a separate infoState div is shown instead of the grid)
+ * - Document cards: DocumentCard components — root div with role="button"
  *   aria-label contains the document title (documents.json: documentCard.documentLabel)
+ *   No nested buttons inside the card — "Open in Paperless" is role="link"
  * - "Open in Paperless" anchor per document:
  *   aria-label="Open '{title}' in Paperless" (documents.json: documentCard.openInPaperlessAriaLabel)
  *   href={paperlessUrl}/documents/{id}/details, target="_blank"
@@ -24,6 +30,7 @@
  * - Modal close: standard close button inside the Modal component
  */
 
+import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 
 export class PaperlessPickerModal {
@@ -49,6 +56,15 @@ export class PaperlessPickerModal {
 
   /** Modal close button (X button in the Modal header) */
   readonly closeButton: Locator;
+
+  /**
+   * The document grid inside DocumentBrowser (id="document-grid", role="list").
+   * aria-busy="true"  while loading (status check or documents fetch in flight).
+   * aria-busy="false" when documents are ready and card buttons are in the DOM.
+   * NOTE: the grid element is only mounted after hook.status resolves from null;
+   * callers must use waitForDocumentsLoaded() before accessing card locators.
+   */
+  readonly documentGrid: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -80,6 +96,10 @@ export class PaperlessPickerModal {
 
     // Modal close button — aria-label from Modal component
     this.closeButton = this.modal.getByRole('button', { name: /Close/i });
+
+    // Document grid rendered by DocumentBrowser inside the modal
+    // id="document-grid" is constant (GRID_ID in DocumentBrowser.tsx)
+    this.documentGrid = this.modal.locator('#document-grid');
   }
 
   /**
@@ -87,6 +107,26 @@ export class PaperlessPickerModal {
    */
   async waitForVisible(): Promise<void> {
     await this.modal.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Wait for the DocumentBrowser document grid to finish loading.
+   *
+   * DocumentBrowser has two async loading stages before cards are available:
+   *   1. Status check (hook.status === null) — shows infoState div, grid is NOT in DOM yet
+   *   2. Document fetch (hook.isLoading) — grid is in DOM with aria-busy="true", shows skeletons
+   *
+   * This method waits for the grid to be visible AND aria-busy="false", which guarantees
+   * real DocumentCard elements are rendered and clickable. Must be called before any
+   * interaction with or assertion on document cards.
+   */
+  async waitForDocumentsLoaded(): Promise<void> {
+    // Step 1: wait for the grid element to appear in the DOM and become visible.
+    // This covers stage 1 (status check) since the grid isn't mounted until status resolves.
+    await this.documentGrid.waitFor({ state: 'visible' });
+    // Step 2: wait for the loading state to clear (aria-busy transitions from "true" to "false").
+    // This covers stage 2 (document fetch). 10s timeout is generous for a mocked endpoint.
+    await expect(this.documentGrid).toHaveAttribute('aria-busy', 'false', { timeout: 10000 });
   }
 
   /**
@@ -109,11 +149,24 @@ export class PaperlessPickerModal {
 
   /**
    * Click a document card by its title to trigger document selection.
-   * The DocumentBrowser renders documents as a grid of cards (role="button").
-   * @param title - The document title to select
+   * The DocumentBrowser renders document cards as divs with role="button".
+   * aria-label is built by: t('documentCard.documentLabel', { title, date })
+   * which includes the title and optionally an appended date string.
+   *
+   * IMPORTANT: DocumentBrowser has two async loading stages before cards appear:
+   *   1. Paperless status check — grid element is not in the DOM yet
+   *   2. Documents fetch    — grid is in the DOM but aria-busy="true" (skeletons shown)
+   * This method calls waitForDocumentsLoaded() before locating the card to guarantee
+   * the grid exists and real card buttons are rendered.
+   *
+   * @param title - The document title to match (case-insensitive regex)
    */
   async selectDocument(title: string): Promise<void> {
-    // DocumentBrowser renders document cards — find by accessible name (aria-label contains title)
+    // Wait for the document grid to finish both loading stages
+    await this.waitForDocumentsLoaded();
+    // DocumentCard root div has role="button" and aria-label containing the title.
+    // No nested role="button" elements inside DocumentCard (the "Open in Paperless" anchor
+    // uses role="link"), so getByRole('button', { name: /title/i }) is unambiguous.
     const card = this.modal.getByRole('button', { name: new RegExp(title, 'i') }).first();
     await card.waitFor({ state: 'visible' });
     await card.click();

@@ -422,6 +422,9 @@ test.describe('Scenario 2 — Correspondent filter', () => {
     await invoicesPage.clickNewInvoice();
     const pickerModal = await invoicesPage.waitForPickerModal();
 
+    // Wait for the document grid to finish both async loading stages before asserting cards
+    await pickerModal.waitForDocumentsLoaded();
+
     // Initially both documents are visible (all list)
     await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).toBeVisible();
     await expect(pickerModal.getDocumentCard(MOCK_DOC_2.title)).toBeVisible();
@@ -586,6 +589,9 @@ test.describe('Scenario 6 — Open in Paperless anchor', () => {
 
     await invoicesPage.clickNewInvoice();
     const pickerModal = await invoicesPage.waitForPickerModal();
+
+    // Wait for the document grid to finish loading before asserting card and link visibility
+    await pickerModal.waitForDocumentsLoaded();
 
     // The document card is visible
     await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).toBeVisible();

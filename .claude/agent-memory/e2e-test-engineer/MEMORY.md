@@ -31,6 +31,18 @@
 - Fix in 59099a40 added `test.slow()` + `waitForURL timeout: 30_000` + `toBeVisible timeout: 15_000`. Still not enough.
 - Error: `expect(editPage.heading).toBeVisible({ timeout: 15_000 })` fails — "Edit Diary Entry" h1 not found after navigation to /diary/:id/edit. The SPA router completes but the API response for `getDiaryEntry()` exceeds 15s under heavy CI load.
 - This failure is PRE-EXISTING on beta (not introduced by any current PR). Safe to merge over.
+## DocumentBrowser Two-Stage Loading Race (fixed 2026-06-15) — `e2e/pages/PaperlessPickerModal.ts`
+
+- `DocumentBrowser` has TWO async loading stages before card buttons appear in the DOM:
+  1. Status check (`hook.status === null`) — shows a separate `div.infoState[aria-busy="true"]`, the `#document-grid` element is NOT mounted yet
+  2. Document fetch (`hook.isLoading`) — `#document-grid[aria-busy="true"]` with skeleton cards
+- After both stages: `#document-grid[aria-busy="false"]` with real `DocumentCard` divs (role="button")
+- **`waitForDocumentsLoaded()` pattern**: `grid.waitFor({ state: 'visible' })` (covers stage 1) then `expect(grid).toHaveAttribute('aria-busy', 'false', { timeout: 10000 })` (covers stage 2)
+- `DocumentCard` root is `role="button"` (a `<div>` — NOT `<button>`). aria-label = `"Document: {{title}}{{date}}"`. No nested `role="button"` inside — "Open in Paperless" is `role="link"`. `getByRole('button', { name: /title/i })` is unambiguous.
+- `#document-grid` scoped to `this.modal` (dialog locator) is correct — grid has a unique ID in the page.
+- `import { expect } from '@playwright/test'` is valid in POM files (confirmed in `apiHelpers.ts`).
+- Call `waitForDocumentsLoaded()` in: `selectDocument()` (always), and any spec that calls `getDocumentCard()` directly after `waitForPickerModal()`.
+
 ## Paperless-First Invoice E2E (Story #1679, 2026-06-15) — `e2e/tests/invoices/paperless-first-invoice.spec.ts` + `paperless-first-invoice-fallbacks.spec.ts`
 
 - NO Paperless testcontainer needed — all Paperless endpoints (`/api/paperless/status`, `/paperless/documents`, `/paperless/correspondents`, `/paperless/documents/:id`) and LLM endpoints (`/api/invoices/auto-itemize/preview`, `/api/invoices/auto-itemize/commit`) mocked via `page.route()`.
