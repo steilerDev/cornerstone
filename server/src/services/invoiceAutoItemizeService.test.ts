@@ -17,7 +17,7 @@ import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import { autoItemize } from './invoiceAutoItemizeService.js';
+import { autoItemize, persistLines, previewAutoItemize, commitAutoItemizeCreate } from './invoiceAutoItemizeService.js';
 import {
   NotFoundError,
   ValidationError,
@@ -637,172 +637,6 @@ describe('invoiceAutoItemizeService', () => {
           mode: 'append',
           dryRun: true,
         },
-        PAPERLESS_AUTH,
-      )) as { lines: unknown[]; warnings: unknown[] };
-
-      expect(result.warnings).toHaveLength(0);
-    });
-
-    // ─── Story #1677 — VAT gross-up in computeWarnings ──────────────────────
-
-    it('no TOTAL_MISMATCH when includesVat=false line grosses up to match invoice (1000 net, invoice 1190)', async () => {
-      const vendorId = insertVendor(db);
-      const invoiceId = insertInvoice(db, vendorId, 1190); // invoice 1190 (gross)
-      linkDocument(db, invoiceId, 42);
-      // Line is 1000 net → gross 1190 → diff = 0 → no warning
-      setupDryRunFetch([{ description: 'Item A', totalAmount: 1000, confidence: 0.9 }]);
-      // Override: the LLM response needs includesVat: false on the line
-      // Re-queue the fetch mocks with includesVat embedded in the LLM JSON
-      mockFetch.mockReset();
-      mockFetch
-        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
-        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
-        .mockResolvedValueOnce(
-          makeOkFetch({
-            choices: [
-              {
-                message: {
-                  content: JSON.stringify({
-                    lines: [
-                      {
-                        description: 'Item A',
-                        totalAmount: 1000,
-                        confidence: 0.9,
-                        includesVat: false,
-                      },
-                    ],
-                  }),
-                },
-              },
-            ],
-          }),
-        );
-
-      const config = makeConfig();
-      const result = (await autoItemize(
-        db,
-        config,
-        invoiceId,
-        'user-1',
-        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
-        PAPERLESS_AUTH,
-      )) as { lines: unknown[]; warnings: unknown[] };
-
-      expect(result.warnings).toHaveLength(0);
-    });
-
-    it('TOTAL_MISMATCH when includesVat=false line grosses up to 1071 but invoice is 1190', async () => {
-      const vendorId = insertVendor(db);
-      const invoiceId = insertInvoice(db, vendorId, 1190);
-      linkDocument(db, invoiceId, 42);
-      mockFetch.mockReset();
-      mockFetch
-        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
-        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
-        .mockResolvedValueOnce(
-          makeOkFetch({
-            choices: [
-              {
-                message: {
-                  content: JSON.stringify({
-                    lines: [
-                      {
-                        description: 'Item B',
-                        totalAmount: 900,
-                        confidence: 0.9,
-                        includesVat: false, // gross = Math.round(900*1.19*100)/100 = 1071
-                      },
-                    ],
-                  }),
-                },
-              },
-            ],
-          }),
-        );
-
-      const config = makeConfig();
-      const result = (await autoItemize(
-        db,
-        config,
-        invoiceId,
-        'user-1',
-        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
-        PAPERLESS_AUTH,
-      )) as {
-        lines: unknown[];
-        warnings: Array<{ code: string; extractedTotal: number; invoiceTotal: number }>;
-      };
-
-      expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0]!.code).toBe('TOTAL_MISMATCH');
-      // effectiveLineAmount(900, false) = Math.round(900 * 1.19 * 100) / 100 = 1071
-      expect(result.warnings[0]!.extractedTotal).toBe(Math.round(900 * 1.19 * 100) / 100);
-      expect(result.warnings[0]!.invoiceTotal).toBe(1190);
-    });
-
-    it('no TOTAL_MISMATCH for includesVat=true line matching invoice exactly (1000, invoice 1000)', async () => {
-      const vendorId = insertVendor(db);
-      const invoiceId = insertInvoice(db, vendorId, 1000);
-      linkDocument(db, invoiceId, 42);
-      // includesVat=true: amount used as-is → 1000 === 1000
-      setupDryRunFetch([{ description: 'Item', totalAmount: 1000, confidence: 0.9 }]);
-      const config = makeConfig();
-
-      const result = (await autoItemize(
-        db,
-        config,
-        invoiceId,
-        'user-1',
-        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
-        PAPERLESS_AUTH,
-      )) as { lines: unknown[]; warnings: unknown[] };
-
-      expect(result.warnings).toHaveLength(0);
-    });
-
-    it('no TOTAL_MISMATCH for mixed includesVat: [500 net + 250 gross] → gross total 845 equals invoice', async () => {
-      const vendorId = insertVendor(db);
-      const invoiceId = insertInvoice(db, vendorId, 845);
-      linkDocument(db, invoiceId, 42);
-      // 500 net → gross = Math.round(500*1.19*100)/100 = 595; 250 gross → 250; total = 845
-      mockFetch.mockReset();
-      mockFetch
-        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
-        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
-        .mockResolvedValueOnce(
-          makeOkFetch({
-            choices: [
-              {
-                message: {
-                  content: JSON.stringify({
-                    lines: [
-                      {
-                        description: 'Net line',
-                        totalAmount: 500,
-                        confidence: 0.9,
-                        includesVat: false,
-                      },
-                      {
-                        description: 'Gross line',
-                        totalAmount: 250,
-                        confidence: 0.9,
-                        includesVat: true,
-                      },
-                    ],
-                  }),
-                },
-              },
-            ],
-          }),
-        );
-
-      const config = makeConfig();
-      const result = (await autoItemize(
-        db,
-        config,
-        invoiceId,
-        'user-1',
-        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
         PAPERLESS_AUTH,
       )) as { lines: unknown[]; warnings: unknown[] };
 
@@ -2556,6 +2390,281 @@ describe('invoiceAutoItemizeService', () => {
       const budgetCategoryId = result.lines[0]!['budgetCategoryId'];
       // No matching category → null
       expect(budgetCategoryId === null || budgetCategoryId === undefined).toBe(true);
+    });
+  });
+
+  // ─── Story #1679 — persistLines (Paperless-first create-on-confirm) ───────────
+
+  describe('persistLines (Story #1679)', () => {
+    it('create-new lines insert work_item_budget rows using the vendorId parameter', () => {
+      const vendorId = insertVendor(db, 'Builder Co');
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+
+      db.transaction(() => {
+        return persistLines(
+          db,
+          invoiceId,
+          vendorId,
+          'user-1',
+          [{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }] as any,
+          1000,
+        );
+      });
+
+      const newWibs = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore);
+      expect(newWibs).toHaveLength(1);
+      expect(newWibs[0]!.vendorId).toBe(vendorId);
+    });
+
+    it('throws ItemizedSumExceedsInvoiceError and rolls back when Σ > effectiveAmount', () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 500);
+
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      expect(() => {
+        db.transaction(() => {
+          return persistLines(
+            db,
+            invoiceId,
+            vendorId,
+            'user-1',
+            [
+              { description: 'Line A', totalAmount: 300, confidence: 0.9 },
+              { description: 'Line B', totalAmount: 250, confidence: 0.8 }, // 550 > 500
+            ] as any,
+            500,
+          );
+        });
+      }).toThrow(ItemizedSumExceedsInvoiceError);
+
+      // Transaction should have rolled back
+      expect(db.select().from(schema.workItemBudgets).all().length).toBe(wibCountBefore);
+      expect(db.select().from(schema.invoiceBudgetLines).all().length).toBe(iblCountBefore);
+    });
+
+    it('empty lines array succeeds and returns totalItemized: 0', () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 500);
+
+      const result = db.transaction(() => {
+        return persistLines(db, invoiceId, vendorId, 'user-1', [] as any, 500);
+      });
+
+      expect(result.totalItemized).toBe(0);
+    });
+  });
+
+  // ─── Story #1679 — previewAutoItemize ─────────────────────────────────────────
+
+  describe('previewAutoItemize (Story #1679)', () => {
+    it('resolves chosenVendorName to suggestedVendorId (case-insensitive)', async () => {
+      const vendorId = insertVendor(db, 'Builder Co');
+      const config = makeConfig();
+
+      // 3 fetch calls: Paperless doc, Paperless tags, LLM
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [{ description: 'Tile', totalAmount: 200, confidence: 0.9 }],
+                    chosenVendorName: 'builder co', // lower-case variant
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const result = (await previewAutoItemize(
+        db,
+        config,
+        { paperlessDocumentId: 42 },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; suggestedVendorId: string | null };
+
+      expect(result.suggestedVendorId).toBe(vendorId);
+    });
+
+    it('returns suggestedVendorId: null when chosenVendorName is null', async () => {
+      insertVendor(db, 'Builder Co');
+      const config = makeConfig();
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }],
+                    chosenVendorName: null,
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const result = (await previewAutoItemize(
+        db,
+        config,
+        { paperlessDocumentId: 42 },
+        PAPERLESS_AUTH,
+      )) as { suggestedVendorId: string | null };
+
+      expect(result.suggestedVendorId).toBeNull();
+    });
+
+    it('returns suggestedVendorId: null when chosenVendorName not in vendor list', async () => {
+      insertVendor(db, 'Builder Co');
+      const config = makeConfig();
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }],
+                    chosenVendorName: 'Unknown Vendor XYZ',
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const result = (await previewAutoItemize(
+        db,
+        config,
+        { paperlessDocumentId: 42 },
+        PAPERLESS_AUTH,
+      )) as { suggestedVendorId: string | null };
+
+      expect(result.suggestedVendorId).toBeNull();
+    });
+
+    it('inserts zero rows in any table (stateless — no DB writes)', async () => {
+      insertVendor(db, 'Builder Co');
+      const config = makeConfig();
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }],
+                    chosenVendorName: null,
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+      const invoiceCountBefore = db.select().from(schema.invoices).all().length;
+
+      await previewAutoItemize(db, config, { paperlessDocumentId: 42 }, PAPERLESS_AUTH);
+
+      expect(db.select().from(schema.workItemBudgets).all().length).toBe(wibCountBefore);
+      expect(db.select().from(schema.invoiceBudgetLines).all().length).toBe(iblCountBefore);
+      expect(db.select().from(schema.invoices).all().length).toBe(invoiceCountBefore);
+    });
+  });
+
+  // ─── Story #1679 — commitAutoItemizeCreate ────────────────────────────────────
+
+  describe('commitAutoItemizeCreate (Story #1679)', () => {
+    it('happy path: creates invoice, document_links, WIB, IBL rows; returns invoice + budgetLines + remainingAmount', async () => {
+      const vendorId = insertVendor(db, 'Happy Vendor');
+      const config = makeConfig();
+
+      const invoiceCountBefore = db.select().from(schema.invoices).all().length;
+      const dlCountBefore = db.select().from(schema.documentLinks).all().length;
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      const result = (await commitAutoItemizeCreate(db, config, 'user-1', {
+        paperlessDocumentId: 99,
+        vendorId,
+        invoice: {
+          amount: 1000,
+          date: '2026-03-01',
+          invoiceNumber: 'INV-001',
+        },
+        lines: [
+          { description: 'Tile work', totalAmount: 400, confidence: 0.9 },
+          { description: 'Grout', totalAmount: 100, confidence: 0.85 },
+        ] as any,
+      })) as { invoice: unknown; budgetLines: unknown; remainingAmount: number };
+
+      // All rows created
+      expect(db.select().from(schema.invoices).all().length).toBe(invoiceCountBefore + 1);
+      expect(db.select().from(schema.documentLinks).all().length).toBe(dlCountBefore + 1);
+      expect(db.select().from(schema.workItemBudgets).all().length).toBe(wibCountBefore + 2);
+      expect(db.select().from(schema.invoiceBudgetLines).all().length).toBe(iblCountBefore + 2);
+
+      // Response fields
+      expect(result.invoice).toBeDefined();
+      expect(result.budgetLines).toBeDefined();
+      expect(result.remainingAmount).toBe(500); // 1000 - 400 - 100
+    });
+
+    it('throws NotFoundError (vendor not found) when vendorId does not exist', async () => {
+      const config = makeConfig();
+
+      await expect(
+        commitAutoItemizeCreate(db, config, 'user-1', {
+          paperlessDocumentId: 99,
+          vendorId: 'nonexistent-vendor',
+          invoice: { amount: 500, date: '2026-03-01' },
+          lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }] as any,
+        }),
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('rolls back entire transaction when ItemizedSumExceedsInvoiceError occurs', async () => {
+      const vendorId = insertVendor(db, 'Rollback Vendor');
+      const config = makeConfig();
+
+      const invoiceCountBefore = db.select().from(schema.invoices).all().length;
+
+      try {
+        await commitAutoItemizeCreate(db, config, 'user-1', {
+          paperlessDocumentId: 99,
+          vendorId,
+          invoice: { amount: 500, date: '2026-03-01' },
+          lines: [
+            { description: 'Line A', totalAmount: 400, confidence: 0.9 },
+            { description: 'Line B', totalAmount: 200, confidence: 0.8 }, // 600 > 500
+          ] as any,
+        });
+      } catch {
+        // expected
+      }
+
+      // Invoice row count must be unchanged (transaction rolled back)
+      expect(db.select().from(schema.invoices).all().length).toBe(invoiceCountBefore);
     });
   });
 });

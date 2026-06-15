@@ -1,0 +1,64 @@
+.pickerModal {
+  max-width: 900px;
+  width: 90vw;
+  max-height: 90vh;
+}
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.correspondentRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  width: 100%;
+}
+
+.manualEscapeButton {
+  padding: var(--spacing-2) var(--spacing-4);
+  min-height: 44px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
+}
+
+.manualEscapeButton:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-border-strong);
+}
+
+.manualEscapeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+@media (max-width: 767px) {
+  .pickerModal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 100vh;
+  }
+
+  .modalBody {
+    max-height: 70vh;
+  }
+
+  .manualEscapeButton {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manualEscapeButton {
+    transition: none;
+  }
+}

@@ -1381,3 +1381,337 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
     });
   });
 });
+
+// ─── Story #1679: POST /api/invoices/auto-itemize/preview ──────────────────────
+
+describe('POST /api/invoices/auto-itemize/preview', () => {
+  let app: FastifyInstance;
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+  let originalFetch: typeof globalThis.fetch;
+  let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+
+  beforeEach(async () => {
+    originalEnv = { ...process.env };
+    originalFetch = globalThis.fetch;
+    mockFetch = jest.fn<typeof globalThis.fetch>();
+    globalThis.fetch = mockFetch;
+
+    tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-preview-route-test-'));
+    process.env.DATABASE_URL = join(tempDir, 'test.db');
+    process.env.SECURE_COOKIES = 'false';
+    // Both LLM and Paperless env vars must be set for the preview route
+    process.env.PAPERLESS_URL = 'http://paperless.test.local';
+    process.env.PAPERLESS_API_TOKEN = 'test-paperless-token';
+    process.env.LLM_BASE_URL = 'http://llm.test.local';
+    process.env.LLM_API_KEY = 'test-llm-key';
+    process.env.LLM_MODEL = 'gpt-4o-test';
+
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    if (app) await app.close();
+    globalThis.fetch = originalFetch;
+    process.env = originalEnv;
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  });
+
+  it('returns 401 UNAUTHORIZED when no session cookie is provided', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/preview',
+      payload: { paperlessDocumentId: 42 },
+    });
+
+    expect(response.statusCode).toBe(401);
+    const body = response.json<{ error: { code: string } }>();
+    expect(body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('returns 200 with lines and suggestedVendorId on success', async () => {
+    const { cookie } = await createUserSession1679(app, 'preview-ok@test.com', 'PreviewOk', 'pass');
+
+    // Seed a vendor to match against
+    const vendorId = createTestVendorForApp(app, 'Builder Co');
+
+    // Mocks: Paperless doc, Paperless tags, LLM with chosenVendorName=null (simplest)
+    mockFetch
+      .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_DOC_RESPONSE))
+      .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_TAGS_RESPONSE))
+      .mockResolvedValueOnce(
+        makeFetchResponse({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  lines: [{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }],
+                  chosenVendorName: null,
+                }),
+              },
+            },
+          ],
+        }),
+      );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/preview',
+      headers: { cookie },
+      payload: { paperlessDocumentId: 42 },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{ lines: unknown[]; suggestedVendorId: string | null }>();
+    expect(Array.isArray(body.lines)).toBe(true);
+    expect(body).toHaveProperty('suggestedVendorId');
+    // vendorId is unused — silence the lint warning
+    void vendorId;
+  });
+
+  it('returns 503 LLM_NOT_CONFIGURED when LLM is not configured', async () => {
+    // Rebuild app without LLM env vars
+    await app.close();
+    delete process.env.LLM_BASE_URL;
+    delete process.env.LLM_API_KEY;
+    delete process.env.LLM_MODEL;
+    app = await buildApp();
+
+    const { cookie } = await createUserSession1679(app, 'preview-nollm@test.com', 'NoLlm', 'pass');
+
+    // Paperless doc + tags mocks (they're fetched before LLM check)
+    mockFetch
+      .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_DOC_RESPONSE))
+      .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_TAGS_RESPONSE));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/preview',
+      headers: { cookie },
+      payload: { paperlessDocumentId: 42 },
+    });
+
+    expect(response.statusCode).toBe(503);
+    const body = response.json<{ error: { code: string } }>();
+    expect(body.error.code).toBe('LLM_NOT_CONFIGURED');
+  });
+
+  it('preview path is NOT matched by /:invoiceId/auto-itemize route', async () => {
+    // The literal string "auto-itemize" should not be treated as an invoiceId.
+    // If there were a route conflict, /:invoiceId/auto-itemize would match
+    // and return 404 (invoice not found) rather than 401/400 for the new route.
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/preview',
+      // No auth — if the route registered correctly this will be 401
+      payload: { paperlessDocumentId: 42 },
+    });
+
+    // Route conflict would produce 404 NOT_FOUND (invoice lookup); correct registration produces 401
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+// ─── Story #1679: POST /api/invoices/auto-itemize/commit ──────────────────────
+
+describe('POST /api/invoices/auto-itemize/commit', () => {
+  let app: FastifyInstance;
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+  let originalFetch: typeof globalThis.fetch;
+  let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+
+  beforeEach(async () => {
+    originalEnv = { ...process.env };
+    originalFetch = globalThis.fetch;
+    mockFetch = jest.fn<typeof globalThis.fetch>();
+    globalThis.fetch = mockFetch;
+
+    tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-commit-route-test-'));
+    process.env.DATABASE_URL = join(tempDir, 'test.db');
+    process.env.SECURE_COOKIES = 'false';
+    process.env.PAPERLESS_URL = 'http://paperless.test.local';
+    process.env.PAPERLESS_API_TOKEN = 'test-paperless-token';
+    process.env.LLM_BASE_URL = 'http://llm.test.local';
+    process.env.LLM_API_KEY = 'test-llm-key';
+    process.env.LLM_MODEL = 'gpt-4o-test';
+
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    if (app) await app.close();
+    globalThis.fetch = originalFetch;
+    process.env = originalEnv;
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  });
+
+  it('returns 401 UNAUTHORIZED when no session cookie is provided', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/commit',
+      payload: {
+        paperlessDocumentId: 42,
+        vendorId: 'some-vendor',
+        invoice: { amount: 500, date: '2026-03-01' },
+        lines: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(401);
+    const body = response.json<{ error: { code: string } }>();
+    expect(body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('returns 201 with invoice, budgetLines, and remainingAmount on success', async () => {
+    const { cookie } = await createUserSession1679(app, 'commit-ok@test.com', 'CommitOk', 'pass');
+    const vendorId = createTestVendorForApp(app, 'Commit Vendor');
+
+    // commit path: NO fetch calls needed (pure DB transaction)
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/commit',
+      headers: { cookie },
+      payload: {
+        paperlessDocumentId: 42,
+        vendorId,
+        invoice: { amount: 1000, date: '2026-03-01', invoiceNumber: 'INV-TEST-001' },
+        lines: [
+          { description: 'Tile work', totalAmount: 400, confidence: 0.9 },
+          { description: 'Grout', totalAmount: 100, confidence: 0.85 },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json<{
+      invoice: unknown;
+      budgetLines: unknown;
+      remainingAmount: number;
+    }>();
+    expect(body.invoice).toBeDefined();
+    expect(body.budgetLines).toBeDefined();
+    expect(body.remainingAmount).toBe(500); // 1000 - 400 - 100
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 ITEMIZED_SUM_EXCEEDS_INVOICE when sum of lines exceeds invoice amount', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'commit-exceed@test.com',
+      'CommitExceed',
+      'pass',
+    );
+    const vendorId = createTestVendorForApp(app, 'Exceed Vendor');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/commit',
+      headers: { cookie },
+      payload: {
+        paperlessDocumentId: 42,
+        vendorId,
+        invoice: { amount: 500, date: '2026-03-01' },
+        lines: [
+          { description: 'Line A', totalAmount: 400, confidence: 0.9 },
+          { description: 'Line B', totalAmount: 200, confidence: 0.8 }, // 600 > 500
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = response.json<{ error: { code: string } }>();
+    expect(body.error.code).toBe('ITEMIZED_SUM_EXCEEDS_INVOICE');
+  });
+
+  it('returns 404 NOT_FOUND when vendorId does not exist', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'commit-novendor@test.com',
+      'CommitNoVendor',
+      'pass',
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/commit',
+      headers: { cookie },
+      payload: {
+        paperlessDocumentId: 42,
+        vendorId: 'nonexistent-vendor-id',
+        invoice: { amount: 500, date: '2026-03-01' },
+        lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = response.json<{ error: { code: string } }>();
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('commit path is NOT matched by /:invoiceId/auto-itemize route', async () => {
+    // Similar to preview: "auto-itemize" should not be an invoiceId param.
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/commit',
+      // No auth
+      payload: {
+        paperlessDocumentId: 42,
+        vendorId: 'v',
+        invoice: { amount: 500, date: '2026-03-01' },
+        lines: [],
+      },
+    });
+
+    // 401 means the commit route matched; 404 would indicate route conflict
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+// ─── Shared helpers for Story #1679 route tests ───────────────────────────────
+
+async function createUserSession1679(
+  appInstance: FastifyInstance,
+  email: string,
+  displayName: string,
+  password: string,
+): Promise<{ cookie: string }> {
+  const user = await userService.createLocalUser(
+    appInstance.db,
+    email,
+    displayName,
+    password,
+    'member',
+  );
+  const token = sessionService.createSession(appInstance.db, user.id, 3600);
+  return { cookie: `cornerstone_session=${token}` };
+}
+
+function createTestVendorForApp(appInstance: FastifyInstance, name = 'Test Vendor'): string {
+  const id = `vendor-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const t = new Date().toISOString();
+  appInstance.db
+    .insert(schema.vendors)
+    .values({
+      id,
+      name,
+      tradeId: null,
+      phone: null,
+      email: null,
+      address: null,
+      notes: null,
+      createdBy: null,
+      createdAt: t,
+      updatedAt: t,
+    })
+    .run();
+  return id;
+}

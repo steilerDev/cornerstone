@@ -12,6 +12,7 @@ Your task is to extract line items AND document-level metadata fields from the p
   "dueDate": "YYYY-MM-DD" | null,
   "invoiceNumber": string | null,
   "notes": string | null,
+  "chosenVendorName": string | null,
   "lines": [
     {
       "description": string,
@@ -49,8 +50,9 @@ IMPORTANT RULES:
 7. invoiceNumber: extract the vendor's printed invoice identifier (e.g., "INV-2024-0123", "RE 2024-042") if clearly present. Output null if not found.
 8. notes: write ONE short sentence (≤120 chars) summarizing what this invoice covers (e.g., "Bathroom tile installation, March 2024"). Keep it factual and brief. Output null if you cannot determine the content.
 9. category: extract ONE short noun phrase for the line's trade or material type (e.g., "Materials", "Labor", "Tile work", "Electrical", "Plumbing", "Roofing", "Painting", "Flooring"). Use English even on German invoices. Keep ≤ 30 characters. Output null if unclear.
-10. If no line items can be reliably extracted, return { "invoiceDate": null, "dueDate": null, "invoiceNumber": null, "notes": null, "lines": [] }.
-11. Output ONLY valid JSON, no markdown, no comments.`;
+10. chosenVendorName: If a list of available vendors is provided, extract the vendor name from the invoice and return the exact matching name from the list (case-sensitive match). Return null if no match found or no vendor list provided.
+11. If no line items can be reliably extracted, return { "invoiceDate": null, "dueDate": null, "invoiceNumber": null, "notes": null, "chosenVendorName": null, "lines": [] }.
+12. Output ONLY valid JSON, no markdown, no comments.`;
 
 export function buildUserPrompt(ocrText: string, hints: ExtractionHints): string {
   const vendorName = hints.vendorName ?? 'unknown';
@@ -58,18 +60,26 @@ export function buildUserPrompt(ocrText: string, hints: ExtractionHints): string
   const invoiceDate = hints.invoiceDate ?? 'unknown';
   const locale = hints.locale ?? 'de-DE';
 
-  return `Extract line items from the following German construction invoice:
+  let prompt = `Extract line items from the following German construction invoice:
 
 Vendor: ${vendorName}
 Invoice Total (gross): ${invoiceTotal}
 Invoice Date: ${invoiceDate}
-Locale: ${locale}
+Locale: ${locale}`;
 
----
+  // Add available vendors list if provided
+  if (hints.availableVendors && hints.availableVendors.length > 0) {
+    const vendorList = hints.availableVendors.map((v) => `- ${v.name}`).join('\n');
+    prompt += `\n\nAvailable vendors (return one of these names verbatim as "chosenVendorName", or null if none match):\n${vendorList}`;
+  }
+
+  prompt += `\n\n---
 ${ocrText}
 ---
 
-Return the extracted data as a JSON object with schema { "invoiceDate": "YYYY-MM-DD" | null, "dueDate": "YYYY-MM-DD" | null, "invoiceNumber": string | null, "notes": string | null, "lines": ExtractedLine[] }.
+Return the extracted data as a JSON object with schema { "invoiceDate": "YYYY-MM-DD" | null, "dueDate": "YYYY-MM-DD" | null, "invoiceNumber": string | null, "notes": string | null, "chosenVendorName": string | null, "lines": ExtractedLine[] }.
 
 IMPORTANT: Resolve relative payment terms into a concrete dueDate (ISO) using the invoiceDate above. If invoiceDate is null, set dueDate to null.`;
+
+  return prompt;
 }

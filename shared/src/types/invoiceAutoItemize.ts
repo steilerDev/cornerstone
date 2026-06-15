@@ -5,7 +5,8 @@
  */
 
 import type { ExtractedLine, ExtractionHints, ExtractionResult } from './budgetExtraction.js';
-import type { InvoiceStatus } from './invoice.js';
+import type { InvoiceStatus, CreateInvoiceRequest, Invoice } from './invoice.js';
+import type { InvoiceBudgetLineDetailResponse } from './invoiceBudgetLine.js';
 
 /**
  * Optional invoice metadata patch for auto-itemize commit.
@@ -59,3 +60,38 @@ export type { InvoiceBudgetLineListDetailResponse } from './invoiceBudgetLine.js
 
 // Re-export extraction types for client convenience
 export type { ExtractedLine, ExtractionHints, ExtractionResult };
+
+/**
+ * EPIC-18 Story #1679: Preview auto-itemize before committing to database.
+ * Stateless LLM extraction with no DB writes.
+ */
+export interface AutoItemizePreviewRequest {
+  paperlessDocumentId: number;
+  locale?: string;
+}
+
+export interface AutoItemizePreviewResponse {
+  lines: ExtractedLine[];
+  /** The app vendor id the LLM matched. null when no exact match. */
+  suggestedVendorId: string | null;
+  extractedInvoiceNumber?: string;
+  extractedInvoiceDate?: string;
+  extractedDueDate?: string;
+  extractedNotes?: string;
+}
+
+/**
+ * EPIC-18 Story #1679: Create invoice and itemize in a single atomic transaction.
+ */
+export interface AutoItemizeCommitRequest {
+  paperlessDocumentId: number;
+  vendorId: string;
+  invoice: CreateInvoiceRequest;
+  lines: ExtractedLine[];
+}
+
+export interface AutoItemizeCommitResponse {
+  invoice: Invoice;
+  budgetLines: InvoiceBudgetLineDetailResponse[];
+  remainingAmount: number;
+}

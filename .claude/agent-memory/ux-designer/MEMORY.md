@@ -140,6 +140,18 @@ See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `rol
 - `DailyLogMetadata` type needs: `vendorId?: string | null`, `vendorName?: string | null` (server-side denormalized), `workStart?: string | null`, `workEnd?: string | null`
 - Check for i18n key collision: `form.vendor` already exists for delivery entry type — use `form.dailyLogVendor` if label differs
 
+## Story #1679 — Paperless-first Invoice Creation (spec posted)
+
+- Picker modal: `max-width: min(900px, calc(100vw - 2rem))`, `height: min(700px, calc(100vh - 4rem))`, flex column; mobile: full-screen with `border-radius: 0`
+- Correspondent filter: `SearchPicker` with `showItemsOnFocus`, `max-width: 220px` at desktop, full-width at mobile — lives in wrapper component, NOT inside `DocumentBrowser`
+- `DocumentBrowser` new props: `defaultHideLinked?: boolean`, `onOpenInPaperless?: fn`, `paperlessUrl?: string | null`
+- Hide-linked toggle: change from `{linkedDocumentIds.length > 0 && ...}` to `{linkedDocumentIds !== undefined && ...}` for always-visible when prop provided
+- "Open in Paperless" per-card: `<a>` anchor, `target="_blank" rel="noopener noreferrer"`; `opacity: 0` on card, `opacity: 1` on `.card:hover`/`:focus-within`; always opaque on mobile; wrapped in `@media (prefers-reduced-motion: no-preference)` for transition
+- LLM vendor suggestion: reuse existing `SuggestionBadge` (NOT a new Badge variant) — same pattern as invoiceNumber/date/notes suggestions in AutoItemizePage
+- Vendor field required error: `SearchPicker` + `aria-invalid="true"` + `FormError variant="field"` below picker
+- New wrapper component: `InvoicePaperlessPickerModal` at `client/src/components/invoices/` (justified — invoice-creation-specific chrome + reusable)
+- "Open in Paperless" URL pattern: `{paperlessUrl}/documents/{document.id}/details` (matches DocumentDetailPanel existing pattern)
+
 ## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
 
 - `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic` — distinguishes from work-item "not_started" badge

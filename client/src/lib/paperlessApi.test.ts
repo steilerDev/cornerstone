@@ -210,4 +210,30 @@ describe('paperlessApi', () => {
       expect(url).toBe('https://example.com/api/paperless/documents/1/preview');
     });
   });
+
+  describe('listPaperlessCorrespondents', () => {
+    it('calls GET /paperless/correspondents and returns response', async () => {
+      const mockResponse = {
+        correspondents: [
+          { id: 1, name: 'Builder Corp', documentCount: 12 },
+          { id: 2, name: 'ACME Supplies', documentCount: 5 },
+        ],
+      };
+      mockGet.mockResolvedValueOnce(mockResponse);
+
+      const result = await paperlessApi.listPaperlessCorrespondents();
+
+      expect(mockGet).toHaveBeenCalledWith('/paperless/correspondents');
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('returns empty correspondents array when none exist', async () => {
+      const mockResponse = { correspondents: [] };
+      mockGet.mockResolvedValueOnce(mockResponse);
+
+      const result = await paperlessApi.listPaperlessCorrespondents();
+
+      expect(result.correspondents).toHaveLength(0);
+    });
+  });
 });

@@ -65,6 +65,17 @@ export function validateExtractedLines(body: unknown): ExtractionResult {
     notes = trimmed.length > 1000 ? trimmed.slice(0, 1000) : trimmed;
   }
 
+  let chosenVendorName: string | null | undefined;
+  if (obj.chosenVendorName !== undefined) {
+    if (obj.chosenVendorName === null) {
+      chosenVendorName = null;
+    } else if (typeof obj.chosenVendorName === 'string' && obj.chosenVendorName.trim() !== '') {
+      chosenVendorName = obj.chosenVendorName.trim();
+    } else {
+      chosenVendorName = null;
+    }
+  }
+
   const lines: ExtractedLine[] = [];
 
   for (let i = 0; i < obj.lines.length; i++) {
@@ -240,7 +251,7 @@ export function validateExtractedLines(body: unknown): ExtractionResult {
     });
   }
 
-  return { invoiceDate, dueDate, invoiceNumber, notes, lines };
+  return { invoiceDate, dueDate, invoiceNumber, notes, chosenVendorName, lines };
 }
 
 /**

@@ -23,7 +23,11 @@
     "previous": "Previous",
     "next": "Next",
     "nextPage": "Next page",
-    "pageInfo": "Page {{page}} of {{totalPages}}"
+    "pageInfo": "Page {{page}} of {{totalPages}}",
+    "correspondentLabel": "Correspondent",
+    "correspondentPlaceholder": "Filter by correspondent…",
+    "correspondentEmptyHint": "Type to search correspondents",
+    "correspondentNoResults": "No correspondents found"
   },
   "linkedDocuments": {
     "title": "Documents",
@@ -59,7 +63,8 @@
     "details": "Details",
     "detailsAriaLabel": "View details: {{title}}",
     "itemize": "Itemize",
-    "openInPaperless": "Open in Paperless-ngx",
+    "openInPaperless": "Open in Paperless",
+    "openInPaperlessAriaLabel": "Open '{{title}}' in Paperless",
     "removeLink": "Remove document link"
   },
   "documentDetail": {

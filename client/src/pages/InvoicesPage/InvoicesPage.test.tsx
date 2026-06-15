@@ -84,6 +84,55 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// ── Story #1679: paperlessApi mock ────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockGetPaperlessStatus = jest.fn<any>();
+
+jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
+  getPaperlessStatus: mockGetPaperlessStatus,
+  listPaperlessDocuments: jest.fn(),
+  listPaperlessTags: jest.fn(),
+  getPaperlessDocument: jest.fn(),
+  getDocumentThumbnailUrl: jest.fn().mockReturnValue('/thumb'),
+  getDocumentPreviewUrl: jest.fn().mockReturnValue('/preview'),
+  listPaperlessCorrespondents: jest.fn(),
+}));
+
+// ── Story #1679: configApi mock ───────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockFetchConfig = jest.fn<any>();
+
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: mockFetchConfig,
+}));
+
+// ── Story #1679: InvoicePaperlessPickerModal mock ─────────────────────────────
+
+jest.unstable_mockModule(
+  '../../components/invoices/InvoicePaperlessPickerModal.js',
+  () => ({
+    InvoicePaperlessPickerModal: ({
+      onDocumentSelected,
+      onManualEntry,
+      onClose,
+    }: {
+      onDocumentSelected: (doc: { id: number; title: string }) => void;
+      onManualEntry: () => void;
+      onClose: () => void;
+    }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'paperless-picker-modal' },
+        React.createElement('button', { onClick: () => onDocumentSelected({ id: 1, title: 'Doc' }) }, 'Select Document'),
+        React.createElement('button', { onClick: onManualEntry }, 'Manual Entry'),
+        React.createElement('button', { onClick: onClose }, 'Close Modal'),
+      ),
+  }),
+);
+
+// React must be imported for JSX in the mock factory above
+import React from 'react';
+
 // ── Location helper ───────────────────────────────────────────────────────────
 
 function LocationDisplay() {
@@ -217,10 +266,22 @@ describe('InvoicesPage', () => {
     mockFetchAllInvoices.mockReset();
     mockCreateInvoice.mockReset();
     mockFetchVendors.mockReset();
+    mockGetPaperlessStatus.mockReset();
+    mockFetchConfig.mockReset();
 
     if (!InvoicesPageModule) {
       InvoicesPageModule = await import('./InvoicesPage.js');
     }
+
+    // Default: paperless not configured + auto-itemize disabled (manual modal path)
+    mockGetPaperlessStatus.mockResolvedValue({
+      configured: false,
+      reachable: false,
+      error: null,
+      paperlessUrl: null,
+      filterTag: null,
+    });
+    mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
 
     // Default: empty vendors
     mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
@@ -826,6 +887,139 @@ describe('InvoicesPage', () => {
 
       await waitFor(() => {
         expect(screen.getAllByText('Quality Plumbing')[0]!).toBeInTheDocument();
+      });
+    });
+  });
+
+  // ─── Story #1679: "New Invoice" button branching logic ──────────────────────
+
+  describe('"New Invoice" button branching (#1679)', () => {
+    it('button has aria-disabled while integration status is loading', async () => {
+      // Never resolve — stays loading
+      mockGetPaperlessStatus.mockReturnValue(new Promise(() => {}));
+      mockFetchConfig.mockReturnValue(new Promise(() => {}));
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+
+      renderPage();
+
+      // Button should appear immediately with aria-disabled=true
+      await waitFor(() => {
+        const btn = screen.getByTestId('new-invoice-button');
+        expect(btn).toBeInTheDocument();
+        expect(btn).toHaveAttribute('aria-disabled', 'true');
+      });
+    });
+
+    it('button is enabled after integration status resolves', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        const btn = screen.getByTestId('new-invoice-button');
+        expect(btn).not.toHaveAttribute('aria-disabled', 'true');
+      });
+    });
+
+    it('opens manual modal when autoItemizeEnabled=false', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: 'https://paperless.example.com',
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      renderPage();
+
+      // Wait for button to be enabled
+      await waitFor(() => {
+        const btn = screen.getByTestId('new-invoice-button');
+        expect(btn).not.toHaveAttribute('aria-disabled', 'true');
+      });
+
+      fireEvent.click(screen.getByTestId('new-invoice-button'));
+
+      // Manual modal appears (has Modal title from invoices.modal.title)
+      await waitFor(() => {
+        // The manual invoice creation modal contains a vendor select or form
+        const modal =
+          screen.queryByRole('dialog') ||
+          screen.queryByText(/New Invoice/i) ||
+          document.querySelector('[data-testid="paperless-picker-modal"]');
+        // Paperless picker should NOT appear when autoItemizeEnabled=false
+        expect(
+          document.querySelector('[data-testid="paperless-picker-modal"]'),
+        ).not.toBeInTheDocument();
+        // Manual modal OR some form element should appear
+        expect(modal !== null || screen.queryByLabelText(/Vendor/i) !== null).toBe(true);
+      });
+    });
+
+    it('opens Paperless picker modal when configured + reachable + autoItemizeEnabled=true', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: 'https://paperless.example.com',
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      renderPage();
+
+      // Wait for button to be enabled
+      await waitFor(() => {
+        const btn = screen.getByTestId('new-invoice-button');
+        expect(btn).not.toHaveAttribute('aria-disabled', 'true');
+      });
+
+      fireEvent.click(screen.getByTestId('new-invoice-button'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('paperless-picker-modal')).toBeInTheDocument();
+      });
+    });
+
+    it('opens manual modal when paperless configured=false even if autoItemizeEnabled=true', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        const btn = screen.getByTestId('new-invoice-button');
+        expect(btn).not.toHaveAttribute('aria-disabled', 'true');
+      });
+
+      fireEvent.click(screen.getByTestId('new-invoice-button'));
+
+      // Paperless picker should NOT appear when paperless not configured
+      await waitFor(() => {
+        expect(
+          document.querySelector('[data-testid="paperless-picker-modal"]'),
+        ).not.toBeInTheDocument();
       });
     });
   });

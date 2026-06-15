@@ -780,6 +780,80 @@ describe('listTags()', () => {
   });
 });
 
+// ─── listCorrespondents tests (Story #1679) ───────────────────────────────────
+
+describe('listCorrespondents()', () => {
+  it('makes a single fetch to /api/correspondents/?page_size=1000', async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockJsonResponse({ count: 2, results: [{ id: 5, name: 'Smith GmbH' }, { id: 2, name: 'Acme Corp' }] }),
+    );
+
+    await paperlessService.listCorrespondents(BASE_URL, TOKEN);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+    expect(callUrl).toContain('/api/correspondents/?page_size=1000');
+  });
+
+  it('returns correspondents sorted by id ascending', async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockJsonResponse({
+        count: 2,
+        results: [
+          { id: 5, name: 'Smith GmbH' },
+          { id: 2, name: 'Acme Corp' },
+        ],
+      }),
+    );
+
+    const result = await paperlessService.listCorrespondents(BASE_URL, TOKEN);
+
+    expect(result.correspondents).toHaveLength(2);
+    expect(result.correspondents[0]).toEqual({ id: 2, name: 'Acme Corp' });
+    expect(result.correspondents[1]).toEqual({ id: 5, name: 'Smith GmbH' });
+  });
+
+  it('returns empty array when no correspondents exist', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+
+    const result = await paperlessService.listCorrespondents(BASE_URL, TOKEN);
+
+    expect(result.correspondents).toEqual([]);
+  });
+
+  it('maps only id and name fields from raw correspondent', async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockJsonResponse({
+        count: 1,
+        results: [{ id: 7, name: 'Test Corp', document_count: 42, slug: 'test-corp' }],
+      }),
+    );
+
+    const result = await paperlessService.listCorrespondents(BASE_URL, TOKEN);
+
+    expect(result.correspondents[0]).toEqual({ id: 7, name: 'Test Corp' });
+    expect(Object.keys(result.correspondents[0]!)).toHaveLength(2);
+  });
+
+  it('throws PAPERLESS_UNREACHABLE on network error', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+    await expect(paperlessService.listCorrespondents(BASE_URL, TOKEN)).rejects.toMatchObject({
+      code: 'PAPERLESS_UNREACHABLE',
+      statusCode: 502,
+    });
+  });
+
+  it('throws PAPERLESS_ERROR on non-ok response', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ detail: 'Forbidden' }, 403));
+
+    await expect(paperlessService.listCorrespondents(BASE_URL, TOKEN)).rejects.toMatchObject({
+      code: 'PAPERLESS_ERROR',
+      statusCode: 502,
+    });
+  });
+});
+
 // ─── AppError correctness ─────────────────────────────────────────────────────
 
 describe('Error codes and status codes', () => {

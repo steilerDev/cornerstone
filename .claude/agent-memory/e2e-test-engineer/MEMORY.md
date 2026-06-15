@@ -31,6 +31,18 @@
 - Fix in 59099a40 added `test.slow()` + `waitForURL timeout: 30_000` + `toBeVisible timeout: 15_000`. Still not enough.
 - Error: `expect(editPage.heading).toBeVisible({ timeout: 15_000 })` fails — "Edit Diary Entry" h1 not found after navigation to /diary/:id/edit. The SPA router completes but the API response for `getDiaryEntry()` exceeds 15s under heavy CI load.
 - This failure is PRE-EXISTING on beta (not introduced by any current PR). Safe to merge over.
+## Paperless-First Invoice E2E (Story #1679, 2026-06-15) — `e2e/tests/invoices/paperless-first-invoice.spec.ts` + `paperless-first-invoice-fallbacks.spec.ts`
+
+- NO Paperless testcontainer needed — all Paperless endpoints (`/api/paperless/status`, `/paperless/documents`, `/paperless/correspondents`, `/paperless/documents/:id`) and LLM endpoints (`/api/invoices/auto-itemize/preview`, `/api/invoices/auto-itemize/commit`) mocked via `page.route()`.
+- New POMs: `PaperlessPickerModal.ts` (modal dialog locating via `getByRole('dialog', { name: /Select Invoice Document/i })`), `PaperlessInvoiceReviewPage.ts`.
+- **`InvoicesPage.clickNewInvoice()`**: waits for button enabled (`aria-disabled !== 'true'`) before click — button is disabled while config+status loads.
+- **`PaperlessInvoiceReviewPage` requires location state**: page reads `documentId` from React Router `location.state`. MUST navigate through the full picker flow (not `page.goto()` directly) to pass state. `page.goto('/budget/invoices/new/paperless')` with no state shows error guard.
+- **Correspondent SearchPicker portal**: dropdown portals to `document.body` — use `page.locator('[data-search-picker-dropdown]')` scoped to `page`, NOT to `modal`.
+- **DocumentCard "Open in Paperless" link**: `getByRole('link', { name: /Open '?{title}'? in Paperless/i })` inside modal. `href = {paperlessUrl}/documents/{id}/details`, `target="_blank"`, `rel="noopener noreferrer"`.
+- **i18n namespace discovery**: `InvoicePaperlessPickerModal` uses `useTranslation(['invoices', 'documents'])` with `t('invoices:pickerModal.title')` — but there's no `invoices.json`. Keys are in `budget.json` under `invoices.pickerModal.*`. The `invoices:` prefix refers to the `budget.json` `invoices` top-level key via i18next namespace fallback.
+- **Confirm button disabled when no vendor**: `disabled={!vendorId}` in JSX. Can't click a disabled button in Playwright — assert `toBeDisabled()` directly.
+- **Mock pattern for preview endpoint**: `page.route('**/api/invoices/auto-itemize/preview', ...)` — no invoice ID in the URL (new endpoint path for create-from-scratch flow vs. `**/api/invoices/:id/auto-itemize`).
+- InvoicesPage POM extended with: `clickNewInvoice()`, `waitForPickerModal()`, `waitForManualModal()`.
 
 ## Orientations + Mobile Photo Capture E2E (Story #1674, 2026-06-15) — `e2e/tests/orientations.spec.ts`, `e2e/tests/photo-capture-flow.spec.ts`, `e2e/pages/OrientationsPage.ts`
 

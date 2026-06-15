@@ -237,3 +237,14 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `autoOriginBadge.ariaLabel`: uses glossary "Budgetposition" and glossary noun `Aufschlüsselung` (from `Itemize` glossary entry)
 - "Auto-itemized" as participial adjective in badge → "Auto-erstellt"; in aria-label → "per Aufschlüsselung erstellt"
 - Proposed glossary additions (need product-owner approval): "Discretionary Funding" → `{ "de": { "singular": "Diskretionäre Finanzierung" } }`; "Auto-itemized" → `{ "de": { "adjective": "automatisch aufgeschlüsselt", "short": "Auto-erstellt" } }`
+
+## Paperless-first Invoice + autoItemize from Document — Issue #1679 (2026-06-15)
+
+- "Correspondent" added to glossary → "Korrespondent" / "Korrespondenten"; used in `documents.browser.*` filter keys; existing `documentDetail.correspondent = "Absender"` left unchanged (pre-existing, out of scope)
+- `autoItemize` keys in budget.json `budgetLineForm` block (at end, alongside `invalidDocumentId`): `vendor` → "Auftragnehmer", `vendorPlaceholder` → "Auftragnehmer suchen…", `vendorRequired` → "Auftragnehmer ist erforderlich"
+- `createAndItemize` button → "Rechnung Erstellen & Aufschlüsseln" (follows `{Noun} {Verb}` capitalised pattern; `&` preserved)
+- Progress states: `extractingFromDocument` → "Dokument wird analysiert…"; `extractionStarted` → "Dokument wird mit KI analysiert…" (consistent with existing `spinnerLabel` "Wird analysiert" pattern; uses "KI" for AI)
+- `extractionComplete` → "Extraktion abgeschlossen. Bitte prüfen Sie die vorgeschlagenen Positionen." (Sie form, short noun "Positionen" matches existing `extractedLines`/`lineItemsListLabel` in same namespace)
+- `lineItems` → "Positionen"; `noLineItems` → "Keine Positionen extrahiert"; `backToInvoices` → "Zurück zu Rechnungen"
+- `invoices.pickerModal` added to `de/budget.json` (parallel to `en/budget.json invoices` section): `title` → "Rechnungsdokument auswählen", `manualEntry` → "Rechnung manuell erfassen", `manualEntryAriaLabel` → "Rechnung manuell erstellen ohne ein Dokument auszuwählen"
+- `documents.documentCard.openInPaperless` updated "In Paperless-ngx öffnen" → "In Paperless öffnen" (matches EN change); new `openInPaperlessAriaLabel` → "'{{title}}' in Paperless öffnen"
