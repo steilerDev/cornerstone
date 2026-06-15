@@ -5,12 +5,17 @@
  * `/v1/chat/completions` schema:
  *
  *  - OpenAI:    accepts `response_format: { type: 'json_object' }`. `max_tokens` optional.
+ *               Sends `reasoning_effort: 'none'` only for reasoning models (o1/o3/o4/gpt-5 series)
+ *               to disable chain-of-thought; non-reasoning models reject the field with HTTP 400.
  *  - Anthropic: rejects `json_object`; requires `json_schema` with a real schema.
  *               `max_tokens` always required on the native API; the OpenAI-compat
  *               layer is more lenient but we send it for consistency.
+ *               Thinking is disabled by default; no `reasoning_effort` field sent.
  *  - Gemini:    accepts `json_object` and `json_schema`. `max_tokens` honored as a hint.
+ *               Sends `reasoning_effort: 'none'` to disable dynamic thinking (Gemini 2.5 Flash).
  *  - Ollama:    accepts `json_object` for models that support structured output;
- *               older models silently ignore it.
+ *               older models silently ignore it. Sends `reasoning_effort: 'none'` (safely
+ *               ignored on non-thinking models).
  *  - Generic:   unknown provider — send the minimum body and rely on the system
  *               prompt's "Output ONLY valid JSON" rule plus runtime validation.
  *
@@ -135,10 +140,32 @@ export interface RequestBodyInput {
 }
 
 /**
+ * Returns true when the model name matches an OpenAI reasoning model.
+ *
+ * Reasoning models (o1, o3, o4 series, codex-mini, gpt-5 series) accept
+ * `reasoning_effort` and benefit from `"none"` to disable chain-of-thought
+ * for structured extraction. Non-reasoning models (gpt-4o, gpt-4o-mini,
+ * gpt-4-turbo, etc.) reject the field with HTTP 400.
+ *
+ * Pattern is intentionally conservative: false negatives (sending nothing
+ * to an unrecognized o-series variant) are safe. False positives would
+ * cause a 400 on a non-reasoning model.
+ */
+export function isOpenAiReasoningModel(model: string): boolean {
+  const m = model.toLowerCase().trim();
+  return (
+    /^o[134](-|$)/.test(m) ||  // o1, o1-mini, o1-preview, o3, o3-mini, o4-mini
+    m.startsWith('gpt-5') ||    // gpt-5, gpt-5.5, gpt-5.4-mini, etc.
+    m.includes('codex-mini')    // codex-mini (reasoning variant)
+  );
+}
+
+/**
  * Build the request body for the configured provider.
  *
  * All providers receive `model`, `messages`, `temperature: 0`, and `max_tokens`.
- * Only the structured-output hint (`response_format`) varies.
+ * Structured-output hints (`response_format`) and thinking-disable fields
+ * (`reasoning_effort: 'none'`) vary by provider.
  */
 export function buildRequestBody(input: RequestBodyInput): Record<string, unknown> {
   const base: Record<string, unknown> = {
@@ -153,9 +180,23 @@ export function buildRequestBody(input: RequestBodyInput): Record<string, unknow
 
   switch (input.provider) {
     case 'openai':
+      return {
+        ...base,
+        response_format: { type: 'json_object' },
+        ...(isOpenAiReasoningModel(input.model) ? { reasoning_effort: 'none' } : {}),
+      };
     case 'gemini':
+      return {
+        ...base,
+        response_format: { type: 'json_object' },
+        reasoning_effort: 'none',
+      };
     case 'ollama':
-      return { ...base, response_format: { type: 'json_object' } };
+      return {
+        ...base,
+        response_format: { type: 'json_object' },
+        reasoning_effort: 'none',
+      };
     case 'anthropic':
       return {
         ...base,
