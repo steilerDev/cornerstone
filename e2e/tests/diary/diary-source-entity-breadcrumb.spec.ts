@@ -16,6 +16,7 @@
  * event types (e.g. invoice_status) in a controlled manner.
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import {
@@ -31,7 +32,7 @@ import { API } from '../../fixtures/testData.js';
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function patchWorkItemStatus(
-  page: import('@playwright/test').Page,
+  page: Page,
   workItemId: string,
   status: string,
 ): Promise<void> {
@@ -46,7 +47,7 @@ async function patchWorkItemStatus(
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function findAutoDiaryEntryId(
-  page: import('@playwright/test').Page,
+  page: Page,
   workItemId: string,
 ): Promise<string> {
   // GET /api/diary-entries uses "type" query param (not "entryType") for filtering

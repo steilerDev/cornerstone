@@ -172,7 +172,9 @@ jest.unstable_mockModule('./InvoiceGroup.js', () => ({
 
 // ─── Import component under test after mocks ──────────────────────────────────
 
-let BudgetSection: (typeof import('./BudgetSection.js'))['BudgetSection'];
+import type * as BudgetSectionModule from './BudgetSection.js';
+
+let BudgetSection: (typeof BudgetSectionModule)['BudgetSection'];
 let LocaleProvider: ({ children }: { children: React.ReactNode }) => React.ReactNode;
 
 // ─── Type factory helpers ──────────────────────────────────────────────────────

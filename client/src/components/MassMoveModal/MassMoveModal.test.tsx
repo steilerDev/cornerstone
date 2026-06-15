@@ -7,6 +7,7 @@ import type React from 'react';
 import type { BudgetSource, BudgetSourceListResponse } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type { MassMoveModalProps } from './MassMoveModal.js';
+import type * as MassMoveModalModule from './MassMoveModal.js';
 
 // ─── Module-scope mock functions ─────────────────────────────────────────────
 
@@ -159,7 +160,7 @@ function buildProps(overrides: Partial<MassMoveModalProps> = {}): MassMoveModalP
 
 // ─── Component import (after mocks) ──────────────────────────────────────────
 
-let MassMoveModal: (typeof import('./MassMoveModal.js'))['MassMoveModal'];
+let MassMoveModal: (typeof MassMoveModalModule)['MassMoveModal'];
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 

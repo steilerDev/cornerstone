@@ -26,6 +26,7 @@
  * 18. Editing a saved entry unchanged (save → no Draft badge, no discard button)
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryEntryCreatePage, DIARY_CREATE_ROUTE } from '../../pages/DiaryEntryCreatePage.js';
@@ -52,7 +53,7 @@ async function waitForDiaryListLoaded(diaryPage: DiaryPage): Promise<void> {
 }
 
 /** Wait for an API response matching the diary entries endpoint. */
-function waitForDiaryListResponse(page: import('@playwright/test').Page) {
+function waitForDiaryListResponse(page: Page) {
   return page.waitForResponse(
     (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
   );
