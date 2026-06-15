@@ -7,7 +7,7 @@
  * Covers all the new daily_log metadata fields as well as the pre-existing
  * weather/temperature/workers behaviour and the site_visit render path.
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import type React from 'react';
 import type { DiaryEntryType } from '@cornerstone/shared';

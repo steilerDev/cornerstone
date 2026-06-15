@@ -1242,6 +1242,7 @@ export default function WorkItemDetailPage() {
   const availableSubsidies = allSubsidyPrograms.filter((s) => !linkedSubsidyIds.has(s.id));
 
   // Delay indicator: shown when not_started and scheduled start is in the past
+  // eslint-disable-next-line @eslint-react/purity -- intentional current-time read for delay calculation; value is meant to reflect render time
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const isDelayed =

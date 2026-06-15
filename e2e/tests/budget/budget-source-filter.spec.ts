@@ -1342,12 +1342,10 @@ test.describe('Stale-while-revalidate during refetch', { tag: '@responsive' }, (
     });
 
     // Mount breakdown with artificial 200ms delay on filtered requests
-    let requestCount = 0;
     await page.route('**/api/budget/breakdown**', async (route) => {
       if (route.request().method() === 'GET') {
         const url = new URL(route.request().url());
         const deselected = url.searchParams.get('deselectedSources');
-        requestCount++;
         if (deselected) {
           // Delay the filtered response by 200ms to simulate slow server
           await new Promise<void>((resolve) => setTimeout(resolve, 200));

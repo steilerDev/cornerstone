@@ -56,6 +56,7 @@ interface ThemeProviderProps {
 export function ThemeProvider({ children }: ThemeProviderProps) {
   // Read localStorage once, derive both initial states from the single value.
   const initialPreference = readStoredPreference();
+  // eslint-disable-next-line @eslint-react/use-state -- setThemeState used to avoid collision with the public setTheme callback
   const [theme, setThemeState] = useState<ThemePreference>(initialPreference);
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
     resolveTheme(initialPreference),

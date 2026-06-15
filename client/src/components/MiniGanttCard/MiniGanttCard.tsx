@@ -154,6 +154,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
     );
   }
 
+  // eslint-disable-next-line @eslint-react/purity -- intentional current-time read for today marker; value is meant to reflect render time for date calculations
   const todayLocal = new Date();
   const todayNoon = new Date(
     todayLocal.getFullYear(),
@@ -219,7 +220,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           const dayLabel = labelDate.toLocaleDateString('en-US', { weekday: 'short' });
           return (
             <text
-              key={`header-${i}`}
+              key={`header-${i}`} // eslint-disable-line @eslint-react/no-array-index-key -- static 5-day window header; index is a stable key here
               x={x + 4}
               y={HEADER_HEIGHT - 8}
               fontSize="14"
@@ -237,7 +238,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           const x = dateToX(lineDate, windowStart);
           return (
             <line
-              key={`grid-${i}`}
+              key={`grid-${i}`} // eslint-disable-line @eslint-react/no-array-index-key -- static 5-day window grid; index is a stable key here
               x1={x}
               y1={HEADER_HEIGHT}
               x2={x}

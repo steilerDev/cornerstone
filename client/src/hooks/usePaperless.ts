@@ -43,8 +43,8 @@ export function usePaperless(): UsePaperlessResult {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [selectedTags, setSelectedTagsState] = useState<number[]>([]);
-  const [page, setPageState] = useState(1);
+  const [selectedTags, setSelectedTags] = useState<number[]>([]);
+  const [page, setPage] = useState(1);
   const [fetchCount, setFetchCount] = useState(0);
   const [tagCountMap, setTagCountMap] = useState<Map<number, number>>(() => new Map());
 
@@ -137,18 +137,14 @@ export function usePaperless(): UsePaperlessResult {
 
   const search = useCallback((q: string) => {
     setQuery(q);
-    setPageState(1);
+    setPage(1);
   }, []);
 
   const toggleTag = useCallback((tagId: number) => {
-    setSelectedTagsState((prev) =>
+    setSelectedTags((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
     );
-    setPageState(1);
-  }, []);
-
-  const setPage = useCallback((p: number) => {
-    setPageState(p);
+    setPage(1);
   }, []);
 
   const refresh = useCallback(() => {

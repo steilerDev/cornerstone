@@ -1,7 +1,6 @@
 import { type FormEvent } from 'react';
 import type { BudgetCategory, BudgetSource, ConfidenceLevel, Vendor } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
-import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { BudgetLineForm } from './BudgetLineForm.js';
 import { Modal } from '../Modal/Modal.js';
 

@@ -384,6 +384,7 @@ export function DateRangePicker({
         </div>
 
         {weeks.map((week, weekIndex) => (
+          // eslint-disable-next-line @eslint-react/no-array-index-key -- static month grid; week index is a stable key here
           <div key={weekIndex} className={styles.weekRow} role="row">
             {week.map((day) => {
               const isSelected = day.dateStr === startDate || day.dateStr === endDate;

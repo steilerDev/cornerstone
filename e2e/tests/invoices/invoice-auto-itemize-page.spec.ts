@@ -1364,7 +1364,6 @@ test.describe('Scenario 14 — Status field: change pending → paid', () => {
     }
 
     const autoItemizePage = new AutoItemizePage(page);
-    const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
     let invoiceId = '';
 
@@ -2061,7 +2060,7 @@ test.describe('Scenario 26 — assignmentMode:"assign-existing" in commit payloa
     let vendorId = '';
     let invoiceId = '';
     let workItemId = '';
-    let budgetLineId = '';
+    let budgetLineId: string;
     const budgetLineDescription = `${testPrefix} AI-AssignMode BL`;
 
     try {

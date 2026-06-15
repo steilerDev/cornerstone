@@ -1009,7 +1009,9 @@ export function InvoiceBudgetLinesSection({
                     description: '',
                     color: selectedBudgetLine.categoryColor ?? '',
                     sortOrder: 0,
+                    // eslint-disable-next-line @eslint-react/purity -- temporary BudgetCategory object with placeholder timestamps for modal display; not persisted
                     createdAt: new Date().toISOString(),
+                    // eslint-disable-next-line @eslint-react/purity -- temporary BudgetCategory object with placeholder timestamps for modal display; not persisted
                     updatedAt: new Date().toISOString(),
                   } as BudgetCategory)
                 : null,

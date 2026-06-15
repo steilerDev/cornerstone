@@ -585,6 +585,7 @@ export function DiaryEntryForm({
             {(deliveryMaterials?.length ?? 0) > 0 && (
               <div className={styles.materialsList}>
                 {deliveryMaterials!.map((material, index) => (
+                  // eslint-disable-next-line @eslint-react/no-array-index-key -- materials list may have duplicates; composite key with material+index is stable
                   <div key={`${material}-${index}`} className={styles.materialChip}>
                     <span>{material}</span>
                     <button

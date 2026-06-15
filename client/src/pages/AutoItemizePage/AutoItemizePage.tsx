@@ -122,7 +122,7 @@ export function AutoItemizePage() {
   // Budget line picker state
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [lineFieldsEdited, setLineFieldsEdited] = useState(false);
-  const wasCreatedFromExtraction = useRef(false);
+  const wasCreatedFromExtractionRef = useRef(false);
   const { t: tSettings } = useTranslation('settings');
 
   const picker = useBudgetLinePicker({
@@ -136,11 +136,11 @@ export function AutoItemizePage() {
       const lineType = 'workItemId' in line ? 'work_item' : 'household_item';
       // Snapshot the ref value NOW (before setLines) so the updater closure captures
       // the correct value regardless of when React executes the deferred updater.
-      // Reading wasCreatedFromExtraction.current INSIDE the setLines updater causes a
+      // Reading wasCreatedFromExtractionRef.current INSIDE the setLines updater causes a
       // race on WebKit: the ref is reset to false before the updater executes (React 18
       // automatic batching defers updater execution after the synchronous reset).
-      const fromExtraction = wasCreatedFromExtraction.current;
-      wasCreatedFromExtraction.current = false;
+      const fromExtraction = wasCreatedFromExtractionRef.current;
+      wasCreatedFromExtractionRef.current = false;
       // Store the assigned budget line ID, type, and description on the row
       // Note: when eagerLinkInvoice is false, invoiceBudgetLineId will be null
       // Use line.id (the work_item_budget or household_item_budget ID) instead
@@ -569,7 +569,7 @@ export function AutoItemizePage() {
       includesVat: row.includesVat !== false,
     };
 
-    wasCreatedFromExtraction.current = true;
+    wasCreatedFromExtractionRef.current = true;
     void picker.showCreateBudgetLineForm(prefill);
   }, [activeRowId, lines, picker]);
 

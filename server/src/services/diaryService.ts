@@ -672,7 +672,7 @@ export function createDiaryEntry(
   const status = data.status ?? 'saved';
 
   // Validate body: required and non-empty for saved, optional/empty for drafts
-  let trimmedBody = '';
+  let trimmedBody: string;
   if (!isDraft) {
     // Saved entry requires non-empty body
     if (!data.body) {

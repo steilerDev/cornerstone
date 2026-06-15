@@ -112,6 +112,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
             <span className={styles.deliveryLabel}>{t('entryForm.materialsLabel')}</span>
             <div className={styles.materialsList}>
               {m.materials.map((material, idx) => (
+                // eslint-disable-next-line @eslint-react/no-array-index-key -- materials list may have duplicates; composite key with material+index is stable
                 <span key={`${material}-${idx}`} className={styles.materialTag}>
                   {material}
                 </span>
