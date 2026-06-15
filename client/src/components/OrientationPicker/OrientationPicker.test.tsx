@@ -17,7 +17,8 @@ let capturedSpecialOptions: any[] | undefined;
 let capturedOnChange: ((id: string) => void) | null = null;
 let capturedEmptyHint: string | undefined = undefined;
 
-const mockFetchOrientations = jest.fn<typeof import('../../lib/orientationApi.js').fetchOrientations>();
+const mockFetchOrientations =
+  jest.fn<typeof import('../../lib/orientationApi.js').fetchOrientations>();
 
 jest.unstable_mockModule('../../lib/orientationApi.js', () => ({
   fetchOrientations: mockFetchOrientations,
@@ -173,7 +174,9 @@ describe('OrientationPicker', () => {
   });
 
   it('emptyHint prop is forwarded to SearchPicker', () => {
-    render(<OrientationPicker value="" onChange={jest.fn()} emptyHint="No orientations available" />);
+    render(
+      <OrientationPicker value="" onChange={jest.fn()} emptyHint="No orientations available" />,
+    );
 
     const picker = screen.getByTestId('search-picker-mock');
     expect(picker.getAttribute('data-empty-hint')).toBe('No orientations available');

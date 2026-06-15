@@ -5,8 +5,10 @@ import { fetchOrientations } from '../../lib/orientationApi.js';
 import { SearchPicker } from '../SearchPicker/SearchPicker.js';
 import type { SearchPickerProps } from '../SearchPicker/SearchPicker.js';
 
-export interface OrientationPickerProps
-  extends Omit<SearchPickerProps<OrientationResponse>, 'searchFn' | 'renderItem' | 'excludeIds'> {
+export interface OrientationPickerProps extends Omit<
+  SearchPickerProps<OrientationResponse>,
+  'searchFn' | 'renderItem' | 'excludeIds'
+> {
   value: string;
   onChange: (id: string) => void;
   disabled?: boolean;

@@ -1197,7 +1197,9 @@ function OrientationsTab() {
       const deletedOrientation = orientations.find((o) => o.id === orientationId);
       await deleteOrientation(orientationId);
       setDeletingOrientationId(null);
-      setSuccessMessage(t('manage.orientations.messages.deleted', { name: deletedOrientation?.name }));
+      setSuccessMessage(
+        t('manage.orientations.messages.deleted', { name: deletedOrientation?.name }),
+      );
     } catch (err) {
       if (err instanceof ApiClientError) {
         setSuccessMessage(err.error.message);
@@ -1331,7 +1333,10 @@ function OrientationsTab() {
                       </div>
 
                       <div className={styles.field}>
-                        <label htmlFor={`edit-description-${orientation.id}`} className={styles.label}>
+                        <label
+                          htmlFor={`edit-description-${orientation.id}`}
+                          className={styles.label}
+                        >
                           {t('manage.orientations.descriptionLabel')}
                         </label>
                         <input
@@ -1351,7 +1356,10 @@ function OrientationsTab() {
                       </div>
 
                       <div className={styles.field}>
-                        <label htmlFor={`edit-sortOrder-${orientation.id}`} className={styles.label}>
+                        <label
+                          htmlFor={`edit-sortOrder-${orientation.id}`}
+                          className={styles.label}
+                        >
                           {t('manage.orientations.sortOrderLabel')}
                         </label>
                         <input
@@ -1383,7 +1391,9 @@ function OrientationsTab() {
                               editingOrientation.sortOrder === orientation.sortOrder)
                           }
                         >
-                          {isUpdating ? t('manage.orientations.saving') : t('manage.orientations.save')}
+                          {isUpdating
+                            ? t('manage.orientations.saving')
+                            : t('manage.orientations.save')}
                         </button>
                         <button
                           type="button"
@@ -1468,7 +1478,9 @@ function OrientationsTab() {
                 onClick={() => void handleDeleteOrientation(deletingOrientationId)}
                 disabled={isDeleting}
               >
-                {isDeleting ? t('manage.orientations.deleting') : t('manage.orientations.deleteButton')}
+                {isDeleting
+                  ? t('manage.orientations.deleting')
+                  : t('manage.orientations.deleteButton')}
               </button>
             </div>
           </div>

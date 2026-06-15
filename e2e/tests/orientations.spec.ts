@@ -79,33 +79,33 @@ test.describe('Orientations tab — visibility (Scenario 1)', { tag: '@responsiv
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Orientations tab — empty state (Scenario 2)', { tag: '@responsive' }, () => {
-  test(
-    'Empty state is displayed in the existing list section when no orientations exist',
-    async ({ page, testPrefix }) => {
-      // We cannot guarantee the DB is empty, so we mock the GET to return empty.
-      await page.route('**/api/orientations*', async (route) => {
-        if (route.request().method() === 'GET') {
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({ orientations: [] }),
-          });
-        } else {
-          await route.continue();
-        }
-      });
-
-      try {
-        const orientationsPage = new OrientationsPage(page);
-        await orientationsPage.goto();
-
-        // The EmptyState component must appear in the list section
-        await expect(orientationsPage.emptyState).toBeVisible();
-      } finally {
-        await page.unroute('**/api/orientations*');
+  test('Empty state is displayed in the existing list section when no orientations exist', async ({
+    page,
+    testPrefix,
+  }) => {
+    // We cannot guarantee the DB is empty, so we mock the GET to return empty.
+    await page.route('**/api/orientations*', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ orientations: [] }),
+        });
+      } else {
+        await route.continue();
       }
-    },
-  );
+    });
+
+    try {
+      const orientationsPage = new OrientationsPage(page);
+      await orientationsPage.goto();
+
+      // The EmptyState component must appear in the list section
+      await expect(orientationsPage.emptyState).toBeVisible();
+    } finally {
+      await page.unroute('**/api/orientations*');
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -113,31 +113,28 @@ test.describe('Orientations tab — empty state (Scenario 2)', { tag: '@responsi
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Orientations tab — create name-only (Scenario 3)', { tag: '@responsive' }, () => {
-  test(
-    'Create orientation with name only — appears in list',
-    async ({ page, testPrefix }) => {
-      const orientationName = `${testPrefix} South`;
-      let orientationId = '';
+  test('Create orientation with name only — appears in list', async ({ page, testPrefix }) => {
+    const orientationName = `${testPrefix} South`;
+    let orientationId = '';
 
-      try {
-        const orientationsPage = new OrientationsPage(page);
-        await orientationsPage.goto();
-        await expect(orientationsPage.createFormHeading).toBeVisible();
+    try {
+      const orientationsPage = new OrientationsPage(page);
+      await orientationsPage.goto();
+      await expect(orientationsPage.createFormHeading).toBeVisible();
 
-        orientationId = await orientationsPage.createOrientation(orientationName);
+      orientationId = await orientationsPage.createOrientation(orientationName);
 
-        // Success banner appears
-        await expect(orientationsPage.successMessage).toBeVisible();
+      // Success banner appears
+      await expect(orientationsPage.successMessage).toBeVisible();
 
-        // Item appears in the list — getOrientationRow() returns the itemName element
-        const nameEl = orientationsPage.getOrientationRow(orientationName);
-        await expect(nameEl).toBeVisible();
-        await expect(nameEl).toHaveText(orientationName);
-      } finally {
-        if (orientationId) await deleteOrientationViaApi(page, orientationId);
-      }
-    },
-  );
+      // Item appears in the list — getOrientationRow() returns the itemName element
+      const nameEl = orientationsPage.getOrientationRow(orientationName);
+      await expect(nameEl).toBeVisible();
+      await expect(nameEl).toHaveText(orientationName);
+    } finally {
+      if (orientationId) await deleteOrientationViaApi(page, orientationId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -148,39 +145,38 @@ test.describe(
   'Orientations tab — create with description (Scenario 4)',
   { tag: '@responsive' },
   () => {
-    test(
-      'Create orientation with name and description — both rendered in list row',
-      async ({ page, testPrefix }) => {
-        const orientationName = `${testPrefix} South`;
-        const orientationDesc = 'Street-facing';
-        let orientationId = '';
+    test('Create orientation with name and description — both rendered in list row', async ({
+      page,
+      testPrefix,
+    }) => {
+      const orientationName = `${testPrefix} South`;
+      const orientationDesc = 'Street-facing';
+      let orientationId = '';
 
-        try {
-          const orientationsPage = new OrientationsPage(page);
-          await orientationsPage.goto();
+      try {
+        const orientationsPage = new OrientationsPage(page);
+        await orientationsPage.goto();
 
-          orientationId = await orientationsPage.createOrientation(
-            orientationName,
-            orientationDesc,
-          );
+        orientationId = await orientationsPage.createOrientation(orientationName, orientationDesc);
 
-          // Success banner
-          await expect(orientationsPage.successMessage).toBeVisible();
+        // Success banner
+        await expect(orientationsPage.successMessage).toBeVisible();
 
-          // Name and description both appear in the list.
-          // getOrientationRow() returns the itemName element; description is a sibling element.
-          const nameEl = orientationsPage.getOrientationRow(orientationName);
-          await expect(nameEl).toBeVisible();
-          await expect(nameEl).toHaveText(orientationName);
-          // Description is rendered as a sibling [class*="itemDescription"] in the same container
-          await expect(
-            orientationsPage.panel.locator('[class*="itemDescription"]').filter({ hasText: orientationDesc }),
-          ).toBeVisible();
-        } finally {
-          if (orientationId) await deleteOrientationViaApi(page, orientationId);
-        }
-      },
-    );
+        // Name and description both appear in the list.
+        // getOrientationRow() returns the itemName element; description is a sibling element.
+        const nameEl = orientationsPage.getOrientationRow(orientationName);
+        await expect(nameEl).toBeVisible();
+        await expect(nameEl).toHaveText(orientationName);
+        // Description is rendered as a sibling [class*="itemDescription"] in the same container
+        await expect(
+          orientationsPage.panel
+            .locator('[class*="itemDescription"]')
+            .filter({ hasText: orientationDesc }),
+        ).toBeVisible();
+      } finally {
+        if (orientationId) await deleteOrientationViaApi(page, orientationId);
+      }
+    });
   },
 );
 
@@ -192,43 +188,37 @@ test.describe(
   'Orientations tab — validation: empty name (Scenario 5)',
   { tag: '@responsive' },
   () => {
-    test(
-      'Create button is disabled when name is empty',
-      async ({ page }) => {
-        await page.goto(ORIENTATIONS_TAB_URL);
-        await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
-          state: 'visible',
-        });
+    test('Create button is disabled when name is empty', async ({ page }) => {
+      await page.goto(ORIENTATIONS_TAB_URL);
+      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+        state: 'visible',
+      });
 
-        const orientationsPage = new OrientationsPage(page);
-        // Without filling the name, the create button must be disabled
-        await expect(orientationsPage.createButton).toBeDisabled();
-      },
-    );
+      const orientationsPage = new OrientationsPage(page);
+      // Without filling the name, the create button must be disabled
+      await expect(orientationsPage.createButton).toBeDisabled();
+    });
 
-    test(
-      'Create button stays disabled when name contains only whitespace',
-      async ({ page }) => {
-        await page.goto(ORIENTATIONS_TAB_URL);
-        await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
-          state: 'visible',
-        });
+    test('Create button stays disabled when name contains only whitespace', async ({ page }) => {
+      await page.goto(ORIENTATIONS_TAB_URL);
+      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+        state: 'visible',
+      });
 
-        const orientationsPage = new OrientationsPage(page);
+      const orientationsPage = new OrientationsPage(page);
 
-        // Initially the button is disabled (empty name)
-        await expect(orientationsPage.createButton).toBeDisabled();
+      // Initially the button is disabled (empty name)
+      await expect(orientationsPage.createButton).toBeDisabled();
 
-        // Fill with spaces only — the button disabled check is `!newName.trim()`.
-        // Since '   '.trim() === '' which is falsy, !'' = true → button stays DISABLED.
-        await orientationsPage.nameInput.fill('   ');
-        await expect(orientationsPage.createButton).toBeDisabled();
+      // Fill with spaces only — the button disabled check is `!newName.trim()`.
+      // Since '   '.trim() === '' which is falsy, !'' = true → button stays DISABLED.
+      await orientationsPage.nameInput.fill('   ');
+      await expect(orientationsPage.createButton).toBeDisabled();
 
-        // Clear the field — button still disabled
-        await orientationsPage.nameInput.fill('');
-        await expect(orientationsPage.createButton).toBeDisabled();
-      },
-    );
+      // Clear the field — button still disabled
+      await orientationsPage.nameInput.fill('');
+      await expect(orientationsPage.createButton).toBeDisabled();
+    });
   },
 );
 
@@ -237,35 +227,35 @@ test.describe(
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Orientations tab — edit (Scenario 6)', { tag: '@responsive' }, () => {
-  test(
-    'Edit orientation "South" → rename to "North" — list updates',
-    async ({ page, testPrefix }) => {
-      const originalName = `${testPrefix} South`;
-      const updatedName = `${testPrefix} North`;
-      let orientationId = '';
+  test('Edit orientation "South" → rename to "North" — list updates', async ({
+    page,
+    testPrefix,
+  }) => {
+    const originalName = `${testPrefix} South`;
+    const updatedName = `${testPrefix} North`;
+    let orientationId = '';
 
-      try {
-        orientationId = await createOrientationViaApi(page, { name: originalName });
+    try {
+      orientationId = await createOrientationViaApi(page, { name: originalName });
 
-        const orientationsPage = new OrientationsPage(page);
-        await orientationsPage.goto();
+      const orientationsPage = new OrientationsPage(page);
+      await orientationsPage.goto();
 
-        // The created row must be visible before editing
-        await expect(orientationsPage.getOrientationRow(originalName)).toBeVisible();
+      // The created row must be visible before editing
+      await expect(orientationsPage.getOrientationRow(originalName)).toBeVisible();
 
-        await orientationsPage.editOrientation(originalName, { name: updatedName });
+      await orientationsPage.editOrientation(originalName, { name: updatedName });
 
-        // Success banner appears
-        await expect(orientationsPage.successMessage).toBeVisible();
+      // Success banner appears
+      await expect(orientationsPage.successMessage).toBeVisible();
 
-        // Updated name appears in the list; original name is gone
-        await expect(orientationsPage.getOrientationRow(updatedName)).toBeVisible();
-        await expect(orientationsPage.getOrientationRow(originalName)).toHaveCount(0);
-      } finally {
-        if (orientationId) await deleteOrientationViaApi(page, orientationId);
-      }
-    },
-  );
+      // Updated name appears in the list; original name is gone
+      await expect(orientationsPage.getOrientationRow(updatedName)).toBeVisible();
+      await expect(orientationsPage.getOrientationRow(originalName)).toHaveCount(0);
+    } finally {
+      if (orientationId) await deleteOrientationViaApi(page, orientationId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -273,54 +263,54 @@ test.describe('Orientations tab — edit (Scenario 6)', { tag: '@responsive' }, 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Orientations tab — delete (Scenario 7)', { tag: '@responsive' }, () => {
-  test(
-    'Delete orientation — confirmation modal shown, then item removed, success message shown',
-    async ({ page, testPrefix }) => {
-      const orientationName = `${testPrefix} ToDelete`;
-      let orientationId = '';
+  test('Delete orientation — confirmation modal shown, then item removed, success message shown', async ({
+    page,
+    testPrefix,
+  }) => {
+    const orientationName = `${testPrefix} ToDelete`;
+    let orientationId = '';
 
-      try {
-        orientationId = await createOrientationViaApi(page, { name: orientationName });
+    try {
+      orientationId = await createOrientationViaApi(page, { name: orientationName });
 
-        const orientationsPage = new OrientationsPage(page);
-        await orientationsPage.goto();
+      const orientationsPage = new OrientationsPage(page);
+      await orientationsPage.goto();
 
-        // Item exists before deletion
-        await expect(orientationsPage.getOrientationRow(orientationName)).toBeVisible();
+      // Item exists before deletion
+      await expect(orientationsPage.getOrientationRow(orientationName)).toBeVisible();
 
-        // Verify confirmation modal appears — click Delete button (found in panel by aria-label)
-        await orientationsPage.panel
-          .getByRole('button', { name: `Delete ${orientationName}`, exact: true })
-          .click();
+      // Verify confirmation modal appears — click Delete button (found in panel by aria-label)
+      await orientationsPage.panel
+        .getByRole('button', { name: `Delete ${orientationName}`, exact: true })
+        .click();
 
-        const modal = page.locator('[role="dialog"]');
-        await modal.waitFor({ state: 'visible' });
-        // Modal title
-        await expect(modal.getByRole('heading', { name: 'Delete orientation' })).toBeVisible();
+      const modal = page.locator('[role="dialog"]');
+      await modal.waitFor({ state: 'visible' });
+      // Modal title
+      await expect(modal.getByRole('heading', { name: 'Delete orientation' })).toBeVisible();
 
-        // Confirm deletion
-        const responsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes(`/api/orientations/${orientationId}`) &&
-            resp.request().method() === 'DELETE',
-        );
-        await modal.locator('[class*="confirmDeleteButton"]').click();
-        await responsePromise;
-        await modal.waitFor({ state: 'hidden' });
+      // Confirm deletion
+      const responsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/orientations/${orientationId}`) &&
+          resp.request().method() === 'DELETE',
+      );
+      await modal.locator('[class*="confirmDeleteButton"]').click();
+      await responsePromise;
+      await modal.waitFor({ state: 'hidden' });
 
-        // Success message appears
-        await expect(orientationsPage.successMessage).toBeVisible();
+      // Success message appears
+      await expect(orientationsPage.successMessage).toBeVisible();
 
-        // Item no longer in list
-        await expect(orientationsPage.getOrientationRow(orientationName)).toHaveCount(0);
+      // Item no longer in list
+      await expect(orientationsPage.getOrientationRow(orientationName)).toHaveCount(0);
 
-        // Already deleted — skip cleanup
-        orientationId = '';
-      } finally {
-        if (orientationId) await deleteOrientationViaApi(page, orientationId);
-      }
-    },
-  );
+      // Already deleted — skip cleanup
+      orientationId = '';
+    } finally {
+      if (orientationId) await deleteOrientationViaApi(page, orientationId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -328,38 +318,38 @@ test.describe('Orientations tab — delete (Scenario 7)', { tag: '@responsive' }
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Orientations tab — sort order (Scenario 8)', { tag: '@responsive' }, () => {
-  test(
-    'Two orientations with different sort orders appear in ascending order in the list',
-    async ({ page, testPrefix }) => {
-      const nameFirst = `${testPrefix} First`;
-      const nameSecond = `${testPrefix} Second`;
-      let idFirst = '';
-      let idSecond = '';
+  test('Two orientations with different sort orders appear in ascending order in the list', async ({
+    page,
+    testPrefix,
+  }) => {
+    const nameFirst = `${testPrefix} First`;
+    const nameSecond = `${testPrefix} Second`;
+    let idFirst = '';
+    let idSecond = '';
 
-      try {
-        // Create with higher sort order first, then lower — to verify server sorting
-        idSecond = await createOrientationViaApi(page, { name: nameSecond, sortOrder: 20 });
-        idFirst = await createOrientationViaApi(page, { name: nameFirst, sortOrder: 10 });
+    try {
+      // Create with higher sort order first, then lower — to verify server sorting
+      idSecond = await createOrientationViaApi(page, { name: nameSecond, sortOrder: 20 });
+      idFirst = await createOrientationViaApi(page, { name: nameFirst, sortOrder: 10 });
 
-        const orientationsPage = new OrientationsPage(page);
-        await orientationsPage.goto();
+      const orientationsPage = new OrientationsPage(page);
+      await orientationsPage.goto();
 
-        const panel = orientationsPage.panel;
-        const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-        const trimmed = itemNames.map((n) => n.trim());
+      const panel = orientationsPage.panel;
+      const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
+      const trimmed = itemNames.map((n) => n.trim());
 
-        // nameFirst (sortOrder 10) must appear before nameSecond (sortOrder 20)
-        const indexFirst = trimmed.findIndex((n) => n === nameFirst);
-        const indexSecond = trimmed.findIndex((n) => n === nameSecond);
-        expect(indexFirst).toBeGreaterThanOrEqual(0);
-        expect(indexSecond).toBeGreaterThanOrEqual(0);
-        expect(indexFirst).toBeLessThan(indexSecond);
-      } finally {
-        if (idFirst) await deleteOrientationViaApi(page, idFirst);
-        if (idSecond) await deleteOrientationViaApi(page, idSecond);
-      }
-    },
-  );
+      // nameFirst (sortOrder 10) must appear before nameSecond (sortOrder 20)
+      const indexFirst = trimmed.findIndex((n) => n === nameFirst);
+      const indexSecond = trimmed.findIndex((n) => n === nameSecond);
+      expect(indexFirst).toBeGreaterThanOrEqual(0);
+      expect(indexSecond).toBeGreaterThanOrEqual(0);
+      expect(indexFirst).toBeLessThan(indexSecond);
+    } finally {
+      if (idFirst) await deleteOrientationViaApi(page, idFirst);
+      if (idSecond) await deleteOrientationViaApi(page, idSecond);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -369,24 +359,23 @@ test.describe('Orientations tab — sort order (Scenario 8)', { tag: '@responsiv
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('ManagePage — Orientations tab navigation', { tag: '@responsive' }, () => {
-  test(
-    'Clicking Orientations tab from another tab activates the Orientations panel',
-    async ({ page }) => {
-      await page.goto(MANAGE_ROUTE); // default: Areas tab
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
-        state: 'visible',
-      });
+  test('Clicking Orientations tab from another tab activates the Orientations panel', async ({
+    page,
+  }) => {
+    await page.goto(MANAGE_ROUTE); // default: Areas tab
+    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      state: 'visible',
+    });
 
-      await page.getByRole('tab', { name: 'Orientations', exact: true }).click();
+    await page.getByRole('tab', { name: 'Orientations', exact: true }).click();
 
-      // URL param updated
-      await expect(page).toHaveURL(/\?tab=orientations/);
+    // URL param updated
+    await expect(page).toHaveURL(/\?tab=orientations/);
 
-      // The create form heading appears inside the active panel
-      const orientationsPage = new OrientationsPage(page);
-      await expect(orientationsPage.createFormHeading).toBeVisible();
-    },
-  );
+    // The create form heading appears inside the active panel
+    const orientationsPage = new OrientationsPage(page);
+    await expect(orientationsPage.createFormHeading).toBeVisible();
+  });
 
   test('ManagePage now has 5 tabs (Areas, Trades, Orientations, Budget Categories, HI Categories)', async ({
     page,

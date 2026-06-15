@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
-import type { OrientationResponse, CreateOrientationRequest, UpdateOrientationRequest } from '@cornerstone/shared';
-import { fetchOrientations, createOrientation, updateOrientation, deleteOrientation } from '../lib/orientationApi.js';
+import type {
+  OrientationResponse,
+  CreateOrientationRequest,
+  UpdateOrientationRequest,
+} from '@cornerstone/shared';
+import {
+  fetchOrientations,
+  createOrientation,
+  updateOrientation,
+  deleteOrientation,
+} from '../lib/orientationApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 
 export interface UseOrientationsResult {
@@ -9,7 +18,10 @@ export interface UseOrientationsResult {
   error: string | null;
   refetch: () => void;
   createOrientation: (data: CreateOrientationRequest) => Promise<OrientationResponse | null>;
-  updateOrientation: (id: string, data: UpdateOrientationRequest) => Promise<OrientationResponse | null>;
+  updateOrientation: (
+    id: string,
+    data: UpdateOrientationRequest,
+  ) => Promise<OrientationResponse | null>;
   deleteOrientation: (id: string) => Promise<boolean>;
 }
 
@@ -74,7 +86,10 @@ export function useOrientations(): UseOrientationsResult {
     }
   }
 
-  async function handleUpdate(id: string, data: UpdateOrientationRequest): Promise<OrientationResponse | null> {
+  async function handleUpdate(
+    id: string,
+    data: UpdateOrientationRequest,
+  ): Promise<OrientationResponse | null> {
     try {
       const orientation = await updateOrientation(id, data);
       refetch();

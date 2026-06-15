@@ -175,8 +175,7 @@ async function cancelModal(): Promise<void> {
     const allButtons = screen.getAllByRole('button');
     const cancelBtn = allButtons.find(
       (btn) =>
-        btn.textContent?.trim() === 'Cancel' &&
-        btn.getAttribute('aria-label') !== 'Close dialog',
+        btn.textContent?.trim() === 'Cancel' && btn.getAttribute('aria-label') !== 'Close dialog',
     );
     if (!cancelBtn) throw new Error('Cancel button not found in real modal');
     await act(async () => {
@@ -636,7 +635,7 @@ describe('PhotoUpload', () => {
 
     function mockTouchDevice(isTouch: boolean) {
       savedMatchMedia = window.matchMedia;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const mqMock = jest.fn((query: string) => ({
         matches: isTouch && query === '(hover: none)',
         media: query,

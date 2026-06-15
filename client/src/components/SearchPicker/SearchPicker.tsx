@@ -421,9 +421,7 @@ export function SearchPicker<T>({
               results.length === 0 &&
               !searchTerm.trim() &&
               (!specialOptions || specialOptions.length === 0) &&
-              !emptyHint && (
-                <div className={styles.stateMessage}>{resolvedEmptyHint}</div>
-              )}
+              !emptyHint && <div className={styles.stateMessage}>{resolvedEmptyHint}</div>}
           </div>,
           document.body,
         )}

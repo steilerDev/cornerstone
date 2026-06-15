@@ -893,7 +893,9 @@ export const photos = sqliteTable(
     takenAt: text('taken_at'),
     caption: text('caption'),
     areaId: text('area_id').references(() => areas.id, { onDelete: 'set null' }),
-    orientationId: text('orientation_id').references(() => orientations.id, { onDelete: 'set null' }),
+    orientationId: text('orientation_id').references(() => orientations.id, {
+      onDelete: 'set null',
+    }),
     sortOrder: integer('sort_order').notNull().default(0),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),

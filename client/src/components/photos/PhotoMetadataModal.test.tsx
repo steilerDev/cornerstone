@@ -60,7 +60,12 @@ let capturedAreaOnChange: ((id: string) => void) | null = null;
 let capturedOrientationOnChange: ((id: string) => void) | null = null;
 
 jest.unstable_mockModule('../AreaPicker/AreaPicker.js', () => ({
-  AreaPicker: (props: { areas: AreaResponse[]; value: string; onChange: (id: string) => void; nullable?: boolean }) => {
+  AreaPicker: (props: {
+    areas: AreaResponse[];
+    value: string;
+    onChange: (id: string) => void;
+    nullable?: boolean;
+  }) => {
     capturedAreaOnChange = props.onChange;
     return (
       <div
@@ -73,7 +78,11 @@ jest.unstable_mockModule('../AreaPicker/AreaPicker.js', () => ({
 }));
 
 jest.unstable_mockModule('../OrientationPicker/index.js', () => ({
-  OrientationPicker: (props: { value: string; onChange: (id: string) => void; nullable?: boolean }) => {
+  OrientationPicker: (props: {
+    value: string;
+    onChange: (id: string) => void;
+    nullable?: boolean;
+  }) => {
     capturedOrientationOnChange = props.onChange;
     return (
       <div
@@ -124,9 +133,14 @@ function renderModal(props: Partial<PhotoMetadataModalProps> = {}) {
     file: makeFile(),
     entityType: 'work_item',
     areas: makeAreas(),
-    onSave: jest.fn<
-      (metadata: { caption: string | null; areaId: string | null; orientationId: string | null }) => void
-    >(),
+    onSave:
+      jest.fn<
+        (metadata: {
+          caption: string | null;
+          areaId: string | null;
+          orientationId: string | null;
+        }) => void
+      >(),
     onCancel: jest.fn<() => void>(),
   };
   return render(<PhotoMetadataModal {...defaults} {...props} />);
@@ -151,8 +165,7 @@ function getCancelButton(): HTMLElement {
   const allButtons = screen.getAllByRole('button');
   const cancelBtn = allButtons.find(
     (btn) =>
-      btn.textContent?.trim() === 'Cancel' &&
-      btn.getAttribute('aria-label') !== 'Close dialog',
+      btn.textContent?.trim() === 'Cancel' && btn.getAttribute('aria-label') !== 'Close dialog',
   );
   if (!cancelBtn) throw new Error('Cancel button not found');
   return cancelBtn;
@@ -323,9 +336,7 @@ describe('PhotoMetadataModal', () => {
     } else {
       // Partial or no mock interception — verify caption path at minimum
       fireEvent.click(getSaveButton());
-      expect(onSave).toHaveBeenCalledWith(
-        expect.objectContaining({ caption: 'Panoramic shot' }),
-      );
+      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ caption: 'Panoramic shot' }));
     }
   });
 

@@ -1040,8 +1040,8 @@ describe('Photo Routes', () => {
         'test',
         'entity-999',
         expect.any(String),
-        undefined,  // caption not provided
-        undefined,  // areaId not provided
+        undefined, // caption not provided
+        undefined, // areaId not provided
         'orient-north',
       );
     });

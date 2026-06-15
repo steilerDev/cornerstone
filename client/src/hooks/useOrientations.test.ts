@@ -111,7 +111,9 @@ describe('useOrientations', () => {
   });
 
   it('uses fallback error message when ApiClientError has no message', async () => {
-    mockFetchOrientations.mockRejectedValueOnce(new MockApiClientError(401, { code: 'UNAUTHORIZED' }));
+    mockFetchOrientations.mockRejectedValueOnce(
+      new MockApiClientError(401, { code: 'UNAUTHORIZED' }),
+    );
 
     const { result } = renderHook(() => useOrientations());
 
@@ -155,7 +157,9 @@ describe('useOrientations', () => {
         result.current.refetch();
       });
 
-      await waitFor(() => expect(mockFetchOrientations.mock.calls.length).toBeGreaterThan(callsBefore));
+      await waitFor(() =>
+        expect(mockFetchOrientations.mock.calls.length).toBeGreaterThan(callsBefore),
+      );
     });
   });
 

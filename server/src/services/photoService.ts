@@ -137,7 +137,11 @@ export async function uploadPhoto(
 
   // Validate orientationId if provided and not null
   if (orientationId !== undefined && orientationId !== null) {
-    const orientation = db.select().from(orientations).where(eq(orientations.id, orientationId)).get();
+    const orientation = db
+      .select()
+      .from(orientations)
+      .where(eq(orientations.id, orientationId))
+      .get();
     if (!orientation) {
       throw new ValidationError('Orientation not found');
     }

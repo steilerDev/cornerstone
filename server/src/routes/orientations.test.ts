@@ -7,7 +7,11 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
-import type { OrientationListResponse, OrientationSingleResponse, ApiErrorResponse } from '@cornerstone/shared';
+import type {
+  OrientationListResponse,
+  OrientationSingleResponse,
+  ApiErrorResponse,
+} from '@cornerstone/shared';
 import { orientations, photos } from '../db/schema.js';
 
 describe('Orientation Routes', () => {
@@ -180,7 +184,9 @@ describe('Orientation Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<OrientationListResponse>();
       expect(body.orientations).toHaveLength(2);
-      expect(body.orientations.every((o: { name: string }) => o.name.toLowerCase().includes('sou'))).toBe(true);
+      expect(
+        body.orientations.every((o: { name: string }) => o.name.toLowerCase().includes('sou')),
+      ).toBe(true);
     });
 
     it('returns empty list when search matches nothing', async () => {
@@ -328,7 +334,10 @@ describe('Orientation Routes', () => {
 
     it('returns 200 with orientation by ID', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
-      const orientation = createTestOrientation('North', { description: 'Rear-facing', sortOrder: 2 });
+      const orientation = createTestOrientation('North', {
+        description: 'Rear-facing',
+        sortOrder: 2,
+      });
 
       const response = await app.inject({
         method: 'GET',
@@ -521,11 +530,7 @@ describe('Orientation Routes', () => {
       expect(response.body).toBe('');
 
       // Photo must still exist with orientationId set to null
-      const updatedPhoto = app.db
-        .select()
-        .from(photos)
-        .where(eq(photos.id, photoId))
-        .get();
+      const updatedPhoto = app.db.select().from(photos).where(eq(photos.id, photoId)).get();
       expect(updatedPhoto).toBeDefined();
       expect(updatedPhoto!.orientationId).toBeNull();
     });

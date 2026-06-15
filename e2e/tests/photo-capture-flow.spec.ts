@@ -35,10 +35,7 @@
 
 import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/auth.js';
-import {
-  createDraftDiaryEntryViaApi,
-  deleteDiaryEntryViaApi,
-} from '../fixtures/apiHelpers.js';
+import { createDraftDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../fixtures/apiHelpers.js';
 
 // Minimal in-memory JPEG bytes for setInputFiles (avoids disk path dependency on CI)
 const MINIMAL_JPEG = {
@@ -105,13 +102,15 @@ async function mockUploadWithDelay(
       // while the 400ms delay was pending, Playwright aborts the request and
       // route.fulfill() throws "Route is already handled!". Suppress it so the
       // cleanup doesn't produce a test-level error.
-      await route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify(mockPhotoResponse(`${photoIdPrefix}-${uploadCount}`, draftId)),
-      }).catch(() => {
-        // Route was already handled (e.g., unrouteAll was called during cleanup) — ignore.
-      });
+      await route
+        .fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify(mockPhotoResponse(`${photoIdPrefix}-${uploadCount}`, draftId)),
+        })
+        .catch(() => {
+          // Route was already handled (e.g., unrouteAll was called during cleanup) — ignore.
+        });
     } else {
       await route.continue().catch(() => {});
     }
@@ -127,11 +126,13 @@ async function mockUploadWithDelay(
       url.searchParams.get('entityId') === draftId,
     async (route) => {
       if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ photos: [] }),
-        }).catch(() => {});
+        await route
+          .fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ photos: [] }),
+          })
+          .catch(() => {});
       } else {
         await route.continue().catch(() => {});
       }
@@ -149,69 +150,65 @@ test.describe(
   'Photo upload layout — mobile vs desktop (Scenarios 1 & 2)',
   { tag: '@responsive' },
   () => {
-    test(
-      'Mobile viewport: Take photo + Upload Photos buttons visible, drop zone hidden',
-      async ({ page }) => {
-        // This assertion is only meaningful when isTouchDevice is true,
-        // which occurs on tablet and mobile projects (hover: none).
-        // On desktop this test still runs but we condition the strict
-        // assertion on the viewport width as a proxy.
-        const viewportWidth = page.viewportSize()?.width ?? 1920;
-        const isMobileOrTablet = viewportWidth <= 1024;
+    test('Mobile viewport: Take photo + Upload Photos buttons visible, drop zone hidden', async ({
+      page,
+    }) => {
+      // This assertion is only meaningful when isTouchDevice is true,
+      // which occurs on tablet and mobile projects (hover: none).
+      // On desktop this test still runs but we condition the strict
+      // assertion on the viewport width as a proxy.
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      const isMobileOrTablet = viewportWidth <= 1024;
 
-        let draftId: string | null = null;
-        try {
-          draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
-          await page.goto(`/diary/${draftId}/edit`);
-          await page
-            .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
-            .waitFor({ state: 'visible' });
+      let draftId: string | null = null;
+      try {
+        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+        await page.goto(`/diary/${draftId}/edit`);
+        await page
+          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .waitFor({ state: 'visible' });
 
-          if (isMobileOrTablet) {
-            // Mobile/tablet: two-button pair must be visible
-            const takePhotoBtn = page.getByRole('button', { name: /Take Photo/i });
-            const uploadBtn = page.getByRole('button', { name: /Upload Photos/i });
-            await expect(takePhotoBtn).toBeVisible();
-            await expect(uploadBtn).toBeVisible();
+        if (isMobileOrTablet) {
+          // Mobile/tablet: two-button pair must be visible
+          const takePhotoBtn = page.getByRole('button', { name: /Take Photo/i });
+          const uploadBtn = page.getByRole('button', { name: /Upload Photos/i });
+          await expect(takePhotoBtn).toBeVisible();
+          await expect(uploadBtn).toBeVisible();
 
-            // Drop zone must NOT be visible
-            const dropZone = page.getByTestId('photo-upload-zone');
-            await expect(dropZone).not.toBeVisible();
-          } else {
-            // Desktop: drop zone must be visible
-            const dropZone = page.getByTestId('photo-upload-zone');
-            await expect(dropZone).toBeVisible();
-          }
-        } finally {
-          if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+          // Drop zone must NOT be visible
+          const dropZone = page.getByTestId('photo-upload-zone');
+          await expect(dropZone).not.toBeVisible();
+        } else {
+          // Desktop: drop zone must be visible
+          const dropZone = page.getByTestId('photo-upload-zone');
+          await expect(dropZone).toBeVisible();
         }
-      },
-    );
+      } finally {
+        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      }
+    });
 
-    test(
-      'Desktop viewport: drop zone visible, no Take photo button shown',
-      async ({ page }) => {
-        const viewportWidth = page.viewportSize()?.width ?? 1920;
-        const isDesktop = viewportWidth > 1024;
+    test('Desktop viewport: drop zone visible, no Take photo button shown', async ({ page }) => {
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      const isDesktop = viewportWidth > 1024;
 
-        let draftId: string | null = null;
-        try {
-          draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
-          await page.goto(`/diary/${draftId}/edit`);
-          await page
-            .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
-            .waitFor({ state: 'visible' });
+      let draftId: string | null = null;
+      try {
+        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+        await page.goto(`/diary/${draftId}/edit`);
+        await page
+          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .waitFor({ state: 'visible' });
 
-          if (isDesktop) {
-            await expect(page.getByTestId('photo-upload-zone')).toBeVisible();
-            // Desktop: no "Take photo" button because isTouchDevice is false
-            await expect(page.getByRole('button', { name: /Take Photo/i })).not.toBeVisible();
-          }
-        } finally {
-          if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+        if (isDesktop) {
+          await expect(page.getByTestId('photo-upload-zone')).toBeVisible();
+          // Desktop: no "Take photo" button because isTouchDevice is false
+          await expect(page.getByRole('button', { name: /Take Photo/i })).not.toBeVisible();
         }
-      },
-    );
+      } finally {
+        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      }
+    });
   },
 );
 
@@ -253,71 +250,71 @@ test.describe('PhotoMetadataModal opens after file selection (Scenario 3)', () =
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('PhotoMetadataModal — fill fields (Scenario 4)', () => {
-  test(
-    'Fill description and select orientation — orientation dropdown shows name + description on second line',
-    async ({ page, testPrefix }) => {
-      // Seed: create an orientation that has a description so we can verify
-      // the secondary text appears in the dropdown.
-      const orientationName = `${testPrefix} Ost`;
-      const orientationDesc = 'Garden-facing';
-      let orientationId = '';
-      let draftId: string | null = null;
+  test('Fill description and select orientation — orientation dropdown shows name + description on second line', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Seed: create an orientation that has a description so we can verify
+    // the secondary text appears in the dropdown.
+    const orientationName = `${testPrefix} Ost`;
+    const orientationDesc = 'Garden-facing';
+    let orientationId = '';
+    let draftId: string | null = null;
 
-      try {
-        // Create orientation via API
-        const orientResp = await page.request.post('/api/orientations', {
-          data: { name: orientationName, description: orientationDesc },
-        });
-        expect(orientResp.ok()).toBeTruthy();
-        const orientBody = (await orientResp.json()) as { orientation: { id: string } };
-        orientationId = orientBody.orientation.id;
+    try {
+      // Create orientation via API
+      const orientResp = await page.request.post('/api/orientations', {
+        data: { name: orientationName, description: orientationDesc },
+      });
+      expect(orientResp.ok()).toBeTruthy();
+      const orientBody = (await orientResp.json()) as { orientation: { id: string } };
+      orientationId = orientBody.orientation.id;
 
-        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
-        await page.goto(`/diary/${draftId}/edit`);
-        await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
-          .waitFor({ state: 'visible' });
+      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+      await page.goto(`/diary/${draftId}/edit`);
+      await page
+        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .waitFor({ state: 'visible' });
 
-        const libraryInput = page.getByTestId('photo-library-input');
-        await libraryInput.setInputFiles([MINIMAL_JPEG]);
+      const libraryInput = page.getByTestId('photo-library-input');
+      await libraryInput.setInputFiles([MINIMAL_JPEG]);
 
-        const modal = page.getByRole('dialog', { name: 'Add photo details' });
-        await modal.waitFor({ state: 'visible' });
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
+      await modal.waitFor({ state: 'visible' });
 
-        // Fill description
-        const descriptionField = modal.locator('#modal-photo-caption');
-        await descriptionField.fill('Garden view from east');
+      // Fill description
+      const descriptionField = modal.locator('#modal-photo-caption');
+      await descriptionField.fill('Garden view from east');
 
-        // Open the orientation picker — SearchPicker input inside the modal
-        // Placeholder is "Select an orientation" (t('aria.selectOrientation'))
-        const orientationInput = modal.locator('input[placeholder="Select an orientation"]');
-        await orientationInput.click();
-        await orientationInput.fill(orientationName);
+      // Open the orientation picker — SearchPicker input inside the modal
+      // Placeholder is "Select an orientation" (t('aria.selectOrientation'))
+      const orientationInput = modal.locator('input[placeholder="Select an orientation"]');
+      await orientationInput.click();
+      await orientationInput.fill(orientationName);
 
-        // SearchPicker portals the dropdown to document.body as [data-search-picker-dropdown]
-        const dropdown = page.locator('[data-search-picker-dropdown]');
-        await dropdown.waitFor({ state: 'visible' });
+      // SearchPicker portals the dropdown to document.body as [data-search-picker-dropdown]
+      const dropdown = page.locator('[data-search-picker-dropdown]');
+      await dropdown.waitFor({ state: 'visible' });
 
-        // The option should show the orientation name
-        const option = dropdown.getByRole('option', { name: new RegExp(orientationName, 'i') });
-        await expect(option).toBeVisible();
+      // The option should show the orientation name
+      const option = dropdown.getByRole('option', { name: new RegExp(orientationName, 'i') });
+      await expect(option).toBeVisible();
 
-        // The secondary text (description) should also appear in the option
-        await expect(option).toContainText(orientationDesc);
+      // The secondary text (description) should also appear in the option
+      await expect(option).toContainText(orientationDesc);
 
-        // Select the option
-        await option.click();
+      // Select the option
+      await option.click();
 
-        // Dropdown closes
-        await expect(dropdown).not.toBeVisible();
-      } finally {
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-        if (orientationId) {
-          await page.request.delete(`/api/orientations/${orientationId}`).catch(() => {});
-        }
+      // Dropdown closes
+      await expect(dropdown).not.toBeVisible();
+    } finally {
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      if (orientationId) {
+        await page.request.delete(`/api/orientations/${orientationId}`).catch(() => {});
       }
-    },
-  );
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -325,49 +322,49 @@ test.describe('PhotoMetadataModal — fill fields (Scenario 4)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('PhotoMetadataModal — Save & upload (Scenario 5)', () => {
-  test(
-    '"Save & upload" closes modal and file appears in upload queue',
-    async ({ page, testPrefix }) => {
-      let draftId: string | null = null;
-      let cleanupRoutes: (() => Promise<void>) | null = null;
+  test('"Save & upload" closes modal and file appears in upload queue', async ({
+    page,
+    testPrefix,
+  }) => {
+    let draftId: string | null = null;
+    let cleanupRoutes: (() => Promise<void>) | null = null;
 
-      try {
-        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+    try {
+      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-        // Mock the upload with a delay so the queue entry is visible during assertion.
-        // Without the delay the upload completes before the assertion can run since
-        // PhotoUpload removes queue entries immediately after a successful upload.
-        cleanupRoutes = await mockUploadWithDelay(page, draftId, `photo-s5-${testPrefix}`);
+      // Mock the upload with a delay so the queue entry is visible during assertion.
+      // Without the delay the upload completes before the assertion can run since
+      // PhotoUpload removes queue entries immediately after a successful upload.
+      cleanupRoutes = await mockUploadWithDelay(page, draftId, `photo-s5-${testPrefix}`);
 
-        await page.goto(`/diary/${draftId}/edit`);
-        await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
-          .waitFor({ state: 'visible' });
+      await page.goto(`/diary/${draftId}/edit`);
+      await page
+        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .waitFor({ state: 'visible' });
 
-        // Set file on library input to open modal
-        const libraryInput = page.getByTestId('photo-library-input');
-        await libraryInput.setInputFiles([MINIMAL_JPEG]);
+      // Set file on library input to open modal
+      const libraryInput = page.getByTestId('photo-library-input');
+      await libraryInput.setInputFiles([MINIMAL_JPEG]);
 
-        const modal = page.getByRole('dialog', { name: 'Add photo details' });
-        await modal.waitFor({ state: 'visible' });
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
+      await modal.waitFor({ state: 'visible' });
 
-        // Click "Save & upload"
-        await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+      // Click "Save & upload"
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
 
-        // Modal closes
-        await expect(modal).not.toBeVisible();
+      // Modal closes
+      await expect(modal).not.toBeVisible();
 
-        // File enters the upload queue while the mocked upload is in-flight (delayed 400ms).
-        // The queue container has aria-label="Photo upload queue" and shows the filename.
-        const queue = page.locator('[aria-label="Photo upload queue"]');
-        await expect(queue).toBeVisible();
-        await expect(queue).toContainText(MINIMAL_JPEG.name);
-      } finally {
-        if (cleanupRoutes) await cleanupRoutes().catch(() => {});
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-      }
-    },
-  );
+      // File enters the upload queue while the mocked upload is in-flight (delayed 400ms).
+      // The queue container has aria-label="Photo upload queue" and shows the filename.
+      const queue = page.locator('[aria-label="Photo upload queue"]');
+      await expect(queue).toBeVisible();
+      await expect(queue).toContainText(MINIMAL_JPEG.name);
+    } finally {
+      if (cleanupRoutes) await cleanupRoutes().catch(() => {});
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -375,38 +372,35 @@ test.describe('PhotoMetadataModal — Save & upload (Scenario 5)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('PhotoMetadataModal — Cancel discards file (Scenario 6)', () => {
-  test(
-    'Cancel closes modal; file is NOT enqueued',
-    async ({ page }) => {
-      let draftId: string | null = null;
+  test('Cancel closes modal; file is NOT enqueued', async ({ page }) => {
+    let draftId: string | null = null;
 
-      try {
-        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
-        await page.goto(`/diary/${draftId}/edit`);
-        await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
-          .waitFor({ state: 'visible' });
+    try {
+      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+      await page.goto(`/diary/${draftId}/edit`);
+      await page
+        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .waitFor({ state: 'visible' });
 
-        const libraryInput = page.getByTestId('photo-library-input');
-        await libraryInput.setInputFiles([MINIMAL_JPEG]);
+      const libraryInput = page.getByTestId('photo-library-input');
+      await libraryInput.setInputFiles([MINIMAL_JPEG]);
 
-        const modal = page.getByRole('dialog', { name: 'Add photo details' });
-        await modal.waitFor({ state: 'visible' });
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
+      await modal.waitFor({ state: 'visible' });
 
-        // Click Cancel
-        await modal.getByRole('button', { name: 'Cancel', exact: true }).click();
+      // Click Cancel
+      await modal.getByRole('button', { name: 'Cancel', exact: true }).click();
 
-        // Modal closes
-        await expect(modal).not.toBeVisible();
+      // Modal closes
+      await expect(modal).not.toBeVisible();
 
-        // No upload queue appears (the file was discarded)
-        const queue = page.locator('[aria-label="Photo upload queue"]');
-        await expect(queue).not.toBeVisible();
-      } finally {
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-      }
-    },
-  );
+      // No upload queue appears (the file was discarded)
+      const queue = page.locator('[aria-label="Photo upload queue"]');
+      await expect(queue).not.toBeVisible();
+    } finally {
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -414,53 +408,53 @@ test.describe('PhotoMetadataModal — Cancel discards file (Scenario 6)', () => 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('PhotoMetadataModal — multiple files, save all (Scenario 7)', () => {
-  test(
-    'Select 2 files: first modal opens → save → second modal opens → save → both queued',
-    async ({ page, testPrefix }) => {
-      let draftId: string | null = null;
-      let cleanupRoutes: (() => Promise<void>) | null = null;
+  test('Select 2 files: first modal opens → save → second modal opens → save → both queued', async ({
+    page,
+    testPrefix,
+  }) => {
+    let draftId: string | null = null;
+    let cleanupRoutes: (() => Promise<void>) | null = null;
 
-      try {
-        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+    try {
+      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-        // Mock upload with delay — both files need to be in-flight for simultaneous assertion
-        cleanupRoutes = await mockUploadWithDelay(page, draftId, `photo-s7-${testPrefix}`);
+      // Mock upload with delay — both files need to be in-flight for simultaneous assertion
+      cleanupRoutes = await mockUploadWithDelay(page, draftId, `photo-s7-${testPrefix}`);
 
-        await page.goto(`/diary/${draftId}/edit`);
-        await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
-          .waitFor({ state: 'visible' });
+      await page.goto(`/diary/${draftId}/edit`);
+      await page
+        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .waitFor({ state: 'visible' });
 
-        // Set 2 files at once on the library input
-        const libraryInput = page.getByTestId('photo-library-input');
-        await libraryInput.setInputFiles([MINIMAL_JPEG, MINIMAL_JPEG_2]);
+      // Set 2 files at once on the library input
+      const libraryInput = page.getByTestId('photo-library-input');
+      await libraryInput.setInputFiles([MINIMAL_JPEG, MINIMAL_JPEG_2]);
 
-        const modal = page.getByRole('dialog', { name: 'Add photo details' });
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
 
-        // First modal — save.
-        // After saving file 1, the modal immediately re-renders showing file 2 (does NOT close
-        // between sequential files). Only assert not-visible AFTER the LAST file is processed.
-        await modal.waitFor({ state: 'visible' });
-        await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+      // First modal — save.
+      // After saving file 1, the modal immediately re-renders showing file 2 (does NOT close
+      // between sequential files). Only assert not-visible AFTER the LAST file is processed.
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
 
-        // Second modal — save (modal was still visible, now showing file 2)
-        await modal.waitFor({ state: 'visible' });
-        await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
-        // Modal closes only after the last file is processed
-        await expect(modal).not.toBeVisible();
+      // Second modal — save (modal was still visible, now showing file 2)
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+      // Modal closes only after the last file is processed
+      await expect(modal).not.toBeVisible();
 
-        // Both files should appear in the queue while the uploads are in-flight (delayed 400ms).
-        // Both entries are added before the delayed upload completes.
-        const queue = page.locator('[aria-label="Photo upload queue"]');
-        await expect(queue).toBeVisible();
-        await expect(queue).toContainText(MINIMAL_JPEG.name);
-        await expect(queue).toContainText(MINIMAL_JPEG_2.name);
-      } finally {
-        if (cleanupRoutes) await cleanupRoutes().catch(() => {});
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-      }
-    },
-  );
+      // Both files should appear in the queue while the uploads are in-flight (delayed 400ms).
+      // Both entries are added before the delayed upload completes.
+      const queue = page.locator('[aria-label="Photo upload queue"]');
+      await expect(queue).toBeVisible();
+      await expect(queue).toContainText(MINIMAL_JPEG.name);
+      await expect(queue).toContainText(MINIMAL_JPEG_2.name);
+    } finally {
+      if (cleanupRoutes) await cleanupRoutes().catch(() => {});
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -468,51 +462,51 @@ test.describe('PhotoMetadataModal — multiple files, save all (Scenario 7)', ()
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('PhotoMetadataModal — multiple files, cancel first (Scenario 8)', () => {
-  test(
-    'Select 2 files: cancel first modal → second modal opens → first file discarded',
-    async ({ page, testPrefix }) => {
-      let draftId: string | null = null;
-      let cleanupRoutes: (() => Promise<void>) | null = null;
+  test('Select 2 files: cancel first modal → second modal opens → first file discarded', async ({
+    page,
+    testPrefix,
+  }) => {
+    let draftId: string | null = null;
+    let cleanupRoutes: (() => Promise<void>) | null = null;
 
-      try {
-        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+    try {
+      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-        // Mock upload with delay for the second file (first was cancelled so no upload fires)
-        cleanupRoutes = await mockUploadWithDelay(page, draftId, `photo-s8-${testPrefix}`);
+      // Mock upload with delay for the second file (first was cancelled so no upload fires)
+      cleanupRoutes = await mockUploadWithDelay(page, draftId, `photo-s8-${testPrefix}`);
 
-        await page.goto(`/diary/${draftId}/edit`);
-        await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
-          .waitFor({ state: 'visible' });
+      await page.goto(`/diary/${draftId}/edit`);
+      await page
+        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .waitFor({ state: 'visible' });
 
-        const libraryInput = page.getByTestId('photo-library-input');
-        await libraryInput.setInputFiles([MINIMAL_JPEG, MINIMAL_JPEG_2]);
+      const libraryInput = page.getByTestId('photo-library-input');
+      await libraryInput.setInputFiles([MINIMAL_JPEG, MINIMAL_JPEG_2]);
 
-        const modal = page.getByRole('dialog', { name: 'Add photo details' });
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
 
-        // First modal — cancel (discard first file).
-        // After cancelling file 1, the modal immediately re-renders showing file 2 (does NOT close
-        // between sequential files). Only assert not-visible AFTER the LAST file is processed.
-        await modal.waitFor({ state: 'visible' });
-        await modal.getByRole('button', { name: 'Cancel', exact: true }).click();
+      // First modal — cancel (discard first file).
+      // After cancelling file 1, the modal immediately re-renders showing file 2 (does NOT close
+      // between sequential files). Only assert not-visible AFTER the LAST file is processed.
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Cancel', exact: true }).click();
 
-        // Second modal — save (modal was still visible, now showing file 2)
-        await modal.waitFor({ state: 'visible' });
-        await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
-        // Modal closes only after the last file is processed
-        await expect(modal).not.toBeVisible();
+      // Second modal — save (modal was still visible, now showing file 2)
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+      // Modal closes only after the last file is processed
+      await expect(modal).not.toBeVisible();
 
-        // Queue shows only the second file (first was cancelled) while upload is in-flight
-        const queue = page.locator('[aria-label="Photo upload queue"]');
-        await expect(queue).toBeVisible();
-        await expect(queue).toContainText(MINIMAL_JPEG_2.name);
-        await expect(queue).not.toContainText(MINIMAL_JPEG.name);
-      } finally {
-        if (cleanupRoutes) await cleanupRoutes().catch(() => {});
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-      }
-    },
-  );
+      // Queue shows only the second file (first was cancelled) while upload is in-flight
+      const queue = page.locator('[aria-label="Photo upload queue"]');
+      await expect(queue).toBeVisible();
+      await expect(queue).toContainText(MINIMAL_JPEG_2.name);
+      await expect(queue).not.toContainText(MINIMAL_JPEG.name);
+    } finally {
+      if (cleanupRoutes) await cleanupRoutes().catch(() => {});
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -520,161 +514,155 @@ test.describe('PhotoMetadataModal — multiple files, cancel first (Scenario 8)'
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('PhotoMetadataSidepanel — orientation persists across reload (Scenario 9)', () => {
-  test(
-    'Select orientation in sidepanel, save, reload — orientation persists',
-    async ({ page, testPrefix }) => {
-      const orientationName = `${testPrefix} West`;
-      let orientationId = '';
-      let draftId: string | null = null;
-      let photoId: string | null = null;
+  test('Select orientation in sidepanel, save, reload — orientation persists', async ({
+    page,
+    testPrefix,
+  }) => {
+    const orientationName = `${testPrefix} West`;
+    let orientationId = '';
+    let draftId: string | null = null;
+    let photoId: string | null = null;
 
-      try {
-        // Seed orientation
-        const orientResp = await page.request.post('/api/orientations', {
-          data: { name: orientationName },
-        });
-        expect(orientResp.ok()).toBeTruthy();
-        const orientBody = (await orientResp.json()) as { orientation: { id: string } };
-        orientationId = orientBody.orientation.id;
+    try {
+      // Seed orientation
+      const orientResp = await page.request.post('/api/orientations', {
+        data: { name: orientationName },
+      });
+      expect(orientResp.ok()).toBeTruthy();
+      const orientBody = (await orientResp.json()) as { orientation: { id: string } };
+      orientationId = orientBody.orientation.id;
 
-        // Seed a diary entry (draft)
-        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+      // Seed a diary entry (draft)
+      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
-        // Upload a real photo via API so the PhotoViewer can open it.
-        // This uses a 1×1 px PNG to minimize test overhead.
-        const photoBuffer = Buffer.from(
-          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-          'base64',
-        );
-        const photoResp = await page.request.post('/api/photos', {
-          multipart: {
-            entityType: 'diary_entry',
-            entityId: draftId,
-            file: {
-              name: `sidepanel-${testPrefix}.png`,
-              mimeType: 'image/png',
-              buffer: photoBuffer,
-            },
+      // Upload a real photo via API so the PhotoViewer can open it.
+      // This uses a 1×1 px PNG to minimize test overhead.
+      const photoBuffer = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        'base64',
+      );
+      const photoResp = await page.request.post('/api/photos', {
+        multipart: {
+          entityType: 'diary_entry',
+          entityId: draftId,
+          file: {
+            name: `sidepanel-${testPrefix}.png`,
+            mimeType: 'image/png',
+            buffer: photoBuffer,
           },
-        });
-        if (!photoResp.ok()) {
-          // Photo upload may fail if file storage is not configured in the E2E environment.
-          // Skip gracefully rather than fail with an unrelated error.
-          test.skip();
-          return;
-        }
-        const photoBody = (await photoResp.json()) as { photo: { id: string } };
-        photoId = photoBody.photo.id;
-
-        // Navigate to the diary entry detail page (/diary/:id — NOT /diary/:id/edit)
-        // and wait for the Photos section to load (which confirms the page is ready)
-        await page.goto(`/diary/${draftId}`);
-        // Wait for the photos section heading (h2: "Photos (N)") to appear.
-        // The detail page h1 only renders for entries with a title; general_note
-        // drafts have no title, so there is no h1. Wait for the photo section instead.
-        await expect(
-          page.getByRole('heading', { level: 2, name: /Photos/ }),
-        ).toBeVisible();
-
-        // Click the photo card to open the PhotoViewer
-        const photoCard = page.getByTestId(`photo-card-${photoId}`);
-        await photoCard.waitFor({ state: 'visible' });
-        // Use the inner button (click area) which triggers the onClick handler
-        await photoCard.getByRole('button', { name: /View photo/i }).click();
-
-        // PhotoViewer opens — it portals to document.body
-        const viewer = page.getByTestId('photo-viewer');
-        await viewer.waitFor({ state: 'visible' });
-
-        // Locate the sidepanel — it's inside the viewer container
-        const sidepanel = page.locator('#photo-metadata-sidepanel');
-        await sidepanel.waitFor({ state: 'attached' });
-
-        // On narrow viewports (≤768px) toggle the sidepanel open first
-        const viewportWidth = page.viewportSize()?.width ?? 1920;
-        if (viewportWidth <= 768) {
-          await page.getByTestId('photo-metadata-toggle').click();
-          // Wait for the sidepanel to be open
-          await expect(page.getByTestId('photo-metadata-toggle')).toHaveAttribute(
-            'aria-expanded',
-            'true',
-          );
-        }
-
-        // Locate the Orientation picker input — SearchPicker with placeholder "Select an orientation"
-        const orientationInput = sidepanel.locator('input[placeholder="Select an orientation"]');
-        await orientationInput.click();
-        await orientationInput.fill(orientationName);
-
-        // Select from the portal dropdown
-        const dropdown = page.locator('[data-search-picker-dropdown]');
-        await dropdown.waitFor({ state: 'visible' });
-        await dropdown
-          .getByRole('option', { name: new RegExp(orientationName, 'i') })
-          .click();
-        await expect(dropdown).not.toBeVisible();
-
-        // "Save" button should appear (hasChanges=true)
-        const saveButton = sidepanel.getByRole('button', { name: 'Save', exact: true });
-        await expect(saveButton).toBeVisible();
-
-        // Register PATCH response listener BEFORE clicking save
-        const patchResponse = page.waitForResponse(
-          (resp) =>
-            resp.url().includes(`/api/photos/${photoId}`) &&
-            resp.request().method() === 'PATCH' &&
-            resp.status() === 200,
-        );
-        await saveButton.click();
-        const savedResp = await patchResponse;
-        const savedBody = (await savedResp.json()) as { photo: { orientationId: string | null } };
-        expect(savedBody.photo.orientationId).toBe(orientationId);
-
-        // Close the PhotoViewer
-        await page.getByTestId('photo-viewer-close').click();
-        await expect(viewer).not.toBeVisible();
-
-        // Reload the detail page
-        await page.reload();
-        await expect(
-          page.getByRole('heading', { level: 2, name: /Photos/ }),
-        ).toBeVisible();
-
-        // Click the photo card again to reopen the viewer
-        await photoCard.waitFor({ state: 'visible' });
-        await photoCard.getByRole('button', { name: /View photo/i }).click();
-
-        const viewerAfter = page.getByTestId('photo-viewer');
-        await viewerAfter.waitFor({ state: 'visible' });
-
-        // After reload, the sidepanel OrientationPicker receives `initialOrientationName`
-        // from `photo.orientation?.name` (the saved value). SearchPicker with initialTitle
-        // set shows the selected value in a `selectedDisplay` span (not an input).
-        const sidepanelAfter = page.locator('#photo-metadata-sidepanel');
-        await sidepanelAfter.waitFor({ state: 'attached' });
-
-        if (viewportWidth <= 768) {
-          await page.getByTestId('photo-metadata-toggle').click();
-          await expect(page.getByTestId('photo-metadata-toggle')).toHaveAttribute(
-            'aria-expanded',
-            'true',
-          );
-        }
-
-        // The picker shows the selected orientation name — either as a selected display
-        // chip (class*="selectedDisplay") or as the input value if initial title is wired via value
-        await expect(
-          sidepanelAfter.locator('[class*="selectedDisplay"]').first(),
-        ).toContainText(orientationName);
-      } finally {
-        // Cleanup in dependency order: photo first, then entry, then orientation
-        if (photoId) await page.request.delete(`/api/photos/${photoId}`).catch(() => {});
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-        if (orientationId)
-          await page.request.delete(`/api/orientations/${orientationId}`).catch(() => {});
+        },
+      });
+      if (!photoResp.ok()) {
+        // Photo upload may fail if file storage is not configured in the E2E environment.
+        // Skip gracefully rather than fail with an unrelated error.
+        test.skip();
+        return;
       }
-    },
-  );
+      const photoBody = (await photoResp.json()) as { photo: { id: string } };
+      photoId = photoBody.photo.id;
+
+      // Navigate to the diary entry detail page (/diary/:id — NOT /diary/:id/edit)
+      // and wait for the Photos section to load (which confirms the page is ready)
+      await page.goto(`/diary/${draftId}`);
+      // Wait for the photos section heading (h2: "Photos (N)") to appear.
+      // The detail page h1 only renders for entries with a title; general_note
+      // drafts have no title, so there is no h1. Wait for the photo section instead.
+      await expect(page.getByRole('heading', { level: 2, name: /Photos/ })).toBeVisible();
+
+      // Click the photo card to open the PhotoViewer
+      const photoCard = page.getByTestId(`photo-card-${photoId}`);
+      await photoCard.waitFor({ state: 'visible' });
+      // Use the inner button (click area) which triggers the onClick handler
+      await photoCard.getByRole('button', { name: /View photo/i }).click();
+
+      // PhotoViewer opens — it portals to document.body
+      const viewer = page.getByTestId('photo-viewer');
+      await viewer.waitFor({ state: 'visible' });
+
+      // Locate the sidepanel — it's inside the viewer container
+      const sidepanel = page.locator('#photo-metadata-sidepanel');
+      await sidepanel.waitFor({ state: 'attached' });
+
+      // On narrow viewports (≤768px) toggle the sidepanel open first
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      if (viewportWidth <= 768) {
+        await page.getByTestId('photo-metadata-toggle').click();
+        // Wait for the sidepanel to be open
+        await expect(page.getByTestId('photo-metadata-toggle')).toHaveAttribute(
+          'aria-expanded',
+          'true',
+        );
+      }
+
+      // Locate the Orientation picker input — SearchPicker with placeholder "Select an orientation"
+      const orientationInput = sidepanel.locator('input[placeholder="Select an orientation"]');
+      await orientationInput.click();
+      await orientationInput.fill(orientationName);
+
+      // Select from the portal dropdown
+      const dropdown = page.locator('[data-search-picker-dropdown]');
+      await dropdown.waitFor({ state: 'visible' });
+      await dropdown.getByRole('option', { name: new RegExp(orientationName, 'i') }).click();
+      await expect(dropdown).not.toBeVisible();
+
+      // "Save" button should appear (hasChanges=true)
+      const saveButton = sidepanel.getByRole('button', { name: 'Save', exact: true });
+      await expect(saveButton).toBeVisible();
+
+      // Register PATCH response listener BEFORE clicking save
+      const patchResponse = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/photos/${photoId}`) &&
+          resp.request().method() === 'PATCH' &&
+          resp.status() === 200,
+      );
+      await saveButton.click();
+      const savedResp = await patchResponse;
+      const savedBody = (await savedResp.json()) as { photo: { orientationId: string | null } };
+      expect(savedBody.photo.orientationId).toBe(orientationId);
+
+      // Close the PhotoViewer
+      await page.getByTestId('photo-viewer-close').click();
+      await expect(viewer).not.toBeVisible();
+
+      // Reload the detail page
+      await page.reload();
+      await expect(page.getByRole('heading', { level: 2, name: /Photos/ })).toBeVisible();
+
+      // Click the photo card again to reopen the viewer
+      await photoCard.waitFor({ state: 'visible' });
+      await photoCard.getByRole('button', { name: /View photo/i }).click();
+
+      const viewerAfter = page.getByTestId('photo-viewer');
+      await viewerAfter.waitFor({ state: 'visible' });
+
+      // After reload, the sidepanel OrientationPicker receives `initialOrientationName`
+      // from `photo.orientation?.name` (the saved value). SearchPicker with initialTitle
+      // set shows the selected value in a `selectedDisplay` span (not an input).
+      const sidepanelAfter = page.locator('#photo-metadata-sidepanel');
+      await sidepanelAfter.waitFor({ state: 'attached' });
+
+      if (viewportWidth <= 768) {
+        await page.getByTestId('photo-metadata-toggle').click();
+        await expect(page.getByTestId('photo-metadata-toggle')).toHaveAttribute(
+          'aria-expanded',
+          'true',
+        );
+      }
+
+      // The picker shows the selected orientation name — either as a selected display
+      // chip (class*="selectedDisplay") or as the input value if initial title is wired via value
+      await expect(sidepanelAfter.locator('[class*="selectedDisplay"]').first()).toContainText(
+        orientationName,
+      );
+    } finally {
+      // Cleanup in dependency order: photo first, then entry, then orientation
+      if (photoId) await page.request.delete(`/api/photos/${photoId}`).catch(() => {});
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      if (orientationId)
+        await page.request.delete(`/api/orientations/${orientationId}`).catch(() => {});
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -685,28 +673,27 @@ test.describe(
   'Take photo input — capture attribute verification (Scenario 10)',
   { tag: '@responsive' },
   () => {
-    test(
-      'data-testid="photo-camera-input" has capture="environment" and accept="image/*"',
-      async ({ page }) => {
-        let draftId: string | null = null;
-        try {
-          draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
-          await page.goto(`/diary/${draftId}/edit`);
-          await page
-            .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
-            .waitFor({ state: 'visible' });
+    test('data-testid="photo-camera-input" has capture="environment" and accept="image/*"', async ({
+      page,
+    }) => {
+      let draftId: string | null = null;
+      try {
+        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+        await page.goto(`/diary/${draftId}/edit`);
+        await page
+          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .waitFor({ state: 'visible' });
 
-          // The camera input is always in the DOM (even on desktop) but aria-hidden.
-          // We check it's attached (not necessarily visible).
-          const cameraInput = page.getByTestId('photo-camera-input');
-          await expect(cameraInput).toBeAttached();
-          await expect(cameraInput).toHaveAttribute('capture', 'environment');
-          await expect(cameraInput).toHaveAttribute('accept', 'image/*');
-        } finally {
-          if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-        }
-      },
-    );
+        // The camera input is always in the DOM (even on desktop) but aria-hidden.
+        // We check it's attached (not necessarily visible).
+        const cameraInput = page.getByTestId('photo-camera-input');
+        await expect(cameraInput).toBeAttached();
+        await expect(cameraInput).toHaveAttribute('capture', 'environment');
+        await expect(cameraInput).toHaveAttribute('accept', 'image/*');
+      } finally {
+        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      }
+    });
   },
 );
 
@@ -725,51 +712,50 @@ test.describe(
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('OrientationPicker in modal — no orientations (Scenario 11)', () => {
-  test(
-    'When no orientations are configured, picker dropdown shows "No orientations configured" hint',
-    async ({ page }) => {
-      let draftId: string | null = null;
+  test('When no orientations are configured, picker dropdown shows "No orientations configured" hint', async ({
+    page,
+  }) => {
+    let draftId: string | null = null;
 
-      try {
-        // Mock GET /api/orientations to return empty list (ensures test is independent
-        // of real orientations in the E2E database)
-        await page.route('**/api/orientations*', async (route) => {
-          if (route.request().method() === 'GET') {
-            await route.fulfill({
-              status: 200,
-              contentType: 'application/json',
-              body: JSON.stringify({ orientations: [] }),
-            });
-          } else {
-            await route.continue();
-          }
-        });
+    try {
+      // Mock GET /api/orientations to return empty list (ensures test is independent
+      // of real orientations in the E2E database)
+      await page.route('**/api/orientations*', async (route) => {
+        if (route.request().method() === 'GET') {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ orientations: [] }),
+          });
+        } else {
+          await route.continue();
+        }
+      });
 
-        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
-        await page.goto(`/diary/${draftId}/edit`);
-        await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
-          .waitFor({ state: 'visible' });
+      draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+      await page.goto(`/diary/${draftId}/edit`);
+      await page
+        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .waitFor({ state: 'visible' });
 
-        const libraryInput = page.getByTestId('photo-library-input');
-        await libraryInput.setInputFiles([MINIMAL_JPEG]);
+      const libraryInput = page.getByTestId('photo-library-input');
+      await libraryInput.setInputFiles([MINIMAL_JPEG]);
 
-        const modal = page.getByRole('dialog', { name: 'Add photo details' });
-        await modal.waitFor({ state: 'visible' });
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
+      await modal.waitFor({ state: 'visible' });
 
-        // Click the orientation picker input to open the dropdown
-        const orientationInput = modal.locator('input[placeholder="Select an orientation"]');
-        await orientationInput.click();
+      // Click the orientation picker input to open the dropdown
+      const orientationInput = modal.locator('input[placeholder="Select an orientation"]');
+      await orientationInput.click();
 
-        const dropdown = page.locator('[data-search-picker-dropdown]');
-        await dropdown.waitFor({ state: 'visible' });
+      const dropdown = page.locator('[data-search-picker-dropdown]');
+      await dropdown.waitFor({ state: 'visible' });
 
-        // Expected (per spec): "No orientations configured. Add them in Settings → Orientations."
-        await expect(dropdown).toContainText(/No orientations configured/i);
-      } finally {
-        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
-        await page.unroute('**/api/orientations*').catch(() => {});
-      }
-    },
-  );
+      // Expected (per spec): "No orientations configured. Add them in Settings → Orientations."
+      await expect(dropdown).toContainText(/No orientations configured/i);
+    } finally {
+      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      await page.unroute('**/api/orientations*').catch(() => {});
+    }
+  });
 });

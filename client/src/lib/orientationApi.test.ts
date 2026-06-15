@@ -6,7 +6,11 @@ import {
   updateOrientation,
   deleteOrientation,
 } from './orientationApi.js';
-import type { OrientationListResponse, OrientationSingleResponse, OrientationResponse } from '@cornerstone/shared';
+import type {
+  OrientationListResponse,
+  OrientationSingleResponse,
+  OrientationResponse,
+} from '@cornerstone/shared';
 
 const makeOrientation = (overrides?: Partial<OrientationResponse>): OrientationResponse => ({
   id: 'orient-1',

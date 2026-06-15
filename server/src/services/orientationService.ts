@@ -34,9 +34,7 @@ export function listOrientations(db: DbType, search?: string): OrientationRespon
   const rows = db
     .select()
     .from(orientations)
-    .where(
-      search ? sql`LOWER(${orientations.name}) LIKE LOWER(${`%${search}%`})` : undefined,
-    )
+    .where(search ? sql`LOWER(${orientations.name}) LIKE LOWER(${`%${search}%`})` : undefined)
     .orderBy(asc(orientations.sortOrder), asc(orientations.name))
     .all();
 
@@ -60,10 +58,7 @@ export function getOrientationById(db: DbType, id: string): OrientationResponse 
  * @throws ValidationError if name is invalid or description too long
  * @throws ConflictError if an orientation with the same name already exists (case-insensitive)
  */
-export function createOrientation(
-  db: DbType,
-  data: CreateOrientationRequest,
-): OrientationResponse {
+export function createOrientation(db: DbType, data: CreateOrientationRequest): OrientationResponse {
   // Validate name
   const trimmedName = data.name.trim();
   if (trimmedName.length === 0 || trimmedName.length > 200) {
@@ -138,11 +133,7 @@ export function updateOrientation(
   }
 
   // Validate at least one field provided
-  if (
-    data.name === undefined &&
-    data.description === undefined &&
-    data.sortOrder === undefined
-  ) {
+  if (data.name === undefined && data.description === undefined && data.sortOrder === undefined) {
     throw new ValidationError('At least one field must be provided');
   }
 

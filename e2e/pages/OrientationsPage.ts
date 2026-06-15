@@ -98,9 +98,7 @@ export class OrientationsPage {
     // The create error banner lives inside the create <section>.
     // We scope to the first errorBanner inside the panel to avoid picking up
     // edit-form error banners.
-    return this.panel
-      .locator('[class*="errorBanner"][role="alert"]')
-      .first();
+    return this.panel.locator('[class*="errorBanner"][role="alert"]').first();
   }
 
   /** Locator for the success/status alert banner. */
@@ -178,9 +176,7 @@ export class OrientationsPage {
     updates: { name?: string; description?: string; sortOrder?: number },
   ): Promise<void> {
     // Click the Edit button found by aria-label (unique per orientation name)
-    await this.panel
-      .getByRole('button', { name: `Edit ${name}`, exact: true })
-      .click();
+    await this.panel.getByRole('button', { name: `Edit ${name}`, exact: true }).click();
 
     // The inline edit form replaces the row display. Disambiguate from the create form (also a
     // <form> in the panel) by filtering on the edit inputs' id prefix.
@@ -217,17 +213,13 @@ export class OrientationsPage {
    * see bug #1681). We find the Delete button directly in the panel by its aria-label.
    */
   async deleteOrientation(name: string): Promise<void> {
-    await this.panel
-      .getByRole('button', { name: `Delete ${name}`, exact: true })
-      .click();
+    await this.panel.getByRole('button', { name: `Delete ${name}`, exact: true }).click();
 
     const modal = this.page.locator('[role="dialog"]');
     await modal.waitFor({ state: 'visible' });
 
     const responsePromise = this.page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/orientations/') &&
-        resp.request().method() === 'DELETE',
+      (resp) => resp.url().includes('/api/orientations/') && resp.request().method() === 'DELETE',
     );
     await modal.locator('[class*="confirmDeleteButton"]').click();
     await responsePromise;

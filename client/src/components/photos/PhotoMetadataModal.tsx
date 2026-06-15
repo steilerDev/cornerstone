@@ -11,7 +11,11 @@ export interface PhotoMetadataModalProps {
   file: File;
   entityType: string;
   areas: AreaResponse[];
-  onSave: (metadata: { caption: string | null; areaId: string | null; orientationId: string | null }) => void;
+  onSave: (metadata: {
+    caption: string | null;
+    areaId: string | null;
+    orientationId: string | null;
+  }) => void;
   onCancel: () => void;
 }
 
