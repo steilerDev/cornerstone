@@ -3,6 +3,12 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Issue #1568 — Jest ESM mock static-import constraint (2026-06-15)
+
+**jest.unstable_mockModule + static import before it = mock fails in CI**: In Jest 30 with `--experimental-vm-modules`, adding a static `import` statement BEFORE `jest.unstable_mockModule()` in a test file breaks mock registration for components that call the mocked module's code directly (e.g., `useFormatters()` → `useLocale()`). Components tested by files in shards 3/4 that also mock `LocaleContext` (or don't call `useFormatters()` directly) appear to pass — but that's because they have a safety net, not because the mock works. The inline factory pattern (all code inside the `jest.unstable_mockModule()` factory body, no imports before it) is REQUIRED for reliable mock registration in Jest ESM. Attempted shared-factory approach across 46 files was reverted.
+
+**Stable useNavigate mock pattern**: `useNavigate: () => jest.fn()` in a jest.unstable_mockModule factory allocates a new function on every component render/re-render. Replace with a module-scope `const mockNavigate = jest.fn()` + `useNavigate: () => mockNavigate` + `mockNavigate.mockClear()` in beforeEach. This is a genuine memory improvement (fewer short-lived allocations). Applied to `LinkedDocumentsSection.test.tsx` in PR #1686.
+
 ## Story #1677 — effectiveLineAmount VAT gross-up tests (2026-06-15)
 
 **Coverage: budget.ts needs effectivePlannedAmount tested too**: When adding tests for `effectiveLineAmount`, the coverage tool also measures `effectivePlannedAmount` (same file). Add tests for it to reach 100% on `shared/src/types/budget.ts`. Import via `import { CONFIDENCE_MARGINS, effectivePlannedAmount, effectiveLineAmount } from './budget.js'`.

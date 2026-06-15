@@ -70,9 +70,14 @@ jest.unstable_mockModule('../../lib/configApi.js', () => ({
 // module via `await import` retains the whole library per-test and causes Jest
 // workers to OOM. This file does not render <Routes>/<Link>/etc., so the real
 // module is not needed.
+//
+// Stable mock: declare at module scope so each test render re-uses the same function
+// object instead of allocating a new jest.fn() on every component render.
+
+const mockNavigate = jest.fn();
 
 jest.unstable_mockModule('react-router-dom', () => ({
-  useNavigate: () => jest.fn(),
+  useNavigate: () => mockNavigate,
 }));
 
 // ─── Mock: child components (to avoid transitive dependency issues) ───────────
@@ -227,6 +232,7 @@ beforeEach(async () => {
   mockGetPaperlessStatus.mockReset();
   mockFetchConfig.mockReset();
   capturedLinkedDocumentIds = undefined;
+  mockNavigate.mockClear();
 
   // Default: configured paperless, no links, auto-itemize disabled
   mockUseDocumentLinks.mockReturnValue(makeHook());
