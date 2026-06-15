@@ -54,6 +54,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check single Konva version
+        run: bash scripts/check-konva-single-version.sh package-lock.json
+
       - name: Verify dependency signatures
         run: npm audit signatures
 
