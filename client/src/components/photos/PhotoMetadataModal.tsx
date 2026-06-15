@@ -41,8 +41,8 @@ export function PhotoMetadataModal({
 
       if (allFocusable.length === 0) return;
 
-      const first = allFocusable[0];
-      const last = allFocusable[allFocusable.length - 1];
+      const first = allFocusable[0]!;
+      const last = allFocusable[allFocusable.length - 1]!;
 
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();

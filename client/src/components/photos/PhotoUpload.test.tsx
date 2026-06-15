@@ -527,7 +527,8 @@ describe('PhotoUpload', () => {
 
     function mockTouchDevice(isTouch: boolean) {
       savedMatchMedia = window.matchMedia;
-      window.matchMedia = jest.fn().mockImplementation((query: string) => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mqMock = jest.fn((query: string) => ({
         matches: isTouch && query === '(hover: none)',
         media: query,
         onchange: null,
@@ -537,6 +538,7 @@ describe('PhotoUpload', () => {
         removeEventListener: jest.fn(),
         dispatchEvent: jest.fn(),
       })) as unknown as typeof window.matchMedia;
+      window.matchMedia = mqMock;
     }
 
     afterEach(() => {

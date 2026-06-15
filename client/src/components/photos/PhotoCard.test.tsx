@@ -42,6 +42,8 @@ const mockPhoto: Photo = {
   height: 768,
   takenAt: null,
   areaId: null,
+  orientationId: null,
+  orientation: null,
   sortOrder: 0,
   createdBy: null,
   annotatedAt: null,

@@ -194,6 +194,7 @@ export function PhotoUpload({
     orientationId: string | null;
   }) => {
     const file = pendingFiles[modalFileIndex!];
+    if (!file) return;
     // Add to upload queue with metadata
     setPhotoQueue((prev) => [...prev, { file, state: 'queued', metadata }]);
 
