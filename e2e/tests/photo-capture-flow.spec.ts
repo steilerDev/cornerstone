@@ -97,15 +97,23 @@ async function mockUploadWithDelay(
   await page.route('**/api/photos', async (route) => {
     if (route.request().method() === 'POST') {
       uploadCount++;
-      // Delay 400ms so the queue entry stays visible during assertion
+      // Delay 400ms so the queue entry stays visible during assertion.
+      // The PhotoUpload component removes queue entries immediately after a
+      // successful upload, so a delay is needed to keep the entry visible.
       await new Promise((resolve) => setTimeout(resolve, 400));
+      // Wrap in try-catch: if the test's finally block called page.unrouteAll()
+      // while the 400ms delay was pending, Playwright aborts the request and
+      // route.fulfill() throws "Route is already handled!". Suppress it so the
+      // cleanup doesn't produce a test-level error.
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify(mockPhotoResponse(`${photoIdPrefix}-${uploadCount}`, draftId)),
+      }).catch(() => {
+        // Route was already handled (e.g., unrouteAll was called during cleanup) — ignore.
       });
     } else {
-      await route.continue();
+      await route.continue().catch(() => {});
     }
   });
 
@@ -123,9 +131,9 @@ async function mockUploadWithDelay(
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({ photos: [] }),
-        });
+        }).catch(() => {});
       } else {
-        await route.continue();
+        await route.continue().catch(() => {});
       }
     },
   );

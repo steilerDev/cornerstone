@@ -461,11 +461,13 @@ describe('SearchPicker', () => {
       expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
     });
 
-    it('emptyHint NOT shown when specialOptions exist but no results (dropdown still shows special options)', async () => {
+    it('emptyHint IS shown when specialOptions exist but no results (hint and special options coexist)', async () => {
       mockSearchFn.mockResolvedValue([]);
       const user = userEvent.setup();
       const specialOptions = [{ id: '__SPECIAL__', label: 'Special Choice' }];
-      renderPicker({ specialOptions, placeholder: 'Search...', emptyHint: 'Should not appear' });
+      // Since Story #1675, emptyHint renders regardless of whether specialOptions exist.
+      // Both the special option and the hint appear at the same time.
+      renderPicker({ specialOptions, placeholder: 'Search...', emptyHint: 'Also shown' });
 
       const input = screen.getByPlaceholderText('Search...');
       await user.click(input);
@@ -474,7 +476,8 @@ describe('SearchPicker', () => {
         expect(screen.getByRole('option', { name: 'Special Choice' })).toBeInTheDocument();
       });
 
-      expect(screen.queryByText('Should not appear')).not.toBeInTheDocument();
+      // emptyHint is shown alongside special options (the hint is not gated on specialOptions)
+      expect(screen.queryByText('Also shown')).toBeInTheDocument();
     });
 
     // ── Bug fix: empty-string special option id with value='' ────────────────
