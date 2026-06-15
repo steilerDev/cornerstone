@@ -9,6 +9,14 @@
 - `#vendor-picker` input only present when SearchPicker is in search/input mode (no pre-fill or pre-fill cleared).
 - `handleSave` on PaperlessInvoiceReviewPage validates each included line has `budgetCategoryId` OR `assignedBudgetLineId`. MOCK_EXTRACTED_LINES have neither — must inject `budgetCategoryId` via `page.request.get(API.budgetCategories)` before mocking preview.
 
+## PaperlessInvoiceReviewPage CSS Module vs TSX class-name mismatch (fix/1679, 2026-06-15)
+
+- **Root cause**: TSX was reworked to use new class names (`lineList`, `lineCard`, `lineCardExcluded`, `cardTopRow`, `cardMetricGrid`, `assignedBadge`, `pickerBudgetLineRow`, etc.) mirroring AutoItemizePage, but `PaperlessInvoiceReviewPage.module.css` was NOT updated — it still only defines old names (`linesList`, `lineItem`, `lineItemExcluded`, `pageContainer`, `mainColumn`, `card`, etc.). All the new class refs resolve to `undefined` in JS/CSS Modules.
+- **DOM impact**: `<ul>` with `styles.lineList` → no class attribute (className=undefined). `<li>` with `styles.lineCard` → `className="undefined "` (literal string).
+- **POM fix** (2026-06-15): `lineItemsList` changed from `page.locator('[class*="linesList"]')` to `page.getByRole('list', { name: 'Extracted line items' })` (uses explicit `role="list"` + `aria-label` from i18n key `autoItemize.lineItemsListLabel` = "Extracted line items"). `getLineItem(index)` and `getLineItemCount()` changed from `lineItemsList.locator('[class*="lineItem"]')` to `lineItemsList.locator('li')`.
+- **Class names that DO exist** in PaperlessInvoiceReviewPage.module.css: `pageContainer`, `mainColumn`, `card`, `cardTitle`, `field`, `label`, `required`, `suggestionRow`, `linesList`, `lineItem`, `lineItemExcluded`, `emptyMessage`, `loadingState`, `loadingMessage`, `errorState`, `errorText`, `actionBar`. Class-based locators using `[class*="card"]`, `[class*="loadingState"]`, `[class*="errorState"]` are fine.
+- **Production bug** also exists (visually unstyled line cards) — not fixed here (out of E2E scope). Filed as separate concern.
+
 ## Diary Mobile Filter Panel E2E (Bug #1688, 2026-06-15) — `e2e/tests/diary/diary-mobile-filters.spec.ts`
 
 - 6 scenarios; all tagged `@responsive` so mobile+tablet+desktop projects execute them.

@@ -28,7 +28,12 @@
  *   - Vendor SuggestionBadge: span with class*="badge" when vendor was LLM-suggested
  *     Rendered when suggestedVendorId matches current vendorId
  *   - Vendor error (FormError): rendered when vendor not selected on submit attempt
- *   - Line items card: div.card containing h3 "Line Items" and div.linesList
+ *   - Line items card: div.card containing h3 "Extracted Line Items" and
+ *     <ul role="list" aria-label="Extracted line items"> with <li> children.
+ *     NOTE: The CSS module does NOT define lineList/lineCard/lineCardExcluded — the TSX
+ *     references those new names but the module still has the old linesList/lineItem names.
+ *     Consequently the <ul> renders with no class attribute and <li> elements render with
+ *     className="undefined " (literal). Use role/aria selectors, NOT class-based ones.
  *   - Action bar: div.actionBar with "Create Invoice & Itemize" button
  *     (budget.json: autoItemize.createAndItemize)
  *     Button is disabled when vendorId is empty or pageStatus='saving'
@@ -84,7 +89,12 @@ export class PaperlessInvoiceReviewPage {
   /** "Cancel" button in the page action area */
   readonly cancelButton: Locator;
 
-  /** Line items list container */
+  /**
+   * Line items list container.
+   * Rendered as <ul role="list" aria-label="Extracted line items">.
+   * The TSX references styles.lineList but the CSS module only defines .linesList,
+   * so no class attribute is present on the <ul>. Use role+aria-label to locate it.
+   */
   readonly lineItemsList: Locator;
 
   constructor(page: Page) {
@@ -121,8 +131,11 @@ export class PaperlessInvoiceReviewPage {
     });
     this.cancelButton = page.getByRole('button', { name: /^Cancel$/i });
 
-    // Line items
-    this.lineItemsList = page.locator('[class*="linesList"]');
+    // Line items list — <ul role="list" aria-label="Extracted line items">
+    // The TSX uses styles.lineList but PaperlessInvoiceReviewPage.module.css only defines
+    // .linesList (old name), so styles.lineList resolves to undefined and no class
+    // attribute is emitted on the <ul>. The explicit role="list" + aria-label are stable.
+    this.lineItemsList = page.getByRole('list', { name: 'Extracted line items' });
   }
 
   /**
@@ -196,16 +209,25 @@ export class PaperlessInvoiceReviewPage {
 
   /**
    * Get a line item row locator by index (0-based).
+   *
+   * The component renders each extracted line as a <li> inside the extracted-lines <ul>.
+   * The TSX uses styles.lineCard which is undefined in the CSS module, so <li> elements
+   * have className="undefined " (literal) — class-based selectors don't work here.
+   * Use the structural <li> selector instead, scoped to the lineItemsList <ul>.
    */
   getLineItem(index: number): Locator {
-    return this.lineItemsList.locator('[class*="lineItem"]').nth(index);
+    return this.lineItemsList.locator('li').nth(index);
   }
 
   /**
    * Count the number of line items rendered.
+   *
+   * Counts <li> direct children of the extracted-lines <ul> (role="list").
+   * Class-based selectors cannot be used because styles.lineCard resolves to undefined
+   * in the CSS module (the module defines .lineItem, not .lineCard).
    */
   async getLineItemCount(): Promise<number> {
-    return await this.lineItemsList.locator('[class*="lineItem"]').count();
+    return await this.lineItemsList.locator('li').count();
   }
 
   /**
