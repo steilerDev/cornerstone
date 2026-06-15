@@ -3,19 +3,33 @@
  *
  * Unit tests for PhotoUpload component.
  * Story #1426: Diary photos lost on upload failure — Scenarios 51-53.
+ * Story #1674: Mobile take/upload split button layout.
  *
- * Note on mock strategy: jest.unstable_mockModule is registered for CI
- * compatibility (where it intercepts uploadPhoto correctly). For Scenarios 51–53
- * the tests also set up globalThis.XMLHttpRequest mocks so they work in
- * environments where the module mock does not intercept (e.g. this worktree's
- * Jest module resolution). This dual-layer approach means the tests are robust
- * regardless of whether the ESM module mock fires.
+ * Mock-interception-safe strategy:
+ * - Real i18n is initialized (via import of app i18n setup) so that components
+ *   that use useTranslation() work correctly regardless of whether the
+ *   react-i18next mock intercepts.
+ * - globalThis.fetch is stubbed to prevent real API calls from real AreaPicker /
+ *   OrientationPicker / areasApi when their module mocks don't intercept.
+ * - jest.unstable_mockModule is registered for CI (where it intercepts correctly).
+ * - For scenarios that require the modal to complete, a saveModal() helper is
+ *   provided that works in BOTH environments:
+ *     (a) CI path: capturedModalOnSave is set → call it directly
+ *     (b) Real-modal path: click the "Save & upload" button in the DOM
+ * - Similarly, cancelModal() works for both CI and local environments.
+ * - For Scenarios 51–53, the XHR mock layer handles upload outcomes when the
+ *   photoApi module mock does not intercept.
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import type { Photo } from '@cornerstone/shared';
 import type { PhotoUpload as PhotoUploadType } from './PhotoUpload.js';
+
+// ─── Initialize real i18n ─────────────────────────────────────────────────────
+// Ensures useTranslation() returns real translated strings when react-i18next
+// module mocks don't intercept in this worktree's Jest environment.
+import '../../i18n/index.js';
 
 // ─── Mock photoApi (for CI where jest.unstable_mockModule intercepts) ──────────
 
@@ -34,6 +48,12 @@ jest.unstable_mockModule('../../lib/photoApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/areasApi.js', () => ({
   fetchAreas: jest.fn<() => Promise<unknown>>().mockResolvedValue({ areas: [] }),
+}));
+
+// ─── Mock orientationApi (OrientationPicker calls fetchOrientations) ────────────
+
+jest.unstable_mockModule('../../lib/orientationApi.js', () => ({
+  fetchOrientations: jest.fn<() => Promise<unknown>>().mockResolvedValue({ orientations: [] }),
 }));
 
 // ─── Mock PhotoMetadataModal (captures onSave/onCancel for mobile flow tests) ───
@@ -83,6 +103,7 @@ interface MockXhrInstance {
 
 let xhrInstances: MockXhrInstance[];
 let savedXMLHttpRequest: typeof XMLHttpRequest;
+let savedFetch: typeof globalThis.fetch;
 
 function setupXhrMock() {
   xhrInstances = [];
@@ -113,6 +134,57 @@ function restoreXhrMock() {
   xhrInstances = [];
 }
 
+// ─── Modal interaction helpers ─────────────────────────────────────────────────
+//
+// saveModal() works in both environments:
+//   CI:    capturedModalOnSave is set (mock intercepted) → call it directly.
+//   Local: real PhotoMetadataModal rendered → wait for "Save & upload" button
+//          in the DOM and click it.
+//
+// Both paths result in the component calling handleModalSave(), enqueuing the
+// file, and starting the upload.
+
+async function saveModal(
+  metadata: { caption: string | null; areaId: string | null; orientationId: string | null } = {
+    caption: null,
+    areaId: null,
+    orientationId: null,
+  },
+): Promise<void> {
+  if (capturedModalOnSave) {
+    // CI path: mock intercepted
+    await act(async () => {
+      capturedModalOnSave!(metadata);
+    });
+  } else {
+    // Real-modal path: click "Save & upload" button
+    const saveBtn = await screen.findByRole('button', { name: /Save & upload/i });
+    await act(async () => {
+      fireEvent.click(saveBtn);
+    });
+  }
+}
+
+async function cancelModal(): Promise<void> {
+  if (capturedModalOnCancel) {
+    await act(async () => {
+      capturedModalOnCancel!();
+    });
+  } else {
+    // Real-modal path: find Cancel button (not the × Close dialog button)
+    const allButtons = screen.getAllByRole('button');
+    const cancelBtn = allButtons.find(
+      (btn) =>
+        btn.textContent?.trim() === 'Cancel' &&
+        btn.getAttribute('aria-label') !== 'Close dialog',
+    );
+    if (!cancelBtn) throw new Error('Cancel button not found in real modal');
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+  }
+}
+
 // ─── Test suite ────────────────────────────────────────────────────────────────
 
 describe('PhotoUpload', () => {
@@ -124,10 +196,21 @@ describe('PhotoUpload', () => {
     mockUploadPhoto.mockReset();
     localStorage.setItem('theme', 'light');
     setupXhrMock();
+
+    // Stub globalThis.fetch to prevent real API calls from any real pickers
+    savedFetch = globalThis.fetch;
+    globalThis.fetch = jest.fn<typeof globalThis.fetch>().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ orientations: [], areas: [] }),
+      text: async () => '{"orientations":[],"areas":[]}',
+      headers: new Headers(),
+    } as Response);
   });
 
   afterEach(() => {
     restoreXhrMock();
+    globalThis.fetch = savedFetch;
     localStorage.clear();
     capturedModalOnSave = null;
     capturedModalOnCancel = null;
@@ -210,9 +293,7 @@ describe('PhotoUpload', () => {
       });
 
       // Drive the modal to completion so the file is enqueued for upload
-      await act(async () => {
-        capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
-      });
+      await saveModal({ caption: null, areaId: null, orientationId: null });
 
       // Fire XHR error event for the local environment (no-op in CI where mock intercepted)
       await act(async () => {
@@ -243,9 +324,7 @@ describe('PhotoUpload', () => {
       });
 
       // Drive the modal to completion so the file is enqueued for upload
-      await act(async () => {
-        capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
-      });
+      await saveModal({ caption: null, areaId: null, orientationId: null });
 
       // Fire XHR error for the local environment (no-op in CI)
       await act(async () => {
@@ -268,9 +347,7 @@ describe('PhotoUpload', () => {
       });
 
       // Drive the modal to completion so the file is enqueued for upload
-      await act(async () => {
-        capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
-      });
+      await saveModal({ caption: null, areaId: null, orientationId: null });
 
       // Fire XHR error for the local environment (no-op in CI)
       await act(async () => {
@@ -303,9 +380,7 @@ describe('PhotoUpload', () => {
       });
 
       // Drive the modal to completion so the file is enqueued for upload
-      await act(async () => {
-        capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
-      });
+      await saveModal({ caption: null, areaId: null, orientationId: null });
 
       // Trigger failure for the first upload (local env: fire XHR error)
       await act(async () => {
@@ -348,9 +423,7 @@ describe('PhotoUpload', () => {
       });
 
       // Drive the modal to completion so the file is enqueued for upload
-      await act(async () => {
-        capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
-      });
+      await saveModal({ caption: null, areaId: null, orientationId: null });
 
       // Trigger first upload failure (local env)
       await act(async () => {
@@ -440,9 +513,7 @@ describe('PhotoUpload', () => {
     });
 
     // Drive the modal to completion so the file is enqueued for upload
-    await act(async () => {
-      capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
-    });
+    await saveModal({ caption: null, areaId: null, orientationId: null });
 
     // File was added to queue and stays in uploading state due to hanging mock
     await waitFor(() => {
@@ -496,9 +567,7 @@ describe('PhotoUpload', () => {
     });
 
     // Drive the modal to completion so the file is enqueued for upload
-    await act(async () => {
-      capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
-    });
+    await saveModal({ caption: null, areaId: null, orientationId: null });
 
     // Wait for the item to appear in the queue (uploading state — upload is hanging)
     await waitFor(() => {
@@ -539,7 +608,6 @@ describe('PhotoUpload', () => {
 
   it('shows "Failed" state when upload throws a non-standard rejection', async () => {
     // Module mock (CI): reject with a non-Error value
-
     mockUploadPhoto.mockRejectedValueOnce('raw string error');
     renderUpload();
 
@@ -549,9 +617,7 @@ describe('PhotoUpload', () => {
     });
 
     // Drive the modal to completion so the file is enqueued for upload
-    await act(async () => {
-      capturedModalOnSave?.({ caption: null, areaId: null, orientationId: null });
-    });
+    await saveModal({ caption: null, areaId: null, orientationId: null });
 
     // Trigger XHR error in local env (produces proper Error, not unknown fallback)
     await act(async () => {
@@ -711,7 +777,7 @@ describe('PhotoUpload', () => {
       });
     });
 
-    it('saving all modals dismisses modal and queues photos for upload (CI only)', async () => {
+    it('saving all modals dismisses modal and queues photos for upload', async () => {
       mockTouchDevice(true);
       // Make upload hang so items stay in queue long enough to assert
       mockUploadPhoto.mockReturnValue(new Promise(() => undefined));
@@ -725,21 +791,14 @@ describe('PhotoUpload', () => {
         });
       });
 
-      // Save the single file's modal
-      await act(async () => {
-        capturedModalOnSave?.({ caption: 'My caption', areaId: null, orientationId: 'orient-1' });
-      });
+      // Save the single file's modal — works with both mock (CI) and real modal (local)
+      await saveModal({ caption: 'My caption', areaId: null, orientationId: 'orient-1' });
 
+      // After saving, the modal should be dismissed and the file enqueued.
+      // The queue item renders the filename while upload is in-progress.
       await waitFor(() => {
-        // Modal should be dismissed (no longer rendered)
-        const modal = document.querySelector('[data-testid="photo-metadata-modal"]');
-        if (modal === null) {
-          // CI path: modal was removed → assert that upload was queued
-          // (queue shows filename if upload is in progress)
-          expect(screen.queryByText('only.jpg')).not.toBeNull();
-        }
-        // In any environment, no crash occurred
-        expect(document.body).toBeTruthy();
+        // File should now appear in the upload queue
+        expect(screen.getByText('only.jpg')).toBeInTheDocument();
       });
     });
   });
