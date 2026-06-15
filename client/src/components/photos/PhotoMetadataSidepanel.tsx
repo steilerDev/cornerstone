@@ -193,9 +193,7 @@ export function PhotoMetadataSidepanel({
                 onChange={setOrientationId}
                 disabled={isDisabled}
                 nullable={true}
-                initialOrientationName={
-                  photo.orientation?.name || (orientationId === '' ? undefined : undefined)
-                }
+                initialOrientationName={photo.orientation?.name}
               />
             </div>
           </div>

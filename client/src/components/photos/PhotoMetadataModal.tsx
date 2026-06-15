@@ -70,7 +70,7 @@ export function PhotoMetadataModal({
       title={t('photoMetadataModal.title')}
       onClose={onCancel}
       footer={
-        <div className={sharedStyles.modalActions}>
+        <>
           <button
             type="button"
             className={`${sharedStyles.btnSecondary} ${styles.footerButton}`}
@@ -85,7 +85,7 @@ export function PhotoMetadataModal({
           >
             {t('photoMetadataModal.saveAndUpload')}
           </button>
-        </div>
+        </>
       }
     >
       <div className={styles.formBody}>
