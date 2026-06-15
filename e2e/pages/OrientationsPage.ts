@@ -17,10 +17,12 @@
  * - Existing list:
  *   - h2 "Orientations (N)" (settings:manage.orientations.existingTitle)
  *   - EmptyState when no orientations (settings:manage.orientations.emptyState)
- *   - List items: div[class*="listItem"] — each contains:
- *     - div[class*="itemName"] — orientation name
- *     - div[class*="itemDescription"] — description (only when non-null)
- *     - div[class*="itemMeta"] — sort order label
+ *   - List items: div[class*="itemRow"] — each contains:
+ *     - div[class*="itemInfo"] wrapping div[class*="itemDetails"] + span[class*="itemSortOrder"]
+ *     - div[class*="itemDetails"] contains: span[class*="itemName"], span[class*="itemDescription"]
+ *     - span[class*="itemName"] — orientation name
+ *     - span[class*="itemDescription"] — description (only when non-null)
+ *     - span[class*="itemSortOrder"] — sort order badge (#N)
  *     - button with aria-label "Edit {name}" (settings:manage.orientations.edit)
  *     - button with aria-label "Delete {name}" (settings:manage.orientations.delete)
  * - Edit form (inline, replaces row):
@@ -149,10 +151,9 @@ export class OrientationsPage {
   /**
    * Locator for an orientation list row identified by its name.
    *
-   * NOTE: The ManagePage.tsx OrientationsTab uses `styles.listItem` and `styles.listContainer`
-   * which are not defined in ManagePage.module.css (see bug #1681). As a result the outer row
-   * `<div>` has no CSS class. We identify rows by the `[class*="itemName"]` text content and
-   * use it as the stable anchor.
+   * Bug #1687 (fix: CSS class names aligned) — OrientationsTab now uses `styles.itemRow` and
+   * `styles.itemsList` (matching Areas/Trades tabs). We anchor on `[class*="itemName"]` for
+   * name-based lookup — this is stable regardless of row-level class changes.
    */
   getOrientationRow(name: string): Locator {
     return this.panel.locator('[class*="itemName"]').filter({ hasText: name });
@@ -167,9 +168,6 @@ export class OrientationsPage {
    * @param name    The current orientation name (identifies the row)
    * @param updates Fields to update (only provided fields are changed)
    * @returns After the PATCH 200 response.
-   *
-   * NOTE: The outer row div has no CSS class (styles.listItem undefined in ManagePage.module.css,
-   * see bug #1681). We find the Edit button directly in the panel by its aria-label.
    */
   async editOrientation(
     name: string,
@@ -208,9 +206,6 @@ export class OrientationsPage {
    * Click Delete on the orientation row, then confirm in the modal.
    * @param name The orientation name whose Delete button to click.
    * @returns After the DELETE 204 response.
-   *
-   * NOTE: The outer row div has no CSS class (styles.listItem undefined in ManagePage.module.css,
-   * see bug #1681). We find the Delete button directly in the panel by its aria-label.
    */
   async deleteOrientation(name: string): Promise<void> {
     await this.panel.getByRole('button', { name: `Delete ${name}`, exact: true }).click();

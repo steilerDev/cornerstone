@@ -3,6 +3,15 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## OrientationsTab E2E coverage (fix #1687, 2026-06-15) — `e2e/tests/orientations.spec.ts`, `e2e/pages/OrientationsPage.ts`
+
+- Comprehensive 8-scenario spec already exists in `e2e/tests/orientations.spec.ts` (NOT under `navigation/`) — covers CRUD, dark mode, sort order, tab navigation, empty state
+- CSS fix #1687 changed `styles.listContainer→itemsList` + `styles.listItem→itemRow` in ManagePage.tsx OrientationsTab
+- POM `getOrientationRow()` still uses `[class*="itemName"]` — stable anchor regardless of row-level class
+- `?tab=orientations` deep-link test added to `settings-manage.spec.ts` URL deep-linking describe block (was the only missing coverage)
+- Panel ID: `orientations-panel` (dynamically generated: `${activeTab}-panel`)
+- Create form h2: "Create orientation" (NOT "Create New Orientation" — unlike Areas/Trades/HI)
+
 ## Paperless correspondent query param name (2026-06-15) — `e2e/tests/invoices/paperless-first-invoice.spec.ts`
 
 - `listPaperlessDocuments()` sends `?correspondent=<id>` (integer, per `paperlessApi.ts` line 27: `params.set('correspondent', ...)`)

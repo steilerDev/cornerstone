@@ -1303,9 +1303,9 @@ function OrientationsTab() {
         {orientations.length === 0 ? (
           <EmptyState icon="🧭" message={t('manage.orientations.emptyState')} />
         ) : (
-          <div className={styles.listContainer}>
+          <div className={styles.itemsList}>
             {orientations.map((orientation) => (
-              <div key={orientation.id} className={styles.listItem}>
+              <div key={orientation.id} className={styles.itemRow}>
                 {editingOrientation?.id === orientation.id ? (
                   <>
                     <form onSubmit={handleUpdateOrientation} className={styles.editForm}>
@@ -1379,10 +1379,10 @@ function OrientationsTab() {
                         />
                       </div>
 
-                      <div className={styles.actions}>
+                      <div className={styles.editActions}>
                         <button
                           type="submit"
-                          className={styles.button}
+                          className={styles.saveButton}
                           disabled={
                             isUpdating ||
                             !editingOrientation.name.trim() ||
@@ -1408,19 +1408,22 @@ function OrientationsTab() {
                   </>
                 ) : (
                   <>
-                    <div className={styles.itemHeader}>
-                      <div className={styles.itemContent}>
-                        <div className={styles.itemName}>{orientation.name}</div>
+                    <div className={styles.itemInfo}>
+                      <div className={styles.itemDetails}>
+                        <span className={styles.itemName}>{orientation.name}</span>
                         {orientation.description && (
-                          <div className={styles.itemDescription}>{orientation.description}</div>
+                          <span className={styles.itemDescription}>{orientation.description}</span>
                         )}
-                        <div className={styles.itemMeta}>
-                          {t('manage.orientations.sortOrderLabel')}: {orientation.sortOrder}
-                        </div>
                       </div>
+                      <span
+                        className={styles.itemSortOrder}
+                        title={t('manage.orientations.sortOrderLabel')}
+                      >
+                        #{orientation.sortOrder}
+                      </span>
                     </div>
 
-                    <div className={styles.actions}>
+                    <div className={styles.itemActions}>
                       <button
                         type="button"
                         className={styles.editButton}

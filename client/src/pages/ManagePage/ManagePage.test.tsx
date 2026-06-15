@@ -8,6 +8,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type * as UseAreasTypes from '../../hooks/useAreas.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
+import type * as UseOrientationsTypes from '../../hooks/useOrientations.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as HICApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
@@ -17,6 +18,7 @@ import type {
   HouseholdItemCategoryEntity,
   AreaResponse,
   TradeResponse,
+  OrientationResponse,
 } from '@cornerstone/shared';
 
 // ─── Mock hooks and API modules BEFORE importing components ───────────────────
@@ -36,6 +38,11 @@ jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
 const mockUseTrades = jest.fn<typeof UseTradesTypes.useTrades>();
 jest.unstable_mockModule('../../hooks/useTrades.js', () => ({
   useTrades: mockUseTrades,
+}));
+
+const mockUseOrientations = jest.fn<typeof UseOrientationsTypes.useOrientations>();
+jest.unstable_mockModule('../../hooks/useOrientations.js', () => ({
+  useOrientations: mockUseOrientations,
 }));
 
 const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
@@ -158,6 +165,24 @@ const sampleHICat1: HouseholdItemCategoryEntity = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+const sampleOrientation1: OrientationResponse = {
+  id: 'orient-1',
+  name: 'North',
+  description: 'North-facing',
+  sortOrder: 0,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
+
+const sampleOrientation2: OrientationResponse = {
+  id: 'orient-2',
+  name: 'South',
+  description: null,
+  sortOrder: 1,
+  createdAt: '2026-01-02T00:00:00.000Z',
+  updatedAt: '2026-01-02T00:00:00.000Z',
+};
+
 const sampleHICat2: HouseholdItemCategoryEntity = {
   id: 'hic-2',
   name: 'Appliances',
@@ -208,6 +233,27 @@ function makeTradesHookResult(
   };
 }
 
+function makeOrientationsHookResult(
+  overrides: Partial<UseOrientationsTypes.UseOrientationsResult> = {},
+): UseOrientationsTypes.UseOrientationsResult {
+  return {
+    orientations: [sampleOrientation1, sampleOrientation2],
+    isLoading: false,
+    error: null,
+    refetch: jest.fn(),
+    createOrientation: jest
+      .fn<UseOrientationsTypes.UseOrientationsResult['createOrientation']>()
+      .mockResolvedValue(sampleOrientation1),
+    updateOrientation: jest
+      .fn<UseOrientationsTypes.UseOrientationsResult['updateOrientation']>()
+      .mockResolvedValue(sampleOrientation1),
+    deleteOrientation: jest
+      .fn<UseOrientationsTypes.UseOrientationsResult['deleteOrientation']>()
+      .mockResolvedValue(true),
+    ...overrides,
+  };
+}
+
 // ─── Test suite ────────────────────────────────────────────────────────────────
 
 describe('ManagePage', () => {
@@ -230,6 +276,7 @@ describe('ManagePage', () => {
     // Reset all mocks
     mockUseAreas.mockReset();
     mockUseTrades.mockReset();
+    mockUseOrientations.mockReset();
     mockFetchBudgetCategories.mockReset();
     mockCreateBudgetCategory.mockReset();
     mockUpdateBudgetCategory.mockReset();
@@ -262,6 +309,7 @@ describe('ManagePage', () => {
     // Default hook return values
     mockUseAreas.mockReturnValue(makeAreasHookResult());
     mockUseTrades.mockReturnValue(makeTradesHookResult());
+    mockUseOrientations.mockReturnValue(makeOrientationsHookResult());
 
     // Budget categories and HI categories default — only fetched when tab is active
     mockFetchBudgetCategories.mockResolvedValue({
@@ -273,10 +321,11 @@ describe('ManagePage', () => {
   // ─── Tab rendering ─────────────────────────────────────────────────────────
 
   describe('Tab navigation', () => {
-    it('renders all four tab buttons', async () => {
+    it('renders all five tab buttons', async () => {
       renderManagePage();
       expect(screen.getByRole('tab', { name: 'Areas' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Trades' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Orientations' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Budget Categories' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toBeInTheDocument();
     });
@@ -287,6 +336,8 @@ describe('ManagePage', () => {
       expect(areasTab).toHaveAttribute('aria-selected', 'true');
       const tradesTab = screen.getByRole('tab', { name: 'Trades' });
       expect(tradesTab).toHaveAttribute('aria-selected', 'false');
+      const orientationsTab = screen.getByRole('tab', { name: 'Orientations' });
+      expect(orientationsTab).toHaveAttribute('aria-selected', 'false');
       const budgetTab = screen.getByRole('tab', { name: 'Budget Categories' });
       expect(budgetTab).toHaveAttribute('aria-selected', 'false');
       const hicTab = screen.getByRole('tab', { name: 'Household Item Categories' });
@@ -1253,6 +1304,259 @@ describe('ManagePage', () => {
     });
   });
 
+  // ─── Orientations tab content ──────────────────────────────────────────────
+
+  describe('Orientations tab', () => {
+    it('Orientations tab is active when ?tab=orientations in URL', async () => {
+      renderManagePage('/settings/manage?tab=orientations');
+      const orientationsTab = screen.getByRole('tab', { name: 'Orientations' });
+      expect(orientationsTab).toHaveAttribute('aria-selected', 'true');
+      const areasTab = screen.getByRole('tab', { name: 'Areas' });
+      expect(areasTab).toHaveAttribute('aria-selected', 'false');
+    });
+
+    it('clicking Orientations tab makes it active', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage');
+
+      // Initially Areas tab is active
+      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'true');
+
+      await user.click(screen.getByRole('tab', { name: 'Orientations' }));
+
+      expect(screen.getByRole('tab', { name: 'Orientations' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'false');
+    });
+
+    it('shows loading state while fetching orientations', () => {
+      mockUseOrientations.mockReturnValue(
+        makeOrientationsHookResult({ isLoading: true, orientations: [] }),
+      );
+      renderManagePage('/settings/manage?tab=orientations');
+      // Skeleton renders (role="status" aria-busy="true") instead of the orientation list
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.queryByText('North')).not.toBeInTheDocument();
+    });
+
+    it('shows orientation list after loading (both names)', async () => {
+      renderManagePage('/settings/manage?tab=orientations');
+      expect(screen.getByText('North')).toBeInTheDocument();
+      expect(screen.getByText('South')).toBeInTheDocument();
+    });
+
+    it('shows name, description, and sort order in view mode', async () => {
+      renderManagePage('/settings/manage?tab=orientations');
+      expect(screen.getByText('North')).toBeInTheDocument();
+      expect(screen.getByText('North-facing')).toBeInTheDocument();
+      // Sort order rendered as #0
+      expect(screen.getByText('#0')).toBeInTheDocument();
+    });
+
+    it('does not show description when null', async () => {
+      renderManagePage('/settings/manage?tab=orientations');
+      // sampleOrientation2 has description: null — no empty description span rendered
+      // South is visible but its null description does not produce a text node
+      expect(screen.getByText('South')).toBeInTheDocument();
+      // 'North-facing' is sampleOrientation1's description — no second description span
+      expect(screen.getAllByText(/facing/i)).toHaveLength(1);
+    });
+
+    it('shows Create New Orientation section', async () => {
+      renderManagePage('/settings/manage?tab=orientations');
+      // The heading uses createTitle key ("Create orientation"); query by heading role to be specific
+      expect(screen.getByRole('heading', { name: 'Create orientation' })).toBeInTheDocument();
+    });
+
+    it('Create button is disabled when name is empty', async () => {
+      renderManagePage('/settings/manage?tab=orientations');
+      const createButton = screen.getByRole('button', { name: 'Create orientation' });
+      expect(createButton).toBeDisabled();
+    });
+
+    it('shows EmptyState when no orientations exist', async () => {
+      mockUseOrientations.mockReturnValue(
+        makeOrientationsHookResult({ isLoading: false, orientations: [] }),
+      );
+      renderManagePage('/settings/manage?tab=orientations');
+      expect(
+        screen.getByText(
+          'No orientations yet. Create one above to tag your photos with a direction.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('shows edit form when Edit is clicked (input pre-filled with orientation name)', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=orientations');
+
+      await user.click(screen.getByRole('button', { name: 'Edit North' }));
+
+      // Edit form appears with pre-filled name
+      const nameInput = document.getElementById('edit-name-orient-1') as HTMLInputElement;
+      expect(nameInput).not.toBeNull();
+      expect(nameInput.value).toBe('North');
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    });
+
+    it('cancels edit and returns to view mode', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=orientations');
+
+      await user.click(screen.getByRole('button', { name: 'Edit North' }));
+
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      // Back to normal view — Edit buttons visible again
+      await waitFor(() => {
+        expect(screen.getAllByRole('button', { name: 'Edit North' })).toHaveLength(1);
+      });
+    });
+
+    it('successfully creates a new orientation (createOrientation called with correct data)', async () => {
+      const user = userEvent.setup();
+      const newOrientation: OrientationResponse = {
+        id: 'orient-3',
+        name: 'East',
+        description: null,
+        sortOrder: 2,
+        createdAt: '2026-03-06T00:00:00.000Z',
+        updatedAt: '2026-03-06T00:00:00.000Z',
+      };
+      const mockCreateOrientation = jest
+        .fn<UseOrientationsTypes.UseOrientationsResult['createOrientation']>()
+        .mockResolvedValue(newOrientation);
+      mockUseOrientations.mockReturnValue(
+        makeOrientationsHookResult({ createOrientation: mockCreateOrientation }),
+      );
+
+      renderManagePage('/settings/manage?tab=orientations');
+
+      const nameInput = screen.getByRole('textbox', { name: 'Name' });
+      await user.type(nameInput, 'East');
+
+      await user.click(screen.getByRole('button', { name: 'Create orientation' }));
+
+      await waitFor(() => {
+        expect(mockCreateOrientation).toHaveBeenCalledWith(
+          expect.objectContaining({ name: 'East' }),
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Orientation "East" created.')).toBeInTheDocument();
+      });
+    });
+
+    it('shows validation error when name empty on create (submit form directly)', async () => {
+      renderManagePage('/settings/manage?tab=orientations');
+
+      // The create button is disabled when name is empty — assert disabled state
+      const createButton = screen.getByRole('button', { name: 'Create orientation' });
+      expect(createButton).toBeDisabled();
+
+      // Verify that the name input exists and is required
+      const nameInput = screen.getByRole('textbox', { name: 'Name' });
+      expect(nameInput).toBeInTheDocument();
+      expect((nameInput as HTMLInputElement).value).toBe('');
+    });
+
+    it('delete confirmation modal appears on Delete click', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=orientations');
+
+      await user.click(screen.getByRole('button', { name: 'Delete North' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+      expect(screen.getByRole('heading', { name: 'Delete orientation' })).toBeInTheDocument();
+    });
+
+    it('successfully deletes after confirming (deleteOrientation called)', async () => {
+      const user = userEvent.setup();
+      const mockDeleteOrientation = jest
+        .fn<UseOrientationsTypes.UseOrientationsResult['deleteOrientation']>()
+        .mockResolvedValue(true);
+      mockUseOrientations.mockReturnValue(
+        makeOrientationsHookResult({ deleteOrientation: mockDeleteOrientation }),
+      );
+
+      renderManagePage('/settings/manage?tab=orientations');
+
+      await user.click(screen.getByRole('button', { name: 'Delete North' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Delete' }));
+
+      await waitFor(() => {
+        expect(mockDeleteOrientation).toHaveBeenCalledWith('orient-1');
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Orientation "North" deleted.')).toBeInTheDocument();
+      });
+    });
+
+    it('shows error state when loading fails (EmptyState with error)', async () => {
+      mockUseOrientations.mockReturnValue(
+        makeOrientationsHookResult({
+          isLoading: false,
+          orientations: [],
+          error: 'Failed to load orientations.',
+        }),
+      );
+      renderManagePage('/settings/manage?tab=orientations');
+      expect(screen.getByText('Failed to load orientations.')).toBeInTheDocument();
+    });
+
+    it('successfully updates an orientation (updateOrientation called with correct data)', async () => {
+      const user = userEvent.setup();
+      const updatedOrientation: OrientationResponse = {
+        ...sampleOrientation1,
+        name: 'North Updated',
+      };
+      const mockUpdateOrientation = jest
+        .fn<UseOrientationsTypes.UseOrientationsResult['updateOrientation']>()
+        .mockResolvedValue(updatedOrientation);
+      mockUseOrientations.mockReturnValue(
+        makeOrientationsHookResult({ updateOrientation: mockUpdateOrientation }),
+      );
+
+      renderManagePage('/settings/manage?tab=orientations');
+
+      await user.click(screen.getByRole('button', { name: 'Edit North' }));
+
+      const nameInput = document.getElementById('edit-name-orient-1') as HTMLInputElement;
+      await user.clear(nameInput);
+      await user.type(nameInput, 'North Updated');
+
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => {
+        expect(mockUpdateOrientation).toHaveBeenCalledWith(
+          'orient-1',
+          expect.objectContaining({ name: 'North Updated' }),
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Orientation "North Updated" updated.')).toBeInTheDocument();
+      });
+    });
+
+    it('orientation count shown in existing orientations heading', async () => {
+      renderManagePage('/settings/manage?tab=orientations');
+      expect(screen.getByText('Orientations (2)')).toBeInTheDocument();
+    });
+  });
+
   // ─── Tab isolation ─────────────────────────────────────────────────────────
 
   describe('Tab isolation', () => {
@@ -1319,6 +1623,21 @@ describe('ManagePage', () => {
         expect(mockFetchHICCategories).toHaveBeenCalledTimes(1);
       });
       expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
+    });
+
+    it('does not call useOrientations when Areas tab is active', async () => {
+      renderManagePage('/settings/manage');
+      expect(mockUseAreas).toHaveBeenCalled();
+      expect(mockUseOrientations).not.toHaveBeenCalled();
+    });
+
+    it('budget API not called when Orientations tab is active', async () => {
+      renderManagePage('/settings/manage?tab=orientations');
+      await waitFor(() => {
+        expect(mockUseOrientations).toHaveBeenCalled();
+      });
+      expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
+      expect(mockFetchHICCategories).not.toHaveBeenCalled();
     });
   });
 });
