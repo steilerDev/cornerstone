@@ -35,7 +35,7 @@
 
 .label {
   font-size: var(--font-size-sm);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
 }
 
@@ -402,7 +402,7 @@
   font-size: var(--font-size-xs);
   cursor: pointer;
   font-weight: var(--font-weight-medium);
-  transition: background-color 150ms ease;
+  transition: var(--transition-button);
 }
 
 .assignButtonInTable:hover {
