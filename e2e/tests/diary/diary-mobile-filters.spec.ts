@@ -27,154 +27,180 @@ const MOBILE_MAX_WIDTH = 767;
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Toggle reveals the filter panel within the viewport
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Mobile filter toggle reveals panel within viewport (Scenario 1)', {
-  tag: '@responsive',
-}, () => {
-  test('Clicking the toggle shows the search input inside the viewport', async ({ page }) => {
-    const viewportWidth = page.viewportSize()?.width ?? 1920;
-    if (viewportWidth > MOBILE_MAX_WIDTH) test.skip();
+test.describe(
+  'Mobile filter toggle reveals panel within viewport (Scenario 1)',
+  {
+    tag: '@responsive',
+  },
+  () => {
+    test('Clicking the toggle shows the search input inside the viewport', async ({ page }) => {
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      if (viewportWidth > MOBILE_MAX_WIDTH) test.skip();
 
-    const diaryPage = new DiaryPage(page);
-    await diaryPage.goto();
+      const diaryPage = new DiaryPage(page);
+      await diaryPage.goto();
 
-    // Before opening: toggle is visible, search input is hidden
-    await expect(diaryPage.mobileFilterToggle).toBeVisible();
-    await expect(diaryPage.searchInput).toBeHidden();
+      // Before opening: toggle is visible, search input is hidden
+      await expect(diaryPage.mobileFilterToggle).toBeVisible();
+      await expect(diaryPage.searchInput).toBeHidden();
 
-    // Open the panel
-    await diaryPage.mobileFilterToggle.click();
+      // Open the panel
+      await diaryPage.mobileFilterToggle.click();
 
-    // Search input must become visible
-    await expect(diaryPage.searchInput).toBeVisible();
+      // Search input must become visible
+      await expect(diaryPage.searchInput).toBeVisible();
 
-    // The bounding box must be within the viewport — x >= 0 and y within viewport height
-    const viewportHeight = page.viewportSize()?.height ?? 664;
-    const box = await diaryPage.searchInput.boundingBox();
-    expect(box).not.toBeNull();
-    if (box) {
-      expect(box.x).toBeGreaterThanOrEqual(0);
-      expect(box.y).toBeGreaterThanOrEqual(0);
-      expect(box.y).toBeLessThan(viewportHeight);
-    }
-  });
-});
+      // The bounding box must be within the viewport — x >= 0 and y within viewport height
+      const viewportHeight = page.viewportSize()?.height ?? 664;
+      const box = await diaryPage.searchInput.boundingBox();
+      expect(box).not.toBeNull();
+      if (box) {
+        expect(box.x).toBeGreaterThanOrEqual(0);
+        expect(box.y).toBeGreaterThanOrEqual(0);
+        expect(box.y).toBeLessThan(viewportHeight);
+      }
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 2: Mode chips reachable after opening
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Mode chips visible after mobile panel opens (Scenario 2)', {
-  tag: '@responsive',
-}, () => {
-  test('mode-filter-all, mode-filter-manual, mode-filter-automatic all visible after toggle', async ({
-    page,
-  }) => {
-    const viewportWidth = page.viewportSize()?.width ?? 1920;
-    if (viewportWidth > MOBILE_MAX_WIDTH) test.skip();
+test.describe(
+  'Mode chips visible after mobile panel opens (Scenario 2)',
+  {
+    tag: '@responsive',
+  },
+  () => {
+    test('mode-filter-all, mode-filter-manual, mode-filter-automatic all visible after toggle', async ({
+      page,
+    }) => {
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      if (viewportWidth > MOBILE_MAX_WIDTH) test.skip();
 
-    const diaryPage = new DiaryPage(page);
-    await diaryPage.goto();
+      const diaryPage = new DiaryPage(page);
+      await diaryPage.goto();
 
-    await diaryPage.mobileFilterToggle.click();
-    await expect(diaryPage.searchInput).toBeVisible();
+      await diaryPage.mobileFilterToggle.click();
+      await expect(diaryPage.searchInput).toBeVisible();
 
-    await expect(page.getByTestId('mode-filter-all')).toBeVisible();
-    await expect(page.getByTestId('mode-filter-manual')).toBeVisible();
-    await expect(page.getByTestId('mode-filter-automatic')).toBeVisible();
-  });
-});
+      await expect(page.getByTestId('mode-filter-all')).toBeVisible();
+      await expect(page.getByTestId('mode-filter-manual')).toBeVisible();
+      await expect(page.getByTestId('mode-filter-automatic')).toBeVisible();
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 3: Search input accepts input after panel opens
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Search input accepts typed text after mobile panel opens (Scenario 3)', {
-  tag: '@responsive',
-}, () => {
-  test('Filling the search input reflects the typed value', async ({ page }) => {
-    const viewportWidth = page.viewportSize()?.width ?? 1920;
-    if (viewportWidth > MOBILE_MAX_WIDTH) test.skip();
+test.describe(
+  'Search input accepts typed text after mobile panel opens (Scenario 3)',
+  {
+    tag: '@responsive',
+  },
+  () => {
+    test('Filling the search input reflects the typed value', async ({ page }) => {
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      if (viewportWidth > MOBILE_MAX_WIDTH) test.skip();
 
-    const diaryPage = new DiaryPage(page);
-    await diaryPage.goto();
+      const diaryPage = new DiaryPage(page);
+      await diaryPage.goto();
 
-    await diaryPage.mobileFilterToggle.click();
-    await expect(diaryPage.searchInput).toBeVisible();
+      await diaryPage.mobileFilterToggle.click();
+      await expect(diaryPage.searchInput).toBeVisible();
 
-    await diaryPage.searchInput.fill('test query');
-    await expect(diaryPage.searchInput).toHaveValue('test query');
-  });
-});
+      await diaryPage.searchInput.fill('test query');
+      await expect(diaryPage.searchInput).toHaveValue('test query');
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 4: Second tap closes the panel
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Second toggle tap closes the mobile filter panel (Scenario 4)', {
-  tag: '@responsive',
-}, () => {
-  test('Search input becomes hidden after second tap on the toggle', async ({ page }) => {
-    const viewportWidth = page.viewportSize()?.width ?? 1920;
-    if (viewportWidth > MOBILE_MAX_WIDTH) test.skip();
+test.describe(
+  'Second toggle tap closes the mobile filter panel (Scenario 4)',
+  {
+    tag: '@responsive',
+  },
+  () => {
+    test('Search input becomes hidden after second tap on the toggle', async ({ page }) => {
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      if (viewportWidth > MOBILE_MAX_WIDTH) test.skip();
 
-    const diaryPage = new DiaryPage(page);
-    await diaryPage.goto();
+      const diaryPage = new DiaryPage(page);
+      await diaryPage.goto();
 
-    // First tap: open
-    await diaryPage.mobileFilterToggle.click();
-    await expect(diaryPage.searchInput).toBeVisible();
+      // First tap: open
+      await diaryPage.mobileFilterToggle.click();
+      await expect(diaryPage.searchInput).toBeVisible();
 
-    // Second tap: close
-    await diaryPage.mobileFilterToggle.click();
-    await expect(diaryPage.searchInput).toBeHidden();
-  });
-});
+      // Second tap: close
+      await diaryPage.mobileFilterToggle.click();
+      await expect(diaryPage.searchInput).toBeHidden();
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 5: Toggle aria-expanded transitions correctly
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Toggle aria-expanded transitions false → true → false (Scenario 5)', {
-  tag: '@responsive',
-}, () => {
-  test('aria-expanded on the toggle button reflects panel open/closed state', async ({ page }) => {
-    const viewportWidth = page.viewportSize()?.width ?? 1920;
-    if (viewportWidth > MOBILE_MAX_WIDTH) test.skip();
+test.describe(
+  'Toggle aria-expanded transitions false → true → false (Scenario 5)',
+  {
+    tag: '@responsive',
+  },
+  () => {
+    test('aria-expanded on the toggle button reflects panel open/closed state', async ({
+      page,
+    }) => {
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      if (viewportWidth > MOBILE_MAX_WIDTH) test.skip();
 
-    const diaryPage = new DiaryPage(page);
-    await diaryPage.goto();
+      const diaryPage = new DiaryPage(page);
+      await diaryPage.goto();
 
-    // Initially closed
-    await expect(diaryPage.mobileFilterToggle).toHaveAttribute('aria-expanded', 'false');
+      // Initially closed
+      await expect(diaryPage.mobileFilterToggle).toHaveAttribute('aria-expanded', 'false');
 
-    // First tap: open
-    await diaryPage.mobileFilterToggle.click();
-    await expect(diaryPage.mobileFilterToggle).toHaveAttribute('aria-expanded', 'true');
+      // First tap: open
+      await diaryPage.mobileFilterToggle.click();
+      await expect(diaryPage.mobileFilterToggle).toHaveAttribute('aria-expanded', 'true');
 
-    // Second tap: close
-    await diaryPage.mobileFilterToggle.click();
-    await expect(diaryPage.mobileFilterToggle).toHaveAttribute('aria-expanded', 'false');
-  });
-});
+      // Second tap: close
+      await diaryPage.mobileFilterToggle.click();
+      await expect(diaryPage.mobileFilterToggle).toHaveAttribute('aria-expanded', 'false');
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Desktop/tablet — filter panel inline, toggle hidden
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Desktop/tablet — filter panel visible inline without toggle (Scenario 6)', {
-  tag: '@responsive',
-}, () => {
-  test('Search input is visible without toggling and the mobile toggle is hidden', async ({
-    page,
-  }) => {
-    // This scenario validates desktop/tablet inline layout — skip on mobile
-    const viewportWidth = page.viewportSize()?.width ?? 1920;
-    if (viewportWidth <= MOBILE_MAX_WIDTH) test.skip();
+test.describe(
+  'Desktop/tablet — filter panel visible inline without toggle (Scenario 6)',
+  {
+    tag: '@responsive',
+  },
+  () => {
+    test('Search input is visible without toggling and the mobile toggle is hidden', async ({
+      page,
+    }) => {
+      // This scenario validates desktop/tablet inline layout — skip on mobile
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      if (viewportWidth <= MOBILE_MAX_WIDTH) test.skip();
 
-    await page.goto(DIARY_ROUTE);
+      await page.goto(DIARY_ROUTE);
 
-    const diaryPage = new DiaryPage(page);
-    await diaryPage.heading.waitFor({ state: 'visible' });
+      const diaryPage = new DiaryPage(page);
+      await diaryPage.heading.waitFor({ state: 'visible' });
 
-    // Search input is directly visible — no toggle needed
-    await expect(diaryPage.searchInput).toBeVisible();
+      // Search input is directly visible — no toggle needed
+      await expect(diaryPage.searchInput).toBeVisible();
 
-    // The mobile toggle button is not visible on desktop/tablet
-    await expect(diaryPage.mobileFilterToggle).toBeHidden();
-  });
-});
+      // The mobile toggle button is not visible on desktop/tablet
+      await expect(diaryPage.mobileFilterToggle).toBeHidden();
+    });
+  },
+);
