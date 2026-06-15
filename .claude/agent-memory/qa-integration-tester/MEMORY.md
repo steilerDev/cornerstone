@@ -19,6 +19,12 @@
 
 **Server service test drizzle-orm failure still pre-existing**: On Node 22 (not just Node 20), `invoiceAutoItemizeService.test.ts` still fails locally with TS2307 `Cannot find module 'drizzle-orm/better-sqlite3'`. All 9 new VAT tests will pass in CI. Client VAT tests also fail locally due to mock non-interception.
 
+**PaperlessInvoiceReviewPage spinner detection — confidence dots conflict**: The component renders `<span role="img">` for per-line confidence dots AND `<svg role="img" aria-label="Loading">` for the Spinner. Detecting loading state with `[role="img"]` wrongly matches confidence dots in ready state. Use `[role="img"][aria-label="Loading"]` to target only the Spinner. Also use `screen.queryAllByText(...)` (not `queryByText`) for /Analyzing/i since loading state may render that text in multiple elements (h1 title + h2 heading).
+
+**PaperlessInvoiceReviewPage stable-state wait pattern**: Loading state renders a disabled Cancel button. Tests that wait for Cancel before asserting ready state must check `hasSpinner || inLoadingState === false` to avoid triggering while still loading. Pattern: `await waitFor(() => { expect(cancelBtn).toBeInTheDocument(); expect(hasSpinner || inLoadingState).toBe(false); }, { timeout: 5000 })`.
+
+**PaperlessInvoiceReviewPage loadData race condition**: The `loadData` effect depends on `[documentId, t, tErrors, vendors]`. When `fetchVendors` resolves it updates `vendors` state, which re-triggers `loadData` (re-entering loading state). All stable-state waits must account for this. The stable-state pattern works because `waitFor` retries until the assertion holds consistently.
+
 ## Story #1672 — diary vendor + work-time field test patterns (2026-06-13)
 
 **Server TS1343 on Node 22**: The local worktree tsconfig still fails with TS1343 on `import.meta.url` in `migrate.ts` even on Node 22 — all server service tests that call `runMigrations` fail locally. CI passes. Pattern confirmed: add tests and verify they compile cleanly, expect CI green.

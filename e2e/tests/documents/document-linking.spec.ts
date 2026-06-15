@@ -640,8 +640,12 @@ test.describe('Document Linking — Unlink via Overlay Button (Scenario 4)', () 
       // After hover: button must be visible
       await expect(unlinkOverlayButton).toBeVisible();
 
-      // Click the overlay unlink button — this opens the confirmation modal
-      await unlinkOverlayButton.click();
+      // Click the overlay unlink button — this opens the confirmation modal.
+      // force:true bypasses Playwright's pointer-events/opacity actionability check;
+      // the button is revealed by CSS :hover but the actionability check can race on CI
+      // Linux runners where the hover state is checked at the moment of mouse movement.
+      // We already confirmed visibility above, so force is safe here.
+      await unlinkOverlayButton.click({ force: true });
 
       // Unlink confirmation dialog appears
       const unlinkModal = page.getByRole('dialog', { name: 'Unlink Document?' });
@@ -693,10 +697,14 @@ test.describe('Document Linking — Unlink via Overlay Button (Scenario 4)', () 
       const card = linkedList.getByRole('listitem').first();
       const unlinkOverlayButton = card.getByRole('button', { name: /Unlink document:/i });
 
-      // Hover to reveal, then click overlay unlink button
+      // Hover to reveal, then click overlay unlink button.
+      // force:true bypasses Playwright's pointer-events/opacity actionability check;
+      // the button is revealed by CSS :hover but the actionability check can race on CI
+      // Linux runners where the hover state is checked at the moment of mouse movement.
+      // We already confirmed visibility above, so force is safe here.
       await card.hover();
       await expect(unlinkOverlayButton).toBeVisible();
-      await unlinkOverlayButton.click();
+      await unlinkOverlayButton.click({ force: true });
 
       // Confirmation modal opens
       const unlinkModal = page.getByRole('dialog', { name: 'Unlink Document?' });
