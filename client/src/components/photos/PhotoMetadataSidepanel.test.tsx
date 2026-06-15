@@ -166,9 +166,11 @@ describe('PhotoMetadataSidepanel', () => {
     isAnnotating?: boolean;
   }) {
     return render(
-      React.createElement(LocaleProvider, {
-        children: React.createElement(PhotoMetadataSidepanel, props),
-      }),
+      React.createElement(
+        LocaleProvider,
+        null,
+        React.createElement(PhotoMetadataSidepanel, props),
+      ),
     );
   }
 
@@ -233,11 +235,13 @@ describe('PhotoMetadataSidepanel', () => {
     const newPhoto: Photo = { ...mockPhoto, caption: 'Different caption' };
 
     rerender(
-      React.createElement(LocaleProvider, {
-        children: React.createElement(PhotoMetadataSidepanel, {
+      React.createElement(
+        LocaleProvider,
+        null,
+        React.createElement(PhotoMetadataSidepanel, {
           photo: newPhoto,
         }),
-      }),
+      ),
     );
 
     await waitFor(() => {
