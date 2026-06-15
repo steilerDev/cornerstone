@@ -196,6 +196,24 @@ async function mockCorrespondents(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Intercept GET /api/paperless/tags.
+ * usePaperless Phase 2 fetches documents AND tags in a Promise.all().
+ * Without this mock, the tags request goes to the real server (which has no
+ * Paperless configured), the Promise.all rejects, usePaperless enters error state,
+ * and DocumentBrowser renders a role="alert" error div instead of the grid.
+ * Must be registered before the picker modal is opened.
+ */
+async function mockTags(page: Page): Promise<void> {
+  await page.route('**/api/paperless/tags', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ tags: [] }),
+    });
+  });
+}
+
 /** Intercept GET /paperless/documents (with optional correspondentId filter). */
 async function mockDocuments(
   page: Page,
@@ -361,6 +379,7 @@ test.describe(
         await mockConfig(page, true);
         await mockCorrespondents(page);
         await mockDocuments(page);
+        await mockTags(page);
 
         const invoicesPage = new InvoicesPage(page);
         await invoicesPage.goto();
@@ -393,6 +412,7 @@ test.describe('Scenario 2 — Correspondent filter', () => {
     await mockPaperlessConfigured(page);
     await mockConfig(page, true);
     await mockCorrespondents(page);
+    await mockTags(page);
 
     // Track whether correspondent filter was applied to the documents request
     let lastDocRequestHadCorrespondent = false;
@@ -457,6 +477,7 @@ test.describe('Scenario 3 — Document selection triggers extraction', () => {
     await mockConfig(page, true);
     await mockCorrespondents(page);
     await mockDocuments(page);
+    await mockTags(page);
     await mockDocumentDetail(page, MOCK_DOC_1.id);
     // Add delay to preview to observe spinner
     await mockPreview(page, { delayMs: 200 });
@@ -501,6 +522,7 @@ test.describe(
           await mockConfig(page, true);
           await mockCorrespondents(page);
           await mockDocuments(page);
+          await mockTags(page);
           await mockDocumentDetail(page, MOCK_DOC_1.id);
           // Return suggestedVendorId matching the real vendor we just created
           await mockPreview(page, { suggestedVendorId: vendorId });
@@ -549,6 +571,7 @@ test.describe('Scenario 5 — Hide-linked toggle defaults ON in picker modal', (
     await mockConfig(page, true);
     await mockCorrespondents(page);
     await mockDocuments(page);
+    await mockTags(page);
 
     const invoicesPage = new InvoicesPage(page);
     await invoicesPage.goto();
@@ -582,6 +605,7 @@ test.describe('Scenario 6 — Open in Paperless anchor', () => {
     await mockConfig(page, true);
     await mockCorrespondents(page);
     await mockDocuments(page);
+    await mockTags(page);
 
     const invoicesPage = new InvoicesPage(page);
     await invoicesPage.goto();
@@ -628,6 +652,7 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
         await mockConfig(page, true);
         await mockCorrespondents(page);
         await mockDocuments(page);
+        await mockTags(page);
         await mockDocumentDetail(page, MOCK_DOC_1.id);
         await mockPreview(page, { suggestedVendorId: null });
         await mockCommit(page, { invoiceId: mockInvoiceId });
@@ -714,6 +739,7 @@ test.describe('Scenario 8 — Responsive picker on mobile viewport', () => {
       await mockConfig(page, true);
       await mockCorrespondents(page);
       await mockDocuments(page);
+      await mockTags(page);
 
       const invoicesPage = new InvoicesPage(page);
       await invoicesPage.goto();
@@ -795,6 +821,7 @@ test.describe('Scenario 9 — Hide-linked default in invoice detail LinkedDocume
         // Mock the documents browser to show some documents
         await mockDocuments(page);
         await mockCorrespondents(page);
+        await mockTags(page);
 
         // Navigate to the invoice detail page
         await page.goto(`/budget/invoices/${invoiceId}`);

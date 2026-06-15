@@ -141,6 +141,23 @@ async function mockDocuments(page: Page): Promise<void> {
   });
 }
 
+/**
+ * Intercept GET /api/paperless/tags.
+ * usePaperless Phase 2 fetches documents AND tags in a Promise.all().
+ * Without this mock, the tags request fails, usePaperless enters error state,
+ * and DocumentBrowser renders a role="alert" error div instead of the grid.
+ * Must be registered before the picker modal is opened.
+ */
+async function mockTags(page: Page): Promise<void> {
+  await page.route('**/api/paperless/tags', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ tags: [] }),
+    });
+  });
+}
+
 async function mockDocumentDetail(page: Page, docId: number): Promise<void> {
   await page.route(`**/paperless/documents/${docId}`, async (route: Route) => {
     if (
@@ -231,6 +248,7 @@ test.describe('Scenario 10 — Manual escape from picker', () => {
       await mockConfig(page, true);
       await mockCorrespondents(page);
       await mockDocuments(page);
+      await mockTags(page);
 
       const invoicesPage = new InvoicesPage(page);
       await invoicesPage.goto();
@@ -350,6 +368,7 @@ test.describe('Scenario 12 — Abandon review creates no invoice', () => {
       await mockConfig(page, true);
       await mockCorrespondents(page);
       await mockDocuments(page);
+      await mockTags(page);
       await mockDocumentDetail(page, MOCK_DOC_1.id);
       await mockPreview(page, { suggestedVendorId: null });
 
@@ -408,6 +427,7 @@ test.describe('Scenario 13 — Vendor required validation on review page', () =>
       await mockConfig(page, true);
       await mockCorrespondents(page);
       await mockDocuments(page);
+      await mockTags(page);
       await mockDocumentDetail(page, MOCK_DOC_1.id);
       // No suggestedVendorId — vendor field starts empty
       await mockPreview(page, { suggestedVendorId: null });
@@ -454,6 +474,7 @@ test.describe('Scenario 13 — Vendor required validation on review page', () =>
       await mockConfig(page, true);
       await mockCorrespondents(page);
       await mockDocuments(page);
+      await mockTags(page);
       await mockDocumentDetail(page, MOCK_DOC_1.id);
       await mockPreview(page, { suggestedVendorId: null });
 
@@ -503,6 +524,7 @@ test.describe('Scenario 14 — Extraction failure error state', () => {
       await mockConfig(page, true);
       await mockCorrespondents(page);
       await mockDocuments(page);
+      await mockTags(page);
       await mockDocumentDetail(page, MOCK_DOC_1.id);
       // Return error from preview endpoint
       await mockPreview(page, { errorStatus: 500 });

@@ -123,6 +123,11 @@ export class PaperlessPickerModal {
   async waitForDocumentsLoaded(): Promise<void> {
     // Step 1: wait for the grid element to appear in the DOM and become visible.
     // This covers stage 1 (status check) since the grid isn't mounted until status resolves.
+    // NOTE: the grid only mounts after usePaperless Phase 1 (status check) AND Phase 2
+    // (documents+tags fetch via Promise.all) complete. All three Paperless mock endpoints
+    // (/api/paperless/status, /api/paperless/documents, /api/paperless/tags) MUST be
+    // registered before the picker modal is opened, otherwise the Promise.all rejects and
+    // DocumentBrowser renders the error state instead of the grid.
     await this.documentGrid.waitFor({ state: 'visible' });
     // Step 2: wait for the loading state to clear (aria-busy transitions from "true" to "false").
     // This covers stage 2 (document fetch). 10s timeout is generous for a mocked endpoint.

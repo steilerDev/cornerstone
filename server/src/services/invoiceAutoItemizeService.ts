@@ -45,6 +45,7 @@ import type {
   AutoItemizeWarning,
   InvoiceStatus,
 } from '@cornerstone/shared';
+import { effectiveLineAmount } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -447,7 +448,10 @@ export function persistLines(
           .run();
       }
 
-      totalItemized += extractedLine.totalAmount;
+      totalItemized += effectiveLineAmount({
+        amount: extractedLine.totalAmount ?? 0,
+        includesVat: extractedLine.includesVat,
+      });
     } else if (isCreateNew) {
       // Case 2: Auto-create a new work_item_budget with per-line category/source
       const workItemBudgetId = randomUUID();
@@ -493,7 +497,10 @@ export function persistLines(
         })
         .run();
 
-      totalItemized += extractedLine.totalAmount;
+      totalItemized += effectiveLineAmount({
+        amount: extractedLine.totalAmount ?? 0,
+        includesVat: extractedLine.includesVat,
+      });
     }
   }
 

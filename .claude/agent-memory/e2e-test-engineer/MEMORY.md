@@ -31,6 +31,12 @@
 - Fix in 59099a40 added `test.slow()` + `waitForURL timeout: 30_000` + `toBeVisible timeout: 15_000`. Still not enough.
 - Error: `expect(editPage.heading).toBeVisible({ timeout: 15_000 })` fails — "Edit Diary Entry" h1 not found after navigation to /diary/:id/edit. The SPA router completes but the API response for `getDiaryEntry()` exceeds 15s under heavy CI load.
 - This failure is PRE-EXISTING on beta (not introduced by any current PR). Safe to merge over.
+## Paperless Mock: MUST include /api/paperless/tags (2026-06-15)
+
+- `usePaperless` Phase 2 calls `listPaperlessTags()` in a `Promise.all()` alongside `listPaperlessDocuments()`. If `/api/paperless/tags` is NOT mocked, the `Promise.all` rejects → `usePaperless` enters error state → `DocumentBrowser` renders `role="alert"` div instead of `#document-grid` → `waitForDocumentsLoaded()` times out.
+- **ALWAYS mock tags** in any test that opens DocumentBrowser (picker modal OR LinkedDocumentsSection): `await page.route('**/api/paperless/tags', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tags: [] }) }))`.
+- The `document-linking.spec.ts` proven pattern (used in `mockPaperlessForLinking()`) mocks: status + documents + tags + thumb. The `paperless-first-invoice.spec.ts` initially only mocked status + documents + correspondents — missing tags was the bug.
+
 ## DocumentBrowser Two-Stage Loading Race (fixed 2026-06-15) — `e2e/pages/PaperlessPickerModal.ts`
 
 - `DocumentBrowser` has TWO async loading stages before card buttons appear in the DOM:

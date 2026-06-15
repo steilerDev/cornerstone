@@ -280,6 +280,9 @@ beforeEach(async () => {
   mockPreviewAutoItemize.mockReset();
   mockCommitAutoItemizeCreate.mockReset();
   mockFetchVendors.mockReset();
+  // Provide a safe default so the vendor-fetch effect (which runs regardless of documentId)
+  // never receives undefined from the mock. Individual tests override this as needed.
+  mockFetchVendors.mockResolvedValue({ vendors: [], pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 } });
 
   // Reset picker mock overrides between tests
   mockPickerStateOverride = {};
