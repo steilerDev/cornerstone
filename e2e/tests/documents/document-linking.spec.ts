@@ -702,9 +702,12 @@ test.describe('Document Linking — Unlink via Overlay Button (Scenario 4)', () 
       const unlinkModal = page.getByRole('dialog', { name: 'Unlink Document?' });
       await expect(unlinkModal).toBeVisible();
 
-      // Click Cancel
+      // Dismiss via Cancel button. The component auto-focuses the Cancel button via
+      // cancelButtonRef (setTimeout(0) in useEffect). Wait for focus, then use keyboard
+      // Enter to activate it — this bypasses any backdrop pointer-event race on CI Linux.
       const cancelButton = unlinkModal.getByRole('button', { name: /^Cancel$/i });
-      await cancelButton.click();
+      await expect(cancelButton).toBeFocused();
+      await page.keyboard.press('Enter');
 
       // Modal closes
       await expect(unlinkModal).toBeHidden({ timeout: 10000 });
