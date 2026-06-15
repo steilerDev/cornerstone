@@ -10,7 +10,7 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import React from 'react';
-import { render, screen, fireEvent, act, within } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import type { BudgetSource, Vendor, BudgetCategory, ConfidenceLevel } from '@cornerstone/shared';
 import type { EditBudgetLineModalProps, EditableBudgetLine } from './EditBudgetLineModal.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';

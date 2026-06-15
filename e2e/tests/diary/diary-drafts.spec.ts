@@ -243,7 +243,6 @@ test.describe('No draft created without interaction (Scenario 4)', () => {
 test.describe('Auto-save on metadata change (Scenario 5)', () => {
   test('Changing weather select on a draft triggers auto-save; value persists on reload', async ({
     page,
-    testPrefix,
   }) => {
     const editPage = new DiaryEntryEditPage(page);
     let draftId: string | null = null;
@@ -567,8 +566,7 @@ test.describe('Promote draft — happy path (Scenario 9)', { tag: '@responsive' 
         // in the badge region. The entry is now saved, so no draft indicator.
         await expect(page.getByTestId('draft-status-badge')).not.toBeVisible();
 
-        // Mark as promoted so we can clean up
-        draftId = draftId; // still use same id to delete the now-promoted entry
+        // draftId still holds the same id — use it to delete the now-promoted entry
       } finally {
         if (draftId) await deleteDiaryEntryViaApi(page, draftId);
       }

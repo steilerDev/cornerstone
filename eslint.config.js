@@ -60,6 +60,34 @@ export default tseslint.config(
     },
   },
 
+  // Node scripts (build/diagnostic tooling)
+  {
+    files: ['scripts/**/*.{mjs,js,cjs}'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        global: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        setImmediate: 'readonly',
+        setInterval: 'readonly',
+        setTimeout: 'readonly',
+        clearImmediate: 'readonly',
+        clearInterval: 'readonly',
+        clearTimeout: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly',
+        AbortController: 'readonly',
+        structuredClone: 'readonly',
+      },
+    },
+    rules: { 'no-console': 'off' },
+  },
+
   // Test files (unit + integration) — relax React-Compiler-focused rules
   // that don't apply to mocks and test scaffolding. These rules optimize
   // production rendering; test code never ships.

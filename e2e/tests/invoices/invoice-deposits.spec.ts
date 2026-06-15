@@ -112,7 +112,7 @@ test.describe('Deposits — empty state (Scenario 1)', { tag: '@responsive' }, (
     async ({ page, testPrefix }) => {
       const detailPage = new InvoiceDetailPage(page);
       let vendorId = '';
-      let invoiceId = '';
+      let invoiceId: string;
 
       try {
         vendorId = await createVendorViaApi(page, `${testPrefix} Dep EmptyVendor`);
@@ -155,7 +155,7 @@ test.describe('Deposits — add deposit (Scenario 2)', { tag: '@responsive' }, (
     async ({ page, testPrefix }) => {
       const detailPage = new InvoiceDetailPage(page);
       let vendorId = '';
-      let invoiceId = '';
+      let invoiceId: string;
 
       try {
         vendorId = await createVendorViaApi(page, `${testPrefix} Dep AddVendor`);
@@ -221,7 +221,7 @@ test.describe('Deposits — add deposit (Scenario 2)', { tag: '@responsive' }, (
   }) => {
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
-    let invoiceId = '';
+    let invoiceId: string;
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} Dep CancelVendor`);
@@ -265,7 +265,7 @@ test.describe('Deposits — full lifecycle (Scenario 3)', () => {
   }) => {
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
-    let invoiceId = '';
+    let invoiceId: string;
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} Dep LifecycleVendor`);
@@ -542,7 +542,7 @@ test.describe('Deposits — exceed invoice total error (Scenario 5)', () => {
   }) => {
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
-    let invoiceId = '';
+    let invoiceId: string;
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} Dep ExceedVendor`);
@@ -618,7 +618,7 @@ test.describe('Deposits — tablet layout (Scenario 6)', { tag: '@responsive' },
 
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
-    let invoiceId = '';
+    let invoiceId: string;
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} Dep TabletVendor`);
@@ -668,7 +668,7 @@ test.describe('Deposits — mobile card layout (Scenario 7)', { tag: '@responsiv
   }) => {
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
-    let invoiceId = '';
+    let invoiceId: string;
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} Dep MobileVendor`);
@@ -741,7 +741,7 @@ test.describe('Deposits — mobile card layout (Scenario 7)', { tag: '@responsiv
   }) => {
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
-    let invoiceId = '';
+    let invoiceId: string;
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} Dep MobFormVendor`);
@@ -794,7 +794,7 @@ test.describe('Deposits — multiple deposits and sum invariant', () => {
   }) => {
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
-    let invoiceId = '';
+    let invoiceId: string;
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} Dep MultiVendor`);
@@ -849,7 +849,7 @@ test.describe('Deposits — revert-to-pending API error (Scenario 8)', () => {
 
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
-    let invoiceId = '';
+    let invoiceId: string;
 
     // The page.route() interceptor handle — kept so we can unroute in teardown.
     const routePattern = '**/api/invoices/*/deposits/*';

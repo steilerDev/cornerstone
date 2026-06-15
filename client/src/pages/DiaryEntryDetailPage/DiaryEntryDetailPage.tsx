@@ -241,7 +241,7 @@ export default function DiaryEntryDetailPage() {
           Array.isArray((entry.metadata as { signatures?: DiarySignatureEntry[] }).signatures) &&
           (entry.metadata as { signatures: DiarySignatureEntry[] }).signatures.map((sig, i) => (
             <div
-              key={`${sig.signerType}-${sig.signerName}-${i}`}
+              key={`${sig.signerType}-${sig.signerName}-${i}`} // eslint-disable-line @eslint-react/no-array-index-key -- signatures list may have duplicates; composite key with signerType+name+index is stable
               className={styles.signatureSection}
             >
               <SignatureDisplay

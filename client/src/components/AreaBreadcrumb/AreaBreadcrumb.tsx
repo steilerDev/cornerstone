@@ -28,12 +28,14 @@ export function AreaBreadcrumb({ area, variant = 'default' }: AreaBreadcrumbProp
   segments.forEach((name, index) => {
     if (index > 0) {
       listItems.push(
+        // eslint-disable-next-line @eslint-react/no-array-index-key -- static fixed-order breadcrumb segments; index is a stable key here
         <li key={`sep-${index}`} className={styles.separator} aria-hidden="true">
           {SEPARATOR}
         </li>,
       );
     }
     listItems.push(
+      // eslint-disable-next-line @eslint-react/no-array-index-key -- static fixed-order breadcrumb segments; index is a stable key here
       <li key={`seg-${index}`} className={styles.segment}>
         {name}
       </li>,

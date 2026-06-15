@@ -186,6 +186,7 @@ describe('AuthContext', () => {
 
   it('throws error when useAuth is called outside AuthProvider', async () => {
     function TestComponentWithoutProvider() {
+      // eslint-disable-next-line @eslint-react/error-boundaries -- test intentionally uses try/catch to assert error behavior
       try {
         useAuth();
         return <div>Should not reach here</div>;
