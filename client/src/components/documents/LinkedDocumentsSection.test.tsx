@@ -516,7 +516,9 @@ describe('LinkedDocumentsSection', () => {
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
       expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
+      const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+      expect(cancelBtn).toHaveTextContent(/^Cancel$/);
+      fireEvent.click(cancelBtn);
       expect(screen.queryByRole('dialog', { name: /Unlink Document/i })).not.toBeInTheDocument();
     });
 
@@ -532,7 +534,11 @@ describe('LinkedDocumentsSection', () => {
       expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
 
       // Focus is moved to Cancel button via setTimeout(..., 0) in useEffect
-      await waitFor(() => expect(screen.getByRole('button', { name: /Cancel/i })).toHaveFocus());
+      await waitFor(() => {
+        const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+        expect(cancelBtn).toHaveTextContent(/^Cancel$/);
+        expect(cancelBtn).toHaveFocus();
+      });
     });
   });
 

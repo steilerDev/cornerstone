@@ -46,6 +46,16 @@ export function LinkedDocumentCard({
             📄
           </div>
         )}
+        {/* Overlay unlink button — always rendered (visible on hover/focus/touch) */}
+        <button
+          type="button"
+          className={styles.unlinkOverlayButton}
+          onClick={() => onUnlink(link)}
+          aria-label={`Unlink document: ${title}`}
+          title={t('documentCard.removeLink')}
+        >
+          ✕
+        </button>
       </div>
 
       <div className={styles.body}>
@@ -100,16 +110,6 @@ export function LinkedDocumentCard({
             ↗
           </a>
         )}
-
-        <button
-          type="button"
-          className={styles.unlinkButton}
-          onClick={() => onUnlink(link)}
-          aria-label={`Unlink document: ${title}`}
-          title={t('documentCard.removeLink')}
-        >
-          ✕
-        </button>
       </div>
     </div>
   );

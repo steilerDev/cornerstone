@@ -15,6 +15,11 @@
  * 6.  Linked documents count badge updates after linking
  * 7a. System-wide linked IDs hide filtered document when toggle checked
  * 7b. Toggle unchecked shows all documents regardless of system-wide links
+ *
+ * Scenario 4 (overlay button, fix/1680-unlink-document-overlay):
+ * 4a. Desktop: hover reveals the overlay unlink button; confirm removes the card
+ * 4b. Desktop: cancel in the unlink modal keeps the card visible
+ * 4c. Mobile: overlay unlink button is always visible without hover
  */
 
 import type { Page, Route } from '@playwright/test';
@@ -554,4 +559,203 @@ test.describe('Document Linking — System-wide Hide (Scenario 7)', { tag: '@res
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 4: Document Linking — Unlink via Overlay Button (fix/1680)
+//
+// The ✕ unlink button moved from the card footer to a top-right thumbnail
+// overlay. On pointer devices it is hidden (opacity:0) until .card:hover;
+// on touch/coarse-pointer devices (mobile/tablet) it is always visible.
+//
+// These tests verify:
+//   4a. Desktop: hover reveals overlay button → confirm removes the card
+//   4b. Desktop: cancel in the unlink modal keeps the card visible
+//   4c. Mobile:  overlay button is always visible without hover (coarse-pointer)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Register a DELETE mock for /api/document-links/:id.
+ *
+ * When called, removes the link from `linkedDocumentIds` so the subsequent
+ * GET refetch returns an empty list. Returns a cleanup fn that unroutes it.
+ */
+async function mockDocumentLinkDelete(page: Page): Promise<() => Promise<void>> {
+  await page.route('**/api/document-links/*', async (route: Route) => {
+    if (route.request().method() !== 'DELETE') {
+      await route.continue();
+      return;
+    }
+    // Empty the shared state so the GET mock returns no links after unlink
+    linkedDocumentIds = [];
+    await route.fulfill({ status: 204, body: '' });
+  });
+
+  return async () => {
+    await page.unroute('**/api/document-links/*');
+  };
+}
+
+test.describe('Document Linking — Unlink via Overlay Button (Scenario 4)', () => {
+  test.describe.configure({ timeout: 60_000 });
+
+  // ---------------------------------------------------------------------------
+  // Scenario 4a: Desktop — hover reveals overlay button; confirm removes card
+  // ---------------------------------------------------------------------------
+  test('Overlay unlink button appears on hover and confirm removes the linked card', async ({
+    page,
+    testPrefix,
+  }) => {
+    let createdId: string | null = null;
+    let cleanupDelete: (() => Promise<void>) | null = null;
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Overlay Unlink Confirm`,
+      });
+
+      // Pre-seed one linked document via mock state
+      await mockPaperlessForLinking(page, 'work_item', createdId);
+      linkedDocumentIds = [MOCK_DOCUMENT.id];
+
+      // Register DELETE mock (must be before navigation so it is ready)
+      cleanupDelete = await mockDocumentLinkDelete(page);
+
+      await page.goto(`/project/work-items/${createdId}`);
+      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+
+      // The linked document card must be visible
+      const linkedList = page.getByRole('list', { name: 'Linked documents' });
+      await expect(linkedList).toBeVisible({ timeout: 10000 });
+
+      // Locate the card and the overlay unlink button inside it
+      const card = linkedList.getByRole('listitem').first();
+      const unlinkOverlayButton = card.getByRole('button', { name: /Unlink document:/i });
+
+      // Before hover: button exists in DOM but is not visible (opacity:0 on pointer devices)
+      await expect(unlinkOverlayButton).toBeAttached();
+
+      // Hover the card to reveal the overlay button
+      await card.hover();
+
+      // After hover: button must be visible
+      await expect(unlinkOverlayButton).toBeVisible();
+
+      // Click the overlay unlink button — this opens the confirmation modal
+      await unlinkOverlayButton.click();
+
+      // Unlink confirmation dialog appears
+      const unlinkModal = page.getByRole('dialog', { name: 'Unlink Document?' });
+      await expect(unlinkModal).toBeVisible();
+
+      // Confirm by clicking the "Unlink" button inside the dialog
+      const confirmButton = unlinkModal.getByRole('button', { name: /^Unlink$/i });
+      await confirmButton.click();
+
+      // Modal closes after confirmation
+      await expect(unlinkModal).toBeHidden({ timeout: 10000 });
+
+      // The linked documents list and card are removed (no links remain)
+      await expect(linkedList).toBeHidden({ timeout: 10000 });
+    } finally {
+      if (cleanupDelete) await cleanupDelete();
+      await cleanupMocks(page);
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Scenario 4b: Desktop — cancel in the unlink modal keeps the card
+  // ---------------------------------------------------------------------------
+  test('Cancelling the unlink modal keeps the linked card visible', async ({
+    page,
+    testPrefix,
+  }) => {
+    let createdId: string | null = null;
+    let cleanupDelete: (() => Promise<void>) | null = null;
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} Overlay Unlink Cancel`,
+      });
+
+      // Pre-seed one linked document
+      await mockPaperlessForLinking(page, 'work_item', createdId);
+      linkedDocumentIds = [MOCK_DOCUMENT.id];
+
+      // DELETE mock registered but should NOT be triggered in this test
+      cleanupDelete = await mockDocumentLinkDelete(page);
+
+      await page.goto(`/project/work-items/${createdId}`);
+      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+
+      const linkedList = page.getByRole('list', { name: 'Linked documents' });
+      await expect(linkedList).toBeVisible({ timeout: 10000 });
+
+      const card = linkedList.getByRole('listitem').first();
+      const unlinkOverlayButton = card.getByRole('button', { name: /Unlink document:/i });
+
+      // Hover to reveal, then click overlay unlink button
+      await card.hover();
+      await expect(unlinkOverlayButton).toBeVisible();
+      await unlinkOverlayButton.click();
+
+      // Confirmation modal opens
+      const unlinkModal = page.getByRole('dialog', { name: 'Unlink Document?' });
+      await expect(unlinkModal).toBeVisible();
+
+      // Click Cancel
+      const cancelButton = unlinkModal.getByRole('button', { name: /^Cancel$/i });
+      await cancelButton.click();
+
+      // Modal closes
+      await expect(unlinkModal).toBeHidden({ timeout: 10000 });
+
+      // The linked document card is still visible — nothing was deleted
+      await expect(linkedList).toBeVisible();
+      await expect(linkedList).toContainText(MOCK_DOCUMENT.title);
+    } finally {
+      if (cleanupDelete) await cleanupDelete();
+      await cleanupMocks(page);
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Scenario 4c: Mobile — overlay button always visible (coarse-pointer/touch)
+  //
+  // On touch/coarse-pointer devices the CSS rule
+  //   @media (hover: none), (pointer: coarse) { .unlinkOverlayButton { opacity:1; } }
+  // makes the button always visible without hover.
+  // ---------------------------------------------------------------------------
+  test(
+    'Overlay unlink button is always visible on mobile without hover',
+    { tag: '@responsive' },
+    async ({ page, testPrefix }) => {
+      let createdId: string | null = null;
+      try {
+        createdId = await createWorkItemViaApi(page, {
+          title: `${testPrefix} Overlay Mobile Visible`,
+        });
+
+        // Pre-seed one linked document
+        await mockPaperlessForLinking(page, 'work_item', createdId);
+        linkedDocumentIds = [MOCK_DOCUMENT.id];
+
+        await page.goto(`/project/work-items/${createdId}`);
+        await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+
+        const linkedList = page.getByRole('list', { name: 'Linked documents' });
+        await expect(linkedList).toBeVisible({ timeout: 10000 });
+
+        const card = linkedList.getByRole('listitem').first();
+        const unlinkOverlayButton = card.getByRole('button', { name: /Unlink document:/i });
+
+        // On mobile (coarse-pointer / hover:none) the overlay button must be
+        // visible WITHOUT any hover action — the CSS media query ensures opacity:1.
+        await expect(unlinkOverlayButton).toBeVisible({ timeout: 7000 });
+      } finally {
+        await cleanupMocks(page);
+        if (createdId) await deleteWorkItemViaApi(page, createdId);
+      }
+    },
+  );
 });

@@ -3,6 +3,26 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## Overlay Unlink Button E2E (fix/1680, 2026-06-15) — `e2e/tests/documents/document-linking.spec.ts`
+
+- New `describe` block: `'Document Linking — Unlink via Overlay Button (Scenario 4)'` — 3 scenarios (4a desktop confirm, 4b desktop cancel, 4c mobile @responsive).
+- **DELETE mock pattern**: `mockDocumentLinkDelete(page)` — registers `**/api/document-links/*`, only handles DELETE (continues other methods), empties `linkedDocumentIds` state so GET refetch returns empty. Returns async cleanup fn `() => page.unroute('**/api/document-links/*')`.
+- **Pre-seed linked doc**: call `mockPaperlessForLinking(page, 'work_item', id)` then set `linkedDocumentIds = [MOCK_DOCUMENT.id]` BEFORE navigation. The module-level `let linkedDocumentIds` is mutable and shared across mock handlers.
+- **Hover pattern on desktop**: `await card.hover()` THEN `await expect(unlinkOverlayButton).toBeVisible()`. The button is in DOM (`toBeAttached`) but opacity:0 until hover — Playwright's `toBeVisible` checks opacity so hover is required first.
+- **Unlink modal**: `page.getByRole('dialog', { name: 'Unlink Document?' })` — dialog uses `aria-labelledby="unlink-title"` where `id="unlink-title"` text = "Unlink Document?" (from `documents:linkedDocuments.unlinkDocument`). Confirm button = `getByRole('button', { name: /^Unlink$/i })` inside dialog. Cancel = `getByRole('button', { name: /^Cancel$/i })`.
+- **After confirm**: assert `linkedList` (`role="list" aria-label="Linked documents"`) is hidden — entire list disappears when no links remain (component renders null for 0 links).
+- **Mobile scenario**: tag `{ tag: '@responsive' }` (Playwright syntax, NOT on describe — on the individual test). No hover needed; button is visible due to `@media (hover: none), (pointer: coarse) { opacity: 1 }`.
+- **Cleanup order in finally**: `cleanupDelete()` first (unroutes `**/api/document-links/*`), then `cleanupMocks(page)` (unroutes paperless + document-links GET routes), then delete WI via API.
+- `mockDocumentLinkDelete` must NOT unroute `**/api/document-links?*` — that is owned by `mockPaperlessForLinking` and cleaned by `cleanupMocks`.
+- **KNOWN FAILURE (PR #1682 CI run 27541832254)**: Scenario 4b (Cancel) HARD FAILS on desktop: `TimeoutError: locator.click: Timeout 5000ms exceeded` at line 707 `cancelButton.click()`. 4a (Confirm) and 4c (Mobile) pass. Root cause: Cancel button not actionable within 5s actionTimeout. Likely the modal closes before click() can execute — possibly due to backdrop receiving a pointer event from Playwright's interaction sequence. NEEDS INVESTIGATION and fix before merge.
+
+## diary-drafts Scenario 14 (Pre-existing persistent flake after fix in beta)
+
+- `Draft card click navigates to edit page (Scenario 14)` in `e2e/tests/diary/diary-drafts.spec.ts:817` — HARD FAILS intermittently in CI despite fix in PR #1671 (commit 59099a40 in beta).
+- Fix in 59099a40 added `test.slow()` + `waitForURL timeout: 30_000` + `toBeVisible timeout: 15_000`. Still not enough.
+- Error: `expect(editPage.heading).toBeVisible({ timeout: 15_000 })` fails — "Edit Diary Entry" h1 not found after navigation to /diary/:id/edit. The SPA router completes but the API response for `getDiaryEntry()` exceeds 15s under heavy CI load.
+- This failure is PRE-EXISTING on beta (not introduced by any current PR). Safe to merge over.
+
 ## Daily Log Time+Vendor E2E (Story #1672, 2026-06-13) — `e2e/tests/diary/diary-daily-log-time-vendor.spec.ts`
 
 - `createVendorViaApi`/`deleteVendorViaApi` added to `e2e/fixtures/apiHelpers.ts` (POST/DELETE `/api/vendors`, returns `{ vendor: { id } }`).

@@ -452,7 +452,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                 onClick={() => setUnlinkTarget(null)}
                 disabled={isUnlinking}
               >
-                {t('button.cancel')}
+                {t('common:button.cancel')}
               </button>
               <button
                 type="button"
