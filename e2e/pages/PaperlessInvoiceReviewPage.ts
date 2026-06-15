@@ -56,8 +56,15 @@ export class PaperlessInvoiceReviewPage {
   /** "Back to Invoices" button shown in error state */
   readonly backToInvoicesButton: Locator;
 
-  /** Vendor SearchPicker input (id="vendor-picker") */
+  /** Vendor SearchPicker input (id="vendor-picker") — present when picker is in search/input mode (no pre-filled value) */
   readonly vendorInput: Locator;
+
+  /**
+   * Vendor SearchPicker selected-display chip — present when SearchPicker is in DISPLAY mode
+   * (i.e. when initialTitle + value are set, such as when suggestedVendorId is non-null).
+   * Scoped to the vendor card to avoid matching other selectedDisplay elements on the page.
+   */
+  readonly vendorSelectedDisplay: Locator;
 
   /** SearchPicker portal dropdown in document.body */
   readonly vendorPortalDropdown: Locator;
@@ -94,6 +101,12 @@ export class PaperlessInvoiceReviewPage {
 
     // Ready state — vendor section
     this.vendorInput = page.locator('#vendor-picker');
+    // When SearchPicker is in DISPLAY mode (initialTitle + value set), it renders a
+    // selectedDisplay div instead of the #vendor-picker input.
+    // Scope to the vendor card (the card containing "vendor-picker" label) via aria label proximity
+    // or by scoping to the first card element that also wraps the suggestionRow.
+    // The vendor card is the first .card child of the page — scope via class for reliability.
+    this.vendorSelectedDisplay = page.locator('[class*="card"]').first().locator('[class*="selectedDisplay"]');
     // SearchPicker portals dropdown to document.body
     this.vendorPortalDropdown = page.locator('[data-search-picker-dropdown]');
     this.vendorClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });

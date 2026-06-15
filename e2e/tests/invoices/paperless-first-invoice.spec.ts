@@ -542,8 +542,12 @@ test.describe(
           const reviewPage = new PaperlessInvoiceReviewPage(page);
           await reviewPage.waitForExtractionComplete();
 
-          // Vendor input should be visible (SearchPicker for vendor selection)
-          await expect(reviewPage.vendorInput).toBeVisible();
+          // When suggestedVendorId is non-null, SearchPicker renders in DISPLAY mode:
+          // initialTitle (vendor name) + value (vendorId) are both set, causing SearchPicker
+          // to render a selectedDisplay chip instead of the #vendor-picker input.
+          // Assert the display chip is visible and contains the vendor name.
+          await expect(reviewPage.vendorSelectedDisplay).toBeVisible();
+          await expect(reviewPage.vendorSelectedDisplay).toContainText(testPrefix);
 
           // SuggestionBadge should appear since suggestedVendorId === vendorId
           await expect(reviewPage.vendorSuggestionBadge).toBeVisible();
@@ -648,13 +652,33 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
       try {
         vendorId = await createVendorViaApi(page, `${testPrefix} PF Builder Co`);
 
+        // Fetch a real budget category ID from the server so mock preview lines pass
+        // the category-required validation in handleSave (requires budgetCategoryId OR
+        // assignedBudgetLineId on each included line — MOCK_EXTRACTED_LINES have neither).
+        // GET /api/budget-categories returns { categories: [{ id, ... }] }.
+        const catResp = await page.request.get(API.budgetCategories);
+        expect(catResp.ok(), `GET /api/budget-categories failed: ${catResp.status()}`).toBeTruthy();
+        const catBody = (await catResp.json()) as { categories: Array<{ id: string }> };
+        const firstCat = catBody.categories[0];
+        const firstCatId = firstCat?.id ?? null;
+        expect(
+          firstCatId,
+          'Expected at least one budget category to exist on the server for confirm-flow test',
+        ).not.toBeNull();
+
+        // Build mock lines with a valid budgetCategoryId so handleSave can proceed to commit
+        const linesWithCategory = MOCK_EXTRACTED_LINES.map((l) => ({
+          ...l,
+          budgetCategoryId: firstCatId,
+        }));
+
         await mockPaperlessConfigured(page);
         await mockConfig(page, true);
         await mockCorrespondents(page);
         await mockDocuments(page);
         await mockTags(page);
         await mockDocumentDetail(page, MOCK_DOC_1.id);
-        await mockPreview(page, { suggestedVendorId: null });
+        await mockPreview(page, { suggestedVendorId: null, lines: linesWithCategory });
         await mockCommit(page, { invoiceId: mockInvoiceId });
 
         // Also mock the invoice detail page load for the created invoice

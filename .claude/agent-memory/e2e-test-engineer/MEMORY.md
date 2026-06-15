@@ -3,6 +3,12 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## SearchPicker Display Mode in E2E (2026-06-15) — `e2e/pages/PaperlessInvoiceReviewPage.ts`
+
+- When SearchPicker has `initialTitle + value` set (pre-filled), it renders `<div class*="selectedDisplay">` NOT the `<input id="...">`. Assert `vendorSelectedDisplay` = `[class*="card"].first() [class*="selectedDisplay"]`, NOT `#vendor-picker`.
+- `#vendor-picker` input only present when SearchPicker is in search/input mode (no pre-fill or pre-fill cleared).
+- `handleSave` on PaperlessInvoiceReviewPage validates each included line has `budgetCategoryId` OR `assignedBudgetLineId`. MOCK_EXTRACTED_LINES have neither — must inject `budgetCategoryId` via `page.request.get(API.budgetCategories)` before mocking preview.
+
 ## Diary Mobile Filter Panel E2E (Bug #1688, 2026-06-15) — `e2e/tests/diary/diary-mobile-filters.spec.ts`
 
 - 6 scenarios; all tagged `@responsive` so mobile+tablet+desktop projects execute them.
