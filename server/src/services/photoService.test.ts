@@ -838,6 +838,247 @@ describe('photoService', () => {
       const after = new Date(result!.updatedAt).getTime();
       expect(after).toBeGreaterThanOrEqual(before);
     });
+
+    // ─── orientation field tests ───────────────────────────────────────────────
+
+    it('updatePhoto sets orientationId and returns orientation object in response', async () => {
+      // Seed an orientation row directly
+      const orientId = `orient-${Date.now()}`;
+      const now = new Date().toISOString();
+      db.insert(schema.orientations)
+        .values({
+          id: orientId,
+          name: 'South',
+          description: 'Street-facing',
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const uploaded = await photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('jpeg'),
+        'orient-photo.jpg',
+        'image/jpeg',
+        'test',
+        'entity-orient-update',
+        userId,
+      );
+
+      const result = photoService.updatePhoto(db, uploaded.id, { orientationId: orientId });
+      expect(result).not.toBeNull();
+      expect(result!.orientationId).toBe(orientId);
+      expect(result!.orientation).toEqual({
+        id: orientId,
+        name: 'South',
+        description: 'Street-facing',
+      });
+    });
+
+    it('updatePhoto clears orientationId when set to null', async () => {
+      const orientId = `orient-clear-${Date.now()}`;
+      const now = new Date().toISOString();
+      db.insert(schema.orientations)
+        .values({
+          id: orientId,
+          name: 'North',
+          description: null,
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      // Upload with orientation
+      const uploaded = await photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('jpeg'),
+        'orient-clear.jpg',
+        'image/jpeg',
+        'test',
+        'entity-orient-clear',
+        userId,
+        undefined,
+        undefined,
+        orientId,
+      );
+      expect(uploaded.orientationId).toBe(orientId);
+
+      // Clear it
+      const result = photoService.updatePhoto(db, uploaded.id, { orientationId: null });
+      expect(result!.orientationId).toBeNull();
+      expect(result!.orientation).toBeNull();
+    });
+
+    it('updatePhoto throws ValidationError when orientationId references non-existent orientation', async () => {
+      const uploaded = await photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('jpeg'),
+        'bad-orient.jpg',
+        'image/jpeg',
+        'test',
+        'entity-bad-orient',
+        userId,
+      );
+
+      expect(() => {
+        photoService.updatePhoto(db, uploaded.id, { orientationId: 'non-existent-id' });
+      }).toThrow('Orientation not found');
+    });
+  });
+
+  // ─── uploadPhoto with orientationId ───────────────────────────────────────
+
+  describe('uploadPhoto() — orientationId parameter', () => {
+    it('stores orientationId and embeds orientation summary in returned Photo', async () => {
+      const orientId = `orient-upload-${Date.now()}`;
+      const now = new Date().toISOString();
+      db.insert(schema.orientations)
+        .values({
+          id: orientId,
+          name: 'West',
+          description: 'Backyard-facing',
+          sortOrder: 2,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const photo = await photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('jpeg-orient'),
+        'photo-with-orientation.jpg',
+        'image/jpeg',
+        'test',
+        'entity-with-orientation',
+        userId,
+        null,
+        null,
+        orientId,
+      );
+
+      expect(photo.orientationId).toBe(orientId);
+      expect(photo.orientation).toEqual({
+        id: orientId,
+        name: 'West',
+        description: 'Backyard-facing',
+      });
+    });
+
+    it('throws ValidationError when orientationId references non-existent orientation', async () => {
+      await expect(
+        photoService.uploadPhoto(
+          db,
+          tempStoragePath,
+          Buffer.from('jpeg-bad-orient'),
+          'bad-orient-photo.jpg',
+          'image/jpeg',
+          'test',
+          'entity-bad-orient-upload',
+          userId,
+          null,
+          null,
+          'no-such-orientation',
+        ),
+      ).rejects.toThrow('Orientation not found');
+    });
+
+    it('stores null orientationId when not provided, returns null orientation in Photo', async () => {
+      const photo = await photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('jpeg-no-orient'),
+        'photo-no-orientation.jpg',
+        'image/jpeg',
+        'test',
+        'entity-no-orientation',
+        userId,
+      );
+
+      expect(photo.orientationId).toBeNull();
+      expect(photo.orientation).toBeNull();
+    });
+  });
+
+  // ─── toPhoto mapper — orientation embedding ────────────────────────────────
+
+  describe('toPhoto mapper — orientation in getPhoto/getPhotosForEntity', () => {
+    it('getPhoto returns photo with embedded orientation when photo has orientationId', async () => {
+      const orientId = `orient-get-${Date.now()}`;
+      const now = new Date().toISOString();
+      db.insert(schema.orientations)
+        .values({
+          id: orientId,
+          name: 'East',
+          description: 'Sunrise-facing',
+          sortOrder: 1,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const uploaded = await photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('jpeg'),
+        'get-orient-photo.jpg',
+        'image/jpeg',
+        'test',
+        'entity-get-orient',
+        userId,
+        null,
+        null,
+        orientId,
+      );
+
+      const fetched = photoService.getPhoto(db, uploaded.id);
+      expect(fetched).not.toBeNull();
+      expect(fetched!.orientationId).toBe(orientId);
+      expect(fetched!.orientation).toEqual({
+        id: orientId,
+        name: 'East',
+        description: 'Sunrise-facing',
+      });
+    });
+
+    it('getPhotosForEntity returns photos with embedded orientation', async () => {
+      const orientId = `orient-list-${Date.now()}`;
+      const now = new Date().toISOString();
+      db.insert(schema.orientations)
+        .values({
+          id: orientId,
+          name: 'North',
+          description: null,
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      await photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('jpeg'),
+        'list-orient-photo.jpg',
+        'image/jpeg',
+        'test',
+        'entity-list-orient',
+        userId,
+        null,
+        null,
+        orientId,
+      );
+
+      const list = photoService.getPhotosForEntity(db, 'test', 'entity-list-orient');
+      expect(list).toHaveLength(1);
+      expect(list[0]!.orientationId).toBe(orientId);
+      expect(list[0]!.orientation).toEqual({ id: orientId, name: 'North', description: null });
+    });
   });
 
   // ─── reorderPhotos ────────────────────────────────────────────────────────
