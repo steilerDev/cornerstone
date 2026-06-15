@@ -188,7 +188,7 @@ export type {
   BudgetSummary,
   BudgetLineInvoiceLink,
 } from './types/budget.js';
-export { effectivePlannedAmount } from './types/budget.js';
+export { effectivePlannedAmount, effectiveLineAmount } from './types/budget.js';
 
 // Subsidy Programs
 export type {

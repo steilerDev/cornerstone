@@ -128,6 +128,20 @@ export function effectivePlannedAmount(line: {
 }
 
 /**
+ * Returns the effective gross amount of an extracted line item for aggregation.
+ * When includesVat is explicitly false, the stored amount is net; multiply by 1.19.
+ * undefined/null/true are treated as gross (amount as-is).
+ * This mirrors effectivePlannedAmount() but operates on the ExtractedLine shape
+ * which uses { amount, includesVat } rather than { plannedAmount, includesVat }.
+ */
+export function effectiveLineAmount(line: {
+  amount: number;
+  includesVat?: boolean | null;
+}): number {
+  return line.includesVat === false ? Math.round(line.amount * 1.19 * 100) / 100 : line.amount;
+}
+
+/**
  * Request body for creating a new budget line.
  * Used for both work item and household item budgets.
  */

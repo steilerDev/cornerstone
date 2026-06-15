@@ -21,6 +21,7 @@ import {
 } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import { effectiveLineAmount } from '@cornerstone/shared';
 import {
   NotFoundError,
   ValidationError,
@@ -82,7 +83,11 @@ function computeWarnings(lines: ExtractedLine[], invoiceTotal: number): AutoItem
   if (lines.length === 0) {
     return [];
   }
-  const extractedTotal = lines.reduce((sum, l) => sum + (l.totalAmount ?? 0), 0);
+  const extractedTotal = lines.reduce(
+    (sum, l) =>
+      sum + effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
+    0,
+  );
   const tolerance = invoiceTotal * 0.01; // 1% tolerance
   if (Math.abs(extractedTotal - invoiceTotal) > tolerance) {
     return [{ code: 'TOTAL_MISMATCH', extractedTotal, invoiceTotal }];
@@ -408,7 +413,10 @@ export async function autoItemize(
               .run();
           }
 
-          totalItemized += extractedLine.totalAmount;
+          totalItemized += effectiveLineAmount({
+            amount: extractedLine.totalAmount,
+            includesVat: extractedLine.includesVat,
+          });
         } else if (isCreateNew) {
           // Case 2: Auto-create a new work_item_budget with per-line category/source
           const workItemBudgetId = randomUUID();
@@ -454,7 +462,10 @@ export async function autoItemize(
             })
             .run();
 
-          totalItemized += extractedLine.totalAmount;
+          totalItemized += effectiveLineAmount({
+            amount: extractedLine.totalAmount,
+            includesVat: extractedLine.includesVat,
+          });
         }
       }
 

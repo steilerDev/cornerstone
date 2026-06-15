@@ -3,6 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1677 — effectiveLineAmount VAT gross-up tests (2026-06-15)
+
+**Coverage: budget.ts needs effectivePlannedAmount tested too**: When adding tests for `effectiveLineAmount`, the coverage tool also measures `effectivePlannedAmount` (same file). Add tests for it to reach 100% on `shared/src/types/budget.ts`. Import via `import { CONFIDENCE_MARGINS, effectivePlannedAmount, effectiveLineAmount } from './budget.js'`.
+
+**makeDryRunResponse includesVat support**: The helper in `AutoItemizePage.test.tsx` had a typed `Partial<{description,totalAmount,confidence,budgetCategoryId}>` override type — adding `includesVat: boolean` to that union and using `...('includesVat' in l ? { includesVat: l.includesVat } : {})` in the spread passes optional includesVat through to mock lines.
+
+**LLM mock with includesVat**: `setupDryRunFetch()` takes only `{ description, totalAmount, confidence }` — it does NOT support includesVat. For dry-run tests needing includesVat on lines, reset mockFetch and queue the 3 responses manually (doc + tags + LLM) with the includesVat field embedded in the LLM JSON `lines` array.
+
+**Server service test drizzle-orm failure still pre-existing**: On Node 22 (not just Node 20), `invoiceAutoItemizeService.test.ts` still fails locally with TS2307 `Cannot find module 'drizzle-orm/better-sqlite3'`. All 9 new VAT tests will pass in CI. Client VAT tests also fail locally due to mock non-interception.
+
 ## Story #1672 — diary vendor + work-time field test patterns (2026-06-13)
 
 **Server TS1343 on Node 22**: The local worktree tsconfig still fails with TS1343 on `import.meta.url` in `migrate.ts` even on Node 22 — all server service tests that call `runMigrations` fail locally. CI passes. Pattern confirmed: add tests and verify they compile cleanly, expect CI green.

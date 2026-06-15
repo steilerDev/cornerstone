@@ -641,6 +641,172 @@ describe('invoiceAutoItemizeService', () => {
 
       expect(result.warnings).toHaveLength(0);
     });
+
+    // ─── Story #1677 — VAT gross-up in computeWarnings ──────────────────────
+
+    it('no TOTAL_MISMATCH when includesVat=false line grosses up to match invoice (1000 net, invoice 1190)', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1190); // invoice 1190 (gross)
+      linkDocument(db, invoiceId, 42);
+      // Line is 1000 net → gross 1190 → diff = 0 → no warning
+      setupDryRunFetch([{ description: 'Item A', totalAmount: 1000, confidence: 0.9 }]);
+      // Override: the LLM response needs includesVat: false on the line
+      // Re-queue the fetch mocks with includesVat embedded in the LLM JSON
+      mockFetch.mockReset();
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [
+                      {
+                        description: 'Item A',
+                        totalAmount: 1000,
+                        confidence: 0.9,
+                        includesVat: false,
+                      },
+                    ],
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; warnings: unknown[] };
+
+      expect(result.warnings).toHaveLength(0);
+    });
+
+    it('TOTAL_MISMATCH when includesVat=false line grosses up to 1071 but invoice is 1190', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1190);
+      linkDocument(db, invoiceId, 42);
+      mockFetch.mockReset();
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [
+                      {
+                        description: 'Item B',
+                        totalAmount: 900,
+                        confidence: 0.9,
+                        includesVat: false, // gross = Math.round(900*1.19*100)/100 = 1071
+                      },
+                    ],
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as {
+        lines: unknown[];
+        warnings: Array<{ code: string; extractedTotal: number; invoiceTotal: number }>;
+      };
+
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings[0]!.code).toBe('TOTAL_MISMATCH');
+      // effectiveLineAmount(900, false) = Math.round(900 * 1.19 * 100) / 100 = 1071
+      expect(result.warnings[0]!.extractedTotal).toBe(Math.round(900 * 1.19 * 100) / 100);
+      expect(result.warnings[0]!.invoiceTotal).toBe(1190);
+    });
+
+    it('no TOTAL_MISMATCH for includesVat=true line matching invoice exactly (1000, invoice 1000)', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+      // includesVat=true: amount used as-is → 1000 === 1000
+      setupDryRunFetch([{ description: 'Item', totalAmount: 1000, confidence: 0.9 }]);
+      const config = makeConfig();
+
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; warnings: unknown[] };
+
+      expect(result.warnings).toHaveLength(0);
+    });
+
+    it('no TOTAL_MISMATCH for mixed includesVat: [500 net + 250 gross] → gross total 845 equals invoice', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 845);
+      linkDocument(db, invoiceId, 42);
+      // 500 net → gross = Math.round(500*1.19*100)/100 = 595; 250 gross → 250; total = 845
+      mockFetch.mockReset();
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [
+                      {
+                        description: 'Net line',
+                        totalAmount: 500,
+                        confidence: 0.9,
+                        includesVat: false,
+                      },
+                      {
+                        description: 'Gross line',
+                        totalAmount: 250,
+                        confidence: 0.9,
+                        includesVat: true,
+                      },
+                    ],
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const config = makeConfig();
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; warnings: unknown[] };
+
+      expect(result.warnings).toHaveLength(0);
+    });
   });
 
   // ─── Commit / append path ──────────────────────────────────────────────────
@@ -1216,6 +1382,213 @@ describe('invoiceAutoItemizeService', () => {
           PAPERLESS_AUTH,
         ),
       ).resolves.toBeDefined();
+    });
+
+    // ─── Story #1677 — VAT gross-up in commit path (create-new) ────────────────
+
+    it('commit create-new: invoice 595, line {500, includesVat:false} → gross 595 → succeeds', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 595);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            lines: [{ description: 'Net item', totalAmount: 500, confidence: 0.9, includesVat: false }] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('commit create-new: invoice 500, line {500, includesVat:false} → gross 595 > 500 → ItemizedSumExceedsInvoiceError', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 500);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            lines: [{ description: 'Net item', totalAmount: 500, confidence: 0.9, includesVat: false }] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
+    });
+
+    it('commit create-new with includesVat=false: itemizedAmount in IBL stays at net (500), WIB.includesVat mapped to !== false (true)', async () => {
+      const vendorId = insertVendor(db);
+      // Invoice large enough so gross does not exceed
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          lines: [{ description: 'Net line', totalAmount: 500, confidence: 0.9, includesVat: false }] as any,
+        },
+        PAPERLESS_AUTH,
+      );
+
+      const newWib = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore)[0]!;
+      const newIbl = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore)[0]!;
+
+      // Storage stays NET: plannedAmount = 500 (not grossed up)
+      expect(newWib.plannedAmount).toBe(500);
+      // includesVat: extractedLine.includesVat !== false → false !== false = false → stored as false
+      // Wait — implementation is: includesVat: extractedLine.includesVat !== false
+      // false !== false = false → so WIB.includesVat = false (matches the line)
+      expect(newWib.includesVat).toBe(false);
+      // IBL itemizedAmount = line.totalAmount = 500 (net, unchanged)
+      expect(newIbl.itemizedAmount).toBe(500);
+    });
+
+    // ─── Story #1677 — VAT gross-up in commit path (assign-existing) ───────────
+
+    it('commit assign-existing: invoice 595, line {500, includesVat:false} → gross 595 → succeeds', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 595);
+      linkDocument(db, invoiceId, 42);
+
+      // Insert a standalone WIB to assign to
+      const existingWibId = uid('wib');
+      const t = ts();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: existingWibId,
+          workItemId: null,
+          description: 'Pre-existing line',
+          plannedAmount: 500,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          vendorId: null,
+          quantity: null,
+          unit: null,
+          unitPrice: null,
+          includesVat: true,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              {
+                description: 'Pre-existing line',
+                totalAmount: 500,
+                confidence: 0.9,
+                assignmentMode: 'assign-existing',
+                assignedBudgetLineId: existingWibId,
+                assignedBudgetLineType: 'work_item',
+                includesVat: false,
+              },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('commit assign-existing: invoice 500, line {500, includesVat:false} → gross 595 > 500 → ItemizedSumExceedsInvoiceError', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 500);
+      linkDocument(db, invoiceId, 42);
+
+      const existingWibId = uid('wib');
+      const t = ts();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: existingWibId,
+          workItemId: null,
+          description: 'Pre-existing line',
+          plannedAmount: 500,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          vendorId: null,
+          quantity: null,
+          unit: null,
+          unitPrice: null,
+          includesVat: true,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              {
+                description: 'Pre-existing line',
+                totalAmount: 500,
+                confidence: 0.9,
+                assignmentMode: 'assign-existing',
+                assignedBudgetLineId: existingWibId,
+                assignedBudgetLineType: 'work_item',
+                includesVat: false,
+              },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
     });
   });
 
