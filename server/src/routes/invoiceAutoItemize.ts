@@ -11,10 +11,7 @@ import type { FastifyInstance } from 'fastify';
 import { AppError, UnauthorizedError } from '../errors/AppError.js';
 import * as svc from '../services/invoiceAutoItemizeService.js';
 import type { AutoItemizeRequestBody } from '../services/invoiceAutoItemizeService.js';
-import type {
-  AutoItemizePreviewRequest,
-  AutoItemizeCommitRequest,
-} from '@cornerstone/shared';
+import type { AutoItemizePreviewRequest, AutoItemizeCommitRequest } from '@cornerstone/shared';
 
 // Per-line JSON schema for both existing and new endpoints
 const lineItemSchema = {
@@ -81,12 +78,10 @@ export default async function invoiceAutoItemizeRoutes(fastify: FastifyInstance)
         );
       }
 
-      const result = await svc.previewAutoItemize(
-        fastify.db,
-        fastify.config,
-        request.body,
-        { url: fastify.config.paperlessUrl!, apiToken: fastify.config.paperlessApiToken! },
-      );
+      const result = await svc.previewAutoItemize(fastify.db, fastify.config, request.body, {
+        url: fastify.config.paperlessUrl!,
+        apiToken: fastify.config.paperlessApiToken!,
+      });
 
       return reply.status(200).send(result);
     },

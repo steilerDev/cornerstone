@@ -193,7 +193,12 @@ describe('DocumentCard', () => {
 
     it('does not render a link when paperlessUrl is null', () => {
       render(
-        <DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} paperlessUrl={null} />,
+        <DocumentCard
+          document={makeDoc()}
+          isSelected={false}
+          onSelect={jest.fn()}
+          paperlessUrl={null}
+        />,
       );
       expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });

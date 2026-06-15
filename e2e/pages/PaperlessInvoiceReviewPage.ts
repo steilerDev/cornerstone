@@ -106,7 +106,9 @@ export class PaperlessInvoiceReviewPage {
     this.loadingMessage = page.getByRole('heading', { name: /Analyzing document/i });
 
     // Error state
-    this.errorContainer = page.locator('[role="alert"][class*="errorState"], div[class*="errorState"]');
+    this.errorContainer = page.locator(
+      '[role="alert"][class*="errorState"], div[class*="errorState"]',
+    );
     this.backToInvoicesButton = page.getByRole('button', { name: /Back to Invoices/i });
 
     // Ready state — vendor section
@@ -116,14 +118,20 @@ export class PaperlessInvoiceReviewPage {
     // Scope to the vendor card (the card containing "vendor-picker" label) via aria label proximity
     // or by scoping to the first card element that also wraps the suggestionRow.
     // The vendor card is the first .card child of the page — scope via class for reliability.
-    this.vendorSelectedDisplay = page.locator('[class*="card"]').first().locator('[class*="selectedDisplay"]');
+    this.vendorSelectedDisplay = page
+      .locator('[class*="card"]')
+      .first()
+      .locator('[class*="selectedDisplay"]');
     // SearchPicker portals dropdown to document.body
     this.vendorPortalDropdown = page.locator('[data-search-picker-dropdown]');
     this.vendorClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });
     // SuggestionBadge is rendered as a span with class*="badge" in a suggestionRow
     this.vendorSuggestionBadge = page.locator('[class*="suggestionRow"] [class*="badge"]');
     // FormError renders role="alert" — scope to vendor card to avoid ambiguity
-    this.vendorError = page.locator('[class*="card"]').filter({ has: page.locator('#vendor-picker') }).locator('[role="alert"]');
+    this.vendorError = page
+      .locator('[class*="card"]')
+      .filter({ has: page.locator('#vendor-picker') })
+      .locator('[role="alert"]');
 
     // Action buttons
     this.confirmButton = page.getByRole('button', {

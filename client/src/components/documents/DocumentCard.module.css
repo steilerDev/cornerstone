@@ -143,7 +143,9 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .openInPaperlessButton {
-    transition: opacity var(--transition-fast), background-color var(--transition-fast);
+    transition:
+      opacity var(--transition-fast),
+      background-color var(--transition-fast);
   }
 }
 

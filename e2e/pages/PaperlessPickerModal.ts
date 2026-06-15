@@ -206,7 +206,9 @@ export class PaperlessPickerModal {
    * @param title - The document title
    */
   getOpenInPaperlessLink(title: string): Locator {
-    return this.modal.getByRole('link', { name: new RegExp(`Open '?${title}'? in Paperless`, 'i') });
+    return this.modal.getByRole('link', {
+      name: new RegExp(`Open '?${title}'? in Paperless`, 'i'),
+    });
   }
 
   /**

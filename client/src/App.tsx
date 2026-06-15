@@ -86,7 +86,9 @@ const BackupsPage = lazy(() => import('./pages/BackupsPage/BackupsPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
 const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
 const AutoItemizePage = lazy(() => import('./pages/AutoItemizePage/index.js'));
-const PaperlessInvoiceReviewPage = lazy(() => import('./pages/PaperlessInvoiceReviewPage/index.js'));
+const PaperlessInvoiceReviewPage = lazy(
+  () => import('./pages/PaperlessInvoiceReviewPage/index.js'),
+);
 const DiaryPage = lazy(() => import('./pages/DiaryPage/DiaryPage'));
 const DiaryEntryDetailPage = lazy(
   () => import('./pages/DiaryEntryDetailPage/DiaryEntryDetailPage'),

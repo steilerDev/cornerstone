@@ -67,7 +67,13 @@ const MOCK_STATUS_NOT_CONFIGURED = {
 const MOCK_CORRESPONDENTS = {
   correspondents: [
     { id: 1, name: 'Builder Co', documentCount: 12, slug: 'builder-co', lastCorrespondence: null },
-    { id: 2, name: 'Tile World GmbH', documentCount: 5, slug: 'tile-world-gmbh', lastCorrespondence: null },
+    {
+      id: 2,
+      name: 'Tile World GmbH',
+      documentCount: 5,
+      slug: 'tile-world-gmbh',
+      lastCorrespondence: null,
+    },
   ],
 };
 
@@ -373,32 +379,31 @@ test.describe(
   'Scenario 1 — Picker opens with correct default state',
   { tag: ['@smoke', '@responsive'] },
   () => {
-    test(
-      'With Paperless+LLM configured, New Invoice opens picker modal with hide-linked checked and no pre-selected correspondent',
-      async ({ page }) => {
-        await mockPaperlessConfigured(page);
-        await mockConfig(page, true);
-        await mockCorrespondents(page);
-        await mockDocuments(page);
-        await mockTags(page);
+    test('With Paperless+LLM configured, New Invoice opens picker modal with hide-linked checked and no pre-selected correspondent', async ({
+      page,
+    }) => {
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
 
-        const invoicesPage = new InvoicesPage(page);
-        await invoicesPage.goto();
-        await invoicesPage.waitForLoaded();
+      const invoicesPage = new InvoicesPage(page);
+      await invoicesPage.goto();
+      await invoicesPage.waitForLoaded();
 
-        await invoicesPage.clickNewInvoice();
-        const pickerModal = await invoicesPage.waitForPickerModal();
+      await invoicesPage.clickNewInvoice();
+      const pickerModal = await invoicesPage.waitForPickerModal();
 
-        // Modal title is visible
-        await expect(pickerModal.modal).toBeVisible();
+      // Modal title is visible
+      await expect(pickerModal.modal).toBeVisible();
 
-        // Hide-linked toggle defaults to checked (defaultHideLinked=true in InvoicePaperlessPickerModal)
-        await expect(pickerModal.hideLinkedToggle).toBeChecked();
+      // Hide-linked toggle defaults to checked (defaultHideLinked=true in InvoicePaperlessPickerModal)
+      await expect(pickerModal.hideLinkedToggle).toBeChecked();
 
-        // No correspondent pre-selected — input is empty
-        await expect(pickerModal.correspondentInput).toHaveValue('');
-      },
-    );
+      // No correspondent pre-selected — input is empty
+      await expect(pickerModal.correspondentInput).toHaveValue('');
+    });
   },
 );
 
@@ -454,7 +459,9 @@ test.describe('Scenario 2 — Correspondent filter', () => {
     // Select "Builder Co" correspondent
     await pickerModal.correspondentInput.fill('Builder');
     await pickerModal.correspondentPortalDropdown.waitFor({ state: 'visible' });
-    await pickerModal.correspondentPortalDropdown.getByRole('option', { name: 'Builder Co' }).click();
+    await pickerModal.correspondentPortalDropdown
+      .getByRole('option', { name: 'Builder Co' })
+      .click();
 
     // Wait for grid to finish re-fetching with the correspondent filter applied
     await pickerModal.waitForDocumentsLoaded();
@@ -516,57 +523,57 @@ test.describe(
   'Scenario 4 — Review screen vendor pre-fill and SuggestionBadge',
   { tag: '@smoke' },
   () => {
-    test(
-      'After extraction, vendor SearchPicker shows LLM-suggested vendor with SuggestionBadge',
-      async ({ page, testPrefix }) => {
-        let vendorId = '';
+    test('After extraction, vendor SearchPicker shows LLM-suggested vendor with SuggestionBadge', async ({
+      page,
+      testPrefix,
+    }) => {
+      let vendorId = '';
 
-        try {
-          // Create a real vendor for the suggestion to resolve
-          vendorId = await createVendorViaApi(page, `${testPrefix} Builder Co`);
+      try {
+        // Create a real vendor for the suggestion to resolve
+        vendorId = await createVendorViaApi(page, `${testPrefix} Builder Co`);
 
-          await mockPaperlessConfigured(page);
-          await mockConfig(page, true);
-          await mockCorrespondents(page);
-          await mockDocuments(page);
-          await mockTags(page);
-          await mockDocumentDetail(page, MOCK_DOC_1.id);
-          // Return suggestedVendorId matching the real vendor we just created
-          await mockPreview(page, { suggestedVendorId: vendorId });
+        await mockPaperlessConfigured(page);
+        await mockConfig(page, true);
+        await mockCorrespondents(page);
+        await mockDocuments(page);
+        await mockTags(page);
+        await mockDocumentDetail(page, MOCK_DOC_1.id);
+        // Return suggestedVendorId matching the real vendor we just created
+        await mockPreview(page, { suggestedVendorId: vendorId });
 
-          // Navigate through the full picker flow so React Router location state is set
-          const invoicesPage = new InvoicesPage(page);
-          await invoicesPage.goto();
-          await invoicesPage.waitForLoaded();
+        // Navigate through the full picker flow so React Router location state is set
+        const invoicesPage = new InvoicesPage(page);
+        await invoicesPage.goto();
+        await invoicesPage.waitForLoaded();
 
-          await invoicesPage.clickNewInvoice();
-          const pickerModal = await invoicesPage.waitForPickerModal();
+        await invoicesPage.clickNewInvoice();
+        const pickerModal = await invoicesPage.waitForPickerModal();
 
-          // Select document — this calls navigate('/budget/invoices/new/paperless', { state: {...} })
-          await pickerModal.selectDocument(MOCK_DOC_1.title);
-          await page.waitForURL('**/budget/invoices/new/paperless');
+        // Select document — this calls navigate('/budget/invoices/new/paperless', { state: {...} })
+        await pickerModal.selectDocument(MOCK_DOC_1.title);
+        await page.waitForURL('**/budget/invoices/new/paperless');
 
-          const reviewPage = new PaperlessInvoiceReviewPage(page);
-          await reviewPage.waitForExtractionComplete();
+        const reviewPage = new PaperlessInvoiceReviewPage(page);
+        await reviewPage.waitForExtractionComplete();
 
-          // When suggestedVendorId is non-null, SearchPicker renders in DISPLAY mode:
-          // initialTitle (vendor name) + value (vendorId) are both set, causing SearchPicker
-          // to render a selectedDisplay chip instead of the #vendor-picker input.
-          // Assert the display chip is visible and contains the vendor name.
-          await expect(reviewPage.vendorSelectedDisplay).toBeVisible();
-          await expect(reviewPage.vendorSelectedDisplay).toContainText(testPrefix);
+        // When suggestedVendorId is non-null, SearchPicker renders in DISPLAY mode:
+        // initialTitle (vendor name) + value (vendorId) are both set, causing SearchPicker
+        // to render a selectedDisplay chip instead of the #vendor-picker input.
+        // Assert the display chip is visible and contains the vendor name.
+        await expect(reviewPage.vendorSelectedDisplay).toBeVisible();
+        await expect(reviewPage.vendorSelectedDisplay).toContainText(testPrefix);
 
-          // SuggestionBadge should appear since suggestedVendorId === vendorId
-          await expect(reviewPage.vendorSuggestionBadge).toBeVisible();
+        // SuggestionBadge should appear since suggestedVendorId === vendorId
+        await expect(reviewPage.vendorSuggestionBadge).toBeVisible();
 
-          // Line items should be rendered (extracted lines from mock preview)
-          const lineCount = await reviewPage.getLineItemCount();
-          expect(lineCount).toBeGreaterThan(0);
-        } finally {
-          if (vendorId) await deleteVendorViaApi(page, vendorId);
-        }
-      },
-    );
+        // Line items should be rendered (extracted lines from mock preview)
+        const lineCount = await reviewPage.getLineItemCount();
+        expect(lineCount).toBeGreaterThan(0);
+      } finally {
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
   },
 );
 
@@ -650,104 +657,103 @@ test.describe('Scenario 6 — Open in Paperless anchor', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
-  test(
-    'Complete Paperless-first flow: picker → select doc → review → set vendor → confirm → invoice detail',
-    async ({ page, testPrefix }) => {
-      let vendorId = '';
-      const mockInvoiceId = `mock-inv-${testPrefix}-9001`;
+  test('Complete Paperless-first flow: picker → select doc → review → set vendor → confirm → invoice detail', async ({
+    page,
+    testPrefix,
+  }) => {
+    let vendorId = '';
+    const mockInvoiceId = `mock-inv-${testPrefix}-9001`;
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} PF Builder Co`);
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} PF Builder Co`);
 
-        // Fetch a real budget category ID from the server so mock preview lines pass
-        // the category-required validation in handleSave (requires budgetCategoryId OR
-        // assignedBudgetLineId on each included line — MOCK_EXTRACTED_LINES have neither).
-        // GET /api/budget-categories returns { categories: [{ id, ... }] }.
-        const catResp = await page.request.get(API.budgetCategories);
-        expect(catResp.ok(), `GET /api/budget-categories failed: ${catResp.status()}`).toBeTruthy();
-        const catBody = (await catResp.json()) as { categories: Array<{ id: string }> };
-        const firstCat = catBody.categories[0];
-        const firstCatId = firstCat?.id ?? null;
-        expect(
-          firstCatId,
-          'Expected at least one budget category to exist on the server for confirm-flow test',
-        ).not.toBeNull();
+      // Fetch a real budget category ID from the server so mock preview lines pass
+      // the category-required validation in handleSave (requires budgetCategoryId OR
+      // assignedBudgetLineId on each included line — MOCK_EXTRACTED_LINES have neither).
+      // GET /api/budget-categories returns { categories: [{ id, ... }] }.
+      const catResp = await page.request.get(API.budgetCategories);
+      expect(catResp.ok(), `GET /api/budget-categories failed: ${catResp.status()}`).toBeTruthy();
+      const catBody = (await catResp.json()) as { categories: Array<{ id: string }> };
+      const firstCat = catBody.categories[0];
+      const firstCatId = firstCat?.id ?? null;
+      expect(
+        firstCatId,
+        'Expected at least one budget category to exist on the server for confirm-flow test',
+      ).not.toBeNull();
 
-        // Build mock lines with a valid budgetCategoryId so handleSave can proceed to commit
-        const linesWithCategory = MOCK_EXTRACTED_LINES.map((l) => ({
-          ...l,
-          budgetCategoryId: firstCatId,
-        }));
+      // Build mock lines with a valid budgetCategoryId so handleSave can proceed to commit
+      const linesWithCategory = MOCK_EXTRACTED_LINES.map((l) => ({
+        ...l,
+        budgetCategoryId: firstCatId,
+      }));
 
-        await mockPaperlessConfigured(page);
-        await mockConfig(page, true);
-        await mockCorrespondents(page);
-        await mockDocuments(page);
-        await mockTags(page);
-        await mockDocumentDetail(page, MOCK_DOC_1.id);
-        await mockPreview(page, { suggestedVendorId: null, lines: linesWithCategory });
-        await mockCommit(page, { invoiceId: mockInvoiceId });
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
+      await mockDocumentDetail(page, MOCK_DOC_1.id);
+      await mockPreview(page, { suggestedVendorId: null, lines: linesWithCategory });
+      await mockCommit(page, { invoiceId: mockInvoiceId });
 
-        // Also mock the invoice detail page load for the created invoice
-        await page.route(`**/api/invoices/${mockInvoiceId}`, async (route: Route) => {
-          await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              invoice: {
-                id: mockInvoiceId,
-                invoiceNumber: 'INV-2026-001',
-                amount: 1580,
-                date: '2026-01-15',
-                dueDate: null,
-                status: 'pending',
-                notes: null,
-                vendorId,
-                vendor: { id: vendorId, name: `${testPrefix} PF Builder Co` },
-                createdAt: '2026-06-15T00:00:00.000Z',
-                updatedAt: '2026-06-15T00:00:00.000Z',
-              },
-            }),
-          });
+      // Also mock the invoice detail page load for the created invoice
+      await page.route(`**/api/invoices/${mockInvoiceId}`, async (route: Route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            invoice: {
+              id: mockInvoiceId,
+              invoiceNumber: 'INV-2026-001',
+              amount: 1580,
+              date: '2026-01-15',
+              dueDate: null,
+              status: 'pending',
+              notes: null,
+              vendorId,
+              vendor: { id: vendorId, name: `${testPrefix} PF Builder Co` },
+              createdAt: '2026-06-15T00:00:00.000Z',
+              updatedAt: '2026-06-15T00:00:00.000Z',
+            },
+          }),
         });
+      });
 
-        const invoicesPage = new InvoicesPage(page);
-        await invoicesPage.goto();
-        await invoicesPage.waitForLoaded();
+      const invoicesPage = new InvoicesPage(page);
+      await invoicesPage.goto();
+      await invoicesPage.waitForLoaded();
 
-        // Step 1: Click New Invoice → picker opens
-        await invoicesPage.clickNewInvoice();
-        const pickerModal = await invoicesPage.waitForPickerModal();
-        await expect(pickerModal.modal).toBeVisible();
+      // Step 1: Click New Invoice → picker opens
+      await invoicesPage.clickNewInvoice();
+      const pickerModal = await invoicesPage.waitForPickerModal();
+      await expect(pickerModal.modal).toBeVisible();
 
-        // Step 2: Select document → navigate to review page
-        await pickerModal.selectDocument(MOCK_DOC_1.title);
-        await page.waitForURL('**/budget/invoices/new/paperless');
+      // Step 2: Select document → navigate to review page
+      await pickerModal.selectDocument(MOCK_DOC_1.title);
+      await page.waitForURL('**/budget/invoices/new/paperless');
 
-        // Step 3: Wait for extraction complete on review page
-        const reviewPage = new PaperlessInvoiceReviewPage(page);
-        await reviewPage.waitForExtractionComplete();
+      // Step 3: Wait for extraction complete on review page
+      const reviewPage = new PaperlessInvoiceReviewPage(page);
+      await reviewPage.waitForExtractionComplete();
 
-        // Step 4: Set vendor manually (no pre-fill since suggestedVendorId=null)
-        await reviewPage.setVendor(`${testPrefix} PF Builder Co`);
+      // Step 4: Set vendor manually (no pre-fill since suggestedVendorId=null)
+      await reviewPage.setVendor(`${testPrefix} PF Builder Co`);
 
-        // Step 5: Confirm → navigate to invoice detail page
-        const commitResponsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes('/auto-itemize/commit') && resp.request().method() === 'POST',
-        );
-        await reviewPage.confirm();
-        await commitResponsePromise;
+      // Step 5: Confirm → navigate to invoice detail page
+      const commitResponsePromise = page.waitForResponse(
+        (resp) => resp.url().includes('/auto-itemize/commit') && resp.request().method() === 'POST',
+      );
+      await reviewPage.confirm();
+      await commitResponsePromise;
 
-        // Step 6: Should navigate to the created invoice detail page
-        await page.waitForURL(`**/budget/invoices/${mockInvoiceId}`);
-        // Invoice detail page heading should render
-        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-      } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      // Step 6: Should navigate to the created invoice detail page
+      await page.waitForURL(`**/budget/invoices/${mockInvoiceId}`);
+      // Invoice detail page heading should render
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -795,89 +801,91 @@ test.describe('Scenario 8 — Responsive picker on mobile viewport', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenario 9 — Hide-linked default in invoice detail LinkedDocumentsSection', () => {
-  test(
-    'On invoice detail page with linked docs, "Add Document" picker toggle is ON by default',
-    async ({ page, testPrefix }) => {
-      let vendorId = '';
-      let invoiceId = '';
+  test('On invoice detail page with linked docs, "Add Document" picker toggle is ON by default', async ({
+    page,
+    testPrefix,
+  }) => {
+    let vendorId = '';
+    let invoiceId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} PF HideLinked Vendor`);
-        const invoiceResp = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
-          data: { status: 'pending', amount: 1000, date: '2026-06-01' },
-        });
-        expect(invoiceResp.ok(), `POST invoice failed: ${invoiceResp.status()}`).toBeTruthy();
-        const invoiceBody = (await invoiceResp.json()) as { invoice: { id: string } };
-        invoiceId = invoiceBody.invoice.id;
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} PF HideLinked Vendor`);
+      const invoiceResp = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
+        data: { status: 'pending', amount: 1000, date: '2026-06-01' },
+      });
+      expect(invoiceResp.ok(), `POST invoice failed: ${invoiceResp.status()}`).toBeTruthy();
+      const invoiceBody = (await invoiceResp.json()) as { invoice: { id: string } };
+      invoiceId = invoiceBody.invoice.id;
 
-        // Mock Paperless as configured so the document browser renders
-        await mockPaperlessConfigured(page);
+      // Mock Paperless as configured so the document browser renders
+      await mockPaperlessConfigured(page);
 
-        // Mock document-links to return one pre-existing linked doc (so hide-linked has an effect)
-        await page.route(
-          (url) =>
-            url.pathname.endsWith('/api/document-links') &&
-            url.searchParams.get('entityType') === 'invoice' &&
-            url.searchParams.get('entityId') === invoiceId,
-          async (route: Route) => {
-            await route.fulfill({
-              status: 200,
-              contentType: 'application/json',
-              body: JSON.stringify({
-                documentLinks: [
-                  {
-                    id: 'dl-e2e-pf-1',
-                    entityType: 'invoice',
-                    entityId: invoiceId,
-                    paperlessDocumentId: MOCK_DOC_1.id,
-                    createdBy: null,
-                    createdAt: '2026-01-01T00:00:00.000Z',
-                    document: MOCK_DOC_1,
-                  },
-                ],
-              }),
-            });
-          },
-        );
-
-        // Mock the system-wide linked IDs endpoint
-        await page.route('**/api/document-links/linked-ids', async (route: Route) => {
+      // Mock document-links to return one pre-existing linked doc (so hide-linked has an effect)
+      await page.route(
+        (url) =>
+          url.pathname.endsWith('/api/document-links') &&
+          url.searchParams.get('entityType') === 'invoice' &&
+          url.searchParams.get('entityId') === invoiceId,
+        async (route: Route) => {
           await route.fulfill({
             status: 200,
             contentType: 'application/json',
-            body: JSON.stringify({ paperlessDocumentIds: [MOCK_DOC_1.id] }),
+            body: JSON.stringify({
+              documentLinks: [
+                {
+                  id: 'dl-e2e-pf-1',
+                  entityType: 'invoice',
+                  entityId: invoiceId,
+                  paperlessDocumentId: MOCK_DOC_1.id,
+                  createdBy: null,
+                  createdAt: '2026-01-01T00:00:00.000Z',
+                  document: MOCK_DOC_1,
+                },
+              ],
+            }),
           });
+        },
+      );
+
+      // Mock the system-wide linked IDs endpoint
+      await page.route('**/api/document-links/linked-ids', async (route: Route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ paperlessDocumentIds: [MOCK_DOC_1.id] }),
         });
+      });
 
-        // Mock the documents browser to show some documents
-        await mockDocuments(page);
-        await mockCorrespondents(page);
-        await mockTags(page);
+      // Mock the documents browser to show some documents
+      await mockDocuments(page);
+      await mockCorrespondents(page);
+      await mockTags(page);
 
-        // Navigate to the invoice detail page
-        await page.goto(`/budget/invoices/${invoiceId}`);
-        await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+      // Navigate to the invoice detail page
+      await page.goto(`/budget/invoices/${invoiceId}`);
+      await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
-        // Open the "Add Document" picker via the LinkedDocumentsSection
-        const addDocButton = page.getByRole('button', { name: /Add Document|Link Document/i }).first();
-        await addDocButton.waitFor({ state: 'visible' });
-        await addDocButton.click();
+      // Open the "Add Document" picker via the LinkedDocumentsSection
+      const addDocButton = page
+        .getByRole('button', { name: /Add Document|Link Document/i })
+        .first();
+      await addDocButton.waitFor({ state: 'visible' });
+      await addDocButton.click();
 
-        // The picker modal (DocumentBrowser) should open
-        const docPickerModal = page.getByRole('dialog', { name: /Add Document/i });
-        await docPickerModal.waitFor({ state: 'visible' });
+      // The picker modal (DocumentBrowser) should open
+      const docPickerModal = page.getByRole('dialog', { name: /Add Document/i });
+      await docPickerModal.waitFor({ state: 'visible' });
 
-        // The hide-linked toggle should be checked by default (feature default)
-        const hideLinkedToggle = docPickerModal.getByRole('checkbox', {
-          name: /Hide already-linked documents/i,
-        });
-        await expect(hideLinkedToggle).toBeChecked();
-      } finally {
-        if (invoiceId && vendorId) {
-          await page.request.delete(`${API.vendors}/${vendorId}/invoices/${invoiceId}`);
-        }
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      // The hide-linked toggle should be checked by default (feature default)
+      const hideLinkedToggle = docPickerModal.getByRole('checkbox', {
+        name: /Hide already-linked documents/i,
+      });
+      await expect(hideLinkedToggle).toBeChecked();
+    } finally {
+      if (invoiceId && vendorId) {
+        await page.request.delete(`${API.vendors}/${vendorId}/invoices/${invoiceId}`);
       }
-    },
-  );
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });

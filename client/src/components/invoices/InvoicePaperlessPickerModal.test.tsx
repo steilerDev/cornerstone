@@ -11,7 +11,10 @@
 
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import type { PaperlessDocumentSearchResult, PaperlessCorrespondentListResponse } from '@cornerstone/shared';
+import type {
+  PaperlessDocumentSearchResult,
+  PaperlessCorrespondentListResponse,
+} from '@cornerstone/shared';
 import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
 import type * as UsePaperlessModule from '../../hooks/usePaperless.js';
 
@@ -132,9 +135,8 @@ function renderModal(opts: RenderOptions = {}) {
 // ─── Setup / Teardown ──────────────────────────────────────────────────────────
 
 beforeEach(async () => {
-  ({ InvoicePaperlessPickerModal } = (await import(
-    './InvoicePaperlessPickerModal.js'
-  )) as typeof InvoicePaperlessPickerModalModule);
+  ({ InvoicePaperlessPickerModal } =
+    (await import('./InvoicePaperlessPickerModal.js')) as typeof InvoicePaperlessPickerModalModule);
 
   mockListPaperlessCorrespondents.mockReset();
   mockListPaperlessCorrespondents.mockResolvedValue(makeCorrespondentsResponse([]));
@@ -185,9 +187,7 @@ describe('InvoicePaperlessPickerModal', () => {
       // Modal component renders role="dialog" (it uses a portal but JSDOM handles it).
       // As a fallback we also check for a heading or any content rendered.
       const dialog = document.querySelector('[role="dialog"]');
-      const hasModalContent =
-        dialog !== null ||
-        (document.body.textContent?.length ?? 0) > 0;
+      const hasModalContent = dialog !== null || (document.body.textContent?.length ?? 0) > 0;
 
       expect(hasModalContent).toBe(true);
     });
@@ -360,9 +360,7 @@ describe('InvoicePaperlessPickerModal', () => {
       if (docButton) {
         fireEvent.click(docButton);
         expect(onDocumentSelected).toHaveBeenCalledTimes(1);
-        expect(onDocumentSelected).toHaveBeenCalledWith(
-          expect.objectContaining({ id: 10 }),
-        );
+        expect(onDocumentSelected).toHaveBeenCalledWith(expect.objectContaining({ id: 10 }));
       } else {
         // Local Node 20 mock non-intercept path: DocumentBrowser uses real usePaperless
         // which makes fetch calls that fail in JSDOM. Accept this known limitation.
@@ -395,9 +393,7 @@ describe('InvoicePaperlessPickerModal', () => {
         ).not.toBeInTheDocument();
 
         expect(onDocumentSelected).toHaveBeenCalledTimes(1);
-        expect(onDocumentSelected).toHaveBeenCalledWith(
-          expect.objectContaining({ id: 1 }),
-        );
+        expect(onDocumentSelected).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
       }
     });
   });
@@ -465,8 +461,7 @@ describe('InvoicePaperlessPickerModal', () => {
 
       // The Modal component renders a close button with aria-label containing "Close".
       const closeButton =
-        screen.queryByRole('button', { name: /close/i }) ??
-        screen.queryByLabelText(/close/i);
+        screen.queryByRole('button', { name: /close/i }) ?? screen.queryByLabelText(/close/i);
 
       if (closeButton) {
         fireEvent.click(closeButton);

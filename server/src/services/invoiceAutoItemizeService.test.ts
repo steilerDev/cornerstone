@@ -17,7 +17,12 @@ import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import { autoItemize, persistLines, previewAutoItemize, commitAutoItemizeCreate } from './invoiceAutoItemizeService.js';
+import {
+  autoItemize,
+  persistLines,
+  previewAutoItemize,
+  commitAutoItemizeCreate,
+} from './invoiceAutoItemizeService.js';
 import {
   NotFoundError,
   ValidationError,

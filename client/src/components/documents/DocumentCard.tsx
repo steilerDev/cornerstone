@@ -13,7 +13,13 @@ interface DocumentCardProps {
   paperlessUrl?: string | null;
 }
 
-export function DocumentCard({ document, isSelected, onSelect, ariaControls, paperlessUrl }: DocumentCardProps) {
+export function DocumentCard({
+  document,
+  isSelected,
+  onSelect,
+  ariaControls,
+  paperlessUrl,
+}: DocumentCardProps) {
   const { t } = useTranslation('documents');
   const thumbUrl = getDocumentThumbnailUrl(document.id);
 
@@ -71,10 +77,18 @@ export function DocumentCard({ document, isSelected, onSelect, ariaControls, pap
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="16" height="16" aria-hidden="true">
-              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-              <polyline points="15 3 21 3 21 9"/>
-              <line x1="10" y1="14" x2="21" y2="3"/>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              width="16"
+              height="16"
+              aria-hidden="true"
+            >
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
             </svg>
           </a>
         )}

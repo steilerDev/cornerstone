@@ -90,7 +90,9 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 let mockPickerStateOverride: Record<string, unknown> = {};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockShowCreateBudgetLineForm = jest.fn<(...args: any[]) => Promise<void>>().mockResolvedValue(undefined);
+const mockShowCreateBudgetLineForm = jest
+  .fn<(...args: any[]) => Promise<void>>()
+  .mockResolvedValue(undefined);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type OnLineCreatedFn = (...args: any[]) => void;
 let capturedOnLineCreated: OnLineCreatedFn | null = null;
@@ -132,9 +134,7 @@ jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
 jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   BudgetLineForm: (props: any) => (
-    <div data-testid="budget-line-form">
-      {props.form?.description ?? ''}
-    </div>
+    <div data-testid="budget-line-form">{props.form?.description ?? ''}</div>
   ),
 }));
 
@@ -152,10 +152,13 @@ jest.unstable_mockModule('../../components/ParentPicker/ParentPicker.js', () => 
 // Render displayValue so tests can assert the suggested vendor name is shown.
 
 jest.unstable_mockModule('../../components/SuggestionBadge/SuggestionBadge.js', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  SuggestionBadge: ({ displayValue, suggestedValue }: { displayValue?: string; suggestedValue: string }) => (
-    <span data-testid="suggestion-badge">{displayValue ?? suggestedValue}</span>
-  ),
+  SuggestionBadge: ({
+    displayValue,
+    suggestedValue,
+  }: {
+    displayValue?: string;
+    suggestedValue: string;
+  }) => <span data-testid="suggestion-badge">{displayValue ?? suggestedValue}</span>,
 }));
 
 // ─── Mock: formatters ─────────────────────────────────────────────────────────
@@ -239,8 +242,26 @@ let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
 // module-level mocks intercept first.
 
 const FALLBACK_EMPTY_LIST = JSON.stringify({ results: [], count: 0 });
-const FALLBACK_VENDORS = JSON.stringify({ vendors: [], pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 } });
-const FALLBACK_DOC = JSON.stringify({ document: { id: 42, title: 'Stub', content: '', tags: [], created: '2026-01-01', added: '2026-01-01', modified: '2026-01-01', correspondent: null, documentType: null, archiveSerialNumber: null, originalFileName: 'stub.pdf', pageCount: 1 } });
+const FALLBACK_VENDORS = JSON.stringify({
+  vendors: [],
+  pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+});
+const FALLBACK_DOC = JSON.stringify({
+  document: {
+    id: 42,
+    title: 'Stub',
+    content: '',
+    tags: [],
+    created: '2026-01-01',
+    added: '2026-01-01',
+    modified: '2026-01-01',
+    correspondent: null,
+    documentType: null,
+    archiveSerialNumber: null,
+    originalFileName: 'stub.pdf',
+    pageCount: 1,
+  },
+});
 const FALLBACK_PREVIEW = JSON.stringify({ lines: [], suggestedVendorId: null });
 const FALLBACK_CATEGORIES = JSON.stringify([]);
 const FALLBACK_SOURCES = JSON.stringify([]);
@@ -250,12 +271,16 @@ function makeFetchStub(overrides: Record<string, string> = {}) {
   return jest.fn().mockImplementation((url: any) => {
     let body = FALLBACK_EMPTY_LIST;
     if (url.includes('/api/vendors')) body = overrides['/api/vendors'] ?? FALLBACK_VENDORS;
-    else if (url.includes('/api/invoices/auto-itemize/preview')) body = overrides['preview'] ?? FALLBACK_PREVIEW;
+    else if (url.includes('/api/invoices/auto-itemize/preview'))
+      body = overrides['preview'] ?? FALLBACK_PREVIEW;
     else if (url.includes('/api/invoices/auto-itemize/commit')) body = overrides['commit'] ?? '{}';
-    else if (url.includes('/api/paperless/documents/')) body = overrides['document'] ?? FALLBACK_DOC;
-    else if (url.includes('/api/budget-categories')) body = overrides['categories'] ?? FALLBACK_CATEGORIES;
+    else if (url.includes('/api/paperless/documents/'))
+      body = overrides['document'] ?? FALLBACK_DOC;
+    else if (url.includes('/api/budget-categories'))
+      body = overrides['categories'] ?? FALLBACK_CATEGORIES;
     else if (url.includes('/api/budget-sources')) body = overrides['sources'] ?? FALLBACK_SOURCES;
-    else if (url.includes('/api/config')) body = JSON.stringify({ currency: 'EUR', paperlessEnabled: true, autoItemizeEnabled: true });
+    else if (url.includes('/api/config'))
+      body = JSON.stringify({ currency: 'EUR', paperlessEnabled: true, autoItemizeEnabled: true });
     else if (url.includes('/api/preferences')) body = JSON.stringify([]);
     return Promise.resolve({
       ok: true,
@@ -268,9 +293,8 @@ function makeFetchStub(overrides: Record<string, string> = {}) {
 }
 
 beforeEach(async () => {
-  ({ PaperlessInvoiceReviewPage } = (await import(
-    './PaperlessInvoiceReviewPage.js'
-  )) as typeof PaperlessInvoiceReviewPageModule);
+  ({ PaperlessInvoiceReviewPage } =
+    (await import('./PaperlessInvoiceReviewPage.js')) as typeof PaperlessInvoiceReviewPageModule);
 
   ({ LocaleProvider } =
     (await import('../../contexts/LocaleContext.js')) as typeof LocaleContextModule);
@@ -282,7 +306,10 @@ beforeEach(async () => {
   mockFetchVendors.mockReset();
   // Provide a safe default so the vendor-fetch effect (which runs regardless of documentId)
   // never receives undefined from the mock. Individual tests override this as needed.
-  mockFetchVendors.mockResolvedValue({ vendors: [], pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 } });
+  mockFetchVendors.mockResolvedValue({
+    vendors: [],
+    pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+  });
 
   // Reset picker mock overrides between tests
   mockPickerStateOverride = {};
@@ -341,9 +368,7 @@ function makePreviewResponse(
   };
 }
 
-function makeVendorsResponse(
-  vendors: Array<{ id: string; name: string }> = [],
-) {
+function makeVendorsResponse(vendors: Array<{ id: string; name: string }> = []) {
   return {
     vendors: vendors.map((v) => ({
       ...v,
@@ -437,7 +462,9 @@ describe('PaperlessInvoiceReviewPage', () => {
     it('shows a spinner / analyzing caption on mount before APIs resolve', async () => {
       // Never resolve — stays in loading state (fetch stub also never resolves)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      globalThis.fetch = jest.fn().mockReturnValue(new Promise<any>(() => {})) as unknown as typeof fetch;
+      globalThis.fetch = jest
+        .fn()
+        .mockReturnValue(new Promise<any>(() => {})) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockReturnValue(new Promise(() => {}));
       mockPreviewAutoItemize.mockReturnValue(new Promise(() => {}));
@@ -468,7 +495,9 @@ describe('PaperlessInvoiceReviewPage', () => {
       // Keep preview pending so we stay in loading state and can inspect calls
       let resolvePreview!: (v: AutoItemizePreviewResponse) => void;
       mockPreviewAutoItemize.mockReturnValue(
-        new Promise<AutoItemizePreviewResponse>((res) => { resolvePreview = res; }),
+        new Promise<AutoItemizePreviewResponse>((res) => {
+          resolvePreview = res;
+        }),
       );
 
       renderPage();
@@ -495,7 +524,9 @@ describe('PaperlessInvoiceReviewPage', () => {
       // Override fetch stub to never resolve — keeps the page in loading state
       // regardless of whether module mocks are intercepted or not.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      globalThis.fetch = jest.fn().mockReturnValue(new Promise<any>(() => {})) as unknown as typeof fetch;
+      globalThis.fetch = jest
+        .fn()
+        .mockReturnValue(new Promise<any>(() => {})) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockReturnValue(new Promise(() => {}));
       mockPreviewAutoItemize.mockReturnValue(new Promise(() => {}));
@@ -514,12 +545,8 @@ describe('PaperlessInvoiceReviewPage', () => {
       });
 
       // The "Create Invoice & Itemize" (createAndItemize) button must not be visible yet
-      expect(
-        screen.queryByRole('button', { name: /Create Invoice/i }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /createAndItemize/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Create Invoice/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /createAndItemize/i })).not.toBeInTheDocument();
     });
   });
 
@@ -536,15 +563,20 @@ describe('PaperlessInvoiceReviewPage', () => {
       // The loading state also renders a disabled Cancel button, so we must wait until
       // the page is no longer in loading state. Spinner has aria-label="Loading";
       // confidence dots also have role="img" but different aria-label, so we target specifically.
-      await waitFor(() => {
-        const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
-        const hasSpinner = document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0;
-        const inLoadingState = screen.queryAllByText(/Analyzing/i).length > 0 ||
-          screen.queryAllByText(/Extracting/i).length > 0 ||
-          screen.queryAllByText(/extractionStarted/i).length > 0;
-        expect(cancelBtn).toBeInTheDocument();
-        expect(hasSpinner || inLoadingState).toBe(false);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
+          const hasSpinner =
+            document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0;
+          const inLoadingState =
+            screen.queryAllByText(/Analyzing/i).length > 0 ||
+            screen.queryAllByText(/Extracting/i).length > 0 ||
+            screen.queryAllByText(/extractionStarted/i).length > 0;
+          expect(cancelBtn).toBeInTheDocument();
+          expect(hasSpinner || inLoadingState).toBe(false);
+        },
+        { timeout: 5000 },
+      );
 
       // The create button must be present (disabled when vendorId is empty)
       const createBtn =
@@ -584,8 +616,36 @@ describe('PaperlessInvoiceReviewPage', () => {
     it('shows SuggestionBadge when suggestedVendorId is pre-filled', async () => {
       // Override fetch stub to return the suggested vendor in preview response
       globalThis.fetch = makeFetchStub({
-        preview: JSON.stringify({ lines: [{ description: 'Tile work', totalAmount: 300, confidence: 0.9, budgetCategoryId: 'bc-test', budgetSourceId: null }], suggestedVendorId: 'vendor-1' }),
-        '/api/vendors': JSON.stringify({ vendors: [{ id: 'vendor-1', name: 'Builder Corp', tradeId: null, notes: null, websiteUrl: null, contactEmail: null, contactPhone: null, trade: null, createdBy: null, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }], pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 } }),
+        preview: JSON.stringify({
+          lines: [
+            {
+              description: 'Tile work',
+              totalAmount: 300,
+              confidence: 0.9,
+              budgetCategoryId: 'bc-test',
+              budgetSourceId: null,
+            },
+          ],
+          suggestedVendorId: 'vendor-1',
+        }),
+        '/api/vendors': JSON.stringify({
+          vendors: [
+            {
+              id: 'vendor-1',
+              name: 'Builder Corp',
+              tradeId: null,
+              notes: null,
+              websiteUrl: null,
+              contactEmail: null,
+              contactPhone: null,
+              trade: null,
+              createdBy: null,
+              createdAt: '2026-01-01T00:00:00Z',
+              updatedAt: '2026-01-01T00:00:00Z',
+            },
+          ],
+          pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+        }),
       }) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
@@ -618,8 +678,20 @@ describe('PaperlessInvoiceReviewPage', () => {
     it('renders the extracted line items list when ready', async () => {
       // Override fetch stub to return lines in the preview response
       const previewLines = [
-        { description: 'Tile work', totalAmount: 300, confidence: 0.9, budgetCategoryId: 'bc-test', budgetSourceId: null },
-        { description: 'Grouting', totalAmount: 100, confidence: 0.7, budgetCategoryId: 'bc-test', budgetSourceId: null },
+        {
+          description: 'Tile work',
+          totalAmount: 300,
+          confidence: 0.9,
+          budgetCategoryId: 'bc-test',
+          budgetSourceId: null,
+        },
+        {
+          description: 'Grouting',
+          totalAmount: 100,
+          confidence: 0.7,
+          budgetCategoryId: 'bc-test',
+          budgetSourceId: null,
+        },
       ];
       globalThis.fetch = makeFetchStub({
         preview: JSON.stringify({ lines: previewLines, suggestedVendorId: null }),
@@ -662,9 +734,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       }) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockPreviewAutoItemize.mockResolvedValue(
-        makePreviewResponse({ lines: previewLines }),
-      );
+      mockPreviewAutoItemize.mockResolvedValue(makePreviewResponse({ lines: previewLines }));
       mockFetchVendors.mockResolvedValue(makeVendorsResponse([]));
 
       renderPage();
@@ -767,7 +837,10 @@ describe('PaperlessInvoiceReviewPage', () => {
         // Guarded: CI (mock intercepted) asserts the call; local (not intercepted) skips
         if (mockCommitAutoItemizeCreate.mock.calls.length > 0) {
           expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1);
-          const callArg = mockCommitAutoItemizeCreate.mock.calls[0]![0] as unknown as Record<string, unknown>;
+          const callArg = mockCommitAutoItemizeCreate.mock.calls[0]![0] as unknown as Record<
+            string,
+            unknown
+          >;
           expect(callArg).toHaveProperty('vendorId', 'vendor-1');
           expect(callArg).toHaveProperty('paperlessDocumentId', 42);
           expect(callArg).toHaveProperty('lines');
@@ -880,13 +953,17 @@ describe('PaperlessInvoiceReviewPage', () => {
       // In CI (mocks intercepted): all mocks are synchronous, no race.
       // In local (mocks not intercepted): we wait until the page has been in ready state
       // consistently (no spinner, no "Analyzing" text) for a stable assertion window.
-      await waitFor(() => {
-        const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
-        const hasSpinner = document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0;
-        const inLoadingState = screen.queryAllByText(/Analyzing/i).length > 0;
-        expect(cancelBtn).toBeInTheDocument();
-        expect(hasSpinner || inLoadingState).toBe(false);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
+          const hasSpinner =
+            document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0;
+          const inLoadingState = screen.queryAllByText(/Analyzing/i).length > 0;
+          expect(cancelBtn).toBeInTheDocument();
+          expect(hasSpinner || inLoadingState).toBe(false);
+        },
+        { timeout: 5000 },
+      );
 
       // Use act() to flush navigation effects from the click
       await act(async () => {
@@ -906,13 +983,17 @@ describe('PaperlessInvoiceReviewPage', () => {
       renderPage();
 
       // Same stable-state wait as the navigation test above
-      await waitFor(() => {
-        const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
-        const hasSpinner = document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0;
-        const inLoadingState = screen.queryAllByText(/Analyzing/i).length > 0;
-        expect(cancelBtn).toBeInTheDocument();
-        expect(hasSpinner || inLoadingState).toBe(false);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
+          const hasSpinner =
+            document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0;
+          const inLoadingState = screen.queryAllByText(/Analyzing/i).length > 0;
+          expect(cancelBtn).toBeInTheDocument();
+          expect(hasSpinner || inLoadingState).toBe(false);
+        },
+        { timeout: 5000 },
+      );
 
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
@@ -940,42 +1021,49 @@ describe('PaperlessInvoiceReviewPage', () => {
       }) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockPreviewAutoItemize.mockResolvedValue(
-        makePreviewResponse({ lines: previewLines }),
-      );
+      mockPreviewAutoItemize.mockResolvedValue(makePreviewResponse({ lines: previewLines }));
       mockFetchVendors.mockResolvedValue(makeVendorsResponse([]));
 
       renderPage();
 
       // Wait explicitly for at least one checkbox to appear (more precise than just cancel button)
       // This avoids a race where the page is in "ready" state but lines haven't rendered yet.
-      await waitFor(() => {
-        const checkboxes = screen.queryAllByRole('checkbox');
-        expect(checkboxes.length).toBeGreaterThanOrEqual(1);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          const checkboxes = screen.queryAllByRole('checkbox');
+          expect(checkboxes.length).toBeGreaterThanOrEqual(1);
+        },
+        { timeout: 5000 },
+      );
     });
 
     it('toggling an include checkbox changes the checked state', async () => {
       const previewLines = [
-        { description: 'Tile work', totalAmount: 300, confidence: 0.9, budgetCategoryId: 'bc-test' },
+        {
+          description: 'Tile work',
+          totalAmount: 300,
+          confidence: 0.9,
+          budgetCategoryId: 'bc-test',
+        },
       ];
       globalThis.fetch = makeFetchStub({
         preview: JSON.stringify({ lines: previewLines, suggestedVendorId: null }),
       }) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
-      mockPreviewAutoItemize.mockResolvedValue(
-        makePreviewResponse({ lines: previewLines }),
-      );
+      mockPreviewAutoItemize.mockResolvedValue(makePreviewResponse({ lines: previewLines }));
       mockFetchVendors.mockResolvedValue(makeVendorsResponse([]));
 
       renderPage();
 
       // Wait for at least one checkbox to appear (line card rendered)
-      await waitFor(() => {
-        const checkboxes = screen.queryAllByRole('checkbox');
-        expect(checkboxes.length).toBeGreaterThanOrEqual(1);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          const checkboxes = screen.queryAllByRole('checkbox');
+          expect(checkboxes.length).toBeGreaterThanOrEqual(1);
+        },
+        { timeout: 5000 },
+      );
 
       // Find the "Include" checkbox (first checkbox in the line card)
       const checkboxes = screen.queryAllByRole('checkbox');
@@ -998,7 +1086,12 @@ describe('PaperlessInvoiceReviewPage', () => {
   describe('assign button — opens picker modal', () => {
     it('clicking the Assign… button does not crash and keeps the page mounted', async () => {
       const previewLines = [
-        { description: 'Tile work', totalAmount: 300, confidence: 0.9, budgetCategoryId: 'bc-test' },
+        {
+          description: 'Tile work',
+          totalAmount: 300,
+          confidence: 0.9,
+          budgetCategoryId: 'bc-test',
+        },
       ];
       globalThis.fetch = makeFetchStub({
         preview: JSON.stringify({ lines: previewLines, suggestedVendorId: null }),
@@ -1143,9 +1236,10 @@ describe('PaperlessInvoiceReviewPage', () => {
         });
       }
 
-      const createLineBtn = screen.queryByText(/Create Budget Line/i) !== null
-        ? screen.queryByText(/Create Budget Line/i)
-        : screen.queryByRole('button', { name: /create.*line/i });
+      const createLineBtn =
+        screen.queryByText(/Create Budget Line/i) !== null
+          ? screen.queryByText(/Create Budget Line/i)
+          : screen.queryByRole('button', { name: /create.*line/i });
 
       if (createLineBtn) {
         await act(async () => {
@@ -1170,8 +1264,10 @@ describe('PaperlessInvoiceReviewPage', () => {
           return Promise.resolve({
             ok: false,
             status: 500,
-            json: () => Promise.resolve({ error: { code: 'LLM_UNREACHABLE', message: 'LLM unreachable' } }),
-            text: () => Promise.resolve('{"error":{"code":"LLM_UNREACHABLE","message":"LLM unreachable"}}'),
+            json: () =>
+              Promise.resolve({ error: { code: 'LLM_UNREACHABLE', message: 'LLM unreachable' } }),
+            text: () =>
+              Promise.resolve('{"error":{"code":"LLM_UNREACHABLE","message":"LLM unreachable"}}'),
             headers: new Headers({ 'content-type': 'application/json' }),
           } as Response);
         }
@@ -1194,12 +1290,17 @@ describe('PaperlessInvoiceReviewPage', () => {
       // When mocks not intercepted: the fetch stub for the document endpoint returns a 404
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       globalThis.fetch = jest.fn().mockImplementation((url: any) => {
-        if (String(url).includes('/api/paperless/documents/') || (url as string).includes('/paperless/')) {
+        if (
+          String(url).includes('/api/paperless/documents/') ||
+          (url as string).includes('/paperless/')
+        ) {
           return Promise.resolve({
             ok: false,
             status: 404,
-            json: () => Promise.resolve({ error: { code: 'NOT_FOUND', message: 'Document not found' } }),
-            text: () => Promise.resolve('{"error":{"code":"NOT_FOUND","message":"Document not found"}}'),
+            json: () =>
+              Promise.resolve({ error: { code: 'NOT_FOUND', message: 'Document not found' } }),
+            text: () =>
+              Promise.resolve('{"error":{"code":"NOT_FOUND","message":"Document not found"}}'),
             headers: new Headers({ 'content-type': 'application/json' }),
           } as Response);
         }
@@ -1257,8 +1358,14 @@ describe('PaperlessInvoiceReviewPage', () => {
           return Promise.resolve({
             ok: false,
             status: 500,
-            json: () => Promise.resolve({ error: { code: 'LLM_NOT_CONFIGURED', message: 'LLM not configured' } }),
-            text: () => Promise.resolve('{"error":{"code":"LLM_NOT_CONFIGURED","message":"LLM not configured"}}'),
+            json: () =>
+              Promise.resolve({
+                error: { code: 'LLM_NOT_CONFIGURED', message: 'LLM not configured' },
+              }),
+            text: () =>
+              Promise.resolve(
+                '{"error":{"code":"LLM_NOT_CONFIGURED","message":"LLM not configured"}}',
+              ),
             headers: new Headers({ 'content-type': 'application/json' }),
           } as Response);
         }
@@ -1318,9 +1425,7 @@ describe('PaperlessInvoiceReviewPage', () => {
 
       // The loading spinner should NOT be present (no async fetch started)
       // and no create invoice button should render
-      expect(
-        screen.queryByRole('button', { name: /Create Invoice/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Create Invoice/i })).not.toBeInTheDocument();
     });
 
     it('does not call previewAutoItemize when no documentId', async () => {
@@ -1371,9 +1476,9 @@ describe('PaperlessInvoiceReviewPage', () => {
       // When mock intercepted (CI): capturedOnLineCreated is set
       // When not intercepted (local): capturedOnLineCreated remains null
       // Accept either — this just verifies no crash on mount
-      expect(
-        capturedOnLineCreated === null || typeof capturedOnLineCreated === 'function',
-      ).toBe(true);
+      expect(capturedOnLineCreated === null || typeof capturedOnLineCreated === 'function').toBe(
+        true,
+      );
     });
   });
 });

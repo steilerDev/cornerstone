@@ -283,71 +283,71 @@ test.describe('Scenario 10 — Manual escape from picker', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenario 11 — Not-configured fallback to manual modal', () => {
-  test(
-    'With Paperless not configured, New Invoice opens manual modal directly (picker never shown)',
-    async ({ page, testPrefix }) => {
-      let vendorId = '';
+  test('With Paperless not configured, New Invoice opens manual modal directly (picker never shown)', async ({
+    page,
+    testPrefix,
+  }) => {
+    let vendorId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} PF NoCfg Vendor`);
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} PF NoCfg Vendor`);
 
-        // Paperless not configured
-        await mockPaperlessNotConfigured(page);
-        await mockConfig(page, true);
+      // Paperless not configured
+      await mockPaperlessNotConfigured(page);
+      await mockConfig(page, true);
 
-        const invoicesPage = new InvoicesPage(page);
-        await invoicesPage.goto();
-        await invoicesPage.waitForLoaded();
+      const invoicesPage = new InvoicesPage(page);
+      await invoicesPage.goto();
+      await invoicesPage.waitForLoaded();
 
-        await invoicesPage.clickNewInvoice();
+      await invoicesPage.clickNewInvoice();
 
-        // Manual modal should open directly (no picker modal)
-        const manualModal = await invoicesPage.waitForManualModal();
-        await expect(manualModal).toBeVisible();
+      // Manual modal should open directly (no picker modal)
+      const manualModal = await invoicesPage.waitForManualModal();
+      await expect(manualModal).toBeVisible();
 
-        // Picker modal should NOT be visible
-        const pickerDialogLocator = page.getByRole('dialog', { name: /Select Invoice Document/i });
-        await expect(pickerDialogLocator).not.toBeVisible();
+      // Picker modal should NOT be visible
+      const pickerDialogLocator = page.getByRole('dialog', { name: /Select Invoice Document/i });
+      await expect(pickerDialogLocator).not.toBeVisible();
 
-        await invoicesPage.createCancelButton.click();
-      } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      await invoicesPage.createCancelButton.click();
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 
-  test(
-    'With autoItemizeEnabled=false, New Invoice opens manual modal directly',
-    async ({ page, testPrefix }) => {
-      let vendorId = '';
+  test('With autoItemizeEnabled=false, New Invoice opens manual modal directly', async ({
+    page,
+    testPrefix,
+  }) => {
+    let vendorId = '';
 
-      try {
-        vendorId = await createVendorViaApi(page, `${testPrefix} PF AiDisabled Vendor`);
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} PF AiDisabled Vendor`);
 
-        // Paperless configured but autoItemize disabled
-        await mockPaperlessConfigured(page);
-        await mockConfig(page, false);
+      // Paperless configured but autoItemize disabled
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, false);
 
-        const invoicesPage = new InvoicesPage(page);
-        await invoicesPage.goto();
-        await invoicesPage.waitForLoaded();
+      const invoicesPage = new InvoicesPage(page);
+      await invoicesPage.goto();
+      await invoicesPage.waitForLoaded();
 
-        await invoicesPage.clickNewInvoice();
+      await invoicesPage.clickNewInvoice();
 
-        // Manual modal should open directly
-        const manualModal = await invoicesPage.waitForManualModal();
-        await expect(manualModal).toBeVisible();
+      // Manual modal should open directly
+      const manualModal = await invoicesPage.waitForManualModal();
+      await expect(manualModal).toBeVisible();
 
-        // Picker modal should NOT be visible
-        const pickerDialogLocator = page.getByRole('dialog', { name: /Select Invoice Document/i });
-        await expect(pickerDialogLocator).not.toBeVisible();
+      // Picker modal should NOT be visible
+      const pickerDialogLocator = page.getByRole('dialog', { name: /Select Invoice Document/i });
+      await expect(pickerDialogLocator).not.toBeVisible();
 
-        await invoicesPage.createCancelButton.click();
-      } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
-      }
-    },
-  );
+      await invoicesPage.createCancelButton.click();
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -417,10 +417,7 @@ export function persistLines(
             eq(invoiceBudgetLines.invoiceId, invoiceId),
             extractedLine.assignedBudgetLineType === 'work_item'
               ? eq(invoiceBudgetLines.workItemBudgetId, extractedLine.assignedBudgetLineId)
-              : eq(
-                  invoiceBudgetLines.householdItemBudgetId,
-                  extractedLine.assignedBudgetLineId,
-                ),
+              : eq(invoiceBudgetLines.householdItemBudgetId, extractedLine.assignedBudgetLineId),
           ),
         )
         .get();
@@ -580,9 +577,7 @@ async function runExtractionCore(
     ...(result.dueDate !== undefined ? { extractedDueDate: result.dueDate } : {}),
     ...(result.invoiceNumber !== undefined ? { extractedInvoiceNumber: result.invoiceNumber } : {}),
     ...(result.notes !== undefined ? { extractedNotes: result.notes } : {}),
-    ...(result.chosenVendorName !== undefined
-      ? { chosenVendorName: result.chosenVendorName }
-      : {}),
+    ...(result.chosenVendorName !== undefined ? { chosenVendorName: result.chosenVendorName } : {}),
   };
 }
 
@@ -607,10 +602,7 @@ export async function previewAutoItemize(
   paperlessAuth: { url: string; apiToken: string },
 ) {
   // Load all vendors for injection into LLM prompt
-  const allVendors = db
-    .select({ id: vendors.id, name: vendors.name })
-    .from(vendors)
-    .all();
+  const allVendors = db.select({ id: vendors.id, name: vendors.name }).from(vendors).all();
 
   // Build base hints with vendor list
   const hints: ExtractionHints = {
@@ -622,7 +614,13 @@ export async function previewAutoItemize(
   };
 
   // Run extraction core
-  const result = await runExtractionCore(db, config, paperlessAuth, body.paperlessDocumentId, hints);
+  const result = await runExtractionCore(
+    db,
+    config,
+    paperlessAuth,
+    body.paperlessDocumentId,
+    hints,
+  );
 
   // Resolve chosenVendorName to vendor ID (case-insensitive exact match)
   let suggestedVendorId: string | null = null;

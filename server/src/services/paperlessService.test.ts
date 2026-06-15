@@ -785,7 +785,13 @@ describe('listTags()', () => {
 describe('listCorrespondents()', () => {
   it('makes a single fetch to /api/correspondents/?page_size=1000', async () => {
     mockFetch.mockResolvedValueOnce(
-      mockJsonResponse({ count: 2, results: [{ id: 5, name: 'Smith GmbH' }, { id: 2, name: 'Acme Corp' }] }),
+      mockJsonResponse({
+        count: 2,
+        results: [
+          { id: 5, name: 'Smith GmbH' },
+          { id: 2, name: 'Acme Corp' },
+        ],
+      }),
     );
 
     await paperlessService.listCorrespondents(BASE_URL, TOKEN);

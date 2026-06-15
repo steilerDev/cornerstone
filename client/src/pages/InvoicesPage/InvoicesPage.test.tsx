@@ -108,27 +108,28 @@ jest.unstable_mockModule('../../lib/configApi.js', () => ({
 
 // ── Story #1679: InvoicePaperlessPickerModal mock ─────────────────────────────
 
-jest.unstable_mockModule(
-  '../../components/invoices/InvoicePaperlessPickerModal.js',
-  () => ({
-    InvoicePaperlessPickerModal: ({
-      onDocumentSelected,
-      onManualEntry,
-      onClose,
-    }: {
-      onDocumentSelected: (doc: { id: number; title: string }) => void;
-      onManualEntry: () => void;
-      onClose: () => void;
-    }) =>
+jest.unstable_mockModule('../../components/invoices/InvoicePaperlessPickerModal.js', () => ({
+  InvoicePaperlessPickerModal: ({
+    onDocumentSelected,
+    onManualEntry,
+    onClose,
+  }: {
+    onDocumentSelected: (doc: { id: number; title: string }) => void;
+    onManualEntry: () => void;
+    onClose: () => void;
+  }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'paperless-picker-modal' },
       React.createElement(
-        'div',
-        { 'data-testid': 'paperless-picker-modal' },
-        React.createElement('button', { onClick: () => onDocumentSelected({ id: 1, title: 'Doc' }) }, 'Select Document'),
-        React.createElement('button', { onClick: onManualEntry }, 'Manual Entry'),
-        React.createElement('button', { onClick: onClose }, 'Close Modal'),
+        'button',
+        { onClick: () => onDocumentSelected({ id: 1, title: 'Doc' }) },
+        'Select Document',
       ),
-  }),
-);
+      React.createElement('button', { onClick: onManualEntry }, 'Manual Entry'),
+      React.createElement('button', { onClick: onClose }, 'Close Modal'),
+    ),
+}));
 
 // React must be imported for JSX in the mock factory above
 import React from 'react';

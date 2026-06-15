@@ -165,10 +165,7 @@ export function InvoicesPage() {
 
     async function loadIntegrationStatus() {
       try {
-        const [paperlessStatus, config] = await Promise.all([
-          getPaperlessStatus(),
-          fetchConfig(),
-        ]);
+        const [paperlessStatus, config] = await Promise.all([getPaperlessStatus(), fetchConfig()]);
         if (!cancelled) {
           setIntegrationStatus({
             paperless: paperlessStatus,
@@ -267,7 +264,9 @@ export function InvoicesPage() {
 
   const handlePaperlessDocumentSelected = (doc: PaperlessDocumentSearchResult) => {
     setShowPaperlessPickerModal(false);
-    navigate('/budget/invoices/new/paperless', { state: { documentId: doc.id, documentTitle: doc.title } });
+    navigate('/budget/invoices/new/paperless', {
+      state: { documentId: doc.id, documentTitle: doc.title },
+    });
   };
 
   const handlePaperlessManualEntry = () => {
@@ -571,9 +570,8 @@ export function InvoicesPage() {
             gap: '0.5rem',
           }}
         >
-          {(integrationStatus.paperless === null || integrationStatus.autoItemizeEnabled === null) && (
-            <Spinner size="sm" />
-          )}
+          {(integrationStatus.paperless === null ||
+            integrationStatus.autoItemizeEnabled === null) && <Spinner size="sm" />}
           {t('invoices.addInvoice')}
         </button>
       }

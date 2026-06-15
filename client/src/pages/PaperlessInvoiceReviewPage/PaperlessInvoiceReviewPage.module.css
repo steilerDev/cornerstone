@@ -123,15 +123,15 @@
   cursor: default;
 }
 
-.confidenceDot[data-confidence="high"] {
+.confidenceDot[data-confidence='high'] {
   background-color: var(--color-success);
 }
 
-.confidenceDot[data-confidence="medium"] {
+.confidenceDot[data-confidence='medium'] {
   background-color: var(--color-warning);
 }
 
-.confidenceDot[data-confidence="low"] {
+.confidenceDot[data-confidence='low'] {
   background-color: var(--color-danger);
 }
 

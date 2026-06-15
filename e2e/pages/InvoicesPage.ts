@@ -181,13 +181,10 @@ export class InvoicesPage {
   async clickNewInvoice(): Promise<void> {
     // Wait for the button to become enabled (config+status fetch resolves)
     await this.newInvoiceButton.waitFor({ state: 'visible' });
-    await this.page.waitForFunction(
-      (btnTestId) => {
-        const el = document.querySelector(`[data-testid="${btnTestId}"]`) as HTMLButtonElement | null;
-        return el && !el.disabled && el.getAttribute('aria-disabled') !== 'true';
-      },
-      'new-invoice-button',
-    );
+    await this.page.waitForFunction((btnTestId) => {
+      const el = document.querySelector(`[data-testid="${btnTestId}"]`) as HTMLButtonElement | null;
+      return el && !el.disabled && el.getAttribute('aria-disabled') !== 'true';
+    }, 'new-invoice-button');
     await this.newInvoiceButton.click();
   }
 

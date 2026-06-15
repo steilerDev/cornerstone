@@ -60,6 +60,7 @@
 - Fix in 59099a40 added `test.slow()` + `waitForURL timeout: 30_000` + `toBeVisible timeout: 15_000`. Still not enough.
 - Error: `expect(editPage.heading).toBeVisible({ timeout: 15_000 })` fails — "Edit Diary Entry" h1 not found after navigation to /diary/:id/edit. The SPA router completes but the API response for `getDiaryEntry()` exceeds 15s under heavy CI load.
 - This failure is PRE-EXISTING on beta (not introduced by any current PR). Safe to merge over.
+
 ## Paperless Mock: MUST include /api/paperless/tags (2026-06-15)
 
 - `usePaperless` Phase 2 calls `listPaperlessTags()` in a `Promise.all()` alongside `listPaperlessDocuments()`. If `/api/paperless/tags` is NOT mocked, the `Promise.all` rejects → `usePaperless` enters error state → `DocumentBrowser` renders `role="alert"` div instead of `#document-grid` → `waitForDocumentsLoaded()` times out.
