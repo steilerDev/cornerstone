@@ -1,7 +1,15 @@
 # E2E Test Engineer — Agent Memory (Index)
 
 > Detailed notes live in topic files. This index links to them.
-> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
+> See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`, `searchpicker-mobile-1708.md`
+
+## SearchPicker mobile anchor regression (Issue #1708, 2026-06-16) — `e2e/tests/responsive/search-picker-mobile.spec.ts`
+
+- Scenario 1 (@responsive, mobile-only MOBILE_MAX_WIDTH=499): focuses AreaPicker on WorkItemCreate, asserts `[data-search-picker-dropdown]` visible, `Math.abs(dropdownBox.y - inputBottom) < 20`.
+- Scenario 2: `test.skip(true)` — no lightweight modal+picker E2E fixture; covered by SearchPicker.test.tsx unit test.
+- AreaPicker uses `showItemsOnFocus={true}` → dropdown opens on `.click()` with no typing needed.
+- Dropdown closes after `.click()` on an option — asserted via `not.toBeVisible()`.
+- See `searchpicker-mobile-1708.md` for full context.
 
 ## OrientationsTab E2E coverage (fix #1687, 2026-06-15) — `e2e/tests/orientations.spec.ts`, `e2e/pages/OrientationsPage.ts`
 
