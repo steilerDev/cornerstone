@@ -88,17 +88,23 @@ test.describe('SearchPicker mobile anchor regression (Scenario 1)', { tag: '@res
         expect(dropdownBox).not.toBeNull();
 
         // Core regression assertion (Issue #1708):
-        // The dropdown's top edge should be within ~20px of the input's bottom
-        // edge.  Floating UI places the dropdown offset(4) below the reference
-        // input; flip() activates when there is insufficient space below — in
-        // both cases the dropdown is adjacent to the input (within 20px
-        // tolerance).  A tolerance of 20px accommodates the 4px offset,
-        // sub-pixel rounding, and the flip-above path.
+        // Floating UI places the dropdown offset(4) below the input by default.
+        // When there is more space above the input than below (common on mobile
+        // with the on-screen keyboard), flip() activates and places the dropdown
+        // ABOVE the input instead.  We must handle both placements:
         //
-        // Note: we use Math.abs so the assertion holds for both "below" and
-        // "above" (flipped) positioning.
+        //   below  → dropdown TOP   is near input BOTTOM  (normal)
+        //   above  → dropdown BOTTOM is near input TOP    (flipped)
+        //
+        // We compute the candidate distance for each direction and take the
+        // minimum — whichever edge of the dropdown is closest to the input is
+        // the one Floating UI anchored to.  A tolerance of 20px accommodates
+        // the 4px offset plus sub-pixel rounding.
         const inputBottom = inputBox!.y + inputBox!.height;
-        const anchorDistance = Math.abs(dropdownBox!.y - inputBottom);
+        const dropdownBottomEdge = dropdownBox!.y + dropdownBox!.height;
+        const anchorDistanceBelow = Math.abs(dropdownBox!.y - inputBottom);
+        const anchorDistanceAbove = Math.abs(dropdownBottomEdge - inputBox!.y);
+        const anchorDistance = Math.min(anchorDistanceBelow, anchorDistanceAbove);
         expect(anchorDistance).toBeLessThan(20);
 
         // The seeded area should appear in the dropdown results.
