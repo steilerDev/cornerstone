@@ -175,6 +175,24 @@ export class PhotoViewerPage {
    */
   readonly photoImage: Locator;
 
+  // ── Metadata sidepanel toggle (mobile only) ──────────────────────────────────
+
+  /**
+   * The metadata toggle button (data-testid="photo-metadata-toggle").
+   *
+   * On mobile (max-width: 767px) this element is in the DOM exactly once:
+   *   - Panel CLOSED: rendered outside the sidepanel as a floating launcher
+   *   - Panel OPEN:   rendered inside `#photo-metadata-sidepanel .header`
+   *
+   * On desktop/tablet (≥768px) it has `display: none` and is NOT visible.
+   *
+   * The toggle carries:
+   *   - `aria-expanded` = "false" | "true"
+   *   - `aria-controls` = "photo-metadata-sidepanel"
+   *   - `aria-label` = localised "Photo metadata" text
+   */
+  readonly metadataToggle: Locator;
+
   // ── Info bar actions (only visible when NOT annotating) ──────────────────────
 
   /** Pencil icon button — opens the PhotoAnnotator */
@@ -273,6 +291,9 @@ export class PhotoViewerPage {
     // Viewer root
     this.modal = page.getByTestId('photo-viewer');
     this.closeButton = page.getByTestId('photo-viewer-close');
+
+    // Metadata toggle (one element in DOM at a time — floats when closed, in header when open)
+    this.metadataToggle = page.getByTestId('photo-metadata-toggle');
 
     // The viewer shows an <img> for the photo when NOT annotating.
     // The PhotoAnnotator also has an <img> (base image) inside the SVG area when annotating.

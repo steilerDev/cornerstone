@@ -759,3 +759,300 @@ test.describe('OrientationPicker in modal — no orientations (Scenario 11)', ()
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenarios 12–16 (Fix #1706): Mobile metadata toggle repositioning
+//
+// Before the fix (issue #1706), the toggle button stayed fixed at the
+// bottom-right corner regardless of whether the sidepanel was open, causing it
+// to overlap the panel's form inputs on mobile.
+//
+// After the fix:
+//   Panel CLOSED on mobile: toggle is a floating bottom-right launcher,
+//     rendered OUTSIDE #photo-metadata-sidepanel.
+//   Panel OPEN on mobile:   toggle renders INSIDE the panel header
+//     (#photo-metadata-sidepanel > .header), so it no longer overlaps inputs.
+//   Desktop/tablet (≥768px): toggle is hidden (display:none),
+//     sidepanel is always inline-visible.
+//
+// These tests use a fixed 375×667 mobile viewport for mobile scenarios (AC1-4)
+// and a fixed 1280×800 viewport for the desktop check (AC6).  Both are forced
+// via `page.setViewportSize()` inside the test rather than relying on the
+// Playwright project's configured viewport, so the scenarios work correctly
+// when run across desktop/tablet/mobile projects.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'PhotoViewer metadata toggle repositioning on mobile (Fix #1706)',
+  { tag: '@responsive' },
+  () => {
+    /** Shared photo buffer — 1×1 px PNG, minimal overhead */
+    const PHOTO_BUFFER = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64',
+    );
+
+    /**
+     * Shared setup: create a diary entry draft and upload a photo via API so
+     * the PhotoViewer can be opened.  Returns a cleanup function (to be called
+     * in `finally`).
+     *
+     * Returns `null` if the photo upload endpoint is not available (e.g. file
+     * storage not configured) — callers must check for null and call
+     * `test.skip()` if so.
+     */
+    async function setupDiaryWithPhoto(
+      page: Page,
+      testPrefix: string,
+    ): Promise<{ draftId: string; photoId: string; cleanup: () => Promise<void> } | null> {
+      const draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+
+      const photoResp = await page.request.post('/api/photos', {
+        multipart: {
+          entityType: 'diary_entry',
+          entityId: draftId,
+          file: {
+            name: `lightbox-toggle-${testPrefix}.png`,
+            mimeType: 'image/png',
+            buffer: PHOTO_BUFFER,
+          },
+        },
+      });
+
+      if (!photoResp.ok()) {
+        // Photo storage not configured in this E2E environment — skip gracefully.
+        await page.request.delete(`/api/diary-entries/${draftId}`).catch(() => {});
+        return null;
+      }
+
+      const photoBody = (await photoResp.json()) as { photo: { id: string } };
+      const photoId = photoBody.photo.id;
+
+      const cleanup = async () => {
+        await page.request.delete(`/api/photos/${photoId}`).catch(() => {});
+        await deleteDiaryEntryViaApi(page, draftId);
+      };
+
+      return { draftId, photoId, cleanup };
+    }
+
+    /**
+     * Navigate to the diary detail page and open the PhotoViewer for the given
+     * photo.  Waits for the viewer to be fully visible before returning.
+     */
+    async function openPhotoViewer(page: Page, draftId: string, photoId: string): Promise<void> {
+      await page.goto(`/diary/${draftId}`);
+      // The detail page for a general_note draft with no title has no h1.
+      // Wait for the Photos section heading instead.
+      await expect(page.getByRole('heading', { level: 2, name: /Photos/ })).toBeVisible();
+
+      const photoCard = page.getByTestId(`photo-card-${photoId}`);
+      await photoCard.waitFor({ state: 'visible' });
+      await photoCard.getByRole('button', { name: /View photo/i }).click();
+
+      await page.getByTestId('photo-viewer').waitFor({ state: 'visible' });
+    }
+
+    // ─── AC1: Mobile, panel closed → toggle visible, aria-expanded="false", panel NOT visible ───
+
+    test('AC1: Mobile panel closed — toggle visible outside panel, aria-expanded false, sidepanel hidden', async ({
+      page,
+      testPrefix,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 667 });
+
+      const setup = await setupDiaryWithPhoto(page, testPrefix);
+      if (!setup) {
+        test.skip();
+        return;
+      }
+      const { draftId, photoId, cleanup } = setup;
+
+      try {
+        await openPhotoViewer(page, draftId, photoId);
+
+        const toggle = page.getByTestId('photo-metadata-toggle');
+        const sidepanel = page.locator('#photo-metadata-sidepanel');
+
+        // Toggle should be visible (mobile CSS shows it)
+        await expect(toggle).toBeVisible();
+
+        // aria-expanded must be "false" (panel is closed)
+        await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+        // Toggle must NOT be inside the panel header (it is the floating launcher)
+        const toggleInHeader = page
+          .locator('#photo-metadata-sidepanel [class*="header"]')
+          .getByTestId('photo-metadata-toggle');
+        await expect(toggleInHeader).not.toBeAttached();
+
+        // Sidepanel is not visible (display: none on mobile when closed)
+        await expect(sidepanel).not.toBeVisible();
+      } finally {
+        await cleanup();
+      }
+    });
+
+    // ─── AC2: Tap toggle → aria-expanded="true", panel visible, toggle now in panel header ──────
+
+    test('AC2: Mobile — tapping toggle opens panel, aria-expanded becomes true, toggle moves into header', async ({
+      page,
+      testPrefix,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 667 });
+
+      const setup = await setupDiaryWithPhoto(page, testPrefix);
+      if (!setup) {
+        test.skip();
+        return;
+      }
+      const { draftId, photoId, cleanup } = setup;
+
+      try {
+        await openPhotoViewer(page, draftId, photoId);
+
+        const toggle = page.getByTestId('photo-metadata-toggle');
+        await toggle.click();
+
+        // aria-expanded must now be "true"
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+        // Sidepanel is now visible
+        const sidepanel = page.locator('#photo-metadata-sidepanel');
+        await expect(sidepanel).toBeVisible();
+
+        // Toggle must now be a descendant of the panel header
+        const toggleInHeader = page
+          .locator('#photo-metadata-sidepanel [class*="header"]')
+          .getByTestId('photo-metadata-toggle');
+        await expect(toggleInHeader).toBeVisible();
+      } finally {
+        await cleanup();
+      }
+    });
+
+    // ─── AC3: Panel open → form inputs visible / not overlapped ──────────────────────────────────
+
+    test('AC3: Mobile panel open — caption textarea is visible and its bounding box does not overlap the toggle', async ({
+      page,
+      testPrefix,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 667 });
+
+      const setup = await setupDiaryWithPhoto(page, testPrefix);
+      if (!setup) {
+        test.skip();
+        return;
+      }
+      const { draftId, photoId, cleanup } = setup;
+
+      try {
+        await openPhotoViewer(page, draftId, photoId);
+
+        // Open panel
+        const toggle = page.getByTestId('photo-metadata-toggle');
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+        // Caption textarea must be visible and interactable
+        const captionTextarea = page.locator('#photo-caption');
+        await expect(captionTextarea).toBeVisible();
+
+        // The in-header toggle must not overlap the textarea (regression check).
+        // We verify that the toggle's bounding box does NOT intersect the textarea's.
+        const toggleBox = await toggle.boundingBox();
+        const textareaBox = await captionTextarea.boundingBox();
+        expect(toggleBox).not.toBeNull();
+        expect(textareaBox).not.toBeNull();
+
+        // Intersection check: two boxes overlap when they share area on both axes.
+        const overlapsX =
+          toggleBox!.x < textareaBox!.x + textareaBox!.width &&
+          toggleBox!.x + toggleBox!.width > textareaBox!.x;
+        const overlapsY =
+          toggleBox!.y < textareaBox!.y + textareaBox!.height &&
+          toggleBox!.y + toggleBox!.height > textareaBox!.y;
+        expect(
+          overlapsX && overlapsY,
+          'Toggle button must not overlap the caption textarea when panel is open',
+        ).toBe(false);
+      } finally {
+        await cleanup();
+      }
+    });
+
+    // ─── AC4: Tap in-header toggle → panel closes, toggle back to floating launcher ─────────────
+
+    test('AC4: Mobile — tapping in-header toggle closes panel, aria-expanded becomes false, toggle back to floating launcher', async ({
+      page,
+      testPrefix,
+    }) => {
+      await page.setViewportSize({ width: 375, height: 667 });
+
+      const setup = await setupDiaryWithPhoto(page, testPrefix);
+      if (!setup) {
+        test.skip();
+        return;
+      }
+      const { draftId, photoId, cleanup } = setup;
+
+      try {
+        await openPhotoViewer(page, draftId, photoId);
+
+        // Open panel first
+        const toggle = page.getByTestId('photo-metadata-toggle');
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+        // Tap the in-header toggle to close
+        const toggleInHeader = page
+          .locator('#photo-metadata-sidepanel [class*="header"]')
+          .getByTestId('photo-metadata-toggle');
+        await expect(toggleInHeader).toBeVisible();
+        await toggleInHeader.click();
+
+        // aria-expanded must be "false" again
+        await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+        // Sidepanel no longer visible
+        const sidepanel = page.locator('#photo-metadata-sidepanel');
+        await expect(sidepanel).not.toBeVisible();
+
+        // Toggle is back to being the floating launcher (not in header)
+        await expect(toggleInHeader).not.toBeAttached();
+      } finally {
+        await cleanup();
+      }
+    });
+
+    // ─── AC6: Desktop viewport → toggle NOT visible, sidepanel always visible ────────────────────
+
+    test('AC6: Desktop — toggle hidden (display:none), sidepanel always visible', async ({
+      page,
+      testPrefix,
+    }) => {
+      await page.setViewportSize({ width: 1280, height: 800 });
+
+      const setup = await setupDiaryWithPhoto(page, testPrefix);
+      if (!setup) {
+        test.skip();
+        return;
+      }
+      const { draftId, photoId, cleanup } = setup;
+
+      try {
+        await openPhotoViewer(page, draftId, photoId);
+
+        // On desktop the toggle button has CSS display:none — not visible
+        const toggle = page.getByTestId('photo-metadata-toggle');
+        await expect(toggle).not.toBeVisible();
+
+        // Sidepanel is always visible on desktop (no hide/show mechanism)
+        const sidepanel = page.locator('#photo-metadata-sidepanel');
+        await expect(sidepanel).toBeVisible();
+      } finally {
+        await cleanup();
+      }
+    });
+  },
+);
