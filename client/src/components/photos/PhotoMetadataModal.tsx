@@ -102,11 +102,7 @@ export function PhotoMetadataModal({
       <div className={styles.formBody}>
         {objectUrl && (
           <div className={styles.photoPreview}>
-            <img
-              src={objectUrl}
-              alt={file.name}
-              className={styles.photoPreviewImage}
-            />
+            <img src={objectUrl} alt={file.name} className={styles.photoPreviewImage} />
           </div>
         )}
         {/* Description textarea */}
