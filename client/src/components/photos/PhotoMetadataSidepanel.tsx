@@ -86,7 +86,6 @@ export function PhotoMetadataSidepanel({
     }
   }, [photo.id, caption, areaId, orientationId, onPhotoUpdated]);
 
-
   // Hide sidepanel entirely when annotation mode is active
   if (isAnnotating) {
     return null;

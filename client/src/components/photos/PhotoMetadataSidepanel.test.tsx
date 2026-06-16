@@ -52,7 +52,7 @@ jest.unstable_mockModule('../../lib/photoApi.js', () => ({
 
 // Mock AreaPicker to avoid rendering SearchPicker (which requires @floating-ui/react).
 // Captures props for AreaPicker-specific assertions.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 let capturedAreaPickerOnChange: ((id: string) => void) | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let capturedAreaPickerProps: Record<string, any> | null = null;
@@ -603,8 +603,7 @@ describe('PhotoMetadataSidepanel', () => {
 
     // Wait for the component to settle
     await waitFor(() => {
-      const heading =
-        screen.queryByText('metadataTitle') || screen.queryByText('Photo Metadata');
+      const heading = screen.queryByText('metadataTitle') || screen.queryByText('Photo Metadata');
       expect(heading).toBeInTheDocument();
     });
 
@@ -628,8 +627,7 @@ describe('PhotoMetadataSidepanel', () => {
     renderSidepanel({ photo: mockPhoto }); // areaId='area-1'
 
     await waitFor(() => {
-      const heading =
-        screen.queryByText('metadataTitle') || screen.queryByText('Photo Metadata');
+      const heading = screen.queryByText('metadataTitle') || screen.queryByText('Photo Metadata');
       expect(heading).toBeInTheDocument();
     });
 

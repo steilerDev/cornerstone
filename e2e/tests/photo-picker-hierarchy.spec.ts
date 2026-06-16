@@ -140,7 +140,10 @@ test.describe(
 
           // Find the room option (depth=1 → rendered with em-dash prefix "— RoomName")
           const roomOption = options.find((o) => o.label.includes(roomName));
-          expect(roomOption, `Room option containing "${roomName}" should be in the dropdown`).toBeTruthy();
+          expect(
+            roomOption,
+            `Room option containing "${roomName}" should be in the dropdown`,
+          ).toBeTruthy();
           // Em-dash prefix: label starts with "— " (one em-dash + space, repeated depth times)
           expect(
             roomOption!.label,
@@ -455,15 +458,13 @@ test.describe(
         // Chip shows the BARE room name (no em-dash prefix on the selected chip)
         const chipText = await viewer.getAreaSelectedDisplayText();
         expect(chipText, 'Selected area chip should show the bare area name').toBeTruthy();
-        expect(
-          chipText,
-          `Chip text should be "${roomName}" without em-dash prefix`,
-        ).toContain(roomName);
+        expect(chipText, `Chip text should be "${roomName}" without em-dash prefix`).toContain(
+          roomName,
+        );
         // Explicitly assert the chip does NOT start with an em-dash
-        expect(
-          chipText,
-          'Selected area chip must NOT start with an em-dash prefix',
-        ).not.toMatch(/^—/);
+        expect(chipText, 'Selected area chip must NOT start with an em-dash prefix').not.toMatch(
+          /^—/,
+        );
 
         // Save
         const patchResponse = page.waitForResponse(
@@ -567,9 +568,7 @@ test.describe(
         await expect(dropdown).toBeVisible();
 
         // The orientation option should appear, showing name as primary
-        const option = dropdown
-          .locator('[role="option"]')
-          .filter({ hasText: orientName });
+        const option = dropdown.locator('[role="option"]').filter({ hasText: orientName });
         await expect(
           option,
           `Orientation "${orientName}" should appear when searching by description text`,

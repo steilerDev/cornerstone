@@ -76,7 +76,9 @@ export function searchTree(tree: TreeNode[], query: string): TreeNode[] {
   const lowerQuery = query.toLowerCase().trim();
   if (!lowerQuery) return tree;
   const directMatchIds = new Set<string>(
-    tree.filter(({ area }) => area.name.toLowerCase().includes(lowerQuery)).map(({ area }) => area.id),
+    tree
+      .filter(({ area }) => area.name.toLowerCase().includes(lowerQuery))
+      .map(({ area }) => area.id),
   );
   const childrenOf = new Map<string | null, string[]>();
   for (const { area } of tree) {

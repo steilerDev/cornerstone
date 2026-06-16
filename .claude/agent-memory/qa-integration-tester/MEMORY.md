@@ -1507,7 +1507,6 @@ Key learnings:
 - **Test count**: 57 tests total, categorized as: 8 auth, 21 success path (201/204/200), 1 validation (400),
   15 not found (404), 2 conflict (409), 5 error handling (500), 5 data shape validation.
 
-
 ## Story #1723 — Picker hierarchy tests (2026-06-16)
 
 **AreaPicker.test.tsx mock pattern**: Follows OrientationPicker.test.tsx exactly. `jest.unstable_mockModule('../SearchPicker/SearchPicker.js', ...)` captures searchFn, renderItem, renderSecondary, specialOptions, onChange, initialTitle. Module-scope `let` vars reset in `beforeEach`. AreaPicker has no async data fetch so no `mockFetchX` needed. searchFn is async (returns Promise<TreeNode[]>) — wrap calls in `await act(async () => { results = await capturedSearchFn?.('q'); })`.

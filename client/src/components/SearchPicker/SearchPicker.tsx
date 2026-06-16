@@ -299,7 +299,9 @@ export function SearchPicker<T>({
 
   if (selectedItem) {
     const borderColor = getStatusBorderColor?.(selectedItem);
-    const label = renderSelectedLabel ? renderSelectedLabel(selectedItem) : renderItem(selectedItem).label;
+    const label = renderSelectedLabel
+      ? renderSelectedLabel(selectedItem)
+      : renderItem(selectedItem).label;
     return (
       <div className={styles.container} ref={containerRef}>
         <div
@@ -398,7 +400,10 @@ export function SearchPicker<T>({
                     {secondary !== undefined && secondary !== null ? (
                       <span className={styles.resultContent}>
                         <span className={styles.resultTitle}>{rendered.label}</span>
-                        <span className={styles.resultSecondary} title={typeof secondary === 'string' ? secondary : undefined}>
+                        <span
+                          className={styles.resultSecondary}
+                          title={typeof secondary === 'string' ? secondary : undefined}
+                        >
                           {secondary}
                         </span>
                       </span>

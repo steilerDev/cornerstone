@@ -770,9 +770,10 @@ export class PhotoViewerPage {
       const titleSpan = option.locator('[class*="resultTitle"]');
       const secondarySpan = option.locator('[class*="resultSecondary"]');
       const label = (await titleSpan.textContent())?.trim() ?? '';
-      const secondaryText = (await secondarySpan.count()) > 0
-        ? (await secondarySpan.first().textContent())?.trim() ?? null
-        : null;
+      const secondaryText =
+        (await secondarySpan.count()) > 0
+          ? ((await secondarySpan.first().textContent())?.trim() ?? null)
+          : null;
       results.push({ label, secondary: secondaryText || null });
     }
     return results;
@@ -783,9 +784,12 @@ export class PhotoViewerPage {
    * Clicks the matching `role="option"` element.
    */
   async selectDropdownOption(labelSubstring: string): Promise<void> {
-    const option = this.pickerDropdown.locator('[role="option"]').filter({
-      hasText: labelSubstring,
-    }).first();
+    const option = this.pickerDropdown
+      .locator('[role="option"]')
+      .filter({
+        hasText: labelSubstring,
+      })
+      .first();
     await option.click();
   }
 
