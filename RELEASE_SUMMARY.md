@@ -27,3 +27,5 @@ docker pull steilerdev/cornerstone:latest
 ```
 
 Restart your container. Schema migrations run automatically on first boot. Creating invoices from Paperless documents reuses your existing [Auto-itemize](https://steilerDev.github.io/cornerstone/guides/budget/auto-itemize) configuration -- if you have already set the `LLM_*` and `PAPERLESS_*` environment variables, the document-first flow appears automatically.
+
+<!-- CI retrigger: promotion #1700 (post-docs auto-fix skip-ci) -->
