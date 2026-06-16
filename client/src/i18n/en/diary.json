@@ -151,6 +151,10 @@
     },
     "vendor": "Vendor",
     "vendorPlaceholder": "Select or enter vendor name",
+    "dailyLogVendorPlaceholder": "Search vendors…",
+    "workStartTime": "Work start",
+    "workEndTime": "Work end",
+    "workDuration": "Total work duration",
     "materials": "Materials Delivered",
     "materialsPlaceholder": "Add item and press enter",
     "addMaterialButton": "Add",
@@ -186,9 +190,11 @@
     "weather": "Weather",
     "temperature": "Temperature:",
     "workers": "workers",
+    "vendor": "Vendor:",
+    "workStart": "Start:",
+    "workEnd": "End:",
     "inspector": "Inspector",
     "outcome": "Outcome",
-    "vendor": "Vendor",
     "materials": "Materials",
     "severity": "Severity",
     "resolutionStatus": "Resolution Status",
@@ -368,5 +374,8 @@
   "draft": {
     "badgeLabel": "Draft",
     "filterChipLabel": "Draft"
+  },
+  "validation": {
+    "workTimeEndBeforeStart": "End time must be after start time"
   }
 }

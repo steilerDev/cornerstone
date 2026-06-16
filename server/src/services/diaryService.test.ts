@@ -39,6 +39,17 @@ import {
 import type { CreateDiaryEntryRequest, UpdateDiaryEntryRequest } from '@cornerstone/shared';
 import { workItems, invoices, milestones, vendors } from '../db/schema.js';
 
+// Local alias so tests can inspect vendorId/vendorName from metadata without
+// importing DailyLogMetadata twice (already imported by the production module).
+type DailyLogMetadataTest = {
+  vendorId?: string | null;
+  vendorName?: string | null;
+  workStart?: string | null;
+  workEnd?: string | null;
+  weather?: string | null;
+  workersOnSite?: number | null;
+};
+
 describe('diaryService', () => {
   let db: BetterSQLite3Database<typeof schema>;
   let sqlite: ReturnType<typeof Database>;
@@ -296,6 +307,7 @@ describe('diaryService', () => {
 
     it('throws InvalidEntryTypeError when entryType is work_item_status', () => {
       const request = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Invalid entryType for test
         entryType: 'work_item_status' as any,
         entryDate: '2026-03-14',
         body: 'System entry',
@@ -317,6 +329,7 @@ describe('diaryService', () => {
         entryType: 'daily_log',
         entryDate: '2026-03-14',
         body: 'Stormy day',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
         metadata: { weather: 'tornado' } as any,
       };
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
@@ -351,6 +364,7 @@ describe('diaryService', () => {
         entryType: 'general_note',
         entryDate: '2026-03-14',
         body: 'Oversized metadata',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
         metadata: { data: 'x'.repeat(2_097_153) } as any,
       };
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(ValidationError);
@@ -361,6 +375,7 @@ describe('diaryService', () => {
       const prefix = '{"data":"';
       const suffix = '"}';
       const valueLen = 2_097_152 - prefix.length - suffix.length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
       const metadata = { data: 'x'.repeat(valueLen) } as any;
       expect(JSON.stringify(metadata).length).toBe(2_097_152);
       const request: CreateDiaryEntryRequest = {
@@ -427,6 +442,7 @@ describe('diaryService', () => {
 
     it('throws InvalidMetadataError for invalid metadata on update', () => {
       const id = insertEntry({ entryType: 'site_visit' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
       expect(() => updateDiaryEntry(db, id, { metadata: { outcome: 'maybe' } as any })).toThrow(
         InvalidMetadataError,
       );
@@ -446,6 +462,7 @@ describe('diaryService', () => {
     it('throws ValidationError when metadata exceeds 2MB when serialized', () => {
       const id = insertEntry({ entryType: 'general_note' });
       expect(() =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
         updateDiaryEntry(db, id, { metadata: { data: 'x'.repeat(2_097_153) } as any }),
       ).toThrow(ValidationError);
     });
@@ -681,6 +698,7 @@ describe('diaryService', () => {
         entryType: 'daily_log',
         entryDate: '2026-03-14',
         body: 'Bad weather',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
         metadata: { weather: 'tornado' } as any,
       };
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
@@ -693,6 +711,7 @@ describe('diaryService', () => {
         entryType: 'site_visit',
         entryDate: '2026-03-14',
         body: 'Inspection done',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
         metadata: { outcome: 'maybe' } as any,
       };
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
@@ -705,6 +724,7 @@ describe('diaryService', () => {
         entryType: 'delivery',
         entryDate: '2026-03-14',
         body: 'Materials arrived',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
         metadata: { materials: 'concrete' } as any,
       };
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
@@ -717,6 +737,7 @@ describe('diaryService', () => {
         entryType: 'issue',
         entryDate: '2026-03-14',
         body: 'Something broke',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
         metadata: { severity: 'fatal' } as any,
       };
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
@@ -729,6 +750,7 @@ describe('diaryService', () => {
         entryType: 'general_note',
         entryDate: '2026-03-14',
         body: 'General observation',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
         metadata: { randomField: 'anything', nested: { value: 42 } } as any,
       };
       expect(() => createDiaryEntry(db, testUserId, request)).not.toThrow();
@@ -782,6 +804,7 @@ describe('diaryService', () => {
       const request = {
         entryType: 'daily_log' as const,
         status: 'draft' as const,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
         metadata: { weather: 'tornado' } as any,
       };
       expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
@@ -923,6 +946,213 @@ describe('diaryService', () => {
 
       const result = listDiaryEntries(db, {});
       expect(result.items).toHaveLength(2);
+    });
+  });
+
+  // ─── daily_log vendor + work-time validation (Story #1672) ───────────────
+
+  describe('daily_log vendorId validation', () => {
+    const vendorId = 'vendor-test-01';
+
+    beforeEach(() => {
+      const now = new Date().toISOString();
+      db.insert(vendors)
+        .values({
+          id: vendorId,
+          name: 'Test Vendor',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    });
+
+    it('accepts valid vendorId referencing an existing vendor', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Vendor was on site',
+        metadata: { vendorId },
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).not.toThrow();
+    });
+
+    it('rejects vendorId not in vendors table', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Unknown vendor',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
+        metadata: { vendorId: 'nonexistent-vendor-999' } as any,
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
+    });
+
+    it('accepts null vendorId', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'No vendor today',
+        metadata: { vendorId: null },
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).not.toThrow();
+    });
+  });
+
+  describe('daily_log workStart / workEnd validation', () => {
+    it('accepts valid workStart "08:00"', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Work started at 8',
+        metadata: { workStart: '08:00' },
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).not.toThrow();
+    });
+
+    it('rejects workStart "8:00" (no leading zero)', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Bad start format',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
+        metadata: { workStart: '8:00' } as any,
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
+    });
+
+    it('rejects workStart "invalid"', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Invalid start',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
+        metadata: { workStart: 'invalid' } as any,
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
+    });
+
+    it('accepts valid workEnd after workStart (08:00 → 16:30)', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Full work day',
+        metadata: { workStart: '08:00', workEnd: '16:30' },
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).not.toThrow();
+    });
+
+    it('rejects workEnd equal to workStart (08:00/08:00)', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Same start and end',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
+        metadata: { workStart: '08:00', workEnd: '08:00' } as any,
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
+    });
+
+    it('rejects workEnd before workStart (16:00/08:00)', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'End before start',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Intentionally invalid metadata for test
+        metadata: { workStart: '16:00', workEnd: '08:00' } as any,
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).toThrow(InvalidMetadataError);
+    });
+
+    it('accepts only workStart without workEnd — no cross-field error', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Started but no end recorded',
+        metadata: { workStart: '08:00' },
+      };
+      expect(() => createDiaryEntry(db, testUserId, request)).not.toThrow();
+    });
+  });
+
+  describe('daily_log vendorName denormalization', () => {
+    const vendorId = 'vendor-test-02';
+    const vendorName = 'Denorm Vendor Co.';
+
+    beforeEach(() => {
+      const now = new Date().toISOString();
+      db.insert(vendors)
+        .values({
+          id: vendorId,
+          name: vendorName,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    });
+
+    it('getDiaryEntry denormalizes vendorName when vendorId present', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Vendor present on site',
+        metadata: { vendorId },
+      };
+      const created = createDiaryEntry(db, testUserId, request);
+      const fetched = getDiaryEntry(db, created.id);
+      const dlm = fetched.metadata as DailyLogMetadataTest;
+      expect(dlm.vendorName).toBe(vendorName);
+    });
+
+    it('getDiaryEntry sets vendorName null when vendor was deleted after save', () => {
+      // Insert entry directly bypassing validation, simulating vendor-deleted-after-save scenario
+      const id = insertEntry({
+        entryType: 'daily_log',
+        metadata: JSON.stringify({ vendorId: 'deleted-vendor-id' }),
+      });
+      const fetched = getDiaryEntry(db, id);
+      const dlm = fetched.metadata as DailyLogMetadataTest;
+      // vendorName should be null because the vendor doesn't exist
+      expect(dlm.vendorName === null || dlm.vendorName === undefined).toBe(true);
+    });
+
+    it('listDiaryEntries includes vendorName in daily_log metadata', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Vendor list test',
+        metadata: { vendorId },
+      };
+      createDiaryEntry(db, testUserId, request);
+      const result = listDiaryEntries(db, {});
+      const dlEntry = result.items.find((i) => i.entryType === 'daily_log');
+      expect(dlEntry).toBeDefined();
+      const dlm = dlEntry!.metadata as DailyLogMetadataTest;
+      expect(dlm.vendorName).toBe(vendorName);
+    });
+
+    it('createDiaryEntry saves workStart and workEnd in metadata (fetch and verify)', () => {
+      const request: CreateDiaryEntryRequest = {
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Work times recorded',
+        metadata: { workStart: '07:30', workEnd: '15:45' },
+      };
+      const created = createDiaryEntry(db, testUserId, request);
+      const fetched = getDiaryEntry(db, created.id);
+      const dlm = fetched.metadata as DailyLogMetadataTest;
+      expect(dlm.workStart).toBe('07:30');
+      expect(dlm.workEnd).toBe('15:45');
+    });
+
+    it('existing daily_log entry without new fields loads without error', () => {
+      // Insert entry without workStart/workEnd/vendorId — simulates legacy data
+      const id = insertEntry({
+        entryType: 'daily_log',
+        metadata: JSON.stringify({ weather: 'sunny', workersOnSite: 3 }),
+      });
+      expect(() => getDiaryEntry(db, id)).not.toThrow();
+      const fetched = getDiaryEntry(db, id);
+      expect(fetched.metadata).toBeDefined();
     });
   });
 

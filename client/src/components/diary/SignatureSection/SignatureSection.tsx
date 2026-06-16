@@ -59,7 +59,7 @@ export function SignatureSection({
         <div className={styles.signaturesList}>
           {signatures!.map((sig, index) => (
             <div
-              key={`${sig.signerType}-${sig.signerName}-${index}`}
+              key={`${sig.signerType}-${sig.signerName}-${index}`} // eslint-disable-line @eslint-react/no-array-index-key -- signatures list may have duplicates; composite key with signerType+name+index is stable
               className={styles.signatureItem}
             >
               <SignatureCapture

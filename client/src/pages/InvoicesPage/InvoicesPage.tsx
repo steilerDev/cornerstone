@@ -7,6 +7,9 @@ import type {
   InvoiceStatus,
   FilterMeta,
   InvoiceStatusBreakdown,
+  PaperlessDocumentSearchResult,
+  PaperlessStatusResponse,
+  AppConfigResponse,
 } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
@@ -18,7 +21,11 @@ import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
+import { getPaperlessStatus } from '../../lib/paperlessApi.js';
+import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { Spinner } from '../../components/Spinner/Spinner.js';
+import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoicesPage.module.css';
 
@@ -99,6 +106,13 @@ export function InvoicesPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
 
+  // Paperless picker modal state
+  const [showPaperlessPickerModal, setShowPaperlessPickerModal] = useState(false);
+  const [integrationStatus, setIntegrationStatus] = useState<{
+    paperless: PaperlessStatusResponse | null;
+    autoItemizeEnabled: boolean | null;
+  }>({ paperless: null, autoItemizeEnabled: null });
+
   // Form ref for submit button in modal
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -128,7 +142,7 @@ export function InvoicesPage() {
   // Load invoices when table state changes
   useEffect(() => {
     void loadInvoices();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadInvoices is defined in component body; effect re-runs on intended trigger only
   }, [
     tableState.search,
     tableState.sortBy,
@@ -143,6 +157,35 @@ export function InvoicesPage() {
     void fetchVendors({ pageSize: 100 }).then((res) =>
       setVendors(res.vendors.map((v) => ({ id: v.id, name: v.name }))),
     );
+  }, []);
+
+  // Load Paperless and config status on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadIntegrationStatus() {
+      try {
+        const [paperlessStatus, config] = await Promise.all([getPaperlessStatus(), fetchConfig()]);
+        if (!cancelled) {
+          setIntegrationStatus({
+            paperless: paperlessStatus,
+            autoItemizeEnabled: config.autoItemizeEnabled,
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setIntegrationStatus({
+            paperless: null,
+            autoItemizeEnabled: false,
+          });
+        }
+      }
+    }
+
+    void loadIntegrationStatus();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadInvoices = async () => {
@@ -204,6 +247,30 @@ export function InvoicesPage() {
   };
 
   const openCreateModal = () => {
+    // If Paperless and auto-itemize are both configured, open the picker modal
+    if (
+      integrationStatus.paperless?.configured &&
+      integrationStatus.paperless?.reachable &&
+      integrationStatus.autoItemizeEnabled
+    ) {
+      setShowPaperlessPickerModal(true);
+    } else {
+      // Otherwise open the manual create modal
+      setCreateForm(EMPTY_FORM);
+      setCreateError('');
+      setShowCreateModal(true);
+    }
+  };
+
+  const handlePaperlessDocumentSelected = (doc: PaperlessDocumentSearchResult) => {
+    setShowPaperlessPickerModal(false);
+    navigate('/budget/invoices/new/paperless', {
+      state: { documentId: doc.id, documentTitle: doc.title },
+    });
+  };
+
+  const handlePaperlessManualEntry = () => {
+    setShowPaperlessPickerModal(false);
     setCreateForm(EMPTY_FORM);
     setCreateError('');
     setShowCreateModal(true);
@@ -491,7 +558,20 @@ export function InvoicesPage() {
           className={sharedStyles.btnPrimary}
           onClick={openCreateModal}
           data-testid="new-invoice-button"
+          aria-disabled={
+            integrationStatus.paperless === null || integrationStatus.autoItemizeEnabled === null
+          }
+          disabled={
+            integrationStatus.paperless === null || integrationStatus.autoItemizeEnabled === null
+          }
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
         >
+          {(integrationStatus.paperless === null ||
+            integrationStatus.autoItemizeEnabled === null) && <Spinner size="sm" />}
           {t('invoices.addInvoice')}
         </button>
       }
@@ -522,6 +602,16 @@ export function InvoicesPage() {
           },
         }}
       />
+
+      {/* Paperless picker modal */}
+      {showPaperlessPickerModal && (
+        <InvoicePaperlessPickerModal
+          onDocumentSelected={handlePaperlessDocumentSelected}
+          onManualEntry={handlePaperlessManualEntry}
+          onClose={() => setShowPaperlessPickerModal(false)}
+          paperlessUrl={integrationStatus.paperless?.paperlessUrl ?? null}
+        />
+      )}
 
       {/* Create invoice modal */}
       {showCreateModal && (

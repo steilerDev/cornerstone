@@ -60,6 +60,7 @@ interface LocaleProviderProps {
 
 export function LocaleProvider({ children }: LocaleProviderProps) {
   const initialPreference = readStoredPreference();
+  // eslint-disable-next-line @eslint-react/use-state -- setLocaleState used to avoid collision with the public setLocale callback
   const [locale, setLocaleState] = useState<LocalePreference>(initialPreference);
   const [resolvedLocale, setResolvedLocale] = useState<ResolvedLocale>(() =>
     resolveLocale(initialPreference),

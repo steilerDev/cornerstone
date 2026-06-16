@@ -889,7 +889,12 @@
     "noNumber": "Keine Nummer",
     "duePrefix": "Fällig:",
     "paginationPreviousAriaLabel": "Vorherige Seite",
-    "paginationNextAriaLabel": "Nächste Seite"
+    "paginationNextAriaLabel": "Nächste Seite",
+    "pickerModal": {
+      "title": "Rechnungsdokument auswählen",
+      "manualEntry": "Rechnung manuell erfassen",
+      "manualEntryAriaLabel": "Rechnung manuell erstellen ohne ein Dokument auszuwählen"
+    }
   },
   "autoItemize": {
     "title": "Rechnung aufschlüsseln",
@@ -963,7 +968,17 @@
     "cancelConfirmBody": "Sie haben nicht gespeicherte Änderungen. Sind Sie sicher, dass Sie diese verwerfen möchten?",
     "discardChanges": "Änderungen verwerfen",
     "keepEditing": "Weiter bearbeiten",
-    "invalidDocumentId": "Ungültige Dokument-ID"
+    "invalidDocumentId": "Ungültige Dokument-ID",
+    "vendor": "Auftragnehmer",
+    "vendorPlaceholder": "Auftragnehmer suchen…",
+    "vendorRequired": "Auftragnehmer ist erforderlich",
+    "createAndItemize": "Rechnung Erstellen & Aufschlüsseln",
+    "extractingFromDocument": "Dokument wird analysiert…",
+    "extractionStarted": "Dokument wird mit KI analysiert…",
+    "extractionComplete": "Extraktion abgeschlossen. Bitte prüfen Sie die vorgeschlagenen Positionen.",
+    "lineItems": "Positionen",
+    "noLineItems": "Keine Positionen extrahiert",
+    "backToInvoices": "Zurück zu Rechnungen"
   },
   "common": {
     "loading": "Wird geladen...",

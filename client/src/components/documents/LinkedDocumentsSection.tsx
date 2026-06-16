@@ -122,12 +122,14 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
   // Focus into picker modal when it opens
   useEffect(() => {
     if (showPicker) {
+      // eslint-disable-next-line @eslint-react/web-api-no-leaked-fetch -- systemLinkedIds.fetch is a custom hook method (useAllLinkedDocumentIds), not the Web Fetch API; no AbortController applies
       void systemLinkedIds.fetch();
       const timer = setTimeout(() => {
         pickerModalRef.current?.focus();
       }, 0);
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- systemLinkedIds.fetch is a new reference each render; adding it would cause an infinite re-fetch loop
   }, [showPicker, systemLinkedIds.fetch]);
 
   // Focus Cancel button when unlink confirmation opens
@@ -416,6 +418,8 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                       .filter((id): id is number => id !== undefined),
                   ]),
                 )}
+                defaultHideLinked={true}
+                paperlessUrl={paperlessStatus?.paperlessUrl ?? null}
               />
             </div>
           </div>
@@ -452,7 +456,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                 onClick={() => setUnlinkTarget(null)}
                 disabled={isUnlinking}
               >
-                {t('button.cancel')}
+                {t('common:button.cancel')}
               </button>
               <button
                 type="button"

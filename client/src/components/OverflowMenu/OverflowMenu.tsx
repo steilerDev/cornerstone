@@ -172,22 +172,26 @@ export function OverflowMenu({
     if (effectivePlacement === 'bottom-end') {
       if (spaceBelow < menuHeight + MIN_MARGIN && spaceAbove >= menuHeight + MIN_MARGIN) {
         // Flip to top
+        /* eslint-disable @eslint-react/set-state-in-effect -- repositioning menu to fit viewport */
         setMenuPos({
           top: triggerRect.top - MIN_MARGIN,
           right: window.innerWidth - triggerRect.right,
         });
         setEffectivePlacement('top-end');
+        /* eslint-enable @eslint-react/set-state-in-effect */
       }
     }
     // For 'top-end' placement: check if menu fits above
     else if (effectivePlacement === 'top-end') {
       if (spaceAbove < menuHeight + MIN_MARGIN && spaceBelow >= menuHeight + MIN_MARGIN) {
         // Flip to bottom
+        /* eslint-disable @eslint-react/set-state-in-effect -- repositioning menu to fit viewport */
         setMenuPos({
           top: triggerRect.bottom + MIN_MARGIN,
           right: window.innerWidth - triggerRect.right,
         });
         setEffectivePlacement('bottom-end');
+        /* eslint-enable @eslint-react/set-state-in-effect */
       }
     }
   }, [isOpen, usePortal, triggerRect, effectivePlacement]);

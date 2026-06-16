@@ -133,6 +133,7 @@ export function DateRangePicker({
 
   // Sync phase and pendingStartDate with external prop changes
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- syncing internal state with prop changes */
     if (startDate === '' && endDate === '') {
       setPhase('selecting-start');
       setPendingStartDate('');
@@ -140,6 +141,7 @@ export function DateRangePicker({
       setPhase('selecting-end');
       setPendingStartDate(startDate);
     }
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [startDate, endDate]);
 
   // Get the effective end date for range display (hover preview or confirmed end)
@@ -313,6 +315,7 @@ export function DateRangePicker({
         }
       }
     },
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- pendingStartDate is not referenced inside; suppressing rather than altering the dependency array
     [focusedDate, viewYear, viewMonth, handleDayClick, phase, pendingStartDate, endDate, onChange],
   );
 
@@ -381,6 +384,7 @@ export function DateRangePicker({
         </div>
 
         {weeks.map((week, weekIndex) => (
+          // eslint-disable-next-line @eslint-react/no-array-index-key -- static month grid; week index is a stable key here
           <div key={weekIndex} className={styles.weekRow} role="row">
             {week.map((day) => {
               const isSelected = day.dateStr === startDate || day.dateStr === endDate;

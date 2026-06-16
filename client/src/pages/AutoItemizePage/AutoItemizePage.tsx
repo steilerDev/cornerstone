@@ -34,7 +34,7 @@ import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { ParentPicker } from '../../components/ParentPicker/ParentPicker.js';
 import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
-import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
+import { CONFIDENCE_LABELS, effectiveLineAmount } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizePage.module.css';
 
@@ -122,7 +122,7 @@ export function AutoItemizePage() {
   // Budget line picker state
   const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [lineFieldsEdited, setLineFieldsEdited] = useState(false);
-  const wasCreatedFromExtraction = useRef(false);
+  const wasCreatedFromExtractionRef = useRef(false);
   const { t: tSettings } = useTranslation('settings');
 
   const picker = useBudgetLinePicker({
@@ -136,11 +136,11 @@ export function AutoItemizePage() {
       const lineType = 'workItemId' in line ? 'work_item' : 'household_item';
       // Snapshot the ref value NOW (before setLines) so the updater closure captures
       // the correct value regardless of when React executes the deferred updater.
-      // Reading wasCreatedFromExtraction.current INSIDE the setLines updater causes a
+      // Reading wasCreatedFromExtractionRef.current INSIDE the setLines updater causes a
       // race on WebKit: the ref is reset to false before the updater executes (React 18
       // automatic batching defers updater execution after the synchronous reset).
-      const fromExtraction = wasCreatedFromExtraction.current;
-      wasCreatedFromExtraction.current = false;
+      const fromExtraction = wasCreatedFromExtractionRef.current;
+      wasCreatedFromExtractionRef.current = false;
       // Store the assigned budget line ID, type, and description on the row
       // Note: when eagerLinkInvoice is false, invoiceBudgetLineId will be null
       // Use line.id (the work_item_budget or household_item_budget ID) instead
@@ -167,7 +167,7 @@ export function AutoItemizePage() {
   // Eagerly load categories, sources, and vendors on mount
   useEffect(() => {
     picker.initializeStaticData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker is stable, only initialize once on mount
   }, []);
 
   // Timer effect for elapsed seconds counter
@@ -280,6 +280,7 @@ export function AutoItemizePage() {
     };
 
     void loadData();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker.pickerState identity changes each render; its data is stable so the effect re-runs on the listed deps only
   }, [invoiceId, documentId, t, tErrors]);
 
   // Track dirty state
@@ -304,11 +305,14 @@ export function AutoItemizePage() {
     ) {
       const firstSourceId = picker.pickerState.budgetSources[0]?.id;
       if (firstSourceId) {
+        /* eslint-disable @eslint-react/set-state-in-effect -- initializes editable lines from extraction result */
         setLines((prev) =>
           prev.map((l) => (l.budgetSourceId ? l : { ...l, budgetSourceId: firstSourceId })),
         );
+        /* eslint-enable @eslint-react/set-state-in-effect */
       }
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker.pickerState identity changes each render; data is stable
   }, [picker.pickerState.budgetSources]);
 
   // Track dirty state without synchronous setState in effect
@@ -565,7 +569,7 @@ export function AutoItemizePage() {
       includesVat: row.includesVat !== false,
     };
 
-    wasCreatedFromExtraction.current = true;
+    wasCreatedFromExtractionRef.current = true;
     void picker.showCreateBudgetLineForm(prefill);
   }, [activeRowId, lines, picker]);
 
@@ -614,6 +618,7 @@ export function AutoItemizePage() {
     };
 
     void loadData();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- picker.pickerState identity changes each render; its data is stable so the effect re-runs on the listed deps only
   }, [invoiceId, documentId, t, tErrors]);
 
   // Suggest amount from warnings
@@ -653,7 +658,13 @@ export function AutoItemizePage() {
   );
 
   const { computedLineTotal, variance, variancePercent } = useMemo(() => {
-    const total = lines.filter((l) => l.included).reduce((sum, l) => sum + (l.totalAmount ?? 0), 0);
+    const total = lines
+      .filter((l) => l.included)
+      .reduce(
+        (sum, l) =>
+          sum + effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
+        0,
+      );
     const inv = parseFloat(metadataEdits.amount) || invoice?.amount || 0;
     const v = total - inv;
     return {

@@ -70,9 +70,14 @@ jest.unstable_mockModule('../../lib/configApi.js', () => ({
 // module via `await import` retains the whole library per-test and causes Jest
 // workers to OOM. This file does not render <Routes>/<Link>/etc., so the real
 // module is not needed.
+//
+// Stable mock: declare at module scope so each test render re-uses the same function
+// object instead of allocating a new jest.fn() on every component render.
+
+const mockNavigate = jest.fn();
 
 jest.unstable_mockModule('react-router-dom', () => ({
-  useNavigate: () => jest.fn(),
+  useNavigate: () => mockNavigate,
 }));
 
 // ─── Mock: child components (to avoid transitive dependency issues) ───────────
@@ -227,6 +232,7 @@ beforeEach(async () => {
   mockGetPaperlessStatus.mockReset();
   mockFetchConfig.mockReset();
   capturedLinkedDocumentIds = undefined;
+  mockNavigate.mockClear();
 
   // Default: configured paperless, no links, auto-itemize disabled
   mockUseDocumentLinks.mockReturnValue(makeHook());
@@ -516,7 +522,9 @@ describe('LinkedDocumentsSection', () => {
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
       expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: /Cancel/i }));
+      const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+      expect(cancelBtn).toHaveTextContent(/^Cancel$/);
+      fireEvent.click(cancelBtn);
       expect(screen.queryByRole('dialog', { name: /Unlink Document/i })).not.toBeInTheDocument();
     });
 
@@ -532,7 +540,11 @@ describe('LinkedDocumentsSection', () => {
       expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
 
       // Focus is moved to Cancel button via setTimeout(..., 0) in useEffect
-      await waitFor(() => expect(screen.getByRole('button', { name: /Cancel/i })).toHaveFocus());
+      await waitFor(() => {
+        const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+        expect(cancelBtn).toHaveTextContent(/^Cancel$/);
+        expect(cancelBtn).toHaveFocus();
+      });
     });
   });
 

@@ -331,6 +331,7 @@ function WorkItemTooltipContent({
               aria-label={t('gantt.tooltip.workItem.dependencies')}
             >
               {shownDeps.map((dep, idx) => (
+                // eslint-disable-next-line @eslint-react/no-array-index-key -- dependency list filtered at render time; composite key with title+index is stable
                 <li key={`${dep.relatedTitle}-${idx}`} className={styles.linkedItem}>
                   <span className={styles.depTypeLabel}>
                     {dependencyTypeLabels[dep.dependencyType]}

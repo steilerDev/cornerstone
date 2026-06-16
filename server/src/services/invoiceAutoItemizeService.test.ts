@@ -17,7 +17,12 @@ import { eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
-import { autoItemize } from './invoiceAutoItemizeService.js';
+import {
+  autoItemize,
+  persistLines,
+  previewAutoItemize,
+  commitAutoItemizeCreate,
+} from './invoiceAutoItemizeService.js';
 import {
   NotFoundError,
   ValidationError,
@@ -25,6 +30,7 @@ import {
   LlmNotConfiguredError,
 } from '../errors/AppError.js';
 import type { AppConfig } from '../plugins/config.js';
+import type { ExtractedLine } from '@cornerstone/shared';
 
 // ─── DB & helpers ──────────────────────────────────────────────────────────────
 
@@ -1217,6 +1223,219 @@ describe('invoiceAutoItemizeService', () => {
         ),
       ).resolves.toBeDefined();
     });
+
+    // ─── Story #1677 — VAT gross-up in commit path (create-new) ────────────────
+
+    it('commit create-new: invoice 595, line {500, includesVat:false} → gross 595 → succeeds', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 595);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              { description: 'Net item', totalAmount: 500, confidence: 0.9, includesVat: false },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            ] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('commit create-new: invoice 500, line {500, includesVat:false} → gross 595 > 500 → ItemizedSumExceedsInvoiceError', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 500);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              { description: 'Net item', totalAmount: 500, confidence: 0.9, includesVat: false },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            ] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
+    });
+
+    it('commit create-new with includesVat=false: itemizedAmount in IBL stays at net (500), WIB.includesVat mapped to !== false (true)', async () => {
+      const vendorId = insertVendor(db);
+      // Invoice large enough so gross does not exceed
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            { description: 'Net line', totalAmount: 500, confidence: 0.9, includesVat: false },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+          ] as any,
+        },
+        PAPERLESS_AUTH,
+      );
+
+      const newWib = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore)[0]!;
+      const newIbl = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore)[0]!;
+
+      // Storage stays NET: plannedAmount = 500 (not grossed up)
+      expect(newWib.plannedAmount).toBe(500);
+      // includesVat: extractedLine.includesVat !== false → false !== false = false → stored as false
+      // Wait — implementation is: includesVat: extractedLine.includesVat !== false
+      // false !== false = false → so WIB.includesVat = false (matches the line)
+      expect(newWib.includesVat).toBe(false);
+      // IBL itemizedAmount = line.totalAmount = 500 (net, unchanged)
+      expect(newIbl.itemizedAmount).toBe(500);
+    });
+
+    // ─── Story #1677 — VAT gross-up in commit path (assign-existing) ───────────
+
+    it('commit assign-existing: invoice 595, line {500, includesVat:false} → gross 595 → succeeds', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 595);
+      linkDocument(db, invoiceId, 42);
+
+      // Insert a standalone WIB to assign to
+      const existingWibId = uid('wib');
+      const t = ts();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: existingWibId,
+          workItemId: null,
+          description: 'Pre-existing line',
+          plannedAmount: 500,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          vendorId: null,
+          quantity: null,
+          unit: null,
+          unitPrice: null,
+          includesVat: true,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              {
+                description: 'Pre-existing line',
+                totalAmount: 500,
+                confidence: 0.9,
+                assignmentMode: 'assign-existing',
+                assignedBudgetLineId: existingWibId,
+                assignedBudgetLineType: 'work_item',
+                includesVat: false,
+              },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            ] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('commit assign-existing: invoice 500, line {500, includesVat:false} → gross 595 > 500 → ItemizedSumExceedsInvoiceError', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 500);
+      linkDocument(db, invoiceId, 42);
+
+      const existingWibId = uid('wib');
+      const t = ts();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: existingWibId,
+          workItemId: null,
+          description: 'Pre-existing line',
+          plannedAmount: 500,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          vendorId: null,
+          quantity: null,
+          unit: null,
+          unitPrice: null,
+          includesVat: true,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              {
+                description: 'Pre-existing line',
+                totalAmount: 500,
+                confidence: 0.9,
+                assignmentMode: 'assign-existing',
+                assignedBudgetLineId: existingWibId,
+                assignedBudgetLineType: 'work_item',
+                includesVat: false,
+              },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
+            ] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
+    });
   });
 
   // ─── Paperless errors ──────────────────────────────────────────────────────
@@ -1629,6 +1848,7 @@ describe('invoiceAutoItemizeService', () => {
               assignmentMode: 'create-new',
               budgetCategoryId: 'bc-household-items',
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -1665,6 +1885,7 @@ describe('invoiceAutoItemizeService', () => {
               assignmentMode: 'create-new',
               budgetSourceId: 'discretionary-system',
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -1701,6 +1922,7 @@ describe('invoiceAutoItemizeService', () => {
               assignmentMode: 'create-new',
               // no budgetSourceId provided
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -1778,6 +2000,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineId: existingWibId,
               assignedBudgetLineType: 'work_item',
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -1826,6 +2049,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineId: existingWibId,
               assignedBudgetLineType: 'work_item',
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -1866,6 +2090,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineType: 'work_item',
               budgetSourceId: 'discretionary-system', // same, no change
             },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
           ] as any,
         },
         PAPERLESS_AUTH,
@@ -1886,9 +2111,7 @@ describe('invoiceAutoItemizeService', () => {
       linkDocument(db, invoiceId, 42);
       const existingWibId = insertStandaloneWIB(db, { plannedAmount: 300 });
       const config = makeConfig();
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const linePayload: any = [
+      const linePayload: ExtractedLine[] = [
         {
           description: 'Existing budget line',
           totalAmount: 300,
@@ -2172,6 +2395,281 @@ describe('invoiceAutoItemizeService', () => {
       const budgetCategoryId = result.lines[0]!['budgetCategoryId'];
       // No matching category → null
       expect(budgetCategoryId === null || budgetCategoryId === undefined).toBe(true);
+    });
+  });
+
+  // ─── Story #1679 — persistLines (Paperless-first create-on-confirm) ───────────
+
+  describe('persistLines (Story #1679)', () => {
+    it('create-new lines insert work_item_budget rows using the vendorId parameter', () => {
+      const vendorId = insertVendor(db, 'Builder Co');
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+
+      db.transaction(() => {
+        return persistLines(
+          db,
+          invoiceId,
+          vendorId,
+          'user-1',
+          [{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }] as any,
+          1000,
+        );
+      });
+
+      const newWibs = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore);
+      expect(newWibs).toHaveLength(1);
+      expect(newWibs[0]!.vendorId).toBe(vendorId);
+    });
+
+    it('throws ItemizedSumExceedsInvoiceError and rolls back when Σ > effectiveAmount', () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 500);
+
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      expect(() => {
+        db.transaction(() => {
+          return persistLines(
+            db,
+            invoiceId,
+            vendorId,
+            'user-1',
+            [
+              { description: 'Line A', totalAmount: 300, confidence: 0.9 },
+              { description: 'Line B', totalAmount: 250, confidence: 0.8 }, // 550 > 500
+            ] as any,
+            500,
+          );
+        });
+      }).toThrow(ItemizedSumExceedsInvoiceError);
+
+      // Transaction should have rolled back
+      expect(db.select().from(schema.workItemBudgets).all().length).toBe(wibCountBefore);
+      expect(db.select().from(schema.invoiceBudgetLines).all().length).toBe(iblCountBefore);
+    });
+
+    it('empty lines array succeeds and returns totalItemized: 0', () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 500);
+
+      const result = db.transaction(() => {
+        return persistLines(db, invoiceId, vendorId, 'user-1', [] as any, 500);
+      });
+
+      expect(result.totalItemized).toBe(0);
+    });
+  });
+
+  // ─── Story #1679 — previewAutoItemize ─────────────────────────────────────────
+
+  describe('previewAutoItemize (Story #1679)', () => {
+    it('resolves chosenVendorName to suggestedVendorId (case-insensitive)', async () => {
+      const vendorId = insertVendor(db, 'Builder Co');
+      const config = makeConfig();
+
+      // 3 fetch calls: Paperless doc, Paperless tags, LLM
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [{ description: 'Tile', totalAmount: 200, confidence: 0.9 }],
+                    chosenVendorName: 'builder co', // lower-case variant
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const result = (await previewAutoItemize(
+        db,
+        config,
+        { paperlessDocumentId: 42 },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; suggestedVendorId: string | null };
+
+      expect(result.suggestedVendorId).toBe(vendorId);
+    });
+
+    it('returns suggestedVendorId: null when chosenVendorName is null', async () => {
+      insertVendor(db, 'Builder Co');
+      const config = makeConfig();
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }],
+                    chosenVendorName: null,
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const result = (await previewAutoItemize(
+        db,
+        config,
+        { paperlessDocumentId: 42 },
+        PAPERLESS_AUTH,
+      )) as { suggestedVendorId: string | null };
+
+      expect(result.suggestedVendorId).toBeNull();
+    });
+
+    it('returns suggestedVendorId: null when chosenVendorName not in vendor list', async () => {
+      insertVendor(db, 'Builder Co');
+      const config = makeConfig();
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }],
+                    chosenVendorName: 'Unknown Vendor XYZ',
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const result = (await previewAutoItemize(
+        db,
+        config,
+        { paperlessDocumentId: 42 },
+        PAPERLESS_AUTH,
+      )) as { suggestedVendorId: string | null };
+
+      expect(result.suggestedVendorId).toBeNull();
+    });
+
+    it('inserts zero rows in any table (stateless — no DB writes)', async () => {
+      insertVendor(db, 'Builder Co');
+      const config = makeConfig();
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }],
+                    chosenVendorName: null,
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+      const invoiceCountBefore = db.select().from(schema.invoices).all().length;
+
+      await previewAutoItemize(db, config, { paperlessDocumentId: 42 }, PAPERLESS_AUTH);
+
+      expect(db.select().from(schema.workItemBudgets).all().length).toBe(wibCountBefore);
+      expect(db.select().from(schema.invoiceBudgetLines).all().length).toBe(iblCountBefore);
+      expect(db.select().from(schema.invoices).all().length).toBe(invoiceCountBefore);
+    });
+  });
+
+  // ─── Story #1679 — commitAutoItemizeCreate ────────────────────────────────────
+
+  describe('commitAutoItemizeCreate (Story #1679)', () => {
+    it('happy path: creates invoice, document_links, WIB, IBL rows; returns invoice + budgetLines + remainingAmount', async () => {
+      const vendorId = insertVendor(db, 'Happy Vendor');
+      const config = makeConfig();
+
+      const invoiceCountBefore = db.select().from(schema.invoices).all().length;
+      const dlCountBefore = db.select().from(schema.documentLinks).all().length;
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      const result = (await commitAutoItemizeCreate(db, config, 'user-1', {
+        paperlessDocumentId: 99,
+        vendorId,
+        invoice: {
+          amount: 1000,
+          date: '2026-03-01',
+          invoiceNumber: 'INV-001',
+        },
+        lines: [
+          { description: 'Tile work', totalAmount: 400, confidence: 0.9 },
+          { description: 'Grout', totalAmount: 100, confidence: 0.85 },
+        ] as any,
+      })) as { invoice: unknown; budgetLines: unknown; remainingAmount: number };
+
+      // All rows created
+      expect(db.select().from(schema.invoices).all().length).toBe(invoiceCountBefore + 1);
+      expect(db.select().from(schema.documentLinks).all().length).toBe(dlCountBefore + 1);
+      expect(db.select().from(schema.workItemBudgets).all().length).toBe(wibCountBefore + 2);
+      expect(db.select().from(schema.invoiceBudgetLines).all().length).toBe(iblCountBefore + 2);
+
+      // Response fields
+      expect(result.invoice).toBeDefined();
+      expect(result.budgetLines).toBeDefined();
+      expect(result.remainingAmount).toBe(500); // 1000 - 400 - 100
+    });
+
+    it('throws NotFoundError (vendor not found) when vendorId does not exist', async () => {
+      const config = makeConfig();
+
+      await expect(
+        commitAutoItemizeCreate(db, config, 'user-1', {
+          paperlessDocumentId: 99,
+          vendorId: 'nonexistent-vendor',
+          invoice: { amount: 500, date: '2026-03-01' },
+          lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }] as any,
+        }),
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('rolls back entire transaction when ItemizedSumExceedsInvoiceError occurs', async () => {
+      const vendorId = insertVendor(db, 'Rollback Vendor');
+      const config = makeConfig();
+
+      const invoiceCountBefore = db.select().from(schema.invoices).all().length;
+
+      try {
+        await commitAutoItemizeCreate(db, config, 'user-1', {
+          paperlessDocumentId: 99,
+          vendorId,
+          invoice: { amount: 500, date: '2026-03-01' },
+          lines: [
+            { description: 'Line A', totalAmount: 400, confidence: 0.9 },
+            { description: 'Line B', totalAmount: 200, confidence: 0.8 }, // 600 > 500
+          ] as any,
+        });
+      } catch {
+        // expected
+      }
+
+      // Invoice row count must be unchanged (transaction rolled back)
+      expect(db.select().from(schema.invoices).all().length).toBe(invoiceCountBefore);
     });
   });
 });

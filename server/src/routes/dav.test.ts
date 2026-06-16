@@ -2,17 +2,23 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import * as davTokenService from '../services/davTokenService.js';
 import { workItems, vendors } from '../db/schema.js';
-import type { FastifyInstance } from 'fastify';
 
 describe('DAV Routes', () => {
   let app: FastifyInstance;
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
+
+  const davInject = (
+    opts: Omit<InjectOptions, 'method'> & { method: string },
+  ): Promise<LightMyRequestResponse> =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- WebDAV verbs (PROPFIND/REPORT/PROPPATCH) are not in Fastify's HTTPMethods union
+    app.inject(opts as any);
 
   beforeEach(async () => {
     originalEnv = { ...process.env };
@@ -98,10 +104,10 @@ describe('DAV Routes', () => {
 
   describe('PROPFIND /dav/ authentication', () => {
     it('returns 401 with WWW-Authenticate header without auth header', async () => {
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/',
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(401);
       expect(response.headers['www-authenticate']).toBe('Basic realm="Cornerstone DAV"');
@@ -109,13 +115,13 @@ describe('DAV Routes', () => {
 
     it('returns 401 with WWW-Authenticate header with invalid token', async () => {
       const credentials = Buffer.from('user:not-a-valid-token').toString('base64');
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/',
         headers: {
           Authorization: `Basic ${credentials}`,
         },
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(401);
       expect(response.headers['www-authenticate']).toBe('Basic realm="Cornerstone DAV"');
@@ -124,11 +130,11 @@ describe('DAV Routes', () => {
     it('returns 207 with valid DAV token', async () => {
       const { basicAuth } = await createUserWithToken();
 
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/',
         headers: { Authorization: basicAuth },
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
     });
@@ -138,11 +144,11 @@ describe('DAV Routes', () => {
       // Any username, just the token in password
       const credentials = Buffer.from(`totally-ignored-username:${token}`).toString('base64');
 
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/',
         headers: { Authorization: `Basic ${credentials}` },
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
     });
@@ -154,11 +160,11 @@ describe('DAV Routes', () => {
     it('returns 207 multistatus with root collection and current-user-principal', async () => {
       const { basicAuth } = await createUserWithToken();
 
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/',
         headers: { Authorization: basicAuth },
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.headers['content-type']).toContain('application/xml');
@@ -172,11 +178,11 @@ describe('DAV Routes', () => {
     it('returns hrefs with /dav prefix at depth 1', async () => {
       const { basicAuth } = await createUserWithToken();
 
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/',
         headers: { Authorization: basicAuth, depth: '1' },
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:href>/dav/</D:href>');
@@ -192,11 +198,11 @@ describe('DAV Routes', () => {
     it('returns 207 multistatus with calendar collection props', async () => {
       const { basicAuth } = await createUserWithToken();
 
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/calendars/default/',
         headers: { Authorization: basicAuth },
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:multistatus');
@@ -211,11 +217,11 @@ describe('DAV Routes', () => {
       const { basicAuth } = await createUserWithToken();
       createTestWorkItem('Foundation Work');
 
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/calendars/default/',
         headers: { Authorization: basicAuth, depth: '1' },
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('.ics');
@@ -228,11 +234,11 @@ describe('DAV Routes', () => {
     it('returns 207 multistatus with addressbook collection props', async () => {
       const { basicAuth } = await createUserWithToken();
 
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/addressbooks/default/',
         headers: { Authorization: basicAuth },
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:multistatus');
@@ -244,11 +250,11 @@ describe('DAV Routes', () => {
       const { basicAuth } = await createUserWithToken();
       createTestVendor('Plumbing Pro');
 
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/addressbooks/default/',
         headers: { Authorization: basicAuth, depth: '1' },
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('.vcf');
@@ -396,15 +402,15 @@ describe('DAV Routes', () => {
   <D:href>/dav/addressbooks/default/vendor-${vendorId}.vcf</D:href>
 </A:addressbook-multiget>`;
 
-      const response = await (app.inject({
-        method: 'REPORT' as any,
+      const response = await davInject({
+        method: 'REPORT',
         url: '/dav/addressbooks/default/',
         headers: {
           Authorization: basicAuth,
           'content-type': 'application/xml',
         },
         payload: reportBody,
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:multistatus');
@@ -414,27 +420,27 @@ describe('DAV Routes', () => {
     it('returns 207 empty multistatus for empty body', async () => {
       const { basicAuth } = await createUserWithToken();
 
-      const response = await (app.inject({
-        method: 'REPORT' as any,
+      const response = await davInject({
+        method: 'REPORT',
         url: '/dav/addressbooks/default/',
         headers: {
           Authorization: basicAuth,
           'content-type': 'application/xml',
         },
         payload: '<report/>',
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:multistatus');
     });
 
     it('returns 401 without auth', async () => {
-      const response = await (app.inject({
-        method: 'REPORT' as any,
+      const response = await davInject({
+        method: 'REPORT',
         url: '/dav/addressbooks/default/',
         headers: { 'content-type': 'application/xml' },
         payload: '<report/>',
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(401);
     });
@@ -456,15 +462,15 @@ describe('DAV Routes', () => {
   <A:href xmlns:A="DAV:">/dav/calendars/default/wi-${wiId}.ics</A:href>
 </A:calendar-multiget>`;
 
-      const response = await (app.inject({
-        method: 'REPORT' as any,
+      const response = await davInject({
+        method: 'REPORT',
         url: '/dav/calendars/default/',
         headers: {
           Authorization: basicAuth,
           'content-type': 'application/xml',
         },
         payload: reportBody,
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:multistatus');
@@ -485,15 +491,15 @@ describe('DAV Routes', () => {
   <D:href>/dav/calendars/default/wi-${wiId}.ics</D:href>
 </C:calendar-multiget>`;
 
-      const response = await (app.inject({
-        method: 'REPORT' as any,
+      const response = await davInject({
+        method: 'REPORT',
         url: '/dav/calendars/default/',
         headers: {
           Authorization: basicAuth,
           'content-type': 'application/xml',
         },
         payload: reportBody,
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('Standard Multiget Test');
@@ -520,15 +526,15 @@ describe('DAV Routes', () => {
   </C:filter>
 </C:calendar-query>`;
 
-      const response = await (app.inject({
-        method: 'REPORT' as any,
+      const response = await davInject({
+        method: 'REPORT',
         url: '/dav/calendars/default/',
         headers: {
           Authorization: basicAuth,
           'content-type': 'application/xml',
         },
         payload: queryBody,
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:multistatus');
@@ -552,15 +558,15 @@ describe('DAV Routes', () => {
   </D:prop>
 </A:addressbook-query>`;
 
-      const response = await (app.inject({
-        method: 'REPORT' as any,
+      const response = await davInject({
+        method: 'REPORT',
         url: '/dav/addressbooks/default/',
         headers: {
           Authorization: basicAuth,
           'content-type': 'application/xml',
         },
         payload: queryBody,
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:multistatus');
@@ -585,15 +591,15 @@ describe('DAV Routes', () => {
   <A:href xmlns:A="DAV:">/dav/addressbooks/default/vendor-${vendorId}.vcf</A:href>
 </A:addressbook-multiget>`;
 
-      const response = await (app.inject({
-        method: 'REPORT' as any,
+      const response = await davInject({
+        method: 'REPORT',
         url: '/dav/addressbooks/default/',
         headers: {
           Authorization: basicAuth,
           'content-type': 'application/xml',
         },
         payload: reportBody,
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:multistatus');
@@ -617,15 +623,15 @@ describe('DAV Routes', () => {
   </D:set>
 </D:propertyupdate>`;
 
-      const response = await (app.inject({
-        method: 'PROPPATCH' as any,
+      const response = await davInject({
+        method: 'PROPPATCH',
         url: '/dav/calendars/default/',
         headers: {
           Authorization: basicAuth,
           'content-type': 'application/xml',
         },
         payload: proppatchBody,
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.headers['content-type']).toContain('application/xml');
@@ -635,12 +641,12 @@ describe('DAV Routes', () => {
     });
 
     it('returns 401 without auth', async () => {
-      const response = await (app.inject({
-        method: 'PROPPATCH' as any,
+      const response = await davInject({
+        method: 'PROPPATCH',
         url: '/dav/calendars/default/',
         headers: { 'content-type': 'application/xml' },
         payload: '<propertyupdate/>',
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(401);
     });
@@ -661,15 +667,15 @@ describe('DAV Routes', () => {
   </D:set>
 </D:propertyupdate>`;
 
-      const response = await (app.inject({
-        method: 'PROPPATCH' as any,
+      const response = await davInject({
+        method: 'PROPPATCH',
         url: '/dav/addressbooks/default/',
         headers: {
           Authorization: basicAuth,
           'content-type': 'application/xml',
         },
         payload: proppatchBody,
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(207);
       expect(response.payload).toContain('<D:multistatus');
@@ -685,11 +691,11 @@ describe('DAV Routes', () => {
       createTestWorkItem('ETag Test Item');
 
       // PROPFIND depth 1
-      const propfindRes = await (app.inject({
-        method: 'PROPFIND' as any,
+      const propfindRes = await davInject({
+        method: 'PROPFIND',
         url: '/dav/calendars/default/',
         headers: { Authorization: basicAuth, depth: '1' },
-      }) as any);
+      });
 
       // REPORT calendar-query
       const reportBody = `<?xml version="1.0" encoding="utf-8"?>
@@ -698,15 +704,15 @@ describe('DAV Routes', () => {
   <C:filter><C:comp-filter name="VCALENDAR"><C:comp-filter name="VEVENT"/></C:comp-filter></C:filter>
 </C:calendar-query>`;
 
-      const reportRes = await (app.inject({
-        method: 'REPORT' as any,
+      const reportRes = await davInject({
+        method: 'REPORT',
         url: '/dav/calendars/default/',
         headers: {
           Authorization: basicAuth,
           'content-type': 'application/xml',
         },
         payload: reportBody,
-      }) as any);
+      });
 
       // Extract ETags from both responses — they should both use "wi-<hash>" format
       const propfindEtags =
@@ -726,11 +732,11 @@ describe('DAV Routes', () => {
     it('multistatus root declares all namespaces', async () => {
       const { basicAuth } = await createUserWithToken();
 
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/dav/calendars/default/',
         headers: { Authorization: basicAuth },
-      }) as any);
+      });
 
       expect(response.payload).toContain('xmlns:D="DAV:"');
       expect(response.payload).toContain('xmlns:C="urn:ietf:params:xml:ns:caldav"');
@@ -763,20 +769,20 @@ describe('DAV Routes', () => {
     });
 
     it('PROPFIND /.well-known/caldav returns 301 redirect to /dav/', async () => {
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/.well-known/caldav',
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(301);
       expect(response.headers.location).toBe('/dav/');
     });
 
     it('PROPFIND /.well-known/carddav returns 301 redirect to /dav/', async () => {
-      const response = await (app.inject({
-        method: 'PROPFIND' as any,
+      const response = await davInject({
+        method: 'PROPFIND',
         url: '/.well-known/carddav',
-      }) as any);
+      });
 
       expect(response.statusCode).toBe(301);
       expect(response.headers.location).toBe('/dav/');

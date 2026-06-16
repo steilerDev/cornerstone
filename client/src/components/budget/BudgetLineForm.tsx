@@ -10,7 +10,6 @@ import type {
 } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
-import { translateApiError } from '../../lib/errorTranslation.js';
 import { FormError } from '../FormError/index.js';
 import { ParentPicker } from '../ParentPicker/index.js';
 import styles from './BudgetLineForm.module.css';
@@ -70,7 +69,6 @@ export function BudgetLineForm({
 }: BudgetLineFormProps) {
   const { t } = useTranslation('budget');
   const { t: tSettings } = useTranslation('settings');
-  const { t: tErrors } = useTranslation('errors');
 
   // Parent picker state
   const [selectedParentType, setSelectedParentType] = useState<'work_item' | 'household_item'>(
@@ -99,9 +97,11 @@ export function BudgetLineForm({
 
   // Initialize selectedParentType when editing an assigned line
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- initializing picker state from prop */
     if (currentParentType && currentParentType !== 'unassigned') {
       setSelectedParentType(currentParentType);
     }
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [currentParentType]);
 
   // Handle parent assignment

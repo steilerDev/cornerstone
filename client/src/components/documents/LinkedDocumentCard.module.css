@@ -40,6 +40,84 @@
   opacity: 0.35;
 }
 
+/* ─── Overlay unlink button ─────────────────────────────────────────────── */
+
+.unlinkOverlayButton {
+  position: absolute;
+  top: var(--spacing-1-5);
+  right: var(--spacing-1-5);
+  z-index: var(--z-dropdown);
+  width: var(--spacing-7); /* 28px desktop */
+  height: var(--spacing-7);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--color-overlay-medium);
+  /* Use --color-sidebar-text (near-white in both themes) for legibility over images */
+  /* Intentional exception: --color-text-inverse is near-black in dark mode, unusable here */
+  color: var(--color-sidebar-text);
+  border: none;
+  border-radius: var(--radius-circle);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  line-height: 1;
+  /* Hidden on pointer devices; revealed by .card:hover or :focus-visible below */
+  opacity: 0;
+  pointer-events: none;
+  /* text-shadow for legibility over any thumbnail content (image-overlay exception) */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.unlinkOverlayButton:hover {
+  background: var(--color-overlay-delete);
+  color: var(--color-danger);
+  text-shadow: none;
+}
+
+.unlinkOverlayButton:active {
+  background: var(--color-danger-bg-strong);
+  color: var(--color-danger);
+}
+
+.unlinkOverlayButton:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  outline: none;
+  box-shadow: var(--shadow-focus-danger);
+}
+
+/* Reveal on card hover (pointer devices) */
+.card:hover .unlinkOverlayButton {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Opacity transition — only when reduced motion is OK */
+@media (prefers-reduced-motion: no-preference) {
+  .unlinkOverlayButton {
+    transition:
+      opacity var(--transition-fast),
+      background-color var(--transition-fast);
+  }
+}
+
+/* Touch / coarse pointer — always visible */
+@media (hover: none), (pointer: coarse) {
+  .unlinkOverlayButton {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Touch target size on mobile/tablet */
+@media (max-width: 1023px) {
+  .unlinkOverlayButton {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 .body {
   padding: var(--spacing-3);
   display: flex;
@@ -138,30 +216,6 @@
   box-shadow: var(--shadow-focus-subtle);
 }
 
-.unlinkButton {
-  flex-shrink: 0;
-  padding: var(--spacing-1);
-  background: transparent;
-  border: none;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition:
-    color var(--transition-fast),
-    background var(--transition-fast);
-}
-
-.unlinkButton:hover {
-  color: var(--color-danger);
-  background: var(--color-overlay-delete);
-}
-
-.unlinkButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-danger);
-}
-
 .itemizeButton {
   flex-shrink: 0;
   background: transparent;
@@ -194,8 +248,7 @@
 /* Touch targets on mobile */
 @media (max-width: 1023px) {
   .viewButton,
-  .openLink,
-  .unlinkButton {
+  .openLink {
     min-height: 44px;
     min-width: 44px;
     display: flex;

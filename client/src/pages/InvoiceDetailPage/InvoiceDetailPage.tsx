@@ -57,7 +57,7 @@ export function InvoiceDetailPage() {
   useEffect(() => {
     if (!id) return;
     void loadInvoice();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadInvoice is defined in component body; effect re-runs on intended trigger only
   }, [id]);
 
   const loadInvoice = async () => {

@@ -133,6 +133,7 @@ export function SubsidyProgramsPage() {
 
   useEffect(() => {
     void loadData();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadData is defined in component body; effect runs only once on mount
   }, []);
 
   const loadData = async () => {

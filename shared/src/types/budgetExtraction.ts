@@ -42,6 +42,12 @@ export interface ExtractionHints {
   invoiceTotal?: number;
   invoiceDate?: string; // ISO 8601 date
   locale?: string; // e.g., 'de-DE'
+  /**
+   * Available vendors for the LLM to choose from.
+   * When populated, the LLM should return chosenVendorName as one of these names.
+   * EPIC-18 Story #1679: Added for Paperless-first invoice creation preview.
+   */
+  availableVendors?: Array<{ id: string; name: string }>;
 }
 
 /**
@@ -58,5 +64,11 @@ export interface ExtractionResult {
   invoiceNumber?: string;
   /** One-sentence summary (max 1000 chars) if extracted, else absent. */
   notes?: string;
+  /**
+   * Vendor name matched by the LLM when availableVendors is provided.
+   * Must be an exact match to one of the names in hints.availableVendors.
+   * EPIC-18 Story #1679: Added for Paperless-first invoice creation preview.
+   */
+  chosenVendorName?: string | null;
   lines: ExtractedLine[];
 }

@@ -87,7 +87,7 @@ describe('Vendor interface', () => {
       updatedAt: '2025-01-01T00:00:00Z',
     };
 
-    expect((vendor as any).specialty).toBeUndefined();
+    expect((vendor as unknown as Record<string, unknown>).specialty).toBeUndefined();
   });
 
   it('trade field is a TradeSummary with id, name, color', () => {
@@ -245,7 +245,7 @@ describe('CreateVendorRequest interface', () => {
 
   it('does not have specialty field', () => {
     const request: CreateVendorRequest = { name: 'Test' };
-    expect((request as any).specialty).toBeUndefined();
+    expect((request as unknown as Record<string, unknown>).specialty).toBeUndefined();
   });
 });
 
@@ -293,7 +293,7 @@ describe('UpdateVendorRequest interface', () => {
 
   it('does not have specialty field', () => {
     const request: UpdateVendorRequest = {};
-    expect((request as any).specialty).toBeUndefined();
+    expect((request as Record<string, unknown>).specialty).toBeUndefined();
   });
 });
 

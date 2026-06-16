@@ -5,6 +5,7 @@ import { updatePhoto } from '../../lib/photoApi.js';
 import { fetchAreas } from '../../lib/areasApi.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { SearchPicker } from '../SearchPicker/index.js';
+import { OrientationPicker } from '../OrientationPicker/index.js';
 import styles from './PhotoMetadataSidepanel.module.css';
 
 /**
@@ -30,6 +31,7 @@ export function PhotoMetadataSidepanel({
 
   const [caption, setCaption] = useState(photo.caption ?? '');
   const [areaId, setAreaId] = useState(photo.areaId ?? '');
+  const [orientationId, setOrientationId] = useState(photo.orientationId ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [areas, setAreas] = useState<AreaResponse[]>([]);
@@ -38,6 +40,7 @@ export function PhotoMetadataSidepanel({
 
   // Load areas on mount
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- initializing loading and data state from async operation */
     setIsLoadingAreas(true);
     fetchAreas()
       .then((resp) => {
@@ -49,14 +52,18 @@ export function PhotoMetadataSidepanel({
       .finally(() => {
         setIsLoadingAreas(false);
       });
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, []);
 
   // Reset form when photo changes
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- resetting form state in response to photo change */
     setCaption(photo.caption ?? '');
     setAreaId(photo.areaId ?? '');
+    setOrientationId(photo.orientationId ?? '');
     setError(null);
-  }, [photo.id, photo.caption, photo.areaId]);
+    /* eslint-enable @eslint-react/set-state-in-effect */
+  }, [photo.id, photo.caption, photo.areaId, photo.orientationId]);
 
   const handleSave = useCallback(async () => {
     setError(null);
@@ -66,6 +73,7 @@ export function PhotoMetadataSidepanel({
       const updated = await updatePhoto(photo.id, {
         caption: caption === '' ? null : caption,
         areaId: areaId === '' ? null : areaId,
+        orientationId: orientationId === '' ? null : orientationId,
       });
 
       onPhotoUpdated?.(updated);
@@ -76,7 +84,7 @@ export function PhotoMetadataSidepanel({
     } finally {
       setIsSaving(false);
     }
-  }, [photo.id, caption, areaId, onPhotoUpdated]);
+  }, [photo.id, caption, areaId, orientationId, onPhotoUpdated]);
 
   const searchAreas = useCallback(async (query: string) => {
     return fetchAreas({ search: query }).then((resp) => resp.areas || []);
@@ -87,7 +95,10 @@ export function PhotoMetadataSidepanel({
     return null;
   }
 
-  const hasChanges = caption !== (photo.caption ?? '') || areaId !== (photo.areaId ?? '');
+  const hasChanges =
+    caption !== (photo.caption ?? '') ||
+    areaId !== (photo.areaId ?? '') ||
+    orientationId !== (photo.orientationId ?? '');
   const isDisabled = isSaving || isLoadingAreas;
 
   const renderAreaItem = (area: AreaResponse) => ({
@@ -95,21 +106,26 @@ export function PhotoMetadataSidepanel({
     label: area.name,
   });
 
+  // Toggle button JSX — reused in two locations (closed launcher or header)
+  const toggleButton = (additionalClassName?: string) => (
+    <button
+      type="button"
+      className={`${styles.toggleButton}${additionalClassName ? ` ${additionalClassName}` : ''}`}
+      onClick={() => setIsOpenMobile((v) => !v)}
+      aria-expanded={isOpenMobile}
+      aria-controls="photo-metadata-sidepanel"
+      data-testid="photo-metadata-toggle"
+      title={t('metadataToggle')}
+      aria-label={t('metadataToggle')}
+    >
+      <ChevronUpIcon />
+    </button>
+  );
+
   return (
     <>
-      {/* Toggle button — visible on mobile only */}
-      <button
-        type="button"
-        className={styles.toggleButton}
-        onClick={() => setIsOpenMobile((v) => !v)}
-        aria-expanded={isOpenMobile}
-        aria-controls="photo-metadata-sidepanel"
-        data-testid="photo-metadata-toggle"
-        title={t('metadataToggle')}
-        aria-label={t('metadataToggle')}
-      >
-        <ChevronUpIcon />
-      </button>
+      {/* Toggle button (closed launcher) — visible on mobile only when panel is closed */}
+      {!isOpenMobile && toggleButton(styles.toggleButtonFloating)}
 
       {/* Sidepanel */}
       <div
@@ -120,6 +136,8 @@ export function PhotoMetadataSidepanel({
       >
         <div className={styles.header}>
           <h3 className={styles.title}>{t('metadataTitle')}</h3>
+          {/* Toggle button (in header) — visible on mobile only when panel is open */}
+          {isOpenMobile && toggleButton(styles.toggleButtonInHeader)}
         </div>
 
         <div className={styles.content}>
@@ -166,6 +184,23 @@ export function PhotoMetadataSidepanel({
                   areas.find((a) => a.id === areaId)?.name ||
                   (areaId === '' ? t('noArea') : undefined)
                 }
+              />
+            </div>
+          </div>
+
+          {/* Orientation picker */}
+          <div className={styles.section}>
+            <label htmlFor="photo-orientation" className={styles.label}>
+              {t('photoViewer:orientation')}
+            </label>
+            <div className={styles.areaPicker}>
+              <OrientationPicker
+                id="photo-orientation"
+                value={orientationId}
+                onChange={setOrientationId}
+                disabled={isDisabled}
+                nullable={true}
+                initialOrientationName={photo.orientation?.name}
               />
             </div>
           </div>

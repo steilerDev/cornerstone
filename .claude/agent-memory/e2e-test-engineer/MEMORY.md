@@ -3,6 +3,137 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## OrientationsTab E2E coverage (fix #1687, 2026-06-15) — `e2e/tests/orientations.spec.ts`, `e2e/pages/OrientationsPage.ts`
+
+- Comprehensive 8-scenario spec already exists in `e2e/tests/orientations.spec.ts` (NOT under `navigation/`) — covers CRUD, dark mode, sort order, tab navigation, empty state
+- CSS fix #1687 changed `styles.listContainer→itemsList` + `styles.listItem→itemRow` in ManagePage.tsx OrientationsTab
+- POM `getOrientationRow()` still uses `[class*="itemName"]` — stable anchor regardless of row-level class
+- `?tab=orientations` deep-link test added to `settings-manage.spec.ts` URL deep-linking describe block (was the only missing coverage)
+- Panel ID: `orientations-panel` (dynamically generated: `${activeTab}-panel`)
+- Create form h2: "Create orientation" (NOT "Create New Orientation" — unlike Areas/Trades/HI)
+
+## Paperless correspondent query param name (2026-06-15) — `e2e/tests/invoices/paperless-first-invoice.spec.ts`
+
+- `listPaperlessDocuments()` sends `?correspondent=<id>` (integer, per `paperlessApi.ts` line 27: `params.set('correspondent', ...)`)
+- NOT `?correspondentId=` — that is the DocumentBrowser/usePaperless PROP name, not the URL param
+- Always check URL param as `url.searchParams.get('correspondent')` in route mocks
+- `usePaperless` hook receives `correspondentId` prop → sends `correspondent` param in HTTP request
+
+## LinkedDocumentsSection defaultHideLinked change (Story #1679, 2026-06-15) — `document-linking.spec.ts` Scenario 7
+
+- `LinkedDocumentsSection` now passes `defaultHideLinked={true}` to `DocumentBrowser` (line 420 of LinkedDocumentsSection.tsx)
+- `InvoicePaperlessPickerModal` also passes `defaultHideLinked={true}` with `linkedDocumentIds={[]}`
+- With empty `linkedDocumentIds`, `defaultHideLinked=true` doesn't hide anything (client-side filter excludes nothing)
+- Updated Scenario 7a (now tests toggle defaults ON, initially 1 doc visible) and 7b (renamed "checked by default")
+- When `linkedDocumentIds` has entries, docs with those IDs are hidden by default
+
+## SearchPicker Display Mode in E2E (2026-06-15) — `e2e/pages/PaperlessInvoiceReviewPage.ts`
+
+- When SearchPicker has `initialTitle + value` set (pre-filled), it renders `<div class*="selectedDisplay">` NOT the `<input id="...">`. Assert `vendorSelectedDisplay` = `[class*="card"].first() [class*="selectedDisplay"]`, NOT `#vendor-picker`.
+- `#vendor-picker` input only present when SearchPicker is in search/input mode (no pre-fill or pre-fill cleared).
+- `handleSave` on PaperlessInvoiceReviewPage validates each included line has `budgetCategoryId` OR `assignedBudgetLineId`. MOCK_EXTRACTED_LINES have neither — must inject `budgetCategoryId` via `page.request.get(API.budgetCategories)` before mocking preview.
+
+## PaperlessInvoiceReviewPage CSS Module vs TSX class-name mismatch (fix/1679, 2026-06-15)
+
+- **Root cause**: TSX was reworked to use new class names (`lineList`, `lineCard`, `lineCardExcluded`, `cardTopRow`, `cardMetricGrid`, `assignedBadge`, `pickerBudgetLineRow`, etc.) mirroring AutoItemizePage, but `PaperlessInvoiceReviewPage.module.css` was NOT updated — it still only defines old names (`linesList`, `lineItem`, `lineItemExcluded`, `pageContainer`, `mainColumn`, `card`, etc.). All the new class refs resolve to `undefined` in JS/CSS Modules.
+- **DOM impact**: `<ul>` with `styles.lineList` → no class attribute (className=undefined). `<li>` with `styles.lineCard` → `className="undefined "` (literal string).
+- **POM fix** (2026-06-15): `lineItemsList` changed from `page.locator('[class*="linesList"]')` to `page.getByRole('list', { name: 'Extracted line items' })` (uses explicit `role="list"` + `aria-label` from i18n key `autoItemize.lineItemsListLabel` = "Extracted line items"). `getLineItem(index)` and `getLineItemCount()` changed from `lineItemsList.locator('[class*="lineItem"]')` to `lineItemsList.locator('li')`.
+- **Class names that DO exist** in PaperlessInvoiceReviewPage.module.css: `pageContainer`, `mainColumn`, `card`, `cardTitle`, `field`, `label`, `required`, `suggestionRow`, `linesList`, `lineItem`, `lineItemExcluded`, `emptyMessage`, `loadingState`, `loadingMessage`, `errorState`, `errorText`, `actionBar`. Class-based locators using `[class*="card"]`, `[class*="loadingState"]`, `[class*="errorState"]` are fine.
+- **Production bug** also exists (visually unstyled line cards) — not fixed here (out of E2E scope). Filed as separate concern.
+
+## Diary Mobile Filter Panel E2E (Bug #1688, 2026-06-15) — `e2e/tests/diary/diary-mobile-filters.spec.ts`
+
+- 6 scenarios; all tagged `@responsive` so mobile+tablet+desktop projects execute them.
+- Mobile-only (Scenarios 1–5): runtime `if (viewportWidth > 767) test.skip()` — MOBILE_MAX_WIDTH = 767 matches CSS `@media (max-width: 767px)`.
+- Desktop/tablet-only (Scenario 6): runtime `if (viewportWidth <= 767) test.skip()`.
+- POM reused: `DiaryPage.mobileFilterToggle`, `DiaryPage.searchInput`, `DiaryPage.openFiltersIfCollapsed()`.
+- Mode chip test-ids: `mode-filter-all`, `mode-filter-manual`, `mode-filter-automatic`.
+- No API mocking — all scenarios navigate to /diary and interact with filter UI only.
+
+## Overlay Unlink Button E2E (fix/1680, 2026-06-15) — `e2e/tests/documents/document-linking.spec.ts`
+
+- New `describe` block: `'Document Linking — Unlink via Overlay Button (Scenario 4)'` — 3 scenarios (4a desktop confirm, 4b desktop cancel, 4c mobile @responsive).
+- **DELETE mock pattern**: `mockDocumentLinkDelete(page)` — registers `**/api/document-links/*`, only handles DELETE (continues other methods), empties `linkedDocumentIds` state so GET refetch returns empty. Returns async cleanup fn `() => page.unroute('**/api/document-links/*')`.
+- **Pre-seed linked doc**: call `mockPaperlessForLinking(page, 'work_item', id)` then set `linkedDocumentIds = [MOCK_DOCUMENT.id]` BEFORE navigation. The module-level `let linkedDocumentIds` is mutable and shared across mock handlers.
+- **Hover pattern on desktop**: `await card.hover()` THEN `await expect(unlinkOverlayButton).toBeVisible()`. The button is in DOM (`toBeAttached`) but opacity:0 until hover — Playwright's `toBeVisible` checks opacity so hover is required first.
+- **Unlink modal**: `page.getByRole('dialog', { name: 'Unlink Document?' })` — dialog uses `aria-labelledby="unlink-title"` where `id="unlink-title"` text = "Unlink Document?" (from `documents:linkedDocuments.unlinkDocument`). Confirm button = `getByRole('button', { name: /^Unlink$/i })` inside dialog. Cancel = `getByRole('button', { name: /^Cancel$/i })`.
+- **After confirm**: assert `linkedList` (`role="list" aria-label="Linked documents"`) is hidden — entire list disappears when no links remain (component renders null for 0 links).
+- **Mobile scenario**: tag `{ tag: '@responsive' }` (Playwright syntax, NOT on describe — on the individual test). No hover needed; button is visible due to `@media (hover: none), (pointer: coarse) { opacity: 1 }`.
+- **Cleanup order in finally**: `cleanupDelete()` first (unroutes `**/api/document-links/*`), then `cleanupMocks(page)` (unroutes paperless + document-links GET routes), then delete WI via API.
+- `mockDocumentLinkDelete` must NOT unroute `**/api/document-links?*` — that is owned by `mockPaperlessForLinking` and cleaned by `cleanupMocks`.
+- **CSS hover-only buttons require `force: true` to click reliably on CI**: The overlay button (opacity:0; pointer-events:none by default, revealed by CSS `.card:hover`) fails Playwright's pointer-events actionability check on CI Linux runners. Root cause: there is a race between Playwright's mouse move to the button and the CSS hover state propagation during the actionability check. Fix: after `card.hover()` + `expect(button).toBeVisible()`, use `button.click({ force: true })` to dispatch the click directly without the pointer-events check. Applied to Scenarios 4a and 4b. Note: Escape key approach for modal dismiss is still correct (document-level keydown handler fires reliably).
+
+## diary-drafts Scenario 14 (Pre-existing persistent flake after fix in beta)
+
+- `Draft card click navigates to edit page (Scenario 14)` in `e2e/tests/diary/diary-drafts.spec.ts:817` — HARD FAILS intermittently in CI despite fix in PR #1671 (commit 59099a40 in beta).
+- Fix in 59099a40 added `test.slow()` + `waitForURL timeout: 30_000` + `toBeVisible timeout: 15_000`. Still not enough.
+- Error: `expect(editPage.heading).toBeVisible({ timeout: 15_000 })` fails — "Edit Diary Entry" h1 not found after navigation to /diary/:id/edit. The SPA router completes but the API response for `getDiaryEntry()` exceeds 15s under heavy CI load.
+- This failure is PRE-EXISTING on beta (not introduced by any current PR). Safe to merge over.
+
+## Paperless Mock: MUST include /api/paperless/tags (2026-06-15)
+
+- `usePaperless` Phase 2 calls `listPaperlessTags()` in a `Promise.all()` alongside `listPaperlessDocuments()`. If `/api/paperless/tags` is NOT mocked, the `Promise.all` rejects → `usePaperless` enters error state → `DocumentBrowser` renders `role="alert"` div instead of `#document-grid` → `waitForDocumentsLoaded()` times out.
+- **ALWAYS mock tags** in any test that opens DocumentBrowser (picker modal OR LinkedDocumentsSection): `await page.route('**/api/paperless/tags', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tags: [] }) }))`.
+- The `document-linking.spec.ts` proven pattern (used in `mockPaperlessForLinking()`) mocks: status + documents + tags + thumb. The `paperless-first-invoice.spec.ts` initially only mocked status + documents + correspondents — missing tags was the bug.
+
+## DocumentBrowser Two-Stage Loading Race (fixed 2026-06-15) — `e2e/pages/PaperlessPickerModal.ts`
+
+- `DocumentBrowser` has TWO async loading stages before card buttons appear in the DOM:
+  1. Status check (`hook.status === null`) — shows a separate `div.infoState[aria-busy="true"]`, the `#document-grid` element is NOT mounted yet
+  2. Document fetch (`hook.isLoading`) — `#document-grid[aria-busy="true"]` with skeleton cards
+- After both stages: `#document-grid[aria-busy="false"]` with real `DocumentCard` divs (role="button")
+- **`waitForDocumentsLoaded()` pattern**: `grid.waitFor({ state: 'visible' })` (covers stage 1) then `expect(grid).toHaveAttribute('aria-busy', 'false', { timeout: 10000 })` (covers stage 2)
+- `DocumentCard` root is `role="button"` (a `<div>` — NOT `<button>`). aria-label = `"Document: {{title}}{{date}}"`. No nested `role="button"` inside — "Open in Paperless" is `role="link"`. `getByRole('button', { name: /title/i })` is unambiguous.
+- `#document-grid` scoped to `this.modal` (dialog locator) is correct — grid has a unique ID in the page.
+- `import { expect } from '@playwright/test'` is valid in POM files (confirmed in `apiHelpers.ts`).
+- Call `waitForDocumentsLoaded()` in: `selectDocument()` (always), and any spec that calls `getDocumentCard()` directly after `waitForPickerModal()`.
+
+## Paperless-First Invoice E2E (Story #1679, 2026-06-15) — `e2e/tests/invoices/paperless-first-invoice.spec.ts` + `paperless-first-invoice-fallbacks.spec.ts`
+
+- NO Paperless testcontainer needed — all Paperless endpoints (`/api/paperless/status`, `/paperless/documents`, `/paperless/correspondents`, `/paperless/documents/:id`) and LLM endpoints (`/api/invoices/auto-itemize/preview`, `/api/invoices/auto-itemize/commit`) mocked via `page.route()`.
+- New POMs: `PaperlessPickerModal.ts` (modal dialog locating via `getByRole('dialog', { name: /Select Invoice Document/i })`), `PaperlessInvoiceReviewPage.ts`.
+- **`InvoicesPage.clickNewInvoice()`**: waits for button enabled (`aria-disabled !== 'true'`) before click — button is disabled while config+status loads.
+- **`PaperlessInvoiceReviewPage` requires location state**: page reads `documentId` from React Router `location.state`. MUST navigate through the full picker flow (not `page.goto()` directly) to pass state. `page.goto('/budget/invoices/new/paperless')` with no state shows error guard.
+- **Correspondent SearchPicker portal**: dropdown portals to `document.body` — use `page.locator('[data-search-picker-dropdown]')` scoped to `page`, NOT to `modal`.
+- **DocumentCard "Open in Paperless" link**: `getByRole('link', { name: /Open '?{title}'? in Paperless/i })` inside modal. `href = {paperlessUrl}/documents/{id}/details`, `target="_blank"`, `rel="noopener noreferrer"`.
+- **i18n namespace discovery**: `InvoicePaperlessPickerModal` uses `useTranslation(['invoices', 'documents'])` with `t('invoices:pickerModal.title')` — but there's no `invoices.json`. Keys are in `budget.json` under `invoices.pickerModal.*`. The `invoices:` prefix refers to the `budget.json` `invoices` top-level key via i18next namespace fallback.
+- **Confirm button disabled when no vendor**: `disabled={!vendorId}` in JSX. Can't click a disabled button in Playwright — assert `toBeDisabled()` directly.
+- **Mock pattern for preview endpoint**: `page.route('**/api/invoices/auto-itemize/preview', ...)` — no invoice ID in the URL (new endpoint path for create-from-scratch flow vs. `**/api/invoices/:id/auto-itemize`).
+- InvoicesPage POM extended with: `clickNewInvoice()`, `waitForPickerModal()`, `waitForManualModal()`.
+
+## Orientations + Mobile Photo Capture E2E (Story #1674, 2026-06-15) — `e2e/tests/orientations.spec.ts`, `e2e/tests/photo-capture-flow.spec.ts`, `e2e/pages/OrientationsPage.ts`
+
+- **OrientationsTab**: `ManagePage` now has 5 tabs (added Orientations). `settings-manage.spec.ts` "All four tabs" test was updated to `toHaveCount(5)`.
+- **Orientations CRUD**: panel id = `orientations-panel`. Create h2 = "Create orientation". Edit button aria-label = `"Edit {name}"`, delete = `"Delete {name}"`. Success banner = `[class*="successBanner"][role="alert"]`. Create error = `[class*="errorBanner"][role="alert"].first()`. Delete modal = `role="dialog"`.
+- **Orientations API**: POST `/api/orientations` → `{ orientation: { id } }`. PATCH `/api/orientations/:id` → 200. DELETE → 204. No shared helpers in apiHelpers.ts yet (inline in orientations.spec.ts).
+- **PhotoUpload touch detection**: uses `window.matchMedia('(hover: none)').matches`. iPhone 13 / iPad (gen 7) Playwright devices have `hover: none`. Desktop Chrome has `hover: hover`. Touch UI (Take photo + Upload Photos buttons) only shows when `isTouchDevice=true`. Tests use `page.viewportSize()?.width <= 1024` as desktop vs mobile/tablet proxy for conditional assertions.
+- **Hidden inputs always in DOM**: `photo-camera-input`, `photo-library-input`, `photo-file-input` are all `aria-hidden` but always attached regardless of viewport. Use `getByTestId().setInputFiles()` to trigger file selection without clicking visible buttons.
+- **PhotoMetadataModal**: opened by setting files on `photo-library-input`. Modal accessible name = "Add photo details" (from `Modal title=` prop). Description = `#modal-photo-caption`. OrientationPicker placeholder = "Select an orientation". SearchPicker portals to `[data-search-picker-dropdown]` in `document.body`.
+- **Bug #1675 FIXED**: `PhotoMetadataModal.tsx` now passes `emptyHint={t('photoMetadataModal.noOrientationsHint')}` to OrientationPicker. SearchPicker's `emptyHint` branch (line 409) does NOT gate on `specialOptions`, so it renders even when `nullable=true` passes specialOptions. Scenario 11 is now `test(...)` (enabled). Hint text: "No orientations configured. Add them in Settings → Orientations." Rendered in `[data-search-picker-dropdown] div[class*="stateMessage"]`.
+- **Photo upload queue**: after modal save, queue shows `aria-label="Photo upload queue"` container with filename entries.
+- **CRITICAL RACE — queue entries removed immediately**: `uploadSinglePhoto` calls `setPhotoQueue(prev => prev.filter(...))` immediately after `onUpload(photo)` — NOT after 2s as the comment says. With a mock that resolves instantly, the queue entry disappears before Playwright can assert it. FIX: use a `mockUploadWithDelay` helper that adds a 400ms `setTimeout` delay to the mocked POST response. This keeps the entry in `'uploading'` state long enough for assertion.
+- **DiaryEntryDetailPage has NO h1 for titleless entries**: `<h1>` only renders when `entry.title` is set. `general_note` drafts have no title — there is no `role="heading" level=1` on the detail page for them. Wait for `role="heading" level=2 name=/Photos/` instead.
+- **Photo upload mock response shape**: must include all `Photo` type fields: `originalFilename` (NOT `filename`), `fileUrl` (NOT `url`), `width`, `height`, `takenAt`, `sortOrder`, `createdBy`, `updatedAt`, `annotatedAt`.
+- **OrientationPicker placeholder**: `input[placeholder="Select an orientation"]` — NOT `[placeholder*="orientation"]` (the `*=` form is fragile if there are other inputs with "orientation" in placeholder). Use exact `=` attribute match.
+- **Playwright `page.route((url: URL) => ...)` predicate**: accepts a `URL` object (not string). Use `url.pathname` + `url.searchParams.get(...)` directly — no need to `new URL(url.href)`.
+- **`**/api/photos`glob matches query strings**: Playwright's`\*_`translates to`(._)`regex which matches the full URL including`?query=string`. Use distinct routing: POST-only handler checks `route.request().method()`, GET with query params use URL predicate function route.
+- **PhotoViewer click to open**: `PhotoCard` has a `<button>` inside with `aria-label="View photo: ${caption || originalFilename}"`. Use `photoCard.getByRole('button', { name: /View photo/i }).click()` — clicking the whole card div may not trigger the handler on all browsers.
+- **PhotoMetadataSidepanel — selectedDisplay after reload**: After saving orientation and reloading, SearchPicker shows `[class*="selectedDisplay"]` (chip, not input) when `initialTitle` is passed. Assert `sidepanelAfter.locator('[class*="selectedDisplay"]').first()` — avoid `[class*="inputWrapper"] input` which may not exist when a value is selected.
+- **diary-drafts photo-upload-zone NOT on touch devices**: `data-testid="photo-upload-zone"` only exists on non-touch (desktop) layout. On touch devices (tablet/mobile, `hover:none`), `mobileButtonPair` div renders instead. Use viewport-conditional assertions: `viewportWidth <= 1024` = touch device → assert `getByRole('button', { name: 'Upload Photos' }).first()`; else → assert `getByTestId('photo-upload-zone')`. DO NOT use the "Upload Photos" button universally for post-upload assertions — on desktop the drop zone button is `disabled={isProcessing}` when uploads are in-flight, and was the root cause of shard 6 failure in PR #1676. The `aria-label` is static but that's irrelevant — `photo-upload-zone` is the correct desktop assertion.
+- **Shard 6 final root cause (PR #1676)**: `route.fulfill: Route is already handled!` unhandled rejection in `mockUploadWithDelay`. The 400ms `setTimeout` in the route handler races with `page.unrouteAll()` in test cleanup. When unrouteAll fires, Playwright aborts pending intercepted requests. Then the setTimeout fires and calls `route.fulfill()` on an already-handled route. FIX: wrap both `route.fulfill()` and `route.continue()` in `.catch(() => {})` to suppress the cleanup-race error. Applied in `photo-capture-flow.spec.ts` `mockUploadWithDelay` function.
+- **Shard 5 unit test (PR #1676)**: `SearchPicker.test.tsx` had a test asserting `emptyHint` NOT shown when `specialOptions` exist. Story #1675 intentionally removed this gate (emptyHint now always shows regardless of specialOptions). Updated the test to assert the new behavior: emptyHint IS shown alongside specialOptions.
+- **Type divergence after rebase**: Story #1674 adds `orientationId`/`orientation` to `Photo` type. `DiaryEntryEditPage.test.tsx` mock `capturedOnUpload!({...})` call was missing these fields after rebasing onto beta's strict-types commit (288ff468). FIX: add `orientationId: null, orientation: null` to the mock object.
+
+## Daily Log Time+Vendor E2E (Story #1672, 2026-06-13) — `e2e/tests/diary/diary-daily-log-time-vendor.spec.ts`
+
+- `createVendorViaApi`/`deleteVendorViaApi` added to `e2e/fixtures/apiHelpers.ts` (POST/DELETE `/api/vendors`, returns `{ vendor: { id } }`).
+- DiaryEntryEditPage POM: 6 new locators — `dailyLogVendorSearch` (`#daily-log-vendor`), `dailyLogVendorClearButton` (`getByRole('button', { name: 'Clear selection', exact: true })`), `workStartTimeInput` (`#work-start-time`), `workEndTimeInput` (`#work-end-time`), `workDurationDisplay` (`[role="status"][aria-atomic="true"]`), `workTimeValidationError` (`#work-time-error`).
+- **SearchPicker vendor interaction**: `fill()` the input → wait for `[data-search-picker-dropdown]` → click option via `portalDropdown.getByRole('option', { name })`. Portal is in `document.body`, not scoped to any modal.
+- **SearchPicker with no `initialTitle`**: DiaryEntryEditPage does NOT pass `initialTitle` to the vendor SearchPicker. When an entry is loaded with a pre-saved vendorId, the picker shows the empty search input (not selectedDisplay). Vendor can only be cleared in the SAME session after selecting it via UI (not after page reload).
+- **Duration display stale-read race on WebKit**: After filling time inputs, use `await expect(workDurationDisplay).not.toHaveText('0.00 h')` BEFORE `textContent()`. The duration display updates asynchronously via React `useMemo`.
+- **Validation blocking save**: In Scenario 3 (end ≤ start), use `submitButton.click()` directly, NOT `editPage.save()` — `save()` waits for a PATCH response that never fires when validation blocks the submit.
+- `workDurationDisplay` locator is unique on diary edit page — no other `[role="status"][aria-atomic="true"]` elements appear there.
+
 ## Shard 3 Promotion Blocker Fix (2026-06-12) — `e2e/tests/budget/budget-source-filter.spec.ts`
 
 - `Rapid debounce coalesces requests` test was flaky: asserted `filteredRequestCount.toBe(1)` which fails when CI runner serializes clicks beyond the 50ms debounce window. Fixed in PR #1665.

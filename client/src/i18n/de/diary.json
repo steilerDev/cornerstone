@@ -151,6 +151,10 @@
     },
     "vendor": "Auftragnehmer",
     "vendorPlaceholder": "Auftragnehmername auswählen oder eingeben",
+    "dailyLogVendorPlaceholder": "Auftragnehmer suchen…",
+    "workStartTime": "Arbeitsbeginn",
+    "workEndTime": "Arbeitsende",
+    "workDuration": "Gesamte Arbeitsdauer",
     "materials": "Gelieferte Materialien",
     "materialsPlaceholder": "Element hinzufügen und Eingabetaste drücken",
     "addMaterialButton": "Hinzufügen",
@@ -188,7 +192,9 @@
     "workers": "Arbeiter",
     "inspector": "Inspektor",
     "outcome": "Ergebnis",
-    "vendor": "Auftragnehmer",
+    "vendor": "Auftragnehmer:",
+    "workStart": "Beginn:",
+    "workEnd": "Ende:",
     "materials": "Materialien",
     "severity": "Schweregrad",
     "resolutionStatus": "Lösungsstatus",
@@ -368,5 +374,8 @@
   "draft": {
     "badgeLabel": "Entwurf",
     "filterChipLabel": "Entwurf"
+  },
+  "validation": {
+    "workTimeEndBeforeStart": "Die Endzeit muss nach der Startzeit liegen"
   }
 }

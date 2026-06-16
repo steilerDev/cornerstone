@@ -3,6 +3,46 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Issue #1568 — Jest ESM mock static-import constraint (2026-06-15)
+
+**jest.unstable_mockModule + static import before it = mock fails in CI**: In Jest 30 with `--experimental-vm-modules`, adding a static `import` statement BEFORE `jest.unstable_mockModule()` in a test file breaks mock registration for components that call the mocked module's code directly (e.g., `useFormatters()` → `useLocale()`). Components tested by files in shards 3/4 that also mock `LocaleContext` (or don't call `useFormatters()` directly) appear to pass — but that's because they have a safety net, not because the mock works. The inline factory pattern (all code inside the `jest.unstable_mockModule()` factory body, no imports before it) is REQUIRED for reliable mock registration in Jest ESM. Attempted shared-factory approach across 46 files was reverted.
+
+**Stable useNavigate mock pattern**: `useNavigate: () => jest.fn()` in a jest.unstable_mockModule factory allocates a new function on every component render/re-render. Replace with a module-scope `const mockNavigate = jest.fn()` + `useNavigate: () => mockNavigate` + `mockNavigate.mockClear()` in beforeEach. This is a genuine memory improvement (fewer short-lived allocations). Applied to `LinkedDocumentsSection.test.tsx` in PR #1686.
+
+## Story #1677 — effectiveLineAmount VAT gross-up tests (2026-06-15)
+
+## Story #1679 — Paperless-first invoice creation test patterns (2026-06-15)
+
+**DocumentBrowser toggle visibility change**: Story #1679 changed the toggle condition from `linkedDocumentIds.length > 0` to `linkedDocumentIds !== undefined`. Old test said `linkedDocumentIds={[]}` → no toggle. New code shows toggle for `[]`. Always update old tests that assert old behavior when a behavioral change is intentional. The default `EMPTY_LINKED_DOCUMENT_IDS = []` means the toggle always renders (even when no prop is passed).
+
+**InvoicePaperlessPickerModal production bug (2026-06-15)**: `InvoicePaperlessPickerModal.tsx` line 104 passes `className={styles.correspondentPicker}` to `SearchPicker`, but `SearchPickerProps` does not include `className`. This causes TS2322 in ts-jest, failing all 14 tests in `InvoicePaperlessPickerModal.test.tsx`. The test file is correct — the production code needs a fix (remove/wrap the `className` prop). Reported as a bug to frontend-developer.
+
+**DocumentCard onError handler coverage**: `onError` on `<img>` is covered by `fireEvent.error(img)`. `onKeyDown stopPropagation` on an `<a>` is covered by `fireEvent.keyDown(screen.getByRole('link'), { key: 'Enter' })`. Both are otherwise uncovered in JSDOM environments — add explicit tests for these event handlers to reach 100%.
+
+**paperlessApi.test.ts ALL tests fail locally on Node 20**: All 17 tests (including 2 new `listPaperlessCorrespondents` tests) fail locally because `jest.unstable_mockModule('./apiClient.js', ...)` does not intercept in Node 20. CI (Node 24) passes. Pre-existing issue — new tests follow the same pattern and are expected to pass in CI.
+
+**persistLines must be called inside db.transaction()**: The function has no internal transaction — callers must wrap it. Route tests for `POST /api/invoices/auto-itemize/commit` exercise this via `commitAutoItemizeCreate` which wraps in a transaction internally.
+
+**LLM mock for previewAutoItemize must include chosenVendorName**: The service reads `llmResult.chosenVendorName` to resolve vendor. Mock LLM JSON: `{ lines: [...], chosenVendorName: "Builder Co" }`.
+
+**PaperlessInvoiceReviewPage spinner detection — confidence dots conflict**: The component renders `<span role="img">` for per-line confidence dots AND `<svg role="img" aria-label="Loading">` for the Spinner. Detecting loading state with `[role="img"]` wrongly matches confidence dots in ready state. Use `[role="img"][aria-label="Loading"]` to target only the Spinner. Also use `screen.queryAllByText(...)` (not `queryByText`) for /Analyzing/i since loading state may render that text in multiple elements (h1 title + h2 heading).
+
+**PaperlessInvoiceReviewPage stable-state wait pattern**: Loading state renders a disabled Cancel button. Tests that wait for Cancel before asserting ready state must check `hasSpinner || inLoadingState === false` to avoid triggering while still loading. Pattern: `await waitFor(() => { expect(cancelBtn).toBeInTheDocument(); expect(hasSpinner || inLoadingState).toBe(false); }, { timeout: 5000 })`.
+
+**PaperlessInvoiceReviewPage loadData race condition**: The `loadData` effect depends on `[documentId, t, tErrors, vendors]`. When `fetchVendors` resolves it updates `vendors` state, which re-triggers `loadData` (re-entering loading state). All stable-state waits must account for this. The stable-state pattern works because `waitFor` retries until the assertion holds consistently.
+
+## Story #1672 — diary vendor + work-time field test patterns (2026-06-13)
+
+**Server TS1343 on Node 22**: The local worktree tsconfig still fails with TS1343 on `import.meta.url` in `migrate.ts` even on Node 22 — all server service tests that call `runMigrations` fail locally. CI passes. Pattern confirmed: add tests and verify they compile cleanly, expect CI green.
+
+**DailyLogMetadata local type alias**: `DailyLogMetadata` from `@cornerstone/shared` is imported by production code but not by the test file; define a local alias `type DailyLogMetadataTest = { vendorId?: ..., vendorName?: ..., workStart?: ..., workEnd?: ... }` to cast metadata for inspection without re-importing the shared type.
+
+**SearchPicker label in jsdom**: DiaryEntryForm's vendor SearchPicker (`id="daily-log-vendor"`) is not a native input — `getByLabelText` won't find it. Assert the label text via `screen.getByText('Vendor')` instead.
+
+**DiaryMetadataSummaryProps not exported**: The component interface is private. Reconstruct it in the test file: `interface DiaryMetadataSummaryProps { entryType: DiaryEntryType; metadata: unknown; }`.
+
+**DiaryMetadataSummary coverage approach**: Import `DiaryEntryType` from `@cornerstone/shared` for the local props type. Use `document.querySelector('[data-testid=...]')` to assert branch routing. Cover all 5 branches (daily_log, site_visit, delivery, issue, auto-event) plus StatusPill color variants to reach 100% statements/lines.
+
 ## React 19 iframe onError event — RESOLVED (2026-05-29)
 
 **Background**: `onError` on `<iframe>` is a dead prop in React 19 (confirmed via react-dom 19.2.6 source). Only `onErrorCapture` works. Bug was tracked as GitHub Issue #1614.

@@ -23,6 +23,7 @@
     "search": "Suchen",
     "clearFilters": "Filter zurücksetzen"
   },
+  "optional": "(optional)",
   "aria": {
     "closeMenu": "Menü schließen",
     "openMenu": "Menü öffnen",
@@ -31,8 +32,10 @@
     "clearSelection": "Auswahl aufheben",
     "noArea": "Kein Bereich",
     "noTrade": "Kein Gewerk",
+    "noOrientation": "Keine Ausrichtung",
     "selectArea": "Bereich auswählen",
     "selectTrade": "Gewerk auswählen",
+    "selectOrientation": "Ausrichtung auswählen",
     "selectAssignment": "Benutzer oder Auftragnehmer auswählen",
     "unassigned": "Nicht zugewiesen"
   },

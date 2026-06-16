@@ -71,7 +71,7 @@ export const GanttGrid = memo(function GanttGrid({
       {/* Vertical grid lines */}
       {gridLines.map((line, idx) => (
         <line
-          key={`vline-${idx}`}
+          key={`vline-${idx}`} // eslint-disable-line @eslint-react/no-array-index-key -- static grid lines; index is a stable key here
           x1={line.x}
           y1={0}
           x2={line.x}

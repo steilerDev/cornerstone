@@ -25,8 +25,10 @@ export function DateFilter({ value, onChange }: DateFilterProps) {
 
   // Sync local state when the parent value prop changes (e.g., clear filters)
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- syncing local cache with prop changes */
     setLocalFrom(from);
     setLocalTo(to);
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [from, to]);
 
   const handleChange = useCallback(

@@ -88,7 +88,9 @@ jest.unstable_mockModule('../Toast/ToastContext.js', () => ({
 
 // ─── Import component after mocks ─────────────────────────────────────────────
 
-let InvoiceLinkModal: (typeof import('./InvoiceLinkModal.js'))['InvoiceLinkModal'];
+import type * as InvoiceLinkModalModule from './InvoiceLinkModal.js';
+
+let InvoiceLinkModal: (typeof InvoiceLinkModalModule)['InvoiceLinkModal'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

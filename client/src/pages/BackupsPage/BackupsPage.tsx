@@ -94,7 +94,6 @@ export function BackupsPage() {
     };
 
     void loadBackupsData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t]);
 
   const handleCreateBackup = async () => {

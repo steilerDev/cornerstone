@@ -53,6 +53,7 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/budget.json` — Issue #1545 (2026-05-21): `invoiceDetail.budgetLines.unassigned`, `unassignedAriaLabel`, `assignButton`, `assigningButton`, `assignAriaLabel`, `assignedSuccess`, `assignParentRequired` added; `budgetLineForm.parentPickerLabel`, `parentPickerWorkItemTab`, `parentPickerHouseholdItemTab`, `parentPickerSeparator`, `parentPickerFieldsetLegend`, `parentPickerError` added
 - `de/errors.json` — `BUDGET_LINE_ALREADY_ASSIGNED` had glossary violations ("Arbeitselement" → "Arbeitspaket", "Haushaltsgegenstand" → "Haushaltsartikel") — corrected 2026-05-21 (Issue #1545)
 - `de/budget.json` — `budgetLineForm` parent-move keys added 2026-05-22 (Issue #1553): `linkedItemLegend`, `changeParentButton`, `cancelChangeParentButton`, `moveButton`, `movingButton`, `moveCrossTableHint`, `moveCrossTableHintReverse`, `itemizedAmountLabel` — see [parent-move-patterns.md](parent-move-patterns.md)
+- `de/diary.json` — Issue #1672 (2026-06-13): `form.dailyLogVendorPlaceholder`, `form.workStartTime`, `form.workEndTime`, `form.workDuration`, `metadata.workStart`, `metadata.workEnd` added; `metadata.vendor` colon added ("Auftragnehmer:"); new `validation` object added with `workTimeEndBeforeStart`
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)
@@ -236,3 +237,14 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `autoOriginBadge.ariaLabel`: uses glossary "Budgetposition" and glossary noun `Aufschlüsselung` (from `Itemize` glossary entry)
 - "Auto-itemized" as participial adjective in badge → "Auto-erstellt"; in aria-label → "per Aufschlüsselung erstellt"
 - Proposed glossary additions (need product-owner approval): "Discretionary Funding" → `{ "de": { "singular": "Diskretionäre Finanzierung" } }`; "Auto-itemized" → `{ "de": { "adjective": "automatisch aufgeschlüsselt", "short": "Auto-erstellt" } }`
+
+## Paperless-first Invoice + autoItemize from Document — Issue #1679 (2026-06-15)
+
+- "Correspondent" added to glossary → "Korrespondent" / "Korrespondenten"; used in `documents.browser.*` filter keys; existing `documentDetail.correspondent = "Absender"` left unchanged (pre-existing, out of scope)
+- `autoItemize` keys in budget.json `budgetLineForm` block (at end, alongside `invalidDocumentId`): `vendor` → "Auftragnehmer", `vendorPlaceholder` → "Auftragnehmer suchen…", `vendorRequired` → "Auftragnehmer ist erforderlich"
+- `createAndItemize` button → "Rechnung Erstellen & Aufschlüsseln" (follows `{Noun} {Verb}` capitalised pattern; `&` preserved)
+- Progress states: `extractingFromDocument` → "Dokument wird analysiert…"; `extractionStarted` → "Dokument wird mit KI analysiert…" (consistent with existing `spinnerLabel` "Wird analysiert" pattern; uses "KI" for AI)
+- `extractionComplete` → "Extraktion abgeschlossen. Bitte prüfen Sie die vorgeschlagenen Positionen." (Sie form, short noun "Positionen" matches existing `extractedLines`/`lineItemsListLabel` in same namespace)
+- `lineItems` → "Positionen"; `noLineItems` → "Keine Positionen extrahiert"; `backToInvoices` → "Zurück zu Rechnungen"
+- `invoices.pickerModal` added to `de/budget.json` (parallel to `en/budget.json invoices` section): `title` → "Rechnungsdokument auswählen", `manualEntry` → "Rechnung manuell erfassen", `manualEntryAriaLabel` → "Rechnung manuell erstellen ohne ein Dokument auszuwählen"
+- `documents.documentCard.openInPaperless` updated "In Paperless-ngx öffnen" → "In Paperless öffnen" (matches EN change); new `openInPaperlessAriaLabel` → "'{{title}}' in Paperless öffnen"

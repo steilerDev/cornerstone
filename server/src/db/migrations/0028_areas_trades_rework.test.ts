@@ -136,10 +136,12 @@ describe('Migration 0028: Areas and Trades Rework', () => {
     const originalWarn = console.warn;
     console.warn = () => undefined;
     // Restore after each test via afterEach
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Custom property on better-sqlite3 instance
     (sqlite as any).__originalWarn = originalWarn;
   });
 
   afterEach(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Custom property on better-sqlite3 instance
     const originalWarn = (sqlite as any).__originalWarn;
     if (originalWarn) console.warn = originalWarn;
     sqlite.close();

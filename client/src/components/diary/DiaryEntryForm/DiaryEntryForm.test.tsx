@@ -654,6 +654,101 @@ describe('DiaryEntryForm', () => {
     });
   });
 
+  // ─── daily_log vendor + work-time fields (Story #1672) ────────────────────
+
+  describe('daily_log vendor + work-time fields', () => {
+    it('daily_log renders vendor SearchPicker with label "Vendor"', () => {
+      render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log' })} />);
+      // The SearchPicker for the vendor field has an associated label element
+      // with "Vendor" text (the id="daily-log-vendor" ties them together).
+      const vendorLabel = screen.getByText('Vendor');
+      expect(vendorLabel).toBeInTheDocument();
+    });
+
+    it('daily_log renders #work-start-time input', () => {
+      render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log' })} />);
+      const input = document.getElementById('work-start-time');
+      expect(input).toBeInTheDocument();
+      expect((input as HTMLInputElement).type).toBe('time');
+    });
+
+    it('daily_log renders #work-end-time input', () => {
+      render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log' })} />);
+      const input = document.getElementById('work-end-time');
+      expect(input).toBeInTheDocument();
+      expect((input as HTMLInputElement).type).toBe('time');
+    });
+
+    it('calls onDailyLogWorkStartChange on start input change', () => {
+      const onDailyLogWorkStartChange = jest.fn();
+      render(
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onDailyLogWorkStartChange })} />,
+      );
+      const input = document.getElementById('work-start-time')!;
+      fireEvent.change(input, { target: { value: '08:00' } });
+      expect(onDailyLogWorkStartChange).toHaveBeenCalledWith('08:00');
+    });
+
+    it('calls onDailyLogWorkEndChange on end input change', () => {
+      const onDailyLogWorkEndChange = jest.fn();
+      render(
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onDailyLogWorkEndChange })} />,
+      );
+      const input = document.getElementById('work-end-time')!;
+      fireEvent.change(input, { target: { value: '16:30' } });
+      expect(onDailyLogWorkEndChange).toHaveBeenCalledWith('16:30');
+    });
+
+    it('shows duration "8.50 h" when both valid times given (end>start)', () => {
+      render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'daily_log',
+            dailyLogWorkStart: '08:00',
+            dailyLogWorkEnd: '16:30',
+          })}
+        />,
+      );
+      const statusEl = screen.getByRole('status');
+      expect(statusEl.textContent).toContain('8.50 h');
+    });
+
+    it('does not show duration when only start time given', () => {
+      render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'daily_log',
+            dailyLogWorkStart: '08:00',
+            dailyLogWorkEnd: null,
+          })}
+        />,
+      );
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    it('shows cross-field error + aria-invalid on both inputs when validationErrors.dailyLogWorkTime set', () => {
+      render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'daily_log',
+            validationErrors: { dailyLogWorkTime: 'Work end must be after work start' },
+          })}
+        />,
+      );
+      expect(screen.getByText('Work end must be after work start')).toBeInTheDocument();
+      const startInput = document.getElementById('work-start-time')!;
+      const endInput = document.getElementById('work-end-time')!;
+      expect(startInput).toHaveAttribute('aria-invalid', 'true');
+      expect(endInput).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('does not render work-time fields for site_visit entry type', () => {
+      render(<DiaryEntryForm {...makeProps({ entryType: 'site_visit' })} />);
+      expect(document.getElementById('work-start-time')).not.toBeInTheDocument();
+      expect(document.getElementById('work-end-time')).not.toBeInTheDocument();
+    });
+  });
+
   // ─── metadata sections are exclusive ────────────────────────────────────────
 
   describe('type exclusivity', () => {

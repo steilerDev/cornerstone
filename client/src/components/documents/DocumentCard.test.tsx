@@ -184,4 +184,110 @@ describe('DocumentCard', () => {
     fireEvent.keyDown(screen.getByRole('button'), { key: 'Tab' });
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  describe('paperlessUrl prop — "Open in Paperless" anchor', () => {
+    it('does not render a link when paperlessUrl is undefined', () => {
+      render(<DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />);
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('does not render a link when paperlessUrl is null', () => {
+      render(
+        <DocumentCard
+          document={makeDoc()}
+          isSelected={false}
+          onSelect={jest.fn()}
+          paperlessUrl={null}
+        />,
+      );
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('renders an anchor link when paperlessUrl is provided', () => {
+      render(
+        <DocumentCard
+          document={makeDoc()}
+          isSelected={false}
+          onSelect={jest.fn()}
+          paperlessUrl="https://paperless.example.com"
+        />,
+      );
+      expect(screen.getByRole('link')).toBeInTheDocument();
+    });
+
+    it('anchor href points to the correct Paperless document detail URL', () => {
+      render(
+        <DocumentCard
+          document={makeDoc({ id: 42 })}
+          isSelected={false}
+          onSelect={jest.fn()}
+          paperlessUrl="https://paperless.example.com"
+        />,
+      );
+      const link = screen.getByRole('link') as HTMLAnchorElement;
+      expect(link.href).toBe('https://paperless.example.com/documents/42/details');
+    });
+
+    it('anchor has target="_blank" for opening in a new tab', () => {
+      render(
+        <DocumentCard
+          document={makeDoc()}
+          isSelected={false}
+          onSelect={jest.fn()}
+          paperlessUrl="https://paperless.example.com"
+        />,
+      );
+      const link = screen.getByRole('link') as HTMLAnchorElement;
+      expect(link).toHaveAttribute('target', '_blank');
+    });
+
+    it('anchor has rel="noopener noreferrer"', () => {
+      render(
+        <DocumentCard
+          document={makeDoc()}
+          isSelected={false}
+          onSelect={jest.fn()}
+          paperlessUrl="https://paperless.example.com"
+        />,
+      );
+      const link = screen.getByRole('link') as HTMLAnchorElement;
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('clicking the anchor does not trigger onSelect (stopPropagation)', () => {
+      const onSelect = jest.fn();
+      render(
+        <DocumentCard
+          document={makeDoc()}
+          isSelected={false}
+          onSelect={onSelect}
+          paperlessUrl="https://paperless.example.com"
+        />,
+      );
+      fireEvent.click(screen.getByRole('link'));
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('pressing a key on the anchor does not trigger onSelect (onKeyDown stopPropagation)', () => {
+      const onSelect = jest.fn();
+      render(
+        <DocumentCard
+          document={makeDoc()}
+          isSelected={false}
+          onSelect={onSelect}
+          paperlessUrl="https://paperless.example.com"
+        />,
+      );
+      fireEvent.keyDown(screen.getByRole('link'), { key: 'Enter' });
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+  });
+
+  it('hides thumbnail image on load error (onError handler)', () => {
+    render(<DocumentCard document={makeDoc()} isSelected={false} onSelect={jest.fn()} />);
+    const img = screen.getByAltText('Test Invoice 2025') as HTMLImageElement;
+    // Trigger the image error event to exercise the onError handler (line coverage)
+    fireEvent.error(img);
+    expect(img.style.display).toBe('none');
+  });
 });

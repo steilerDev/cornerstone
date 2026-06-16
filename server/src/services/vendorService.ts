@@ -148,6 +148,7 @@ export function listVendors(
   const totalPages = Math.ceil(totalItems / pageSize);
 
   // Build ORDER BY
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Drizzle OrderByValue is union of sql/asc/desc returns, no exported union type
   let orderByClause: any;
   if (sortBy === 'trade') {
     // Sort by trade name via subquery

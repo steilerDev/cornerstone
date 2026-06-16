@@ -23,6 +23,7 @@
     "search": "Search",
     "clearFilters": "Clear Filters"
   },
+  "optional": "(optional)",
   "aria": {
     "closeMenu": "Close menu",
     "openMenu": "Open menu",
@@ -31,8 +32,10 @@
     "clearSelection": "Clear selection",
     "noArea": "No area",
     "noTrade": "No trade",
+    "noOrientation": "No orientation",
     "selectArea": "Select an area",
     "selectTrade": "Select a trade",
+    "selectOrientation": "Select an orientation",
     "selectAssignment": "Select user or vendor",
     "unassigned": "Unassigned"
   },

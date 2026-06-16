@@ -17,7 +17,7 @@ import type * as BudgetCategoriesApiModule from '../lib/budgetCategoriesApi.js';
 import type * as BudgetSourcesApiModule from '../lib/budgetSourcesApi.js';
 import type * as VendorsApiModule from '../lib/vendorsApi.js';
 import type * as InvoiceBudgetLinesApiModule from '../lib/invoiceBudgetLinesApi.js';
-import type { WorkItemBudgetLine } from '@cornerstone/shared';
+import type { WorkItemBudgetLine, InvoiceBudgetLineDetailResponse } from '@cornerstone/shared';
 
 // ─── Mock: API modules ────────────────────────────────────────────────────────
 
@@ -446,9 +446,10 @@ describe('useBudgetLinePicker', () => {
           workItemBudgetId: 'new-wib-1',
           householdItemBudgetId: null,
           itemizedAmount: 200,
+          budgetLineDescription: null,
           createdAt: '',
           updatedAt: '',
-        } as any,
+        } as InvoiceBudgetLineDetailResponse,
         remainingAmount: 800,
       });
 
@@ -807,9 +808,10 @@ describe('useBudgetLinePicker', () => {
           workItemBudgetId: 'new-wib-1',
           householdItemBudgetId: null,
           itemizedAmount: 100,
+          budgetLineDescription: null,
           createdAt: '',
           updatedAt: '',
-        } as any,
+        } as InvoiceBudgetLineDetailResponse,
         remainingAmount: 900,
       });
       mockFetchWorkItemBudgets.mockResolvedValue([]);
@@ -1020,8 +1022,52 @@ describe('useBudgetLinePicker', () => {
 
       mockFetchBudgetSources.mockResolvedValue({
         budgetSources: [
-          { id: 'disc-1', name: 'Discretionary', isDiscretionary: true } as any,
-          { id: 'loan-1', name: 'Loan', isDiscretionary: false } as any,
+          {
+            id: 'disc-1',
+            name: 'Discretionary',
+            isDiscretionary: true,
+            sourceType: 'savings',
+            totalAmount: 0,
+            usedAmount: 0,
+            availableAmount: 0,
+            claimedAmount: 0,
+            unclaimedAmount: 0,
+            paidAmount: 0,
+            actualAvailableAmount: 0,
+            projectedAmount: 0,
+            projectedMinAmount: 0,
+            projectedMaxAmount: 0,
+            interestRate: null,
+            terms: null,
+            notes: null,
+            status: 'active',
+            createdBy: null,
+            createdAt: '',
+            updatedAt: '',
+          },
+          {
+            id: 'loan-1',
+            name: 'Loan',
+            isDiscretionary: false,
+            sourceType: 'savings',
+            totalAmount: 0,
+            usedAmount: 0,
+            availableAmount: 0,
+            claimedAmount: 0,
+            unclaimedAmount: 0,
+            paidAmount: 0,
+            actualAvailableAmount: 0,
+            projectedAmount: 0,
+            projectedMinAmount: 0,
+            projectedMaxAmount: 0,
+            interestRate: null,
+            terms: null,
+            notes: null,
+            status: 'active',
+            createdBy: null,
+            createdAt: '',
+            updatedAt: '',
+          },
         ],
       });
       mockFetchVendors.mockResolvedValue({

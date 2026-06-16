@@ -9,10 +9,13 @@ import type {
   UpdateHouseholdItemCategoryRequest,
   AreaResponse,
   TradeResponse,
+  OrientationResponse,
   CreateAreaRequest,
   UpdateAreaRequest,
   CreateTradeRequest,
   UpdateTradeRequest,
+  CreateOrientationRequest,
+  UpdateOrientationRequest,
 } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { generateRandomColor } from '../../lib/colorUtils.js';
@@ -26,6 +29,7 @@ import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { buildTree } from '../../lib/areaTreeUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useTrades } from '../../hooks/useTrades.js';
+import { useOrientations } from '../../hooks/useOrientations.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import {
   fetchBudgetCategories,
@@ -43,7 +47,7 @@ import styles from './ManagePage.module.css';
 
 const DEFAULT_COLOR = '#3b82f6';
 
-type Tab = 'areas' | 'trades' | 'budget-categories' | 'hi-categories';
+type Tab = 'areas' | 'trades' | 'orientations' | 'budget-categories' | 'hi-categories';
 
 // ============================================================
 // AREAS TAB
@@ -1052,6 +1056,444 @@ function TradesTab() {
 }
 
 // ============================================================
+// ORIENTATIONS TAB
+// ============================================================
+
+type EditingOrientation = {
+  id: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+};
+
+function OrientationsTab() {
+  const { t } = useTranslation('settings');
+  const {
+    orientations,
+    isLoading,
+    error: loadError,
+    createOrientation,
+    updateOrientation,
+    deleteOrientation,
+    refetch: _refetch,
+  } = useOrientations();
+
+  // Create form state
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [newSortOrder, setNewSortOrder] = useState<string>('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
+
+  // Edit state
+  const [editingOrientation, setEditingOrientation] = useState<EditingOrientation | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string>('');
+
+  // Delete confirmation state
+  const [deletingOrientationId, setDeletingOrientationId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleCreateOrientation = async (event: FormEvent) => {
+    event.preventDefault();
+    setCreateError('');
+    setSuccessMessage('');
+
+    const trimmedName = newName.trim();
+    if (!trimmedName) {
+      setCreateError(t('manage.orientations.validation.nameRequired'));
+      return;
+    }
+
+    if (trimmedName.length > 100) {
+      setCreateError(t('manage.orientations.validation.nameTooLong'));
+      return;
+    }
+
+    setIsCreating(true);
+
+    try {
+      await createOrientation({
+        name: trimmedName,
+        description: newDescription.trim() || null,
+        sortOrder: newSortOrder ? parseInt(newSortOrder, 10) : undefined,
+      } as CreateOrientationRequest);
+      setNewName('');
+      setNewDescription('');
+      setNewSortOrder('');
+      setSuccessMessage(t('manage.orientations.messages.created', { name: trimmedName }));
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setCreateError(err.error.message);
+      } else {
+        setCreateError(t('manage.orientations.messages.createError'));
+      }
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const startEdit = (orientation: OrientationResponse) => {
+    setEditingOrientation({
+      id: orientation.id,
+      name: orientation.name,
+      description: orientation.description,
+      sortOrder: orientation.sortOrder,
+    });
+    setUpdateError('');
+    setSuccessMessage('');
+  };
+
+  const cancelEdit = () => {
+    setEditingOrientation(null);
+    setUpdateError('');
+  };
+
+  const handleUpdateOrientation = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingOrientation) return;
+
+    setUpdateError('');
+    setSuccessMessage('');
+
+    const trimmedName = editingOrientation.name.trim();
+    if (!trimmedName) {
+      setUpdateError(t('manage.orientations.validation.nameRequired'));
+      return;
+    }
+
+    if (trimmedName.length > 100) {
+      setUpdateError(t('manage.orientations.validation.nameTooLong'));
+      return;
+    }
+
+    setIsUpdating(true);
+
+    try {
+      await updateOrientation(editingOrientation.id, {
+        name: trimmedName,
+        description: editingOrientation.description,
+        sortOrder: editingOrientation.sortOrder,
+      } as UpdateOrientationRequest);
+      setEditingOrientation(null);
+      setSuccessMessage(t('manage.orientations.messages.updated', { name: trimmedName }));
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setUpdateError(err.error.message);
+      } else {
+        setUpdateError(t('manage.orientations.messages.updateError'));
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteOrientation = async (orientationId: string) => {
+    setIsDeleting(true);
+    setSuccessMessage('');
+
+    try {
+      const deletedOrientation = orientations.find((o) => o.id === orientationId);
+      await deleteOrientation(orientationId);
+      setDeletingOrientationId(null);
+      setSuccessMessage(
+        t('manage.orientations.messages.deleted', { name: deletedOrientation?.name }),
+      );
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setSuccessMessage(err.error.message);
+      } else {
+        setSuccessMessage(t('manage.orientations.messages.deleteError'));
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  if (isLoading) {
+    return <Skeleton lines={5} />;
+  }
+
+  if (loadError && orientations.length === 0) {
+    return <EmptyState icon="🧭" message={loadError} />;
+  }
+
+  return (
+    <>
+      {successMessage && (
+        <div className={styles.successBanner} role="alert">
+          {successMessage}
+        </div>
+      )}
+
+      {/* Create new orientation */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>{t('manage.orientations.createTitle')}</h2>
+        <p className={styles.cardDescription}>{t('manage.orientations.createDescription')}</p>
+
+        {createError && (
+          <div className={styles.errorBanner} role="alert">
+            {createError}
+          </div>
+        )}
+
+        <form onSubmit={handleCreateOrientation} className={styles.form}>
+          <div className={styles.field}>
+            <label htmlFor="orientationName" className={styles.label}>
+              {t('manage.orientations.nameLabel')}
+            </label>
+            <input
+              type="text"
+              id="orientationName"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className={styles.input}
+              placeholder={t('manage.orientations.namePlaceholder')}
+              maxLength={100}
+              disabled={isCreating}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="orientationDescription" className={styles.label}>
+              {t('manage.orientations.descriptionLabel')}
+            </label>
+            <input
+              type="text"
+              id="orientationDescription"
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
+              className={styles.input}
+              placeholder={t('manage.orientations.descriptionPlaceholder')}
+              maxLength={500}
+              disabled={isCreating}
+            />
+          </div>
+
+          <div className={styles.field}>
+            <label htmlFor="orientationSortOrder" className={styles.label}>
+              {t('manage.orientations.sortOrderLabel')}
+            </label>
+            <input
+              type="number"
+              id="orientationSortOrder"
+              value={newSortOrder}
+              onChange={(e) => setNewSortOrder(e.target.value)}
+              className={styles.input}
+              placeholder="0"
+              min={0}
+              disabled={isCreating}
+              onWheel={(e) => e.currentTarget.blur()}
+            />
+          </div>
+
+          <button type="submit" className={styles.button} disabled={isCreating || !newName.trim()}>
+            {isCreating ? t('manage.orientations.creating') : t('manage.orientations.createButton')}
+          </button>
+        </form>
+      </section>
+
+      {/* Orientations list */}
+      <section className={styles.card}>
+        <h2 className={styles.cardTitle}>
+          {t('manage.orientations.existingTitle', { count: orientations.length })}
+        </h2>
+
+        {orientations.length === 0 ? (
+          <EmptyState icon="🧭" message={t('manage.orientations.emptyState')} />
+        ) : (
+          <div className={styles.itemsList}>
+            {orientations.map((orientation) => (
+              <div key={orientation.id} className={styles.itemRow}>
+                {editingOrientation?.id === orientation.id ? (
+                  <>
+                    <form onSubmit={handleUpdateOrientation} className={styles.editForm}>
+                      {updateError && (
+                        <div className={styles.errorBanner} role="alert">
+                          {updateError}
+                        </div>
+                      )}
+
+                      <div className={styles.field}>
+                        <label htmlFor={`edit-name-${orientation.id}`} className={styles.label}>
+                          {t('manage.orientations.nameLabel')}
+                        </label>
+                        <input
+                          type="text"
+                          id={`edit-name-${orientation.id}`}
+                          value={editingOrientation.name}
+                          onChange={(e) =>
+                            setEditingOrientation({ ...editingOrientation, name: e.target.value })
+                          }
+                          className={styles.input}
+                          maxLength={100}
+                          disabled={isUpdating}
+                        />
+                      </div>
+
+                      <div className={styles.field}>
+                        <label
+                          htmlFor={`edit-description-${orientation.id}`}
+                          className={styles.label}
+                        >
+                          {t('manage.orientations.descriptionLabel')}
+                        </label>
+                        <input
+                          type="text"
+                          id={`edit-description-${orientation.id}`}
+                          value={editingOrientation.description ?? ''}
+                          onChange={(e) =>
+                            setEditingOrientation({
+                              ...editingOrientation,
+                              description: e.target.value,
+                            })
+                          }
+                          className={styles.input}
+                          maxLength={500}
+                          disabled={isUpdating}
+                        />
+                      </div>
+
+                      <div className={styles.field}>
+                        <label
+                          htmlFor={`edit-sortOrder-${orientation.id}`}
+                          className={styles.label}
+                        >
+                          {t('manage.orientations.sortOrderLabel')}
+                        </label>
+                        <input
+                          type="number"
+                          id={`edit-sortOrder-${orientation.id}`}
+                          value={editingOrientation.sortOrder}
+                          onChange={(e) =>
+                            setEditingOrientation({
+                              ...editingOrientation,
+                              sortOrder: parseInt(e.target.value, 10),
+                            })
+                          }
+                          className={styles.input}
+                          min={0}
+                          disabled={isUpdating}
+                          onWheel={(e) => e.currentTarget.blur()}
+                        />
+                      </div>
+
+                      <div className={styles.editActions}>
+                        <button
+                          type="submit"
+                          className={styles.saveButton}
+                          disabled={
+                            isUpdating ||
+                            !editingOrientation.name.trim() ||
+                            (editingOrientation.name === orientation.name &&
+                              editingOrientation.description === orientation.description &&
+                              editingOrientation.sortOrder === orientation.sortOrder)
+                          }
+                        >
+                          {isUpdating
+                            ? t('manage.orientations.saving')
+                            : t('manage.orientations.save')}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.cancelButton}
+                          onClick={cancelEdit}
+                          disabled={isUpdating}
+                        >
+                          {t('manage.orientations.cancel')}
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.itemInfo}>
+                      <div className={styles.itemDetails}>
+                        <span className={styles.itemName}>{orientation.name}</span>
+                        {orientation.description && (
+                          <span className={styles.itemDescription}>{orientation.description}</span>
+                        )}
+                      </div>
+                      <span
+                        className={styles.itemSortOrder}
+                        title={t('manage.orientations.sortOrderLabel')}
+                      >
+                        #{orientation.sortOrder}
+                      </span>
+                    </div>
+
+                    <div className={styles.itemActions}>
+                      <button
+                        type="button"
+                        className={styles.editButton}
+                        onClick={() => startEdit(orientation)}
+                        disabled={!!editingOrientation}
+                        aria-label={`${t('manage.orientations.edit')} ${orientation.name}`}
+                      >
+                        {t('manage.orientations.edit')}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.deleteButton}
+                        onClick={() => setDeletingOrientationId(orientation.id)}
+                        disabled={!!editingOrientation}
+                        aria-label={`${t('manage.orientations.delete')} ${orientation.name}`}
+                      >
+                        {t('manage.orientations.delete')}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Delete confirmation modal */}
+      {deletingOrientationId && (
+        <div className={styles.modal} role="dialog" aria-modal="true">
+          <div
+            className={styles.modalBackdrop}
+            onClick={() => !isDeleting && setDeletingOrientationId(null)}
+          />
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>{t('manage.orientations.deleteTitle')}</h2>
+            <p className={styles.modalText}>
+              {t('manage.orientations.deleteConfirm', {
+                name: orientations.find((o) => o.id === deletingOrientationId)?.name,
+              })}
+            </p>
+            <p className={styles.modalWarning}>{t('manage.orientations.deleteWarning')}</p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                onClick={() => setDeletingOrientationId(null)}
+                disabled={isDeleting}
+              >
+                {t('manage.orientations.cancel')}
+              </button>
+              <button
+                type="button"
+                className={styles.confirmDeleteButton}
+                onClick={() => void handleDeleteOrientation(deletingOrientationId)}
+                disabled={isDeleting}
+              >
+                {isDeleting
+                  ? t('manage.orientations.deleting')
+                  : t('manage.orientations.deleteButton')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ============================================================
 // BUDGET CATEGORIES TAB (existing, kept minimal)
 // ============================================================
 
@@ -1084,6 +1526,7 @@ function BudgetCategoriesTab() {
 
   useEffect(() => {
     void loadCategories();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadCategories is defined in component body; effect runs only once on mount
   }, []);
 
   const loadCategories = async () => {
@@ -1640,6 +2083,7 @@ function HouseholdItemCategoriesTab() {
 
   useEffect(() => {
     void loadCategories();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadCategories is defined in component body; effect runs only once on mount
   }, []);
 
   const loadCategories = async () => {
@@ -2191,6 +2635,14 @@ export function ManagePage() {
         </button>
         <button
           role="tab"
+          aria-selected={activeTab === 'orientations'}
+          className={`${styles.tab} ${activeTab === 'orientations' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('orientations')}
+        >
+          {t('manage.tabs.orientations')}
+        </button>
+        <button
+          role="tab"
           aria-selected={activeTab === 'budget-categories'}
           className={`${styles.tab} ${activeTab === 'budget-categories' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('budget-categories')}
@@ -2210,6 +2662,7 @@ export function ManagePage() {
       <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
         {activeTab === 'areas' && <AreasTab />}
         {activeTab === 'trades' && <TradesTab />}
+        {activeTab === 'orientations' && <OrientationsTab />}
         {activeTab === 'budget-categories' && <BudgetCategoriesTab />}
         {activeTab === 'hi-categories' && <HouseholdItemCategoriesTab />}
       </div>

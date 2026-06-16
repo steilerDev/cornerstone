@@ -39,6 +39,17 @@ export type {
   TradeListQuery,
 } from './types/trade.js';
 
+// Orientations
+export type {
+  OrientationSummary,
+  OrientationResponse,
+  OrientationListResponse,
+  OrientationSingleResponse,
+  CreateOrientationRequest,
+  UpdateOrientationRequest,
+  OrientationListQuery,
+} from './types/orientation.js';
+
 // Work Items
 export type {
   WorkItem,
@@ -155,12 +166,16 @@ export type {
 // Budget Extraction (LLM-powered line item extraction)
 export type { ExtractedLine, ExtractionHints, ExtractionResult } from './types/budgetExtraction.js';
 
-// Invoice Auto-Itemize (EPIC-16 Story #1547)
+// Invoice Auto-Itemize (EPIC-16 Story #1547 & EPIC-18 Story #1679)
 export type {
   InvoicePatchForAutoItemize,
   AutoItemizeRequest,
   AutoItemizeWarning,
   AutoItemizeDryRunResponse,
+  AutoItemizePreviewRequest,
+  AutoItemizePreviewResponse,
+  AutoItemizeCommitRequest,
+  AutoItemizeCommitResponse,
 } from './types/invoiceAutoItemize.js';
 
 // Budget Sources
@@ -188,7 +203,7 @@ export type {
   BudgetSummary,
   BudgetLineInvoiceLink,
 } from './types/budget.js';
-export { effectivePlannedAmount } from './types/budget.js';
+export { effectivePlannedAmount, effectiveLineAmount } from './types/budget.js';
 
 // Subsidy Programs
 export type {
@@ -267,6 +282,12 @@ export type {
   TimelineDateRange,
   TimelineResponse,
 } from './types/timeline.js';
+
+// Paperless-ngx API Types
+export type {
+  PaperlessCorrespondent,
+  PaperlessCorrespondentListResponse,
+} from './types/paperless.js';
 
 // Documents (Paperless-ngx Integration)
 export type {

@@ -6,7 +6,7 @@ import { render, screen, waitFor, fireEvent, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
-import type { DiaryEntryDetail } from '@cornerstone/shared';
+import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
 import type React from 'react';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ jest.unstable_mockModule('../../hooks/usePhotos.js', () => ({
   usePhotos: () => ({
     photos: [],
     loading: false,
-    refresh: (...args: any[]) => photosState.refresh(...args),
+    refresh: () => photosState.refresh(),
     upload: jest.fn(),
     deletePhoto: jest.fn(),
     reorderPhotos: jest.fn(),
@@ -46,10 +46,10 @@ jest.unstable_mockModule('../../hooks/usePhotos.js', () => ({
 
 // Mock PhotoUpload to capture its onUpload prop so tests can invoke it directly.
 // The real PhotoUpload uses XHR/FormData which are not available in jsdom.
-let capturedOnUpload: ((photo: any) => void) | null = null;
+let capturedOnUpload: ((photo: Photo) => void) | null = null;
 
 jest.unstable_mockModule('../../components/photos/PhotoUpload.js', () => ({
-  PhotoUpload: ({ onUpload }: { onUpload: (photo: any) => void }) => {
+  PhotoUpload: ({ onUpload }: { onUpload: (photo: Photo) => void }) => {
     capturedOnUpload = onUpload;
     return <div data-testid="photo-upload-mock" />;
   },
@@ -97,10 +97,17 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
 }));
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
-  fetchVendors: jest.fn<() => Promise<any>>().mockResolvedValue({
-    vendors: [],
-    pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-  }),
+  fetchVendors: jest
+    .fn<
+      (params?: unknown) => Promise<{
+        vendors: unknown[];
+        pagination: { page: number; pageSize: number; totalItems: number; totalPages: number };
+      }>
+    >()
+    .mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    }),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
@@ -110,18 +117,32 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 // Mock authApi so the real AuthProvider (used as fallback when the module mock does not
 // intercept in this environment) resolves immediately without making network requests.
 jest.unstable_mockModule('../../lib/authApi.js', () => ({
-  getAuthMe: jest.fn<() => Promise<any>>().mockResolvedValue({
-    user: {
-      id: 'user-1',
-      displayName: 'Alice Builder',
-      email: 'alice@example.com',
-      role: 'admin',
-      authProvider: 'local',
-      createdAt: '2026-01-01T00:00:00Z',
-    },
-    oidcEnabled: false,
-  }),
-  logout: jest.fn<() => Promise<any>>().mockResolvedValue(undefined),
+  getAuthMe: jest
+    .fn<
+      () => Promise<{
+        user: {
+          id: string;
+          displayName: string;
+          email: string;
+          role: string;
+          authProvider: string;
+          createdAt: string;
+        };
+        oidcEnabled: boolean;
+      }>
+    >()
+    .mockResolvedValue({
+      user: {
+        id: 'user-1',
+        displayName: 'Alice Builder',
+        email: 'alice@example.com',
+        role: 'admin',
+        authProvider: 'local',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+      oidcEnabled: false,
+    }),
+  logout: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 // ── Location helper ───────────────────────────────────────────────────────────
@@ -440,7 +461,7 @@ describe('DiaryEntryEditPage', () => {
     it('calls updateDiaryEntry with the entry id and updated data', async () => {
       const user = userEvent.setup();
       mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
-      mockUpdateDiaryEntry.mockResolvedValueOnce(undefined as any);
+      mockUpdateDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
       renderEditPage('de-1');
       await waitFor(() =>
         expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument(),
@@ -462,7 +483,7 @@ describe('DiaryEntryEditPage', () => {
     it('navigates to detail page after successful save', async () => {
       const user = userEvent.setup();
       mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
-      mockUpdateDiaryEntry.mockResolvedValueOnce(undefined as any);
+      mockUpdateDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
       renderEditPage('de-1');
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument(),
@@ -601,7 +622,7 @@ describe('DiaryEntryEditPage', () => {
     });
 
     it('calls deleteDiaryEntry with entry id when confirm button clicked', async () => {
-      mockDeleteDiaryEntry.mockResolvedValueOnce(undefined as any);
+      mockDeleteDiaryEntry.mockResolvedValueOnce(undefined);
       const user = await openDeleteModal();
 
       const dialog = screen.getByRole('dialog');
@@ -616,7 +637,7 @@ describe('DiaryEntryEditPage', () => {
     });
 
     it('navigates to /diary after successful delete', async () => {
-      mockDeleteDiaryEntry.mockResolvedValueOnce(undefined as any);
+      mockDeleteDiaryEntry.mockResolvedValueOnce(undefined);
       const user = await openDeleteModal();
 
       const dialog = screen.getByRole('dialog');
@@ -894,7 +915,28 @@ describe('DiaryEntryEditPage', () => {
       expect(capturedOnUpload).not.toBeNull();
 
       // Invoke the onUpload callback (simulates a successful photo upload)
-      capturedOnUpload!({ id: 'photo-1', url: 'https://example.com/photo.jpg' });
+      capturedOnUpload!({
+        id: 'photo-1',
+        entityType: 'diary_entry',
+        entityId: 'de-1',
+        originalFilename: 'photo.jpg',
+        mimeType: 'image/jpeg',
+        fileSize: 12345,
+        width: 1920,
+        height: 1080,
+        takenAt: null,
+        caption: null,
+        areaId: null,
+        orientationId: null,
+        orientation: null,
+        sortOrder: 0,
+        createdBy: { id: 'user-1', displayName: 'Alice Builder' },
+        createdAt: '2026-03-14T09:00:00.000Z',
+        updatedAt: '2026-03-14T09:00:00.000Z',
+        annotatedAt: null,
+        fileUrl: 'https://example.com/photo.jpg',
+        thumbnailUrl: 'https://example.com/photo-thumb.jpg',
+      });
 
       expect(photosState.refresh).toHaveBeenCalledTimes(1);
     });

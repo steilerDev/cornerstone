@@ -18,6 +18,7 @@
  * 6. Gantt sidebar — null area "No area" in sidebar row (desktop only)
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
 import { TimelinePage } from '../../pages/TimelinePage.js';
@@ -36,7 +37,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function linkWorkItemToMilestone(
-  page: import('@playwright/test').Page,
+  page: Page,
   milestoneId: number,
   workItemId: string,
 ): Promise<void> {

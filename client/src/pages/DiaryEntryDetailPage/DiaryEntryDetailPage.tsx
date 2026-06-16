@@ -58,8 +58,10 @@ export default function DiaryEntryDetailPage() {
 
   useEffect(() => {
     if (!id) {
+      /* eslint-disable @eslint-react/set-state-in-effect -- initializing error and loading state based on route params */
       setError(t('detailPage.invalidEntryId'));
       setIsLoading(false);
+      /* eslint-enable @eslint-react/set-state-in-effect */
       return;
     }
 
@@ -239,7 +241,7 @@ export default function DiaryEntryDetailPage() {
           Array.isArray((entry.metadata as { signatures?: DiarySignatureEntry[] }).signatures) &&
           (entry.metadata as { signatures: DiarySignatureEntry[] }).signatures.map((sig, i) => (
             <div
-              key={`${sig.signerType}-${sig.signerName}-${i}`}
+              key={`${sig.signerType}-${sig.signerName}-${i}`} // eslint-disable-line @eslint-react/no-array-index-key -- signatures list may have duplicates; composite key with signerType+name+index is stable
               className={styles.signatureSection}
             >
               <SignatureDisplay
@@ -414,6 +416,7 @@ function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLin
   const getDefaultLabel = (): string => {
     try {
       const key = `detailPage.sourceType.${sourceType}`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic i18n key constructed at runtime, not in static namespace type
       const label = t(key as any);
       // If translation key not found, it returns the key itself, so fallback to sourceType
       return label === key ? sourceType : label;

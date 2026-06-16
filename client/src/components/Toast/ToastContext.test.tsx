@@ -342,6 +342,7 @@ describe('ToastProvider', () => {
 describe('useToast', () => {
   it('throws an error when used outside ToastProvider', () => {
     function ComponentWithoutProvider() {
+      // eslint-disable-next-line @eslint-react/error-boundaries -- test intentionally uses try/catch to assert error behavior
       try {
         useToast();
         return <div>No error</div>;

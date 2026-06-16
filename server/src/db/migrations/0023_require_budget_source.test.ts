@@ -160,6 +160,7 @@ describe('Migration 0023: Require budgetSourceId', () => {
       // Verify it's NULL before migration
       const before = sqlite
         .prepare('SELECT budget_source_id FROM work_item_budgets WHERE id = ?')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- better-sqlite3 result from dynamic query
         .get('wib-001') as any;
       expect(before.budget_source_id).toBeNull();
 
@@ -169,6 +170,7 @@ describe('Migration 0023: Require budgetSourceId', () => {
       // Verify it's now discretionary-system
       const after = sqlite
         .prepare('SELECT budget_source_id FROM work_item_budgets WHERE id = ?')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- better-sqlite3 result from dynamic query
         .get('wib-001') as any;
       expect(after.budget_source_id).toBe('discretionary-system');
     });
@@ -190,6 +192,7 @@ describe('Migration 0023: Require budgetSourceId', () => {
       // Verify it's NULL before migration
       const before = sqlite
         .prepare('SELECT budget_source_id FROM household_item_budgets WHERE id = ?')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- better-sqlite3 result from dynamic query
         .get('hib-001') as any;
       expect(before.budget_source_id).toBeNull();
 
@@ -199,6 +202,7 @@ describe('Migration 0023: Require budgetSourceId', () => {
       // Verify it's now discretionary-system
       const after = sqlite
         .prepare('SELECT budget_source_id FROM household_item_budgets WHERE id = ?')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- better-sqlite3 result from dynamic query
         .get('hib-001') as any;
       expect(after.budget_source_id).toBe('discretionary-system');
     });
@@ -224,6 +228,7 @@ describe('Migration 0023: Require budgetSourceId', () => {
       // Verify it still has the original source ID
       const after = sqlite
         .prepare('SELECT budget_source_id FROM work_item_budgets WHERE id = ?')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- better-sqlite3 result from dynamic query
         .get('wib-002') as any;
       expect(after.budget_source_id).toBe('bs-custom');
     });
@@ -249,6 +254,7 @@ describe('Migration 0023: Require budgetSourceId', () => {
       // Verify it still has the original source ID
       const after = sqlite
         .prepare('SELECT budget_source_id FROM household_item_budgets WHERE id = ?')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- better-sqlite3 result from dynamic query
         .get('hib-002') as any;
       expect(after.budget_source_id).toBe('bs-grant');
     });
@@ -296,21 +302,23 @@ describe('Migration 0023: Require budgetSourceId', () => {
         .prepare(
           `SELECT id, budget_source_id FROM work_item_budgets WHERE work_item_id = ? ORDER BY id`,
         )
-        .all('wi-003') as any[];
+        .all('wi-003');
       const hiRows = sqlite
         .prepare(
           `SELECT id, budget_source_id FROM household_item_budgets WHERE household_item_id = ? ORDER BY id`,
         )
-        .all('hi-003') as any[];
+        .all('hi-003');
 
       expect(wiRows).toHaveLength(2);
       expect(hiRows).toHaveLength(2);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Rows from dynamic query
       wiRows.forEach((row: any) => {
         expect(row.budget_source_id).not.toBeNull();
         expect(typeof row.budget_source_id).toBe('string');
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Rows from dynamic query
       hiRows.forEach((row: any) => {
         expect(row.budget_source_id).not.toBeNull();
         expect(typeof row.budget_source_id).toBe('string');

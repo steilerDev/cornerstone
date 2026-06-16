@@ -139,6 +139,7 @@ export function MonthGrid({
         const containerHeight = maxLane >= 0 ? (maxLane + 1) * LANE_HEIGHT_COMPACT : undefined;
 
         return (
+          // eslint-disable-next-line @eslint-react/no-array-index-key -- static month grid; week index is a stable key here
           <div key={weekIdx} className={styles.weekRow} role="row">
             {week.map((day) => {
               const dayItems = getItemsForDay(day.dateStr, workItems);

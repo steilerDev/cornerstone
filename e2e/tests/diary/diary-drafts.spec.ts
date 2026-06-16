@@ -26,6 +26,7 @@
  * 18. Editing a saved entry unchanged (save → no Draft badge, no discard button)
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryEntryCreatePage, DIARY_CREATE_ROUTE } from '../../pages/DiaryEntryCreatePage.js';
@@ -52,7 +53,7 @@ async function waitForDiaryListLoaded(diaryPage: DiaryPage): Promise<void> {
 }
 
 /** Wait for an API response matching the diary entries endpoint. */
-function waitForDiaryListResponse(page: import('@playwright/test').Page) {
+function waitForDiaryListResponse(page: Page) {
   return page.waitForResponse(
     (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
   );
@@ -242,7 +243,6 @@ test.describe('No draft created without interaction (Scenario 4)', () => {
 test.describe('Auto-save on metadata change (Scenario 5)', () => {
   test('Changing weather select on a draft triggers auto-save; value persists on reload', async ({
     page,
-    testPrefix,
   }) => {
     const editPage = new DiaryEntryEditPage(page);
     let draftId: string | null = null;
@@ -319,22 +319,42 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       // Get the hidden file input
       const fileInput = page.getByTestId('photo-file-input');
 
-      // Register POST /api/photos response listener before uploading
+      await fileInput.setInputFiles([file1, file2]);
+
+      // PR #1674 introduced PhotoMetadataModal: selecting files opens a modal asking for
+      // caption, area, and orientation before uploading. Each file gets its own modal step.
+      // After saving file 1, the modal stays open showing file 2. After saving file 2, it closes.
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
+
+      // Register POST /api/photos response listener BEFORE clicking Save so we don't miss it.
       const upload1Promise = page.waitForResponse(
         (resp) => resp.url().includes('/api/photos') && resp.request().method() === 'POST',
       );
 
-      await fileInput.setInputFiles([file1, file2]);
+      // Save file 1 metadata — modal stays open (now shows file 2)
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
 
-      // Wait for first upload to complete
+      // Save file 2 metadata — modal closes after last file
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+      await expect(modal).not.toBeVisible();
+
+      // Wait for first upload to complete (both are now in-flight)
       await upload1Promise;
 
-      // The queue container should appear with at least one item
-      // (declared but not used in assertions — upload queue managed internally)
-
-      // At least one item should transition to succeeded (shown briefly then removed from queue)
-      // Verify the upload zone is still visible (photo section rendered)
-      await expect(page.getByTestId('photo-upload-zone')).toBeVisible();
+      // Verify the photo upload section is still visible (photo section rendered).
+      // On touch devices (tablet/mobile), isTouchDevice=true so the mobile button pair
+      // renders instead of the drag-and-drop zone (data-testid="photo-upload-zone").
+      // Use viewport width as a proxy for touch-device detection.
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
+      if (viewportWidth <= 1024) {
+        // Touch device: mobile button pair; use "Upload Photos" button as anchor
+        await expect(page.getByRole('button', { name: 'Upload Photos' }).first()).toBeVisible();
+      } else {
+        // Desktop: drag-and-drop zone always present (wrapper div, not affected by isProcessing)
+        await expect(page.getByTestId('photo-upload-zone')).toBeVisible();
+      }
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }
@@ -485,13 +505,23 @@ test.describe('Photo upload failure and retry (Scenario 8)', () => {
         ),
       };
 
-      // Wait for first upload to fail
+      const fileInput = page.getByTestId('photo-file-input');
+
+      // Register the response listener BEFORE selecting files so we don't miss it.
       const firstUploadResponse = page.waitForResponse(
         (resp) => resp.url().includes('/api/photos') && resp.request().method() === 'POST',
       );
 
-      const fileInput = page.getByTestId('photo-file-input');
       await fileInput.setInputFiles([minimalFile]);
+
+      // PR #1674 introduced PhotoMetadataModal: selecting a file opens a modal for metadata
+      // before uploading. Save the modal to trigger the upload.
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+      await expect(modal).not.toBeVisible();
+
+      // Now wait for the first (failing) upload response
       await firstUploadResponse;
 
       // The failed state should show a retry button
@@ -566,8 +596,7 @@ test.describe('Promote draft — happy path (Scenario 9)', { tag: '@responsive' 
         // in the badge region. The entry is now saved, so no draft indicator.
         await expect(page.getByTestId('draft-status-badge')).not.toBeVisible();
 
-        // Mark as promoted so we can clean up
-        draftId = draftId; // still use same id to delete the now-promoted entry
+        // draftId still holds the same id — use it to delete the now-promoted entry
       } finally {
         if (draftId) await deleteDiaryEntryViaApi(page, draftId);
       }
@@ -998,10 +1027,25 @@ test.describe(
             state: 'visible',
           });
 
-          // Photo upload zone should be visible (not hidden behind scroll)
-          const photoUploadZone = page.getByTestId('photo-upload-zone');
-          await photoUploadZone.scrollIntoViewIfNeeded();
-          await expect(photoUploadZone).toBeVisible();
+          // The photo upload section should be visible (not hidden behind scroll).
+          // On touch devices (tablet/mobile), PhotoUpload renders a mobile button pair
+          // (isTouchDevice=true via `hover: none`) instead of the drag-and-drop zone
+          // (data-testid="photo-upload-zone"). Use viewport width as a proxy for
+          // touch device detection, matching the same threshold used in photo-capture-flow.spec.ts.
+          const viewportWidth = page.viewportSize()?.width ?? 1920;
+          const isMobileOrTablet = viewportWidth <= 1024;
+
+          if (isMobileOrTablet) {
+            // Touch device: mobile button pair is shown; "Upload Photos" button is the anchor
+            const uploadBtn = page.getByRole('button', { name: 'Upload Photos' }).first();
+            await uploadBtn.scrollIntoViewIfNeeded();
+            await expect(uploadBtn).toBeVisible();
+          } else {
+            // Desktop: drag-and-drop zone with data-testid="photo-upload-zone"
+            const photoUploadZone = page.getByTestId('photo-upload-zone');
+            await photoUploadZone.scrollIntoViewIfNeeded();
+            await expect(photoUploadZone).toBeVisible();
+          }
 
           // No horizontal scroll
           const hasHorizontalScroll = await page.evaluate(() => {

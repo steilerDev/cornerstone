@@ -90,7 +90,7 @@ export function VendorsPage() {
   // Load vendors when table state changes
   useEffect(() => {
     void loadVendors();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadVendors is defined in the component body; the effect responds to tableState changes which is the intended trigger
   }, [
     tableState.search,
     tableState.sortBy,
@@ -330,6 +330,7 @@ export function VendorsPage() {
         render: (v) => formatDate(v.updatedAt ?? v.createdAt),
       },
     ],
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- tSettings (likely intended as t/tSettings) is a stable i18n function; adding it would re-run on locale-function identity changes
     [t, formatDate, trades],
   );
 

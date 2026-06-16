@@ -925,4 +925,76 @@ describe('Paperless Routes', () => {
       expect(body.error.code).toBe('PAPERLESS_ERROR');
     });
   });
+
+  // ─── GET /api/paperless/correspondents (Story #1679) ─────────────────────────
+
+  describe('GET /api/paperless/correspondents', () => {
+    it('returns 401 when not authenticated', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/correspondents',
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('returns 503 PAPERLESS_NOT_CONFIGURED when Paperless is not configured', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/correspondents',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(503);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('PAPERLESS_NOT_CONFIGURED');
+    });
+
+    it('returns 200 with sorted correspondents list when Paperless is configured', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+
+      mockFetch.mockResolvedValueOnce(
+        mockJsonResponse({
+          count: 2,
+          results: [
+            { id: 5, name: 'Smith GmbH' },
+            { id: 2, name: 'Acme Corp' },
+          ],
+        }),
+      );
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/correspondents',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ correspondents: Array<{ id: number; name: string }> }>();
+      expect(body.correspondents).toHaveLength(2);
+      // Sorted by id ascending: 2 before 5
+      expect(body.correspondents[0]).toEqual({ id: 2, name: 'Acme Corp' });
+      expect(body.correspondents[1]).toEqual({ id: 5, name: 'Smith GmbH' });
+    });
+
+    it('returns 502 PAPERLESS_UNREACHABLE when fetch throws', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+
+      mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/paperless/correspondents',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(502);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('PAPERLESS_UNREACHABLE');
+    });
+  });
 });

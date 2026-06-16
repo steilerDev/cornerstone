@@ -104,6 +104,7 @@ All 12 stories merged. Paperless-ngx links for invoices are EPIC-08; budget repo
   - Add to board: `gh project item-add 4 --owner steilerDev --url <issue-url>`
 - GraphQL still needed for: `addSubIssue`, `addBlockedBy` (no native CLI equivalent yet)
 - GraphQL: `addBlockedBy` uses `blockingIssueId` (NOT `blockedByIssueId`)
+- If `gh project item-list` is empty right after `item-add` (indexing lag), resolve item node ID via issue `projectItems` GraphQL and set status by that ID. See [board-operations.md](board-operations.md)
 
 ## User Feedback Batches
 

@@ -9,6 +9,13 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type * as schemaTypes from '../db/schema.js';
+import type {
+  UpdatePhotoRequest,
+  ReorderPhotosRequest,
+  PhotoEntityType,
+} from '@cornerstone/shared';
 import { createReadStream } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import {
@@ -21,11 +28,6 @@ import {
 import * as photoService from '../services/photoService.js';
 import * as photoAnnotationService from '../services/photoAnnotationService.js';
 import { diaryEntries } from '../db/schema.js';
-import type {
-  UpdatePhotoRequest,
-  ReorderPhotosRequest,
-  PhotoEntityType,
-} from '@cornerstone/shared';
 
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
@@ -33,7 +35,10 @@ import type {
  * Check if a diary entry is signed (has non-empty signatures array in metadata).
  * Returns true if signed, false if not signed or entry not found.
  */
-function isDiaryEntrySigned(db: any, diaryEntryId: string): boolean {
+function isDiaryEntrySigned(
+  db: BetterSQLite3Database<typeof schemaTypes>,
+  diaryEntryId: string,
+): boolean {
   const entry = db
     .select({ metadata: diaryEntries.metadata })
     .from(diaryEntries)
@@ -102,6 +107,7 @@ const updatePhotoSchema = {
     properties: {
       caption: { type: ['string', 'null'] },
       areaId: { type: ['string', 'null'] },
+      orientationId: { type: ['string', 'null'] },
       sortOrder: { type: 'integer', minimum: 0 },
     },
     additionalProperties: false,
@@ -189,6 +195,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     const entityIdField = fields['entityId'];
     const captionField = fields['caption'];
     const areaIdField = fields['areaId'];
+    const orientationIdField = fields['orientationId'];
 
     if (!entityTypeField?.value || !entityIdField?.value) {
       throw new ValidationError('Missing required fields: entityType, entityId');
@@ -198,6 +205,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     const entityId = entityIdField.value;
     const caption = captionField?.value ?? undefined;
     const areaId = areaIdField?.value ?? undefined;
+    const orientationId = orientationIdField?.value ?? undefined;
 
     // Validate file size against config limit
     const maxFileSizeBytes = fastify.config.photoMaxFileSizeMb * 1024 * 1024;
@@ -219,6 +227,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
       request.user.id,
       caption,
       areaId,
+      orientationId,
     );
 
     return reply.status(201).send({ photo });

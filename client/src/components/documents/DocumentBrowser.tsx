@@ -13,6 +13,12 @@ interface DocumentBrowserProps {
   onSelect?: (doc: PaperlessDocumentSearchResult) => void;
   /** Paperless-ngx document IDs that are already linked (will be filtered when hideLinked is true). */
   linkedDocumentIds?: number[];
+  /** Default checked state for the hide-linked toggle. Defaults to false. */
+  defaultHideLinked?: boolean;
+  /** When provided, passes to DocumentCard to enable "Open in Paperless" anchor. */
+  paperlessUrl?: string | null;
+  /** When provided, filters documents to this correspondent ID. */
+  correspondentId?: number | null;
 }
 
 const GRID_ID = 'document-grid';
@@ -24,13 +30,22 @@ export function DocumentBrowser({
   mode = 'page',
   onSelect,
   linkedDocumentIds = EMPTY_LINKED_DOCUMENT_IDS,
+  defaultHideLinked = false,
+  paperlessUrl,
+  correspondentId,
 }: DocumentBrowserProps) {
   const { t } = useTranslation('documents');
-  const hook = usePaperless();
+  const hook = usePaperless({ correspondentId });
   const [selectedDoc, setSelectedDoc] = useState<PaperlessDocumentSearchResult | null>(null);
   const [searchInput, setSearchInput] = useState('');
-  const [hideLinked, setHideLinked] = useState(false);
+  const [hideLinked, setHideLinked] = useState(defaultHideLinked);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Forward correspondent prop changes to the hook
+  useEffect(() => {
+    hook.setCorrespondent(correspondentId ?? null);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- setCorrespondent is stable callback; only depend on correspondentId to trigger filter updates
+  }, [correspondentId]);
 
   // Debounced search — intentionally omits hook.search from dep array to prevent infinite loop
   useEffect(() => {
@@ -41,7 +56,7 @@ export function DocumentBrowser({
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- hook is not directly used; it's queried via ref to avoid re-running on every hook change
   }, [searchInput]);
 
   const handleCardSelect = (doc: PaperlessDocumentSearchResult) => {
@@ -118,7 +133,7 @@ export function DocumentBrowser({
           aria-label={t('browser.searchDocumentsAriaLabel')}
           aria-controls={GRID_ID}
         />
-        {linkedDocumentIds.length > 0 && (
+        {linkedDocumentIds !== undefined && (
           <label className={styles.hideLinkedToggle}>
             <input
               type="checkbox"
@@ -226,6 +241,7 @@ export function DocumentBrowser({
                 isSelected={selectedDoc?.id === doc.id}
                 onSelect={handleCardSelect}
                 ariaControls={selectedDoc?.id === doc.id ? 'detail-panel' : undefined}
+                paperlessUrl={paperlessUrl}
               />
             </div>
           ))}

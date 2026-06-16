@@ -62,6 +62,7 @@ const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResu
   toggleTag: jest.fn(),
   setPage: jest.fn(),
   refresh: jest.fn(),
+  setCorrespondent: jest.fn(),
   ...overrides,
 });
 
@@ -449,10 +450,12 @@ describe('DocumentBrowser', () => {
   });
 
   describe('hide linked documents (#1369)', () => {
-    it('does not render the hide-linked checkbox when linkedDocumentIds is empty', () => {
+    it('renders the hide-linked checkbox when linkedDocumentIds is an empty array (#1679: condition is !== undefined)', () => {
       mockUsePaperless.mockReturnValue(makeHook());
       render(<DocumentBrowser linkedDocumentIds={[]} />);
-      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      // Story #1679 changed the condition from linkedDocumentIds.length > 0 to
+      // linkedDocumentIds !== undefined, so passing [] still shows the toggle.
+      expect(screen.getByRole('checkbox')).toBeInTheDocument();
     });
 
     it('renders the hide-linked checkbox when linkedDocumentIds has entries', () => {
@@ -530,6 +533,66 @@ describe('DocumentBrowser', () => {
       fireEvent.click(screen.getByRole('checkbox'));
 
       expect(screen.getByText(/No additional documents/i)).toBeInTheDocument();
+    });
+  });
+
+  describe('defaultHideLinked prop (#1679)', () => {
+    it('checkbox is shown when linkedDocumentIds is an empty array', () => {
+      mockUsePaperless.mockReturnValue(makeHook());
+      render(<DocumentBrowser linkedDocumentIds={[]} />);
+      // Story #1679: toggle condition is `linkedDocumentIds !== undefined`, so [] shows the toggle.
+      expect(screen.queryByRole('checkbox')).toBeInTheDocument();
+    });
+
+    it('checkbox IS shown when linkedDocumentIds prop is absent (default = EMPTY_LINKED_DOCUMENT_IDS = [])', () => {
+      mockUsePaperless.mockReturnValue(makeHook());
+      render(<DocumentBrowser />);
+      // No linkedDocumentIds prop → component default = EMPTY_LINKED_DOCUMENT_IDS ([]).
+      // Condition is `linkedDocumentIds !== undefined` — [] !== undefined is true, so
+      // the checkbox renders. Story #1679: the toggle is always present when the prop
+      // is accepted (caller opts in by not omitting the prop type).
+      expect(screen.getByRole('checkbox')).toBeInTheDocument();
+    });
+
+    it('hide-linked checkbox starts checked when defaultHideLinked=true', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [makeDoc(1), makeDoc(2)] }));
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} defaultHideLinked={true} />);
+      const checkbox = screen.getByRole('checkbox');
+      expect(checkbox).toBeChecked();
+    });
+
+    it('hide-linked checkbox starts unchecked when defaultHideLinked=false (default)', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [makeDoc(1), makeDoc(2)] }));
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} defaultHideLinked={false} />);
+      const checkbox = screen.getByRole('checkbox');
+      expect(checkbox).not.toBeChecked();
+    });
+
+    it('linked documents are immediately filtered when defaultHideLinked=true', () => {
+      mockUsePaperless.mockReturnValue(
+        makeHook({ documents: [makeDoc(1), makeDoc(2), makeDoc(3)] }),
+      );
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} defaultHideLinked={true} />);
+
+      // Docs 1 and 2 should be filtered out from the start (no click needed)
+      expect(
+        screen.queryByRole('button', { name: /Document: Document 1/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Document: Document 2/i }),
+      ).not.toBeInTheDocument();
+      // Doc 3 is unlinked, stays visible
+      expect(screen.getByRole('button', { name: /Document: Document 3/i })).toBeInTheDocument();
+    });
+
+    it('all documents visible when defaultHideLinked=true but no linkedDocumentIds match', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [makeDoc(1), makeDoc(2)] }));
+      // The linked ids don't overlap with displayed docs
+      render(<DocumentBrowser linkedDocumentIds={[99, 100]} defaultHideLinked={true} />);
+
+      // Nothing filtered out — docs 1 and 2 remain visible
+      expect(screen.getByRole('button', { name: /Document: Document 1/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Document: Document 2/i })).toBeInTheDocument();
     });
   });
 

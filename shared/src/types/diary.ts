@@ -61,6 +61,14 @@ export interface DailyLogMetadata {
   weather?: DiaryWeather | null;
   temperatureCelsius?: number | null;
   workersOnSite?: number | null;
+  /** Optional vendor reference by ID. Stored as vendorId; vendorName is resolved server-side at read time. */
+  vendorId?: string | null;
+  /** Denormalized vendor name, resolved server-side at read time from vendorId. Never sent by the client. */
+  vendorName?: string | null;
+  /** Work start time in HH:mm (24h) format. */
+  workStart?: string | null;
+  /** Work end time in HH:mm (24h) format. Must be strictly after workStart when both present. */
+  workEnd?: string | null;
   signatures?: DiarySignatureEntry[] | null;
 }
 
@@ -178,9 +186,7 @@ export interface DiaryEntrySummary {
 }
 
 /** Diary entry detail (used in single-item responses). */
-export interface DiaryEntryDetail extends DiaryEntrySummary {
-  // Detail includes all summary fields; extend if detail-only fields are added later.
-}
+export type DiaryEntryDetail = DiaryEntrySummary;
 
 // ─── Request Shapes ───────────────────────────────────────────────────────────
 

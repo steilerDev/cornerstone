@@ -23,7 +23,7 @@ export function useTimeline(): UseTimelineResult {
   useEffect(() => {
     let cancelled = false;
 
-    async function fetch() {
+    async function loadTimeline() {
       setIsLoading(true);
       setError(null);
 
@@ -51,7 +51,7 @@ export function useTimeline(): UseTimelineResult {
       }
     }
 
-    void fetch();
+    void loadTimeline();
 
     return () => {
       cancelled = true;

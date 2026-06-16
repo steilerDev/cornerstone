@@ -86,6 +86,9 @@ const BackupsPage = lazy(() => import('./pages/BackupsPage/BackupsPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
 const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
 const AutoItemizePage = lazy(() => import('./pages/AutoItemizePage/index.js'));
+const PaperlessInvoiceReviewPage = lazy(
+  () => import('./pages/PaperlessInvoiceReviewPage/index.js'),
+);
 const DiaryPage = lazy(() => import('./pages/DiaryPage/DiaryPage'));
 const DiaryEntryDetailPage = lazy(
   () => import('./pages/DiaryEntryDetailPage/DiaryEntryDetailPage'),
@@ -157,6 +160,14 @@ export function App() {
                       <Route path="sources" element={<BudgetSourcesPage />} />
                       <Route path="subsidies" element={<SubsidyProgramsPage />} />
                       <Route path="invoices" element={<InvoicesPage />} />
+                      <Route
+                        path="invoices/new/paperless"
+                        element={
+                          <Suspense fallback={<div>Loading...</div>}>
+                            <PaperlessInvoiceReviewPage />
+                          </Suspense>
+                        }
+                      />
                       <Route path="invoices/:id" element={<InvoiceDetailPage />} />
                       <Route
                         path="invoices/:id/auto-itemize/:documentId"

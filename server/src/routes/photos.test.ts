@@ -26,6 +26,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { Photo, ApiErrorResponse } from '@cornerstone/shared';
+import type * as AppModule from '../app.js';
+import type * as UserServiceModule from '../services/userService.js';
+import type * as SessionServiceModule from '../services/sessionService.js';
 import { diaryEntries } from '../db/schema.js';
 
 // ─── Mock photoService BEFORE importing app ────────────────────────────────────
@@ -66,9 +69,9 @@ jest.unstable_mockModule('../services/photoService.js', () => ({
 
 // ─── Dynamic imports (after mocks) ───────────────────────────────────────────
 
-let buildApp: typeof import('../app.js').buildApp;
-let userService: typeof import('../services/userService.js');
-let sessionService: typeof import('../services/sessionService.js');
+let buildApp: typeof AppModule.buildApp;
+let userService: typeof UserServiceModule;
+let sessionService: typeof SessionServiceModule;
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 
@@ -88,6 +91,8 @@ function makePhoto(overrides: Partial<Photo> = {}): Photo {
     takenAt: null,
     caption: null,
     areaId: null,
+    orientationId: null,
+    orientation: null,
     sortOrder: 0,
     createdBy: { id: 'user-id', displayName: 'Test User' },
     createdAt: '2026-03-01T12:00:00.000Z',
@@ -331,6 +336,7 @@ describe('Photo Routes', () => {
         expect.any(String), // userId
         'My caption',
         undefined, // areaId (not provided in this test)
+        undefined, // orientationId (not provided in this test)
       );
     });
 
@@ -497,6 +503,7 @@ describe('Photo Routes', () => {
         userId,
         undefined, // caption
         undefined, // areaId
+        undefined, // orientationId
       );
     });
   });
@@ -928,6 +935,145 @@ describe('Photo Routes', () => {
       });
 
       expect(response.statusCode).toBe(400);
+    });
+
+    it('updates orientationId and returns photo with orientation object', async () => {
+      const { cookie } = await createUserWithSession(
+        'patchorient@example.com',
+        'PatchOrient',
+        'password',
+      );
+      const updated = makePhoto({
+        orientationId: 'orient-south',
+        orientation: { id: 'orient-south', name: 'South', description: 'Street-facing' },
+      });
+      mockUpdatePhoto.mockReturnValue(updated);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: { orientationId: 'orient-south' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as { photo: Photo };
+      expect(body.photo.orientationId).toBe('orient-south');
+      expect(body.photo.orientation).toEqual({
+        id: 'orient-south',
+        name: 'South',
+        description: 'Street-facing',
+      });
+      expect(mockUpdatePhoto).toHaveBeenCalledWith(
+        expect.anything(),
+        '33333333-3333-3333-3333-333333333333',
+        expect.objectContaining({ orientationId: 'orient-south' }),
+      );
+    });
+
+    it('clears orientationId by setting to null', async () => {
+      const { cookie } = await createUserWithSession(
+        'clearorient@example.com',
+        'ClearOrient',
+        'password',
+      );
+      const updated = makePhoto({ orientationId: null, orientation: null });
+      mockUpdatePhoto.mockReturnValue(updated);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/photos/33333333-3333-3333-3333-333333333333',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: { orientationId: null },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as { photo: Photo };
+      expect(body.photo.orientationId).toBeNull();
+      expect(body.photo.orientation).toBeNull();
+    });
+  });
+
+  // ─── POST /api/photos with orientationId ──────────────────────────────────
+
+  describe('POST /api/photos — orientationId form field', () => {
+    it('passes orientationId to service when provided', async () => {
+      const { cookie } = await createUserWithSession(
+        'orientupload@example.com',
+        'OrientUpload',
+        'password',
+      );
+      const photo = makePhoto({
+        orientationId: 'orient-north',
+        orientation: { id: 'orient-north', name: 'North', description: null },
+      });
+      mockUploadPhoto.mockResolvedValue(photo);
+
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-jpeg'),
+          filename: 'photo.jpg',
+          contentType: 'image/jpeg',
+        },
+        { name: 'entityType', value: 'test' },
+        { name: 'entityId', value: 'entity-999' },
+        { name: 'orientationId', value: 'orient-north' },
+      ]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/photos',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(201);
+      const responseBody = JSON.parse(response.body) as { photo: Photo };
+      expect(responseBody.photo.orientationId).toBe('orient-north');
+      expect(mockUploadPhoto).toHaveBeenCalledWith(
+        expect.anything(),
+        photoStoragePath,
+        expect.any(Buffer),
+        'photo.jpg',
+        'image/jpeg',
+        'test',
+        'entity-999',
+        expect.any(String),
+        undefined, // caption not provided
+        undefined, // areaId not provided
+        'orient-north',
+      );
+    });
+
+    it('photos include orientation object in GET /api/photos response', async () => {
+      const { cookie } = await createUserWithSession(
+        'getorient@example.com',
+        'GetOrient',
+        'password',
+      );
+      const photosWithOrient = [
+        makePhoto({
+          orientationId: 'orient-east',
+          orientation: { id: 'orient-east', name: 'East', description: null },
+        }),
+      ];
+      mockGetPhotosForEntity.mockReturnValue(photosWithOrient);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/photos?entityType=test&entityId=entity-orient',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const responseBody = JSON.parse(response.body) as { photos: Photo[] };
+      expect(responseBody.photos[0]!.orientationId).toBe('orient-east');
+      expect(responseBody.photos[0]!.orientation).toEqual({
+        id: 'orient-east',
+        name: 'East',
+        description: null,
+      });
     });
   });
 

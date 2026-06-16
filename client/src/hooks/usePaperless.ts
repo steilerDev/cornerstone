@@ -12,6 +12,10 @@ import {
 } from '../lib/paperlessApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 
+export interface UsePaperlessOptions {
+  correspondentId?: number | null;
+}
+
 export interface UsePaperlessResult {
   status: PaperlessStatusResponse | null;
   documents: PaperlessDocumentSearchResult[];
@@ -25,6 +29,7 @@ export interface UsePaperlessResult {
   search: (q: string) => void;
   toggleTag: (tagId: number) => void;
   setPage: (page: number) => void;
+  setCorrespondent: (id: number | null) => void;
   refresh: () => void;
 }
 
@@ -33,9 +38,9 @@ export interface UsePaperlessResult {
  *
  * Phase 1: fetches status on mount.
  * Phase 2: fetches documents + tags when status is configured + reachable, or when
- * query/selectedTags/page/fetchCount changes.
+ * query/selectedTags/page/correspondent/fetchCount changes.
  */
-export function usePaperless(): UsePaperlessResult {
+export function usePaperless(options?: UsePaperlessOptions): UsePaperlessResult {
   const [status, setStatus] = useState<PaperlessStatusResponse | null>(null);
   const [documents, setDocuments] = useState<PaperlessDocumentSearchResult[]>([]);
   const [tags, setTags] = useState<PaperlessTag[]>([]);
@@ -43,10 +48,13 @@ export function usePaperless(): UsePaperlessResult {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [selectedTags, setSelectedTagsState] = useState<number[]>([]);
-  const [page, setPageState] = useState(1);
+  const [selectedTags, setSelectedTags] = useState<number[]>([]);
+  const [page, setPage] = useState(1);
   const [fetchCount, setFetchCount] = useState(0);
   const [tagCountMap, setTagCountMap] = useState<Map<number, number>>(() => new Map());
+  const [correspondentId, setCorrespondentIdState] = useState<number | null>(
+    options?.correspondentId ?? null,
+  );
 
   // Phase 1: fetch status on mount
   useEffect(() => {
@@ -80,8 +88,10 @@ export function usePaperless(): UsePaperlessResult {
     if (status === null) return;
 
     if (!status.configured || !status.reachable) {
+      /* eslint-disable @eslint-react/set-state-in-effect -- clearing loading state when Paperless is not configured/reachable */
       setIsLoading(false);
       setTagCountMap(new Map());
+      /* eslint-enable @eslint-react/set-state-in-effect */
       return;
     }
 
@@ -94,7 +104,12 @@ export function usePaperless(): UsePaperlessResult {
       try {
         const tagsStr = selectedTags.length > 0 ? selectedTags.join(',') : undefined;
         const [docsResponse, tagsResponse] = await Promise.all([
-          listPaperlessDocuments({ query: query || undefined, tags: tagsStr, page }),
+          listPaperlessDocuments({
+            query: query || undefined,
+            tags: tagsStr,
+            correspondent: correspondentId ?? undefined,
+            page,
+          }),
           listPaperlessTags(),
         ]);
 
@@ -131,26 +146,27 @@ export function usePaperless(): UsePaperlessResult {
     return () => {
       cancelled = true;
     };
-  }, [status, query, selectedTags, page, fetchCount]);
+  }, [status, query, selectedTags, page, correspondentId, fetchCount]);
 
   const search = useCallback((q: string) => {
     setQuery(q);
-    setPageState(1);
+    setPage(1);
   }, []);
 
   const toggleTag = useCallback((tagId: number) => {
-    setSelectedTagsState((prev) =>
+    setSelectedTags((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
     );
-    setPageState(1);
-  }, []);
-
-  const setPage = useCallback((p: number) => {
-    setPageState(p);
+    setPage(1);
   }, []);
 
   const refresh = useCallback(() => {
     setFetchCount((c) => c + 1);
+  }, []);
+
+  const setCorrespondent = useCallback((id: number | null) => {
+    setCorrespondentIdState(id);
+    setPage(1);
   }, []);
 
   return {
@@ -166,6 +182,7 @@ export function usePaperless(): UsePaperlessResult {
     search,
     toggleTag,
     setPage,
+    setCorrespondent,
     refresh,
   };
 }

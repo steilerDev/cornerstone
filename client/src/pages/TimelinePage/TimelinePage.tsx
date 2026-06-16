@@ -200,7 +200,9 @@ export function TimelinePage() {
   useEffect(() => {
     const el = chartAreaRef.current;
     const areaWidth = el ? el.clientWidth - SIDEBAR_WIDTH : 0; // sidebar width from ganttUtils
+    /* eslint-disable @eslint-react/set-state-in-effect -- setColumnWidth is called synchronously to initialize column width based on zoom and container size */
     setColumnWidth(computeDefaultColumnWidth(zoom, areaWidth));
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [zoom]);
 
   // Keyboard Ctrl+= / Ctrl+- for zoom in/out
@@ -217,7 +219,7 @@ export function TimelinePage() {
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- adjustColumnWidth is defined in the component body; the effect responds only to zoom changes as intended
   }, [zoom]);
 
   // Close New dropdown on outside click

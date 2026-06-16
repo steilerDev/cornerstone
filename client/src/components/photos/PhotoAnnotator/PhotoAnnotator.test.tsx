@@ -98,6 +98,7 @@ jest.unstable_mockModule('./useAnnotator.js', () => {
     const initialShapes = override?.shapes ?? [];
     const initialSelectedId = override?.selectedShapeId ?? null;
 
+    // eslint-disable-next-line @eslint-react/rules-of-hooks -- mockUseAnnotator is a test mock standing in for the useAnnotator hook
     const [state, dispatchBase] = useReducer(
       (
         s: {
@@ -166,10 +167,10 @@ jest.unstable_mockModule('./useAnnotator.js', () => {
       replace: jest.fn(),
     };
 
+    // eslint-disable-next-line @eslint-react/rules-of-hooks -- mockUseAnnotator is a test mock standing in for the useAnnotator hook
     const dispatch = useCallback(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (action: any) => dispatchBase(action),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
       [],
     );
 
@@ -288,7 +289,9 @@ jest.unstable_mockModule('./geometry.js', () => ({
 
 // ─── Dynamic imports ──────────────────────────────────────────────────────────
 
-let PhotoAnnotator: typeof import('./PhotoAnnotator.js').PhotoAnnotator;
+import type * as PhotoAnnotatorModule from './PhotoAnnotator.js';
+
+let PhotoAnnotator: (typeof PhotoAnnotatorModule)['PhotoAnnotator'];
 
 // ─── Image stub: make imageLoaded=true synchronously ─────────────────────────
 //

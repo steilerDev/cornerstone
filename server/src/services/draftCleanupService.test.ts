@@ -6,23 +6,27 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import type { ScheduledTask } from 'node-cron';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { FastifyInstance } from 'fastify';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import type { AppConfig } from '../plugins/config.js';
+import type * as NodeCron from 'node-cron';
+import type * as DraftCleanupServiceModule from './draftCleanupService.js';
 
 // ─── Mock node-cron ──────────────────────────────────────────────────────────
 
 const mockCronTask = {
   stop: jest.fn(),
-};
+} as unknown as ScheduledTask;
 
-const mockCronSchedule = jest.fn<typeof import('node-cron').schedule>();
+const mockCronSchedule = jest.fn<typeof NodeCron.schedule>();
 
 jest.unstable_mockModule('node-cron', () => ({
   default: {
@@ -91,12 +95,12 @@ const mockLogger = {
   trace: jest.fn(),
   fatal: jest.fn(),
   child: jest.fn(),
-} as any;
+} as unknown as FastifyInstance['log'];
 
 describe('draftCleanupService', () => {
-  let runOrphanCleanup: typeof import('./draftCleanupService.js').runOrphanCleanup;
-  let initScheduler: typeof import('./draftCleanupService.js').initScheduler;
-  let stopScheduler: typeof import('./draftCleanupService.js').stopScheduler;
+  let runOrphanCleanup: typeof DraftCleanupServiceModule.runOrphanCleanup;
+  let initScheduler: typeof DraftCleanupServiceModule.initScheduler;
+  let stopScheduler: typeof DraftCleanupServiceModule.stopScheduler;
 
   let db: BetterSQLite3Database<typeof schema>;
   let sqlite: ReturnType<typeof Database>;
@@ -110,14 +114,19 @@ describe('draftCleanupService', () => {
     db = drizzle(sqlite, { schema });
 
     mockCronSchedule.mockReset();
-    mockCronSchedule.mockReturnValue(mockCronTask as any);
+    mockCronSchedule.mockReturnValue(mockCronTask);
     mockFindOrphanDraftIds.mockReset();
     mockDeleteDiaryEntry.mockReset();
-    mockLogger.debug.mockReset();
-    mockLogger.info.mockReset();
-    mockLogger.warn.mockReset();
-    mockLogger.error.mockReset();
-    mockCronTask.stop.mockReset();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Jest mock methods not in Fastify logger interface
+    (mockLogger.debug as any).mockReset();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Jest mock methods not in Fastify logger interface
+    (mockLogger.info as any).mockReset();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Jest mock methods not in Fastify logger interface
+    (mockLogger.warn as any).mockReset();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Jest mock methods not in Fastify logger interface
+    (mockLogger.error as any).mockReset();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Jest mock methods not in ScheduledTask interface
+    (mockCronTask.stop as any).mockReset();
 
     // Import dynamically to get fresh module after mocks
     const mod = await import('./draftCleanupService.js');

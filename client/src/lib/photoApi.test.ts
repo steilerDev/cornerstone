@@ -23,6 +23,8 @@ const makePhoto = (overrides: Partial<Photo> = {}): Photo => ({
   takenAt: null,
   caption: null,
   areaId: null,
+  orientationId: null,
+  orientation: null,
   sortOrder: 0,
   createdBy: null,
   annotatedAt: null,

@@ -1,4 +1,4 @@
-import { useState, useRef, createContext, use, useMemo, useCallback } from 'react';
+import { useState, useRef, createContext, use, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {

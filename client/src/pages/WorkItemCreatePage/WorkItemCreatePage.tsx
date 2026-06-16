@@ -7,6 +7,7 @@ import type {
   DependencyType,
   AreaSummary,
   AreaAncestor,
+  Vendor,
 } from '@cornerstone/shared';
 import { createWorkItem } from '../../lib/workItemsApi.js';
 import { createDependency } from '../../lib/dependenciesApi.js';
@@ -68,7 +69,7 @@ export default function WorkItemCreatePage() {
   // Dependency state
   const [pendingDependencies, setPendingDependencies] = useState<PendingDependency[]>([]);
   const [users, setUsers] = useState<UserResponse[]>([]);
-  const [vendors, setVendors] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
 
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);

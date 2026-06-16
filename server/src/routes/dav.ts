@@ -1,9 +1,16 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { DescriptionMap } from '../services/calendarIcal.js';
+import type * as schemaTypes from '../db/schema.js';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 import { eq } from 'drizzle-orm';
 import { UnauthorizedError, NotFoundError } from '../errors/AppError.js';
 import * as davTokenService from '../services/davTokenService.js';
 import * as calendarIcal from '../services/calendarIcal.js';
-import type { DescriptionMap } from '../services/calendarIcal.js';
 import * as vendorVcard from '../services/vendorVcard.js';
 import * as davXml from '../services/davXml.js';
 import { escapeXml } from '../services/davXml.js';
@@ -14,7 +21,7 @@ import { vendors, vendorContacts, workItems, milestones, householdItems } from '
 /**
  * DAV preHandler: validate Basic Auth using DAV token.
  */
-async function davAuth(request: any): Promise<void> {
+async function davAuth(request: FastifyRequest): Promise<void> {
   const authHeader = request.headers.authorization;
   if (!authHeader) {
     throw new UnauthorizedError('Authorization header required');
@@ -45,6 +52,7 @@ async function davAuth(request: any): Promise<void> {
   }
 
   // Attach to request for later use
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Fastify request decorator, no augmentation in this file
   (request as any).davUser = validated;
 }
 
@@ -54,7 +62,7 @@ const DAV_PREFIX = '/dav';
  * Build a DescriptionMap from the database for CalDAV DESCRIPTION fields.
  * Queries work_items.description, milestones.description, and household_items.description.
  */
-function buildDescriptionMap(db: any): DescriptionMap {
+function buildDescriptionMap(db: BetterSQLite3Database<typeof schemaTypes>): DescriptionMap {
   const map: DescriptionMap = new Map();
 
   const wiRows = db
@@ -91,7 +99,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
   // ─── WWW-Authenticate on 401 (RFC 7235 — required for iOS) ──────────────
 
   fastify.addHook('onError', async (_request, reply, error) => {
-    if ((error as any).statusCode === 401) {
+    if ((error as { statusCode?: number }).statusCode === 401) {
       reply.header('WWW-Authenticate', 'Basic realm="Cornerstone DAV"');
     }
   });
@@ -117,7 +125,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
    * Root collection: lists calendars and addressbooks.
    */
   fastify.propfind<{ Body: string }>('/', { preHandler: davAuth }, async (request, reply) => {
-    const depth = davXml.parseDepth(request.headers as any);
+    const depth = davXml.parseDepth(
+      request.headers as Record<string, string | string[] | undefined>,
+    );
 
     const rootProps = `<D:resourcetype><D:collection/></D:resourcetype>
 <D:displayname>Cornerstone</D:displayname>
@@ -184,8 +194,10 @@ export default async function davRoutes(fastify: FastifyInstance) {
     { preHandler: davAuth },
     async (request, reply) => {
       const href = `${DAV_PREFIX}/principals/default/`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Fastify request decorator
+      const davUser = (request as any).davUser;
       const props = `<D:resourcetype><D:principal/></D:resourcetype>
-<D:displayname>${(request as any).davUser.email}</D:displayname>
+<D:displayname>${davUser.email}</D:displayname>
 <D:principal-URL><D:href>${href}</D:href></D:principal-URL>
 <C:calendar-home-set><D:href>${DAV_PREFIX}/calendars/</D:href></C:calendar-home-set>
 <A:addressbook-home-set><D:href>${DAV_PREFIX}/addressbooks/</D:href></A:addressbook-home-set>`;
@@ -209,7 +221,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/calendars/',
     { preHandler: davAuth },
     async (request, reply) => {
-      const depth = davXml.parseDepth(request.headers as any);
+      const depth = davXml.parseDepth(
+        request.headers as Record<string, string | string[] | undefined>,
+      );
       const responses: string[] = [];
 
       // The home set itself is a plain collection
@@ -253,7 +267,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/calendars/default/',
     { preHandler: davAuth },
     async (request, reply) => {
-      const depth = davXml.parseDepth(request.headers as any);
+      const depth = davXml.parseDepth(
+        request.headers as Record<string, string | string[] | undefined>,
+      );
       const etag = calendarIcal.computeCalendarETag(fastify.db);
 
       ensureDailyReschedule(fastify.db);
@@ -273,7 +289,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
       if (depth !== 0) {
         // depth 1: list all event hrefs
-        for (const wi of timeline.workItems as any[]) {
+        for (const wi of timeline.workItems) {
           if (!wi.startDate || !wi.endDate) continue;
           const href = `${DAV_PREFIX}/calendars/default/wi-${wi.id}.ics`;
           const props = `<D:getetag>"wi-${etag}"</D:getetag>
@@ -282,7 +298,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
           responses.push(davXml.response(href, davXml.propstat(props)));
         }
 
-        for (const milestone of timeline.milestones as any[]) {
+        for (const milestone of timeline.milestones) {
           if (!milestone.targetDate && !milestone.completedAt) continue;
           const href = `${DAV_PREFIX}/calendars/default/milestone-${milestone.id}.ics`;
           const props = `<D:getetag>"milestone-${etag}"</D:getetag>
@@ -291,7 +307,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
           responses.push(davXml.response(href, davXml.propstat(props)));
         }
 
-        for (const hi of timeline.householdItems as any[]) {
+        for (const hi of timeline.householdItems) {
           if (!hi.targetDeliveryDate && !hi.actualDeliveryDate) continue;
           const href = `${DAV_PREFIX}/calendars/default/hi-${hi.id}.ics`;
           const props = `<D:getetag>"hi-${etag}"</D:getetag>
@@ -329,14 +345,14 @@ export default async function davRoutes(fastify: FastifyInstance) {
       ensureDailyReschedule(fastify.db);
       const timeline = getTimeline(fastify.db);
 
-      let event: any = null;
+      let event: TimelineWorkItem | TimelineMilestone | TimelineHouseholdItem | null = null;
 
       if (type === 'wi') {
-        event = timeline.workItems.find((wi: any) => wi.id === id);
+        event = timeline.workItems.find((wi) => wi.id === id) ?? null;
       } else if (type === 'milestone') {
-        event = timeline.milestones.find((m: any) => String(m.id) === id);
+        event = timeline.milestones.find((m) => String(m.id) === id) ?? null;
       } else if (type === 'hi') {
-        event = timeline.householdItems.find((hi: any) => hi.id === id);
+        event = timeline.householdItems.find((hi) => hi.id === id) ?? null;
       }
 
       if (!event) {
@@ -347,9 +363,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
       const descMap = buildDescriptionMap(fastify.db);
       const calendar = calendarIcal.buildCalendar(
         {
-          workItems: type === 'wi' ? [event] : [],
-          milestones: type === 'milestone' ? [event] : [],
-          householdItems: type === 'hi' ? [event] : [],
+          workItems: type === 'wi' ? [event as TimelineWorkItem] : [],
+          milestones: type === 'milestone' ? [event as TimelineMilestone] : [],
+          householdItems: type === 'hi' ? [event as TimelineHouseholdItem] : [],
         },
         descMap,
         baseUrl,
@@ -371,15 +387,15 @@ export default async function davRoutes(fastify: FastifyInstance) {
   function buildCalendarEventResponse(
     href: string,
     type: string,
-    event: any,
+    event: TimelineWorkItem | TimelineMilestone | TimelineHouseholdItem,
     etag: string,
     descMap?: DescriptionMap,
   ): string {
     const calendar = calendarIcal.buildCalendar(
       {
-        workItems: type === 'wi' ? [event] : [],
-        milestones: type === 'milestone' ? [event] : [],
-        householdItems: type === 'hi' ? [event] : [],
+        workItems: type === 'wi' ? [event as TimelineWorkItem] : [],
+        milestones: type === 'milestone' ? [event as TimelineMilestone] : [],
+        householdItems: type === 'hi' ? [event as TimelineHouseholdItem] : [],
       },
       descMap,
       baseUrl,
@@ -387,9 +403,13 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
     // Use type-prefixed ETag to match PROPFIND depth 1 responses
     const typedEtag = `${type}-${etag}`;
+    const displayName =
+      type === 'wi' || type === 'milestone'
+        ? (event as TimelineWorkItem | TimelineMilestone).title
+        : (event as TimelineHouseholdItem).name;
     const props = `<D:getetag>"${typedEtag}"</D:getetag>
 <D:resourcetype/>
-<D:displayname>${escapeXml(event.title || event.name)}</D:displayname>
+<D:displayname>${escapeXml(displayName)}</D:displayname>
 <D:getcontentlength>${calendar.length}</D:getcontentlength>
 <D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype>
 <C:calendar-data>${escapeXml(calendar)}</C:calendar-data>`;
@@ -416,19 +436,19 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
       if (reportType === 'query') {
         // calendar-query: return all events (read-only calendar, no filtering needed)
-        for (const wi of timeline.workItems as any[]) {
+        for (const wi of timeline.workItems) {
           if (!wi.startDate || !wi.endDate) continue;
           const href = `${DAV_PREFIX}/calendars/default/wi-${wi.id}.ics`;
           responses.push(buildCalendarEventResponse(href, 'wi', wi, etag, descMap));
         }
 
-        for (const milestone of timeline.milestones as any[]) {
+        for (const milestone of timeline.milestones) {
           if (!milestone.targetDate && !milestone.completedAt) continue;
           const href = `${DAV_PREFIX}/calendars/default/milestone-${milestone.id}.ics`;
           responses.push(buildCalendarEventResponse(href, 'milestone', milestone, etag, descMap));
         }
 
-        for (const hi of timeline.householdItems as any[]) {
+        for (const hi of timeline.householdItems) {
           if (!hi.targetDeliveryDate && !hi.actualDeliveryDate) continue;
           const href = `${DAV_PREFIX}/calendars/default/hi-${hi.id}.ics`;
           responses.push(buildCalendarEventResponse(href, 'hi', hi, etag, descMap));
@@ -447,14 +467,14 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
           const [, type, id] = typeMatch;
           // type is defined: typeMatch has 3 capture groups and matched the pattern
-          let event: any = null;
+          let event: TimelineWorkItem | TimelineMilestone | TimelineHouseholdItem | null = null;
 
           if (type === 'wi') {
-            event = (timeline.workItems as any[]).find((wi: any) => wi.id === id);
+            event = timeline.workItems.find((wi) => wi.id === id) ?? null;
           } else if (type === 'milestone') {
-            event = (timeline.milestones as any[]).find((m: any) => String(m.id) === id);
+            event = timeline.milestones.find((m) => String(m.id) === id) ?? null;
           } else if (type === 'hi') {
-            event = (timeline.householdItems as any[]).find((hi: any) => hi.id === id);
+            event = timeline.householdItems.find((hi) => hi.id === id) ?? null;
           }
 
           if (!event) {
@@ -485,7 +505,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/addressbooks/',
     { preHandler: davAuth },
     async (request, reply) => {
-      const depth = davXml.parseDepth(request.headers as any);
+      const depth = davXml.parseDepth(
+        request.headers as Record<string, string | string[] | undefined>,
+      );
       const responses: string[] = [];
 
       // The home set itself is a plain collection
@@ -529,7 +551,9 @@ export default async function davRoutes(fastify: FastifyInstance) {
     '/addressbooks/default/',
     { preHandler: davAuth },
     async (request, reply) => {
-      const depth = davXml.parseDepth(request.headers as any);
+      const depth = davXml.parseDepth(
+        request.headers as Record<string, string | string[] | undefined>,
+      );
       const etag = vendorVcard.computeAddressBookETag(fastify.db);
 
       const responses: string[] = [];
@@ -548,7 +572,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
         // depth 1: list all vendor + contact hrefs
         const allVendors = fastify.db.select().from(vendors).all();
 
-        for (const vendor of allVendors as any[]) {
+        for (const vendor of allVendors) {
           const href = `${DAV_PREFIX}/addressbooks/default/vendor-${vendor.id}.vcf`;
           const props = `<D:getetag>"vendor-${etag}"</D:getetag>
 <D:resourcetype/>
@@ -558,8 +582,8 @@ export default async function davRoutes(fastify: FastifyInstance) {
 
         // Also list all contacts
         const allContacts = fastify.db.select().from(vendorContacts).all();
-        for (const contact of allContacts as any[]) {
-          const _vendor = (allVendors as any[]).find((v: any) => v.id === contact.vendorId);
+        for (const contact of allContacts) {
+          const _vendor = allVendors.find((v) => v.id === contact.vendorId);
           const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;
           const props = `<D:getetag>"contact-${etag}"</D:getetag>
 <D:resourcetype/>
@@ -679,15 +703,15 @@ export default async function davRoutes(fastify: FastifyInstance) {
         // addressbook-query: return all contacts (read-only address book)
         const allVendors = fastify.db.select().from(vendors).all();
 
-        for (const vendor of allVendors as any[]) {
+        for (const vendor of allVendors) {
           const href = `${DAV_PREFIX}/addressbooks/default/vendor-${vendor.id}.vcf`;
           const vcf = vendorVcard.buildVendorVcard(vendor, baseUrl);
           responses.push(buildVcardResponse(href, 'vendor', vcf, vendor.name, etag));
         }
 
         const allContacts = fastify.db.select().from(vendorContacts).all();
-        for (const contact of allContacts as any[]) {
-          const vendor = (allVendors as any[]).find((v: any) => v.id === contact.vendorId);
+        for (const contact of allContacts) {
+          const vendor = allVendors.find((v) => v.id === contact.vendorId);
           if (!vendor) continue;
           const href = `${DAV_PREFIX}/addressbooks/default/contact-${contact.id}.vcf`;
           const vcf = vendorVcard.buildContactVcard(contact, vendor.name, baseUrl);

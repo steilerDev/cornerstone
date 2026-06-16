@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { CONFIDENCE_MARGINS } from './budget.js';
+import { CONFIDENCE_MARGINS, effectiveLineAmount, effectivePlannedAmount } from './budget.js';
 import type {
   ConfidenceLevel,
   BudgetSourceSummary,
@@ -101,6 +101,55 @@ describe('CONFIDENCE_MARGINS constant', () => {
     );
     expect(CONFIDENCE_MARGINS.professional_estimate).toBeGreaterThan(CONFIDENCE_MARGINS.quote);
     expect(CONFIDENCE_MARGINS.quote).toBeGreaterThan(CONFIDENCE_MARGINS.invoice);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// effectivePlannedAmount
+// ---------------------------------------------------------------------------
+
+describe('effectivePlannedAmount', () => {
+  it('grosses up by 1.19 when includesVat is false (1000 net → 1190)', () => {
+    expect(effectivePlannedAmount({ plannedAmount: 1000, includesVat: false })).toBe(1190);
+  });
+
+  it('returns plannedAmount as-is when includesVat is true', () => {
+    expect(effectivePlannedAmount({ plannedAmount: 500, includesVat: true })).toBe(500);
+  });
+
+  it('returns plannedAmount as-is when includesVat is null', () => {
+    expect(effectivePlannedAmount({ plannedAmount: 750, includesVat: null })).toBe(750);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// effectiveLineAmount (Story #1677 — auto-itemize VAT gross-up)
+// ---------------------------------------------------------------------------
+
+describe('effectiveLineAmount', () => {
+  it('grosses up by 1.19 when includesVat is false (100 → 119)', () => {
+    expect(effectiveLineAmount({ amount: 100, includesVat: false })).toBe(119);
+  });
+
+  it('applies rounding when includesVat is false (84.03 → Math.round(84.03*1.19*100)/100)', () => {
+    const expected = Math.round(84.03 * 1.19 * 100) / 100;
+    expect(effectiveLineAmount({ amount: 84.03, includesVat: false })).toBe(expected);
+  });
+
+  it('returns amount as-is when includesVat is true (100 → 100)', () => {
+    expect(effectiveLineAmount({ amount: 100, includesVat: true })).toBe(100);
+  });
+
+  it('returns amount as-is when includesVat is undefined (100 → 100)', () => {
+    expect(effectiveLineAmount({ amount: 100, includesVat: undefined })).toBe(100);
+  });
+
+  it('returns amount as-is when includesVat is null (100 → 100)', () => {
+    expect(effectiveLineAmount({ amount: 100, includesVat: null })).toBe(100);
+  });
+
+  it('returns 0 when amount is 0 and includesVat is false', () => {
+    expect(effectiveLineAmount({ amount: 0, includesVat: false })).toBe(0);
   });
 });
 

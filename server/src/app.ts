@@ -27,6 +27,7 @@ import budgetCategoryRoutes from './routes/budgetCategories.js';
 import budgetSourceRoutes from './routes/budgetSources.js';
 import areaRoutes from './routes/areas.js';
 import tradeRoutes from './routes/trades.js';
+import orientationRoutes from './routes/orientations.js';
 import vendorRoutes from './routes/vendors.js';
 import invoiceRoutes from './routes/invoices.js';
 import standaloneInvoiceRoutes from './routes/standaloneInvoices.js';
@@ -100,6 +101,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.addContentTypeParser(
     ['application/xml', 'text/xml'],
     { parseAs: 'string' },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- addContentTypeParser callback signature
     async (_req: any, body: string) => body,
   );
 
@@ -153,6 +155,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Trade routes (EPIC-18: Trades Management)
   await app.register(tradeRoutes, { prefix: '/api/trades' });
+
+  // Orientation routes (Story #1674: Mobile photo upload optimization)
+  await app.register(orientationRoutes, { prefix: '/api/orientations' });
 
   // Vendor/contractor routes
   await app.register(vendorRoutes, { prefix: '/api/vendors' });

@@ -4,10 +4,11 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import type React from 'react';
+import type * as TriStateCheckboxModule from './TriStateCheckbox.js';
 
 // ─── Component import (after any mocks) ──────────────────────────────────────
 
-let TriStateCheckbox: (typeof import('./TriStateCheckbox.js'))['TriStateCheckbox'];
+let TriStateCheckbox: (typeof TriStateCheckboxModule)['TriStateCheckbox'];
 
 describe('TriStateCheckbox', () => {
   beforeEach(async () => {

@@ -69,12 +69,12 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 let mockPickerStateOverride: Record<string, unknown> = {};
 
 const mockShowCreateBudgetLineForm = jest
-  .fn<(...args: any[]) => Promise<void>>()
+  .fn<(prefill?: Record<string, unknown>) => Promise<void>>()
   .mockResolvedValue(undefined);
 
 // Captured onLineCreated callback — allows regression tests for #1613 to invoke
 // the callback directly and assert the resulting DOM state (e.g. auto-created-badge).
-type OnLineCreatedFn = (...args: any[]) => void;
+type OnLineCreatedFn = (line: unknown, invoiceBudgetLineId: string | null) => void;
 let capturedOnLineCreated: OnLineCreatedFn | null = null;
 
 jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
@@ -257,6 +257,7 @@ function makeDryRunResponse(
       totalAmount: number;
       confidence: number;
       budgetCategoryId: string | null;
+      includesVat: boolean;
     }>
   > = [],
   warnings: AutoItemizeDryRunResponse['warnings'] = [],
@@ -271,6 +272,8 @@ function makeDryRunResponse(
         // and no assignedBudgetLineId is set). Pass budgetCategoryId: null explicitly
         // in a line override to test the missing-category error path.
         budgetCategoryId: 'budgetCategoryId' in l ? l.budgetCategoryId : 'bc-test-category',
+        // includesVat is optional; only set when explicitly provided
+        ...('includesVat' in l ? { includesVat: l.includesVat } : {}),
       }))
     : [
         {
@@ -1770,6 +1773,98 @@ describe('AutoItemizePage', () => {
     });
   });
 
+  // ─── Story #1677: VAT gross-up in computedLineTotal / variance ──────────────
+
+  describe('VAT gross-up in variance indicator (Story #1677)', () => {
+    it('shows match ✓ when one includesVat=false line at 1000 grosses up to 1190 matching invoice', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1190 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(
+        makeDryRunResponse([{ description: 'Net item', totalAmount: 1000, includesVat: false }]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Net item')).toBeInTheDocument();
+      });
+
+      // gross = Math.round(1000*1.19*100)/100 = 1190 → matches invoice 1190 → ✓
+      expect(screen.getByText('✓', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
+    });
+
+    it('shows danger ✕ when one includesVat=false line at 1000 grosses up to 1190 but invoice is only 1000', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(
+        makeDryRunResponse([{ description: 'Net item', totalAmount: 1000, includesVat: false }]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Net item')).toBeInTheDocument();
+      });
+
+      // gross = 1190, invoice = 1000 → variance = 19% > 5% → danger ✕
+      expect(screen.getByText('✕', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
+    });
+
+    it('shows match ✓ when one includesVat=true line at 1000 matches invoice 1000 (unchanged behavior)', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(
+        makeDryRunResponse([{ description: 'Gross item', totalAmount: 1000, includesVat: true }]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Gross item')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('✓', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
+    });
+
+    it('shows match ✓ for mixed [500 net + 250 gross] when invoice is 845', async () => {
+      // 500 net → gross = Math.round(500*1.19*100)/100 = 595; 250 gross → 250; total = 845
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 845 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(
+        makeDryRunResponse([
+          { description: 'Net part', totalAmount: 500, includesVat: false },
+          { description: 'Gross part', totalAmount: 250, includesVat: true },
+        ]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Net part')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('✓', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
+    });
+
+    it('shows match ✓ for includesVat=undefined line at 1000 when invoice is 1000', async () => {
+      // includesVat=undefined → amount used as-is → 1000 === 1000 → match
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(
+        // Omit includesVat so it is undefined in the line
+        makeDryRunResponse([{ description: 'No VAT flag', totalAmount: 1000 }]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('No VAT flag')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('✓', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
+    });
+  });
+
   // ─── Story #1588: category and funding source selects per line ────────────
 
   describe('category and funding source selects per line (#1588)', () => {
@@ -1931,7 +2026,6 @@ describe('AutoItemizePage', () => {
       });
 
       // Before onLoad fires, the overlay should be present (pdfLoaded starts false)
-      const overlay = document.querySelector('[aria-hidden="true"][class*="pdfLoadingOverlay"]');
       // The overlay may or may not be found depending on CSS module class name handling.
       // Use a more robust selector: look for the spinner inside the preview wrapper.
       const previewWrapper = document.querySelector('iframe');

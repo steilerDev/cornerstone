@@ -236,7 +236,7 @@ describe('householdItemBudgetService', () => {
       const result = createHouseholdItemBudget(db, hiId, 'user-001', {
         budgetSourceId: defaultSourceId,
         plannedAmount: 100,
-        budgetCategoryId: 'some-other-category' as any,
+        budgetCategoryId: 'some-other-category',
       });
 
       expect(result.budgetCategory?.id).toBe('bc-household-items');
@@ -489,7 +489,7 @@ describe('householdItemBudgetService', () => {
       // budgetCategoryId is stripped by the service
       const result = updateHouseholdItemBudget(db, hiId, created.id, {
         plannedAmount: 300,
-        budgetCategoryId: 'some-other-cat' as any,
+        budgetCategoryId: 'some-other-cat',
       });
 
       expect(result.budgetCategory?.id).toBe('bc-household-items');

@@ -125,7 +125,9 @@ export function BudgetOverviewPage() {
     if (isLoading) return;
 
     // 3. Schedule new fetch after debounce window
+    /* eslint-disable @eslint-react/set-state-in-effect -- initializing refetch state for debounced operation */
     setIsBreakdownRefetching(true);
+    /* eslint-enable @eslint-react/set-state-in-effect */
     debounceRef.current = setTimeout(() => {
       const controller = new AbortController();
       abortRef.current = controller;
@@ -162,6 +164,7 @@ export function BudgetOverviewPage() {
 
   useEffect(() => {
     void loadOverview();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadOverview is defined in component body; effect runs only once on mount
   }, []);
 
   const loadOverview = async () => {

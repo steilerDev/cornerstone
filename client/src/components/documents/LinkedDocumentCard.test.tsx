@@ -347,6 +347,92 @@ describe('LinkedDocumentCard', () => {
     expect(openLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
+  it('falls back to thumbFallback icon when thumbnail image load fails', () => {
+    render(
+      <LinkedDocumentCard
+        link={makeLink()}
+        paperlessBaseUrl={null}
+        onView={jest.fn()}
+        onUnlink={jest.fn()}
+      />,
+    );
+    const img = document.querySelector('img');
+    expect(img).toBeInTheDocument();
+    // Fire the onError event to trigger setThumbError(true)
+    fireEvent.error(img!);
+    // After error, the fallback div should appear and the img should be gone
+    expect(document.querySelector('img')).not.toBeInTheDocument();
+    expect(document.querySelector('[aria-hidden="true"]')).toBeInTheDocument();
+  });
+
+  // ─── Overlay unlink button (Story #1680) ─────────────────────────────────
+
+  describe('overlay unlink button', () => {
+    it('overlay unlink button is in the thumb container, not the footer actions', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+        />,
+      );
+      const unlinkBtn = screen.getByRole('button', { name: /Unlink document: Invoice March/i });
+      const viewBtn = screen.getByRole('button', { name: /View details: Invoice March/i });
+      expect(unlinkBtn.parentElement).not.toBe(viewBtn.parentElement);
+    });
+
+    it('unlink button aria-label includes the document title exactly', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+        />,
+      );
+      const unlinkBtn = screen.getByRole('button', { name: /Unlink document: Invoice March/i });
+      expect(unlinkBtn.getAttribute('aria-label')).toBe('Unlink document: Invoice March');
+    });
+
+    it('overlay unlink button has type="button"', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+        />,
+      );
+      const unlinkBtn = screen.getByRole('button', { name: /Unlink document: Invoice March/i });
+      expect(unlinkBtn).toHaveAttribute('type', 'button');
+    });
+
+    it('only one unlink button exists (footer unlink button was removed)', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+        />,
+      );
+      expect(screen.queryAllByRole('button', { name: /Unlink document/i })).toHaveLength(1);
+    });
+
+    it('overlay unlink button renders even when link.document is null', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ document: null })}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+        />,
+      );
+      expect(screen.getByRole('button', { name: /Unlink document/i })).toBeInTheDocument();
+    });
+  });
+
   // ─── Itemize button (Story #1564) ─────────────────────────────────────────
 
   describe('Itemize button', () => {

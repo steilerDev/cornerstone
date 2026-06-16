@@ -44,7 +44,9 @@ export function PhotoViewer({
 
   // Update currentPhoto when currentIndex or photos array changes
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- updating displayed photo in response to index or array change */
     setCurrentPhoto(photos[currentIndex]!);
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [currentIndex, photos]);
 
   // Store previous focus and restore on close

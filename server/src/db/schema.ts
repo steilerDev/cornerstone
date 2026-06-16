@@ -96,6 +96,26 @@ export const trades = sqliteTable(
 );
 
 /**
+ * Orientations table - user-configurable directional labels for photos.
+ * e.g. "South" (description: "Street-facing"), "North-West".
+ * Story #1674: Mobile photo upload optimization.
+ */
+export const orientations = sqliteTable(
+  'orientations',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').unique().notNull(),
+    description: text('description'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => ({
+    sortOrderIdx: index('idx_orientations_sort_order').on(table.sortOrder, table.name),
+  }),
+);
+
+/**
  * Areas table - hierarchical location/space divisions within the construction project.
  * Areas can have parent-child relationships (e.g., Kitchen > Kitchen Cabinets).
  * EPIC-18: Replaces household_items.room string field.
@@ -873,6 +893,9 @@ export const photos = sqliteTable(
     takenAt: text('taken_at'),
     caption: text('caption'),
     areaId: text('area_id').references(() => areas.id, { onDelete: 'set null' }),
+    orientationId: text('orientation_id').references(() => orientations.id, {
+      onDelete: 'set null',
+    }),
     sortOrder: integer('sort_order').notNull().default(0),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
@@ -882,6 +905,7 @@ export const photos = sqliteTable(
   (table) => ({
     entityIdx: index('idx_photos_entity').on(table.entityType, table.entityId),
     areaIdIdx: index('idx_photos_area_id').on(table.areaId),
+    orientationIdIdx: index('idx_photos_orientation_id').on(table.orientationId),
     createdAtIdx: index('idx_photos_created_at').on(table.createdAt),
   }),
 );

@@ -3,6 +3,7 @@
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, render } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import userEvent from '@testing-library/user-event';
 import type { DiaryEntryType } from '@cornerstone/shared';
 import { DiaryFilterBar } from './DiaryFilterBar.js';
@@ -31,7 +32,7 @@ describe('DiaryFilterBar', () => {
     localStorage.clear();
   });
 
-  const renderFilterBar = (overrides: Partial<typeof defaultProps> = {}) =>
+  const renderFilterBar = (overrides: Partial<ComponentProps<typeof DiaryFilterBar>> = {}) =>
     render(<DiaryFilterBar {...defaultProps} {...overrides} />);
 
   // ─── Rendering ─────────────────────────────────────────────────────────────
@@ -353,6 +354,61 @@ describe('DiaryFilterBar', () => {
     expect(inactiveChip.getAttribute('class') ?? '').not.toContain('typeChipActive');
   });
 
+  // ─── Mobile toggle behavior (Bug #1688) ───────────────────────────────────
+
+  describe('Mobile toggle behavior', () => {
+    it('toggle button is present in the document', () => {
+      renderFilterBar();
+      expect(screen.getByRole('button', { name: /toggle filters/i })).toBeInTheDocument();
+    });
+
+    it('filter panel is closed by default — filters container does not have filtersOpen class', () => {
+      renderFilterBar();
+      const toggleButton = screen.getByRole('button', { name: /toggle filters/i });
+      const filtersContainer = toggleButton.nextElementSibling as HTMLElement;
+      expect(filtersContainer.className).not.toContain('filtersOpen');
+    });
+
+    it('clicking the toggle button opens the panel — filters container className includes filtersOpen', async () => {
+      const user = userEvent.setup();
+      renderFilterBar();
+      const toggleButton = screen.getByRole('button', { name: /toggle filters/i });
+
+      await user.click(toggleButton);
+
+      const filtersContainer = toggleButton.nextElementSibling as HTMLElement;
+      expect(filtersContainer.className).toContain('filtersOpen');
+    });
+
+    it('clicking the toggle button twice closes the panel — filtersOpen removed after second click', async () => {
+      const user = userEvent.setup();
+      renderFilterBar();
+      const toggleButton = screen.getByRole('button', { name: /toggle filters/i });
+
+      await user.click(toggleButton);
+      await user.click(toggleButton);
+
+      const filtersContainer = toggleButton.nextElementSibling as HTMLElement;
+      expect(filtersContainer.className).not.toContain('filtersOpen');
+    });
+
+    it('toggle button has aria-expanded="false" when panel is closed (initial state)', () => {
+      renderFilterBar();
+      const toggleButton = screen.getByRole('button', { name: /toggle filters/i });
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('toggle button has aria-expanded="true" after one click', async () => {
+      const user = userEvent.setup();
+      renderFilterBar();
+      const toggleButton = screen.getByRole('button', { name: /toggle filters/i });
+
+      await user.click(toggleButton);
+
+      expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
+    });
+  });
+
   // ─── Drafts chip (Story #1446) ────────────────────────────────────────────
 
   describe('drafts chip (Story #1446)', () => {
@@ -365,7 +421,7 @@ describe('DiaryFilterBar', () => {
       renderFilterBar({
         draftsVisible: true,
         onDraftsVisibleChange: jest.fn<(v: boolean) => void>(),
-      } as any);
+      });
       const chip = screen.getByTestId('status-filter-drafts');
       expect(chip).toBeInTheDocument();
       expect(chip).toHaveAttribute('aria-pressed', 'true');
@@ -375,7 +431,7 @@ describe('DiaryFilterBar', () => {
       renderFilterBar({
         draftsVisible: false,
         onDraftsVisibleChange: jest.fn<(v: boolean) => void>(),
-      } as any);
+      });
       const chip = screen.getByTestId('status-filter-drafts');
       expect(chip).toBeInTheDocument();
       expect(chip).toHaveAttribute('aria-pressed', 'false');
@@ -387,7 +443,7 @@ describe('DiaryFilterBar', () => {
       renderFilterBar({
         draftsVisible: true,
         onDraftsVisibleChange,
-      } as any);
+      });
 
       await user.click(screen.getByTestId('status-filter-drafts'));
 
@@ -400,7 +456,7 @@ describe('DiaryFilterBar', () => {
       renderFilterBar({
         draftsVisible: false,
         onDraftsVisibleChange,
-      } as any);
+      });
 
       await user.click(screen.getByTestId('status-filter-drafts'));
 
@@ -416,7 +472,7 @@ describe('DiaryFilterBar', () => {
         onFilterModeChange,
         draftsVisible: false,
         onDraftsVisibleChange,
-      } as any);
+      });
 
       // Drafts chip group exists as a distinct accessible group
       expect(screen.getByRole('group', { name: /filter by draft status/i })).toBeInTheDocument();

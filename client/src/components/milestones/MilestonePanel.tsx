@@ -175,7 +175,7 @@ export function MilestonePanel({
       }
     }
     // Only run on mount or when milestones finish loading
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- handleEditClick, editingMilestone are defined in the component body; this effect re-runs on the intended trigger only
   }, [initialMilestoneId, milestones]);
 
   // Form submit state
@@ -224,9 +224,11 @@ export function MilestonePanel({
   }, []);
 
   function handleEditClick(milestone: MilestoneSummary) {
+    /* eslint-disable @eslint-react/set-state-in-effect -- prepares edit-form state; invoked from an effect */
     setEditingMilestone(milestone);
     setSubmitError(null);
     setView('edit');
+    /* eslint-enable @eslint-react/set-state-in-effect */
     void loadDetail(milestone.id);
   }
 

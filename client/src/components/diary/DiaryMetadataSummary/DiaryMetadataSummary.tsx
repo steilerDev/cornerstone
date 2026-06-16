@@ -8,6 +8,7 @@ import type {
 } from '@cornerstone/shared';
 import { Badge } from '../../Badge/Badge.js';
 import badgeStyles from '../../Badge/Badge.module.css';
+import { computeWorkDuration } from '../../../lib/formatters.js';
 import styles from './DiaryMetadataSummary.module.css';
 
 interface DiaryMetadataSummaryProps {
@@ -41,6 +42,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
   const { t } = useTranslation('diary');
   if (entryType === 'daily_log' && metadata) {
     const m = metadata as DailyLogMetadata;
+    const workDuration = computeWorkDuration(m.workStart, m.workEnd);
     return (
       <div className={styles.metadata} data-testid="daily-log-metadata">
         {m.weather && (
@@ -58,6 +60,22 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
             {m.workersOnSite} {t('metadata.workers')}
           </span>
         )}
+        {m.vendorName && (
+          <span className={styles.item}>
+            {t('metadata.vendor')} {m.vendorName}
+          </span>
+        )}
+        {m.workStart && (
+          <span className={styles.item}>
+            {t('metadata.workStart')} {m.workStart}
+          </span>
+        )}
+        {m.workEnd && (
+          <span className={styles.item}>
+            {t('metadata.workEnd')} {m.workEnd}
+          </span>
+        )}
+        {workDuration !== null && <span className={styles.item}>{workDuration.toFixed(2)} h</span>}
       </div>
     );
   }
@@ -94,6 +112,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
             <span className={styles.deliveryLabel}>{t('entryForm.materialsLabel')}</span>
             <div className={styles.materialsList}>
               {m.materials.map((material, idx) => (
+                // eslint-disable-next-line @eslint-react/no-array-index-key -- materials list may have duplicates; composite key with material+index is stable
                 <span key={`${material}-${idx}`} className={styles.materialTag}>
                   {material}
                 </span>

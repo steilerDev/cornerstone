@@ -80,7 +80,7 @@ export function VendorDetailPage() {
   useEffect(() => {
     if (!id) return;
     void loadVendor();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadVendor is defined in the component body; the effect re-runs only when id changes, which is the intended trigger
   }, [id]);
 
   const loadVendor = async () => {

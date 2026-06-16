@@ -110,18 +110,13 @@ export function buildCalendar(
 
   // Add household items as delivery events
   for (const hi of timeline.householdItems) {
-    let startDate: string | null = null;
-    let endDate: string | null = null;
-
     // Prefer actual delivery date if set
-    if (hi.actualDeliveryDate) {
-      startDate = toDateOnly(hi.actualDeliveryDate);
-      endDate = startDate;
-    } else {
-      // Use earliest/latest delivery date range, or target if those aren't set
-      startDate = hi.earliestDeliveryDate ?? hi.targetDeliveryDate;
-      endDate = hi.latestDeliveryDate ?? hi.targetDeliveryDate;
-    }
+    const startDate: string | null = hi.actualDeliveryDate
+      ? toDateOnly(hi.actualDeliveryDate)
+      : (hi.earliestDeliveryDate ?? hi.targetDeliveryDate);
+    const endDate: string | null = hi.actualDeliveryDate
+      ? toDateOnly(hi.actualDeliveryDate)
+      : (hi.latestDeliveryDate ?? hi.targetDeliveryDate);
 
     // Skip if no delivery dates are available
     if (!startDate || !endDate) continue;

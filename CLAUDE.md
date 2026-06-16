@@ -439,6 +439,7 @@ npm run dev                   # Start server (port 3000) + client dev server (po
 | `npm run dev:client`       | Start only the Webpack dev server                           |
 | `npm run build`            | Build all packages (shared -> client -> server)             |
 | `npm test`                 | Run all tests                                               |
+| `npm run test:collect`     | List all tests (suites + names) without executing them      |
 | `npm run lint`             | Lint all code                                               |
 | `npm run format`           | Format all code                                             |
 | `npm run typecheck`        | Type-check all packages                                     |

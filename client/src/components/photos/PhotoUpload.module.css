@@ -224,9 +224,66 @@
   }
 }
 
+/* Mobile button pair (touch devices) */
+.mobileButtonPair {
+  display: flex;
+  gap: var(--spacing-3);
+  width: 100%;
+}
+
+.captureButton,
+.uploadPhotoButton {
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+.captureButton {
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.captureButton:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.uploadPhotoButton {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-strong);
+}
+
+.uploadPhotoButton:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+}
+
+.captureButton:focus-visible,
+.uploadPhotoButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.captureButton:disabled,
+.uploadPhotoButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dropZone,
   .uploadButton,
+  .captureButton,
+  .uploadPhotoButton,
   .progressFill {
     transition: none;
   }

@@ -278,4 +278,24 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
     const result = await paperlessService.listTags(baseUrl, token);
     return reply.status(200).send(result);
   });
+
+  /**
+   * GET /api/paperless/correspondents
+   *
+   * List all correspondents available in Paperless-ngx.
+   * Correspondents are not paginated (instances typically have fewer than ~100 correspondents).
+   *
+   * Auth required: Yes
+   *
+   * EPIC-18 Story #1679: Added for Paperless-first invoice creation workflow.
+   */
+  fastify.get('/correspondents', async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
+
+    const { baseUrl, token } = requirePaperless(fastify);
+    const result = await paperlessService.listCorrespondents(baseUrl, token);
+    return reply.status(200).send(result);
+  });
 }

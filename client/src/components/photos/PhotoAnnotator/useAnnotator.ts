@@ -100,7 +100,7 @@ export function annotatorReducer(
     case 'SET_DRAFT':
       return { ...state, draftShape: action.shape };
 
-    case 'COMMIT_DRAFT':
+    case 'COMMIT_DRAFT': {
       if (!state.draftShape) return state;
       const liveShapesOnCommit = undoStack?.shapes ?? state.shapes;
       const newShapes = [...liveShapesOnCommit, state.draftShape];
@@ -111,6 +111,7 @@ export function annotatorReducer(
         draftShape: null,
         selectedShapeId: null,
       };
+    }
 
     case 'SELECT_SHAPE':
       return { ...state, selectedShapeId: action.id };
@@ -124,7 +125,7 @@ export function annotatorReducer(
       return { ...state, shapes: updatedShapes };
     }
 
-    case 'DELETE_SELECTED':
+    case 'DELETE_SELECTED': {
       if (!state.selectedShapeId) return state;
       const liveShapesOnDelete = undoStack?.shapes ?? state.shapes;
       const filtered = liveShapesOnDelete.filter((s) => s.id !== state.selectedShapeId);
@@ -134,6 +135,7 @@ export function annotatorReducer(
         shapes: filtered,
         selectedShapeId: null,
       };
+    }
 
     case 'REPLACE_SHAPES':
       return { ...state, shapes: action.shapes };

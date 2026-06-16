@@ -54,11 +54,14 @@ export function LoginPage() {
         'account_deactivated',
       ];
       if (knownCodes.includes(errorCode)) {
+        /* eslint-disable @eslint-react/set-state-in-effect -- initializing error state from url params */
         setApiError(t(`login.oidcErrors.${errorCode}`));
+        /* eslint-enable @eslint-react/set-state-in-effect */
       }
     }
 
     void loadConfig();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- t is a stable i18n function; adding it would cause unnecessary re-runs on locale-function identity
   }, [navigate]);
 
   const validateForm = (): boolean => {

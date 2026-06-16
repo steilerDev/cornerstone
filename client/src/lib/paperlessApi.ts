@@ -5,6 +5,7 @@ import type {
   PaperlessDocumentDetailResponse,
   PaperlessTagListResponse,
   PaperlessDocumentListQuery,
+  PaperlessCorrespondentListResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -45,6 +46,13 @@ export function getPaperlessDocument(id: number): Promise<PaperlessDocumentDetai
  */
 export function listPaperlessTags(): Promise<PaperlessTagListResponse> {
   return get<PaperlessTagListResponse>('/paperless/tags');
+}
+
+/**
+ * Lists all available Paperless-ngx correspondents for filtering documents.
+ */
+export function listPaperlessCorrespondents(): Promise<PaperlessCorrespondentListResponse> {
+  return get<PaperlessCorrespondentListResponse>('/paperless/correspondents');
 }
 
 /**

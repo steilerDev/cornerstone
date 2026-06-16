@@ -15,7 +15,7 @@ import { BudgetLineForm } from './BudgetLineForm.js';
 import { SubsidyLinkSection } from './SubsidyLinkSection.js';
 import { BudgetCostOverview, type SubsidyPaybackData } from './BudgetCostOverview.js';
 import { InvoiceGroup } from './InvoiceGroup.js';
-import { EditBudgetLineModal, type EditableBudgetLine } from './EditBudgetLineModal.js';
+import { EditBudgetLineModal } from './EditBudgetLineModal.js';
 import styles from './BudgetSection.module.css';
 
 export interface BudgetSectionProps<T extends BaseBudgetLine> {

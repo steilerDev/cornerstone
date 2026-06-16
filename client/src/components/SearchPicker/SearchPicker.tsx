@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -128,6 +128,7 @@ export function SearchPicker<T>({
 
   // Reset when value is cleared externally (e.g. after form submission)
   useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- syncing picker state with external value changes */
     if (value === '') {
       setSelectedItem(null);
       setSearchTerm('');
@@ -137,6 +138,7 @@ export function SearchPicker<T>({
         setSpecialSelected(true);
       }
     }
+    /* eslint-enable @eslint-react/set-state-in-effect */
   }, [value, specialOptions]);
 
   // Cleanup debounce on unmount
@@ -238,6 +240,18 @@ export function SearchPicker<T>({
     inputRef.current?.focus();
   };
 
+  // Compute dropdown top position (fixed vs above)
+  const dropdownTop = useMemo(() => {
+    if (!dropdownRect) return 0;
+    const VIEWPORT_PADDING = 8;
+    const DROPDOWN_HEIGHT = 300;
+    const spaceBelow = window.innerHeight - dropdownRect.bottom;
+    const flipAbove = spaceBelow < DROPDOWN_HEIGHT + VIEWPORT_PADDING;
+    return flipAbove
+      ? Math.max(4, dropdownRect.top - DROPDOWN_HEIGHT - 4)
+      : dropdownRect.bottom + 4;
+  }, [dropdownRect]);
+
   // If a special option is selected, show it in a display similar to selectedItem
   if (selectedSpecial) {
     return (
@@ -330,15 +344,7 @@ export function SearchPicker<T>({
             data-search-picker-dropdown
             style={{
               position: 'fixed',
-              top: (() => {
-                const VIEWPORT_PADDING = 8;
-                const DROPDOWN_HEIGHT = 300;
-                const spaceBelow = window.innerHeight - dropdownRect.bottom;
-                const flipAbove = spaceBelow < DROPDOWN_HEIGHT + VIEWPORT_PADDING;
-                return flipAbove
-                  ? Math.max(4, dropdownRect.top - DROPDOWN_HEIGHT - 4)
-                  : dropdownRect.bottom + 4;
-              })(),
+              top: dropdownTop,
               left: dropdownRect.left,
               width: dropdownRect.width,
             }}
@@ -406,13 +412,16 @@ export function SearchPicker<T>({
               <div className={styles.stateMessage}>{resolvedNoResults}</div>
             )}
 
+            {!isLoading && !error && results.length === 0 && !searchTerm.trim() && emptyHint && (
+              <div className={styles.stateMessage}>{emptyHint}</div>
+            )}
+
             {!isLoading &&
               !error &&
               results.length === 0 &&
               !searchTerm.trim() &&
-              (!specialOptions || specialOptions.length === 0) && (
-                <div className={styles.stateMessage}>{resolvedEmptyHint}</div>
-              )}
+              (!specialOptions || specialOptions.length === 0) &&
+              !emptyHint && <div className={styles.stateMessage}>{resolvedEmptyHint}</div>}
           </div>,
           document.body,
         )}

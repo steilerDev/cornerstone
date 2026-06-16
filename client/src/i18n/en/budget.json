@@ -535,7 +535,12 @@
     "noNumber": "No Number",
     "duePrefix": "Due:",
     "paginationPreviousAriaLabel": "Previous page",
-    "paginationNextAriaLabel": "Next page"
+    "paginationNextAriaLabel": "Next page",
+    "pickerModal": {
+      "title": "Select Invoice Document",
+      "manualEntry": "Enter invoice manually",
+      "manualEntryAriaLabel": "Create invoice manually without selecting a document"
+    }
   },
   "invoiceDetail": {
     "loading": "Loading invoice...",
@@ -959,7 +964,17 @@
     "cancelConfirmBody": "You have unsaved changes. Are you sure you want to discard them?",
     "discardChanges": "Discard Changes",
     "keepEditing": "Keep Editing",
-    "invalidDocumentId": "Invalid document ID"
+    "invalidDocumentId": "Invalid document ID",
+    "vendor": "Vendor",
+    "vendorPlaceholder": "Search vendors…",
+    "vendorRequired": "Vendor is required",
+    "createAndItemize": "Create Invoice & Itemize",
+    "extractingFromDocument": "Analyzing document…",
+    "extractionStarted": "Analyzing document with AI…",
+    "extractionComplete": "Extraction complete. Please review the suggested line items.",
+    "lineItems": "Line Items",
+    "noLineItems": "No line items extracted",
+    "backToInvoices": "Back to Invoices"
   },
   "common": {
     "loading": "Loading...",

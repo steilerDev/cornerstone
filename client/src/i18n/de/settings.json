@@ -105,6 +105,7 @@
     "tabs": {
       "areas": "Bereiche",
       "trades": "Gewerke",
+      "orientations": "Ausrichtungen",
       "budgetCategories": "Budgetkategorien",
       "householdItemCategories": "Haushaltsartikel-Kategorien"
     },
@@ -189,6 +190,43 @@
         "updateError": "Gewerk konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Gewerk konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
         "deleteConflict": "Dieses Gewerk kann nicht gelöscht werden, da es derzeit verwendet wird."
+      }
+    },
+    "orientations": {
+      "tabLabel": "Ausrichtungen",
+      "createTitle": "Ausrichtung erstellen",
+      "createDescription": "Fügen Sie eine Ausrichtung hinzu, um Fotos mit einer Himmelsrichtung zu kennzeichnen (z. B. Süd – Straße).",
+      "nameLabel": "Name",
+      "namePlaceholder": "z. B. Süd",
+      "descriptionLabel": "Beschreibung",
+      "descriptionPlaceholder": "z. B. Straßenseite",
+      "sortOrderLabel": "Sortierreihenfolge",
+      "createButton": "Ausrichtung erstellen",
+      "creating": "Wird erstellt…",
+      "existingTitle": "Ausrichtungen ({{count}})",
+      "emptyState": "Noch keine Ausrichtungen. Erstellen Sie eine oben, um Ihre Fotos mit einer Himmelsrichtung zu kennzeichnen.",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "save": "Speichern",
+      "saving": "Wird gespeichert…",
+      "cancel": "Abbrechen",
+      "deleteTitle": "Ausrichtung löschen",
+      "deleteConfirm": "Sind Sie sicher, dass Sie \"{{name}}\" löschen möchten?",
+      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
+      "deleteButton": "Löschen",
+      "deleting": "Wird gelöscht…",
+      "validation": {
+        "nameRequired": "Name ist erforderlich.",
+        "nameTooLong": "Name darf maximal 100 Zeichen lang sein."
+      },
+      "messages": {
+        "created": "Ausrichtung \"{{name}}\" erstellt.",
+        "updated": "Ausrichtung \"{{name}}\" aktualisiert.",
+        "deleted": "Ausrichtung \"{{name}}\" gelöscht.",
+        "createError": "Ausrichtung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+        "updateError": "Ausrichtung konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+        "deleteError": "Ausrichtung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+        "loadError": "Ausrichtungen konnten nicht geladen werden."
       }
     },
     "budgetCategories": {

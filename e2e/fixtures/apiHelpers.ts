@@ -197,6 +197,30 @@ export async function deleteDiaryEntryViaApi(page: Page, id: string): Promise<vo
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Vendors
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createVendorViaApi(
+  page: Page,
+  data: {
+    name: string;
+    phone?: string | null;
+    email?: string | null;
+    address?: string | null;
+    notes?: string | null;
+  },
+): Promise<string> {
+  const response = await page.request.post(API.vendors, { data });
+  expect(response.ok(), `POST vendor "${data.name}"`).toBeTruthy();
+  const body = (await response.json()) as { vendor: { id: string } };
+  return body.vendor.id;
+}
+
+export async function deleteVendorViaApi(page: Page, id: string): Promise<void> {
+  await page.request.delete(`${API.vendors}/${id}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Users (admin-only — used for dedicated test-user isolation)
 // ─────────────────────────────────────────────────────────────────────────────
 

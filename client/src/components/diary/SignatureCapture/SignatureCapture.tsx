@@ -47,6 +47,7 @@ export function SignatureCapture({
     if (signerType === 'self' && currentUserName && !signature) {
       onSignerNameChange?.(currentUserName);
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- onSignerNameChange is a callback prop; effect runs on the listed triggers only
   }, [signerType, currentUserName, signature]);
 
   // Initialize canvas on mount and on resize
@@ -95,6 +96,7 @@ export function SignatureCapture({
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     return () => window.removeEventListener('resize', resizeCanvas);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- drawSignatureLine is a stable component-scope helper; effect rebinds on signature/locale change only
   }, [signature, t]);
 
   // Load existing signature image if provided
@@ -102,6 +104,7 @@ export function SignatureCapture({
     const canvas = canvasRef.current;
     if (!canvas || !signature) {
       setHasStrokes(false);
+
       return;
     }
 

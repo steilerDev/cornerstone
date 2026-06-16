@@ -53,6 +53,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { AutoItemizePage } from '../../pages/AutoItemizePage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import type { Page, Route } from '@playwright/test';
+import type { ExtractedLine } from '@cornerstone/shared';
 import { API } from '../../fixtures/testData.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -334,7 +335,7 @@ async function mockAutoItemizeBothPhases(
   page: Page,
   invoiceId: string,
   opts: {
-    dryRunLines?: object[];
+    dryRunLines?: ExtractedLine[];
     dryRunWarnings?: object[];
     commitStatus?: number;
   } = {},
@@ -357,7 +358,7 @@ async function mockAutoItemizeBothPhases(
         status: commitStatus,
         contentType: 'application/json',
         body: JSON.stringify({
-          budgetLines: lines.map((line: any, idx) => ({
+          budgetLines: lines.map((line, idx) => ({
             id: `ibl-e2e-page-${idx + 1}`,
             workItemBudgetId: null,
             householdItemBudgetId: null,
@@ -1363,7 +1364,6 @@ test.describe('Scenario 14 — Status field: change pending → paid', () => {
     }
 
     const autoItemizePage = new AutoItemizePage(page);
-    const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
     let invoiceId = '';
 
@@ -2005,10 +2005,12 @@ test.describe('Scenario 25 — Variance indicator recomputes on totalAmount edit
     let invoiceId = '';
 
     try {
-      // Invoice amount = 1700, extracted total = 900+680+120 = 1700 → 0% variance → match state
+      // All THREE_LINES are includesVat:false (net), so effectiveLineAmount grosses up by 1.19:
+      //   900x1.19=1071.00 + 680x1.19=809.20 + 120x1.19=142.80 = 2023.00 gross total
+      // Invoice amount = 2023 to match gross total -> 0% variance -> match state
       vendorId = await createVendorViaApi(page, `${testPrefix} AI-Variance Vendor`);
       invoiceId = await createInvoiceViaApi(page, vendorId, {
-        amount: 1700,
+        amount: 2023,
         date: '2026-06-01',
       });
 
@@ -2019,14 +2021,15 @@ test.describe('Scenario 25 — Variance indicator recomputes on totalAmount edit
       await autoItemizePage.goto(invoiceId, docId);
       await autoItemizePage.waitForAnalyzingDone();
 
-      // ── Initial state: invoice=1700, lines total=1700 → varianceMatch ────────
+      // Initial state: invoice=2023, gross total=2023 -> 0% variance -> varianceMatch
       const indicator = autoItemizePage.getVarianceIndicator();
       await expect(indicator).toBeVisible();
-      // Initial: ≤1% → varianceMatch CSS class
+      // Initial: 0% variance -> varianceMatch CSS class
       await expect(indicator).toHaveClass(/varianceMatch/);
 
-      // ── Edit first line totalAmount to 500 (total becomes 500+680+120=1300) ──
-      // Variance = |1300-1700|/1700 ≈ 23.5% → > 5% → varianceDanger
+      // Edit first line totalAmount to 500 (net -> grossed to 500x1.19=595.00)
+      // New gross total = 595.00+809.20+142.80 = 1547.00
+      // Variance = |1547-2023|/2023 = 476/2023 ~23.5% -> > 5% -> varianceDanger
       const totalInput = autoItemizePage.getLineCardTotalAmountInput(0);
       await totalInput.fill('500');
       // Trigger change event by tabbing away
@@ -2058,7 +2061,7 @@ test.describe('Scenario 26 — assignmentMode:"assign-existing" in commit payloa
     let vendorId = '';
     let invoiceId = '';
     let workItemId = '';
-    let budgetLineId = '';
+    let budgetLineId: string;
     const budgetLineDescription = `${testPrefix} AI-AssignMode BL`;
 
     try {
