@@ -138,7 +138,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     return () => ro.disconnect();
   }, [imageLoaded]);
 
-
   // Attach transformer to selected shape
   useEffect(() => {
     if (!transformerRef.current) return;

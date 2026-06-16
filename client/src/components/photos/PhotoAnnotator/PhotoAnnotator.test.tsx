@@ -44,7 +44,7 @@ import type { Photo } from '@cornerstone/shared';
 // Access to mock internals exposed by the updated react-konva stub.
 // After jest.mock('react-konva') the import resolves to __mocks__/react-konva.ts.
 // TypeScript doesn't know about our extended exports, so cast via any.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 import * as ReactKonvaMockNs from 'react-konva';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ReactKonvaMock = ReactKonvaMockNs as any;
@@ -1237,7 +1237,10 @@ describe('PhotoAnnotator', () => {
         ReactKonvaMock.setMockStageRelativePointerPosition({ x: 100, y: 100 });
 
         await act(async () => {
-          ReactKonvaMock.stageMockHandlers.onMouseDown?.({ target: mockTarget, evt: new MouseEvent('mousedown') });
+          ReactKonvaMock.stageMockHandlers.onMouseDown?.({
+            target: mockTarget,
+            evt: new MouseEvent('mousedown'),
+          });
         });
 
         // Move — extend draft using intrinsic (300, 200); screen-space would be (100, 100)
@@ -1245,12 +1248,18 @@ describe('PhotoAnnotator', () => {
         ReactKonvaMock.setMockStageRelativePointerPosition({ x: 300, y: 200 });
 
         await act(async () => {
-          ReactKonvaMock.stageMockHandlers.onMouseMove?.({ target: mockTarget, evt: new MouseEvent('mousemove') });
+          ReactKonvaMock.stageMockHandlers.onMouseMove?.({
+            target: mockTarget,
+            evt: new MouseEvent('mousemove'),
+          });
         });
 
         // Release — commits the shape
         await act(async () => {
-          ReactKonvaMock.stageMockHandlers.onMouseUp?.({ target: mockTarget, evt: new MouseEvent('mouseup') });
+          ReactKonvaMock.stageMockHandlers.onMouseUp?.({
+            target: mockTarget,
+            evt: new MouseEvent('mouseup'),
+          });
         });
 
         // Component must not have crashed — Cancel button still present
@@ -1279,7 +1288,9 @@ describe('PhotoAnnotator', () => {
           } else {
             // Shape not committed (e.g. mock reducer didn't track it yet) — no-op assertion
             // CI will have the full shape because undoStack is wired in mock.
-            console.warn('[#1705 test 6] No rectangle shape found in data-annotator-shapes; asserting no crash only.');
+            console.warn(
+              '[#1705 test 6] No rectangle shape found in data-annotator-shapes; asserting no crash only.',
+            );
           }
         }
 

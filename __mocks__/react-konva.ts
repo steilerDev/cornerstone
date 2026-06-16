@@ -41,10 +41,16 @@ const DATA_FORWARDED_PROPS: Record<string, string> = {
 
 // Event handler presence flags forwarded as data-has-* attributes
 const HANDLER_PRESENCE_PROPS = new Set([
-  'onMouseDown', 'onMouseMove', 'onMouseUp',
-  'onTouchStart', 'onTouchMove', 'onTouchEnd',
+  'onMouseDown',
+  'onMouseMove',
+  'onMouseUp',
+  'onTouchStart',
+  'onTouchMove',
+  'onTouchEnd',
   // Keep pointer handlers in the set so absence is also reported (value = 'false')
-  'onPointerDown', 'onPointerMove', 'onPointerUp',
+  'onPointerDown',
+  'onPointerMove',
+  'onPointerUp',
 ]);
 
 function filterProps(props: AnyProps, forStage = false): Record<string, unknown> {
@@ -103,7 +109,12 @@ export const stageMockContainer: StageMockContainer = {
   removeEventListener: () => undefined,
   setPointerCapture: () => undefined,
   getBoundingClientRect: () => ({
-    top: 0, left: 0, width: 400, height: 300, bottom: 300, right: 400,
+    top: 0,
+    left: 0,
+    width: 400,
+    height: 300,
+    bottom: 300,
+    right: 400,
   }),
   parentElement: null,
 };
@@ -167,24 +178,20 @@ export const Stage = React.forwardRef<MockKonvaStage, AnyProps>(function KonvaSt
   // Capture the most recent handler props into the shared stageMockHandlers object.
   // (Mutate in place so any reference held by tests is updated.)
   // Production code uses mouse + touch events, not pointer events.
-  stageMockHandlers.onMouseDown = typeof rest.onMouseDown === 'function'
-    ? (rest.onMouseDown as (e: unknown) => void)
-    : undefined;
-  stageMockHandlers.onMouseMove = typeof rest.onMouseMove === 'function'
-    ? (rest.onMouseMove as (e: unknown) => void)
-    : undefined;
-  stageMockHandlers.onMouseUp = typeof rest.onMouseUp === 'function'
-    ? (rest.onMouseUp as (e: unknown) => void)
-    : undefined;
-  stageMockHandlers.onTouchStart = typeof rest.onTouchStart === 'function'
-    ? (rest.onTouchStart as (e: unknown) => void)
-    : undefined;
-  stageMockHandlers.onTouchMove = typeof rest.onTouchMove === 'function'
-    ? (rest.onTouchMove as (e: unknown) => void)
-    : undefined;
-  stageMockHandlers.onTouchEnd = typeof rest.onTouchEnd === 'function'
-    ? (rest.onTouchEnd as (e: unknown) => void)
-    : undefined;
+  stageMockHandlers.onMouseDown =
+    typeof rest.onMouseDown === 'function' ? (rest.onMouseDown as (e: unknown) => void) : undefined;
+  stageMockHandlers.onMouseMove =
+    typeof rest.onMouseMove === 'function' ? (rest.onMouseMove as (e: unknown) => void) : undefined;
+  stageMockHandlers.onMouseUp =
+    typeof rest.onMouseUp === 'function' ? (rest.onMouseUp as (e: unknown) => void) : undefined;
+  stageMockHandlers.onTouchStart =
+    typeof rest.onTouchStart === 'function'
+      ? (rest.onTouchStart as (e: unknown) => void)
+      : undefined;
+  stageMockHandlers.onTouchMove =
+    typeof rest.onTouchMove === 'function' ? (rest.onTouchMove as (e: unknown) => void) : undefined;
+  stageMockHandlers.onTouchEnd =
+    typeof rest.onTouchEnd === 'function' ? (rest.onTouchEnd as (e: unknown) => void) : undefined;
 
   // Build the stable mock Konva stage object. useImperativeHandle deps=[] so
   // stageRef.current is set once after first render and remains stable.
@@ -202,7 +209,9 @@ export const Stage = React.forwardRef<MockKonvaStage, AnyProps>(function KonvaSt
       getPointerPosition: () => mockStagePointerPosition,
       getRelativePointerPosition: () => mockStageRelativePointerPosition,
       getParent: () => null,
-      getStage: function() { return this; },
+      getStage: function () {
+        return this;
+      },
     }),
     [],
   );

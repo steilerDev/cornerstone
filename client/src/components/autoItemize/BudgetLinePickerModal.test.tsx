@@ -119,7 +119,7 @@ function renderModal(
 ) {
   const pickerState = makePickerState(pickerStateOverrides);
   const createBudgetLineButtonRef = { current: null } as React.RefObject<HTMLButtonElement | null>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const handleSelectItem =
     callbacks.handleSelectItem ?? jest.fn<any>().mockResolvedValue(undefined);
   const setPickerState = callbacks.setPickerState ?? jest.fn();
