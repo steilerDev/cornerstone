@@ -671,6 +671,11 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
     page,
     testPrefix,
   }) => {
+    // Mark slow: this test traverses picker → review → commit → detail page load across
+    // multiple mocked API requests. On heavily-loaded CI shards it can exceed the default
+    // timeout. Tripling the timeout prevents flaky timeouts without weakening the assertion.
+    test.slow();
+
     let vendorId = '';
     const mockInvoiceId = `mock-inv-${testPrefix}-9001`;
 
@@ -706,7 +711,10 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
       await mockPreview(page, { suggestedVendorId: null, lines: linesWithCategory });
       await mockCommit(page, { invoiceId: mockInvoiceId });
 
-      // Also mock the invoice detail page load for the created invoice
+      // Mock the invoice detail page load for the created invoice.
+      // The Invoice type requires: vendorName, deposits (array), finalPaymentAmount, createdBy.
+      // Missing these fields causes React to crash when InvoiceDetailPage renders
+      // (invoice.deposits is accessed as an array — undefined → runtime error → error state, no h1).
       await page.route(`**/api/invoices/${mockInvoiceId}`, async (route: Route) => {
         await route.fulfill({
           status: 200,
@@ -721,13 +729,43 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
               status: 'pending',
               notes: null,
               vendorId,
+              vendorName: `${testPrefix} PF Builder Co`,
               vendor: { id: vendorId, name: `${testPrefix} PF Builder Co` },
+              deposits: [],
+              finalPaymentAmount: 1580,
+              createdBy: null,
               createdAt: '2026-06-15T00:00:00.000Z',
               updatedAt: '2026-06-15T00:00:00.000Z',
             },
           }),
         });
       });
+
+      // Mock sub-section endpoints so their background fetches don't race the page render.
+      // InvoiceBudgetLinesSection fetches budget lines on mount; without a mock this request
+      // goes to the real server with a non-existent invoice ID, introducing extra latency.
+      await page.route(`**/api/invoices/${mockInvoiceId}/budget-lines`, async (route: Route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ budgetLines: [], remainingAmount: 1580 }),
+        });
+      });
+
+      // LinkedDocumentsSection fetches document-links on mount.
+      await page.route(
+        (url) =>
+          url.pathname === '/api/document-links' &&
+          url.searchParams.get('entityType') === 'invoice' &&
+          url.searchParams.get('entityId') === mockInvoiceId,
+        async (route: Route) => {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ documentLinks: [] }),
+          });
+        },
+      );
 
       const invoicesPage = new InvoicesPage(page);
       await invoicesPage.goto();
@@ -756,10 +794,15 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
       await reviewPage.confirm();
       await commitResponsePromise;
 
-      // Step 6: Should navigate to the created invoice detail page
+      // Step 6: Should navigate to the created invoice detail page.
       await page.waitForURL(`**/budget/invoices/${mockInvoiceId}`);
-      // Invoice detail page heading should render
-      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+      // Assert on the invoice number shown in the h1 — this text only renders once the
+      // GET /api/invoices/:id mock has responded and React has set state (isLoading=false).
+      // Waiting for the number text is more stable than the bare heading role check because
+      // it requires the API response data to be present in the DOM, not just the element to
+      // exist. The test also verifies the correct invoice landed on screen.
+      await expect(page.getByRole('heading', { level: 1, name: '#INV-2026-001' })).toBeVisible();
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
