@@ -14,11 +14,13 @@ metadata:
 **Why WorkItemCreate:** Easiest real-data surface. AreaPicker is on a full page (not a modal), uses `showItemsOnFocus=true` so no search text needed, and `createAreaViaApi` / `deleteAreaViaApi` are in `apiHelpers.ts`.
 
 **Assertion pattern:**
+
 ```ts
 const inputBottom = inputBox!.y + inputBox!.height;
 const anchorDistance = Math.abs(dropdownBox!.y - inputBottom);
 expect(anchorDistance).toBeLessThan(20);
 ```
+
 Tolerance 20px accommodates: the 4px gap the component adds, sub-pixel rounding, and the flip-above path (when space below viewport < 308px, dropdown appears ABOVE input — both positions are adjacent, so `Math.abs` handles both).
 
 **Mobile-only skip:** `viewportWidth > MOBILE_MAX_WIDTH (499)` → `test.skip()`. iPhone 13 width = 390px (passes). iPad (gen 7) = ~810px (skips on tablet project). Desktop = 1920px (skips).

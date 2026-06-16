@@ -38,94 +38,90 @@ const MOBILE_MAX_WIDTH = 499;
 // Scenario 1: SearchPicker dropdown anchored near its input on mobile viewport
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe(
-  'SearchPicker mobile anchor regression (Scenario 1)',
-  { tag: '@responsive' },
-  () => {
-    test(
-      'SearchPicker dropdown is visible and anchored near its input on a mobile viewport',
-      { tag: '@smoke' },
-      async ({ page, testPrefix }) => {
-        const viewportWidth = page.viewportSize()?.width ?? 1920;
+test.describe('SearchPicker mobile anchor regression (Scenario 1)', { tag: '@responsive' }, () => {
+  test(
+    'SearchPicker dropdown is visible and anchored near its input on a mobile viewport',
+    { tag: '@smoke' },
+    async ({ page, testPrefix }) => {
+      const viewportWidth = page.viewportSize()?.width ?? 1920;
 
-        // This anchor-proximity check is only meaningful on true-mobile viewports.
-        // On desktop/tablet the dropdown still works but the narrow tolerance check
-        // adds no regression value beyond what the existing SearchPicker unit test
-        // covers (SearchPicker.test.tsx Scenario: portal position tracking).
-        if (viewportWidth > MOBILE_MAX_WIDTH) {
-          test.skip();
-          return;
-        }
+      // This anchor-proximity check is only meaningful on true-mobile viewports.
+      // On desktop/tablet the dropdown still works but the narrow tolerance check
+      // adds no regression value beyond what the existing SearchPicker unit test
+      // covers (SearchPicker.test.tsx Scenario: portal position tracking).
+      if (viewportWidth > MOBILE_MAX_WIDTH) {
+        test.skip();
+        return;
+      }
 
-        // Seed one area so the SearchPicker has at least one result to show.
-        const areaName = `${testPrefix} Mobile Area`;
-        let areaId = '';
+      // Seed one area so the SearchPicker has at least one result to show.
+      const areaName = `${testPrefix} Mobile Area`;
+      let areaId = '';
 
-        try {
-          areaId = await createAreaViaApi(page, { name: areaName });
+      try {
+        areaId = await createAreaViaApi(page, { name: areaName });
 
-          // Navigate to Work Item Create — a stable, fully-implemented page with
-          // an AreaPicker (SearchPicker<TreeNode> with showItemsOnFocus=true) that
-          // opens its dropdown without requiring any search text.
-          const createPage = new WorkItemCreatePage(page);
-          await createPage.goto();
+        // Navigate to Work Item Create — a stable, fully-implemented page with
+        // an AreaPicker (SearchPicker<TreeNode> with showItemsOnFocus=true) that
+        // opens its dropdown without requiring any search text.
+        const createPage = new WorkItemCreatePage(page);
+        await createPage.goto();
 
-          // The area picker input is the SearchPicker trigger.
-          const areaInput = createPage.areaPickerInput;
-          await expect(areaInput).toBeVisible();
+        // The area picker input is the SearchPicker trigger.
+        const areaInput = createPage.areaPickerInput;
+        await expect(areaInput).toBeVisible();
 
-          // Record the input's bounding box before opening the dropdown.
-          const inputBox = await areaInput.boundingBox();
-          expect(inputBox).not.toBeNull();
+        // Record the input's bounding box before opening the dropdown.
+        const inputBox = await areaInput.boundingBox();
+        expect(inputBox).not.toBeNull();
 
-          // Focus the input — showItemsOnFocus=true causes the dropdown to appear
-          // immediately without needing to type anything.
-          await areaInput.click();
+        // Focus the input — showItemsOnFocus=true causes the dropdown to appear
+        // immediately without needing to type anything.
+        await areaInput.click();
 
-          // The dropdown portal must appear in the DOM.
-          const dropdown = page.locator('[data-search-picker-dropdown]');
-          await expect(dropdown).toBeVisible();
+        // The dropdown portal must appear in the DOM.
+        const dropdown = page.locator('[data-search-picker-dropdown]');
+        await expect(dropdown).toBeVisible();
 
-          // Record the dropdown's bounding box.
-          const dropdownBox = await dropdown.boundingBox();
-          expect(dropdownBox).not.toBeNull();
+        // Record the dropdown's bounding box.
+        const dropdownBox = await dropdown.boundingBox();
+        expect(dropdownBox).not.toBeNull();
 
-          // Core regression assertion (Issue #1708):
-          // The dropdown's top edge should be within ~20px of the input's bottom
-          // edge.  The SearchPicker positions the dropdown at
-          // `inputRect.bottom + 4px` (no flip needed for a freshly-opened picker
-          // near the top of the page).  A tolerance of 20px accommodates the
-          // 4px gap, sub-pixel rounding, and the flip-above path that activates
-          // when there is insufficient space below — both place the dropdown
-          // adjacent to the input.
-          //
-          // Note: we use Math.abs so the assertion holds for both "below" and
-          // "above" (flipped) positioning.
-          const inputBottom = inputBox!.y + inputBox!.height;
-          const anchorDistance = Math.abs(dropdownBox!.y - inputBottom);
-          expect(anchorDistance).toBeLessThan(20);
+        // Core regression assertion (Issue #1708):
+        // The dropdown's top edge should be within ~20px of the input's bottom
+        // edge.  The SearchPicker positions the dropdown at
+        // `inputRect.bottom + 4px` (no flip needed for a freshly-opened picker
+        // near the top of the page).  A tolerance of 20px accommodates the
+        // 4px gap, sub-pixel rounding, and the flip-above path that activates
+        // when there is insufficient space below — both place the dropdown
+        // adjacent to the input.
+        //
+        // Note: we use Math.abs so the assertion holds for both "below" and
+        // "above" (flipped) positioning.
+        const inputBottom = inputBox!.y + inputBox!.height;
+        const anchorDistance = Math.abs(dropdownBox!.y - inputBottom);
+        expect(anchorDistance).toBeLessThan(20);
 
-          // The seeded area should appear in the dropdown results.
-          // This confirms the dropdown is functional, not just a ghost element.
-          const areaOption = dropdown.getByRole('option', { name: areaName });
-          await expect(areaOption).toBeVisible();
+        // The seeded area should appear in the dropdown results.
+        // This confirms the dropdown is functional, not just a ghost element.
+        const areaOption = dropdown.getByRole('option', { name: areaName });
+        await expect(areaOption).toBeVisible();
 
-          // Select the area — the dropdown must close after selection.
-          await areaOption.click();
-          await expect(dropdown).not.toBeVisible();
+        // Select the area — the dropdown must close after selection.
+        await areaOption.click();
+        await expect(dropdown).not.toBeVisible();
 
-          // Verify the picker shows the selected area (selectedDisplay chip).
-          // After selection SearchPicker renders a selectedDisplay div, not the
-          // input, so the input is no longer in the DOM.
-          const selectedDisplay = page.locator('[class*="selectedDisplay"]').first();
-          await expect(selectedDisplay).toContainText(areaName);
-        } finally {
-          if (areaId) await deleteAreaViaApi(page, areaId);
-        }
-      },
-    );
-  },
-);
+        // Verify the picker shows the selected area (selectedDisplay chip).
+        // After selection SearchPicker renders a selectedDisplay div, not the
+        // input, so the input is no longer in the DOM.
+        const selectedDisplay = page.locator('[class*="selectedDisplay"]').first();
+        await expect(selectedDisplay).toContainText(areaName);
+      } finally {
+        if (areaId) await deleteAreaViaApi(page, areaId);
+      }
+    },
+  );
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 2: SearchPicker inside a modal is not clipped by modal overflow
