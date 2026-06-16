@@ -5,43 +5,39 @@
  * This page is navigated to after selecting a document from the InvoicePaperlessPickerModal.
  * The documentId and documentTitle are passed as React Router location state.
  *
- * DOM observations from PaperlessInvoiceReviewPage.tsx:
+ * DOM observations from PaperlessInvoiceReviewPage.tsx (updated for Story #1703/#1704):
  *
  * Loading state (pageStatus='loading'):
- *   - PageLayout title: "Analyzing document with AI…"
+ *   - div.pageContainer > div.pageHeader with h1 "Analyzing document with AI…"
  *     (budget.json: autoItemize.extractionStarted)
- *   - Spinner (role="img" from Spinner component)
- *   - Loading message h2: "Analyzing document…"
- *     (budget.json: autoItemize.extractingFromDocument)
- *   - Cancel button: disabled (text: "Cancel")
+ *   - div.loadingState: Spinner (role="img") + h2 class*="loadingMessage"
+ *   - Cancel button: disabled
  *
  * Error state (pageStatus='error'):
- *   - PageLayout title: t('autoItemize.error')
- *   - Error container: div role="alert" with class*="errorState"
- *   - Error text paragraph inside error container
- *   - "Back to Invoices" button (budget.json: autoItemize.backToInvoices)
+ *   - div.pageContainer > div.pageHeader with h1 t('autoItemize.error')
+ *   - div.errorState: p.errorText + "Back to Invoices" button
  *
- * Ready state (pageStatus='ready'):
- *   - PageLayout title: "Extraction complete. Please review the suggested line items."
- *     (budget.json: autoItemize.extractionComplete)
- *   - Vendor card: div.card containing h3 "Vendor" + SearchPicker id="vendor-picker"
- *   - Vendor SuggestionBadge: span with class*="badge" when vendor was LLM-suggested
- *     Rendered when suggestedVendorId matches current vendorId
- *   - Vendor error (FormError): rendered when vendor not selected on submit attempt
- *   - Line items card: div.card containing h3 "Extracted Line Items" and
- *     <ul role="list" aria-label="Extracted line items"> with <li> children.
- *     NOTE: The CSS module does NOT define lineList/lineCard/lineCardExcluded — the TSX
- *     references those new names but the module still has the old linesList/lineItem names.
- *     Consequently the <ul> renders with no class attribute and <li> elements render with
- *     className="undefined " (literal). Use role/aria selectors, NOT class-based ones.
- *   - Action bar: div.actionBar with "Create Invoice & Itemize" button
- *     (budget.json: autoItemize.createAndItemize)
- *     Button is disabled when vendorId is empty or pageStatus='saving'
- *   - Cancel button in header action area (budget.json: autoItemize.cancel = "Cancel")
+ * Ready state (pageStatus='ready'): TWO-COLUMN LAYOUT (Story #1703/#1704)
+ *   - div.pageContainer > div.pageHeader with h1 t('autoItemize.extractionComplete')
+ *   - div.pageBody (grid with formColumn + previewColumn)
+ *   - LEFT: div.formColumn (class*="formColumn") — contains:
+ *       - Page-level FormError banner: <FormError variant="banner"> when pageError set
+ *         → renders role="alert" inside formColumn (NOT a fatal error — page stays ready)
+ *       - div.vendorCard (class*="vendorCard") — SearchPicker id="vendor-picker"
+ *         Vendor error (FormError variant="field") at #vendor-error inside vendorCard
+ *       - div.metadataCard (class*="metadataCard") — invoice number, amount, date fields
+ *       - AutoItemizeLineList (shared component — lineList/lineCard classes from its CSS module)
+ *       - div.actions — "Create Invoice & Itemize" button + Cancel
+ *         NOTE: Button is ONLY disabled when pageStatus='saving', NOT when vendorId is empty.
+ *         Clicking without a vendor shows the inline vendor FormError (silent-failure fix).
+ *   - RIGHT: div.previewColumn (class*="previewColumn") — contains:
+ *       - div.pdfPreviewWrapper: iframe title="Invoice PDF preview" + div.pdfLoadingOverlay
+ *       - OR div.pdfFallback when iframe fires error
  *
  * Saving state (pageStatus='saving'):
- *   - "Create Invoice & Itemize" button text changes to "Saving..." (autoItemize.saving)
+ *   - "Create Invoice & Itemize" → "Saving..." (autoItemize.saving)
  *   - Cancel button is disabled
+ *   - formColumn aria-busy="true"
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -55,10 +51,10 @@ export class PaperlessInvoiceReviewPage {
   /** Loading message h2: "Analyzing document…" */
   readonly loadingMessage: Locator;
 
-  /** Error container div (role="alert") in error state */
+  /** Error container div in fatal error state (pageStatus='error') */
   readonly errorContainer: Locator;
 
-  /** "Back to Invoices" button shown in error state */
+  /** "Back to Invoices" button shown in fatal error state */
   readonly backToInvoicesButton: Locator;
 
   /** Vendor SearchPicker input (id="vendor-picker") — present when picker is in search/input mode (no pre-filled value) */
@@ -67,7 +63,7 @@ export class PaperlessInvoiceReviewPage {
   /**
    * Vendor SearchPicker selected-display chip — present when SearchPicker is in DISPLAY mode
    * (i.e. when initialTitle + value are set, such as when suggestedVendorId is non-null).
-   * Scoped to the vendor card to avoid matching other selectedDisplay elements on the page.
+   * Scoped to the vendor card (class*="vendorCard") to avoid matching other selectedDisplay elements.
    */
   readonly vendorSelectedDisplay: Locator;
 
@@ -80,10 +76,15 @@ export class PaperlessInvoiceReviewPage {
   /** SuggestionBadge shown when vendor was LLM-suggested */
   readonly vendorSuggestionBadge: Locator;
 
-  /** FormError shown when vendor is not selected on confirm attempt */
+  /**
+   * FormError shown when vendor is not selected on confirm attempt.
+   * Rendered as <div id="vendor-error"><FormError variant="field" .../></div> inside the vendor card.
+   * NOTE: FormError variant="field" does NOT emit role="alert" (only variant="banner" does).
+   * The outer wrapper <div id="vendor-error"> is a unique, stable anchor for this locator.
+   */
   readonly vendorError: Locator;
 
-  /** "Create Invoice & Itemize" confirm button */
+  /** "Create Invoice & Itemize" confirm button (text-based locator — works in all layout variants) */
   readonly confirmButton: Locator;
 
   /** "Cancel" button in the page action area */
@@ -91,11 +92,42 @@ export class PaperlessInvoiceReviewPage {
 
   /**
    * Line items list container.
-   * Rendered as <ul role="list" aria-label="Extracted line items">.
-   * The TSX references styles.lineList but the CSS module only defines .linesList,
-   * so no class attribute is present on the <ul>. Use role+aria-label to locate it.
+   * Rendered as <ul role="list" aria-label="Extracted line items"> by the shared
+   * AutoItemizeLineList component. The aria-label is stable regardless of CSS module changes.
    */
   readonly lineItemsList: Locator;
+
+  // ─── Story #1703/#1704: Two-column layout + PDF preview ─────────────────────
+
+  /**
+   * PDF preview iframe: <iframe title="Invoice PDF preview">
+   * Rendered inside previewColumn when pageStatus='ready' and no PDF error.
+   * t('autoItemize.pdfPreviewTitle') = "Invoice PDF preview"
+   */
+  readonly pdfIframe: Locator;
+
+  /**
+   * Form column: <div class*="formColumn"> — left column of the two-column layout.
+   * Contains vendor card, metadata card, line list, and action buttons.
+   * Only present in ready/saving state.
+   */
+  readonly formColumn: Locator;
+
+  /**
+   * Preview column: <div class*="previewColumn"> — right column of the two-column layout.
+   * Contains the PDF iframe (or fallback). Only present in ready/saving state.
+   */
+  readonly previewColumn: Locator;
+
+  /**
+   * Page-level error banner in ready state.
+   * Rendered as <FormError variant="banner"> inside formColumn when commit fails.
+   * FormError variant="banner" renders role="alert". Scoped to formColumn so it does not
+   * match the fatal error state container. The vendor field error (#vendor-error) does NOT
+   * use role="alert" (it is FormError variant="field"), so there is no ambiguity here.
+   * Uses .first() in case multiple alerts are briefly visible during the saving→ready transition.
+   */
+  readonly pageErrorBanner: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -105,7 +137,7 @@ export class PaperlessInvoiceReviewPage {
     this.spinner = page.locator('[class*="spinner"], [class*="loadingState"]').first();
     this.loadingMessage = page.getByRole('heading', { name: /Analyzing document/i });
 
-    // Error state
+    // Fatal error state (pageStatus='error')
     this.errorContainer = page.locator(
       '[role="alert"][class*="errorState"], div[class*="errorState"]',
     );
@@ -113,45 +145,65 @@ export class PaperlessInvoiceReviewPage {
 
     // Ready state — vendor section
     this.vendorInput = page.locator('#vendor-picker');
+
     // When SearchPicker is in DISPLAY mode (initialTitle + value set), it renders a
     // selectedDisplay div instead of the #vendor-picker input.
-    // Scope to the vendor card (the card containing "vendor-picker" label) via aria label proximity
-    // or by scoping to the first card element that also wraps the suggestionRow.
-    // The vendor card is the first .card child of the page — scope via class for reliability.
+    // Scoped to the vendor card via class*="vendorCard" (CSS Modules emits
+    // "PaperlessInvoiceReviewPage__vendorCard--hash" which contains "vendorCard" substring).
     this.vendorSelectedDisplay = page
-      .locator('[class*="card"]')
-      .first()
+      .locator('[class*="vendorCard"]')
       .locator('[class*="selectedDisplay"]');
+
     // SearchPicker portals dropdown to document.body
     this.vendorPortalDropdown = page.locator('[data-search-picker-dropdown]');
     this.vendorClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });
     // SuggestionBadge is rendered as a span with class*="badge" in a suggestionRow
     this.vendorSuggestionBadge = page.locator('[class*="suggestionRow"] [class*="badge"]');
-    // FormError renders role="alert" — scope to vendor card to avoid ambiguity
-    this.vendorError = page
-      .locator('[class*="card"]')
-      .filter({ has: page.locator('#vendor-picker') })
-      .locator('[role="alert"]');
 
-    // Action buttons
+    // FormError variant="field" does NOT emit role="alert" (only variant="banner" does).
+    // The TSX renders: <div id="vendor-error"><FormError variant="field" .../></div>
+    // The outer #vendor-error wrapper is a stable, unique id on this page.
+    this.vendorError = page.locator('#vendor-error');
+
+    // Action buttons — text-based locators work regardless of layout changes
     this.confirmButton = page.getByRole('button', {
       name: /Create Invoice & Itemize|Saving\.\.\./i,
     });
     this.cancelButton = page.getByRole('button', { name: /^Cancel$/i });
 
     // Line items list — <ul role="list" aria-label="Extracted line items">
-    // The TSX uses styles.lineList but PaperlessInvoiceReviewPage.module.css only defines
-    // .linesList (old name), so styles.lineList resolves to undefined and no class
-    // attribute is emitted on the <ul>. The explicit role="list" + aria-label are stable.
+    // Rendered by shared AutoItemizeLineList component. aria-label is from i18n key
+    // autoItemize.lineItemsListLabel = "Extracted line items". Stable across refactors.
     this.lineItemsList = page.getByRole('list', { name: 'Extracted line items' });
+
+    // ─── Story #1703/#1704: Two-column layout + PDF preview ─────────────────────
+
+    // PDF iframe: <iframe title="Invoice PDF preview">
+    // t('autoItemize.pdfPreviewTitle') = "Invoice PDF preview" — same key as AutoItemizePage.
+    this.pdfIframe = page.locator('iframe[title="Invoice PDF preview"]');
+
+    // Form column: <div id="itemize-form" class*="formColumn"> in ready state.
+    // CSS Modules emits "PaperlessInvoiceReviewPage__formColumn--hash" which contains "formColumn".
+    this.formColumn = page.locator('[class*="formColumn"]');
+
+    // Preview column: <div class*="previewColumn"> in ready state.
+    this.previewColumn = page.locator('[class*="previewColumn"]');
+
+    // Page-level error banner: <FormError variant="banner"> inside formColumn.
+    // FormError variant="banner" renders role="alert". Scoped to formColumn so it does not
+    // match the vendor field error (also role="alert") or the fatal error state container.
+    this.pageErrorBanner = page.locator('[class*="formColumn"]').locator('[role="alert"]').first();
   }
 
   /**
-   * Wait for the extraction to complete (spinner gone, form visible).
-   * Uses the confirm button as the ready indicator.
+   * Wait for the extraction to complete (ready state — two-column layout visible).
+   * Waits for the formColumn to appear, which is only rendered in pageStatus='ready'/'saving'.
+   * This is more robust than waiting for the confirm button alone since it tests the
+   * two-column layout structure introduced in Story #1703/#1704.
    */
   async waitForExtractionComplete(): Promise<void> {
-    await this.confirmButton.waitFor({ state: 'visible' });
+    // Wait for the two-column layout to appear (indicates ready state, not loading/error)
+    await this.formColumn.waitFor({ state: 'visible' });
   }
 
   /**
@@ -218,10 +270,10 @@ export class PaperlessInvoiceReviewPage {
   /**
    * Get a line item row locator by index (0-based).
    *
-   * The component renders each extracted line as a <li> inside the extracted-lines <ul>.
-   * The TSX uses styles.lineCard which is undefined in the CSS module, so <li> elements
-   * have className="undefined " (literal) — class-based selectors don't work here.
-   * Use the structural <li> selector instead, scoped to the lineItemsList <ul>.
+   * The component renders each extracted line as a <li class*="lineCard"> inside the
+   * extracted-lines <ul>. The lineCard class comes from AutoItemizeLineCard.module.css
+   * (shared component). The aria-based lineItemsList locator is more stable than class
+   * matching across refactors, so we scope by <li> within the list.
    */
   getLineItem(index: number): Locator {
     return this.lineItemsList.locator('li').nth(index);
@@ -229,10 +281,7 @@ export class PaperlessInvoiceReviewPage {
 
   /**
    * Count the number of line items rendered.
-   *
-   * Counts <li> direct children of the extracted-lines <ul> (role="list").
-   * Class-based selectors cannot be used because styles.lineCard resolves to undefined
-   * in the CSS module (the module defines .lineItem, not .lineCard).
+   * Counts <li> children of the extracted-lines <ul> (role="list" aria-label="Extracted line items").
    */
   async getLineItemCount(): Promise<number> {
     return await this.lineItemsList.locator('li').count();

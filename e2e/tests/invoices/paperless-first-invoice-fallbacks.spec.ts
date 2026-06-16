@@ -412,9 +412,15 @@ test.describe('Scenario 12 — Abandon review creates no invoice', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 13 — Vendor required validation
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// Story #1703/#1704 behavior change: the "Create Invoice & Itemize" button is
+// NO LONGER disabled when vendor is empty. Instead, clicking with no vendor
+// shows an inline field error in <div id="vendor-error"> (FormError variant="field")
+// and returns early without navigating. This enforces vendor-required via UX
+// feedback rather than button disablement.
 
 test.describe('Scenario 13 — Vendor required validation on review page', () => {
-  test('Clicking confirm without vendor shows "Vendor is required" error', async ({
+  test('Clicking confirm without vendor shows inline vendor error and stays on review page', async ({
     page,
     testPrefix,
   }) => {
@@ -444,24 +450,24 @@ test.describe('Scenario 13 — Vendor required validation on review page', () =>
       const reviewPage = new PaperlessInvoiceReviewPage(page);
       await reviewPage.waitForExtractionComplete();
 
-      // Confirm button should be disabled when no vendor is selected
-      // (button has disabled={!vendorId} in the JSX)
-      await expect(reviewPage.confirmButton).toBeDisabled();
+      // Confirm button is NOT disabled when vendor is empty (behavior change in Story #1703)
+      await expect(reviewPage.confirmButton).not.toBeDisabled();
 
-      // Attempt to click it anyway (simulate direct click to trigger validation)
-      // The button's onClick handler also checks and sets vendorError
-      // We can't click a disabled button, so verify the button state and error appear
-      // when we try to submit programmatically by checking the disabled state
-      await expect(reviewPage.confirmButton).toBeDisabled();
+      // Click "Create Invoice & Itemize" without setting a vendor
+      await reviewPage.confirmButton.click();
 
-      // Verify no navigation occurred
+      // Inline vendor field error should appear at #vendor-error
+      // (FormError variant="field" — does NOT use role="alert")
+      await expect(reviewPage.vendorError).toBeVisible();
+
+      // No navigation occurred — URL still contains the review route
       expect(page.url()).toContain('/budget/invoices/new/paperless');
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
   });
 
-  test('Selecting vendor and clearing it re-disables the confirm button', async ({
+  test('Confirm button is always enabled in ready state — vendor enforced via inline error, not disablement', async ({
     page,
     testPrefix,
   }) => {
@@ -490,16 +496,20 @@ test.describe('Scenario 13 — Vendor required validation on review page', () =>
       const reviewPage = new PaperlessInvoiceReviewPage(page);
       await reviewPage.waitForExtractionComplete();
 
-      // Initially disabled (no vendor)
-      await expect(reviewPage.confirmButton).toBeDisabled();
+      // Initially: no vendor → button still enabled
+      await expect(reviewPage.confirmButton).not.toBeDisabled();
 
-      // Set vendor → button becomes enabled
+      // Set vendor → button still enabled
       await reviewPage.setVendor(`${testPrefix} PF VendorClear Vendor`);
       await expect(reviewPage.confirmButton).not.toBeDisabled();
 
-      // Clear vendor → button becomes disabled again
+      // Clear vendor → button STILL enabled (always-enabled in ready state)
       await reviewPage.clearVendor();
-      await expect(reviewPage.confirmButton).toBeDisabled();
+      await expect(reviewPage.confirmButton).not.toBeDisabled();
+
+      // Clicking with empty vendor shows the inline error
+      await reviewPage.confirmButton.click();
+      await expect(reviewPage.vendorError).toBeVisible();
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
