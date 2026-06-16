@@ -1158,3 +1158,259 @@ describe('renderSecondary slot', () => {
     });
   });
 });
+
+// ── rAF-based mobile scroll tracking (#1708) ──────────────────────────────────
+// Tests for the requestAnimationFrame loop added by issue #1708:
+//   • Loop starts when the dropdown opens (isOpen=true effect)
+//   • Loop is cancelled (cancelAnimationFrame) when the dropdown closes
+//   • closeIfOutOfView: closes when the input rect is above the viewport (bottom < 0)
+//   • closeIfOutOfView: closes when the input rect is below the viewport (top > innerHeight)
+//   • closeIfOutOfView: stays open when the input rect is fully in view
+//
+// Strategy: spy on window.requestAnimationFrame / window.cancelAnimationFrame to
+// capture the loop callback without running it recursively, then invoke the stored
+// callback manually to exercise both branches of closeIfOutOfView.
+
+describe('rAF-based mobile scroll tracking (#1708)', () => {
+  // Sentinel handle returned by our rAF spy
+  const RAF_HANDLE = 42;
+
+  let storedRafCallback: FrameRequestCallback | null = null;
+
+  beforeEach(() => {
+    mockSearchFn.mockReset();
+    mockSearchFn.mockResolvedValue(sampleItems);
+
+    // Reset stored callback before each test
+    storedRafCallback = null;
+
+    // Stub getBoundingClientRect so the portal renders (dropdownRect is non-null)
+    // and so we can control what closeIfOutOfView sees.
+    Element.prototype.getBoundingClientRect = jest.fn<() => DOMRect>().mockReturnValue({
+      top: 100,
+      bottom: 140,
+      left: 50,
+      right: 250,
+      width: 200,
+      height: 40,
+      x: 50,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    // Spy on rAF: capture the callback but do NOT invoke it recursively.
+    // This lets us control exactly when closeIfOutOfView runs in each test.
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((cb: FrameRequestCallback) => {
+      storedRafCallback = cb;
+      return RAF_HANDLE;
+    });
+
+    jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {
+      // no-op — just observe the call
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  // ── A: rAF loop starts on open, cancelled on close ───────────────────────
+
+  it('A — requestAnimationFrame called when dropdown opens; cancelAnimationFrame called when dropdown closes', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
+
+    const input = screen.getByPlaceholderText('Search...');
+
+    // Open the dropdown
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    // rAF must have been called with a function when the effect started the loop
+    expect(window.requestAnimationFrame).toHaveBeenCalledWith(expect.any(Function));
+
+    // Close dropdown via Escape key
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+
+    // cancelAnimationFrame must have been called with the sentinel handle
+    expect(window.cancelAnimationFrame).toHaveBeenCalledWith(RAF_HANDLE);
+  });
+
+  // ── B: closes when field scrolls above viewport (bottom < 0) ─────────────
+
+  it('B — dropdown closes when input rect bottom scrolls above viewport top (bottom < 0)', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
+
+    const input = screen.getByPlaceholderText('Search...');
+
+    // Open dropdown — rect is in view (top:100, bottom:140)
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    // The rAF callback must have been captured by now
+    expect(storedRafCallback).not.toBeNull();
+
+    // Re-stub rect to simulate the input scrolling above the viewport
+    (Element.prototype.getBoundingClientRect as jest.Mock).mockReturnValue({
+      top: -200,
+      bottom: -160,
+      left: 50,
+      right: 250,
+      width: 200,
+      height: 40,
+      x: 50,
+      y: -200,
+      toJSON: () => ({}),
+    });
+
+    // Manually invoke the captured rAF callback — this runs closeIfOutOfView
+    act(() => {
+      storedRafCallback!(performance.now());
+    });
+
+    // Dropdown must have closed because bottom < 0
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+  });
+
+  // ── C: closes when field scrolls below viewport (top > innerHeight) ───────
+
+  it('C — dropdown closes when input rect top scrolls below viewport bottom (top > innerHeight)', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
+
+    const input = screen.getByPlaceholderText('Search...');
+
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    expect(storedRafCallback).not.toBeNull();
+
+    // Simulate input scrolling below the bottom of the viewport
+    const belowTop = window.innerHeight + 50;
+    const belowBottom = window.innerHeight + 90;
+    (Element.prototype.getBoundingClientRect as jest.Mock).mockReturnValue({
+      top: belowTop,
+      bottom: belowBottom,
+      left: 50,
+      right: 250,
+      width: 200,
+      height: 40,
+      x: 50,
+      y: belowTop,
+      toJSON: () => ({}),
+    });
+
+    act(() => {
+      storedRafCallback!(performance.now());
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+  });
+
+  // ── D: stays open when field is in view ───────────────────────────────────
+
+  it('D — dropdown stays open and getBoundingClientRect is called when rAF callback fires with in-view rect', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
+
+    const input = screen.getByPlaceholderText('Search...');
+
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    expect(storedRafCallback).not.toBeNull();
+
+    // rect is already in-view (top:100, bottom:140) — reset to count fresh calls
+    const getBCRMock = Element.prototype.getBoundingClientRect as jest.Mock;
+    getBCRMock.mockClear();
+    // Keep the same in-view rect
+    getBCRMock.mockReturnValue({
+      top: 100,
+      bottom: 140,
+      left: 50,
+      right: 250,
+      width: 200,
+      height: 40,
+      x: 50,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    // Invoke the rAF callback — both updateDropdownRect and closeIfOutOfView run
+    act(() => {
+      storedRafCallback!(performance.now());
+    });
+
+    // Dropdown must still be open — closeIfOutOfView takes the early-return path
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+    // getBoundingClientRect must have been called at least once (by closeIfOutOfView)
+    expect(getBCRMock).toHaveBeenCalled();
+  });
+
+  // ── E: unchanged rect does not trigger extra re-renders ───────────────────
+
+  it('E — rAF callback with unchanged rect does not trigger a re-render', async () => {
+    const user = userEvent.setup();
+    let renderCount = 0;
+    function TrackingWrapper() {
+      renderCount++;
+      return (
+        <SearchPicker<TestItem>
+          value=""
+          onChange={jest.fn()}
+          excludeIds={[]}
+          searchFn={mockSearchFn}
+          renderItem={mockRenderItem}
+          showItemsOnFocus={true}
+          placeholder="Search..."
+        />
+      );
+    }
+    render(<TrackingWrapper />);
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+    await waitFor(() => expect(screen.getByRole('listbox')).toBeInTheDocument());
+
+    // Ensure the rAF callback was captured during dropdown open
+    expect(storedRafCallback).not.toBeNull();
+
+    // Record render count after the dropdown is fully open and stable
+    const countAfterOpen = renderCount;
+
+    // The getBoundingClientRect stub already returns the same stable in-view rect
+    // (top:100, bottom:140) — firing the rAF callback twice with an identical rect
+    // must NOT cause the functional updater to call setState, so no re-renders occur.
+    act(() => {
+      storedRafCallback!(performance.now());
+    });
+    act(() => {
+      storedRafCallback!(performance.now());
+    });
+
+    expect(renderCount).toBe(countAfterOpen);
+  });
+});

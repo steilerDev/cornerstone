@@ -81,11 +81,33 @@ export function SearchPicker<T>({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   // Update dropdown rect for portal positioning
   const updateDropdownRect = useCallback(() => {
-    if (inputRef.current) {
-      setDropdownRect(inputRef.current.getBoundingClientRect());
+    if (!inputRef.current) return;
+    const next = inputRef.current.getBoundingClientRect();
+    /* eslint-disable-next-line @eslint-react/set-state-in-effect -- functional updater prevents batching issues; called from rAF loop, not in effect */
+    setDropdownRect((prev) => {
+      if (
+        prev !== null &&
+        prev.top === next.top &&
+        prev.left === next.left &&
+        prev.width === next.width &&
+        prev.bottom === next.bottom
+      ) {
+        return prev; // same reference → no re-render
+      }
+      return next;
+    });
+  }, []);
+
+  // Close dropdown if input field scrolls out of view
+  const closeIfOutOfView = useCallback(() => {
+    if (!inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      setIsOpen(false);
     }
   }, []);
 
@@ -115,16 +137,32 @@ export function SearchPicker<T>({
   useEffect(() => {
     if (!isOpen) return;
 
+    // Take an initial reading when the dropdown opens.
     updateDropdownRect();
 
+    // rAF loop: sync position every paint frame while the dropdown is open.
+    // Handles momentum/fling scrolling on mobile where 'scroll' events are
+    // coalesced and do not fire on every animation frame.
+    const loop = () => {
+      updateDropdownRect();
+      closeIfOutOfView();
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+
+    // Keep window scroll/resize for immediate response on non-mobile paths.
     window.addEventListener('scroll', updateDropdownRect, true);
     window.addEventListener('resize', updateDropdownRect);
 
     return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       window.removeEventListener('scroll', updateDropdownRect, true);
       window.removeEventListener('resize', updateDropdownRect);
     };
-  }, [isOpen, updateDropdownRect]);
+  }, [isOpen, updateDropdownRect, closeIfOutOfView]);
 
   // Reset when value is cleared externally (e.g. after form submission)
   useEffect(() => {
@@ -141,11 +179,14 @@ export function SearchPicker<T>({
     /* eslint-enable @eslint-react/set-state-in-effect */
   }, [value, specialOptions]);
 
-  // Cleanup debounce on unmount
+  // Cleanup debounce and rAF on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
+      }
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
       }
     };
   }, []);
