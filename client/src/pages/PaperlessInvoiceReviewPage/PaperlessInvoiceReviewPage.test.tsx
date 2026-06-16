@@ -605,8 +605,10 @@ describe('PaperlessInvoiceReviewPage', () => {
       // vendor name appears somewhere in the DOM (non-intercepted — local).
       // Accept either path.
       await waitFor(() => {
+        // queryAllByText avoids "Found multiple elements" when 'Builder Corp' appears in both
+        // the picker's selectedTitle span AND a suggestion-badge rendered via FloatingPortal.
         const vendorVisible =
-          screen.queryByText('Builder Corp') !== null ||
+          screen.queryAllByText('Builder Corp').length > 0 ||
           document.querySelector('[id="vendor-picker"]') !== null;
         expect(vendorVisible).toBe(true);
       });
@@ -666,10 +668,12 @@ describe('PaperlessInvoiceReviewPage', () => {
       // When mocks are intercepted (CI): SuggestionBadge mock renders with displayValue.
       // When not intercepted (local): fetch stub provides the data and the real component renders.
       await waitFor(() => {
+        // queryAllByText avoids "Found multiple elements" when 'Builder Corp' appears in both
+        // the picker's selectedTitle span AND a suggestion-badge rendered via FloatingPortal.
         const badge =
           screen.queryByTestId('suggestion-badge') !== null ||
           screen.queryByText(/LLM suggests/i) !== null ||
-          screen.queryByText('Builder Corp') !== null;
+          screen.queryAllByText('Builder Corp').length > 0;
         expect(badge).toBe(true);
       });
     });

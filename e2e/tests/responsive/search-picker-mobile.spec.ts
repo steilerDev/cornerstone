@@ -21,7 +21,7 @@
  * Tagged @responsive so the tablet and mobile Playwright projects pick them up
  * in addition to desktop.  Scenario 1 skips on non-mobile viewports because
  * the anchor tolerance is deliberately tight for mobile.  Scenario 2 is
- * currently skipped with a note (see below).
+ * currently skipped (see below).
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -88,18 +88,23 @@ test.describe('SearchPicker mobile anchor regression (Scenario 1)', { tag: '@res
         expect(dropdownBox).not.toBeNull();
 
         // Core regression assertion (Issue #1708):
-        // The dropdown's top edge should be within ~20px of the input's bottom
-        // edge.  The SearchPicker positions the dropdown at
-        // `inputRect.bottom + 4px` (no flip needed for a freshly-opened picker
-        // near the top of the page).  A tolerance of 20px accommodates the
-        // 4px gap, sub-pixel rounding, and the flip-above path that activates
-        // when there is insufficient space below — both place the dropdown
-        // adjacent to the input.
+        // Floating UI places the dropdown offset(4) below the input by default.
+        // When there is more space above the input than below (common on mobile
+        // with the on-screen keyboard), flip() activates and places the dropdown
+        // ABOVE the input instead.  We must handle both placements:
         //
-        // Note: we use Math.abs so the assertion holds for both "below" and
-        // "above" (flipped) positioning.
+        //   below  → dropdown TOP   is near input BOTTOM  (normal)
+        //   above  → dropdown BOTTOM is near input TOP    (flipped)
+        //
+        // We compute the candidate distance for each direction and take the
+        // minimum — whichever edge of the dropdown is closest to the input is
+        // the one Floating UI anchored to.  A tolerance of 20px accommodates
+        // the 4px offset plus sub-pixel rounding.
         const inputBottom = inputBox!.y + inputBox!.height;
-        const anchorDistance = Math.abs(dropdownBox!.y - inputBottom);
+        const dropdownBottomEdge = dropdownBox!.y + dropdownBox!.height;
+        const anchorDistanceBelow = Math.abs(dropdownBox!.y - inputBottom);
+        const anchorDistanceAbove = Math.abs(dropdownBottomEdge - inputBox!.y);
+        const anchorDistance = Math.min(anchorDistanceBelow, anchorDistanceAbove);
         expect(anchorDistance).toBeLessThan(20);
 
         // The seeded area should appear in the dropdown results.
@@ -140,11 +145,15 @@ test.describe(
       // requires Paperless-ngx mock routes; PhotoMetadataModal requires orientation
       // data AND a photo upload flow).
       //
-      // The anti-clipping behaviour (portal rendering to document.body, bypassing
-      // modal overflow:hidden) is fully covered by the unit test:
+      // The anti-clipping behaviour is fully covered by the unit test:
       //   client/src/components/SearchPicker/SearchPicker.test.tsx
       //   → "dropdown is portalled to document.body — [data-search-picker-dropdown]
       //      present on body"
+      //
+      // Implementation note: SearchPicker uses FloatingPortal from
+      // @floating-ui/react (not createPortal from react-dom directly), which
+      // renders the dropdown to document.body and therefore escapes any modal
+      // ancestor's overflow:hidden constraint.
       //
       // If a lighter-weight modal+picker surface becomes available in a future
       // story, replace this skip with a real assertion that
