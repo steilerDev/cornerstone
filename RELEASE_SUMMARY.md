@@ -1,25 +1,24 @@
-# v2.7.0 Release Summary
+# v2.8.0 Release Summary
 
 ## What's New
 
-This release turns invoice itemization into a one-click, AI-assisted workflow and makes budget bookkeeping far more forgiving. Cornerstone can now read the line items off a vendor's PDF invoice for you, you can edit and re-home invoice-linked budget lines without deleting them, and a brand-new in-app editor lets you mark up diary photos directly in the browser. No manual migration steps are required.
+This release makes capturing the real-world record of your build faster and more mobile-friendly. You can now create an entire invoice straight from a scanned Paperless document, snap and tag photos one-handed from your phone, and log who worked on site and for how long -- all without leaving the screen you are on. No manual migration steps are required.
 
 ### Highlights
 
-- **Auto-itemize Invoices (LLM-powered)** -- Open a linked invoice PDF and let Cornerstone extract its line items for you. A dedicated review page shows the original document side-by-side with the extracted lines, each on its own card with editable amounts, a confidence indicator, and inline category, funding-source, and item-assignment pickers. Works with any OpenAI-compatible provider -- Google Gemini, Anthropic, OpenAI, or a self-hosted Ollama model -- auto-detected from the endpoint you configure. The feature is **opt-in and off by default**: nothing leaves your server until you set the LLM environment variables, and even then only the document's OCR text and a few invoice details are sent -- never the PDF itself or your API key.
+- **Create invoices from a Paperless document** -- When Paperless-ngx and Auto-itemize are both configured, **New Invoice** opens a document picker. Pick the PDF the vendor sent you and Cornerstone reads the invoice for you: it pre-fills the invoice number, amount, date, due date, and notes, suggests the matching vendor, and extracts the line items -- grossing up net lines by VAT so the totals match. Review, assign each line to a work item or household item, and click **Create Invoice & Itemize** to create the invoice and all its budget lines in one step. The new-invoice review screen now shares the exact same interface as the existing Auto-itemize page.
 
-- **Photo Annotation Editor** -- A Shottr-style markup editor for diary photos, right in the browser. Open any diary photo and annotate it with arrows, rectangles, ellipses, lines, text labels, dimension measurements, freehand strokes, and translucent highlights. It is optimized for touch and Apple Pencil, fully non-destructive (the original is always preserved, with a **View original** toggle and **Reset to original** action), and the annotated copy is saved alongside the original.
+- **Mobile-first photo capture** -- Capturing site photos is built for the phone. Snap a photo with your camera, and a photo-details modal lets you add a caption, the area it was taken in, and the compass orientation it faces before it uploads. A new **Orientations** tab on the Manage page lets you maintain your own list of directions (e.g. "South – Street-facing") to tag photos with. The photo annotator now scales to fit any screen and is fully touch- and stylus-enabled, so you can mark up a photo on a tablet as easily as on a desktop.
 
-- **Inline budget line editing & move** -- Edit invoice-linked budget lines directly from the Work Item and Household Item detail pages -- no need to unlink first. You can now also **move a line to a different work item or household item**, so a line that landed on the wrong item (a common case with auto-itemized lines) can be re-homed instead of deleted and re-created.
+- **Diary daily-log vendor and work hours** -- Daily Log entries gained optional **Vendor**, **Work start**, and **Work end** fields, with the total work duration computed automatically. The entry's information panel shows who worked and for how long at a glance, turning a daily log into a simple labour record.
 
-- **Document viewer "hide already-linked" toggle** -- The document picker gains a system-wide filter that hides any document already linked anywhere in Cornerstone, making it easy to find documents you have not filed yet.
+- **Discoverable document unlink** -- The action to unlink a document from a work item, household item, or invoice now lives as a clear **✕** overlay in the top-right corner of each linked-document card, so it is easy to find without cluttering the card.
 
 ### Notable Fixes
 
-- Print/export of the Budget Overview now restores your expansion state afterwards and resets dark-mode styling correctly for a clean printout.
-- The Budget Overview no longer shows a redundant "Auto-itemized" badge that provided no useful information.
-- Diary entry editing no longer triggers spurious native form-validation popups.
-- Save buttons on budget forms now meet the 44px minimum touch-target size on mobile.
+- Search-as-you-type pickers now position their dropdown correctly and stay anchored while scrolling on mobile.
+- Mobile browsers no longer zoom in when you focus a text field or pinch, keeping forms steady on small screens.
+- Hardened the construction-diary daily-log experience and the mobile diary filter panel.
 
 ## Upgrade
 
@@ -27,4 +26,4 @@ This release turns invoice itemization into a one-click, AI-assisted workflow an
 docker pull steilerdev/cornerstone:latest
 ```
 
-Restart your container. Schema migrations run automatically on first boot. To enable Auto-itemize, set the `LLM_BASE_URL`, `LLM_API_KEY`, and `LLM_MODEL` environment variables -- see the [Auto-itemize guide](https://steilerDev.github.io/cornerstone/guides/budget/auto-itemize) for provider examples.
+Restart your container. Schema migrations run automatically on first boot. Creating invoices from Paperless documents reuses your existing [Auto-itemize](https://steilerDev.github.io/cornerstone/guides/budget/auto-itemize) configuration -- if you have already set the `LLM_*` and `PAPERLESS_*` environment variables, the document-first flow appears automatically.

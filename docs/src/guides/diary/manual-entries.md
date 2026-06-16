@@ -34,6 +34,23 @@ Choose the type that best fits what you are recording:
 5. Optionally attach photos (see below)
 6. Click **Save** to promote the draft to a full entry, or **Discard Draft** to remove it entirely
 
+## Daily Log: vendor and work hours
+
+Daily Log entries carry a few extra optional fields for recording who was on site and how long they worked. All three are optional -- fill in as many or as few as you like.
+
+| Field | Description |
+|-------|-------------|
+| **Vendor** | The vendor or trade who did the work that day. Start typing to search your existing [vendors](/guides/budget/vendors-and-invoices); the placeholder reads *Search vendors…*. |
+| **Work start** | The time work began that day (a time picker). |
+| **Work end** | The time work finished that day. |
+| **Total work duration** | Computed automatically from **Work start** and **Work end** -- you do not type it. It updates as you change the start or end time. |
+
+On the entry detail page these appear in the **Entry Information** summary as **Vendor**, **Start**, and **End**, giving you an at-a-glance record of who worked and for how long on any given day.
+
+:::tip
+These fields make a Daily Log double as a simple labour log. Recording the vendor and hours per day builds a running history you can cross-reference against invoices when you reconcile costs later.
+:::
+
 ## Drafts and Auto-Save
 
 While you are editing an entry, Cornerstone auto-saves changes in the background and shows a small status indicator (`Saving...`, `Saved`, or "save failed — will retry on next change") so you always know whether your work is persisted.
@@ -56,9 +73,9 @@ Each entry can record the weather conditions at the time. This is useful for tra
 
 ## Photo Attachments
 
-You can attach photos directly when editing a diary entry. Photos upload as soon as you pick them -- the upload queue shows progress for each file and lets you retry failed uploads without re-selecting them. There is no separate "attach" or "submit" step; uploaded photos are immediately part of the entry.
+You can attach photos directly when editing a diary entry. Cornerstone's photo flow is mobile-first: snap a photo with your phone camera on site, tag it with a caption, [area](/guides/work-items/areas-and-trades), and compass [orientation](photo-capture#orientations) in the photo-details modal, and it uploads straight to the entry. Photos upload as soon as you pick them -- the upload queue shows progress for each file and lets you retry failed uploads without re-selecting them. There is no separate "attach" or "submit" step; uploaded photos are immediately part of the entry.
 
-Photos provide visual documentation of progress, deliveries, issues, or site conditions. Each photo can be opened in a viewer where you can:
+See [Capturing Photos](photo-capture) for the full capture-and-tag flow. Each photo can be opened in a viewer where you can:
 
 - View the original or, if it has been edited, the annotated copy
 - Edit metadata (description, area assignment)
