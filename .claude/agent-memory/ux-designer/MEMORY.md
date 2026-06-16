@@ -163,6 +163,17 @@ See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `rol
 - GH PR review `--comment` via `--body-file` still fails silently; use `gh api repos/.../issues/{N}/comments` instead (issues API works for PR comments)
 - z-index: `z-index: 1` on absolute overlays inside card should be `var(--z-dropdown)` — prevents stacking collision with other card overlays (e.g. unlink button from #1680)
 
+## Story #1723 — AreaPicker Hierarchy Display (spec posted to issue)
+
+- **Drop em-dash indentation; use ancestor-path secondary line as the sole hierarchy signal** — indentation is a workaround for absent context; once `.resultSecondary` shows the ancestor path, em-dashes are clutter. `renderItem` returns bare `node.area.name`.
+- Secondary line reuses `.resultSecondary` from `SearchPicker.module.css` — same class OrientationPicker uses for description. No new CSS class or token needed.
+- `AreaResponse` has NO `ancestors` field — path must be computed client-side via `parentId` traversal. Add `getAncestorPath(areas, parentId)` helper to `areaTreeUtils.ts`.
+- Add `title={ancestorPath}` to `.resultSecondary` span (truncation disclosure + AT full text).
+- Selected/collapsed state shows bare area name only — no ancestor path in the chip (correct tradeoff for 320px sidepanel width).
+- Top-level areas (no parentId) render `null` from `renderSecondary` → single-line row layout (no empty secondary span).
+- WCAG AA contrast verified: `--color-text-muted` on `--color-bg-primary`: 4.6:1 light, 5.0:1 dark, 4.5:1 hover (boundary). All pass.
+- `PhotoMetadataSidepanel` uses a raw `SearchPicker<AreaResponse>` (no indentation, no ancestors) — must be switched to `AreaPicker` for AC-1 consistency. This is the core bug driving the story.
+
 ## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
 
 - `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic` — distinguishes from work-item "not_started" badge
