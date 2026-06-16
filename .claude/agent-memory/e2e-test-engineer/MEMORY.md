@@ -3,6 +3,14 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`
 
+## Photo Annotator Responsive Scaling E2E (fix #1705, 2026-06-16) — `e2e/tests/photoAnnotation.spec.ts` Scenarios 24–26
+
+- Scenarios 24–26 added for ResizeObserver + fitScale + pointer-events fix.
+- Scenario 24 (`@smoke @responsive`): asserts `getKonvaStageBox()` fits within `page.locator('[role="application"]').boundingBox()` (1px tolerance). `[role="application"]` IS the `.canvasArea` div (confirmed in PhotoAnnotator.tsx line 945).
+- Scenarios 25–26 (`@responsive`): use `viewer.drawRectangle()` / `viewer.drawLine()` (both `page.mouse.*`) — same pattern as all other desktop tests. `drawFreehandTouch` / `drawLineTouch` are identical to their non-Touch counterparts (both use `page.mouse.*` since Konva migrated to pointer events). No separate touch variant needed.
+- The tablet/mobile projects (`grep: /@responsive/`) run on iPad (gen 7, WebKit hasTouch) and iPhone 13 (WebKit hasTouch). Playwright `page.mouse.*` dispatches full pointer+mouse event chain, which fires Konva's `onPointerDown/Move/Up`.
+- Scenario 24 tests the fitScale assertion at ALL viewports (desktop canvas = 100×100 ≤ container; mobile canvas is scaled down to fit ≤ container width ~375px).
+
 ## OrientationsTab E2E coverage (fix #1687, 2026-06-15) — `e2e/tests/orientations.spec.ts`, `e2e/pages/OrientationsPage.ts`
 
 - Comprehensive 8-scenario spec already exists in `e2e/tests/orientations.spec.ts` (NOT under `navigation/`) — covers CRUD, dark mode, sort order, tab navigation, empty state

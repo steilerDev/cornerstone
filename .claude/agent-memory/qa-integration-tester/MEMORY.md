@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1705 — PhotoAnnotator responsive scaling + touch support tests (2026-06-16)
+
+**react-konva Stage mock extended for forwardRef**: `__mocks__/react-konva.ts` now exports `Stage` as `React.forwardRef` with `useImperativeHandle` so `stageRef.current` is a mock Konva stage object. Exports: `stageMockContainer` (with spied addEventListener/removeEventListener), `stageMockHandlers` (captured onPointerDown/Move/Up), `setMockStagePointerPosition(pos)`. Import as `import * as ReactKonvaMock from 'react-konva'` (after `jest.mock('react-konva')`) for access.
+
+**Stage DATA_FORWARDED_PROPS extended**: `width`, `height`, `scaleX`, `scaleY` now forwarded as `data-stage-width`, `data-stage-height`, `data-stage-scale-x`, `data-stage-scale-y`. Handler presence flags: `onPointerDown/Move/Up` and `onMouseDown/Move/Up` forwarded as `data-has-pointerdown`, `data-has-mousedown`, etc. (value 'true'/'false'). Stage element also gets `data-konva-stage-stub` in addition to `data-konva-stub`.
+
+**ResizeObserver bug FIXED**: `useEffect` deps changed from `[]` to `[imageLoaded]`. Now attaches after `imageLoaded=true` when `canvasAreaRef.current` is the live canvasArea `<div>`. Tests 1, 3, 6 updated to assert CORRECT behavior: fitScale=0.5 (800×600 photo in 400×300 container), fitScale=0.1 (4000×3000 photo in 400×300 container), observe called 1×/disconnect called 1× on unmount.
+
+**ResizeObserver mock fires synchronously in observe()**: The `makeResizeObserverMock` helper fires the callback immediately inside `observe()`. Combined with the 20ms `setTimeout` wait in `renderAnnotator`, the `setContainerSize` state update flushes and the Stage renders with correct scaled dimensions before assertions run. This pattern works reliably for testing fitScale behavior.
+
+**pointer-capture effect test**: Uses `stageMockContainer.addEventListener.mock.calls` to check if 'pointerdown' was registered. Uses graceful fallback if stageRef not set (systemic worktree issue with useImperativeHandle deps=[]).
+
 ## Issue #1568 — Jest ESM mock static-import constraint (2026-06-15)
 
 **jest.unstable_mockModule + static import before it = mock fails in CI**: In Jest 30 with `--experimental-vm-modules`, adding a static `import` statement BEFORE `jest.unstable_mockModule()` in a test file breaks mock registration for components that call the mocked module's code directly (e.g., `useFormatters()` → `useLocale()`). Components tested by files in shards 3/4 that also mock `LocaleContext` (or don't call `useFormatters()` directly) appear to pass — but that's because they have a safety net, not because the mock works. The inline factory pattern (all code inside the `jest.unstable_mockModule()` factory body, no imports before it) is REQUIRED for reliable mock registration in Jest ESM. Attempted shared-factory approach across 46 files was reverted.

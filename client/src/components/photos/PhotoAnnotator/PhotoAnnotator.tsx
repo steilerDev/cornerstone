@@ -136,7 +136,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [imageLoaded]);
 
   // Pointer capture to enable multi-touch drawing
   useEffect(() => {

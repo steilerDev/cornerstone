@@ -3,6 +3,7 @@
  *
  * Story #1473: Photo Annotator Foundation (Scenarios 1–3)
  * Story #1478: Photo Annotator Polish — full tool coverage (Scenarios 4–22)
+ * Fix #1705:   Responsive scaling + pointer events (Scenarios 24–26)
  *
  * Scenarios covered:
  *
@@ -45,6 +46,11 @@
  *
  * Color palette (Story #1478):
  * 23. Selecting a different color swatch changes the active color for new shapes
+ *
+ * Responsive scaling + pointer events (fix #1705):
+ * 24. [smoke] @responsive Photo fits container on phone — canvas not clipped (fitScale)
+ * 25. @responsive Rectangle tool works via pointer events on mobile/tablet
+ * 26. @responsive Arrow tool works via pointer events on mobile/tablet
  */
 
 import { readFileSync, mkdirSync } from 'node:fs';
@@ -2034,3 +2040,255 @@ test('Color palette — selecting a swatch marks it aria-checked and new shapes 
     if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 24: [smoke] @responsive Photo fits container — canvas not clipped
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Scenario 24 — [smoke] @responsive Photo fits container on phone:
+ *
+ * Verifies that the Konva Stage (canvas) rendered by PhotoAnnotator fits within
+ * its `.canvasArea` container (the [role="application"] div) after the
+ * ResizeObserver + fitScale fix from issue #1705.
+ *
+ * Before the fix the stage used the photo's intrinsic dimensions (100×100) and
+ * was not scaled, so on a narrow phone viewport the canvas would overflow the
+ * container and be clipped. After the fix, fitScale = min(containerW/imgW,
+ * containerH/imgH, 1.0) is applied, so the canvas always fits.
+ *
+ * Run on all viewports (desktop, tablet via @responsive, mobile via @responsive).
+ * The assertion is meaningful on every viewport:
+ *   - Mobile (375×667): fitScale < 1 — canvas is smaller than intrinsic size
+ *   - Desktop (1920×1080): fitScale = 1 — canvas is exactly 100×100 (≤ container)
+ */
+test(
+  '[smoke] @responsive Photo annotator canvas fits within container (no clip)',
+  { tag: ['@smoke', '@responsive'] },
+  async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
+    let entryId: string | null = null;
+    let photoId: string | null = null;
+
+    test.setTimeout(40_000);
+
+    try {
+      entryId = await createDiaryEntryViaApi(page, {
+        entryType: 'general_note',
+        entryDate: '2026-05-17',
+        body: `${testPrefix} canvas fit test`,
+      });
+      const photo = await uploadTestPhotoViaApi(page, entryId);
+      photoId = photo.id;
+
+      const detailPage = new DiaryEntryDetailPage(page);
+      const viewer = new PhotoViewerPage(page);
+
+      await detailPage.goto(entryId);
+      await expect(detailPage.backButton).toBeVisible();
+      await openPhotoViewer(page, photoId, viewer);
+      await openAnnotator(viewer);
+
+      // Canvas bounding box (Konva Stage element)
+      const canvasBox = await viewer.getKonvaStageBox();
+
+      // Container bounding box ([role="application"] = .canvasArea div)
+      const areaBox = await page.locator('[role="application"]').boundingBox();
+      expect(areaBox).not.toBeNull();
+      if (!areaBox) throw new Error('canvasArea boundingBox is null');
+
+      // Canvas must be non-degenerate
+      expect(canvasBox.width).toBeGreaterThan(50);
+      expect(canvasBox.height).toBeGreaterThan(50);
+
+      // Canvas must fit within the canvasArea (allow 1px for rounding)
+      expect(canvasBox.x).toBeGreaterThanOrEqual(areaBox.x - 1);
+      expect(canvasBox.y).toBeGreaterThanOrEqual(areaBox.y - 1);
+      expect(canvasBox.x + canvasBox.width).toBeLessThanOrEqual(areaBox.x + areaBox.width + 1);
+      expect(canvasBox.y + canvasBox.height).toBeLessThanOrEqual(areaBox.y + areaBox.height + 1);
+    } finally {
+      if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
+      if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
+    }
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 25: @responsive Rectangle tool works via pointer events
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Scenario 25 — @responsive Rectangle tool works via pointer events:
+ *
+ * After the fix in issue #1705 the Konva Stage uses pointer event handlers
+ * (onPointerDown/Move/Up) instead of mouse events. This scenario verifies that
+ * a rectangle drag on the Konva canvas produces a committed rectangle shape on
+ * mobile/tablet viewports (which use pointer events rather than raw mouse events
+ * in real browsers).
+ *
+ * Draw helpers used: `viewer.drawRectangle()` — uses Playwright's `page.mouse.*`
+ * API. Playwright's mouse API dispatches the full pointer + mouse event chain
+ * under touch emulation, so it exercises onPointerDown/Move/Up correctly on
+ * WebKit hasTouch projects (iPad / iPhone 13).
+ */
+test(
+  '@responsive Rectangle tool works via pointer events on mobile/tablet',
+  { tag: '@responsive' },
+  async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
+    let entryId: string | null = null;
+    let photoId: string | null = null;
+
+    test.setTimeout(40_000);
+
+    try {
+      entryId = await createDiaryEntryViaApi(page, {
+        entryType: 'general_note',
+        entryDate: '2026-05-17',
+        body: `${testPrefix} rectangle pointer events test`,
+      });
+      const photo = await uploadTestPhotoViaApi(page, entryId);
+      photoId = photo.id;
+
+      const detailPage = new DiaryEntryDetailPage(page);
+      const viewer = new PhotoViewerPage(page);
+
+      await detailPage.goto(entryId);
+      await expect(detailPage.backButton).toBeVisible();
+      await openPhotoViewer(page, photoId, viewer);
+      await openAnnotator(viewer);
+
+      // Activate the rectangle tool and verify aria-pressed
+      await viewer.activateTool('rectangle');
+      await expect(viewer.rectangleToolButton).toHaveAttribute('aria-pressed', 'true');
+
+      // Draw a rectangle via Playwright mouse events (dispatches full pointer chain)
+      await viewer.drawRectangle(0.2, 0.2, 0.7, 0.6);
+
+      // Poll until a rectangle shape appears in the annotator state model
+      await expect
+        .poll(
+          async () => {
+            const shapes = await viewer.getAnnotatorShapes();
+            return shapes.some((s) => s.type === 'rectangle');
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true);
+
+      // Verify the rectangle has finite, non-zero geometry
+      const shapes25 = await viewer.getAnnotatorShapes();
+      const rect25 = shapes25.find((s) => s.type === 'rectangle') as RectangleShape | undefined;
+      expect(rect25).toBeDefined();
+      if (rect25) {
+        expect(typeof rect25.x).toBe('number');
+        expect(typeof rect25.y).toBe('number');
+        expect(typeof rect25.w).toBe('number');
+        expect(typeof rect25.h).toBe('number');
+        expect(rect25.w).toBeGreaterThan(0);
+        expect(rect25.h).toBeGreaterThan(0);
+      }
+
+      // Save and verify the annotator closes
+      const [putResponse] = await Promise.all([
+        page.waitForResponse(
+          (resp) =>
+            resp.url().includes(`/api/photos/${photoId}/annotation`) &&
+            resp.request().method() === 'PUT',
+        ),
+        viewer.saveButton.click(),
+      ]);
+      expect(putResponse.status()).toBe(200);
+      await expect(viewer.toolPalette).not.toBeVisible();
+    } finally {
+      if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
+      if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
+    }
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 26: @responsive Arrow tool works via pointer events
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Scenario 26 — @responsive Arrow tool works via pointer events:
+ *
+ * Verifies that the Arrow tool drag produces a committed `arrow` shape on
+ * mobile/tablet viewports after the pointer-event migration in issue #1705.
+ *
+ * Draw helpers used: `viewer.drawLine()` — draws a diagonal drag that satisfies
+ * ArrowTool's minimum-size constraint (both axes > MIN_SIZE). Uses `page.mouse.*`
+ * which dispatches the pointer + mouse event chain, exercising the new
+ * onPointerDown/Move/Up handlers on WebKit hasTouch projects.
+ */
+test(
+  '@responsive Arrow tool works via pointer events on mobile/tablet',
+  { tag: '@responsive' },
+  async ({ page, testPrefix }: { page: Page; testPrefix: string }) => {
+    let entryId: string | null = null;
+    let photoId: string | null = null;
+
+    test.setTimeout(40_000);
+
+    try {
+      entryId = await createDiaryEntryViaApi(page, {
+        entryType: 'general_note',
+        entryDate: '2026-05-17',
+        body: `${testPrefix} arrow pointer events test`,
+      });
+      const photo = await uploadTestPhotoViaApi(page, entryId);
+      photoId = photo.id;
+
+      const detailPage = new DiaryEntryDetailPage(page);
+      const viewer = new PhotoViewerPage(page);
+
+      await detailPage.goto(entryId);
+      await expect(detailPage.backButton).toBeVisible();
+      await openPhotoViewer(page, photoId, viewer);
+      await openAnnotator(viewer);
+
+      // Activate the arrow tool and verify aria-pressed
+      await viewer.activateTool('arrow');
+      await expect(viewer.arrowToolButton).toHaveAttribute('aria-pressed', 'true');
+
+      // Draw an arrow via Playwright mouse events (diagonal to satisfy MIN_SIZE on both axes)
+      await viewer.drawLine(0.15, 0.5, 0.75, 0.3);
+
+      // Poll until an arrow shape appears in the annotator state model
+      await expect
+        .poll(
+          async () => {
+            const shapes = await viewer.getAnnotatorShapes();
+            return shapes.some((s) => s.type === 'arrow');
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true);
+
+      // Verify the arrow has finite, non-zero geometry
+      const shapes26 = await viewer.getAnnotatorShapes();
+      const arrow26 = shapes26.find((s) => s.type === 'arrow') as ArrowShape | undefined;
+      expect(arrow26).toBeDefined();
+      if (arrow26) {
+        expect(typeof arrow26.x1).toBe('number');
+        expect(typeof arrow26.y1).toBe('number');
+        expect(typeof arrow26.x2).toBe('number');
+        expect(typeof arrow26.y2).toBe('number');
+      }
+
+      // Save and verify the annotator closes
+      const [putResponse] = await Promise.all([
+        page.waitForResponse(
+          (resp) =>
+            resp.url().includes(`/api/photos/${photoId}/annotation`) &&
+            resp.request().method() === 'PUT',
+        ),
+        viewer.saveButton.click(),
+      ]);
+      expect(putResponse.status()).toBe(200);
+      await expect(viewer.toolPalette).not.toBeVisible();
+    } finally {
+      if (photoId) await deletePhotoViaApi(page, photoId).catch(() => {});
+      if (entryId) await deleteDiaryEntryViaApi(page, entryId).catch(() => {});
+    }
+  },
+);
