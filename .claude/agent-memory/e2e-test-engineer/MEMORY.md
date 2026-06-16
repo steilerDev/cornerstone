@@ -3,6 +3,13 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`, `searchpicker-mobile-1708.md`
 
+## Diary Scenario 14 flake — FIXED (2026-06-16) — `e2e/tests/diary/diary-drafts.spec.ts:846`
+
+- **Root cause**: `toBeVisible({ timeout: 15_000 })` on heading/draftBadge timed out when `GET /api/diary-entries/:id` took >15s under heavy CI load. `test.slow()` triples expect.timeout from 15s→45s but the explicit `{ timeout: 15_000 }` override overrode it — the budget was 15s not 45s.
+- **Fix applied (fix/diary-scenario14-e2e-flake)**: Register `page.waitForResponse` BEFORE `entryCard.click()` to catch `GET /api/diary-entries/${draftId}` (method=GET, status=200, URL ends with `/api/diary-entries/${draftId}`), await it after `waitForURL`, then assert heading/draftBadge with `{ timeout: 45_000 }`.
+- **Pattern**: Always register `waitForResponse` BEFORE the triggering click, not after. Use `resp.url().endsWith(...)` for exact path matching (avoids matching list endpoint `GET /api/diary-entries?...`).
+- **No production files changed** — test-only fix.
+
 ## SearchPicker mobile anchor regression (Issue #1708, 2026-06-16) — `e2e/tests/responsive/search-picker-mobile.spec.ts`
 
 - Scenario 1 (@responsive, mobile-only MOBILE_MAX_WIDTH=499): focuses AreaPicker on WorkItemCreate, asserts `[data-search-picker-dropdown]` visible, `Math.abs(dropdownBox.y - inputBottom) < 20`.
