@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   ExtractedLine,
@@ -10,46 +10,34 @@ import type {
   HouseholdItemBudgetLine,
 } from '@cornerstone/shared';
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
-import { getPaperlessDocument } from '../../lib/paperlessApi.js';
+import {
+  getPaperlessDocument,
+  getDocumentPreviewUrl,
+  getPaperlessStatus,
+} from '../../lib/paperlessApi.js';
 import { previewAutoItemize, commitAutoItemizeCreate } from '../../lib/invoiceAutoItemizeApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useBudgetLinePicker } from '../../hooks/useBudgetLinePicker.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
-import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
 import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
-import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
-import { ParentPicker } from '../../components/ParentPicker/ParentPicker.js';
-import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
-import { CONFIDENCE_LABELS, effectiveLineAmount } from '../../lib/budgetConstants.js';
+import {
+  AutoItemizeLineList,
+  BudgetLinePickerModal,
+  type LineWithInclude,
+} from '../../components/autoItemize/index.js';
+import { effectiveLineAmount } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './PaperlessInvoiceReviewPage.module.css';
 
 type PageStatus = 'loading' | 'error' | 'ready' | 'saving';
-
-interface LineWithInclude extends ExtractedLine {
-  included: boolean;
-  rowId: string;
-  workItemBudgetId?: string | null;
-  householdItemBudgetId?: string | null;
-  assignedItemId?: string;
-  assignedItemType?: 'work_item' | 'household_item';
-  assignedBudgetLineId?: string;
-  assignedBudgetLineType?: 'work_item' | 'household_item';
-  assignedBudgetLineDescription?: string | null;
-  createdFromExtraction?: boolean;
-  inlineCreatedBudgetLineDraft?: BudgetLineFormState;
-  budgetCategoryId?: string | null;
-  budgetSourceId?: string | null;
-}
 
 interface MetadataEdits {
   invoiceNumber: string | null;
@@ -108,6 +96,13 @@ export function PaperlessInvoiceReviewPage() {
   const [vendorError, setVendorError] = useState<string | null>(null);
   const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
 
+  // PDF preview state
+  const [pdfLoaded, setPdfLoaded] = useState(false);
+  const [pdfFailed, setPdfFailed] = useState(false);
+  const [paperlessStatus, setPaperlessStatus] = useState<Awaited<
+    ReturnType<typeof getPaperlessStatus>
+  > | null>(null);
+
   // Dirty state tracking
   const wasCreatedFromExtractionRef = useRef(false);
 
@@ -162,8 +157,24 @@ export function PaperlessInvoiceReviewPage() {
     const loadData = async () => {
       setPageStatus('loading');
       setPageError(null);
+      setPdfLoaded(false);
+      setPdfFailed(false);
 
       try {
+        // Load Paperless status for the fallback link
+        try {
+          const status = await getPaperlessStatus();
+          setPaperlessStatus(status);
+        } catch {
+          setPaperlessStatus({
+            configured: false,
+            reachable: false,
+            error: 'Failed to check status',
+            paperlessUrl: null,
+            filterTag: null,
+          });
+        }
+
         // Fetch document
         const docResponse = await getPaperlessDocument(documentId);
         setDocument({
@@ -248,15 +259,17 @@ export function PaperlessInvoiceReviewPage() {
   }, [navigate]);
 
   const handleSave = useCallback(async () => {
-    if (!documentId || !vendorId || !document) {
-      if (!vendorId) {
-        setVendorError(t('autoItemize.vendorRequired'));
-      }
+    if (!documentId || !document) return;
+
+    // Vendor validation — inline field error (not silent)
+    if (!vendorId) {
+      setVendorError(t('autoItemize.vendorRequired'));
       return;
     }
 
     setPageStatus('saving');
     setVendorError(null);
+    setPageError(null);
 
     try {
       const includedLines = lines.filter((l) => l.included);
@@ -324,7 +337,7 @@ export function PaperlessInvoiceReviewPage() {
       }
       setPageStatus('ready');
     }
-  }, [documentId, vendorId, document, lines, metadataEdits, navigate, t, tErrors]);
+  }, [documentId, document, vendorId, lines, metadataEdits, navigate, t, tErrors]);
 
   const handleLineToggle = useCallback((rowId: string) => {
     setLines((prev) =>
@@ -447,6 +460,28 @@ export function PaperlessInvoiceReviewPage() {
     void picker.showCreateBudgetLineForm(prefill);
   }, [activeRowId, lines, picker]);
 
+  // Compute totals and variance (must be before any early returns for React rules)
+  const computedTotal = useMemo(
+    () =>
+      lines
+        .filter((l) => l.included)
+        .reduce(
+          (sum, l) =>
+            sum + effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
+          0,
+        ),
+    [lines],
+  );
+
+  const { variance, variancePercent } = useMemo(() => {
+    const inv = parseFloat(metadataEdits.amount) || 0;
+    const v = computedTotal - inv;
+    return {
+      variance: v,
+      variancePercent: inv > 0 ? Math.abs(v) / inv : 0,
+    };
+  }, [computedTotal, metadataEdits.amount]);
+
   // Guard for missing documentId
   if (!documentId) {
     return <div>{t('autoItemize.error')}</div>;
@@ -455,97 +490,107 @@ export function PaperlessInvoiceReviewPage() {
   // Render loading state
   if (pageStatus === 'loading') {
     return (
-      <PageLayout
-        title={t('autoItemize.extractionStarted')}
-        action={
-          <button
-            type="button"
-            className={sharedStyles.btnSecondary}
-            onClick={handleCancel}
-            disabled
-          >
-            {t('autoItemize.cancel')}
-          </button>
-        }
-      >
-        <div className={styles.pageContainer}>
-          <div className={styles.loadingState}>
-            <Spinner />
-            <h2 className={styles.loadingMessage}>{t('autoItemize.extractingFromDocument')}</h2>
+      <div className={styles.pageContainer}>
+        <div className={styles.pageHeader}>
+          <div>
+            <button
+              type="button"
+              className={sharedStyles.btnSecondary}
+              onClick={handleCancel}
+              disabled
+            >
+              {t('autoItemize.cancel')}
+            </button>
           </div>
+          <h1 className={styles.pageTitle}>{t('autoItemize.extractionStarted')}</h1>
         </div>
-      </PageLayout>
+        <div className={styles.loadingState}>
+          <Spinner size="lg" />
+          <h2 className={styles.loadingMessage}>{t('autoItemize.extractingFromDocument')}</h2>
+        </div>
+      </div>
     );
   }
 
   // Render error state
   if (pageStatus === 'error' || !document) {
     return (
-      <PageLayout
-        title={t('autoItemize.error')}
-        action={
-          <button type="button" className={sharedStyles.btnSecondary} onClick={handleCancel}>
-            {t('autoItemize.cancel')}
-          </button>
-        }
-      >
-        <div className={styles.pageContainer}>
-          <div className={styles.errorState} role="alert">
-            <p className={styles.errorText}>{pageError || t('autoItemize.loadError')}</p>
-            <button type="button" className={sharedStyles.btnPrimary} onClick={handleCancel}>
-              {t('autoItemize.backToInvoices')}
+      <div className={styles.pageContainer}>
+        <div className={styles.pageHeader}>
+          <div>
+            <button type="button" className={sharedStyles.btnSecondary} onClick={handleCancel}>
+              {t('autoItemize.cancel')}
             </button>
           </div>
+          <h1 className={styles.pageTitle}>{t('autoItemize.error')}</h1>
         </div>
-      </PageLayout>
+        <div className={styles.errorState}>
+          <FormError variant="banner" message={pageError || t('autoItemize.loadError')} />
+          <button type="button" className={sharedStyles.btnPrimary} onClick={handleCancel}>
+            {t('autoItemize.backToInvoices')}
+          </button>
+        </div>
+      </div>
     );
   }
 
   // Ready state - render review form
   return (
     <>
-      <PageLayout
-        title={t('autoItemize.extractionComplete')}
-        action={
-          <button
-            type="button"
-            className={sharedStyles.btnSecondary}
-            onClick={handleCancel}
-            disabled={pageStatus === 'saving'}
-          >
-            {t('autoItemize.cancel')}
-          </button>
-        }
-      >
-        <div className={styles.pageContainer}>
-          <div className={styles.mainColumn}>
-            {/* Vendor selection (new for Paperless flow) */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>{t('autoItemize.vendor')}</h3>
+      <div className={styles.pageContainer}>
+        <div className={styles.pageHeader}>
+          <div>
+            <Link to="/budget/invoices" className={styles.breadcrumb}>
+              {t('autoItemize.backToInvoices')}
+            </Link>
+          </div>
+          <h1 className={styles.pageTitle}>{t('autoItemize.extractionComplete')}</h1>
+        </div>
 
-              {vendorError && <FormError message={vendorError} />}
+        <div className={styles.pageBody}>
+          {/* Form column */}
+          <div id="itemize-form" className={styles.formColumn} aria-busy={pageStatus === 'saving'}>
+            <a href="#itemize-form" className={styles.skipLink}>
+              {t('autoItemize.skipToForm')}
+            </a>
 
-              <div className={styles.field}>
-                <label htmlFor="vendor-picker" className={styles.label}>
-                  {t('autoItemize.vendor')} <span className={styles.required}>*</span>
+            {/* Page-level error banner */}
+            {pageError && <FormError variant="banner" message={pageError} />}
+
+            {/* Vendor card */}
+            <div className={styles.vendorCard}>
+              <h2 className={styles.sectionTitle}>{t('autoItemize.vendor')}</h2>
+              <div className={styles.fieldRow}>
+                <label htmlFor="vendor-picker" className={styles.vendorLabel}>
+                  {t('autoItemize.vendor')}
+                  <span aria-hidden="true" className={styles.required}>
+                    *
+                  </span>
+                  <span className={sharedStyles.srOnly}>{t('common.required')}</span>
                 </label>
                 <SearchPicker
                   id="vendor-picker"
                   value={vendorId}
-                  onChange={setVendorId}
-                  excludeIds={[]}
-                  searchFn={async (query) => {
-                    return vendors.filter((v) =>
-                      v.name.toLowerCase().includes(query.toLowerCase()),
-                    );
+                  onChange={(id) => {
+                    setVendorId(id);
+                    setVendorError(null);
                   }}
-                  renderItem={(vendor) => ({
-                    id: vendor.id,
-                    label: vendor.name,
-                  })}
+                  excludeIds={[]}
+                  searchFn={async (query) =>
+                    vendors.filter((v) => v.name.toLowerCase().includes(query.toLowerCase()))
+                  }
+                  renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
                   placeholder={t('autoItemize.vendorPlaceholder')}
                   initialTitle={suggestedVendorName ?? undefined}
+                  aria-required="true"
+                  aria-invalid={vendorError ? 'true' : undefined}
+                  aria-describedby={vendorError ? 'vendor-error' : undefined}
                 />
+                {vendorError && (
+                  <div id="vendor-error">
+                    <FormError variant="field" message={vendorError} />
+                  </div>
+                )}
                 {suggestedVendorId && vendorId === suggestedVendorId && (
                   <div className={styles.suggestionRow}>
                     <SuggestionBadge
@@ -559,290 +604,210 @@ export function PaperlessInvoiceReviewPage() {
               </div>
             </div>
 
-            {/* Budget line items (from extraction) */}
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>{t('autoItemize.extractedLines')}</h3>
-              {lines.length === 0 ? (
-                <p className={styles.emptyMessage}>{t('autoItemize.noLineItems')}</p>
-              ) : (
-                <ul
-                  role="list"
-                  className={styles.lineList}
-                  aria-label={t('autoItemize.lineItemsListLabel')}
-                >
-                  {lines.map((line) => {
-                    const pct = Math.round(line.confidence * 100);
-                    const confidenceLevel =
-                      line.confidence >= 0.85 ? 'high' : line.confidence >= 0.6 ? 'medium' : 'low';
+            {/* Metadata card — invoice number, amount, date, due-date, notes */}
+            <div className={styles.metadataCard}>
+              <h2 className={styles.sectionTitle}>{t('autoItemize.invoiceMetadata')}</h2>
+              {/* Invoice Number */}
+              <div className={styles.fieldRow}>
+                <label htmlFor="invoice-number" className={styles.label}>
+                  {t('autoItemize.invoiceNumber')}
+                </label>
+                <div className={styles.fieldControl}>
+                  <input
+                    id="invoice-number"
+                    type="text"
+                    value={metadataEdits.invoiceNumber ?? ''}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({
+                        ...prev,
+                        invoiceNumber: e.target.value || null,
+                      }))
+                    }
+                    placeholder={t('autoItemize.invoiceNumberPlaceholder')}
+                  />
+                </div>
+              </div>
+              {/* Amount */}
+              <div className={styles.fieldRow}>
+                <label htmlFor="amount" className={styles.label}>
+                  {t('autoItemize.amount')}
+                </label>
+                <div className={styles.fieldControl}>
+                  <input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={metadataEdits.amount}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({ ...prev, amount: e.target.value }))
+                    }
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              {/* Date */}
+              <div className={styles.fieldRow}>
+                <label htmlFor="date" className={styles.label}>
+                  {t('autoItemize.date')}
+                </label>
+                <div className={styles.fieldControl}>
+                  <input
+                    id="date"
+                    type="date"
+                    value={metadataEdits.date}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({ ...prev, date: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+              {/* Due Date */}
+              <div className={styles.fieldRow}>
+                <label htmlFor="due-date" className={styles.label}>
+                  {t('autoItemize.dueDate')}
+                </label>
+                <div className={styles.fieldControl}>
+                  <input
+                    id="due-date"
+                    type="date"
+                    value={metadataEdits.dueDate ?? ''}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({ ...prev, dueDate: e.target.value || null }))
+                    }
+                  />
+                </div>
+              </div>
+              {/* Notes */}
+              <div className={styles.fieldRow}>
+                <label htmlFor="notes" className={styles.label}>
+                  {t('autoItemize.notes')}
+                </label>
+                <div className={styles.fieldControl}>
+                  <textarea
+                    id="notes"
+                    value={metadataEdits.notes ?? ''}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({ ...prev, notes: e.target.value || null }))
+                    }
+                    placeholder={t('autoItemize.notesPlaceholder')}
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
 
-                    return (
-                      <li
-                        key={line.rowId}
-                        className={`${styles.lineCard} ${!line.included ? styles.lineCardExcluded : ''}`}
-                      >
-                        {/* Top row: description + confidence dot */}
-                        <div className={styles.cardTopRow}>
-                          <textarea
-                            className={styles.cardDescriptionInput}
-                            value={line.description}
-                            rows={2}
-                            onChange={(e) =>
-                              handleLineFieldChange(line.rowId, 'description', e.target.value)
-                            }
-                            aria-label={t('autoItemize.editDescriptionAriaLabel')}
-                          />
-                          <span
-                            role="img"
-                            className={styles.confidenceDot}
-                            data-confidence={confidenceLevel}
-                            title={`${pct}%`}
-                            aria-label={t('autoItemize.confidenceLabel', { pct })}
-                          />
-                        </div>
+            {/* Line items — shared component */}
+            <AutoItemizeLineList
+              lines={lines}
+              onToggleInclude={handleLineToggle}
+              onFieldChange={handleLineFieldChange}
+              onAssign={handleAssignButtonClick}
+              onClearAssign={(rowId) => {
+                setLines((prev) =>
+                  prev.map((l) =>
+                    l.rowId === rowId
+                      ? {
+                          ...l,
+                          assignedBudgetLineId: undefined,
+                          assignedBudgetLineType: undefined,
+                          assignedBudgetLineDescription: undefined,
+                          createdFromExtraction: undefined,
+                        }
+                      : l,
+                  ),
+                );
+              }}
+              categories={picker.pickerState.categories ?? []}
+              budgetSources={picker.pickerState.budgetSources ?? []}
+              discretionarySourceId={
+                (picker.pickerState.budgetSources ?? []).find((s) => s.isDiscretionary)?.id
+              }
+              computedTotal={computedTotal}
+              variance={variance}
+              variancePercent={variancePercent}
+              createdFromExtractionVariants={createdFromExtractionVariants}
+              formatCurrency={formatCurrency}
+              t={t}
+              tSettings={tSettings}
+            />
 
-                        {/* Middle row: metric grid */}
-                        <div className={styles.cardMetricGrid}>
-                          <div className={styles.cardMetricCell}>
-                            <span className={styles.cardMetricLabel}>
-                              {t('autoItemize.quantity')}
-                            </span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              className={styles.cardMetricInput}
-                              value={line.quantity ?? ''}
-                              placeholder="—"
-                              onChange={(e) =>
-                                handleLineFieldChange(line.rowId, 'quantity', e.target.value)
-                              }
-                              aria-label={t('autoItemize.editQuantityAriaLabel')}
-                            />
-                          </div>
-                          <div className={styles.cardMetricCell}>
-                            <span className={styles.cardMetricLabel}>{t('autoItemize.unit')}</span>
-                            <input
-                              type="text"
-                              className={styles.cardMetricInput}
-                              value={line.unit ?? ''}
-                              placeholder="—"
-                              onChange={(e) =>
-                                handleLineFieldChange(line.rowId, 'unit', e.target.value)
-                              }
-                              aria-label={t('autoItemize.editUnitAriaLabel')}
-                            />
-                          </div>
-                          <div className={styles.cardMetricCell}>
-                            <span className={styles.cardMetricLabel}>
-                              {t('autoItemize.unitPrice')}
-                            </span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              className={styles.cardMetricInput}
-                              value={line.unitPrice ?? ''}
-                              placeholder="—"
-                              onChange={(e) =>
-                                handleLineFieldChange(line.rowId, 'unitPrice', e.target.value)
-                              }
-                              aria-label={t('autoItemize.editUnitPriceAriaLabel')}
-                            />
-                          </div>
-                          <div className={styles.cardMetricCell}>
-                            <span className={styles.cardMetricLabel}>
-                              {t('autoItemize.amount')}
-                            </span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              className={styles.cardMetricInput}
-                              value={line.totalAmount ?? 0}
-                              onChange={(e) =>
-                                handleLineFieldChange(line.rowId, 'totalAmount', e.target.value)
-                              }
-                              aria-label={t('autoItemize.editTotalAmountAriaLabel')}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Bottom row: include + VAT + assign */}
-                        <div className={styles.cardBottomRow}>
-                          <label className={styles.cardIncludeLabel}>
-                            <input
-                              type="checkbox"
-                              checked={line.included}
-                              onChange={() => handleLineToggle(line.rowId)}
-                            />
-                            {t('autoItemize.included')}
-                          </label>
-                          <label className={styles.cardIncludeLabel}>
-                            <input
-                              type="checkbox"
-                              checked={line.includesVat !== false}
-                              onChange={(e) =>
-                                handleLineFieldChange(line.rowId, 'includesVat', e.target.checked)
-                              }
-                            />
-                            {t('autoItemize.includesVat')}
-                          </label>
-
-                          <div className={styles.cardAssignZone}>
-                            {!line.assignedBudgetLineId && !line.inlineCreatedBudgetLineDraft ? (
-                              <button
-                                type="button"
-                                className={`${sharedStyles.btnPrimaryCompact} ${styles.assignButtonInTable}`}
-                                onClick={() => handleAssignButtonClick(line.rowId)}
-                              >
-                                {t('autoItemize.assignButton')}
-                              </button>
-                            ) : line.assignedBudgetLineId ? (
-                              <div className={styles.assignedBadgeWrapper}>
-                                <div className={styles.assignedBadge}>
-                                  <span title={line.assignedBudgetLineDescription || undefined}>
-                                    {line.assignedBudgetLineDescription ||
-                                      t('autoItemize.assigned')}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className={styles.clearAssignButton}
-                                    onClick={() => {
-                                      setLines((prev) =>
-                                        prev.map((l) =>
-                                          l.rowId === line.rowId
-                                            ? {
-                                                ...l,
-                                                assignedBudgetLineId: undefined,
-                                                assignedBudgetLineType: undefined,
-                                                assignedBudgetLineDescription: undefined,
-                                                createdFromExtraction: undefined,
-                                              }
-                                            : l,
-                                        ),
-                                      );
-                                    }}
-                                    aria-label={t('autoItemize.clearAssignmentAriaLabel')}
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                                {line.createdFromExtraction && (
-                                  <Badge
-                                    variants={createdFromExtractionVariants}
-                                    value="true"
-                                    testId="auto-created-badge"
-                                  />
-                                )}
-                              </div>
-                            ) : (
-                              <div className={styles.assignedBadge}>
-                                <span>{t('autoItemize.creatingNew')}</span>
-                                <button
-                                  type="button"
-                                  className={styles.clearAssignButton}
-                                  onClick={() => {
-                                    setLines((prev) =>
-                                      prev.map((l) =>
-                                        l.rowId === line.rowId
-                                          ? { ...l, inlineCreatedBudgetLineDraft: undefined }
-                                          : l,
-                                      ),
-                                    );
-                                  }}
-                                  aria-label={t('autoItemize.clearAssignmentAriaLabel')}
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className={styles.cardBottomRowPickerRow}>
-                            {/* Category picker */}
-                            <div className={styles.cardMetricCell}>
-                              <label
-                                htmlFor={`category-${line.rowId}`}
-                                className={styles.cardPickerLabel}
-                              >
-                                {t('autoItemize.categoryLabel')}
-                              </label>
-                              <select
-                                id={`category-${line.rowId}`}
-                                className={styles.cardMetricInput}
-                                value={line.budgetCategoryId ?? ''}
-                                onChange={(e) =>
-                                  handleLineFieldChange(
-                                    line.rowId,
-                                    'budgetCategoryId',
-                                    e.target.value || null,
-                                  )
-                                }
-                                aria-label={t('autoItemize.categoryAriaLabel')}
-                              >
-                                <option value="">{t('autoItemize.categoryPlaceholder')}</option>
-                                {picker.pickerState.categories?.map((cat) => (
-                                  <option key={cat.id} value={cat.id}>
-                                    {getCategoryDisplayName(
-                                      tSettings,
-                                      cat.name,
-                                      cat.translationKey,
-                                    )}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Funding Source picker */}
-                            <div className={styles.cardMetricCell}>
-                              <label
-                                htmlFor={`source-${line.rowId}`}
-                                className={styles.cardPickerLabel}
-                              >
-                                {t('autoItemize.fundingSourceLabel')}
-                              </label>
-                              <select
-                                id={`source-${line.rowId}`}
-                                className={styles.cardMetricInput}
-                                value={line.budgetSourceId ?? ''}
-                                onChange={(e) =>
-                                  handleLineFieldChange(
-                                    line.rowId,
-                                    'budgetSourceId',
-                                    e.target.value,
-                                  )
-                                }
-                                aria-label={t('autoItemize.fundingSourceAriaLabel')}
-                              >
-                                {picker.pickerState.budgetSources?.map((src) => (
-                                  <option key={src.id} value={src.id}>
-                                    {src.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+            {/* Actions — inline in form column, no sticky bar */}
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={sharedStyles.btnPrimary}
+                onClick={() => void handleSave()}
+                disabled={pageStatus === 'saving'}
+              >
+                {pageStatus === 'saving'
+                  ? t('autoItemize.saving')
+                  : t('autoItemize.createAndItemize')}
+              </button>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={handleCancel}
+                disabled={pageStatus === 'saving'}
+              >
+                {t('autoItemize.cancel')}
+              </button>
             </div>
           </div>
 
-          {/* Save button */}
-          <div className={styles.actionBar}>
-            <button
-              type="button"
-              className={sharedStyles.btnPrimary}
-              onClick={handleSave}
-              disabled={pageStatus === 'saving' || !vendorId}
-            >
-              {pageStatus === 'saving'
-                ? t('autoItemize.saving')
-                : t('autoItemize.createAndItemize')}
-            </button>
+          {/* Preview column */}
+          <div className={styles.previewColumn}>
+            {!pdfFailed ? (
+              <div className={styles.pdfPreviewWrapper}>
+                {!pdfLoaded && (
+                  <div className={styles.pdfLoadingOverlay} aria-hidden="true">
+                    <Spinner size="md" color="muted" label={t('autoItemize.pdfPreviewTitle')} />
+                  </div>
+                )}
+                <iframe
+                  className={styles.pdfIframe}
+                  src={getDocumentPreviewUrl(documentId)}
+                  title={t('autoItemize.pdfPreviewTitle')}
+                  onLoad={() => setPdfLoaded(true)}
+                  onErrorCapture={() => setPdfFailed(true)}
+                />
+              </div>
+            ) : (
+              <div
+                className={styles.pdfFallback}
+                role="region"
+                aria-label={t('autoItemize.previewUnavailable')}
+              >
+                <svg
+                  aria-hidden="true"
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--color-text-muted)"
+                  strokeWidth="1.5"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span className={styles.pdfFallbackLabel}>
+                  {t('autoItemize.previewUnavailable')}
+                </span>
+                {paperlessStatus?.paperlessUrl && (
+                  <a
+                    href={`${paperlessStatus.paperlessUrl}/documents/${documentId}/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.pdfFallbackLink}
+                  >
+                    {t('autoItemize.openInPaperless')}
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
-      </PageLayout>
+      </div>
 
       {/* Budget line picker modal */}
       {picker.pickerState.isOpen && (
@@ -856,156 +821,43 @@ export function PaperlessInvoiceReviewPage() {
           }
           onClose={picker.closePicker}
         >
-          <div className={styles.pickerContent}>
-            {/* Step 1: Select item type and item */}
-            {picker.pickerState.step === 1 && (
-              <div className={styles.pickerStep}>
-                <ParentPicker
-                  selectedType={picker.pickerState.type ?? 'work_item'}
-                  selectedId={picker.pickerState.itemId ?? null}
-                  onChange={(type, id) => {
-                    picker.handleSelectItem(id, type);
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Step 2: Select budget line and set itemized amounts */}
-            {picker.pickerState.step === 2 && (
-              <div className={styles.pickerStep}>
-                {picker.pickerState.isLoading && (
-                  <div className={styles.loadingState}>
-                    {t('invoiceDetail.budgetLines.picker.loadingLines')}
-                  </div>
-                )}
-
-                {picker.pickerState.error && (
-                  <div className={styles.errorBanner} role="alert">
-                    {picker.pickerState.error}
-                  </div>
-                )}
-
-                {!picker.pickerState.isLoading &&
-                  picker.pickerState.budgetLines.length === 0 &&
-                  !picker.pickerState.error &&
-                  !picker.pickerState.showCreateForm && (
-                    <div className={styles.emptyState}>
-                      <p>{t('invoiceDetail.budgetLines.picker.noUnlinkedLines')}</p>
-                    </div>
-                  )}
-
-                {!picker.pickerState.isLoading &&
-                  picker.pickerState.showCreateForm &&
-                  picker.pickerState.createForm && (
-                    <div className={styles.createBudgetLineForm}>
-                      <fieldset className={styles.createBudgetLineFieldset}>
-                        <legend className={styles.srOnly}>
-                          {t('invoiceDetail.budgetLines.createFormLegend')}
-                        </legend>
-                        <BudgetLineForm
-                          form={picker.pickerState.createForm}
-                          onSubmit={(e) => picker.handleCreateBudgetLine(e)}
-                          onFormChange={(updates) =>
-                            picker.setPickerState((prev) => ({
-                              ...prev,
-                              createForm: prev.createForm
-                                ? { ...prev.createForm, ...updates }
-                                : prev.createForm,
-                            }))
-                          }
-                          onCancel={() => {
-                            picker.setPickerState((prev) => ({
-                              ...prev,
-                              showCreateForm: false,
-                              createForm: undefined,
-                              createError: null,
-                            }));
-                            setTimeout(() => {
-                              picker.createBudgetLineButtonRef.current?.focus();
-                            }, 0);
-                          }}
-                          error={picker.pickerState.createError ?? null}
-                          isSaving={picker.pickerState.isCreatingBudgetLine ?? false}
-                          isEditing={false}
-                          confidenceLabels={CONFIDENCE_LABELS}
-                          budgetSources={picker.pickerState.budgetSources ?? []}
-                          vendors={picker.pickerState.vendors ?? []}
-                          budgetCategories={
-                            picker.pickerState.type === 'work_item'
-                              ? (picker.pickerState.categories ?? [])
-                              : undefined
-                          }
-                        />
-                      </fieldset>
-                    </div>
-                  )}
-
-                {!picker.pickerState.isLoading &&
-                  picker.pickerState.budgetLines.length > 0 &&
-                  !picker.pickerState.showCreateForm && (
-                    <div className={styles.budgetLineList}>
-                      {picker.pickerState.budgetLines.map((line) => (
-                        <button
-                          key={line.id}
-                          type="button"
-                          className={styles.pickerBudgetLineRow}
-                          onClick={() => void handleSelectBudgetLine(line)}
-                        >
-                          <div className={styles.budgetLineInfo}>
-                            <div className={styles.budgetLineDesc}>
-                              {line.description ||
-                                t('invoiceDetail.budgetLines.picker.unnamedBudgetLine')}
-                            </div>
-                            <div className={styles.budgetLineDetails}>
-                              {line.budgetCategory && (
-                                <span className={styles.budgetLineCategory}>
-                                  {getCategoryDisplayName(
-                                    tSettings,
-                                    line.budgetCategory.name,
-                                    line.budgetCategory.translationKey,
-                                  )}
-                                </span>
-                              )}
-                              <span className={styles.budgetLinePlanned}>
-                                {t('invoiceDetail.budgetLines.picker.plannedLabel', {
-                                  amount: formatCurrency(line.plannedAmount),
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                {!picker.pickerState.isLoading && !picker.pickerState.showCreateForm && (
-                  <button
-                    type="button"
-                    ref={picker.createBudgetLineButtonRef}
-                    className={styles.addButton}
-                    onClick={handleCreateNewBudgetLine}
-                  >
-                    {t('invoiceDetail.budgetLines.picker.createLine')}
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  className={styles.backButton}
-                  onClick={() =>
-                    picker.setPickerState((prev) => ({
-                      ...prev,
-                      step: 1,
-                      budgetLines: [],
-                      isLoading: false,
-                    }))
-                  }
-                >
-                  {t('invoiceDetail.budgetLines.picker.backButton')}
-                </button>
-              </div>
-            )}
-          </div>
+          <BudgetLinePickerModal
+            pickerState={picker.pickerState}
+            setPickerState={picker.setPickerState}
+            handleSelectItem={picker.handleSelectItem}
+            createBudgetLineButtonRef={picker.createBudgetLineButtonRef}
+            onSelectBudgetLine={handleSelectBudgetLine}
+            onCreateNewBudgetLine={handleCreateNewBudgetLine}
+            onBackToStep1={() =>
+              picker.setPickerState((prev) => ({
+                ...prev,
+                step: 1,
+                budgetLines: [],
+                isLoading: false,
+              }))
+            }
+            onFormChange={(updates) =>
+              picker.setPickerState((prev) => ({
+                ...prev,
+                createForm: prev.createForm ? { ...prev.createForm, ...updates } : prev.createForm,
+              }))
+            }
+            onCancelCreateForm={() => {
+              picker.setPickerState((prev) => ({
+                ...prev,
+                showCreateForm: false,
+                createForm: undefined,
+                createError: null,
+              }));
+              setTimeout(() => {
+                picker.createBudgetLineButtonRef.current?.focus();
+              }, 0);
+            }}
+            onCreateBudgetLine={(e) => picker.handleCreateBudgetLine(e)}
+            t={t}
+            tSettings={tSettings}
+            formatCurrency={formatCurrency}
+          />
         </Modal>
       )}
     </>

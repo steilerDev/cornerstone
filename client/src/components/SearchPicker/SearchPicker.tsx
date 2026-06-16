@@ -1,7 +1,15 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  size,
+  FloatingPortal,
+} from '@floating-ui/react';
 
 import styles from './SearchPicker.module.css';
 
@@ -68,8 +76,6 @@ export function SearchPicker<T>({
   const [initialTitleCleared, setInitialTitleCleared] = useState(false);
   // Track whether the user has explicitly selected a special option
   const [specialSelected, setSpecialSelected] = useState(false);
-  // Portal dropdown positioning
-  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
 
   // The currently selected special option (if value matches one)
   // Only match a special option when the user explicitly chose one
@@ -82,12 +88,24 @@ export function SearchPicker<T>({
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Update dropdown rect for portal positioning
-  const updateDropdownRect = useCallback(() => {
-    if (inputRef.current) {
-      setDropdownRect(inputRef.current.getBoundingClientRect());
-    }
-  }, []);
+  const { refs, floatingStyles, isPositioned } = useFloating({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    strategy: 'fixed',
+    placement: 'bottom-start',
+    middleware: [
+      offset(4),
+      flip({ padding: 8 }),
+      shift({ padding: 8 }),
+      size({
+        padding: 8,
+        apply({ rects, elements }) {
+          Object.assign(elements.floating.style, { width: `${rects.reference.width}px` });
+        },
+      }),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -110,21 +128,6 @@ export function SearchPicker<T>({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
-
-  // Recalculate position on scroll/resize while dropdown is open
-  useEffect(() => {
-    if (!isOpen) return;
-
-    updateDropdownRect();
-
-    window.addEventListener('scroll', updateDropdownRect, true);
-    window.addEventListener('resize', updateDropdownRect);
-
-    return () => {
-      window.removeEventListener('scroll', updateDropdownRect, true);
-      window.removeEventListener('resize', updateDropdownRect);
-    };
-  }, [isOpen, updateDropdownRect]);
 
   // Reset when value is cleared externally (e.g. after form submission)
   useEffect(() => {
@@ -240,17 +243,13 @@ export function SearchPicker<T>({
     inputRef.current?.focus();
   };
 
-  // Compute dropdown top position (fixed vs above)
-  const dropdownTop = useMemo(() => {
-    if (!dropdownRect) return 0;
-    const VIEWPORT_PADDING = 8;
-    const DROPDOWN_HEIGHT = 300;
-    const spaceBelow = window.innerHeight - dropdownRect.bottom;
-    const flipAbove = spaceBelow < DROPDOWN_HEIGHT + VIEWPORT_PADDING;
-    return flipAbove
-      ? Math.max(4, dropdownRect.top - DROPDOWN_HEIGHT - 4)
-      : dropdownRect.bottom + 4;
-  }, [dropdownRect]);
+  const setInputRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      refs.setReference(node);
+      (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = node;
+    },
+    [refs],
+  );
 
   // If a special option is selected, show it in a display similar to selectedItem
   if (selectedSpecial) {
@@ -322,7 +321,7 @@ export function SearchPicker<T>({
     <div className={styles.container} ref={containerRef}>
       <input
         id={id}
-        ref={inputRef}
+        ref={setInputRef}
         type="text"
         className={styles.input}
         placeholder={resolvedPlaceholder}
@@ -337,17 +336,12 @@ export function SearchPicker<T>({
         disabled={disabled}
       />
 
-      {isOpen &&
-        dropdownRect &&
-        createPortal(
+      <FloatingPortal>
+        {isOpen && (
           <div
             data-search-picker-dropdown
-            style={{
-              position: 'fixed',
-              top: dropdownTop,
-              left: dropdownRect.left,
-              width: dropdownRect.width,
-            }}
+            ref={refs.setFloating}
+            style={isPositioned ? floatingStyles : { ...floatingStyles, visibility: 'hidden' }}
             className={styles.portalDropdown}
             role="listbox"
             onKeyDown={(e) => {
@@ -422,9 +416,9 @@ export function SearchPicker<T>({
               !searchTerm.trim() &&
               (!specialOptions || specialOptions.length === 0) &&
               !emptyHint && <div className={styles.stateMessage}>{resolvedEmptyHint}</div>}
-          </div>,
-          document.body,
+          </div>
         )}
+      </FloatingPortal>
     </div>
   );
 }

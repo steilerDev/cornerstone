@@ -44,13 +44,27 @@ Navigate to **Budget > Invoices** in the sidebar to see all invoices across all 
 
 ### Creating an Invoice
 
-From a vendor's detail page, click **New Invoice** and provide:
+Click **New Invoice** -- either from a vendor's detail page or from the top of the **Budget > Invoices** list. Provide:
 
 - **Invoice Number** -- The vendor's invoice reference number
 - **Date** -- The invoice date
 - **Amount** -- The total invoice amount
 
 Budget lines are linked to the invoice after creation from the invoice detail page (see [Linking Budget Lines](#linking-budget-lines-to-an-invoice) below).
+
+### Creating an Invoice from a Paperless document
+
+If you have both [Paperless-ngx](/guides/documents/setup) and [Auto-itemize](auto-itemize) configured, **New Invoice** becomes a faster, document-first flow. Instead of the blank form, it opens a **document picker**: choose the scanned PDF the vendor sent you, and Cornerstone reads the invoice straight off the page.
+
+Picking a document takes you to a review screen that:
+
+- **Pre-fills the invoice metadata** (number, amount, date, due date, notes) from the document, each with a one-click suggestion to apply the extracted value.
+- **Suggests the vendor** -- pick the matching vendor (the picker pre-suggests one based on the document); this field is required.
+- **Lists the extracted line items**, each ready to include, edit, categorise, fund, and assign to a work item or household item -- exactly like the [Auto-itemize](auto-itemize) review page. Net line items are grossed up by VAT so the totals match the invoice.
+
+Click **Create Invoice & Itemize** to create the invoice and all its budget lines in one step. The new-invoice review screen and the existing-invoice [Auto-itemize](auto-itemize) page share the same review interface, so the line-item editing, assignment, and funding-source behaviour is identical in both.
+
+If Paperless or Auto-itemize is not configured, **New Invoice** opens the plain form described above -- there is no document step. You can also fall back to manual entry from the picker at any time.
 
 ### Invoice Statuses
 

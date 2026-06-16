@@ -889,28 +889,20 @@ describe('SearchPicker', () => {
 });
 
 // ── Portal rendering (Story #1600) ────────────────────────────────────────────
-// Tests for the portal-based dropdown: the listbox is rendered into document.body
-// via createPortal, positioned via getBoundingClientRect, repositioned on
-// scroll/resize, and closed on Escape or click outside.
+// Tests for the portal-based dropdown using @floating-ui/react FloatingPortal.
+// The listbox is rendered into document.body via FloatingPortal (unconditionally
+// when isOpen=true — no getBoundingClientRect gate required).
+// Escape-key, click-outside, and click-result tests are kept unchanged.
 
 describe('portal rendering (Story #1600)', () => {
   beforeEach(() => {
     mockSearchFn.mockReset();
     mockSearchFn.mockResolvedValue(sampleItems);
 
-    // JSDOM does not implement getBoundingClientRect — stub it so the portal
-    // has a non-null rect and the dropdown is rendered.
-    Element.prototype.getBoundingClientRect = jest.fn<() => DOMRect>().mockReturnValue({
-      top: 100,
-      bottom: 140,
-      left: 50,
-      right: 250,
-      width: 200,
-      height: 40,
-      x: 50,
-      y: 100,
-      toJSON: () => ({}),
-    });
+    // NOTE: The getBoundingClientRect stub that was here for Story #1600 has been
+    // removed. With Floating UI (#1708), FloatingPortal renders the dropdown
+    // unconditionally when isOpen=true — there is no rect-gate. The portal renders
+    // without any stub. See FUI-1 test in 'Floating UI portal (#1708)' describe block.
   });
 
   afterEach(() => {
@@ -942,51 +934,11 @@ describe('portal rendering (Story #1600)', () => {
     expect(document.body.contains(portalEl)).toBe(true);
   });
 
-  // ── Test 10: position updated on scroll ──────────────────────────────────
-
-  it('dropdown repositions when window scroll fires while open', async () => {
-    const user = userEvent.setup();
-    renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
-
-    const input = screen.getByPlaceholderText('Search...');
-    await user.click(input);
-
-    await waitFor(() => {
-      expect(screen.getByRole('listbox')).toBeInTheDocument();
-    });
-
-    const portalEl = document.querySelector('[data-search-picker-dropdown]') as HTMLElement;
-    expect(portalEl).not.toBeNull();
-
-    const initialTop = portalEl.style.top;
-
-    // Update mock to return a different rect simulating scroll
-    (Element.prototype.getBoundingClientRect as jest.Mock).mockReturnValue({
-      top: 300,
-      bottom: 340,
-      left: 50,
-      right: 250,
-      width: 200,
-      height: 40,
-      x: 50,
-      y: 300,
-      toJSON: () => ({}),
-    });
-
-    // Fire a scroll event on window (capture phase listener)
-    act(() => {
-      window.dispatchEvent(new Event('scroll'));
-    });
-
-    // After scroll, the dropdown's top should have updated
-    await waitFor(() => {
-      const updatedTop = (document.querySelector('[data-search-picker-dropdown]') as HTMLElement)
-        ?.style.top;
-      // Either top changed or the component re-rendered with the new position
-      // Accept that top changed or that the element is still present (position update is async)
-      expect(updatedTop !== initialTop || updatedTop !== undefined).toBe(true);
-    });
-  });
+  // NOTE: The 'dropdown repositions when window scroll fires while open' test has been
+  // removed. It asserted that portalEl.style.top changed on window scroll by observing
+  // the dropdownRect state mutation. With Floating UI (#1708), autoUpdate handles
+  // repositioning internally — it is not observable as a DOM style mutation in jsdom
+  // because Floating UI's position calculation requires a real layout engine.
 
   // ── Test 11: click outside closes dropdown ───────────────────────────────
 
@@ -1156,5 +1108,81 @@ describe('renderSecondary slot', () => {
       // After selection the input is replaced by selectedDisplay — no secondary
       expect(screen.queryByTestId('secondary-line')).not.toBeInTheDocument();
     });
+  });
+});
+
+// ── Floating UI portal (#1708) ────────────────────────────────────────────────
+// Tests for @floating-ui/react integration in SearchPicker.
+//   FUI-1: Portal renders unconditionally (no getBoundingClientRect stub needed)
+//   FUI-2: dropdown is in document.body and not display:none when open
+//          (visibility:hidden is used transiently before isPositioned flips true;
+//          we cannot assert "never hidden" in jsdom due to non-deterministic timing)
+
+describe('Floating UI portal (#1708)', () => {
+  beforeEach(() => {
+    mockSearchFn.mockReset();
+    mockSearchFn.mockResolvedValue(sampleItems);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  // ── FUI-1: portal renders without a getBoundingClientRect stub ─────────────
+  // With Floating UI, FloatingPortal renders the dropdown unconditionally when
+  // isOpen=true. The old implementation required a non-null getBoundingClientRect
+  // result to gate the createPortal call — that gate is gone.
+
+  it('FUI-1 — portal renders without a getBoundingClientRect stub', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    // Listbox must appear with no getBoundingClientRect manipulation
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    // The portal element must be attached to document.body
+    const portalEl = document.querySelector('[data-search-picker-dropdown]');
+    expect(portalEl).not.toBeNull();
+    expect(document.body.contains(portalEl)).toBe(true);
+  });
+
+  // ── FUI-2: dropdown is in the DOM and not display:none when open ────────────
+  // SearchPicker sets visibility:hidden on the portal div during the brief transient
+  // window before @floating-ui/react's isPositioned flips true (i.e., before the
+  // first computePosition resolves). This is intentional anti-flash behaviour — the
+  // element is in the DOM from the moment isOpen=true, but stays invisible until
+  // Floating UI has computed its position. We cannot assert "never visibility:hidden"
+  // because in jsdom the timing of isPositioned is non-deterministic. Instead, verify:
+  //   (a) the portal element exists in document.body when open, and
+  //   (b) it is not hidden via display:none (which would prevent interaction entirely).
+
+  it('FUI-2 — portal dropdown is in document.body and not display:none when open', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    // Wait for the listbox to appear (isOpen=true; portal renders)
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    const dropdownEl = document.querySelector(
+      '[data-search-picker-dropdown]',
+    ) as HTMLElement | null;
+
+    // The portal element must exist on document.body
+    expect(dropdownEl).not.toBeNull();
+    expect(document.body.contains(dropdownEl)).toBe(true);
+
+    // It must not be removed from the layout via display:none
+    // (visibility:hidden is acceptable — it is the transient pre-positioned state)
+    expect(dropdownEl!.style.display).not.toBe('none');
   });
 });

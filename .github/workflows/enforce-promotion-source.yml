@@ -1,0 +1,31 @@
+name: Enforce Promotion Source
+
+# Guards the beta -> main promotion model: PRs targeting `main` must originate
+# from `beta`. This prevents a feature/fix branch (typically based on beta) from
+# being merged directly into main, which would drag in-flight beta work onto a
+# stable release out-of-band (see the #1710 incident).
+#
+# Enforcement: mark the `guard` job as a required status check on the `main`
+# ruleset. It only blocks at merge time; a non-beta PR into main stays blocked.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: enforce-promotion-source-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: Require head branch == beta
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify PR originates from beta
+        if: github.head_ref != 'beta'
+        run: |
+          echo "::error::PRs into 'main' must originate from 'beta' (got '${{ github.head_ref }}'). Promote via a beta -> main PR instead."
+          exit 1
+      - name: Promotion source OK
+        if: github.head_ref == 'beta'
+        run: echo "Head branch is 'beta' — promotion source is valid."

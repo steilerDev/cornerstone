@@ -1,0 +1,74 @@
+.lineList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.emptyMessage {
+  color: var(--color-text-muted);
+  font-style: italic;
+  text-align: center;
+  margin: 0;
+  padding: var(--spacing-4);
+}
+
+.totalsCard {
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-strong);
+  border-top-width: 2px;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-3) var(--spacing-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+  margin-top: var(--spacing-3);
+}
+
+.totalsAmount {
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.varianceMatch {
+  color: var(--color-success);
+  font-size: var(--font-size-xs);
+}
+
+.varianceWarning {
+  color: var(--color-warning-text-on-light);
+  font-size: var(--font-size-xs);
+}
+
+.varianceDanger {
+  color: var(--color-danger-text-on-light);
+  font-size: var(--font-size-xs);
+}
+
+.discretionaryNote {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: flex-start;
+  background-color: var(--color-primary-bg);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3) var(--spacing-4);
+  margin-bottom: var(--spacing-3);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.discretionaryNoteIcon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No transitions in this module currently */
+}

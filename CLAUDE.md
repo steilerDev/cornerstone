@@ -476,6 +476,7 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `PHOTO_MAX_FILE_SIZE_MB`     | `20`                       | Maximum photo upload size in MB                                                                               |
 | `PHOTO_STORAGE_PATH`         | `{DB_DIR}/photos`          | Directory for photo storage                                                                                   |
 | `DIARY_AUTO_EVENTS`          | `true`                     | Enable automatic diary event creation                                                                         |
+| `CURRENCY`                   | `EUR`                      | ISO 4217 currency code for formatting (exposed via `GET /api/config`)                                         |
 | `PAPERLESS_URL`              | (none)                     | Paperless-ngx instance base URL                                                                               |
 | `PAPERLESS_API_TOKEN`        | (none)                     | Paperless-ngx API authentication token                                                                        |
 | `PAPERLESS_EXTERNAL_URL`     | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)                           |

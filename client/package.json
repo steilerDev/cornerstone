@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@cornerstone/shared": "*",
+    "@floating-ui/react": "0.27.19",
     "i18next": "26.3.1",
     "konva": "10.3.0",
     "react": "19.2.7",

@@ -85,6 +85,7 @@ const sidebars = {
       items: [
         'guides/diary/manual-entries',
         'guides/diary/automatic-events',
+        'guides/diary/photo-capture',
         'guides/diary/photo-annotation',
         'guides/diary/signatures',
       ],
