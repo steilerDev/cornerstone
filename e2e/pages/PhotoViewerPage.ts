@@ -717,23 +717,38 @@ export class PhotoViewerPage {
   /**
    * Search for text in the currently-open area picker input.
    * Assumes the input is already focused/visible.
+   *
+   * Waits 400ms after filling to let SearchPicker's 300ms debounce fire and the
+   * results re-render settle before returning. Without this wait, callers that
+   * immediately invoke `getDropdownOptions()` read stale results, causing
+   * intermittent failures on shards 3/6/11/15 under CI load.
    */
   async searchAreaPicker(query: string): Promise<void> {
     await this.areaPickerInput.fill(query);
+    await this.page.waitForTimeout(400);
   }
 
   /**
    * Clear the area picker search (empty the input to restore full tree).
+   *
+   * Clearing to '' also triggers the 300ms debounce — wait 400ms so the full
+   * tree re-renders before callers read `getDropdownOptions()`.
    */
   async clearAreaPickerSearch(): Promise<void> {
     await this.areaPickerInput.fill('');
+    await this.page.waitForTimeout(400);
   }
 
   /**
    * Search for text in the orientation picker input.
+   *
+   * The orientation picker uses the same SearchPicker debounce (300ms) followed
+   * by a server-side fetch. Wait 400ms to let the debounce fire and the
+   * re-render settle before returning.
    */
   async searchOrientationPicker(query: string): Promise<void> {
     await this.orientationPickerInput.fill(query);
+    await this.page.waitForTimeout(400);
   }
 
   /**

@@ -507,12 +507,13 @@ describe('PhotoMetadataSidepanel', () => {
     const photoWithArea: Photo = { ...mockPhoto, areaId: 'area-unknown' };
     renderSidepanel({ photo: photoWithArea });
 
-    // Component renders without crash — the area picker is present
-    const areaLabel =
-      screen.queryByLabelText('area') ||
-      screen.queryByText('area') ||
-      document.getElementById('photo-area');
-    expect(areaLabel !== null || document.getElementById('photo-area') !== null).toBe(true);
+    // Component renders without crash — the area picker is present.
+    // CI (mock intercepted): data-testid="area-picker" is rendered.
+    // Local (mock not intercepted): real AreaPicker renders id="photo-area" input and label.
+    const areaPicker = document.querySelector('[data-testid="area-picker"]');
+    const areaInput = document.getElementById('photo-area');
+    const areaLabelEl = document.querySelector('label[for="photo-area"]');
+    expect(areaPicker !== null || areaInput !== null || areaLabelEl !== null).toBe(true);
   });
 
   it('initialTitle expression: photo with empty areaId renders noArea as initial title', async () => {
@@ -520,9 +521,13 @@ describe('PhotoMetadataSidepanel', () => {
     const photoNoArea: Photo = { ...mockPhoto, areaId: null };
     renderSidepanel({ photo: photoNoArea });
 
-    // Component renders without crash
-    const picker = document.getElementById('photo-area');
-    expect(picker).toBeInTheDocument();
+    // Component renders without crash — area field is present.
+    // CI (mock intercepted): data-testid="area-picker" is rendered.
+    // Local (mock not intercepted): real AreaPicker renders id="photo-area" input and label.
+    const areaPicker = document.querySelector('[data-testid="area-picker"]');
+    const areaInput = document.getElementById('photo-area');
+    const areaLabelEl = document.querySelector('label[for="photo-area"]');
+    expect(areaPicker !== null || areaInput !== null || areaLabelEl !== null).toBe(true);
   });
 
   it('toggleButton additionalClassName: no extra class argument renders base toggleButton class only', () => {
@@ -543,13 +548,12 @@ describe('PhotoMetadataSidepanel', () => {
     renderSidepanel({ photo: mockPhoto });
 
     // In CI (mock intercepted): AreaPicker stub renders data-testid="area-picker"
-    // Locally (mock not intercepted): component renders real AreaPicker (which may crash
-    //   or render differently — check for the label fallback)
+    // Locally (mock not intercepted): real AreaPicker renders id="photo-area" input and label
     await waitFor(() => {
       const areaPicker = document.querySelector('[data-testid="area-picker"]');
-      const areaLabel =
-        screen.queryByText('area') || document.getElementById('photo-area');
-      expect(areaPicker !== null || areaLabel !== null).toBe(true);
+      const areaInput = document.getElementById('photo-area');
+      const areaLabelEl = document.querySelector('label[for="photo-area"]');
+      expect(areaPicker !== null || areaInput !== null || areaLabelEl !== null).toBe(true);
     });
   });
 
