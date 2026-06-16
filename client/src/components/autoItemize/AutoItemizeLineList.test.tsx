@@ -48,11 +48,7 @@ jest.unstable_mockModule('./AutoItemizeLineCard.js', () => ({
     capturedAssign = onAssign;
     capturedClearAssign = onClearAssign;
 
-    return (
-      <li data-testid={`line-card-${line.rowId}`}>
-        {line.description}
-      </li>
-    );
+    return <li data-testid={`line-card-${line.rowId}`}>{line.description}</li>;
   },
 }));
 
@@ -76,10 +72,7 @@ beforeEach(async () => {
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-function makeLine(
-  rowId: string,
-  overrides: Partial<LineWithInclude> = {},
-): LineWithInclude {
+function makeLine(rowId: string, overrides: Partial<LineWithInclude> = {}): LineWithInclude {
   return {
     rowId,
     description: `Line ${rowId}`,

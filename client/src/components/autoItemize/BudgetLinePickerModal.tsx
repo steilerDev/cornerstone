@@ -78,34 +78,30 @@ export function BudgetLinePickerModal({
               </div>
             )}
 
-          {!pickerState.isLoading &&
-            pickerState.showCreateForm &&
-            pickerState.createForm && (
-              <div className={styles.createBudgetLineForm}>
-                <fieldset className={styles.createBudgetLineFieldset}>
-                  <legend className={styles.srOnly}>
-                    {t('invoiceDetail.budgetLines.createFormLegend')}
-                  </legend>
-                  <BudgetLineForm
-                    form={pickerState.createForm}
-                    onSubmit={onCreateBudgetLine}
-                    onFormChange={onFormChange}
-                    onCancel={onCancelCreateForm}
-                    error={pickerState.createError ?? null}
-                    isSaving={pickerState.isCreatingBudgetLine ?? false}
-                    isEditing={false}
-                    confidenceLabels={CONFIDENCE_LABELS}
-                    budgetSources={pickerState.budgetSources ?? []}
-                    vendors={pickerState.vendors ?? []}
-                    budgetCategories={
-                      pickerState.type === 'work_item'
-                        ? (pickerState.categories ?? [])
-                        : undefined
-                    }
-                  />
-                </fieldset>
-              </div>
-            )}
+          {!pickerState.isLoading && pickerState.showCreateForm && pickerState.createForm && (
+            <div className={styles.createBudgetLineForm}>
+              <fieldset className={styles.createBudgetLineFieldset}>
+                <legend className={styles.srOnly}>
+                  {t('invoiceDetail.budgetLines.createFormLegend')}
+                </legend>
+                <BudgetLineForm
+                  form={pickerState.createForm}
+                  onSubmit={onCreateBudgetLine}
+                  onFormChange={onFormChange}
+                  onCancel={onCancelCreateForm}
+                  error={pickerState.createError ?? null}
+                  isSaving={pickerState.isCreatingBudgetLine ?? false}
+                  isEditing={false}
+                  confidenceLabels={CONFIDENCE_LABELS}
+                  budgetSources={pickerState.budgetSources ?? []}
+                  vendors={pickerState.vendors ?? []}
+                  budgetCategories={
+                    pickerState.type === 'work_item' ? (pickerState.categories ?? []) : undefined
+                  }
+                />
+              </fieldset>
+            </div>
+          )}
 
           {!pickerState.isLoading &&
             pickerState.budgetLines.length > 0 &&
@@ -156,11 +152,7 @@ export function BudgetLinePickerModal({
             </button>
           )}
 
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={onBackToStep1}
-          >
+          <button type="button" className={styles.backButton} onClick={onBackToStep1}>
             {t('invoiceDetail.budgetLines.picker.backButton')}
           </button>
         </div>

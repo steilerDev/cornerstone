@@ -181,7 +181,8 @@ describe('AutoItemizeLineCard', () => {
 
   // 6. VAT toggle
   it('clicking the VAT checkbox calls onFieldChange with includesVat', () => {
-    const onFieldChange = jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
+    const onFieldChange =
+      jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
     renderCard({ rowId: 'row-1', includesVat: false }, { onFieldChange });
 
     // Second checkbox is the VAT checkbox
@@ -194,7 +195,8 @@ describe('AutoItemizeLineCard', () => {
 
   // 7. Description change
   it('typing in the description textarea calls onFieldChange with description', () => {
-    const onFieldChange = jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
+    const onFieldChange =
+      jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
     renderCard({ rowId: 'row-1', description: 'Paint' }, { onFieldChange });
 
     const textarea = screen.getByDisplayValue('Paint');
@@ -296,7 +298,8 @@ describe('AutoItemizeLineCard', () => {
 
   // 13. Category select calls onFieldChange with budgetCategoryId
   it('selecting a category calls onFieldChange with budgetCategoryId', () => {
-    const onFieldChange = jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
+    const onFieldChange =
+      jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
     renderCard({ rowId: 'row-1', budgetCategoryId: null }, { onFieldChange });
 
     // Category select has id="category-{rowId}"
@@ -311,7 +314,8 @@ describe('AutoItemizeLineCard', () => {
 
   // 14. Source select calls onFieldChange with budgetSourceId
   it('selecting a source calls onFieldChange with budgetSourceId', () => {
-    const onFieldChange = jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
+    const onFieldChange =
+      jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
     renderCard({ rowId: 'row-1', budgetSourceId: null }, { onFieldChange });
 
     // Source select has id="source-{rowId}"
@@ -356,7 +360,8 @@ describe('AutoItemizeLineCard', () => {
   });
 
   it('editing quantity calls onFieldChange with quantity field', () => {
-    const onFieldChange = jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
+    const onFieldChange =
+      jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
     renderCard({ rowId: 'row-1' }, { onFieldChange });
 
     const quantityInput = document.querySelector(
@@ -369,7 +374,8 @@ describe('AutoItemizeLineCard', () => {
   });
 
   it('editing unit calls onFieldChange with unit field', () => {
-    const onFieldChange = jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
+    const onFieldChange =
+      jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
     renderCard({ rowId: 'row-1' }, { onFieldChange });
 
     const unitInput = document.querySelector(
@@ -382,7 +388,8 @@ describe('AutoItemizeLineCard', () => {
   });
 
   it('editing unitPrice calls onFieldChange with unitPrice field', () => {
-    const onFieldChange = jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
+    const onFieldChange =
+      jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
     renderCard({ rowId: 'row-1' }, { onFieldChange });
 
     const unitPriceInput = document.querySelector(
@@ -395,7 +402,8 @@ describe('AutoItemizeLineCard', () => {
   });
 
   it('editing totalAmount calls onFieldChange with totalAmount field', () => {
-    const onFieldChange = jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
+    const onFieldChange =
+      jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
     renderCard({ rowId: 'row-1', totalAmount: 100 }, { onFieldChange });
 
     const amountInput = document.querySelector(
@@ -503,7 +511,8 @@ describe('AutoItemizeLineCard', () => {
   });
 
   it('clearing category select (empty string) calls onFieldChange with null', () => {
-    const onFieldChange = jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
+    const onFieldChange =
+      jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
     renderCard({ rowId: 'row-1', budgetCategoryId: 'cat-1' }, { onFieldChange });
 
     const catSelect = document.getElementById('category-row-1') as HTMLSelectElement;

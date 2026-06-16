@@ -41,18 +41,14 @@ export function AutoItemizeLineCard({
   }, [line.confidence]);
 
   return (
-    <li
-      className={`${styles.lineCard} ${!line.included ? styles.lineCardExcluded : ''}`}
-    >
+    <li className={`${styles.lineCard} ${!line.included ? styles.lineCardExcluded : ''}`}>
       {/* Top row: description + confidence dot */}
       <div className={styles.cardTopRow}>
         <textarea
           className={styles.cardDescriptionInput}
           value={line.description}
           rows={2}
-          onChange={(e) =>
-            onFieldChange(line.rowId, 'description', e.target.value)
-          }
+          onChange={(e) => onFieldChange(line.rowId, 'description', e.target.value)}
           aria-label={t('autoItemize.editDescriptionAriaLabel')}
         />
         <span
@@ -67,18 +63,14 @@ export function AutoItemizeLineCard({
       {/* Middle row: metric grid */}
       <div className={styles.cardMetricGrid}>
         <div className={styles.cardMetricCell}>
-          <span className={styles.cardMetricLabel}>
-            {t('autoItemize.quantity')}
-          </span>
+          <span className={styles.cardMetricLabel}>{t('autoItemize.quantity')}</span>
           <input
             type="number"
             step="0.01"
             className={styles.cardMetricInput}
             value={line.quantity ?? ''}
             placeholder="—"
-            onChange={(e) =>
-              onFieldChange(line.rowId, 'quantity', e.target.value)
-            }
+            onChange={(e) => onFieldChange(line.rowId, 'quantity', e.target.value)}
             aria-label={t('autoItemize.editQuantityAriaLabel')}
           />
         </div>
@@ -89,25 +81,19 @@ export function AutoItemizeLineCard({
             className={styles.cardMetricInput}
             value={line.unit ?? ''}
             placeholder="—"
-            onChange={(e) =>
-              onFieldChange(line.rowId, 'unit', e.target.value)
-            }
+            onChange={(e) => onFieldChange(line.rowId, 'unit', e.target.value)}
             aria-label={t('autoItemize.editUnitAriaLabel')}
           />
         </div>
         <div className={styles.cardMetricCell}>
-          <span className={styles.cardMetricLabel}>
-            {t('autoItemize.unitPrice')}
-          </span>
+          <span className={styles.cardMetricLabel}>{t('autoItemize.unitPrice')}</span>
           <input
             type="number"
             step="0.01"
             className={styles.cardMetricInput}
             value={line.unitPrice ?? ''}
             placeholder="—"
-            onChange={(e) =>
-              onFieldChange(line.rowId, 'unitPrice', e.target.value)
-            }
+            onChange={(e) => onFieldChange(line.rowId, 'unitPrice', e.target.value)}
             aria-label={t('autoItemize.editUnitPriceAriaLabel')}
           />
         </div>
@@ -118,9 +104,7 @@ export function AutoItemizeLineCard({
             step="0.01"
             className={styles.cardMetricInput}
             value={line.totalAmount ?? 0}
-            onChange={(e) =>
-              onFieldChange(line.rowId, 'totalAmount', e.target.value)
-            }
+            onChange={(e) => onFieldChange(line.rowId, 'totalAmount', e.target.value)}
             aria-label={t('autoItemize.editTotalAmountAriaLabel')}
           />
         </div>
@@ -140,9 +124,7 @@ export function AutoItemizeLineCard({
           <input
             type="checkbox"
             checked={line.includesVat !== false}
-            onChange={(e) =>
-              onFieldChange(line.rowId, 'includesVat', e.target.checked)
-            }
+            onChange={(e) => onFieldChange(line.rowId, 'includesVat', e.target.checked)}
           />
           {t('autoItemize.includesVat')}
         </label>
@@ -197,10 +179,7 @@ export function AutoItemizeLineCard({
         <div className={styles.cardBottomRowPickerRow}>
           {/* Category picker */}
           <div className={styles.cardMetricCell}>
-            <label
-              htmlFor={`category-${line.rowId}`}
-              className={styles.cardPickerLabel}
-            >
+            <label htmlFor={`category-${line.rowId}`} className={styles.cardPickerLabel}>
               {t('autoItemize.categoryLabel')}
             </label>
             <select
@@ -208,11 +187,7 @@ export function AutoItemizeLineCard({
               className={styles.cardMetricInput}
               value={line.budgetCategoryId ?? ''}
               onChange={(e) =>
-                onFieldChange(
-                  line.rowId,
-                  'budgetCategoryId',
-                  e.target.value || null,
-                )
+                onFieldChange(line.rowId, 'budgetCategoryId', e.target.value || null)
               }
               aria-label={t('autoItemize.categoryAriaLabel')}
             >
@@ -227,19 +202,14 @@ export function AutoItemizeLineCard({
 
           {/* Funding Source picker */}
           <div className={styles.cardMetricCell}>
-            <label
-              htmlFor={`source-${line.rowId}`}
-              className={styles.cardPickerLabel}
-            >
+            <label htmlFor={`source-${line.rowId}`} className={styles.cardPickerLabel}>
               {t('autoItemize.fundingSourceLabel')}
             </label>
             <select
               id={`source-${line.rowId}`}
               className={styles.cardMetricInput}
               value={line.budgetSourceId ?? ''}
-              onChange={(e) =>
-                onFieldChange(line.rowId, 'budgetSourceId', e.target.value)
-              }
+              onChange={(e) => onFieldChange(line.rowId, 'budgetSourceId', e.target.value)}
               aria-label={t('autoItemize.fundingSourceAriaLabel')}
             >
               {budgetSources?.map((src) => (

@@ -1535,7 +1535,8 @@ describe('PaperlessInvoiceReviewPage', () => {
         // The component renders: {vendorError && <FormError variant="field" message={vendorError} />}
         // which produces a div with an error message.
         // Also verify page did NOT navigate (invoices-list-page is NOT present)
-        const navigated = screen.queryByTestId('invoices-list-page') !== null ||
+        const navigated =
+          screen.queryByTestId('invoices-list-page') !== null ||
           screen.queryByTestId('invoice-detail-page') !== null;
         const hasVendorError =
           screen.queryByRole('alert') !== null ||
@@ -1640,7 +1641,7 @@ describe('PaperlessInvoiceReviewPage', () => {
           // Cancel button still present → we're in ready state with an inline banner
           expect(
             screen.queryByRole('button', { name: /cancel/i }) !== null ||
-            screen.queryByRole('button', { name: /Back to Invoices/i }) !== null,
+              screen.queryByRole('button', { name: /Back to Invoices/i }) !== null,
           ).toBe(true);
         }
       }
@@ -1679,8 +1680,8 @@ describe('PaperlessInvoiceReviewPage', () => {
         // Accept either the real title or the translation key
         expect(
           title?.toLowerCase().includes('pdf') ||
-          title?.includes('pdfPreviewTitle') ||
-          title?.includes('preview'),
+            title?.includes('pdfPreviewTitle') ||
+            title?.includes('preview'),
         ).toBe(true);
       } else {
         // If the iframe is not found in local env (mocks not intercepted, page may be in

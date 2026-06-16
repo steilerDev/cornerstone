@@ -10,7 +10,11 @@ import type {
   HouseholdItemBudgetLine,
 } from '@cornerstone/shared';
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
-import { getPaperlessDocument, getDocumentPreviewUrl, getPaperlessStatus } from '../../lib/paperlessApi.js';
+import {
+  getPaperlessDocument,
+  getDocumentPreviewUrl,
+  getPaperlessStatus,
+} from '../../lib/paperlessApi.js';
 import { previewAutoItemize, commitAutoItemizeCreate } from '../../lib/invoiceAutoItemizeApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -24,7 +28,11 @@ import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
 import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
-import { AutoItemizeLineList, BudgetLinePickerModal, type LineWithInclude } from '../../components/autoItemize/index.js';
+import {
+  AutoItemizeLineList,
+  BudgetLinePickerModal,
+  type LineWithInclude,
+} from '../../components/autoItemize/index.js';
 import { effectiveLineAmount } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './PaperlessInvoiceReviewPage.module.css';
@@ -517,10 +525,7 @@ export function PaperlessInvoiceReviewPage() {
           <h1 className={styles.pageTitle}>{t('autoItemize.error')}</h1>
         </div>
         <div className={styles.errorState}>
-          <FormError
-            variant="banner"
-            message={pageError || t('autoItemize.loadError')}
-          />
+          <FormError variant="banner" message={pageError || t('autoItemize.loadError')} />
           <button type="button" className={sharedStyles.btnPrimary} onClick={handleCancel}>
             {t('autoItemize.backToInvoices')}
           </button>
@@ -544,11 +549,7 @@ export function PaperlessInvoiceReviewPage() {
 
         <div className={styles.pageBody}>
           {/* Form column */}
-          <div
-            id="itemize-form"
-            className={styles.formColumn}
-            aria-busy={pageStatus === 'saving'}
-          >
+          <div id="itemize-form" className={styles.formColumn} aria-busy={pageStatus === 'saving'}>
             <a href="#itemize-form" className={styles.skipLink}>
               {t('autoItemize.skipToForm')}
             </a>
@@ -562,7 +563,9 @@ export function PaperlessInvoiceReviewPage() {
               <div className={styles.fieldRow}>
                 <label htmlFor="vendor-picker" className={styles.vendorLabel}>
                   {t('autoItemize.vendor')}
-                  <span aria-hidden="true" className={styles.required}>*</span>
+                  <span aria-hidden="true" className={styles.required}>
+                    *
+                  </span>
                   <span className={sharedStyles.srOnly}>{t('common.required')}</span>
                 </label>
                 <SearchPicker
@@ -615,7 +618,10 @@ export function PaperlessInvoiceReviewPage() {
                     type="text"
                     value={metadataEdits.invoiceNumber ?? ''}
                     onChange={(e) =>
-                      setMetadataEdits((prev) => ({ ...prev, invoiceNumber: e.target.value || null }))
+                      setMetadataEdits((prev) => ({
+                        ...prev,
+                        invoiceNumber: e.target.value || null,
+                      }))
                     }
                     placeholder={t('autoItemize.invoiceNumberPlaceholder')}
                   />
@@ -650,7 +656,9 @@ export function PaperlessInvoiceReviewPage() {
                     id="date"
                     type="date"
                     value={metadataEdits.date}
-                    onChange={(e) => setMetadataEdits((prev) => ({ ...prev, date: e.target.value }))}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({ ...prev, date: e.target.value }))
+                    }
                   />
                 </div>
               </div>
@@ -732,7 +740,9 @@ export function PaperlessInvoiceReviewPage() {
                 onClick={() => void handleSave()}
                 disabled={pageStatus === 'saving'}
               >
-                {pageStatus === 'saving' ? t('autoItemize.saving') : t('autoItemize.createAndItemize')}
+                {pageStatus === 'saving'
+                  ? t('autoItemize.saving')
+                  : t('autoItemize.createAndItemize')}
               </button>
               <button
                 type="button"
@@ -768,8 +778,15 @@ export function PaperlessInvoiceReviewPage() {
                 role="region"
                 aria-label={t('autoItemize.previewUnavailable')}
               >
-                <svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--color-text-muted)" strokeWidth="1.5">
+                <svg
+                  aria-hidden="true"
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="var(--color-text-muted)"
+                  strokeWidth="1.5"
+                >
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
@@ -812,7 +829,12 @@ export function PaperlessInvoiceReviewPage() {
             onSelectBudgetLine={handleSelectBudgetLine}
             onCreateNewBudgetLine={handleCreateNewBudgetLine}
             onBackToStep1={() =>
-              picker.setPickerState((prev) => ({ ...prev, step: 1, budgetLines: [], isLoading: false }))
+              picker.setPickerState((prev) => ({
+                ...prev,
+                step: 1,
+                budgetLines: [],
+                isLoading: false,
+              }))
             }
             onFormChange={(updates) =>
               picker.setPickerState((prev) => ({

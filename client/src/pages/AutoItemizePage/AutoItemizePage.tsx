@@ -32,7 +32,11 @@ import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
-import { AutoItemizeLineList, BudgetLinePickerModal, type LineWithInclude } from '../../components/autoItemize/index.js';
+import {
+  AutoItemizeLineList,
+  BudgetLinePickerModal,
+  type LineWithInclude,
+} from '../../components/autoItemize/index.js';
 import { CONFIDENCE_LABELS, effectiveLineAmount } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizePage.module.css';

@@ -35,12 +35,7 @@ jest.unstable_mockModule('../../components/ParentPicker/ParentPicker.js', () => 
     onChange: (type: 'work_item' | 'household_item', id: string) => Promise<void>;
   }) => {
     capturedParentPickerOnChange = onChange;
-    return (
-      <div
-        data-testid="parent-picker"
-        data-selected-type={selectedType}
-      />
-    );
+    return <div data-testid="parent-picker" data-selected-type={selectedType} />;
   },
 }));
 
@@ -125,7 +120,8 @@ function renderModal(
   const pickerState = makePickerState(pickerStateOverrides);
   const createBudgetLineButtonRef = { current: null } as React.RefObject<HTMLButtonElement | null>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleSelectItem = callbacks.handleSelectItem ?? jest.fn<any>().mockResolvedValue(undefined);
+  const handleSelectItem =
+    callbacks.handleSelectItem ?? jest.fn<any>().mockResolvedValue(undefined);
   const setPickerState = callbacks.setPickerState ?? jest.fn();
 
   return {
@@ -170,7 +166,9 @@ describe('BudgetLinePickerModal', () => {
     renderModal({ step: 1 });
 
     // Back button and budget line list are only in step 2
-    expect(screen.queryByRole('button', { name: /invoiceDetail.budgetLines.picker.backButton/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /invoiceDetail.budgetLines.picker.backButton/i }),
+    ).not.toBeInTheDocument();
   });
 
   // 2. Step 2 renders budget line list when budgetLines.length > 0
@@ -227,9 +225,7 @@ describe('BudgetLinePickerModal', () => {
       budgetLines: [],
     });
 
-    expect(
-      screen.getByText('invoiceDetail.budgetLines.picker.loadingLines'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('invoiceDetail.budgetLines.picker.loadingLines')).toBeInTheDocument();
   });
 
   // 5. Back button calls onBackToStep1
@@ -396,9 +392,7 @@ describe('BudgetLinePickerModal', () => {
     });
 
     // Loading text renders
-    expect(
-      screen.getByText('invoiceDetail.budgetLines.picker.loadingLines'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('invoiceDetail.budgetLines.picker.loadingLines')).toBeInTheDocument();
     // Budget lines list is NOT rendered when loading (per: !pickerState.isLoading && budgetLines.length > 0)
     expect(screen.queryByText('Tile budget')).not.toBeInTheDocument();
   });
