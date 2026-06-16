@@ -398,6 +398,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
+        id: browser-cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
@@ -425,6 +426,11 @@ jobs:
           done
           echo "All attempts failed"
           exit 1
+        working-directory: e2e
+
+      - name: Install Playwright browsers (cache miss fallback)
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium chromium-headless-shell webkit
         working-directory: e2e
 
       - name: Run E2E smoke tests
@@ -479,6 +485,7 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
+        id: browser-cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
@@ -506,6 +513,11 @@ jobs:
           done
           echo "All attempts failed"
           exit 1
+        working-directory: e2e
+
+      - name: Install Playwright browsers (cache miss fallback)
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium chromium-headless-shell webkit
         working-directory: e2e
 
       - name: Run E2E tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
