@@ -106,21 +106,26 @@ export function PhotoMetadataSidepanel({
     label: area.name,
   });
 
+  // Toggle button JSX — reused in two locations (closed launcher or header)
+  const toggleButton = (additionalClassName?: string) => (
+    <button
+      type="button"
+      className={`${styles.toggleButton}${additionalClassName ? ` ${additionalClassName}` : ''}`}
+      onClick={() => setIsOpenMobile((v) => !v)}
+      aria-expanded={isOpenMobile}
+      aria-controls="photo-metadata-sidepanel"
+      data-testid="photo-metadata-toggle"
+      title={t('metadataToggle')}
+      aria-label={t('metadataToggle')}
+    >
+      <ChevronUpIcon />
+    </button>
+  );
+
   return (
     <>
-      {/* Toggle button — visible on mobile only */}
-      <button
-        type="button"
-        className={styles.toggleButton}
-        onClick={() => setIsOpenMobile((v) => !v)}
-        aria-expanded={isOpenMobile}
-        aria-controls="photo-metadata-sidepanel"
-        data-testid="photo-metadata-toggle"
-        title={t('metadataToggle')}
-        aria-label={t('metadataToggle')}
-      >
-        <ChevronUpIcon />
-      </button>
+      {/* Toggle button (closed launcher) — visible on mobile only when panel is closed */}
+      {!isOpenMobile && toggleButton(styles.toggleButtonFloating)}
 
       {/* Sidepanel */}
       <div
@@ -131,6 +136,8 @@ export function PhotoMetadataSidepanel({
       >
         <div className={styles.header}>
           <h3 className={styles.title}>{t('metadataTitle')}</h3>
+          {/* Toggle button (in header) — visible on mobile only when panel is open */}
+          {isOpenMobile && toggleButton(styles.toggleButtonInHeader)}
         </div>
 
         <div className={styles.content}>

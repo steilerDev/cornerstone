@@ -15,6 +15,9 @@
   padding: var(--spacing-4);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .title {
@@ -200,6 +203,20 @@
     transform: rotate(180deg);
   }
 
+  /* Floating launcher — positioned fixed at bottom-right when panel is closed */
+  .toggleButtonFloating {
+    position: fixed;
+    bottom: var(--spacing-4);
+    right: var(--spacing-4);
+    z-index: 20;
+  }
+
+  /* In-header toggle — flows statically in the header when panel is open */
+  .toggleButtonInHeader {
+    position: static;
+    flex-shrink: 0;
+  }
+
   .sidepanel {
     position: fixed;
     bottom: 0;
@@ -243,5 +260,10 @@
 
   .toggleButton[aria-expanded='true'] {
     transform: none;
+  }
+
+  .toggleButtonFloating,
+  .toggleButtonInHeader {
+    transition: none;
   }
 }
