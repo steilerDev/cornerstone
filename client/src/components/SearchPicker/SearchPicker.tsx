@@ -29,6 +29,7 @@ export interface SearchPickerProps<T> {
   searchFn: (query: string, excludeIds: string[]) => Promise<T[]>;
   renderItem: (item: T) => { id: string; label: string };
   renderSecondary?: (item: T) => ReactNode;
+  renderSelectedLabel?: (item: T) => string;
   getStatusBorderColor?: (item: T) => string | undefined;
   specialOptions?: SpecialOption[];
   showItemsOnFocus?: boolean;
@@ -50,6 +51,7 @@ export function SearchPicker<T>({
   searchFn,
   renderItem,
   renderSecondary,
+  renderSelectedLabel,
   getStatusBorderColor,
   specialOptions,
   showItemsOnFocus,
@@ -216,6 +218,8 @@ export function SearchPicker<T>({
   const handleSelect = (item: T) => {
     const rendered = renderItem(item);
     setSelectedItem(item);
+    // Once the user selects an item, the pre-populated initialTitle is no longer the source of truth
+    setInitialTitleCleared(true);
     onChange(rendered.id);
     onSelectItem?.({ id: rendered.id, label: rendered.label });
     setIsOpen(false);
@@ -274,7 +278,7 @@ export function SearchPicker<T>({
   }
 
   // Show initialTitle when value is pre-populated and not yet changed by the user
-  if (initialTitle && value && !selectedItem && !initialTitleCleared) {
+  if (initialTitle && value && !initialTitleCleared) {
     return (
       <div className={styles.container} ref={containerRef}>
         <div className={styles.selectedDisplay}>
@@ -294,15 +298,15 @@ export function SearchPicker<T>({
   }
 
   if (selectedItem) {
-    const rendered = renderItem(selectedItem);
     const borderColor = getStatusBorderColor?.(selectedItem);
+    const label = renderSelectedLabel ? renderSelectedLabel(selectedItem) : renderItem(selectedItem).label;
     return (
       <div className={styles.container} ref={containerRef}>
         <div
           className={styles.selectedDisplay}
           style={borderColor ? { borderLeftColor: borderColor } : undefined}
         >
-          <span className={styles.selectedTitle}>{rendered.label}</span>
+          <span className={styles.selectedTitle}>{label}</span>
           <button
             type="button"
             className={styles.clearButton}
@@ -381,6 +385,7 @@ export function SearchPicker<T>({
               results.length > 0 &&
               results.map((item) => {
                 const rendered = renderItem(item);
+                const secondary = renderSecondary?.(item);
                 return (
                   <button
                     key={rendered.id}
@@ -390,10 +395,12 @@ export function SearchPicker<T>({
                     className={styles.resultOption}
                     onClick={() => handleSelect(item)}
                   >
-                    {renderSecondary !== undefined ? (
+                    {secondary !== undefined && secondary !== null ? (
                       <span className={styles.resultContent}>
                         <span className={styles.resultTitle}>{rendered.label}</span>
-                        <span className={styles.resultSecondary}>{renderSecondary(item)}</span>
+                        <span className={styles.resultSecondary} title={typeof secondary === 'string' ? secondary : undefined}>
+                          {secondary}
+                        </span>
                       </span>
                     ) : (
                       <span className={styles.resultTitle}>{rendered.label}</span>

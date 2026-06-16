@@ -28,13 +28,17 @@ function toOrientationResponse(row: typeof orientations.$inferSelect): Orientati
 
 /**
  * List all orientations, sorted by sort_order ascending, then name ascending.
- * Optionally filter by name search (case-insensitive).
+ * Optionally filter by name or description search (case-insensitive).
  */
 export function listOrientations(db: DbType, search?: string): OrientationResponse[] {
   const rows = db
     .select()
     .from(orientations)
-    .where(search ? sql`LOWER(${orientations.name}) LIKE LOWER(${`%${search}%`})` : undefined)
+    .where(
+      search
+        ? sql`LOWER(${orientations.name}) LIKE LOWER(${`%${search}%`}) OR LOWER(${orientations.description}) LIKE LOWER(${`%${search}%`})`
+        : undefined,
+    )
     .orderBy(asc(orientations.sortOrder), asc(orientations.name))
     .all();
 

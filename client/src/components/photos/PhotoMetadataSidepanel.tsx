@@ -4,7 +4,7 @@ import type { Photo, AreaResponse } from '@cornerstone/shared';
 import { updatePhoto } from '../../lib/photoApi.js';
 import { fetchAreas } from '../../lib/areasApi.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { SearchPicker } from '../SearchPicker/index.js';
+import { AreaPicker } from '../AreaPicker/index.js';
 import { OrientationPicker } from '../OrientationPicker/index.js';
 import styles from './PhotoMetadataSidepanel.module.css';
 
@@ -86,9 +86,6 @@ export function PhotoMetadataSidepanel({
     }
   }, [photo.id, caption, areaId, orientationId, onPhotoUpdated]);
 
-  const searchAreas = useCallback(async (query: string) => {
-    return fetchAreas({ search: query }).then((resp) => resp.areas || []);
-  }, []);
 
   // Hide sidepanel entirely when annotation mode is active
   if (isAnnotating) {
@@ -100,11 +97,6 @@ export function PhotoMetadataSidepanel({
     areaId !== (photo.areaId ?? '') ||
     orientationId !== (photo.orientationId ?? '');
   const isDisabled = isSaving || isLoadingAreas;
-
-  const renderAreaItem = (area: AreaResponse) => ({
-    id: area.id,
-    label: area.name,
-  });
 
   // Toggle button JSX — reused in two locations (closed launcher or header)
   const toggleButton = (additionalClassName?: string) => (
@@ -169,21 +161,13 @@ export function PhotoMetadataSidepanel({
               {t('area')}
             </label>
             <div className={styles.areaPicker}>
-              <SearchPicker<AreaResponse>
+              <AreaPicker
                 id="photo-area"
+                areas={areas}
                 value={areaId}
                 onChange={setAreaId}
-                excludeIds={[]}
                 disabled={isDisabled}
-                placeholder={t('areaPlaceholder')}
-                searchFn={searchAreas}
-                renderItem={renderAreaItem}
-                specialOptions={[{ id: '', label: t('noArea') }]}
-                showItemsOnFocus={true}
-                initialTitle={
-                  areas.find((a) => a.id === areaId)?.name ||
-                  (areaId === '' ? t('noArea') : undefined)
-                }
+                nullable={true}
               />
             </div>
           </div>

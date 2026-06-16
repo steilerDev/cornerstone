@@ -124,6 +124,141 @@ describe('orientationService', () => {
       const result = listOrientations(app.db, 'nonexistent');
       expect(result).toEqual([]);
     });
+
+    it('search matches description-only (name does not match, description does)', () => {
+      const now = new Date().toISOString();
+      app.db
+        .insert(schema.orientations)
+        .values({
+          id: 'o-desc-1',
+          name: 'North',
+          description: 'Facing garden side',
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      app.db
+        .insert(schema.orientations)
+        .values({
+          id: 'o-desc-2',
+          name: 'South',
+          description: 'Facing street side',
+          sortOrder: 1,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      // 'garden' matches description of 'North' only, not name
+      const result = listOrientations(app.db, 'garden');
+      expect(result).toHaveLength(1);
+      expect(result[0]!.name).toBe('North');
+      expect(result[0]!.description).toBe('Facing garden side');
+    });
+
+    it('search matching both name and description returns single row without duplicates', () => {
+      const now = new Date().toISOString();
+      // Insert one orientation where 'south' matches both name AND description
+      app.db
+        .insert(schema.orientations)
+        .values({
+          id: 'o-both-1',
+          name: 'South',
+          description: 'South-facing terrace',
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const result = listOrientations(app.db, 'south');
+      // Must return exactly 1 row, not 2 (no duplication from OR condition)
+      expect(result).toHaveLength(1);
+      expect(result[0]!.name).toBe('South');
+    });
+
+    it('null description is safe — orientation with null description excluded from description-only match', () => {
+      const now = new Date().toISOString();
+      // One orientation with null description, one with a matching description
+      app.db
+        .insert(schema.orientations)
+        .values({
+          id: 'o-null-desc',
+          name: 'West',
+          description: null,
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      app.db
+        .insert(schema.orientations)
+        .values({
+          id: 'o-has-desc',
+          name: 'East',
+          description: 'Terrace facing east',
+          sortOrder: 1,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      // 'terrace' matches only o-has-desc's description; o-null-desc has null description
+      const result = listOrientations(app.db, 'terrace');
+      expect(result).toHaveLength(1);
+      expect(result[0]!.name).toBe('East');
+    });
+
+    it('name-only match still works (regression guard for OR condition)', () => {
+      const now = new Date().toISOString();
+      app.db
+        .insert(schema.orientations)
+        .values({
+          id: 'o-name-only',
+          name: 'Southwest',
+          description: 'Main compass bearing',
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      app.db
+        .insert(schema.orientations)
+        .values({
+          id: 'o-no-match',
+          name: 'Northeast',
+          description: 'Another bearing',
+          sortOrder: 1,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      // 'southwest' matches name of o-name-only only (not o-no-match's name or description)
+      const result = listOrientations(app.db, 'southwest');
+      expect(result).toHaveLength(1);
+      expect(result[0]!.name).toBe('Southwest');
+    });
+
+    it('description search is case-insensitive', () => {
+      const now = new Date().toISOString();
+      app.db
+        .insert(schema.orientations)
+        .values({
+          id: 'o-ci-desc',
+          name: 'North',
+          description: 'Mountain View',
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      expect(listOrientations(app.db, 'MOUNTAIN')).toHaveLength(1);
+      expect(listOrientations(app.db, 'mountain')).toHaveLength(1);
+      expect(listOrientations(app.db, 'Mountain')).toHaveLength(1);
+    });
   });
 
   // ─── getOrientationById ────────────────────────────────────────────────────
