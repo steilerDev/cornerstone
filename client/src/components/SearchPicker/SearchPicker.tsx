@@ -1,7 +1,16 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  size,
+  hide,
+  FloatingPortal,
+} from '@floating-ui/react';
 
 import styles from './SearchPicker.module.css';
 
@@ -68,8 +77,6 @@ export function SearchPicker<T>({
   const [initialTitleCleared, setInitialTitleCleared] = useState(false);
   // Track whether the user has explicitly selected a special option
   const [specialSelected, setSpecialSelected] = useState(false);
-  // Portal dropdown positioning
-  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
 
   // The currently selected special option (if value matches one)
   // Only match a special option when the user explicitly chose one
@@ -81,35 +88,26 @@ export function SearchPicker<T>({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rafRef = useRef<number | null>(null);
 
-  // Update dropdown rect for portal positioning
-  const updateDropdownRect = useCallback(() => {
-    if (!inputRef.current) return;
-    const next = inputRef.current.getBoundingClientRect();
-    /* eslint-disable-next-line @eslint-react/set-state-in-effect -- functional updater prevents batching issues; called from rAF loop, not in effect */
-    setDropdownRect((prev) => {
-      if (
-        prev !== null &&
-        prev.top === next.top &&
-        prev.left === next.left &&
-        prev.width === next.width &&
-        prev.bottom === next.bottom
-      ) {
-        return prev; // same reference → no re-render
-      }
-      return next;
-    });
-  }, []);
-
-  // Close dropdown if input field scrolls out of view
-  const closeIfOutOfView = useCallback(() => {
-    if (!inputRef.current) return;
-    const rect = inputRef.current.getBoundingClientRect();
-    if (rect.bottom < 0 || rect.top > window.innerHeight) {
-      setIsOpen(false);
-    }
-  }, []);
+  const { refs, floatingStyles, middlewareData } = useFloating({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    strategy: 'fixed',
+    placement: 'bottom-start',
+    middleware: [
+      offset(4),
+      flip({ padding: 8 }),
+      shift({ padding: 8 }),
+      size({
+        padding: 8,
+        apply({ rects, elements }) {
+          Object.assign(elements.floating.style, { width: `${rects.reference.width}px` });
+        },
+      }),
+      hide(),
+    ],
+    whileElementsMounted: autoUpdate,
+  });
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -133,37 +131,6 @@ export function SearchPicker<T>({
     };
   }, [isOpen]);
 
-  // Recalculate position on scroll/resize while dropdown is open
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Take an initial reading when the dropdown opens.
-    updateDropdownRect();
-
-    // rAF loop: sync position every paint frame while the dropdown is open.
-    // Handles momentum/fling scrolling on mobile where 'scroll' events are
-    // coalesced and do not fire on every animation frame.
-    const loop = () => {
-      updateDropdownRect();
-      closeIfOutOfView();
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
-
-    // Keep window scroll/resize for immediate response on non-mobile paths.
-    window.addEventListener('scroll', updateDropdownRect, true);
-    window.addEventListener('resize', updateDropdownRect);
-
-    return () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      window.removeEventListener('scroll', updateDropdownRect, true);
-      window.removeEventListener('resize', updateDropdownRect);
-    };
-  }, [isOpen, updateDropdownRect, closeIfOutOfView]);
-
   // Reset when value is cleared externally (e.g. after form submission)
   useEffect(() => {
     /* eslint-disable @eslint-react/set-state-in-effect -- syncing picker state with external value changes */
@@ -179,14 +146,11 @@ export function SearchPicker<T>({
     /* eslint-enable @eslint-react/set-state-in-effect */
   }, [value, specialOptions]);
 
-  // Cleanup debounce and rAF on unmount
+  // Cleanup debounce on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
-      }
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
       }
     };
   }, []);
@@ -281,17 +245,13 @@ export function SearchPicker<T>({
     inputRef.current?.focus();
   };
 
-  // Compute dropdown top position (fixed vs above)
-  const dropdownTop = useMemo(() => {
-    if (!dropdownRect) return 0;
-    const VIEWPORT_PADDING = 8;
-    const DROPDOWN_HEIGHT = 300;
-    const spaceBelow = window.innerHeight - dropdownRect.bottom;
-    const flipAbove = spaceBelow < DROPDOWN_HEIGHT + VIEWPORT_PADDING;
-    return flipAbove
-      ? Math.max(4, dropdownRect.top - DROPDOWN_HEIGHT - 4)
-      : dropdownRect.bottom + 4;
-  }, [dropdownRect]);
+  const setInputRef = useCallback(
+    (node: HTMLInputElement | null) => {
+      refs.setReference(node);
+      (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = node;
+    },
+    [refs],
+  );
 
   // If a special option is selected, show it in a display similar to selectedItem
   if (selectedSpecial) {
@@ -363,7 +323,7 @@ export function SearchPicker<T>({
     <div className={styles.container} ref={containerRef}>
       <input
         id={id}
-        ref={inputRef}
+        ref={setInputRef}
         type="text"
         className={styles.input}
         placeholder={resolvedPlaceholder}
@@ -378,16 +338,14 @@ export function SearchPicker<T>({
         disabled={disabled}
       />
 
-      {isOpen &&
-        dropdownRect &&
-        createPortal(
+      <FloatingPortal>
+        {isOpen && (
           <div
             data-search-picker-dropdown
+            ref={refs.setFloating}
             style={{
-              position: 'fixed',
-              top: dropdownTop,
-              left: dropdownRect.left,
-              width: dropdownRect.width,
+              ...floatingStyles,
+              visibility: middlewareData.hide?.referenceHidden ? 'hidden' : undefined,
             }}
             className={styles.portalDropdown}
             role="listbox"
@@ -463,9 +421,9 @@ export function SearchPicker<T>({
               !searchTerm.trim() &&
               (!specialOptions || specialOptions.length === 0) &&
               !emptyHint && <div className={styles.stateMessage}>{resolvedEmptyHint}</div>}
-          </div>,
-          document.body,
+          </div>
         )}
+      </FloatingPortal>
     </div>
   );
 }
