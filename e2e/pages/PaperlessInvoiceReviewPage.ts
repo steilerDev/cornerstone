@@ -78,8 +78,9 @@ export class PaperlessInvoiceReviewPage {
 
   /**
    * FormError shown when vendor is not selected on confirm attempt.
-   * Scoped to the vendor card (class*="vendorCard") — rendered as role="alert" inside #vendor-error.
-   * NOTE: FormError with variant="field" renders role="alert" directly inside the wrapping div.
+   * Rendered as <div id="vendor-error"><FormError variant="field" .../></div> inside the vendor card.
+   * NOTE: FormError variant="field" does NOT emit role="alert" (only variant="banner" does).
+   * The outer wrapper <div id="vendor-error"> is a unique, stable anchor for this locator.
    */
   readonly vendorError: Locator;
 
@@ -121,8 +122,9 @@ export class PaperlessInvoiceReviewPage {
   /**
    * Page-level error banner in ready state.
    * Rendered as <FormError variant="banner"> inside formColumn when commit fails.
-   * FormError variant="banner" renders role="alert". Scoped to formColumn to distinguish
-   * from the vendor field error (also role="alert") inside the vendor card.
+   * FormError variant="banner" renders role="alert". Scoped to formColumn so it does not
+   * match the fatal error state container. The vendor field error (#vendor-error) does NOT
+   * use role="alert" (it is FormError variant="field"), so there is no ambiguity here.
    * Uses .first() in case multiple alerts are briefly visible during the saving→ready transition.
    */
   readonly pageErrorBanner: Locator;
@@ -158,11 +160,10 @@ export class PaperlessInvoiceReviewPage {
     // SuggestionBadge is rendered as a span with class*="badge" in a suggestionRow
     this.vendorSuggestionBadge = page.locator('[class*="suggestionRow"] [class*="badge"]');
 
-    // FormError renders role="alert" — scoped to vendor card to avoid matching pageErrorBanner.
-    // The vendor card uses styles.vendorCard → CSS Modules class contains "vendorCard" substring.
-    this.vendorError = page
-      .locator('[class*="vendorCard"]')
-      .locator('[role="alert"]');
+    // FormError variant="field" does NOT emit role="alert" (only variant="banner" does).
+    // The TSX renders: <div id="vendor-error"><FormError variant="field" .../></div>
+    // The outer #vendor-error wrapper is a stable, unique id on this page.
+    this.vendorError = page.locator('#vendor-error');
 
     // Action buttons — text-based locators work regardless of layout changes
     this.confirmButton = page.getByRole('button', {
