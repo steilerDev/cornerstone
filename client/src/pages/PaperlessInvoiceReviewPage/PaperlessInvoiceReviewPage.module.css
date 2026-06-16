@@ -151,12 +151,12 @@
   color: var(--color-text-primary);
 }
 
-.fieldControl input:focus,
-.fieldControl textarea:focus,
-.fieldControl select:focus {
+.fieldControl input:focus-visible,
+.fieldControl textarea:focus-visible,
+.fieldControl select:focus-visible {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-bg);
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
 }
 
 .fieldControl textarea {
@@ -209,7 +209,7 @@
   align-items: center;
   justify-content: center;
   background: var(--color-bg-primary);
-  z-index: 10;
+  z-index: var(--z-dropdown);
 }
 
 .pdfFallback {
