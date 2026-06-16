@@ -30,3 +30,4 @@ Restart your container. Schema migrations run automatically on first boot. Creat
 
 <!-- CI retrigger: promotion #1700 (post-docs auto-fix skip-ci) -->
 <!-- retrigger sync be8350 -->
+<!-- promotion CI nudge (synchronize) -->
