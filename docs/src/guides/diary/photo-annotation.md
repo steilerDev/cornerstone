@@ -92,7 +92,7 @@ When you save, the photo thumbnail in the diary entry updates to show the annota
 ## Tips and Limitations
 
 - Annotations are stored per-photo, not per-diary-entry -- if you attach the same photo to two entries (uncommon but possible), they share the annotated copy.
-- The annotator works on touch devices, but precision drawing is easier with a mouse or trackpad. Tap-and-hold a handle to start a drag.
+- The annotator is fully touch-enabled and works one-handed on a phone or tablet: the canvas scales to fit your screen, and you can draw, move, and resize shapes by touch (or with an Apple Pencil / stylus). Precision drawing is still easier with a mouse or trackpad on larger shapes. Tap-and-hold a handle to start a drag.
 - On portrait photos, the canvas waits for the layout to settle before placing your first stroke so coordinates stay aligned with the rendered image -- there is a brief moment after opening when the canvas readies itself.
 - EXIF orientation is honoured: a photo rotated by your camera is annotated in its display orientation, not the underlying file orientation.
 

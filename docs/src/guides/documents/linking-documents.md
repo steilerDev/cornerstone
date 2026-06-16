@@ -47,8 +47,10 @@ Linked documents are displayed as compact cards showing the thumbnail, title, an
 ## Unlinking a Document
 
 1. Find the linked document card in the Documents section
-2. Click the **Unlink** button on the card
+2. Click the **✕** button in the **top-right corner** of the card (it appears on hover, focus, or touch; its tooltip reads *Remove document link*)
 3. A confirmation dialog appears -- click **Unlink** to confirm or **Cancel** to keep the link
+
+The unlink control lives as an overlay in the corner of each document card so it is easy to find without crowding the card's other actions.
 
 :::caution
 Unlinking removes the association between the Cornerstone entity and the Paperless-ngx document. The document itself is not deleted from Paperless-ngx -- it remains in your document store.

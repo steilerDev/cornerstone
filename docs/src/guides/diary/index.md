@@ -13,8 +13,8 @@ The diary provides:
 
 - **Manual Entries** -- Write daily logs, record site visits, track deliveries, flag issues, and add general notes
 - **Automatic Events** -- System-generated entries for work item status changes, invoice creation and status changes, milestone delays, budget breaches, schedule changes, and subsidy changes
-- **Photo Attachments** -- Attach photos to manual entries for visual documentation
-- **Photo Annotation** -- Mark up photos with rectangles, arrows, text, measurements, and more, directly in the browser
+- **Photo Attachments** -- Capture photos on your phone and tag them with a caption, area, and compass orientation for visual documentation
+- **Photo Annotation** -- Mark up photos with rectangles, arrows, text, measurements, and more, directly in the browser (touch-enabled)
 - **Drafts** -- Pick an entry type and start drafting immediately; the entry is saved as a draft until you promote it to a full entry, with auto-save while you type
 - **Signature Capture** -- Collect digital signatures from users or vendors with a drawing canvas; signed entries become immutable
 - **Filtering** -- Filter the diary by All, Manual, or Automatic entries with type-specific filter chips, plus a separate Drafts chip to show or hide unfinished work
@@ -65,6 +65,7 @@ A separate **Drafts** chip controls whether unfinished draft entries are include
 
 - [Manual Entries](manual-entries) -- Creating and editing diary entries
 - [Automatic Events](automatic-events) -- How system events are generated
+- [Capturing Photos](photo-capture) -- Capturing and tagging photos, and managing orientations
 - [Photo Annotation](photo-annotation) -- Marking up diary photos with shapes, text, and measurements
 - [Signatures](signatures) -- Digital signature capture and immutability
 
