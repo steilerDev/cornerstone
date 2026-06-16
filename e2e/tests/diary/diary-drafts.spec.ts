@@ -865,6 +865,19 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
 
       // Click the draft card
       await expect(diaryPage.entryCard(draftId)).toBeVisible();
+
+      // Register the getDiaryEntry response listener BEFORE clicking the card so the
+      // response cannot arrive and be missed between the click and the listener attachment.
+      // DiaryEntryEditPage calls GET /api/diary-entries/:id immediately on mount;
+      // the heading and draft badge only render after this response resolves.
+      const entryLoadPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().endsWith(`/api/diary-entries/${draftId}`) &&
+          resp.request().method() === 'GET' &&
+          resp.status() === 200,
+        { timeout: 45_000 },
+      );
+
       await diaryPage.entryCard(draftId).click();
 
       // Should navigate to /diary/:id/edit.
@@ -875,14 +888,18 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
       await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`), { timeout: 30_000 });
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
 
-      // Wait for the edit page to finish loading the entry from the API.
-      // The heading only renders after getDiaryEntry() returns and setEntry(data) fires.
-      // On loaded CI runners with 8 parallel workers, the server response can be slow —
-      // use an explicit timeout that exceeds the default 7s project-level expect.timeout.
-      await expect(editPage.heading).toBeVisible({ timeout: 15_000 });
+      // Explicitly await the getDiaryEntry API response before asserting the heading/badge.
+      // Under heavy 8-worker CI load the server can take >15s to respond; waiting for the
+      // actual response ensures the heading assertion fires only after data is in-flight,
+      // preventing the hardcoded timeout from being the bottleneck.
+      await entryLoadPromise;
+
+      // The heading and draft badge render after getDiaryEntry() returns — both assertions
+      // now have the full test.slow() budget (45s) since the API response has arrived.
+      await expect(editPage.heading).toBeVisible({ timeout: 45_000 });
 
       // Edit page should show the draft badge (entry.status === 'draft')
-      await expect(editPage.draftBadge).toBeVisible({ timeout: 15_000 });
+      await expect(editPage.draftBadge).toBeVisible({ timeout: 45_000 });
     } finally {
       if (draftId) await deleteDiaryEntryViaApi(page, draftId);
     }

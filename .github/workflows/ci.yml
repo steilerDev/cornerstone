@@ -281,7 +281,7 @@ jobs:
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+          key: playwright-v4-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
 
       - name: Fix apt cache ownership for runner
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
@@ -296,7 +296,7 @@ jobs:
       # --- Browser cache miss: install browsers and save ---
       - name: Install Playwright browsers
         if: steps.browser-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium webkit
+        run: npx playwright install chromium chromium-headless-shell webkit
         working-directory: e2e
 
       - name: Save browser cache
@@ -304,7 +304,7 @@ jobs:
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-v3-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
+          key: playwright-v4-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
 
       # --- Apt cache miss: download debs (without installing) and save ---
       - name: Configure apt for download-only
@@ -398,10 +398,11 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
+        id: browser-cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
+          key: playwright-v4-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
       - name: Fix apt cache ownership for runner
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
@@ -425,6 +426,11 @@ jobs:
           done
           echo "All attempts failed"
           exit 1
+        working-directory: e2e
+
+      - name: Install Playwright browsers (cache miss fallback)
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium chromium-headless-shell webkit
         working-directory: e2e
 
       - name: Run E2E smoke tests
@@ -479,10 +485,11 @@ jobs:
         run: npm ci -w e2e
 
       - name: Restore browser cache
+        id: browser-cache
         uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-v3-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
+          key: playwright-v4-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
       - name: Fix apt cache ownership for runner
         run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
@@ -506,6 +513,11 @@ jobs:
           done
           echo "All attempts failed"
           exit 1
+        working-directory: e2e
+
+      - name: Install Playwright browsers (cache miss fallback)
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium chromium-headless-shell webkit
         working-directory: e2e
 
       - name: Run E2E tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
