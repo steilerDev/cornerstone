@@ -1,68 +1,10 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, jest, beforeEach, afterEach, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SearchPicker } from './SearchPicker.js';
-
-// ── jsdom geometry stubs for @floating-ui/react ──────────────────────────────
-// @floating-ui/react's `hide` middleware uses Element.getBoundingClientRect and
-// document.documentElement.clientWidth/Height to determine whether the reference
-// element is clipped. In jsdom all these return 0, so the viewport appears as a
-// 0×0 box and `hide` always sets referenceHidden=true → visibility:hidden on the
-// floating portal → role queries fail.
-//
-// These stubs are scoped to this file only. They save and restore the originals
-// so no other test file is affected. Individual tests can still use jest.spyOn
-// on specific elements without interfering with the beforeAll/afterAll layer
-// (Object.defineProperty is not undone by jest.restoreAllMocks).
-// ─────────────────────────────────────────────────────────────────────────────
-
-const originalGetBCR = Element.prototype.getBoundingClientRect;
-const originalClientWidth = Object.getOwnPropertyDescriptor(document.documentElement, 'clientWidth');
-const originalClientHeight = Object.getOwnPropertyDescriptor(
-  document.documentElement,
-  'clientHeight',
-);
-
-beforeAll(() => {
-  Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
-    writable: true,
-    configurable: true,
-    value(): DOMRect {
-      return {
-        top: 100,
-        bottom: 140,
-        left: 50,
-        right: 250,
-        width: 200,
-        height: 40,
-        x: 50,
-        y: 100,
-        toJSON: () => ({}),
-      } as DOMRect;
-    },
-  });
-  Object.defineProperties(document.documentElement, {
-    clientWidth: { get() { return 1024; }, configurable: true },
-    clientHeight: { get() { return 768; }, configurable: true },
-  });
-});
-
-afterAll(() => {
-  Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
-    writable: true,
-    configurable: true,
-    value: originalGetBCR,
-  });
-  if (originalClientWidth) {
-    Object.defineProperty(document.documentElement, 'clientWidth', originalClientWidth);
-  }
-  if (originalClientHeight) {
-    Object.defineProperty(document.documentElement, 'clientHeight', originalClientHeight);
-  }
-});
 
 interface TestItem {
   id: string;
@@ -1172,7 +1114,8 @@ describe('renderSecondary slot', () => {
 // ── Floating UI portal (#1708) ────────────────────────────────────────────────
 // Tests for @floating-ui/react integration in SearchPicker.
 //   FUI-1: Portal renders unconditionally (no getBoundingClientRect stub needed)
-//   FUI-2: middlewareData.hide.referenceHidden=true ⇒ visibility:hidden on dropdown
+//   FUI-2: dropdown is never visibility:hidden (hide() middleware removed; portal
+//          always visible when isOpen=true)
 
 describe('Floating UI portal (#1708)', () => {
   beforeEach(() => {
@@ -1207,25 +1150,13 @@ describe('Floating UI portal (#1708)', () => {
     expect(document.body.contains(portalEl)).toBe(true);
   });
 
-  // ── FUI-2: referenceHidden ⇒ visibility:hidden ────────────────────────────
-  // When middlewareData.hide.referenceHidden is true, the dropdown's inline
-  // style should be visibility:hidden (so it hides while the reference element
-  // is scrolled out of view of a clipping ancestor).
-  //
-  // Attempting jest.spyOn on useFloating from @floating-ui/react is unreliable
-  // in this project's Jest ESM + --experimental-vm-modules setup: the package's
-  // mjs build re-exports useFloating from @floating-ui/react-dom, and ESM live
-  // bindings are read-only — spyOn cannot replace them at the module level.
-  //
-  // Fallback strategy: test the false branch (referenceHidden falsy) which is
-  // the normal open state and is reachable in jsdom. The true branch
-  // (referenceHidden=true) requires either a real scroll context with overflow
-  // clipping (not available in jsdom) or a reliable ESM module-level spy
-  // (not viable here). The false branch assertion is still load-bearing because
-  // it confirms the ternary evaluates and does NOT apply visibility:hidden
-  // during normal operation.
+  // ── FUI-2: dropdown never visibility:hidden ───────────────────────────────
+  // The hide() middleware was removed from SearchPicker's useFloating config
+  // (fix for modal-inside-modal false-positive clipping). Without hide(), the
+  // dropdown has no code path that sets visibility:hidden — FloatingPortal
+  // renders the listbox unconditionally whenever isOpen=true.
 
-  it('FUI-2 — dropdown has no visibility:hidden when referenceHidden is falsy (normal open state)', async () => {
+  it('FUI-2 — dropdown has no visibility:hidden in normal open state (hide() middleware removed)', async () => {
     const user = userEvent.setup();
     renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
@@ -1241,8 +1172,8 @@ describe('Floating UI portal (#1708)', () => {
     ) as HTMLElement | null;
     expect(dropdownEl).not.toBeNull();
 
-    // In normal open state Floating UI does not set referenceHidden=true,
-    // so visibility must NOT be 'hidden'.
+    // With hide() middleware removed, no code sets visibility:hidden on the
+    // dropdown — it must never be 'hidden' when the portal is open.
     expect(dropdownEl!.style.visibility).not.toBe('hidden');
   });
 });

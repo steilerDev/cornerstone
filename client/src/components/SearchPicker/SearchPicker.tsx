@@ -8,7 +8,6 @@ import {
   flip,
   shift,
   size,
-  hide,
   FloatingPortal,
 } from '@floating-ui/react';
 
@@ -89,7 +88,7 @@ export function SearchPicker<T>({
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { refs, floatingStyles, middlewareData } = useFloating({
+  const { refs, floatingStyles } = useFloating({
     open: isOpen,
     onOpenChange: setIsOpen,
     strategy: 'fixed',
@@ -104,7 +103,6 @@ export function SearchPicker<T>({
           Object.assign(elements.floating.style, { width: `${rects.reference.width}px` });
         },
       }),
-      hide(),
     ],
     whileElementsMounted: autoUpdate,
   });
@@ -343,10 +341,7 @@ export function SearchPicker<T>({
           <div
             data-search-picker-dropdown
             ref={refs.setFloating}
-            style={{
-              ...floatingStyles,
-              visibility: middlewareData.hide?.referenceHidden ? 'hidden' : undefined,
-            }}
+            style={floatingStyles}
             className={styles.portalDropdown}
             role="listbox"
             onKeyDown={(e) => {
