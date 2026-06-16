@@ -11,16 +11,15 @@
  * Extensions for #1705 (responsive scaling + touch support tests):
  *   - DATA_FORWARDED_PROPS includes width/height/scaleX/scaleY so Stage
  *     size/scale assertions work via DOM data attributes.
- *   - Handler presence flags: onPointerDown/Move/Up and onMouseDown/Move/Up are
- *     forwarded as data-has-* attributes ('true'/'false') so tests can verify
- *     which event model the Stage uses.
+ *   - Handler presence flags: onMouseDown/Move/Up, onTouchStart/Move/End, and
+ *     onPointerDown/Move/Up are forwarded as data-has-* attributes ('true'/'false')
+ *     so tests can verify which event model the Stage uses (mouse+touch, not pointer).
  *   - Stage uses React.forwardRef so stageRef.current is a mock Konva-like
  *     object with container(), getPointerPosition(), getParent() — enabling
- *     the pointer-capture useEffect to be exercised in tests.
- *   - stageMockContainer: exported module-level container mock with spied
- *     addEventListener/removeEventListener for pointer-capture assertions.
- *   - stageMockHandlers: captured Stage event handler props for firing
- *     synthetic pointer events in drawing tests.
+ *     effects that call stageRef.current to work in tests.
+ *   - stageMockContainer: exported module-level container mock (kept for compatibility).
+ *   - stageMockHandlers: captured Stage mouse+touch handler props for firing
+ *     synthetic events in drawing tests.
  */
 
 import React from 'react';
@@ -42,8 +41,10 @@ const DATA_FORWARDED_PROPS: Record<string, string> = {
 
 // Event handler presence flags forwarded as data-has-* attributes
 const HANDLER_PRESENCE_PROPS = new Set([
-  'onPointerDown', 'onPointerMove', 'onPointerUp',
   'onMouseDown', 'onMouseMove', 'onMouseUp',
+  'onTouchStart', 'onTouchMove', 'onTouchEnd',
+  // Keep pointer handlers in the set so absence is also reported (value = 'false')
+  'onPointerDown', 'onPointerMove', 'onPointerUp',
 ]);
 
 function filterProps(props: AnyProps, forStage = false): Record<string, unknown> {
@@ -69,40 +70,54 @@ function makeStub(displayName: string): React.FC<AnyProps> {
   return Stub;
 }
 
-// ─── Stage mock container: supports pointer-capture useEffect ─────────────────
+// ─── Stage mock container ─────────────────────────────────────────────────────
 //
-// The pointer-capture useEffect in PhotoAnnotator calls:
-//   stageRef.current.container()
-// and then calls addEventListener/removeEventListener on the result.
-//
-// stageMockContainer is a module-level container mock with spied
-// addEventListener/removeEventListener. stageRef.current.container() always
-// returns this same object, so test assertions remain stable.
+// stageMockContainer is a module-level container mock. stageRef.current.container()
+// always returns this same object, so test assertions remain stable.
+// addEventListener/removeEventListener/setPointerCapture are kept for backwards
+// compatibility (the pointer-capture useEffect was removed in #1705 revision 2).
 
+// Use a generic function signature to avoid referencing jest types at module scope.
+// jest.fn() must NEVER appear at module scope in __mocks__/ files — it is not
+// available when the Jest ESM module sandbox evaluates the mock at import time.
+// PhotoAnnotator.test.tsx installs fresh spies by mutating these fields in-place
+// in its beforeEach (see the comment there).
 export interface StageMockContainer {
-  addEventListener: ReturnType<typeof jest.fn>;
-  removeEventListener: ReturnType<typeof jest.fn>;
-  setPointerCapture: ReturnType<typeof jest.fn>;
-  getBoundingClientRect: ReturnType<typeof jest.fn>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  addEventListener: (...args: any[]) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  removeEventListener: (...args: any[]) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setPointerCapture: (...args: any[]) => any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getBoundingClientRect: (...args: any[]) => any;
   parentElement: null;
 }
 
+// Module-level container mock — starts with plain no-op functions so ANY test
+// suite can import this module without touching jest.*. PhotoAnnotator.test.tsx
+// replaces these with jest.fn() spies in beforeEach by writing directly to the
+// properties of this object.
 export const stageMockContainer: StageMockContainer = {
-  addEventListener: jest.fn(),
-  removeEventListener: jest.fn(),
-  setPointerCapture: jest.fn(),
-  getBoundingClientRect: jest.fn(() => ({
+  addEventListener: () => undefined,
+  removeEventListener: () => undefined,
+  setPointerCapture: () => undefined,
+  getBoundingClientRect: () => ({
     top: 0, left: 0, width: 400, height: 300, bottom: 300, right: 400,
-  })),
+  }),
   parentElement: null,
 };
 
 // Captured event handler props from the most recently rendered Stage.
 // Tests use these to fire synthetic events and exercise drawing code paths.
+// Production code uses mouse + touch events (not pointer events).
 export interface StageMockHandlers {
-  onPointerDown?: (e: unknown) => void;
-  onPointerMove?: (e: unknown) => void;
-  onPointerUp?: (e: unknown) => void;
+  onMouseDown?: (e: unknown) => void;
+  onMouseMove?: (e: unknown) => void;
+  onMouseUp?: (e: unknown) => void;
+  onTouchStart?: (e: unknown) => void;
+  onTouchMove?: (e: unknown) => void;
+  onTouchEnd?: (e: unknown) => void;
 }
 export const stageMockHandlers: StageMockHandlers = {};
 
@@ -129,14 +144,24 @@ export const Stage = React.forwardRef<MockKonvaStage, AnyProps>(function KonvaSt
 ) {
   // Capture the most recent handler props into the shared stageMockHandlers object.
   // (Mutate in place so any reference held by tests is updated.)
-  stageMockHandlers.onPointerDown = typeof rest.onPointerDown === 'function'
-    ? (rest.onPointerDown as (e: unknown) => void)
+  // Production code uses mouse + touch events, not pointer events.
+  stageMockHandlers.onMouseDown = typeof rest.onMouseDown === 'function'
+    ? (rest.onMouseDown as (e: unknown) => void)
     : undefined;
-  stageMockHandlers.onPointerMove = typeof rest.onPointerMove === 'function'
-    ? (rest.onPointerMove as (e: unknown) => void)
+  stageMockHandlers.onMouseMove = typeof rest.onMouseMove === 'function'
+    ? (rest.onMouseMove as (e: unknown) => void)
     : undefined;
-  stageMockHandlers.onPointerUp = typeof rest.onPointerUp === 'function'
-    ? (rest.onPointerUp as (e: unknown) => void)
+  stageMockHandlers.onMouseUp = typeof rest.onMouseUp === 'function'
+    ? (rest.onMouseUp as (e: unknown) => void)
+    : undefined;
+  stageMockHandlers.onTouchStart = typeof rest.onTouchStart === 'function'
+    ? (rest.onTouchStart as (e: unknown) => void)
+    : undefined;
+  stageMockHandlers.onTouchMove = typeof rest.onTouchMove === 'function'
+    ? (rest.onTouchMove as (e: unknown) => void)
+    : undefined;
+  stageMockHandlers.onTouchEnd = typeof rest.onTouchEnd === 'function'
+    ? (rest.onTouchEnd as (e: unknown) => void)
     : undefined;
 
   // Build the stable mock Konva stage object. useImperativeHandle deps=[] so

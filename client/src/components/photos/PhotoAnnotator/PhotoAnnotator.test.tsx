@@ -382,7 +382,23 @@ describe('PhotoAnnotator', () => {
       PhotoAnnotator = mod.PhotoAnnotator;
     }
 
+    // Clear all mocks first, then install fresh jest.fn() spies onto
+    // stageMockContainer.getBoundingClientRect. Order matters: clearAllMocks()
+    // must run BEFORE we install the spies so it doesn't immediately clear them.
+    // jest.fn() is NOT available when __mocks__/ modules are first evaluated in
+    // Jest ESM mode — it is only injected into test-file scope — so spies must
+    // be installed here rather than in the mock file itself.
     jest.clearAllMocks();
+
+    ReactKonvaMock.stageMockContainer.getBoundingClientRect = jest.fn(() => ({
+      top: 0,
+      left: 0,
+      width: 400,
+      height: 300,
+      bottom: 300,
+      right: 400,
+    }));
+
     mockUploadAnnotation.mockReset();
     mockUploadAnnotation.mockResolvedValue(makePhoto({ annotatedAt: '2026-05-17T10:00:00.000Z' }));
   });
@@ -957,10 +973,9 @@ describe('PhotoAnnotator', () => {
   //   1. ResizeObserver triggers fitScale computation → Stage scales down large photo
   //   2. fitScale caps at 1.0 for small photos (even when container is larger)
   //   3. fitScale scales down for very large photos (4000×3000 → 0.1 scale)
-  //   4. Stage uses onPointerDown/Move/Up, not onMouseDown/Move/Up
-  //   5. Pointer-capture DOM listener is registered on mount and cleaned up on unmount
-  //   6. ResizeObserver attaches once loaded and disconnects on unmount
-  //   7. Drawing tools function via pointer events (no crash, handlers wired)
+  //   4. Stage uses onMouseDown/Move/Up AND onTouchStart/Move/End, not onPointerDown/Move/Up
+  //   5. ResizeObserver attaches once loaded and disconnects on unmount
+  //   6. Drawing tools function via mouse events (no crash, handlers wired)
   //
   // Note: ResizeObserver is polyfilled as a no-op in setupTests.ts. Tests that
   // need the callback to fire override globalThis.ResizeObserver per-test.
@@ -1105,24 +1120,31 @@ describe('PhotoAnnotator', () => {
       }
     });
 
-    it('4. Stage stub exposes onPointerDown/Move/Up and NOT onMouseDown/Move/Up', async () => {
+    it('4. Stage stub exposes onMouseDown/Move/Up AND onTouchStart/Move/End, NOT onPointerDown/Move/Up', async () => {
+      // Production code was changed from onPointerDown/Move/Up to onMouseDown/Move/Up +
+      // onTouchStart/Move/End (both sets point to the same handlers).
       const { container } = await renderAnnotator({ width: 800, height: 600 });
 
       const stageEl = container.querySelector('[data-konva-stage-stub]');
       if (stageEl) {
-        // Pointer handlers must be present (data-has-* = 'true')
-        expect(stageEl.getAttribute('data-has-pointerdown')).toBe('true');
-        expect(stageEl.getAttribute('data-has-pointermove')).toBe('true');
-        expect(stageEl.getAttribute('data-has-pointerup')).toBe('true');
+        // Mouse handlers must be present (data-has-* = 'true')
+        expect(stageEl.getAttribute('data-has-mousedown')).toBe('true');
+        expect(stageEl.getAttribute('data-has-mousemove')).toBe('true');
+        expect(stageEl.getAttribute('data-has-mouseup')).toBe('true');
 
-        // Mouse handlers must NOT be present: either absent or 'false'
-        // Production code uses onPointerDown/Move/Up, not onMouseDown/Move/Up
-        const hasMouseDown = stageEl.getAttribute('data-has-mousedown');
-        const hasMouseMove = stageEl.getAttribute('data-has-mousemove');
-        const hasMouseUp = stageEl.getAttribute('data-has-mouseup');
-        expect(hasMouseDown === 'false' || hasMouseDown === null).toBe(true);
-        expect(hasMouseMove === 'false' || hasMouseMove === null).toBe(true);
-        expect(hasMouseUp === 'false' || hasMouseUp === null).toBe(true);
+        // Touch handlers must be present (data-has-* = 'true')
+        expect(stageEl.getAttribute('data-has-touchstart')).toBe('true');
+        expect(stageEl.getAttribute('data-has-touchmove')).toBe('true');
+        expect(stageEl.getAttribute('data-has-touchend')).toBe('true');
+
+        // Pointer handlers must NOT be present: either absent or 'false'
+        // Production code uses onMouseDown/Move/Up + onTouchStart/Move/End, not onPointerDown/Move/Up
+        const hasPointerDown = stageEl.getAttribute('data-has-pointerdown');
+        const hasPointerMove = stageEl.getAttribute('data-has-pointermove');
+        const hasPointerUp = stageEl.getAttribute('data-has-pointerup');
+        expect(hasPointerDown === 'false' || hasPointerDown === null).toBe(true);
+        expect(hasPointerMove === 'false' || hasPointerMove === null).toBe(true);
+        expect(hasPointerUp === 'false' || hasPointerUp === null).toBe(true);
       } else {
         // Image not loaded or mock not intercepted — log and verify no crash
         console.warn('[#1705 test 4] Stage not found — image did not load or mock not intercepted');
@@ -1130,51 +1152,7 @@ describe('PhotoAnnotator', () => {
       }
     });
 
-    it('5. Pointer-capture DOM listener registered on mount and removed on unmount', async () => {
-      // Reset spies before render so counts are clean
-      ReactKonvaMock.stageMockContainer.addEventListener.mockClear();
-      ReactKonvaMock.stageMockContainer.removeEventListener.mockClear();
-
-      const { unmount } = await renderAnnotator({ width: 800, height: 600 });
-
-      // The pointer-capture effect fires after imageLoaded=true.
-      // It has dep [imageLoaded], so it runs when imageLoaded flips to true.
-      // stageRef.current.container().addEventListener('pointerdown', ...) must be called.
-      const addCalls: string[] = (
-        ReactKonvaMock.stageMockContainer.addEventListener.mock.calls as unknown[][]
-      ).map((c) => c[0] as string);
-
-      if (addCalls.includes('pointerdown')) {
-        // Full path: mock intercepted, imageLoaded fired, effect ran
-        expect(addCalls).toContain('pointerdown');
-
-        // Unmount — cleanup function removes the listener
-        await act(async () => {
-          unmount();
-          await new Promise<void>((r) => setTimeout(r, 10));
-        });
-
-        const removeCalls: string[] = (
-          ReactKonvaMock.stageMockContainer.removeEventListener.mock.calls as unknown[][]
-        ).map((c) => c[0] as string);
-        expect(removeCalls).toContain('pointerdown');
-      } else {
-        // stageRef.current was null (useImperativeHandle deps=[] — first mount only)
-        // or imageLoaded=false. Expected locally. Passes in CI.
-        console.warn(
-          '[#1705 test 5] addEventListener not called with "pointerdown". ' +
-            'stageRef.current may be null (forwardRef+useImperativeHandle) or imageLoaded=false. ' +
-            'Expected in CI.',
-        );
-        expect(
-          screen.queryByRole('button', { name: /^Cancel$/i }) !== null ||
-            screen.queryByTestId('tool-select') !== null,
-        ).toBe(true);
-        unmount();
-      }
-    });
-
-    it('6. ResizeObserver attaches once loaded and disconnects on unmount', async () => {
+    it('5. ResizeObserver attaches once loaded and disconnects on unmount', async () => {
       // Fix #1705: ResizeObserver useEffect now depends on [imageLoaded]. When imageLoaded
       // flips to true, canvasAreaRef.current is the plain <div class="canvasArea"> (not the
       // Konva stage — the ref is on the container div), so observe() fires exactly once.
@@ -1202,12 +1180,13 @@ describe('PhotoAnnotator', () => {
       }
     });
 
-    it('7. Stage pointer handlers are wired: firing onPointerDown/Move/Up does not crash', async () => {
-      // Switch to rectangle tool so pointer events start a draft shape
+    it('6. Stage mouse/touch handlers are wired: firing onMouseDown/Move/Up does not crash', async () => {
+      // Production code uses onMouseDown/Move/Up + onTouchStart/Move/End on the Stage.
+      // Switch to rectangle tool so mouse events start a draft shape.
       await renderAnnotator({ width: 800, height: 600 });
       const rectBtn = screen.queryByTestId('tool-rectangle');
 
-      if (rectBtn && ReactKonvaMock.stageMockHandlers.onPointerDown) {
+      if (rectBtn && ReactKonvaMock.stageMockHandlers.onMouseDown) {
         // Switch to rectangle tool
         await act(async () => {
           fireEvent.click(rectBtn);
@@ -1215,28 +1194,30 @@ describe('PhotoAnnotator', () => {
 
         // Build a minimal Konva-event-like synthetic event.
         // e.target needs id()/getParent() so the while loops terminate without matching.
+        // evt must not be a TouchEvent instance so preventDefault is not called.
         const mockTarget = {
           id: () => '',
           getParent: () => null,
         };
+        const mockMouseEvent = { target: mockTarget, evt: new MouseEvent('mousedown') };
 
         // Set pointer position to (50, 50) — becomes draft.startX/startY
         ReactKonvaMock.setMockStagePointerPosition({ x: 50, y: 50 });
 
         await act(async () => {
-          ReactKonvaMock.stageMockHandlers.onPointerDown?.({ target: mockTarget });
+          ReactKonvaMock.stageMockHandlers.onMouseDown?.(mockMouseEvent);
         });
 
         // Move to (150, 150) — extends the draft shape (w=100, h=100)
         ReactKonvaMock.setMockStagePointerPosition({ x: 150, y: 150 });
 
         await act(async () => {
-          ReactKonvaMock.stageMockHandlers.onPointerMove?.({ target: mockTarget });
+          ReactKonvaMock.stageMockHandlers.onMouseMove?.({ target: mockTarget, evt: new MouseEvent('mousemove') });
         });
 
         // Release — commits the shape (w=100, h=100 > MIN_SIZE=5)
         await act(async () => {
-          ReactKonvaMock.stageMockHandlers.onPointerUp?.({ target: mockTarget });
+          ReactKonvaMock.stageMockHandlers.onMouseUp?.({ target: mockTarget, evt: new MouseEvent('mouseup') });
         });
 
         // Component must not have crashed — Cancel button still present
@@ -1247,7 +1228,7 @@ describe('PhotoAnnotator', () => {
       } else {
         // Mock not intercepted or image not loaded — graceful skip
         console.warn(
-          '[#1705 test 7] stageMockHandlers.onPointerDown not available. ' +
+          '[#1705 test 6] stageMockHandlers.onMouseDown not available. ' +
             'Expected in CI where mocks intercept correctly.',
         );
         expect(screen.queryByTestId('tool-select')).toBeInTheDocument();

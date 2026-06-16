@@ -138,18 +138,6 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     return () => ro.disconnect();
   }, [imageLoaded]);
 
-  // Pointer capture to enable multi-touch drawing
-  useEffect(() => {
-    if (!imageLoaded) return;
-    const stage = stageRef.current;
-    if (!stage) return;
-    const container = stage.container();
-    const handlePointerDown = (e: PointerEvent) => {
-      container.setPointerCapture(e.pointerId);
-    };
-    container.addEventListener('pointerdown', handlePointerDown);
-    return () => container.removeEventListener('pointerdown', handlePointerDown);
-  }, [imageLoaded]);
 
   // Attach transformer to selected shape
   useEffect(() => {
@@ -431,7 +419,12 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
 
   // Stage pointer events for drawing
   const handleStagePointerDown = useCallback(
-    (e: Konva.KonvaEventObject<PointerEvent>) => {
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      // Prevent touch scrolling/gestures during drawing
+      if (typeof TouchEvent !== 'undefined' && e.evt instanceof TouchEvent) {
+        e.evt.preventDefault();
+      }
+
       if (inlineInput.isOpen) return;
       if (!stageRef.current) return;
 
@@ -492,7 +485,12 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   );
 
   const handleStagePointerMove = useCallback(
-    (_e: Konva.KonvaEventObject<PointerEvent>) => {
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      // Prevent touch scrolling/gestures during drawing
+      if (typeof TouchEvent !== 'undefined' && e.evt instanceof TouchEvent) {
+        e.evt.preventDefault();
+      }
+
       if (inlineInput.isOpen) return;
       if (!stageRef.current || !draftShape) return;
 
@@ -511,7 +509,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   );
 
   const handleStagePointerUp = useCallback(
-    (_e: Konva.KonvaEventObject<PointerEvent>) => {
+    (_e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       if (inlineInput.isOpen) return;
       if (!draftShape) return;
 
@@ -952,9 +950,12 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           height={stageHeight}
           scaleX={fitScale}
           scaleY={fitScale}
-          onPointerDown={handleStagePointerDown}
-          onPointerMove={handleStagePointerMove}
-          onPointerUp={handleStagePointerUp}
+          onMouseDown={handleStagePointerDown}
+          onMouseMove={handleStagePointerMove}
+          onMouseUp={handleStagePointerUp}
+          onTouchStart={handleStagePointerDown}
+          onTouchMove={handleStagePointerMove}
+          onTouchEnd={handleStagePointerUp}
         >
           <Layer ref={layerRef}>
             <KonvaImage image={imgElement} width={intrinsicW} height={intrinsicH} />
