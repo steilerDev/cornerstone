@@ -7,3 +7,4 @@
 import Konva from 'konva';
 
 Konva.legacyTextRendering = true;
+Konva.hitOnDragEnabled = true;

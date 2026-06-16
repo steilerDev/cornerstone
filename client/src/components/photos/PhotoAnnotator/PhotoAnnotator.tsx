@@ -87,6 +87,10 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   const liveRegionRef = useRef<HTMLDivElement>(null);
   const fontSizePerToolRef = useRef<Partial<Record<ToolName, FontSizeKey>>>({});
   const shapesNodesRef = useRef<Map<string, Konva.Node>>(new Map());
+  const canvasAreaRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number } | null>(
+    null,
+  );
 
   // Konva image object
   const [imgElement, setImgElement] = useState<HTMLImageElement | null>(null);
@@ -119,6 +123,33 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     };
     img.src = canonicalUrl + `?v=${Date.now()}`;
   }, [canonicalUrl]);
+
+  // ResizeObserver to measure container and compute fitScale
+  useEffect(() => {
+    const el = canvasAreaRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      setContainerSize({ width, height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Pointer capture to enable multi-touch drawing
+  useEffect(() => {
+    if (!imageLoaded) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    const container = stage.container();
+    const handlePointerDown = (e: PointerEvent) => {
+      container.setPointerCapture(e.pointerId);
+    };
+    container.addEventListener('pointerdown', handlePointerDown);
+    return () => container.removeEventListener('pointerdown', handlePointerDown);
+  }, [imageLoaded]);
 
   // Attach transformer to selected shape
   useEffect(() => {
@@ -399,8 +430,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
   ]);
 
   // Stage pointer events for drawing
-  const handleStageMouseDown = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleStagePointerDown = useCallback(
+    (e: Konva.KonvaEventObject<PointerEvent>) => {
       if (inlineInput.isOpen) return;
       if (!stageRef.current) return;
 
@@ -460,8 +491,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     [state.selectedTool, dispatch, inlineInput.isOpen],
   );
 
-  const handleStageMouseMove = useCallback(
-    (_e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleStagePointerMove = useCallback(
+    (_e: Konva.KonvaEventObject<PointerEvent>) => {
       if (inlineInput.isOpen) return;
       if (!stageRef.current || !draftShape) return;
 
@@ -479,8 +510,8 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     [draftShape, state.selectedTool, inlineInput.isOpen],
   );
 
-  const handleStageMouseUp = useCallback(
-    (_e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleStagePointerUp = useCallback(
+    (_e: Konva.KonvaEventObject<PointerEvent>) => {
       if (inlineInput.isOpen) return;
       if (!draftShape) return;
 
@@ -763,8 +794,13 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
     draftShape,
   ]);
 
-  const stageWidth = photo.width ?? 800;
-  const stageHeight = photo.height ?? 600;
+  const intrinsicW = photo.width ?? 800;
+  const intrinsicH = photo.height ?? 600;
+  const fitScale = containerSize
+    ? Math.min(containerSize.width / intrinsicW, containerSize.height / intrinsicH, 1.0)
+    : 1.0;
+  const stageWidth = intrinsicW * fitScale;
+  const stageHeight = intrinsicH * fitScale;
 
   if (!imageLoaded || !imgElement) {
     return (
@@ -903,6 +939,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       />
 
       <div
+        ref={canvasAreaRef}
         className={styles.canvasArea}
         style={{ position: 'relative' }}
         role="application"
@@ -913,12 +950,14 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
           ref={stageRef}
           width={stageWidth}
           height={stageHeight}
-          onMouseDown={handleStageMouseDown}
-          onMouseMove={handleStageMouseMove}
-          onMouseUp={handleStageMouseUp}
+          scaleX={fitScale}
+          scaleY={fitScale}
+          onPointerDown={handleStagePointerDown}
+          onPointerMove={handleStagePointerMove}
+          onPointerUp={handleStagePointerUp}
         >
           <Layer ref={layerRef}>
-            <KonvaImage image={imgElement} width={stageWidth} height={stageHeight} />
+            <KonvaImage image={imgElement} width={intrinsicW} height={intrinsicH} />
 
             {/* Render committed shapes */}
             {undoStack.shapes.map((shape) =>
