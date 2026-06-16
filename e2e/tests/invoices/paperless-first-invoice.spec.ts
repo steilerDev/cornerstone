@@ -1,5 +1,5 @@
 /**
- * E2E tests for the Paperless-first invoice creation flow (Story #1679).
+ * E2E tests for the Paperless-first invoice creation flow (Stories #1679, #1703, #1704).
  *
  * Feature:
  *   When Paperless is configured+reachable AND autoItemizeEnabled=true, clicking
@@ -7,6 +7,11 @@
  *   instead of the manual create modal. The user selects a document, which
  *   triggers extraction on PaperlessInvoiceReviewPage (/budget/invoices/new/paperless),
  *   then confirms to create the invoice and its budget lines atomically.
+ *
+ *   Story #1703/#1704: PaperlessInvoiceReviewPage refactored to a two-column layout
+ *   (formColumn + previewColumn with PDF iframe). The Save button is NO LONGER disabled
+ *   when vendor is empty — clicking triggers an inline vendor FormError instead of
+ *   silently doing nothing.
  *
  * Scenarios covered:
  *   1.  @smoke Picker opens with correct default state (Paperless+LLM configured)
@@ -18,6 +23,11 @@
  *   7.  @smoke Full confirm flow: vendor + lines → confirm → navigate to invoice detail
  *   8.  Responsive picker: on mobile (375px) picker modal is full-screen
  *   9.  Hide-linked default in LinkedDocumentsSection on invoice detail page
+ *   10. PDF iframe present in preview column after extraction complete
+ *   11. Silent-failure fix: clicking Create without vendor shows inline vendor error, no navigation
+ *   12. Page-level error banner on commit 500 (page stays in ready state)
+ *   13. Two-column layout at desktop viewport (formColumn + previewColumn side by side)
+ *   14. @responsive Stacked layout at mobile viewport (previewColumn after formColumn)
  *
  * Mocking strategy:
  *   - GET /api/paperless/status → configured+reachable (mocked)
@@ -797,6 +807,31 @@ test.describe('Scenario 8 — Responsive picker on mobile viewport', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Shared helper: navigate through the full picker flow to the review page
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Navigate from the invoices list page through the picker to the review page.
+ * Returns a PaperlessInvoiceReviewPage instance once extraction is complete.
+ * All Paperless mocks (status, config, correspondents, documents, tags, detail, preview)
+ * must be registered BEFORE calling this helper.
+ */
+async function navigateToReviewPage(page: Page): Promise<PaperlessInvoiceReviewPage> {
+  const invoicesPage = new InvoicesPage(page);
+  await invoicesPage.goto();
+  await invoicesPage.waitForLoaded();
+
+  await invoicesPage.clickNewInvoice();
+  const pickerModal = await invoicesPage.waitForPickerModal();
+  await pickerModal.selectDocument(MOCK_DOC_1.title);
+  await page.waitForURL('**/budget/invoices/new/paperless');
+
+  const reviewPage = new PaperlessInvoiceReviewPage(page);
+  await reviewPage.waitForExtractionComplete();
+  return reviewPage;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Scenario 9 — Hide-linked default in LinkedDocumentsSection on invoice detail
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -889,3 +924,248 @@ test.describe('Scenario 9 — Hide-linked default in invoice detail LinkedDocume
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 10 — PDF iframe present in preview column after extraction complete
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 10 — PDF iframe in preview column (Story #1704)', () => {
+  test('After extraction completes, PDF iframe is visible inside the preview column', async ({
+    page,
+  }) => {
+    await mockPaperlessConfigured(page);
+    await mockConfig(page, true);
+    await mockCorrespondents(page);
+    await mockDocuments(page);
+    await mockTags(page);
+    await mockDocumentDetail(page, MOCK_DOC_1.id);
+    await mockPreview(page);
+
+    const reviewPage = await navigateToReviewPage(page);
+
+    // The two-column layout should be visible
+    await expect(reviewPage.formColumn).toBeVisible();
+    await expect(reviewPage.previewColumn).toBeVisible();
+
+    // PDF iframe should be present and inside the preview column
+    await expect(reviewPage.pdfIframe).toBeVisible();
+    // Verify it is structurally inside the preview column (not just anywhere on the page)
+    const iframeInPreview = reviewPage.previewColumn.locator('iframe[title="Invoice PDF preview"]');
+    await expect(iframeInPreview).toBeAttached();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 11 — Silent-failure fix: vendor error visible on submit without vendor
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 11 — Silent-failure fix: vendor error on submit without vendor (Story #1703)', () => {
+  test('Clicking Create Invoice & Itemize with no vendor shows inline vendor error and keeps URL unchanged', async ({
+    page,
+    testPrefix,
+  }) => {
+    let vendorId = '';
+
+    try {
+      // Create a vendor so a pre-fill can be cleared (we need to clear it)
+      vendorId = await createVendorViaApi(page, `${testPrefix} SFF Vendor`);
+
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
+      await mockDocumentDetail(page, MOCK_DOC_1.id);
+      // No suggestedVendorId so the vendor input is empty (search/input mode)
+      await mockPreview(page, { suggestedVendorId: null });
+
+      const reviewPage = await navigateToReviewPage(page);
+
+      // Confirm button should NOT be disabled when vendor is empty
+      // (behavior change in Story #1703 — old code had disabled={!vendorId || saving})
+      await expect(reviewPage.confirmButton).not.toBeDisabled();
+
+      // Click "Create Invoice & Itemize" without setting a vendor
+      await reviewPage.confirmButton.click();
+
+      // A visible vendor FormError should appear
+      await expect(reviewPage.vendorError).toBeVisible();
+
+      // URL must still be the review page — no navigation occurred
+      expect(page.url()).toContain('/budget/invoices/new/paperless');
+
+      // The confirm button must still be visible (page stayed in ready state, not navigated)
+      await expect(reviewPage.confirmButton).toBeVisible();
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 12 — Page-level error banner on commit failure (500)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 12 — Page-level error banner on commit 500 (Story #1703)', () => {
+  test('When commit endpoint returns 500, a page-level error banner appears inside the form column without navigating', async ({
+    page,
+    testPrefix,
+  }) => {
+    let vendorId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} Commit500 Vendor`);
+
+      // Fetch a real budget category so all lines pass category validation
+      const catResp = await page.request.get(API.budgetCategories);
+      expect(catResp.ok(), `GET /api/budget-categories failed: ${catResp.status()}`).toBeTruthy();
+      const catBody = (await catResp.json()) as { categories: Array<{ id: string }> };
+      const firstCatId = catBody.categories[0]?.id ?? null;
+      expect(
+        firstCatId,
+        'Expected at least one budget category to exist on the server',
+      ).not.toBeNull();
+
+      const linesWithCategory = MOCK_EXTRACTED_LINES.map((l) => ({
+        ...l,
+        budgetCategoryId: firstCatId,
+      }));
+
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
+      await mockDocumentDetail(page, MOCK_DOC_1.id);
+      await mockPreview(page, { suggestedVendorId: null, lines: linesWithCategory });
+
+      // Mock commit to return 500
+      await page.route('**/api/invoices/auto-itemize/commit', async (route: Route) => {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: { code: 'INTERNAL_ERROR', message: 'Internal server error', details: {} },
+          }),
+        });
+      });
+
+      const reviewPage = await navigateToReviewPage(page);
+
+      // Set a vendor so vendor validation passes
+      await reviewPage.setVendor(`${testPrefix} Commit500 Vendor`);
+
+      // Click Create — commit will fail with 500
+      const commitResponse = page.waitForResponse(
+        (resp) => resp.url().includes('/auto-itemize/commit') && resp.request().method() === 'POST',
+      );
+      await reviewPage.confirmButton.click();
+      await commitResponse;
+
+      // Page-level error banner should appear inside formColumn (NOT the fatal error layout)
+      // The formColumn must still be visible — page stays in ready state
+      await expect(reviewPage.formColumn).toBeVisible();
+      await expect(reviewPage.pageErrorBanner).toBeVisible();
+
+      // URL must not have changed — no navigation to an invoice detail page
+      expect(page.url()).toContain('/budget/invoices/new/paperless');
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 13 — Two-column layout at desktop viewport
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 13 — Two-column layout at desktop viewport (Story #1704)', () => {
+  test('At desktop viewport (≥1024px), review page shows formColumn and previewColumn side by side with PDF iframe visible', async ({
+    page,
+  }) => {
+    // This scenario is meaningful only at desktop widths (above the 860px breakpoint)
+    const viewportWidth = page.viewportSize()?.width ?? 1280;
+    if (viewportWidth < 860) {
+      test.skip();
+      return;
+    }
+
+    await mockPaperlessConfigured(page);
+    await mockConfig(page, true);
+    await mockCorrespondents(page);
+    await mockDocuments(page);
+    await mockTags(page);
+    await mockDocumentDetail(page, MOCK_DOC_1.id);
+    await mockPreview(page);
+
+    const reviewPage = await navigateToReviewPage(page);
+
+    // Both columns should be visible
+    await expect(reviewPage.formColumn).toBeVisible();
+    await expect(reviewPage.previewColumn).toBeVisible();
+
+    // PDF iframe should be visible in the preview column
+    await expect(reviewPage.pdfIframe).toBeVisible();
+
+    // Verify the columns are side by side: formColumn should be to the left of previewColumn.
+    // At desktop (grid-template-columns: 1fr 1fr), formColumn.right <= previewColumn.left.
+    const formBox = await reviewPage.formColumn.boundingBox();
+    const previewBox = await reviewPage.previewColumn.boundingBox();
+    expect(formBox).not.toBeNull();
+    expect(previewBox).not.toBeNull();
+    if (formBox && previewBox) {
+      // formColumn right edge should be at or before previewColumn left edge
+      expect(formBox.x + formBox.width).toBeLessThanOrEqual(previewBox.x + 2); // +2px tolerance
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 14 — Stacked layout at mobile viewport
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Scenario 14 — Stacked layout at mobile viewport (Story #1704)',
+  { tag: '@responsive' },
+  () => {
+    test('At mobile viewport (≤860px), review page stacks columns with formColumn above previewColumn', async ({
+      page,
+    }) => {
+      // This scenario is meaningful only at mobile/narrow viewports (below the 860px breakpoint)
+      const viewportWidth = page.viewportSize()?.width ?? 1280;
+      if (viewportWidth > 860) {
+        test.skip();
+        return;
+      }
+
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
+      await mockDocumentDetail(page, MOCK_DOC_1.id);
+      await mockPreview(page);
+
+      const reviewPage = await navigateToReviewPage(page);
+
+      // Both columns should be in the DOM
+      await expect(reviewPage.formColumn).toBeVisible();
+      await expect(reviewPage.previewColumn).toBeVisible();
+
+      // The PDF iframe should be visible even on mobile
+      await expect(reviewPage.pdfIframe).toBeVisible();
+
+      // At mobile viewport, the layout stacks: formColumn has order:1, previewColumn has order:2.
+      // The formColumn should appear above the previewColumn in the rendered layout.
+      // We verify this by checking vertical positions: formColumn.top < previewColumn.top.
+      const formBox = await reviewPage.formColumn.boundingBox();
+      const previewBox = await reviewPage.previewColumn.boundingBox();
+      expect(formBox).not.toBeNull();
+      expect(previewBox).not.toBeNull();
+      if (formBox && previewBox) {
+        // formColumn starts above previewColumn
+        expect(formBox.y).toBeLessThan(previewBox.y);
+      }
+    });
+  },
+);

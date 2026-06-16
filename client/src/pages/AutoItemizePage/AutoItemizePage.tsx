@@ -32,29 +32,12 @@ import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
-import { ParentPicker } from '../../components/ParentPicker/ParentPicker.js';
-import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
+import { AutoItemizeLineList, BudgetLinePickerModal, type LineWithInclude } from '../../components/autoItemize/index.js';
 import { CONFIDENCE_LABELS, effectiveLineAmount } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizePage.module.css';
 
 type PageStatus = 'loading' | 'error' | 'ready' | 'saving';
-
-interface LineWithInclude extends ExtractedLine {
-  included: boolean;
-  rowId: string;
-  workItemBudgetId?: string | null;
-  householdItemBudgetId?: string | null;
-  assignedItemId?: string;
-  assignedItemType?: 'work_item' | 'household_item';
-  assignedBudgetLineId?: string;
-  assignedBudgetLineType?: 'work_item' | 'household_item';
-  assignedBudgetLineDescription?: string | null;
-  createdFromExtraction?: boolean;
-  inlineCreatedBudgetLineDraft?: BudgetLineFormState;
-  budgetCategoryId?: string | null;
-  budgetSourceId?: string | null;
-}
 
 interface MetadataEdits {
   invoiceNumber: string | null;
@@ -674,31 +657,6 @@ export function AutoItemizePage() {
     };
   }, [lines, metadataEdits.amount, invoice?.amount]);
 
-  // Render variance indicator
-  const renderVarianceIndicator = () => {
-    if (variancePercent <= 0.01) {
-      return (
-        <span className={styles.varianceMatch}>
-          <span aria-hidden="true">✓</span> {t('autoItemize.varianceMatch')}
-        </span>
-      );
-    }
-    if (variancePercent <= 0.05) {
-      return (
-        <span className={styles.varianceWarning}>
-          <span aria-hidden="true">⚠</span>{' '}
-          {t('autoItemize.varianceWarning', { amount: formatCurrency(Math.abs(variance)) })}
-        </span>
-      );
-    }
-    return (
-      <span className={styles.varianceDanger}>
-        <span aria-hidden="true">✕</span>{' '}
-        {t('autoItemize.varianceDanger', { amount: formatCurrency(Math.abs(variance)) })}
-      </span>
-    );
-  };
-
   // Guard for missing params (after all hooks are called)
   if (!invoiceId || !documentId) {
     return <div>{t('autoItemize.error')}</div>;
@@ -746,13 +704,8 @@ export function AutoItemizePage() {
     );
   }
 
-  // Hoist discretionary funding note condition computation
   const budgetSources = picker.pickerState.budgetSources ?? [];
   const discretionarySourceId = budgetSources.find((s) => s.isDiscretionary)?.id;
-  const hasDiscretionaryLines =
-    discretionarySourceId !== undefined &&
-    lines.length > 0 &&
-    lines.some((l) => l.budgetSourceId === discretionarySourceId);
 
   return (
     <>
@@ -981,290 +934,40 @@ export function AutoItemizePage() {
             {/* Lines list */}
             <div className={styles.metadataCard}>
               <h3 className={styles.sectionTitle}>{t('autoItemize.extractedLines')}</h3>
-              {hasDiscretionaryLines && (
-                <p
-                  role="note"
-                  className={styles.discretionaryNote}
-                  aria-label={t('autoItemize.discretionaryFundingNote')}
-                >
-                  <svg
-                    className={styles.discretionaryNoteIcon}
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    aria-hidden="true"
-                  >
-                    <circle cx="8" cy="8" r="6.5" />
-                    <line x1="8" y1="5.5" x2="8" y2="5.5" strokeLinecap="round" strokeWidth="2" />
-                    <line x1="8" y1="7.5" x2="8" y2="11" strokeLinecap="round" />
-                  </svg>
-                  <span>{t('autoItemize.discretionaryFundingNote')}</span>
-                </p>
-              )}
-              <ul
-                role="list"
-                className={styles.lineList}
-                aria-label={t('autoItemize.lineItemsListLabel')}
-              >
-                {lines.map((line) => {
-                  const pct = Math.round(line.confidence * 100);
-                  const confidenceColor =
-                    line.confidence >= 0.85
-                      ? 'var(--color-success)'
-                      : line.confidence >= 0.6
-                        ? 'var(--color-warning)'
-                        : 'var(--color-danger)';
-
-                  return (
-                    <li
-                      key={line.rowId}
-                      className={`${styles.lineCard} ${!line.included ? styles.lineCardExcluded : ''}`}
-                    >
-                      {/* Top row: description + confidence dot */}
-                      <div className={styles.cardTopRow}>
-                        <textarea
-                          className={styles.cardDescriptionInput}
-                          value={line.description}
-                          rows={2}
-                          onChange={(e) =>
-                            handleLineFieldChange(line.rowId, 'description', e.target.value)
+              <AutoItemizeLineList
+                lines={lines}
+                onToggleInclude={handleLineToggle}
+                onFieldChange={handleLineFieldChange}
+                onAssign={handleAssignButtonClick}
+                onClearAssign={(rowId) => {
+                  setLines((prev) =>
+                    prev.map((l) =>
+                      l.rowId === rowId
+                        ? {
+                            ...l,
+                            assignedBudgetLineId: undefined,
+                            assignedBudgetLineType: undefined,
+                            assignedBudgetLineDescription: undefined,
+                            createdFromExtraction: undefined,
                           }
-                          aria-label={t('autoItemize.editDescriptionAriaLabel')}
-                        />
-                        <span
-                          role="img"
-                          className={styles.confidenceDot}
-                          style={{ backgroundColor: confidenceColor }}
-                          title={`${pct}%`}
-                          aria-label={t('autoItemize.confidenceLabel', { pct })}
-                        />
-                      </div>
-
-                      {/* Middle row: metric grid */}
-                      <div className={styles.cardMetricGrid}>
-                        <div className={styles.cardMetricCell}>
-                          <span className={styles.cardMetricLabel}>
-                            {t('autoItemize.quantity')}
-                          </span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            className={styles.cardMetricInput}
-                            value={line.quantity ?? ''}
-                            placeholder="—"
-                            onChange={(e) =>
-                              handleLineFieldChange(line.rowId, 'quantity', e.target.value)
-                            }
-                            aria-label={t('autoItemize.editQuantityAriaLabel')}
-                          />
-                        </div>
-                        <div className={styles.cardMetricCell}>
-                          <span className={styles.cardMetricLabel}>{t('autoItemize.unit')}</span>
-                          <input
-                            type="text"
-                            className={styles.cardMetricInput}
-                            value={line.unit ?? ''}
-                            placeholder="—"
-                            onChange={(e) =>
-                              handleLineFieldChange(line.rowId, 'unit', e.target.value)
-                            }
-                            aria-label={t('autoItemize.editUnitAriaLabel')}
-                          />
-                        </div>
-                        <div className={styles.cardMetricCell}>
-                          <span className={styles.cardMetricLabel}>
-                            {t('autoItemize.unitPrice')}
-                          </span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            className={styles.cardMetricInput}
-                            value={line.unitPrice ?? ''}
-                            placeholder="—"
-                            onChange={(e) =>
-                              handleLineFieldChange(line.rowId, 'unitPrice', e.target.value)
-                            }
-                            aria-label={t('autoItemize.editUnitPriceAriaLabel')}
-                          />
-                        </div>
-                        <div className={styles.cardMetricCell}>
-                          <span className={styles.cardMetricLabel}>{t('autoItemize.amount')}</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            className={styles.cardMetricInput}
-                            value={line.totalAmount ?? 0}
-                            onChange={(e) =>
-                              handleLineFieldChange(line.rowId, 'totalAmount', e.target.value)
-                            }
-                            aria-label={t('autoItemize.editTotalAmountAriaLabel')}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Bottom row: include + VAT + assign */}
-                      <div className={styles.cardBottomRow}>
-                        <label className={styles.cardIncludeLabel}>
-                          <input
-                            type="checkbox"
-                            checked={line.included}
-                            onChange={() => handleLineToggle(line.rowId)}
-                          />
-                          {t('autoItemize.included')}
-                        </label>
-                        <label className={styles.cardIncludeLabel}>
-                          <input
-                            type="checkbox"
-                            checked={line.includesVat !== false}
-                            onChange={(e) =>
-                              handleLineFieldChange(line.rowId, 'includesVat', e.target.checked)
-                            }
-                          />
-                          {t('autoItemize.includesVat')}
-                        </label>
-
-                        <div className={styles.cardAssignZone}>
-                          {!line.assignedBudgetLineId && !line.inlineCreatedBudgetLineDraft ? (
-                            <button
-                              type="button"
-                              className={`${sharedStyles.btnPrimaryCompact} ${styles.assignButtonInTable}`}
-                              onClick={() => handleAssignButtonClick(line.rowId)}
-                            >
-                              {t('autoItemize.assignButton')}
-                            </button>
-                          ) : line.assignedBudgetLineId ? (
-                            <div className={styles.assignedBadgeWrapper}>
-                              <div className={styles.assignedBadge}>
-                                <span title={line.assignedBudgetLineDescription || undefined}>
-                                  {line.assignedBudgetLineDescription || t('autoItemize.assigned')}
-                                </span>
-                                <button
-                                  type="button"
-                                  className={styles.clearAssignButton}
-                                  onClick={() => {
-                                    setLines((prev) =>
-                                      prev.map((l) =>
-                                        l.rowId === line.rowId
-                                          ? {
-                                              ...l,
-                                              assignedBudgetLineId: undefined,
-                                              assignedBudgetLineType: undefined,
-                                              assignedBudgetLineDescription: undefined,
-                                              createdFromExtraction: undefined,
-                                            }
-                                          : l,
-                                      ),
-                                    );
-                                    setLineFieldsEdited(true);
-                                  }}
-                                  aria-label={t('autoItemize.clearAssignmentAriaLabel')}
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                              {line.createdFromExtraction && (
-                                <Badge
-                                  variants={createdFromExtractionVariants}
-                                  value="true"
-                                  testId="auto-created-badge"
-                                />
-                              )}
-                            </div>
-                          ) : (
-                            <div className={styles.assignedBadge}>
-                              <span>{t('autoItemize.creatingNew')}</span>
-                              <button
-                                type="button"
-                                className={styles.clearAssignButton}
-                                onClick={() => {
-                                  setLines((prev) =>
-                                    prev.map((l) =>
-                                      l.rowId === line.rowId
-                                        ? { ...l, inlineCreatedBudgetLineDraft: undefined }
-                                        : l,
-                                    ),
-                                  );
-                                  setLineFieldsEdited(true);
-                                }}
-                                aria-label={t('autoItemize.clearAssignmentAriaLabel')}
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className={styles.cardBottomRowPickerRow}>
-                          {/* Category picker */}
-                          <div className={styles.cardMetricCell}>
-                            <label
-                              htmlFor={`category-${line.rowId}`}
-                              className={styles.cardPickerLabel}
-                            >
-                              {t('autoItemize.categoryLabel')}
-                            </label>
-                            <select
-                              id={`category-${line.rowId}`}
-                              className={styles.cardMetricInput}
-                              value={line.budgetCategoryId ?? ''}
-                              onChange={(e) =>
-                                handleLineFieldChange(
-                                  line.rowId,
-                                  'budgetCategoryId',
-                                  e.target.value || null,
-                                )
-                              }
-                              aria-label={t('autoItemize.categoryAriaLabel')}
-                            >
-                              <option value="">{t('autoItemize.categoryPlaceholder')}</option>
-                              {picker.pickerState.categories?.map((cat) => (
-                                <option key={cat.id} value={cat.id}>
-                                  {getCategoryDisplayName(tSettings, cat.name, cat.translationKey)}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Funding Source picker */}
-                          <div className={styles.cardMetricCell}>
-                            <label
-                              htmlFor={`source-${line.rowId}`}
-                              className={styles.cardPickerLabel}
-                            >
-                              {t('autoItemize.fundingSourceLabel')}
-                            </label>
-                            <select
-                              id={`source-${line.rowId}`}
-                              className={styles.cardMetricInput}
-                              value={line.budgetSourceId ?? ''}
-                              onChange={(e) =>
-                                handleLineFieldChange(line.rowId, 'budgetSourceId', e.target.value)
-                              }
-                              aria-label={t('autoItemize.fundingSourceAriaLabel')}
-                            >
-                              {picker.pickerState.budgetSources?.map((src) => (
-                                <option key={src.id} value={src.id}>
-                                  {src.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    </li>
+                        : l,
+                    ),
                   );
-                })}
-              </ul>
-
-              {/* Totals card */}
-              <div className={styles.totalsCard}>
-                <span>{t('autoItemize.total')}</span>
-                <span className={styles.totalsAmount}>{formatCurrency(computedLineTotal)}</span>
-                {renderVarianceIndicator()}
-              </div>
+                  setLineFieldsEdited(true);
+                }}
+                categories={picker.pickerState.categories ?? []}
+                budgetSources={picker.pickerState.budgetSources ?? []}
+                discretionarySourceId={
+                  (picker.pickerState.budgetSources ?? []).find((s) => s.isDiscretionary)?.id
+                }
+                computedTotal={computedLineTotal}
+                variance={variance}
+                variancePercent={variancePercent}
+                createdFromExtractionVariants={createdFromExtractionVariants}
+                formatCurrency={formatCurrency}
+                t={t}
+                tSettings={tSettings}
+              />
             </div>
 
             {/* Action buttons */}
@@ -1354,156 +1057,43 @@ export function AutoItemizePage() {
           }
           onClose={picker.closePicker}
         >
-          <div className={styles.pickerContent}>
-            {/* Step 1: Select item type and item */}
-            {picker.pickerState.step === 1 && (
-              <div className={styles.pickerStep}>
-                <ParentPicker
-                  selectedType={picker.pickerState.type ?? 'work_item'}
-                  selectedId={picker.pickerState.itemId ?? null}
-                  onChange={(type, id) => {
-                    picker.handleSelectItem(id, type);
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Step 2: Select budget line and set itemized amounts */}
-            {picker.pickerState.step === 2 && (
-              <div className={styles.pickerStep}>
-                {picker.pickerState.isLoading && (
-                  <div className={styles.loadingState}>
-                    {t('invoiceDetail.budgetLines.picker.loadingLines')}
-                  </div>
-                )}
-
-                {picker.pickerState.error && (
-                  <div className={styles.errorBanner} role="alert">
-                    {picker.pickerState.error}
-                  </div>
-                )}
-
-                {!picker.pickerState.isLoading &&
-                  picker.pickerState.budgetLines.length === 0 &&
-                  !picker.pickerState.error &&
-                  !picker.pickerState.showCreateForm && (
-                    <div className={styles.emptyState}>
-                      <p>{t('invoiceDetail.budgetLines.picker.noUnlinkedLines')}</p>
-                    </div>
-                  )}
-
-                {!picker.pickerState.isLoading &&
-                  picker.pickerState.showCreateForm &&
-                  picker.pickerState.createForm && (
-                    <div className={styles.createBudgetLineForm}>
-                      <fieldset className={styles.createBudgetLineFieldset}>
-                        <legend className={styles.srOnly}>
-                          {t('invoiceDetail.budgetLines.createFormLegend')}
-                        </legend>
-                        <BudgetLineForm
-                          form={picker.pickerState.createForm}
-                          onSubmit={(e) => picker.handleCreateBudgetLine(e)}
-                          onFormChange={(updates) =>
-                            picker.setPickerState((prev) => ({
-                              ...prev,
-                              createForm: prev.createForm
-                                ? { ...prev.createForm, ...updates }
-                                : prev.createForm,
-                            }))
-                          }
-                          onCancel={() => {
-                            picker.setPickerState((prev) => ({
-                              ...prev,
-                              showCreateForm: false,
-                              createForm: undefined,
-                              createError: null,
-                            }));
-                            setTimeout(() => {
-                              picker.createBudgetLineButtonRef.current?.focus();
-                            }, 0);
-                          }}
-                          error={picker.pickerState.createError ?? null}
-                          isSaving={picker.pickerState.isCreatingBudgetLine ?? false}
-                          isEditing={false}
-                          confidenceLabels={CONFIDENCE_LABELS}
-                          budgetSources={picker.pickerState.budgetSources ?? []}
-                          vendors={picker.pickerState.vendors ?? []}
-                          budgetCategories={
-                            picker.pickerState.type === 'work_item'
-                              ? (picker.pickerState.categories ?? [])
-                              : undefined
-                          }
-                        />
-                      </fieldset>
-                    </div>
-                  )}
-
-                {!picker.pickerState.isLoading &&
-                  picker.pickerState.budgetLines.length > 0 &&
-                  !picker.pickerState.showCreateForm && (
-                    <div className={styles.budgetLineList}>
-                      {picker.pickerState.budgetLines.map((line) => (
-                        <button
-                          key={line.id}
-                          type="button"
-                          className={styles.pickerBudgetLineRow}
-                          onClick={() => void handleSelectBudgetLine(line)}
-                        >
-                          <div className={styles.budgetLineInfo}>
-                            <div className={styles.budgetLineDesc}>
-                              {line.description ||
-                                t('invoiceDetail.budgetLines.picker.unnamedBudgetLine')}
-                            </div>
-                            <div className={styles.budgetLineDetails}>
-                              {line.budgetCategory && (
-                                <span className={styles.budgetLineCategory}>
-                                  {getCategoryDisplayName(
-                                    tSettings,
-                                    line.budgetCategory.name,
-                                    line.budgetCategory.translationKey,
-                                  )}
-                                </span>
-                              )}
-                              <span className={styles.budgetLinePlanned}>
-                                {t('invoiceDetail.budgetLines.picker.plannedLabel', {
-                                  amount: formatCurrency(line.plannedAmount),
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                {!picker.pickerState.isLoading && !picker.pickerState.showCreateForm && (
-                  <button
-                    type="button"
-                    ref={picker.createBudgetLineButtonRef}
-                    className={styles.addButton}
-                    onClick={handleCreateNewBudgetLine}
-                  >
-                    {t('invoiceDetail.budgetLines.picker.createLine')}
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  className={styles.backButton}
-                  onClick={() =>
-                    picker.setPickerState((prev) => ({
-                      ...prev,
-                      step: 1,
-                      budgetLines: [],
-                      isLoading: false,
-                    }))
-                  }
-                >
-                  {t('invoiceDetail.budgetLines.picker.backButton')}
-                </button>
-              </div>
-            )}
-          </div>
+          <BudgetLinePickerModal
+            pickerState={picker.pickerState}
+            setPickerState={picker.setPickerState}
+            handleSelectItem={picker.handleSelectItem}
+            createBudgetLineButtonRef={picker.createBudgetLineButtonRef}
+            onSelectBudgetLine={handleSelectBudgetLine}
+            onCreateNewBudgetLine={handleCreateNewBudgetLine}
+            onBackToStep1={() =>
+              picker.setPickerState((prev) => ({
+                ...prev,
+                step: 1,
+                budgetLines: [],
+                isLoading: false,
+              }))
+            }
+            onFormChange={(updates) =>
+              picker.setPickerState((prev) => ({
+                ...prev,
+                createForm: prev.createForm ? { ...prev.createForm, ...updates } : prev.createForm,
+              }))
+            }
+            onCancelCreateForm={() => {
+              picker.setPickerState((prev) => ({
+                ...prev,
+                showCreateForm: false,
+                createForm: undefined,
+                createError: null,
+              }));
+              setTimeout(() => {
+                picker.createBudgetLineButtonRef.current?.focus();
+              }, 0);
+            }}
+            onCreateBudgetLine={(e) => picker.handleCreateBudgetLine(e)}
+            t={t}
+            tSettings={tSettings}
+            formatCurrency={formatCurrency}
+          />
         </Modal>
       )}
 
