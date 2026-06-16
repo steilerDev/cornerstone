@@ -428,7 +428,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       if (inlineInput.isOpen) return;
       if (!stageRef.current) return;
 
-      const pos = stageRef.current.getPointerPosition();
+      const pos = stageRef.current.getRelativePointerPosition();
       if (!pos) return;
 
       const target = e.target;
@@ -494,7 +494,7 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       if (inlineInput.isOpen) return;
       if (!stageRef.current || !draftShape) return;
 
-      const pos = stageRef.current.getPointerPosition();
+      const pos = stageRef.current.getRelativePointerPosition();
       if (!pos) return;
 
       if (state.selectedTool === 'freehand') {

@@ -122,18 +122,40 @@ export interface StageMockHandlers {
 export const stageMockHandlers: StageMockHandlers = {};
 
 // Mock Konva.Stage-like object exposed via forwardRef useImperativeHandle.
+//
+// IMPORTANT: getPointerPosition() and getRelativePointerPosition() return
+// DIFFERENT independently-settable values so tests can discriminate which method
+// the production drawing handlers call.
+//
+// getPointerPosition()         → screen/container-space coords (0…intrinsicW*fitScale)
+// getRelativePointerPosition() → intrinsic image-space coords  (0…intrinsicW)
+//
+// The production drawing handlers (handleStagePointerDown/Move) call
+// getRelativePointerPosition() so committed shape coords are in intrinsic space.
+// A test can set both to distinct values: if production regresses to
+// getPointerPosition() the asserted shape coords will not match.
 export interface MockKonvaStage {
   container: () => StageMockContainer;
   getPointerPosition: () => { x: number; y: number } | null;
+  getRelativePointerPosition: () => { x: number; y: number } | null;
   getParent: () => null;
   getStage: () => MockKonvaStage;
 }
 
-// Controllable pointer position — tests can set this before firing events.
-// Default: { x: 0, y: 0 } (matches StubKonvaNode.getPointerPosition default).
+// Controllable pointer positions — tests can set these before firing events.
+// getPointerPosition returns screen/container-space coords (intentionally different
+// from getRelativePointerPosition so a test can tell which method was used).
 export let mockStagePointerPosition: { x: number; y: number } | null = { x: 0, y: 0 };
 export function setMockStagePointerPosition(pos: { x: number; y: number } | null) {
   mockStagePointerPosition = pos;
+}
+
+// getRelativePointerPosition returns intrinsic image-space coords.
+// Default matches mockStagePointerPosition at {x:0, y:0}; tests that want
+// discrimination must set this to a DIFFERENT value than mockStagePointerPosition.
+export let mockStageRelativePointerPosition: { x: number; y: number } | null = { x: 0, y: 0 };
+export function setMockStageRelativePointerPosition(pos: { x: number; y: number } | null) {
+  mockStageRelativePointerPosition = pos;
 }
 
 // Stage with forwardRef so stageRef.current is non-null in PhotoAnnotator.
@@ -166,11 +188,19 @@ export const Stage = React.forwardRef<MockKonvaStage, AnyProps>(function KonvaSt
 
   // Build the stable mock Konva stage object. useImperativeHandle deps=[] so
   // stageRef.current is set once after first render and remains stable.
+  //
+  // getPointerPosition()         → mockStagePointerPosition (screen/container space)
+  // getRelativePointerPosition() → mockStageRelativePointerPosition (intrinsic image space)
+  //
+  // These intentionally return DIFFERENT values so tests can discriminate which
+  // method production code calls. The production drawing handlers call
+  // getRelativePointerPosition() so shape coords end up in intrinsic image space.
   React.useImperativeHandle(
     ref,
     (): MockKonvaStage => ({
       container: () => stageMockContainer,
       getPointerPosition: () => mockStagePointerPosition,
+      getRelativePointerPosition: () => mockStageRelativePointerPosition,
       getParent: () => null,
       getStage: function() { return this; },
     }),
