@@ -32,3 +32,34 @@
 @media (prefers-reduced-motion: reduce) {
   /* No transitions on modal content — inherited from shared.module.css which already handles this */
 }
+
+.photoPreview {
+  width: 100%;
+  max-height: 14rem;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photoPreviewImage {
+  max-width: 100%;
+  max-height: 14rem;
+  object-fit: contain;
+  object-position: center;
+  display: block;
+  border-radius: var(--radius-md);
+}
+
+@media (max-width: 767px) {
+  .photoPreview {
+    max-height: 10rem;
+  }
+
+  .photoPreviewImage {
+    max-height: 10rem;
+  }
+}

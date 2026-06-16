@@ -1056,3 +1056,86 @@ test.describe(
     });
   },
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 12: PhotoMetadataModal — photo preview (Story #1722)
+//
+// The modal now renders a preview <img> of the selected file before upload.
+// The img's src is a blob: object URL created from the File object, and its alt
+// is set to the selected file's name.
+//
+// Scenario 12 (@smoke): default viewport — preview img is visible, alt equals
+//   the filename, src starts with "blob:".
+// Scenario 12b (@responsive): mobile viewport (375×667) — same assertions,
+//   confirming the mobile CSS (max-height: 10rem) does not hide the element.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('PhotoMetadataModal — photo preview (Scenario 12)', () => {
+  test(
+    'Photo preview visible in modal after file selection (Scenario 12)',
+    { tag: '@smoke' },
+    async ({ page }) => {
+      let draftId: string | null = null;
+      try {
+        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+        await page.goto(`/diary/${draftId}/edit`);
+        await page
+          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .waitFor({ state: 'visible' });
+
+        const libraryInput = page.getByTestId('photo-library-input');
+        await libraryInput.setInputFiles([MINIMAL_JPEG]);
+
+        const modal = page.getByRole('dialog', { name: 'Add photo details' });
+        await modal.waitFor({ state: 'visible' });
+
+        // The modal should contain a preview image of the selected file.
+        const previewImg = modal.getByRole('img');
+        await expect(previewImg).toBeVisible();
+
+        // alt equals the selected file's name
+        await expect(previewImg).toHaveAttribute('alt', MINIMAL_JPEG.name);
+
+        // src is a blob: object URL (created from the File object pre-upload)
+        await expect(previewImg).toHaveAttribute('src', /^blob:/);
+      } finally {
+        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      }
+    },
+  );
+
+  test(
+    'Preview present on mobile viewport (Scenario 12b)',
+    { tag: '@responsive' },
+    async ({ page }) => {
+      // Force mobile viewport to verify the preview is not hidden by
+      // max-height: 10rem CSS applied at small screen sizes.
+      await page.setViewportSize({ width: 375, height: 667 });
+
+      let draftId: string | null = null;
+      try {
+        draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+        await page.goto(`/diary/${draftId}/edit`);
+        await page
+          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .waitFor({ state: 'visible' });
+
+        const libraryInput = page.getByTestId('photo-library-input');
+        await libraryInput.setInputFiles([MINIMAL_JPEG]);
+
+        const modal = page.getByRole('dialog', { name: 'Add photo details' });
+        await modal.waitFor({ state: 'visible' });
+
+        // Preview must remain visible even at 375px where max-height: 10rem is applied.
+        const previewImg = modal.getByRole('img');
+        await expect(previewImg).toBeVisible();
+
+        // alt and src sanity-check on mobile too
+        await expect(previewImg).toHaveAttribute('alt', MINIMAL_JPEG.name);
+        await expect(previewImg).toHaveAttribute('src', /^blob:/);
+      } finally {
+        if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      }
+    },
+  );
+});
