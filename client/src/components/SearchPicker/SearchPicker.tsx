@@ -88,7 +88,7 @@ export function SearchPicker<T>({
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { refs, floatingStyles } = useFloating({
+  const { refs, floatingStyles, isPositioned } = useFloating({
     open: isOpen,
     onOpenChange: setIsOpen,
     strategy: 'fixed',
@@ -341,7 +341,7 @@ export function SearchPicker<T>({
           <div
             data-search-picker-dropdown
             ref={refs.setFloating}
-            style={floatingStyles}
+            style={isPositioned ? floatingStyles : { ...floatingStyles, visibility: 'hidden' }}
             className={styles.portalDropdown}
             role="listbox"
             onKeyDown={(e) => {
