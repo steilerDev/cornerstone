@@ -4,6 +4,7 @@
  * Story #1473: Photo Annotator Foundation
  * Story #1482: setCurrentPhoto called on save/clear so buttons update immediately
  * Story #1497: Lightbox Delete for Non-Draft Entries
+ * Bug #1734: Photo Lightbox metadata persistence — onPhotoChanged propagation
  *
  * Tests:
  *   - Annotate button visible, disabled when photo has no dimensions
@@ -27,6 +28,9 @@
  *   - Clicking delete opens confirmation modal
  *   - Cancelling delete modal closes it without calling onDelete
  *   - Confirming delete calls onDelete and closes viewer
+ *   - (#1734) Annotation save calls onPhotoChanged with updated photo
+ *   - (#1734) Metadata save calls onPhotoChanged with updated photo
+ *   - (#1734) Metadata save propagates: onPhotoChanged called before navigation
  *
  * Note: jest.unstable_mockModule may not intercept locally (systemic worktree issue).
  * Tests are structured correctly and will pass in CI.
@@ -121,12 +125,23 @@ jest.unstable_mockModule('../Modal/Modal.js', () => ({
 // ─── Mock PhotoMetadataSidepanel ──────────────────────────────────────────────
 // The sidepanel now always renders (no isOpen/onClose props). Mock to avoid
 // rendering dependencies like LocaleProvider which aren't available in unit tests.
+// Clicking the mock div triggers onPhotoUpdated with a mutated photo (caption + areaId set),
+// so tests can verify that the metadata-save path calls onPhotoChanged.
 
 jest.unstable_mockModule('./PhotoMetadataSidepanel.js', () => ({
-  PhotoMetadataSidepanel: ({ photo }: { photo: Photo; onPhotoUpdated?: (p: Photo) => void }) =>
+  PhotoMetadataSidepanel: ({
+    photo,
+    onPhotoUpdated,
+  }: {
+    photo: Photo;
+    onPhotoUpdated?: (p: Photo) => void;
+    isAnnotating?: boolean;
+  }) =>
     React.createElement('div', {
       'data-testid': 'mock-metadata-sidepanel',
       'data-photo-id': photo.id,
+      onClick: () =>
+        onPhotoUpdated?.({ ...photo, caption: 'saved-caption', areaId: 'area-1' } as Photo),
     }),
 }));
 
@@ -166,7 +181,7 @@ function makePhoto(overrides: Record<string, unknown> = {}): Photo {
 
 describe('PhotoViewer', () => {
   const mockOnClose = jest.fn() as AnyMock;
-  const mockOnPhotoAnnotated = jest.fn() as AnyMock;
+  const mockOnPhotoChanged = jest.fn() as AnyMock;
   const mockOnDelete = jest.fn() as AnyMock;
 
   beforeEach(async () => {
@@ -195,7 +210,7 @@ describe('PhotoViewer', () => {
         photos,
         initialIndex,
         onClose: mockOnClose,
-        onPhotoAnnotated: mockOnPhotoAnnotated,
+        onPhotoChanged: mockOnPhotoChanged,
         editable,
         startInAnnotator,
         onDelete,
@@ -326,6 +341,72 @@ describe('PhotoViewer', () => {
     });
   });
 
+  // ─── #1734 fix: onPhotoChanged called by all three mutation paths ─────────
+  //
+  // The bug was that handlePhotoUpdated (the metadata-save path) only called
+  // setCurrentPhoto but did NOT call onPhotoChanged, so the parent's photo list
+  // was never updated. All three mutation callbacks must propagate the change.
+
+  it('#1734 — annotation save calls onPhotoChanged with the updated photo', () => {
+    const photo = makePhoto({ id: 'p-annotate', width: 800, height: 600, annotatedAt: null });
+    renderViewer([photo]);
+
+    // Enter annotating mode and click Save (mock passes annotatedAt set)
+    fireEvent.click(screen.getByTestId('photo-viewer-annotate'));
+    fireEvent.click(screen.getByTestId('annotator-save-mock'));
+
+    // onPhotoChanged must be called with annotatedAt set
+    expect(mockOnPhotoChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ annotatedAt: '2026-05-29T10:00:00.000Z' }),
+    );
+  });
+
+  it('#1734 — metadata save calls onPhotoChanged with the updated photo', () => {
+    const photo = makePhoto({ id: 'p-metadata', caption: null, areaId: null });
+    renderViewer([photo]);
+
+    // Click the mock sidepanel — fires onPhotoUpdated with caption+areaId set
+    fireEvent.click(screen.getByTestId('mock-metadata-sidepanel'));
+
+    // onPhotoChanged must be called with the mutated photo
+    expect(mockOnPhotoChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ caption: 'saved-caption' }),
+    );
+  });
+
+  it('#1734 — metadata save propagates: onPhotoChanged called before navigation', () => {
+    // Two photos: A at index 0, B at index 1
+    const photoA = makePhoto({ id: 'p-a', caption: null });
+    const photoB = makePhoto({ id: 'p-b', caption: null });
+    renderViewer([photoA, photoB], 0);
+
+    // Save metadata on photo A — sidepanel mock fires onPhotoUpdated
+    fireEvent.click(screen.getByTestId('mock-metadata-sidepanel'));
+
+    // Verify propagation happened immediately (before any navigation)
+    expect(mockOnPhotoChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'p-a', caption: 'saved-caption' }),
+    );
+
+    // Navigate to photo B
+    fireEvent.click(screen.getByTestId('photo-viewer-next'));
+
+    // Sidepanel now shows photo B
+    expect(screen.getByTestId('mock-metadata-sidepanel')).toHaveAttribute('data-photo-id', 'p-b');
+
+    // Navigate back to photo A
+    fireEvent.click(screen.getByTestId('photo-viewer-prev'));
+
+    // Sidepanel shows photo A again
+    expect(screen.getByTestId('mock-metadata-sidepanel')).toHaveAttribute('data-photo-id', 'p-a');
+
+    // onPhotoChanged was called exactly once (for the metadata save on A)
+    expect(mockOnPhotoChanged).toHaveBeenCalledTimes(1);
+    expect(mockOnPhotoChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'p-a', caption: 'saved-caption' }),
+    );
+  });
+
   // ─── View Original button ─────────────────────────────────────────────────
 
   it('view original button not visible when annotatedAt is null', () => {
@@ -438,7 +519,7 @@ describe('PhotoViewer', () => {
     });
   });
 
-  it('confirming clear annotation calls onPhotoAnnotated with cleared photo', async () => {
+  it('confirming clear annotation calls onPhotoChanged with cleared photo', async () => {
     const photo = makePhoto({ id: 'photo-to-clear', annotatedAt: '2026-05-17T10:00:00.000Z' });
     renderViewer([photo]);
 
@@ -452,7 +533,7 @@ describe('PhotoViewer', () => {
     });
 
     await waitFor(() => {
-      expect(mockOnPhotoAnnotated).toHaveBeenCalledWith(
+      expect(mockOnPhotoChanged).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'photo-to-clear', annotatedAt: null }),
       );
     });

@@ -12,7 +12,7 @@ export interface PhotoViewerProps {
   photos: Photo[];
   initialIndex: number;
   onClose: () => void;
-  onPhotoAnnotated?: (photo: Photo) => void;
+  onPhotoChanged?: (photo: Photo) => void;
   editable?: boolean;
   startInAnnotator?: boolean;
   onDelete?: (photoId: string) => void;
@@ -22,7 +22,7 @@ export function PhotoViewer({
   photos,
   initialIndex,
   onClose,
-  onPhotoAnnotated,
+  onPhotoChanged,
   editable = true,
   startInAnnotator = false,
   onDelete,
@@ -116,10 +116,10 @@ export function PhotoViewer({
       setCurrentPhoto(updatedPhoto);
       setIsAnnotating(false);
       setShowingOriginal(false);
-      onPhotoAnnotated?.(updatedPhoto);
+      onPhotoChanged?.(updatedPhoto);
       annotateBtnRef.current?.focus();
     },
-    [onPhotoAnnotated],
+    [onPhotoChanged],
   );
 
   const handleAnnotationCancel = useCallback(() => {
@@ -136,7 +136,7 @@ export function PhotoViewer({
         annotatedAt: null,
       };
       setCurrentPhoto(clearedPhoto);
-      onPhotoAnnotated?.(clearedPhoto);
+      onPhotoChanged?.(clearedPhoto);
       setShowClearConfirm(false);
       clearBtnRef.current?.focus();
     } catch (err) {
@@ -145,11 +145,15 @@ export function PhotoViewer({
     } finally {
       setIsClearingAnnotation(false);
     }
-  }, [currentPhoto, onPhotoAnnotated]);
+  }, [currentPhoto, onPhotoChanged]);
 
-  const handlePhotoUpdated = useCallback((updatedPhoto: Photo) => {
-    setCurrentPhoto(updatedPhoto);
-  }, []);
+  const handlePhotoUpdated = useCallback(
+    (updatedPhoto: Photo) => {
+      setCurrentPhoto(updatedPhoto);
+      onPhotoChanged?.(updatedPhoto);
+    },
+    [onPhotoChanged],
+  );
 
   const handleDeletePhoto = useCallback(async () => {
     if (!onDelete) return;
