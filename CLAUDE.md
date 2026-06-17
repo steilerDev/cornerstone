@@ -137,7 +137,7 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 - **Breaking changes**: Use `!` suffix or `BREAKING CHANGE:` footer
 - Every completed task gets its own commit with a meaningful description
 - **Link commits to issues**: When a commit resolves work tracked in a GitHub Issue, include `Fixes #<issue-number>` in the commit message body (one per line for multiple issues). Note: `Fixes #N` only auto-closes issues when the commit reaches `main` (not `beta`).
-- **Always commit, push to a feature branch, and create a PR after work is complete.** Lint, format, and audit fixes are handled by the CI auto-fix bot on `beta`. Do not leave work uncommitted or unpushed. Never push directly to `main` or `beta`.
+- **Always commit, push to a feature branch, and create a PR after work is complete.** Do not leave work uncommitted or unpushed. Never push directly to `main` or `beta`.
 
 ### Branching Strategy
 
@@ -178,7 +178,17 @@ Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Qualit
 
 ### Local Validation Policy
 
-**Do NOT run `npm test`, `npm run lint`, `npm run typecheck`, or `npm run build` manually.** Lint, format, and audit issues are handled by the CI auto-fix bot (`.github/workflows/auto-fix.yml`), which runs `npm run lint:fix` + `npm run format` + `npm audit fix` on every push to `beta` and creates a fix PR if needed. Unfixable lint issues are surfaced during `/epic-close` (step 2b: Lint Health Check). CI Quality Gates (typecheck + test + build) runs on every PR.
+**Before handing back to the dev-team-lead, implementing agents MUST run lint and format and verify they are clean:**
+
+```bash
+npm run lint:fix    # auto-fix all fixable issues
+npm run format      # apply Prettier formatting
+npm run lint        # must report zero warnings or errors
+```
+
+If `npm run lint` still reports warnings or errors after auto-fix, they must be resolved before handback. The dev-team-lead validates lint cleanliness as part of `[MODE: review]` — work with outstanding lint issues is returned for fixes.
+
+**Do NOT run `npm test`, `npm run typecheck`, or `npm run build` manually.** CI Quality Gates (typecheck + test + build) run on every PR and own full validation.
 
 To validate your work: **commit and push**. After pushing, **always wait for the required CI gates to pass** before proceeding to the next step. When running tests locally: only run specific files (`npx jest path/to/specific.test.ts --maxWorkers=1`), never the full suite — the sandbox is resource-constrained and CI owns full validation.
 
@@ -214,28 +224,13 @@ Replace `<PR>` with the PR number. The polling loop handles the "checks not yet 
 
 ### CI Skip-Directive Quirks (two failure modes when CI stops firing)
 
-Two distinct GitHub Actions quirks can leave a PR `MERGEABLE` but `BLOCKED` because the required `Quality Gates` / `E2E Gates` checks did not run on the current HEAD. Diagnose with `gh pr view <PR> --json mergeable,mergeStateStatus,headRefOid` (state `BLOCKED`/`MERGEABLE`) and `gh api repos/steilerDev/cornerstone/commits/<sha>/check-runs` (empty or missing the required check names). The two failure modes look similar but require different fixes — pick by checking the head commit's message.
+A GitHub Actions quirk can leave a PR `MERGEABLE` but `BLOCKED` because the required `Quality Gates` / `E2E Gates` checks did not run on the current HEAD. Diagnose with `gh pr view <PR> --json mergeable,mergeStateStatus,headRefOid` (state `BLOCKED`/`MERGEABLE`) and `gh api repos/steilerDev/cornerstone/commits/<sha>/check-runs` (empty or missing the required check names).
 
-**Mode A — Auto-fix bot `[skip ci]` push (PR is for non-promotion work or already had a passing parent commit)**
+**Squash title containing a `[skip ci]` directive**
 
-The auto-fix bot (`.github/workflows/auto-fix.yml`) pushes cosmetic lint/format commits to `beta` with `[skip ci]` in the commit message. When that push lands on top of a recently-merged squash on `beta`, it advances the HEAD of any open `beta -> main` PR (e.g., the promotion PR) to a SHA that has no CI runs. The PR becomes `BLOCKED` even though the prior HEAD's checks passed.
+GitHub Actions parses **any commit's first line** for `[skip ci]` (and equivalents: `[ci skip]`, `[skip actions]`, `[actions skip]`, `[skip-checks: true]`). When a PR's title or body intentionally references `[skip ci]` (e.g., a docs PR explaining the directive), the squash-merge to `beta` picks up that title as the merged commit's first line. The directive then suppresses **all** workflows that would otherwise fire on that push, including `pull_request:synchronize` runs on any open `beta -> main` PR — the promotion PR is blocked.
 
-Detect: head commit's first line ends with `[skip ci]`; `gh run list --commit <sha>` is empty.
-
-**Fix (only when the PR is NOT base=main):** the `Quality Gates` workflow exposes `workflow_dispatch:` for exactly this case. Re-trigger CI on the affected branch:
-
-```bash
-gh workflow run ci.yml --repo steilerDev/cornerstone --ref beta
-```
-
-> [!IMPORTANT]
-> `workflow_dispatch` runs report check-runs on the commit SHA but **GitHub does NOT include them in the PR's `statusCheckRollup`**. The PR's required-status-checks evaluation only considers check runs whose triggering event was tied to the PR itself (`pull_request`, `pull_request_target`) or to a push to the PR's source branch. Use `workflow_dispatch` only for unblocking dev/feature PRs where the check name matters for visibility, **not** for satisfying a branch-protection gate on a promotion PR. For a stuck promotion PR, fall through to Mode B's fix (advance the source branch with a clean commit).
-
-**Mode B — Squash title containing the literal `[skip ci]`**
-
-GitHub Actions parses **any commit's first line** for `[skip ci]` (and equivalents: `[ci skip]`, `[skip actions]`, `[actions skip]`, `[skip-checks: true]`). When a PR's title or body intentionally references `[skip ci]` (e.g., a docs PR explaining the directive), the squash-merge to `beta` picks up that title as the merged commit's first line. The directive then suppresses **all** workflows that would otherwise fire on that push, including `pull_request:synchronize` runs on any open `beta -> main` PR — the promotion PR is blocked, and `workflow_dispatch` cannot satisfy its required checks (see Mode A's note).
-
-Detect: head commit's first line literally contains `[skip ci]`; `gh run list --commit <sha>` is empty; no `Auto Fix` workflow ran either.
+Detect: head commit's first line literally contains `[skip ci]`; `gh run list --commit <sha>` is empty.
 
 **Prevention:** before squash-merging a PR whose title contains a skip directive, override the squash subject/body with `gh pr merge <N> --squash --subject "<clean subject>"` so the merged commit message is skip-directive-free. Likewise, do not include `[skip ci]` (or equivalents) verbatim in PR titles — reference them with code spans (`` `[skip ci]` ``) or rewrite as "the CI-skip directive".
 
