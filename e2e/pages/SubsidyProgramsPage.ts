@@ -392,4 +392,47 @@ export class SubsidyProgramsPage {
     }
     return names;
   }
+
+  /**
+   * Find the program row that contains the given program name (display mode, not editing).
+   * Mirrors the BudgetSourcesPage.getSourceRowByName pattern.
+   */
+  getProgramRowByName(name: string): Locator {
+    return this.page.locator('[class*="programRow"]').filter({ hasText: name });
+  }
+
+  // ─── Documents toggle helpers (Story #1744) ───────────────────────────────
+
+  /**
+   * Get the documents toggle button for the named program row.
+   * The button has aria-label "Show documents for <name>" (collapsed) or
+   * "Hide documents for <name>" (expanded).
+   */
+  getDocsToggle(programName: string): Locator {
+    return this.getProgramRowByName(programName).getByRole('button', {
+      name: new RegExp(
+        `(Show|Hide) documents for ${programName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`,
+        'i',
+      ),
+    });
+  }
+
+  /**
+   * Get the documents panel region for a specific program by its ID.
+   * The panel renders as: <div id="program-docs-{programId}" role="region">
+   * Only present in the DOM when expanded (conditional render, not hidden).
+   */
+  getDocsPanelById(programId: string): Locator {
+    return this.page.locator(`[id="program-docs-${programId}"]`);
+  }
+
+  /**
+   * Click the docs toggle for the named program to reveal the documents panel.
+   * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+   */
+  async expandProgramDocs(programName: string): Promise<void> {
+    const toggle = this.getDocsToggle(programName);
+    await toggle.waitFor({ state: 'visible' });
+    await toggle.click();
+  }
 }

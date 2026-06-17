@@ -33,6 +33,28 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   moveBudgetLinesBetweenSources: jest.fn(),
 }));
 
+// ─── Mock: LinkedDocumentsSection — avoids deep dependency chain (Paperless hooks, etc.) ───
+
+// Capture the last props passed to LinkedDocumentsSection so tests can assert them
+// (prefixed with _ because assertions use DOM data-attributes, not this variable directly)
+let _capturedLinkedDocsSectionProps: { entityType: string; entityId: string } | null = null;
+
+jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
+  LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
+    entityType: string;
+    entityId: string;
+  }) {
+    _capturedLinkedDocsSectionProps = { entityType: props.entityType, entityId: props.entityId };
+    return (
+      <div
+        data-testid="linked-documents-section"
+        data-entity-type={props.entityType}
+        data-entity-id={props.entityId}
+      />
+    );
+  },
+}));
+
 // ─── Mock: ToastContext — provides useToast() hook without a real ToastProvider ───
 
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
@@ -189,6 +211,7 @@ describe('BudgetSourcesPage', () => {
     mockUpdateBudgetSource.mockReset();
     mockDeleteBudgetSource.mockReset();
     mockFetchBudgetLinesForSource.mockReset();
+    _capturedLinkedDocsSectionProps = null;
   });
 
   function renderPage() {
@@ -2203,6 +2226,172 @@ describe('BudgetSourcesPage', () => {
         el.className.includes('sourceMain'),
       );
       expect(sourceMainAsDirectChild).toBeDefined();
+    });
+  });
+
+  // ─── Docs toggle (story #1744) ──────────────────────────────────────────────
+
+  describe('docs toggle (paperclip button)', () => {
+    it('renders a paperclip/docs toggle button for each source row', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // The docs toggle button has an aria-label containing the source name
+      expect(screen.getByRole('button', { name: /home loan/i, hidden: true })).toBeInTheDocument();
+    });
+
+    it('clicking the docs toggle button renders LinkedDocumentsSection with entityType=budget_source and correct entityId', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // The aria-label includes 'Home Loan' — find the docs-expand toggle (aria-expanded=false)
+      const docsBtn = screen
+        .getAllByRole('button', { hidden: true })
+        .find(
+          (btn) =>
+            btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}` &&
+            btn.getAttribute('aria-expanded') === 'false',
+        );
+      expect(docsBtn).toBeDefined();
+
+      fireEvent.click(docsBtn!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument();
+      });
+
+      const section = screen.getByTestId('linked-documents-section');
+      expect(section.getAttribute('data-entity-type')).toBe('budget_source');
+      expect(section.getAttribute('data-entity-id')).toBe(sampleSource1.id);
+    });
+
+    it('clicking the docs toggle button a second time hides LinkedDocumentsSection', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      const docsBtn = screen
+        .getAllByRole('button', { hidden: true })
+        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
+      expect(docsBtn).toBeDefined();
+
+      // First click — opens
+      fireEvent.click(docsBtn!);
+      await waitFor(() =>
+        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument(),
+      );
+
+      // Second click — closes
+      fireEvent.click(docsBtn!);
+      await waitFor(() =>
+        expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('docs toggle button has aria-expanded=false initially', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      const docsBtn = screen
+        .getAllByRole('button', { hidden: true })
+        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
+      expect(docsBtn).toBeDefined();
+      expect(docsBtn!.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('docs toggle button has aria-expanded=true after clicking', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      const docsBtn = screen
+        .getAllByRole('button', { hidden: true })
+        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
+      expect(docsBtn).toBeDefined();
+
+      fireEvent.click(docsBtn!);
+
+      await waitFor(() => {
+        expect(docsBtn!.getAttribute('aria-expanded')).toBe('true');
+      });
+    });
+
+    it('docs toggle button is disabled when editingSource is active', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1, sampleSource2],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // Start editing source1
+      const editBtn = screen.getByRole('button', { name: /edit home loan/i });
+      fireEvent.click(editBtn);
+
+      await waitFor(() => {
+        // Both docs toggles should be disabled when editing
+        const allDocsToggleBtns = screen
+          .getAllByRole('button', { hidden: true })
+          .filter((btn) => btn.getAttribute('aria-controls')?.startsWith('source-docs-'));
+        expect(allDocsToggleBtns.length).toBeGreaterThan(0);
+        for (const btn of allDocsToggleBtns) {
+          expect(btn).toBeDisabled();
+        }
+      });
+    });
+
+    it('LinkedDocumentsSection is hidden when editing the same source', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // Open docs panel
+      const docsBtn = screen
+        .getAllByRole('button', { hidden: true })
+        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
+      fireEvent.click(docsBtn!);
+
+      await waitFor(() =>
+        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument(),
+      );
+
+      // Now start editing the same source — docs panel should disappear
+      const editBtn = screen.getByRole('button', { name: /edit home loan/i });
+      fireEvent.click(editBtn);
+
+      await waitFor(() =>
+        expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
+      );
     });
   });
 });

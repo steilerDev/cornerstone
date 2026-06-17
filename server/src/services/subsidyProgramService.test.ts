@@ -1185,5 +1185,48 @@ describe('Subsidy Program Service', () => {
       expect(err.details?.workItemCount).toBe(5);
       expect(err.message).toBe('In use');
     });
+
+    it('cascade-deletes document_links for the subsidy_program when deleted', () => {
+      const id = insertRawProgram({ name: 'To Delete With Docs' });
+      const now = new Date().toISOString();
+
+      // Insert two document links for this subsidy program
+      sqlite
+        .prepare(
+          `INSERT INTO document_links (id, entity_type, entity_id, paperless_document_id, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run('dl-sp-1', 'subsidy_program', id, 10, now);
+      sqlite
+        .prepare(
+          `INSERT INTO document_links (id, entity_type, entity_id, paperless_document_id, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run('dl-sp-2', 'subsidy_program', id, 20, now);
+
+      // Insert an unrelated document link for a different entity — must NOT be deleted
+      sqlite
+        .prepare(
+          `INSERT INTO document_links (id, entity_type, entity_id, paperless_document_id, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run('dl-other-sp', 'invoice', 'inv-unrelated', 10, now);
+
+      subsidyProgramService.deleteSubsidyProgram(db, id);
+
+      // Subsidy program links must be gone
+      const subsidyLinks = sqlite
+        .prepare(
+          `SELECT id FROM document_links WHERE entity_type='subsidy_program' AND entity_id=?`,
+        )
+        .all(id) as { id: string }[];
+      expect(subsidyLinks).toHaveLength(0);
+
+      // Unrelated invoice link must still exist
+      const otherLinks = sqlite
+        .prepare(`SELECT id FROM document_links WHERE id='dl-other-sp'`)
+        .all() as { id: string }[];
+      expect(otherLinks).toHaveLength(1);
+    });
   });
 });

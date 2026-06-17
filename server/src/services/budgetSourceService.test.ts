@@ -1334,6 +1334,51 @@ describe('Budget Source Service', () => {
       }).not.toThrow();
     });
 
+    it('cascade-deletes document_links for the budget_source when deleted', () => {
+      const raw = insertRawSource({
+        name: 'To Delete With Docs',
+        sourceType: 'other',
+        totalAmount: 1000,
+      });
+      const now = new Date().toISOString();
+
+      // Insert two document links for this budget source
+      sqlite
+        .prepare(
+          `INSERT INTO document_links (id, entity_type, entity_id, paperless_document_id, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run('dl-bs-1', 'budget_source', raw.id, 10, now);
+      sqlite
+        .prepare(
+          `INSERT INTO document_links (id, entity_type, entity_id, paperless_document_id, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run('dl-bs-2', 'budget_source', raw.id, 20, now);
+
+      // Insert an unrelated document link for a different entity — must NOT be deleted
+      sqlite
+        .prepare(
+          `INSERT INTO document_links (id, entity_type, entity_id, paperless_document_id, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run('dl-other', 'invoice', 'inv-unrelated', 10, now);
+
+      budgetSourceService.deleteBudgetSource(db, raw.id);
+
+      // Budget source links must be gone
+      const budgetSourceLinks = sqlite
+        .prepare(`SELECT id FROM document_links WHERE entity_type='budget_source' AND entity_id=?`)
+        .all(raw.id) as { id: string }[];
+      expect(budgetSourceLinks).toHaveLength(0);
+
+      // Unrelated invoice link must still exist
+      const otherLinks = sqlite
+        .prepare(`SELECT id FROM document_links WHERE id='dl-other'`)
+        .all() as { id: string }[];
+      expect(otherLinks).toHaveLength(1);
+    });
+
     it('throws BudgetSourceInUseError when work items reference the source', () => {
       const raw = insertRawSource({
         name: 'In Use Source',

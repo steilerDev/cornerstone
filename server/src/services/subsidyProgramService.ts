@@ -9,6 +9,7 @@ import {
   workItemSubsidies,
   users,
 } from '../db/schema.js';
+import { deleteLinksForEntity } from './documentLinkService.js';
 import type {
   SubsidyProgram,
   SubsidyReductionType,
@@ -424,6 +425,9 @@ export function deleteSubsidyProgram(db: DbType, id: string): void {
       workItemCount: references.length,
     });
   }
+
+  // Cascade-delete any document links for this subsidy program
+  deleteLinksForEntity(db, 'subsidy_program', id);
 
   // Delete program (junction table rows cascade via FK)
   db.delete(subsidyPrograms).where(eq(subsidyPrograms.id, id)).run();

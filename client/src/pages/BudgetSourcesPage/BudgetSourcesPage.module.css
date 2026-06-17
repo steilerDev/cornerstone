@@ -478,6 +478,66 @@
   }
 }
 
+/* ---- Documents toggle button ---- */
+
+.docsToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-8);
+  height: var(--spacing-8);
+  padding: 0;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.docsToggle:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.docsToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.docsToggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.docsToggleActive {
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.docsIcon {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  flex-shrink: 0;
+}
+
+.docsPanel {
+  padding: var(--spacing-4) var(--spacing-4) var(--spacing-2);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docsToggle {
+    transition: none;
+  }
+}
+
 /* ---- Source type badge ---- */
 
 .typeBadge {

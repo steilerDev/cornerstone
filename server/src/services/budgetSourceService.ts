@@ -13,6 +13,7 @@ import {
   budgetCategories,
   vendors,
 } from '../db/schema.js';
+import { deleteLinksForEntity } from './documentLinkService.js';
 import {
   computeStatusContribution,
   splitByDeposits,
@@ -679,6 +680,9 @@ export function deleteBudgetSource(db: DbType, id: string): void {
       budgetLineCount,
     });
   }
+
+  // Cascade-delete any document links for this budget source
+  deleteLinksForEntity(db, 'budget_source', id);
 
   // Delete source
   db.delete(budgetSources).where(eq(budgetSources.id, id)).run();
