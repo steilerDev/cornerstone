@@ -3,6 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1739 — InvoicePaperlessPickerModal useAllLinkedDocumentIds integration tests (2026-06-17)
+
+**Pattern for mocking `useAllLinkedDocumentIds`**: Declare `mockFetchLinkedIds = jest.fn<() => Promise<void>>()` and `mockUseAllLinkedDocumentIds = jest.fn<() => UseAllLinkedDocumentIdsResult>()` at module scope. `jest.unstable_mockModule('../../hooks/useDocumentLinks.js', () => ({ useDocumentLinks: jest.fn(), useAllLinkedDocumentIds: mockUseAllLinkedDocumentIds }))`. In `beforeEach`: reset both, then `mockUseAllLinkedDocumentIds.mockReturnValue({ ids: [], isLoading: false, error: null, fetch: mockFetchLinkedIds })`.
+
+**useEffect async mock interception gap (pre-existing)**: In this test file, `jest.unstable_mockModule('../../lib/paperlessApi.js', ...)` does NOT intercept calls made inside `useEffect` async closures (the `loadCorrespondents` and `systemLinkedIds.fetch()` effects). Same pattern as the pre-existing 3 failures in describe block 2. New test 3.1 (`fetch() is called once on mount`) fails locally for the same reason — all 4 failures expected to pass in CI. Test 3.2 (`DocumentBrowser receives hook ids`) passes because it tests rendered output, not whether the mock was called.
+
+**Coverage gap for inline SearchPicker callbacks (lines 100-101 filter predicate, 104-107 renderItem, 66 handleCorrespondentChange)**: These lines require correspondents to be loaded (mock intercepting). In local env, `listPaperlessCorrespondents` mock doesn't intercept the `useEffect` load, so `correspondents` stays `[]`. In CI, these lines ARE covered by the focus+selection tests. Add `mockListPaperlessCorrespondents.mockResolvedValue(makeCorrespondentsResponse([...]))` in coverage tests even though locally the mock won't intercept — CI will use it.
+
+**shared package build required for new types**: `PaperlessCorrespondentListResponse` and `PaperlessCorrespondent` exported from `shared/src/types/paperless.ts` in worktree but NOT in root dist. Run `npm run build --workspace=shared` from project root, then verify with `grep PaperlessCorrespondent node_modules/@cornerstone/shared/dist/index.d.ts`. The root `node_modules/@cornerstone/shared` points to root `shared/` (not worktree copy) but `npm install` in the worktree creates its own dist path. Run from `cd /project-root && npm run build --workspace=shared` when new shared types appear.
+
 ## Story #1705 — PhotoAnnotator responsive scaling + touch support tests (2026-06-16)
 
 **react-konva Stage mock extended for forwardRef**: `__mocks__/react-konva.ts` now exports `Stage` as `React.forwardRef` with `useImperativeHandle` so `stageRef.current` is a mock Konva stage object. Exports: `stageMockContainer` (plain no-op fns at module scope; test installs jest.fn() spies in-place in beforeEach), `stageMockHandlers` (captured onMouseDown/Move/Up + onTouchStart/Move/End — NOT pointer events), `setMockStagePointerPosition(pos)`, `setMockStageRelativePointerPosition(pos)`. Import as `import * as ReactKonvaMock from 'react-konva'` (after `jest.mock('react-konva')`) for access.
