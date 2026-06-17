@@ -770,7 +770,7 @@ export default function DiaryEntryEditPage() {
             setSelectedPhotoIndex(null);
             setOpenAsAnnotator(false);
           }}
-          onPhotoAnnotated={photosResult.updatePhotoAnnotation}
+          onPhotoChanged={photosResult.updatePhotoInList}
           startInAnnotator={openAsAnnotator}
           editable={!entry.isSigned}
           onDelete={(photoId) => {

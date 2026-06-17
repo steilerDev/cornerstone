@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import type { Photo } from '@cornerstone/shared';
 
 // ─── Hoisted mocks (must precede dynamic import) ───────────────────────────────
 
@@ -637,6 +638,103 @@ describe('usePhotos', () => {
       });
 
       expect(thrownError).toBeInstanceOf(Error);
+    });
+  });
+
+  // ─── updatePhotoInList() ───────────────────────────────────────────────────
+  //
+  // updatePhotoInList is a synchronous array-replace: it receives a fully
+  // updated Photo object and replaces the matching entry in local state by id.
+  // It is called by PhotoViewer via onPhotoChanged after annotation save,
+  // clear-annotation, and metadata save — so it must NOT call any API.
+
+  describe('updatePhotoInList()', () => {
+    it('replaces the matching photo in local state by id', async () => {
+      const photo = makePhoto('photo-1', { caption: 'original' });
+      mockGetPhotosForEntity.mockResolvedValueOnce([photo]);
+
+      const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
+      await waitFor(() => expect(result.current.photos).toHaveLength(1));
+
+      const updatedPhoto = { ...photo, caption: 'updated-caption' };
+
+      act(() => {
+        result.current.updatePhotoInList(updatedPhoto as unknown as Photo);
+      });
+
+      expect(result.current.photos[0]!.caption).toBe('updated-caption');
+    });
+
+    it('does not call updatePhotoApi (no network request)', async () => {
+      const photo = makePhoto('photo-api-check');
+      mockGetPhotosForEntity.mockResolvedValueOnce([photo]);
+
+      const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
+      await waitFor(() => expect(result.current.photos).toHaveLength(1));
+
+      act(() => {
+        result.current.updatePhotoInList({ ...photo } as unknown as Photo);
+      });
+
+      expect(mockUpdatePhotoApi).not.toHaveBeenCalled();
+    });
+
+    it('only updates the targeted photo when multiple photos exist', async () => {
+      const photo1 = makePhoto('photo-1', { caption: 'first' });
+      const photo2 = makePhoto('photo-2', { caption: 'second' });
+      mockGetPhotosForEntity.mockResolvedValueOnce([photo1, photo2]);
+
+      const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
+      await waitFor(() => expect(result.current.photos).toHaveLength(2));
+
+      act(() => {
+        result.current.updatePhotoInList({
+          ...photo2,
+          caption: 'updated-second',
+        } as unknown as Photo);
+      });
+
+      expect(result.current.photos[0]!.caption).toBe('first');
+      expect(result.current.photos[1]!.caption).toBe('updated-second');
+    });
+
+    it('can update annotatedAt field (used by annotation save path)', async () => {
+      const photo = makePhoto('photo-annotate', { annotatedAt: null });
+      mockGetPhotosForEntity.mockResolvedValueOnce([photo]);
+
+      const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
+      await waitFor(() => expect(result.current.photos).toHaveLength(1));
+
+      act(() => {
+        result.current.updatePhotoInList({
+          ...photo,
+          annotatedAt: '2026-06-17T10:00:00.000Z',
+        } as unknown as Photo);
+      });
+
+      expect(result.current.photos[0]!.annotatedAt).toBe('2026-06-17T10:00:00.000Z');
+    });
+
+    it('is a no-op when the photo id does not match any existing photo', async () => {
+      const photo = makePhoto('photo-existing');
+      mockGetPhotosForEntity.mockResolvedValueOnce([photo]);
+
+      const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
+      await waitFor(() => expect(result.current.photos).toHaveLength(1));
+
+      const before = result.current.photos[0];
+
+      act(() => {
+        result.current.updatePhotoInList({
+          ...photo,
+          id: 'photo-nonexistent',
+          caption: 'ghost',
+        } as unknown as Photo);
+      });
+
+      // The list is unchanged
+      expect(result.current.photos).toHaveLength(1);
+      expect(result.current.photos[0]).toBe(before);
     });
   });
 

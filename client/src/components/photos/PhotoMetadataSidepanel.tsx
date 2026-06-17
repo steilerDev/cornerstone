@@ -198,6 +198,7 @@ export function PhotoMetadataSidepanel({
                 type="button"
                 className={styles.saveButton}
                 onClick={handleSave}
+                data-testid="photo-metadata-save"
                 disabled={isDisabled}
                 aria-busy={isSaving}
               >

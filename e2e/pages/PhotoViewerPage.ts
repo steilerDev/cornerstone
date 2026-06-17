@@ -175,6 +175,18 @@ export class PhotoViewerPage {
    */
   readonly photoImage: Locator;
 
+  /**
+   * "Previous" navigation button — only rendered when there are multiple photos and
+   * the viewer is NOT in annotation mode.
+   */
+  readonly prevButton: Locator;
+
+  /**
+   * "Next" navigation button — only rendered when there are multiple photos and
+   * the viewer is NOT in annotation mode.
+   */
+  readonly nextButton: Locator;
+
   // ── Metadata sidepanel toggle (mobile only) ──────────────────────────────────
 
   /**
@@ -307,6 +319,22 @@ export class PhotoViewerPage {
    */
   readonly pickerDropdown: Locator;
 
+  // ── Metadata sidepanel caption + save ────────────────────────────────────────
+
+  /**
+   * The caption textarea inside the metadata sidepanel.
+   * id="photo-caption" (from PhotoMetadataSidepanel.tsx).
+   * Always present in the sidepanel (not conditional on selection state).
+   */
+  readonly captionField: Locator;
+
+  /**
+   * The Save button in the metadata sidepanel.
+   * data-testid="photo-metadata-save" — only rendered when `hasChanges` is true
+   * (i.e., caption/area/orientation differs from the current photo values).
+   */
+  readonly saveMetadataButton: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -314,10 +342,18 @@ export class PhotoViewerPage {
     this.modal = page.getByTestId('photo-viewer');
     this.closeButton = page.getByTestId('photo-viewer-close');
 
+    // Navigation buttons (only rendered with multiple photos, outside annotation mode)
+    this.prevButton = page.getByTestId('photo-viewer-prev');
+    this.nextButton = page.getByTestId('photo-viewer-next');
+
     // Sidepanel picker inputs
     this.areaPickerInput = page.locator('#photo-area');
     this.orientationPickerInput = page.locator('#photo-orientation');
     this.pickerDropdown = page.locator('[data-search-picker-dropdown]');
+
+    // Sidepanel caption and save
+    this.captionField = page.locator('#photo-caption');
+    this.saveMetadataButton = page.getByTestId('photo-metadata-save');
 
     // Metadata toggle (one element in DOM at a time — floats when closed, in header when open)
     this.metadataToggle = page.getByTestId('photo-metadata-toggle');
@@ -839,6 +875,37 @@ export class PhotoViewerPage {
         resp.status() === 200,
     );
     await saveButton.click();
+    await patchDone;
+  }
+
+  /**
+   * Fill the caption field with the given text and save via the sidepanel Save button.
+   *
+   * Registers a `waitForResponse` for the PATCH to `/api/photos/:id` BEFORE clicking
+   * save (per the project pattern — register before the triggering action). Returns
+   * after the PATCH 200 response is received, ensuring the updated photo is propagated
+   * back into the parent's photos array before the caller asserts navigation behaviour.
+   *
+   * NOTE: The Save button (`data-testid="photo-metadata-save"`) is only rendered when
+   * the sidepanel detects `hasChanges`. It appears as soon as the caption value differs
+   * from the current photo's caption. Wait for it to be visible before clicking.
+   *
+   * @param caption  — the caption text to fill
+   * @param photoId  — the photo ID used to match the PATCH response URL
+   */
+  async saveCaption(caption: string, photoId: string): Promise<void> {
+    await this.openSidepanelIfMobile();
+    await this.captionField.fill(caption);
+    // Register the waiter BEFORE clicking to avoid missing fast responses.
+    const patchDone = this.page.waitForResponse(
+      (resp) =>
+        resp.url().endsWith(`/api/photos/${photoId}`) &&
+        resp.request().method() === 'PATCH' &&
+        resp.status() === 200,
+    );
+    const { expect } = await import('@playwright/test');
+    await expect(this.saveMetadataButton).toBeVisible();
+    await this.saveMetadataButton.click();
     await patchDone;
   }
 }
