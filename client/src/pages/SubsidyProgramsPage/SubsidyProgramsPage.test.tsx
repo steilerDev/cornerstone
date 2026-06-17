@@ -112,8 +112,38 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   };
 });
 
+// ─── Mock: LocaleContext — prevents useLocale() from throwing outside LocaleProvider ───
+// In CI, jest.unstable_mockModule intercepts; the LocaleProvider wrapper in
+// renderPage is then redundant but harmless (passthrough stub).
+// Locally, when mock doesn't intercept, the real LocaleProvider handles useLocale().
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// ─── Mock: configApi and preferencesApi (real LocaleProvider needs them) ──────
+// When jest.unstable_mockModule doesn't intercept LocaleContext locally, the real
+// LocaleProvider makes network calls. These mocks stop that.
+
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: jest.fn(() => Promise.resolve({ currency: 'EUR' })),
+}));
+
+jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
+  listPreferences: jest.fn(() => Promise.resolve([])),
+  upsertPreference: jest.fn(() => Promise.resolve()),
+}));
+
 describe('SubsidyProgramsPage', () => {
   let SubsidyProgramsPage: React.ComponentType;
+  let LocaleProvider: ({ children }: { children: React.ReactNode }) => React.ReactNode;
 
   // Sample budget categories
   const sampleCategory1: BudgetCategory = {
@@ -204,6 +234,14 @@ describe('SubsidyProgramsPage', () => {
       const module = await import('./SubsidyProgramsPage.js');
       SubsidyProgramsPage = module.default;
     }
+    if (!LocaleProvider) {
+      const localeMod = await import('../../contexts/LocaleContext.js');
+      LocaleProvider = localeMod.LocaleProvider as ({
+        children,
+      }: {
+        children: React.ReactNode;
+      }) => React.ReactNode;
+    }
 
     // Reset all mocks
     mockFetchSubsidyPrograms.mockReset();
@@ -251,9 +289,13 @@ describe('SubsidyProgramsPage', () => {
 
   function renderPage() {
     return render(
-      <MemoryRouter initialEntries={['/budget/subsidies']}>
-        <SubsidyProgramsPage />
-      </MemoryRouter>,
+      // Wrap in LocaleProvider so useFormatters→useLocale works in both CI (mock
+      // intercepts and this becomes a passthrough) and local (real provider used).
+      <LocaleProvider>
+        <MemoryRouter initialEntries={['/budget/subsidies']}>
+          <SubsidyProgramsPage />
+        </MemoryRouter>
+      </LocaleProvider>,
     );
   }
 
