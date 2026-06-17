@@ -2,6 +2,17 @@
 
 > This file is loaded into the ux-designer agent's system prompt. Keep it under 200 lines.
 
+## Story #1736 — Invoice Vendor Change (spec posted)
+
+- Vendor picker in invoice edit modal: `SearchPicker<Vendor>` with `showItemsOnFocus`, `initialTitle={editForm.vendorName}`, `id="edit-vendor"` for label association
+- `searchFn`: `fetchVendors({ q: query, pageSize: 50 })` returning `res.vendors`
+- `InvoiceFormState` extension: add `vendorId: string` + `vendorName: string`; `openEditModal` pre-fills both from `invoice.vendorId` / `invoice.vendorName`
+- Field position: NEW full-width `.field` between "Invoice Number/Amount" row and "Invoice Date/Due Date" row
+- Vendor field is **required** — label gets `.required` asterisk; `FormError variant="field"` below picker for empty-submit validation
+- API 404 on vendor change: surface via existing `editError` banner path, key `invoiceDetail.messages.vendorNotFound`
+- `SearchPicker.selectedDisplay` min-height is `2.5rem` (40px) — 4px below 44px touch target; flag as refinement item across all SearchPicker usages, not blocking for this story
+- Established vendor SearchPicker reference: `DiaryEntryForm` daily_log branch (lines 354–373)
+
 ## Design System
 
 - Token source: `client/src/styles/tokens.css` (3-layer: palette -> semantic -> dark mode)

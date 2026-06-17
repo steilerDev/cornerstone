@@ -571,12 +571,15 @@
       "notes": "Notes",
       "required": "*",
       "placeholders": {
-        "invoiceNumber": "e.g., INV-001"
-      }
+        "invoiceNumber": "e.g., INV-001",
+        "vendor": "Search vendors…"
+      },
+      "noVendorsFound": "No vendors found"
     },
     "validation": {
       "amountRequired": "Amount must be a positive number.",
-      "dateRequired": "Invoice date is required."
+      "dateRequired": "Invoice date is required.",
+      "vendorRequired": "Please select a vendor"
     },
     "buttons": {
       "edit": "Edit",
@@ -601,7 +604,8 @@
     },
     "messages": {
       "updateError": "Failed to update invoice. Please try again.",
-      "deleteError": "Failed to delete invoice. Please try again."
+      "deleteError": "Failed to delete invoice. Please try again.",
+      "vendorNotFound": "The selected vendor could not be found"
     },
     "budgetLines": {
       "createFormLegend": "Create new budget line",

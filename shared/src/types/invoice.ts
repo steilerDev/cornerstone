@@ -106,6 +106,7 @@ export interface CreateInvoiceRequest {
  * Request body for updating an invoice.
  * All fields are optional; at least one must be provided.
  * Budget line itemization is managed via separate PATCH endpoint.
+ * vendorId allows reassigning the invoice to a different vendor.
  */
 export interface UpdateInvoiceRequest {
   invoiceNumber?: string | null;
@@ -114,6 +115,7 @@ export interface UpdateInvoiceRequest {
   dueDate?: string | null;
   status?: InvoiceStatus;
   notes?: string | null;
+  vendorId?: string;
 }
 
 /**

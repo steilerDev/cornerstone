@@ -51,6 +51,7 @@ const updateInvoiceSchema = {
       dueDate: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
       status: { type: 'string', enum: ['pending', 'paid', 'claimed', 'quotation'] },
       notes: { type: ['string', 'null'], maxLength: 10000 },
+      vendorId: { type: 'string', minLength: 1 },
     },
     additionalProperties: false,
     minProperties: 1,

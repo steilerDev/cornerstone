@@ -888,4 +888,115 @@ describe('Invoice Routes', () => {
       expect(body.invoices.find((inv) => inv.id === inv1Id)).toBeDefined();
     });
   });
+
+  // ─── PATCH vendor reassignment (#1736) ──────────────────────────────────────
+
+  describe('PATCH /api/vendors/:vendorId/invoices/:invoiceId — vendor reassignment (#1736)', () => {
+    it('PATCH with body { vendorId: B } → 200, response invoice has vendorId B and vendorName B', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const vendorAId = createTestVendor('Reassign Route A');
+      const vendorBId = createTestVendor('Reassign Route B');
+      const invoiceId = createTestInvoice(vendorAId, { amount: 500 });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendorAId}/invoices/${invoiceId}`,
+        headers: { cookie },
+        payload: { vendorId: vendorBId },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ invoice: Invoice }>();
+      expect(body.invoice.vendorId).toBe(vendorBId);
+      expect(body.invoice.vendorName).toBe('Reassign Route B');
+    });
+
+    it('PATCH with non-existent target vendorId → 404 NOT_FOUND', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const vendorAId = createTestVendor('404 Target Route A');
+      const invoiceId = createTestInvoice(vendorAId, { amount: 300 });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendorAId}/invoices/${invoiceId}`,
+        headers: { cookie },
+        payload: { vendorId: 'does-not-exist' },
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = response.json<{ error: { code: string } }>();
+      expect(body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('PATCH body with only unknown field is silently stripped by additionalProperties:false and treated as no-op (vendorId schema regression guard)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Schema Guard Vendor');
+      const invoiceId = createTestInvoice(vendorId, { amount: 100 });
+
+      // Fastify's AJV removeAdditional strips unknown fields before minProperties validation,
+      // so a body with only unknown fields becomes {} at the handler level but does NOT
+      // trigger minProperties:1 (AJV removes then the already-stripped body is passed through).
+      // The route succeeds as a no-op (invoice unchanged). A truly empty {} payload does
+      // trigger the 400 (tested in 'returns 400 VALIDATION_ERROR for empty payload').
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendorId}/invoices/${invoiceId}`,
+        headers: { cookie },
+        payload: { unknownFieldShouldBeRejected: 'value' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ invoice: { vendorId: string; amount: number } }>();
+      // Invoice is unchanged — no known fields were provided
+      expect(body.invoice.vendorId).toBe(vendorId);
+      expect(body.invoice.amount).toBe(100);
+    });
+
+    it('PATCH with no vendorId (amount only) → 200, vendor unchanged', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const vendorAId = createTestVendor('Backward Compat Route A');
+      const invoiceId = createTestInvoice(vendorAId, { amount: 200 });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendorAId}/invoices/${invoiceId}`,
+        headers: { cookie },
+        payload: { amount: 999 },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ invoice: Invoice }>();
+      expect(body.invoice.vendorId).toBe(vendorAId);
+      expect(body.invoice.amount).toBe(999);
+    });
+
+    it('source vendor in URL path and target vendor in body are treated as distinct', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const vendorAId = createTestVendor('Distinct Source A');
+      const vendorBId = createTestVendor('Distinct Target B');
+      const invoiceId = createTestInvoice(vendorAId, { amount: 600 });
+
+      // URL uses source vendor (A); body specifies target vendor (B)
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendorAId}/invoices/${invoiceId}`,
+        headers: { cookie },
+        payload: { vendorId: vendorBId },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ invoice: Invoice }>();
+      // The invoice is now owned by B, not A
+      expect(body.invoice.vendorId).toBe(vendorBId);
+      expect(body.invoice.vendorName).toBe('Distinct Target B');
+      // Confirm A no longer owns it by checking that A's list is empty
+      const listA = await app.inject({
+        method: 'GET',
+        url: `/api/vendors/${vendorAId}/invoices`,
+        headers: { cookie },
+      });
+      const listABody = listA.json<{ invoices: Invoice[] }>();
+      expect(listABody.invoices.find((inv) => inv.id === invoiceId)).toBeUndefined();
+    });
+  });
 });

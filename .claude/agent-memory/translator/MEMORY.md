@@ -248,3 +248,11 @@ Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather tha
 - `lineItems` → "Positionen"; `noLineItems` → "Keine Positionen extrahiert"; `backToInvoices` → "Zurück zu Rechnungen"
 - `invoices.pickerModal` added to `de/budget.json` (parallel to `en/budget.json invoices` section): `title` → "Rechnungsdokument auswählen", `manualEntry` → "Rechnung manuell erfassen", `manualEntryAriaLabel` → "Rechnung manuell erstellen ohne ein Dokument auszuwählen"
 - `documents.documentCard.openInPaperless` updated "In Paperless-ngx öffnen" → "In Paperless öffnen" (matches EN change); new `openInPaperlessAriaLabel` → "'{{title}}' in Paperless öffnen"
+
+## Invoice Vendor Field — Story #1736 (2026-06-17)
+
+- See [invoice-vendor-field.md](invoice-vendor-field.md) for full details
+- `invoiceDetail.form.placeholders.vendor` = "Auftragnehmer suchen…" (pattern: `{Noun} suchen…`, matches `budgetLineForm.vendorPlaceholder`)
+- `invoiceDetail.form.noVendorsFound` = "Keine Auftragnehmer gefunden"
+- `invoiceDetail.validation.vendorRequired` = "Bitte wählen Sie einen Auftragnehmer aus" ("einen" = accusative masculine)
+- `invoiceDetail.messages.vendorNotFound` = "Der ausgewählte Auftragnehmer konnte nicht gefunden werden"
