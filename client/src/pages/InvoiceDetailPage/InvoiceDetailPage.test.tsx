@@ -4,8 +4,9 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import type { Invoice } from '@cornerstone/shared';
+import type { Invoice, Vendor } from '@cornerstone/shared';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
 
 // ─── Module-scope mock functions ──────────────────────────────────────────────
@@ -13,6 +14,7 @@ import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
 const mockFetchInvoiceById = jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>();
 const mockUpdateInvoice = jest.fn<typeof InvoicesApiTypes.updateInvoice>();
 const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 
 /** Captures the SearchPicker onChange handler so tests can simulate vendor selection */
 let capturedSearchPickerOnChange: ((id: string) => void) | null = null;
@@ -99,10 +101,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
 // ─── Mock: vendorsApi (used transitively by SearchPicker in edit modal) ────────
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
-  fetchVendors: jest.fn().mockResolvedValue({
-    vendors: [],
-    pagination: { page: 1, pageSize: 50, totalItems: 0, totalPages: 0 },
-  }),
+  fetchVendors: mockFetchVendors,
   fetchVendorById: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
@@ -176,9 +175,15 @@ beforeEach(async () => {
   mockFetchInvoiceById.mockReset();
   mockUpdateInvoice.mockReset();
   mockDeleteInvoice.mockReset();
+  mockFetchVendors.mockReset();
 
   // Default: successful load
   mockFetchInvoiceById.mockResolvedValue(mockInvoice);
+  // Default: empty vendor list (vendor search not exercised by most tests)
+  mockFetchVendors.mockResolvedValue({
+    vendors: [] as Vendor[],
+    pagination: { page: 1, pageSize: 50, totalItems: 0, totalPages: 0 },
+  });
 
   // Deferred import after mock registration
   const module = (await import('./InvoiceDetailPage.js')) as typeof InvoiceDetailPageTypes;
