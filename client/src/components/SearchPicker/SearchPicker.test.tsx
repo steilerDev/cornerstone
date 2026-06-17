@@ -664,6 +664,46 @@ describe('SearchPicker', () => {
       // No initialTitle: falls through to search input (no selectedItem in state)
       expect(screen.getByPlaceholderText('Search items...')).toBeInTheDocument();
     });
+
+    // ── Regression: stale initialTitle after clear-then-select ────────────────
+    // Bug: after the user clears the picker and selects a new item, the chip was
+    // still showing the old `initialTitle` ("Old Pre-set Title") instead of the
+    // newly selected item's label. Fixed by setting `initialTitleCleared = true`
+    // inside `handleSelect`, which prevents the initialTitle branch from rendering.
+
+    it('stale initialTitle bug: after clear then select, chip shows new item label, not old initialTitle', async () => {
+      const user = userEvent.setup();
+      const onChange = jest.fn<(id: string) => void>();
+
+      renderPicker({
+        value: 'item-existing',
+        initialTitle: 'Old Pre-set Title',
+        onChange: onChange as ReturnType<typeof jest.fn>,
+        showItemsOnFocus: true,
+      });
+
+      // Verify the pre-populated chip shows old initialTitle
+      expect(screen.getByText('Old Pre-set Title')).toBeInTheDocument();
+
+      // Clear the selection — input is now shown
+      const clearBtn = screen.getByRole('button', { name: /clear selection/i });
+      await user.click(clearBtn);
+      expect(screen.getByPlaceholderText('Search items...')).toBeInTheDocument();
+
+      // Open the dropdown and select a real item
+      const input = screen.getByPlaceholderText('Search items...');
+      await user.click(input);
+      await waitFor(() => expect(screen.getByText('Alpha Widget')).toBeInTheDocument());
+      await user.click(screen.getByText('Alpha Widget'));
+
+      // The chip must show the NEWLY selected item's label, not the stale initialTitle
+      await waitFor(() => {
+        const chip = document.querySelector('[class*="selectedTitle"]');
+        expect(chip).not.toBeNull();
+        expect(chip!.textContent).toBe('Alpha Widget');
+      });
+      expect(screen.queryByText('Old Pre-set Title')).not.toBeInTheDocument();
+    });
   });
 
   // ── 11. External value reset ──────────────────────────────────────────────
@@ -1087,6 +1127,52 @@ describe('renderSecondary slot', () => {
     expect(document.querySelectorAll('[class*="resultContent"]')).toHaveLength(0);
   });
 
+  // ── 11b. renderSecondary returning null → single-line rows (no secondary or content span) ──
+
+  it('renderSecondary returning null renders single-line rows — no resultSecondary or resultContent', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      showItemsOnFocus: true,
+      renderSecondary: (_item: TestItem) => null,
+      placeholder: 'Search...',
+    });
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Alpha Widget' })).toBeInTheDocument();
+    });
+
+    expect(document.querySelectorAll('[class*="resultSecondary"]')).toHaveLength(0);
+    expect(document.querySelectorAll('[class*="resultContent"]')).toHaveLength(0);
+  });
+
+  // ── 11c. renderSecondary returning a string → title attribute equals that string ──
+
+  it('renderSecondary returning a string sets title attribute equal to the string on each resultSecondary span', async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      showItemsOnFocus: true,
+      renderSecondary: (item: TestItem) => item.status,
+      placeholder: 'Search...',
+    });
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    await waitFor(() => {
+      const secondarySpans = document.querySelectorAll('[class*="resultSecondary"]');
+      expect(secondarySpans).toHaveLength(3);
+    });
+
+    const secondarySpans = document.querySelectorAll('[class*="resultSecondary"]');
+    secondarySpans.forEach((span, i) => {
+      const expectedStatus = sampleItems[i]!.status;
+      expect((span as HTMLElement).getAttribute('title')).toBe(expectedStatus);
+    });
+  });
+
   // ── 12. Secondary NOT in selectedDisplay ─────────────────────────────────
 
   it('secondary element is absent after an item is selected', async () => {
@@ -1107,6 +1193,135 @@ describe('renderSecondary slot', () => {
     await waitFor(() => {
       // After selection the input is replaced by selectedDisplay — no secondary
       expect(screen.queryByTestId('secondary-line')).not.toBeInTheDocument();
+    });
+  });
+});
+
+// ── renderSelectedLabel prop ──────────────────────────────────────────────────
+// Tests for the renderSelectedLabel prop added to SearchPicker.
+// When provided, the collapsed chip uses renderSelectedLabel(item) instead of
+// renderItem(item).label, so decorators (e.g. em-dash indentation) do not appear
+// in the chip while still appearing in the dropdown list rows.
+
+describe('renderSelectedLabel prop', () => {
+  beforeEach(() => {
+    mockSearchFn.mockReset();
+    mockSearchFn.mockResolvedValue(sampleItems);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('selected chip shows bare renderSelectedLabel, not decorated renderItem label', async () => {
+    const user = userEvent.setup();
+    const decoratedRenderItem = (item: TestItem) => ({
+      id: item.id,
+      label: '— ' + item.label,
+    });
+    const bareRenderSelectedLabel = (item: TestItem) => item.label;
+
+    render(
+      <SearchPicker<TestItem>
+        value=""
+        onChange={jest.fn()}
+        excludeIds={[]}
+        searchFn={mockSearchFn}
+        renderItem={decoratedRenderItem}
+        renderSelectedLabel={bareRenderSelectedLabel}
+        showItemsOnFocus={true}
+        placeholder="Search..."
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    // Wait for dropdown to show the decorated label
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: '— Alpha Widget' })).toBeInTheDocument(),
+    );
+
+    // Select "Alpha Widget" (clicking the option with decorated label)
+    await user.click(screen.getByRole('option', { name: '— Alpha Widget' }));
+
+    // After selection, the chip (selectedTitle) must show the BARE label, not decorated
+    await waitFor(() => {
+      const chip = document.querySelector('[class*="selectedTitle"]');
+      expect(chip).not.toBeNull();
+      expect(chip!.textContent).toBe('Alpha Widget');
+      // Decorated prefix must NOT appear on the chip
+      expect(chip!.textContent).not.toContain('— Alpha Widget');
+    });
+  });
+
+  it('dropdown option rows still show the decorated renderItem label after renderSelectedLabel is provided', async () => {
+    const user = userEvent.setup();
+    const decoratedRenderItem = (item: TestItem) => ({
+      id: item.id,
+      label: '— ' + item.label,
+    });
+    const bareRenderSelectedLabel = (item: TestItem) => item.label;
+
+    render(
+      <SearchPicker<TestItem>
+        value=""
+        onChange={jest.fn()}
+        excludeIds={[]}
+        searchFn={mockSearchFn}
+        renderItem={decoratedRenderItem}
+        renderSelectedLabel={bareRenderSelectedLabel}
+        showItemsOnFocus={true}
+        placeholder="Search..."
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    // Dropdown options show decorated labels
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: '— Alpha Widget' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: '— Beta Gadget' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: '— Gamma Doohickey' })).toBeInTheDocument();
+    });
+
+    // Bare labels must NOT appear as option text (they exist nowhere before selection)
+    expect(screen.queryByRole('option', { name: 'Alpha Widget' })).not.toBeInTheDocument();
+  });
+
+  it('without renderSelectedLabel, chip shows the renderItem label (unchanged behaviour)', async () => {
+    const user = userEvent.setup();
+    const decoratedRenderItem = (item: TestItem) => ({
+      id: item.id,
+      label: '— ' + item.label,
+    });
+
+    render(
+      <SearchPicker<TestItem>
+        value=""
+        onChange={jest.fn()}
+        excludeIds={[]}
+        searchFn={mockSearchFn}
+        renderItem={decoratedRenderItem}
+        showItemsOnFocus={true}
+        placeholder="Search..."
+      />,
+    );
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    await waitFor(() =>
+      expect(screen.getByRole('option', { name: '— Alpha Widget' })).toBeInTheDocument(),
+    );
+    await user.click(screen.getByRole('option', { name: '— Alpha Widget' }));
+
+    // Without renderSelectedLabel, chip shows the renderItem label (decorated)
+    await waitFor(() => {
+      const chip = document.querySelector('[class*="selectedTitle"]');
+      expect(chip).not.toBeNull();
+      expect(chip!.textContent).toBe('— Alpha Widget');
     });
   });
 });

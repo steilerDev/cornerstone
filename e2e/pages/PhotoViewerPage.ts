@@ -285,12 +285,39 @@ export class PhotoViewerPage {
   /** Redo button */
   readonly redoButton: Locator;
 
+  // ── Metadata sidepanel pickers ────────────────────────────────────────────────
+
+  /**
+   * The area picker input inside the metadata sidepanel.
+   * id="photo-area" — only present as an <input> when no area is selected (SearchPicker
+   * in search mode). When an area is pre-loaded (selectedDisplay state), use
+   * `getAreaSelectedDisplay()` instead.
+   */
+  readonly areaPickerInput: Locator;
+
+  /**
+   * The orientation picker input inside the metadata sidepanel.
+   * id="photo-orientation" — only present as an <input> when no orientation is selected.
+   */
+  readonly orientationPickerInput: Locator;
+
+  /**
+   * SearchPicker portal dropdown — portals to document.body.
+   * Shared between area and orientation pickers (only one open at a time).
+   */
+  readonly pickerDropdown: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
     // Viewer root
     this.modal = page.getByTestId('photo-viewer');
     this.closeButton = page.getByTestId('photo-viewer-close');
+
+    // Sidepanel picker inputs
+    this.areaPickerInput = page.locator('#photo-area');
+    this.orientationPickerInput = page.locator('#photo-orientation');
+    this.pickerDropdown = page.locator('[data-search-picker-dropdown]');
 
     // Metadata toggle (one element in DOM at a time — floats when closed, in header when open)
     this.metadataToggle = page.getByTestId('photo-metadata-toggle');
@@ -645,5 +672,173 @@ export class PhotoViewerPage {
     const attr = await this.svgOverlay.getAttribute('data-annotator-shapes');
     if (!attr) return [];
     return JSON.parse(attr) as AnnotationShape[];
+  }
+
+  // ── Metadata sidepanel picker helpers ────────────────────────────────────────
+
+  /**
+   * Open the sidepanel on mobile viewports (viewportWidth ≤ 767px) if not already open.
+   * On desktop/tablet the sidepanel is always visible; this is a no-op.
+   */
+  async openSidepanelIfMobile(): Promise<void> {
+    const toggle = this.metadataToggle;
+    // Only visible on mobile (display:none on ≥768px). Use `isVisible()` not `isAttached()`.
+    const toggleVisible = await toggle.isVisible();
+    if (toggleVisible) {
+      const expanded = await toggle.getAttribute('aria-expanded');
+      if (expanded !== 'true') {
+        await toggle.click();
+        const { expect } = await import('@playwright/test');
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      }
+    }
+  }
+
+  /**
+   * Open the area picker dropdown in the sidepanel.
+   * Handles both fresh open (click input) and `showItemsOnFocus` (input focuses and
+   * shows all items immediately).
+   */
+  async openAreaPicker(): Promise<void> {
+    await this.areaPickerInput.click();
+    const { expect } = await import('@playwright/test');
+    await expect(this.pickerDropdown).toBeVisible();
+  }
+
+  /**
+   * Open the orientation picker dropdown in the sidepanel.
+   */
+  async openOrientationPicker(): Promise<void> {
+    await this.orientationPickerInput.click();
+    const { expect } = await import('@playwright/test');
+    await expect(this.pickerDropdown).toBeVisible();
+  }
+
+  /**
+   * Search for text in the currently-open area picker input.
+   * Assumes the input is already focused/visible.
+   *
+   * Waits 400ms after filling to let SearchPicker's 300ms debounce fire and the
+   * results re-render settle before returning. Without this wait, callers that
+   * immediately invoke `getDropdownOptions()` read stale results, causing
+   * intermittent failures on shards 3/6/11/15 under CI load.
+   */
+  async searchAreaPicker(query: string): Promise<void> {
+    await this.areaPickerInput.fill(query);
+    await this.page.waitForTimeout(400);
+  }
+
+  /**
+   * Clear the area picker search (empty the input to restore full tree).
+   *
+   * Clearing to '' also triggers the 300ms debounce — wait 400ms so the full
+   * tree re-renders before callers read `getDropdownOptions()`.
+   */
+  async clearAreaPickerSearch(): Promise<void> {
+    await this.areaPickerInput.fill('');
+    await this.page.waitForTimeout(400);
+  }
+
+  /**
+   * Search for text in the orientation picker input.
+   *
+   * The orientation picker uses the same SearchPicker debounce (300ms) followed
+   * by a server-side fetch. Wait 400ms to let the debounce fire and the
+   * re-render settle before returning.
+   */
+  async searchOrientationPicker(query: string): Promise<void> {
+    await this.orientationPickerInput.fill(query);
+    await this.page.waitForTimeout(400);
+  }
+
+  /**
+   * Read all visible dropdown option rows from the currently-open picker dropdown.
+   *
+   * Returns an array of `{ label: string, secondary: string | null }` objects.
+   * `label` is the primary option text (`.resultTitle` span content).
+   * `secondary` is the secondary line text (`.resultSecondary` span, or null if absent).
+   *
+   * NOTE: Only reads regular (non-special) options rendered as `role="option"`.
+   */
+  async getDropdownOptions(): Promise<Array<{ label: string; secondary: string | null }>> {
+    const dropdown = this.pickerDropdown;
+    const options = dropdown.locator('[role="option"]');
+    const count = await options.count();
+    const results: Array<{ label: string; secondary: string | null }> = [];
+    for (let i = 0; i < count; i++) {
+      const option = options.nth(i);
+      const titleSpan = option.locator('[class*="resultTitle"]');
+      const secondarySpan = option.locator('[class*="resultSecondary"]');
+      const label = (await titleSpan.textContent())?.trim() ?? '';
+      const secondaryText =
+        (await secondarySpan.count()) > 0
+          ? ((await secondarySpan.first().textContent())?.trim() ?? null)
+          : null;
+      results.push({ label, secondary: secondaryText || null });
+    }
+    return results;
+  }
+
+  /**
+   * Select a dropdown option by its primary label text (exact substring match).
+   * Clicks the matching `role="option"` element.
+   */
+  async selectDropdownOption(labelSubstring: string): Promise<void> {
+    const option = this.pickerDropdown
+      .locator('[role="option"]')
+      .filter({
+        hasText: labelSubstring,
+      })
+      .first();
+    await option.click();
+  }
+
+  /**
+   * Return the selected display chip text for the area picker (when an area is selected
+   * and the SearchPicker switches to selectedDisplay mode).
+   * The chip shows the bare area name without em-dash prefix.
+   *
+   * Scoped using the `label[for="photo-area"]` anchor, which is stable across CSS changes.
+   */
+  async getAreaSelectedDisplayText(): Promise<string | null> {
+    const sidepanel = this.page.locator('#photo-metadata-sidepanel');
+    // The section div contains `label[for="photo-area"]` — scope to it via XPath nearest ancestor
+    // Strategy: find the `label[for="photo-area"]` then get its parent .section div,
+    // then find the selectedDisplay inside it. We use XPath `..` to walk up one level.
+    const areaLabel = sidepanel.locator('label[for="photo-area"]');
+    // Section is the parent of the label (one div up)
+    const areaSection = areaLabel.locator('xpath=..').locator('[class*="areaPicker"]');
+    const selectedDisplay = areaSection.locator('[class*="selectedDisplay"]').first();
+    return (await selectedDisplay.textContent())?.trim() ?? null;
+  }
+
+  /**
+   * Return the selected display chip text for the orientation picker.
+   */
+  async getOrientationSelectedDisplayText(): Promise<string | null> {
+    const sidepanel = this.page.locator('#photo-metadata-sidepanel');
+    const orientLabel = sidepanel.locator('label[for="photo-orientation"]');
+    const orientSection = orientLabel.locator('xpath=..').locator('[class*="areaPicker"]');
+    const selectedDisplay = orientSection.locator('[class*="selectedDisplay"]').first();
+    return (await selectedDisplay.textContent())?.trim() ?? null;
+  }
+
+  /**
+   * Click the Save button in the sidepanel and wait for a successful PATCH response.
+   * Returns after the save completes.
+   *
+   * @param photoId - The photo ID used to match the PATCH response URL.
+   */
+  async saveSidepanel(photoId: string): Promise<void> {
+    const sidepanel = this.page.locator('#photo-metadata-sidepanel');
+    const saveButton = sidepanel.getByRole('button', { name: 'Save', exact: true });
+    const patchDone = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/api/photos/${photoId}`) &&
+        resp.request().method() === 'PATCH' &&
+        resp.status() === 200,
+    );
+    await saveButton.click();
+    await patchDone;
   }
 }

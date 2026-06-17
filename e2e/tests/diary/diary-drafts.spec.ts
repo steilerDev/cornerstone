@@ -428,6 +428,14 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       };
       await fileInput.setInputFiles([minimalFile]);
 
+      // PR #1674 introduced PhotoMetadataModal: selecting a file via any input opens a modal
+      // asking for caption, area, and orientation before the upload is enqueued.
+      // Dismiss the modal by clicking "Save & upload" to trigger the actual upload.
+      const modal = page.getByRole('dialog', { name: 'Add photo details' });
+      await modal.waitFor({ state: 'visible' });
+      await modal.getByRole('button', { name: 'Save & upload', exact: true }).click();
+      await expect(modal).not.toBeVisible();
+
       // The photo card should appear without a page reload.
       // This proves: (1) the POST mock fired, (2) onUpload called photosResult.refresh(),
       // (3) the GET mock returned the photo, (4) React re-rendered the PhotoGrid.

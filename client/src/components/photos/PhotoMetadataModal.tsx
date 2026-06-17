@@ -30,6 +30,13 @@ export function PhotoMetadataModal({
   const [caption, setCaption] = useState('');
   const [areaId, setAreaId] = useState('');
   const [orientationId, setOrientationId] = useState('');
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   // Focus trap: cycle Tab/Shift+Tab within the modal (form + footer buttons)
   useEffect(() => {
@@ -93,6 +100,11 @@ export function PhotoMetadataModal({
       }
     >
       <div className={styles.formBody}>
+        {objectUrl && (
+          <div className={styles.photoPreview}>
+            <img src={objectUrl} alt={file.name} className={styles.photoPreviewImage} />
+          </div>
+        )}
         {/* Description textarea */}
         <div>
           <label htmlFor="modal-photo-caption" className={styles.fieldLabel}>

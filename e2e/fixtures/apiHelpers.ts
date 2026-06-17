@@ -152,6 +152,24 @@ export async function deleteAreaViaApi(page: Page, id: string): Promise<void> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Orientations
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function createOrientationViaApi(
+  page: Page,
+  data: { name: string; description?: string | null; sortOrder?: number },
+): Promise<string> {
+  const response = await page.request.post('/api/orientations', { data });
+  expect(response.ok(), `POST orientation "${data.name}"`).toBeTruthy();
+  const body = (await response.json()) as { orientation: { id: string } };
+  return body.orientation.id;
+}
+
+export async function deleteOrientationViaApi(page: Page, id: string): Promise<void> {
+  await page.request.delete(`/api/orientations/${id}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Diary Entries
 // ─────────────────────────────────────────────────────────────────────────────
 

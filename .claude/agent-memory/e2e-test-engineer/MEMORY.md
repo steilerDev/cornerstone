@@ -3,6 +3,18 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`, `searchpicker-mobile-1708.md`
 
+## Photo Picker Hierarchy E2E (Issue #1723, 2026-06-16) — `e2e/tests/photo-picker-hierarchy.spec.ts`, `e2e/pages/PhotoViewerPage.ts`
+
+- 8 scenarios (7 acceptance criteria), all tagged `@responsive`, Scenario 1 also `@smoke`.
+- **AreaPicker `renderItem`**: returns `{ label: indent + area.name }` where indent = `'— '.repeat(depth)` (em-dash + space). Depth=0 → no indent. `resultTitle` span shows this indented label.
+- **AreaPicker `renderSecondary`**: calls `getAncestorPath(areas, id)` → `'FloorName › WingName'` (space + U+203A + space). Empty string for top-level areas; POM converts `''` to `null` via `|| null`.
+- **OrientationPicker `renderSecondary`**: `o.description ?? null`. Server-side search matches name OR description (AC-11: description-aware search).
+- **AreaPicker `initialTitle`**: set to the selected area's BARE name (from `tree.find(n => n.area.id === id)?.area.name`). So the selectedDisplay chip shows bare name, not em-dash-prefixed label.
+- **selectedDisplay scope**: use `label[for="photo-area"]` + `xpath=..` to reach the parent `.section` div, then `.areaPicker` + `.selectedDisplay` — avoids brittle `.first()`/`.last()` on the shared `areaPicker` class name.
+- **`createOrientationViaApi` / `deleteOrientationViaApi`**: now exported from `e2e/fixtures/apiHelpers.ts` (previously only in `orientations.spec.ts` as local functions).
+- **`uploadPhotoViaApi` pattern**: returns `null` if photo storage not configured (non-ok response). Tests check for null and call `test.skip()` gracefully — matches existing `photo-capture-flow.spec.ts` pattern.
+- **searchTree (areaTreeUtils)**: empty/whitespace query → full tree unchanged. Non-empty query → direct matches + all descendants included. Leaf-name search returns ALL leaves with that name across floors.
+
 ## Diary Scenario 14 flake — FIXED (2026-06-16) — `e2e/tests/diary/diary-drafts.spec.ts:846`
 
 - **Root cause**: `toBeVisible({ timeout: 15_000 })` on heading/draftBadge timed out when `GET /api/diary-entries/:id` took >15s under heavy CI load. `test.slow()` triples expect.timeout from 15s→45s but the explicit `{ timeout: 15_000 }` override overrode it — the budget was 15s not 45s.

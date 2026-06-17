@@ -40,6 +40,12 @@ import '../../i18n/index.js';
 // from throwing and keeps the test environment clean.
 let savedFetch: typeof globalThis.fetch;
 
+// ─── Stub URL.createObjectURL / revokeObjectURL ────────────────────────────────
+// jsdom does not implement these APIs.  We save/restore them per test so that
+// individual tests can override the mock return value as needed.
+let savedCreateObjectURL: typeof URL.createObjectURL;
+let savedRevokeObjectURL: typeof URL.revokeObjectURL;
+
 beforeEach(() => {
   savedFetch = globalThis.fetch;
   globalThis.fetch = jest.fn<typeof globalThis.fetch>().mockResolvedValue({
@@ -49,10 +55,17 @@ beforeEach(() => {
     text: async () => '{"orientations":[],"areas":[]}',
     headers: new Headers(),
   } as Response);
+
+  savedCreateObjectURL = URL.createObjectURL;
+  savedRevokeObjectURL = URL.revokeObjectURL;
+  URL.createObjectURL = jest.fn<typeof URL.createObjectURL>().mockReturnValue('blob:mock-url');
+  URL.revokeObjectURL = jest.fn<typeof URL.revokeObjectURL>();
 });
 
 afterEach(() => {
   globalThis.fetch = savedFetch;
+  URL.createObjectURL = savedCreateObjectURL;
+  URL.revokeObjectURL = savedRevokeObjectURL;
 });
 
 // ─── Captured onChange handlers from mocked pickers ──────────────────────────
@@ -338,6 +351,138 @@ describe('PhotoMetadataModal', () => {
       fireEvent.click(getSaveButton());
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ caption: 'Panoramic shot' }));
     }
+  });
+
+  // ─── Photo preview tests ───────────────────────────────────────────────────
+
+  describe('photo preview (objectUrl effect)', () => {
+    it('URL.createObjectURL is called once with the file instance on mount', async () => {
+      const file = makeFile('test-photo.jpg');
+      renderModal({ file });
+
+      await waitFor(() => {
+        expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+        expect(URL.createObjectURL).toHaveBeenCalledWith(file);
+      });
+    });
+
+    it('renders a preview img with src=blob:mock-url and alt=file.name', async () => {
+      const file = makeFile('my-photo.jpg');
+      renderModal({ file });
+
+      // Wait for the effect to run and the img to appear in the DOM.
+      const img = await screen.findByRole('img');
+      expect(img).toHaveAttribute('src', 'blob:mock-url');
+      expect(img).toHaveAttribute('alt', 'my-photo.jpg');
+    });
+
+    it('preview img is the first element child of formBody', async () => {
+      const file = makeFile('first-child.jpg');
+      renderModal({ file });
+
+      await screen.findByRole('img');
+
+      // The formBody div contains the preview as its first child element.
+      // We locate it by finding the img and walking up to its grandparent (the
+      // photoPreview div) and then to the formBody.
+      const img = screen.getByRole('img');
+      const photoPreviewDiv = img.parentElement!;
+      const formBody = photoPreviewDiv.parentElement!;
+      expect(formBody.firstElementChild).toBe(photoPreviewDiv);
+    });
+
+    it('no preview img when createObjectURL returns an empty string (falsy objectUrl)', async () => {
+      // Override the mock to return an empty string so the conditional `{objectUrl && ...}`
+      // evaluates to falsy and the img is not rendered.
+      (URL.createObjectURL as ReturnType<typeof jest.fn>).mockReturnValue('');
+
+      renderModal();
+
+      // Give the effect a chance to run then assert no img is present.
+      await waitFor(() => {
+        expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+      });
+      expect(screen.queryByRole('img')).toBeNull();
+    });
+
+    it('URL.revokeObjectURL is called with blob:mock-url on unmount', async () => {
+      const { unmount } = renderModal();
+
+      // Wait for effect to run and URL to be created.
+      await waitFor(() => {
+        expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+      });
+
+      act(() => {
+        unmount();
+      });
+
+      expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+    });
+
+    it('revokes old URL and creates new one when file prop changes', async () => {
+      (URL.createObjectURL as ReturnType<typeof jest.fn>)
+        .mockReturnValueOnce('blob:url-file1')
+        .mockReturnValueOnce('blob:url-file2');
+
+      const file1 = makeFile('file1.jpg');
+      const file2 = makeFile('file2.jpg');
+
+      const { rerender } = renderModal({ file: file1 });
+
+      // Wait for the first effect to run.
+      await waitFor(() => {
+        expect(URL.createObjectURL).toHaveBeenCalledWith(file1);
+      });
+      // First img should show file1 url.
+      expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:url-file1');
+
+      // Rerender with file2.
+      act(() => {
+        rerender(
+          <PhotoMetadataModal
+            file={file2}
+            entityType="work_item"
+            areas={makeAreas()}
+            onSave={jest.fn()}
+            onCancel={jest.fn()}
+          />,
+        );
+      });
+
+      // Cleanup for file1's effect should revoke the first URL.
+      await waitFor(() => {
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:url-file1');
+      });
+      // New effect should have created a URL for file2.
+      expect(URL.createObjectURL).toHaveBeenCalledWith(file2);
+      // The img should now show file2's url and alt.
+      const img = screen.getByRole('img');
+      expect(img).toHaveAttribute('src', 'blob:url-file2');
+      expect(img).toHaveAttribute('alt', 'file2.jpg');
+    });
+
+    it('Save behavior unchanged when preview is present — onSave called with correct payload', async () => {
+      const onSave = jest.fn<PhotoMetadataModalProps['onSave']>();
+      renderModal({ onSave });
+
+      // Wait for preview to appear.
+      await screen.findByRole('img');
+
+      // Fill in description.
+      const textarea = document.getElementById('modal-photo-caption') as HTMLTextAreaElement;
+      fireEvent.change(textarea, { target: { value: 'Preview caption' } });
+
+      fireEvent.click(getSaveButton());
+
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledWith({
+        caption: 'Preview caption',
+        areaId: null,
+        orientationId: null,
+      });
+    });
   });
 
   describe('focus trap (useEffect keyboard handler)', () => {

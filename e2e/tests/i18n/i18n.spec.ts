@@ -318,14 +318,19 @@ test.describe('i18n: Language Persistence via API', () => {
     // state (still 'de' in memory) persists.  page.reload() forces a full page load
     // which re-initialises LocaleContext: localStorage is empty → server has no
     // preference → fallback to system locale (English in CI).
-    // Register waitForResponse BEFORE the reload so we don't miss the prefs GET.
-    const resetPrefsPromise = page.waitForResponse(
-      (resp) => resp.url().includes('/api/users/me/preferences') && resp.status() === 200,
-    );
+    //
+    // waitForResponse is NOT used here because it creates a timing race: both the
+    // goto() navigation and React's post-load async mounting can trigger a preferences
+    // GET, meaning the promise can resolve prematurely (capturing the goto's fetch
+    // instead of the reload's fetch). Instead, we navigate, reload, then wait for
+    // network idle — ensuring all async preferences fetches AND React locale state
+    // updates have settled before asserting the heading text.
     await page.goto(ROUTES.profile);
     await page.reload();
-    await resetPrefsPromise;
+    await page.waitForLoadState('networkidle');
     // After no locale preference, system default (English) applies
-    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible({
+      timeout: 15000,
+    });
   });
 });

@@ -1506,3 +1506,11 @@ Key learnings:
   (buildApp + temp-file SQLite + createUserWithSession + createTestWorkItem/HouseholdItem helpers).
 - **Test count**: 57 tests total, categorized as: 8 auth, 21 success path (201/204/200), 1 validation (400),
   15 not found (404), 2 conflict (409), 5 error handling (500), 5 data shape validation.
+
+## Story #1723 — Picker hierarchy tests (2026-06-16)
+
+**AreaPicker.test.tsx mock pattern**: Follows OrientationPicker.test.tsx exactly. `jest.unstable_mockModule('../SearchPicker/SearchPicker.js', ...)` captures searchFn, renderItem, renderSecondary, specialOptions, onChange, initialTitle. Module-scope `let` vars reset in `beforeEach`. AreaPicker has no async data fetch so no `mockFetchX` needed. searchFn is async (returns Promise<TreeNode[]>) — wrap calls in `await act(async () => { results = await capturedSearchFn?.('q'); })`.
+
+**@floating-ui/react absent in feat+1674 worktree**: `AreaPicker.test.tsx` and `PhotoMetadataSidepanel.test.tsx` fail locally when mock doesn't intercept — real `SearchPicker.tsx` imports `@floating-ui/react` which isn't installed. Pre-existing systemic limitation; CI passes.
+
+**PhotoMetadataSidepanel AreaPicker mock placement**: Add `jest.unstable_mockModule('../AreaPicker/index.js', ...)` BEFORE the OrientationPicker mock. Capture `onChange` + full `props`. Reset `capturedAreaPickerOnChange = null; capturedAreaPickerProps = null` in `beforeEach` after `jest.clearAllMocks()`.
