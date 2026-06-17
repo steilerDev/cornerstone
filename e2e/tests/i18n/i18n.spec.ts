@@ -318,11 +318,17 @@ test.describe('i18n: Language Persistence via API', () => {
     // state (still 'de' in memory) persists.  page.reload() forces a full page load
     // which re-initialises LocaleContext: localStorage is empty → server has no
     // preference → fallback to system locale (English in CI).
-    // Register waitForResponse BEFORE the reload so we don't miss the prefs GET.
+    //
+    // Register waitForResponse AFTER goto (so the goto's preferences response does not
+    // prematurely resolve the promise) but BEFORE reload (so we don't miss the reload's
+    // preferences GET). If the promise is registered before goto, the goto itself triggers
+    // a preferences fetch (200) that resolves the promise. Then await page.reload() starts
+    // a new full-page load whose async React locale update may not finish within the 7s
+    // expect.timeout — the heading stays "Profil" (German) until that async fetch resolves.
+    await page.goto(ROUTES.profile);
     const resetPrefsPromise = page.waitForResponse(
       (resp) => resp.url().includes('/api/users/me/preferences') && resp.status() === 200,
     );
-    await page.goto(ROUTES.profile);
     await page.reload();
     await resetPrefsPromise;
     // After no locale preference, system default (English) applies
