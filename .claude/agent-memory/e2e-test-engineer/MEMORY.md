@@ -3,6 +3,13 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`, `searchpicker-mobile-1708.md`
 
+## InvoicePaperlessPickerModal linked-ids mock (Issue #1739, 2026-06-17) — `e2e/tests/invoices/paperless-first-invoice.spec.ts`
+
+- `InvoicePaperlessPickerModal` now fetches `GET /api/document-links/linked-ids` on mount via `useAllLinkedDocumentIds`. Must mock `**/api/document-links/linked-ids` BEFORE `clickNewInvoice()` in ALL tests that open this modal, or an unmocked request fires and console errors appear.
+- `mockLinkedIds(page, ids)` returns `{ paperlessDocumentIds: ids }` (200). Pass `[]` when no docs linked. Pass `[MOCK_DOC_1.id]` to make MOCK_DOC_1 filtered out when toggle is ON.
+- Scenario 5 updated to add `await mockLinkedIds(page, [])`. Scenario 15 (new) validates the filter actually hides cards: toggle ON → DOC_1 hidden, DOC_2 visible; toggle OFF → both visible.
+- Pre-existing unused `mockPaperlessNotConfigured` function renamed to `_mockPaperlessNotConfigured` to satisfy `@typescript-eslint/no-unused-vars` (was pre-existing error on beta).
+
 ## Photo Picker Hierarchy E2E (Issue #1723, 2026-06-16) — `e2e/tests/photo-picker-hierarchy.spec.ts`, `e2e/pages/PhotoViewerPage.ts`
 
 - 8 scenarios (7 acceptance criteria), all tagged `@responsive`, Scenario 1 also `@smoke`.
