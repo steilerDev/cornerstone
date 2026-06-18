@@ -9,8 +9,8 @@
  *
  * Strategy:
  * - Fresh in-memory SQLite per test with migrations applied
- * - global.fetch mocked for paperlessService calls (getDocument)
- * - paperlessService.getDocument is called via real service code (not mocked at module level)
+ * - global.fetch mocked for paperlessService calls (getDocuments)
+ * - paperlessService.getDocuments is called via real service code (not mocked at module level)
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
@@ -489,10 +489,10 @@ describe('documentLinkService', () => {
       const workItemId = insertTestWorkItem();
       insertRawDocumentLink('work_item', workItemId, 42);
 
-      // Mock: document fetch first, then tags (paperlessService.getDocument order)
+      // Mock: tags first, then bulk documents list (getDocuments Promise.all order)
       mockFetch
-        .mockResolvedValueOnce(mockJsonResponse(RAW_DOCUMENT)) // document fetch
-        .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE)); // tags for mapDocument
+        .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE)) // tags (first in Promise.all)
+        .mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [RAW_DOCUMENT] })); // id__in list
 
       const result = await documentLinkService.getLinksForEntity(
         db,
@@ -519,8 +519,10 @@ describe('documentLinkService', () => {
       insertRawDocumentLink('work_item', workItemId, 42);
 
       mockFetch
-        .mockResolvedValueOnce(mockJsonResponse({ ...RAW_DOCUMENT, content: 'Rich full text' }))
-        .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+        .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          mockJsonResponse({ count: 1, results: [{ ...RAW_DOCUMENT, content: 'Rich full text' }] }),
+        );
 
       const result = await documentLinkService.getLinksForEntity(
         db,
@@ -537,22 +539,11 @@ describe('documentLinkService', () => {
       insertRawDocumentLink('work_item', workItemId, 42);
       insertRawDocumentLink('work_item', workItemId, 99);
 
-      // getDocument order: document fetch first, then tags (per paperlessService.getDocument)
-      // Because both run in parallel via Promise.all in getLinksForEntity, order may vary.
-      // Use mockResolvedValue for all calls to avoid order sensitivity.
-      mockFetch.mockImplementation(async (url: RequestInfo | URL) => {
-        const urlStr = url.toString();
-        if (urlStr.includes('/api/documents/99/')) {
-          return mockJsonResponse({ detail: 'Not found' }, 404);
-        }
-        if (urlStr.includes('/api/documents/42/')) {
-          return mockJsonResponse(RAW_DOCUMENT);
-        }
-        if (urlStr.includes('/api/tags/')) {
-          return mockJsonResponse(RAW_TAGS_RESPONSE);
-        }
-        return mockJsonResponse({}, 200);
-      });
+      // getDocuments uses id__in bulk fetch — tags first, then docs list returning only doc 42
+      // (doc 99 is absent from results, simulating deletion from Paperless)
+      mockFetch
+        .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE))
+        .mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [RAW_DOCUMENT] }));
 
       const result = await documentLinkService.getLinksForEntity(
         db,
