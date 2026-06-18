@@ -483,8 +483,16 @@ describe('AutoItemizePage — queue + save flow (Story #1693)', () => {
       vendors: [{ id: 'v-1', name: 'Builder Co', trade: null }],
     };
 
+    // Dry-run returns a line with includesVat=false so the queued draft inherits includesVat=false
+    // automatically from `row.includesVat !== false` in handleQueueNewBudgetLine.
+    // The VAT checkbox is hidden for work_item assignments (hideVatField=true), so we do NOT
+    // interact with any checkbox — the value comes from the extraction line data.
     mockAutoItemize
-      .mockResolvedValueOnce(makeDryRunResponse())
+      .mockResolvedValueOnce(
+        makeDryRunResponse([
+          { includesVat: false, totalAmount: 100, budgetCategoryId: 'bc-test-category' },
+        ]),
+      )
       .mockResolvedValueOnce({ success: true } as unknown as AutoItemizeDryRunResponse);
 
     mockCreateWorkItemBudget.mockResolvedValue(
@@ -521,32 +529,6 @@ describe('AutoItemizePage — queue + save flow (Story #1693)', () => {
       // Fallback: if form not visible, check the creating-new badge
       const badge = screen.queryByTestId('creating-new-badge');
       if (!badge) return; // still in non-intercepting env
-    }
-
-    // Now modify the inline form to set includesVat=false and plannedAmount=100
-    // The inline form BudgetLineForm renders a plannedAmount input id="inline-{rowId}-budget-planned-amount"
-    // Find all inputs matching the pattern
-    const amountInputs = document.querySelectorAll('[id*="budget-planned-amount"]');
-    if (amountInputs.length === 0) return; // non-intercepting env
-
-    const amountInput = amountInputs[0] as HTMLInputElement;
-    await act(async () => {
-      fireEvent.change(amountInput, { target: { value: '100' } });
-    });
-
-    // Find the includesVat checkbox scoped to the inline BudgetLineForm.
-    // The inline form renders as <form aria-label="New budget line details">;
-    // the card also has a separate VAT checkbox outside the form.
-    const inlineFormEl = document.querySelector('form[aria-label="New budget line details"]');
-    const vatCheckbox = inlineFormEl?.querySelector('input[type="checkbox"]') as
-      | HTMLInputElement
-      | null
-      | undefined;
-
-    if (vatCheckbox?.checked) {
-      await act(async () => {
-        fireEvent.click(vatCheckbox!);
-      });
     }
 
     // Click Save
