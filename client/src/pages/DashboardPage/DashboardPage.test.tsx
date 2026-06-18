@@ -781,17 +781,19 @@ describe('DashboardPage', () => {
       expect(addBtn).toHaveTextContent('Add');
     });
 
-    it('dropdown is closed by default — no add menu in document', () => {
+    it('dropdown is closed by default — new diary-entry and invoice testids are absent', () => {
       renderPage();
 
       // The customize dropdown may also render a role="menu" when Customize is clicked,
-      // but by default neither is open. We verify the add dropdown is absent specifically.
+      // but by default neither is open. We verify all 5 add menu items are absent.
       expect(screen.queryByTestId('dashboard-add-work-item')).not.toBeInTheDocument();
       expect(screen.queryByTestId('dashboard-add-household-item')).not.toBeInTheDocument();
       expect(screen.queryByTestId('dashboard-add-milestone')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-add-diary-entry')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-add-invoice')).not.toBeInTheDocument();
     });
 
-    it('clicking "Add" opens the dropdown with 3 menu items', async () => {
+    it('clicking "Add" opens the dropdown with all 5 menu items', async () => {
       renderPage();
 
       await userEvent.click(screen.getByTestId('dashboard-add-button'));
@@ -800,6 +802,25 @@ describe('DashboardPage', () => {
       expect(screen.getByTestId('dashboard-add-work-item')).toBeInTheDocument();
       expect(screen.getByTestId('dashboard-add-household-item')).toBeInTheDocument();
       expect(screen.getByTestId('dashboard-add-milestone')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-add-diary-entry')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-add-invoice')).toBeInTheDocument();
+    });
+
+    it('menu items appear in correct document order', async () => {
+      renderPage();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+
+      const menu = screen.getByRole('menu');
+      const items = menu.querySelectorAll('[role="menuitem"]');
+      const testIds = Array.from(items).map((el) => (el as HTMLElement).dataset['testid'] ?? '');
+      expect(testIds).toEqual([
+        'dashboard-add-work-item',
+        'dashboard-add-household-item',
+        'dashboard-add-milestone',
+        'dashboard-add-diary-entry',
+        'dashboard-add-invoice',
+      ]);
     });
 
     it('clicking outside the dropdown closes it', async () => {
@@ -849,6 +870,48 @@ describe('DashboardPage', () => {
       await userEvent.click(screen.getByTestId('dashboard-add-milestone'));
 
       expect(screen.getByTestId('location')).toHaveTextContent('/project/milestones/new');
+    });
+
+    it('"New Diary Entry" menu item navigates to /diary/new', async () => {
+      renderWithLocation();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      await userEvent.click(screen.getByTestId('dashboard-add-diary-entry'));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/diary/new');
+    });
+
+    it('"New Invoice" menu item navigates to /budget/invoices (pathname)', async () => {
+      // The navigate call uses /budget/invoices?create=1; MemoryRouter tracks pathname separately.
+      // LocationDisplay only exposes pathname — assert the pathname portion.
+      renderWithLocation();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      await userEvent.click(screen.getByTestId('dashboard-add-invoice'));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/budget/invoices');
+    });
+
+    it('"New Diary Entry" closes the menu when clicked', async () => {
+      renderPage();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      expect(screen.getByTestId('dashboard-add-diary-entry')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-diary-entry'));
+
+      expect(screen.queryByTestId('dashboard-add-diary-entry')).not.toBeInTheDocument();
+    });
+
+    it('"New Invoice" closes the menu when clicked', async () => {
+      renderPage();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      expect(screen.getByTestId('dashboard-add-invoice')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-invoice'));
+
+      expect(screen.queryByTestId('dashboard-add-invoice')).not.toBeInTheDocument();
     });
 
     it('"Add" button has aria-haspopup="menu"', () => {
