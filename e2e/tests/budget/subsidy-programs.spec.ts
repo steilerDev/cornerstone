@@ -973,27 +973,42 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
     page,
     testPrefix,
   }) => {
+    // Root cause for two-program setup: the docs toggle lives in the DISPLAY branch
+    // of the program row ({editingProgram?.id === program.id ? <form> : <display+toggle>}).
+    // When a program is being edited, its own row shows the edit form (no toggle in DOM).
+    // Only OTHER (non-edited) program rows still render their docs toggle, and those
+    // toggles carry disabled={!!editingProgram}. So we need at least two programs:
+    // one to edit, and one whose disabled toggle we can assert.
     const subsidyPage = new SubsidyProgramsPage(page);
-    const programName = `${testPrefix} Docs EditDisable Program`;
-    let createdId: string | null = null;
+    const editTargetName = `${testPrefix} Docs EditDisable Target`;
+    const otherProgramName = `${testPrefix} Docs EditDisable Other`;
+    let editTargetId: string | null = null;
+    let otherProgramId: string | null = null;
 
     try {
-      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 40 });
+      editTargetId = await createProgramViaApi(page, { name: editTargetName, reductionValue: 40 });
+      otherProgramId = await createProgramViaApi(page, {
+        name: otherProgramName,
+        reductionValue: 41,
+      });
 
       await subsidyPage.goto();
       await subsidyPage.waitForProgramsLoaded();
 
-      // Enter edit mode for this program
-      await subsidyPage.startEdit(programName);
+      // Enter edit mode for the first program
+      await subsidyPage.startEdit(editTargetName);
 
-      // Docs toggle should be disabled while editing
-      const docsToggle = page.locator('[aria-controls^="program-docs-"]').first();
-      await expect(docsToggle).toBeDisabled();
+      // The OTHER (non-edited) program still renders its docs toggle, and it should
+      // be disabled because editingProgram is set. Scope to the exact program ID so
+      // we do not accidentally match the edited row.
+      const otherDocsToggle = page.locator(`[aria-controls="program-docs-${otherProgramId}"]`);
+      await expect(otherDocsToggle).toBeDisabled();
 
       // Cancel edit to restore state
-      await subsidyPage.cancelEdit(programName);
+      await subsidyPage.cancelEdit(editTargetName);
     } finally {
-      if (createdId) await deleteProgramViaApi(page, createdId);
+      if (editTargetId) await deleteProgramViaApi(page, editTargetId);
+      if (otherProgramId) await deleteProgramViaApi(page, otherProgramId);
     }
   });
 });
