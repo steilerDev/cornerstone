@@ -202,6 +202,115 @@ describe('buildUserPrompt()', () => {
     });
   });
 
+  // ─── Story #1767 — paperlessMetadata in buildUserPrompt ──────────────────────
+
+  describe('paperlessMetadata in buildUserPrompt', () => {
+    it('section present when all metadata fields provided', () => {
+      const result = buildUserPrompt('ocr text', {
+        paperlessMetadata: {
+          title: 'Invoice Jan',
+          correspondent: 'Bauhaus GmbH',
+          documentType: 'Invoice',
+          tags: ['construction'],
+          created: '2026-01-15',
+          originalFileName: 'bauhaus.pdf',
+        },
+      });
+      expect(result).toContain('Document metadata (human-authored');
+      expect(result).toContain('Bauhaus GmbH');
+      expect(result).toContain('Invoice Jan');
+      expect(result).toContain('Invoice');
+      expect(result).toContain('construction');
+      expect(result).toContain('2026-01-15');
+      expect(result).toContain('bauhaus.pdf');
+    });
+
+    it('section omitted when paperlessMetadata is absent', () => {
+      const result = buildUserPrompt('ocr', {});
+      expect(result).not.toContain('Document metadata');
+    });
+
+    it('section omitted when all sub-fields are null or empty', () => {
+      const result = buildUserPrompt('ocr', {
+        paperlessMetadata: {
+          title: null,
+          correspondent: null,
+          documentType: null,
+          tags: [],
+          created: null,
+          originalFileName: null,
+        },
+      });
+      expect(result).not.toContain('Document metadata');
+    });
+
+    it('null sub-fields skipped silently — no empty label lines for null fields', () => {
+      const result = buildUserPrompt('ocr', {
+        paperlessMetadata: {
+          title: 'My Doc',
+          correspondent: null,
+        },
+      });
+      expect(result).toContain('My Doc');
+      // Null correspondent must not produce a "Correspondent:" line at all
+      expect(result).not.toContain('Correspondent:');
+      // The metadata section body must not render the literal word "null" as a value
+      // (the JSON schema notation "| null" at the bottom is acceptable)
+      const metaStart = result.indexOf('Document metadata');
+      const metaEnd = result.indexOf('---');
+      if (metaStart !== -1 && metaEnd > metaStart) {
+        const metaSection = result.slice(metaStart, metaEnd);
+        expect(metaSection).not.toContain('null');
+      }
+    });
+
+    it('empty tags produce no Tags line', () => {
+      const result = buildUserPrompt('ocr', {
+        paperlessMetadata: { tags: [] },
+      });
+      expect(result).not.toContain('Tags:');
+    });
+
+    it('non-empty tags rendered as comma-separated list', () => {
+      const result = buildUserPrompt('ocr', {
+        paperlessMetadata: { tags: ['Reparatur', 'Keller'] },
+      });
+      expect(result).toContain('Reparatur, Keller');
+      expect(result).toContain('Tags:');
+    });
+
+    it('metadata section appears after Vendor line', () => {
+      const result = buildUserPrompt('ocr', {
+        paperlessMetadata: {
+          correspondent: 'Acme GmbH',
+        },
+      });
+      const metaIndex = result.indexOf('Document metadata');
+      const vendorIndex = result.indexOf('Vendor:');
+      expect(metaIndex).toBeGreaterThan(vendorIndex);
+    });
+
+    it('does not throw with partially populated metadata', () => {
+      expect(() => buildUserPrompt('ocr', { paperlessMetadata: { title: 'X' } })).not.toThrow();
+    });
+  });
+
+  // ─── Story #1767 — SYSTEM_PROMPT rule 13 ─────────────────────────────────────
+
+  describe('SYSTEM_PROMPT — rule 13', () => {
+    it('contains "Document metadata (human-authored)" (rule 13 present)', () => {
+      expect(SYSTEM_PROMPT).toContain('Document metadata (human-authored)');
+    });
+
+    it('contains the word "authoritative" (override semantics stated)', () => {
+      expect(SYSTEM_PROMPT.toLowerCase()).toContain('authoritative');
+    });
+
+    it('contains "correspondent" (LLM told to use it as vendor name)', () => {
+      expect(SYSTEM_PROMPT).toContain('correspondent');
+    });
+  });
+
   describe('fixture text embedding', () => {
     it('can embed obi-baumarkt fixture without throwing', () => {
       const fixture = readFileSync(resolve(FIXTURES_DIR, 'obi-baumarkt.txt'), 'utf8');
