@@ -154,6 +154,8 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 **NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
 
+**Do NOT remove worktrees.** Deleting local worktrees breaks inside the sandbox. Agents must never run `git worktree remove`, `git worktree prune`, or otherwise delete a worktree (or use a tool's worktree-removal/cleanup option). Leave worktrees in place when work is done — the repository owner cleans them up manually.
+
 ### Release Model
 
 Cornerstone uses a two-tier release model:
