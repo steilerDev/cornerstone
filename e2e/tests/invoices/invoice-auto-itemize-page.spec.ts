@@ -2804,11 +2804,24 @@ test.describe('Scenario 33 — SearchPicker dropdown renders in body portal (not
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 34 — Step-2 "Create Budget Line" visible WITH existing lines +
-//               Pre-filled form from extraction data (Flaws 2 & 3, Story #1600)
+//               Queued inline draft pre-filled from extraction data
+//
+// NOTE: The in-modal "Create Budget Line" form flow (createBudgetLineFieldset,
+// immediate POST /api/work-items/:id/budgets on submit) was removed in PR #1747
+// (Bug A fix #1737). Clicking "Create Budget Line" now QUEUES creation — the
+// picker closes, an amber "Creating New" badge appears on the card, and an inline
+// BudgetLineForm renders below. No API write happens until the outer Save button
+// is clicked. The canonical happy-path queue flow is covered in
+// e2e/tests/budget/auto-itemize-inline-create.spec.ts (Scenario 1).
+//
+// This scenario covers a distinct angle NOT in auto-itemize-inline-create.spec.ts:
+// the WI already has an EXISTING budget line so step 2 shows existing rows
+// alongside the "Create Budget Line" button (Flaw 2 guard). We also verify
+// that the inline draft is pre-filled with extracted line data (Flaw 3 analog).
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Scenario 34 — "Create Budget Line" visible with existing budget lines; form pre-filled from extraction data', () => {
-  test('"Create Budget Line" button visible in step 2 even when existing lines present; clicking it pre-fills form; submitting shows "Auto-created" badge', async ({
+test.describe('Scenario 34 — "Create Budget Line" visible with existing budget lines; inline draft pre-filled from extraction data', () => {
+  test('"Create Budget Line" button visible in step 2 even when existing lines present; clicking it queues inline draft pre-filled with extracted data', async ({
     page,
     testPrefix,
   }) => {
@@ -2845,7 +2858,7 @@ test.describe('Scenario 34 — "Create Budget Line" visible with existing budget
       await mockPaperlessDocument(page, docId, 'Prefill Test Doc');
 
       // ── Mock dry-run: one extracted line with known fields ─────────────────
-      // confidence=0.95 → maps to 'invoice' level in handleCreateNewBudgetLine
+      // confidence=0.95 → maps to 'invoice' level in handleQueueNewBudgetLine
       const extractedLine = {
         description: extractedDescription,
         totalAmount: extractedTotal,
@@ -2895,76 +2908,34 @@ test.describe('Scenario 34 — "Create Budget Line" visible with existing budget
       // ── Flaw 2 guard: "Create Budget Line" button IS visible even with existing lines ─
       await expect(autoItemizePage.pickerCreateBudgetLineButton).toBeVisible();
 
-      // ── Click "Create Budget Line" → form renders ─────────────────────────
+      // ── Click "Create Budget Line" → picker closes, inline draft queued ───
+      // PR #1747 changed this: clicking the button now calls handleQueueNewBudgetLine,
+      // which closes the picker immediately and sets inlineCreatedBudgetLineDraft on
+      // the line. No in-modal createBudgetLineFieldset is rendered (showCreateForm: false).
       await autoItemizePage.pickerCreateBudgetLineButton.click();
 
-      // The createBudgetLineFieldset should now be visible
-      await expect(autoItemizePage.pickerCreateBudgetLineFieldset).toBeVisible();
-
-      // ── Flaw 3 guard: form is pre-filled with extracted line data ──────────
-      // Description: row.description = 'Bathroom tiles'
-      const descriptionInput =
-        autoItemizePage.pickerCreateBudgetLineFieldset.locator('#budget-description');
-      await expect(descriptionInput).toBeVisible();
-      await expect(descriptionInput).toHaveValue(extractedDescription);
-
-      // The extracted line has quantity=20 and unitPrice=45 so handleCreateNewBudgetLine
-      // sets pricingMode='unit'. In unit mode, BudgetLineForm shows #budget-quantity and
-      // #budget-unit-price — NOT #budget-planned-amount (direct mode only).
-      const quantityInput =
-        autoItemizePage.pickerCreateBudgetLineFieldset.locator('#budget-quantity');
-      await expect(quantityInput).toBeVisible();
-      await expect(quantityInput).toHaveValue('20');
-
-      const unitPriceInput =
-        autoItemizePage.pickerCreateBudgetLineFieldset.locator('#budget-unit-price');
-      await expect(unitPriceInput).toBeVisible();
-      await expect(unitPriceInput).toHaveValue('45');
-
-      // Confidence: 0.95 → 'invoice' → label "Invoice" in the select
-      // BudgetLineForm renders <select id="budget-confidence">
-      const confidenceSelect =
-        autoItemizePage.pickerCreateBudgetLineFieldset.locator('#budget-confidence');
-      await expect(confidenceSelect).toBeVisible();
-      await expect(confidenceSelect).toHaveValue('invoice');
-
-      // ── Submit the form (real API — creates a real WI budget on server) ───
-      // The form is submitted via the "Add Line" button (isEditing=false → submitAdd).
-      // Since eagerLinkInvoice=false in AutoItemizePage, no invoice_budget_line is created.
-      // After submit, onLineCreated fires → picker closes → assigned badge shows.
-      // The BudgetLineForm renders a <form> as a descendant of the outer fieldset wrapper
-      // (createBudgetLineFieldset). Scope to that form then find the submit button.
-      // Using a descendant 'form' locator (not xpath=ancestor::form which searches upward).
-      const addLineButton = autoItemizePage.pickerCreateBudgetLineFieldset
-        .locator('form')
-        .getByRole('button', { name: /Add Line/i });
-      await expect(addLineButton).toBeVisible();
-
-      // Wait for the budget line creation response before asserting post-submit state
-      const createLineResponsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes(`/api/work-items/${workItemId}/budgets`) &&
-          resp.request().method() === 'POST' &&
-          resp.ok(),
-      );
-      await addLineButton.click();
-      await createLineResponsePromise;
-
-      // ── Picker modal closes ───────────────────────────────────────────────
+      // Picker closes immediately on queue
       await expect(autoItemizePage.pickerModal).not.toBeVisible();
 
-      // ── Assigned badge appears on card 0 with extracted description ───────
-      const assignedBadge = autoItemizePage.lineAssignedBadge(0);
-      await expect(assignedBadge).toBeVisible();
+      // ── Assert: amber "Creating New" badge visible on card 0 ──────────────
+      await expect(autoItemizePage.getCreatingNewBadge(0)).toBeVisible();
 
-      const assignedDesc = autoItemizePage.lineAssignedDescription(0);
-      await expect(assignedDesc).toContainText(extractedDescription);
+      // ── Assert: inline BudgetLineForm wrapper visible ─────────────────────
+      await expect(autoItemizePage.getInlineFormWrapper(0)).toBeVisible();
 
-      // ── "Auto-created" badge is visible (createdFromExtraction=true) ──────
-      // The badge text is "Auto-created" (t('autoItemize.createdFromAutoItemization')).
-      // Located via text-based locator since no data-testid is emitted.
-      await expect(autoItemizePage.autoCreatedBadge).toBeVisible();
-      await expect(autoItemizePage.autoCreatedBadge).toContainText(/Auto-created/i);
+      // ── Assert: Discard button visible inside the card ────────────────────
+      await expect(autoItemizePage.getInlineDraftDiscardButton(0)).toBeVisible();
+
+      // ── Assert: "Assign…" button is replaced by badge + inline form ───────
+      await expect(assignBtn).not.toBeVisible();
+
+      // ── Flaw 3 analog: inline form is pre-filled with extracted line data ──
+      // handleQueueNewBudgetLine sets description=row.description and
+      // pricingMode='unit' (because row has quantity + unitPrice).
+      // In unit mode, BudgetLineForm shows the description textbox pre-filled.
+      const descriptionInput = autoItemizePage.getInlineDraftDescriptionInput(0);
+      await expect(descriptionInput).toBeVisible();
+      await expect(descriptionInput).toHaveValue(extractedDescription);
     } finally {
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -2976,14 +2947,21 @@ test.describe('Scenario 34 — "Create Budget Line" visible with existing budget
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 35 — Dark mode + Mobile viewport (Flaws 1–3, Story #1600)
 // Verifies portal dropdown is within viewport bounds on mobile and
-// that the auto-created badge uses CSS custom properties (not hardcoded hex).
+// that the "Creating New" badge uses CSS custom properties (not hardcoded hex).
+//
+// NOTE: The in-modal "Create Budget Line" form flow (createBudgetLineFieldset,
+// immediate POST /api/work-items/:id/budgets, auto-created badge) was removed in
+// PR #1747 (Bug A fix #1737). Clicking the button now QUEUES creation inline.
+// The badge color assertion is updated to target the amber "Creating New" badge
+// (data-testid="creating-new-badge", .warning CSS variant) which is the visible
+// badge immediately after queuing — same CSS token resolution requirement applies.
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
   'Scenario 35 — Dark mode + mobile: portal dropdown within viewport; badge uses CSS tokens',
   { tag: '@responsive' },
   () => {
-    test('Portal dropdown is within viewport bounds on mobile (375×812) in dark mode; "Create Budget Line" button ≥44×44px touch target; "Auto-created" badge uses token-resolved color', async ({
+    test('Portal dropdown is within viewport bounds on mobile (375×812) in dark mode; "Create Budget Line" button ≥44×44px touch target; "Creating New" badge uses token-resolved color', async ({
       page,
       testPrefix,
     }) => {
@@ -3093,54 +3071,35 @@ test.describe(
           `"Create Budget Line" button height (${createBtnBox!.height.toFixed(0)}px) must be ≥44px for mobile touch targets`,
         ).toBeGreaterThanOrEqual(44);
 
-        // ── Click "Create Budget Line" → form renders ─────────────────────────
+        // ── Click "Create Budget Line" → picker closes, inline draft queued ───
+        // PR #1747: clicking the button calls handleQueueNewBudgetLine — the picker
+        // closes immediately and the line card shows the amber "Creating New" badge.
+        // No in-modal fieldset renders (showCreateForm: false in AutoItemizePage).
         await autoItemizePage.pickerCreateBudgetLineButton.click();
-        await expect(autoItemizePage.pickerCreateBudgetLineFieldset).toBeVisible();
-
-        // ── Submit the form (real API) ────────────────────────────────────────
-        // The BudgetLineForm renders a <form> as a descendant of the outer fieldset wrapper
-        // (createBudgetLineFieldset). Scope to that form then find the submit button.
-        // Using a descendant 'form' locator (not xpath=ancestor::form which searches upward).
-        const addLineButton = autoItemizePage.pickerCreateBudgetLineFieldset
-          .locator('form')
-          .getByRole('button', { name: /Add Line/i });
-        await expect(addLineButton).toBeVisible();
-
-        const createLineResponsePromise = page.waitForResponse(
-          (resp) =>
-            resp.url().includes(`/api/work-items/${workItemId}/budgets`) &&
-            resp.request().method() === 'POST' &&
-            resp.ok(),
-        );
-        await addLineButton.click();
-        await createLineResponsePromise;
-
-        // Picker closes, assigned badge shows
         await expect(autoItemizePage.pickerModal).not.toBeVisible();
-        await expect(autoItemizePage.lineAssignedBadge(0)).toBeVisible();
 
-        // ── Assert: "Auto-created" badge is visible ───────────────────────────
-        await expect(autoItemizePage.autoCreatedBadge).toBeVisible();
+        // ── Assert: amber "Creating New" badge visible on card 0 ─────────────
+        const creatingBadge = autoItemizePage.getCreatingNewBadge(0);
+        await expect(creatingBadge).toBeVisible();
 
         // ── Assert: badge uses CSS custom properties (token-resolved color) ───
-        // The .info variant in Badge.module.css uses:
-        //   background-color: var(--color-bg-tertiary)
-        //   color: var(--color-text-secondary)
-        //   border: 1px solid var(--color-border)
+        // The .warning variant in Badge.module.css uses:
+        //   background-color: var(--color-warning-bg)
+        //   color: var(--color-warning)
+        //   border: 1px solid var(--color-warning)
         // Computed styles resolve the CSS custom properties to actual color values.
-        // Verify that the computed background-color is NOT a hardcoded hex color —
-        // it should be resolved to an rgb() value (from the token), not "transparent" or empty.
-        const badgeBgColor = await autoItemizePage.autoCreatedBadge.evaluate(
+        // Verify that the computed background-color resolves to an rgb() value
+        // (from the token), not "transparent" or empty.
+        const badgeBgColor = await creatingBadge.evaluate(
           (el) => window.getComputedStyle(el).backgroundColor,
         );
         expect(
           badgeBgColor,
-          `Expected "Auto-created" badge background to be token-resolved (rgb/rgba value), got: "${badgeBgColor}"`,
+          `Expected "Creating New" badge background to be token-resolved (rgb/rgba value), got: "${badgeBgColor}"`,
         ).toMatch(/^rgba?\(/);
 
-        // Also verify the badge background is NOT pure white (#fff = rgb(255,255,255))
-        // nor pure black (rgb(0,0,0)) — token-resolved dark mode values differ from defaults.
-        // This asserts the dark mode token chain is actually applied (not a CSS bug).
+        // Also verify the badge background is NOT pure transparent —
+        // this asserts the dark mode token chain is actually applied (not a CSS bug).
         // We do not assert the exact value because it depends on the design token resolution,
         // which may vary by environment. The rgb() check above is the primary assertion.
         expect(
