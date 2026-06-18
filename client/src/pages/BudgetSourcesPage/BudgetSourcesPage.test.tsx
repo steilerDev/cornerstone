@@ -2169,14 +2169,19 @@ describe('BudgetSourcesPage', () => {
       const actionsDiv = container.querySelector('[class*="sourceActions"]');
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
-      expect(buttons.length).toBe(3);
-      // Order: Show lines → Edit → Delete
+      // Order: Show lines → docs toggle (paperclip) → Edit → Delete
+      expect(buttons.length).toBe(4);
       expect(buttons[0]).toHaveAttribute(
         'aria-label',
         expect.stringMatching(/expand budget lines for home loan/i),
       );
-      expect(buttons[1]).toHaveAccessibleName(/edit home loan/i);
-      expect(buttons[2]).toHaveAccessibleName(/delete home loan/i);
+      // The docs toggle sits between Show lines and Edit
+      expect(buttons[1]).toHaveAttribute(
+        'aria-controls',
+        expect.stringContaining('source-docs-'),
+      );
+      expect(buttons[2]).toHaveAccessibleName(/edit home loan/i);
+      expect(buttons[3]).toHaveAccessibleName(/delete home loan/i);
     });
 
     it('discretionary source shows Show lines and Edit in sourceActions but not Delete', async () => {
@@ -2194,12 +2199,18 @@ describe('BudgetSourcesPage', () => {
       const actionsDiv = container.querySelector('[class*="sourceActions"]');
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
-      expect(buttons.length).toBe(2);
+      // Discretionary sources have no Delete: Show lines → docs toggle (paperclip) → Edit
+      expect(buttons.length).toBe(3);
       expect(buttons[0]).toHaveAttribute(
         'aria-label',
         expect.stringMatching(/expand budget lines for contingency reserve/i),
       );
-      expect(buttons[1]).toHaveAccessibleName(/edit contingency reserve/i);
+      // The docs toggle sits between Show lines and Edit
+      expect(buttons[1]).toHaveAttribute(
+        'aria-controls',
+        expect.stringContaining('source-docs-'),
+      );
+      expect(buttons[2]).toHaveAccessibleName(/edit contingency reserve/i);
       expect(
         screen.queryByRole('button', { name: /delete contingency reserve/i }),
       ).not.toBeInTheDocument();
@@ -2270,8 +2281,15 @@ describe('BudgetSourcesPage', () => {
         expect(screen.getByText('Home Loan')).toBeInTheDocument();
       });
 
-      // The docs toggle button has an aria-label containing the source name
-      expect(screen.getByRole('button', { name: /home loan/i, hidden: true })).toBeInTheDocument();
+      // The docs toggle button has aria-label "Show documents for <name>" — narrow to this
+      // specific label to avoid colliding with "Expand budget lines for Home Loan", "Edit Home Loan",
+      // or "Delete Home Loan", all of which also contain the source name.
+      expect(
+        screen.getByRole('button', { name: /show documents for home loan/i, hidden: true }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /show documents for savings account/i, hidden: true }),
+      ).toBeInTheDocument();
     });
 
     it('clicking the docs toggle button renders LinkedDocumentsSection with entityType=budget_source and correct entityId', async () => {
