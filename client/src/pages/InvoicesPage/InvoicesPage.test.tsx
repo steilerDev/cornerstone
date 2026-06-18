@@ -1188,8 +1188,10 @@ describe('InvoicesPage', () => {
       });
 
       // The URL should no longer carry ?create=1
-      const locationEl = screen.getByTestId('location-search');
-      expect(locationEl.textContent).not.toContain('create=1');
+      await waitFor(() => {
+        const locationEl = screen.getByTestId('location-search');
+        expect(locationEl.textContent).not.toContain('create=1');
+      });
     });
   });
 });
