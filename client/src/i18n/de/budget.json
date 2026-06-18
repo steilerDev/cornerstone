@@ -996,7 +996,14 @@
     "extractionComplete": "Extraktion abgeschlossen. Bitte prüfen Sie die vorgeschlagenen Positionen.",
     "lineItems": "Positionen",
     "noLineItems": "Keine Positionen extrahiert",
-    "backToInvoices": "Zurück zu Rechnungen"
+    "backToInvoices": "Zurück zu Rechnungen",
+    "creatingNewBadge": "Wird erstellt",
+    "inlineFormLabel": "Details der neuen Budgetposition",
+    "discardInlineDraft": "Verwerfen",
+    "inlineDraftInvalid": "Ungültiger Betrag in der Budgetposition in der Warteschlange. Bitte korrigieren Sie dies vor dem Speichern.",
+    "inlineDraftCreateFailed": "Budgetposition konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "inlineDraftLinkFailed": "Budgetposition konnte nicht mit der Rechnung verknüpft werden.",
+    "inlineDraftPartialFailure": "Budgetposition wurde erstellt, konnte aber nicht verknüpft werden: {{error}}. Bitte prüfen Sie dies und verknüpfen Sie es manuell."
   },
   "common": {
     "loading": "Wird geladen...",

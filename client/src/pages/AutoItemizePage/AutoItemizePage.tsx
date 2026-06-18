@@ -20,17 +20,17 @@ import {
   getDocumentPreviewUrl,
   getPaperlessStatus,
 } from '../../lib/paperlessApi.js';
+import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
+import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useBudgetLinePicker } from '../../hooks/useBudgetLinePicker.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
-import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import {
   AutoItemizeLineList,
@@ -336,6 +336,87 @@ export function AutoItemizePage() {
     try {
       const docId = parseInt(documentId, 10);
       const includedLines = lines.filter((l) => l.included);
+      const workingLines = [...includedLines];
+
+      // Materialize queued create-new lines BEFORE autoItemize call
+      for (let i = 0; i < workingLines.length; i++) {
+        const line = workingLines[i]!;
+        if (!line.inlineCreatedBudgetLineDraft || !line.assignedItemId || !line.assignedItemType) {
+          continue;
+        }
+
+        const draft = line.inlineCreatedBudgetLineDraft!;
+
+        // Parse and validate netBase
+        let netBase: number;
+        if (draft.pricingMode === 'unit') {
+          const q = parseFloat(draft.quantity);
+          const p = parseFloat(draft.unitPrice);
+          if (!isFinite(q) || !isFinite(p)) {
+            setPageError(t('autoItemize.inlineDraftInvalid'));
+            setPageStatus('ready');
+            return;
+          }
+          netBase = Math.round(q * p * 100) / 100;
+        } else {
+          netBase = parseFloat(draft.plannedAmount);
+          if (!isFinite(netBase) || netBase < 0) {
+            setPageError(t('autoItemize.inlineDraftInvalid'));
+            setPageStatus('ready');
+            return;
+          }
+        }
+
+        // Build payload for budget line creation
+        const payload = {
+          description: draft.description.trim() || null,
+          plannedAmount: netBase,
+          confidence: draft.confidence,
+          budgetCategoryId:
+            line.assignedItemType === 'work_item' ? draft.budgetCategoryId || null : null,
+          budgetSourceId: draft.budgetSourceId || null,
+          vendorId: draft.vendorId || null,
+          quantity: draft.pricingMode === 'unit' ? parseFloat(draft.quantity) || null : null,
+          unit: draft.pricingMode === 'unit' ? draft.unit || null : null,
+          unitPrice: draft.pricingMode === 'unit' ? parseFloat(draft.unitPrice) || null : null,
+          includesVat: draft.includesVat,
+        };
+
+        // Create the budget line
+        let newBudgetLineId: string;
+        try {
+          const createFn =
+            line.assignedItemType === 'work_item'
+              ? createWorkItemBudget
+              : createHouseholdItemBudget;
+          const createdBudgetLine = await createFn(line.assignedItemId, payload);
+          newBudgetLineId = createdBudgetLine.id;
+        } catch (err) {
+          const errorMsg =
+            err instanceof ApiClientError
+              ? translateApiError(err.error.code, tErrors)
+              : t('autoItemize.inlineDraftCreateFailed');
+          setPageError(errorMsg);
+          setPageStatus('ready');
+          return;
+        }
+
+        // Convert the queued line to an assign-existing entry. The single
+        // autoItemize call below creates the invoice<->budget-line junction and
+        // stores the GROSS itemized amount server-side (effectiveLineAmount on
+        // totalAmount + includesVat). We must NOT link here as well, or the
+        // junction would be created twice (BUDGET_LINE_ALREADY_LINKED).
+        workingLines[i] = {
+          ...line,
+          assignedBudgetLineId: newBudgetLineId,
+          assignedBudgetLineType: line.assignedItemType,
+          totalAmount: netBase,
+          includesVat: draft.includesVat,
+          inlineCreatedBudgetLineDraft: undefined,
+          assignedItemId: undefined,
+          assignedItemType: undefined,
+        };
+      }
 
       // Build invoicePatch only if metadata changed
       const patch: Partial<InvoicePatchForAutoItemize> = {};
@@ -358,8 +439,8 @@ export function AutoItemizePage() {
         patch.status = metadataEdits.status;
       }
 
-      // Validate that all included lines with create-new mode have a category
-      const missingCategories = includedLines.filter(
+      // Validate that all included lines have a category (including materialized ones)
+      const missingCategories = workingLines.filter(
         (l) => !l.assignedBudgetLineId && !l.budgetCategoryId,
       );
       if (missingCategories.length > 0) {
@@ -368,9 +449,9 @@ export function AutoItemizePage() {
         return;
       }
 
-      // Map lines to payload, including assignedBudgetLineId and assignedBudgetLineType
+      // Map lines to payload using workingLines (which includes materialized results)
       // Note: vatRate is omitted from the payload (dropped from UI)
-      const linesPayload: ExtractedLine[] = includedLines.map((l) => ({
+      const linesPayload: ExtractedLine[] = workingLines.map((l) => ({
         description: l.description,
         quantity: l.quantity,
         unit: l.unit,
@@ -515,7 +596,7 @@ export function AutoItemizePage() {
     [activeRowId, picker],
   );
 
-  const handleCreateNewBudgetLine = useCallback(() => {
+  const handleQueueNewBudgetLine = useCallback(() => {
     if (!activeRowId) return;
     const row = lines.find((l) => l.rowId === activeRowId);
     if (!row) return;
@@ -541,7 +622,7 @@ export function AutoItemizePage() {
             ? 'professional_estimate'
             : 'own_estimate';
 
-    const prefill: Partial<BudgetLineFormState> = {
+    const draft: BudgetLineFormState = {
       description: row.description ?? '',
       plannedAmount: String(row.totalAmount ?? ''),
       confidence,
@@ -556,9 +637,41 @@ export function AutoItemizePage() {
       includesVat: row.includesVat !== false,
     };
 
-    wasCreatedFromExtractionRef.current = true;
-    void picker.showCreateBudgetLineForm(prefill);
+    setLines((prev) =>
+      prev.map((l) =>
+        l.rowId === activeRowId
+          ? {
+              ...l,
+              assignedItemId: picker.pickerState.itemId ?? undefined,
+              assignedItemType: picker.pickerState.type ?? undefined,
+              inlineCreatedBudgetLineDraft: draft,
+            }
+          : l,
+      ),
+    );
+    setLineFieldsEdited(true);
+    picker.closePicker();
+    setActiveRowId(null);
   }, [activeRowId, lines, picker]);
+
+  const handleInlineDraftChange = useCallback(
+    (rowId: string, updates: Partial<BudgetLineFormState>) => {
+      setLines((prev) =>
+        prev.map((l) =>
+          l.rowId === rowId
+            ? {
+                ...l,
+                inlineCreatedBudgetLineDraft: l.inlineCreatedBudgetLineDraft
+                  ? { ...l.inlineCreatedBudgetLineDraft, ...updates }
+                  : l.inlineCreatedBudgetLineDraft,
+              }
+            : l,
+        ),
+      );
+      setLineFieldsEdited(true);
+    },
+    [],
+  );
 
   const handleRetry = useCallback(() => {
     if (!invoiceId || !documentId) return;
@@ -707,9 +820,6 @@ export function AutoItemizePage() {
       </div>
     );
   }
-
-  const budgetSources = picker.pickerState.budgetSources ?? [];
-  const discretionarySourceId = budgetSources.find((s) => s.isDiscretionary)?.id;
 
   return (
     <>
@@ -953,6 +1063,9 @@ export function AutoItemizePage() {
                             assignedBudgetLineType: undefined,
                             assignedBudgetLineDescription: undefined,
                             createdFromExtraction: undefined,
+                            assignedItemId: undefined,
+                            assignedItemType: undefined,
+                            inlineCreatedBudgetLineDraft: undefined,
                           }
                         : l,
                     ),
@@ -971,6 +1084,10 @@ export function AutoItemizePage() {
                 formatCurrency={formatCurrency}
                 t={t}
                 tSettings={tSettings}
+                onInlineDraftChange={handleInlineDraftChange}
+                confidenceLabels={CONFIDENCE_LABELS}
+                vendors={picker.pickerState.vendors ?? []}
+                budgetCategories={picker.pickerState.categories ?? []}
               />
             </div>
 
@@ -1067,7 +1184,7 @@ export function AutoItemizePage() {
             handleSelectItem={picker.handleSelectItem}
             createBudgetLineButtonRef={picker.createBudgetLineButtonRef}
             onSelectBudgetLine={handleSelectBudgetLine}
-            onCreateNewBudgetLine={handleCreateNewBudgetLine}
+            onCreateNewBudgetLine={handleQueueNewBudgetLine}
             onBackToStep1={() =>
               picker.setPickerState((prev) => ({
                 ...prev,

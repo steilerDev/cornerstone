@@ -12,7 +12,11 @@
  *   6. Variance danger when variancePercent = 0.1
  *   7. Discretionary note shown when discretionarySourceId matches a line's budgetSourceId
  *   8. Discretionary note hidden when no lines have the discretionary source
- *   9. Callbacks propagated through to AutoItemizeLineCard
+ *   9. Callbacks propagated through to AutoItemizeLineCard (via real DOM interactions)
+ *
+ * NOTE: The mock for AutoItemizeLineCard does not reliably intercept in Jest ESM mode
+ * (module caching/isolation constraints). The real AutoItemizeLineCard is used instead,
+ * and callback propagation is verified via real DOM interactions.
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -20,35 +24,25 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 // ─── Mocks must come before any static imports ────────────────────────────────
 
-// Mock AutoItemizeLineCard to keep the list test isolated from card internals
-// and to capture callback propagation.
+// Mock categoryUtils to avoid needing real translation infrastructure in the real AutoItemizeLineCard
+jest.unstable_mockModule('../../lib/categoryUtils.js', () => ({
+  getCategoryDisplayName: (_t: unknown, name: string, _translationKey: unknown) => name,
+  useCategoryDisplayName: (_name: string, _translationKey: unknown) => _name,
+}));
 
-let capturedToggle: ((rowId: string) => void) | null = null;
-let capturedFieldChange: ((rowId: string, field: unknown, value: unknown) => void) | null = null;
-let capturedAssign: ((rowId: string) => void) | null = null;
-let capturedClearAssign: ((rowId: string) => void) | null = null;
-
-jest.unstable_mockModule('./AutoItemizeLineCard.js', () => ({
-  AutoItemizeLineCard: ({
-    line,
-    onToggleInclude,
-    onFieldChange,
-    onAssign,
-    onClearAssign,
-  }: {
-    line: { rowId: string; description: string };
-    onToggleInclude: (rowId: string) => void;
-    onFieldChange: (rowId: string, field: unknown, value: unknown) => void;
-    onAssign: (rowId: string) => void;
-    onClearAssign: (rowId: string) => void;
+// Mock Badge to render a span with data-testid when provided
+jest.unstable_mockModule('../Badge/Badge.js', () => ({
+  Badge: (props: {
+    testId?: string;
+    variants?: Record<string, { label: string }>;
+    value?: string;
   }) => {
-    // Capture callbacks for callback-propagation tests
-    capturedToggle = onToggleInclude;
-    capturedFieldChange = onFieldChange;
-    capturedAssign = onAssign;
-    capturedClearAssign = onClearAssign;
-
-    return <li data-testid={`line-card-${line.rowId}`}>{line.description}</li>;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
+    const R = require('react') as { createElement: (...args: any[]) => unknown };
+    const label = props.variants && props.value ? (props.variants[props.value]?.label ?? '') : '';
+    return props.testId
+      ? R.createElement('span', { 'data-testid': props.testId }, label)
+      : R.createElement('span', null, label);
   },
 }));
 
@@ -57,17 +51,13 @@ jest.unstable_mockModule('./AutoItemizeLineCard.js', () => ({
 import React from 'react';
 import type * as AutoItemizeLineListModule from './AutoItemizeLineList.js';
 import type { LineWithInclude } from './types.js';
+import type { BudgetSource } from '@cornerstone/shared';
 
 let AutoItemizeLineList: (typeof AutoItemizeLineListModule)['AutoItemizeLineList'];
 
 beforeEach(async () => {
   ({ AutoItemizeLineList } =
     (await import('./AutoItemizeLineList.js')) as typeof AutoItemizeLineListModule);
-
-  capturedToggle = null;
-  capturedFieldChange = null;
-  capturedAssign = null;
-  capturedClearAssign = null;
 });
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -123,14 +113,16 @@ function renderList(
       budgetSources: [
         { id: 'src-1', name: 'Main', isDiscretionary: false },
         { id: 'disc-1', name: 'Discretionary', isDiscretionary: true },
-      ],
+      ] as unknown as BudgetSource[],
       discretionarySourceId: opts.discretionarySourceId,
       computedTotal: opts.computedTotal ?? 0,
       variance: opts.variance ?? 0,
       variancePercent: opts.variancePercent ?? 0,
       createdFromExtractionVariants,
       formatCurrency,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       t: t as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       tSettings: tSettings as any,
     }),
   );
@@ -147,7 +139,7 @@ describe('AutoItemizeLineList', () => {
     expect(list).toBeInTheDocument();
     expect(list.tagName.toLowerCase()).toBe('ul');
 
-    // The mocked AutoItemizeLineCard renders as <li> elements
+    // The real AutoItemizeLineCard renders as <li> elements
     const items = screen.getAllByRole('listitem');
     expect(items).toHaveLength(3);
   });
@@ -245,41 +237,61 @@ describe('AutoItemizeLineList', () => {
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 
-  // 9. Callbacks propagated through to AutoItemizeLineCard
-  it('propagates onToggleInclude to AutoItemizeLineCard', () => {
+  // 9. Callbacks propagated through to AutoItemizeLineCard (via real DOM interactions)
+  //
+  // The mock for AutoItemizeLineCard does not reliably intercept in Jest ESM mode.
+  // Instead we interact with the real rendered DOM to verify that callbacks passed to
+  // AutoItemizeLineList are forwarded to AutoItemizeLineCard and fire correctly.
+
+  it('propagates onToggleInclude to AutoItemizeLineCard (real checkbox interaction)', () => {
     const onToggleInclude = jest.fn<(rowId: string) => void>();
     renderList([makeLine('r1')], { onToggleInclude });
 
-    // The mock captures the callback; invoke it to verify propagation
-    expect(capturedToggle).not.toBeNull();
-    capturedToggle!('r1');
+    // The real AutoItemizeLineCard renders an include checkbox as the first checkbox
+    const checkboxes = screen.getAllByRole('checkbox');
+    const includeCheckbox = checkboxes[0]!;
+    fireEvent.click(includeCheckbox);
+
     expect(onToggleInclude).toHaveBeenCalledWith('r1');
   });
 
-  it('propagates onFieldChange to AutoItemizeLineCard', () => {
+  it('propagates onFieldChange to AutoItemizeLineCard (real textarea interaction)', () => {
     const onFieldChange = jest.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     renderList([makeLine('r1')], { onFieldChange: onFieldChange as any });
 
-    expect(capturedFieldChange).not.toBeNull();
-    capturedFieldChange!('r1', 'description', 'New value');
-    expect(onFieldChange).toHaveBeenCalledWith('r1', 'description', 'New value');
+    // The real AutoItemizeLineCard renders a textarea for description
+    const textarea = screen.getByDisplayValue('Line r1');
+    fireEvent.change(textarea, { target: { value: 'Updated' } });
+
+    expect(onFieldChange).toHaveBeenCalledWith('r1', 'description', 'Updated');
   });
 
-  it('propagates onAssign to AutoItemizeLineCard', () => {
+  it('propagates onAssign to AutoItemizeLineCard (real button click)', () => {
     const onAssign = jest.fn<(rowId: string) => void>();
     renderList([makeLine('r1')], { onAssign });
 
-    expect(capturedAssign).not.toBeNull();
-    capturedAssign!('r1');
+    // The real AutoItemizeLineCard renders an Assign button when no assignment exists.
+    // t('autoItemize.assignButton') = 'autoItemize.assignButton' (t stub returns key)
+    const assignBtn = screen.getByRole('button', { name: /autoItemize.assignButton/i });
+    fireEvent.click(assignBtn);
+
     expect(onAssign).toHaveBeenCalledWith('r1');
   });
 
-  it('propagates onClearAssign to AutoItemizeLineCard', () => {
+  it('propagates onClearAssign to AutoItemizeLineCard (real button click)', () => {
     const onClearAssign = jest.fn<(rowId: string) => void>();
-    renderList([makeLine('r1')], { onClearAssign });
+    // Render a line that is already assigned so the clear button is visible
+    renderList([makeLine('r1', { assignedBudgetLineId: 'abc', assignedBudgetLineDescription: 'My Line' })], {
+      onClearAssign,
+    });
 
-    expect(capturedClearAssign).not.toBeNull();
-    capturedClearAssign!('r1');
+    // The real AutoItemizeLineCard renders a clear (✕) button with aria-label
+    const clearBtn = screen.getByRole('button', {
+      name: /autoItemize.clearAssignmentAriaLabel/i,
+    });
+    fireEvent.click(clearBtn);
+
     expect(onClearAssign).toHaveBeenCalledWith('r1');
   });
 
@@ -290,11 +302,12 @@ describe('AutoItemizeLineList', () => {
     expect(screen.getByText('autoItemize.total')).toBeInTheDocument();
   });
 
-  it('renders all 3 line cards when given 3 lines (testid check)', () => {
+  it('renders all 3 line descriptions when given 3 lines', () => {
     renderList([makeLine('r1'), makeLine('r2'), makeLine('r3')]);
-    expect(screen.getByTestId('line-card-r1')).toBeInTheDocument();
-    expect(screen.getByTestId('line-card-r2')).toBeInTheDocument();
-    expect(screen.getByTestId('line-card-r3')).toBeInTheDocument();
+    // The real card renders a textarea with the description value
+    expect(screen.getByDisplayValue('Line r1')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Line r2')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Line r3')).toBeInTheDocument();
   });
 
   it('still renders the totals card even when 0 lines', () => {

@@ -1196,4 +1196,231 @@ describe('useBudgetLinePicker', () => {
       expect(result.current.pickerState.showCreateForm).toBe(true);
     });
   });
+
+  // ─── Story #1693 — VAT gross-up: createBudgetLine call args ──────────────────
+  // Authoritative contract:
+  //   createFn (WIB/HIB) receives NET plannedAmount — never grossed up.
+  //   createInvoiceBudgetLine receives GROSS itemizedAmount = effectiveLineAmount(plannedAmount, includesVat)
+  //   = plannedAmount when includesVat===true
+  //   = round(plannedAmount * 1.19 * 100) / 100 when includesVat===false
+
+  describe('VAT gross-up: handleCreateBudgetLine call args (Story #1693)', () => {
+    function setupMocksForCreate(
+      plannedAmount: number,
+      includesVat: boolean,
+    ): {
+      wib: WorkItemBudgetLine;
+    } {
+      const wib: WorkItemBudgetLine = {
+        ...makeWib('vat-wib-1'),
+        plannedAmount,
+        includesVat,
+        invoiceLink: null,
+      };
+
+      mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+      mockFetchVendors.mockResolvedValue({
+        vendors: [],
+        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+      });
+      mockFetchWorkItemBudgets.mockResolvedValue([]);
+      mockCreateWorkItemBudget.mockResolvedValue(wib);
+      mockCreateInvoiceBudgetLine.mockResolvedValue({
+        budgetLine: {
+          id: 'ibl-vat',
+          invoiceId: 'inv-1',
+          workItemBudgetId: 'vat-wib-1',
+          householdItemBudgetId: null,
+          itemizedAmount: plannedAmount,
+          budgetLineDescription: null,
+          createdAt: '',
+          updatedAt: '',
+        } as InvoiceBudgetLineDetailResponse,
+        remainingAmount: 800,
+      });
+
+      return { wib };
+    }
+
+    async function setupAndSubmitForm(
+      result: ReturnType<
+        typeof renderHook<ReturnType<typeof useBudgetLinePicker>, unknown>
+      >['result'],
+      formOverrides: Partial<{
+        plannedAmount: string;
+        includesVat: boolean;
+        pricingMode: 'direct' | 'unit';
+        quantity: string;
+        unitPrice: string;
+        unit: string;
+      }>,
+    ) {
+      await act(async () => {
+        await result.current.handleSelectItem('wi-42', 'work_item', 'Work Item');
+      });
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm();
+      });
+      act(() => {
+        result.current.setPickerState((prev) => ({
+          ...prev,
+          createForm: {
+            ...prev.createForm!,
+            description: 'Test',
+            confidence: 'invoice',
+            budgetCategoryId: '',
+            budgetSourceId: '',
+            vendorId: '',
+            pricingMode: 'direct',
+            quantity: '',
+            unit: '',
+            unitPrice: '',
+            includesVat: true,
+            ...formOverrides,
+          },
+        }));
+      });
+      await act(async () => {
+        await result.current.handleCreateBudgetLine(makeFormEvent());
+      });
+    }
+
+    // direct + includesVat=true: createFn plannedAmount=100; junction itemizedAmount=100
+    it('direct+VAT-incl (100, true): createFn called with plannedAmount=100; junction itemizedAmount=100', async () => {
+      setupMocksForCreate(100, true);
+      const { result } = renderHook(() =>
+        useBudgetLinePicker({ ...defaultOptions(), eagerLinkInvoice: true }),
+      );
+
+      await setupAndSubmitForm(result, { plannedAmount: '100', includesVat: true });
+
+      expect(mockCreateWorkItemBudget).toHaveBeenCalledWith(
+        'wi-42',
+        expect.objectContaining({ plannedAmount: 100, includesVat: true }),
+      );
+      expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
+        'inv-1',
+        expect.objectContaining({ itemizedAmount: 100 }),
+      );
+    });
+
+    // direct + includesVat=false: createFn plannedAmount=100 (NET, NOT 119); junction itemizedAmount=119
+    it('direct+VAT-excl (100, false): createFn called with NET plannedAmount=100 (not 119); junction itemizedAmount=119', async () => {
+      setupMocksForCreate(100, false);
+      const { result } = renderHook(() =>
+        useBudgetLinePicker({ ...defaultOptions(), eagerLinkInvoice: true }),
+      );
+
+      await setupAndSubmitForm(result, { plannedAmount: '100', includesVat: false });
+
+      // WIB create must receive NET plannedAmount=100, NOT 119
+      expect(mockCreateWorkItemBudget).toHaveBeenCalledWith(
+        'wi-42',
+        expect.objectContaining({ plannedAmount: 100, includesVat: false }),
+      );
+      // junction itemizedAmount = effectiveLineAmount(100, false) = 119
+      expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
+        'inv-1',
+        expect.objectContaining({ itemizedAmount: 119 }),
+      );
+    });
+
+    // unit + includesVat=true (qty=2, price=50): plannedAmount=100; itemizedAmount=100
+    it('unit+VAT-incl (q=2, p=50, true): createFn plannedAmount=100; junction itemizedAmount=100', async () => {
+      setupMocksForCreate(100, true);
+      const { result } = renderHook(() =>
+        useBudgetLinePicker({ ...defaultOptions(), eagerLinkInvoice: true }),
+      );
+
+      await setupAndSubmitForm(result, {
+        pricingMode: 'unit',
+        quantity: '2',
+        unitPrice: '50',
+        unit: 'm',
+        includesVat: true,
+      });
+
+      expect(mockCreateWorkItemBudget).toHaveBeenCalledWith(
+        'wi-42',
+        expect.objectContaining({ plannedAmount: 100, includesVat: true }),
+      );
+      expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
+        'inv-1',
+        expect.objectContaining({ itemizedAmount: 100 }),
+      );
+    });
+
+    // unit + includesVat=false (qty=2, price=50): NET plannedAmount=100; junction itemizedAmount=119
+    it('unit+VAT-excl (q=2, p=50, false): createFn NET plannedAmount=100; junction itemizedAmount=119', async () => {
+      setupMocksForCreate(100, false);
+      const { result } = renderHook(() =>
+        useBudgetLinePicker({ ...defaultOptions(), eagerLinkInvoice: true }),
+      );
+
+      await setupAndSubmitForm(result, {
+        pricingMode: 'unit',
+        quantity: '2',
+        unitPrice: '50',
+        unit: 'm',
+        includesVat: false,
+      });
+
+      // NET plannedAmount = 2 * 50 = 100 — not grossed up
+      expect(mockCreateWorkItemBudget).toHaveBeenCalledWith(
+        'wi-42',
+        expect.objectContaining({ plannedAmount: 100, includesVat: false }),
+      );
+      // junction itemizedAmount = effectiveLineAmount(100, false) = 119
+      expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
+        'inv-1',
+        expect.objectContaining({ itemizedAmount: 119 }),
+      );
+    });
+
+    // Validate that junction itemizedAmount === effectiveLineAmount(plannedAmount, includesVat)
+    // in every combo above (display===persisted invariant)
+    it('VAT-excl invariant: junction itemizedAmount === effectiveLineAmount({amount: plannedAmount, includesVat: false})', async () => {
+      setupMocksForCreate(100, false);
+      const { result } = renderHook(() =>
+        useBudgetLinePicker({ ...defaultOptions(), eagerLinkInvoice: true }),
+      );
+
+      await setupAndSubmitForm(result, { plannedAmount: '100', includesVat: false });
+
+      const junctionCall = mockCreateInvoiceBudgetLine.mock.calls[0];
+      expect(junctionCall).toBeDefined();
+      // Expected: effectiveLineAmount({ amount: 100, includesVat: false }) = 119
+      const expectedGross = Math.round(100 * 1.19 * 100) / 100; // 119
+      expect((junctionCall![1] as unknown as Record<string, unknown>)['itemizedAmount']).toBe(
+        expectedGross,
+      );
+    });
+
+    // eagerLinkInvoice=false → createInvoiceBudgetLine NOT called
+    it('eagerLinkInvoice=false → createInvoiceBudgetLine is NOT called', async () => {
+      setupMocksForCreate(100, false);
+      const { result } = renderHook(() =>
+        useBudgetLinePicker({ ...defaultOptions(), eagerLinkInvoice: false }),
+      );
+
+      await setupAndSubmitForm(result, { plannedAmount: '100', includesVat: false });
+
+      expect(mockCreateWorkItemBudget).toHaveBeenCalled();
+      expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
+    });
+
+    // eagerLinkInvoice=true (manual flow): create then link works (regression)
+    it('eagerLinkInvoice=true (manual flow): createWorkItemBudget then createInvoiceBudgetLine both called', async () => {
+      setupMocksForCreate(200, true);
+      const { result } = renderHook(() =>
+        useBudgetLinePicker({ ...defaultOptions(), eagerLinkInvoice: true }),
+      );
+
+      await setupAndSubmitForm(result, { plannedAmount: '200', includesVat: true });
+
+      expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(1);
+      expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledTimes(1);
+    });
+  });
 });

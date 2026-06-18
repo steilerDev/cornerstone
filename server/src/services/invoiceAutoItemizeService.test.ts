@@ -1278,7 +1278,7 @@ describe('invoiceAutoItemizeService', () => {
       ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
     });
 
-    it('commit create-new with includesVat=false: itemizedAmount in IBL stays at net (500), WIB.includesVat mapped to !== false (true)', async () => {
+    it('commit create-new with includesVat=false: WIB.plannedAmount=500 (NET), WIB.includesVat=false, IBL.itemizedAmount=595 (GROSS)', async () => {
       const vendorId = insertVendor(db);
       // Invoice large enough so gross does not exceed
       const invoiceId = insertInvoice(db, vendorId, 1000);
@@ -1308,14 +1308,13 @@ describe('invoiceAutoItemizeService', () => {
       const newWib = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore)[0]!;
       const newIbl = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore)[0]!;
 
-      // Storage stays NET: plannedAmount = 500 (not grossed up)
+      // WIB.plannedAmount stores the NET amount (never grossed up)
       expect(newWib.plannedAmount).toBe(500);
-      // includesVat: extractedLine.includesVat !== false → false !== false = false → stored as false
-      // Wait — implementation is: includesVat: extractedLine.includesVat !== false
-      // false !== false = false → so WIB.includesVat = false (matches the line)
+      // WIB.includesVat reflects the extracted line flag (false = VAT not included)
       expect(newWib.includesVat).toBe(false);
-      // IBL itemizedAmount = line.totalAmount = 500 (net, unchanged)
-      expect(newIbl.itemizedAmount).toBe(500);
+      // IBL.itemizedAmount is ALWAYS stored GROSS = effectiveLineAmount(500, false)
+      // = round(500 * 1.19 * 100) / 100 = 595
+      expect(newIbl.itemizedAmount).toBe(595);
     });
 
     // ─── Story #1677 — VAT gross-up in commit path (assign-existing) ───────────
@@ -2670,6 +2669,396 @@ describe('invoiceAutoItemizeService', () => {
 
       // Invoice row count must be unchanged (transaction rolled back)
       expect(db.select().from(schema.invoices).all().length).toBe(invoiceCountBefore);
+    });
+  });
+
+  // ─── Story #1693 — VAT gross-up: precise itemizedAmount assertions ─────────────────
+  // Authoritative contract:
+  //   invoice_budget_lines.itemizedAmount = effectiveLineAmount({ amount: totalAmount, includesVat })
+  //   = totalAmount when includesVat===true (or undefined/null)
+  //   = round(totalAmount * 1.19 * 100) / 100 when includesVat===false
+  //   work_item_budgets.plannedAmount stays NET (never pre-grossed)
+
+  describe('VAT gross-up: itemizedAmount precision (Story #1693)', () => {
+    // ── assign-existing ────────────────────────────────────────────────────────
+
+    it('assign-existing VAT-incl (totalAmount=100, includesVat=true) → IBL itemizedAmount=100', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+
+      const existingWibId = uid('wib');
+      const t = ts();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: existingWibId,
+          workItemId: null,
+          description: 'Existing line',
+          plannedAmount: 100,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          vendorId: null,
+          quantity: null,
+          unit: null,
+          unitPrice: null,
+          includesVat: true,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+
+      const config = makeConfig();
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Existing line',
+              totalAmount: 100,
+              confidence: 0.9,
+              assignmentMode: 'assign-existing',
+              assignedBudgetLineId: existingWibId,
+              assignedBudgetLineType: 'work_item',
+              includesVat: true,
+            },
+          ] as any,
+        },
+        PAPERLESS_AUTH,
+      );
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      // VAT-incl: effectiveLineAmount(100, true) = 100
+      expect(newIbls[0]!.itemizedAmount).toBe(100);
+    });
+
+    it('assign-existing VAT-excl (totalAmount=100, includesVat=false) → IBL itemizedAmount=119', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 2000);
+      linkDocument(db, invoiceId, 42);
+
+      const existingWibId = uid('wib');
+      const t = ts();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: existingWibId,
+          workItemId: null,
+          description: 'Net existing line',
+          plannedAmount: 100,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          vendorId: null,
+          quantity: null,
+          unit: null,
+          unitPrice: null,
+          includesVat: false,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+
+      const config = makeConfig();
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Net existing line',
+              totalAmount: 100,
+              confidence: 0.9,
+              assignmentMode: 'assign-existing',
+              assignedBudgetLineId: existingWibId,
+              assignedBudgetLineType: 'work_item',
+              includesVat: false,
+            },
+          ] as any,
+        },
+        PAPERLESS_AUTH,
+      );
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      // VAT-excl: effectiveLineAmount(100, false) = round(100 * 1.19 * 100) / 100 = 119
+      expect(newIbls[0]!.itemizedAmount).toBe(119);
+    });
+
+    // ── create-new ────────────────────────────────────────────────────────────
+
+    it('create-new VAT-incl (totalAmount=50, includesVat=true) → IBL itemizedAmount=50, WIB plannedAmount=50', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+
+      const config = makeConfig();
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'VAT-incl item',
+              totalAmount: 50,
+              confidence: 0.9,
+              includesVat: true,
+            },
+          ] as any,
+        },
+        PAPERLESS_AUTH,
+      );
+
+      const newWib = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore)[0]!;
+      const newIbl = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore)[0]!;
+
+      // plannedAmount stays NET (= totalAmount for VAT-incl)
+      expect(newWib.plannedAmount).toBe(50);
+      // IBL itemizedAmount = effectiveLineAmount(50, true) = 50
+      expect(newIbl.itemizedAmount).toBe(50);
+    });
+
+    it('create-new VAT-excl (totalAmount=50, includesVat=false) → IBL itemizedAmount=59.5, WIB plannedAmount=50 (NET unchanged)', async () => {
+      const vendorId = insertVendor(db);
+      // Invoice must be >= 59.5 to not trigger sum-exceeded
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+
+      const config = makeConfig();
+      const wibCountBefore = db.select().from(schema.workItemBudgets).all().length;
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'VAT-excl item',
+              totalAmount: 50,
+              confidence: 0.9,
+              includesVat: false,
+            },
+          ] as any,
+        },
+        PAPERLESS_AUTH,
+      );
+
+      const newWib = db.select().from(schema.workItemBudgets).all().slice(wibCountBefore)[0]!;
+      const newIbl = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore)[0]!;
+
+      // WIB.plannedAmount stays NET (50) — never grossed up
+      expect(newWib.plannedAmount).toBe(50);
+      // IBL itemizedAmount = effectiveLineAmount(50, false) = round(50 * 1.19 * 100) / 100 = 59.5
+      expect(newIbl.itemizedAmount).toBe(59.5);
+    });
+
+    // ── sum-validation with VAT gross-up ─────────────────────────────────────
+
+    it('sum validation uses gross amounts: create-new VAT-excl (50) grosses to 59.5, invoice=59.5 → exactly passes', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 59.5);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              {
+                description: 'Net item',
+                totalAmount: 50,
+                confidence: 0.9,
+                includesVat: false,
+              },
+            ] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('sum validation uses gross amounts: create-new VAT-excl (50) grosses to 59.5, invoice=59.4 → ItemizedSumExceedsInvoiceError', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 59.4);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              {
+                description: 'Net item',
+                totalAmount: 50,
+                confidence: 0.9,
+                includesVat: false,
+              },
+            ] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
+    });
+
+    it('sum validation: assign-existing VAT-excl (100) grosses to 119, invoice=119 → exactly passes', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 119);
+      linkDocument(db, invoiceId, 42);
+
+      const existingWibId = uid('wib');
+      const t = ts();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: existingWibId,
+          workItemId: null,
+          description: 'Net assign line',
+          plannedAmount: 100,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          vendorId: null,
+          quantity: null,
+          unit: null,
+          unitPrice: null,
+          includesVat: false,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              {
+                description: 'Net assign line',
+                totalAmount: 100,
+                confidence: 0.9,
+                assignmentMode: 'assign-existing',
+                assignedBudgetLineId: existingWibId,
+                assignedBudgetLineType: 'work_item',
+                includesVat: false,
+              },
+            ] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).resolves.toBeDefined();
+    });
+
+    it('sum validation: assign-existing VAT-excl (100) grosses to 119, invoice=118 → ItemizedSumExceedsInvoiceError', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 118);
+      linkDocument(db, invoiceId, 42);
+
+      const existingWibId = uid('wib');
+      const t = ts();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: existingWibId,
+          workItemId: null,
+          description: 'Net assign line',
+          plannedAmount: 100,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          vendorId: null,
+          quantity: null,
+          unit: null,
+          unitPrice: null,
+          includesVat: false,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              {
+                description: 'Net assign line',
+                totalAmount: 100,
+                confidence: 0.9,
+                assignmentMode: 'assign-existing',
+                assignedBudgetLineId: existingWibId,
+                assignedBudgetLineType: 'work_item',
+                includesVat: false,
+              },
+            ] as any,
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
     });
   });
 });

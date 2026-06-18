@@ -704,4 +704,50 @@ export class AutoItemizePage {
   getParentPickerHouseholdItemTab(): Locator {
     return this.pickerModal.getByRole('tab', { name: /Household Item/i });
   }
+
+  // ─── Bug A: inline-create queue helpers (Story #1677) ────────────────────────
+  //
+  // When "Create Budget Line" is clicked in step 2 of the picker, the picker
+  // closes immediately and the line card shows:
+  //   - An amber "Creating New" badge (data-testid="creating-new-badge")
+  //   - A "Discard" button (aria-label t('autoItemize.discardInlineDraft') = "Discard")
+  //   - An inline BudgetLineForm wrapped in <div class*="inlineFormWrapper">
+  //
+  // No budget line is created until the outer Save button is clicked.
+
+  /**
+   * Returns the amber "Creating New" badge for the line card at the given 0-based index.
+   * Rendered as <Badge variants={creatingNewVariants} value="true" testId="creating-new-badge">.
+   * Only present when the line has an inlineCreatedBudgetLineDraft queued.
+   */
+  getCreatingNewBadge(index: number): Locator {
+    return this.lineRow(index).getByTestId('creating-new-badge');
+  }
+
+  /**
+   * Returns the "Discard" button for the inline draft on the line card at the given index.
+   * Rendered as a <button> with aria-label="Discard" (t('autoItemize.discardInlineDraft')).
+   * Clicking it clears the inlineCreatedBudgetLineDraft and restores the "Assign…" button.
+   */
+  getInlineDraftDiscardButton(index: number): Locator {
+    return this.lineRow(index).getByRole('button', { name: /^Discard$/i });
+  }
+
+  /**
+   * Returns the wrapper div containing the inline BudgetLineForm for the line at index.
+   * Rendered as <div class*="inlineFormWrapper"> below the cardBottomRow.
+   * Only present when inlineCreatedBudgetLineDraft is set on the line.
+   */
+  getInlineFormWrapper(index: number): Locator {
+    return this.lineRow(index).locator('[class*="inlineFormWrapper"]');
+  }
+
+  /**
+   * Returns the Description textbox inside the inline BudgetLineForm for the line at index.
+   * The inline form uses idPrefix=`inline-${line.rowId}-` so the id is dynamic.
+   * Locate by role textbox + accessible name "Description" (from the adjacent <label>).
+   */
+  getInlineDraftDescriptionInput(index: number): Locator {
+    return this.getInlineFormWrapper(index).getByRole('textbox', { name: /Description/i });
+  }
 }

@@ -438,7 +438,10 @@ export function persistLines(
             invoiceId,
             workItemBudgetId,
             householdItemBudgetId,
-            itemizedAmount: extractedLine.totalAmount,
+            itemizedAmount: effectiveLineAmount({
+              amount: extractedLine.totalAmount ?? 0,
+              includesVat: extractedLine.includesVat,
+            }),
             createdAt: now,
             updatedAt: now,
           })
@@ -488,7 +491,10 @@ export function persistLines(
           invoiceId,
           workItemBudgetId,
           householdItemBudgetId: null,
-          itemizedAmount: extractedLine.totalAmount,
+          itemizedAmount: effectiveLineAmount({
+            amount: extractedLine.totalAmount ?? 0,
+            includesVat: extractedLine.includesVat,
+          }),
           createdAt: now,
           updatedAt: now,
         })

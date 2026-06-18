@@ -1,8 +1,12 @@
 import { useMemo } from 'react';
 import type { TFunction } from 'i18next';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
+import type { BudgetSource, Vendor, BudgetCategory } from '@cornerstone/shared';
 import { Badge } from '../Badge/Badge.js';
+import badgeStyles from '../Badge/Badge.module.css';
+import { BudgetLineForm } from '../budget/BudgetLineForm.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
+import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizeLineCard.module.css';
 import type { LineWithInclude } from './types.js';
@@ -14,10 +18,16 @@ interface AutoItemizeLineCardProps {
   onAssign: (rowId: string) => void;
   onClearAssign: (rowId: string) => void;
   categories: Array<{ id: string; name: string; translationKey?: string | null }>;
-  budgetSources: Array<{ id: string; name: string }>;
+  budgetSources: BudgetSource[];
   createdFromExtractionVariants: BadgeVariantMap;
   t: TFunction;
   tSettings: TFunction;
+  // New optional props for inline form rendering
+  onQueueNewBudgetLine?: (rowId: string) => void;
+  onInlineDraftChange?: (rowId: string, updates: Partial<BudgetLineFormState>) => void;
+  confidenceLabels?: Record<string, string>;
+  vendors?: Vendor[];
+  budgetCategories?: BudgetCategory[];
 }
 
 export function AutoItemizeLineCard({
@@ -31,6 +41,11 @@ export function AutoItemizeLineCard({
   createdFromExtractionVariants,
   t,
   tSettings,
+  onQueueNewBudgetLine: _onQueueNewBudgetLine,
+  onInlineDraftChange,
+  confidenceLabels,
+  vendors,
+  budgetCategories,
 }: AutoItemizeLineCardProps) {
   const pct = useMemo(() => Math.round(line.confidence * 100), [line.confidence]);
 
@@ -39,6 +54,16 @@ export function AutoItemizeLineCard({
     if (line.confidence >= 0.6) return 'medium';
     return 'low';
   }, [line.confidence]);
+
+  const creatingNewVariants = useMemo(
+    (): BadgeVariantMap => ({
+      true: {
+        label: t('autoItemize.creatingNewBadge'),
+        className: badgeStyles.warning,
+      },
+    }),
+    [t],
+  );
 
   return (
     <li className={`${styles.lineCard} ${!line.included ? styles.lineCardExcluded : ''}`}>
@@ -61,54 +86,56 @@ export function AutoItemizeLineCard({
       </div>
 
       {/* Middle row: metric grid */}
-      <div className={styles.cardMetricGrid}>
-        <div className={styles.cardMetricCell}>
-          <span className={styles.cardMetricLabel}>{t('autoItemize.quantity')}</span>
-          <input
-            type="number"
-            step="0.01"
-            className={styles.cardMetricInput}
-            value={line.quantity ?? ''}
-            placeholder="—"
-            onChange={(e) => onFieldChange(line.rowId, 'quantity', e.target.value)}
-            aria-label={t('autoItemize.editQuantityAriaLabel')}
-          />
+      {!line.inlineCreatedBudgetLineDraft && (
+        <div className={styles.cardMetricGrid}>
+          <div className={styles.cardMetricCell}>
+            <span className={styles.cardMetricLabel}>{t('autoItemize.quantity')}</span>
+            <input
+              type="number"
+              step="0.01"
+              className={styles.cardMetricInput}
+              value={line.quantity ?? ''}
+              placeholder="—"
+              onChange={(e) => onFieldChange(line.rowId, 'quantity', e.target.value)}
+              aria-label={t('autoItemize.editQuantityAriaLabel')}
+            />
+          </div>
+          <div className={styles.cardMetricCell}>
+            <span className={styles.cardMetricLabel}>{t('autoItemize.unit')}</span>
+            <input
+              type="text"
+              className={styles.cardMetricInput}
+              value={line.unit ?? ''}
+              placeholder="—"
+              onChange={(e) => onFieldChange(line.rowId, 'unit', e.target.value)}
+              aria-label={t('autoItemize.editUnitAriaLabel')}
+            />
+          </div>
+          <div className={styles.cardMetricCell}>
+            <span className={styles.cardMetricLabel}>{t('autoItemize.unitPrice')}</span>
+            <input
+              type="number"
+              step="0.01"
+              className={styles.cardMetricInput}
+              value={line.unitPrice ?? ''}
+              placeholder="—"
+              onChange={(e) => onFieldChange(line.rowId, 'unitPrice', e.target.value)}
+              aria-label={t('autoItemize.editUnitPriceAriaLabel')}
+            />
+          </div>
+          <div className={styles.cardMetricCell}>
+            <span className={styles.cardMetricLabel}>{t('autoItemize.amount')}</span>
+            <input
+              type="number"
+              step="0.01"
+              className={styles.cardMetricInput}
+              value={line.totalAmount ?? 0}
+              onChange={(e) => onFieldChange(line.rowId, 'totalAmount', e.target.value)}
+              aria-label={t('autoItemize.editTotalAmountAriaLabel')}
+            />
+          </div>
         </div>
-        <div className={styles.cardMetricCell}>
-          <span className={styles.cardMetricLabel}>{t('autoItemize.unit')}</span>
-          <input
-            type="text"
-            className={styles.cardMetricInput}
-            value={line.unit ?? ''}
-            placeholder="—"
-            onChange={(e) => onFieldChange(line.rowId, 'unit', e.target.value)}
-            aria-label={t('autoItemize.editUnitAriaLabel')}
-          />
-        </div>
-        <div className={styles.cardMetricCell}>
-          <span className={styles.cardMetricLabel}>{t('autoItemize.unitPrice')}</span>
-          <input
-            type="number"
-            step="0.01"
-            className={styles.cardMetricInput}
-            value={line.unitPrice ?? ''}
-            placeholder="—"
-            onChange={(e) => onFieldChange(line.rowId, 'unitPrice', e.target.value)}
-            aria-label={t('autoItemize.editUnitPriceAriaLabel')}
-          />
-        </div>
-        <div className={styles.cardMetricCell}>
-          <span className={styles.cardMetricLabel}>{t('autoItemize.amount')}</span>
-          <input
-            type="number"
-            step="0.01"
-            className={styles.cardMetricInput}
-            value={line.totalAmount ?? 0}
-            onChange={(e) => onFieldChange(line.rowId, 'totalAmount', e.target.value)}
-            aria-label={t('autoItemize.editTotalAmountAriaLabel')}
-          />
-        </div>
-      </div>
+      )}
 
       {/* Bottom row: include + VAT + assign */}
       <div className={styles.cardBottomRow}>
@@ -162,15 +189,15 @@ export function AutoItemizeLineCard({
               )}
             </div>
           ) : (
-            <div className={styles.assignedBadge}>
-              <span>{t('autoItemize.creatingNew')}</span>
+            <div className={styles.assignedBadgeWrapper}>
+              <Badge variants={creatingNewVariants} value="true" testId="creating-new-badge" />
               <button
                 type="button"
                 className={styles.clearAssignButton}
                 onClick={() => onClearAssign(line.rowId)}
-                aria-label={t('autoItemize.clearAssignmentAriaLabel')}
+                aria-label={t('autoItemize.discardInlineDraft')}
               >
-                ✕
+                {t('autoItemize.discardInlineDraft')}
               </button>
             </div>
           )}
@@ -221,6 +248,30 @@ export function AutoItemizeLineCard({
           </div>
         </div>
       </div>
+
+      {line.inlineCreatedBudgetLineDraft &&
+        onInlineDraftChange &&
+        confidenceLabels &&
+        vendors &&
+        budgetCategories !== undefined && (
+          <div className={styles.inlineFormWrapper}>
+            <BudgetLineForm
+              embedded
+              idPrefix={`inline-${line.rowId}-`}
+              form={line.inlineCreatedBudgetLineDraft}
+              onFormChange={(updates) => onInlineDraftChange(line.rowId, updates)}
+              onSubmit={(e) => e.preventDefault()}
+              onCancel={() => onClearAssign(line.rowId)}
+              error={null}
+              isSaving={false}
+              isEditing={false}
+              confidenceLabels={confidenceLabels}
+              budgetSources={budgetSources}
+              vendors={vendors}
+              budgetCategories={budgetCategories}
+            />
+          </div>
+        )}
     </li>
   );
 }

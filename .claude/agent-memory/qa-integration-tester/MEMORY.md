@@ -3,15 +3,31 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
-## Story #1739 — InvoicePaperlessPickerModal useAllLinkedDocumentIds integration tests (2026-06-17)
+## Story #1693 — Badge mock require() bug + BudgetLineForm.embedded react-i18next mock (2026-06-18)
 
-**Pattern for mocking `useAllLinkedDocumentIds`**: Declare `mockFetchLinkedIds = jest.fn<() => Promise<void>>()` and `mockUseAllLinkedDocumentIds = jest.fn<() => UseAllLinkedDocumentIdsResult>()` at module scope. `jest.unstable_mockModule('../../hooks/useDocumentLinks.js', () => ({ useDocumentLinks: jest.fn(), useAllLinkedDocumentIds: mockUseAllLinkedDocumentIds }))`. In `beforeEach`: reset both, then `mockUseAllLinkedDocumentIds.mockReturnValue({ ids: [], isLoading: false, error: null, fetch: mockFetchLinkedIds })`.
+**Badge is pure — never mock it via require()**: The real `Badge` component (in `client/src/components/Badge/Badge.tsx`) renders a plain `<span data-testid={testId}>` with no dependencies. When tests need `data-testid` assertions, the real Badge works without any mock. NEVER mock Badge using `require('react')` inside a jest.unstable_mockModule factory — `require` is not defined in Jest ESM. Instead, remove the Badge mock entirely and let the real component render.
 
-**useEffect async mock interception gap (pre-existing)**: In this test file, `jest.unstable_mockModule('../../lib/paperlessApi.js', ...)` does NOT intercept calls made inside `useEffect` async closures (the `loadCorrespondents` and `systemLinkedIds.fetch()` effects). Same pattern as the pre-existing 3 failures in describe block 2. New test 3.1 (`fetch() is called once on mount`) fails locally for the same reason — all 4 failures expected to pass in CI. Test 3.2 (`DocumentBrowser receives hook ids`) passes because it tests rendered output, not whether the mock was called.
+**Inline-rendered sub-components need react-i18next mock**: If a test renders a component that transitively renders another component that calls `useTranslation()` (e.g., AutoItemizeLineCard renders BudgetLineForm inline), the test file MUST add a `jest.unstable_mockModule('react-i18next', ...)` BEFORE all static imports. Without it, `useTranslation` throws or returns undefined in Jest ESM, crashing all tests in that file.
 
-**Coverage gap for inline SearchPicker callbacks (lines 100-101 filter predicate, 104-107 renderItem, 66 handleCorrespondentChange)**: These lines require correspondents to be loaded (mock intercepting). In local env, `listPaperlessCorrespondents` mock doesn't intercept the `useEffect` load, so `correspondents` stays `[]`. In CI, these lines ARE covered by the focus+selection tests. Add `mockListPaperlessCorrespondents.mockResolvedValue(makeCorrespondentsResponse([...]))` in coverage tests even though locally the mock won't intercept — CI will use it.
+**Assertion text changes with mock**: When adding a react-i18next mock (`t(k) => k`), any test asserting on translated English text must be updated to assert on the translation key string instead. E.g., `getByText(/VAT will be added to the total/i)` → `getByText(/budgetLineForm\.vatNote/i)`, and `form[aria-label="New budget line details"]` → `form[aria-label="autoItemize.inlineFormLabel"]`.
 
-**shared package build required for new types**: `PaperlessCorrespondentListResponse` and `PaperlessCorrespondent` exported from `shared/src/types/paperless.ts` in worktree but NOT in root dist. Run `npm run build --workspace=shared` from project root, then verify with `grep PaperlessCorrespondent node_modules/@cornerstone/shared/dist/index.d.ts`. The root `node_modules/@cornerstone/shared` points to root `shared/` (not worktree copy) but `npm install` in the worktree creates its own dist path. Run from `cd /project-root && npm run build --workspace=shared` when new shared types appear.
+**ESLint rule on Trans children type**: The `Trans` mock factory's `children` param typed as `{ children: React.ReactNode }` causes TS errors if React is not in scope. Type it as `{ children: unknown }` instead — no React import needed in the factory body.
+
+## Story #1693 — AutoItemizePage.queueSave: new save flow (2026-06-18)
+
+**handleSave NO LONGER calls createInvoiceBudgetLine**: After `createWorkItemBudget`/`createHouseholdItemBudget`, the materialized line is converted to `assignmentMode='assign-existing'` in `workingLines` (with `assignedBudgetLineId=newBudgetLineId`, `totalAmount=netBase`, `includesVat` carried). The single `autoItemize(commit)` call creates the invoice↔budget-line junction and stores GROSS `effectiveLineAmount` server-side. Tests asserting `mockCreateInvoiceBudgetLine` now use `.not.toHaveBeenCalled()`. The GROSS value (e.g. 119 for 100 net + VAT) is asserted in `invoiceAutoItemizeService.test.ts`, not client tests.
+
+**Test 4 replaced**: Old test "createInvoiceBudgetLine rejects → error" is gone. New test: "autoItemize commit rejects → error banner, stays on page, `mockAutoItemize` called twice (dry run + failed commit)".
+
+**Asserting the assign-existing autoItemize commit payload**: `mockAutoItemize.mock.calls.find(call => call[1].dryRun === false)` gives the commit call. Then `commitPayload.lines.find(l => l.assignmentMode === 'assign-existing')` gives the materialized entry. Assert `assignedBudgetLineId`, `totalAmount`, `includesVat` on it.
+
+## Story #1693 — AutoItemizeLineCard inline draft + AutoItemizeLineList mock fix (2026-06-18)
+
+**jest.unstable_mockModule for sibling component (e.g. `./AutoItemizeLineCard.js`) does NOT reliably intercept in Jest ESM**: Even when declared before static imports and the SUT is dynamically imported in `beforeEach`, mocking a component that is transitively imported by the SUT fails if module-level JSX is in the factory. The fix: use the REAL component and assert on real DOM output instead. For callback-propagation tests: interact with real DOM elements (click checkboxes/buttons, change textareas) and assert the callback spy. For "testid" assertions: assert the real content (e.g., `getByDisplayValue('Line r1')`) instead of a mock-injected testid.
+
+**BudgetLineForm embedded-mode test pattern**: When testing a card that embeds a real `BudgetLineForm` with `embedded=true` and `idPrefix="inline-{rowId}-"`, assert on: (1) `document.getElementById('inline-row-abc-budget-description')` is non-null (proves idPrefix works); (2) `document.querySelector('form[aria-label="New budget line details"]')` is non-null (proves embedded=true triggers aria-label from i18n 'autoItemize.inlineFormLabel'); (3) `screen.getByText(/VAT will be added to the total/i)` is in document when `includesVat=false`. Do NOT mock BudgetLineForm for inline-draft tests.
+
+**discardInlineDraft vs clearAssignmentAriaLabel**: The `inlineCreatedBudgetLineDraft` state shows a Discard button with `aria-label={t('autoItemize.discardInlineDraft')}` = "Discard" — NOT `clearAssignmentAriaLabel`. `clearAssignmentAriaLabel` = "Clear budget line assignment" is only used for the assigned state. Any test asserting the inline-draft state MUST use `discardInlineDraft` not `clearAssignmentAriaLabel`.
 
 ## Story #1705 — PhotoAnnotator responsive scaling + touch support tests (2026-06-16)
 
@@ -36,6 +52,22 @@
 **jest.unstable_mockModule + static import before it = mock fails in CI**: In Jest 30 with `--experimental-vm-modules`, adding a static `import` statement BEFORE `jest.unstable_mockModule()` in a test file breaks mock registration for components that call the mocked module's code directly (e.g., `useFormatters()` → `useLocale()`). Components tested by files in shards 3/4 that also mock `LocaleContext` (or don't call `useFormatters()` directly) appear to pass — but that's because they have a safety net, not because the mock works. The inline factory pattern (all code inside the `jest.unstable_mockModule()` factory body, no imports before it) is REQUIRED for reliable mock registration in Jest ESM. Attempted shared-factory approach across 46 files was reverted.
 
 **Stable useNavigate mock pattern**: `useNavigate: () => jest.fn()` in a jest.unstable_mockModule factory allocates a new function on every component render/re-render. Replace with a module-scope `const mockNavigate = jest.fn()` + `useNavigate: () => mockNavigate` + `mockNavigate.mockClear()` in beforeEach. This is a genuine memory improvement (fewer short-lived allocations). Applied to `LinkedDocumentsSection.test.tsx` in PR #1686.
+
+## Story #1693 — VAT gross-up + inline-draft tests (2026-06-17)
+
+**`require('react') as typeof import('react')` → FORBIDDEN**: `@typescript-eslint/consistent-type-imports` forbids `import()` type syntax in non-import statements. In `jest.unstable_mockModule` factories, use `require('react') as { createElement: (...args: any[]) => unknown }` instead. Add `// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any` before it.
+
+**`_capturedOnLineCreated` reset must be renamed everywhere**: When renaming a module-scope variable to `_`-prefix, scan for ALL references including `beforeEach` reset lines — not just the declaration site. Missed the `beforeEach` reset caused TS2552 in CI.
+
+**Non-null assertion `!` after `waitFor` confirm**: TypeScript flags `mockFn.mock.calls[0]` as possibly undefined even after a `waitFor` assertion. Pattern: `const call = mockFn.mock.calls[0]; expect(call).toBeDefined(); const payload = call![1] as T;`
+
+**Double-cast for `CreateInvoiceBudgetLineRequest`**: The type has no index signature. Asserting `as Record<string, unknown>` gives TS2352. Fix: `junctionCall![1] as unknown as Record<string, unknown>`.
+
+**Production code TS errors block all CI shards**: When `tsc --noEmit` fails, jest shards 2/3/5 also fail (ts-jest compilation step). Diagnose by checking Static Analysis job first — if it fails, the shard failures are secondary. File bugs against production code, don't try to work around in test files.
+
+**Prop destructuring rename `onX → _onX` breaks TypeScript**: If a production component destructures `_onQueueNewBudgetLine` but the interface declares `onQueueNewBudgetLine`, TypeScript TS2339 fires. Fix pattern: `onQueueNewBudgetLine: _onQueueNewBudgetLine,` (rename in destructuring, not in interface).
+
+**BudgetLineForm embedded with partial-shape props**: `BudgetLineFormProps` expects full `BudgetSource[]` and `Vendor[]`. Passing narrow shapes (only `{id, name}`) to an embedded `BudgetLineForm` causes TS2322. Either widen the BudgetLineForm props to accept partial shapes, or pass full objects through the prop chain.
 
 ## Story #1677 — effectiveLineAmount VAT gross-up tests (2026-06-15)
 

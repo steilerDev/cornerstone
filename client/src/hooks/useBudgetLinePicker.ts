@@ -7,6 +7,7 @@ import type {
   BudgetCategory,
   CreateInvoiceBudgetLineRequest,
 } from '@cornerstone/shared';
+import { effectiveLineAmount } from '@cornerstone/shared';
 import { fetchWorkItemBudgets, createWorkItemBudget } from '../lib/workItemBudgetsApi.js';
 import {
   fetchHouseholdItemBudgets,
@@ -251,8 +252,7 @@ export function useBudgetLinePicker({
           }));
           return;
         }
-        const multiplier = form.includesVat ? 1 : 1.19;
-        plannedAmount = Math.round(plannedAmount * multiplier * 100) / 100;
+        plannedAmount = Math.round(plannedAmount * 100) / 100;
       } else {
         const qty = parseFloat(form.quantity);
         const price = parseFloat(form.unitPrice);
@@ -305,7 +305,10 @@ export function useBudgetLinePicker({
             ...(pickerState.type === 'work_item'
               ? { workItemBudgetId: newBudgetLine.id }
               : { householdItemBudgetId: newBudgetLine.id }),
-            itemizedAmount: newBudgetLine.plannedAmount,
+            itemizedAmount: effectiveLineAmount({
+              amount: newBudgetLine.plannedAmount,
+              includesVat: newBudgetLine.includesVat,
+            }),
           };
           const linkResponse = await createInvoiceBudgetLine(invoiceId, linkData);
           junctionId = linkResponse.budgetLine.id;

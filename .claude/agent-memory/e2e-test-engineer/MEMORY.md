@@ -15,6 +15,26 @@
 - **Vendor filter URL**: `/budget/invoices?vendorId=:id` filters list to that vendor. Scenario 2 uses this to verify invoice no longer appears under old vendor and appears under new vendor.
 - **DataTable dual-DOM strict-mode fix (2026-06-18)**: DataTable renders BOTH a desktop `<table>` AND a mobile `cardsContainer` div in the DOM at the same time — one is CSS-hidden per viewport. `page.getByText(invoiceNumber)` resolves to 2 nodes → strict-mode violation. **Fix**: `page.locator('[class*="invoiceLink"]', { hasText: invoiceNumber }).filter({ visible: true })` — scopes to the CSS Modules link class, filters to visible instance. Then assert with `toHaveCount(0)` (absent) or `toHaveCount(1)` + `toBeVisible()` (present). `[class*="invoiceLink"]` is the stable CSS Modules class on the invoice number `<Link>` element in InvoicesPage.tsx.
 
+## AutoItemize commit requires document-link fixture (2026-06-18)
+
+- `POST /api/invoices/:id/auto-itemize` (commit, dryRun:false) validates that the `paperlessDocumentId` is linked to the invoice via `document_links`. If no link → `404 NOT_FOUND: "Paperless document <id> is not linked to this invoice"`.
+- Any Scenario that commits MUST call `POST /api/document-links` AFTER invoice creation and BEFORE navigation. Body: `{ entityType: 'invoice', entityId: invoiceId, paperlessDocumentId: number }` → 201. No cleanup needed (invoice deletion cascades).
+- Scenarios that cancel or discard (never commit) do NOT need this link.
+- No shared helper in `e2e/fixtures/apiHelpers.ts` yet; local `linkDocumentToInvoiceViaApi` pattern in each auto-itemize spec.
+
+## AutoItemize Inline-Create + VAT E2E (Stories #1737/#1738, 2026-06-18) — `e2e/tests/budget/auto-itemize-inline-create.spec.ts`, `e2e/tests/budget/auto-itemize-vat-itemized.spec.ts`
+
+- **Inline-create queue (Bug A #1737)**: clicking "Create Budget Line" in picker step 2 CLOSES the picker immediately and shows `getCreatingNewBadge(0)` (`data-testid="creating-new-badge"`) + `getInlineFormWrapper(0)` + `getInlineDraftDiscardButton(0)`. NO API calls until Save.
+- **Save sequence (corrected 2026-06-18)**: `POST /api/work-items/:id/budgets` (plannedAmount=net, includesVat) → auto-itemize commit (POST dryRun:false). The `POST /api/invoices/:id/budget-lines` call also fires client-side but tests do NOT wait on it — the server's `assign-existing` path is idempotent. Only `Promise.all([wiCreatePromise, commitPromise])` needed.
+- **commitPromise / commitDone robust pattern (2026-06-18)**: Do NOT gate the predicate with `resp.ok()`. Predicate: `url includes .../auto-itemize && method POST && !postDataJSON()?.dryRun`. Pass `{ timeout: 30000 }` as second arg. After `Promise.all`, capture response and throw loudly: `if (!commitResp.ok()) { const body = await commitResp.text().catch(() => '<no body>'); throw new Error('auto-itemize commit returned ${commitResp.status()}: ${body}'); }`. Use `test.setTimeout(60_000)` instead of `test.slow()` — `test.slow()` triples the project default but a hardcoded 30s explicit timeout + overhead may exceed the tripled budget on slow CI runners.
+- **VAT math (Bug B #1738)**: `includesVat=false, amount=100` → `plannedAmount=100` (net in WI budget), `itemizedAmount=119` (gross = `Math.round(100*1.19*100)/100`), `actualCost=119`.
+- **Cancel-after-queue**: `cancelButton.click()` → `cancelModal` visible → `discardButton.click()` navigates away. Monitor with `page.on('request', ...)` to assert POST to WI budgets count = 0.
+- **Discard inline**: `getInlineDraftDiscardButton(0).click()` → badge hidden, inline form hidden, `lineAssignButton(0)` re-visible. No API call.
+- **Vendor/invoice inline helpers**: inline `createVendorViaApi`/`createInvoiceViaApi` in both specs (not yet extracted to apiHelpers.ts). Invoice created via `POST /api/vendors/:id/invoices`; response: `{ invoice: { id } }`.
+- **Viewport guard**: `if (vw < 600) test.skip(true, '...')` — functional flows, desktop/tablet only.
+- **Dry-run mock pattern**: intercept `**/api/invoices/${invoiceId}/auto-itemize`, check `body?.dryRun`, fulfill for dry-run, `route.continue()` for commit.
+- **`lineVatCheckbox(0)` for VAT check**: `not.toBeChecked()` when `includesVat=false`.
+
 ## Photo Picker Hierarchy E2E (Issue #1723, 2026-06-16) — `e2e/tests/photo-picker-hierarchy.spec.ts`, `e2e/pages/PhotoViewerPage.ts`
 
 - 8 scenarios (7 acceptance criteria), all tagged `@responsive`, Scenario 1 also `@smoke`.
