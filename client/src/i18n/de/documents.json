@@ -54,9 +54,13 @@
     "workItemEntity": "dieses Arbeitspaket",
     "householdItemEntity": "dieses Haushaltsartikel",
     "invoiceEntity": "diese Rechnung",
+    "budgetSourceEntity": "diese Budgetquelle",
+    "subsidyProgramEntity": "dieses Förderprogramm",
     "workItemEmpty": "Verknüpfen Sie Quittungen, Verträge und Pläne aus Paperless-ngx, um alles an einem Ort zu haben.",
     "householdItemEmpty": "Verknüpfen Sie Quittungen, Garantien und Handbücher aus Paperless-ngx, um alles an einem Ort zu haben.",
-    "invoiceEmpty": "Verknüpfen Sie Rechnungs-PDFs, Quittungen und verwandte Dokumente aus Paperless-ngx, um alles an einem Ort zu haben."
+    "invoiceEmpty": "Verknüpfen Sie Rechnungs-PDFs, Quittungen und verwandte Dokumente aus Paperless-ngx, um alles an einem Ort zu haben.",
+    "budgetSourceEmpty": "Verknüpfen Sie Verträge, Garantien und verwandte Dokumente aus Paperless-ngx, um alles an einem Ort zu haben.",
+    "subsidyProgramEmpty": "Verknüpfen Sie Antragsformulare, Genehmigungsschreiben und verwandte Dokumente aus Paperless-ngx, um alles an einem Ort zu haben."
   },
   "documentCard": {
     "documentLabel": "Dokument: {{title}}{{date}}",

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PaperlessDocumentSearchResult, PaperlessCorrespondent } from '@cornerstone/shared';
 import { listPaperlessCorrespondents } from '../../lib/paperlessApi.js';
+import { useAllLinkedDocumentIds } from '../../hooks/useDocumentLinks.js';
 import { Modal } from '../Modal/Modal.js';
 import { SearchPicker } from '../SearchPicker/SearchPicker.js';
 import { DocumentBrowser } from '../documents/DocumentBrowser.js';
@@ -25,6 +26,7 @@ export function InvoicePaperlessPickerModal({
   const [correspondents, setCorrespondents] = useState<PaperlessCorrespondent[]>([]);
   const [selectedCorrespondentId, setSelectedCorrespondentId] = useState<string>('');
   const [isLoadingCorrespondents, setIsLoadingCorrespondents] = useState(true);
+  const systemLinkedIds = useAllLinkedDocumentIds();
 
   // Load correspondents on mount
   useEffect(() => {
@@ -51,6 +53,13 @@ export function InvoicePaperlessPickerModal({
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Fetch system-wide linked document IDs on mount so the hide-linked filter works
+  useEffect(() => {
+    // eslint-disable-next-line @eslint-react/web-api-no-leaked-fetch -- useAllLinkedDocumentIds.fetch is a custom hook method, not the Web Fetch API; no AbortController applies
+    void systemLinkedIds.fetch();
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- systemLinkedIds.fetch is a new reference each render; adding it would cause an infinite re-fetch loop
   }, []);
 
   const handleCorrespondentChange = (id: string) => {
@@ -107,7 +116,7 @@ export function InvoicePaperlessPickerModal({
           mode="modal"
           onSelect={onDocumentSelected}
           defaultHideLinked={true}
-          linkedDocumentIds={[]}
+          linkedDocumentIds={systemLinkedIds.ids}
           paperlessUrl={paperlessUrl}
           correspondentId={selectedCorrespondentId ? Number(selectedCorrespondentId) : null}
         />

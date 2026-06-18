@@ -108,6 +108,31 @@ export class InvoiceDetailPage {
   readonly editCancelButton: Locator;
   readonly editErrorBanner: Locator;
 
+  // ─── Vendor picker in the edit modal (Story #1736) ───────────────────────
+  /**
+   * The vendor SearchPicker's selectedDisplay chip — visible when the picker has a
+   * pre-populated value (initialTitle + value both set).  This is the element that
+   * renders when the modal first opens.
+   * Scoped to editModal so it doesn't conflict with other SearchPicker instances.
+   */
+  readonly editVendorSelectedDisplay: Locator;
+
+  /**
+   * The vendor SearchPicker's text input — visible after the user clicks the clear
+   * button on the selectedDisplay chip, or when no vendor was pre-filled.
+   * id="edit-vendor" (matches the `id` prop passed to SearchPicker in InvoiceDetailPage.tsx)
+   */
+  readonly editVendorInput: Locator;
+
+  /**
+   * The field-level validation error shown below the vendor picker when the vendor
+   * is cleared and the form is submitted.
+   * FormError variant="field" renders a <div> WITHOUT role="alert" (only variant="banner"
+   * emits role="alert"). Locator uses the label[for="edit-vendor"] ancestor to reach the
+   * field wrapper div, then targets its last div child (the FormError div).
+   */
+  readonly editVendorError: Locator;
+
   // Delete modal
   readonly deleteModal: Locator;
   readonly deleteConfirmButton: Locator;
@@ -504,6 +529,30 @@ export class InvoiceDetailPage {
     this.editCancelButton = this.editModal.getByRole('button', { name: 'Cancel', exact: true });
     this.editErrorBanner = this.editModal.locator('[role="alert"]');
 
+    // ─── Vendor picker locators (Story #1736) ────────────────────────────
+    // When the edit modal opens, SearchPicker renders the selectedDisplay chip because
+    // both `initialTitle` and `value` are populated from the current invoice vendor.
+    // [class*="selectedDisplay"] is stable across CSS-module hash changes.
+    // Scope to the editModal to avoid matching other SearchPicker instances on the page.
+    this.editVendorSelectedDisplay = this.editModal.locator('[class*="selectedDisplay"]');
+
+    // After clicking the clear button on the selectedDisplay chip, the picker switches
+    // to input mode — the <input id="edit-vendor"> becomes visible.
+    this.editVendorInput = page.locator('#edit-vendor');
+
+    // FormError variant="field" does NOT emit role="alert" (only variant="banner" does).
+    // The InvoiceDetailPage TSX renders:
+    //   <div class={styles.field}>          ← field wrapper (InvoiceDetailPage.module.css)
+    //     <label for="edit-vendor">...</label>
+    //     <SearchPicker id="edit-vendor" ... />   ← root div with class*="container"
+    //     <FormError message={vendorError} variant="field" />  ← only when vendorError set
+    //   </div>
+    // We navigate from label[for="edit-vendor"] → parent div (field wrapper)
+    // → last div child (the FormError div, rendered last in the wrapper).
+    this.editVendorError = this.editModal
+      .locator('label[for="edit-vendor"]')
+      .locator('xpath=parent::div/div[last()]');
+
     // Delete modal — role="dialog", aria-labelledby="delete-modal-title"
     this.deleteModal = page.locator('[role="dialog"][aria-labelledby="delete-modal-title"]');
     this.deleteConfirmButton = this.deleteModal.locator('[class*="confirmDeleteButton"]');
@@ -772,6 +821,53 @@ export class InvoiceDetailPage {
     await this.editSaveButton.click();
     await responsePromise;
     await this.editModal.waitFor({ state: 'hidden' });
+  }
+
+  // ─── Vendor picker helpers (Story #1736) ──────────────────────────────────
+
+  /**
+   * Selects a vendor in the edit modal's SearchPicker.
+   *
+   * If the picker is currently showing a selectedDisplay chip (pre-populated),
+   * this method first clears it so the input becomes active, then types the
+   * vendor name and clicks the matching option in the dropdown.
+   *
+   * If the picker is already in input mode (e.g. after a previous clear), it
+   * types directly without clearing first.
+   *
+   * @param vendorName - The exact vendor name to select.
+   */
+  async selectVendorInEditModal(vendorName: string): Promise<void> {
+    // If selectedDisplay is visible, click the clear (×) button to enter input mode.
+    if (await this.editVendorSelectedDisplay.isVisible()) {
+      await this.editVendorSelectedDisplay.getByRole('button').click();
+      // Wait for the input to appear after clearing
+      await this.editVendorInput.waitFor({ state: 'visible' });
+    }
+
+    // Type into the vendor search input to trigger the dropdown
+    await this.editVendorInput.fill(vendorName);
+
+    // The SearchPicker portals its dropdown to [data-search-picker-dropdown] on document.body
+    const dropdown = this.page.locator('[data-search-picker-dropdown]');
+    await dropdown.waitFor({ state: 'visible' });
+
+    // Click the option whose text exactly matches the vendor name
+    await dropdown.getByRole('option', { name: vendorName, exact: true }).click();
+
+    // After selection, picker should switch back to selectedDisplay mode
+    await this.editVendorSelectedDisplay.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Clears the currently selected vendor in the edit modal's SearchPicker,
+   * switching the picker from selectedDisplay chip back to empty input mode.
+   * Use this when testing the "vendor required" validation error.
+   */
+  async clearVendorInEditModal(): Promise<void> {
+    await this.editVendorSelectedDisplay.waitFor({ state: 'visible' });
+    await this.editVendorSelectedDisplay.getByRole('button').click();
+    await this.editVendorInput.waitFor({ state: 'visible' });
   }
 
   /**

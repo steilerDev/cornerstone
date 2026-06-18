@@ -8,7 +8,9 @@
       "addButton": "Add",
       "addWorkItem": "New Work Item",
       "addHouseholdItem": "New Household Item",
-      "addMilestone": "New Milestone"
+      "addMilestone": "New Milestone",
+      "addDiaryEntry": "New Diary Entry",
+      "addInvoice": "New Invoice"
     }
   },
   "sections": {

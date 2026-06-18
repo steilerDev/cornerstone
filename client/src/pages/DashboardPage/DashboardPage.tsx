@@ -531,6 +531,30 @@ export function DashboardPage() {
                 >
                   {t('page.actions.addMilestone')}
                 </button>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setAddOpen(false);
+                    void navigate('/diary/new');
+                  }}
+                  data-testid="dashboard-add-diary-entry"
+                >
+                  {t('page.actions.addDiaryEntry')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  role="menuitem"
+                  onClick={() => {
+                    setAddOpen(false);
+                    void navigate('/budget/invoices?create=1');
+                  }}
+                  data-testid="dashboard-add-invoice"
+                >
+                  {t('page.actions.addInvoice')}
+                </button>
               </div>
             )}
           </div>

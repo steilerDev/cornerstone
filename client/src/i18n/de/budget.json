@@ -221,6 +221,13 @@
         "genericError": "Positionen konnten nicht verschoben werden. Bitte versuchen Sie es erneut."
       }
     },
+    "docs": {
+      "expand": "Dokumente einblenden",
+      "collapse": "Dokumente ausblenden",
+      "expandAriaLabel": "Dokumente für {{name}} einblenden",
+      "collapseAriaLabel": "Dokumente für {{name}} ausblenden",
+      "panelAriaLabel": "Dokumente für {{name}}"
+    },
     "summary": {
       "remainingLabel": "Verbleibend"
     }
@@ -456,12 +463,15 @@
       "notes": "Notizen",
       "required": "*",
       "placeholders": {
-        "invoiceNumber": "z. B. ReCH-001"
-      }
+        "invoiceNumber": "z. B. ReCH-001",
+        "vendor": "Auftragnehmer suchen…"
+      },
+      "noVendorsFound": "Keine Auftragnehmer gefunden"
     },
     "validation": {
       "amountRequired": "Betrag muss eine positive Zahl sein.",
-      "dateRequired": "Rechnungsdatum ist erforderlich."
+      "dateRequired": "Rechnungsdatum ist erforderlich.",
+      "vendorRequired": "Bitte wählen Sie einen Auftragnehmer aus"
     },
     "buttons": {
       "edit": "Bearbeiten",
@@ -486,7 +496,8 @@
     },
     "messages": {
       "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
-      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+      "vendorNotFound": "Der ausgewählte Auftragnehmer konnte nicht gefunden werden"
     },
     "budgetLines": {
       "createFormLegend": "Neue Budgetposition erstellen",
@@ -725,6 +736,13 @@
       "created": "Förderprogramm \"{{name}}\" erfolgreich erstellt",
       "updated": "Förderprogramm \"{{name}}\" erfolgreich aktualisiert",
       "deleted": "Förderprogramm \"{{name}}\" erfolgreich gelöscht"
+    },
+    "docs": {
+      "expand": "Dokumente einblenden",
+      "collapse": "Dokumente ausblenden",
+      "expandAriaLabel": "Dokumente für {{name}} einblenden",
+      "collapseAriaLabel": "Dokumente für {{name}} ausblenden",
+      "panelAriaLabel": "Dokumente für {{name}}"
     }
   },
   "budgetLineForm": {
@@ -978,7 +996,14 @@
     "extractionComplete": "Extraktion abgeschlossen. Bitte prüfen Sie die vorgeschlagenen Positionen.",
     "lineItems": "Positionen",
     "noLineItems": "Keine Positionen extrahiert",
-    "backToInvoices": "Zurück zu Rechnungen"
+    "backToInvoices": "Zurück zu Rechnungen",
+    "creatingNewBadge": "Wird erstellt",
+    "inlineFormLabel": "Details der neuen Budgetposition",
+    "discardInlineDraft": "Verwerfen",
+    "inlineDraftInvalid": "Ungültiger Betrag in der Budgetposition in der Warteschlange. Bitte korrigieren Sie dies vor dem Speichern.",
+    "inlineDraftCreateFailed": "Budgetposition konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+    "inlineDraftLinkFailed": "Budgetposition konnte nicht mit der Rechnung verknüpft werden.",
+    "inlineDraftPartialFailure": "Budgetposition wurde erstellt, konnte aber nicht verknüpft werden: {{error}}. Bitte prüfen Sie dies und verknüpfen Sie es manuell."
   },
   "common": {
     "loading": "Wird geladen...",

@@ -8,7 +8,9 @@
       "addButton": "Hinzufügen",
       "addWorkItem": "Neues Arbeitspaket",
       "addHouseholdItem": "Neuer Haushaltsartikel",
-      "addMilestone": "Neuer Meilenstein"
+      "addMilestone": "Neuer Meilenstein",
+      "addDiaryEntry": "Neuer Tagebucheintrag",
+      "addInvoice": "Neue Rechnung"
     }
   },
   "sections": {

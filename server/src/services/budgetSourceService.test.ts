@@ -1334,6 +1334,51 @@ describe('Budget Source Service', () => {
       }).not.toThrow();
     });
 
+    it('cascade-deletes document_links for the budget_source when deleted', () => {
+      const raw = insertRawSource({
+        name: 'To Delete With Docs',
+        sourceType: 'other',
+        totalAmount: 1000,
+      });
+      const now = new Date().toISOString();
+
+      // Insert two document links for this budget source
+      sqlite
+        .prepare(
+          `INSERT INTO document_links (id, entity_type, entity_id, paperless_document_id, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run('dl-bs-1', 'budget_source', raw.id, 10, now);
+      sqlite
+        .prepare(
+          `INSERT INTO document_links (id, entity_type, entity_id, paperless_document_id, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run('dl-bs-2', 'budget_source', raw.id, 20, now);
+
+      // Insert an unrelated document link for a different entity — must NOT be deleted
+      sqlite
+        .prepare(
+          `INSERT INTO document_links (id, entity_type, entity_id, paperless_document_id, created_at)
+           VALUES (?, ?, ?, ?, ?)`,
+        )
+        .run('dl-other', 'invoice', 'inv-unrelated', 10, now);
+
+      budgetSourceService.deleteBudgetSource(db, raw.id);
+
+      // Budget source links must be gone
+      const budgetSourceLinks = sqlite
+        .prepare(`SELECT id FROM document_links WHERE entity_type='budget_source' AND entity_id=?`)
+        .all(raw.id) as { id: string }[];
+      expect(budgetSourceLinks).toHaveLength(0);
+
+      // Unrelated invoice link must still exist
+      const otherLinks = sqlite
+        .prepare(`SELECT id FROM document_links WHERE id='dl-other'`)
+        .all() as { id: string }[];
+      expect(otherLinks).toHaveLength(1);
+    });
+
     it('throws BudgetSourceInUseError when work items reference the source', () => {
       const raw = insertRawSource({
         name: 'In Use Source',
@@ -2570,6 +2615,120 @@ describe('Budget Source Service', () => {
         expect(result.claimedAmount).toBeCloseTo(200);
         expect(result.unclaimedAmount).toBeCloseTo(300);
         expect(result.paidAmount).toBeCloseTo(500);
+      });
+    });
+
+    describe('Discretionary source — deposit-aware catch-all amounts (#1743)', () => {
+      /**
+       * Insert a standalone invoice (with optional budget-line allocations) at any status,
+       * including 'pending' and 'quotation' which insertInvoiceWithRemainder does not support.
+       */
+      function insertStandaloneInvoice(
+        invoiceAmount: number,
+        status: 'pending' | 'paid' | 'claimed' | 'quotation',
+        allocations: Array<{ budgetLineId: string; itemizedAmount: number }>,
+      ): string {
+        const ts = new Date(Date.now() + workItemCounter).toISOString();
+        const vendorId = `vendor-disc-dep-${++workItemCounter}`;
+        db.insert(schema.vendors)
+          .values({
+            id: vendorId,
+            name: `Disc Dep Vendor ${vendorId}`,
+            createdAt: ts,
+            updatedAt: ts,
+          })
+          .run();
+        const invoiceId = `inv-disc-dep-${workItemCounter}`;
+        db.insert(schema.invoices)
+          .values({
+            id: invoiceId,
+            vendorId,
+            amount: invoiceAmount,
+            date: '2026-01-01',
+            status,
+            createdAt: ts,
+            updatedAt: ts,
+          })
+          .run();
+        for (const alloc of allocations) {
+          db.insert(schema.invoiceBudgetLines)
+            .values({
+              id: randomUUID(),
+              invoiceId,
+              workItemBudgetId: alloc.budgetLineId,
+              itemizedAmount: alloc.itemizedAmount,
+              createdAt: ts,
+              updatedAt: ts,
+            })
+            .run();
+        }
+        return invoiceId;
+      }
+
+      it('(a) pending un-itemized invoice with paid deposit contributes to discretionary unclaimedAmount', () => {
+        // pending invoice (1000), fully un-itemized + paid deposit 300
+        // The deposit is paid → unclaimedAmount should include the 300
+        // claimedAmount must remain 0 (no claimed deposit)
+        const invoiceId = insertStandaloneInvoice(1000, 'pending', []);
+        insertDepositForInvoice(invoiceId, { amount: 300, status: 'paid' });
+
+        const disc = getDiscretionarySource();
+        // unclaimedAmount = computeDiscretionaryInvoiceAmount(db, 'paid') — deposit fraction 300/1000 * 1000 = 300
+        expect(disc.unclaimedAmount).toBeCloseTo(300);
+        expect(disc.claimedAmount).toBe(0);
+      });
+
+      it('(b) pending un-itemized invoice with claimed deposit contributes to discretionary claimedAmount', () => {
+        // pending invoice (1000), fully un-itemized + claimed deposit 300
+        // The deposit is claimed → claimedAmount should include the 300
+        // unclaimedAmount must remain 0 (no paid deposit)
+        const invoiceId = insertStandaloneInvoice(1000, 'pending', []);
+        insertDepositForInvoice(invoiceId, { amount: 300, status: 'claimed' });
+
+        const disc = getDiscretionarySource();
+        expect(disc.claimedAmount).toBeCloseTo(300);
+        expect(disc.unclaimedAmount).toBe(0);
+      });
+
+      it('(c) partially-itemized pending invoice: paid deposit splits proportionally between named source and discretionary', () => {
+        // pending invoice (1000): 600 itemized to named source, 400 un-itemized (discretionary remainder)
+        // paid deposit 300 → split 60/40 between named source and discretionary
+        // named source unclaimedAmount ≈ 180 (600/1000 × 300)
+        // discretionary unclaimedAmount ≈ 120 (400/1000 × 300)
+        const namedSource = insertRawSource({
+          name: 'Named Source Partial',
+          sourceType: 'bank_loan',
+          totalAmount: 50000,
+        });
+        const { budgetId } = insertRawWorkItemWithSource(namedSource.id, 1000);
+        const invoiceId = insertStandaloneInvoice(1000, 'pending', [
+          { budgetLineId: budgetId, itemizedAmount: 600 },
+        ]);
+        insertDepositForInvoice(invoiceId, { amount: 300, status: 'paid' });
+
+        const named = budgetSourceService.getBudgetSourceById(db, namedSource.id);
+        // 600/1000 * 300 = 180
+        expect(named.unclaimedAmount).toBeCloseTo(180);
+
+        const disc = getDiscretionarySource();
+        // 400/1000 * 300 = 120
+        expect(disc.unclaimedAmount).toBeCloseTo(120);
+      });
+
+      it('(d) regression: quotation invoice with paid deposit — deposit counts but quotation residual does not', () => {
+        // quotation invoice (1000), un-itemized + paid deposit 300
+        // The broadened WHERE clause now admits the row (deposit status = 'paid')
+        // The deposit fraction (300) → goes to unclaimedAmount (paid deposit)
+        // The residual (700) has invoice_status = 'quotation' which is NOT 'paid' → does NOT count
+        // paidAmount = claimedAmount + unclaimedAmount = 0 + 300 = 300
+        const invoiceId = insertStandaloneInvoice(1000, 'quotation', []);
+        insertDepositForInvoice(invoiceId, { amount: 300, status: 'paid' });
+
+        const disc = getDiscretionarySource();
+        expect(disc.unclaimedAmount).toBeCloseTo(300);
+        expect(disc.claimedAmount).toBe(0);
+        // paidAmount = claimedAmount + unclaimedAmount — no double-counting from quotation residual
+        expect(disc.paidAmount).toBeCloseTo(300);
       });
     });
   });

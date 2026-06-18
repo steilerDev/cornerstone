@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
 import type { TFunction } from 'i18next';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
+import type { BudgetSource, Vendor, BudgetCategory } from '@cornerstone/shared';
 import { AutoItemizeLineCard } from './AutoItemizeLineCard.js';
 import type { LineWithInclude } from './types.js';
+import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import styles from './AutoItemizeLineList.module.css';
 
 interface AutoItemizeLineListProps {
@@ -12,7 +14,7 @@ interface AutoItemizeLineListProps {
   onAssign: (rowId: string) => void;
   onClearAssign: (rowId: string) => void;
   categories: Array<{ id: string; name: string; translationKey?: string | null }>;
-  budgetSources: Array<{ id: string; name: string; isDiscretionary?: boolean }>;
+  budgetSources: BudgetSource[];
   discretionarySourceId: string | undefined;
   computedTotal: number;
   variance: number;
@@ -21,6 +23,12 @@ interface AutoItemizeLineListProps {
   formatCurrency: (amount: number) => string;
   t: TFunction;
   tSettings: TFunction;
+  // New optional props for inline form rendering
+  onQueueNewBudgetLine?: (rowId: string) => void;
+  onInlineDraftChange?: (rowId: string, updates: Partial<BudgetLineFormState>) => void;
+  confidenceLabels?: Record<string, string>;
+  vendors?: Vendor[];
+  budgetCategories?: BudgetCategory[];
 }
 
 export function AutoItemizeLineList({
@@ -39,6 +47,11 @@ export function AutoItemizeLineList({
   formatCurrency,
   t,
   tSettings,
+  onQueueNewBudgetLine,
+  onInlineDraftChange,
+  confidenceLabels,
+  vendors,
+  budgetCategories,
 }: AutoItemizeLineListProps) {
   const hasDiscretionaryLines = useMemo(
     () =>
@@ -117,6 +130,11 @@ export function AutoItemizeLineList({
               createdFromExtractionVariants={createdFromExtractionVariants}
               t={t}
               tSettings={tSettings}
+              onQueueNewBudgetLine={onQueueNewBudgetLine}
+              onInlineDraftChange={onInlineDraftChange}
+              confidenceLabels={confidenceLabels}
+              vendors={vendors}
+              budgetCategories={budgetCategories}
             />
           ))}
         </ul>

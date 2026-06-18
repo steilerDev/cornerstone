@@ -32,7 +32,7 @@ Areas can be nested to any depth. A parent area implicitly includes all its chil
 
 ### Assigning Areas
 
-When creating or editing a work item or household item, select an area from the area picker. The picker displays the full hierarchy so you can quickly find the right location.
+When creating or editing a work item or household item, select an area from the area picker. The picker is hierarchy-aware: each option is indented to reflect its depth in the tree, and the **full ancestor path** (e.g. *Ground Floor › Kitchen*) is shown beneath the area name. This makes it easy to disambiguate rooms that share a name on different floors. Once you pick an area, the picker collapses to show just the concise area name.
 
 ### Area Breadcrumbs Everywhere
 

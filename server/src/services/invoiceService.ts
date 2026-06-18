@@ -438,13 +438,14 @@ export function createInvoice(
 /**
  * Partial update of an invoice.
  * Validates same rules as createInvoice for any provided fields.
+ * If vendorId is provided, reassigns the invoice to the new vendor.
  * @throws NotFoundError if vendor or invoice not found, or if invoice doesn't belong to vendor
  * @throws ValidationError if any provided field is invalid
  *
  * @param db - Database connection
- * @param vendorId - Vendor ID
+ * @param vendorId - Vendor ID (source vendor, from path param)
  * @param invoiceId - Invoice ID
- * @param data - Update request data
+ * @param data - Update request data (may include target vendorId)
  * @param diaryAutoEvents - Whether to create automatic diary entries (default: true)
  */
 export function updateInvoice(
@@ -467,6 +468,16 @@ export function updateInvoice(
   }
 
   const updates: Partial<typeof invoices.$inferInsert> = {};
+
+  // Validate and apply target vendor if provided
+  let targetVendorName = vendorName;
+  if (data.vendorId !== undefined) {
+    if (data.vendorId !== existing.vendorId) {
+      // Validate target vendor exists before applying any updates
+      targetVendorName = assertVendorExists(db, data.vendorId);
+      updates.vendorId = data.vendorId;
+    }
+  }
 
   // Validate and apply amount if provided
   if (data.amount !== undefined) {
@@ -535,7 +546,7 @@ export function updateInvoice(
   }
 
   const updated = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get()!;
-  return toInvoice(db, updated, vendorName);
+  return toInvoice(db, updated, targetVendorName);
 }
 
 /**

@@ -26,7 +26,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 jest.unstable_mockModule('../../lib/categoryUtils.js', () => ({
   getCategoryDisplayName: (_t: unknown, name: string, _translationKey: unknown) => name,
-  useCategoryDisplayName: (_name: string, translationKey: unknown) => _name,
+  useCategoryDisplayName: (_name: string, _translationKey: unknown) => _name,
 }));
 
 jest.unstable_mockModule('../Badge/Badge.js', () => ({
@@ -39,6 +39,7 @@ jest.unstable_mockModule('../Badge/Badge.js', () => ({
 import React from 'react';
 import type * as AutoItemizeLineCardModule from './AutoItemizeLineCard.js';
 import type { LineWithInclude } from './types.js';
+import type { BudgetSource } from '@cornerstone/shared';
 
 let AutoItemizeLineCard: (typeof AutoItemizeLineCardModule)['AutoItemizeLineCard'];
 
@@ -75,7 +76,7 @@ const categories = [
 const budgetSources = [
   { id: 'src-1', name: 'Main Fund' },
   { id: 'src-2', name: 'Loan' },
-];
+] as unknown as BudgetSource[];
 
 // Minimal TFunction stub
 const t = (key: string, opts?: Record<string, unknown>) => {
@@ -123,7 +124,9 @@ function renderCard(
         categories,
         budgetSources,
         createdFromExtractionVariants,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         t: t as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         tSettings: tSettings as any,
       }),
     ),
@@ -337,25 +340,29 @@ describe('AutoItemizeLineCard', () => {
 
   // ─── Additional coverage for missing branches ────────────────────────────────
 
-  it('renders the inlineCreatedBudgetLineDraft state (creatingNew) with clear button', () => {
+  it('renders the inlineCreatedBudgetLineDraft state (creatingNew) with discard button', () => {
     const onClearAssign = jest.fn<(rowId: string) => void>();
     renderCard(
       {
         rowId: 'row-1',
         assignedBudgetLineId: undefined,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         inlineCreatedBudgetLineDraft: { description: 'Draft', plannedAmount: '100' } as any,
       },
       { onClearAssign },
     );
 
-    // The "creating new" state shows the creatingNew text (translation key) and a clear button
-    // The assign button should NOT be visible
+    // The "creating new" state shows the creating-new-badge and a Discard button
+    // (aria-label = t('autoItemize.discardInlineDraft'), NOT clearAssignmentAriaLabel)
     expect(screen.queryByRole('button', { name: /^Assign/i })).not.toBeInTheDocument();
 
-    // The clear button (✕) with aria-label is still shown
-    const clearBtn = screen.getByRole('button', { name: /autoItemize.clearAssignmentAriaLabel/i });
-    expect(clearBtn).toBeInTheDocument();
-    fireEvent.click(clearBtn);
+    // The creating-new badge is present
+    expect(screen.getByTestId('creating-new-badge')).toBeInTheDocument();
+
+    // The Discard button has aria-label = t('autoItemize.discardInlineDraft')
+    const discardBtn = screen.getByRole('button', { name: /autoItemize.discardInlineDraft/i });
+    expect(discardBtn).toBeInTheDocument();
+    fireEvent.click(discardBtn);
     expect(onClearAssign).toHaveBeenCalledWith('row-1');
   });
 
@@ -556,7 +563,9 @@ describe('AutoItemizeLineCard', () => {
         categories: categoriesWithTranslationKey,
         budgetSources,
         createdFromExtractionVariants,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         t: t as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         tSettings: tSettings as any,
       }),
     );

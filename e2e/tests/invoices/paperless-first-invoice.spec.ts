@@ -28,6 +28,7 @@
  *   12. Page-level error banner on commit 500 (page stays in ready state)
  *   13. Two-column layout at desktop viewport (formColumn + previewColumn side by side)
  *   14. @responsive Stacked layout at mobile viewport (previewColumn after formColumn)
+ *   15. Hide-linked filter actually hides documents whose IDs are returned by linked-ids API
  *
  * Mocking strategy:
  *   - GET /api/paperless/status → configured+reachable (mocked)
@@ -170,7 +171,7 @@ async function mockPaperlessConfigured(page: Page): Promise<void> {
 }
 
 /** Intercept GET /api/paperless/status to return not-configured. */
-async function mockPaperlessNotConfigured(page: Page): Promise<void> {
+async function _mockPaperlessNotConfigured(page: Page): Promise<void> {
   await page.route('**/api/paperless/status', async (route: Route) => {
     await route.fulfill({
       status: 200,
@@ -226,6 +227,23 @@ async function mockTags(page: Page): Promise<void> {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ tags: [] }),
+    });
+  });
+}
+
+/**
+ * Intercept GET /api/document-links/linked-ids.
+ * InvoicePaperlessPickerModal fetches this endpoint on mount via useAllLinkedDocumentIds
+ * to populate the linkedDocumentIds prop on DocumentBrowser so already-linked documents
+ * can be filtered when the hide-linked toggle is ON.
+ * Must be registered BEFORE clickNewInvoice() to avoid an unmocked request firing on mount.
+ */
+async function mockLinkedIds(page: Page, ids: number[]): Promise<void> {
+  await page.route('**/api/document-links/linked-ids', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ paperlessDocumentIds: ids }),
     });
   });
 }
@@ -600,6 +618,9 @@ test.describe('Scenario 5 — Hide-linked toggle defaults ON in picker modal', (
     await mockCorrespondents(page);
     await mockDocuments(page);
     await mockTags(page);
+    // InvoicePaperlessPickerModal now fetches linked-ids on mount (Issue #1739 fix).
+    // Register before clickNewInvoice() to prevent an unmocked request causing a console error.
+    await mockLinkedIds(page, []);
 
     const invoicesPage = new InvoicesPage(page);
     await invoicesPage.goto();
@@ -1212,3 +1233,60 @@ test.describe(
     });
   },
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 15 — Hide-linked filter hides documents returned by linked-ids API
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 15 — Hide-linked filter uses linked-ids API (Issue #1739)', () => {
+  test('When hide-linked is ON and linked-ids API returns IDs, those documents are hidden; disabling the toggle reveals them', async ({
+    page,
+  }) => {
+    // Register standard Paperless mocks — all must be in place before clickNewInvoice()
+    await mockPaperlessConfigured(page);
+    await mockConfig(page, true);
+    await mockCorrespondents(page);
+    await mockTags(page);
+
+    // MOCK_DOC_1 is already linked system-wide; MOCK_DOC_2 is not.
+    // Register BEFORE clickNewInvoice() so the on-mount fetch is intercepted.
+    await mockLinkedIds(page, [MOCK_DOC_1.id]);
+
+    // Both documents are returned by the Paperless documents endpoint
+    await page.route('**/paperless/documents**', async (route: Route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_DOCUMENTS_ALL),
+      });
+    });
+
+    const invoicesPage = new InvoicesPage(page);
+    await invoicesPage.goto();
+    await invoicesPage.waitForLoaded();
+
+    await invoicesPage.clickNewInvoice();
+    const pickerModal = await invoicesPage.waitForPickerModal();
+
+    // Wait for the document grid to finish both async loading stages
+    await pickerModal.waitForDocumentsLoaded();
+
+    // The hide-linked toggle is ON by default (defaultHideLinked=true in InvoicePaperlessPickerModal)
+    await expect(pickerModal.hideLinkedToggle).toBeChecked();
+
+    // MOCK_DOC_1 is in the linked-ids list → hidden when toggle is ON
+    await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).not.toBeVisible();
+
+    // MOCK_DOC_2 is not linked → visible
+    await expect(pickerModal.getDocumentCard(MOCK_DOC_2.title)).toBeVisible();
+
+    // Disable the hide-linked toggle
+    await pickerModal.hideLinkedToggle.click();
+    await expect(pickerModal.hideLinkedToggle).not.toBeChecked();
+
+    // After disabling, MOCK_DOC_1 should now be visible
+    await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).toBeVisible();
+    // MOCK_DOC_2 remains visible
+    await expect(pickerModal.getDocumentCard(MOCK_DOC_2.title)).toBeVisible();
+  });
+});

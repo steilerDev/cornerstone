@@ -955,6 +955,329 @@ test.describe('"Add" dropdown (Scenario 12)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Scenario 13: Add dropdown — Diary Entry and Invoice shortcuts (#1735)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Full summary shape expected by InvoicesPage — the existing mockInvoices() helper omits
+ * the quotation and overdue buckets that the page accesses (summary.overdue.count etc.).
+ * We define a richer mock inline here to avoid modifying the shared helper.
+ */
+function mockInvoicesFullSummary() {
+  return {
+    invoices: [],
+    pagination: { total: 0, page: 1, pageSize: 10, totalPages: 0 },
+    summary: {
+      pending: { count: 0, totalAmount: 0 },
+      paid: { count: 0, totalAmount: 0 },
+      claimed: { count: 0, totalAmount: 0 },
+      quotation: { count: 0, totalAmount: 0 },
+      overdue: { count: 0, totalAmount: 0 },
+    },
+  };
+}
+
+/**
+ * Intercepts the three APIs that InvoicesPage fetches on mount so the page renders
+ * cleanly in scenarios 13c–13f without interference from live test data.
+ * NOTE: @smoke omitted — requires Story #1735 implementation to be in beta. Re-add after merge.
+ */
+async function interceptInvoicesPageApis(page: InstanceType<typeof DashboardPage>['page']) {
+  await page.route('**/api/paperless/status', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      }),
+    });
+  });
+  await page.route('**/api/config', async (route) => {
+    try {
+      const realResp = await route.fetch();
+      const realBody = (await realResp.json()) as Record<string, unknown>;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...realBody, autoItemizeEnabled: false }),
+      });
+    } catch {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled: false }),
+      });
+    }
+  });
+  await page.route('**/api/invoices*', async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockInvoicesFullSummary()),
+      });
+    } else {
+      await route.continue();
+    }
+  });
+}
+
+async function uninterceptInvoicesPageApis(page: InstanceType<typeof DashboardPage>['page']) {
+  await page.unroute('**/api/paperless/status');
+  await page.unroute('**/api/config');
+  await page.unroute('**/api/invoices*');
+}
+
+test.describe('Add dropdown — Diary Entry and Invoice shortcuts (Scenario 13, #1735)', () => {
+  // Scenario 13a: Add dropdown contains all five items in correct document order
+  test('Add dropdown contains all five items in correct document order', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await dashboardPage.openAddDropdown();
+
+      // Collect all menu items from the Add dropdown menu in DOM order
+      const menuItems = page.getByRole('menu').getByRole('menuitem');
+      await expect(menuItems).toHaveCount(5);
+
+      // Verify each item by data-testid in document order
+      const expectedTestIds = [
+        'dashboard-add-work-item',
+        'dashboard-add-household-item',
+        'dashboard-add-milestone',
+        'dashboard-add-diary-entry',
+        'dashboard-add-invoice',
+      ];
+      for (let i = 0; i < expectedTestIds.length; i++) {
+        await expect(menuItems.nth(i)).toHaveAttribute('data-testid', expectedTestIds[i]);
+      }
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+
+  // Scenario 13b: "New Diary Entry" closes the menu and navigates to /diary/new
+  test('"New Diary Entry" closes the menu and navigates to /diary/new', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await dashboardPage.openAddDropdown();
+      await dashboardPage.addDiaryEntryButton.click();
+
+      // Menu should close and navigate to /diary/new
+      await page.waitForURL(/\/diary\/new/);
+      expect(page.url()).toContain('/diary/new');
+
+      // The diary create page h1 should confirm we actually landed there
+      await expect(page.getByRole('heading', { level: 1, name: 'New Diary Entry' })).toBeVisible();
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+
+  // Scenario 13c: "New Invoice" navigates to /budget/invoices
+  test('"New Invoice" navigates to /budget/invoices', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+    await interceptInvoicesPageApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await dashboardPage.openAddDropdown();
+      await dashboardPage.addInvoiceButton.click();
+
+      await page.waitForURL(/\/budget\/invoices/);
+      expect(page.url()).toContain('/budget/invoices');
+    } finally {
+      await uninterceptDashboardApis(page);
+      await uninterceptInvoicesPageApis(page);
+    }
+  });
+
+  // Scenario 13d: "New Invoice" auto-opens the manual create modal when Paperless is not configured
+  test('"New Invoice" auto-opens manual create modal when Paperless is not configured', async ({
+    page,
+  }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+    await interceptInvoicesPageApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await dashboardPage.openAddDropdown();
+      await dashboardPage.addInvoiceButton.click();
+
+      // Wait for navigation to invoices page
+      await page.waitForURL(/\/budget\/invoices/);
+
+      // The manual create modal should open automatically (triggered by ?create=1)
+      // Modal title is t('invoices.modal.title') = "Add Invoice"
+      const createDialog = page.getByRole('dialog', { name: /Add Invoice/i });
+      await expect(createDialog).toBeVisible();
+
+      // Confirm the Paperless picker modal is NOT present
+      await expect(
+        page.getByRole('dialog', { name: /Select Invoice Document/i }),
+      ).not.toBeVisible();
+    } finally {
+      await uninterceptDashboardApis(page);
+      await uninterceptInvoicesPageApis(page);
+    }
+  });
+
+  // Scenario 13e: after manual create modal opens, URL no longer contains create=1
+  test('After manual create modal opens, URL no longer contains create=1', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+    await interceptInvoicesPageApis(page);
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await dashboardPage.openAddDropdown();
+      await dashboardPage.addInvoiceButton.click();
+
+      await page.waitForURL(/\/budget\/invoices/);
+
+      // Wait for the modal to open — confirms the useEffect fired and called setSearchParams
+      const createDialog = page.getByRole('dialog', { name: /Add Invoice/i });
+      await expect(createDialog).toBeVisible();
+
+      // The URL must no longer contain create=1 (replaced via setSearchParams { replace: true })
+      expect(page.url()).not.toContain('create=1');
+    } finally {
+      await uninterceptDashboardApis(page);
+      await uninterceptInvoicesPageApis(page);
+    }
+  });
+
+  // Scenario 13f: "New Invoice" auto-opens Paperless picker when Paperless configured + auto-itemize enabled
+  test('"New Invoice" auto-opens Paperless picker when Paperless configured and auto-itemize enabled', async ({
+    page,
+  }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page);
+
+    // Override the status/config intercepts for this scenario: Paperless configured + auto-itemize
+    await page.route('**/api/paperless/status', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          configured: true,
+          reachable: true,
+          error: null,
+          paperlessUrl: 'http://paperless.example.com',
+          filterTag: null,
+        }),
+      });
+    });
+    await page.route('**/api/config', async (route) => {
+      try {
+        const realResp = await route.fetch();
+        const realBody = (await realResp.json()) as Record<string, unknown>;
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ ...realBody, autoItemizeEnabled: true }),
+        });
+      } catch {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ currency: 'EUR', autoItemizeEnabled: true }),
+        });
+      }
+    });
+    await page.route('**/api/invoices*', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mockInvoicesFullSummary()),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+    // Paperless picker also fetches correspondents on mount
+    await page.route('**/api/paperless/correspondents*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ correspondents: [] }),
+      });
+    });
+    // Paperless picker fetches documents via DocumentBrowser
+    await page.route('**/api/paperless/documents*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ documents: [], count: 0, next: null, previous: null }),
+      });
+    });
+    // DocumentBrowser also fetches tags in its Phase 2 call
+    await page.route('**/api/paperless/tags*', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ tags: [] }),
+      });
+    });
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      await dashboardPage.openAddDropdown();
+      await dashboardPage.addInvoiceButton.click();
+
+      await page.waitForURL(/\/budget\/invoices/);
+
+      // The Paperless picker modal should open automatically
+      // InvoicePaperlessPickerModal renders inside Modal with title = t('budget:invoices.pickerModal.title')
+      // Check InvoicePaperlessPickerModal title via the modal dialog role
+      const pickerDialog = page.getByRole('dialog', { name: /Select Invoice Document/i });
+      await expect(pickerDialog).toBeVisible();
+
+      // Manual create dialog must NOT be present
+      await expect(page.getByRole('dialog', { name: /Add Invoice/i })).not.toBeVisible();
+    } finally {
+      await uninterceptDashboardApis(page);
+      await page.unroute('**/api/paperless/status');
+      await page.unroute('**/api/config');
+      await page.unroute('**/api/invoices*');
+      await page.unroute('**/api/paperless/correspondents*');
+      await page.unroute('**/api/paperless/documents*');
+      await page.unroute('**/api/paperless/tags*');
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ARIA / Accessibility
 // ─────────────────────────────────────────────────────────────────────────────
 

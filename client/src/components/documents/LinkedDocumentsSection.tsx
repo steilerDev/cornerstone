@@ -61,6 +61,16 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
       unlinkBody: 'invoiceEntity',
       emptyBody: 'invoiceEmpty',
     },
+    budget_source: {
+      pickerSubtitle: 'selectDocumentSubtitle',
+      unlinkBody: 'budgetSourceEntity',
+      emptyBody: 'budgetSourceEmpty',
+    },
+    subsidy_program: {
+      pickerSubtitle: 'selectDocumentSubtitle',
+      unlinkBody: 'subsidyProgramEntity',
+      emptyBody: 'subsidyProgramEmpty',
+    },
   } as const satisfies Record<
     DocumentLinkEntityType,
     { pickerSubtitle: string; unlinkBody: string; emptyBody: string }
@@ -72,7 +82,11 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
       ? t('linkedDocuments.workItemEntity')
       : entityType === 'household_item'
         ? t('linkedDocuments.householdItemEntity')
-        : t('linkedDocuments.invoiceEntity');
+        : entityType === 'invoice'
+          ? t('linkedDocuments.invoiceEntity')
+          : entityType === 'budget_source'
+            ? t('linkedDocuments.budgetSourceEntity')
+            : t('linkedDocuments.subsidyProgramEntity');
 
   // Paperless status state
   const [paperlessStatus, setPaperlessStatus] = useState<Awaited<

@@ -14,7 +14,15 @@ import { randomUUID } from 'node:crypto';
 import { eq, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { documentLinks, users, workItems, invoices, householdItems } from '../db/schema.js';
+import {
+  documentLinks,
+  users,
+  workItems,
+  invoices,
+  householdItems,
+  budgetSources,
+  subsidyPrograms,
+} from '../db/schema.js';
 import { AppError, NotFoundError } from '../errors/AppError.js';
 import type {
   DocumentLink,
@@ -91,6 +99,16 @@ export function createLink(
     const item = db.select().from(householdItems).where(eq(householdItems.id, entityId)).get();
     if (!item) {
       throw new NotFoundError('Household item not found');
+    }
+  } else if (entityType === 'budget_source') {
+    const source = db.select().from(budgetSources).where(eq(budgetSources.id, entityId)).get();
+    if (!source) {
+      throw new NotFoundError('Budget source not found');
+    }
+  } else if (entityType === 'subsidy_program') {
+    const program = db.select().from(subsidyPrograms).where(eq(subsidyPrograms.id, entityId)).get();
+    if (!program) {
+      throw new NotFoundError('Subsidy program not found');
     }
   }
 

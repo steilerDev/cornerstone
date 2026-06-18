@@ -15,6 +15,7 @@
  * - Delete blocked (409) — error shown, confirm button hidden
  * - Responsive layout: no horizontal scroll
  * - Dark mode rendering
+ * - Documents toggle (Story #1744) — toggle visible, expand/collapse, not-configured state
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -792,6 +793,222 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       await subsidyPage.cancelDelete();
     } finally {
       if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Documents toggle (Story #1744)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
+  // NOTE: @smoke tag is intentionally omitted — these tests require the Story #1744
+  // implementation (docs toggle UI) which is not yet merged to beta. Add @smoke
+  // after the implementation PR is merged to beta.
+  test('Documents toggle button is visible in program row header', async ({ page, testPrefix }) => {
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const programName = `${testPrefix} Docs Toggle Program`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 10 });
+
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+
+      // The toggle button should be visible in the program row
+      const toggle = subsidyPage.getDocsToggle(programName);
+      await expect(toggle).toBeVisible();
+
+      // Initial state: not expanded (aria-expanded=false)
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    } finally {
+      if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+
+  test('Clicking docs toggle reveals documents panel with correct role and aria-label', async ({
+    page,
+    testPrefix,
+  }) => {
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const programName = `${testPrefix} Docs Panel Program`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 15 });
+
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+
+      // Panel should NOT be in the DOM before expanding
+      const panel = subsidyPage.getDocsPanelById(createdId);
+      await expect(panel).not.toBeAttached();
+
+      // Click the toggle to expand
+      await subsidyPage.expandProgramDocs(programName);
+
+      // Panel is now in the DOM and visible with correct region attributes
+      await expect(panel).toBeVisible();
+      await expect(panel).toHaveAttribute('role', 'region');
+      await expect(panel).toHaveAttribute('aria-label', `Documents for ${programName}`);
+
+      // Toggle button now shows aria-expanded=true
+      const toggle = subsidyPage.getDocsToggle(programName);
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    } finally {
+      if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+
+  test('Documents panel contains "Documents" heading inside program docs region', async ({
+    page,
+    testPrefix,
+  }) => {
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const programName = `${testPrefix} Docs Heading Program`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 20 });
+
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+      await subsidyPage.expandProgramDocs(programName);
+
+      const panel = subsidyPage.getDocsPanelById(createdId);
+      await expect(panel).toBeVisible();
+
+      // LinkedDocumentsSection renders an h2 "Documents" heading inside the panel
+      const docsHeading = panel.getByRole('heading', { name: 'Documents', exact: true });
+      await expect(docsHeading).toBeVisible();
+    } finally {
+      if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+
+  test('"+ Add Document" button is visible and disabled (Paperless not configured)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const programName = `${testPrefix} Docs AddBtn Program`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 25 });
+
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+      await subsidyPage.expandProgramDocs(programName);
+
+      const panel = subsidyPage.getDocsPanelById(createdId);
+      await expect(panel).toBeVisible();
+
+      // "+ Add Document" button is present but disabled because Paperless is not configured
+      const addButton = panel.getByRole('button', { name: '+ Add Document', exact: true });
+      await expect(addButton).toBeVisible();
+      await expect(addButton).toBeDisabled();
+    } finally {
+      if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+
+  test('"Paperless-ngx is not configured" banner is shown inside documents panel', async ({
+    page,
+    testPrefix,
+  }) => {
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const programName = `${testPrefix} Docs Banner Program`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 30 });
+
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+      await subsidyPage.expandProgramDocs(programName);
+
+      const panel = subsidyPage.getDocsPanelById(createdId);
+      await expect(panel).toBeVisible();
+
+      // Not-configured banner text is visible inside the panel
+      const banner = panel.getByText('Paperless-ngx is not configured');
+      await expect(banner).toBeVisible();
+    } finally {
+      if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+
+  test('Clicking docs toggle again collapses the documents panel', async ({ page, testPrefix }) => {
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const programName = `${testPrefix} Docs Collapse Program`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createProgramViaApi(page, { name: programName, reductionValue: 35 });
+
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+
+      // Expand
+      await subsidyPage.expandProgramDocs(programName);
+      const panel = subsidyPage.getDocsPanelById(createdId);
+      await expect(panel).toBeVisible();
+
+      // Collapse by clicking the toggle again (aria-label changes to "Hide documents for <name>")
+      const toggle = subsidyPage.getDocsToggle(programName);
+      await toggle.click();
+
+      // Panel is removed from DOM (conditional render)
+      await expect(panel).not.toBeAttached();
+
+      // Toggle aria-expanded is false again
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    } finally {
+      if (createdId) await deleteProgramViaApi(page, createdId);
+    }
+  });
+
+  test('Documents toggle is disabled while program is being edited', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Root cause for two-program setup: the docs toggle lives in the DISPLAY branch
+    // of the program row ({editingProgram?.id === program.id ? <form> : <display+toggle>}).
+    // When a program is being edited, its own row shows the edit form (no toggle in DOM).
+    // Only OTHER (non-edited) program rows still render their docs toggle, and those
+    // toggles carry disabled={!!editingProgram}. So we need at least two programs:
+    // one to edit, and one whose disabled toggle we can assert.
+    const subsidyPage = new SubsidyProgramsPage(page);
+    const editTargetName = `${testPrefix} Docs EditDisable Target`;
+    const otherProgramName = `${testPrefix} Docs EditDisable Other`;
+    let editTargetId: string | null = null;
+    let otherProgramId: string | null = null;
+
+    try {
+      editTargetId = await createProgramViaApi(page, { name: editTargetName, reductionValue: 40 });
+      otherProgramId = await createProgramViaApi(page, {
+        name: otherProgramName,
+        reductionValue: 41,
+      });
+
+      await subsidyPage.goto();
+      await subsidyPage.waitForProgramsLoaded();
+
+      // Enter edit mode for the first program
+      await subsidyPage.startEdit(editTargetName);
+
+      // The OTHER (non-edited) program still renders its docs toggle, and it should
+      // be disabled because editingProgram is set. Scope to the exact program ID so
+      // we do not accidentally match the edited row.
+      const otherDocsToggle = page.locator(`[aria-controls="program-docs-${otherProgramId}"]`);
+      await expect(otherDocsToggle).toBeDisabled();
+
+      // Cancel edit to restore state
+      await subsidyPage.cancelEdit(editTargetName);
+    } finally {
+      if (editTargetId) await deleteProgramViaApi(page, editTargetId);
+      if (otherProgramId) await deleteProgramViaApi(page, otherProgramId);
     }
   });
 });

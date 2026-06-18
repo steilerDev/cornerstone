@@ -13,6 +13,7 @@ import {
   budgetCategories,
   vendors,
 } from '../db/schema.js';
+import { deleteLinksForEntity } from './documentLinkService.js';
 import {
   computeStatusContribution,
   splitByDeposits,
@@ -238,7 +239,10 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
     FROM invoices i
     LEFT JOIN invoice_budget_lines ibl ON ibl.invoice_id = i.id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
-    WHERE i.status = ${status}
+    WHERE (
+      i.status = ${status}
+      OR EXISTS (SELECT 1 FROM invoice_deposits d2 WHERE d2.invoice_id = i.id AND d2.status = ${status})
+    )
     GROUP BY i.id, d.id
     HAVING (i.amount - COALESCE(SUM(ibl.itemized_amount), 0)) > 0`,
   );
@@ -679,6 +683,9 @@ export function deleteBudgetSource(db: DbType, id: string): void {
       budgetLineCount,
     });
   }
+
+  // Cascade-delete any document links for this budget source
+  deleteLinksForEntity(db, 'budget_source', id);
 
   // Delete source
   db.delete(budgetSources).where(eq(budgetSources.id, id)).run();

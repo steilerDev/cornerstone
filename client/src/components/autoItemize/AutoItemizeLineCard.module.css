@@ -279,3 +279,9 @@
     transition: none;
   }
 }
+
+.inlineFormWrapper {
+  border-top: 2px solid var(--color-warning);
+  padding-top: var(--spacing-3);
+  margin-top: var(--spacing-2);
+}

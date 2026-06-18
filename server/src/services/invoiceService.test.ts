@@ -765,6 +765,157 @@ describe('Invoice Service', () => {
     });
   });
 
+  // ─── updateInvoice() — vendor reassignment (#1736) ─────────────────────────
+
+  describe('updateInvoice() — vendor reassignment (#1736)', () => {
+    it('happy path: reassign invoice from vendor A to B → returned invoice has vendorId and vendorName of B', () => {
+      const vendorAId = createTestVendor('Vendor Alpha');
+      const vendorBId = createTestVendor('Vendor Beta');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 500 });
+
+      const result = invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+        vendorId: vendorBId,
+      });
+
+      expect(result.vendorId).toBe(vendorBId);
+      expect(result.vendorName).toBe('Vendor Beta');
+    });
+
+    it('reassignment persists: re-fetching via getInvoiceById shows new vendorId', () => {
+      const vendorAId = createTestVendor('Persist Source Vendor');
+      const vendorBId = createTestVendor('Persist Target Vendor');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 600 });
+
+      invoiceService.updateInvoice(db, vendorAId, invoiceId, { vendorId: vendorBId });
+
+      const fetched = invoiceService.getInvoiceById(db, invoiceId);
+      expect(fetched.vendorId).toBe(vendorBId);
+      expect(fetched.vendorName).toBe('Persist Target Vendor');
+    });
+
+    it('after A→B, invoice appears in listInvoices(B) and NOT in listInvoices(A)', () => {
+      const vendorAId = createTestVendor('List Source Vendor');
+      const vendorBId = createTestVendor('List Target Vendor');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 700 });
+
+      invoiceService.updateInvoice(db, vendorAId, invoiceId, { vendorId: vendorBId });
+
+      const listA = invoiceService.listInvoices(db, vendorAId);
+      const listB = invoiceService.listInvoices(db, vendorBId);
+
+      expect(listA.find((inv) => inv.id === invoiceId)).toBeUndefined();
+      expect(listB.find((inv) => inv.id === invoiceId)).toBeDefined();
+    });
+
+    it('linked deposits remain attached to the invoice after vendor reassignment', () => {
+      const vendorAId = createTestVendor('Budget Line Source Vendor');
+      const vendorBId = createTestVendor('Budget Line Target Vendor');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 800 });
+
+      // invoice_budget_lines has a CHECK constraint requiring exactly one FK non-null,
+      // so we use invoice_deposits (no such constraint) to test linked-data survival.
+      const depositId = `dep-${Date.now()}`;
+      const now = new Date().toISOString();
+      sqlite
+        .prepare(
+          'INSERT INTO invoice_deposits (id, invoice_id, amount, due_date, paid_date, claimed_date, description, status, created_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        )
+        .run(depositId, invoiceId, 250, '2026-03-01', null, null, null, 'pending', null, now, now);
+
+      invoiceService.updateInvoice(db, vendorAId, invoiceId, { vendorId: vendorBId });
+
+      const row = sqlite.prepare('SELECT * FROM invoice_deposits WHERE id = ?').get(depositId) as
+        | { invoice_id: string }
+        | undefined;
+      expect(row).toBeDefined();
+      expect(row!.invoice_id).toBe(invoiceId);
+    });
+
+    it('target vendor does not exist → throws NotFoundError and invoice is unchanged', () => {
+      const vendorAId = createTestVendor('Unchanged Source Vendor');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 1000, status: 'pending' });
+
+      expect(() => {
+        invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+          vendorId: 'non-existent-vendor-id',
+          amount: 9999,
+        });
+      }).toThrow(NotFoundError);
+      expect(() => {
+        invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+          vendorId: 'non-existent-vendor-id',
+        });
+      }).toThrow(/vendor not found/i);
+
+      const fetched = invoiceService.getInvoiceById(db, invoiceId);
+      expect(fetched.vendorId).toBe(vendorAId);
+      expect(fetched.amount).toBe(1000);
+    });
+
+    it('vendorId omitted → vendor unchanged; other updated fields (amount) still apply', () => {
+      const vendorId = createTestVendor('Backward Compat Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 500 });
+
+      const result = invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 750 });
+
+      expect(result.vendorId).toBe(vendorId);
+      expect(result.amount).toBe(750);
+    });
+
+    it('vendorId equal to current vendor → no-op for vendor, other fields apply', () => {
+      const vendorId = createTestVendor('Same Vendor No-Op');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 300 });
+
+      const result = invoiceService.updateInvoice(db, vendorId, invoiceId, {
+        vendorId,
+        amount: 450,
+      });
+
+      expect(result.vendorId).toBe(vendorId);
+      expect(result.amount).toBe(450);
+    });
+
+    it('reassigning while also updating amount and status applies all changes atomically', () => {
+      const vendorAId = createTestVendor('Atomic Source Vendor');
+      const vendorBId = createTestVendor('Atomic Target Vendor');
+      const invoiceId = insertRawInvoice(vendorAId, {
+        amount: 100,
+        status: 'pending',
+        notes: 'original',
+      });
+
+      const result = invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+        vendorId: vendorBId,
+        amount: 9999,
+        status: 'paid',
+      });
+
+      expect(result.vendorId).toBe(vendorBId);
+      expect(result.vendorName).toBe('Atomic Target Vendor');
+      expect(result.amount).toBe(9999);
+      expect(result.status).toBe('paid');
+      expect(result.notes).toBe('original');
+    });
+
+    it('validation ordering: invalid target vendor leaves invoice fully unchanged', () => {
+      const vendorAId = createTestVendor('Ordering Source Vendor');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 500, status: 'pending' });
+
+      expect(() => {
+        invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+          vendorId: 'non-existent-vendor-xyz',
+          amount: 1234,
+          status: 'paid',
+        });
+      }).toThrow(NotFoundError);
+
+      const fetched = invoiceService.getInvoiceById(db, invoiceId);
+      expect(fetched.vendorId).toBe(vendorAId);
+      expect(fetched.amount).toBe(500);
+      expect(fetched.status).toBe('pending');
+    });
+  });
+
   // ─── listAllInvoices() ──────────────────────────────────────────────────────
 
   describe('listAllInvoices()', () => {
@@ -1482,6 +1633,173 @@ describe('Invoice Service', () => {
       expect(listed!.deposits).toHaveLength(0);
       // List intentionally sets finalPaymentAmount = row.amount without computing
       expect(listed!.finalPaymentAmount).toBe(800);
+    });
+  });
+
+  // ─── updateInvoice() — vendor reassignment (#1736) ──────────────────────────
+
+  describe('updateInvoice() — vendor reassignment (#1736)', () => {
+    it('happy path: reassign invoice from vendor A to vendor B → returned invoice reflects new vendorId and vendorName', () => {
+      const vendorAId = createTestVendor('Vendor Alpha');
+      const vendorBId = createTestVendor('Vendor Beta');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 500 });
+
+      const result = invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+        vendorId: vendorBId,
+      });
+
+      expect(result.vendorId).toBe(vendorBId);
+      expect(result.vendorName).toBe('Vendor Beta');
+    });
+
+    it('reassignment persists: re-fetching the invoice after A→B shows vendorId = B', () => {
+      const vendorAId = createTestVendor('Reassign Persist A');
+      const vendorBId = createTestVendor('Reassign Persist B');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 300 });
+
+      invoiceService.updateInvoice(db, vendorAId, invoiceId, { vendorId: vendorBId });
+
+      const refetched = invoiceService.getInvoiceById(db, invoiceId);
+      expect(refetched.vendorId).toBe(vendorBId);
+      expect(refetched.vendorName).toBe('Reassign Persist B');
+    });
+
+    it('after A→B, invoice appears under B list and NOT under A list', () => {
+      const vendorAId = createTestVendor('Move From A');
+      const vendorBId = createTestVendor('Move To B');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 700 });
+
+      invoiceService.updateInvoice(db, vendorAId, invoiceId, { vendorId: vendorBId });
+
+      const listA = invoiceService.listInvoices(db, vendorAId);
+      const listB = invoiceService.listInvoices(db, vendorBId);
+
+      expect(listA.find((inv) => inv.id === invoiceId)).toBeUndefined();
+      expect(listB.find((inv) => inv.id === invoiceId)).toBeDefined();
+    });
+
+    it('linked deposits remain attached to invoice after vendor reassignment', () => {
+      const vendorAId = createTestVendor('Deposit Vendor A');
+      const vendorBId = createTestVendor('Deposit Vendor B');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 1000 });
+
+      // Insert a raw invoice_deposits row to verify related rows survive reassignment.
+      // invoice_budget_lines has a CHECK constraint requiring exactly one budget FK to be
+      // non-null, so we use invoice_deposits (no such constraint) for this linked-data test.
+      const depositId = `dep-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const now = new Date().toISOString();
+      sqlite
+        .prepare(
+          `INSERT INTO invoice_deposits
+           (id, invoice_id, amount, due_date, paid_date, claimed_date, description, status, created_by, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(depositId, invoiceId, 200, '2026-03-01', null, null, null, 'pending', null, now, now);
+
+      // Reassign to vendor B
+      invoiceService.updateInvoice(db, vendorAId, invoiceId, { vendorId: vendorBId });
+
+      // Deposit must still exist and be linked to the same invoice
+      const row = sqlite.prepare('SELECT * FROM invoice_deposits WHERE id = ?').get(depositId) as
+        | { invoice_id: string }
+        | undefined;
+
+      expect(row).toBeDefined();
+      expect(row!.invoice_id).toBe(invoiceId);
+
+      // getInvoiceById must show the reassigned vendorId and still include the deposit
+      const refetched = invoiceService.getInvoiceById(db, invoiceId);
+      expect(refetched.vendorId).toBe(vendorBId);
+      expect(refetched.deposits).toHaveLength(1);
+    });
+
+    it('target vendor does not exist → throws NotFoundError and invoice is UNCHANGED', () => {
+      const vendorAId = createTestVendor('Unchanged Vendor A');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 999 });
+
+      expect(() => {
+        invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+          vendorId: 'non-existent-target-vendor',
+        });
+      }).toThrow(NotFoundError);
+      expect(() => {
+        invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+          vendorId: 'non-existent-target-vendor',
+        });
+      }).toThrow(/vendor not found/i);
+
+      // Invoice must be unchanged — still belongs to vendor A, amount untouched
+      const refetched = invoiceService.getInvoiceById(db, invoiceId);
+      expect(refetched.vendorId).toBe(vendorAId);
+      expect(refetched.amount).toBe(999);
+    });
+
+    it('vendorId omitted → vendor unchanged; other updated fields still apply', () => {
+      const vendorAId = createTestVendor('Vendor Unchanged A');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 100, status: 'pending' });
+
+      const result = invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+        amount: 200,
+        status: 'paid',
+      });
+
+      expect(result.vendorId).toBe(vendorAId);
+      expect(result.amount).toBe(200);
+      expect(result.status).toBe('paid');
+    });
+
+    it('vendorId equal to current vendor → succeeds, vendor unchanged, other fields updated', () => {
+      const vendorAId = createTestVendor('Same Vendor No-Op');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 400, notes: 'original' });
+
+      const result = invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+        vendorId: vendorAId, // same vendor — no-op for vendor
+        notes: 'updated',
+      });
+
+      expect(result.vendorId).toBe(vendorAId);
+      expect(result.notes).toBe('updated');
+    });
+
+    it('reassigning while also updating amount and status → all applied atomically', () => {
+      const vendorAId = createTestVendor('Atomic Reassign A');
+      const vendorBId = createTestVendor('Atomic Reassign B');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 500, status: 'pending' });
+
+      const result = invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+        vendorId: vendorBId,
+        amount: 750,
+        status: 'paid',
+      });
+
+      expect(result.vendorId).toBe(vendorBId);
+      expect(result.vendorName).toBe('Atomic Reassign B');
+      expect(result.amount).toBe(750);
+      expect(result.status).toBe('paid');
+
+      // Confirm all changes persisted
+      const refetched = invoiceService.getInvoiceById(db, invoiceId);
+      expect(refetched.vendorId).toBe(vendorBId);
+      expect(refetched.amount).toBe(750);
+      expect(refetched.status).toBe('paid');
+    });
+
+    it('invalid target vendor leaves invoice fully unchanged (amount also untouched)', () => {
+      const vendorAId = createTestVendor('Rollback Check A');
+      const invoiceId = insertRawInvoice(vendorAId, { amount: 1234, status: 'pending' });
+
+      // Attempt update with invalid target vendor — should throw before touching anything
+      expect(() => {
+        invoiceService.updateInvoice(db, vendorAId, invoiceId, {
+          vendorId: 'ghost-vendor-id',
+        });
+      }).toThrow(NotFoundError);
+
+      // Invoice is completely unchanged
+      const refetched = invoiceService.getInvoiceById(db, invoiceId);
+      expect(refetched.vendorId).toBe(vendorAId);
+      expect(refetched.amount).toBe(1234);
+      expect(refetched.status).toBe('pending');
     });
   });
 });

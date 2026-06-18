@@ -219,6 +219,13 @@
         "successToast_other": "Moved {{count}} lines to {{targetName}}",
         "genericError": "Failed to move lines. Please try again."
       }
+    },
+    "docs": {
+      "expand": "Show documents",
+      "collapse": "Hide documents",
+      "expandAriaLabel": "Show documents for {{name}}",
+      "collapseAriaLabel": "Hide documents for {{name}}",
+      "panelAriaLabel": "Documents for {{name}}"
     }
   },
   "vendors": {
@@ -571,12 +578,15 @@
       "notes": "Notes",
       "required": "*",
       "placeholders": {
-        "invoiceNumber": "e.g., INV-001"
-      }
+        "invoiceNumber": "e.g., INV-001",
+        "vendor": "Search vendors…"
+      },
+      "noVendorsFound": "No vendors found"
     },
     "validation": {
       "amountRequired": "Amount must be a positive number.",
-      "dateRequired": "Invoice date is required."
+      "dateRequired": "Invoice date is required.",
+      "vendorRequired": "Please select a vendor"
     },
     "buttons": {
       "edit": "Edit",
@@ -601,7 +611,8 @@
     },
     "messages": {
       "updateError": "Failed to update invoice. Please try again.",
-      "deleteError": "Failed to delete invoice. Please try again."
+      "deleteError": "Failed to delete invoice. Please try again.",
+      "vendorNotFound": "The selected vendor could not be found"
     },
     "budgetLines": {
       "createFormLegend": "Create new budget line",
@@ -840,6 +851,13 @@
       "created": "Subsidy program \"{{name}}\" created successfully",
       "updated": "Subsidy program \"{{name}}\" updated successfully",
       "deleted": "Subsidy program \"{{name}}\" deleted successfully"
+    },
+    "docs": {
+      "expand": "Show documents",
+      "collapse": "Hide documents",
+      "expandAriaLabel": "Show documents for {{name}}",
+      "collapseAriaLabel": "Hide documents for {{name}}",
+      "panelAriaLabel": "Documents for {{name}}"
     }
   },
   "budgetLineForm": {
@@ -974,7 +992,14 @@
     "extractionComplete": "Extraction complete. Please review the suggested line items.",
     "lineItems": "Line Items",
     "noLineItems": "No line items extracted",
-    "backToInvoices": "Back to Invoices"
+    "backToInvoices": "Back to Invoices",
+    "creatingNewBadge": "Creating New",
+    "inlineFormLabel": "New budget line details",
+    "discardInlineDraft": "Discard",
+    "inlineDraftInvalid": "Invalid amount in queued budget line. Please fix before saving.",
+    "inlineDraftCreateFailed": "Failed to create budget line. Please try again.",
+    "inlineDraftLinkFailed": "Failed to link budget line to invoice.",
+    "inlineDraftPartialFailure": "Budget line was created but could not be linked: {{error}}. Please review and link manually."
   },
   "common": {
     "loading": "Loading...",

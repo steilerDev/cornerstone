@@ -637,7 +637,7 @@ export const documentLinks = sqliteTable(
   {
     id: text('id').primaryKey(),
     entityType: text('entity_type', {
-      enum: ['work_item', 'household_item', 'invoice'],
+      enum: ['work_item', 'household_item', 'invoice', 'budget_source', 'subsidy_program'],
     }).notNull(),
     entityId: text('entity_id').notNull(),
     paperlessDocumentId: integer('paperless_document_id').notNull(),

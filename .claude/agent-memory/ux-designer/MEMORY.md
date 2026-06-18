@@ -2,6 +2,17 @@
 
 > This file is loaded into the ux-designer agent's system prompt. Keep it under 200 lines.
 
+## Story #1736 — Invoice Vendor Change (spec posted)
+
+- Vendor picker in invoice edit modal: `SearchPicker<Vendor>` with `showItemsOnFocus`, `initialTitle={editForm.vendorName}`, `id="edit-vendor"` for label association
+- `searchFn`: `fetchVendors({ q: query, pageSize: 50 })` returning `res.vendors`
+- `InvoiceFormState` extension: add `vendorId: string` + `vendorName: string`; `openEditModal` pre-fills both from `invoice.vendorId` / `invoice.vendorName`
+- Field position: NEW full-width `.field` between "Invoice Number/Amount" row and "Invoice Date/Due Date" row
+- Vendor field is **required** — label gets `.required` asterisk; `FormError variant="field"` below picker for empty-submit validation
+- API 404 on vendor change: surface via existing `editError` banner path, key `invoiceDetail.messages.vendorNotFound`
+- `SearchPicker.selectedDisplay` min-height is `2.5rem` (40px) — 4px below 44px touch target; flag as refinement item across all SearchPicker usages, not blocking for this story
+- Established vendor SearchPicker reference: `DiaryEntryForm` daily_log branch (lines 354–373)
+
 ## Design System
 
 - Token source: `client/src/styles/tokens.css` (3-layer: palette -> semantic -> dark mode)
@@ -173,6 +184,13 @@ See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `rol
 - Top-level areas (no parentId) render `null` from `renderSecondary` → single-line row layout (no empty secondary span).
 - WCAG AA contrast verified: `--color-text-muted` on `--color-bg-primary`: 4.6:1 light, 5.0:1 dark, 4.5:1 hover (boundary). All pass.
 - `PhotoMetadataSidepanel` uses a raw `SearchPicker<AreaResponse>` (no indentation, no ancestors) — must be switched to `AreaPicker` for AC-1 consistency. This is the core bug driving the story.
+
+## FormError / SearchPicker A11y Gap (pre-existing, tracked)
+
+- `FormError variant="field"` renders `<div>` with NO `role="alert"` — only `variant="banner"` gets it
+- `SearchPicker` has no `aria-invalid` prop — cannot signal validation state to screen readers
+- Both are pre-existing gaps, consistent across `InvoiceLinkModal`, `PaperlessInvoiceReviewPage`, `InvoiceDetailPage`
+- When reviewing PRs using `variant="field"` without `role="alert"`, do NOT request changes — it is the established pattern; flag as pre-existing and recommend a shared-component refinement item
 
 ## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
 

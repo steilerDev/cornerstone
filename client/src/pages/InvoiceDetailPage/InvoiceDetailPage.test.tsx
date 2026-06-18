@@ -2,10 +2,11 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import type { Invoice } from '@cornerstone/shared';
+import type { Invoice, Vendor } from '@cornerstone/shared';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
 
 // ─── Module-scope mock functions ──────────────────────────────────────────────
@@ -13,6 +14,10 @@ import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
 const mockFetchInvoiceById = jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>();
 const mockUpdateInvoice = jest.fn<typeof InvoicesApiTypes.updateInvoice>();
 const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+
+/** Captures the SearchPicker onChange handler so tests can simulate vendor selection */
+let capturedSearchPickerOnChange: ((id: string) => void) | null = null;
 
 // ─── Mock: invoicesApi ─────────────────────────────────────────────────────────
 
@@ -93,6 +98,46 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
   }),
 }));
 
+// ─── Mock: vendorsApi (used transitively by SearchPicker in edit modal) ────────
+
+jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+  fetchVendorById: jest.fn(),
+  createVendor: jest.fn(),
+  updateVendor: jest.fn(),
+  deleteVendor: jest.fn(),
+}));
+
+// ─── Mock: SearchPicker (#1736) ───────────────────────────────────────────────
+// The real SearchPicker requires floating-ui portal and getBoundingClientRect
+// which are problematic in jsdom. Stub it with a simple element that captures
+// the onChange handler so tests can simulate vendor selection.
+
+jest.unstable_mockModule('../../components/SearchPicker/SearchPicker.js', () => ({
+  SearchPicker: ({
+    onChange,
+    initialTitle,
+    id,
+  }: {
+    value: string;
+    onChange: (id: string) => void;
+    initialTitle?: string;
+    id?: string;
+    [key: string]: unknown;
+  }) => {
+    capturedSearchPickerOnChange = onChange;
+    return (
+      <div data-testid={`search-picker-${id ?? 'default'}`} data-initial-title={initialTitle}>
+        <span data-testid="search-picker-title">{initialTitle ?? ''}</span>
+        <input
+          data-testid={`search-picker-input-${id ?? 'default'}`}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  },
+}));
+
 // ─── Type import for deferred module load ─────────────────────────────────────
 
 let InvoiceDetailPage: (typeof InvoiceDetailPageTypes)['InvoiceDetailPage'];
@@ -130,9 +175,15 @@ beforeEach(async () => {
   mockFetchInvoiceById.mockReset();
   mockUpdateInvoice.mockReset();
   mockDeleteInvoice.mockReset();
+  mockFetchVendors.mockReset();
 
   // Default: successful load
   mockFetchInvoiceById.mockResolvedValue(mockInvoice);
+  // Default: empty vendor list (vendor search not exercised by most tests)
+  mockFetchVendors.mockResolvedValue({
+    vendors: [] as Vendor[],
+    pagination: { page: 1, pageSize: 50, totalItems: 0, totalPages: 0 },
+  });
 
   // Deferred import after mock registration
   const module = (await import('./InvoiceDetailPage.js')) as typeof InvoiceDetailPageTypes;
@@ -336,6 +387,135 @@ describe('InvoiceDetailPage', () => {
       );
 
       expect(screen.queryByText('— or —')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('vendor SearchPicker in edit modal (#1736)', () => {
+    beforeEach(() => {
+      capturedSearchPickerOnChange = null;
+    });
+
+    it('edit modal renders vendor SearchPicker pre-populated with current vendor name', async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+
+      screen.getByRole('button', { name: /^Edit$/i }).click();
+
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
+      );
+
+      const picker = screen.getByTestId('search-picker-edit-vendor');
+      expect(picker).toHaveAttribute('data-initial-title', 'Acme Construction');
+    });
+
+    it('selecting a different vendor and submitting sends PATCH with new vendorId while path uses original', async () => {
+      mockUpdateInvoice.mockResolvedValue({
+        ...mockInvoice,
+        vendorId: 'vendor-2',
+        vendorName: 'Builder Co',
+      });
+
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+
+      screen.getByRole('button', { name: /^Edit$/i }).click();
+
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
+      );
+
+      // Simulate selecting a different vendor
+      await act(async () => {
+        capturedSearchPickerOnChange?.('vendor-2');
+      });
+
+      // Submit the form
+      const saveButton = screen.getByRole('button', { name: /^Save Changes$/i });
+      await act(async () => {
+        fireEvent.click(saveButton);
+      });
+
+      await waitFor(() => expect(mockUpdateInvoice).toHaveBeenCalledTimes(1));
+
+      const [pathVendorId, invoiceId, body] = mockUpdateInvoice.mock.calls[0] as [
+        string,
+        string,
+        Record<string, unknown>,
+      ];
+      expect(pathVendorId).toBe('vendor-1');
+      expect(invoiceId).toBe(MOCK_INVOICE_ID);
+      expect(body.vendorId).toBe('vendor-2');
+    });
+
+    it('submitting with vendor cleared shows vendorRequired error and does not call updateInvoice', async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+
+      screen.getByRole('button', { name: /^Edit$/i }).click();
+
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
+      );
+
+      // Clear the vendor selection
+      await act(async () => {
+        capturedSearchPickerOnChange?.('');
+      });
+
+      // Submit the form
+      const saveButton = screen.getByRole('button', { name: /^Save Changes$/i });
+      await act(async () => {
+        fireEvent.click(saveButton);
+      });
+
+      await waitFor(() => expect(screen.getByText('Please select a vendor')).toBeInTheDocument());
+
+      expect(mockUpdateInvoice).not.toHaveBeenCalled();
+    });
+
+    it('404 response from updateInvoice surfaces vendorNotFound error without navigating away', async () => {
+      mockUpdateInvoice.mockRejectedValue(
+        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Vendor not found' }),
+      );
+
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+
+      screen.getByRole('button', { name: /^Edit$/i }).click();
+
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
+      );
+
+      // Submit with default pre-populated vendor (vendor-1 is valid)
+      const saveButton = screen.getByRole('button', { name: /^Save Changes$/i });
+      await act(async () => {
+        fireEvent.click(saveButton);
+      });
+
+      await waitFor(() =>
+        expect(screen.getByText('The selected vendor could not be found')).toBeInTheDocument(),
+      );
+
+      // Modal should still be open
+      expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
     });
   });
 });

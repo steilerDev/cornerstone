@@ -141,6 +141,48 @@ describe('Document Links Routes', () => {
   }
 
   /**
+   * Create a budget source via the API and return its ID.
+   */
+  async function createBudgetSource(cookie: string, name = 'Test Budget Source'): Promise<string> {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/budget-sources',
+      headers: { cookie, 'content-type': 'application/json' },
+      payload: JSON.stringify({
+        name,
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+        status: 'active',
+      }),
+    });
+    expect(response.statusCode).toBe(201);
+    return response.json<{ budgetSource: { id: string } }>().budgetSource.id;
+  }
+
+  /**
+   * Create a subsidy program via the API and return its ID.
+   */
+  async function createSubsidyProgram(
+    cookie: string,
+    name = 'Test Subsidy Program',
+  ): Promise<string> {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/subsidy-programs',
+      headers: { cookie, 'content-type': 'application/json' },
+      payload: JSON.stringify({
+        name,
+        reductionType: 'percentage',
+        reductionValue: 10,
+        applicationStatus: 'eligible',
+        categoryIds: [],
+      }),
+    });
+    expect(response.statusCode).toBe(201);
+    return response.json<{ subsidyProgram: { id: string } }>().subsidyProgram.id;
+  }
+
+  /**
    * Create a vendor + invoice and return the invoice ID.
    */
   async function createVendorAndInvoice(cookie: string): Promise<string> {
@@ -391,6 +433,86 @@ describe('Document Links Routes', () => {
 
       expect(response.statusCode).toBe(400);
     });
+
+    it('POST with entityType=budget_source passes schema validation (not 400) and creates link', async () => {
+      const { cookie } = await createUserWithSession();
+      const sourceId = await createBudgetSource(cookie);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'budget_source',
+          entityId: sourceId,
+          paperlessDocumentId: 42,
+        }),
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ documentLink: { entityType: string; entityId: string } }>();
+      expect(body.documentLink.entityType).toBe('budget_source');
+      expect(body.documentLink.entityId).toBe(sourceId);
+    });
+
+    it('POST with entityType=subsidy_program passes schema validation (not 400) and creates link', async () => {
+      const { cookie } = await createUserWithSession();
+      const programId = await createSubsidyProgram(cookie);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'subsidy_program',
+          entityId: programId,
+          paperlessDocumentId: 77,
+        }),
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ documentLink: { entityType: string; entityId: string } }>();
+      expect(body.documentLink.entityType).toBe('subsidy_program');
+      expect(body.documentLink.entityId).toBe(programId);
+    });
+
+    it('POST with entityType=budget_source and non-existent entityId returns 404', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'budget_source',
+          entityId: 'non-existent-id',
+          paperlessDocumentId: 42,
+        }),
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('POST with entityType=subsidy_program and non-existent entityId returns 404', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'subsidy_program',
+          entityId: 'non-existent-id',
+          paperlessDocumentId: 42,
+        }),
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('NOT_FOUND');
+    });
   });
 
   // ─── GET /api/document-links ───────────────────────────────────────────────
@@ -583,6 +705,36 @@ describe('Document Links Routes', () => {
       const body = response.json<DocumentLinkListResponse>();
       expect(body.documentLinks).toHaveLength(1);
       expect(body.documentLinks[0]!.entityType).toBe('invoice');
+    });
+
+    it('GET ?entityType=budget_source passes schema validation (not 400) and returns 200', async () => {
+      const { cookie } = await createUserWithSession('bs-get@example.com');
+      const sourceId = await createBudgetSource(cookie);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/document-links?entityType=budget_source&entityId=${sourceId}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<DocumentLinkListResponse>();
+      expect(body.documentLinks).toEqual([]);
+    });
+
+    it('GET ?entityType=subsidy_program passes schema validation (not 400) and returns 200', async () => {
+      const { cookie } = await createUserWithSession('sp-get@example.com');
+      const programId = await createSubsidyProgram(cookie);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/document-links?entityType=subsidy_program&entityId=${programId}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<DocumentLinkListResponse>();
+      expect(body.documentLinks).toEqual([]);
     });
   });
 

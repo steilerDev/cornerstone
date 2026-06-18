@@ -17,7 +17,12 @@ import type { PaginationMeta } from './pagination.js';
 /**
  * Entity types that can be linked to Paperless-ngx documents.
  */
-export type DocumentLinkEntityType = 'work_item' | 'household_item' | 'invoice';
+export type DocumentLinkEntityType =
+  | 'work_item'
+  | 'household_item'
+  | 'invoice'
+  | 'budget_source'
+  | 'subsidy_program';
 
 // ─── Paperless-ngx Proxy Types ───────────────────────────────────────────────
 
