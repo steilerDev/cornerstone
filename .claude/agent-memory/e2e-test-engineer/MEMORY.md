@@ -3,12 +3,17 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`, `searchpicker-mobile-1708.md`
 
-## InvoicePaperlessPickerModal linked-ids mock (Issue #1739, 2026-06-17) — `e2e/tests/invoices/paperless-first-invoice.spec.ts`
+## Invoice Vendor Reassignment E2E (Story #1736, 2026-06-17) — `e2e/tests/invoices/invoice-vendor-change.spec.ts`, `e2e/pages/InvoiceDetailPage.ts`
 
-- `InvoicePaperlessPickerModal` now fetches `GET /api/document-links/linked-ids` on mount via `useAllLinkedDocumentIds`. Must mock `**/api/document-links/linked-ids` BEFORE `clickNewInvoice()` in ALL tests that open this modal, or an unmocked request fires and console errors appear.
-- `mockLinkedIds(page, ids)` returns `{ paperlessDocumentIds: ids }` (200). Pass `[]` when no docs linked. Pass `[MOCK_DOC_1.id]` to make MOCK_DOC_1 filtered out when toggle is ON.
-- Scenario 5 updated to add `await mockLinkedIds(page, [])`. Scenario 15 (new) validates the filter actually hides cards: toggle ON → DOC_1 hidden, DOC_2 visible; toggle OFF → both visible.
-- Pre-existing unused `mockPaperlessNotConfigured` function renamed to `_mockPaperlessNotConfigured` to satisfy `@typescript-eslint/no-unused-vars` (was pre-existing error on beta).
+- 6 scenarios, all tagged `@responsive`. No `@smoke` — feature not yet in beta.
+- **SearchPicker in edit modal pre-populated state**: When `initialTitle` + `value` both set, renders `[class*="selectedDisplay"]` (chip) NOT the `<input id="edit-vendor">`. Input only appears after clicking the clear button (×).
+- **POM locators**: `editVendorSelectedDisplay` = `this.editModal.locator('[class*="selectedDisplay"]')` (scoped to modal avoids conflicts). `editVendorInput` = `page.locator('#edit-vendor')` (page-scoped). `editVendorError` = `this.editModal.locator('label[for="edit-vendor"]').locator('xpath=parent::div/div[last()]')` — FormError variant="field" does NOT emit `role="alert"`, so the XPath navigates from the vendor label → parent field-wrapper div → last div child (the FormError). **BUG FIX**: original design used `[role="alert"].last()` which was wrong because FormError variant="field" never has role="alert"; fixed in 2026-06-18 during CI failure triage.
+- **POM helpers**: `selectVendorInEditModal(name)` — clears chip if visible, fills input, waits for dropdown, clicks option. `clearVendorInEditModal()` — clicks × button on chip, waits for input.
+- **Vendor SearchPicker dropdown**: portals to `[data-search-picker-dropdown]` on `document.body` (page-scoped, not modal-scoped).
+- **PATCH URL pattern**: `PATCH /api/vendors/:ORIGINAL_vendorId/invoices/:invoiceId` with `{ vendorId: NEW_vendorId }` in body. The `saveEdit()` POM method matches `/invoices/` (any vendor path) — no change needed.
+- **Cleanup after reassignment**: invoice moves to new vendor. `deleteInvoiceViaApi(page, NEW_vendorId, invoiceId)` must use the new vendor in the path.
+- **Vendor filter URL**: `/budget/invoices?vendorId=:id` filters list to that vendor. Scenario 2 uses this to verify invoice no longer appears under old vendor and appears under new vendor.
+- **DataTable dual-DOM strict-mode fix (2026-06-18)**: DataTable renders BOTH a desktop `<table>` AND a mobile `cardsContainer` div in the DOM at the same time — one is CSS-hidden per viewport. `page.getByText(invoiceNumber)` resolves to 2 nodes → strict-mode violation. **Fix**: `page.locator('[class*="invoiceLink"]', { hasText: invoiceNumber }).filter({ visible: true })` — scopes to the CSS Modules link class, filters to visible instance. Then assert with `toHaveCount(0)` (absent) or `toHaveCount(1)` + `toBeVisible()` (present). `[class*="invoiceLink"]` is the stable CSS Modules class on the invoice number `<Link>` element in InvoicesPage.tsx.
 
 ## Photo Picker Hierarchy E2E (Issue #1723, 2026-06-16) — `e2e/tests/photo-picker-hierarchy.spec.ts`, `e2e/pages/PhotoViewerPage.ts`
 

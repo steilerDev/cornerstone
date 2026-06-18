@@ -463,12 +463,15 @@
       "notes": "Notizen",
       "required": "*",
       "placeholders": {
-        "invoiceNumber": "z. B. ReCH-001"
-      }
+        "invoiceNumber": "z. B. ReCH-001",
+        "vendor": "Auftragnehmer suchen…"
+      },
+      "noVendorsFound": "Keine Auftragnehmer gefunden"
     },
     "validation": {
       "amountRequired": "Betrag muss eine positive Zahl sein.",
-      "dateRequired": "Rechnungsdatum ist erforderlich."
+      "dateRequired": "Rechnungsdatum ist erforderlich.",
+      "vendorRequired": "Bitte wählen Sie einen Auftragnehmer aus"
     },
     "buttons": {
       "edit": "Bearbeiten",
@@ -493,7 +496,8 @@
     },
     "messages": {
       "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
-      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+      "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+      "vendorNotFound": "Der ausgewählte Auftragnehmer konnte nicht gefunden werden"
     },
     "budgetLines": {
       "createFormLegend": "Neue Budgetposition erstellen",

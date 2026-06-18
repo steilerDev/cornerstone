@@ -1,11 +1,14 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Invoice, InvoiceStatus } from '@cornerstone/shared';
+import type { Invoice, InvoiceStatus, Vendor } from '@cornerstone/shared';
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
+import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
+import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
+import { FormError } from '../../components/FormError/FormError.js';
 import { InvoiceBudgetLinesSection } from './InvoiceBudgetLinesSection.js';
 import { InvoiceDepositsSection } from './InvoiceDepositsSection.js';
 import styles from './InvoiceDetailPage.module.css';
@@ -19,6 +22,8 @@ interface InvoiceFormState {
   dueDate: string;
   status: InvoiceStatus;
   notes: string;
+  vendorId: string;
+  vendorName: string;
 }
 
 export function InvoiceDetailPage() {
@@ -45,9 +50,12 @@ export function InvoiceDetailPage() {
     dueDate: '',
     status: 'pending',
     notes: '',
+    vendorId: '',
+    vendorName: '',
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [editError, setEditError] = useState('');
+  const [vendorError, setVendorError] = useState('');
 
   // Delete modal
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -91,8 +99,11 @@ export function InvoiceDetailPage() {
       dueDate: invoice.dueDate ? invoice.dueDate.slice(0, 10) : '',
       status: invoice.status,
       notes: invoice.notes ?? '',
+      vendorId: invoice.vendorId,
+      vendorName: invoice.vendorName ?? '',
     });
     setEditError('');
+    setVendorError('');
     setShowEditModal(true);
   };
 
@@ -100,6 +111,7 @@ export function InvoiceDetailPage() {
     if (!isUpdating) {
       setShowEditModal(false);
       setEditError('');
+      setVendorError('');
     }
   };
 
@@ -115,8 +127,13 @@ export function InvoiceDetailPage() {
       setEditError(t('invoiceDetail.validation.dateRequired'));
       return;
     }
+    if (!editForm.vendorId) {
+      setVendorError(t('invoiceDetail.validation.vendorRequired'));
+      return;
+    }
     setIsUpdating(true);
     setEditError('');
+    setVendorError('');
     try {
       const updated = await updateInvoice(invoice.vendorId, invoice.id, {
         invoiceNumber: editForm.invoiceNumber.trim() || null,
@@ -125,12 +142,17 @@ export function InvoiceDetailPage() {
         dueDate: editForm.dueDate || null,
         status: editForm.status,
         notes: editForm.notes.trim() || null,
+        vendorId: editForm.vendorId,
       });
       setInvoice(updated);
       setShowEditModal(false);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setEditError(err.error.message);
+        if (err.statusCode === 404 && err.error.code === 'NOT_FOUND') {
+          setEditError(t('invoiceDetail.messages.vendorNotFound'));
+        } else {
+          setEditError(err.error.message);
+        }
       } else {
         setEditError(t('invoiceDetail.messages.updateError'));
       }
@@ -359,6 +381,30 @@ export function InvoiceDetailPage() {
                     onWheel={(e) => e.currentTarget.blur()}
                   />
                 </div>
+              </div>
+
+              <div className={styles.field}>
+                <label htmlFor="edit-vendor" className={styles.label}>
+                  {t('invoiceDetail.form.vendor')}{' '}
+                  <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
+                </label>
+                <SearchPicker<Vendor>
+                  id="edit-vendor"
+                  value={editForm.vendorId}
+                  onChange={(id) => setEditForm({ ...editForm, vendorId: id })}
+                  excludeIds={[]}
+                  disabled={isUpdating}
+                  placeholder={t('invoiceDetail.form.placeholders.vendor')}
+                  searchFn={async (query) => {
+                    const res = await fetchVendors({ q: query, pageSize: 50 });
+                    return res.vendors;
+                  }}
+                  renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
+                  showItemsOnFocus
+                  initialTitle={editForm.vendorName}
+                  noResultsMessage={t('invoiceDetail.form.noVendorsFound')}
+                />
+                <FormError message={vendorError} variant="field" />
               </div>
 
               <div className={styles.formRow}>
