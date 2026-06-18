@@ -16,6 +16,7 @@
  * - Dark mode rendering
  * - Discretionary Funding source — system source presence, no delete, type locked, zero amount edit
  * - Projected and Paid amount fields visible on source rows
+ * - Documents toggle (Story #1744) — toggle visible, expand/collapse, not-configured state
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -1049,6 +1050,209 @@ test.describe('Bar chart rework #1319', { tag: '@responsive' }, () => {
 
       const badge = sourcesPage.getTotalBadge(sourceName);
       await expect(badge).toBeVisible();
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Documents toggle (Story #1744)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
+  // NOTE: @smoke tag is intentionally omitted — these tests require the Story #1744
+  // implementation (docs toggle UI) which is not yet merged to beta. Add @smoke
+  // after the implementation PR is merged to beta.
+  test('Documents toggle button is visible in source row header', async ({ page, testPrefix }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Docs Toggle Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 10000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      // The toggle button should be visible in the source row
+      const toggle = sourcesPage.getDocsToggle(sourceName);
+      await expect(toggle).toBeVisible();
+
+      // Initial state: not expanded (aria-expanded=false)
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Clicking docs toggle reveals documents panel with correct role and aria-label', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Docs Panel Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 20000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      // Panel should NOT be in the DOM before expanding
+      const panel = sourcesPage.getDocsPanelById(createdId);
+      await expect(panel).not.toBeAttached();
+
+      // Click the toggle to expand
+      await sourcesPage.expandSourceDocs(sourceName);
+
+      // Panel is now in the DOM and visible with correct region attributes
+      await expect(panel).toBeVisible();
+      await expect(panel).toHaveAttribute('role', 'region');
+      await expect(panel).toHaveAttribute('aria-label', `Documents for ${sourceName}`);
+
+      // Toggle button now shows aria-expanded=true
+      const toggle = sourcesPage.getDocsToggle(sourceName);
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Documents panel contains "Documents" heading inside source docs region', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Docs Heading Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 30000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+      await sourcesPage.expandSourceDocs(sourceName);
+
+      const panel = sourcesPage.getDocsPanelById(createdId);
+      await expect(panel).toBeVisible();
+
+      // LinkedDocumentsSection renders an h2 "Documents" heading inside the panel
+      const docsHeading = panel.getByRole('heading', { name: 'Documents', exact: true });
+      await expect(docsHeading).toBeVisible();
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('"+ Add Document" button is visible and disabled (Paperless not configured)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Docs AddBtn Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 40000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+      await sourcesPage.expandSourceDocs(sourceName);
+
+      const panel = sourcesPage.getDocsPanelById(createdId);
+      await expect(panel).toBeVisible();
+
+      // "+ Add Document" button is present but disabled because Paperless is not configured
+      const addButton = panel.getByRole('button', { name: '+ Add Document', exact: true });
+      await expect(addButton).toBeVisible();
+      await expect(addButton).toBeDisabled();
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('"Paperless-ngx is not configured" banner is shown inside documents panel', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Docs Banner Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 50000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+      await sourcesPage.expandSourceDocs(sourceName);
+
+      const panel = sourcesPage.getDocsPanelById(createdId);
+      await expect(panel).toBeVisible();
+
+      // Not-configured banner text is visible inside the panel
+      const banner = panel.getByText('Paperless-ngx is not configured');
+      await expect(banner).toBeVisible();
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Clicking docs toggle again collapses the documents panel', async ({ page, testPrefix }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Docs Collapse Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 60000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      // Expand
+      await sourcesPage.expandSourceDocs(sourceName);
+      const panel = sourcesPage.getDocsPanelById(createdId);
+      await expect(panel).toBeVisible();
+
+      // Collapse by clicking the toggle again (aria-label changes to "Hide documents for <name>")
+      const toggle = sourcesPage.getDocsToggle(sourceName);
+      await toggle.click();
+
+      // Panel is removed from DOM (conditional render)
+      await expect(panel).not.toBeAttached();
+
+      // Toggle aria-expanded is false again
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Documents toggle is disabled while source is being edited', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Docs EditDisable Source`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 70000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+
+      // Enter edit mode for this source
+      await sourcesPage.startEdit(sourceName);
+
+      // Docs toggle should be disabled while editing
+      // The toggle button scoped to the row is not accessible by name when in edit mode
+      // (the row no longer shows sourceName span) — use the panel button directly
+      const docsToggle = page.locator('[aria-controls^="source-docs-"]').first();
+      await expect(docsToggle).toBeDisabled();
+
+      // Cancel edit to restore state
+      await sourcesPage.cancelEdit(sourceName);
     } finally {
       if (createdId) await deleteSourceViaApi(page, createdId);
     }

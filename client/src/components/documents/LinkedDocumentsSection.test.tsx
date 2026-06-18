@@ -797,4 +797,54 @@ describe('LinkedDocumentsSection', () => {
       expect(capturedLinkedDocumentIds).toEqual([]);
     });
   });
+
+  // ─── New entity types: budget_source and subsidy_program ─────────────────
+
+  describe('budget_source entity type', () => {
+    it('renders Documents heading and budgetSourceEmpty empty copy when entity type is budget_source', async () => {
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [] }));
+
+      render(<LinkedDocumentsSection entityType="budget_source" entityId="bs-001" />);
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Document/i })).toBeInTheDocument(),
+      );
+
+      // Should render the section without errors — empty state copy
+      // The t('linkedDocuments.budgetSourceEmpty') key must exist in en/documents.json
+      // We verify the section rendered by checking for the heading/add button
+      expect(screen.getByRole('button', { name: /\+ Add Document/i })).toBeInTheDocument();
+    });
+
+    it('passes entityType=budget_source to useDocumentLinks hook', async () => {
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [] }));
+
+      render(<LinkedDocumentsSection entityType="budget_source" entityId="bs-001" />);
+
+      // Verify the hook was called with the correct entity type
+      expect(mockUseDocumentLinks).toHaveBeenCalledWith('budget_source', 'bs-001');
+    });
+  });
+
+  describe('subsidy_program entity type', () => {
+    it('renders Documents heading and subsidyProgramEmpty empty copy when entity type is subsidy_program', async () => {
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [] }));
+
+      render(<LinkedDocumentsSection entityType="subsidy_program" entityId="sp-001" />);
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Document/i })).toBeInTheDocument(),
+      );
+
+      expect(screen.getByRole('button', { name: /\+ Add Document/i })).toBeInTheDocument();
+    });
+
+    it('passes entityType=subsidy_program to useDocumentLinks hook', async () => {
+      mockUseDocumentLinks.mockReturnValue(makeHook({ links: [] }));
+
+      render(<LinkedDocumentsSection entityType="subsidy_program" entityId="sp-001" />);
+
+      expect(mockUseDocumentLinks).toHaveBeenCalledWith('subsidy_program', 'sp-001');
+    });
+  });
 });

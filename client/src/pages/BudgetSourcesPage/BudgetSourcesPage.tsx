@@ -23,6 +23,7 @@ import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { SourceBudgetLinePanel } from '../../components/SourceBudgetLinePanel/SourceBudgetLinePanel.js';
 import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
+import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import styles from './BudgetSourcesPage.module.css';
 
 const BUDGET_TABS: SubNavTab[] = [
@@ -309,6 +310,9 @@ export function BudgetSourcesPage() {
   );
   const [linesLoading, setLinesLoading] = useState<Set<string>>(() => new Set());
   const [linesError, setLinesError] = useState<Map<string, string>>(() => new Map());
+
+  // Documents expansion state (separate from budget lines)
+  const [expandedDocsSources, setExpandedDocsSources] = useState<Set<string>>(() => new Set());
 
   // Selection state for mass-move
   const [sourceSelections, setSourceSelections] = useState<Map<string, Set<string>>>(
@@ -611,6 +615,14 @@ export function BudgetSourcesPage() {
 
   const handleOpenMoveModal = useCallback((sourceId: string) => {
     setMoveModalSourceId(sourceId);
+  }, []);
+
+  const handleToggleDocs = useCallback((sourceId: string) => {
+    setExpandedDocsSources((prev) => {
+      const next = new Set(prev);
+      next.has(sourceId) ? next.delete(sourceId) : next.add(sourceId);
+      return next;
+    });
   }, []);
 
   const activeMoveSource = moveModalSourceId
@@ -1177,6 +1189,33 @@ export function BudgetSourcesPage() {
                         </button>
                         <button
                           type="button"
+                          className={`${styles.docsToggle} ${expandedDocsSources.has(source.id) ? styles.docsToggleActive : ''}`}
+                          onClick={() => handleToggleDocs(source.id)}
+                          disabled={!!editingSource}
+                          aria-expanded={expandedDocsSources.has(source.id)}
+                          aria-controls={`source-docs-${source.id}`}
+                          aria-label={
+                            expandedDocsSources.has(source.id)
+                              ? t('sources.docs.collapseAriaLabel', { name: source.name })
+                              : t('sources.docs.expandAriaLabel', { name: source.name })
+                          }
+                        >
+                          <svg
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            aria-hidden="true"
+                            className={styles.docsIcon}
+                          >
+                            <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z" />
+                          </svg>
+                          <span className={styles.srOnly}>
+                            {expandedDocsSources.has(source.id)
+                              ? t('sources.docs.collapse')
+                              : t('sources.docs.expand')}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
                           className={styles.editButton}
                           onClick={() => startEdit(source)}
                           disabled={!!editingSource}
@@ -1229,6 +1268,16 @@ export function BudgetSourcesPage() {
                     onSelectionChange={(newSet) => handleSelectionChange(source.id, newSet)}
                     onMoveLines={() => handleOpenMoveModal(source.id)}
                   />
+                )}
+                {editingSource?.id !== source.id && expandedDocsSources.has(source.id) && (
+                  <div
+                    id={`source-docs-${source.id}`}
+                    className={styles.docsPanel}
+                    role="region"
+                    aria-label={t('sources.docs.panelAriaLabel', { name: source.name })}
+                  >
+                    <LinkedDocumentsSection entityType="budget_source" entityId={source.id} />
+                  </div>
                 )}
               </div>
             ))}

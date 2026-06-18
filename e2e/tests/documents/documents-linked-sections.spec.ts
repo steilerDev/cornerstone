@@ -1,12 +1,15 @@
 /**
  * E2E tests for the LinkedDocumentsSection component — EPIC-08 (Stories 8.4, 8.5, 8.7)
+ * and Story #1744 (budget sources + subsidy programs document attachment).
  *
  * The LinkedDocumentsSection is embedded on:
  *   - Work Item detail page (/project/work-items/:id) — Story 8.4
  *   - Invoice detail page (/budget/invoices/:id) — Story 8.5
+ *   - Budget Sources page (/budget/sources) — Story #1744 (via docs toggle panel)
+ *   - Subsidy Programs page (/budget/subsidies) — Story #1744 (via docs toggle panel)
  *
  * In the E2E environment, Paperless-ngx is NOT configured, so tests verify:
- * - The "Documents" section heading is present on both pages
+ * - The "Documents" section heading is present
  * - The "+ Add Document" button is DISABLED (not configured)
  * - The "not configured" banner is shown with guidance text
  * - Responsive layout: no horizontal scroll
@@ -23,12 +26,27 @@
  * 8.  Invoice detail page: "+ Add Document" button is disabled (not configured)
  * 9.  Invoice detail page: "not configured" banner shows setup guidance
  * 10. Invoice detail page: section renders without horizontal scroll (responsive)
+ * 11. Budget source: "Documents" section heading visible after toggle expand
+ * 12. Budget source: "+ Add Document" button disabled (not configured)
+ * 13. Budget source: section heading is accessible (aria-labelledby)
+ * 14. Subsidy program: "Documents" section heading visible after toggle expand
+ * 15. Subsidy program: "+ Add Document" button disabled (not configured)
+ * 16. Subsidy program: section heading is accessible (aria-labelledby)
  */
 
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
-import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
+import { SubsidyProgramsPage } from '../../pages/SubsidyProgramsPage.js';
+import {
+  createWorkItemViaApi,
+  deleteWorkItemViaApi,
+  createBudgetSourceViaApi,
+  deleteBudgetSourceViaApi,
+  createSubsidyProgramViaApi,
+  deleteSubsidyProgramViaApi,
+} from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -387,6 +405,206 @@ test.describe(
         expect(hasHorizontalScroll).toBe(false);
       } finally {
         if (ids) await deleteVendorViaApi(page, ids.vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenarios 11–13: Budget Source — LinkedDocumentsSection (Story #1744)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'LinkedDocumentsSection on Budget Source (Scenarios 11–13, Story #1744)',
+  { tag: '@responsive' },
+  () => {
+    test('"Documents" section heading is visible after expanding source docs panel', async ({
+      page,
+      testPrefix,
+    }) => {
+      const sourcesPage = new BudgetSourcesPage(page);
+      const sourceName = `${testPrefix} LinkedDocs Budget Source`;
+      let createdId: string | null = null;
+
+      try {
+        createdId = await createBudgetSourceViaApi(page, {
+          name: sourceName,
+          totalAmount: 10000,
+        });
+
+        // When: Navigate to budget sources and expand the docs panel
+        await sourcesPage.goto();
+        await sourcesPage.waitForSourcesLoaded();
+        await sourcesPage.expandSourceDocs(sourceName);
+
+        // Then: The "Documents" section heading is visible inside the panel
+        const panel = sourcesPage.getDocsPanelById(createdId);
+        await expect(panel).toBeVisible();
+
+        const docsHeading = panel.getByRole('heading', { name: 'Documents', exact: true });
+        await expect(docsHeading).toBeVisible();
+      } finally {
+        if (createdId) await deleteBudgetSourceViaApi(page, createdId);
+      }
+    });
+
+    test('"+ Add Document" button is disabled when Paperless is not configured (budget source)', async ({
+      page,
+      testPrefix,
+    }) => {
+      const sourcesPage = new BudgetSourcesPage(page);
+      const sourceName = `${testPrefix} LinkedDocs AddBtn Source`;
+      let createdId: string | null = null;
+
+      try {
+        createdId = await createBudgetSourceViaApi(page, {
+          name: sourceName,
+          totalAmount: 20000,
+        });
+
+        await sourcesPage.goto();
+        await sourcesPage.waitForSourcesLoaded();
+        await sourcesPage.expandSourceDocs(sourceName);
+
+        const panel = sourcesPage.getDocsPanelById(createdId);
+        await expect(panel).toBeVisible();
+
+        // "+ Add Document" button is present but disabled (Paperless not configured)
+        const addDocButton = panel.getByRole('button', { name: '+ Add Document', exact: true });
+        await expect(addDocButton).toBeVisible();
+        await expect(addDocButton).toBeDisabled();
+      } finally {
+        if (createdId) await deleteBudgetSourceViaApi(page, createdId);
+      }
+    });
+
+    test('Documents section heading has accessible id="documents-section-title" on budget source', async ({
+      page,
+      testPrefix,
+    }) => {
+      const sourcesPage = new BudgetSourcesPage(page);
+      const sourceName = `${testPrefix} LinkedDocs A11y Source`;
+      let createdId: string | null = null;
+
+      try {
+        createdId = await createBudgetSourceViaApi(page, {
+          name: sourceName,
+          totalAmount: 30000,
+        });
+
+        await sourcesPage.goto();
+        await sourcesPage.waitForSourcesLoaded();
+        await sourcesPage.expandSourceDocs(sourceName);
+
+        const panel = sourcesPage.getDocsPanelById(createdId);
+        await expect(panel).toBeVisible();
+
+        // The h2 inside LinkedDocumentsSection has id="documents-section-title"
+        const sectionTitle = panel.locator('#documents-section-title');
+        await expect(sectionTitle).toBeVisible();
+        await expect(sectionTitle).toHaveText(/Documents/);
+      } finally {
+        if (createdId) await deleteBudgetSourceViaApi(page, createdId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenarios 14–16: Subsidy Program — LinkedDocumentsSection (Story #1744)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'LinkedDocumentsSection on Subsidy Program (Scenarios 14–16, Story #1744)',
+  { tag: '@responsive' },
+  () => {
+    test('"Documents" section heading is visible after expanding program docs panel', async ({
+      page,
+      testPrefix,
+    }) => {
+      const subsidyPage = new SubsidyProgramsPage(page);
+      const programName = `${testPrefix} LinkedDocs Subsidy Program`;
+      let createdId: string | null = null;
+
+      try {
+        createdId = await createSubsidyProgramViaApi(page, {
+          name: programName,
+          reductionValue: 10,
+        });
+
+        // When: Navigate to subsidy programs and expand the docs panel
+        await subsidyPage.goto();
+        await subsidyPage.waitForProgramsLoaded();
+        await subsidyPage.expandProgramDocs(programName);
+
+        // Then: The "Documents" section heading is visible inside the panel
+        const panel = subsidyPage.getDocsPanelById(createdId);
+        await expect(panel).toBeVisible();
+
+        const docsHeading = panel.getByRole('heading', { name: 'Documents', exact: true });
+        await expect(docsHeading).toBeVisible();
+      } finally {
+        if (createdId) await deleteSubsidyProgramViaApi(page, createdId);
+      }
+    });
+
+    test('"+ Add Document" button is disabled when Paperless is not configured (subsidy program)', async ({
+      page,
+      testPrefix,
+    }) => {
+      const subsidyPage = new SubsidyProgramsPage(page);
+      const programName = `${testPrefix} LinkedDocs AddBtn Program`;
+      let createdId: string | null = null;
+
+      try {
+        createdId = await createSubsidyProgramViaApi(page, {
+          name: programName,
+          reductionValue: 15,
+        });
+
+        await subsidyPage.goto();
+        await subsidyPage.waitForProgramsLoaded();
+        await subsidyPage.expandProgramDocs(programName);
+
+        const panel = subsidyPage.getDocsPanelById(createdId);
+        await expect(panel).toBeVisible();
+
+        // "+ Add Document" button is present but disabled (Paperless not configured)
+        const addDocButton = panel.getByRole('button', { name: '+ Add Document', exact: true });
+        await expect(addDocButton).toBeVisible();
+        await expect(addDocButton).toBeDisabled();
+      } finally {
+        if (createdId) await deleteSubsidyProgramViaApi(page, createdId);
+      }
+    });
+
+    test('Documents section heading has accessible id="documents-section-title" on subsidy program', async ({
+      page,
+      testPrefix,
+    }) => {
+      const subsidyPage = new SubsidyProgramsPage(page);
+      const programName = `${testPrefix} LinkedDocs A11y Program`;
+      let createdId: string | null = null;
+
+      try {
+        createdId = await createSubsidyProgramViaApi(page, {
+          name: programName,
+          reductionValue: 20,
+        });
+
+        await subsidyPage.goto();
+        await subsidyPage.waitForProgramsLoaded();
+        await subsidyPage.expandProgramDocs(programName);
+
+        const panel = subsidyPage.getDocsPanelById(createdId);
+        await expect(panel).toBeVisible();
+
+        // The h2 inside LinkedDocumentsSection has id="documents-section-title"
+        const sectionTitle = panel.locator('#documents-section-title');
+        await expect(sectionTitle).toBeVisible();
+        await expect(sectionTitle).toHaveText(/Documents/);
+      } finally {
+        if (createdId) await deleteSubsidyProgramViaApi(page, createdId);
       }
     });
   },

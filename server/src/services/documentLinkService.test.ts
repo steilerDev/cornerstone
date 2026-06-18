@@ -160,6 +160,50 @@ describe('documentLinkService', () => {
     return id;
   }
 
+  function insertTestBudgetSource(name = 'Test Budget Source') {
+    const id = `src-${++idCounter}`;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.budgetSources)
+      .values({
+        id,
+        name,
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+        isDiscretionary: false,
+        interestRate: null,
+        terms: null,
+        notes: null,
+        status: 'active',
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  function insertTestSubsidyProgram(name = 'Test Subsidy Program') {
+    const id = `prog-${++idCounter}`;
+    const now = new Date(Date.now() + idCounter).toISOString();
+    db.insert(schema.subsidyPrograms)
+      .values({
+        id,
+        name,
+        description: null,
+        eligibility: null,
+        reductionType: 'percentage',
+        reductionValue: 10,
+        applicationStatus: 'eligible',
+        applicationDeadline: null,
+        notes: null,
+        createdBy: null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
   /**
    * Insert a document link directly (bypassing service for test setup).
    */
@@ -312,6 +356,84 @@ describe('documentLinkService', () => {
       expect(link1.id).not.toBe(link2.id);
       expect(link1.paperlessDocumentId).toBe(42);
       expect(link2.paperlessDocumentId).toBe(99);
+    });
+
+    it('creates a document link for a budget_source and returns entityType=budget_source', () => {
+      const sourceId = insertTestBudgetSource();
+
+      const result = documentLinkService.createLink(db, 'budget_source', sourceId, 55, 'user-001');
+
+      expect(result.entityType).toBe('budget_source');
+      expect(result.entityId).toBe(sourceId);
+      expect(result.paperlessDocumentId).toBe(55);
+      expect(result.createdBy).toEqual({ id: 'user-001', displayName: 'Test User' });
+    });
+
+    it('creates a document link for a subsidy_program and returns entityType=subsidy_program', () => {
+      const programId = insertTestSubsidyProgram();
+
+      const result = documentLinkService.createLink(
+        db,
+        'subsidy_program',
+        programId,
+        77,
+        'user-001',
+      );
+
+      expect(result.entityType).toBe('subsidy_program');
+      expect(result.entityId).toBe(programId);
+      expect(result.paperlessDocumentId).toBe(77);
+      expect(result.createdBy).toEqual({ id: 'user-001', displayName: 'Test User' });
+    });
+
+    it('throws NotFoundError "Budget source not found" when budget_source does not exist', () => {
+      expect(() => {
+        documentLinkService.createLink(db, 'budget_source', 'non-existent-id', 42, 'user-001');
+      }).toThrow(NotFoundError);
+
+      expect(() => {
+        documentLinkService.createLink(db, 'budget_source', 'non-existent-id', 42, 'user-001');
+      }).toThrow('Budget source not found');
+    });
+
+    it('throws NotFoundError "Subsidy program not found" when subsidy_program does not exist', () => {
+      expect(() => {
+        documentLinkService.createLink(db, 'subsidy_program', 'non-existent-id', 42, 'user-001');
+      }).toThrow(NotFoundError);
+
+      expect(() => {
+        documentLinkService.createLink(db, 'subsidy_program', 'non-existent-id', 42, 'user-001');
+      }).toThrow('Subsidy program not found');
+    });
+
+    it('throws DUPLICATE_DOCUMENT_LINK (409) when same budget_source link already exists', () => {
+      const sourceId = insertTestBudgetSource();
+      documentLinkService.createLink(db, 'budget_source', sourceId, 42, 'user-001');
+
+      let error: { code?: string; statusCode?: number } | undefined;
+      try {
+        documentLinkService.createLink(db, 'budget_source', sourceId, 42, 'user-001');
+      } catch (err) {
+        error = err as { code?: string; statusCode?: number };
+      }
+      expect(error).toBeDefined();
+      expect(error?.code).toBe('DUPLICATE_DOCUMENT_LINK');
+      expect(error?.statusCode).toBe(409);
+    });
+
+    it('throws DUPLICATE_DOCUMENT_LINK (409) when same subsidy_program link already exists', () => {
+      const programId = insertTestSubsidyProgram();
+      documentLinkService.createLink(db, 'subsidy_program', programId, 99, 'user-001');
+
+      let error: { code?: string; statusCode?: number } | undefined;
+      try {
+        documentLinkService.createLink(db, 'subsidy_program', programId, 99, 'user-001');
+      } catch (err) {
+        error = err as { code?: string; statusCode?: number };
+      }
+      expect(error).toBeDefined();
+      expect(error?.code).toBe('DUPLICATE_DOCUMENT_LINK');
+      expect(error?.statusCode).toBe(409);
     });
 
     it('persists the link to the database', () => {
@@ -642,6 +764,36 @@ describe('documentLinkService', () => {
       expect(() => {
         documentLinkService.deleteLinksForEntity(db, 'work_item', 'no-links-here');
       }).not.toThrow();
+    });
+
+    it('deletes all links for a budget_source entity and leaves other entities untouched', () => {
+      const sourceId = insertTestBudgetSource();
+      const workItemId = insertTestWorkItem();
+
+      insertRawDocumentLink('budget_source', sourceId, 42);
+      insertRawDocumentLink('budget_source', sourceId, 99);
+      insertRawDocumentLink('work_item', workItemId, 42); // must survive
+
+      documentLinkService.deleteLinksForEntity(db, 'budget_source', sourceId);
+
+      const remaining = db.select().from(schema.documentLinks).all();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]!.entityType).toBe('work_item');
+      expect(remaining[0]!.entityId).toBe(workItemId);
+    });
+
+    it('deletes all links for a subsidy_program entity and leaves other entities untouched', () => {
+      const programId = insertTestSubsidyProgram();
+      const workItemId = insertTestWorkItem();
+
+      insertRawDocumentLink('subsidy_program', programId, 55);
+      insertRawDocumentLink('work_item', workItemId, 55); // must survive
+
+      documentLinkService.deleteLinksForEntity(db, 'subsidy_program', programId);
+
+      const remaining = db.select().from(schema.documentLinks).all();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]!.entityType).toBe('work_item');
     });
   });
 

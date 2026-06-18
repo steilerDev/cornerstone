@@ -33,6 +33,28 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   moveBudgetLinesBetweenSources: jest.fn(),
 }));
 
+// ─── Mock: LinkedDocumentsSection — avoids deep dependency chain (Paperless hooks, etc.) ───
+
+// Capture the last props passed to LinkedDocumentsSection so tests can assert them
+// (prefixed with _ because assertions use DOM data-attributes, not this variable directly)
+let _capturedLinkedDocsSectionProps: { entityType: string; entityId: string } | null = null;
+
+jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
+  LinkedDocumentsSection: function MockLinkedDocumentsSection(props: {
+    entityType: string;
+    entityId: string;
+  }) {
+    _capturedLinkedDocsSectionProps = { entityType: props.entityType, entityId: props.entityId };
+    return (
+      <div
+        data-testid="linked-documents-section"
+        data-entity-type={props.entityType}
+        data-entity-id={props.entityId}
+      />
+    );
+  },
+}));
+
 // ─── Mock: ToastContext — provides useToast() hook without a real ToastProvider ───
 
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
@@ -41,6 +63,9 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
 }));
 
 // ─── Mock: LocaleContext — prevents useLocale() from throwing outside LocaleProvider ───
+// In CI, jest.unstable_mockModule intercepts; the LocaleProvider wrapper in
+// renderPage is then redundant but harmless (passthrough stub).
+// Locally, when mock doesn't intercept, the real LocaleProvider handles useLocale().
 
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   useLocale: jest.fn(() => ({
@@ -51,6 +76,19 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
     syncWithServer: jest.fn(),
   })),
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// ─── Mock: configApi and preferencesApi (real LocaleProvider needs them) ──────
+// When jest.unstable_mockModule doesn't intercept LocaleContext locally, the real
+// LocaleProvider makes network calls. These mocks stop that.
+
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: jest.fn(() => Promise.resolve({ currency: 'EUR' })),
+}));
+
+jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
+  listPreferences: jest.fn(() => Promise.resolve([])),
+  upsertPreference: jest.fn(() => Promise.resolve()),
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
@@ -117,6 +155,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
 
 describe('BudgetSourcesPage', () => {
   let BudgetSourcesPage: React.ComponentType;
+  let LocaleProvider: ({ children }: { children: React.ReactNode }) => React.ReactNode;
 
   // Sample data
 
@@ -181,6 +220,14 @@ describe('BudgetSourcesPage', () => {
       const module = await import('./BudgetSourcesPage.js');
       BudgetSourcesPage = module.default;
     }
+    if (!LocaleProvider) {
+      const localeMod = await import('../../contexts/LocaleContext.js');
+      LocaleProvider = localeMod.LocaleProvider as ({
+        children,
+      }: {
+        children: React.ReactNode;
+      }) => React.ReactNode;
+    }
 
     // Reset all mocks
     mockFetchBudgetSources.mockReset();
@@ -189,13 +236,18 @@ describe('BudgetSourcesPage', () => {
     mockUpdateBudgetSource.mockReset();
     mockDeleteBudgetSource.mockReset();
     mockFetchBudgetLinesForSource.mockReset();
+    _capturedLinkedDocsSectionProps = null;
   });
 
   function renderPage() {
     return render(
-      <MemoryRouter initialEntries={['/budget/sources']}>
-        <BudgetSourcesPage />
-      </MemoryRouter>,
+      // Wrap in LocaleProvider so useFormatters→useLocale works in both CI (mock
+      // intercepts and this becomes a passthrough) and local (real provider used).
+      <LocaleProvider>
+        <MemoryRouter initialEntries={['/budget/sources']}>
+          <BudgetSourcesPage />
+        </MemoryRouter>
+      </LocaleProvider>,
     );
   }
 
@@ -2117,14 +2169,19 @@ describe('BudgetSourcesPage', () => {
       const actionsDiv = container.querySelector('[class*="sourceActions"]');
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
-      expect(buttons.length).toBe(3);
-      // Order: Show lines → Edit → Delete
+      // Order: Show lines → docs toggle (paperclip) → Edit → Delete
+      expect(buttons.length).toBe(4);
       expect(buttons[0]).toHaveAttribute(
         'aria-label',
         expect.stringMatching(/expand budget lines for home loan/i),
       );
-      expect(buttons[1]).toHaveAccessibleName(/edit home loan/i);
-      expect(buttons[2]).toHaveAccessibleName(/delete home loan/i);
+      // The docs toggle sits between Show lines and Edit
+      expect(buttons[1]).toHaveAttribute(
+        'aria-controls',
+        expect.stringContaining('source-docs-'),
+      );
+      expect(buttons[2]).toHaveAccessibleName(/edit home loan/i);
+      expect(buttons[3]).toHaveAccessibleName(/delete home loan/i);
     });
 
     it('discretionary source shows Show lines and Edit in sourceActions but not Delete', async () => {
@@ -2142,12 +2199,18 @@ describe('BudgetSourcesPage', () => {
       const actionsDiv = container.querySelector('[class*="sourceActions"]');
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
-      expect(buttons.length).toBe(2);
+      // Discretionary sources have no Delete: Show lines → docs toggle (paperclip) → Edit
+      expect(buttons.length).toBe(3);
       expect(buttons[0]).toHaveAttribute(
         'aria-label',
         expect.stringMatching(/expand budget lines for contingency reserve/i),
       );
-      expect(buttons[1]).toHaveAccessibleName(/edit contingency reserve/i);
+      // The docs toggle sits between Show lines and Edit
+      expect(buttons[1]).toHaveAttribute(
+        'aria-controls',
+        expect.stringContaining('source-docs-'),
+      );
+      expect(buttons[2]).toHaveAccessibleName(/edit contingency reserve/i);
       expect(
         screen.queryByRole('button', { name: /delete contingency reserve/i }),
       ).not.toBeInTheDocument();
@@ -2203,6 +2266,179 @@ describe('BudgetSourcesPage', () => {
         el.className.includes('sourceMain'),
       );
       expect(sourceMainAsDirectChild).toBeDefined();
+    });
+  });
+
+  // ─── Docs toggle (story #1744) ──────────────────────────────────────────────
+
+  describe('docs toggle (paperclip button)', () => {
+    it('renders a paperclip/docs toggle button for each source row', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // The docs toggle button has aria-label "Show documents for <name>" — narrow to this
+      // specific label to avoid colliding with "Expand budget lines for Home Loan", "Edit Home Loan",
+      // or "Delete Home Loan", all of which also contain the source name.
+      expect(
+        screen.getByRole('button', { name: /show documents for home loan/i, hidden: true }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /show documents for savings account/i, hidden: true }),
+      ).toBeInTheDocument();
+    });
+
+    it('clicking the docs toggle button renders LinkedDocumentsSection with entityType=budget_source and correct entityId', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // The aria-label includes 'Home Loan' — find the docs-expand toggle (aria-expanded=false)
+      const docsBtn = screen
+        .getAllByRole('button', { hidden: true })
+        .find(
+          (btn) =>
+            btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}` &&
+            btn.getAttribute('aria-expanded') === 'false',
+        );
+      expect(docsBtn).toBeDefined();
+
+      fireEvent.click(docsBtn!);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument();
+      });
+
+      const section = screen.getByTestId('linked-documents-section');
+      expect(section.getAttribute('data-entity-type')).toBe('budget_source');
+      expect(section.getAttribute('data-entity-id')).toBe(sampleSource1.id);
+    });
+
+    it('clicking the docs toggle button a second time hides LinkedDocumentsSection', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      const docsBtn = screen
+        .getAllByRole('button', { hidden: true })
+        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
+      expect(docsBtn).toBeDefined();
+
+      // First click — opens
+      fireEvent.click(docsBtn!);
+      await waitFor(() =>
+        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument(),
+      );
+
+      // Second click — closes
+      fireEvent.click(docsBtn!);
+      await waitFor(() =>
+        expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('docs toggle button has aria-expanded=false initially', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      const docsBtn = screen
+        .getAllByRole('button', { hidden: true })
+        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
+      expect(docsBtn).toBeDefined();
+      expect(docsBtn!.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('docs toggle button has aria-expanded=true after clicking', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      const docsBtn = screen
+        .getAllByRole('button', { hidden: true })
+        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
+      expect(docsBtn).toBeDefined();
+
+      fireEvent.click(docsBtn!);
+
+      await waitFor(() => {
+        expect(docsBtn!.getAttribute('aria-expanded')).toBe('true');
+      });
+    });
+
+    it('docs toggle button is disabled when editingSource is active', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1, sampleSource2],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // Start editing source1
+      const editBtn = screen.getByRole('button', { name: /edit home loan/i });
+      fireEvent.click(editBtn);
+
+      await waitFor(() => {
+        // Both docs toggles should be disabled when editing
+        const allDocsToggleBtns = screen
+          .getAllByRole('button', { hidden: true })
+          .filter((btn) => btn.getAttribute('aria-controls')?.startsWith('source-docs-'));
+        expect(allDocsToggleBtns.length).toBeGreaterThan(0);
+        for (const btn of allDocsToggleBtns) {
+          expect(btn).toBeDisabled();
+        }
+      });
+    });
+
+    it('LinkedDocumentsSection is hidden when editing the same source', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      // Open docs panel
+      const docsBtn = screen
+        .getAllByRole('button', { hidden: true })
+        .find((btn) => btn.getAttribute('aria-controls') === `source-docs-${sampleSource1.id}`);
+      fireEvent.click(docsBtn!);
+
+      await waitFor(() =>
+        expect(screen.getByTestId('linked-documents-section')).toBeInTheDocument(),
+      );
+
+      // Now start editing the same source — docs panel should disappear
+      const editBtn = screen.getByRole('button', { name: /edit home loan/i });
+      fireEvent.click(editBtn);
+
+      await waitFor(() =>
+        expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
+      );
     });
   });
 });

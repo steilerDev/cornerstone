@@ -54,9 +54,13 @@
     "workItemEntity": "this work item",
     "householdItemEntity": "this household item",
     "invoiceEntity": "this invoice",
+    "budgetSourceEntity": "this budget source",
+    "subsidyProgramEntity": "this subsidy program",
     "workItemEmpty": "Link receipts, contracts, and plans from Paperless-ngx to keep everything in one place.",
     "householdItemEmpty": "Link receipts, warranties, and manuals from Paperless-ngx to keep everything in one place.",
-    "invoiceEmpty": "Link invoice PDFs, receipts, and related documents from Paperless-ngx to keep everything in one place."
+    "invoiceEmpty": "Link invoice PDFs, receipts, and related documents from Paperless-ngx to keep everything in one place.",
+    "budgetSourceEmpty": "Link contracts, warranties, and related documents from Paperless-ngx to keep everything in one place.",
+    "subsidyProgramEmpty": "Link application forms, approval letters, and related documents from Paperless-ngx to keep everything in one place."
   },
   "documentCard": {
     "documentLabel": "Document: {{title}}{{date}}",

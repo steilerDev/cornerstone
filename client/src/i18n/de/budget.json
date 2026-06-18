@@ -221,6 +221,13 @@
         "genericError": "Positionen konnten nicht verschoben werden. Bitte versuchen Sie es erneut."
       }
     },
+    "docs": {
+      "expand": "Dokumente einblenden",
+      "collapse": "Dokumente ausblenden",
+      "expandAriaLabel": "Dokumente für {{name}} einblenden",
+      "collapseAriaLabel": "Dokumente für {{name}} ausblenden",
+      "panelAriaLabel": "Dokumente für {{name}}"
+    },
     "summary": {
       "remainingLabel": "Verbleibend"
     }
@@ -725,6 +732,13 @@
       "created": "Förderprogramm \"{{name}}\" erfolgreich erstellt",
       "updated": "Förderprogramm \"{{name}}\" erfolgreich aktualisiert",
       "deleted": "Förderprogramm \"{{name}}\" erfolgreich gelöscht"
+    },
+    "docs": {
+      "expand": "Dokumente einblenden",
+      "collapse": "Dokumente ausblenden",
+      "expandAriaLabel": "Dokumente für {{name}} einblenden",
+      "collapseAriaLabel": "Dokumente für {{name}} ausblenden",
+      "panelAriaLabel": "Dokumente für {{name}}"
     }
   },
   "budgetLineForm": {

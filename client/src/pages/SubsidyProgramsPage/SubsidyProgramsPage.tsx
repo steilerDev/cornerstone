@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   SubsidyProgram,
@@ -20,6 +20,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
+import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import styles from './SubsidyProgramsPage.module.css';
 
 const BUDGET_TABS: SubNavTab[] = [
@@ -130,6 +131,9 @@ export function SubsidyProgramsPage() {
   const [deletingProgramId, setDeletingProgramId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+
+  // Documents expansion state
+  const [expandedDocsPrograms, setExpandedDocsPrograms] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     void loadData();
@@ -368,6 +372,14 @@ export function SubsidyProgramsPage() {
       setIsDeleting(false);
     }
   };
+
+  const handleToggleProgramDocs = useCallback((programId: string) => {
+    setExpandedDocsPrograms((prev) => {
+      const next = new Set(prev);
+      next.has(programId) ? next.delete(programId) : next.add(programId);
+      return next;
+    });
+  }, []);
 
   if (isLoading) {
     return (
@@ -1059,6 +1071,33 @@ export function SubsidyProgramsPage() {
                     <div className={styles.programActions}>
                       <button
                         type="button"
+                        className={`${styles.docsToggle} ${expandedDocsPrograms.has(program.id) ? styles.docsToggleActive : ''}`}
+                        onClick={() => handleToggleProgramDocs(program.id)}
+                        disabled={!!editingProgram}
+                        aria-expanded={expandedDocsPrograms.has(program.id)}
+                        aria-controls={`program-docs-${program.id}`}
+                        aria-label={
+                          expandedDocsPrograms.has(program.id)
+                            ? t('subsidies.docs.collapseAriaLabel', { name: program.name })
+                            : t('subsidies.docs.expandAriaLabel', { name: program.name })
+                        }
+                      >
+                        <svg
+                          viewBox="0 0 16 16"
+                          fill="currentColor"
+                          aria-hidden="true"
+                          className={styles.docsIcon}
+                        >
+                          <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z" />
+                        </svg>
+                        <span className={styles.srOnly}>
+                          {expandedDocsPrograms.has(program.id)
+                            ? t('subsidies.docs.collapse')
+                            : t('subsidies.docs.expand')}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
                         className={styles.editButton}
                         onClick={() => startEdit(program)}
                         disabled={!!editingProgram}
@@ -1077,6 +1116,16 @@ export function SubsidyProgramsPage() {
                       </button>
                     </div>
                   </>
+                )}
+                {editingProgram?.id !== program.id && expandedDocsPrograms.has(program.id) && (
+                  <div
+                    id={`program-docs-${program.id}`}
+                    className={styles.docsPanel}
+                    role="region"
+                    aria-label={t('subsidies.docs.panelAriaLabel', { name: program.name })}
+                  >
+                    <LinkedDocumentsSection entityType="subsidy_program" entityId={program.id} />
+                  </div>
                 )}
               </div>
             ))}
