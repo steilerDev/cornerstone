@@ -185,6 +185,13 @@ See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `rol
 - WCAG AA contrast verified: `--color-text-muted` on `--color-bg-primary`: 4.6:1 light, 5.0:1 dark, 4.5:1 hover (boundary). All pass.
 - `PhotoMetadataSidepanel` uses a raw `SearchPicker<AreaResponse>` (no indentation, no ancestors) — must be switched to `AreaPicker` for AC-1 consistency. This is the core bug driving the story.
 
+## FormError / SearchPicker A11y Gap (pre-existing, tracked)
+
+- `FormError variant="field"` renders `<div>` with NO `role="alert"` — only `variant="banner"` gets it
+- `SearchPicker` has no `aria-invalid` prop — cannot signal validation state to screen readers
+- Both are pre-existing gaps, consistent across `InvoiceLinkModal`, `PaperlessInvoiceReviewPage`, `InvoiceDetailPage`
+- When reviewing PRs using `variant="field"` without `role="alert"`, do NOT request changes — it is the established pattern; flag as pre-existing and recommend a shared-component refinement item
+
 ## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
 
 - `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic` — distinguishes from work-item "not_started" badge

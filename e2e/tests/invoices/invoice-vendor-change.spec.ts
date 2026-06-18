@@ -180,13 +180,22 @@ test.describe(
         // (filter by vendorId via the URL query)
         await page.goto(`/budget/invoices?vendorId=${originalVendorId}`);
         await invoicesPage.heading.waitFor({ state: 'visible' });
-        // The invoice number should NOT appear under the original vendor
-        await expect(page.getByText(`${testPrefix}-VCHG-001`)).not.toBeVisible();
+        // The invoice number should NOT appear under the original vendor.
+        // DataTable renders both a desktop <table> and mobile cards container in the DOM
+        // simultaneously (one is CSS-hidden per viewport). Scoping to [class*="invoiceLink"]
+        // with { hasText } and then filtering to visible ensures strict-mode safety regardless
+        // of viewport: when the invoice is absent the locator resolves to 0 visible elements.
+        const invoiceNumber = `${testPrefix}-VCHG-001`;
+        const visibleInvoiceLink = page
+          .locator('[class*="invoiceLink"]', { hasText: invoiceNumber })
+          .filter({ visible: true });
+        await expect(visibleInvoiceLink).toHaveCount(0);
 
-        // It DOES appear when filtered to the new vendor
+        // It DOES appear when filtered to the new vendor — exactly 1 visible link.
         await page.goto(`/budget/invoices?vendorId=${newVendorId}`);
         await invoicesPage.heading.waitFor({ state: 'visible' });
-        await expect(page.getByText(`${testPrefix}-VCHG-001`)).toBeVisible();
+        await expect(visibleInvoiceLink).toHaveCount(1);
+        await expect(visibleInvoiceLink).toBeVisible();
       } finally {
         // After reassignment, invoice lives under newVendorId
         if (invoiceId && newVendorId)

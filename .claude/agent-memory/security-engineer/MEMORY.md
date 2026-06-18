@@ -97,6 +97,7 @@ See `review-history.md` for detailed findings per PR.
 | #1550 | Story #1547 — Invoice Auto-Itemize POST endpoint and commit service                               | COMMENTED (2 informational: OCR cap carry-forward unaddressed, lines array no maxItems)                                        | 2026-05-22 |
 | #1554 | Story #1553 — Full edit + linked-item move for invoice budget lines                               | COMMENTED (1 low: move fields no minLength:1; 1 informational: WIB/HIB no minProperties:1)                                     | 2026-05-22 |
 | #1681 | Story #1679 — Paperless-first invoice creation with LLM auto-itemize                              | COMMENTED (4 informational: LLM 503 code inconsistency, vendor names to LLM, no vendor-line ownership check, locale no minLen) | 2026-06-15 |
+| #1752 | Story #1736 — Invoice vendor reassignment (PATCH body vendorId)                                   | COMMENTED (1 informational: vendorName not cleared on SearchPicker clear — stale but never sent to API)                        | 2026-06-18 |
 
 ## Known Open Recommendations (Low Priority)
 

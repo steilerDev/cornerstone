@@ -127,7 +127,9 @@ export class InvoiceDetailPage {
   /**
    * The field-level validation error shown below the vendor picker when the vendor
    * is cleared and the form is submitted.
-   * FormError variant="field" renders a <p> with role="alert".
+   * FormError variant="field" renders a <div> WITHOUT role="alert" (only variant="banner"
+   * emits role="alert"). Locator uses the label[for="edit-vendor"] ancestor to reach the
+   * field wrapper div, then targets its last div child (the FormError div).
    */
   readonly editVendorError: Locator;
 
@@ -538,9 +540,18 @@ export class InvoiceDetailPage {
     // to input mode — the <input id="edit-vendor"> becomes visible.
     this.editVendorInput = page.locator('#edit-vendor');
 
-    // FormError variant="field" renders a <p role="alert"> directly below the picker.
-    // Scoped to the field wrapper inside editModal that contains the vendor label+picker.
-    this.editVendorError = this.editModal.locator('[role="alert"]').last();
+    // FormError variant="field" does NOT emit role="alert" (only variant="banner" does).
+    // The InvoiceDetailPage TSX renders:
+    //   <div class={styles.field}>          ← field wrapper (InvoiceDetailPage.module.css)
+    //     <label for="edit-vendor">...</label>
+    //     <SearchPicker id="edit-vendor" ... />   ← root div with class*="container"
+    //     <FormError message={vendorError} variant="field" />  ← only when vendorError set
+    //   </div>
+    // We navigate from label[for="edit-vendor"] → parent div (field wrapper)
+    // → last div child (the FormError div, rendered last in the wrapper).
+    this.editVendorError = this.editModal
+      .locator('label[for="edit-vendor"]')
+      .locator('xpath=parent::div/div[last()]');
 
     // Delete modal — role="dialog", aria-labelledby="delete-modal-title"
     this.deleteModal = page.locator('[role="dialog"][aria-labelledby="delete-modal-title"]');
