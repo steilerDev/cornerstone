@@ -40,6 +40,9 @@ export interface BudgetLineFormProps {
   // Itemized amount field (only used in invoice-side edit context)
   itemizedAmount?: string;
   onItemizedAmountChange?: (value: string) => void;
+  // Embedded mode and idPrefix for inline form rendering
+  embedded?: boolean;
+  idPrefix?: string;
 }
 
 export function BudgetLineForm({
@@ -66,9 +69,12 @@ export function BudgetLineForm({
   onMove,
   itemizedAmount,
   onItemizedAmountChange,
+  embedded,
+  idPrefix,
 }: BudgetLineFormProps) {
   const { t } = useTranslation('budget');
   const { t: tSettings } = useTranslation('settings');
+  const prefix = idPrefix ?? '';
 
   // Parent picker state
   const [selectedParentType, setSelectedParentType] = useState<'work_item' | 'household_item'>(
@@ -152,16 +158,20 @@ export function BudgetLineForm({
 
   return (
     <div className={styles.container}>
-      <form onSubmit={onSubmit} className={styles.form}>
+      <form
+        onSubmit={onSubmit}
+        className={styles.form}
+        {...(embedded ? { 'aria-label': t('autoItemize.inlineFormLabel') } : {})}
+      >
         {error && <FormError message={error} variant="banner" />}
 
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="budget-description">
+          <label className={styles.label} htmlFor={`${prefix}budget-description`}>
             {t('budgetLineForm.descriptionLabel')}
           </label>
           <input
             type="text"
-            id="budget-description"
+            id={`${prefix}budget-description`}
             className={styles.input}
             value={form.description}
             onChange={(e) => onFormChange({ description: e.target.value })}
@@ -192,12 +202,12 @@ export function BudgetLineForm({
         {form.pricingMode === 'direct' ? (
           <>
             <div className={styles.field}>
-              <label className={styles.label} htmlFor="budget-planned-amount">
+              <label className={styles.label} htmlFor={`${prefix}budget-planned-amount`}>
                 {t('budgetLineForm.plannedAmountLabel', { currencySymbol: '€' })}
               </label>
               <input
                 type="number"
-                id="budget-planned-amount"
+                id={`${prefix}budget-planned-amount`}
                 className={styles.input}
                 value={form.plannedAmount}
                 onChange={(e) => onFormChange({ plannedAmount: e.target.value })}
@@ -231,12 +241,12 @@ export function BudgetLineForm({
           <>
             <div className={styles.unitPricingRow}>
               <div className={styles.unitField}>
-                <label className={styles.label} htmlFor="budget-quantity">
+                <label className={styles.label} htmlFor={`${prefix}budget-quantity`}>
                   {t('budgetLineForm.quantityLabel')}
                 </label>
                 <input
                   type="number"
-                  id="budget-quantity"
+                  id={`${prefix}budget-quantity`}
                   className={styles.input}
                   value={form.quantity}
                   onChange={(e) => onFormChange({ quantity: e.target.value })}
@@ -249,12 +259,12 @@ export function BudgetLineForm({
               </div>
 
               <div className={styles.unitField}>
-                <label className={styles.label} htmlFor="budget-unit">
+                <label className={styles.label} htmlFor={`${prefix}budget-unit`}>
                   {t('budgetLineForm.unitLabel')}
                 </label>
                 <input
                   type="text"
-                  id="budget-unit"
+                  id={`${prefix}budget-unit`}
                   className={styles.input}
                   value={form.unit}
                   onChange={(e) => onFormChange({ unit: e.target.value })}
@@ -266,12 +276,12 @@ export function BudgetLineForm({
               <div className={styles.unitSeparator}>×</div>
 
               <div className={styles.unitField}>
-                <label className={styles.label} htmlFor="budget-unit-price">
+                <label className={styles.label} htmlFor={`${prefix}budget-unit-price`}>
                   {t('budgetLineForm.priceLabel')}
                 </label>
                 <input
                   type="number"
-                  id="budget-unit-price"
+                  id={`${prefix}budget-unit-price`}
                   className={styles.input}
                   value={form.unitPrice}
                   onChange={(e) => onFormChange({ unitPrice: e.target.value })}
@@ -309,11 +319,11 @@ export function BudgetLineForm({
         )}
 
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="budget-confidence">
+          <label className={styles.label} htmlFor={`${prefix}budget-confidence`}>
             {t('budgetLineForm.confidenceLabel')}
           </label>
           <select
-            id="budget-confidence"
+            id={`${prefix}budget-confidence`}
             className={styles.select}
             value={form.confidence}
             onChange={(e) => onFormChange({ confidence: e.target.value as ConfidenceLevel })}
@@ -334,11 +344,11 @@ export function BudgetLineForm({
           </div>
         ) : budgetCategories ? (
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="budget-category">
+            <label className={styles.label} htmlFor={`${prefix}budget-category`}>
               {t('budgetLineForm.categoryLabel')}
             </label>
             <select
-              id="budget-category"
+              id={`${prefix}budget-category`}
               className={styles.select}
               value={form.budgetCategoryId}
               onChange={(e) => onFormChange({ budgetCategoryId: e.target.value })}
@@ -355,11 +365,11 @@ export function BudgetLineForm({
         ) : null}
 
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="budget-source">
+          <label className={styles.label} htmlFor={`${prefix}budget-source`}>
             {t('budgetLineForm.fundingSourceLabel')}
           </label>
           <select
-            id="budget-source"
+            id={`${prefix}budget-source`}
             className={styles.select}
             value={form.budgetSourceId}
             onChange={(e) => onFormChange({ budgetSourceId: e.target.value })}
@@ -374,11 +384,11 @@ export function BudgetLineForm({
         </div>
 
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="budget-vendor">
+          <label className={styles.label} htmlFor={`${prefix}budget-vendor`}>
             {t('budgetLineForm.vendorLabel')}
           </label>
           <select
-            id="budget-vendor"
+            id={`${prefix}budget-vendor`}
             className={styles.select}
             value={form.vendorId}
             onChange={(e) => onFormChange({ vendorId: e.target.value })}
@@ -400,13 +410,13 @@ export function BudgetLineForm({
 
         {itemizedAmount !== undefined && onItemizedAmountChange !== undefined && (
           <div className={`${styles.field} ${styles.itemizedAmountField}`}>
-            <label className={styles.label} htmlFor="budget-itemized-amount">
+            <label className={styles.label} htmlFor={`${prefix}budget-itemized-amount`}>
               {t('budgetLineForm.itemizedAmountLabel', { currencySymbol: '€' })}
               <span className={styles.requiredStar}>*</span>
             </label>
             <input
               type="number"
-              id="budget-itemized-amount"
+              id={`${prefix}budget-itemized-amount`}
               className={styles.input}
               value={itemizedAmount}
               onChange={(e) => onItemizedAmountChange(e.target.value)}
@@ -421,7 +431,7 @@ export function BudgetLineForm({
         )}
 
         {/* Parent picker section for assigning unassigned budget lines */}
-        {isUnassigned && onAssign && (
+        {!embedded && isUnassigned && onAssign && (
           <fieldset ref={parentPickerRef} className={styles.parentPickerSection} tabIndex={-1}>
             <legend className={styles.parentPickerLegend}>
               {t('budgetLineForm.parentPickerFieldsetLegend')}
@@ -450,7 +460,7 @@ export function BudgetLineForm({
         )}
 
         {/* Parent picker section for editing assigned budget lines (move affordance) */}
-        {!isUnassigned && currentParentId && onMove && (
+        {!embedded && !isUnassigned && currentParentId && onMove && (
           <fieldset ref={parentPickerRef} className={styles.parentPickerSection} tabIndex={-1}>
             <legend className={styles.parentPickerLegend}>
               {t('budgetLineForm.linkedItemLegend')}
@@ -525,32 +535,34 @@ export function BudgetLineForm({
           </fieldset>
         )}
 
-        <div className={styles.actions}>
-          <button
-            type="submit"
-            className={styles.submitButton}
-            disabled={
-              isSaving ||
-              (form.pricingMode === 'direct'
-                ? !form.plannedAmount
-                : !form.quantity || !form.unitPrice)
-            }
-          >
-            {isSaving
-              ? t('budgetLineForm.submitSaving')
-              : isEditing
-                ? t('budgetLineForm.submitSave')
-                : t('budgetLineForm.submitAdd')}
-          </button>
-          <button
-            type="button"
-            className={styles.cancelButton}
-            onClick={onCancel}
-            disabled={isSaving}
-          >
-            {t('budgetLineForm.cancel')}
-          </button>
-        </div>
+        {!embedded && (
+          <div className={styles.actions}>
+            <button
+              type="submit"
+              className={styles.submitButton}
+              disabled={
+                isSaving ||
+                (form.pricingMode === 'direct'
+                  ? !form.plannedAmount
+                  : !form.quantity || !form.unitPrice)
+              }
+            >
+              {isSaving
+                ? t('budgetLineForm.submitSaving')
+                : isEditing
+                  ? t('budgetLineForm.submitSave')
+                  : t('budgetLineForm.submitAdd')}
+            </button>
+            <button
+              type="button"
+              className={styles.cancelButton}
+              onClick={onCancel}
+              disabled={isSaving}
+            >
+              {t('budgetLineForm.cancel')}
+            </button>
+          </div>
+        )}
       </form>
     </div>
   );

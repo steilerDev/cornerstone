@@ -212,6 +212,13 @@
   color: var(--color-text-primary);
 }
 
+/* Warning badge (e.g., "Creating New") */
+.warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-warning);
+}
+
 /* Info badge (e.g., "Auto-created") */
 .info {
   background-color: var(--color-bg-tertiary);
