@@ -315,22 +315,20 @@ test(
       // ── Intercept POST /api/work-items/:id/budgets to capture payload ─────────
       // Registered BEFORE saveButton.click() to avoid race with fast server.
       let capturedWIBudgetPayload: Record<string, unknown> | null = null;
-      const wiCreatePromise = page.waitForResponse(
-        async (resp) => {
-          if (
-            resp.url().includes(`/api/work-items/${workItemId}/budgets`) &&
-            resp.request().method() === 'POST' &&
-            resp.ok()
-          ) {
-            capturedWIBudgetPayload = (await resp.request().postDataJSON()) as Record<
-              string,
-              unknown
-            >;
-            return true;
-          }
-          return false;
-        },
-      );
+      const wiCreatePromise = page.waitForResponse(async (resp) => {
+        if (
+          resp.url().includes(`/api/work-items/${workItemId}/budgets`) &&
+          resp.request().method() === 'POST' &&
+          resp.ok()
+        ) {
+          capturedWIBudgetPayload = (await resp.request().postDataJSON()) as Record<
+            string,
+            unknown
+          >;
+          return true;
+        }
+        return false;
+      });
 
       // ── Intercept POST /api/invoices/:id/auto-itemize (commit) ───────────────
       // The commit call (dryRun:false) is the terminal server-side step. After this
@@ -439,10 +437,7 @@ test('Scenario 2: cancel after queuing create-new navigates away without creatin
 
     // Monitor any POST to /api/work-items/:id/budgets
     page.on('request', (req) => {
-      if (
-        req.url().includes(`/api/work-items/${workItemId}/budgets`) &&
-        req.method() === 'POST'
-      ) {
+      if (req.url().includes(`/api/work-items/${workItemId}/budgets`) && req.method() === 'POST') {
         wiCreateCallCount++;
       }
     });
@@ -523,10 +518,7 @@ test('Scenario 3: clicking Discard on the inline form removes the badge and rest
 
     // Monitor any POST to /api/work-items/:id/budgets
     page.on('request', (req) => {
-      if (
-        req.url().includes(`/api/work-items/${workItemId}/budgets`) &&
-        req.method() === 'POST'
-      ) {
+      if (req.url().includes(`/api/work-items/${workItemId}/budgets`) && req.method() === 'POST') {
         wiCreateCallCount++;
       }
     });

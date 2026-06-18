@@ -538,9 +538,10 @@ describe('AutoItemizePage — queue + save flow (Story #1693)', () => {
     // The inline form renders as <form aria-label="New budget line details">;
     // the card also has a separate VAT checkbox outside the form.
     const inlineFormEl = document.querySelector('form[aria-label="New budget line details"]');
-    const vatCheckbox = inlineFormEl?.querySelector(
-      'input[type="checkbox"]',
-    ) as HTMLInputElement | null | undefined;
+    const vatCheckbox = inlineFormEl?.querySelector('input[type="checkbox"]') as
+      | HTMLInputElement
+      | null
+      | undefined;
 
     if (vatCheckbox?.checked) {
       await act(async () => {
