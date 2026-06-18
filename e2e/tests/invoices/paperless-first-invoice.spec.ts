@@ -1597,10 +1597,13 @@ test.describe('Scenario 18 — Inline form validation: invalid amount shows erro
       await expect(reviewPage.getInlineFormWrapper(0)).toBeVisible();
 
       // ── Find the unitPrice input inside the inline form and clear it ────────
-      // BudgetLineForm in unit mode renders a "Unit Price" number input.
+      // BudgetLineForm in unit mode renders a number input for the price.
+      // The label text is t('budgetLineForm.priceLabel') = "Price *" (NOT "Unit Price").
+      // Use the stable id*="budget-unit-price" selector to avoid depending on the label text,
+      // and scope it to the inline form wrapper to avoid matching other price inputs on the page.
       const unitPriceInput = reviewPage
         .getInlineFormWrapper(0)
-        .getByRole('spinbutton', { name: /Unit Price/i });
+        .locator('[id*="budget-unit-price"]');
       await unitPriceInput.fill('');
 
       // ── Set vendor so vendor validation passes ──────────────────────────────
