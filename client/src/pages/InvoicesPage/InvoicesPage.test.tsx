@@ -1024,4 +1024,174 @@ describe('InvoicesPage', () => {
       });
     });
   });
+
+  // ─── Story #1735: ?create=1 auto-open effect ────────────────────────────────
+
+  describe('?create=1 auto-open effect (Story #1735)', () => {
+    /** Renders the page with ?create=1 in the URL and a location helper
+     *  that exposes pathname+search so tests can assert the param is removed. */
+    function LocationSearchDisplay() {
+      const location = useLocation();
+      return <div data-testid="location-search">{location.pathname + location.search}</div>;
+    }
+
+    function renderPageWithCreate() {
+      return render(
+        <MemoryRouter initialEntries={['/budget/invoices?create=1']}>
+          <Routes>
+            <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+            <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
+            <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
+          </Routes>
+          <LocationSearchDisplay />
+        </MemoryRouter>,
+      );
+    }
+
+    // (A) integrationStatus unresolved (both APIs pending) → no modal opens
+    it('(A) does not auto-open any modal while integration status is still loading', async () => {
+      mockGetPaperlessStatus.mockReturnValue(new Promise(() => {}));
+      mockFetchConfig.mockReturnValue(new Promise(() => {}));
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+
+      renderPageWithCreate();
+
+      // Give the effect a chance to fire if it wrongly ignores the loading gate
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(
+        document.querySelector('[data-testid="paperless-picker-modal"]'),
+      ).not.toBeInTheDocument();
+    });
+
+    // (B) ?create=1 absent + status resolved → no modal opens
+    it('(B) does not auto-open any modal when ?create=1 is absent from the URL', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: 'https://paperless.example.com',
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+
+      // Use renderPage() which starts at /budget/invoices (no ?create param)
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('new-invoice-button')).not.toHaveAttribute(
+          'aria-disabled',
+          'true',
+        );
+      });
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(
+        document.querySelector('[data-testid="paperless-picker-modal"]'),
+      ).not.toBeInTheDocument();
+    });
+
+    // (C) ?create=1 + Paperless NOT configured + autoItemizeEnabled=false → manual modal
+    it('(C) auto-opens manual modal when Paperless not configured and ?create=1', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      renderPageWithCreate();
+
+      // Manual modal should auto-open
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // Paperless picker must NOT be present
+      expect(
+        document.querySelector('[data-testid="paperless-picker-modal"]'),
+      ).not.toBeInTheDocument();
+    });
+
+    // (D) ?create=1 + Paperless configured + reachable + autoItemizeEnabled=true → Paperless picker
+    it('(D) auto-opens Paperless picker when Paperless configured and autoItemizeEnabled=true', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: 'https://paperless.example.com',
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+
+      renderPageWithCreate();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('paperless-picker-modal')).toBeInTheDocument();
+      });
+
+      // Manual create modal must NOT be present
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    // (E) ?create=1 + Paperless configured + autoItemizeEnabled DISABLED → manual modal
+    it('(E) auto-opens manual modal when Paperless configured but autoItemizeEnabled=false', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: 'https://paperless.example.com',
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      renderPageWithCreate();
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      expect(
+        document.querySelector('[data-testid="paperless-picker-modal"]'),
+      ).not.toBeInTheDocument();
+    });
+
+    // (F) after auto-open, the URL no longer contains create=1
+    it('(F) removes ?create=1 from the URL after auto-opening the modal', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      renderPageWithCreate();
+
+      // Wait for the modal to open (confirms the effect ran)
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+      });
+
+      // The URL should no longer carry ?create=1
+      await waitFor(() => {
+        const locationEl = screen.getByTestId('location-search');
+        expect(locationEl.textContent).not.toContain('create=1');
+      });
+    });
+  });
 });

@@ -9,7 +9,6 @@ import type {
   InvoiceStatusBreakdown,
   PaperlessDocumentSearchResult,
   PaperlessStatusResponse,
-  AppConfigResponse,
 } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
@@ -275,6 +274,27 @@ export function InvoicesPage() {
     setCreateError('');
     setShowCreateModal(true);
   };
+
+  // Consume ?create=1 from the Dashboard "Add Invoice" shortcut.
+  // Only fires once integrationStatus has fully resolved (both fields non-null)
+  // to match the readiness gate used by the page's own "Add Invoice" button.
+  useEffect(() => {
+    if (integrationStatus.paperless === null || integrationStatus.autoItemizeEnabled === null) {
+      return;
+    }
+    if (searchParams.get('create') === '1') {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('create');
+          return next;
+        },
+        { replace: true },
+      );
+      openCreateModal();
+    }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- openCreateModal is a stable plain function; intentionally omitted
+  }, [integrationStatus, searchParams, setSearchParams]);
 
   const closeCreateModal = () => {
     if (!isCreating) {

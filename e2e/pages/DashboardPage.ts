@@ -49,6 +49,12 @@ export class DashboardPage {
   /** The consolidated "Add" dropdown trigger button (data-testid="dashboard-add-button"). */
   readonly addButton: Locator;
 
+  /** "New Diary Entry" menu item in the Add dropdown (data-testid="dashboard-add-diary-entry"). */
+  readonly addDiaryEntryButton: Locator;
+
+  /** "New Invoice" menu item in the Add dropdown (data-testid="dashboard-add-invoice"). */
+  readonly addInvoiceButton: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -75,6 +81,10 @@ export class DashboardPage {
 
     // Consolidated "Add" dropdown button (replaces the 3 individual add buttons)
     this.addButton = page.getByTestId('dashboard-add-button');
+
+    // New menu items added in issue #1735
+    this.addDiaryEntryButton = page.getByTestId('dashboard-add-diary-entry');
+    this.addInvoiceButton = page.getByTestId('dashboard-add-invoice');
   }
 
   async goto(): Promise<void> {
@@ -137,11 +147,12 @@ export class DashboardPage {
 
   /**
    * Opens the "Add" dropdown and waits for the menu items to appear.
-   * The dropdown contains "Add Work Item", "Add Household Item", and "Add Milestone" options.
+   * The dropdown contains five items: Work Item, Household Item, Milestone, Diary Entry, Invoice.
    */
   async openAddDropdown(): Promise<void> {
     await this.addButton.click();
     await this.page.getByTestId('dashboard-add-work-item').waitFor({ state: 'visible' });
+    await this.page.getByTestId('dashboard-add-diary-entry').waitFor({ state: 'visible' });
   }
 
   /**
