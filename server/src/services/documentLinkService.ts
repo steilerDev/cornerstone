@@ -28,6 +28,7 @@ import type {
   DocumentLink,
   DocumentLinkWithMetadata,
   DocumentLinkEntityType,
+  PaperlessDocument,
 } from '@cornerstone/shared';
 import * as paperlessService from './paperlessService.js';
 
@@ -178,30 +179,28 @@ export async function getLinksForEntity(
     return userCache.get(createdBy) ?? null;
   };
 
-  // Enrich with Paperless-ngx metadata in parallel
-  const enriched: DocumentLinkWithMetadata[] = await Promise.all(
-    rows.map(async (row) => {
-      const user = resolveUser(row.createdBy);
-      const base = toDocumentLink(row, user);
+  // Bulk-fetch all Paperless-ngx document metadata in a single API call
+  // (avoids N×4 sequential requests that the old per-document approach required)
+  let docsBulk: Map<number, PaperlessDocument> = new Map();
+  if (config.paperlessEnabled && config.paperlessUrl && config.paperlessApiToken) {
+    try {
+      docsBulk = await paperlessService.getDocuments(
+        config.paperlessUrl,
+        config.paperlessApiToken,
+        rows.map((r) => r.paperlessDocumentId),
+      );
+    } catch {
+      // Paperless-ngx unreachable — all documents will appear as null
+    }
+  }
 
-      if (!config.paperlessEnabled || !config.paperlessUrl || !config.paperlessApiToken) {
-        return { ...base, document: null };
-      }
-
-      try {
-        const doc = await paperlessService.getDocument(
-          config.paperlessUrl,
-          config.paperlessApiToken,
-          row.paperlessDocumentId,
-        );
-        // Strip content for list view (use GET /api/paperless/documents/:id for full content)
-        return { ...base, document: { ...doc, content: null } };
-      } catch {
-        // Document deleted from Paperless-ngx or unreachable — return null document
-        return { ...base, document: null };
-      }
-    }),
-  );
+  const enriched: DocumentLinkWithMetadata[] = rows.map((row) => {
+    const user = resolveUser(row.createdBy);
+    const base = toDocumentLink(row, user);
+    const doc = docsBulk.get(row.paperlessDocumentId) ?? null;
+    // content is already null in bulk results (list view — use GET /api/paperless/documents/:id for full content)
+    return { ...base, document: doc };
+  });
 
   return enriched;
 }
