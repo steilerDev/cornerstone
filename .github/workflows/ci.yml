@@ -438,15 +438,39 @@ jobs:
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
       - name: Install Playwright system dependencies
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
-          for i in 1 2; do
+          # ubuntu-latest runners run a background apt-get (unattended-upgrades / boot-time
+          # package work) that holds the dpkg/apt lock early in the job. install-deps fails
+          # instantly with "Could not get lock" if it races that holder, so wait for the
+          # lock to free before each attempt and back off between attempts.
+          wait_for_apt() {
+            local max=180 waited=0
+            while sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock /var/lib/apt/lists/lock >/dev/null 2>&1; do
+              if [ "$waited" -ge "$max" ]; then
+                echo "Timed out waiting for apt lock after ${max}s"
+                return 1
+              fi
+              echo "apt/dpkg lock held, waiting... (${waited}s)"
+              sleep 5
+              waited=$((waited + 5))
+            done
+          }
+          backoff=10
+          for i in 1 2 3; do
+            echo "Attempt $i: waiting for apt/dpkg lock to be free..."
+            wait_for_apt || echo "Proceeding despite lock-wait timeout on attempt $i"
             echo "Attempt $i: installing Playwright system dependencies..."
             if timeout 240 sudo npx playwright install-deps chromium webkit; then
               echo "Success on attempt $i"
               exit 0
             fi
-            echo "Attempt $i failed or timed out, retrying..."
+            echo "Attempt $i failed or timed out"
+            if [ "$i" -lt 3 ]; then
+              echo "Backing off ${backoff}s before retrying..."
+              sleep "$backoff"
+              backoff=$((backoff * 3))
+            fi
           done
           echo "All attempts failed"
           exit 1
@@ -525,15 +549,39 @@ jobs:
           key: apt-v3-playwright-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
       - name: Install Playwright system dependencies
-        timeout-minutes: 10
+        timeout-minutes: 15
         run: |
-          for i in 1 2; do
+          # ubuntu-latest runners run a background apt-get (unattended-upgrades / boot-time
+          # package work) that holds the dpkg/apt lock early in the job. install-deps fails
+          # instantly with "Could not get lock" if it races that holder, so wait for the
+          # lock to free before each attempt and back off between attempts.
+          wait_for_apt() {
+            local max=180 waited=0
+            while sudo fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock /var/lib/apt/lists/lock >/dev/null 2>&1; do
+              if [ "$waited" -ge "$max" ]; then
+                echo "Timed out waiting for apt lock after ${max}s"
+                return 1
+              fi
+              echo "apt/dpkg lock held, waiting... (${waited}s)"
+              sleep 5
+              waited=$((waited + 5))
+            done
+          }
+          backoff=10
+          for i in 1 2 3; do
+            echo "Attempt $i: waiting for apt/dpkg lock to be free..."
+            wait_for_apt || echo "Proceeding despite lock-wait timeout on attempt $i"
             echo "Attempt $i: installing Playwright system dependencies..."
             if timeout 240 sudo npx playwright install-deps chromium webkit; then
               echo "Success on attempt $i"
               exit 0
             fi
-            echo "Attempt $i failed or timed out, retrying..."
+            echo "Attempt $i failed or timed out"
+            if [ "$i" -lt 3 ]; then
+              echo "Backing off ${backoff}s before retrying..."
+              sleep "$backoff"
+              backoff=$((backoff * 3))
+            fi
           done
           echo "All attempts failed"
           exit 1
