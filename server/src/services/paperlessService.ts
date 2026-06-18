@@ -488,6 +488,76 @@ export async function getDocument(
 }
 
 /**
+ * Fetch metadata for multiple Paperless-ngx documents in two API calls.
+ *
+ * Uses the `id__in` filter (supported by Paperless-ngx's DocumentFilterSet — see
+ * src/documents/filters.py: `"id": ["in", "exact"]`) to fetch all documents in one
+ * request, combined with a single tag-list fetch. Unique correspondents and document
+ * types are resolved once per batch.
+ *
+ * Documents that no longer exist in Paperless-ngx are simply absent from the returned map.
+ *
+ * @returns A map of paperless document ID → PaperlessDocument (content is null — list view)
+ */
+export async function getDocuments(
+  baseUrl: string,
+  token: string,
+  ids: number[],
+): Promise<Map<number, PaperlessDocument>> {
+  if (ids.length === 0) return new Map();
+
+  const params = new URLSearchParams();
+  params.set('id__in', ids.join(','));
+  params.set('page_size', String(ids.length));
+
+  // Fetch tags and all documents in parallel — just 2 API calls regardless of N
+  const [tagsMap, raw] = await Promise.all([
+    fetchTagsMap(baseUrl, token),
+    fetchPaperless<RawPaperlessListResponse>(baseUrl, token, `/api/documents/?${params.toString()}`),
+  ]);
+
+  const presentDocs = raw.results;
+
+  // Resolve unique correspondents and document types in one pass
+  const correspondentIds = new Set<number>();
+  const documentTypeIds = new Set<number>();
+  for (const doc of presentDocs) {
+    if (doc.correspondent !== null) correspondentIds.add(doc.correspondent);
+    if (doc.document_type !== null) documentTypeIds.add(doc.document_type);
+  }
+
+  const [correspondentEntries, documentTypeEntries] = await Promise.all([
+    Promise.all(
+      [...correspondentIds].map(async (id) => {
+        const name = await resolveCorrespondentName(baseUrl, token, id);
+        return [id, name] as [number, string | null];
+      }),
+    ),
+    Promise.all(
+      [...documentTypeIds].map(async (id) => {
+        const name = await resolveDocumentTypeName(baseUrl, token, id);
+        return [id, name] as [number, string | null];
+      }),
+    ),
+  ]);
+
+  const correspondentMap = new Map<number, string | null>(correspondentEntries);
+  const documentTypeMap = new Map<number, string | null>(documentTypeEntries);
+
+  const result = new Map<number, PaperlessDocument>();
+  for (const rawDoc of presentDocs) {
+    const correspondentName =
+      rawDoc.correspondent !== null ? (correspondentMap.get(rawDoc.correspondent) ?? null) : null;
+    const documentTypeName =
+      rawDoc.document_type !== null ? (documentTypeMap.get(rawDoc.document_type) ?? null) : null;
+    const doc = mapDocument(rawDoc, tagsMap, correspondentName, documentTypeName, false);
+    result.set(doc.id, doc);
+  }
+
+  return result;
+}
+
+/**
  * List all tags available in Paperless-ngx, sorted by ID ascending.
  */
 export async function listTags(baseUrl: string, token: string): Promise<PaperlessTagListResponse> {

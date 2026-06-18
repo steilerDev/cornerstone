@@ -860,6 +860,166 @@ describe('listCorrespondents()', () => {
   });
 });
 
+// ─── getDocuments tests ───────────────────────────────────────────────────────
+
+describe('getDocuments()', () => {
+  /**
+   * Mock order for getDocuments: tags and docs are fetched in parallel via Promise.all,
+   * with fetchTagsMap listed first → tags call lands at index 0, docs list at index 1.
+   */
+  function setupGetDocsMocks(docResponse = { count: 1, results: [RAW_DOCUMENT_1] }) {
+    // Call 0: tags (first arg in Promise.all)
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+    // Call 1: documents list via id__in (second arg in Promise.all)
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(docResponse));
+    // Call 2: correspondent 3
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
+    // Call 3: document_type 7
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
+  }
+
+  it('returns an empty Map without any fetch calls when ids is empty', async () => {
+    const result = await paperlessService.getDocuments(BASE_URL, TOKEN, []);
+
+    expect(result.size).toBe(0);
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('uses id__in filter with comma-separated ids', async () => {
+    setupGetDocsMocks();
+
+    await paperlessService.getDocuments(BASE_URL, TOKEN, [42, 99, 7]);
+
+    const docsCallUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
+    expect(docsCallUrl).toContain('id__in=42%2C99%2C7');
+  });
+
+  it('sets page_size equal to the number of requested ids', async () => {
+    setupGetDocsMocks();
+
+    await paperlessService.getDocuments(BASE_URL, TOKEN, [42, 99, 7]);
+
+    const docsCallUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
+    expect(docsCallUrl).toContain('page_size=3');
+  });
+
+  it('makes exactly 2 fetch calls when documents have no correspondents or doc types', async () => {
+    const minimalDoc = {
+      ...RAW_DOCUMENT_1,
+      correspondent: null,
+      document_type: null,
+    };
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [minimalDoc] }));
+
+    await paperlessService.getDocuments(BASE_URL, TOKEN, [42]);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns a Map keyed by document id', async () => {
+    setupGetDocsMocks();
+
+    const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42]);
+
+    expect(result.has(42)).toBe(true);
+    expect(result.get(42)?.id).toBe(42);
+  });
+
+  it('returns null content (list view — detail endpoint provides full content)', async () => {
+    setupGetDocsMocks();
+
+    const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42]);
+
+    expect(result.get(42)?.content).toBeNull();
+  });
+
+  it('resolves document metadata correctly (tags, correspondent, documentType)', async () => {
+    setupGetDocsMocks();
+
+    const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42]);
+
+    const doc = result.get(42)!;
+    expect(doc.title).toBe('Invoice from Builder Co');
+    expect(doc.correspondent).toBe('Builder Co');
+    expect(doc.documentType).toBe('Invoice');
+    expect(doc.tags).toHaveLength(2);
+    expect(doc.tags[0]!.name).toBe('invoice');
+    expect(doc.tags[1]!.name).toBe('contract');
+    expect(doc.created).toBe('2026-01-15');
+    expect(doc.archiveSerialNumber).toBe(1042);
+    expect(doc.pageCount).toBe(2);
+  });
+
+  it('omits documents that are absent from the Paperless results (e.g. deleted)', async () => {
+    // Requested [42, 999] but Paperless only returns doc 42 (999 was deleted)
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [RAW_DOCUMENT_1] }));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
+
+    const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42, 999]);
+
+    expect(result.has(42)).toBe(true);
+    expect(result.has(999)).toBe(false);
+    expect(result.size).toBe(1);
+  });
+
+  it('resolves each unique correspondent and document type only once across multiple docs', async () => {
+    const doc2 = { ...RAW_DOCUMENT_1, id: 43, correspondent: 3, document_type: 7 };
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+    mockFetch.mockResolvedValueOnce(
+      mockJsonResponse({ count: 2, results: [RAW_DOCUMENT_1, doc2] }),
+    );
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
+
+    const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42, 43]);
+
+    // 2 (tags + docs) + 1 correspondent + 1 doc type = 4 total, not 6
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+    expect(result.get(42)!.correspondent).toBe('Builder Co');
+    expect(result.get(43)!.correspondent).toBe('Builder Co');
+  });
+
+  it('returns multiple documents in the map', async () => {
+    const doc2 = { ...RAW_DOCUMENT_1, id: 43, title: 'Second Doc', correspondent: null, document_type: null };
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+    mockFetch.mockResolvedValueOnce(
+      mockJsonResponse({ count: 2, results: [RAW_DOCUMENT_1, doc2] }),
+    );
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
+
+    const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42, 43]);
+
+    expect(result.size).toBe(2);
+    expect(result.get(42)!.title).toBe('Invoice from Builder Co');
+    expect(result.get(43)!.title).toBe('Second Doc');
+  });
+
+  it('throws PAPERLESS_UNREACHABLE when the bulk documents fetch fails with a network error', async () => {
+    // Tags resolve fine; docs call throws
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+    mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
+
+    await expect(paperlessService.getDocuments(BASE_URL, TOKEN, [42])).rejects.toMatchObject({
+      code: 'PAPERLESS_UNREACHABLE',
+      statusCode: 502,
+    });
+  });
+
+  it('throws PAPERLESS_ERROR when the bulk documents fetch returns a non-ok status', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ detail: 'Forbidden' }, 403));
+
+    await expect(paperlessService.getDocuments(BASE_URL, TOKEN, [42])).rejects.toMatchObject({
+      code: 'PAPERLESS_ERROR',
+      statusCode: 502,
+    });
+  });
+});
+
 // ─── AppError correctness ─────────────────────────────────────────────────────
 
 describe('Error codes and status codes', () => {
