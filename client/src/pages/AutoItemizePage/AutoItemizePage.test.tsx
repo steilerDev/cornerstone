@@ -2475,7 +2475,9 @@ describe('AutoItemizePage', () => {
         expect(inlineForm).not.toBeNull();
       });
 
-      const confidenceSelect = document.querySelector('[id$="budget-confidence"]') as HTMLSelectElement | null;
+      const confidenceSelect = document.querySelector(
+        '[id$="budget-confidence"]',
+      ) as HTMLSelectElement | null;
       expect(confidenceSelect?.value).toBe('invoice');
     });
 
@@ -2492,7 +2494,9 @@ describe('AutoItemizePage', () => {
         expect(inlineForm).not.toBeNull();
       });
 
-      const confidenceSelect = document.querySelector('[id$="budget-confidence"]') as HTMLSelectElement | null;
+      const confidenceSelect = document.querySelector(
+        '[id$="budget-confidence"]',
+      ) as HTMLSelectElement | null;
       expect(confidenceSelect?.value).toBe('quote');
     });
 
@@ -2509,7 +2513,9 @@ describe('AutoItemizePage', () => {
         expect(inlineForm).not.toBeNull();
       });
 
-      const confidenceSelect = document.querySelector('[id$="budget-confidence"]') as HTMLSelectElement | null;
+      const confidenceSelect = document.querySelector(
+        '[id$="budget-confidence"]',
+      ) as HTMLSelectElement | null;
       expect(confidenceSelect?.value).toBe('professional_estimate');
     });
 
@@ -2526,7 +2532,9 @@ describe('AutoItemizePage', () => {
         expect(inlineForm).not.toBeNull();
       });
 
-      const confidenceSelect = document.querySelector('[id$="budget-confidence"]') as HTMLSelectElement | null;
+      const confidenceSelect = document.querySelector(
+        '[id$="budget-confidence"]',
+      ) as HTMLSelectElement | null;
       expect(confidenceSelect?.value).toBe('own_estimate');
     });
 
@@ -2547,7 +2555,9 @@ describe('AutoItemizePage', () => {
       });
 
       // The vendor select is populated from the picker's vendors list and prefilled to v-1
-      const vendorSelect = document.querySelector('[id$="budget-vendor"]') as HTMLSelectElement | null;
+      const vendorSelect = document.querySelector(
+        '[id$="budget-vendor"]',
+      ) as HTMLSelectElement | null;
       expect(vendorSelect?.value).toBe('v-1');
     });
 
@@ -2568,7 +2578,9 @@ describe('AutoItemizePage', () => {
       });
 
       // No match found → vendorId in draft is '' → select shows empty option
-      const vendorSelect = document.querySelector('[id$="budget-vendor"]') as HTMLSelectElement | null;
+      const vendorSelect = document.querySelector(
+        '[id$="budget-vendor"]',
+      ) as HTMLSelectElement | null;
       expect(vendorSelect?.value).toBe('');
     });
 
@@ -2588,7 +2600,9 @@ describe('AutoItemizePage', () => {
         expect(inlineForm).not.toBeNull();
       });
 
-      const vendorSelect = document.querySelector('[id$="budget-vendor"]') as HTMLSelectElement | null;
+      const vendorSelect = document.querySelector(
+        '[id$="budget-vendor"]',
+      ) as HTMLSelectElement | null;
       expect(vendorSelect?.value).toBe('');
     });
 
@@ -2610,7 +2624,9 @@ describe('AutoItemizePage', () => {
 
       // For household_item parent, budgetCategoryId is always cleared to ''
       // The category select should be absent (household items have no category) or empty
-      const confidenceSelect = document.querySelector('[id$="budget-confidence"]') as HTMLSelectElement | null;
+      const confidenceSelect = document.querySelector(
+        '[id$="budget-confidence"]',
+      ) as HTMLSelectElement | null;
       // Inline form rendered — draft was applied with cleared budgetCategoryId
       expect(confidenceSelect).not.toBeNull();
     });
@@ -2632,7 +2648,9 @@ describe('AutoItemizePage', () => {
       });
 
       // For work_item parent, budgetCategoryId is preserved from the extracted line
-      const categorySelect = document.querySelector('[id$="budget-category"]') as HTMLSelectElement | null;
+      const categorySelect = document.querySelector(
+        '[id$="budget-category"]',
+      ) as HTMLSelectElement | null;
       // The category select exists; its value is 'cat-5' when the category is loaded,
       // or '' when the categories list is empty (as in this test where categories=[]).
       // Verify the inline form rendered — that is the key assertion.

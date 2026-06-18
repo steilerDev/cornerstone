@@ -266,10 +266,7 @@ test(
       await autoItemizePage.pickerWorkItemSearchInput.fill(`${testPrefix} AIVAT-S1 WI`);
 
       const wiOption = autoItemizePage.pickerPortalDropdown.getByRole('option', {
-        name: new RegExp(
-          `${testPrefix} AIVAT-S1 WI`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
-          'i',
-        ),
+        name: new RegExp(`${testPrefix} AIVAT-S1 WI`.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
       });
       await wiOption.waitFor({ state: 'visible' });
       await wiOption.click();
@@ -336,7 +333,10 @@ test(
 
       // ── Assert WI budget payload (Bug B: net stored) ──────────────────────────
       // plannedAmount must be the NET amount (100), not the gross (119)
-      expect(capturedWIBudgetPayload, 'POST /api/work-items/:id/budgets was not called').not.toBeNull();
+      expect(
+        capturedWIBudgetPayload,
+        'POST /api/work-items/:id/budgets was not called',
+      ).not.toBeNull();
       expect(
         capturedWIBudgetPayload!.plannedAmount,
         `Bug B regression: plannedAmount should be NET (100) but was ${capturedWIBudgetPayload!.plannedAmount}. ` +

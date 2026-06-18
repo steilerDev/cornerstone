@@ -203,50 +203,52 @@ export function AutoItemizeLineCard({
           )}
         </div>
 
-        <div className={styles.cardBottomRowPickerRow}>
-          {/* Category picker */}
-          <div className={styles.cardMetricCell}>
-            <label htmlFor={`category-${line.rowId}`} className={styles.cardPickerLabel}>
-              {t('autoItemize.categoryLabel')}
-            </label>
-            <select
-              id={`category-${line.rowId}`}
-              className={styles.cardMetricInput}
-              value={line.budgetCategoryId ?? ''}
-              onChange={(e) =>
-                onFieldChange(line.rowId, 'budgetCategoryId', e.target.value || null)
-              }
-              aria-label={t('autoItemize.categoryAriaLabel')}
-            >
-              <option value="">{t('autoItemize.categoryPlaceholder')}</option>
-              {categories?.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {getCategoryDisplayName(tSettings, cat.name, cat.translationKey ?? null)}
-                </option>
-              ))}
-            </select>
-          </div>
+        {!line.inlineCreatedBudgetLineDraft && (
+          <div className={styles.cardBottomRowPickerRow}>
+            {/* Category picker */}
+            <div className={styles.cardMetricCell}>
+              <label htmlFor={`category-${line.rowId}`} className={styles.cardPickerLabel}>
+                {t('autoItemize.categoryLabel')}
+              </label>
+              <select
+                id={`category-${line.rowId}`}
+                className={styles.cardMetricInput}
+                value={line.budgetCategoryId ?? ''}
+                onChange={(e) =>
+                  onFieldChange(line.rowId, 'budgetCategoryId', e.target.value || null)
+                }
+                aria-label={t('autoItemize.categoryAriaLabel')}
+              >
+                <option value="">{t('autoItemize.categoryPlaceholder')}</option>
+                {categories?.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {getCategoryDisplayName(tSettings, cat.name, cat.translationKey ?? null)}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Funding Source picker */}
-          <div className={styles.cardMetricCell}>
-            <label htmlFor={`source-${line.rowId}`} className={styles.cardPickerLabel}>
-              {t('autoItemize.fundingSourceLabel')}
-            </label>
-            <select
-              id={`source-${line.rowId}`}
-              className={styles.cardMetricInput}
-              value={line.budgetSourceId ?? ''}
-              onChange={(e) => onFieldChange(line.rowId, 'budgetSourceId', e.target.value)}
-              aria-label={t('autoItemize.fundingSourceAriaLabel')}
-            >
-              {budgetSources?.map((src) => (
-                <option key={src.id} value={src.id}>
-                  {src.name}
-                </option>
-              ))}
-            </select>
+            {/* Funding Source picker */}
+            <div className={styles.cardMetricCell}>
+              <label htmlFor={`source-${line.rowId}`} className={styles.cardPickerLabel}>
+                {t('autoItemize.fundingSourceLabel')}
+              </label>
+              <select
+                id={`source-${line.rowId}`}
+                className={styles.cardMetricInput}
+                value={line.budgetSourceId ?? ''}
+                onChange={(e) => onFieldChange(line.rowId, 'budgetSourceId', e.target.value)}
+                aria-label={t('autoItemize.fundingSourceAriaLabel')}
+              >
+                {budgetSources?.map((src) => (
+                  <option key={src.id} value={src.id}>
+                    {src.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {line.inlineCreatedBudgetLineDraft &&
@@ -269,6 +271,8 @@ export function AutoItemizeLineCard({
               budgetSources={budgetSources}
               vendors={vendors}
               budgetCategories={budgetCategories}
+              hideConfidenceField={line.inlineHideConfidence}
+              hideVatField={line.assignedItemType === 'work_item'}
             />
           </div>
         )}

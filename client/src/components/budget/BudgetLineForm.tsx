@@ -43,6 +43,10 @@ export interface BudgetLineFormProps {
   // Embedded mode and idPrefix for inline form rendering
   embedded?: boolean;
   idPrefix?: string;
+  // Hide confidence field in inline form when auto-applied from document type
+  hideConfidenceField?: boolean;
+  // Hide VAT field in inline form when assigned to work item (VAT is auto-determined from extraction)
+  hideVatField?: boolean;
 }
 
 export function BudgetLineForm({
@@ -71,6 +75,8 @@ export function BudgetLineForm({
   onItemizedAmountChange,
   embedded,
   idPrefix,
+  hideConfidenceField,
+  hideVatField,
 }: BudgetLineFormProps) {
   const { t } = useTranslation('budget');
   const { t: tSettings } = useTranslation('settings');
@@ -220,22 +226,24 @@ export function BudgetLineForm({
               />
             </div>
 
-            <div className={styles.field}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={form.includesVat}
-                  onChange={(e) => onFormChange({ includesVat: e.target.checked })}
-                  disabled={isSaving}
-                />
-                {t('budgetLineForm.includesVatLabel', { vatRate: '19' })}
-              </label>
-              {!form.includesVat && (
-                <div className={styles.vatNote}>
-                  {t('budgetLineForm.vatNote', { vatRate: '19' })}
-                </div>
-              )}
-            </div>
+            {!hideVatField && (
+              <div className={styles.field}>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={form.includesVat}
+                    onChange={(e) => onFormChange({ includesVat: e.target.checked })}
+                    disabled={isSaving}
+                  />
+                  {t('budgetLineForm.includesVatLabel', { vatRate: '19' })}
+                </label>
+                {!form.includesVat && (
+                  <div className={styles.vatNote}>
+                    {t('budgetLineForm.vatNote', { vatRate: '19' })}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -299,43 +307,47 @@ export function BudgetLineForm({
               </div>
             </div>
 
-            <div className={styles.field}>
-              <label className={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={form.includesVat}
-                  onChange={(e) => onFormChange({ includesVat: e.target.checked })}
-                  disabled={isSaving}
-                />
-                {t('budgetLineForm.includesVatLabel', { vatRate: '19' })}
-              </label>
-              {!form.includesVat && (
-                <div className={styles.vatNote}>
-                  {t('budgetLineForm.vatNote', { vatRate: '19' })}
-                </div>
-              )}
-            </div>
+            {!hideVatField && (
+              <div className={styles.field}>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={form.includesVat}
+                    onChange={(e) => onFormChange({ includesVat: e.target.checked })}
+                    disabled={isSaving}
+                  />
+                  {t('budgetLineForm.includesVatLabel', { vatRate: '19' })}
+                </label>
+                {!form.includesVat && (
+                  <div className={styles.vatNote}>
+                    {t('budgetLineForm.vatNote', { vatRate: '19' })}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
 
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor={`${prefix}budget-confidence`}>
-            {t('budgetLineForm.confidenceLabel')}
-          </label>
-          <select
-            id={`${prefix}budget-confidence`}
-            className={styles.select}
-            value={form.confidence}
-            onChange={(e) => onFormChange({ confidence: e.target.value as ConfidenceLevel })}
-            disabled={isSaving}
-          >
-            {Object.entries(confidenceLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!hideConfidenceField && (
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor={`${prefix}budget-confidence`}>
+              {t('budgetLineForm.confidenceLabel')}
+            </label>
+            <select
+              id={`${prefix}budget-confidence`}
+              className={styles.select}
+              value={form.confidence}
+              onChange={(e) => onFormChange({ confidence: e.target.value as ConfidenceLevel })}
+              disabled={isSaving}
+            >
+              {Object.entries(confidenceLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {staticCategoryLabel ? (
           <div className={styles.field}>

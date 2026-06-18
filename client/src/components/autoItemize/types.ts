@@ -13,6 +13,7 @@ export interface LineWithInclude extends ExtractedLine {
   assignedBudgetLineDescription?: string | null;
   createdFromExtraction?: boolean;
   inlineCreatedBudgetLineDraft?: BudgetLineFormState;
+  inlineHideConfidence?: boolean;
   budgetCategoryId?: string | null;
   budgetSourceId?: string | null;
 }
