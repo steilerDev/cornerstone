@@ -52,7 +52,8 @@ IMPORTANT RULES:
 9. category: extract ONE short noun phrase for the line's trade or material type (e.g., "Materials", "Labor", "Tile work", "Electrical", "Plumbing", "Roofing", "Painting", "Flooring"). Use English even on German invoices. Keep ≤ 30 characters. Output null if unclear.
 10. chosenVendorName: If a list of available vendors is provided, extract the vendor name from the invoice and return the exact matching name from the list (case-sensitive match). Return null if no match found or no vendor list provided.
 11. If no line items can be reliably extracted, return { "invoiceDate": null, "dueDate": null, "invoiceNumber": null, "notes": null, "chosenVendorName": null, "lines": [] }.
-12. Output ONLY valid JSON, no markdown, no comments.`;
+12. Output ONLY valid JSON, no markdown, no comments.
+13. When "Document metadata (human-authored)" is provided, treat those fields as authoritative — they override anything inferred from OCR text alone. In particular: use the correspondent as the vendor name, the document type for context, tags as category hints, and the document date as a cross-check for invoiceDate.`;
 
 export function buildUserPrompt(ocrText: string, hints: ExtractionHints): string {
   const vendorName = hints.vendorName ?? 'unknown';
@@ -71,6 +72,21 @@ Locale: ${locale}`;
   if (hints.availableVendors && hints.availableVendors.length > 0) {
     const vendorList = hints.availableVendors.map((v) => `- ${v.name}`).join('\n');
     prompt += `\n\nAvailable vendors (return one of these names verbatim as "chosenVendorName", or null if none match):\n${vendorList}`;
+  }
+
+  // Add human-authored Paperless metadata if provided
+  if (hints.paperlessMetadata) {
+    const meta = hints.paperlessMetadata;
+    const metaParts: string[] = [];
+    if (meta.title) metaParts.push(`Title: ${meta.title}`);
+    if (meta.correspondent) metaParts.push(`Correspondent: ${meta.correspondent}`);
+    if (meta.documentType) metaParts.push(`Document Type: ${meta.documentType}`);
+    if (meta.tags && meta.tags.length > 0) metaParts.push(`Tags: ${meta.tags.join(', ')}`);
+    if (meta.created) metaParts.push(`Document Date: ${meta.created}`);
+    if (meta.originalFileName) metaParts.push(`Original Filename: ${meta.originalFileName}`);
+    if (metaParts.length > 0) {
+      prompt += `\n\nDocument metadata (human-authored — prioritize these over OCR-inferred values):\n${metaParts.map((p) => `- ${p}`).join('\n')}`;
+    }
   }
 
   prompt += `\n\n---

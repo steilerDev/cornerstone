@@ -3061,4 +3061,204 @@ describe('invoiceAutoItemizeService', () => {
       ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
     });
   });
+
+  // ─── Story #1767 — paperlessMetadata enrichment ───────────────────────────────
+  //
+  // When the Paperless raw doc has a non-null correspondent/document_type, getDocument()
+  // makes additional HTTP calls to resolve their names. Fetch call order:
+  //   [0] Paperless document detail (/api/documents/42/)
+  //   [1] Paperless tags list (/api/tags/…)
+  //   [2] Correspondent name resolution (/api/correspondents/1/)
+  //   [3] Document type name resolution (/api/document_types/1/)
+  //   [4] LLM chat/completions
+  //
+  // When correspondent/document_type are null (plain makePaperlessRawDoc), no calls
+  // [2]/[3] happen, so LLM is at call[2].
+
+  /**
+   * Raw Paperless document with non-null correspondent, document_type, tags, and
+   * original_file_name — used to test metadata enrichment in the LLM prompt.
+   *
+   * Uses numeric IDs for correspondent (1) and document_type (1). The test must
+   * queue mocks for /api/correspondents/1/ and /api/document_types/1/ responses
+   * before the LLM mock.
+   */
+  function makePaperlessRawDocWithMeta(content = 'OCR invoice text'): object {
+    return {
+      id: 42,
+      title: 'Rechnung 2026-01',
+      content,
+      tags: [101], // tag ID 101 → resolved via tags list mock to name 'Bau'
+      created: '2026-01-15T00:00:00Z',
+      added: '2026-01-15T00:00:00Z',
+      modified: '2026-01-15T00:00:00Z',
+      correspondent: 1, // non-null → triggers /api/correspondents/1/ fetch
+      document_type: 1, // non-null → triggers /api/document_types/1/ fetch
+      archive_serial_number: null,
+      original_file_name: 'rechnung.pdf',
+      page_count: 2,
+    };
+  }
+
+  /** Tags list response that resolves tag ID 101 to name 'Bau'. */
+  const PAPERLESS_TAGS_WITH_BAU = {
+    count: 1,
+    results: [{ id: 101, name: 'Bau', colour: 3, document_count: 5 }],
+  };
+
+  describe('paperlessMetadata enrichment (Story #1767)', () => {
+    it('autoItemize dry-run enriches prompt with correspondent', async () => {
+      const vendorId = insertVendor(db, 'Some Vendor');
+      const invoiceId = insertInvoice(db, vendorId, 500);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      // Doc, tags, correspondent name, document type name, LLM
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDocWithMeta()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_WITH_BAU))
+        .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Bauhaus GmbH' }))
+        .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Invoice' }))
+        .mockResolvedValueOnce(makeOkFetch(makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }])));
+
+      await autoItemize(db, config, invoiceId, 'user-1', { paperlessDocumentId: 42, mode: 'append', dryRun: true }, PAPERLESS_AUTH);
+
+      const llmCall = mockFetch.mock.calls[4] as [string, RequestInit];
+      expect(llmCall![0]).toContain('chat/completions');
+      const llmBody = JSON.parse(llmCall![1].body as string) as { messages: Array<{ role: string; content: string }> };
+      const userMsg = llmBody.messages.find((m) => m.role === 'user');
+      expect(userMsg?.content).toContain('Bauhaus GmbH');
+    });
+
+    it('autoItemize dry-run enriches prompt with title', async () => {
+      const vendorId = insertVendor(db, 'Some Vendor');
+      const invoiceId = insertInvoice(db, vendorId, 500);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDocWithMeta()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_WITH_BAU))
+        .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Bauhaus GmbH' }))
+        .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Invoice' }))
+        .mockResolvedValueOnce(makeOkFetch(makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }])));
+
+      await autoItemize(db, config, invoiceId, 'user-1', { paperlessDocumentId: 42, mode: 'append', dryRun: true }, PAPERLESS_AUTH);
+
+      const llmCall = mockFetch.mock.calls[4] as [string, RequestInit];
+      const llmBody = JSON.parse(llmCall![1].body as string) as { messages: Array<{ role: string; content: string }> };
+      const userMsg = llmBody.messages.find((m) => m.role === 'user');
+      expect(userMsg?.content).toContain('Rechnung 2026-01');
+    });
+
+    it('autoItemize dry-run enriches prompt with tags', async () => {
+      const vendorId = insertVendor(db, 'Some Vendor');
+      const invoiceId = insertInvoice(db, vendorId, 500);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDocWithMeta()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_WITH_BAU))
+        .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Bauhaus GmbH' }))
+        .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Invoice' }))
+        .mockResolvedValueOnce(makeOkFetch(makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }])));
+
+      await autoItemize(db, config, invoiceId, 'user-1', { paperlessDocumentId: 42, mode: 'append', dryRun: true }, PAPERLESS_AUTH);
+
+      const llmCall = mockFetch.mock.calls[4] as [string, RequestInit];
+      const llmBody = JSON.parse(llmCall![1].body as string) as { messages: Array<{ role: string; content: string }> };
+      const userMsg = llmBody.messages.find((m) => m.role === 'user');
+      // Tag ID 101 resolved to 'Bau' via PAPERLESS_TAGS_WITH_BAU
+      expect(userMsg?.content).toContain('Bau');
+    });
+
+    it('autoItemize dry-run omits metadata section when all Paperless fields are null/empty', async () => {
+      const vendorId = insertVendor(db, 'Some Vendor');
+      const invoiceId = insertInvoice(db, vendorId, 500);
+      linkDocument(db, invoiceId, 42);
+      // Use plain makePaperlessRawDoc: correspondent=null, document_type=null, tags=[], original_file_name='invoice.pdf'
+      // The title is 'Invoice PDF' and original_file_name is 'invoice.pdf' — these are non-null.
+      // To get NO metadata section, we need a doc where buildPaperlessMetadata produces all-empty/null.
+      // The plain doc has title='Invoice PDF' and originalFileName='invoice.pdf', so a section WOULD appear.
+      // We need a doc with title=null and originalFileName=null for the section to be suppressed.
+      const nullMetaDoc = {
+        id: 42,
+        title: null,
+        content: 'OCR text',
+        tags: [],
+        created: null,
+        added: null,
+        modified: null,
+        correspondent: null,
+        document_type: null,
+        archive_serial_number: null,
+        original_file_name: null,
+        page_count: 1,
+      };
+      const config = makeConfig();
+
+      // Doc (0), tags (1) — no correspondent/document_type fetches since both are null; LLM (2)
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(nullMetaDoc))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(makeOkFetch(makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }])));
+
+      await autoItemize(db, config, invoiceId, 'user-1', { paperlessDocumentId: 42, mode: 'append', dryRun: true }, PAPERLESS_AUTH);
+
+      const llmCall = mockFetch.mock.calls[2] as [string, RequestInit];
+      const llmBody = JSON.parse(llmCall![1].body as string) as { messages: Array<{ role: string; content: string }> };
+      const userMsg = llmBody.messages.find((m) => m.role === 'user');
+      expect(userMsg?.content).not.toContain('Document metadata');
+    });
+
+    it('previewAutoItemize enriches prompt via runExtractionCore (correspondent present)', async () => {
+      insertVendor(db, 'Holz AG');
+      const config = makeConfig();
+
+      // For previewAutoItemize the fetch order is the same as autoItemize dry-run:
+      // [0] doc, [1] tags, [2] correspondent, [3] document_type, [4] LLM
+      const docWithHolzCorrespondent = {
+        id: 42,
+        title: 'Holz Rechnung',
+        content: 'OCR text',
+        tags: [],
+        created: '2026-02-01T00:00:00Z',
+        added: '2026-02-01T00:00:00Z',
+        modified: '2026-02-01T00:00:00Z',
+        correspondent: 2, // non-null → will fetch /api/correspondents/2/
+        document_type: null,
+        archive_serial_number: null,
+        original_file_name: 'holz.pdf',
+        page_count: 1,
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(docWithHolzCorrespondent))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(makeOkFetch({ id: 2, name: 'Holz AG' }))
+        // No document_type fetch (document_type is null) — resolveDocumentTypeName returns null immediately
+        .mockResolvedValueOnce(makeOkFetch({
+          choices: [{ message: { content: JSON.stringify({ lines: [{ description: 'Holz item', totalAmount: 300, confidence: 0.9 }], chosenVendorName: 'Holz AG' }) } }],
+        }));
+
+      const result = (await previewAutoItemize(
+        db,
+        config,
+        { paperlessDocumentId: 42 },
+        PAPERLESS_AUTH,
+      )) as { lines: unknown[]; suggestedVendorId: string | null };
+
+      // Verify the LLM was called — it's the last fetch call (index 3 since document_type is null)
+      const llmCallIndex = mockFetch.mock.calls.length - 1;
+      const llmCall = mockFetch.mock.calls[llmCallIndex] as [string, RequestInit];
+      expect(llmCall![0]).toContain('chat/completions');
+      const llmBody = JSON.parse(llmCall![1].body as string) as { messages: Array<{ role: string; content: string }> };
+      const userMsg = llmBody.messages.find((m) => m.role === 'user');
+      expect(userMsg?.content).toContain('Holz AG');
+
+      // Also verify the suggestedVendorId is resolved
+      expect(result.suggestedVendorId).not.toBeNull();
+    });
+  });
 });

@@ -39,6 +39,7 @@ import type { AppConfig } from '../plugins/config.js';
 import type {
   ExtractedLine,
   ExtractionHints,
+  PaperlessDocument,
   InvoiceBudgetLineListDetailResponse,
   InvoicePatchForAutoItemize,
   AutoItemizeDryRunResponse,
@@ -61,6 +62,20 @@ export interface AutoItemizeRequestBody {
   dryRun: boolean;
   lines?: ExtractedLine[];
   invoicePatch?: InvoicePatchForAutoItemize;
+}
+
+/**
+ * Extract human-authored Paperless-ngx metadata for inclusion in LLM extraction hints.
+ */
+function buildPaperlessMetadata(doc: PaperlessDocument): ExtractionHints['paperlessMetadata'] {
+  return {
+    title: doc.title,
+    correspondent: doc.correspondent,
+    documentType: doc.documentType,
+    tags: doc.tags.map((t) => t.name),
+    created: doc.created,
+    originalFileName: doc.originalFileName,
+  };
 }
 
 /**
@@ -146,7 +161,10 @@ export async function autoItemize(
     );
 
     const provider = getProvider(config);
-    const hints = buildHints(invoice, vendorName);
+    const hints: ExtractionHints = {
+      ...buildHints(invoice, vendorName),
+      paperlessMetadata: buildPaperlessMetadata(doc),
+    };
     // Truncate OCR text to MAX_OCR_CHARS to prevent LLM overload
     const ocrText =
       (doc.content ?? '').length > MAX_OCR_CHARS
@@ -558,7 +576,11 @@ async function runExtractionCore(
     (doc.content ?? '').length > MAX_OCR_CHARS
       ? (doc.content ?? '').slice(0, MAX_OCR_CHARS)
       : (doc.content ?? '');
-  const result = await provider.extract(ocrText, hints);
+  const enrichedHints: ExtractionHints = {
+    ...hints,
+    paperlessMetadata: buildPaperlessMetadata(doc),
+  };
+  const result = await provider.extract(ocrText, enrichedHints);
   computeDueDateFallback(result);
 
   // Map LLM-extracted category names to budget category IDs
