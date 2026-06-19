@@ -5,7 +5,7 @@
  * This page is navigated to after selecting a document from the InvoicePaperlessPickerModal.
  * The documentId and documentTitle are passed as React Router location state.
  *
- * DOM observations from PaperlessInvoiceReviewPage.tsx (updated for Story #1703/#1704):
+ * DOM observations from PaperlessInvoiceReviewPage.tsx (updated for Story #1703/#1704/#1764):
  *
  * Loading state (pageStatus='loading'):
  *   - div.pageContainer > div.pageHeader with h1 "Analyzing document with AI…"
@@ -27,6 +27,11 @@
  *         Vendor error (FormError variant="field") at #vendor-error inside vendorCard
  *       - div.metadataCard (class*="metadataCard") — invoice number, amount, date fields
  *       - AutoItemizeLineList (shared component — lineList/lineCard classes from its CSS module)
+ *         Each <li class*="lineCard"> contains:
+ *           - "Assign…" button: class*="assignButtonInTable" (when no assigned line)
+ *           - amber "Creating New" badge: data-testid="creating-new-badge" (when draft queued)
+ *           - "Discard" button: role="button" name="Discard" (when draft queued)
+ *           - inline BudgetLineForm wrapper: class*="inlineFormWrapper" (when draft queued)
  *       - div.actions — "Create Invoice & Itemize" button + Cancel
  *         NOTE: Button is ONLY disabled when pageStatus='saving', NOT when vendorId is empty.
  *         Clicking without a vendor shows the inline vendor FormError (silent-failure fix).
@@ -34,12 +39,27 @@
  *       - div.pdfPreviewWrapper: iframe title="Invoice PDF preview" + div.pdfLoadingOverlay
  *       - OR div.pdfFallback when iframe fires error
  *
+ * Budget line picker modal (Story #1764 — queued-on-save inline create):
+ *   - "Assign…" button on each extraction line card opens the BudgetLinePickerModal.
+ *   - Step 1: role="dialog" with h2 "Assign to Work Item or Household Item"
+ *       - Work Item tab → SearchPicker placeholder="Work Item"
+ *       - Household Item tab → SearchPicker placeholder="Household Item"
+ *   - Step 2: role="dialog" with h2 "Select Budget Line for {itemTitle}"
+ *       - Existing budget line rows: class*="pickerBudgetLineRow"
+ *       - "Create Budget Line" button: name /Create Budget Line/i
+ *   - Clicking "Create Budget Line" CLOSES the modal (queue-on-save):
+ *       - line card shows: amber "Creating New" badge (data-testid="creating-new-badge")
+ *       - line card shows: inline BudgetLineForm in class*="inlineFormWrapper"
+ *       - line card shows: "Discard" button (aria-label="Discard")
+ *       - No API call until outer "Create Invoice & Itemize" button is clicked.
+ *
  * Saving state (pageStatus='saving'):
  *   - "Create Invoice & Itemize" → "Saving..." (autoItemize.saving)
  *   - Cancel button is disabled
  *   - formColumn aria-busy="true"
  */
 
+import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 
 export class PaperlessInvoiceReviewPage {
@@ -129,6 +149,34 @@ export class PaperlessInvoiceReviewPage {
    */
   readonly pageErrorBanner: Locator;
 
+  // ─── Story #1764: Budget line picker modal (queued-on-save inline create) ────
+
+  /**
+   * The "Assign to Work Item or Household Item" picker modal (step 1).
+   * Rendered as <Modal> → role="dialog" filtered by h2 text.
+   * Same component/structure as AutoItemizePage.pickerModal.
+   */
+  readonly pickerModal: Locator;
+
+  /**
+   * Work Item search input in step 1 of the picker modal.
+   * SearchPicker placeholder: "Work Item" (t('budgetLineForm.parentPickerWorkItemTab'))
+   */
+  readonly pickerWorkItemSearchInput: Locator;
+
+  /**
+   * Portal dropdown rendered by SearchPicker into document.body.
+   * Has attribute [data-search-picker-dropdown]. Scoped to full page (portal bypasses modal).
+   */
+  readonly pickerPortalDropdown: Locator;
+
+  /**
+   * "Create Budget Line" button in step 2 of the picker modal.
+   * After click: picker closes, inline form appears on line card (queued-on-save).
+   * Text: t('invoiceDetail.budgetLines.picker.createLine') = "Create Budget Line"
+   */
+  readonly pickerCreateBudgetLineButton: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -193,6 +241,31 @@ export class PaperlessInvoiceReviewPage {
     // FormError variant="banner" renders role="alert". Scoped to formColumn so it does not
     // match the vendor field error (also role="alert") or the fatal error state container.
     this.pageErrorBanner = page.locator('[class*="formColumn"]').locator('[role="alert"]').first();
+
+    // ─── Story #1764: Budget line picker modal helpers ────────────────────────
+
+    // Picker step-1 modal: role="dialog" filtered by h2 "Assign to Work Item or Household Item"
+    this.pickerModal = page.locator('[role="dialog"]').filter({
+      has: page.locator('h2', { hasText: /Assign to Work Item or Household Item/i }),
+    });
+
+    // Work Item search input: SearchPicker placeholder="Work Item" inside step-1 modal
+    this.pickerWorkItemSearchInput = this.pickerModal.getByPlaceholder('Work Item');
+
+    // Portal dropdown: SearchPicker portals to document.body — scoped to full page
+    this.pickerPortalDropdown = page.locator('[data-search-picker-dropdown]');
+
+    // "Create Budget Line" button: present in step-2 modal (and step-1 empty state).
+    // Filter across both step titles (step 1 and step 2) so this works regardless of
+    // which step is currently showing.
+    const anyPickerModal = page.locator('[role="dialog"]').filter({
+      has: page.locator('h2', {
+        hasText: /Assign to Work Item or Household Item|Select Budget Line/i,
+      }),
+    });
+    this.pickerCreateBudgetLineButton = anyPickerModal.getByRole('button', {
+      name: /Create Budget Line/i,
+    });
   }
 
   /**
@@ -292,5 +365,108 @@ export class PaperlessInvoiceReviewPage {
    */
   async isAtReviewRoute(): Promise<boolean> {
     return this.page.url().includes('/budget/invoices/new/paperless');
+  }
+
+  // ─── Story #1764: Line card helpers (shared AutoItemizeLineList locators) ──
+
+  /**
+   * Returns the <li class*="lineCard"> at the given 0-based index.
+   * AutoItemizeLineList renders extraction lines as:
+   *   <ul role="list" aria-label="Extracted line items">
+   *     <li class*="lineCard"> … </li>
+   *   </ul>
+   */
+  lineRow(index: number): Locator {
+    return this.page.locator('[role="list"] li[class*="lineCard"]').nth(index);
+  }
+
+  /**
+   * Returns the "Assign…" button for the line at the given 0-based index.
+   * Present when the line has no assigned budget line and no queued draft.
+   * class*="assignButtonInTable"
+   */
+  lineAssignButton(index: number): Locator {
+    return this.lineRow(index).locator('[class*="assignButtonInTable"]');
+  }
+
+  /**
+   * Returns the amber "Creating New" badge for the line at the given 0-based index.
+   * Present only when the line has an inlineCreatedBudgetLineDraft queued.
+   * Rendered as <Badge testId="creating-new-badge">.
+   */
+  getCreatingNewBadge(index: number): Locator {
+    return this.lineRow(index).getByTestId('creating-new-badge');
+  }
+
+  /**
+   * Returns the "Discard" button for the inline draft on the line card at the given index.
+   * Clicking it clears the inlineCreatedBudgetLineDraft and restores the "Assign…" button.
+   * aria-label: t('autoItemize.discardInlineDraft') = "Discard"
+   */
+  getInlineDraftDiscardButton(index: number): Locator {
+    return this.lineRow(index).getByRole('button', { name: /^Discard$/i });
+  }
+
+  /**
+   * Returns the wrapper div containing the inline BudgetLineForm for the line at index.
+   * Rendered as <div class*="inlineFormWrapper"> below the cardBottomRow.
+   * Only present when inlineCreatedBudgetLineDraft is set on the line.
+   */
+  getInlineFormWrapper(index: number): Locator {
+    return this.lineRow(index).locator('[class*="inlineFormWrapper"]');
+  }
+
+  /**
+   * Returns the Description textbox inside the inline BudgetLineForm for the line at index.
+   * The inline form uses idPrefix=`inline-${line.rowId}-` so the id is dynamic.
+   * Locate by role textbox + accessible name "Description" (from the adjacent <label>).
+   */
+  getInlineDraftDescriptionInput(index: number): Locator {
+    return this.getInlineFormWrapper(index).getByRole('textbox', { name: /Description/i });
+  }
+
+  /**
+   * Returns the step-2 picker modal ("Select Budget Line for {itemTitle}").
+   * Only present after a work item is selected in step 1.
+   */
+  pickerStep2Modal(): Locator {
+    return this.page.locator('[role="dialog"]').filter({
+      has: this.page.locator('h2', { hasText: /Select Budget Line/i }),
+    });
+  }
+
+  /**
+   * Open the assign picker for the extraction line at the given index, navigate
+   * through step 1 (select work item) and step 2, then click "Create Budget Line".
+   * On return: picker is closed and the line card shows the inline form.
+   *
+   * @param workItemTitle - The title to search and select in step 1
+   * @param lineIndex - 0-based index of the extraction line card (default: 0)
+   */
+  async queueCreateNewBudgetLine(workItemTitle: string, lineIndex = 0): Promise<void> {
+    const assignBtn = this.lineAssignButton(lineIndex);
+    await expect(assignBtn).toBeVisible();
+    await assignBtn.click();
+    await expect(this.pickerModal).toBeVisible();
+
+    // Type in the Work Item search input
+    await expect(this.pickerWorkItemSearchInput).toBeVisible();
+    await this.pickerWorkItemSearchInput.fill(workItemTitle);
+
+    // Wait for portal dropdown and click the work item option
+    const wiOption = this.pickerPortalDropdown.getByRole('option', {
+      name: new RegExp(workItemTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+    });
+    await wiOption.waitFor({ state: 'visible' });
+    await wiOption.click();
+
+    // Step 2: click "Create Budget Line"
+    const step2Modal = this.pickerStep2Modal();
+    await expect(step2Modal).toBeVisible();
+    await expect(this.pickerCreateBudgetLineButton).toBeVisible();
+    await this.pickerCreateBudgetLineButton.click();
+
+    // Picker closes immediately (queued-on-save — Bug A fix from #1737)
+    await expect(this.pickerModal).not.toBeVisible();
   }
 }

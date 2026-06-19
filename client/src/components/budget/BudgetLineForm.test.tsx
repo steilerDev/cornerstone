@@ -443,6 +443,46 @@ describe('BudgetLineForm — onWheel blurs inputs to prevent scroll value change
   });
 });
 
+// ─── hideConfidenceField and hideVatField props (#1764) ───────────────────────
+
+describe('BudgetLineForm — hideConfidenceField and hideVatField props', () => {
+  it('hideConfidenceField=true: confidence select is NOT present in the DOM', () => {
+    const props = buildProps(buildDirectForm(), { hideConfidenceField: true });
+    render(<BudgetLineForm {...props} />);
+
+    expect(screen.queryByRole('combobox', { name: /Confidence/i })).not.toBeInTheDocument();
+  });
+
+  it('hideConfidenceField=false (default): confidence select IS present', () => {
+    const props = buildProps(buildDirectForm());
+    render(<BudgetLineForm {...props} />);
+
+    expect(screen.getByRole('combobox', { name: /Confidence/i })).toBeInTheDocument();
+  });
+
+  it.each([['direct', buildDirectForm()] as const, ['unit', buildUnitForm()] as const])(
+    'hideVatField=true in %s mode: includesVat checkbox is NOT present',
+    (_mode, form) => {
+      const props = buildProps(form, { hideVatField: true });
+      render(<BudgetLineForm {...props} />);
+
+      expect(
+        screen.queryByRole('checkbox', { name: /Price includes VAT/i }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([['direct', buildDirectForm()] as const, ['unit', buildUnitForm()] as const])(
+    'hideVatField=false (default) in %s mode: includesVat checkbox IS present',
+    (_mode, form) => {
+      const props = buildProps(form);
+      render(<BudgetLineForm {...props} />);
+
+      expect(screen.getByRole('checkbox', { name: /Price includes VAT/i })).toBeInTheDocument();
+    },
+  );
+});
+
 // ─── ParentPicker regression smoke (#1586 follow-up) ─────────────────────────
 
 describe('BudgetLineForm — ParentPicker regression smoke', () => {

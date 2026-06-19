@@ -9,6 +9,8 @@ import type {
   WorkItemBudgetLine,
   HouseholdItemBudgetLine,
 } from '@cornerstone/shared';
+import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
+import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import {
   getPaperlessDocument,
@@ -33,7 +35,7 @@ import {
   BudgetLinePickerModal,
   type LineWithInclude,
 } from '../../components/autoItemize/index.js';
-import { effectiveLineAmount } from '../../lib/budgetConstants.js';
+import { effectiveLineAmount, CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './PaperlessInvoiceReviewPage.module.css';
 
@@ -128,6 +130,7 @@ export function PaperlessInvoiceReviewPage() {
                 assignedBudgetLineDescription: line.description,
                 createdFromExtraction: fromExtraction,
                 inlineCreatedBudgetLineDraft: undefined,
+                inlineHideConfidence: undefined,
               }
             : l,
         ),
@@ -273,15 +276,94 @@ export function PaperlessInvoiceReviewPage() {
 
     try {
       const includedLines = lines.filter((l) => l.included);
+      const workingLines = [...includedLines];
 
       // Validate that all included lines with create-new mode have a category
-      const missingCategories = includedLines.filter(
-        (l) => !l.assignedBudgetLineId && !l.budgetCategoryId,
+      // Lines with inlineCreatedBudgetLineDraft are exempt (category is in the draft)
+      const missingCategories = workingLines.filter(
+        (l) => !l.assignedBudgetLineId && !l.inlineCreatedBudgetLineDraft && !l.budgetCategoryId,
       );
       if (missingCategories.length > 0) {
         setPageError(t('autoItemize.categoryRequiredError'));
         setPageStatus('ready');
         return;
+      }
+
+      // Materialize queued create-new lines BEFORE commitAutoItemizeCreate call
+      for (let i = 0; i < workingLines.length; i++) {
+        const line = workingLines[i]!;
+        if (!line.inlineCreatedBudgetLineDraft || !line.assignedItemId || !line.assignedItemType) {
+          continue;
+        }
+
+        const draft = line.inlineCreatedBudgetLineDraft!;
+
+        // Parse and validate netBase
+        let netBase: number;
+        if (draft.pricingMode === 'unit') {
+          const q = parseFloat(draft.quantity);
+          const p = parseFloat(draft.unitPrice);
+          if (!isFinite(q) || !isFinite(p)) {
+            setPageError(t('autoItemize.inlineDraftInvalid'));
+            setPageStatus('ready');
+            return;
+          }
+          netBase = Math.round(q * p * 100) / 100;
+        } else {
+          netBase = parseFloat(draft.plannedAmount);
+          if (!isFinite(netBase) || netBase < 0) {
+            setPageError(t('autoItemize.inlineDraftInvalid'));
+            setPageStatus('ready');
+            return;
+          }
+        }
+
+        // Build payload for budget line creation
+        const payload = {
+          description: draft.description.trim() || null,
+          plannedAmount: netBase,
+          confidence: draft.confidence,
+          budgetCategoryId:
+            line.assignedItemType === 'work_item' ? draft.budgetCategoryId || null : null,
+          budgetSourceId: draft.budgetSourceId || null,
+          vendorId: draft.vendorId || null,
+          quantity: draft.pricingMode === 'unit' ? parseFloat(draft.quantity) || null : null,
+          unit: draft.pricingMode === 'unit' ? draft.unit || null : null,
+          unitPrice: draft.pricingMode === 'unit' ? parseFloat(draft.unitPrice) || null : null,
+          includesVat: draft.includesVat,
+        };
+
+        // Create the budget line
+        let newBudgetLineId: string;
+        try {
+          const createFn =
+            line.assignedItemType === 'work_item'
+              ? createWorkItemBudget
+              : createHouseholdItemBudget;
+          const createdBudgetLine = await createFn(line.assignedItemId, payload);
+          newBudgetLineId = createdBudgetLine.id;
+        } catch (err) {
+          const errorMsg =
+            err instanceof ApiClientError
+              ? translateApiError(err.error.code, tErrors)
+              : t('autoItemize.inlineDraftCreateFailed');
+          setPageError(errorMsg);
+          setPageStatus('ready');
+          return;
+        }
+
+        // Convert the queued line to an assign-existing entry.
+        workingLines[i] = {
+          ...line,
+          assignedBudgetLineId: newBudgetLineId,
+          assignedBudgetLineType: line.assignedItemType,
+          totalAmount: netBase,
+          includesVat: draft.includesVat,
+          inlineCreatedBudgetLineDraft: undefined,
+          inlineHideConfidence: undefined,
+          assignedItemId: undefined,
+          assignedItemType: undefined,
+        };
       }
 
       // Build invoice creation request
@@ -294,8 +376,8 @@ export function PaperlessInvoiceReviewPage() {
         notes: metadataEdits.notes ?? null,
       };
 
-      // Map lines to payload
-      const linesPayload: ExtractedLine[] = includedLines.map((l) => ({
+      // Map lines to payload using workingLines (which includes materialized results)
+      const linesPayload: ExtractedLine[] = workingLines.map((l) => ({
         description: l.description,
         quantity: l.quantity,
         unit: l.unit,
@@ -414,16 +496,15 @@ export function PaperlessInvoiceReviewPage() {
     [activeRowId, picker],
   );
 
-  const handleCreateNewBudgetLine = useCallback(() => {
+  const handleQueueNewBudgetLine = useCallback(() => {
     if (!activeRowId) return;
     const row = lines.find((l) => l.rowId === activeRowId);
     if (!row) return;
 
     // Resolve vendorId from row's vendorName against already-loaded vendors
-    const vendors_list = picker.pickerState.vendors ?? [];
-    const vendorIdForLine = row.vendorName
-      ? (vendors_list.find((v) => v.name.toLowerCase() === row.vendorName!.toLowerCase())?.id ??
-        null)
+    const vendors = picker.pickerState.vendors ?? [];
+    const vendorId = row.vendorName
+      ? (vendors.find((v) => v.name.toLowerCase() === row.vendorName!.toLowerCase())?.id ?? null)
       : null;
 
     // Resolve budgetSourceId: use row's value or fall back to discretionary
@@ -431,24 +512,39 @@ export function PaperlessInvoiceReviewPage() {
     const discretionaryId = sources.find((s) => s.isDiscretionary)?.id;
     const budgetSourceId = row.budgetSourceId ?? discretionaryId ?? '';
 
-    // Map numeric confidence (0..1) to ConfidenceLevel enum
-    const confidence: ConfidenceLevel =
-      row.confidence >= 0.85
-        ? 'invoice'
-        : row.confidence >= 0.6
-          ? 'quote'
-          : row.confidence >= 0.3
-            ? 'professional_estimate'
-            : 'own_estimate';
+    // Auto-apply confidence based on document type (Paperless-ngx document type metadata)
+    // If doc type is "Invoice" → confidence = 'invoice', hide field
+    // If doc type is "Quotation" → confidence = 'quote', hide field
+    // Otherwise → derive from ML score, show field normally
+    let confidence: ConfidenceLevel;
+    let isConfidenceAutoApplied = false;
 
-    const prefill: Partial<BudgetLineFormState> = {
+    if (document?.documentType === 'Invoice') {
+      confidence = 'invoice';
+      isConfidenceAutoApplied = true;
+    } else if (document?.documentType === 'Quotation') {
+      confidence = 'quote';
+      isConfidenceAutoApplied = true;
+    } else {
+      // Fallback to score-based derivation
+      confidence =
+        row.confidence >= 0.85
+          ? 'invoice'
+          : row.confidence >= 0.6
+            ? 'quote'
+            : row.confidence >= 0.3
+              ? 'professional_estimate'
+              : 'own_estimate';
+    }
+
+    const draft: BudgetLineFormState = {
       description: row.description ?? '',
       plannedAmount: String(row.totalAmount ?? ''),
       confidence,
       budgetCategoryId:
         picker.pickerState.type === 'household_item' ? '' : (row.budgetCategoryId ?? ''),
       budgetSourceId,
-      vendorId: vendorIdForLine ?? '',
+      vendorId: vendorId ?? '',
       pricingMode: row.quantity != null && row.unitPrice != null ? 'unit' : 'direct',
       quantity: row.quantity != null ? String(row.quantity) : '',
       unit: row.unit ?? '',
@@ -456,9 +552,40 @@ export function PaperlessInvoiceReviewPage() {
       includesVat: row.includesVat !== false,
     };
 
-    wasCreatedFromExtractionRef.current = true;
-    void picker.showCreateBudgetLineForm(prefill);
-  }, [activeRowId, lines, picker]);
+    setLines((prev) =>
+      prev.map((l) =>
+        l.rowId === activeRowId
+          ? {
+              ...l,
+              assignedItemId: picker.pickerState.itemId ?? undefined,
+              assignedItemType: picker.pickerState.type ?? undefined,
+              inlineCreatedBudgetLineDraft: draft,
+              inlineHideConfidence: isConfidenceAutoApplied,
+            }
+          : l,
+      ),
+    );
+    picker.closePicker();
+    setActiveRowId(null);
+  }, [activeRowId, lines, picker, document]);
+
+  const handleInlineDraftChange = useCallback(
+    (rowId: string, updates: Partial<BudgetLineFormState>) => {
+      setLines((prev) =>
+        prev.map((l) =>
+          l.rowId === rowId
+            ? {
+                ...l,
+                inlineCreatedBudgetLineDraft: l.inlineCreatedBudgetLineDraft
+                  ? { ...l.inlineCreatedBudgetLineDraft, ...updates }
+                  : l.inlineCreatedBudgetLineDraft,
+              }
+            : l,
+        ),
+      );
+    },
+    [],
+  );
 
   // Compute totals and variance (must be before any early returns for React rules)
   const computedTotal = useMemo(
@@ -713,11 +840,16 @@ export function PaperlessInvoiceReviewPage() {
                           assignedBudgetLineType: undefined,
                           assignedBudgetLineDescription: undefined,
                           createdFromExtraction: undefined,
+                          assignedItemId: undefined,
+                          assignedItemType: undefined,
+                          inlineCreatedBudgetLineDraft: undefined,
+                          inlineHideConfidence: undefined,
                         }
                       : l,
                   ),
                 );
               }}
+              onInlineDraftChange={handleInlineDraftChange}
               categories={picker.pickerState.categories ?? []}
               budgetSources={picker.pickerState.budgetSources ?? []}
               discretionarySourceId={
@@ -728,6 +860,9 @@ export function PaperlessInvoiceReviewPage() {
               variancePercent={variancePercent}
               createdFromExtractionVariants={createdFromExtractionVariants}
               formatCurrency={formatCurrency}
+              confidenceLabels={CONFIDENCE_LABELS}
+              vendors={picker.pickerState.vendors ?? []}
+              budgetCategories={picker.pickerState.categories ?? []}
               t={t}
               tSettings={tSettings}
             />
@@ -827,7 +962,7 @@ export function PaperlessInvoiceReviewPage() {
             handleSelectItem={picker.handleSelectItem}
             createBudgetLineButtonRef={picker.createBudgetLineButtonRef}
             onSelectBudgetLine={handleSelectBudgetLine}
-            onCreateNewBudgetLine={handleCreateNewBudgetLine}
+            onCreateNewBudgetLine={handleQueueNewBudgetLine}
             onBackToStep1={() =>
               picker.setPickerState((prev) => ({
                 ...prev,

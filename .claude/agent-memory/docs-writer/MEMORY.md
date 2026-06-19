@@ -78,6 +78,18 @@ Task briefs may mislabel features: the brief called the photo annotator "EPIC-16
 
 `.env.example` was already fully in sync with `server/src/plugins/config.ts` (all 6 LLM vars present, OIDC/Paperless/LLM/Backup commented out with placeholders). config.ts env-var extraction: `grep -oE "[A-Z][A-Z_]+"` picks up `EUR` (a default value) as a false positive -- ignore it.
 
+## v2.11.0 Release (Paperless metadata forwarding + queued create-line + perf)
+
+Three commits promoted (#1768, #1764, #1763). Docs touched: `auto-itemize.md` + `vendors-and-invoices.md`. No new pages, no sidebar changes. README NOT changed (top-level feature lines already cover dedicated review page + Paperless-doc invoice creation; these were refinements). `.env.example` was in sync -- no drift. No new env vars -> no CLAUDE.md table change.
+
+Shipped-state facts (verified in source, watch for drift):
+
+- **#1768 LLM metadata forwarding.** `buildPaperlessMetadata(doc)` in `server/src/services/invoiceAutoItemizeService.ts` forwards 6 human-authored Paperless fields: title, correspondent, documentType, tags (`doc.tags.map(t=>t.name)`), created (ISO date), originalFileName. SYSTEM_PROMPT rule 13 (`server/src/services/budgetExtraction/prompts.ts`) tells model to treat them as authoritative over OCR; specifically: correspondent->vendor name, documentType->context, tags->category hints, document date->cross-check invoiceDate. Applies to BOTH `autoItemize()` (dry-run) and `previewAutoItemize()` (via `runExtractionCore()`). So "What data leaves your server" in auto-itemize.md now lists OCR text + the 6 metadata fields + vendor/total/date hints (+locale, +available vendors list). Updated that section.
+- **#1764 queued-on-save create-line on Paperless invoice review page.** `client/src/pages/PaperlessInvoiceReviewPage/`. "Create Budget Line" now matches AutoItemizePage queued pattern: closes picker, queues draft on row, shows amber **"Creating New"** badge + inline form + **Discard** button; line materialized on Save. Exact i18n (budget.json): `createLine`="Create Budget Line", `creatingNewBadge`="Creating New", `discardInlineDraft`="Discard", `inlineFormLabel`="New budget line details". UX: confidence auto-applied from Paperless documentType (Invoice->firm, Quotation->estimate) and hidden once set; category/funding pickers hidden while inline draft active (`!line.inlineCreatedBudgetLineDraft`); VAT toggle hidden when `assignedItemType === 'work_item'`. Documented in auto-itemize.md step 6 + cross-ref'd from vendors-and-invoices.md "Creating an Invoice from a Paperless document".
+- **#1763 perf** (GET /api/document-links bulk getDocuments, tags fetched once): internal, no user-facing doc. Noted in RELEASE_SUMMARY "Behind the Scenes" only.
+
+Anchor used as cross-ref target: `auto-itemize#6-assign-each-line-and-set-its-category-and-funding-source` (Docusaurus strips the "6." period). Verified resolves.
+
 ## Build Note (still true)
 
 `npm run docs:build` fails in worktrees with webpack `ProgressPlugin` ValidationError (node_modules corruption, NOT content). Build reaches the webpack bundling stage, so MDX/content/link loading succeeded. Validate internal links/anchors statically with grep instead; CI does the real build.

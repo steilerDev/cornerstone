@@ -282,9 +282,12 @@ describe('AutoItemizeLineList', () => {
   it('propagates onClearAssign to AutoItemizeLineCard (real button click)', () => {
     const onClearAssign = jest.fn<(rowId: string) => void>();
     // Render a line that is already assigned so the clear button is visible
-    renderList([makeLine('r1', { assignedBudgetLineId: 'abc', assignedBudgetLineDescription: 'My Line' })], {
-      onClearAssign,
-    });
+    renderList(
+      [makeLine('r1', { assignedBudgetLineId: 'abc', assignedBudgetLineDescription: 'My Line' })],
+      {
+        onClearAssign,
+      },
+    );
 
     // The real AutoItemizeLineCard renders a clear (✕) button with aria-label
     const clearBtn = screen.getByRole('button', {

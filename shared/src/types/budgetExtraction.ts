@@ -48,6 +48,25 @@ export interface ExtractionHints {
    * EPIC-18 Story #1679: Added for Paperless-first invoice creation preview.
    */
   availableVendors?: Array<{ id: string; name: string }>;
+  /**
+   * Human-authored metadata from Paperless-ngx.
+   * These fields are set by the user in Paperless-ngx and should be prioritized
+   * over values the LLM infers from OCR text alone.
+   */
+  paperlessMetadata?: {
+    /** User-set document title in Paperless-ngx. */
+    title?: string | null;
+    /** Correspondent (person/org) assigned in Paperless-ngx. */
+    correspondent?: string | null;
+    /** Document type assigned in Paperless-ngx. */
+    documentType?: string | null;
+    /** Tag names applied to this document. */
+    tags?: string[];
+    /** ISO 8601 date (YYYY-MM-DD) set by user as the document's creation date. */
+    created?: string | null;
+    /** Original filename of the uploaded file. */
+    originalFileName?: string | null;
+  };
 }
 
 /**

@@ -628,10 +628,10 @@ describe('Document Links Routes', () => {
         }),
       });
 
-      // Mock Paperless calls: document fetch first, then tags (paperlessService.getDocument order)
+      // Mock Paperless calls: tags first, then bulk documents list (getDocuments Promise.all order)
       mockFetch
-        .mockResolvedValueOnce(mockJsonResponse(RAW_DOCUMENT))
-        .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+        .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE))
+        .mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [RAW_DOCUMENT] }));
 
       const response = await app.inject({
         method: 'GET',
@@ -666,8 +666,10 @@ describe('Document Links Routes', () => {
         }),
       });
 
-      // Document not found in Paperless — 404 is thrown before tags are fetched
-      mockFetch.mockResolvedValueOnce(mockJsonResponse({ detail: 'Not found' }, 404));
+      // Document not found in Paperless — id__in returns empty results (no 404 on list endpoint)
+      mockFetch
+        .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE))
+        .mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
 
       const response = await app.inject({
         method: 'GET',

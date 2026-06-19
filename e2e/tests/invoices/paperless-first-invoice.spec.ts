@@ -29,6 +29,9 @@
  *   13. Two-column layout at desktop viewport (formColumn + previewColumn side by side)
  *   14. @responsive Stacked layout at mobile viewport (previewColumn after formColumn)
  *   15. Hide-linked filter actually hides documents whose IDs are returned by linked-ids API
+ *   16. @smoke "Create New Budget Line" closes picker and shows inline BudgetLineForm on card (Story #1764)
+ *   17. Fill inline form and save creates budget line + invoice (Story #1764)
+ *   18. Inline form validation: invalid amount shows inlineDraftInvalid error (Story #1764)
  *
  * Mocking strategy:
  *   - GET /api/paperless/status → configured+reachable (mocked)
@@ -51,6 +54,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPage.js';
 import { API } from '../../fixtures/testData.js';
+import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 import type { Page, Route } from '@playwright/test';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1288,5 +1292,352 @@ test.describe('Scenario 15 — Hide-linked filter uses linked-ids API (Issue #17
     await expect(pickerModal.getDocumentCard(MOCK_DOC_1.title)).toBeVisible();
     // MOCK_DOC_2 remains visible
     await expect(pickerModal.getDocumentCard(MOCK_DOC_2.title)).toBeVisible();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 16 — @smoke "Create New Budget Line" closes picker + shows inline form
+//
+// Story #1764: PaperlessInvoiceReviewPage now uses the same queued-on-save
+// "Create Budget Line" flow as AutoItemizePage. Clicking "Create Budget Line"
+// in step 2 of the picker modal:
+//   - Immediately CLOSES the picker modal (no in-modal form)
+//   - Shows the amber "Creating New" badge on the extraction line card
+//   - Shows the inline BudgetLineForm (class*="inlineFormWrapper") on the card
+//   - Shows a "Discard" button to abandon the queued draft
+//   - Does NOT call any budget-line API until "Create Invoice & Itemize" is clicked
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Scenario 16 — "Create New Budget Line" closes picker and shows inline form on card (Story #1764)',
+  { tag: '@smoke' },
+  () => {
+    test('"Create Budget Line" in step 2 closes picker immediately and shows amber badge + inline BudgetLineForm on the extraction line card', async ({
+      page,
+      testPrefix,
+    }) => {
+      const vw = page.viewportSize()?.width ?? 1440;
+      if (vw < 600) {
+        test.skip(true, 'Functional test — desktop/tablet only (≥600px)');
+        return;
+      }
+
+      let workItemId = '';
+
+      try {
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} PF-S16 WI` });
+
+        await mockPaperlessConfigured(page);
+        await mockConfig(page, true);
+        await mockCorrespondents(page);
+        await mockDocuments(page);
+        await mockTags(page);
+        await mockDocumentDetail(page, MOCK_DOC_1.id);
+        // No suggestedVendorId — vendor picker stays in input mode
+        await mockPreview(page, { suggestedVendorId: null });
+
+        const reviewPage = await navigateToReviewPage(page);
+
+        // ── Initial state: "Assign…" button visible, no badge ────────────────
+        await expect(reviewPage.lineAssignButton(0)).toBeVisible();
+        await expect(reviewPage.getCreatingNewBadge(0)).not.toBeVisible();
+
+        // ── Queue the create-new operation ─────────────────────────────────────
+        // This opens step-1 → selects work item → step-2 → clicks "Create Budget Line"
+        await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S16 WI`);
+
+        // ── Assert: picker modal is CLOSED immediately ─────────────────────────
+        await expect(reviewPage.pickerModal).not.toBeVisible();
+
+        // ── Assert: amber "Creating New" badge visible on card 0 ──────────────
+        await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
+
+        // ── Assert: inline BudgetLineForm wrapper visible ──────────────────────
+        await expect(reviewPage.getInlineFormWrapper(0)).toBeVisible();
+
+        // ── Assert: "Discard" button visible (allows abandoning the queued draft)
+        await expect(reviewPage.getInlineDraftDiscardButton(0)).toBeVisible();
+
+        // ── Assert: "Assign…" button is replaced by badge + form ──────────────
+        await expect(reviewPage.lineAssignButton(0)).not.toBeVisible();
+
+        // ── Assert: page is still at the review route (no navigation) ─────────
+        expect(page.url()).toContain('/budget/invoices/new/paperless');
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 17 — Fill inline form and save creates budget line + invoice
+//
+// After queuing a "Create Budget Line" draft, the user fills in the inline
+// BudgetLineForm description, sets a vendor on the page, and clicks
+// "Create Invoice & Itemize". This triggers:
+//   1. POST /api/work-items/:id/budgets — creates the WI budget line
+//   2. POST /api/invoices/auto-itemize/commit — creates the invoice
+//   3. Navigation to the invoice detail page
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 17 — Fill inline form and save creates budget line + invoice (Story #1764)', () => {
+  test('Queued inline draft: editing description and clicking Save creates WI budget line then invoice', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — desktop/tablet only (≥600px)');
+      return;
+    }
+
+    test.setTimeout(60_000);
+
+    let vendorId = '';
+    let workItemId = '';
+    const mockInvoiceId = `mock-inv-pf-s17-${testPrefix}`;
+    const editedDescription = `${testPrefix} PF-S17 Budget Line`;
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} PF-S17 Vendor`);
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} PF-S17 WI` });
+
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
+      await mockDocumentDetail(page, MOCK_DOC_1.id);
+      // Use a single extracted line with quantity+unitPrice so the inline form opens in
+      // unit-pricing mode (pricingMode='unit'). The description textbox is always visible.
+      await mockPreview(page, {
+        suggestedVendorId: null,
+        lines: [MOCK_EXTRACTED_LINES[0]],
+      });
+
+      // Mock commit: returns a fake invoice — prevents real server from needing document link
+      await mockCommit(page, { invoiceId: mockInvoiceId });
+
+      // Mock invoice detail page load so the navigation target renders
+      await page.route(`**/api/invoices/${mockInvoiceId}`, async (route: Route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            invoice: {
+              id: mockInvoiceId,
+              invoiceNumber: 'INV-2026-S17',
+              amount: 900,
+              date: '2026-01-15',
+              dueDate: null,
+              status: 'pending',
+              notes: null,
+              vendorId,
+              vendorName: `${testPrefix} PF-S17 Vendor`,
+              vendor: { id: vendorId, name: `${testPrefix} PF-S17 Vendor` },
+              deposits: [],
+              finalPaymentAmount: 900,
+              createdBy: null,
+              createdAt: '2026-06-18T00:00:00.000Z',
+              updatedAt: '2026-06-18T00:00:00.000Z',
+            },
+          }),
+        });
+      });
+      await page.route(`**/api/invoices/${mockInvoiceId}/budget-lines`, async (route: Route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ budgetLines: [], remainingAmount: 900 }),
+        });
+      });
+      await page.route(
+        (url) =>
+          url.pathname === '/api/document-links' &&
+          url.searchParams.get('entityType') === 'invoice' &&
+          url.searchParams.get('entityId') === mockInvoiceId,
+        async (route: Route) => {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ documentLinks: [] }),
+          });
+        },
+      );
+
+      // Mock the WI budget creation so no real DB writes are needed.
+      // The inline create step calls POST /api/work-items/:id/budgets.
+      let capturedWIBudgetPayload: Record<string, unknown> | null = null;
+      const wiCreatePromise = page.waitForResponse(async (resp) => {
+        if (
+          resp.url().includes(`/api/work-items/${workItemId}/budgets`) &&
+          resp.request().method() === 'POST'
+        ) {
+          capturedWIBudgetPayload = (await resp.request().postDataJSON()) as Record<
+            string,
+            unknown
+          >;
+          return true;
+        }
+        return false;
+      });
+
+      // Register commit response listener BEFORE navigation to catch it
+      const commitPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/invoices/auto-itemize/commit') &&
+          resp.request().method() === 'POST',
+        { timeout: 30000 },
+      );
+
+      const reviewPage = await navigateToReviewPage(page);
+
+      // ── Queue create-new on first extraction line ──────────────────────────
+      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S17 WI`);
+      await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
+
+      // ── Edit the description in the inline form ─────────────────────────────
+      const descInput = reviewPage.getInlineDraftDescriptionInput(0);
+      await expect(descInput).toBeVisible();
+      await descInput.fill(editedDescription);
+
+      // ── Set vendor on the page ──────────────────────────────────────────────
+      await reviewPage.setVendor(`${testPrefix} PF-S17 Vendor`);
+
+      // ── Click "Create Invoice & Itemize" ────────────────────────────────────
+      await reviewPage.confirmButton.click();
+
+      // ── Wait for WI budget creation and commit (parallel) ───────────────────
+      const [, commitResp] = await Promise.all([wiCreatePromise, commitPromise]);
+
+      // Commit must succeed (mocked to 201)
+      if (!commitResp.ok()) {
+        const bodyText = await commitResp.text().catch(() => '<no body>');
+        throw new Error(`auto-itemize/commit returned ${commitResp.status()}: ${bodyText}`);
+      }
+
+      // ── Assert WI budget payload ────────────────────────────────────────────
+      // totalAmount from MOCK_EXTRACTED_LINES[0] = 900, includesVat=false
+      expect(capturedWIBudgetPayload, 'Expected WI budget POST to have been called').not.toBeNull();
+      // The description is from the edited inline form
+      expect(capturedWIBudgetPayload!.description).toBe(editedDescription);
+
+      // ── Assert: navigate to invoice detail ─────────────────────────────────
+      await page.waitForURL(`**/budget/invoices/${mockInvoiceId}`);
+      await expect(page.getByRole('heading', { level: 1, name: /#INV-2026-S17/i })).toBeVisible();
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 18 — Inline form validation: invalid amount shows inlineDraftInvalid error
+//
+// When the inline BudgetLineForm contains an invalid/empty amount and the user
+// clicks "Create Invoice & Itemize", handleSave should:
+//   - Show the t('autoItemize.inlineDraftInvalid') page-level error banner
+//   - Stay on the review page (no navigation)
+//   - NOT call any API (WI budget or commit)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 18 — Inline form validation: invalid amount shows error, no navigation (Story #1764)', () => {
+  test('Queued draft with invalid amount causes inlineDraftInvalid error on Save; no API calls fired', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — desktop/tablet only (≥600px)');
+      return;
+    }
+
+    let vendorId = '';
+    let workItemId = '';
+
+    // Track whether any budget-line or commit API calls were fired
+    let wiBudgetCallCount = 0;
+    let commitCallCount = 0;
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} PF-S18 Vendor`);
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} PF-S18 WI` });
+
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
+      await mockDocumentDetail(page, MOCK_DOC_1.id);
+
+      // Use a single line with quantity+unitPrice to force unit-pricing mode.
+      // We will clear the unitPrice field to trigger the invalid-amount path.
+      await mockPreview(page, {
+        suggestedVendorId: null,
+        lines: [MOCK_EXTRACTED_LINES[0]],
+      });
+
+      // Monitor API calls that should NOT happen
+      page.on('request', (req) => {
+        if (req.url().includes('/api/work-items/') && req.method() === 'POST') {
+          wiBudgetCallCount++;
+        }
+        if (req.url().includes('/api/invoices/auto-itemize/commit') && req.method() === 'POST') {
+          commitCallCount++;
+        }
+      });
+
+      const reviewPage = await navigateToReviewPage(page);
+
+      // ── Queue create-new on first line ─────────────────────────────────────
+      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S18 WI`);
+      await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
+      await expect(reviewPage.getInlineFormWrapper(0)).toBeVisible();
+
+      // ── Find the unitPrice input inside the inline form and clear it ────────
+      // BudgetLineForm in unit mode renders a number input for the price.
+      // The label text is t('budgetLineForm.priceLabel') = "Price *" (NOT "Unit Price").
+      // Use the stable id*="budget-unit-price" selector to avoid depending on the label text,
+      // and scope it to the inline form wrapper to avoid matching other price inputs on the page.
+      const unitPriceInput = reviewPage
+        .getInlineFormWrapper(0)
+        .locator('[id*="budget-unit-price"]');
+      await unitPriceInput.fill('');
+
+      // ── Set vendor so vendor validation passes ──────────────────────────────
+      await reviewPage.setVendor(`${testPrefix} PF-S18 Vendor`);
+
+      // ── Click "Create Invoice & Itemize" ────────────────────────────────────
+      await reviewPage.confirmButton.click();
+
+      // ── Assert: page-level inlineDraftInvalid error banner visible ──────────
+      // The error text is: t('autoItemize.inlineDraftInvalid') =
+      //   "Invalid amount in queued budget line. Please fix before saving."
+      await expect(reviewPage.pageErrorBanner).toBeVisible();
+      await expect(reviewPage.pageErrorBanner).toContainText(
+        'Invalid amount in queued budget line',
+      );
+
+      // ── Assert: URL unchanged — page did not navigate ───────────────────────
+      expect(page.url()).toContain('/budget/invoices/new/paperless');
+
+      // ── Assert: confirm button still visible (page stays in ready state) ─────
+      await expect(reviewPage.confirmButton).toBeVisible();
+
+      // ── Assert: no API calls were fired ─────────────────────────────────────
+      expect(
+        wiBudgetCallCount,
+        `Expected no WI budget POST — got ${wiBudgetCallCount} call(s)`,
+      ).toBe(0);
+      expect(
+        commitCallCount,
+        `Expected no auto-itemize/commit POST — got ${commitCallCount} call(s)`,
+      ).toBe(0);
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+    }
   });
 });

@@ -2176,10 +2176,7 @@ describe('BudgetSourcesPage', () => {
         expect.stringMatching(/expand budget lines for home loan/i),
       );
       // The docs toggle sits between Show lines and Edit
-      expect(buttons[1]).toHaveAttribute(
-        'aria-controls',
-        expect.stringContaining('source-docs-'),
-      );
+      expect(buttons[1]).toHaveAttribute('aria-controls', expect.stringContaining('source-docs-'));
       expect(buttons[2]).toHaveAccessibleName(/edit home loan/i);
       expect(buttons[3]).toHaveAccessibleName(/delete home loan/i);
     });
@@ -2206,10 +2203,7 @@ describe('BudgetSourcesPage', () => {
         expect.stringMatching(/expand budget lines for contingency reserve/i),
       );
       // The docs toggle sits between Show lines and Edit
-      expect(buttons[1]).toHaveAttribute(
-        'aria-controls',
-        expect.stringContaining('source-docs-'),
-      );
+      expect(buttons[1]).toHaveAttribute('aria-controls', expect.stringContaining('source-docs-'));
       expect(buttons[2]).toHaveAccessibleName(/edit contingency reserve/i);
       expect(
         screen.queryByRole('button', { name: /delete contingency reserve/i }),

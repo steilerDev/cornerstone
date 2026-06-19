@@ -1,25 +1,25 @@
-# v2.9.0 Release Summary
+# v2.11.0 Release Summary
 
 ## What's New
 
-This release polishes the mobile photo workflow introduced in 2.8.0. The "Add photo details" modal now shows a preview of the photo you just picked, and choosing where a photo was taken is far clearer when your home has rooms with the same name on different floors. No manual migration steps are required.
+This release sharpens invoice itemization. When you scan an invoice into Paperless-ngx, Cornerstone now hands the language model everything you have already told Paperless about the document -- its title, who it is from, the document type, tags, and date -- so the extracted line items, vendor, and dates come back more accurate. Building a budget line while reviewing a brand-new invoice is also smoother, matching the flow you already know from the Auto-itemize page. No manual migration steps are required.
 
 ### Highlights
 
-- **Photo preview while tagging** -- The "Add photo details" modal now shows a preview of the photo you just selected, right above the description field. You can confirm you picked the right shot before adding its caption, area, and orientation -- handy when you are snapping several photos in a row on site.
+- **Smarter invoice reading** -- Auto-itemize no longer relies on the raw OCR text alone. It now also sends the human-authored details you maintain in Paperless-ngx -- document title, correspondent, document type, tags, creation date, and original filename -- and tells the model to trust those over anything it has to guess from the scanned text. The result is fewer wrong dates, cleaner vendor matches, and more reliable line items, especially on messy scans.
 
-- **Clearer area picker** -- When tagging a photo (or a work item or household item) with its location, the area picker now indents each option to show its place in your hierarchy and prints the full path (e.g. *Ground Floor › Kitchen*) beneath the name. Telling apart a "Bathroom" on the ground floor from one upstairs is now obvious. Once you pick an area, the field collapses to just the short room name to stay tidy.
+- **Create a budget line without leaving the review** -- On the Paperless invoice review screen, creating a new work-item budget line now works just like the Auto-itemize page: clicking **Create Budget Line** drops an inline draft onto the row with a "Creating New" badge and a **Discard** button, and closes the picker straight away. The line is created when you save the invoice, so you can keep reviewing without interruptions.
 
-- **Smarter orientation search** -- The orientation picker now searches your descriptions as well as the names. Typing *street* finds an orientation named *South* whose description reads *Street-facing side of house*, so you do not have to remember the exact label you gave it.
+- **A tidier review screen** -- Confidence is now applied automatically from the Paperless document type (Invoice or Quotation) and hidden once set, the category and funding-source pickers step out of the way while you are filling in a new line, and the VAT toggle is hidden for work-item assignments where the value already comes from the extracted line.
 
 ### Behind the Scenes
 
-- Hardened the photo-capture and internationalization browser tests, and tightened the continuous-integration pipeline so releases stay reliable.
+- The document-links view is much faster for invoices with many linked documents -- Paperless tags are now fetched once instead of once per document, removing a multi-second wait when opening busy entities.
 
 ## Upgrade
 
-\`\`\`bash
+```bash
 docker pull steilerdev/cornerstone:latest
-\`\`\`
+```
 
 Restart your container. Schema migrations run automatically on first boot.
