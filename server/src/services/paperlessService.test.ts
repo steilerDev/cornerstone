@@ -983,7 +983,13 @@ describe('getDocuments()', () => {
   });
 
   it('returns multiple documents in the map', async () => {
-    const doc2 = { ...RAW_DOCUMENT_1, id: 43, title: 'Second Doc', correspondent: null, document_type: null };
+    const doc2 = {
+      ...RAW_DOCUMENT_1,
+      id: 43,
+      title: 'Second Doc',
+      correspondent: null,
+      document_type: null,
+    };
     mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
     mockFetch.mockResolvedValueOnce(
       mockJsonResponse({ count: 2, results: [RAW_DOCUMENT_1, doc2] }),
