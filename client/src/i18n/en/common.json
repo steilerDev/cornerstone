@@ -171,5 +171,9 @@
     "selectStart": "Select start date",
     "selectEnd": "Select end date",
     "calendarGridAriaLabel": "Calendar"
+  },
+  "chunkError": {
+    "message": "The application could not load a required file. This usually happens after an update.",
+    "refreshButton": "Refresh page"
   }
 }
