@@ -317,16 +317,25 @@ export async function buildApp(): Promise<FastifyInstance> {
       prefix: '/',
       maxAge: 31536000 * 1000, // 1 year in milliseconds (for hashed assets)
       immutable: true,
-      setHeaders: (res, filePath) => {
-        // Override cache headers for HTML files (always revalidate)
-        if (filePath.endsWith('.html')) {
-          res.setHeader('Cache-Control', 'no-cache');
-        }
-      },
+    });
+
+    // @fastify/static applies its immutable Cache-Control via reply.headers() AFTER
+    // its setHeaders callback runs, so neither setHeaders nor a pre-sendFile
+    // reply.header() survives. An onSend hook is the final header write and reliably
+    // wins. Scope by content-type: the SPA shell (text/html) must always revalidate so
+    // clients pick up new content-hashed bundles after a deploy; hashed JS/CSS assets
+    // are not text/html and therefore keep their long-lived immutable cache header.
+    app.addHook('onSend', async (_request, reply, payload) => {
+      const contentType = reply.getHeader('content-type');
+      if (typeof contentType === 'string' && contentType.includes('text/html')) {
+        void reply.header('Cache-Control', 'no-cache');
+      }
+      return payload;
     });
 
     // SPA fallback: serve index.html for any non-API route
     app.setNotFoundHandler((request, reply) => {
+      // API and legacy feed routes: return JSON 404 (unchanged behavior)
       if (request.url.startsWith('/api/') || request.url.startsWith('/feeds/')) {
         const response: ApiErrorResponse = {
           error: {
@@ -336,6 +345,32 @@ export async function buildApp(): Promise<FastifyInstance> {
         };
         return reply.status(404).send(response);
       }
+
+      // Detect "asset-like" requests: the URL path has a file extension AND the
+      // client is not a browser performing a navigation (navigation requests always
+      // include `text/html` in Accept). This catches stale content-hashed
+      // bundle/CSS requests from an outdated SPA shell after a deploy, and returns
+      // a proper 404 instead of silently serving index.html as HTML (which would
+      // cause ChunkLoadError in the browser).
+      //
+      // Intentional edge-case: SPA routes like /work-items/1.5 have an
+      // extension-looking segment but browsers send Accept: text/html for them,
+      // so they correctly fall through to the shell below.
+      const pathname = request.url.split('?')[0] ?? '/';
+      const isAssetLike = /\/[^/]*\.[^/]+$/.test(pathname);
+      const acceptsHtml = (request.headers.accept ?? '').includes('text/html');
+      if (isAssetLike && !acceptsHtml) {
+        const response: ApiErrorResponse = {
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Static asset not found',
+          },
+        };
+        return reply.status(404).send(response);
+      }
+
+      // SPA shell fallback: return reply.sendFile('index.html'). The onSend hook
+      // above ensures HTML responses receive Cache-Control: no-cache.
       return reply.sendFile('index.html');
     });
   } else {

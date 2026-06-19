@@ -1,9 +1,31 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { mkdtempSync, rmSync } from 'node:fs';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  afterAll,
+  jest,
+} from '@jest/globals';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildApp } from './app.js';
 import type { FastifyInstance } from 'fastify';
+
+// Inline shape instead of importing ApiErrorResponse from @cornerstone/shared —
+// importing the shared package triggers ts-jest to type-check app.ts transitively
+// with the NodeNext tsconfig, which exposes pre-existing TS errors in app.ts
+// (TS1343 on import.meta, TS2307 on drizzle-orm) that are suppressed when the
+// file is compiled with its own tsconfig but not the server test override.
+type ApiErrShape = { error: { code: string; message: string } };
+
+// Jest runs from the project root (worktree root). The app resolves clientDistPath
+// as join(__dirname_of_app_ts, '../../client/dist') = <projectRoot>/client/dist.
+// Tests must create/delete stub files at the same path.
+// process.cwd() returns the project root when Jest is invoked from there.
+const PROJECT_ROOT = process.cwd();
 
 describe('App - Performance Features', () => {
   let app: FastifyInstance;
@@ -239,5 +261,168 @@ describe('App - Static Asset Cache Headers (Integration with @fastify/static)', 
     // If client dist doesn't exist (development), this returns 404 with error
     // Either is valid depending on whether `npm run build` has been run
     expect([200, 404]).toContain(response.statusCode);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Production not-found handler (client/dist/index.html present)
+// ---------------------------------------------------------------------------
+// These tests create a minimal client/dist/index.html stub so that buildApp()
+// enters the production branch. The stub files are created only if they do not
+// already exist and are removed in afterAll — they never clobber a real build.
+// ---------------------------------------------------------------------------
+describe('App - Not-Found Handler (production mode with client/dist)', () => {
+  // Resolve the same path app.ts resolves at runtime.
+  // app.ts: join(__dirname_of_server_src, '../../client/dist') = <projectRoot>/client/dist
+  // Here we use process.cwd() which Jest sets to the project root.
+  const clientDistPath = join(PROJECT_ROOT, 'client/dist');
+  const stubIndexHtml = join(clientDistPath, 'index.html');
+  const stubJsFile = join(clientDistPath, 'main.abc123.js');
+
+  // Track which files/dirs we created so we only clean those up
+  let createdDir = false;
+  let createdIndex = false;
+  let createdJs = false;
+
+  let app: FastifyInstance;
+  let tempDbPath: string;
+  let tempDir: string;
+
+  beforeAll(() => {
+    // Create client/dist directory if it doesn't exist
+    if (!existsSync(clientDistPath)) {
+      mkdirSync(clientDistPath, { recursive: true });
+      createdDir = true;
+    }
+    // Create stub index.html if it doesn't exist
+    if (!existsSync(stubIndexHtml)) {
+      writeFileSync(stubIndexHtml, '<!doctype html><html><body>stub</body></html>');
+      createdIndex = true;
+    }
+    // Create stub JS asset for the on-disk-served immutable header test
+    if (!existsSync(stubJsFile)) {
+      writeFileSync(stubJsFile, 'console.log("stub");');
+      createdJs = true;
+    }
+  });
+
+  afterAll(() => {
+    // Only remove what we created — never remove files that pre-existed
+    if (createdJs && existsSync(stubJsFile)) {
+      rmSync(stubJsFile, { force: true });
+    }
+    if (createdIndex && existsSync(stubIndexHtml)) {
+      rmSync(stubIndexHtml, { force: true });
+    }
+    if (createdDir && existsSync(clientDistPath)) {
+      // Only remove the directory if it's now empty
+      try {
+        rmSync(clientDistPath, { recursive: true, force: true });
+      } catch {
+        // Ignore if removal fails (e.g. other files appeared)
+      }
+    }
+  });
+
+  beforeEach(async () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-prod-test-'));
+    tempDbPath = join(tempDir, 'test.db');
+    process.env.DATABASE_URL = tempDbPath;
+
+    // Build app fresh for each test — production handler branch will be active
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+    rmSync(tempDir, { recursive: true, force: true });
+    delete process.env.DATABASE_URL;
+  });
+
+  it('SPA route: GET /project/overview with Accept: text/html returns 200 and no-cache', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/project/overview',
+      headers: { accept: 'text/html, */*' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const cc = response.headers['cache-control'];
+    expect(cc).toBe('no-cache');
+  });
+
+  it('dotted SPA route: GET /work-items/1.5 with Accept: text/html falls through to shell (not 404)', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/work-items/1.5',
+      headers: { accept: 'text/html, */*' },
+    });
+
+    // Browser navigation Accept header → served as SPA shell, not asset 404
+    expect(response.statusCode).toBe(200);
+    const cc = response.headers['cache-control'];
+    expect(cc).toBe('no-cache');
+  });
+
+  it('missing hashed CSS with non-HTML Accept returns 404 ApiErrorResponse code NOT_FOUND', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/913.abc123.css',
+      headers: { accept: 'text/css' },
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = response.json() as ApiErrShape;
+    expect(body.error.code).toBe('NOT_FOUND');
+    expect(body.error.message).toBe('Static asset not found');
+  });
+
+  it('missing JS asset without Accept header returns 404 ApiErrorResponse', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/missing.abc123.js',
+      // No Accept header — asset request from SPA loader
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = response.json() as ApiErrShape;
+    expect(body.error.code).toBe('NOT_FOUND');
+    expect(body.error.message).toBe('Static asset not found');
+  });
+
+  it('GET /api/nonexistent returns 404 ROUTE_NOT_FOUND (regression)', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/nonexistent',
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = response.json() as ApiErrShape;
+    expect(body.error.code).toBe('ROUTE_NOT_FOUND');
+  });
+
+  it('GET /feeds/cal.ics returns 404 ROUTE_NOT_FOUND (/feeds/ branch wins over asset-extension check)', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/feeds/cal.ics',
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = response.json() as ApiErrShape;
+    // /feeds/ prefix → ROUTE_NOT_FOUND (same as /api/)
+    expect(body.error.code).toBe('ROUTE_NOT_FOUND');
+  });
+
+  it('on-disk hashed JS asset is served with immutable cache-control by @fastify/static', async () => {
+    // main.abc123.js was created in beforeAll, so it exists on disk
+    const response = await app.inject({
+      method: 'GET',
+      url: '/main.abc123.js',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const cc = response.headers['cache-control'];
+    // @fastify/static serves with maxAge + immutable
+    expect(cc).toContain('immutable');
   });
 });
