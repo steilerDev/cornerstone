@@ -550,6 +550,14 @@ export function AutoItemizePage() {
           return {
             ...line,
             [field]: coercedValue,
+            ...(field === 'includesVat' && line.inlineCreatedBudgetLineDraft
+              ? {
+                  inlineCreatedBudgetLineDraft: {
+                    ...line.inlineCreatedBudgetLineDraft,
+                    includesVat: coercedValue as boolean,
+                  },
+                }
+              : {}),
           };
         }),
       );
@@ -661,6 +669,7 @@ export function AutoItemizePage() {
           l.rowId === rowId
             ? {
                 ...l,
+                ...(updates.includesVat !== undefined ? { includesVat: updates.includesVat } : {}),
                 inlineCreatedBudgetLineDraft: l.inlineCreatedBudgetLineDraft
                   ? { ...l.inlineCreatedBudgetLineDraft, ...updates }
                   : l.inlineCreatedBudgetLineDraft,

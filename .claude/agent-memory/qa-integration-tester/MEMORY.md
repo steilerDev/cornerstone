@@ -13,6 +13,16 @@
 
 **ESLint rule on Trans children type**: The `Trans` mock factory's `children` param typed as `{ children: React.ReactNode }` causes TS errors if React is not in scope. Type it as `{ children: unknown }` instead — no React import needed in the factory body.
 
+## Bug #1775 — AutoItemizePage VAT sync tests (2026-06-19)
+
+**Outer VAT checkbox locator pattern**: `screen.getAllByRole('checkbox').find(cb => { const label = cb.closest('label'); return label !== null && /Price includes VAT/i.test(label.textContent ?? ''); })`. Translation key `autoItemize.includesVat` = "Price includes VAT" in English (in `client/src/i18n/en/budget.json` autoItemize section, line ~947).
+
+**`createHouseholdItemBudget` capture pattern**: Add a named `const mockCreateHouseholdItemBudget = jest.fn<typeof HouseholdItemBudgetsApiModule.createHouseholdItemBudget>()` BEFORE the `jest.unstable_mockModule` call and import `type * as HouseholdItemBudgetsApiModule` at top. Reset in `beforeEach`.
+
+**Inner VAT checkbox in household item inline draft**: For household_item lines, `hideVatField=false` so BudgetLineForm renders its own VAT checkbox. To get the inner one vs outer, use `vatCheckboxes[vatCheckboxes.length - 1]` (last match).
+
+**Multi-worktree local test run failure**: Running tests from `/home/FrankSteiler/cornerstone` with multiple worktrees causes `@cornerstone/shared` haste-map duplicate error. This is a pre-existing sandbox limitation — tests must be verified in CI.
+
 ## Story #1693 — AutoItemizePage.queueSave: new save flow (2026-06-18)
 
 **handleSave NO LONGER calls createInvoiceBudgetLine**: After `createWorkItemBudget`/`createHouseholdItemBudget`, the materialized line is converted to `assignmentMode='assign-existing'` in `workingLines` (with `assignedBudgetLineId=newBudgetLineId`, `totalAmount=netBase`, `includesVat` carried). The single `autoItemize(commit)` call creates the invoice↔budget-line junction and stores GROSS `effectiveLineAmount` server-side. Tests asserting `mockCreateInvoiceBudgetLine` now use `.not.toHaveBeenCalled()`. The GROSS value (e.g. 119 for 100 net + VAT) is asserted in `invoiceAutoItemizeService.test.ts`, not client tests.
