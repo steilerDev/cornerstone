@@ -28,6 +28,7 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 ## Frontend — Shared Components
 
 - [ ] **Badge usage**: Status indicators must use the shared `Badge` component with appropriate variant maps. Never create inline status pills or colored spans.
+- [ ] **Badge variant map completeness**: Every `BadgeVariantMap` entry must include BOTH `label` (translated via `t()`) AND `className` (the CSS module class). A missing `className` leaves the CSS variant rule with no effect (style is dead on arrival); a missing/hardcoded `label` ships untranslated English to users. This is a recurring bug (e.g. PR #1548 shipped `UNASSIGNED_BADGE_VARIANTS` without `className`, so the `.iblUnassigned` rule never applied).
 - [ ] **SearchPicker usage**: Entity selection dropdowns must use the shared `SearchPicker` component. Never create custom search dropdowns.
 - [ ] **Modal usage**: Dialog overlays must use the shared `Modal` component. Never create custom overlay/backdrop implementations.
 - [ ] **Skeleton usage**: Loading placeholders must use the shared `Skeleton` component.
