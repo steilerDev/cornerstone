@@ -129,7 +129,9 @@ A **totals card** at the bottom sums the included lines and compares them agains
 Each line card carries inline **Category** and **Funding source** pickers, plus an **Assign** button:
 
 - **Category / Funding source.** Pick the budget category and which financing source pays for the line directly on the card. New lines default their funding source to **Discretionary Funding** (see [Funding source](#funding-source) below).
-- **Assign.** Click **Assign** to open the two-step picker. First choose the target **work item** or **household item**; then either pick an existing budget line on that item to link to, or click **Create new** to add a fresh line (pre-filled from the extracted row). A line created from the extraction is marked with a **"Created from auto-itemization"** badge so you can tell it apart. Clear an assignment with the **✕** next to it to re-assign or switch to create-new.
+- **Assign.** Click **Assign** to open the two-step picker. First choose the target **work item** or **household item**; then either pick an existing budget line on that item to link to, or click **Create Budget Line** to add a fresh line (pre-filled from the extracted row). A line created from the extraction is marked with a **"Created from auto-itemization"** badge so you can tell it apart. Clear an assignment with the **✕** next to it to re-assign or switch to create-new.
+
+When you choose **Create Budget Line**, the picker closes immediately and the new line is *queued* rather than created on the spot: the card shows a **"Creating New"** badge with an inline form for the new line's details and a **Discard** button to back out. The actual budget line is only written when you **Save** the whole page -- so you can keep reviewing the other rows without interruption, and nothing is committed until you are ready. While a queued line is active, that card's category and funding-source pickers step aside (the new line carries its own), and for a line assigned to a work item the VAT toggle is hidden because the value comes straight from the extracted row.
 
 A line you do not assign to any item is still saved against the invoice and counts toward financing-source totals and category aggregates, but it does not roll up into a single work item's budget until you assign it.
 
@@ -164,10 +166,13 @@ Reassigning the **funding source** (which pot of money pays for the line) is sep
 
 ## What data leaves your server
 
-Cornerstone sends two things to your LLM provider when you click Auto-itemize:
+Cornerstone sends the following to your LLM provider when you click Auto-itemize:
 
 - **The OCR text from the selected Paperless document.** This is plain text Paperless extracted from the PDF -- typically 1-5 KB. The text is truncated at 32,000 characters to keep prompts small and predictable.
+- **The human-authored Paperless metadata for that document** -- the details you (or Paperless) maintain about the file: its **title, correspondent, document type, tags, creation date, and original filename**. These are sent alongside the OCR text, and the model is told to treat them as authoritative over anything it would otherwise have to infer from the scanned text. This is what makes the extracted vendor, dates, and line items more accurate -- a clean correspondent name beats a smudged letterhead, and a Paperless creation date beats an OCR misread.
 - **A few invoice metadata hints** to help the model produce useful output: vendor name, invoice total, and invoice date.
+
+The same OCR text plus Paperless metadata is sent on both paths that call the model -- itemizing an existing invoice from its linked document, and [creating a new invoice from a Paperless document](vendors-and-invoices#creating-an-invoice-from-a-paperless-document).
 
 Cornerstone does **not** send:
 
