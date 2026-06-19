@@ -513,7 +513,11 @@ export async function getDocuments(
   // Fetch tags and all documents in parallel — just 2 API calls regardless of N
   const [tagsMap, raw] = await Promise.all([
     fetchTagsMap(baseUrl, token),
-    fetchPaperless<RawPaperlessListResponse>(baseUrl, token, `/api/documents/?${params.toString()}`),
+    fetchPaperless<RawPaperlessListResponse>(
+      baseUrl,
+      token,
+      `/api/documents/?${params.toString()}`,
+    ),
   ]);
 
   const presentDocs = raw.results;
