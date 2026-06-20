@@ -95,3 +95,18 @@ The health check runs every 30 seconds with a 15-second startup grace period.
 | `x.y.z` | Specific stable version (e.g., `1.7.0`) |
 | `x.y` | Latest patch of a minor version (e.g., `1.7`) |
 | `x.y.z-beta.n` | Specific beta version (e.g., `1.7.0-beta.1`) |
+
+## Upgrading
+
+To upgrade, pull the new image and recreate the container:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Your data lives in the mounted volume (see [Data Persistence](#data-persistence)), so it survives the recreate.
+
+:::tip Open tabs recover automatically
+If you have Cornerstone open in a browser tab while you upgrade, the app detects that its JavaScript bundle changed under it and reloads the page automatically the next time you navigate, instead of showing a blank screen. No hard refresh or cache-clearing is needed after an update.
+:::
