@@ -631,7 +631,7 @@ test.describe('Default filter is Manual (Scenario 12)', () => {
         );
 
         // The initial API request must include a type param that covers manual entry types
-        // (daily_log, general_note, site_visit) — not automatic types (budget_update, etc.)
+        // (daily_log, general_note, site_visit) — not automatic types (budget_breach, etc.)
         const initialRequest = requests[0];
         expect(initialRequest).toBeDefined();
         if (initialRequest) {
