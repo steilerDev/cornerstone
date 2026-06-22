@@ -31,7 +31,6 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
 import type * as InvoiceAutoItemizeApiModule from '../../lib/invoiceAutoItemizeApi.js';
-import type * as VendorsApiModule from '../../lib/vendorsApi.js';
 import type {
   PaperlessDocumentDetailResponse,
   AutoItemizePreviewResponse,
