@@ -45,7 +45,7 @@ export default function DiaryPage() {
   const searchQuery = searchParams.get('q') || '';
   const dateFrom = searchParams.get('dateFrom') || '';
   const dateTo = searchParams.get('dateTo') || '';
-  const filterMode = (searchParams.get('filterMode') as FilterMode) || 'all';
+  const filterMode = (searchParams.get('filterMode') as FilterMode) || 'manual';
   const typeFilterStr = searchParams.get('types') || '';
   const activeTypes: DiaryEntryType[] = typeFilterStr
     ? (typeFilterStr.split(',') as DiaryEntryType[])
@@ -213,7 +213,7 @@ export default function DiaryPage() {
   const handleClearAll = () => {
     setSearchInput('');
     const newParams = new URLSearchParams();
-    newParams.set('filterMode', 'all');
+    newParams.set('filterMode', 'manual');
     setSearchParams(newParams);
   };
 

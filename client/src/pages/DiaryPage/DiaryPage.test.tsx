@@ -318,6 +318,79 @@ describe('DiaryPage', () => {
     expect(screen.queryByRole('link', { name: /export/i })).not.toBeInTheDocument();
   });
 
+  // ─── Filter mode default and URL param behaviour ──────────────────────────────
+
+  describe('filter mode — default and URL param behaviour', () => {
+    it('defaults to manual filter mode when no filterMode URL param is present', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary']);
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      });
+      // The manual mode button should be pressed
+      expect(screen.getByTestId('mode-filter-manual')).toHaveAttribute('aria-pressed', 'true');
+      // The all mode button should not be pressed
+      expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'false');
+      // The API call should include the manual type set
+      const callArg = mockListDiaryEntries.mock.calls[0]?.[0];
+      expect(callArg?.type).toBeDefined();
+      expect(callArg?.type).toContain('daily_log');
+    });
+
+    it('honors explicit filterMode=all URL param', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary?filterMode=all']);
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      });
+      // The all mode button should be pressed
+      expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('mode-filter-manual')).toHaveAttribute('aria-pressed', 'false');
+      // With filterMode=all and no type restrictions, type should be undefined (no restriction)
+      const callArg = mockListDiaryEntries.mock.calls[0]?.[0];
+      expect(callArg?.type).toBeUndefined();
+    });
+
+    it('honors explicit filterMode=automatic URL param', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary?filterMode=automatic']);
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      });
+      // The automatic mode button should be pressed
+      expect(screen.getByTestId('mode-filter-automatic')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('mode-filter-manual')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('handleClearAll resets filterMode to manual', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderPage(['/diary?filterMode=all']);
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
+      });
+
+      // Confirm we start in 'all' mode
+      expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'true');
+
+      // Click the Clear All button
+      const clearBtn = screen.getByTestId('clear-filters-button');
+      await user.click(clearBtn);
+
+      // After clearing, filterMode should reset to 'manual'
+      await waitFor(() => {
+        expect(screen.getByTestId('mode-filter-manual')).toHaveAttribute('aria-pressed', 'true');
+      });
+      expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'false');
+
+      // The second API call should use the manual type set
+      const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
+      expect(lastCall?.[0]?.type).toContain('daily_log');
+    });
+  });
+
   // ─── Status chip row removed (Story #1435) ────────────────────────────────────
 
   describe('status chip row removed (Story #1435)', () => {
