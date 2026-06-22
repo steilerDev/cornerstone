@@ -11,8 +11,10 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
-const mockCreateWorkItem = jest.fn();
-const mockCreateHouseholdItem = jest.fn();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockCreateWorkItem = jest.fn<any>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockCreateHouseholdItem = jest.fn<any>();
 
 jest.unstable_mockModule('./errorTranslation.js', () => ({
   translateApiError: (_code: string) => 'Translated error',
