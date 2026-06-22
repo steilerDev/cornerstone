@@ -366,7 +366,8 @@ describe('DiaryPage', () => {
       const user = userEvent.setup();
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
       mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
-      renderPage(['/diary?filterMode=all']);
+      // Use q=test so filterCount >= 1 and the Clear All button is rendered
+      renderPage(['/diary?filterMode=all&q=test']);
 
       await waitFor(() => {
         expect(mockListDiaryEntries).toHaveBeenCalledTimes(1);
