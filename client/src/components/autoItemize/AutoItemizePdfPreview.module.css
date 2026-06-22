@@ -1,0 +1,76 @@
+.pdfPreviewWrapper {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pdfIframe {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-tertiary);
+  display: block;
+}
+
+.pdfLoadingOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-lg);
+  z-index: var(--z-dropdown);
+}
+
+.pdfFallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-secondary);
+  min-height: 200px;
+  flex: 1;
+  padding: var(--spacing-6);
+}
+
+.pdfFallbackLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.pdfFallbackLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  transition: var(--transition-button);
+}
+
+.pdfFallbackLink:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+.pdfFallbackLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 860px) {
+  .pdfIframe {
+    min-height: 60vh;
+    height: 60vh;
+    position: static;
+  }
+}
