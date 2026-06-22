@@ -118,7 +118,9 @@ test.describe('Mode filter chips visible (Scenario 1)', { tag: '@responsive' }, 
     },
   );
 
-  test('"All" mode chip is aria-pressed=true by default', async ({ page }) => {
+  test('"Manual" mode chip is aria-pressed=true by default (no filterMode URL param)', async ({
+    page,
+  }) => {
     const diaryPage = new DiaryPage(page);
 
     await page.route('**/api/diary-entries*', async (route) => {
@@ -138,10 +140,10 @@ test.describe('Mode filter chips visible (Scenario 1)', { tag: '@responsive' }, 
       await diaryPage.openFiltersIfCollapsed();
 
       const allChip = page.getByTestId('mode-filter-all');
-      await expect(allChip).toHaveAttribute('aria-pressed', 'true');
+      await expect(allChip).toHaveAttribute('aria-pressed', 'false');
 
       const manualChip = page.getByTestId('mode-filter-manual');
-      await expect(manualChip).toHaveAttribute('aria-pressed', 'false');
+      await expect(manualChip).toHaveAttribute('aria-pressed', 'true');
 
       const automaticChip = page.getByTestId('mode-filter-automatic');
       await expect(automaticChip).toHaveAttribute('aria-pressed', 'false');
