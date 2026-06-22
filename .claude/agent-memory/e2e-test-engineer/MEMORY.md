@@ -3,6 +3,11 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-epic08-e2e.md`, `story-933-dav-vendor-contacts.md`, `milestones-e2e.md`, `story-1248-mass-move.md`, `photo-annotator-e2e.md`, `searchpicker-mobile-1708.md`
 
+## Diary default filter mode = 'manual' (fix/1781, 2026-06-22) — `diary-r2-uat.spec.ts`, `diary-list.spec.ts`
+
+- Default mode chip changed from `all` → `manual`. Test renamed: `'"Manual" mode chip is aria-pressed=true by default (no filterMode URL param)'`. Assertions flipped: `allChip` → `false`, `manualChip` → `true`, `automaticChip` → `false`.
+- New Scenario 12 `@smoke` in `diary-list.spec.ts`: navigates to `/diary`, asserts Manual pressed, captures initial API request and verifies `type` param includes `daily_log`.
+
 ## Invoice Vendor Reassignment E2E (Story #1736, 2026-06-17) — `e2e/tests/invoices/invoice-vendor-change.spec.ts`, `e2e/pages/InvoiceDetailPage.ts`
 
 - 6 scenarios, all tagged `@responsive`. No `@smoke` — feature not yet in beta.

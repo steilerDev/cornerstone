@@ -15,6 +15,7 @@
  * 9.  Type switcher filters to manual-only entries (mock API)
  * 10. Responsive — no horizontal scroll on current viewport (@responsive)
  * 11. Dark mode — page renders without layout overflow
+ * 12. Default filter mode is Manual when navigating to /diary with no params (@smoke)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -589,4 +590,60 @@ test.describe('Dark mode rendering (Scenario 11)', { tag: '@responsive' }, () =>
     });
     expect(hasHorizontalScroll).toBe(false);
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 12: Default filter mode is Manual
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Default filter is Manual (Scenario 12)', () => {
+  test(
+    'Default filter mode is Manual when navigating to /diary with no params',
+    { tag: '@smoke' },
+    async ({ page }) => {
+      const diaryPage = new DiaryPage(page);
+
+      // Capture API request URLs to assert the type param on the initial load
+      const requests: URL[] = [];
+
+      await page.route('**/api/diary-entries*', async (route) => {
+        requests.push(new URL(route.request().url()));
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(makePaginatedResponse([])),
+        });
+      });
+
+      try {
+        await diaryPage.goto();
+        await diaryPage.waitForLoaded();
+        await diaryPage.openFiltersIfCollapsed();
+
+        // Manual chip must be the only one pressed by default
+        await expect(page.getByTestId('mode-filter-manual')).toHaveAttribute(
+          'aria-pressed',
+          'true',
+        );
+        await expect(page.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'false');
+        await expect(page.getByTestId('mode-filter-automatic')).toHaveAttribute(
+          'aria-pressed',
+          'false',
+        );
+
+        // The initial API request must include a type param that covers manual entry types
+        // (daily_log, general_note, site_visit) — not automatic types (budget_breach, etc.)
+        const initialRequest = requests[0];
+        expect(initialRequest).toBeDefined();
+        if (initialRequest) {
+          const typeParam = initialRequest.searchParams.get('type');
+          expect(typeParam).toBeTruthy();
+          if (typeParam) {
+            expect(typeParam).toContain('daily_log');
+          }
+        }
+      } finally {
+        await page.unroute('**/api/diary-entries*');
+      }
+    },
+  );
 });
