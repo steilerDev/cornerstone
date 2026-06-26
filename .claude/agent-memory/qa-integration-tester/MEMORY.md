@@ -3,6 +3,16 @@
 > Detailed notes live in topic files. This index links to them.
 > See: `budget-categories-story-142.md`, `e2e-pom-patterns.md`, `e2e-parallel-isolation.md`, `story-358-document-linking.md`, `story-360-document-a11y.md`, `story-epic08-e2e.md`, `story-509-manage-page.md`, `story-471-dashboard.md`
 
+## Story #1786 — paymentStatus filter + deposit-aware paid/pending tests (2026-06-26)
+
+**BudgetOverviewPage.test.tsx fixture pattern for new required fields**: When shared types add required fields to `BreakdownTotals` or `BudgetSourceSummaryBreakdown`, update ALL fixture objects: (1) `emptyBreakdown.workItems.totals` and `emptyBreakdown.householdItems.totals` (add `actualCostPaid: 0, actualCostPending: 0`); (2) every inline spread of `...emptyBreakdown.workItems` that overrides `areas` also needs `actualCostPaid: 0, actualCostPending: 0` on each area object; (3) every inline `budgetSources` array object needs `actualCost: 0, actualCostPaid: 0, actualCostPending: 0`. Missing any of these produces TS2739/TS2345 compile errors that block ALL tests in the file.
+
+**CostBasisSelect render gate in BudgetOverviewPage tests**: `CostBasisSelect` only renders if the `CostBreakdownTable` has data. To test paymentStatus URL state via the select element, provide `mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource)` where `breakdownWithSource` is `{...emptyBreakdown, budgetSources: [{...oneSource}]}`. An entirely empty breakdown (no areas, no budgetSources) causes the empty-state early return to hide `CostBasisSelect`.
+
+**URL search-param assertions in BudgetOverviewPage tests**: The existing `LocationDisplay` component only captures `location.pathname`. For `paymentStatus` assertions (param add/remove), define a `LocationWithSearch` component that renders `{location.pathname}{location.search}` and assert with `toHaveTextContent('paymentStatus=paid')` / `not.toHaveTextContent('paymentStatus')`. Add it as a sibling of `<BudgetOverviewPage />` inside the `MemoryRouter`.
+
+**Production bug #1787 blocks CostBreakdownTable tests**: `BudgetLineRow` in `CostBreakdownTable.tsx:301` references `rowClassName` but never defines it in its function body. The line `const rowClassName = styles.rowLevel3;` was accidentally deleted during #1786 implementation. This causes TS2304 in all 135 CostBreakdownTable tests AND all BudgetOverviewPage tests (because BudgetOverviewPage imports CostBreakdownTable). All new test code is correct — it will run once the production bug is fixed.
+
 ## Story #1693 — Badge mock require() bug + BudgetLineForm.embedded react-i18next mock (2026-06-18)
 
 **Badge is pure — never mock it via require()**: The real `Badge` component (in `client/src/components/Badge/Badge.tsx`) renders a plain `<span data-testid={testId}>` with no dependencies. When tests need `data-testid` assertions, the real Badge works without any mock. NEVER mock Badge using `require('react')` inside a jest.unstable_mockModule factory — `require` is not defined in Jest ESM. Instead, remove the Badge mock entirely and let the real component render.

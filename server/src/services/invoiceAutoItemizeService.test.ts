@@ -3119,13 +3119,26 @@ describe('invoiceAutoItemizeService', () => {
         .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_WITH_BAU))
         .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Bauhaus GmbH' }))
         .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Invoice' }))
-        .mockResolvedValueOnce(makeOkFetch(makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }])));
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }]),
+          ),
+        );
 
-      await autoItemize(db, config, invoiceId, 'user-1', { paperlessDocumentId: 42, mode: 'append', dryRun: true }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      );
 
       const llmCall = mockFetch.mock.calls[4] as [string, RequestInit];
       expect(llmCall![0]).toContain('chat/completions');
-      const llmBody = JSON.parse(llmCall![1].body as string) as { messages: Array<{ role: string; content: string }> };
+      const llmBody = JSON.parse(llmCall![1].body as string) as {
+        messages: Array<{ role: string; content: string }>;
+      };
       const userMsg = llmBody.messages.find((m) => m.role === 'user');
       expect(userMsg?.content).toContain('Bauhaus GmbH');
     });
@@ -3141,12 +3154,25 @@ describe('invoiceAutoItemizeService', () => {
         .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_WITH_BAU))
         .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Bauhaus GmbH' }))
         .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Invoice' }))
-        .mockResolvedValueOnce(makeOkFetch(makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }])));
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }]),
+          ),
+        );
 
-      await autoItemize(db, config, invoiceId, 'user-1', { paperlessDocumentId: 42, mode: 'append', dryRun: true }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      );
 
       const llmCall = mockFetch.mock.calls[4] as [string, RequestInit];
-      const llmBody = JSON.parse(llmCall![1].body as string) as { messages: Array<{ role: string; content: string }> };
+      const llmBody = JSON.parse(llmCall![1].body as string) as {
+        messages: Array<{ role: string; content: string }>;
+      };
       const userMsg = llmBody.messages.find((m) => m.role === 'user');
       expect(userMsg?.content).toContain('Rechnung 2026-01');
     });
@@ -3162,12 +3188,25 @@ describe('invoiceAutoItemizeService', () => {
         .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_WITH_BAU))
         .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Bauhaus GmbH' }))
         .mockResolvedValueOnce(makeOkFetch({ id: 1, name: 'Invoice' }))
-        .mockResolvedValueOnce(makeOkFetch(makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }])));
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }]),
+          ),
+        );
 
-      await autoItemize(db, config, invoiceId, 'user-1', { paperlessDocumentId: 42, mode: 'append', dryRun: true }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      );
 
       const llmCall = mockFetch.mock.calls[4] as [string, RequestInit];
-      const llmBody = JSON.parse(llmCall![1].body as string) as { messages: Array<{ role: string; content: string }> };
+      const llmBody = JSON.parse(llmCall![1].body as string) as {
+        messages: Array<{ role: string; content: string }>;
+      };
       const userMsg = llmBody.messages.find((m) => m.role === 'user');
       // Tag ID 101 resolved to 'Bau' via PAPERLESS_TAGS_WITH_BAU
       expect(userMsg?.content).toContain('Bau');
@@ -3202,12 +3241,25 @@ describe('invoiceAutoItemizeService', () => {
       mockFetch
         .mockResolvedValueOnce(makeOkFetch(nullMetaDoc))
         .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
-        .mockResolvedValueOnce(makeOkFetch(makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }])));
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponse([{ description: 'Item', totalAmount: 200, confidence: 0.9 }]),
+          ),
+        );
 
-      await autoItemize(db, config, invoiceId, 'user-1', { paperlessDocumentId: 42, mode: 'append', dryRun: true }, PAPERLESS_AUTH);
+      await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      );
 
       const llmCall = mockFetch.mock.calls[2] as [string, RequestInit];
-      const llmBody = JSON.parse(llmCall![1].body as string) as { messages: Array<{ role: string; content: string }> };
+      const llmBody = JSON.parse(llmCall![1].body as string) as {
+        messages: Array<{ role: string; content: string }>;
+      };
       const userMsg = llmBody.messages.find((m) => m.role === 'user');
       expect(userMsg?.content).not.toContain('Document metadata');
     });
@@ -3238,9 +3290,20 @@ describe('invoiceAutoItemizeService', () => {
         .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
         .mockResolvedValueOnce(makeOkFetch({ id: 2, name: 'Holz AG' }))
         // No document_type fetch (document_type is null) — resolveDocumentTypeName returns null immediately
-        .mockResolvedValueOnce(makeOkFetch({
-          choices: [{ message: { content: JSON.stringify({ lines: [{ description: 'Holz item', totalAmount: 300, confidence: 0.9 }], chosenVendorName: 'Holz AG' }) } }],
-        }));
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [{ description: 'Holz item', totalAmount: 300, confidence: 0.9 }],
+                    chosenVendorName: 'Holz AG',
+                  }),
+                },
+              },
+            ],
+          }),
+        );
 
       const result = (await previewAutoItemize(
         db,
@@ -3253,7 +3316,9 @@ describe('invoiceAutoItemizeService', () => {
       const llmCallIndex = mockFetch.mock.calls.length - 1;
       const llmCall = mockFetch.mock.calls[llmCallIndex] as [string, RequestInit];
       expect(llmCall![0]).toContain('chat/completions');
-      const llmBody = JSON.parse(llmCall![1].body as string) as { messages: Array<{ role: string; content: string }> };
+      const llmBody = JSON.parse(llmCall![1].body as string) as {
+        messages: Array<{ role: string; content: string }>;
+      };
       const userMsg = llmBody.messages.find((m) => m.role === 'user');
       expect(userMsg?.content).toContain('Holz AG');
 

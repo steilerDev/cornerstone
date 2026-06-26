@@ -4865,7 +4865,7 @@ describe('CostBasisSelect — rendering and paymentStatus-aware cost display (Sc
 
     // Expand down to budget line level
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Paid Invoice Item'));
 
     // The budget line cost cell should show -€800.00 (actualCostPaid), not -€1,000.00 (actualCost)
@@ -4892,7 +4892,7 @@ describe('CostBasisSelect — rendering and paymentStatus-aware cost display (Sc
     const { container } = renderWithRouter(breakdown, buildOverview(), { paymentStatus: 'paid' });
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Non-Invoiced Item'));
 
     // resolveBudgetLineCost returns line.actualCostPaid=0 for paid mode
@@ -4923,7 +4923,7 @@ describe('CostBasisSelect — rendering and paymentStatus-aware cost display (Sc
     });
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Outstanding Invoice Item'));
 
     // Budget line should show -€200.00 (actualCostPending)
@@ -4964,7 +4964,7 @@ describe('CostBasisSelect — rendering and paymentStatus-aware cost display (Sc
     });
 
     fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
-    fireEvent.click(getButtonByControls(container, 'area:Unassigned'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
     fireEvent.click(getButtonByLabel('Expand Non-Invoiced Outstanding Item'));
 
     // outstanding + no invoice → shows projected value (avg of 700+1300=1000 for 'avg' perspective)

@@ -49,6 +49,12 @@
         "empty": "No budget lines match the selected source filter.",
         "clear": "Clear filters"
       },
+      "costBasis": {
+        "label": "Cost Basis",
+        "all": "All",
+        "paid": "Paid",
+        "outstanding": "Outstanding"
+      },
       "refetchError": "Failed to refresh breakdown. Please try again.",
       "dismissError": "Dismiss",
       "sourceRow": {

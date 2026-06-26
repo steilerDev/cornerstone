@@ -62,6 +62,13 @@ export function BudgetOverviewPage() {
     return new Set(raw.split(',').filter(Boolean));
   }, [searchParams]);
 
+  // Derive payment status from URL ?paymentStatus= param
+  const paymentStatus = useMemo<'all' | 'paid' | 'outstanding'>(() => {
+    const raw = searchParams.get('paymentStatus');
+    if (raw === 'paid' || raw === 'outstanding') return raw;
+    return 'all';
+  }, [searchParams]);
+
   const handleSourceToggle = useCallback(
     (sourceId: string | null) => {
       const key = sourceId ?? 'unassigned';
@@ -91,6 +98,21 @@ export function BudgetOverviewPage() {
       return params;
     });
   }, [setSearchParams]);
+
+  const handlePaymentStatusChange = useCallback(
+    (value: 'all' | 'paid' | 'outstanding') => {
+      setSearchParams((prev) => {
+        const params = new URLSearchParams(prev);
+        if (value === 'all') {
+          params.delete('paymentStatus');
+        } else {
+          params.set('paymentStatus', value);
+        }
+        return params;
+      });
+    },
+    [setSearchParams],
+  );
 
   // Standalone fetch function for debounced refetch
   const fetchBreakdown = useCallback(
@@ -138,7 +160,7 @@ export function BudgetOverviewPage() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [deselectedSourceIds, isLoading, fetchBreakdown]);
+  }, [deselectedSourceIds, paymentStatus, isLoading, fetchBreakdown]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -335,6 +357,8 @@ export function BudgetOverviewPage() {
                 deselectedSourceIds={deselectedSourceIds}
                 onSourceToggle={handleSourceToggle}
                 onSelectAllSources={handleSelectAllSources}
+                paymentStatus={paymentStatus}
+                onPaymentStatusChange={handlePaymentStatusChange}
               />
             </div>
           </>
