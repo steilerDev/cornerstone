@@ -908,11 +908,6 @@ export function CostBreakdownTable({
     .filter((s) => !deselectedSourceIds.has(s.id))
     .reduce((sum: number, s) => sum + s.totalAmount, 0);
 
-  /**
-   * Sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback.
-   */
-  const _sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback;
-
   // Empty state: only show early-return empty state if there are NO sources configured AND no items.
   // If sources are configured (even if all deselected, which prunes items), render the full table
   // so users can re-enable sources.
