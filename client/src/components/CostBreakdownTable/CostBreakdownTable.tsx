@@ -9,6 +9,7 @@ import type {
   BreakdownBudgetLine,
   BreakdownHouseholdItem,
   ConfidenceLevel,
+  CostDisplay,
   SubsidyAdjustment,
   BudgetSourceSummaryBreakdown,
 } from '@cornerstone/shared';
@@ -55,6 +56,8 @@ interface CostBreakdownTableProps {
   deselectedSourceIds: Set<string>;
   onSourceToggle: (sourceId: string | null) => void;
   onSelectAllSources: () => void;
+  paymentStatus: 'all' | 'paid' | 'outstanding';
+  onPaymentStatusChange: (v: 'all' | 'paid' | 'outstanding') => void;
 }
 
 /**
@@ -68,6 +71,65 @@ function resolveProjected(
   if (perspective === 'min') return projectedMin;
   if (perspective === 'max') return projectedMax;
   return (projectedMin + projectedMax) / 2;
+}
+
+/**
+ * Resolves the display cost for a single budget line based on paymentStatus.
+ */
+function resolveBudgetLineCost(
+  line: BreakdownBudgetLine,
+  perspective: CostPerspective,
+  paymentStatus: 'all' | 'paid' | 'outstanding',
+): number {
+  const margin = CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0;
+  const costMin = line.plannedAmount * (1 - margin);
+  const costMax = line.plannedAmount * (1 + margin);
+  const perspectiveValue = resolveProjected(costMin, costMax, perspective);
+  const quotedMin = line.actualCost * 0.95;
+  const quotedMax = line.actualCost * 1.05;
+  const quotedPerspectiveValue = resolveProjected(quotedMin, quotedMax, perspective);
+
+  if (paymentStatus === 'paid') {
+    return line.actualCostPaid;
+  }
+  if (paymentStatus === 'outstanding') {
+    if (!line.hasInvoice) return perspectiveValue;
+    if (line.isQuotation) return quotedPerspectiveValue;
+    return line.actualCostPending;
+  }
+  // 'all' — current behavior
+  if (line.isQuotation) return quotedPerspectiveValue;
+  if (line.hasInvoice) return line.actualCost;
+  return perspectiveValue;
+}
+
+/**
+ * Resolves the display cost for an item, area, or totals aggregate based on paymentStatus.
+ */
+function resolveAggregateCost(
+  rawProjectedMin: number,
+  rawProjectedMax: number,
+  actualCost: number,
+  actualCostPaid: number,
+  actualCostPending: number,
+  costDisplay: CostDisplay | null,
+  perspective: CostPerspective,
+  paymentStatus: 'all' | 'paid' | 'outstanding',
+): number {
+  if (paymentStatus === 'paid') {
+    return actualCostPaid;
+  }
+  if (paymentStatus === 'outstanding') {
+    // pending invoiced + uninvoiced projected
+    const projectedPortion = Math.max(
+      0,
+      resolveProjected(rawProjectedMin, rawProjectedMax, perspective) - actualCost,
+    );
+    return actualCostPending + projectedPortion;
+  }
+  // 'all' — current behavior
+  if (costDisplay === 'actual') return actualCost;
+  return resolveProjected(rawProjectedMin, rawProjectedMax, perspective);
 }
 
 /**
@@ -167,6 +229,37 @@ function PerspectiveToggle({
 }
 
 /**
+ * Dropdown for cost basis selection (all/paid/outstanding).
+ */
+function CostBasisSelect({
+  value,
+  onChange,
+}: {
+  value: 'all' | 'paid' | 'outstanding';
+  onChange: (v: 'all' | 'paid' | 'outstanding') => void;
+}) {
+  const { t } = useTranslation('budget');
+  const selectId = 'cost-basis-select';
+  return (
+    <div className={styles.costBasisField}>
+      <label htmlFor={selectId} className={styles.costBasisLabel}>
+        {t('overview.costBreakdown.costBasis.label')}
+      </label>
+      <select
+        id={selectId}
+        className={`${styles.costBasisSelect}${value !== 'all' ? ` ${styles.costBasisSelectActive}` : ''}`}
+        value={value}
+        onChange={(e) => onChange(e.target.value as 'all' | 'paid' | 'outstanding')}
+      >
+        <option value="all">{t('overview.costBreakdown.costBasis.all')}</option>
+        <option value="paid">{t('overview.costBreakdown.costBasis.paid')}</option>
+        <option value="outstanding">{t('overview.costBreakdown.costBasis.outstanding')}</option>
+      </select>
+    </div>
+  );
+}
+
+/**
  * Renders a confidence badge (e.g., "own_estimate") for a budget line.
  */
 function ConfidenceBadge({ confidence }: { confidence: ConfidenceLevel }) {
@@ -181,32 +274,20 @@ function BudgetLineRow({
   line,
   perspective,
   depth,
+  paymentStatus,
 }: {
   line: BreakdownBudgetLine;
   perspective: CostPerspective;
   depth: number;
+  paymentStatus: 'all' | 'paid' | 'outstanding';
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
   const { budgetSources } = useBreakdownContext();
 
   const key = `line-${line.id}`;
-  const margin = CONFIDENCE_MARGINS[line.confidence];
-  const costMin = line.plannedAmount * (1 - margin);
-  const costMax = line.plannedAmount * (1 + margin);
-  const perspectiveValue = resolveProjected(costMin, costMax, perspective);
   const rowClassName = styles.rowLevel3;
-
-  // Calculate quoted range (±5%)
-  const quotedMin = line.actualCost * 0.95;
-  const quotedMax = line.actualCost * 1.05;
-  const quotedPerspectiveValue = resolveProjected(quotedMin, quotedMax, perspective);
-
-  const resolvedRawCost = line.isQuotation
-    ? quotedPerspectiveValue
-    : line.hasInvoice
-      ? line.actualCost
-      : perspectiveValue;
+  const resolvedRawCost = resolveBudgetLineCost(line, perspective, paymentStatus);
 
   // Get source badge info
   const sourceId = line.budgetSourceId ?? null;
@@ -248,13 +329,7 @@ function BudgetLineRow({
         </div>
       </td>
       <td className={styles.colBudget}>
-        {line.isQuotation ? (
-          <span>-{formatCurrencyFn(quotedPerspectiveValue)}</span>
-        ) : line.hasInvoice ? (
-          <span>-{formatCurrencyFn(line.actualCost)}</span>
-        ) : (
-          <span>-{formatCurrencyFn(perspectiveValue)}</span>
-        )}
+        <span>-{formatCurrencyFn(resolvedRawCost)}</span>
       </td>
       <td className={styles.colPayback}>—</td>
       <td className={styles.colRemaining}>
@@ -274,6 +349,7 @@ function WorkItemRow({
   onToggle,
   perspective,
   depth,
+  paymentStatus,
 }: {
   item: BreakdownWorkItem;
   expandKey: string;
@@ -281,16 +357,23 @@ function WorkItemRow({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
   depth: number;
+  paymentStatus: 'all' | 'paid' | 'outstanding';
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
 
-  const resolvedRawCost =
-    item.costDisplay === 'actual'
-      ? item.actualCost
-      : resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
+  const resolvedRawCost = resolveAggregateCost(
+    item.rawProjectedMin,
+    item.rawProjectedMax,
+    item.actualCost,
+    item.actualCostPaid,
+    item.actualCostPending,
+    item.costDisplay,
+    perspective,
+    paymentStatus,
+  );
   const resolvedPayback = resolveProjected(
     item.minSubsidyPayback,
     item.subsidyPayback,
@@ -341,7 +424,13 @@ function WorkItemRow({
       {itemExpanded && (
         <>
           {item.budgetLines.map((line: BreakdownBudgetLine) => (
-            <BudgetLineRow key={line.id} line={line} perspective={perspective} depth={depth} />
+            <BudgetLineRow
+              key={line.id}
+              line={line}
+              perspective={perspective}
+              depth={depth}
+              paymentStatus={paymentStatus}
+            />
           ))}
         </>
       )}
@@ -360,6 +449,7 @@ function WorkItemAreaSection({
   onToggle,
   perspective,
   formatCurrencyFn,
+  paymentStatus,
 }: {
   area: BreakdownArea<BreakdownWorkItem>;
   depth: number;
@@ -368,12 +458,22 @@ function WorkItemAreaSection({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
   formatCurrencyFn: (value: number) => string;
+  paymentStatus: 'all' | 'paid' | 'outstanding';
 }) {
   const { t } = useTranslation('budget');
   const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
   const isExpanded = expandedKeys.has(areaKey);
 
-  const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
+  const resolvedRawCost = resolveAggregateCost(
+    area.rawProjectedMin,
+    area.rawProjectedMax,
+    area.actualCost,
+    area.actualCostPaid,
+    area.actualCostPending,
+    null,
+    perspective,
+    paymentStatus,
+  );
   const resolvedPayback = resolveProjected(
     area.minSubsidyPayback,
     area.subsidyPayback,
@@ -427,6 +527,7 @@ function WorkItemAreaSection({
                 onToggle={onToggle}
                 perspective={perspective}
                 depth={depth}
+                paymentStatus={paymentStatus}
               />
             );
           })}
@@ -440,6 +541,7 @@ function WorkItemAreaSection({
               onToggle={onToggle}
               perspective={perspective}
               formatCurrencyFn={formatCurrencyFn}
+              paymentStatus={paymentStatus}
             />
           ))}
         </>
@@ -458,6 +560,7 @@ function HouseholdItemRow({
   onToggle,
   perspective,
   depth,
+  paymentStatus,
 }: {
   item: BreakdownHouseholdItem;
   expandKey: string;
@@ -465,16 +568,23 @@ function HouseholdItemRow({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
   depth: number;
+  paymentStatus: 'all' | 'paid' | 'outstanding';
 }) {
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
   const key = expandKey;
   const rowClassName = styles.rowLevel2;
 
-  const resolvedRawCost =
-    item.costDisplay === 'actual'
-      ? item.actualCost
-      : resolveProjected(item.rawProjectedMin, item.rawProjectedMax, perspective);
+  const resolvedRawCost = resolveAggregateCost(
+    item.rawProjectedMin,
+    item.rawProjectedMax,
+    item.actualCost,
+    item.actualCostPaid,
+    item.actualCostPending,
+    item.costDisplay,
+    perspective,
+    paymentStatus,
+  );
   const resolvedPayback = resolveProjected(
     item.minSubsidyPayback,
     item.subsidyPayback,
@@ -528,7 +638,13 @@ function HouseholdItemRow({
       {itemExpanded && (
         <>
           {item.budgetLines.map((line: BreakdownBudgetLine) => (
-            <BudgetLineRow key={line.id} line={line} perspective={perspective} depth={depth} />
+            <BudgetLineRow
+              key={line.id}
+              line={line}
+              perspective={perspective}
+              depth={depth}
+              paymentStatus={paymentStatus}
+            />
           ))}
         </>
       )}
@@ -547,6 +663,7 @@ function HouseholdItemAreaSection({
   onToggle,
   perspective,
   formatCurrencyFn,
+  paymentStatus,
 }: {
   area: BreakdownArea<BreakdownHouseholdItem>;
   depth: number;
@@ -555,12 +672,22 @@ function HouseholdItemAreaSection({
   onToggle: (key: string) => void;
   perspective: CostPerspective;
   formatCurrencyFn: (value: number) => string;
+  paymentStatus: 'all' | 'paid' | 'outstanding';
 }) {
   const { t } = useTranslation('budget');
   const areaKey = `${sectionKey}-area-${area.areaId ?? 'unassigned'}`;
   const isExpanded = expandedKeys.has(areaKey);
 
-  const resolvedRawCost = resolveProjected(area.rawProjectedMin, area.rawProjectedMax, perspective);
+  const resolvedRawCost = resolveAggregateCost(
+    area.rawProjectedMin,
+    area.rawProjectedMax,
+    area.actualCost,
+    area.actualCostPaid,
+    area.actualCostPending,
+    null,
+    perspective,
+    paymentStatus,
+  );
   const resolvedPayback = resolveProjected(
     area.minSubsidyPayback,
     area.subsidyPayback,
@@ -614,6 +741,7 @@ function HouseholdItemAreaSection({
                 onToggle={onToggle}
                 perspective={perspective}
                 depth={depth}
+                paymentStatus={paymentStatus}
               />
             );
           })}
@@ -627,6 +755,7 @@ function HouseholdItemAreaSection({
               onToggle={onToggle}
               perspective={perspective}
               formatCurrencyFn={formatCurrencyFn}
+              paymentStatus={paymentStatus}
             />
           ))}
         </>
@@ -667,6 +796,8 @@ export function CostBreakdownTable({
   deselectedSourceIds,
   onSourceToggle,
   onSelectAllSources,
+  paymentStatus,
+  onPaymentStatusChange,
 }: CostBreakdownTableProps) {
   const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
@@ -757,12 +888,17 @@ export function CostBreakdownTable({
   const adjustedTotalPayback = resolvedTotalPayback - resolvedTotalExcess;
 
   /**
-   * Total raw projected cost (perspective-dependent).
+   * Total raw projected cost (perspective-dependent, payment-aware).
    */
-  const totalRawProjected = resolveProjected(
+  const totalRawProjected = resolveAggregateCost(
     wiTotals.rawProjectedMin + hiTotals.rawProjectedMin,
     wiTotals.rawProjectedMax + hiTotals.rawProjectedMax,
+    wiTotals.actualCost + hiTotals.actualCost,
+    wiTotals.actualCostPaid + hiTotals.actualCostPaid,
+    wiTotals.actualCostPending + hiTotals.actualCostPending,
+    null,
     perspective,
+    paymentStatus,
   );
 
   /**
@@ -771,11 +907,6 @@ export function CostBreakdownTable({
   const filteredAvailableFunds = budgetSources
     .filter((s) => !deselectedSourceIds.has(s.id))
     .reduce((sum: number, s) => sum + s.totalAmount, 0);
-
-  /**
-   * Sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback.
-   */
-  const _sum = filteredAvailableFunds - totalRawProjected + adjustedTotalPayback;
 
   // Empty state: only show early-return empty state if there are NO sources configured AND no items.
   // If sources are configured (even if all deselected, which prunes items), render the full table
@@ -810,10 +941,15 @@ export function CostBreakdownTable({
     ? budgetSources.map((source: BudgetSourceSummaryBreakdown) => {
         const colorIndex = getSourceColorIndex(source.id);
         const isSelected = !deselectedSourceIds.has(source.id);
-        const allocatedCost = resolveProjected(
+        const allocatedCost = resolveAggregateCost(
           source.projectedMin,
           source.projectedMax,
+          source.actualCost,
+          source.actualCostPaid,
+          source.actualCostPending,
+          null,
           perspective,
+          paymentStatus,
         );
         const payback = resolveProjected(
           source.subsidyPaybackMin,
@@ -892,7 +1028,10 @@ export function CostBreakdownTable({
             {t('overview.costBreakdown.title')}
           </h2>
 
-          <PerspectiveToggle value={perspective} onChange={setPerspective} />
+          <div className={styles.controlBar}>
+            <PerspectiveToggle value={perspective} onChange={setPerspective} />
+            <CostBasisSelect value={paymentStatus} onChange={onPaymentStatusChange} />
+          </div>
 
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
@@ -940,10 +1079,15 @@ export function CostBreakdownTable({
                       </td>
                       <td className={styles.colBudget}>
                         {formatCost(
-                          resolveProjected(
+                          resolveAggregateCost(
                             wiTotals.rawProjectedMin,
                             wiTotals.rawProjectedMax,
+                            wiTotals.actualCost,
+                            wiTotals.actualCostPaid,
+                            wiTotals.actualCostPending,
+                            null,
                             perspective,
+                            paymentStatus,
                           ),
                           formatCurrency,
                         )}
@@ -961,10 +1105,15 @@ export function CostBreakdownTable({
                       </td>
                       <td className={styles.colRemaining}>
                         {renderNet(
-                          resolveProjected(
+                          resolveAggregateCost(
                             wiTotals.rawProjectedMin,
                             wiTotals.rawProjectedMax,
+                            wiTotals.actualCost,
+                            wiTotals.actualCostPaid,
+                            wiTotals.actualCostPending,
+                            null,
                             perspective,
+                            paymentStatus,
                           ),
                           resolveProjected(
                             wiTotals.minSubsidyPayback,
@@ -989,6 +1138,7 @@ export function CostBreakdownTable({
                             onToggle={toggle}
                             perspective={perspective}
                             formatCurrencyFn={formatCurrency}
+                            paymentStatus={paymentStatus}
                           />
                         ))}
                       </>
@@ -1018,10 +1168,15 @@ export function CostBreakdownTable({
                       </td>
                       <td className={styles.colBudget}>
                         {formatCost(
-                          resolveProjected(
+                          resolveAggregateCost(
                             hiTotals.rawProjectedMin,
                             hiTotals.rawProjectedMax,
+                            hiTotals.actualCost,
+                            hiTotals.actualCostPaid,
+                            hiTotals.actualCostPending,
+                            null,
                             perspective,
+                            paymentStatus,
                           ),
                           formatCurrency,
                         )}
@@ -1039,10 +1194,15 @@ export function CostBreakdownTable({
                       </td>
                       <td className={styles.colRemaining}>
                         {renderNet(
-                          resolveProjected(
+                          resolveAggregateCost(
                             hiTotals.rawProjectedMin,
                             hiTotals.rawProjectedMax,
+                            hiTotals.actualCost,
+                            hiTotals.actualCostPaid,
+                            hiTotals.actualCostPending,
+                            null,
                             perspective,
+                            paymentStatus,
                           ),
                           resolveProjected(
                             hiTotals.minSubsidyPayback,
@@ -1067,6 +1227,7 @@ export function CostBreakdownTable({
                             onToggle={toggle}
                             perspective={perspective}
                             formatCurrencyFn={formatCurrency}
+                            paymentStatus={paymentStatus}
                           />
                         ))}
                       </>

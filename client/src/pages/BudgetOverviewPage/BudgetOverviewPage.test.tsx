@@ -154,6 +154,8 @@ describe('BudgetOverviewPage', () => {
         projectedMin: 0,
         projectedMax: 0,
         actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback: 0,
         rawProjectedMin: 0,
         rawProjectedMax: 0,
@@ -166,6 +168,8 @@ describe('BudgetOverviewPage', () => {
         projectedMin: 0,
         projectedMax: 0,
         actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback: 0,
         rawProjectedMin: 0,
         rawProjectedMax: 0,
@@ -384,6 +388,8 @@ describe('BudgetOverviewPage', () => {
               projectedMin: 5000,
               projectedMax: 8000,
               actualCost: 0,
+              actualCostPaid: 0,
+              actualCostPending: 0,
               subsidyPayback: 0,
               rawProjectedMin: 5000,
               rawProjectedMax: 8000,
@@ -396,6 +402,8 @@ describe('BudgetOverviewPage', () => {
             projectedMin: 5000,
             projectedMax: 8000,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 5000,
             rawProjectedMax: 8000,
@@ -408,6 +416,8 @@ describe('BudgetOverviewPage', () => {
             projectedMin: 0,
             projectedMax: 0,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 0,
             rawProjectedMax: 0,
@@ -422,6 +432,9 @@ describe('BudgetOverviewPage', () => {
             totalAmount: 50000,
             projectedMin: 0,
             projectedMax: 0,
+            actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPaybackMin: 0,
             subsidyPaybackMax: 0,
           },
@@ -431,6 +444,9 @@ describe('BudgetOverviewPage', () => {
             totalAmount: 80000,
             projectedMin: 0,
             projectedMax: 0,
+            actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPaybackMin: 0,
             subsidyPaybackMax: 0,
           },
@@ -610,6 +626,8 @@ describe('BudgetOverviewPage', () => {
               projectedMin: 5000,
               projectedMax: 5000,
               actualCost: 0,
+              actualCostPaid: 0,
+              actualCostPending: 0,
               subsidyPayback: 0,
               rawProjectedMin: 5000,
               rawProjectedMax: 5000,
@@ -622,6 +640,8 @@ describe('BudgetOverviewPage', () => {
             projectedMin: 5000,
             projectedMax: 5000,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 5000,
             rawProjectedMax: 5000,
@@ -635,6 +655,9 @@ describe('BudgetOverviewPage', () => {
             totalAmount: 100000,
             projectedMin: 5000,
             projectedMax: 5000,
+            actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPaybackMin: 0,
             subsidyPaybackMax: 0,
           },
@@ -667,6 +690,8 @@ describe('BudgetOverviewPage', () => {
               projectedMin: 5000,
               projectedMax: 5000,
               actualCost: 0,
+              actualCostPaid: 0,
+              actualCostPending: 0,
               subsidyPayback: 0,
               rawProjectedMin: 5000,
               rawProjectedMax: 5000,
@@ -679,6 +704,8 @@ describe('BudgetOverviewPage', () => {
             projectedMin: 5000,
             projectedMax: 5000,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 5000,
             rawProjectedMax: 5000,
@@ -692,6 +719,9 @@ describe('BudgetOverviewPage', () => {
             totalAmount: 100000,
             projectedMin: 5000,
             projectedMax: 5000,
+            actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPaybackMin: 0,
             subsidyPaybackMax: 0,
           },
@@ -790,6 +820,9 @@ describe('BudgetOverviewPage', () => {
             totalAmount: 100000,
             projectedMin: 0,
             projectedMax: 0,
+            actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPaybackMin: 0,
             subsidyPaybackMax: 0,
           },
@@ -881,6 +914,9 @@ describe('BudgetOverviewPage', () => {
             totalAmount: 100000,
             projectedMin: 0,
             projectedMax: 0,
+            actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPaybackMin: 0,
             subsidyPaybackMax: 0,
           },
@@ -905,6 +941,160 @@ describe('BudgetOverviewPage', () => {
       // Previous breakdown wrapper should still be rendered (not replaced with empty state)
       // The page should not be in loading state
       expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── URL state: paymentStatus param (Scenarios 20-25, Issue #1786) ─────────
+
+  describe('URL state: ?paymentStatus param (Scenarios 20-25, Issue #1786)', () => {
+    /** Minimal non-empty breakdown with one budget source — enough for CostBasisSelect to render. */
+    const breakdownWithSource = {
+      ...emptyBreakdown,
+      budgetSources: [
+        {
+          id: 'src-pay',
+          name: 'Savings',
+          totalAmount: 100000,
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
+          subsidyPaybackMin: 0,
+          subsidyPaybackMax: 0,
+        },
+      ],
+    };
+
+    function renderWithUrl(url: string) {
+      /** Renders current location.pathname + location.search so URL assertions work. */
+      function LocationWithSearch() {
+        const location = useLocation();
+        return (
+          <div data-testid="location-full">
+            {location.pathname}
+            {location.search}
+          </div>
+        );
+      }
+      return render(
+        <MemoryRouter initialEntries={[url]}>
+          <BudgetOverviewPage />
+          <LocationWithSearch />
+        </MemoryRouter>,
+      );
+    }
+
+    // Scenario 20: ?paymentStatus=paid → select value is 'paid'
+    it('select#cost-basis-select has value "paid" when URL has ?paymentStatus=paid (Scenario 20)', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
+
+      renderWithUrl('/budget/overview?paymentStatus=paid');
+
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+
+      const select = document.querySelector<HTMLSelectElement>('#cost-basis-select');
+      expect(select).not.toBeNull();
+      expect(select!.value).toBe('paid');
+    });
+
+    // Scenario 21: ?paymentStatus=outstanding → select value is 'outstanding'
+    it('select#cost-basis-select has value "outstanding" when URL has ?paymentStatus=outstanding (Scenario 21)', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
+
+      renderWithUrl('/budget/overview?paymentStatus=outstanding');
+
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+
+      const select = document.querySelector<HTMLSelectElement>('#cost-basis-select');
+      expect(select).not.toBeNull();
+      expect(select!.value).toBe('outstanding');
+    });
+
+    // Scenario 22: no ?paymentStatus param → select defaults to 'all'
+    it('select#cost-basis-select defaults to "all" when URL has no paymentStatus param (Scenario 22)', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
+
+      renderWithUrl('/budget/overview');
+
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+
+      const select = document.querySelector<HTMLSelectElement>('#cost-basis-select');
+      expect(select).not.toBeNull();
+      expect(select!.value).toBe('all');
+    });
+
+    // Scenario 23: ?paymentStatus=invalid → select defaults to 'all'
+    it('select#cost-basis-select defaults to "all" when ?paymentStatus has invalid value (Scenario 23)', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
+
+      renderWithUrl('/budget/overview?paymentStatus=bogus');
+
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+
+      const select = document.querySelector<HTMLSelectElement>('#cost-basis-select');
+      expect(select).not.toBeNull();
+      expect(select!.value).toBe('all');
+    });
+
+    // Scenario 24: changing select to 'paid' → URL gets ?paymentStatus=paid
+    it('changing select to "paid" adds ?paymentStatus=paid to the URL (Scenario 24)', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
+
+      renderWithUrl('/budget/overview');
+
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+
+      const select = document.querySelector<HTMLSelectElement>('#cost-basis-select');
+      expect(select).not.toBeNull();
+
+      await userEvent.selectOptions(select!, 'paid');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location-full')).toHaveTextContent('paymentStatus=paid');
+      });
+    });
+
+    // Scenario 25: changing select back to 'all' → ?paymentStatus is removed from URL
+    it('changing select to "all" removes ?paymentStatus from the URL (Scenario 25)', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSource);
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
+
+      renderWithUrl('/budget/overview?paymentStatus=outstanding');
+
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+
+      const select = document.querySelector<HTMLSelectElement>('#cost-basis-select');
+      expect(select).not.toBeNull();
+
+      await userEvent.selectOptions(select!, 'all');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location-full')).not.toHaveTextContent('paymentStatus');
+      });
     });
   });
 });

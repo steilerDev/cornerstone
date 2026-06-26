@@ -45,6 +45,10 @@ export class BudgetOverviewPage {
   // Cost Breakdown table (CostBreakdownTable, area hierarchy)
   readonly costBreakdownCard: Locator;
 
+  // Cost Basis dropdown (payment-status filter)
+  readonly costBasisSelect: Locator;
+  readonly costBasisLabel: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -73,6 +77,10 @@ export class BudgetOverviewPage {
 
     // Cost Breakdown table: <section aria-labelledby="breakdown-heading">
     this.costBreakdownCard = page.locator('section[aria-labelledby="breakdown-heading"]');
+
+    // Cost Basis dropdown: <select id="cost-basis-select"> + associated label
+    this.costBasisSelect = page.locator('#cost-basis-select');
+    this.costBasisLabel = page.locator('label[for="cost-basis-select"]');
   }
 
   /**

@@ -95,6 +95,8 @@ function renderWithRouter(
     deselectedSourceIds?: Set<string>;
     onSourceToggle?: (sourceId: string | null) => void;
     onSelectAllSources?: () => void;
+    paymentStatus?: 'all' | 'paid' | 'outstanding';
+    onPaymentStatusChange?: (v: 'all' | 'paid' | 'outstanding') => void;
   } = {},
 ) {
   return render(
@@ -105,6 +107,8 @@ function renderWithRouter(
         deselectedSourceIds={opts.deselectedSourceIds ?? new Set()}
         onSourceToggle={opts.onSourceToggle ?? (() => {})}
         onSelectAllSources={opts.onSelectAllSources ?? (() => {})}
+        paymentStatus={opts.paymentStatus ?? 'all'}
+        onPaymentStatusChange={opts.onPaymentStatusChange ?? (() => {})}
       />
     </MemoryRouter>,
   );
@@ -237,6 +241,8 @@ function buildEmptyBreakdown(): BudgetBreakdown {
         projectedMin: 0,
         projectedMax: 0,
         actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback: 0,
         rawProjectedMin: 0,
         rawProjectedMax: 0,
@@ -249,6 +255,8 @@ function buildEmptyBreakdown(): BudgetBreakdown {
         projectedMin: 0,
         projectedMax: 0,
         actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback: 0,
         rawProjectedMin: 0,
         rawProjectedMax: 0,
@@ -307,6 +315,8 @@ function buildBreakdownWithWI(
           projectedMin,
           projectedMax,
           actualCost,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback,
           rawProjectedMin,
           rawProjectedMax,
@@ -318,6 +328,8 @@ function buildBreakdownWithWI(
               projectedMin,
               projectedMax,
               actualCost,
+              actualCostPaid: 0,
+              actualCostPending: 0,
               subsidyPayback,
               rawProjectedMin,
               rawProjectedMax,
@@ -330,6 +342,8 @@ function buildBreakdownWithWI(
                   plannedAmount: 1000,
                   confidence: 'own_estimate',
                   actualCost,
+                  actualCostPaid: 0,
+                  actualCostPending: 0,
                   hasInvoice,
                   isQuotation: false,
                   budgetSourceId: null,
@@ -345,6 +359,8 @@ function buildBreakdownWithWI(
         projectedMin,
         projectedMax,
         actualCost,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback,
         rawProjectedMin,
         rawProjectedMax,
@@ -357,6 +373,8 @@ function buildBreakdownWithWI(
         projectedMin: 0,
         projectedMax: 0,
         actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback: 0,
         rawProjectedMin: 0,
         rawProjectedMax: 0,
@@ -408,6 +426,8 @@ function buildBreakdownWithHI(
         projectedMin: 0,
         projectedMax: 0,
         actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback: 0,
         rawProjectedMin: 0,
         rawProjectedMax: 0,
@@ -424,6 +444,8 @@ function buildBreakdownWithHI(
           projectedMin,
           projectedMax,
           actualCost,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback,
           rawProjectedMin,
           rawProjectedMax,
@@ -435,6 +457,8 @@ function buildBreakdownWithHI(
               projectedMin,
               projectedMax,
               actualCost,
+              actualCostPaid: 0,
+              actualCostPending: 0,
               subsidyPayback,
               rawProjectedMin,
               rawProjectedMax,
@@ -447,6 +471,8 @@ function buildBreakdownWithHI(
                   plannedAmount: 500,
                   confidence: 'own_estimate',
                   actualCost,
+                  actualCostPaid: 0,
+                  actualCostPending: 0,
                   hasInvoice: actualCost > 0,
                   isQuotation: false,
                   budgetSourceId: null,
@@ -462,6 +488,8 @@ function buildBreakdownWithHI(
         projectedMin,
         projectedMax,
         actualCost,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback,
         rawProjectedMin,
         rawProjectedMax,
@@ -483,6 +511,9 @@ function buildSourceSummary(
     totalAmount?: number;
     projectedMin?: number;
     projectedMax?: number;
+    actualCost?: number;
+    actualCostPaid?: number;
+    actualCostPending?: number;
     subsidyPaybackMin?: number;
     subsidyPaybackMax?: number;
   } = {},
@@ -493,6 +524,9 @@ function buildSourceSummary(
     totalAmount: opts.totalAmount ?? 100000,
     projectedMin: opts.projectedMin ?? 5000,
     projectedMax: opts.projectedMax ?? 8000,
+    actualCost: opts.actualCost ?? 0,
+    actualCostPaid: opts.actualCostPaid ?? 0,
+    actualCostPending: opts.actualCostPending ?? 0,
     subsidyPaybackMin: opts.subsidyPaybackMin ?? 0,
     subsidyPaybackMax: opts.subsidyPaybackMax ?? 0,
   };
@@ -518,6 +552,8 @@ function buildBreakdownWithSourcedWI(opts: {
           projectedMin: 800,
           projectedMax: 1200,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 800,
           rawProjectedMax: 1200,
@@ -529,6 +565,8 @@ function buildBreakdownWithSourcedWI(opts: {
               projectedMin: 800,
               projectedMax: 1200,
               actualCost: 0,
+              actualCostPaid: 0,
+              actualCostPending: 0,
               subsidyPayback: 0,
               rawProjectedMin: 800,
               rawProjectedMax: 1200,
@@ -541,6 +579,8 @@ function buildBreakdownWithSourcedWI(opts: {
                   plannedAmount: 1000,
                   confidence: 'own_estimate',
                   actualCost: 0,
+                  actualCostPaid: 0,
+                  actualCostPending: 0,
                   hasInvoice: false,
                   isQuotation: false,
                   budgetSourceId: opts.budgetSourceId,
@@ -556,6 +596,8 @@ function buildBreakdownWithSourcedWI(opts: {
         projectedMin: 800,
         projectedMax: 1200,
         actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback: 0,
         rawProjectedMin: 800,
         rawProjectedMax: 1200,
@@ -568,6 +610,8 @@ function buildBreakdownWithSourcedWI(opts: {
         projectedMin: 0,
         projectedMax: 0,
         actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback: 0,
         rawProjectedMin: 0,
         rawProjectedMax: 0,
@@ -592,6 +636,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -614,6 +660,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -629,6 +677,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -645,6 +695,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -659,6 +711,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -675,6 +729,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -692,6 +748,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -709,6 +767,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -906,6 +966,8 @@ describe('CostBreakdownTable', () => {
             projectedMin: 800,
             projectedMax: 1200,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 800,
             rawProjectedMax: 1200,
@@ -921,6 +983,8 @@ describe('CostBreakdownTable', () => {
             projectedMin: 500,
             projectedMax: 700,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 500,
             rawProjectedMax: 700,
@@ -933,6 +997,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 1300,
           projectedMax: 1900,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 1300,
           rawProjectedMax: 1900,
@@ -945,6 +1011,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -962,6 +1030,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -984,6 +1054,8 @@ describe('CostBreakdownTable', () => {
             projectedMin: 400,
             projectedMax: 600,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 400,
             rawProjectedMax: 600,
@@ -996,6 +1068,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 400,
           projectedMax: 600,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 400,
           rawProjectedMax: 600,
@@ -1008,6 +1082,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -1025,6 +1101,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1043,6 +1121,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -1059,6 +1139,8 @@ describe('CostBreakdownTable', () => {
             projectedMin: 300,
             projectedMax: 500,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 300,
             rawProjectedMax: 500,
@@ -1071,6 +1153,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 300,
           projectedMax: 500,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 300,
           rawProjectedMax: 500,
@@ -1088,6 +1172,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1109,6 +1195,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1127,6 +1215,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1144,6 +1234,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1158,6 +1250,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1172,6 +1266,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1188,6 +1284,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1203,6 +1301,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1218,6 +1318,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1233,6 +1335,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1270,6 +1374,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1306,6 +1412,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1331,6 +1439,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1347,6 +1457,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1361,6 +1473,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1384,6 +1498,8 @@ describe('CostBreakdownTable', () => {
             projectedMin: 500,
             projectedMax: 700,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 500,
             rawProjectedMax: 700,
@@ -1396,6 +1512,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 500,
           projectedMax: 700,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 500,
           rawProjectedMax: 700,
@@ -1412,6 +1530,8 @@ describe('CostBreakdownTable', () => {
             projectedMin: 200,
             projectedMax: 300,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 200,
             rawProjectedMax: 300,
@@ -1424,6 +1544,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 200,
           projectedMax: 300,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 200,
           rawProjectedMax: 300,
@@ -1441,6 +1563,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1492,6 +1616,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1511,6 +1637,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1589,6 +1717,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1613,6 +1743,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1780,6 +1912,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1803,6 +1937,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1839,6 +1975,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1869,6 +2007,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1910,6 +2050,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1937,6 +2079,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1967,6 +2111,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -1997,6 +2143,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -2016,6 +2164,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -2035,6 +2185,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -2204,6 +2356,8 @@ describe('CostBreakdownTable', () => {
           deselectedSourceIds={new Set()}
           onSourceToggle={() => {}}
           onSelectAllSources={() => {}}
+          paymentStatus="all"
+          onPaymentStatusChange={() => {}}
         />
       </MemoryRouter>,
     );
@@ -2253,6 +2407,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -2279,6 +2435,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -2310,6 +2468,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -2337,6 +2497,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -2362,6 +2524,8 @@ describe('CostBreakdownTable', () => {
         deselectedSourceIds={new Set()}
         onSourceToggle={() => {}}
         onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
       />,
     );
 
@@ -2619,6 +2783,8 @@ describe('CostBreakdownTable', () => {
             projectedMin: 800,
             projectedMax: 1200,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 800,
             rawProjectedMax: 1200,
@@ -2633,6 +2799,8 @@ describe('CostBreakdownTable', () => {
                 projectedMin: 800,
                 projectedMax: 1200,
                 actualCost: 0,
+                actualCostPaid: 0,
+                actualCostPending: 0,
                 subsidyPayback: 0,
                 rawProjectedMin: 800,
                 rawProjectedMax: 1200,
@@ -2644,6 +2812,8 @@ describe('CostBreakdownTable', () => {
                     projectedMin: 800,
                     projectedMax: 1200,
                     actualCost: 0,
+                    actualCostPaid: 0,
+                    actualCostPending: 0,
                     subsidyPayback: 0,
                     rawProjectedMin: 800,
                     rawProjectedMax: 1200,
@@ -2657,6 +2827,8 @@ describe('CostBreakdownTable', () => {
                             plannedAmount: 1000,
                             confidence: 'own_estimate',
                             actualCost: 0,
+                            actualCostPaid: 0,
+                            actualCostPending: 0,
                             hasInvoice: false,
                             isQuotation: false,
                             budgetSourceId: null,
@@ -2675,6 +2847,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 800,
           projectedMax: 1200,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 800,
           rawProjectedMax: 1200,
@@ -2687,6 +2861,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -2709,6 +2885,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -2725,6 +2903,8 @@ describe('CostBreakdownTable', () => {
             projectedMin: 400,
             projectedMax: 600,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 400,
             rawProjectedMax: 600,
@@ -2739,6 +2919,8 @@ describe('CostBreakdownTable', () => {
                 projectedMin: 400,
                 projectedMax: 600,
                 actualCost: 0,
+                actualCostPaid: 0,
+                actualCostPending: 0,
                 subsidyPayback: 0,
                 rawProjectedMin: 400,
                 rawProjectedMax: 600,
@@ -2750,6 +2932,8 @@ describe('CostBreakdownTable', () => {
                     projectedMin: 400,
                     projectedMax: 600,
                     actualCost: 0,
+                    actualCostPaid: 0,
+                    actualCostPending: 0,
                     subsidyPayback: 0,
                     rawProjectedMin: 400,
                     rawProjectedMax: 600,
@@ -2767,6 +2951,8 @@ describe('CostBreakdownTable', () => {
           projectedMin: 400,
           projectedMax: 600,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 400,
           rawProjectedMax: 600,
@@ -2927,6 +3113,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
       projectedMin: 500,
       projectedMax: 700,
       actualCost: 0,
+      actualCostPaid: 0,
+      actualCostPending: 0,
       subsidyPayback: 0,
       rawProjectedMin: 500,
       rawProjectedMax: 700,
@@ -2939,6 +3127,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
           plannedAmount: 600,
           confidence: 'own_estimate' as const,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           hasInvoice: false,
           isQuotation: false,
           budgetSourceId: null,
@@ -2951,6 +3141,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
       projectedMin: 500,
       projectedMax: 700,
       actualCost: 0,
+      actualCostPaid: 0,
+      actualCostPending: 0,
       subsidyPayback: 0,
       rawProjectedMin: 500,
       rawProjectedMax: 700,
@@ -2980,6 +3172,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
           projectedMin: 1000,
           projectedMax: 1400,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 1000,
           rawProjectedMax: 1400,
@@ -2992,6 +3186,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -3013,6 +3209,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
       projectedMin: 300,
       projectedMax: 500,
       actualCost: 0,
+      actualCostPaid: 0,
+      actualCostPending: 0,
       subsidyPayback: 0,
       rawProjectedMin: 300,
       rawProjectedMax: 500,
@@ -3025,6 +3223,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
           plannedAmount: 400,
           confidence: 'own_estimate' as const,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           hasInvoice: false,
           isQuotation: false,
           budgetSourceId: null,
@@ -3037,6 +3237,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
       projectedMin: 300,
       projectedMax: 500,
       actualCost: 0,
+      actualCostPaid: 0,
+      actualCostPending: 0,
       subsidyPayback: 0,
       rawProjectedMin: 300,
       rawProjectedMax: 500,
@@ -3053,6 +3255,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -3078,6 +3282,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
           projectedMin: 600,
           projectedMax: 1000,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 600,
           rawProjectedMax: 1000,
@@ -3542,6 +3748,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
             projectedMin: 10000,
             projectedMax: 12000,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 1000,
             rawProjectedMin: 10000,
             rawProjectedMax: 12000,
@@ -3553,6 +3761,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
                 projectedMin: 10000,
                 projectedMax: 12000,
                 actualCost: 0,
+                actualCostPaid: 0,
+                actualCostPending: 0,
                 subsidyPayback: 1000,
                 rawProjectedMin: 10000,
                 rawProjectedMax: 12000,
@@ -3565,6 +3775,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
                     plannedAmount: 8000,
                     confidence: 'own_estimate',
                     actualCost: 0,
+                    actualCostPaid: 0,
+                    actualCostPending: 0,
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-1',
@@ -3576,6 +3788,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
                     plannedAmount: 2000,
                     confidence: 'own_estimate',
                     actualCost: 0,
+                    actualCostPaid: 0,
+                    actualCostPending: 0,
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-2',
@@ -3591,6 +3805,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
           projectedMin: 10000,
           projectedMax: 12000,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 1000,
           rawProjectedMin: 10000,
           rawProjectedMax: 12000,
@@ -3603,6 +3819,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -3645,6 +3863,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
             projectedMin: 0,
             projectedMax: 0,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 1000,
             rawProjectedMin: 0,
             rawProjectedMax: 0,
@@ -3656,6 +3876,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
                 projectedMin: 0,
                 projectedMax: 0,
                 actualCost: 0,
+                actualCostPaid: 0,
+                actualCostPending: 0,
                 subsidyPayback: 1000,
                 rawProjectedMin: 0,
                 rawProjectedMax: 0,
@@ -3668,6 +3890,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
                     plannedAmount: 0,
                     confidence: 'own_estimate',
                     actualCost: 0,
+                    actualCostPaid: 0,
+                    actualCostPending: 0,
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-zc-1',
@@ -3679,6 +3903,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
                     plannedAmount: 0,
                     confidence: 'own_estimate',
                     actualCost: 0,
+                    actualCostPaid: 0,
+                    actualCostPending: 0,
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-zc-2',
@@ -3694,6 +3920,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 1000,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -3706,6 +3934,8 @@ describe('Bug #586 — item expand state is independent per category', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -3824,6 +4054,8 @@ describe('Server-driven render path (#1360)', () => {
             projectedMin: 40000,
             projectedMax: 60000,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 1000,
             rawProjectedMin: 40000,
             rawProjectedMax: 60000,
@@ -3835,6 +4067,8 @@ describe('Server-driven render path (#1360)', () => {
                 projectedMin: 40000,
                 projectedMax: 60000,
                 actualCost: 0,
+                actualCostPaid: 0,
+                actualCostPending: 0,
                 subsidyPayback: 1000,
                 rawProjectedMin: 40000,
                 rawProjectedMax: 60000,
@@ -3847,6 +4081,8 @@ describe('Server-driven render path (#1360)', () => {
                     plannedAmount: 50000,
                     confidence: 'own_estimate',
                     actualCost: 0,
+                    actualCostPaid: 0,
+                    actualCostPending: 0,
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-1360-a',
@@ -3862,6 +4098,8 @@ describe('Server-driven render path (#1360)', () => {
           projectedMin: 40000,
           projectedMax: 60000,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 1000,
           rawProjectedMin: 40000,
           rawProjectedMax: 60000,
@@ -3874,6 +4112,8 @@ describe('Server-driven render path (#1360)', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -3893,6 +4133,9 @@ describe('Server-driven render path (#1360)', () => {
           totalAmount: 200000,
           projectedMin: 40000,
           projectedMax: 60000,
+          actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPaybackMin: 500,
           subsidyPaybackMax: 1000,
         }),
@@ -3903,6 +4146,9 @@ describe('Server-driven render path (#1360)', () => {
           totalAmount: 0,
           projectedMin: 5000,
           projectedMax: 7000,
+          actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPaybackMin: 0,
           subsidyPaybackMax: 0,
         }),
@@ -4009,6 +4255,8 @@ describe('Server-driven render path (#1360)', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -4021,6 +4269,8 @@ describe('Server-driven render path (#1360)', () => {
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -4098,6 +4348,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
             projectedMin: 50000,
             projectedMax: 50000,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 0,
             rawProjectedMin: 50000,
             rawProjectedMax: 50000,
@@ -4109,6 +4361,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
                 projectedMin: 50000,
                 projectedMax: 50000,
                 actualCost: 0,
+                actualCostPaid: 0,
+                actualCostPending: 0,
                 subsidyPayback: 0,
                 rawProjectedMin: 50000,
                 rawProjectedMax: 50000,
@@ -4121,6 +4375,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
                     plannedAmount: 50000,
                     confidence: 'own_estimate',
                     actualCost: 0,
+                    actualCostPaid: 0,
+                    actualCostPending: 0,
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-a',
@@ -4136,6 +4392,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
           projectedMin: 50000,
           projectedMax: 50000,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 50000,
           rawProjectedMax: 50000,
@@ -4148,6 +4406,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -4162,6 +4422,9 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
           totalAmount: 150000,
           projectedMin: 40000,
           projectedMax: 60000,
+          actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPaybackMin: 0,
           subsidyPaybackMax: 0,
         }),
@@ -4171,6 +4434,9 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
           totalAmount: 100000,
           projectedMin: 10000,
           projectedMax: 10000,
+          actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPaybackMin: 0,
           subsidyPaybackMax: 0,
         }),
@@ -4321,6 +4587,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
             projectedMin: 50000,
             projectedMax: 50000,
             actualCost: 0,
+            actualCostPaid: 0,
+            actualCostPending: 0,
             subsidyPayback: 5000,
             rawProjectedMin: 50000,
             rawProjectedMax: 50000,
@@ -4332,6 +4600,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
                 projectedMin: 50000,
                 projectedMax: 50000,
                 actualCost: 0,
+                actualCostPaid: 0,
+                actualCostPending: 0,
                 subsidyPayback: 5000,
                 rawProjectedMin: 50000,
                 rawProjectedMax: 50000,
@@ -4344,6 +4614,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
                     plannedAmount: 50000,
                     confidence: 'own_estimate',
                     actualCost: 0,
+                    actualCostPaid: 0,
+                    actualCostPending: 0,
                     hasInvoice: false,
                     isQuotation: false,
                     budgetSourceId: 'src-a',
@@ -4359,6 +4631,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
           projectedMin: 50000,
           projectedMax: 50000,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 5000,
           rawProjectedMin: 50000,
           rawProjectedMax: 50000,
@@ -4371,6 +4645,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
           projectedMin: 0,
           projectedMax: 0,
           actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPayback: 0,
           rawProjectedMin: 0,
           rawProjectedMax: 0,
@@ -4385,6 +4661,9 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
           totalAmount: 150000,
           projectedMin: 40000,
           projectedMax: 60000,
+          actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPaybackMin: 5000,
           subsidyPaybackMax: 5000,
         }),
@@ -4394,6 +4673,9 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
           totalAmount: 100000,
           projectedMin: 10000,
           projectedMax: 10000,
+          actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPaybackMin: 0,
           subsidyPaybackMax: 0,
         }),
@@ -4432,6 +4714,9 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
           totalAmount: 0,
           projectedMin: 0,
           projectedMax: 0,
+          actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
           subsidyPaybackMin: 0,
           subsidyPaybackMax: 0,
         }),
@@ -4475,6 +4760,8 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
           deselectedSourceIds={new Set()}
           onSourceToggle={() => {}}
           onSelectAllSources={() => {}}
+          paymentStatus="all"
+          onPaymentStatusChange={() => {}}
         />
       </MemoryRouter>,
     );
@@ -4488,6 +4775,204 @@ describe('filteredAvailableFunds — Available Funds row and Remaining Budget ro
     const remainingCostCell = remainingRow.querySelector('td[class*="colBudget"]');
     // 250000 - 50000 = 200000
     expect(remainingCostCell!.textContent?.replace(/\s+/g, '')).toContain('€200,000.00');
+  });
+});
+
+// ── CostBasisSelect rendering and paymentStatus-aware cost display (#1786) ─────
+
+describe('CostBasisSelect — rendering and paymentStatus-aware cost display (Scenarios 12-19, Issue #1786)', () => {
+  // Scenario 12: CostBasisSelect renders with label and 3 options
+  it('renders a "Cost Basis" label and three options: All, Paid, Outstanding (Scenario 12)', () => {
+    const breakdown = buildBreakdownWithWI();
+    renderWithRouter(breakdown, buildOverview());
+
+    // The label "Cost Basis" links to the select via htmlFor
+    expect(screen.getByText('Cost Basis')).toBeInTheDocument();
+
+    // The select has id="cost-basis-select" and three options
+    const select = document.getElementById('cost-basis-select') as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.options).toHaveLength(3);
+    expect(select.options[0]!.text).toBe('All');
+    expect(select.options[0]!.value).toBe('all');
+    expect(select.options[1]!.text).toBe('Paid');
+    expect(select.options[1]!.value).toBe('paid');
+    expect(select.options[2]!.text).toBe('Outstanding');
+    expect(select.options[2]!.value).toBe('outstanding');
+  });
+
+  // Scenario 13: Default state paymentStatus='all' — select value is 'all', no active class
+  it("select value is 'all' and no costBasisSelectActive class when paymentStatus='all' (Scenario 13)", () => {
+    const breakdown = buildBreakdownWithWI();
+    renderWithRouter(breakdown, buildOverview(), { paymentStatus: 'all' });
+
+    const select = document.getElementById('cost-basis-select') as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe('all');
+
+    // identity-obj-proxy returns property name as class string for CSS modules
+    // so styles.costBasisSelectActive becomes the literal string "costBasisSelectActive"
+    expect(select.className).not.toContain('costBasisSelectActive');
+  });
+
+  // Scenario 14: paymentStatus='paid' — active class is applied to the select
+  it("select has costBasisSelectActive class when paymentStatus='paid' (Scenario 14)", () => {
+    const breakdown = buildBreakdownWithWI();
+    renderWithRouter(breakdown, buildOverview(), { paymentStatus: 'paid' });
+
+    const select = document.getElementById('cost-basis-select') as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe('paid');
+    expect(select.className).toContain('costBasisSelectActive');
+  });
+
+  // Scenario 15: selecting 'paid' calls onPaymentStatusChange('paid')
+  it("selecting 'paid' in the dropdown calls onPaymentStatusChange('paid') (Scenario 15)", () => {
+    const onPaymentStatusChange = jest.fn<(v: 'all' | 'paid' | 'outstanding') => void>();
+    const breakdown = buildBreakdownWithWI();
+    renderWithRouter(breakdown, buildOverview(), {
+      paymentStatus: 'all',
+      onPaymentStatusChange,
+    });
+
+    const select = document.getElementById('cost-basis-select') as HTMLSelectElement;
+    expect(select).not.toBeNull();
+
+    fireEvent.change(select, { target: { value: 'paid' } });
+
+    expect(onPaymentStatusChange).toHaveBeenCalledTimes(1);
+    expect(onPaymentStatusChange).toHaveBeenCalledWith('paid');
+  });
+
+  // Scenario 16: paid mode — invoiced budget line shows actualCostPaid, not actualCost
+  it('paid mode: invoiced budget line cost cell shows actualCostPaid (Scenario 16)', () => {
+    // actualCost=1000, actualCostPaid=800 (partial payment), actualCostPending=200
+    const breakdown: BudgetBreakdown = buildBreakdownWithWI({
+      actualCost: 1000,
+      itemTitle: 'Paid Invoice Item',
+    });
+    // Inject paid/pending into the budget line
+    breakdown.workItems.areas[0]!.items[0]!.budgetLines[0] = {
+      ...breakdown.workItems.areas[0]!.items[0]!.budgetLines[0]!,
+      actualCost: 1000,
+      actualCostPaid: 800,
+      actualCostPending: 200,
+      hasInvoice: true,
+      isQuotation: false,
+    };
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), { paymentStatus: 'paid' });
+
+    // Expand down to budget line level
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+    fireEvent.click(getButtonByLabel('Expand Paid Invoice Item'));
+
+    // The budget line cost cell should show -€800.00 (actualCostPaid), not -€1,000.00 (actualCost)
+    const allCells = container.querySelectorAll('td[class*="colBudget"]');
+    const cellTexts = Array.from(allCells).map((c) => c.textContent?.replace(/\s+/g, '') ?? '');
+    const lineCost = cellTexts.find((t) => t.includes('800'));
+    expect(lineCost).toBeDefined();
+    expect(lineCost).toContain('€800.00');
+    // Should NOT show -€1,000.00 for the line
+    const wrongCost = cellTexts.find((t) => t === '-€1,000.00');
+    expect(wrongCost).toBeUndefined();
+  });
+
+  // Scenario 17: paid mode — non-invoiced budget line shows -€0.00 (actualCostPaid=0)
+  it('paid mode: non-invoiced budget line cost cell shows -€0.00 (Scenario 17)', () => {
+    // Non-invoiced line: hasInvoice=false, actualCostPaid=0
+    const breakdown = buildBreakdownWithWI({
+      projectedMin: 800,
+      projectedMax: 1200,
+      actualCost: 0,
+      itemTitle: 'Non-Invoiced Item',
+    });
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), { paymentStatus: 'paid' });
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+    fireEvent.click(getButtonByLabel('Expand Non-Invoiced Item'));
+
+    // resolveBudgetLineCost returns line.actualCostPaid=0 for paid mode
+    const allCells = container.querySelectorAll('td[class*="colBudget"]');
+    const cellTexts = Array.from(allCells).map((c) => c.textContent?.replace(/\s+/g, '') ?? '');
+    const zeroCost = cellTexts.find((t) => t === '-€0.00');
+    expect(zeroCost).toBeDefined();
+  });
+
+  // Scenario 18: outstanding mode — invoiced line shows actualCostPending
+  it('outstanding mode: invoiced budget line cost cell shows actualCostPending (Scenario 18)', () => {
+    // actualCost=1000, actualCostPaid=800, actualCostPending=200
+    const breakdown: BudgetBreakdown = buildBreakdownWithWI({
+      actualCost: 1000,
+      itemTitle: 'Outstanding Invoice Item',
+    });
+    breakdown.workItems.areas[0]!.items[0]!.budgetLines[0] = {
+      ...breakdown.workItems.areas[0]!.items[0]!.budgetLines[0]!,
+      actualCost: 1000,
+      actualCostPaid: 800,
+      actualCostPending: 200,
+      hasInvoice: true,
+      isQuotation: false,
+    };
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), {
+      paymentStatus: 'outstanding',
+    });
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+    fireEvent.click(getButtonByLabel('Expand Outstanding Invoice Item'));
+
+    // Budget line should show -€200.00 (actualCostPending)
+    const allCells = container.querySelectorAll('td[class*="colBudget"]');
+    const cellTexts = Array.from(allCells).map((c) => c.textContent?.replace(/\s+/g, '') ?? '');
+    const pendingCost = cellTexts.find((t) => t.includes('200'));
+    expect(pendingCost).toBeDefined();
+    expect(pendingCost).toContain('€200.00');
+  });
+
+  // Scenario 19: outstanding mode — non-invoiced line shows projected cost (perspectiveValue)
+  it('outstanding mode: non-invoiced budget line cost cell shows projected cost (Scenario 19)', () => {
+    // plannedAmount=1000, confidence='own_estimate', no invoice
+    // outstanding + no invoice → resolveBudgetLineCost returns perspectiveValue
+    // avg perspective: own_estimate margin=0.3 → min=700, max=1300 → avg=1000
+    const breakdown = buildBreakdownWithWI({
+      projectedMin: 700,
+      projectedMax: 1300,
+      rawProjectedMin: 700,
+      rawProjectedMax: 1300,
+      actualCost: 0,
+      itemTitle: 'Non-Invoiced Outstanding Item',
+    });
+    // Ensure no invoice on the line
+    breakdown.workItems.areas[0]!.items[0]!.budgetLines[0] = {
+      ...breakdown.workItems.areas[0]!.items[0]!.budgetLines[0]!,
+      plannedAmount: 1000,
+      confidence: 'own_estimate',
+      actualCost: 0,
+      actualCostPaid: 0,
+      actualCostPending: 0,
+      hasInvoice: false,
+      isQuotation: false,
+    };
+
+    const { container } = renderWithRouter(breakdown, buildOverview(), {
+      paymentStatus: 'outstanding',
+    });
+
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'area:No Area'));
+    fireEvent.click(getButtonByLabel('Expand Non-Invoiced Outstanding Item'));
+
+    // outstanding + no invoice → shows projected value (avg of 700+1300=1000 for 'avg' perspective)
+    const allCells = container.querySelectorAll('td[class*="colBudget"]');
+    const cellTexts = Array.from(allCells).map((c) => c.textContent?.replace(/\s+/g, '') ?? '');
+    // Should contain a cell with "1,000" (the projected avg cost)
+    const projectedCost = cellTexts.find((t) => t.includes('1,000') && t.includes('€'));
+    expect(projectedCost).toBeDefined();
   });
 });
 

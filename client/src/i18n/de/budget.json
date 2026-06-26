@@ -49,6 +49,12 @@
         "empty": "Keine Budgetpositionen entsprechen dem ausgewählten Quellenfilter.",
         "clear": "Filter Löschen"
       },
+      "costBasis": {
+        "label": "Kostenbasis",
+        "all": "Alle",
+        "paid": "Bezahlt",
+        "outstanding": "Ausstehend"
+      },
       "refetchError": "Aufschlüsselung konnte nicht aktualisiert werden. Bitte erneut versuchen.",
       "dismissError": "Schließen",
       "sourceRow": {
