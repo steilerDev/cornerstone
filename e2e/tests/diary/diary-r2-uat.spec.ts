@@ -176,7 +176,16 @@ test.describe('Manual mode hides automatic type chips (Scenario 2)', () => {
       await diaryPage.waitForLoaded();
       await diaryPage.openFiltersIfCollapsed();
 
-      // Register the response promise BEFORE clicking the chip
+      // Default is now "Manual" — switch to "All" first so we can test clicking Manual
+      const allChip = page.getByTestId('mode-filter-all');
+      await allChip.waitFor({ state: 'visible' });
+      const switchResponse = page.waitForResponse(
+        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
+      );
+      await allChip.click();
+      await switchResponse;
+
+      // Register the response promise BEFORE clicking the Manual chip
       const responsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
       );
