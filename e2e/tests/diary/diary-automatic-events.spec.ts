@@ -122,7 +122,16 @@ test.describe('Type chip filter for automatic entries (Scenario 2)', () => {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
 
-      // Reset captured requests from initial load
+      // Default mode is now "Manual" — switch to "All" so the automatic type chips are visible
+      const allChip = page.getByTestId('mode-filter-all');
+      await allChip.waitFor({ state: 'visible' });
+      const switchResponse = page.waitForResponse(
+        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
+      );
+      await allChip.click();
+      await switchResponse;
+
+      // Reset captured requests from initial load + mode switch
       requests.length = 0;
 
       // Register the response promise BEFORE clicking the chip (waitForResponse pattern)
