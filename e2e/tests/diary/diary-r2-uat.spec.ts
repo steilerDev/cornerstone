@@ -176,14 +176,14 @@ test.describe('Manual mode hides automatic type chips (Scenario 2)', () => {
       await diaryPage.waitForLoaded();
       await diaryPage.openFiltersIfCollapsed();
 
-      // Default is now "Manual" — switch to "All" first so we can test clicking Manual
+      // Default is now "Manual" — switch to "All" first so we can test clicking Manual.
+      // Use waitForLoaded() after the click instead of waitForResponse: it waits for
+      // the full load cycle (isLoading→false, empty-state visible), guaranteeing the
+      // All-click API response was received before we register the next listener.
       const allChip = page.getByTestId('mode-filter-all');
       await allChip.waitFor({ state: 'visible' });
-      const switchResponse = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
       await allChip.click();
-      await switchResponse;
+      await diaryPage.waitForLoaded();
 
       // Register the response promise BEFORE clicking the Manual chip
       const responsePromise = page.waitForResponse(
@@ -614,14 +614,14 @@ test.describe('Manual mode API parameter (Scenario 10)', () => {
       await diaryPage.waitForLoaded();
       await diaryPage.openFiltersIfCollapsed();
 
-      // Default is now "Manual" — switch to "All" first so we can test clicking Manual
+      // Default is now "Manual" — switch to "All" first so we can test clicking Manual.
+      // Use waitForLoaded() after the click instead of waitForResponse: it waits for
+      // the full load cycle (isLoading→false, empty-state visible), guaranteeing the
+      // All-click API response was received and captured in requests[].
       const allChip = page.getByTestId('mode-filter-all');
       await allChip.waitFor({ state: 'visible' });
-      let switchResponse = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
       await allChip.click();
-      await switchResponse;
+      await diaryPage.waitForLoaded();
 
       // Reset captured requests from the "All" switch
       requests.length = 0;
