@@ -606,15 +606,13 @@ test.describe('Non-All selection gets an active CSS class (AC1)', { tag: '@respo
       await overviewPage.costBasisSelect.selectOption('paid');
 
       // In "Paid" mode: must have Active class (costBasisSelectActive)
-      const classPaidMode = await overviewPage.costBasisSelect.getAttribute('class');
-      expect(classPaidMode ?? '').toMatch(/Active/i);
+      await expect(overviewPage.costBasisSelect).toHaveClass(/Active/i);
 
       // Switch back to All
       await overviewPage.costBasisSelect.selectOption('all');
 
       // Active class removed when back to All
-      const classBackToAll = await overviewPage.costBasisSelect.getAttribute('class');
-      expect(classBackToAll ?? '').not.toMatch(/Active/i);
+      await expect(overviewPage.costBasisSelect).not.toHaveClass(/Active/i);
     } finally {
       await teardown();
     }

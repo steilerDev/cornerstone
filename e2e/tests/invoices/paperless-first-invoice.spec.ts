@@ -1591,20 +1591,20 @@ test.describe('Scenario 18 — Inline form validation: invalid amount shows erro
 
       const reviewPage = await navigateToReviewPage(page);
 
+      // ── Set up invalid live-line amount BEFORE queuing the draft ────────────
+      // The invalid-amount guard in materializeInlineDrafts checks the LIVE LINE's
+      // financials (not the inline draft form), so we must manipulate the live line:
+      // 1. Clear the live unit price → disables unit-pricing mode (hasUnitPricing = false)
+      // 2. Set totalAmount = -1  → causes netBase = -1 < 0 → inlineDraftInvalid
+      // After queuing, the cardMetricGrid is hidden so these inputs are no longer accessible.
+      const liveLineRow = reviewPage.lineRow(0);
+      await liveLineRow.getByLabel('Edit line item unit price').fill('');
+      await liveLineRow.getByLabel('Edit line item total amount').fill('-1');
+
       // ── Queue create-new on first line ─────────────────────────────────────
       await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S18 WI`);
       await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
       await expect(reviewPage.getInlineFormWrapper(0)).toBeVisible();
-
-      // ── Find the unitPrice input inside the inline form and clear it ────────
-      // BudgetLineForm in unit mode renders a number input for the price.
-      // The label text is t('budgetLineForm.priceLabel') = "Price *" (NOT "Unit Price").
-      // Use the stable id*="budget-unit-price" selector to avoid depending on the label text,
-      // and scope it to the inline form wrapper to avoid matching other price inputs on the page.
-      const unitPriceInput = reviewPage
-        .getInlineFormWrapper(0)
-        .locator('[id*="budget-unit-price"]');
-      await unitPriceInput.fill('');
 
       // ── Set vendor so vendor validation passes ──────────────────────────────
       await reviewPage.setVendor(`${testPrefix} PF-S18 Vendor`);

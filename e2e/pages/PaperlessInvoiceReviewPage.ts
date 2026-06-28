@@ -466,7 +466,10 @@ export class PaperlessInvoiceReviewPage {
     await expect(this.pickerCreateBudgetLineButton).toBeVisible();
     await this.pickerCreateBudgetLineButton.click();
 
-    // Picker closes immediately (queued-on-save — Bug A fix from #1737)
-    await expect(this.pickerModal).not.toBeVisible();
+    // Wait for the picker to fully close. Using pickerStep2Modal() instead of
+    // pickerModal because pickerModal checks the step-1 h2 which was already
+    // gone once we moved to step 2 — it would pass immediately without
+    // confirming the picker actually closed.
+    await expect(this.pickerStep2Modal()).not.toBeVisible();
   }
 }
