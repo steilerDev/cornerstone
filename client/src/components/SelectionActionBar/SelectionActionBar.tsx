@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './SelectionActionBar.module.css';
 
 export interface SelectionActionBarProps {
@@ -25,7 +26,7 @@ export function SelectionActionBar({
     <div className={`${styles.bar} ${className ?? ''}`}>
       <span className={styles.count}>{countLabel}</span>
       <div className={styles.actions}>
-        <button type="button" className={styles.clearButton} onClick={onClear}>
+        <button type="button" className={sharedStyles.btnSecondaryCompact} onClick={onClear}>
           {clearLabel}
         </button>
         {children}

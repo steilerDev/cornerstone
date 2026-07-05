@@ -45,6 +45,12 @@
   margin: calc(var(--spacing-3) * -1);
   box-sizing: content-box;
   cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-normal);
+}
+
+.selectCheckboxLabel:hover {
+  background: var(--color-bg-hover);
 }
 
 .selectCheckbox {
@@ -63,10 +69,6 @@
 .selectCheckbox:disabled {
   cursor: not-allowed;
   opacity: 0.5;
-}
-
-.selectCheckboxLabel:hover .selectCheckbox:not(:disabled) {
-  background: var(--color-bg-hover);
 }
 
 .cardDescriptionInput {

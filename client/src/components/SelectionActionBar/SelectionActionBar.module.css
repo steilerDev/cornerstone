@@ -29,9 +29,7 @@
   flex-shrink: 0;
 }
 
-.clearButton {
-  /* Styling deferred to parent (btnSecondaryCompact passed via children) */
-}
+/* .clearButton is now styled via sharedStyles.btnSecondaryCompact in SelectionActionBar.tsx */
 
 @media (prefers-reduced-motion: no-preference) {
   .bar {
