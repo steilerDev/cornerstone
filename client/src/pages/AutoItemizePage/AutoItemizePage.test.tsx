@@ -1360,9 +1360,12 @@ describe('AutoItemizePage', () => {
         expect(screen.getByDisplayValue('Window installation')).toBeInTheDocument();
       });
 
-      // Find the first checkbox (Include for first line)
-      const checkboxes = screen.getAllByRole('checkbox');
-      const firstIncludeCheckbox = checkboxes[0] as HTMLInputElement;
+      // Find the first Include checkbox by accessible name — a merge-selection checkbox
+      // now renders before it in each card, so a positional index is not reliable.
+      // This test uses the real i18n instance (not a t()-stub), so the accessible name
+      // is the translated English label, not the raw key.
+      const includeCheckboxes = screen.getAllByRole('checkbox', { name: 'Include' });
+      const firstIncludeCheckbox = includeCheckboxes[0] as HTMLInputElement;
       expect(firstIncludeCheckbox.checked).toBe(true);
 
       fireEvent.click(firstIncludeCheckbox);

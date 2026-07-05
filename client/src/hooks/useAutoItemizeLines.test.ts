@@ -528,6 +528,8 @@ describe('useAutoItemizeLines', () => {
           makeLine({ rowId: 'r2', description: 'B' }),
           makeLine({ rowId: 'r3', description: 'C' }),
         ]);
+      });
+      act(() => {
         // Select the 2nd and 3rd rows (index 1 and 2) — merged row should land at index 1
         result.current.onToggleSelect('r2');
         result.current.onToggleSelect('r3');
@@ -548,6 +550,8 @@ describe('useAutoItemizeLines', () => {
       const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
       act(() => {
         result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
+      });
+      act(() => {
         result.current.onToggleSelect('r1');
         result.current.onToggleSelect('r2');
       });
@@ -583,6 +587,8 @@ describe('useAutoItemizeLines', () => {
           makeLine({ rowId: 'r1', description: 'Tile work' }),
           makeLine({ rowId: 'r2', description: 'Grout' }),
         ]);
+      });
+      act(() => {
         result.current.onToggleSelect('r1');
         result.current.onToggleSelect('r2');
       });
@@ -607,6 +613,8 @@ describe('useAutoItemizeLines', () => {
           makeLine({ rowId: 'r1', description: 'Tile work', totalAmount: 300 }),
           makeLine({ rowId: 'r2', description: 'Grout', totalAmount: 100 }),
         ]);
+      });
+      act(() => {
         result.current.onToggleSelect('r1');
         result.current.onToggleSelect('r2');
       });
@@ -631,6 +639,8 @@ describe('useAutoItemizeLines', () => {
       );
       act(() => {
         result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
+      });
+      act(() => {
         result.current.onToggleSelect('r1');
         result.current.onToggleSelect('r2');
       });
@@ -653,6 +663,8 @@ describe('useAutoItemizeLines', () => {
           makeLine({ rowId: 'r2' }),
           makeLine({ rowId: 'r3' }),
         ]);
+      });
+      act(() => {
         result.current.onToggleSelect('r1');
         result.current.onToggleSelect('r2');
         result.current.onToggleSelect('r3');
@@ -678,6 +690,8 @@ describe('useAutoItemizeLines', () => {
           makeLine({ rowId: 'r1', description: 'Tile work' }),
           makeLine({ rowId: 'r2', description: 'Grout' }),
         ]);
+      });
+      act(() => {
         result.current.onToggleSelect('r1');
         result.current.onToggleSelect('r2');
       });
@@ -702,6 +716,8 @@ describe('useAutoItemizeLines', () => {
           makeLine({ rowId: 'r1', description: 'Tile work' }),
           makeLine({ rowId: 'r2', description: 'Grout' }),
         ]);
+      });
+      act(() => {
         result.current.onToggleSelect('r1');
         result.current.onToggleSelect('r2');
       });
@@ -802,7 +818,7 @@ describe('useAutoItemizeLines', () => {
         result.current.onUndoMerge('merged-1');
       });
 
-      expect(result.current.lines).toHaveLength(4);
+      expect(result.current.lines).toHaveLength(5);
       expect(result.current.lines.map((l: { rowId: string }) => l.rowId)).toEqual([
         'r0',
         'src-1',

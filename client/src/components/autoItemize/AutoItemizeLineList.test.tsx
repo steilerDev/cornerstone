@@ -21,6 +21,7 @@
 
 import { render, screen, fireEvent } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { createElement } from 'react';
 
 // ─── Mocks must come before any static imports ────────────────────────────────
 
@@ -37,12 +38,10 @@ jest.unstable_mockModule('../Badge/Badge.js', () => ({
     variants?: Record<string, { label: string }>;
     value?: string;
   }) => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-    const R = require('react') as { createElement: (...args: any[]) => unknown };
     const label = props.variants && props.value ? (props.variants[props.value]?.label ?? '') : '';
     return props.testId
-      ? R.createElement('span', { 'data-testid': props.testId }, label)
-      : R.createElement('span', null, label);
+      ? createElement('span', { 'data-testid': props.testId }, label)
+      : createElement('span', null, label);
   },
 }));
 
