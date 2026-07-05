@@ -16,4 +16,6 @@ export interface LineWithInclude extends ExtractedLine {
   inlineHideConfidence?: boolean;
   budgetCategoryId?: string | null;
   budgetSourceId?: string | null;
+  mergeStatus?: 'pending' | 'error';
+  mergeSourceLines?: LineWithInclude[];
 }

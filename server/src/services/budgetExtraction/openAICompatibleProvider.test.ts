@@ -17,6 +17,7 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 import {
   createOpenAICompatibleProvider,
   validateExtractedLines,
+  validateMergeResult,
 } from './openAICompatibleProvider.js';
 import {
   LlmUnreachableError,
@@ -1318,5 +1319,261 @@ describe('validateExtractedLines — category field parsing', () => {
     const line = result.lines[0] as unknown as Record<string, unknown>;
     // Non-fatal: undefined (not null, not string)
     expect(line['category']).toBeUndefined();
+  });
+});
+
+// ─── Story #1797: provider.summarizeMerge() ──────────────────────────────────
+
+function buildMergeContent(description: string, category: string | null): string {
+  return JSON.stringify({ description, category });
+}
+
+describe('createOpenAICompatibleProvider — summarizeMerge() happy path', () => {
+  it('calls ${baseUrl}/chat/completions (same endpoint as extract)', async () => {
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(buildMergeContent('Tile and grout', null)));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    await provider.summarizeMerge({ descriptions: ['A', 'B'], availableCategories: [] });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/chat/completions');
+  });
+
+  it('sends the MERGE_SYSTEM_PROMPT as the system message', async () => {
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(buildMergeContent('Tile and grout', null)));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    await provider.summarizeMerge({ descriptions: ['A', 'B'], availableCategories: [] });
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const systemMessage = body.messages.find((m) => m.role === 'system');
+    expect(systemMessage?.content).toContain('summarizing German construction-invoice line items');
+  });
+
+  it('sends a user message built from buildMergeUserPrompt (descriptions + categories)', async () => {
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(buildMergeContent('Tile and grout', null)));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    await provider.summarizeMerge({
+      descriptions: ['Tile work', 'Grout'],
+      documentSummary: 'Bathroom quote',
+      availableCategories: ['Materials'],
+    });
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const userMessage = body.messages.find((m) => m.role === 'user');
+    expect(userMessage?.content).toContain('1. Tile work');
+    expect(userMessage?.content).toContain('2. Grout');
+    expect(userMessage?.content).toContain('Bathroom quote');
+    expect(userMessage?.content).toContain('- Materials');
+  });
+
+  it('returns { description, category } parsed from choices[0].message.content', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeOkResponse(buildMergeContent('Tile work and grout', 'Materials')),
+    );
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    const result = await provider.summarizeMerge({
+      descriptions: ['Tile work', 'Grout'],
+      availableCategories: ['Materials'],
+    });
+
+    expect(result.description).toBe('Tile work and grout');
+    expect(result.category).toBe('Materials');
+  });
+
+  it('returns category: null when the LLM returns category: null', async () => {
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(buildMergeContent('Consolidated line', null)));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    const result = await provider.summarizeMerge({
+      descriptions: ['A', 'B'],
+      availableCategories: [],
+    });
+
+    expect(result.category).toBeNull();
+  });
+
+  it('sends response_format: json_object and temperature: 0 (shared callChatCompletion path)', async () => {
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(buildMergeContent('X', null)));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    await provider.summarizeMerge({ descriptions: ['A', 'B'], availableCategories: [] });
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as {
+      response_format: { type: string };
+      temperature: number;
+    };
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    expect(body.temperature).toBe(0);
+  });
+});
+
+describe('createOpenAICompatibleProvider — summarizeMerge() failure modes', () => {
+  it('fetch rejects (network error) → throws LlmUnreachableError', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    await expect(
+      provider.summarizeMerge({ descriptions: ['A', 'B'], availableCategories: [] }),
+    ).rejects.toThrow(LlmUnreachableError);
+  });
+
+  it('response status 500 → throws LlmUpstreamError', async () => {
+    fetchSpy.mockResolvedValueOnce(makeErrorResponse(500));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    await expect(
+      provider.summarizeMerge({ descriptions: ['A', 'B'], availableCategories: [] }),
+    ).rejects.toThrow(LlmUpstreamError);
+  });
+
+  it('choices[0].message.content is not valid JSON → throws LlmInvalidResponseError', async () => {
+    const badResponse = {
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ choices: [{ message: { content: 'not json at all!!!' } }] }),
+    } as unknown as Response;
+    fetchSpy.mockResolvedValueOnce(badResponse);
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    await expect(
+      provider.summarizeMerge({ descriptions: ['A', 'B'], availableCategories: [] }),
+    ).rejects.toThrow(LlmInvalidResponseError);
+  });
+
+  it('content missing "description" → throws LlmInvalidResponseError', async () => {
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(JSON.stringify({ category: 'Materials' })));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    await expect(
+      provider.summarizeMerge({ descriptions: ['A', 'B'], availableCategories: [] }),
+    ).rejects.toThrow(LlmInvalidResponseError);
+  });
+
+  it('content with empty-string "description" → throws LlmInvalidResponseError', async () => {
+    fetchSpy.mockResolvedValueOnce(makeOkResponse(buildMergeContent('', null)));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    await expect(
+      provider.summarizeMerge({ descriptions: ['A', 'B'], availableCategories: [] }),
+    ).rejects.toThrow(LlmInvalidResponseError);
+  });
+
+  it('finish_reason: "length" → throws LlmInvalidResponseError with truncation message', async () => {
+    const truncatedResponse = {
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: '{"description":"Tile' }, finish_reason: 'length' }],
+        }),
+    } as unknown as Response;
+    fetchSpy.mockResolvedValueOnce(truncatedResponse);
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    await expect(
+      provider.summarizeMerge({ descriptions: ['A', 'B'], availableCategories: [] }),
+    ).rejects.toThrow(LlmInvalidResponseError);
+  });
+});
+
+// ─── Story #1797: validateMergeResult() ──────────────────────────────────────
+
+describe('validateMergeResult()', () => {
+  describe('valid inputs', () => {
+    it('validates a minimal valid result (description + category)', () => {
+      const result = validateMergeResult({ description: 'Tile and grout', category: 'Materials' });
+      expect(result.description).toBe('Tile and grout');
+      expect(result.category).toBe('Materials');
+    });
+
+    it('validates category: null', () => {
+      const result = validateMergeResult({ description: 'Consolidated', category: null });
+      expect(result.category).toBeNull();
+    });
+
+    it('defaults category to null when the field is absent entirely', () => {
+      const result = validateMergeResult({ description: 'Consolidated' });
+      expect(result.category).toBeNull();
+    });
+
+    it('trims leading/trailing whitespace from description', () => {
+      const result = validateMergeResult({ description: '  Tile work  ', category: null });
+      expect(result.description).toBe('Tile work');
+    });
+
+    it('truncates description longer than 500 chars to exactly 500', () => {
+      const longDescription = 'A'.repeat(600);
+      const result = validateMergeResult({ description: longDescription, category: null });
+      expect(result.description).toHaveLength(500);
+      expect(result.description).toBe('A'.repeat(500));
+    });
+
+    it('trims whitespace from category and caps it at 30 characters', () => {
+      const result = validateMergeResult({
+        description: 'X',
+        category: `  ${'B'.repeat(50)}  `,
+      });
+      expect(result.category).toHaveLength(30);
+      expect(result.category).toBe('B'.repeat(30));
+    });
+
+    it('treats whitespace-only category as null', () => {
+      const result = validateMergeResult({ description: 'X', category: '   ' });
+      expect(result.category).toBeNull();
+    });
+  });
+
+  describe('required field validation', () => {
+    it('non-object body → throws LlmInvalidResponseError', () => {
+      expect(() => validateMergeResult(null)).toThrow(LlmInvalidResponseError);
+      expect(() => validateMergeResult(undefined)).toThrow(LlmInvalidResponseError);
+      expect(() => validateMergeResult('a string')).toThrow(LlmInvalidResponseError);
+      expect(() => validateMergeResult(42)).toThrow(LlmInvalidResponseError);
+    });
+
+    it('missing "description" → throws LlmInvalidResponseError', () => {
+      expect(() => validateMergeResult({ category: 'Materials' })).toThrow(LlmInvalidResponseError);
+    });
+
+    it('non-string "description" → throws LlmInvalidResponseError', () => {
+      expect(() => validateMergeResult({ description: 42, category: null })).toThrow(
+        LlmInvalidResponseError,
+      );
+    });
+
+    it('empty-string "description" → throws LlmInvalidResponseError', () => {
+      expect(() => validateMergeResult({ description: '', category: null })).toThrow(
+        LlmInvalidResponseError,
+      );
+    });
+
+    it('whitespace-only "description" → throws LlmInvalidResponseError', () => {
+      expect(() => validateMergeResult({ description: '   ', category: null })).toThrow(
+        LlmInvalidResponseError,
+      );
+    });
+
+    it('non-string, non-null "category" → throws LlmInvalidResponseError', () => {
+      expect(() => validateMergeResult({ description: 'X', category: 42 })).toThrow(
+        LlmInvalidResponseError,
+      );
+    });
   });
 });

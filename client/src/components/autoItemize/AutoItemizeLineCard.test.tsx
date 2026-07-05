@@ -98,18 +98,22 @@ function renderCard(
     onFieldChange?: (rowId: string, field: keyof LineWithInclude, value: unknown) => void;
     onAssign?: (rowId: string) => void;
     onClearAssign?: (rowId: string) => void;
+    onToggleSelect?: (rowId: string) => void;
   } = {},
+  selectionProps: { selected?: boolean; selectable?: boolean } = {},
 ) {
   const mockToggle = callbacks.onToggleInclude ?? jest.fn();
   const mockFieldChange = callbacks.onFieldChange ?? jest.fn();
   const mockAssign = callbacks.onAssign ?? jest.fn();
   const mockClearAssign = callbacks.onClearAssign ?? jest.fn();
+  const mockToggleSelect = callbacks.onToggleSelect ?? jest.fn();
 
   return {
     mockToggle,
     mockFieldChange,
     mockAssign,
     mockClearAssign,
+    mockToggleSelect,
     ...render(
       React.createElement(AutoItemizeLineCard, {
         line: makeLine(lineOverrides),
@@ -128,6 +132,8 @@ function renderCard(
         t: t as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         tSettings: tSettings as any,
+        onToggleSelect: mockToggleSelect as (rowId: string) => void,
+        ...selectionProps,
       }),
     ),
   };
@@ -172,10 +178,9 @@ describe('AutoItemizeLineCard', () => {
     const onToggleInclude = jest.fn<(rowId: string) => void>();
     renderCard({ rowId: 'row-42', included: true }, { onToggleInclude });
 
-    // The include checkbox is labeled by the "Include" text in the label
-    // There are two checkboxes (include + VAT); the first is the include checkbox.
-    const checkboxes = screen.getAllByRole('checkbox');
-    const includeCheckbox = checkboxes[0]!;
+    // Story #1797 added an unconditional selection checkbox before the include
+    // checkbox, so it must be located by its accessible label, not array index.
+    const includeCheckbox = screen.getByLabelText('autoItemize.included');
     fireEvent.click(includeCheckbox);
 
     expect(onToggleInclude).toHaveBeenCalledTimes(1);
@@ -188,9 +193,7 @@ describe('AutoItemizeLineCard', () => {
       jest.fn<(rowId: string, field: keyof LineWithInclude, value: unknown) => void>();
     renderCard({ rowId: 'row-1', includesVat: false }, { onFieldChange });
 
-    // Second checkbox is the VAT checkbox
-    const checkboxes = screen.getAllByRole('checkbox');
-    const vatCheckbox = checkboxes[1]!;
+    const vatCheckbox = screen.getByLabelText('autoItemize.includesVat');
     fireEvent.click(vatCheckbox);
 
     expect(onFieldChange).toHaveBeenCalledWith('row-1', 'includesVat', true);
@@ -573,5 +576,80 @@ describe('AutoItemizeLineCard', () => {
     expect(catSelect).not.toBeNull();
     // The category option renders; translationKey was provided (non-null branch of ??)
     expect(catSelect.options.length).toBeGreaterThanOrEqual(2); // placeholder + 1 option
+  });
+
+  // ─── Story #1797: merge-selection checkbox ───────────────────────────────────
+
+  describe('merge-selection checkbox', () => {
+    function getSelectionCheckbox(): HTMLInputElement {
+      // The selection checkbox is always the first checkbox rendered (functional or disabled).
+      return screen.getAllByRole('checkbox')[0] as HTMLInputElement;
+    }
+
+    it('renders unchecked when selected=false and selectable=true', () => {
+      renderCard({ rowId: 'row-1' }, {}, { selected: false, selectable: true });
+      const checkbox = getSelectionCheckbox();
+      expect(checkbox.checked).toBe(false);
+      expect(checkbox.disabled).toBe(false);
+    });
+
+    it('renders checked when selected=true and selectable=true', () => {
+      renderCard({ rowId: 'row-1' }, {}, { selected: true, selectable: true });
+      const checkbox = getSelectionCheckbox();
+      expect(checkbox.checked).toBe(true);
+    });
+
+    it('renders disabled with aria-label and title when selectable=false', () => {
+      renderCard({ rowId: 'row-1' }, {}, { selectable: false });
+      const checkbox = getSelectionCheckbox();
+      expect(checkbox.disabled).toBe(true);
+      expect(checkbox.getAttribute('aria-label')).toBe(
+        'autoItemize.selectionDisabledAssignedAriaLabel',
+      );
+      expect(checkbox.getAttribute('title')).toBe('autoItemize.selectionDisabledAssignedAriaLabel');
+    });
+
+    it('calls onToggleSelect with the rowId when the selection checkbox is clicked', () => {
+      const onToggleSelect = jest.fn<(rowId: string) => void>();
+      renderCard({ rowId: 'row-77' }, { onToggleSelect }, { selectable: true });
+
+      const checkbox = getSelectionCheckbox();
+      fireEvent.click(checkbox);
+
+      expect(onToggleSelect).toHaveBeenCalledWith('row-77');
+    });
+
+    it('does not call onToggleSelect when selectable=false (checkbox is disabled)', () => {
+      const onToggleSelect = jest.fn<(rowId: string) => void>();
+      renderCard({ rowId: 'row-1' }, { onToggleSelect }, { selectable: false });
+
+      const checkbox = getSelectionCheckbox();
+      fireEvent.click(checkbox);
+
+      expect(onToggleSelect).not.toHaveBeenCalled();
+    });
+
+    it('applies the lineCardSelected class when selected=true, independent of lineCardExcluded', () => {
+      renderCard({ rowId: 'row-1', included: true }, {}, { selected: true, selectable: true });
+      const li = document.querySelector('li')!;
+      const classList = Array.from(li.classList);
+      expect(classList.some((c) => c.includes('Selected'))).toBe(true);
+      expect(classList.some((c) => c.includes('Excluded'))).toBe(false);
+    });
+
+    it('applies both lineCardSelected and lineCardExcluded when selected=true and included=false', () => {
+      renderCard({ rowId: 'row-1', included: false }, {}, { selected: true, selectable: true });
+      const li = document.querySelector('li')!;
+      const classList = Array.from(li.classList);
+      expect(classList.some((c) => c.includes('Selected'))).toBe(true);
+      expect(classList.some((c) => c.includes('Excluded'))).toBe(true);
+    });
+
+    it('does not apply lineCardSelected when selected=false', () => {
+      renderCard({ rowId: 'row-1' }, {}, { selected: false, selectable: true });
+      const li = document.querySelector('li')!;
+      const classList = Array.from(li.classList);
+      expect(classList.some((c) => c.includes('Selected'))).toBe(false);
+    });
   });
 });

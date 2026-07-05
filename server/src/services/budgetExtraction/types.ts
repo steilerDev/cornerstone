@@ -11,8 +11,18 @@ export type { LlmProvider } from './providerProfiles.js';
 import type { ExtractionHints, ExtractionResult } from '@cornerstone/shared';
 import type { LlmProvider } from './providerProfiles.js';
 
+export interface MergeLinesLlmResult {
+  description: string;
+  category: string | null;
+}
+
 export interface BudgetExtractionProvider {
   extract(ocrText: string, hints: ExtractionHints): Promise<ExtractionResult>;
+  summarizeMerge(input: {
+    descriptions: string[];
+    documentSummary?: string | null;
+    availableCategories: string[];
+  }): Promise<MergeLinesLlmResult>;
 }
 
 export interface LlmConfig {

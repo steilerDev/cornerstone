@@ -100,6 +100,12 @@ function renderList(
     onFieldChange?: (rowId: string, field: keyof LineWithInclude, value: unknown) => void;
     onAssign?: (rowId: string) => void;
     onClearAssign?: (rowId: string) => void;
+    selectedRowIds?: Set<string>;
+    onToggleSelect?: (rowId: string) => void;
+    onClearSelection?: () => void;
+    onMergeSelected?: () => void;
+    onRetryMerge?: (rowId: string) => void;
+    onUndoMerge?: (rowId: string) => void;
   } = {},
 ) {
   return render(
@@ -124,6 +130,12 @@ function renderList(
       t: t as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       tSettings: tSettings as any,
+      selectedRowIds: opts.selectedRowIds,
+      onToggleSelect: opts.onToggleSelect,
+      onClearSelection: opts.onClearSelection,
+      onMergeSelected: opts.onMergeSelected,
+      onRetryMerge: opts.onRetryMerge,
+      onUndoMerge: opts.onUndoMerge,
     }),
   );
 }
@@ -247,9 +259,10 @@ describe('AutoItemizeLineList', () => {
     const onToggleInclude = jest.fn<(rowId: string) => void>();
     renderList([makeLine('r1')], { onToggleInclude });
 
-    // The real AutoItemizeLineCard renders an include checkbox as the first checkbox
-    const checkboxes = screen.getAllByRole('checkbox');
-    const includeCheckbox = checkboxes[0]!;
+    // The real AutoItemizeLineCard renders a merge-selection checkbox before the include
+    // toggle checkbox, so target the include checkbox by its accessible name (the label
+    // text "autoItemize.included") rather than a positional index.
+    const includeCheckbox = screen.getByRole('checkbox', { name: 'autoItemize.included' });
     fireEvent.click(includeCheckbox);
 
     expect(onToggleInclude).toHaveBeenCalledWith('r1');
@@ -323,5 +336,137 @@ describe('AutoItemizeLineList', () => {
     const lines = [makeLine('r1', { budgetSourceId: undefined as unknown as string })];
     renderList(lines, { discretionarySourceId: undefined });
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
+
+  // ─── Story #1797: merge selection action bar + pending/error rows ────────────
+
+  describe('SelectionActionBar rendering', () => {
+    it('does not render SelectionActionBar when selectedRowIds is empty', () => {
+      renderList([makeLine('r1'), makeLine('r2')], { selectedRowIds: new Set() });
+      expect(
+        screen.queryByRole('button', { name: 'autoItemize.mergeButtonAriaLabel' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('renders SelectionActionBar when selectedRowIds has at least 1 entry', () => {
+      renderList([makeLine('r1'), makeLine('r2')], { selectedRowIds: new Set(['r1']) });
+      expect(
+        screen.getByRole('button', { name: 'autoItemize.mergeButtonAriaLabel' }),
+      ).toBeInTheDocument();
+    });
+
+    it('shows the count label from t("autoItemize.mergeSelectedCount")', () => {
+      renderList([makeLine('r1'), makeLine('r2')], { selectedRowIds: new Set(['r1', 'r2']) });
+      expect(screen.getByText('autoItemize.mergeSelectedCount')).toBeInTheDocument();
+    });
+
+    it('disables the Merge button when exactly 1 row is selected', () => {
+      renderList([makeLine('r1'), makeLine('r2')], { selectedRowIds: new Set(['r1']) });
+      const mergeBtn = screen.getByRole('button', { name: 'autoItemize.mergeButtonAriaLabel' });
+      expect(mergeBtn).toBeDisabled();
+    });
+
+    it('enables the Merge button when 2 rows are selected', () => {
+      renderList([makeLine('r1'), makeLine('r2')], { selectedRowIds: new Set(['r1', 'r2']) });
+      const mergeBtn = screen.getByRole('button', { name: 'autoItemize.mergeButtonAriaLabel' });
+      expect(mergeBtn).not.toBeDisabled();
+    });
+
+    it('enables the Merge button when 3+ rows are selected', () => {
+      renderList([makeLine('r1'), makeLine('r2'), makeLine('r3')], {
+        selectedRowIds: new Set(['r1', 'r2', 'r3']),
+      });
+      const mergeBtn = screen.getByRole('button', { name: 'autoItemize.mergeButtonAriaLabel' });
+      expect(mergeBtn).not.toBeDisabled();
+    });
+
+    it('calls onMergeSelected when the Merge button is clicked (2+ selected)', () => {
+      const onMergeSelected = jest.fn();
+      renderList([makeLine('r1'), makeLine('r2')], {
+        selectedRowIds: new Set(['r1', 'r2']),
+        onMergeSelected,
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'autoItemize.mergeButtonAriaLabel' }));
+
+      expect(onMergeSelected).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onClearSelection when the Clear selection button is clicked', () => {
+      const onClearSelection = jest.fn();
+      renderList([makeLine('r1'), makeLine('r2')], {
+        selectedRowIds: new Set(['r1']),
+        onClearSelection,
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'autoItemize.clearSelection' }));
+
+      expect(onClearSelection).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('pending-merge (MergingLineCard) rows', () => {
+    it('renders a MergingLineCard placeholder for a line with mergeStatus="pending"', () => {
+      const lines = [
+        makeLine('r1', {
+          mergeStatus: 'pending',
+          mergeSourceLines: [makeLine('src1'), makeLine('src2')],
+        }),
+      ];
+      renderList(lines);
+
+      // MergingLineCard renders aria-busy="true" on its <li>
+      const busyLi = document.querySelector('li[aria-busy="true"]');
+      expect(busyLi).not.toBeNull();
+    });
+
+    it('does not render the normal AutoItemizeLineCard textarea for a pending-merge row', () => {
+      const lines = [
+        makeLine('r1', {
+          mergeStatus: 'pending',
+          mergeSourceLines: [makeLine('src1'), makeLine('src2')],
+        }),
+      ];
+      renderList(lines);
+      expect(screen.queryByDisplayValue('Line r1')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('merge-error rows', () => {
+    function errorLine() {
+      return makeLine('r1', {
+        mergeStatus: 'error',
+        mergeSourceLines: [makeLine('src1'), makeLine('src2')],
+      });
+    }
+
+    it('renders a <li role="alert"> for a line with mergeStatus="error"', () => {
+      renderList([errorLine()]);
+      const alertLi = screen.getByRole('alert');
+      expect(alertLi.tagName.toLowerCase()).toBe('li');
+    });
+
+    it('renders the mergeErrorMessage text for an error row', () => {
+      renderList([errorLine()]);
+      expect(screen.getByText('autoItemize.mergeErrorMessage')).toBeInTheDocument();
+    });
+
+    it('calls onRetryMerge with the rowId when the Retry button is clicked', () => {
+      const onRetryMerge = jest.fn<(rowId: string) => void>();
+      renderList([errorLine()], { onRetryMerge });
+
+      fireEvent.click(screen.getByRole('button', { name: 'autoItemize.mergeRetryButton' }));
+
+      expect(onRetryMerge).toHaveBeenCalledWith('r1');
+    });
+
+    it('calls onUndoMerge with the rowId when the Undo/Restore button is clicked', () => {
+      const onUndoMerge = jest.fn<(rowId: string) => void>();
+      renderList([errorLine()], { onUndoMerge });
+
+      fireEvent.click(screen.getByRole('button', { name: 'autoItemize.mergeUndoButton' }));
+
+      expect(onUndoMerge).toHaveBeenCalledWith('r1');
+    });
   });
 });

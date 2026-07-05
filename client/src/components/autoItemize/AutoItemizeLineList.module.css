@@ -69,6 +69,68 @@
   margin-top: 2px;
 }
 
+/* Merge states */
+
+.lineCardMerging {
+  position: relative;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mergingOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  background: var(--color-overlay-light);
+  border-radius: var(--radius-lg);
+}
+
+.mergingCaption {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.lineCardMergeError {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.mergeErrorMessage {
+  color: var(--color-danger-text-on-light);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.mergeErrorActions {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lineCard {
+    animation: mergeSettle var(--transition-medium);
+  }
+}
+
+@keyframes mergeSettle {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* No transitions in this module currently */
 }

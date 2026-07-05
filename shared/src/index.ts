@@ -176,6 +176,8 @@ export type {
   AutoItemizePreviewResponse,
   AutoItemizeCommitRequest,
   AutoItemizeCommitResponse,
+  MergeLinesRequest,
+  MergeLinesResponse,
 } from './types/invoiceAutoItemize.js';
 
 // Budget Sources

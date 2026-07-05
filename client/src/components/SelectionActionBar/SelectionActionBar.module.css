@@ -1,0 +1,67 @@
+.bar {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-dropdown);
+  background-color: var(--color-bg-primary);
+  border-top: 1px solid var(--color-border);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-4);
+  margin-top: var(--spacing-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.count {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+.clearButton {
+  /* Styling deferred to parent (btnSecondaryCompact passed via children) */
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bar {
+    animation: slideUp var(--transition-normal);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+  }
+
+  .actions > button {
+    width: 100%;
+    min-height: 44px;
+  }
+}

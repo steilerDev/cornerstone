@@ -10,6 +10,11 @@ import { useBudgetLinePicker } from './useBudgetLinePicker.js';
 import type { UseBudgetLinePickerReturn } from './useBudgetLinePicker.js';
 import type { LineWithInclude } from '../components/autoItemize/types.js';
 import type { BudgetLineFormState } from './useBudgetSection.js';
+import { mergeLines } from '../lib/invoiceAutoItemizeApi.js';
+import {
+  aggregateMergedLineNumerics,
+  buildAvailableCategories,
+} from '../lib/autoItemizeMergeUtils.js';
 
 export interface UseAutoItemizeLinesOptions {
   invoiceId: string;
@@ -20,6 +25,18 @@ export interface UseAutoItemizeLinesOptions {
    * AutoItemizePage passes `() => setLineFieldsEdited(true)` for dirty tracking.
    */
   onFieldsEdited?: () => void;
+  /**
+   * Optional document summary (e.g., invoice notes) passed to merge LLM.
+   */
+  documentSummary?: string | null;
+  /**
+   * Called when merge starts (for live region announcements).
+   */
+  onMergeStart?: (count: number) => void;
+  /**
+   * Called when merge succeeds (for live region announcements).
+   */
+  onMergeSuccess?: () => void;
 }
 
 export interface UseAutoItemizeLinesReturn {
@@ -35,6 +52,12 @@ export interface UseAutoItemizeLinesReturn {
     onInlineDraftChange: (rowId: string, updates: Partial<BudgetLineFormState>) => void;
     onClearAssign: (rowId: string) => void;
   };
+  selectedRowIds: Set<string>;
+  onToggleSelect: (rowId: string) => void;
+  onClearSelection: () => void;
+  onMergeSelected: () => void;
+  onRetryMerge: (rowId: string) => void;
+  onUndoMerge: (rowId: string) => void;
 }
 
 /**
@@ -49,8 +72,12 @@ export function useAutoItemizeLines({
   invoiceAmount,
   document,
   onFieldsEdited,
+  documentSummary,
+  onMergeStart,
+  onMergeSuccess,
 }: UseAutoItemizeLinesOptions): UseAutoItemizeLinesReturn {
   const [lines, setLines] = useState<LineWithInclude[]>([]);
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(() => new Set());
 
   // Mutable refs — updated every render so stable callbacks always see fresh values.
   const activeRowIdRef = useRef<string | null>(null);
@@ -61,6 +88,12 @@ export function useAutoItemizeLines({
   onFieldsEditedRef.current = onFieldsEdited;
   const documentRef = useRef(document);
   documentRef.current = document;
+  const documentSummaryRef = useRef(documentSummary);
+  documentSummaryRef.current = documentSummary;
+  const onMergeStartRef = useRef(onMergeStart);
+  onMergeStartRef.current = onMergeStart;
+  const onMergeSuccessRef = useRef(onMergeSuccess);
+  onMergeSuccessRef.current = onMergeSuccess;
 
   // Filled in after picker is created (breaks the circular dep on picker.closePicker /
   // picker.openPicker without needing closePicker in useCallback deps).
@@ -285,9 +318,7 @@ export function useAutoItemizeLines({
                 ...l,
                 // Mirror includesVat changes from the inline form back to the
                 // parent line so the two never drift out of sync.
-                ...(updates.includesVat !== undefined
-                  ? { includesVat: updates.includesVat }
-                  : {}),
+                ...(updates.includesVat !== undefined ? { includesVat: updates.includesVat } : {}),
                 inlineCreatedBudgetLineDraft: l.inlineCreatedBudgetLineDraft
                   ? { ...l.inlineCreatedBudgetLineDraft, ...updates }
                   : l.inlineCreatedBudgetLineDraft,
@@ -321,6 +352,153 @@ export function useAutoItemizeLines({
     onFieldsEditedRef.current?.();
   }, []);
 
+  // ─── Merge Handlers ────────────────────────────────────────────────────────────
+
+  const onToggleSelect = useCallback((rowId: string) => {
+    const line = linesRef.current.find((l) => l.rowId === rowId);
+    if (!line || line.assignedBudgetLineId || line.inlineCreatedBudgetLineDraft) return;
+    setSelectedRowIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  }, []);
+
+  const onClearSelection = useCallback(() => {
+    setSelectedRowIds(new Set());
+  }, []);
+
+  const performMerge = useCallback(
+    (sourceLines: LineWithInclude[], targetRowId: string) => {
+      const descriptions = sourceLines.map((l) => l.description);
+      const ps = picker.pickerState;
+      const projectCategoryNames = (ps.categories ?? []).map((cat) =>
+        cat.translationKey ? cat.name : cat.name,
+      );
+      const availableCategories = buildAvailableCategories(linesRef.current, projectCategoryNames);
+
+      void mergeLines({
+        descriptions,
+        documentSummary: documentSummaryRef.current ?? undefined,
+        availableCategories,
+      })
+        .then((response) => {
+          setLines((prev) =>
+            prev.map((l) =>
+              l.rowId === targetRowId
+                ? {
+                    ...l,
+                    description: response.description,
+                    category: response.category,
+                    budgetCategoryId: response.budgetCategoryId,
+                    mergeStatus: undefined,
+                    mergeSourceLines: undefined,
+                  }
+                : l,
+            ),
+          );
+
+          onFieldsEditedRef.current?.();
+          onMergeSuccessRef.current?.();
+
+          // Focus the description textarea after merge completes
+          setTimeout(() => {
+            globalThis.document.getElementById(`line-description-${targetRowId}`)?.focus();
+          }, 0);
+        })
+        .catch(() => {
+          setLines((prev) =>
+            prev.map((l) => (l.rowId === targetRowId ? { ...l, mergeStatus: 'error' } : l)),
+          );
+          // focus the retry button so the user lands on the recovery affordance
+          setTimeout(
+            () => globalThis.document.getElementById(`merge-retry-${targetRowId}`)?.focus(),
+            0,
+          );
+        });
+    },
+    [picker.pickerState],
+  );
+
+  const onMergeSelected = useCallback(() => {
+    if (selectedRowIds.size < 2) return;
+
+    const selectedIndices = linesRef.current
+      .map((l, i) => (selectedRowIds.has(l.rowId) ? i : -1))
+      .filter((i) => i >= 0);
+
+    const sourceIndex = Math.min(...selectedIndices);
+    const selectedLines = selectedIndices.map((i) => linesRef.current[i]!);
+
+    onMergeStartRef.current?.(selectedLines.length);
+
+    const numerics = aggregateMergedLineNumerics(selectedLines);
+    const newRowId = `row-merged-${Math.random().toString(36).slice(2, 9)}`;
+
+    const mergedLine: LineWithInclude = {
+      ...numerics,
+      rowId: newRowId,
+      included: true,
+      createdFromExtraction: true,
+      description: '',
+      budgetCategoryId: null,
+      assignedBudgetLineId: undefined,
+      assignedBudgetLineType: undefined,
+      mergeStatus: 'pending',
+      mergeSourceLines: selectedLines,
+    };
+
+    setLines((prev) => {
+      const nextLines = prev.filter((l) => !selectedRowIds.has(l.rowId));
+      nextLines.splice(sourceIndex, 0, mergedLine);
+      return nextLines;
+    });
+
+    setSelectedRowIds(new Set());
+
+    performMerge(selectedLines, newRowId);
+  }, [selectedRowIds, performMerge]);
+
+  const onRetryMerge = useCallback(
+    (rowId: string) => {
+      const line = linesRef.current.find((l) => l.rowId === rowId);
+      if (!line || !line.mergeSourceLines) return;
+
+      setLines((prev) =>
+        prev.map((l) =>
+          l.rowId === rowId
+            ? {
+                ...l,
+                mergeStatus: 'pending',
+              }
+            : l,
+        ),
+      );
+
+      performMerge(line.mergeSourceLines, rowId);
+    },
+    [performMerge],
+  );
+
+  const onUndoMerge = useCallback((rowId: string) => {
+    setLines((prev) => {
+      const mergedLineIndex = prev.findIndex((l) => l.rowId === rowId);
+      if (mergedLineIndex === -1) return prev;
+
+      const mergedLine = prev[mergedLineIndex];
+      if (!mergedLine?.mergeSourceLines) return prev;
+
+      const nextLines = prev.filter((l) => l.rowId !== rowId);
+      nextLines.splice(mergedLineIndex, 0, ...mergedLine.mergeSourceLines);
+      return nextLines;
+    });
+    onFieldsEditedRef.current?.();
+  }, []);
+
   return {
     lines,
     setLines,
@@ -334,5 +512,11 @@ export function useAutoItemizeLines({
       onInlineDraftChange,
       onClearAssign,
     },
+    selectedRowIds,
+    onToggleSelect,
+    onClearSelection,
+    onMergeSelected,
+    onRetryMerge,
+    onUndoMerge,
   };
 }

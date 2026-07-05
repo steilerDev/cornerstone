@@ -5,13 +5,19 @@
  * any OpenAI-compatible API (OpenAI, Gemini, Anthropic, OpenRouter, Ollama, etc.).
  */
 
-import { SYSTEM_PROMPT, buildUserPrompt } from './prompts.js';
+import {
+  SYSTEM_PROMPT,
+  buildUserPrompt,
+  MERGE_SYSTEM_PROMPT,
+  buildMergeUserPrompt,
+} from './prompts.js';
 import { buildRequestBody } from './providerProfiles.js';
 import type {
   BudgetExtractionProvider,
   ExtractedLine,
   ExtractionResult,
   LlmConfig,
+  MergeLinesLlmResult,
 } from './types.js';
 import {
   LlmUnreachableError,
@@ -255,6 +261,162 @@ export function validateExtractedLines(body: unknown): ExtractionResult {
 }
 
 /**
+ * Validates that an unknown value conforms to MergeLinesLlmResult schema.
+ * Throws LlmInvalidResponseError on any structural mismatch.
+ *
+ * @param body - Unknown value to validate
+ * @returns MergeLinesLlmResult with validated description and category
+ * @throws LlmInvalidResponseError if validation fails
+ */
+export function validateMergeResult(body: unknown): MergeLinesLlmResult {
+  if (!body || typeof body !== 'object') {
+    throw new LlmInvalidResponseError('LLM response must be a JSON object');
+  }
+  const obj = body as Record<string, unknown>;
+  if (typeof obj.description !== 'string' || obj.description.trim() === '') {
+    throw new LlmInvalidResponseError('LLM response missing or invalid "description"');
+  }
+  let category: string | null = null;
+  if (obj.category !== null && obj.category !== undefined) {
+    if (typeof obj.category !== 'string') {
+      throw new LlmInvalidResponseError(
+        'LLM response has invalid "category" (must be a string or null)',
+      );
+    }
+    const trimmed = obj.category.trim();
+    category = trimmed.length > 0 ? trimmed.slice(0, 30) : null;
+  }
+  const trimmedDescription = obj.description.trim();
+  return {
+    description:
+      trimmedDescription.length > 500 ? trimmedDescription.slice(0, 500) : trimmedDescription,
+    category,
+  };
+}
+
+/**
+ * Shared fetch/timeout/JSON-parsing logic for calling the LLM chat completions endpoint.
+ * Reusable by both extract and summarizeMerge methods.
+ *
+ * @param config - LLM configuration
+ * @param systemPrompt - System prompt for the LLM
+ * @param userPrompt - User prompt for the LLM
+ * @returns Parsed JSON body from the LLM response
+ * @throws LlmUnreachableError, LlmUpstreamError, or LlmInvalidResponseError
+ */
+async function callChatCompletion(
+  config: LlmConfig,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<unknown> {
+  const url = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+      },
+      body: JSON.stringify(
+        buildRequestBody({
+          provider: config.provider,
+          model: config.model,
+          systemPrompt,
+          userPrompt,
+          maxTokens: config.maxTokens,
+        }),
+      ),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    const e = err as { name?: string; message?: string; code?: string; cause?: unknown };
+    throw new LlmUnreachableError('LLM provider is unreachable', {
+      provider: config.provider,
+      url,
+      cause: {
+        name: e?.name,
+        message: e?.message,
+        code: e?.code,
+        innerCause:
+          e?.cause && typeof e.cause === 'object'
+            ? {
+                name: (e.cause as { name?: string }).name,
+                message: (e.cause as { message?: string }).message,
+                code: (e.cause as { code?: string }).code,
+              }
+            : undefined,
+      },
+    });
+  }
+
+  clearTimeout(timeoutId);
+
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => '<failed to read response body>');
+    throw new LlmUpstreamError(`LLM upstream returned ${response.status}`, {
+      provider: config.provider,
+      url,
+      status: response.status,
+      statusText: response.statusText,
+      body: bodyText.length > 8000 ? `${bodyText.slice(0, 8000)}…[truncated]` : bodyText,
+    });
+  }
+
+  let body: unknown;
+  try {
+    const json = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+    };
+    const choice = json.choices?.[0];
+    const content = choice?.message?.content;
+    const finishReason = choice?.finish_reason;
+    if (typeof content !== 'string') {
+      throw new LlmInvalidResponseError('LLM response missing choices[0].message.content', {
+        provider: config.provider,
+        url,
+        envelope: json,
+      });
+    }
+    if (finishReason === 'length') {
+      throw new LlmInvalidResponseError(
+        'LLM response was truncated (hit max_tokens). Increase LLM max_tokens or shorten the invoice OCR.',
+        {
+          provider: config.provider,
+          url,
+          finishReason,
+          contentLength: content.length,
+        },
+      );
+    }
+    try {
+      body = JSON.parse(content);
+    } catch (parseErr) {
+      throw new LlmInvalidResponseError('LLM content is not valid JSON', {
+        provider: config.provider,
+        url,
+        parseError: (parseErr as Error).message,
+        finishReason,
+        content: content.length > 8000 ? `${content.slice(0, 8000)}…[truncated]` : content,
+      });
+    }
+  } catch (err) {
+    if (err instanceof LlmInvalidResponseError) throw err;
+    throw new LlmInvalidResponseError('LLM response envelope is not valid JSON', {
+      provider: config.provider,
+      url,
+      parseError: (err as Error).message,
+    });
+  }
+
+  return body;
+}
+
+/**
  * Creates an OpenAI-compatible budget extraction provider.
  *
  * @param config - LLM configuration (baseUrl, apiKey, model, requestTimeoutMs)
@@ -263,124 +425,17 @@ export function validateExtractedLines(body: unknown): ExtractionResult {
 export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtractionProvider {
   return {
     async extract(ocrText, hints) {
-      const url = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), config.requestTimeoutMs);
-
-      let response: Response;
-      try {
-        response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${config.apiKey}`,
-          },
-          body: JSON.stringify(
-            buildRequestBody({
-              provider: config.provider,
-              model: config.model,
-              systemPrompt: SYSTEM_PROMPT,
-              userPrompt: buildUserPrompt(ocrText, hints),
-              maxTokens: config.maxTokens,
-            }),
-          ),
-          signal: controller.signal,
-        });
-      } catch (err) {
-        // AbortError (timeout) or network error → treat as unreachable.
-        // Include the underlying error so the server log shows DNS / TLS /
-        // refused / AbortError context. `LlmUnreachableError` suppresses
-        // details from the API response.
-        clearTimeout(timeoutId);
-        const e = err as { name?: string; message?: string; code?: string; cause?: unknown };
-        throw new LlmUnreachableError('LLM provider is unreachable', {
-          provider: config.provider,
-          url,
-          cause: {
-            name: e?.name,
-            message: e?.message,
-            code: e?.code,
-            // Node's fetch nests the underlying ECONNREFUSED/ENOTFOUND in cause
-            innerCause:
-              e?.cause && typeof e.cause === 'object'
-                ? {
-                    name: (e.cause as { name?: string }).name,
-                    message: (e.cause as { message?: string }).message,
-                    code: (e.cause as { code?: string }).code,
-                  }
-                : undefined,
-          },
-        });
-      }
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        // Read the body so ops can debug from the server log. `LlmUpstreamError`
-        // suppresses `details` from the API response so the body (which may
-        // echo prompt content) never leaves the host.
-        const bodyText = await response.text().catch(() => '<failed to read response body>');
-        throw new LlmUpstreamError(`LLM upstream returned ${response.status}`, {
-          provider: config.provider,
-          url,
-          status: response.status,
-          statusText: response.statusText,
-          // Cap body at 8KB so a runaway response doesn't flood the log.
-          body: bodyText.length > 8000 ? `${bodyText.slice(0, 8000)}…[truncated]` : bodyText,
-        });
-      }
-
-      let body: unknown;
-      try {
-        const json = (await response.json()) as {
-          choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
-        };
-        const choice = json.choices?.[0];
-        const content = choice?.message?.content;
-        const finishReason = choice?.finish_reason;
-        if (typeof content !== 'string') {
-          throw new LlmInvalidResponseError('LLM response missing choices[0].message.content', {
-            provider: config.provider,
-            url,
-            envelope: json,
-          });
-        }
-        // Detect upstream truncation explicitly. `finish_reason: 'length'` means
-        // the LLM hit our `max_tokens` cap mid-stream and the JSON will be
-        // unterminated. Surface a distinct, actionable error instead of a
-        // confusing "Unterminated string in JSON" parse failure.
-        if (finishReason === 'length') {
-          throw new LlmInvalidResponseError(
-            'LLM response was truncated (hit max_tokens). Increase LLM max_tokens or shorten the invoice OCR.',
-            {
-              provider: config.provider,
-              url,
-              finishReason,
-              contentLength: content.length,
-            },
-          );
-        }
-        try {
-          body = JSON.parse(content);
-        } catch (parseErr) {
-          throw new LlmInvalidResponseError('LLM content is not valid JSON', {
-            provider: config.provider,
-            url,
-            parseError: (parseErr as Error).message,
-            finishReason,
-            content: content.length > 8000 ? `${content.slice(0, 8000)}…[truncated]` : content,
-          });
-        }
-      } catch (err) {
-        if (err instanceof LlmInvalidResponseError) throw err;
-        throw new LlmInvalidResponseError('LLM response envelope is not valid JSON', {
-          provider: config.provider,
-          url,
-          parseError: (err as Error).message,
-        });
-      }
-
+      const body = await callChatCompletion(config, SYSTEM_PROMPT, buildUserPrompt(ocrText, hints));
       return validateExtractedLines(body);
+    },
+
+    async summarizeMerge(input) {
+      const body = await callChatCompletion(
+        config,
+        MERGE_SYSTEM_PROMPT,
+        buildMergeUserPrompt(input.descriptions, input.documentSummary, input.availableCategories),
+      );
+      return validateMergeResult(body);
     },
   };
 }

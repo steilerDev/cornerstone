@@ -1715,3 +1715,353 @@ function createTestVendorForApp(appInstance: FastifyInstance, name = 'Test Vendo
     .run();
   return id;
 }
+
+// ─── Story #1797: POST /api/invoices/auto-itemize/merge-lines ─────────────────
+
+describe('POST /api/invoices/auto-itemize/merge-lines', () => {
+  let app: FastifyInstance;
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+  let originalFetch: typeof globalThis.fetch;
+  let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+
+  function makeMergeLlmFetchResponse(description: string, category: string | null): Response {
+    return makeFetchResponse({
+      choices: [{ message: { content: JSON.stringify({ description, category }) } }],
+    });
+  }
+
+  beforeEach(async () => {
+    originalEnv = { ...process.env };
+    originalFetch = globalThis.fetch;
+    mockFetch = jest.fn<typeof globalThis.fetch>();
+    globalThis.fetch = mockFetch;
+
+    tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-merge-lines-route-test-'));
+    process.env.DATABASE_URL = join(tempDir, 'test.db');
+    process.env.SECURE_COOKIES = 'false';
+    process.env.LLM_BASE_URL = 'http://llm.test.local';
+    process.env.LLM_API_KEY = 'test-llm-key';
+    process.env.LLM_MODEL = 'gpt-4o-test';
+
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    if (app) await app.close();
+    globalThis.fetch = originalFetch;
+    process.env = originalEnv;
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  });
+
+  it('returns 401 UNAUTHORIZED when no session cookie is provided', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      payload: { descriptions: ['A', 'B'], availableCategories: [] },
+    });
+
+    expect(response.statusCode).toBe(401);
+    const body = response.json<ApiErrorResponse>();
+    expect(body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('returns 200 with description, category, and budgetCategoryId on success', async () => {
+    const { cookie } = await createUserSession1679(app, 'merge-ok@test.com', 'MergeOk', 'pass');
+
+    mockFetch.mockResolvedValueOnce(makeMergeLlmFetchResponse('Tile work and grout', 'Materials'));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: {
+        descriptions: ['Tile work', 'Grout'],
+        documentSummary: 'Bathroom renovation',
+        availableCategories: ['Materials'],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{
+      description: string;
+      category: string | null;
+      budgetCategoryId: string | null;
+    }>();
+    expect(body.description).toBe('Tile work and grout');
+    expect(body.category).toBe('Materials');
+    expect(body.budgetCategoryId).toBe('bc-materials');
+  });
+
+  it('returns budgetCategoryId: null when the category does not map to a known budget category', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-unknown-cat@test.com',
+      'MergeUnknownCat',
+      'pass',
+    );
+
+    mockFetch.mockResolvedValueOnce(
+      makeMergeLlmFetchResponse('Consolidated line', 'Unicorn Category'),
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: {
+        descriptions: ['A', 'B'],
+        availableCategories: ['Unicorn Category'],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{ budgetCategoryId: string | null }>();
+    expect(body.budgetCategoryId).toBeNull();
+  });
+
+  it('returns 400 VALIDATION_ERROR when descriptions has fewer than 2 items', async () => {
+    const { cookie } = await createUserSession1679(app, 'merge-min@test.com', 'MergeMin', 'pass');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: { descriptions: ['Only one'], availableCategories: [] },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = response.json<ApiErrorResponse>();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 400 VALIDATION_ERROR when descriptions is empty', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-empty@test.com',
+      'MergeEmpty',
+      'pass',
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: { descriptions: [], availableCategories: [] },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('returns 400 VALIDATION_ERROR when descriptions has more than 200 items', async () => {
+    const { cookie } = await createUserSession1679(app, 'merge-max@test.com', 'MergeMax', 'pass');
+
+    const descriptions = Array.from({ length: 201 }, (_, i) => `Line ${i}`);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: { descriptions, availableCategories: [] },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('returns 400 VALIDATION_ERROR when a description exceeds 1000 characters', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-desclen@test.com',
+      'MergeDescLen',
+      'pass',
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: { descriptions: ['A'.repeat(1001), 'B'], availableCategories: [] },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('returns 400 VALIDATION_ERROR when documentSummary exceeds 1000 characters', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-summarylen@test.com',
+      'MergeSummaryLen',
+      'pass',
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: {
+        descriptions: ['A', 'B'],
+        documentSummary: 'X'.repeat(1001),
+        availableCategories: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('returns 400 VALIDATION_ERROR when availableCategories has more than 50 items', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-catmax@test.com',
+      'MergeCatMax',
+      'pass',
+    );
+
+    const availableCategories = Array.from({ length: 51 }, (_, i) => `Cat${i}`);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: { descriptions: ['A', 'B'], availableCategories },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('returns 400 VALIDATION_ERROR when a category name exceeds 30 characters', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-catlen@test.com',
+      'MergeCatLen',
+      'pass',
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: { descriptions: ['A', 'B'], availableCategories: ['C'.repeat(31)] },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('rejects additional properties not in the schema (400)', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-addprop@test.com',
+      'MergeAddProp',
+      'pass',
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: {
+        descriptions: ['A', 'B'],
+        availableCategories: [],
+        unexpectedField: 'should be rejected',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = response.json<ApiErrorResponse>();
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 503 LLM_NOT_CONFIGURED when autoItemizeEnabled is false (no LLM env vars)', async () => {
+    await app.close();
+    delete process.env.LLM_BASE_URL;
+    delete process.env.LLM_API_KEY;
+    delete process.env.LLM_MODEL;
+    app = await buildApp();
+
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-nollm@test.com',
+      'MergeNoLlm',
+      'pass',
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: { descriptions: ['A', 'B'], availableCategories: [] },
+    });
+
+    expect(response.statusCode).toBe(503);
+    const body = response.json<ApiErrorResponse>();
+    expect(body.error.code).toBe('LLM_NOT_CONFIGURED');
+  });
+
+  it('returns 502 LLM_UNREACHABLE when the LLM fetch throws a network error', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-unreachable@test.com',
+      'MergeUnreachable',
+      'pass',
+    );
+
+    mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: { descriptions: ['A', 'B'], availableCategories: [] },
+    });
+
+    expect(response.statusCode).toBe(502);
+    const body = response.json<ApiErrorResponse>();
+    expect(body.error.code).toBe('LLM_UNREACHABLE');
+  });
+
+  it('returns 502 LLM_INVALID_RESPONSE when the LLM returns non-JSON content', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-invalidresp@test.com',
+      'MergeInvalidResp',
+      'pass',
+    );
+
+    mockFetch.mockResolvedValueOnce(
+      makeFetchResponse({ choices: [{ message: { content: 'not json at all!!!' } }] }),
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: { descriptions: ['A', 'B'], availableCategories: [] },
+    });
+
+    expect(response.statusCode).toBe(502);
+    const body = response.json<ApiErrorResponse>();
+    expect(body.error.code).toBe('LLM_INVALID_RESPONSE');
+  });
+
+  it('does not require paperlessEnabled (unlike preview/commit routes)', async () => {
+    // merge-lines is a stateless summarization endpoint with no Paperless dependency
+    const { cookie } = await createUserSession1679(
+      app,
+      'merge-nopaperless@test.com',
+      'MergeNoPaperless',
+      'pass',
+    );
+
+    mockFetch.mockResolvedValueOnce(makeMergeLlmFetchResponse('Consolidated', null));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/merge-lines',
+      headers: { cookie },
+      payload: { descriptions: ['A', 'B'], availableCategories: [] },
+    });
+
+    expect(response.statusCode).toBe(200);
+  });
+});

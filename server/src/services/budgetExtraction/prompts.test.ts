@@ -11,7 +11,12 @@
 import { describe, it, expect } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { SYSTEM_PROMPT, buildUserPrompt } from './prompts.js';
+import {
+  SYSTEM_PROMPT,
+  buildUserPrompt,
+  MERGE_SYSTEM_PROMPT,
+  buildMergeUserPrompt,
+} from './prompts.js';
 
 // Fixtures directory resolved from project root (process.cwd() = project root when jest runs)
 const FIXTURES_DIR = resolve(process.cwd(), 'server/src/services/budgetExtraction/fixtures');
@@ -355,6 +360,161 @@ describe('buildUserPrompt()', () => {
         buildUserPrompt(fixture, { vendorName: 'Fliesen König', invoiceTotal: 2663.22 }),
       ).not.toThrow();
       expect(buildUserPrompt(fixture, {})).toContain('Fliesen');
+    });
+  });
+});
+
+// ─── Story #1797: MERGE_SYSTEM_PROMPT / buildMergeUserPrompt ──────────────────
+
+describe('MERGE_SYSTEM_PROMPT', () => {
+  it('is a non-empty string', () => {
+    expect(typeof MERGE_SYSTEM_PROMPT).toBe('string');
+    expect(MERGE_SYSTEM_PROMPT.length).toBeGreaterThan(50);
+  });
+
+  it('describes the required JSON output schema with "description" and "category"', () => {
+    expect(MERGE_SYSTEM_PROMPT).toContain('"description"');
+    expect(MERGE_SYSTEM_PROMPT).toContain('"category"');
+  });
+
+  it('instructs the LLM to synthesize a single coherent description (not concatenate)', () => {
+    expect(MERGE_SYSTEM_PROMPT.toLowerCase()).toMatch(/synthesize a single/);
+    expect(MERGE_SYSTEM_PROMPT.toLowerCase()).toMatch(/do not simply concatenate/);
+  });
+
+  it('instructs the LLM to choose a category verbatim from the provided list or return null', () => {
+    expect(MERGE_SYSTEM_PROMPT.toLowerCase()).toMatch(/exactly as given/);
+    expect(MERGE_SYSTEM_PROMPT.toLowerCase()).toMatch(/do not invent a new category/);
+  });
+
+  it('instructs the LLM to NOT include monetary amounts, quantities, or numeric values', () => {
+    expect(MERGE_SYSTEM_PROMPT.toLowerCase()).toMatch(
+      /do not include any monetary amounts, quantities, or numeric values/,
+    );
+  });
+
+  it('instructs the LLM to output only valid JSON (no markdown)', () => {
+    expect(MERGE_SYSTEM_PROMPT.toLowerCase()).toMatch(/output only valid json/);
+  });
+
+  it('mentions a 500-character maximum for the description', () => {
+    expect(MERGE_SYSTEM_PROMPT).toMatch(/500 characters/);
+  });
+});
+
+describe('buildMergeUserPrompt()', () => {
+  describe('numbered descriptions', () => {
+    it('numbers descriptions starting at 1, one per line', () => {
+      const result = buildMergeUserPrompt(['Tile work', 'Grout', 'Adhesive'], null, []);
+      expect(result).toContain('1. Tile work');
+      expect(result).toContain('2. Grout');
+      expect(result).toContain('3. Adhesive');
+    });
+
+    it('preserves description order in the numbered list', () => {
+      const result = buildMergeUserPrompt(['Zeta', 'Alpha'], null, []);
+      const zetaIndex = result.indexOf('1. Zeta');
+      const alphaIndex = result.indexOf('2. Alpha');
+      expect(zetaIndex).toBeGreaterThanOrEqual(0);
+      expect(alphaIndex).toBeGreaterThan(zetaIndex);
+    });
+
+    it('includes the descriptions.length count in the prompt preamble', () => {
+      const result = buildMergeUserPrompt(['A', 'B', 'C', 'D'], null, []);
+      expect(result).toContain('Merge the following 4 line item descriptions');
+    });
+
+    it('handles exactly 2 descriptions (minimum)', () => {
+      const result = buildMergeUserPrompt(['First', 'Second'], null, []);
+      expect(result).toContain('1. First');
+      expect(result).toContain('2. Second');
+      expect(result).toContain('Merge the following 2 line item descriptions');
+    });
+
+    it('includes a "Line item descriptions:" label before the numbered list', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], null, []);
+      expect(result).toContain('Line item descriptions:');
+      const labelIndex = result.indexOf('Line item descriptions:');
+      const firstIndex = result.indexOf('1. A');
+      expect(firstIndex).toBeGreaterThan(labelIndex);
+    });
+  });
+
+  describe('documentSummary handling', () => {
+    it('includes the trimmed documentSummary when provided', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], '  Kitchen renovation quote  ', []);
+      expect(result).toContain('Overall document summary (context only): Kitchen renovation quote');
+    });
+
+    it('falls back to "none" when documentSummary is null', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], null, []);
+      expect(result).toContain('Overall document summary (context only): none');
+    });
+
+    it('falls back to "none" when documentSummary is undefined', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], undefined, []);
+      expect(result).toContain('Overall document summary (context only): none');
+    });
+
+    it('falls back to "none" when documentSummary is an empty string', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], '', []);
+      expect(result).toContain('Overall document summary (context only): none');
+    });
+
+    it('falls back to "none" when documentSummary is whitespace-only', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], '   ', []);
+      expect(result).toContain('Overall document summary (context only): none');
+    });
+  });
+
+  describe('category list formatting', () => {
+    it('renders each available category on its own "- Category" line', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], null, ['Materials', 'Labor', 'Tile work']);
+      expect(result).toContain('- Materials');
+      expect(result).toContain('- Labor');
+      expect(result).toContain('- Tile work');
+    });
+
+    it('includes the "Available categories" label and verbatim-match instruction', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], null, ['Materials']);
+      expect(result).toContain(
+        'Available categories (return one of these names verbatim as "category"',
+      );
+    });
+
+    it('preserves category order', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], null, ['Zeta', 'Alpha']);
+      const zetaIndex = result.indexOf('- Zeta');
+      const alphaIndex = result.indexOf('- Alpha');
+      expect(zetaIndex).toBeGreaterThanOrEqual(0);
+      expect(alphaIndex).toBeGreaterThan(zetaIndex);
+    });
+
+    it('renders the empty-category fallback message when availableCategories is []', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], null, []);
+      expect(result).toContain('No categories are available — return "category": null.');
+      expect(result).not.toContain('Available categories');
+    });
+  });
+
+  describe('output structure', () => {
+    it('returns a non-empty string', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], null, []);
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(10);
+    });
+
+    it('instructs the LLM to return a JSON object with "description" and "category" schema', () => {
+      const result = buildMergeUserPrompt(['A', 'B'], null, []);
+      expect(result).toContain('{ "description": string, "category": string | null }');
+    });
+
+    it('does not throw for a large descriptions array (200 items — schema max)', () => {
+      const descriptions = Array.from({ length: 200 }, (_, i) => `Line item ${i + 1}`);
+      expect(() => buildMergeUserPrompt(descriptions, null, [])).not.toThrow();
+      const result = buildMergeUserPrompt(descriptions, null, []);
+      expect(result).toContain('1. Line item 1');
+      expect(result).toContain('200. Line item 200');
     });
   });
 });
