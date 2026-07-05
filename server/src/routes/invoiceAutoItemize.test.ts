@@ -1948,13 +1948,16 @@ describe('POST /api/invoices/auto-itemize/merge-lines', () => {
     expect(response.statusCode).toBe(400);
   });
 
-  it('rejects additional properties not in the schema (400)', async () => {
+  // Fastify AJV default: removeAdditional=true strips unknown props instead of rejecting (see invoiceBudgetLines.test.ts:365)
+  it('silently strips additional properties (removeAdditional)', async () => {
     const { cookie } = await createUserSession1679(
       app,
       'merge-addprop@test.com',
       'MergeAddProp',
       'pass',
     );
+
+    mockFetch.mockResolvedValueOnce(makeMergeLlmFetchResponse('Tile work and grout', 'Materials'));
 
     const response = await app.inject({
       method: 'POST',
@@ -1963,13 +1966,19 @@ describe('POST /api/invoices/auto-itemize/merge-lines', () => {
       payload: {
         descriptions: ['A', 'B'],
         availableCategories: [],
-        unexpectedField: 'should be rejected',
+        unexpectedField: 'should be stripped',
       },
     });
 
-    expect(response.statusCode).toBe(400);
-    const body = response.json<ApiErrorResponse>();
-    expect(body.error.code).toBe('VALIDATION_ERROR');
+    // removeAdditional strips unexpectedField — request succeeds like a normal merge call
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{
+      description: string;
+      category: string | null;
+      budgetCategoryId: string | null;
+    }>();
+    expect(body.description).toBe('Tile work and grout');
+    expect(body.category).toBe('Materials');
   });
 
   it('returns 503 LLM_NOT_CONFIGURED when autoItemizeEnabled is false (no LLM env vars)', async () => {
