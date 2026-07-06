@@ -226,6 +226,13 @@
   border: 1px solid var(--color-border);
 }
 
+/* Error badge (e.g., "Merge failed") */
+.error {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text-on-light);
+  border: 1px solid var(--color-danger-border);
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {

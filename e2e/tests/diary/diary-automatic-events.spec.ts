@@ -122,7 +122,16 @@ test.describe('Type chip filter for automatic entries (Scenario 2)', () => {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
 
-      // Reset captured requests from initial load
+      // Default mode is now "Manual" — switch to "All" so the automatic type chips are visible.
+      // Use waitForLoaded() after the click instead of waitForResponse: it waits for
+      // the full load cycle (isLoading→false, empty-state visible), guaranteeing the
+      // All-click API response was received and captured in requests[].
+      const allChip = page.getByTestId('mode-filter-all');
+      await allChip.waitFor({ state: 'visible' });
+      await allChip.click();
+      await diaryPage.waitForLoaded();
+
+      // Reset captured requests from initial load + mode switch
       requests.length = 0;
 
       // Register the response promise BEFORE clicking the chip (waitForResponse pattern)

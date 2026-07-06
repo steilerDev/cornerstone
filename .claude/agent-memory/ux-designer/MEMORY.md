@@ -194,9 +194,19 @@ See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `rol
 
 ## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
 
-- `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic` — distinguishes from work-item "not_started" badge
-- IBL table `tdLinkedItem` cell: `display:flex; align-items:center; gap:var(--spacing-2)` wrapper (`unassignedCell`) holding badge + inline "Assign…" ghost button
+- `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic`
+- IBL table `tdLinkedItem` cell: `display:flex; align-items:center; gap:var(--spacing-2)` wrapper
 - Parent picker section in BudgetLineForm: inset panel with `--color-bg-tertiary` bg + `--color-border` border + `--radius-md`
 - Modal width for edit with picker visible: `min(640px, calc(100vw - 2rem))`
 - Focus auto-advance: use `requestAnimationFrame` (not `setTimeout`) for React 19 concurrent rendering
-- RECURRING BUG pattern: `BadgeVariantMap` entries must include BOTH `label` (translated) AND `className` (CSS module class) — missing className means the CSS variant rule has no effect; missing i18n means hardcoded English text visible to users. PR #1548 shipped `UNASSIGNED_BADGE_VARIANTS` without `className: badgeStyles.iblUnassigned` — the `.iblUnassigned` style rule was dead on arrival.
+- RECURRING BUG: `BadgeVariantMap` entries need BOTH `label` (translated) AND `className` (CSS module class); PR #1548 missed `className: badgeStyles.iblUnassigned` — style rule was dead on arrival
+
+## CostBreakdownTable Patterns (Issue #1786)
+
+See [cost-breakdown-patterns.md](cost-breakdown-patterns.md). Key rules:
+
+- Inline toolbar selects: `composes: select from shared.module.css` but override `width: auto; min-height: 44px`
+- Active filter visual: `border-color: var(--color-primary)` only — do NOT change label color
+- `.controlBar` flex row replaces direct PerspectiveToggle placement; `flex-wrap: wrap` for mobile
+- Print: hide `.controlBar` alongside `.perspectiveToggle`
+- Native `<select>` option-change is announced by AT natively — no live region needed for the select itself

@@ -25,6 +25,10 @@ export interface BreakdownBudgetLine {
   plannedAmount: number;
   confidence: ConfidenceLevel;
   actualCost: number;
+  /** Deposit-aware paid+claimed portion of actualCost. 0 for non-invoiced lines. */
+  actualCostPaid: number;
+  /** actualCost - actualCostPaid. Outstanding invoiced portion not yet paid. 0 for non-invoiced lines. */
+  actualCostPending: number;
   hasInvoice: boolean;
   isQuotation: boolean;
   budgetSourceId: string | null;
@@ -40,6 +44,8 @@ export interface BreakdownWorkItem {
   projectedMin: number;
   projectedMax: number;
   actualCost: number;
+  actualCostPaid: number;
+  actualCostPending: number;
   subsidyPayback: number;
   rawProjectedMin: number;
   rawProjectedMax: number;
@@ -59,6 +65,8 @@ export interface BreakdownArea<TItem> {
   projectedMin: number; // rolled-up across subtree
   projectedMax: number;
   actualCost: number;
+  actualCostPaid: number;
+  actualCostPending: number;
   subsidyPayback: number;
   rawProjectedMin: number;
   rawProjectedMax: number;
@@ -76,6 +84,8 @@ export interface BreakdownHouseholdItem {
   projectedMin: number;
   projectedMax: number;
   actualCost: number;
+  actualCostPaid: number;
+  actualCostPending: number;
   subsidyPayback: number;
   rawProjectedMin: number;
   rawProjectedMax: number;
@@ -91,6 +101,8 @@ export interface BreakdownTotals {
   projectedMin: number;
   projectedMax: number;
   actualCost: number;
+  actualCostPaid: number;
+  actualCostPending: number;
   subsidyPayback: number;
   rawProjectedMin: number;
   rawProjectedMax: number;
@@ -132,6 +144,12 @@ export interface BudgetSourceSummaryBreakdown {
   totalAmount: number;
   projectedMin: number;
   projectedMax: number;
+  /** Sum of invoiced amounts for lines assigned to this source (always unfiltered). */
+  actualCost: number;
+  /** Deposit-aware paid+claimed for lines assigned to this source (always unfiltered). */
+  actualCostPaid: number;
+  /** actualCost - actualCostPaid for this source (always unfiltered). */
+  actualCostPending: number;
   subsidyPaybackMin: number;
   subsidyPaybackMax: number;
 }

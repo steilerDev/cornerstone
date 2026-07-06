@@ -45,6 +45,8 @@ import type {
   AutoItemizeDryRunResponse,
   AutoItemizeWarning,
   InvoiceStatus,
+  MergeLinesRequest,
+  MergeLinesResponse,
 } from '@cornerstone/shared';
 import { effectiveLineAmount } from '@cornerstone/shared';
 
@@ -805,4 +807,44 @@ function isValidIsoDate(value: string): boolean {
   // Also validate that it's a real date
   const date = new Date(value + 'T00:00:00Z');
   return !isNaN(date.getTime());
+}
+
+/**
+ * Merge multiple extracted line items into one.
+ * Stateless LLM summarization with no DB writes except reading budget_categories.
+ *
+ * EPIC-19 Story #1797: Merge lines feature.
+ *
+ * @param db Database instance
+ * @param config Application configuration (contains LLM config)
+ * @param body Merge request with descriptions, document summary, and available categories
+ * @returns Merged line response with synthesized description, category, and mapped budget category ID
+ * @throws LlmNotConfiguredError (503), LlmUnreachableError, LlmUpstreamError, LlmInvalidResponseError
+ */
+export async function mergeLines(
+  db: DbType,
+  config: AppConfig,
+  body: MergeLinesRequest,
+): Promise<MergeLinesResponse> {
+  const provider = getProvider(config);
+  const result = await provider.summarizeMerge({
+    descriptions: body.descriptions,
+    documentSummary: body.documentSummary,
+    availableCategories: body.availableCategories,
+  });
+
+  const allCategories = db
+    .select({
+      id: budgetCategories.id,
+      name: budgetCategories.name,
+      translationKey: budgetCategories.translationKey,
+    })
+    .from(budgetCategories)
+    .all();
+
+  const budgetCategoryId = result.category
+    ? mapCategoryNameToId(result.category, allCategories)
+    : null;
+
+  return { description: result.description, category: result.category, budgetCategoryId };
 }

@@ -118,7 +118,7 @@ test.describe('Mode filter chips visible (Scenario 1)', { tag: '@responsive' }, 
     },
   );
 
-  test('"All" mode chip is aria-pressed=true by default', async ({ page }) => {
+  test('"Manual" mode chip is aria-pressed=true by default', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
 
     await page.route('**/api/diary-entries*', async (route) => {
@@ -138,10 +138,10 @@ test.describe('Mode filter chips visible (Scenario 1)', { tag: '@responsive' }, 
       await diaryPage.openFiltersIfCollapsed();
 
       const allChip = page.getByTestId('mode-filter-all');
-      await expect(allChip).toHaveAttribute('aria-pressed', 'true');
+      await expect(allChip).toHaveAttribute('aria-pressed', 'false');
 
       const manualChip = page.getByTestId('mode-filter-manual');
-      await expect(manualChip).toHaveAttribute('aria-pressed', 'false');
+      await expect(manualChip).toHaveAttribute('aria-pressed', 'true');
 
       const automaticChip = page.getByTestId('mode-filter-automatic');
       await expect(automaticChip).toHaveAttribute('aria-pressed', 'false');
@@ -176,7 +176,16 @@ test.describe('Manual mode hides automatic type chips (Scenario 2)', () => {
       await diaryPage.waitForLoaded();
       await diaryPage.openFiltersIfCollapsed();
 
-      // Register the response promise BEFORE clicking the chip
+      // Default is now "Manual" — switch to "All" first so we can test clicking Manual.
+      // Use waitForLoaded() after the click instead of waitForResponse: it waits for
+      // the full load cycle (isLoading→false, empty-state visible), guaranteeing the
+      // All-click API response was received before we register the next listener.
+      const allChip = page.getByTestId('mode-filter-all');
+      await allChip.waitFor({ state: 'visible' });
+      await allChip.click();
+      await diaryPage.waitForLoaded();
+
+      // Register the response promise BEFORE clicking the Manual chip
       const responsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
       );
@@ -275,21 +284,13 @@ test.describe('All mode restores all type chips (Scenario 4)', () => {
       await diaryPage.waitForLoaded();
       await diaryPage.openFiltersIfCollapsed();
 
-      // Switch to manual mode first
-      const manualChip = page.getByTestId('mode-filter-manual');
-      await manualChip.waitFor({ state: 'visible' });
-      let responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
-      await manualChip.click();
-      await responsePromise;
-
-      // Verify automatic chips are hidden
+      // Default is now "Manual" — automatic chips are hidden
       await expect(diaryPage.typeFilterChip('work_item_status')).not.toBeVisible();
 
-      // Now switch back to "All"
+      // Switch to "All"
       const allChip = page.getByTestId('mode-filter-all');
-      responsePromise = page.waitForResponse(
+      await allChip.waitFor({ state: 'visible' });
+      const responsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
       );
       await allChip.click();
@@ -613,7 +614,16 @@ test.describe('Manual mode API parameter (Scenario 10)', () => {
       await diaryPage.waitForLoaded();
       await diaryPage.openFiltersIfCollapsed();
 
-      // Reset captured requests from initial load
+      // Default is now "Manual" — switch to "All" first so we can test clicking Manual.
+      // Use waitForLoaded() after the click instead of waitForResponse: it waits for
+      // the full load cycle (isLoading→false, empty-state visible), guaranteeing the
+      // All-click API response was received and captured in requests[].
+      const allChip = page.getByTestId('mode-filter-all');
+      await allChip.waitFor({ state: 'visible' });
+      await allChip.click();
+      await diaryPage.waitForLoaded();
+
+      // Reset captured requests from the "All" switch
       requests.length = 0;
 
       const responsePromise = page.waitForResponse(

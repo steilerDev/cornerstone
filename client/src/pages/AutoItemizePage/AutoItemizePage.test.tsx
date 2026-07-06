@@ -38,9 +38,11 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 // ─── Mock: invoiceAutoItemizeApi ───────────────────────────────────────────────
 
 const mockAutoItemize = jest.fn<typeof InvoiceAutoItemizeApiModule.autoItemize>();
+const mockMergeLines = jest.fn<typeof InvoiceAutoItemizeApiModule.mergeLines>();
 
 jest.unstable_mockModule('../../lib/invoiceAutoItemizeApi.js', () => ({
   autoItemize: mockAutoItemize,
+  mergeLines: mockMergeLines,
 }));
 
 // ─── Mock: paperlessApi ────────────────────────────────────────────────────────
@@ -217,6 +219,7 @@ beforeEach(async () => {
 
   mockFetchInvoiceById.mockReset();
   mockAutoItemize.mockReset();
+  mockMergeLines.mockReset();
   mockGetPaperlessDocument.mockReset();
   mockGetDocumentThumbnailUrl.mockImplementation((id) => `/thumb/${id}`);
 
@@ -1357,9 +1360,12 @@ describe('AutoItemizePage', () => {
         expect(screen.getByDisplayValue('Window installation')).toBeInTheDocument();
       });
 
-      // Find the first checkbox (Include for first line)
-      const checkboxes = screen.getAllByRole('checkbox');
-      const firstIncludeCheckbox = checkboxes[0] as HTMLInputElement;
+      // Find the first Include checkbox by accessible name — a merge-selection checkbox
+      // now renders before it in each card, so a positional index is not reliable.
+      // This test uses the real i18n instance (not a t()-stub), so the accessible name
+      // is the translated English label, not the raw key.
+      const includeCheckboxes = screen.getAllByRole('checkbox', { name: 'Include' });
+      const firstIncludeCheckbox = includeCheckboxes[0] as HTMLInputElement;
       expect(firstIncludeCheckbox.checked).toBe(true);
 
       fireEvent.click(firstIncludeCheckbox);
@@ -2908,6 +2914,101 @@ describe('AutoItemizePage', () => {
 
       const amtInput = document.getElementById('amount') as HTMLInputElement;
       expect(amtInput.tagName).toBe('INPUT');
+    });
+  });
+
+  // ─── Story #1797: merge line items — announceMessage + documentSummary ──────
+
+  describe('merge line items — live-region announcements', () => {
+    async function selectTwoRowsAndClickMerge() {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(
+        makeDryRunResponse([
+          { description: 'Tile work', totalAmount: 300, confidence: 0.9 },
+          { description: 'Grout', totalAmount: 100, confidence: 0.85 },
+        ]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
+      });
+
+      // Select both rows via their selection checkboxes (first checkbox in each card)
+      const cardTile = screen.getByDisplayValue('Tile work').closest('li')!;
+      const cardGrout = screen.getByDisplayValue('Grout').closest('li')!;
+      const selectCheckboxTile = within(cardTile).getAllByRole('checkbox')[0]!;
+      const selectCheckboxGrout = within(cardGrout).getAllByRole('checkbox')[0]!;
+
+      fireEvent.click(selectCheckboxTile);
+      fireEvent.click(selectCheckboxGrout);
+
+      const mergeBtn = await screen.findByRole('button', { name: /Merge/i });
+      await act(async () => {
+        fireEvent.click(mergeBtn);
+      });
+    }
+
+    it('sets the announceMessage live region when a merge starts', async () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {})); // never resolves — inspect start-state only
+      await selectTwoRowsAndClickMerge();
+
+      await waitFor(() => {
+        const region = document.querySelector('[role="status"]');
+        expect(region?.textContent).toMatch(/Merging 2 line items/i);
+      });
+    });
+
+    it('sets the announceMessage live region when a merge succeeds', async () => {
+      mockMergeLines.mockResolvedValue({
+        description: 'Tile work and grout',
+        category: null,
+        budgetCategoryId: null,
+      });
+      await selectTwoRowsAndClickMerge();
+
+      await waitFor(() => {
+        const region = document.querySelector('[role="status"]');
+        expect(region?.textContent).toMatch(/Line items merged/i);
+      });
+    });
+
+    it('passes the invoice notes field (metadataEdits.notes) as documentSummary to mergeLines', async () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      mockFetchInvoiceById.mockResolvedValue(
+        makeInvoice({ amount: 1000, notes: 'Bathroom renovation quote' }),
+      );
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(
+        makeDryRunResponse([
+          { description: 'Tile work', totalAmount: 300, confidence: 0.9 },
+          { description: 'Grout', totalAmount: 100, confidence: 0.85 },
+        ]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
+      });
+
+      const cardTile = screen.getByDisplayValue('Tile work').closest('li')!;
+      const cardGrout = screen.getByDisplayValue('Grout').closest('li')!;
+      fireEvent.click(within(cardTile).getAllByRole('checkbox')[0]!);
+      fireEvent.click(within(cardGrout).getAllByRole('checkbox')[0]!);
+
+      const mergeBtn = await screen.findByRole('button', { name: /Merge/i });
+      await act(async () => {
+        fireEvent.click(mergeBtn);
+      });
+
+      await waitFor(() => {
+        expect(mockMergeLines).toHaveBeenCalledTimes(1);
+      });
+      const callArg = mockMergeLines.mock.calls[0]![0] as { documentSummary?: string | null };
+      expect(callArg.documentSummary).toBe('Bathroom renovation quote');
     });
   });
 });

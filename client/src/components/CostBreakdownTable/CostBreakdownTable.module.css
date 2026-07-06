@@ -71,6 +71,39 @@
   color: var(--color-primary-text);
 }
 
+/* ---- Control Bar (perspective + cost basis) ---- */
+
+.controlBar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-6);
+  flex-wrap: wrap;
+}
+
+.costBasisField {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.costBasisLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.costBasisSelect {
+  composes: select from '../../styles/shared.module.css';
+  width: auto;
+  min-height: 44px;
+  min-width: 120px;
+}
+
+.costBasisSelectActive {
+  border-color: var(--color-primary);
+}
+
 .tableWrapper {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -470,6 +503,16 @@
     font-size: var(--font-size-lg);
   }
 
+  .costBasisField {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .costBasisSelect {
+    width: 100%;
+  }
+
   .table th {
     padding: var(--spacing-2) var(--spacing-2);
     font-size: var(--font-size-2xs);
@@ -544,7 +587,8 @@
  * ============================================================ */
 
 @media print {
-  .perspectiveToggle {
+  .perspectiveToggle,
+  .controlBar {
     display: none !important;
   }
 

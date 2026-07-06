@@ -36,6 +36,22 @@ A **Min / Avg / Max** segmented control above the table switches the projected-c
 
 Switch between perspectives to understand your financial position from different angles. Early in a project, Min and Max bracket your exposure. As invoices arrive and confidence levels rise, the three views converge.
 
+### Cost Basis
+
+Next to the perspective toggle, a **Cost Basis** dropdown re-frames every number in the table around _where each cost stands in its payment lifecycle_. It answers two different questions that the default view blends together: how much have we actually spent, and how much is still to come.
+
+| Cost Basis | What It Tells You |
+|------------|-------------------|
+| **All** (default) | The full blended projection -- actuals where invoices exist, estimates everywhere else. This is the standard overview. |
+| **Paid** | Only money that has actually left your account. Counts paid invoices and, for invoices settled in instalments, only the deposits marked paid so far. Answers *"how much have we spent?"* |
+| **Outstanding** | Everything still to pay -- the unpaid portion of invoiced work plus the projected cost of work not yet invoiced. Answers *"how much is left?"* |
+
+The Cost Basis filter is **deposit-aware**: for an invoice paid in [staged deposits](invoice-deposits), the **Paid** basis counts only the instalments already settled, and **Outstanding** counts the rest. This makes the two views add up to the whole -- Paid plus Outstanding reconciles to the full invoiced-and-projected cost.
+
+The **Paid** basis shows only real, settled amounts, so the Min / Avg / Max perspective has no effect on it. **Outstanding** still uses the active perspective for the not-yet-invoiced portion, since that part is still an estimate.
+
+Your Cost Basis choice is **persisted in the URL** as `?paymentStatus=paid` or `?paymentStatus=outstanding` (the default "All" adds no parameter), so you can bookmark or share a "what's left to pay" view exactly as you can with the source filter.
+
 ### How Projections Work
 
 The breakdown uses a **blended projection model** that combines estimates and actuals:

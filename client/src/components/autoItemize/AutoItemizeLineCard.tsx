@@ -28,6 +28,10 @@ interface AutoItemizeLineCardProps {
   confidenceLabels?: Record<string, string>;
   vendors?: Vendor[];
   budgetCategories?: BudgetCategory[];
+  // Merge selection props
+  selected?: boolean;
+  selectable?: boolean;
+  onToggleSelect?: (rowId: string) => void;
 }
 
 export function AutoItemizeLineCard({
@@ -46,6 +50,9 @@ export function AutoItemizeLineCard({
   confidenceLabels,
   vendors,
   budgetCategories,
+  selected = false,
+  selectable = false,
+  onToggleSelect,
 }: AutoItemizeLineCardProps) {
   const pct = useMemo(() => Math.round(line.confidence * 100), [line.confidence]);
 
@@ -66,10 +73,41 @@ export function AutoItemizeLineCard({
   );
 
   return (
-    <li className={`${styles.lineCard} ${!line.included ? styles.lineCardExcluded : ''}`}>
-      {/* Top row: description + confidence dot */}
+    <li
+      className={`${styles.lineCard} ${!line.included ? styles.lineCardExcluded : ''} ${
+        selected ? styles.lineCardSelected : ''
+      }`}
+    >
+      {/* Top row: selection + description + confidence dot */}
       <div className={styles.cardTopRow}>
+        {/* Selection checkbox */}
+        {selectable ? (
+          <label className={styles.selectCheckboxLabel}>
+            <input
+              type="checkbox"
+              className={styles.selectCheckbox}
+              checked={selected}
+              onChange={() => onToggleSelect?.(line.rowId)}
+            />
+            <span className={sharedStyles.srOnly}>
+              {t('autoItemize.selectForMergeAriaLabel', {
+                description: line.description.slice(0, 60),
+              })}
+            </span>
+          </label>
+        ) : (
+          <label className={styles.selectCheckboxLabel}>
+            <input
+              type="checkbox"
+              className={styles.selectCheckbox}
+              disabled
+              aria-label={t('autoItemize.selectionDisabledAssignedAriaLabel')}
+              title={t('autoItemize.selectionDisabledAssignedAriaLabel')}
+            />
+          </label>
+        )}
         <textarea
+          id={`line-description-${line.rowId}`}
           className={styles.cardDescriptionInput}
           value={line.description}
           rows={2}

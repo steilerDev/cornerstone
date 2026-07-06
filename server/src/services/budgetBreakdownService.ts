@@ -14,6 +14,10 @@ import type {
 } from '@cornerstone/shared';
 import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
 import { getDescendantIds } from './areaService.js';
+import {
+  computeDepositAwareAggregates,
+  type DepositAwareRow,
+} from './shared/depositAggregateUtils.js';
 import type {
   LinkedSubsidy,
   SubsidyCapMeta,
@@ -99,28 +103,63 @@ export function getBudgetBreakdown(
     ORDER BY wi.area_id ASC, wi.title ASC`,
   );
 
-  // ── 2. Query B: Invoice aggregates per WI budget line ─────────────────────
-  // Track invoice status to determine if line is a quotation
-  const wiLineInvoiceRows = db.all<{
+  // ── 2. Query B: Invoice aggregates per WI budget line (deposit-aware) ───────
+  // Fetch raw rows with invoice_deposits LEFT JOIN for deposit-aware aggregation
+  const wiLineDepositRows = db.all<{
     budgetLineId: string;
-    actualCost: number;
-    invoiceStatus: string;
+    ibl_id: string;
+    itemized_amount: number;
+    invoice_id: string;
+    invoice_amount: number;
+    invoice_status: string;
+    deposit_id: string | null;
+    deposit_amount: number | null;
+    deposit_status: string | null;
   }>(
     sql`SELECT
-      ibl.work_item_budget_id AS budgetLineId,
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
-      MAX(i.status) AS invoiceStatus
+      ibl.work_item_budget_id  AS budgetLineId,
+      ibl.id                   AS ibl_id,
+      ibl.itemized_amount      AS itemized_amount,
+      i.id                     AS invoice_id,
+      i.amount                 AS invoice_amount,
+      i.status                 AS invoice_status,
+      id.id                    AS deposit_id,
+      id.amount                AS deposit_amount,
+      id.status                AS deposit_status
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
-    WHERE ibl.work_item_budget_id IS NOT NULL
-    GROUP BY ibl.work_item_budget_id`,
+    LEFT JOIN invoice_deposits id ON id.invoice_id = i.id
+    WHERE ibl.work_item_budget_id IS NOT NULL`,
   );
 
-  const wiLineInvoiceMap = new Map<string, { actualCost: number; isQuotation: boolean }>();
-  for (const row of wiLineInvoiceRows) {
-    wiLineInvoiceMap.set(row.budgetLineId, {
-      actualCost: row.actualCost,
-      isQuotation: row.invoiceStatus === 'quotation',
+  // Group by budgetLineId and compute deposit-aware aggregates
+  const wiLinesByBudgetLine = new Map<string, DepositAwareRow[]>();
+  for (const row of wiLineDepositRows) {
+    const key = row.budgetLineId;
+    const arr = wiLinesByBudgetLine.get(key) ?? [];
+    arr.push(row);
+    wiLinesByBudgetLine.set(key, arr);
+  }
+
+  const wiLineInvoiceMap = new Map<
+    string,
+    {
+      actualCost: number;
+      actualCostPaid: number;
+      actualCostPending: number;
+      isQuotation: boolean;
+    }
+  >();
+
+  for (const [budgetLineId, rows] of wiLinesByBudgetLine) {
+    const agg = computeDepositAwareAggregates(rows);
+    // A budget line is a quotation if ALL linked invoices are quotations
+    const isQuotation = rows.every((r) => r.invoice_status === 'quotation');
+    wiLineInvoiceMap.set(budgetLineId, {
+      actualCost: agg.actualCost,
+      actualCostPaid: agg.actualCostPaid,
+      actualCostPending: agg.actualCost - agg.actualCostPaid,
+      isQuotation,
     });
   }
 
@@ -153,28 +192,63 @@ export function getBudgetBreakdown(
     ORDER BY hi.area_id ASC, hi.name ASC`,
   );
 
-  // ── 4. Query D: Invoice aggregates per HI budget line ────────────────────
-  // Track invoice status to determine if line is a quotation
-  const hiLineInvoiceRows = db.all<{
+  // ── 4. Query D: Invoice aggregates per HI budget line (deposit-aware) ────────
+  // Fetch raw rows with invoice_deposits LEFT JOIN for deposit-aware aggregation
+  const hiLineDepositRows = db.all<{
     budgetLineId: string;
-    actualCost: number;
-    invoiceStatus: string;
+    ibl_id: string;
+    itemized_amount: number;
+    invoice_id: string;
+    invoice_amount: number;
+    invoice_status: string;
+    deposit_id: string | null;
+    deposit_amount: number | null;
+    deposit_status: string | null;
   }>(
     sql`SELECT
       ibl.household_item_budget_id AS budgetLineId,
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
-      MAX(i.status) AS invoiceStatus
+      ibl.id                       AS ibl_id,
+      ibl.itemized_amount          AS itemized_amount,
+      i.id                         AS invoice_id,
+      i.amount                     AS invoice_amount,
+      i.status                     AS invoice_status,
+      id.id                        AS deposit_id,
+      id.amount                    AS deposit_amount,
+      id.status                    AS deposit_status
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
-    WHERE ibl.household_item_budget_id IS NOT NULL
-    GROUP BY ibl.household_item_budget_id`,
+    LEFT JOIN invoice_deposits id ON id.invoice_id = i.id
+    WHERE ibl.household_item_budget_id IS NOT NULL`,
   );
 
-  const hiLineInvoiceMap = new Map<string, { actualCost: number; isQuotation: boolean }>();
-  for (const row of hiLineInvoiceRows) {
-    hiLineInvoiceMap.set(row.budgetLineId, {
-      actualCost: row.actualCost,
-      isQuotation: row.invoiceStatus === 'quotation',
+  // Group by budgetLineId and compute deposit-aware aggregates
+  const hiLinesByBudgetLine = new Map<string, DepositAwareRow[]>();
+  for (const row of hiLineDepositRows) {
+    const key = row.budgetLineId;
+    const arr = hiLinesByBudgetLine.get(key) ?? [];
+    arr.push(row);
+    hiLinesByBudgetLine.set(key, arr);
+  }
+
+  const hiLineInvoiceMap = new Map<
+    string,
+    {
+      actualCost: number;
+      actualCostPaid: number;
+      actualCostPending: number;
+      isQuotation: boolean;
+    }
+  >();
+
+  for (const [budgetLineId, rows] of hiLinesByBudgetLine) {
+    const agg = computeDepositAwareAggregates(rows);
+    // A budget line is a quotation if ALL linked invoices are quotations
+    const isQuotation = rows.every((r) => r.invoice_status === 'quotation');
+    hiLineInvoiceMap.set(budgetLineId, {
+      actualCost: agg.actualCost,
+      actualCostPaid: agg.actualCostPaid,
+      actualCostPending: agg.actualCost - agg.actualCostPaid,
+      isQuotation,
     });
   }
 
@@ -389,6 +463,8 @@ export function getBudgetBreakdown(
       projectedMin: number;
       projectedMax: number;
       actualCost: number;
+      actualCostPaid: number;
+      actualCostPending: number;
       subsidyPayback: number;
       rawProjectedMin: number;
       rawProjectedMax: number;
@@ -428,6 +504,8 @@ export function getBudgetBreakdown(
       let rolledMin = 0;
       let rolledMax = 0;
       let rolledActual = 0;
+      let rolledActualPaid = 0;
+      let rolledActualPending = 0;
       let rolledPayback = 0;
       let rolledRawMin = 0;
       let rolledRawMax = 0;
@@ -439,6 +517,8 @@ export function getBudgetBreakdown(
         rolledMin += totals.projectedMin;
         rolledMax += totals.projectedMax;
         rolledActual += totals.actualCost;
+        rolledActualPaid += totals.actualCostPaid;
+        rolledActualPending += totals.actualCostPending;
         rolledPayback += totals.subsidyPayback;
         rolledRawMin += totals.rawProjectedMin;
         rolledRawMax += totals.rawProjectedMax;
@@ -464,6 +544,8 @@ export function getBudgetBreakdown(
         projectedMin: rolledMin,
         projectedMax: rolledMax,
         actualCost: rolledActual,
+        actualCostPaid: rolledActualPaid,
+        actualCostPending: rolledActualPending,
         subsidyPayback: rolledPayback,
         rawProjectedMin: rolledRawMin,
         rawProjectedMax: rolledRawMax,
@@ -498,6 +580,8 @@ export function getBudgetBreakdown(
         projectedMin: unassignedTotals.projectedMin,
         projectedMax: unassignedTotals.projectedMax,
         actualCost: unassignedTotals.actualCost,
+        actualCostPaid: unassignedTotals.actualCostPaid,
+        actualCostPending: unassignedTotals.actualCostPending,
         subsidyPayback: unassignedTotals.subsidyPayback,
         rawProjectedMin: unassignedTotals.rawProjectedMin,
         rawProjectedMax: unassignedTotals.rawProjectedMax,
@@ -511,6 +595,8 @@ export function getBudgetBreakdown(
     let totalMin = 0;
     let totalMax = 0;
     let totalActual = 0;
+    let totalActualPaid = 0;
+    let totalActualPending = 0;
     let totalPayback = 0;
     let totalRawMin = 0;
     let totalRawMax = 0;
@@ -521,6 +607,8 @@ export function getBudgetBreakdown(
       totalMin += totals.projectedMin;
       totalMax += totals.projectedMax;
       totalActual += totals.actualCost;
+      totalActualPaid += totals.actualCostPaid;
+      totalActualPending += totals.actualCostPending;
       totalPayback += totals.subsidyPayback;
       totalRawMin += totals.rawProjectedMin;
       totalRawMax += totals.rawProjectedMax;
@@ -531,6 +619,8 @@ export function getBudgetBreakdown(
       projectedMin: totalMin,
       projectedMax: totalMax,
       actualCost: totalActual,
+      actualCostPaid: totalActualPaid,
+      actualCostPending: totalActualPending,
       subsidyPayback: totalPayback,
       rawProjectedMin: totalRawMin,
       rawProjectedMax: totalRawMax,
@@ -556,6 +646,8 @@ export function getBudgetBreakdown(
         projectedMin: 0,
         projectedMax: 0,
         actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback: 0,
         rawProjectedMin: 0,
         rawProjectedMax: 0,
@@ -569,6 +661,8 @@ export function getBudgetBreakdown(
     // Build budget line
     const invoiceData = wiLineInvoiceMap.get(row.budgetLineId);
     const actualCost = invoiceData?.actualCost ?? 0;
+    const actualCostPaid = invoiceData?.actualCostPaid ?? 0;
+    const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
       row.plannedAmount,
@@ -584,6 +678,8 @@ export function getBudgetBreakdown(
       plannedAmount: row.plannedAmount,
       confidence: row.confidence as ConfidenceLevel,
       actualCost,
+      actualCostPaid,
+      actualCostPending,
       hasInvoice: wiLineInvoiceMap.has(row.budgetLineId),
       isQuotation,
       budgetSourceId: row.budgetSourceId ?? null,
@@ -593,6 +689,8 @@ export function getBudgetBreakdown(
     item.projectedMin += min;
     item.projectedMax += max;
     item.actualCost += actualCost;
+    item.actualCostPaid += actualCostPaid;
+    item.actualCostPending += actualCostPending;
     const { min: rawMin, max: rawMax } = computeLineProjected(
       row.plannedAmount,
       row.confidence,
@@ -680,6 +778,8 @@ export function getBudgetBreakdown(
       let min = 0,
         max = 0,
         actual = 0,
+        actualPaid = 0,
+        actualPending = 0,
         payback = 0,
         rawMin = 0,
         rawMax = 0,
@@ -688,6 +788,8 @@ export function getBudgetBreakdown(
         min += item.projectedMin;
         max += item.projectedMax;
         actual += item.actualCost;
+        actualPaid += item.actualCostPaid;
+        actualPending += item.actualCostPending;
         payback += item.subsidyPayback;
         rawMin += item.rawProjectedMin;
         rawMax += item.rawProjectedMax;
@@ -697,6 +799,8 @@ export function getBudgetBreakdown(
         projectedMin: min,
         projectedMax: max,
         actualCost: actual,
+        actualCostPaid: actualPaid,
+        actualCostPending: actualPending,
         subsidyPayback: payback,
         rawProjectedMin: rawMin,
         rawProjectedMax: rawMax,
@@ -721,6 +825,8 @@ export function getBudgetBreakdown(
         projectedMin: 0,
         projectedMax: 0,
         actualCost: 0,
+        actualCostPaid: 0,
+        actualCostPending: 0,
         subsidyPayback: 0,
         rawProjectedMin: 0,
         rawProjectedMax: 0,
@@ -734,6 +840,8 @@ export function getBudgetBreakdown(
     // Build budget line
     const invoiceData = hiLineInvoiceMap.get(row.budgetLineId);
     const actualCost = invoiceData?.actualCost ?? 0;
+    const actualCostPaid = invoiceData?.actualCostPaid ?? 0;
+    const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
       row.plannedAmount,
@@ -749,6 +857,8 @@ export function getBudgetBreakdown(
       plannedAmount: row.plannedAmount,
       confidence: row.confidence as ConfidenceLevel,
       actualCost,
+      actualCostPaid,
+      actualCostPending,
       hasInvoice: hiLineInvoiceMap.has(row.budgetLineId),
       isQuotation,
       budgetSourceId: row.budgetSourceId ?? null,
@@ -758,6 +868,8 @@ export function getBudgetBreakdown(
     item.projectedMin += min;
     item.projectedMax += max;
     item.actualCost += actualCost;
+    item.actualCostPaid += actualCostPaid;
+    item.actualCostPending += actualCostPending;
     const { min: rawMin, max: rawMax } = computeLineProjected(
       row.plannedAmount,
       row.confidence,
@@ -832,6 +944,8 @@ export function getBudgetBreakdown(
       let min = 0,
         max = 0,
         actual = 0,
+        actualPaid = 0,
+        actualPending = 0,
         payback = 0,
         rawMin = 0,
         rawMax = 0,
@@ -840,6 +954,8 @@ export function getBudgetBreakdown(
         min += item.projectedMin;
         max += item.projectedMax;
         actual += item.actualCost;
+        actualPaid += item.actualCostPaid;
+        actualPending += item.actualCostPending;
         payback += item.subsidyPayback;
         rawMin += item.rawProjectedMin;
         rawMax += item.rawProjectedMax;
@@ -849,6 +965,8 @@ export function getBudgetBreakdown(
         projectedMin: min,
         projectedMax: max,
         actualCost: actual,
+        actualCostPaid: actualPaid,
+        actualCostPending: actualPending,
         subsidyPayback: payback,
         rawProjectedMin: rawMin,
         rawProjectedMax: rawMax,
@@ -992,7 +1110,15 @@ export function getBudgetBreakdown(
   // their full contribution in the budgetSources[] array.
   const sourceProjectedMap = new Map<
     string,
-    { name: string; totalAmount: number; min: number; max: number }
+    {
+      name: string;
+      totalAmount: number;
+      min: number;
+      max: number;
+      actualCost: number;
+      actualCostPaid: number;
+      actualCostPending: number;
+    }
   >();
 
   // ── Iterate UNFILTERED WI line rows for per-source projections ──
@@ -1001,6 +1127,8 @@ export function getBudgetBreakdown(
     if (sid === null) continue; // unassigned source handled separately below
     const invoiceData = wiLineInvoiceMap.get(row.budgetLineId);
     const actualCost = invoiceData?.actualCost ?? 0;
+    const actualCostPaid = invoiceData?.actualCostPaid ?? 0;
+    const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
       row.plannedAmount,
@@ -1013,10 +1141,21 @@ export function getBudgetBreakdown(
     if (existing) {
       existing.min += min;
       existing.max += max;
+      existing.actualCost += actualCost;
+      existing.actualCostPaid += actualCostPaid;
+      existing.actualCostPending += actualCostPending;
     } else {
       const meta = budgetSourceMetaMap.get(sid);
       if (meta) {
-        sourceProjectedMap.set(sid, { name: meta.name, totalAmount: meta.totalAmount, min, max });
+        sourceProjectedMap.set(sid, {
+          name: meta.name,
+          totalAmount: meta.totalAmount,
+          min,
+          max,
+          actualCost,
+          actualCostPaid,
+          actualCostPending,
+        });
       }
     }
   }
@@ -1027,6 +1166,8 @@ export function getBudgetBreakdown(
     if (sid === null) continue;
     const invoiceData = hiLineInvoiceMap.get(row.budgetLineId);
     const actualCost = invoiceData?.actualCost ?? 0;
+    const actualCostPaid = invoiceData?.actualCostPaid ?? 0;
+    const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
       row.plannedAmount,
@@ -1039,10 +1180,21 @@ export function getBudgetBreakdown(
     if (existing) {
       existing.min += min;
       existing.max += max;
+      existing.actualCost += actualCost;
+      existing.actualCostPaid += actualCostPaid;
+      existing.actualCostPending += actualCostPending;
     } else {
       const meta = budgetSourceMetaMap.get(sid);
       if (meta) {
-        sourceProjectedMap.set(sid, { name: meta.name, totalAmount: meta.totalAmount, min, max });
+        sourceProjectedMap.set(sid, {
+          name: meta.name,
+          totalAmount: meta.totalAmount,
+          min,
+          max,
+          actualCost,
+          actualCostPaid,
+          actualCostPending,
+        });
       }
     }
   }
@@ -1050,10 +1202,15 @@ export function getBudgetBreakdown(
   // ── Compute unassigned projected totals from UNFILTERED rows ──
   let unassignedProjMin = 0;
   let unassignedProjMax = 0;
+  let unassignedActualCost = 0;
+  let unassignedActualCostPaid = 0;
+  let unassignedActualCostPending = 0;
   for (const row of workItemLineRows) {
     if (row.budgetSourceId !== null) continue;
     const invoiceData = wiLineInvoiceMap.get(row.budgetLineId);
     const actualCost = invoiceData?.actualCost ?? 0;
+    const actualCostPaid = invoiceData?.actualCostPaid ?? 0;
+    const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
       row.plannedAmount,
@@ -1064,11 +1221,16 @@ export function getBudgetBreakdown(
     );
     unassignedProjMin += min;
     unassignedProjMax += max;
+    unassignedActualCost += actualCost;
+    unassignedActualCostPaid += actualCostPaid;
+    unassignedActualCostPending += actualCostPending;
   }
   for (const row of hiLineRows) {
     if (row.budgetSourceId !== null) continue;
     const invoiceData = hiLineInvoiceMap.get(row.budgetLineId);
     const actualCost = invoiceData?.actualCost ?? 0;
+    const actualCostPaid = invoiceData?.actualCostPaid ?? 0;
+    const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
       row.plannedAmount,
@@ -1079,6 +1241,9 @@ export function getBudgetBreakdown(
     );
     unassignedProjMin += min;
     unassignedProjMax += max;
+    unassignedActualCost += actualCost;
+    unassignedActualCostPaid += actualCostPaid;
+    unassignedActualCostPending += actualCostPending;
   }
   const hasUnassignedLines = unassignedProjMin > 0 || unassignedProjMax > 0;
 
@@ -1173,6 +1338,9 @@ export function getBudgetBreakdown(
       totalAmount: r.totalAmount,
       projectedMin: proj?.min ?? 0,
       projectedMax: proj?.max ?? 0,
+      actualCost: proj?.actualCost ?? 0,
+      actualCostPaid: proj?.actualCostPaid ?? 0,
+      actualCostPending: proj?.actualCostPending ?? 0,
       subsidyPaybackMin: payback.min,
       subsidyPaybackMax: payback.max,
     };
@@ -1187,6 +1355,9 @@ export function getBudgetBreakdown(
       totalAmount: 0,
       projectedMin: unassignedProjMin,
       projectedMax: unassignedProjMax,
+      actualCost: unassignedActualCost,
+      actualCostPaid: unassignedActualCostPaid,
+      actualCostPending: unassignedActualCostPending,
       subsidyPaybackMin: unassignedPayback.min,
       subsidyPaybackMax: unassignedPayback.max,
     });

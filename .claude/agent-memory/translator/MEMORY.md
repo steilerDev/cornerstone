@@ -55,6 +55,7 @@ Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised fir
 - `de/budget.json` — `budgetLineForm` parent-move keys added 2026-05-22 (Issue #1553): `linkedItemLegend`, `changeParentButton`, `cancelChangeParentButton`, `moveButton`, `movingButton`, `moveCrossTableHint`, `moveCrossTableHintReverse`, `itemizedAmountLabel` — see [parent-move-patterns.md](parent-move-patterns.md)
 - `de/diary.json` — Issue #1672 (2026-06-13): `form.dailyLogVendorPlaceholder`, `form.workStartTime`, `form.workEndTime`, `form.workDuration`, `metadata.workStart`, `metadata.workEnd` added; `metadata.vendor` colon added ("Auftragnehmer:"); new `validation` object added with `workTimeEndBeforeStart`
 - `de/budget.json` — `autoItemize` inline-draft keys added 2026-06-17: `creatingNewBadge`, `inlineFormLabel`, `discardInlineDraft`, `inlineDraftInvalid`, `inlineDraftCreateFailed`, `inlineDraftLinkFailed`, `inlineDraftPartialFailure`
+- `de/budget.json` — `overview.costBreakdown.costBasis.*` added 2026-06-25: `label`→"Kostenbasis", `all`→"Alle", `paid`→"Bezahlt", `outstanding`→"Ausstehend"
 - Always check key parity when picking up a new translator spec
 
 ## Backup/Restore Terminology (2026-03-22)

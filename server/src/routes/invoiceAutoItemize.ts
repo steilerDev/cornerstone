@@ -11,7 +11,11 @@ import type { FastifyInstance } from 'fastify';
 import { AppError, UnauthorizedError } from '../errors/AppError.js';
 import * as svc from '../services/invoiceAutoItemizeService.js';
 import type { AutoItemizeRequestBody } from '../services/invoiceAutoItemizeService.js';
-import type { AutoItemizePreviewRequest, AutoItemizeCommitRequest } from '@cornerstone/shared';
+import type {
+  AutoItemizePreviewRequest,
+  AutoItemizeCommitRequest,
+  MergeLinesRequest,
+} from '@cornerstone/shared';
 
 // Per-line JSON schema for both existing and new endpoints
 const lineItemSchema = {
@@ -221,6 +225,48 @@ export default async function invoiceAutoItemizeRoutes(fastify: FastifyInstance)
         },
       );
 
+      return reply.status(200).send(result);
+    },
+  );
+
+  /**
+   * POST /api/invoices/auto-itemize/merge-lines
+   *
+   * Merge multiple extracted line items into one consolidated line.
+   * Stateless LLM summarization with no DB writes except reading budget_categories.
+   *
+   * Auth required: Yes
+   *
+   * EPIC-19 Story #1797: Merge line items feature.
+   */
+  const mergeLinesSchema = {
+    body: {
+      type: 'object',
+      required: ['descriptions', 'availableCategories'],
+      properties: {
+        descriptions: {
+          type: 'array',
+          minItems: 2,
+          maxItems: 200,
+          items: { type: 'string', minLength: 1, maxLength: 1000 },
+        },
+        documentSummary: { type: ['string', 'null'], maxLength: 1000 },
+        availableCategories: {
+          type: 'array',
+          maxItems: 50,
+          items: { type: 'string', minLength: 1, maxLength: 30 },
+        },
+      },
+      additionalProperties: false,
+    },
+  };
+
+  fastify.post<{ Body: MergeLinesRequest }>(
+    '/auto-itemize/merge-lines',
+    { schema: mergeLinesSchema },
+    async (request, reply) => {
+      if (!request.user) throw new UnauthorizedError();
+      const result = await svc.mergeLines(fastify.db, fastify.config, request.body);
       return reply.status(200).send(result);
     },
   );

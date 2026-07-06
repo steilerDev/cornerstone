@@ -90,6 +90,18 @@ Shipped-state facts (verified in source, watch for drift):
 
 Anchor used as cross-ref target: `auto-itemize#6-assign-each-line-and-set-its-category-and-funding-source` (Docusaurus strips the "6." period). Verified resolves.
 
+## Release: Cost Basis filter + Merge lines + Diary Manual-default
+
+Three user-facing changes documented (no new pages, no sidebar changes):
+
+- **#1786 Cost Basis filter** on Budget Overview Cost Breakdown -- new dropdown (All / Paid / Outstanding), SEPARATE control from the min/avg/max perspective. Deposit-aware: for instalment-paid invoices, Paid counts settled deposits, Outstanding counts the rest; Paid+Outstanding reconciles to whole. Paid ignores perspective (pure actuals); Outstanding uses perspective for the uninvoiced portion. URL-persisted `?paymentStatus=paid|outstanding` (default "All" = no param). Logic lives client-side in `client/src/components/CostBreakdownTable/CostBreakdownTable.tsx` (`resolveBudgetLineCost`/`resolveAggregateCost`); server adds `actualCostPaid`/`actualCostPending` via deposit-aware aggregation in `budgetBreakdownService.ts`. Documented in `budget-overview.md` new "### Cost Basis" section after Cost Perspectives.
+- **#1797 Merge lines** in auto-itemize (BOTH AutoItemizePage and PaperlessInvoiceReviewPage). Select 2+ UNASSIGNED lines -> SelectionActionBar -> Merge. Numerics summed CLIENT-SIDE (never sent to LLM); only descriptions + category vocab sent to a small stateless LLM call for combined description+category. Lowest confidence kept; uniform-unit quantities summed else per-unit fields dropped. Loading placeholder ("Merging N items…"), error -> Merge failed badge + Retry + "Restore original lines" undo (non-destructive until save). Assigned lines locked out of selection. Documented in `auto-itemize.md` new "### Merge related lines into one" subsection between step 5 and 6, plus a paragraph in "What data leaves your server".
+- **#1782 Diary default filter** now 'manual' not 'all' (`DiaryPage.tsx`). Updated `diary/index.md` Filtering section + Overview bullet.
+
+`.env.example` was in sync (no drift); no new env vars -> no CLAUDE.md change. #1780 (harmonize auto-itemize flows) is internal, no user-facing doc.
+
+Pre-existing lint baseline in worktree: ~8 eslint ERRORS in production/test .ts across client/server/e2e (photoService OrientationSummary unused, usePaperless import() type, etc.) -- NOT introduced by docs changes (docs edits are markdown-only; eslint doesn't lint .md). Likely a local `npm install --ignore-scripts` artifact since beta CI requires lint green. Do NOT touch those files as docs-writer.
+
 ## Build Note (still true)
 
 `npm run docs:build` fails in worktrees with webpack `ProgressPlugin` ValidationError (node_modules corruption, NOT content). Build reaches the webpack bundling stage, so MDX/content/link loading succeeded. Validate internal links/anchors statically with grep instead; CI does the real build.

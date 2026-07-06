@@ -95,3 +95,26 @@ export interface AutoItemizeCommitResponse {
   budgetLines: InvoiceBudgetLineDetailResponse[];
   remainingAmount: number;
 }
+
+/**
+ * EPIC-19 Story #1797: Merge multiple extracted line items into one.
+ * Stateless — the LLM only summarizes text (description + category); all numeric
+ * fields are aggregated client-side in code and never sent here.
+ */
+export interface MergeLinesRequest {
+  /** Descriptions of the 2+ selected source lines. No numeric values included. */
+  descriptions: string[];
+  /** Overall quote/document summary for context. */
+  documentSummary?: string | null;
+  /** Distinct category names already present in the extraction (or project categories as fallback), for the LLM to choose from. */
+  availableCategories: string[];
+}
+
+export interface MergeLinesResponse {
+  /** LLM-synthesized unified description for the merged line. */
+  description: string;
+  /** Raw category name chosen by the LLM, verbatim from availableCategories, or null. */
+  category: string | null;
+  /** Server-mapped budget category ID (via mapCategoryNameToId), or null if no match/none chosen. */
+  budgetCategoryId: string | null;
+}

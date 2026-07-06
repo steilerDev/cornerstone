@@ -69,6 +69,82 @@
   margin-top: 2px;
 }
 
+/* Merge states */
+
+.lineCardMerging {
+  position: relative;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.mergingOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  background: var(--color-overlay-light);
+  border-radius: var(--radius-lg);
+}
+
+.mergingCaption {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.lineCardMergeError {
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.mergeErrorMessage {
+  color: var(--color-danger-text-on-light);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.mergeErrorActions {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+@media (max-width: 767px) {
+  .mergeErrorActions > button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lineCardMerging {
+    animation: mergeSettle var(--transition-medium);
+  }
+}
+
+@keyframes mergeSettle {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* No transitions in this module currently */
 }
