@@ -948,7 +948,11 @@ test.describe('Scenario 7 — Parity smoke: merge on PaperlessInvoiceReviewPage'
     await mockLinkedIds(page);
     await mockDocumentDetail(page, PF_MOCK_DOC.id);
     await mockPreview(page);
-    await mockMergeLines(page, { description: MERGED_DESCRIPTION });
+    // delayMs keeps the merge response pending long enough for the transient
+    // loading row (mergingRow) to be deterministically observable below —
+    // without it the mocked route resolves synchronously and the assertion
+    // races the resolved/merged row (see Scenario 2's identical pattern).
+    await mockMergeLines(page, { description: MERGED_DESCRIPTION, delayMs: 150 });
 
     const reviewPage = await navigateToReviewPage(page);
 
