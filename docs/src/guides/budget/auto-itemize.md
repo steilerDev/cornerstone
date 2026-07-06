@@ -124,6 +124,21 @@ OCR is not perfect: descriptions sometimes have stray characters, quantities may
 
 A **totals card** at the bottom sums the included lines and compares them against the invoice amount, showing a green match, an amber warning (within 5%), or a red mismatch.
 
+### Merge related lines into one
+
+Invoices often break a single logical cost across several rows -- "Labour", "Labour surcharge", and "Travel", or a run of small material rows that all belong to the same budget line. Rather than keep them apart or delete all but one, you can **merge** them into a single consolidated line.
+
+Each unassigned line card has a **selection checkbox**. Tick two or more lines and a **selection action bar** appears with a running count and a **Merge** button (merging fewer than two lines is not allowed). Click **Merge** and Cornerstone:
+
+- **Sums the amounts itself.** Quantities, unit prices, and totals are aggregated **client-side** for exact arithmetic -- the numbers are never handed to the language model, so nothing is rounded or hallucinated. If every merged row shares the same unit, quantities are added and the unit is kept; otherwise the merged line drops the per-unit fields and keeps just the total. The merged line takes the **lowest** confidence of its parts.
+- **Asks the model only for words.** A short, stateless LLM call proposes a combined **description** and **category** for the new line from the descriptions of the rows you selected -- text only, no figures.
+
+While the merge runs, the selected rows collapse into a single placeholder card with a spinner and a "Merging N items…" caption. When it finishes, the placeholder is replaced by one new editable line you can correct like any other. If the summarization call fails, an inline **Merge failed** badge offers **Retry**, and a **Restore original lines** action puts the separate rows back exactly as they were -- a merge is never destructive until you save.
+
+Only **unassigned** lines can be selected for merging; a line already assigned to a work item or household item is locked out of selection. Merge the rows first, then assign the single consolidated line in the next step.
+
+This works identically on the [new-invoice review screen](vendors-and-invoices#creating-an-invoice-from-a-paperless-document) built from a Paperless document.
+
 ### 6. Assign each line and set its category and funding source
 
 Each line card carries inline **Category** and **Funding source** pickers, plus an **Assign** button:
@@ -175,6 +190,8 @@ Cornerstone sends the following to your LLM provider when you click Auto-itemize
 - **A few invoice metadata hints** to help the model produce useful output: vendor name, invoice total, and invoice date.
 
 The same OCR text plus Paperless metadata is sent on both paths that call the model -- itemizing an existing invoice from its linked document, and [creating a new invoice from a Paperless document](vendors-and-invoices#creating-an-invoice-from-a-paperless-document).
+
+When you **merge lines** (above), a separate, smaller call sends only the **descriptions** of the rows you selected plus the list of available category names, and asks the model for a single combined description and category. No amounts, quantities, or prices are ever sent on the merge call -- those are aggregated on your own server.
 
 Cornerstone does **not** send:
 
