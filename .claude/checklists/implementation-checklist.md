@@ -14,6 +14,12 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 - [ ] **Number formatting**: Use `formatNumber()` for display. Handle zero, negative, and large numbers explicitly.
 - [ ] **Empty states**: Every list/table view must use the shared `EmptyState` component when data is empty. Never show a blank page or raw "No data" text.
 - [ ] **Loading states**: Every async data fetch must show the shared `Skeleton` component during loading. Never show a blank container or raw "Loading..." text.
+- [ ] **Fraction-to-percent display**: Decimal-fraction constants (e.g. `CONFIDENCE_MARGINS` where `0.2` means 20%) must be multiplied by 100 before percentage display. This is a recurring finding flagged independently by the architect and product owner (e.g. PR #401).
+
+## Frontend — Forms & Validation
+
+- [ ] **Client/server validation parity**: Frontend input constraints (`maxLength`, `min`/`max`, required) must match the backend schema exactly. Recurring mismatches: `maxLength={100}` vs backend 200 (PR #151), frontend allowing `0` where the backend requires `exclusiveMinimum: 0` (PR #153).
+- [ ] **Field-level form errors**: Form pages must parse and surface field-level API validation errors next to the offending inputs, not just a generic "Failed to save" banner. This is a recurring pattern in form pages.
 
 ## Frontend — Design Tokens & Styling
 
@@ -24,6 +30,7 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 - [ ] **No hardcoded transition durations**: All `transition` duration values must use `var(--transition-*)` tokens (e.g., `--transition-fast`, `--transition-normal`). Never hardcode `0.2s`, `150ms`, etc.
 - [ ] **Semantic token usage**: Use tokens for their intended purpose. Hover backgrounds must use `var(--color-bg-hover)`, never `var(--color-border)` or other non-bg tokens as background values.
 - [ ] **Dark mode**: All color properties must use CSS custom properties that switch in `[data-theme="dark"]`. Verify no hardcoded `#hex` or `rgb()` values.
+- [ ] **No colors in inline style props**: Never put color values (`color-mix()`, `backgroundColor: 'var(--token)'`, etc.) in inline `style` props — inline styles bypass stylelint's token enforcement entirely (recurring: PR #792, PR #1681). Use a CSS-module class, or a `data-*` attribute with a CSS attribute selector for dynamic variants.
 
 ## Frontend — Shared Components
 
@@ -60,6 +67,7 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 - [ ] **Input validation**: All user inputs must be validated at the API boundary. Return 400 with descriptive error codes for validation failures.
 - [ ] **Parameterized queries**: All database queries must use parameterized values. Never interpolate user input into SQL strings.
 - [ ] **Wiki documentation**: When adding or changing API endpoints, fields, or query parameters, update `wiki/API-Contract.md` and `wiki/Schema.md` accordingly. This is a recurring architect review finding.
+- [ ] **Named error codes from acceptance criteria**: When an AC specifies a custom error code (e.g. `ACCOUNT_DEACTIVATED`, `MUTUALLY_EXCLUSIVE_BUDGET_LINK`), return that exact code via `AppError` with the code set explicitly. Do not use a `ValidationError` subclass that emits a generic `VALIDATION_ERROR` (recurring: PR #56, PR #414).
 
 ## Backend — Data Handling
 
@@ -76,11 +84,13 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 
 ## Testing
 
+- [ ] **Test authorship**: Developer agents MUST NOT author tests — the qa-integration-tester writes all unit/integration tests and the e2e-test-engineer writes all Playwright tests. Verify the `Co-Authored-By` trailer on every commit touching test files (recurring BLOCKING finding across 3+ PRs, e.g. PR #152).
 - [ ] **Co-located tests**: Test files (`*.test.ts` / `*.test.tsx`) live next to the source files they test, not in separate `__tests__/` directories.
 - [ ] **Test file parity**: Every new production file under `server/src/`, `client/src/`, or `shared/src/` must have a corresponding `.test.ts` or `.test.tsx` file. Type-only files (`**/types/**`), re-exports, and configuration files are exempt. The dev-team-lead enforces this during review.
 - [ ] **95% coverage target**: New and modified code must meet the 95% unit test coverage target. The QA agent must run each new test file with `--coverage` and verify 95%+ statement coverage before committing.
 - [ ] **No mocking of internal modules**: Integration tests should use real implementations where possible. Only mock external services and system boundaries.
 - [ ] **E2E route coverage**: Every application route must have at least smoke-level E2E test coverage. The E2E test engineer verifies route coverage as part of every E2E task.
+- [ ] **UAT scenarios tagged "Automated (E2E)"**: Every UAT scenario marked as automated must have a corresponding Playwright test before the story is approved — scenario-level coverage, not just route-level (recurring BLOCKING finding, e.g. PR #152, PR #157).
 - [ ] **E2E post-mutation assertions**: After actions that trigger a data mutation (clicking a button, selecting a picker item), use Playwright's retrying assertions (`toContainText()`, `toHaveText()`, `toBeVisible()`) rather than reading the DOM immediately with `textContent()` + sync `expect()`. `waitForResponse()` resolves at the network level before React re-renders the DOM — a sync DOM read immediately after it will see stale content.
 - [ ] **E2E text locators after label changes**: When a production PR renames a UI label, update all E2E test locators that match that text. Regex locators like `/hide linked/i` silently break when the label changes to "Hide already-linked documents" (no contiguous match). Prefer `data-testid` attributes for stability; when using text regex, keep the pattern broad enough to survive minor rewording (e.g. `/hide.*linked/i`).
 - [ ] **E2E canvas interaction coordinates**: When interacting with a Konva `<canvas>` (or any element centered inside a flex container), use `page.locator('canvas').first().boundingBox()` — NOT the parent container's bounding box — to calculate mouse coordinates. A flex-centered canvas occupies only a portion of its parent; coordinates derived from the parent land outside the canvas and Konva's `getPointerPosition()` returns null, silently preventing shape commits.

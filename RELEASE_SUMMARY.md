@@ -1,17 +1,19 @@
 # Release Summary
 
-## What's Changed
+## What's New
 
-This is a maintenance release that fixes two correctness and resilience issues. No new configuration or migration steps are required.
+This release sharpens two of the areas you spend the most time in: the budget overview and invoice auto-itemization. You can now see your budget through a "how much have we spent versus how much is left" lens, and consolidate messy multi-row invoices into clean budget lines before saving. No new configuration or migration steps are required.
 
-### Bug Fixes
+### Highlights
 
-- **Auto-itemize VAT sync** -- The "Price includes VAT" flag now stays in sync between the line card's checkbox and the inline budget-line draft, in both directions. Unchecking VAT after queuing a new work item budget line now saves with the correct `includesVat` flag, and the effective gross amount is shown and stored correctly. Previously the change could be silently dropped on save. (#1775)
-- **Recovery after updates** -- The app now detects stale JavaScript bundles after a new deployment and reloads gracefully on the next navigation, preventing the blank page that an open browser tab could otherwise show after a container update. (#1773)
+- **Cost Basis filter on the Budget Overview** -- The Cost Breakdown table gains a **Cost Basis** dropdown with three views: **All** (the full blended projection, as before), **Paid** (only money that has actually left your account), and **Outstanding** (everything still to pay -- unpaid invoice balances plus not-yet-invoiced projections). It is deposit-aware, so invoices paid in instalments split correctly between Paid and Outstanding, and your choice is saved in the URL for bookmarking and sharing.
+- **Merge line items when auto-itemizing** -- On both the auto-itemize review page and the "create invoice from a Paperless document" flow, you can now select two or more extracted rows and merge them into one consolidated line. Amounts are summed on your own server for exact arithmetic; only the descriptions are sent to the language model to propose a combined name and category. A failed merge can be retried or fully undone -- nothing is destructive until you save.
+- **Diary opens on your own entries** -- The construction diary now defaults to the **Manual** filter, so you land on the entries you actually wrote instead of a feed dominated by auto-generated system events. Switch to **All** or **Automatic** anytime; the choice is reflected in the URL.
 
-### Maintenance
+### Behind the Scenes
 
-- Development dependency security hardening -- no user-facing changes. (#1774)
+- Auto-itemization now shares a single, harmonized code path between the existing-invoice and new-invoice flows -- no change in behavior, but a more consistent and reliable review experience.
+- Dependency and toolchain updates for security and maintenance, with no user-facing changes.
 
 ## Upgrade
 
