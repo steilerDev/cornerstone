@@ -328,6 +328,16 @@ export class AutoItemizePage {
     this.pickerCreateBudgetLineFieldset = anyPickerModal.locator(
       '[class*="createBudgetLineFieldset"]',
     );
+
+    // ─── Story #1797: Merge multiple extracted line items ────────────────────
+    this.mergeButton = page.getByRole('button', { name: /^Merge \d+ selected line items$/i });
+    this.clearSelectionButton = page.getByRole('button', { name: /^Clear selection$/i });
+    this.mergingRow = page.locator('li[class*="lineCardMerging"]');
+    this.mergeErrorRow = page.locator('li[class*="lineCardMergeError"]');
+    this.mergeRetryButton = this.mergeErrorRow.getByRole('button', { name: /^Retry$/i });
+    this.mergeUndoButton = this.mergeErrorRow.getByRole('button', {
+      name: /^Restore original lines$/i,
+    });
   }
 
   /**
@@ -749,5 +759,135 @@ export class AutoItemizePage {
    */
   getInlineDraftDescriptionInput(index: number): Locator {
     return this.getInlineFormWrapper(index).getByRole('textbox', { name: /Description/i });
+  }
+
+  // ─── Story #1797: Merge multiple extracted line items ────────────────────────
+  //
+  // AutoItemizeLineCard renders a selection checkbox as the FIRST child of cardTopRow
+  // for every line:
+  //   - Selectable (unassigned, no queued inline draft): enabled checkbox bound to
+  //     onToggleSelect; sr-only label reads 'Select "{description}" for merge'.
+  //   - Ineligible (already assigned OR has a queued inline draft): checkbox is present
+  //     but `disabled`, aria-label/title = "Already assigned — cannot be selected for merge".
+  //
+  // When selectedRowIds.size > 0, AutoItemizeLineList renders a SelectionActionBar
+  // (shared component, sticky at the bottom of .formColumn) containing:
+  //   - count label: "N selected" (t('autoItemize.mergeSelectedCount'))
+  //   - Merge button: visible text is "Merge", but aria-label overrides the accessible
+  //     name to "Merge {{count}} selected line items" — match on that full pattern, not
+  //     the visible text alone. disabled when selectedRowIds.size < 2.
+  //
+  // KNOWN BUG (filed by e2e-test-engineer — see GitHub issue #1798, Story #1797):
+  // AutoItemizeLineList currently renders TWO "Clear selection" buttons — one built
+  // into SelectionActionBar itself, and a duplicate passed as `children`. Both invoke
+  // the same onClearSelection handler, so clicking either is functionally equivalent;
+  // clickClearSelection() below uses .first().
+  //
+  // Merging (loading) row: <li class*="lineCard lineCardMerging" aria-busy="true">
+  //   containing a Skeleton + Spinner + caption "Merging N items…".
+  // Merge-error row: <li class*="lineCard lineCardMergeError" role="alert">
+  //   containing a "Merge failed" Badge (no stable testid — text-only, see issue #1798),
+  //   an error message, and Retry / "Restore original lines" (Undo) buttons.
+  //
+  // ALSO NOTE (issue #1798): as of this writing, `performMerge()` has no `.catch()`, so
+  // a failed merge-lines call never actually reaches the error row — it leaves the row
+  // stuck in the loading state indefinitely. The merge-failure/Retry/Undo E2E scenarios
+  // encode the *intended* behavior per the acceptance criteria and are expected to fail
+  // until that bug is fixed.
+
+  /**
+   * "Merge" button inside the SelectionActionBar. Only present when ≥1 line is
+   * selected. Matched by its full aria-label — the visible text "Merge" alone is
+   * NOT the accessible name, since aria-label overrides it.
+   */
+  readonly mergeButton: Locator;
+
+  /**
+   * "Clear selection" button(s). NOTE: there are currently TWO matching buttons on
+   * the page due to a known duplication bug (issue #1798) — use .first() when
+   * clicking (see clickClearSelection()).
+   */
+  readonly clearSelectionButton: Locator;
+
+  /** The merging (loading) row: <li class*="lineCardMerging" aria-busy="true">. */
+  readonly mergingRow: Locator;
+
+  /** The merge-error row: <li class*="lineCardMergeError" role="alert">. */
+  readonly mergeErrorRow: Locator;
+
+  /** "Retry" button inside the merge-error row. */
+  readonly mergeRetryButton: Locator;
+
+  /** "Restore original lines" (Undo) button inside the merge-error row. */
+  readonly mergeUndoButton: Locator;
+
+  /**
+   * Returns the selection checkbox for the line card at the given 0-based index.
+   * Always the first (and only) <input type="checkbox"> in cardTopRow, whether
+   * selectable (enabled) or ineligible (disabled — already assigned).
+   */
+  lineSelectCheckbox(index: number): Locator {
+    return this.lineRow(index).locator('[class*="cardTopRow"] input[type="checkbox"]');
+  }
+
+  /**
+   * Returns the sticky SelectionActionBar container, derived from the Merge button's
+   * ancestor. Only present when ≥1 line is selected.
+   */
+  selectionActionBar(): Locator {
+    return this.mergeButton.locator('xpath=ancestor::div[contains(@class,"bar")][1]');
+  }
+
+  /**
+   * Checks the selection checkbox for the line card at the given 0-based index,
+   * adding it to the merge selection.
+   */
+  async selectLineForMerge(index: number): Promise<void> {
+    await this.lineSelectCheckbox(index).check();
+  }
+
+  /** Clicks the Merge button in the SelectionActionBar. */
+  async clickMergeButton(): Promise<void> {
+    await this.mergeButton.click();
+  }
+
+  /**
+   * Clicks "Clear selection". Uses .first() because AutoItemizeLineList currently
+   * renders two matching buttons (known duplication bug, issue #1798) that both
+   * invoke the same handler.
+   */
+  async clickClearSelection(): Promise<void> {
+    await this.clearSelectionButton.first().click();
+  }
+
+  /**
+   * Returns the current state of the Merge button:
+   *   'hidden'   — 0 lines selected (SelectionActionBar is not rendered at all)
+   *   'disabled' — exactly 1 line selected (merge requires ≥2)
+   *   'enabled'  — 2+ lines selected
+   */
+  async getMergeButtonState(): Promise<'hidden' | 'disabled' | 'enabled'> {
+    if ((await this.mergeButton.count()) === 0) return 'hidden';
+    if (!(await this.mergeButton.isVisible())) return 'hidden';
+    return (await this.mergeButton.isDisabled()) ? 'disabled' : 'enabled';
+  }
+
+  /**
+   * Waits for the merging (loading) row to resolve — i.e., for mergeStatus to leave
+   * 'pending'. Call after clickMergeButton() (or clickRetryMerge()) once the mocked
+   * merge-lines response is set up to resolve.
+   */
+  async waitForMergedRow(): Promise<void> {
+    await this.mergingRow.waitFor({ state: 'hidden' });
+  }
+
+  /** Clicks "Retry" on the merge-error row. */
+  async clickRetryMerge(): Promise<void> {
+    await this.mergeRetryButton.click();
+  }
+
+  /** Clicks "Restore original lines" (Undo) on the merge-error row. */
+  async clickUndoMerge(): Promise<void> {
+    await this.mergeUndoButton.click();
   }
 }

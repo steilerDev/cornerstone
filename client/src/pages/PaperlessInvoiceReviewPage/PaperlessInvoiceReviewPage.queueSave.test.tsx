@@ -58,10 +58,13 @@ const mockPreviewAutoItemize = jest.fn<typeof InvoiceAutoItemizeApiModule.previe
 const mockCommitAutoItemizeCreate =
   jest.fn<typeof InvoiceAutoItemizeApiModule.commitAutoItemizeCreate>();
 
+const mockMergeLines = jest.fn<typeof InvoiceAutoItemizeApiModule.mergeLines>();
+
 jest.unstable_mockModule('../../lib/invoiceAutoItemizeApi.js', () => ({
   autoItemize: jest.fn(),
   previewAutoItemize: mockPreviewAutoItemize,
   commitAutoItemizeCreate: mockCommitAutoItemizeCreate,
+  mergeLines: mockMergeLines,
 }));
 
 // ─── Mock: vendorsApi ──────────────────────────────────────────────────────────

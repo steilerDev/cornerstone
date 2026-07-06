@@ -26,7 +26,7 @@
  *   with the AutoItemizePage.test.tsx pattern.
  */
 
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
@@ -60,11 +60,13 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 const mockPreviewAutoItemize = jest.fn<typeof InvoiceAutoItemizeApiModule.previewAutoItemize>();
 const mockCommitAutoItemizeCreate =
   jest.fn<typeof InvoiceAutoItemizeApiModule.commitAutoItemizeCreate>();
+const mockMergeLines = jest.fn<typeof InvoiceAutoItemizeApiModule.mergeLines>();
 
 jest.unstable_mockModule('../../lib/invoiceAutoItemizeApi.js', () => ({
   autoItemize: jest.fn(),
   previewAutoItemize: mockPreviewAutoItemize,
   commitAutoItemizeCreate: mockCommitAutoItemizeCreate,
+  mergeLines: mockMergeLines,
 }));
 
 // ─── Mock: vendorsApi ──────────────────────────────────────────────────────────
@@ -301,6 +303,7 @@ beforeEach(async () => {
   mockGetDocumentPreviewUrl.mockImplementation((id) => `/paperless/documents/${id}/preview`);
   mockPreviewAutoItemize.mockReset();
   mockCommitAutoItemizeCreate.mockReset();
+  mockMergeLines.mockReset();
   mockFetchVendors.mockReset();
   // Provide a safe default so the vendor-fetch effect (which runs regardless of documentId)
   // never receives undefined from the mock. Individual tests override this as needed.
@@ -1796,6 +1799,118 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(createBtn).not.toBeDisabled();
       }
       // If button not found, the page may be in local non-intercepted env; skip assertion
+    });
+  });
+
+  // ─── Story #1797: merge line items — announceMessage live region ────────────
+
+  describe('merge line items — live-region announcements', () => {
+    it('renders a live region (role="status") that updates on merge start and success', async () => {
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockFetchVendors.mockResolvedValue(
+        makeVendorsResponse([{ id: 'vendor-1', name: 'Builder Corp' }]),
+      );
+      mockPreviewAutoItemize.mockResolvedValue(
+        makePreviewResponse({
+          suggestedVendorId: 'vendor-1',
+          lines: [
+            {
+              description: 'Tile work',
+              totalAmount: 300,
+              confidence: 0.9,
+              budgetCategoryId: 'bc-test',
+              budgetSourceId: null,
+            },
+            {
+              description: 'Grout',
+              totalAmount: 100,
+              confidence: 0.85,
+              budgetCategoryId: 'bc-test',
+              budgetSourceId: null,
+            },
+          ],
+        }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
+      });
+
+      // A role="status" live region always exists on the page (even before any merge)
+      const region = document.querySelector('[role="status"]');
+      expect(region).not.toBeNull();
+
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+
+      const cardTile = screen.getByDisplayValue('Tile work').closest('li')!;
+      const cardGrout = screen.getByDisplayValue('Grout').closest('li')!;
+      fireEvent.click(within(cardTile).getAllByRole('checkbox')[0]!);
+      fireEvent.click(within(cardGrout).getAllByRole('checkbox')[0]!);
+
+      const mergeBtn = await screen.findByRole('button', { name: /Merge/i });
+      await act(async () => {
+        fireEvent.click(mergeBtn);
+      });
+
+      await waitFor(() => {
+        expect(document.querySelector('[role="status"]')?.textContent).toMatch(
+          /Merging 2 line items/i,
+        );
+      });
+    });
+
+    it('passes extractedNotes (metadataEdits.notes) as documentSummary to mergeLines', async () => {
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockFetchVendors.mockResolvedValue(
+        makeVendorsResponse([{ id: 'vendor-1', name: 'Builder Corp' }]),
+      );
+      mockPreviewAutoItemize.mockResolvedValue(
+        makePreviewResponse({
+          suggestedVendorId: 'vendor-1',
+          extractedNotes: 'Bathroom renovation quote',
+          lines: [
+            {
+              description: 'Tile work',
+              totalAmount: 300,
+              confidence: 0.9,
+              budgetCategoryId: 'bc-test',
+              budgetSourceId: null,
+            },
+            {
+              description: 'Grout',
+              totalAmount: 100,
+              confidence: 0.85,
+              budgetCategoryId: 'bc-test',
+              budgetSourceId: null,
+            },
+          ],
+        }),
+      );
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Tile work')).toBeInTheDocument();
+      });
+
+      const cardTile = screen.getByDisplayValue('Tile work').closest('li')!;
+      const cardGrout = screen.getByDisplayValue('Grout').closest('li')!;
+      fireEvent.click(within(cardTile).getAllByRole('checkbox')[0]!);
+      fireEvent.click(within(cardGrout).getAllByRole('checkbox')[0]!);
+
+      const mergeBtn = await screen.findByRole('button', { name: /Merge/i });
+      await act(async () => {
+        fireEvent.click(mergeBtn);
+      });
+
+      await waitFor(() => {
+        expect(mockMergeLines).toHaveBeenCalledTimes(1);
+      });
+      const callArg = mockMergeLines.mock.calls[0]![0] as { documentSummary?: string | null };
+      expect(callArg.documentSummary).toBe('Bathroom renovation quote');
     });
   });
 });

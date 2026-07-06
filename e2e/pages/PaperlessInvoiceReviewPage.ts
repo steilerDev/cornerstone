@@ -266,6 +266,16 @@ export class PaperlessInvoiceReviewPage {
     this.pickerCreateBudgetLineButton = anyPickerModal.getByRole('button', {
       name: /Create Budget Line/i,
     });
+
+    // ─── Story #1797: Merge multiple extracted line items ────────────────────
+    this.mergeButton = page.getByRole('button', { name: /^Merge \d+ selected line items$/i });
+    this.clearSelectionButton = page.getByRole('button', { name: /^Clear selection$/i });
+    this.mergingRow = page.locator('li[class*="lineCardMerging"]');
+    this.mergeErrorRow = page.locator('li[class*="lineCardMergeError"]');
+    this.mergeRetryButton = this.mergeErrorRow.getByRole('button', { name: /^Retry$/i });
+    this.mergeUndoButton = this.mergeErrorRow.getByRole('button', {
+      name: /^Restore original lines$/i,
+    });
   }
 
   /**
@@ -436,6 +446,24 @@ export class PaperlessInvoiceReviewPage {
   }
 
   /**
+   * Returns the description textarea of the line at the given 0-based index.
+   * Alias mirroring AutoItemizePage.lineDescription() — both pages render the
+   * same shared AutoItemizeLineCard component.
+   */
+  lineDescription(index: number): Locator {
+    return this.lineRow(index).locator('[class*="cardDescriptionInput"], textarea').first();
+  }
+
+  /**
+   * Returns the totalAmount metric input of the line at the given 0-based index.
+   * cardMetricGrid order: qty=0, unit=1, unitPrice=2, totalAmount=3.
+   * Alias mirroring AutoItemizePage.lineTotal().
+   */
+  lineTotal(index: number): Locator {
+    return this.lineRow(index).locator('[class*="cardMetricInput"]').nth(3);
+  }
+
+  /**
    * Open the assign picker for the extraction line at the given index, navigate
    * through step 1 (select work item) and step 2, then click "Create Budget Line".
    * On return: picker is closed and the line card shows the inline form.
@@ -471,5 +499,108 @@ export class PaperlessInvoiceReviewPage {
     // gone once we moved to step 2 — it would pass immediately without
     // confirming the picker actually closed.
     await expect(this.pickerStep2Modal()).not.toBeVisible();
+  }
+
+  // ─── Story #1797: Merge multiple extracted line items ────────────────────────
+  //
+  // Identical DOM/behavior to AutoItemizePage — both pages render extraction lines
+  // via the shared AutoItemizeLineList/AutoItemizeLineCard/useAutoItemizeLines. See
+  // AutoItemizePage.ts for the full DOM notes (selection checkbox, SelectionActionBar,
+  // merging/merge-error rows) and the known-bug references (GitHub issue #1798).
+
+  /**
+   * "Merge" button inside the SelectionActionBar. Only present when ≥1 line is
+   * selected. Matched by its full aria-label — the visible text "Merge" alone is
+   * NOT the accessible name, since aria-label overrides it.
+   */
+  readonly mergeButton: Locator;
+
+  /**
+   * "Clear selection" button(s). NOTE: there are currently TWO matching buttons on
+   * the page due to a known duplication bug (issue #1798) — use .first() when
+   * clicking (see clickClearSelection()).
+   */
+  readonly clearSelectionButton: Locator;
+
+  /** The merging (loading) row: <li class*="lineCardMerging" aria-busy="true">. */
+  readonly mergingRow: Locator;
+
+  /** The merge-error row: <li class*="lineCardMergeError" role="alert">. */
+  readonly mergeErrorRow: Locator;
+
+  /** "Retry" button inside the merge-error row. */
+  readonly mergeRetryButton: Locator;
+
+  /** "Restore original lines" (Undo) button inside the merge-error row. */
+  readonly mergeUndoButton: Locator;
+
+  /**
+   * Returns the selection checkbox for the line card at the given 0-based index.
+   * Always the first (and only) <input type="checkbox"> in cardTopRow, whether
+   * selectable (enabled) or ineligible (disabled — already assigned).
+   */
+  lineSelectCheckbox(index: number): Locator {
+    return this.lineRow(index).locator('[class*="cardTopRow"] input[type="checkbox"]');
+  }
+
+  /**
+   * Returns the sticky SelectionActionBar container, derived from the Merge button's
+   * ancestor. Only present when ≥1 line is selected.
+   */
+  selectionActionBar(): Locator {
+    return this.mergeButton.locator('xpath=ancestor::div[contains(@class,"bar")][1]');
+  }
+
+  /**
+   * Checks the selection checkbox for the line card at the given 0-based index,
+   * adding it to the merge selection.
+   */
+  async selectLineForMerge(index: number): Promise<void> {
+    await this.lineSelectCheckbox(index).check();
+  }
+
+  /** Clicks the Merge button in the SelectionActionBar. */
+  async clickMergeButton(): Promise<void> {
+    await this.mergeButton.click();
+  }
+
+  /**
+   * Clicks "Clear selection". Uses .first() because AutoItemizeLineList currently
+   * renders two matching buttons (known duplication bug, issue #1798) that both
+   * invoke the same handler.
+   */
+  async clickClearSelection(): Promise<void> {
+    await this.clearSelectionButton.first().click();
+  }
+
+  /**
+   * Returns the current state of the Merge button:
+   *   'hidden'   — 0 lines selected (SelectionActionBar is not rendered at all)
+   *   'disabled' — exactly 1 line selected (merge requires ≥2)
+   *   'enabled'  — 2+ lines selected
+   */
+  async getMergeButtonState(): Promise<'hidden' | 'disabled' | 'enabled'> {
+    if ((await this.mergeButton.count()) === 0) return 'hidden';
+    if (!(await this.mergeButton.isVisible())) return 'hidden';
+    return (await this.mergeButton.isDisabled()) ? 'disabled' : 'enabled';
+  }
+
+  /**
+   * Waits for the merging (loading) row to resolve — i.e., for mergeStatus to leave
+   * 'pending'. Call after clickMergeButton() (or clickRetryMerge()) once the mocked
+   * merge-lines response is set up to resolve.
+   */
+  async waitForMergedRow(): Promise<void> {
+    await this.mergingRow.waitFor({ state: 'hidden' });
+  }
+
+  /** Clicks "Retry" on the merge-error row. */
+  async clickRetryMerge(): Promise<void> {
+    await this.mergeRetryButton.click();
+  }
+
+  /** Clicks "Restore original lines" (Undo) on the merge-error row. */
+  async clickUndoMerge(): Promise<void> {
+    await this.mergeUndoButton.click();
   }
 }

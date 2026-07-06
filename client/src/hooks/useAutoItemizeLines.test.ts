@@ -8,7 +8,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 
 // ─── Mocks (before static imports) ──────────────────────────────────────────
 
@@ -59,6 +59,19 @@ jest.unstable_mockModule('../contexts/LocaleContext.js', () => ({
   useLocale: () => ({ locale: 'en', setLocale: jest.fn() }),
 }));
 
+// ─── Mock: invoiceAutoItemizeApi (mergeLines) — Story #1797 ───────────────────
+
+const mockMergeLines =
+  jest.fn<
+    (
+      body: unknown,
+    ) => Promise<{ description: string; category: string | null; budgetCategoryId: string | null }>
+  >();
+
+jest.unstable_mockModule('../lib/invoiceAutoItemizeApi.js', () => ({
+  mergeLines: mockMergeLines,
+}));
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -101,6 +114,7 @@ describe('useAutoItemizeLines', () => {
     jest.clearAllMocks();
     mockPickerStateOverride = {};
     capturedOnLineCreated = null;
+    mockMergeLines.mockReset();
     ({ useAutoItemizeLines } = await import('./useAutoItemizeLines.js'));
   });
 
@@ -406,6 +420,446 @@ describe('useAutoItemizeLines', () => {
       assignedBudgetLineId: 'created-id',
       assignedBudgetLineType: 'work_item',
       inlineCreatedBudgetLineDraft: undefined,
+    });
+  });
+
+  // ─── Story #1797: merge selection + merge lifecycle ─────────────────────────
+
+  describe('selection handlers', () => {
+    it('onToggleSelect adds a rowId to selectedRowIds', () => {
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
+      });
+
+      act(() => {
+        result.current.onToggleSelect('r1');
+      });
+
+      expect(result.current.selectedRowIds.has('r1')).toBe(true);
+    });
+
+    it('onToggleSelect removes a rowId already in selectedRowIds (toggle off)', () => {
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ rowId: 'r1' })]);
+      });
+
+      act(() => {
+        result.current.onToggleSelect('r1');
+      });
+      expect(result.current.selectedRowIds.has('r1')).toBe(true);
+
+      act(() => {
+        result.current.onToggleSelect('r1');
+      });
+      expect(result.current.selectedRowIds.has('r1')).toBe(false);
+    });
+
+    it('onToggleSelect does not select a row that already has an assignedBudgetLineId', () => {
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ rowId: 'r1', assignedBudgetLineId: 'wib-1' })]);
+      });
+
+      act(() => {
+        result.current.onToggleSelect('r1');
+      });
+
+      expect(result.current.selectedRowIds.has('r1')).toBe(false);
+    });
+
+    it('onToggleSelect does not select a row with an inlineCreatedBudgetLineDraft', () => {
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', inlineCreatedBudgetLineDraft: { description: 'draft' } }),
+        ]);
+      });
+
+      act(() => {
+        result.current.onToggleSelect('r1');
+      });
+
+      expect(result.current.selectedRowIds.has('r1')).toBe(false);
+    });
+
+    it('onClearSelection empties selectedRowIds', () => {
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+      expect(result.current.selectedRowIds.size).toBe(2);
+
+      act(() => {
+        result.current.onClearSelection();
+      });
+
+      expect(result.current.selectedRowIds.size).toBe(0);
+    });
+  });
+
+  describe('onMergeSelected', () => {
+    it('does nothing when fewer than 2 rows are selected', () => {
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
+        result.current.onToggleSelect('r1');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      expect(mockMergeLines).not.toHaveBeenCalled();
+      expect(result.current.lines).toHaveLength(2);
+    });
+
+    it('splices the merged placeholder row at the index of the first selected line', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {})); // never resolves — inspect sync state only
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', description: 'A' }),
+          makeLine({ rowId: 'r2', description: 'B' }),
+          makeLine({ rowId: 'r3', description: 'C' }),
+        ]);
+      });
+      act(() => {
+        // Select the 2nd and 3rd rows (index 1 and 2) — merged row should land at index 1
+        result.current.onToggleSelect('r2');
+        result.current.onToggleSelect('r3');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      // r1 stays at index 0; the merged placeholder replaces r2/r3 starting at index 1
+      expect(result.current.lines).toHaveLength(2);
+      expect(result.current.lines[0]?.rowId).toBe('r1');
+      expect(result.current.lines[1]?.mergeStatus).toBe('pending');
+    });
+
+    it('sets mergeStatus="pending" on the new row synchronously (before the API call resolves)', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      expect(result.current.lines[0]?.mergeStatus).toBe('pending');
+    });
+
+    it('clears the selection synchronously when merge starts', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      expect(result.current.selectedRowIds.size).toBe(0);
+    });
+
+    it('records the original selected lines as mergeSourceLines on the new row', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', description: 'Tile work' }),
+          makeLine({ rowId: 'r2', description: 'Grout' }),
+        ]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      const mergedLine = result.current.lines[0];
+      expect(mergedLine?.mergeSourceLines).toHaveLength(2);
+      expect(mergedLine?.mergeSourceLines?.map((l: { rowId: string }) => l.rowId)).toEqual([
+        'r1',
+        'r2',
+      ]);
+    });
+
+    it('calls mergeLines with descriptions and NO numeric fields (totalAmount/quantity/unitPrice/includesVat)', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', description: 'Tile work', totalAmount: 300 }),
+          makeLine({ rowId: 'r2', description: 'Grout', totalAmount: 100 }),
+        ]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      expect(mockMergeLines).toHaveBeenCalledTimes(1);
+      const callArg = mockMergeLines.mock.calls[0]![0] as Record<string, unknown>;
+      expect(callArg.descriptions).toEqual(['Tile work', 'Grout']);
+      expect(callArg).not.toHaveProperty('totalAmount');
+      expect(callArg).not.toHaveProperty('quantity');
+      expect(callArg).not.toHaveProperty('unitPrice');
+      expect(callArg).not.toHaveProperty('includesVat');
+    });
+
+    it('passes documentSummary through to mergeLines', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() =>
+        useAutoItemizeLines(makeOptions({ documentSummary: 'Bathroom renovation' })),
+      );
+      act(() => {
+        result.current.setLines([makeLine({ rowId: 'r1' }), makeLine({ rowId: 'r2' })]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      const callArg = mockMergeLines.mock.calls[0]![0] as Record<string, unknown>;
+      expect(callArg.documentSummary).toBe('Bathroom renovation');
+    });
+
+    it('calls onMergeStart with the number of selected lines', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const onMergeStart = jest.fn();
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onMergeStart })));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1' }),
+          makeLine({ rowId: 'r2' }),
+          makeLine({ rowId: 'r3' }),
+        ]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+        result.current.onToggleSelect('r3');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      expect(onMergeStart).toHaveBeenCalledWith(3);
+    });
+
+    it('on success: populates the row description and calls onMergeSuccess', async () => {
+      mockMergeLines.mockResolvedValue({
+        description: 'Tile work and grout',
+        category: 'Cat 1',
+        budgetCategoryId: 'cat-1',
+      });
+      const onMergeSuccess = jest.fn();
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onMergeSuccess })));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', description: 'Tile work' }),
+          makeLine({ rowId: 'r2', description: 'Grout' }),
+        ]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      await act(async () => {
+        result.current.onMergeSelected();
+      });
+
+      await waitFor(() => {
+        expect(result.current.lines[0]?.description).toBe('Tile work and grout');
+      });
+      expect(result.current.lines[0]?.mergeStatus).toBeUndefined();
+      expect(result.current.lines[0]?.mergeSourceLines).toBeUndefined();
+      expect(onMergeSuccess).toHaveBeenCalledTimes(1);
+    });
+
+    it('on failure: sets mergeStatus="error" and retains mergeSourceLines for retry/undo', async () => {
+      mockMergeLines.mockRejectedValue(new Error('LLM unreachable'));
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', description: 'Tile work' }),
+          makeLine({ rowId: 'r2', description: 'Grout' }),
+        ]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      await act(async () => {
+        result.current.onMergeSelected();
+        // allow the rejected promise microtask to settle
+        await Promise.resolve().then(() => Promise.resolve());
+      });
+
+      await waitFor(() => {
+        expect(result.current.lines[0]?.mergeStatus).toBe('error');
+      });
+      expect(result.current.lines[0]?.mergeSourceLines).toHaveLength(2);
+    });
+  });
+
+  describe('onRetryMerge', () => {
+    it('re-invokes mergeLines using the same mergeSourceLines snapshot', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({
+            rowId: 'merged-1',
+            mergeStatus: 'error',
+            mergeSourceLines: [
+              makeLine({ rowId: 'src-1', description: 'Tile work' }),
+              makeLine({ rowId: 'src-2', description: 'Grout' }),
+            ],
+          }),
+        ]);
+      });
+
+      act(() => {
+        result.current.onRetryMerge('merged-1');
+      });
+
+      expect(mockMergeLines).toHaveBeenCalledTimes(1);
+      const callArg = mockMergeLines.mock.calls[0]![0] as { descriptions: string[] };
+      expect(callArg.descriptions).toEqual(['Tile work', 'Grout']);
+    });
+
+    it('resets mergeStatus back to "pending" before re-calling mergeLines', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({
+            rowId: 'merged-1',
+            mergeStatus: 'error',
+            mergeSourceLines: [makeLine({ rowId: 'src-1' }), makeLine({ rowId: 'src-2' })],
+          }),
+        ]);
+      });
+
+      act(() => {
+        result.current.onRetryMerge('merged-1');
+      });
+
+      expect(result.current.lines[0]?.mergeStatus).toBe('pending');
+    });
+
+    it('does nothing when the row has no mergeSourceLines', () => {
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ rowId: 'r1' })]);
+      });
+
+      act(() => {
+        result.current.onRetryMerge('r1');
+      });
+
+      expect(mockMergeLines).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onUndoMerge', () => {
+    it('restores the original N source rows at the original index', () => {
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r0', description: 'Before' }),
+          makeLine({
+            rowId: 'merged-1',
+            mergeStatus: 'error',
+            mergeSourceLines: [
+              makeLine({ rowId: 'src-1', description: 'Tile work' }),
+              makeLine({ rowId: 'src-2', description: 'Grout' }),
+              makeLine({ rowId: 'src-3', description: 'Adhesive' }),
+            ],
+          }),
+          makeLine({ rowId: 'r-after', description: 'After' }),
+        ]);
+      });
+
+      act(() => {
+        result.current.onUndoMerge('merged-1');
+      });
+
+      expect(result.current.lines).toHaveLength(5);
+      expect(result.current.lines.map((l: { rowId: string }) => l.rowId)).toEqual([
+        'r0',
+        'src-1',
+        'src-2',
+        'src-3',
+        'r-after',
+      ]);
+    });
+
+    it('does nothing when the row has no mergeSourceLines', () => {
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ rowId: 'r1' })]);
+      });
+
+      act(() => {
+        result.current.onUndoMerge('r1');
+      });
+
+      expect(result.current.lines).toHaveLength(1);
+      expect(result.current.lines[0]?.rowId).toBe('r1');
+    });
+
+    it('calls onFieldsEdited after undo', () => {
+      const onFieldsEdited = jest.fn();
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onFieldsEdited })));
+      act(() => {
+        result.current.setLines([
+          makeLine({
+            rowId: 'merged-1',
+            mergeStatus: 'error',
+            mergeSourceLines: [makeLine({ rowId: 'src-1' }), makeLine({ rowId: 'src-2' })],
+          }),
+        ]);
+      });
+
+      act(() => {
+        result.current.onUndoMerge('merged-1');
+      });
+
+      expect(onFieldsEdited).toHaveBeenCalled();
     });
   });
 });

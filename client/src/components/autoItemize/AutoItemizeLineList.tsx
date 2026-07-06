@@ -3,8 +3,13 @@ import type { TFunction } from 'i18next';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
 import type { BudgetSource, Vendor, BudgetCategory } from '@cornerstone/shared';
 import { AutoItemizeLineCard } from './AutoItemizeLineCard.js';
+import { MergingLineCard } from './MergingLineCard.js';
+import { Badge } from '../Badge/Badge.js';
+import badgeStyles from '../Badge/Badge.module.css';
+import { SelectionActionBar } from '../SelectionActionBar/SelectionActionBar.js';
 import type { LineWithInclude } from './types.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizeLineList.module.css';
 
 interface AutoItemizeLineListProps {
@@ -29,6 +34,13 @@ interface AutoItemizeLineListProps {
   confidenceLabels?: Record<string, string>;
   vendors?: Vendor[];
   budgetCategories?: BudgetCategory[];
+  // Merge selection props
+  selectedRowIds?: Set<string>;
+  onToggleSelect?: (rowId: string) => void;
+  onClearSelection?: () => void;
+  onMergeSelected?: () => void;
+  onRetryMerge?: (rowId: string) => void;
+  onUndoMerge?: (rowId: string) => void;
 }
 
 export function AutoItemizeLineList({
@@ -52,6 +64,12 @@ export function AutoItemizeLineList({
   confidenceLabels,
   vendors,
   budgetCategories,
+  selectedRowIds = new Set(),
+  onToggleSelect,
+  onClearSelection,
+  onMergeSelected,
+  onRetryMerge,
+  onUndoMerge,
 }: AutoItemizeLineListProps) {
   const hasDiscretionaryLines = useMemo(
     () =>
@@ -112,32 +130,112 @@ export function AutoItemizeLineList({
       {lines.length === 0 ? (
         <p className={styles.emptyMessage}>{t('autoItemize.noLineItems')}</p>
       ) : (
-        <ul
-          role="list"
-          className={styles.lineList}
-          aria-label={t('autoItemize.lineItemsListLabel')}
-        >
-          {lines.map((line) => (
-            <AutoItemizeLineCard
-              key={line.rowId}
-              line={line}
-              onToggleInclude={onToggleInclude}
-              onFieldChange={onFieldChange}
-              onAssign={onAssign}
-              onClearAssign={onClearAssign}
-              categories={categories}
-              budgetSources={budgetSources}
-              createdFromExtractionVariants={createdFromExtractionVariants}
-              t={t}
-              tSettings={tSettings}
-              onQueueNewBudgetLine={onQueueNewBudgetLine}
-              onInlineDraftChange={onInlineDraftChange}
-              confidenceLabels={confidenceLabels}
-              vendors={vendors}
-              budgetCategories={budgetCategories}
-            />
-          ))}
-        </ul>
+        <>
+          <ul
+            role="list"
+            className={styles.lineList}
+            aria-label={t('autoItemize.lineItemsListLabel')}
+          >
+            {lines.map((line) => {
+              if (line.mergeStatus === 'pending') {
+                return (
+                  <MergingLineCard
+                    key={line.rowId}
+                    caption={t('autoItemize.mergingCaption', {
+                      count: line.mergeSourceLines?.length ?? 0,
+                    })}
+                  />
+                );
+              }
+
+              if (line.mergeStatus === 'error') {
+                const mergeErrorVariants: BadgeVariantMap = {
+                  error: {
+                    label: t('autoItemize.mergeErrorBadge'),
+                    className: badgeStyles.error,
+                  },
+                };
+
+                return (
+                  <li
+                    key={line.rowId}
+                    className={`${styles.lineCard} ${styles.lineCardMergeError}`}
+                    role="alert"
+                  >
+                    <Badge variants={mergeErrorVariants} value="error" testId="merge-error-badge" />
+                    <p className={styles.mergeErrorMessage}>{t('autoItemize.mergeErrorMessage')}</p>
+                    <div className={styles.mergeErrorActions}>
+                      <button
+                        type="button"
+                        className={sharedStyles.btnSecondaryCompact}
+                        onClick={() => onUndoMerge?.(line.rowId)}
+                      >
+                        {t('autoItemize.mergeUndoButton')}
+                      </button>
+                      <button
+                        type="button"
+                        id={`merge-retry-${line.rowId}`}
+                        className={sharedStyles.btnPrimaryCompact}
+                        onClick={() => onRetryMerge?.(line.rowId)}
+                      >
+                        {t('autoItemize.mergeRetryButton')}
+                      </button>
+                    </div>
+                  </li>
+                );
+              }
+
+              // Normal line card
+              const selectable = !line.assignedBudgetLineId && !line.inlineCreatedBudgetLineDraft;
+              return (
+                <AutoItemizeLineCard
+                  key={line.rowId}
+                  line={line}
+                  selected={selectedRowIds.has(line.rowId)}
+                  selectable={selectable}
+                  onToggleSelect={selectable ? onToggleSelect : undefined}
+                  onToggleInclude={onToggleInclude}
+                  onFieldChange={onFieldChange}
+                  onAssign={onAssign}
+                  onClearAssign={onClearAssign}
+                  categories={categories}
+                  budgetSources={budgetSources}
+                  createdFromExtractionVariants={createdFromExtractionVariants}
+                  t={t}
+                  tSettings={tSettings}
+                  onQueueNewBudgetLine={onQueueNewBudgetLine}
+                  onInlineDraftChange={onInlineDraftChange}
+                  confidenceLabels={confidenceLabels}
+                  vendors={vendors}
+                  budgetCategories={budgetCategories}
+                />
+              );
+            })}
+          </ul>
+
+          {/* Selection action bar */}
+          {selectedRowIds.size > 0 && (
+            <SelectionActionBar
+              countLabel={t('autoItemize.mergeSelectedCount', { count: selectedRowIds.size })}
+              onClear={onClearSelection ?? (() => {})}
+              clearLabel={t('autoItemize.clearSelection')}
+            >
+              <button
+                type="button"
+                className={sharedStyles.btnPrimaryCompact}
+                disabled={selectedRowIds.size < 2}
+                aria-disabled={selectedRowIds.size < 2}
+                aria-label={t('autoItemize.mergeButtonAriaLabel', { count: selectedRowIds.size })}
+                onClick={onMergeSelected ?? (() => {})}
+              >
+                {t('autoItemize.mergeButton')}
+              </button>
+              {selectedRowIds.size === 1 && (
+                <span className={sharedStyles.srOnly}>{t('autoItemize.mergeDisabledHint')}</span>
+              )}
+            </SelectionActionBar>
+          )}
+        </>
       )}
 
       {/* Totals card */}

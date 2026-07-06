@@ -144,4 +144,33 @@ describe('Badge', () => {
     const span = container.querySelector('span');
     expect(span).not.toHaveAttribute('title');
   });
+
+  // ─── Story #1797: Badge.module.css "error" variant (regression guard) ────────
+
+  describe('error variant', () => {
+    const ERROR_VARIANTS = {
+      error: { label: 'Merge failed', className: badgeStyles.error! },
+    };
+
+    it('renders the label for the error variant', () => {
+      const { container } = render(<Badge variants={ERROR_VARIANTS} value="error" />);
+      const span = container.querySelector('span');
+      expect(span?.textContent).toBe('Merge failed');
+    });
+
+    it('applies the error CSS class from Badge.module.css', () => {
+      const { container } = render(<Badge variants={ERROR_VARIANTS} value="error" />);
+      const span = container.querySelector('span');
+      // identity-obj-proxy: badgeStyles.error === 'error'
+      expect(span?.getAttribute('class') ?? '').toContain('error');
+    });
+
+    it('still applies the base badge class alongside the error variant class', () => {
+      const { container } = render(<Badge variants={ERROR_VARIANTS} value="error" />);
+      const span = container.querySelector('span');
+      const cls = span?.getAttribute('class') ?? '';
+      expect(cls).toContain('badge');
+      expect(cls).toContain('error');
+    });
+  });
 });

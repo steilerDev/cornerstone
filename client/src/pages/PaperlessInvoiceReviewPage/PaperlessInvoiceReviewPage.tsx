@@ -91,10 +91,26 @@ export function PaperlessInvoiceReviewPage() {
   const [vendorError, setVendorError] = useState<string | null>(null);
   const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
 
-  const { lines, setLines, picker, handlers } = useAutoItemizeLines({
+  const [announceMessage, setAnnounceMessage] = useState('');
+
+  const {
+    lines,
+    setLines,
+    picker,
+    handlers,
+    selectedRowIds,
+    onToggleSelect,
+    onClearSelection,
+    onMergeSelected,
+    onRetryMerge,
+    onUndoMerge,
+  } = useAutoItemizeLines({
     invoiceId: '',
     invoiceAmount: parseFloat(metadataEdits.amount) || 0,
     document,
+    documentSummary: metadataEdits.notes,
+    onMergeStart: (count) => setAnnounceMessage(t('autoItemize.mergeAnnounceStart', { count })),
+    onMergeSuccess: () => setAnnounceMessage(t('autoItemize.mergeAnnounceSuccess')),
   });
 
   // Load vendors for the SearchPicker on mount.
@@ -373,6 +389,9 @@ export function PaperlessInvoiceReviewPage() {
             <a href="#itemize-form" className={styles.skipLink}>
               {t('autoItemize.skipToForm')}
             </a>
+            <div role="status" aria-atomic="true" className={sharedStyles.srOnly}>
+              {announceMessage}
+            </div>
 
             {pageError && <FormError variant="banner" message={pageError} />}
 
@@ -534,6 +553,12 @@ export function PaperlessInvoiceReviewPage() {
               budgetCategories={picker.pickerState.categories ?? []}
               t={t}
               tSettings={tSettings}
+              selectedRowIds={selectedRowIds}
+              onToggleSelect={onToggleSelect}
+              onClearSelection={onClearSelection}
+              onMergeSelected={onMergeSelected}
+              onRetryMerge={onRetryMerge}
+              onUndoMerge={onUndoMerge}
             />
 
             {/* Actions */}

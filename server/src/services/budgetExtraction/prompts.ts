@@ -99,3 +99,33 @@ IMPORTANT: Resolve relative payment terms into a concrete dueDate (ISO) using th
 
   return prompt;
 }
+
+export const MERGE_SYSTEM_PROMPT = `You are an expert at summarizing German construction-invoice line items into a single consolidated line for budgeting purposes.
+
+You will be given: (1) a list of individual line item descriptions the user wants to merge into one, (2) an optional one-sentence summary of the overall document for context, and (3) a list of previously-extracted or available budget categories.
+
+Return a JSON object with this exact schema:
+{ "description": string, "category": string | null }
+
+IMPORTANT RULES:
+1. description: Write ONE concise, unified description (max 500 characters) that captures what all the merged line items represent together. Synthesize a single coherent phrase a homeowner would recognize on a budget line — do not simply concatenate the inputs.
+2. category: Choose the SINGLE best-fitting category from the provided list of available categories, returned EXACTLY as given (case-sensitive match). If none fit well, or no categories were provided, return null. Do NOT invent a new category name.
+3. Do NOT include any monetary amounts, quantities, or numeric values anywhere in your output — these are computed separately.
+4. Output ONLY valid JSON, no markdown, no comments.`;
+
+export function buildMergeUserPrompt(
+  descriptions: string[],
+  documentSummary: string | null | undefined,
+  availableCategories: string[],
+): string {
+  const numbered = descriptions.map((d, i) => `${i + 1}. ${d}`).join('\n');
+  let prompt = `Merge the following ${descriptions.length} line item descriptions into one consolidated description and choose the best category.\n\nLine item descriptions:\n${numbered}`;
+  prompt += `\n\nOverall document summary (context only): ${documentSummary?.trim() || 'none'}`;
+  if (availableCategories.length > 0) {
+    prompt += `\n\nAvailable categories (return one of these names verbatim as "category", or null if none fit):\n${availableCategories.map((c) => `- ${c}`).join('\n')}`;
+  } else {
+    prompt += `\n\nNo categories are available — return "category": null.`;
+  }
+  prompt += `\n\nReturn the result as a JSON object with schema { "description": string, "category": string | null }.`;
+  return prompt;
+}

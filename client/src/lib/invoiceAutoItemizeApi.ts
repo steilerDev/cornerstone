@@ -7,6 +7,8 @@ import type {
   AutoItemizePreviewResponse,
   AutoItemizeCommitRequest,
   AutoItemizeCommitResponse,
+  MergeLinesRequest,
+  MergeLinesResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -44,4 +46,14 @@ export function commitAutoItemizeCreate(
   body: AutoItemizeCommitRequest,
 ): Promise<AutoItemizeCommitResponse> {
   return post<AutoItemizeCommitResponse>('/invoices/auto-itemize/commit', body);
+}
+
+/**
+ * Merge multiple extracted line items into a single consolidated line.
+ * Uses LLM to summarize descriptions and select a category based on the
+ * provided descriptions, document context, and available categories.
+ * Numeric aggregation (totals, quantities) is done in code and not passed to the LLM.
+ */
+export function mergeLines(body: MergeLinesRequest): Promise<MergeLinesResponse> {
+  return post<MergeLinesResponse>('/invoices/auto-itemize/merge-lines', body);
 }

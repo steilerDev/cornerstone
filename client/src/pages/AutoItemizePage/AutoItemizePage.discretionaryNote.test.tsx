@@ -48,9 +48,11 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 // ─── Mock: invoiceAutoItemizeApi ───────────────────────────────────────────────
 
 const mockAutoItemize = jest.fn<typeof InvoiceAutoItemizeApiModule.autoItemize>();
+const mockMergeLines = jest.fn<typeof InvoiceAutoItemizeApiModule.mergeLines>();
 
 jest.unstable_mockModule('../../lib/invoiceAutoItemizeApi.js', () => ({
   autoItemize: mockAutoItemize,
+  mergeLines: mockMergeLines,
 }));
 
 // ─── Mock: paperlessApi ────────────────────────────────────────────────────────

@@ -96,11 +96,25 @@ export function AutoItemizePage() {
   const [announceMessage, setAnnounceMessage] = useState('');
   const [lineFieldsEdited, setLineFieldsEdited] = useState(false);
 
-  const { lines, setLines, picker, handlers } = useAutoItemizeLines({
+  const {
+    lines,
+    setLines,
+    picker,
+    handlers,
+    selectedRowIds,
+    onToggleSelect,
+    onClearSelection,
+    onMergeSelected,
+    onRetryMerge,
+    onUndoMerge,
+  } = useAutoItemizeLines({
     invoiceId: invoiceId ?? '',
     invoiceAmount: invoice?.amount ?? 0,
     document,
     onFieldsEdited: () => setLineFieldsEdited(true),
+    documentSummary: metadataEdits.notes,
+    onMergeStart: (count) => setAnnounceMessage(t('autoItemize.mergeAnnounceStart', { count })),
+    onMergeSuccess: () => setAnnounceMessage(t('autoItemize.mergeAnnounceSuccess')),
   });
 
   // Timer effect for elapsed seconds counter
@@ -742,6 +756,12 @@ export function AutoItemizePage() {
                 confidenceLabels={CONFIDENCE_LABELS}
                 vendors={picker.pickerState.vendors ?? []}
                 budgetCategories={picker.pickerState.categories ?? []}
+                selectedRowIds={selectedRowIds}
+                onToggleSelect={onToggleSelect}
+                onClearSelection={onClearSelection}
+                onMergeSelected={onMergeSelected}
+                onRetryMerge={onRetryMerge}
+                onUndoMerge={onUndoMerge}
               />
             </div>
 

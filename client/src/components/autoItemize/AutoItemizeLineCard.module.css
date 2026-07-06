@@ -24,10 +24,51 @@
   opacity: 1;
 }
 
+.lineCardSelected {
+  border-color: var(--color-primary-active);
+  background: var(--color-primary-bg);
+  box-shadow: inset 0 0 0 1px var(--color-primary-active);
+}
+
 .cardTopRow {
   display: flex;
   align-items: flex-start;
   gap: var(--spacing-2);
+}
+
+.selectCheckboxLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: var(--spacing-3);
+  margin: calc(var(--spacing-3) * -1);
+  box-sizing: content-box;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background-color var(--transition-normal);
+}
+
+.selectCheckboxLabel:hover {
+  background: var(--color-bg-hover);
+}
+
+.selectCheckbox {
+  width: var(--spacing-5);
+  height: var(--spacing-5);
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.selectCheckbox:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.selectCheckbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .cardDescriptionInput {
