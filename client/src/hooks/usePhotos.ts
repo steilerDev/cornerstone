@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Photo } from '@cornerstone/shared';
 import {
   getPhotosForEntity,
@@ -7,6 +8,7 @@ import {
   deletePhoto as deletePhotoApi,
 } from '../lib/photoApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UsePhotosResult {
   photos: Photo[];
@@ -25,6 +27,8 @@ export interface UsePhotosResult {
 }
 
 export function usePhotos(entityType: string, entityId: string): UsePhotosResult {
+  const { t } = useTranslation('photoViewer');
+  const { t: tErrors } = useTranslation('errors');
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +56,11 @@ export function usePhotos(entityType: string, entityId: string): UsePhotosResult
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiClientError) {
-            setError(err.error.message ?? 'Failed to load photos.');
+            setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError('Network error: Unable to connect to the server.');
+            setError(t('networkError'));
           } else {
-            setError('An unexpected error occurred.');
+            setError(t('unexpectedError'));
           }
         }
       } finally {
@@ -70,7 +74,7 @@ export function usePhotos(entityType: string, entityId: string): UsePhotosResult
     return () => {
       cancelled = true;
     };
-  }, [entityType, entityId, fetchCount]);
+  }, [entityType, entityId, fetchCount, t, tErrors]);
 
   const uploadPhoto = useCallback(
     async (file: File, caption?: string, onProgress?: (percent: number) => void) => {

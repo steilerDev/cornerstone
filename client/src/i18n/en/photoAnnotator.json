@@ -51,10 +51,5 @@
   "fontSizeXlarge": "Extra large",
   "editText": "Edit text",
   "editMeasurement": "Edit measurement label",
-  "measurementPlaceholder": "Enter distance",
-  "reset": "Reset to original",
-  "resetTitle": "Reset to original photo?",
-  "resetBody": "This will discard all current annotations and start from the original photo. Your previously saved annotations will be preserved.",
-  "resetConfirm": "Reset",
-  "resetComplete": "Reset to original photo complete"
+  "measurementPlaceholder": "Enter distance"
 }

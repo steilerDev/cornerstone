@@ -43,6 +43,19 @@ Reviewed against the issue #1804 spec (see [feature-spec-history.md](feature-spe
 
 - Only finding: informational nit on `<p>` hint as a direct child of `<dl>` (HTML content-model violation) — traced back to my own spec's JSX, not an implementation deviation; non-blocking.
 
+## PR #1845 — Locale-aware display formatters (formatDate/formatPercent/formatFileSize/formatHours/formatWeekday\*/formatDateTimeWithZone) (APPROVED via gh api comment, own PR)
+
+Consolidated ~10 previously hardcoded-`'en-US'` or ad-hoc `toFixed()`/manual-string call sites in `client/src/lib/formatters.ts` behind app-locale-aware formatters (Gantt tooltips/header, calendar aria-labels, document dates, diary work-duration hours, signature timestamps, file sizes, percents). Script-verified de-DE `Intl` output for every new formatter against the PR's own test assertions (all matched) rather than eyeballing — see [pr-review-findings.md](pr-review-findings.md) process notes and the #1844 lesson below.
+
+Findings, both informational/non-blocking:
+
+- `formatPercent`'s `Intl.NumberFormat` grouping means English output for values ≥1000 gained a thousands separator (`"1,500%"` vs old `"1500%"`) that the PR's disclosed "byte-identical except two cases" claim didn't call out — a 3rd, undisclosed English-output edge case. Only affects an sr-only announcement, only at ≥10x-over-budget values. General lesson recorded in MEMORY.md: always check `toFixed()`→`Intl.NumberFormat()` swaps for grouping-separator diffs at large values, not just decimal-separator correctness.
+- `formatDateForAria` (pre-existing pattern, not introduced by this PR but newly localized here) keeps English sentence order in German output ("Dienstag, Februar 24, 2026" instead of "Dienstag, 24. Februar 2026") — accepted deferred grammar gap per task brief.
+
+Verified mechanism of the disclosed "document dates fixed off-by-one-day UTC bug": old code did `new Date(isoString).toLocaleDateString('en-US')` (parses as UTC instant, converts to browser-local zone — can roll the calendar day for non-UTC users); new `formatDate` slices `YYYY-MM-DD` and builds a local-midnight `Date` directly, avoiding the UTC→local conversion. Real fix, not a regression.
+
+Confirmed `gh pr review --approve` (not just `--request-changes`) also fails with "Can not approve your own pull request" on own PRs — same workaround as request-changes: `gh api repos/.../issues/{N}/comments`.
+
 ## Process notes
 
 - Cannot `--request-changes` on your own PRs — use `--comment` instead, and note this in the review body

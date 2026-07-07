@@ -24,6 +24,7 @@ function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
   return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
 }
 ```
+
 Works even when `ui` already contains `<MemoryRouter>` — LocaleProvider just wraps whatever is passed.
 For files using the shared `renderWithRouter` from `client/src/test/testUtils.tsx`, do NOT edit that shared util
 (16 consumers) — instead define a local `renderWithRouter` override combining `<LocaleProvider><MemoryRouter>`.
@@ -44,7 +45,7 @@ to the formatter assertion.
 `formatPercent: _formatPercent` (line 95) but the diff introduced two call sites (lines 183–184) that reference
 the bare identifier `formatPercent`, which doesn't exist in that scope. Confirmed via
 `npx tsc -p client/tsconfig.json --noEmit` (TS2552 "Cannot find name 'formatPercent'. Did you mean
-'_formatPercent'?") **and** at runtime: a test that hovers a `.segment` div (`fireEvent.mouseEnter`) to trigger
+'\_formatPercent'?") **and** at runtime: a test that hovers a `.segment` div (`fireEvent.mouseEnter`) to trigger
 the tooltip render throws `ReferenceError: formatPercent is not defined`. The bug was latent/undetected by the
 108 pre-existing tests because none of them ever hover a segment. Test written and left in place (documents
 correct expected behavior); it will pass once the fix lands (rename destructure to `formatPercent`, or use
@@ -52,7 +53,7 @@ correct expected behavior); it will pass once the fix lands (rename destructure 
 
 ### ts-jest gap (client project only): does NOT catch this class of TS error at test-run time
 
-`npx jest BudgetSourcesPage.test.tsx` passed 108/108 *before* my hover test was added, despite the file having a
+`npx jest BudgetSourcesPage.test.tsx` passed 108/108 _before_ my hover test was added, despite the file having a
 real TS2552 compile error the whole time. The client project's `jest.config.ts` ts-jest transform uses an
 **inline** `tsconfig` object (`module: 'ESNext', moduleResolution: 'bundler', jsx: 'react-jsx', ...`), not a path
 to `client/tsconfig.json` — this produces isolatedModules-like behavior that does NOT do full-program
@@ -61,7 +62,7 @@ type-checking, so scope-resolution errors like "cannot find name" silently pass 
 actually executes). **Always run `npx tsc -p client/tsconfig.json --noEmit`** (or the equivalent server/shared
 tsconfig) as a supplementary check when reviewing frontend-developer changes — `npx jest --coverage` alone will
 not surface this bug class unless a test happens to exercise the exact broken line. CI's separate `npm run
-typecheck` step *does* catch it (uses the real tsconfig.json), so this is CI-safe but Jest-blind locally.
+typecheck` step _does_ catch it (uses the real tsconfig.json), so this is CI-safe but Jest-blind locally.
 
 ### Discovered dead code (out of scope, not touched): SignatureCapture.tsx lines 113–127
 
@@ -75,7 +76,7 @@ Issue #1813's diff — flagged as a discovered follow-up, not fixed (QA does not
 
 ### File-size mock pattern for locale-aware Intl mocks (BackupsPage.test.tsx)
 
-When a component's `formatters.js` module is *fully* `jest.unstable_mockModule`'d (not a partial mock), and you
+When a component's `formatters.js` module is _fully_ `jest.unstable_mockModule`'d (not a partial mock), and you
 need a locale-switchable mock function (e.g. `formatFileSize`), declare a mutable `let mockFormattersLocale =
 'en-US';` **above** the `jest.unstable_mockModule(...)` call and reference it inside the factory closure — reset
 it in `beforeEach`. The factory function isn't invoked until the dynamic `import()` inside `beforeEach` runs, by
@@ -86,12 +87,13 @@ looking suspicious.
 
 The initial sweep missed 3 suites that mock `formatters.js`/`LocaleContext.js` per-file via
 `jest.unstable_mockModule` rather than through the shared `render` wrapper or `testUtils.tsx` — CI failed on:
+
 - `GanttChart.test.tsx`: `GanttHeader` (rendered by `GanttChart`) started statically importing the new
   `formatWeekdayMonthDay` as a bare top-level named export (NOT via `useFormatters()`), so the file's existing
   `jest.unstable_mockModule('../../lib/formatters.js', ...)` block needed a new top-level key added alongside
   `formatCurrency`/`formatDate`/`formatPercent` — outside the `useFormatters` mock's return object.
 - `DocumentBrowser.test.tsx` and `DiaryEntryEditPage.test.tsx`: a descendant started calling `useLocale()`
-  directly (not via `formatters.js`), so these files needed a *new* `jest.unstable_mockModule('.../LocaleContext.js', ...)`
+  directly (not via `formatters.js`), so these files needed a _new_ `jest.unstable_mockModule('.../LocaleContext.js', ...)`
   block added (mirroring the standard shape: `locale`/`resolvedLocale: 'en'`, `currency: 'EUR'`,
   `setLocale`/`syncWithServer: jest.fn()`, passthrough `LocaleProvider`) — `formatters.js` itself stayed unmocked
   in both.
@@ -99,7 +101,7 @@ The initial sweep missed 3 suites that mock `formatters.js`/`LocaleContext.js` p
 **Lesson**: when a component gains `useFormatters()` or a new static formatter/locale import, the
 consumer-blast-radius sweep must include every ancestor→descendant render chain, not just direct importers —
 search for `jest.unstable_mockModule('.../formatters.js'` AND `'.../LocaleContext.js'` across the whole client
-tree, and check whether the *specific new symbol* is exported at the mock's top level vs. nested inside the
+tree, and check whether the _specific new symbol_ is exported at the mock's top level vs. nested inside the
 `useFormatters` return, since a component can consume the same module both ways in different files.
 
 ### Round 2 CI fix (same PR #1845): one more grandparent consumer, closure walked to fixpoint
@@ -112,9 +114,10 @@ standard `LocaleContext.js` mock block (mirrors `DocumentBrowser.test.tsx`'s blo
 `../../contexts/LocaleContext.js` since both live two levels under `client/src/`).
 
 **Corrected process — blast-radius checks must be a transitive closure, not one grep pass:**
+
 1. `grep -rl <ComponentName> client/src --include='*.tsx' --include='*.ts' | grep -v '\.test\.' | grep -v
-   '/<ComponentName>\.tsx?$'` to get direct importers.
-2. Re-run step 1 on *each new importer found*, accumulating a visited set, until a pass finds zero new files
+'/<ComponentName>\.tsx?$'` to get direct importers.
+2. Re-run step 1 on _each new importer found_, accumulating a visited set, until a pass finds zero new files
    (fixpoint). Two hops was not enough this time — went 3 deep (`DocumentCard` → `DocumentBrowser` →
    `InvoicePaperlessPickerModal`; separately `LinkedDocumentsSection` → `HouseholdItemDetailPage`/etc. →
    nothing further).
@@ -124,7 +127,7 @@ standard `LocaleContext.js` mock block (mirrors `DocumentBrowser.test.tsx`'s blo
 4. For every file in the closure that has a `.test.tsx`, either confirm existing LocaleContext/formatters
    handling (mock block, or a real unmocked `LocaleProvider` ancestor like `App.test.tsx` uses) or actually run
    it — do not assume "probably fine" from reading the mock list only. Batching ~5 suites per `npx jest <paths...>
-   --maxWorkers=1` invocation from repo root works fine and stays within the 2-minute default timeout.
+--maxWorkers=1` invocation from repo root works fine and stays within the 2-minute default timeout.
 5. Root-level aggregators (`App.tsx`/`App.test.tsx`) are worth including explicitly since they're the
    terminal node of nearly every closure in this codebase — check them once at the end rather than per-branch.
 

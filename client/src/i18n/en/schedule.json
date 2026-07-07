@@ -226,26 +226,7 @@
       "notFoundMessage": "The milestone you're looking for doesn't exist.",
       "backLink": "Back to Milestones",
       "error": "Failed to load milestone. Please try again.",
-      "edit": "Edit",
       "editButton": "Edit",
-      "view": {
-        "targetDate": "Target Date",
-        "projectedDate": "Projected Date",
-        "description": "Description",
-        "completedAt": "Completed At",
-        "linkedItems": "Linked Items",
-        "workItem": "Work Item",
-        "householdItem": "Household Item",
-        "noItems": "No items linked",
-        "dependentItems": "Dependent Work Items",
-        "noDependentItems": "No dependent work items",
-        "searchPlaceholder": "Search work items or household items to link...",
-        "depSearchPlaceholder": "Search work items to add as dependent...",
-        "noMatches": "No items match your search",
-        "noDepMatches": "No work items match your search",
-        "deleteButton": "Delete Milestone",
-        "editButton": "Edit"
-      },
       "edit": {
         "title": "Edit Milestone",
         "form": {
