@@ -56,6 +56,7 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   diaryAutoEvents: false,
   diaryDraftRetentionDays: 30,
   currency: 'EUR',
+  vatRate: 0.19,
   backupEnabled: true,
   backupDir: '/tmp/test-backups',
   backupCadence: undefined,

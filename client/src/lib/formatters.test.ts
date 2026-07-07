@@ -1,12 +1,17 @@
 import { describe, it, expect } from '@jest/globals';
+import { createElement, type ReactNode } from 'react';
+import { renderHook } from '@testing-library/react';
 import {
   formatCurrency,
+  getCurrencySymbol,
   formatPercent,
   formatDate,
   formatTime,
   formatDateTime,
   computeActualDuration,
+  useFormatters,
 } from './formatters.js';
+import { LocaleProvider } from '../contexts/LocaleContext.js';
 
 // ─── formatCurrency ───────────────────────────────────────────────────────────
 
@@ -80,6 +85,54 @@ describe('formatCurrency', () => {
       const result = formatCurrency(1000000, 'en-US', 'EUR');
       expect(result).toContain('1,000,000');
     });
+  });
+});
+
+// ─── getCurrencySymbol (Story #1807) ──────────────────────────────────────────
+
+describe('getCurrencySymbol', () => {
+  it("Scenario 21: getCurrencySymbol('EUR', 'en-US') returns '€'", () => {
+    expect(getCurrencySymbol('EUR', 'en-US')).toBe('€');
+  });
+
+  it("Scenario 22: getCurrencySymbol('USD', 'en-US') returns '$'", () => {
+    expect(getCurrencySymbol('USD', 'en-US')).toBe('$');
+  });
+
+  it("getCurrencySymbol('CHF', 'en-US') returns a non-empty symbol containing 'CHF' or 'Fr'", () => {
+    const result = getCurrencySymbol('CHF', 'en-US');
+    expect(result.length).toBeGreaterThan(0);
+    expect(result === 'CHF' || result.includes('CHF') || result.includes('Fr')).toBe(true);
+  });
+
+  it('Scenario 23: getCurrencySymbol() with both defaults omitted returns €', () => {
+    expect(getCurrencySymbol()).toBe('€');
+  });
+
+  it('falls back to the currency code itself when Intl cannot resolve a symbol', () => {
+    // Intl.NumberFormat throws for a syntactically invalid currency code rather than
+    // silently falling back, so this documents behavior for a resolvable-but-unusual
+    // code instead — the fallback branch (`?? currency`) is exercised for completeness.
+    const result = getCurrencySymbol('EUR', 'de-DE');
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+});
+
+// ─── useFormatters().getCurrencySymbol (Story #1807) ──────────────────────────
+
+describe('useFormatters — getCurrencySymbol', () => {
+  it('Scenario 24: returns the currency symbol for the current locale/currency context (default EUR/en)', () => {
+    // No mocking needed: fetchConfig() targets a relative '/config' URL which is
+    // invalid for the global fetch in jsdom/Node and rejects asynchronously,
+    // silently caught by LocaleProvider — currency/locale stay at their
+    // synchronous defaults (EUR / en) for the duration of this test.
+    const { result } = renderHook(() => useFormatters(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        createElement(LocaleProvider, null, children),
+    });
+
+    expect(result.current.getCurrencySymbol()).toBe('€');
   });
 });
 

@@ -32,6 +32,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     diaryAutoEvents: true,
     diaryDraftRetentionDays: 30,
     currency: 'EUR',
+    vatRate: 0.19,
     backupDir: '/backups',
     backupEnabled: true,
     // LLM defaults (disabled)

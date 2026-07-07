@@ -159,6 +159,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
     formatDateTime: (v: string) => v,
     formatNumber: (v: number) => String(v),
     formatPercent: (v: number) => `${v}%`,
+    getCurrencySymbol: () => '€',
   }),
 }));
 
@@ -166,7 +167,14 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
 
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
-  useLocale: () => ({ locale: 'en', setLocale: jest.fn() }),
+  useLocale: () => ({
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  }),
 }));
 
 // ─── Mock: configApi + preferencesApi (prevent network calls from LocaleProvider) ─
