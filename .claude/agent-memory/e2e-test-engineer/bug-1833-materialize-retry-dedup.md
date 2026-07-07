@@ -1,6 +1,6 @@
 ---
 name: bug-1833-materialize-retry-dedup
-description: E2E regression pattern for Bug #1833 (auto-itemize Save retry after a real commit failure created a duplicate WI/HI budget line) — how to force a genuine server-side commit failure and assert no duplicate create on retry.
+description: E2E regression pattern for Bug #1833 (auto-itemize Save retry after a commit failure created a duplicate WI/HI budget line) — how to force/mock a commit failure and assert no duplicate create on retry, including the paperlessEnabled gate gotcha on the new-invoice commit endpoint.
 metadata:
   type: project
 ---
@@ -18,46 +18,64 @@ resolves, on both its success and failure paths, in both `AutoItemizePage.tsx` a
 `PaperlessInvoiceReviewPage.tsx`.
 
 **E2E regression tests**: `e2e/tests/budget/auto-itemize-inline-create.spec.ts` Scenario 4
-(existing-invoice / AutoItemizePage flow), `e2e/tests/invoices/paperless-first-invoice.spec.ts`
-Scenario 19 (new-invoice / PaperlessInvoiceReviewPage flow).
+(existing-invoice / AutoItemizePage flow — REAL commit failure), `e2e/tests/invoices/paperless-first-invoice.spec.ts`
+Scenario 19 (new-invoice / PaperlessInvoiceReviewPage flow — MOCKED commit response, see below).
 
-**Pattern — force a REAL (unmocked) server-side commit failure**: use the server's own
-`ITEMIZED_SUM_EXCEEDS_INVOICE` Σ-guard (`persistLines`, `invoiceAutoItemizeService.ts:531`) instead
-of mocking a failure. Set the invoice/metadata `amount` below the queued line's effective total
-before Save #1 (genuine 400), then raise it above before Save #2 (genuine 200/201). Assert the
-WI-budgets POST count stays at 1 across both attempts via a single `page.on('request')` counter
-registered once, before either click — do NOT re-register between attempts, the whole point is
-counting across both.
+## CRITICAL: the two commit endpoints are NOT equivalent for real-failure testing
 
-**Amount math**:
-- `effectiveInvoiceAmount` passed into `persistLines` is the raw `body.invoice.amount` — no VAT
-  gross-up applied to the invoice amount itself, only to line totals via `effectiveLineAmount`
-  (`shared/src/types/budget.ts:141`: `Math.round(amount*1.19*100)/100` when `includesVat===false`).
-- Existing-invoice flow: `TEST_LINE.totalAmount=200, includesVat:true` (in
-  `auto-itemize-inline-create.spec.ts`) → itemized sum = 200 flat. Used invoice amount 100 (fail) →
-  250 (pass).
-- New-invoice flow: `MOCK_EXTRACTED_LINES[0]` = `totalAmount:900, includesVat:false` → effective
-  gross = 900*1.19 = 1071. Used `#amount` field 500 (fail) → 1200 (pass).
+`server/src/routes/invoiceAutoItemize.ts` has TWO separate commit routes with different gating:
 
-**Transaction asymmetry that IS the bug**: `commitAutoItemizeCreate` (new-invoice flow) wraps
-invoice + document_links + line persistence in one `db.transaction()` — a mid-transaction throw
-rolls back ALL of it (no orphan invoice/document-link/junction rows), but the earlier separate
-WI-budget POST is NOT part of that transaction and survives. Same is true for the existing-invoice
-flow's `POST /api/invoices/:id/auto-itemize` commit endpoint.
+- `POST /:invoiceId/auto-itemize` (existing-invoice flow, used by AutoItemizePage) — **no
+  `paperlessEnabled` gate**. Safe to hit for real in the E2E environment (no Paperless container
+  configured there). Scenario 4 uses this — a genuine `ITEMIZED_SUM_EXCEEDS_INVOICE` 400.
+- `POST /auto-itemize/commit` (new-invoice flow, used by PaperlessInvoiceReviewPage) — checks
+  `fastify.config.paperlessEnabled` FIRST (line ~139) and throws a 503 `PAPERLESS_NOT_CONFIGURED`
+  before ANY amount validation runs. The E2E app container has no Paperless env configured, so this
+  route can **never** be reached for real in CI — every other scenario in `paperless-first-invoice.spec.ts`
+  already knew this and used `mockCommit()`/inline `page.route` to fully mock it. **Do not attempt to
+  trigger a real `ITEMIZED_SUM_EXCEEDS_INVOICE` against this endpoint** — it will always 503 first.
+  (First learned the hard way: initial Scenario 19 tried the real-server approach and failed CI Shard
+  5/16 with "got 503" instead of the expected 400.)
 
-**Other notes**:
+**Fix pattern for Scenario 19**: mock ONLY the commit endpoint's *response* via `page.route`
+(call-count-keyed: 1st call → 400 `ITEMIZED_SUM_EXCEEDS_INVOICE`, 2nd call → 201 success), while
+leaving the WI-budgets POST (`materializeInlineDrafts`'s real create call) completely unmocked —
+that POST is the actual regression surface, not the commit call itself. Capture each mocked
+request's `postDataJSON()` into an array and assert `lines[0].assignmentMode === 'assign-existing'`
++ `lines[0].assignedBudgetLineId === <id captured from the real WI-budget POST response>` on BOTH
+captured payloads — this proves the SAME budget line id is reused across both attempts (no
+duplicate), which is the real point of the test even though the commit failure itself is simulated.
+Pre-create a real invoice via `page.request.post(${API.vendors}/${vendorId}/invoices, ...)` and have
+the 2nd mocked response return `{invoice:{id: thatRealId}}` so post-save navigation to
+`/budget/invoices/:id` resolves against the real server (no extra invoice-detail-page mocking
+needed — `GET /api/invoices/:id`, `/budget-lines`, `/document-links` all just work since the invoice
+genuinely exists).
+
+## Scenario 4 (existing-invoice flow) — REAL commit failure, still valid
+
+**Amount math** (`persistLines`'s Σ-guard, `invoiceAutoItemizeService.ts:531`, `effectiveInvoiceAmount`
+is the raw `body.invoice.amount`, no VAT gross-up on the invoice amount itself — only on line totals
+via `effectiveLineAmount`, `shared/src/types/budget.ts:141`): `TEST_LINE.totalAmount=200,
+includesVat:true` → itemized sum = 200 flat. Invoice amount 100 (fail) → 250 (pass). Track the
+WI-budgets POST count across both attempts via a single `page.on('request')` counter registered
+once, before either click.
+
+**Transaction asymmetry that IS the bug**: both commit endpoints wrap invoice/document-link/line
+persistence in one `db.transaction()` (the new-invoice one also creates the invoice + document_links
+row) — a mid-transaction throw rolls back ALL of it, but the earlier separate WI-budget POST is NOT
+part of that transaction and survives regardless.
+
+## Other notes
+
 - `document_links` unique index is `(entityType, entityId, paperlessDocumentId)` — safe to reuse the
   same fake `paperlessDocumentId` (e.g. `MOCK_DOC_1.id = 9001`) across many different real invoices
   in parallel tests; only collides if the same invoice tries to link the same doc twice.
-- Scenario 19 was the FIRST scenario in `paperless-first-invoice.spec.ts` to let
-  `/api/invoices/auto-itemize/commit` hit the real server — every prior scenario used `mockCommit`.
-  Confirmed no existing helper conflicts; `mockPreview`'s lines + a real vendor/work-item are
-  sufficient, no `mockCommit` call needed, and no `linkDocumentToInvoiceViaApi` pre-seed needed
-  either (the new-invoice commit endpoint creates its own `document_links` row internally).
 - `PaperlessInvoiceReviewPage`'s `metadataEdits.amount` is seeded ONCE from `computedTotal` in the
   initial load effect and is NOT recomputed/reset by the `setLines` calls in `handleSave` — safe to
-  `.fill('#amount', ...)` before Save #1 and again before Save #2 without it snapping back to the
-  computed default.
+  `.fill('#amount', ...)` if you ever need to (not needed in the current Scenario 19 since pass/fail
+  is now driven by the mocked route, not real amount validation).
 - Both pages expose the amount field as `#amount` with no POM getter in `PaperlessInvoiceReviewPage.ts`
   (raw `page.locator('#amount')` is the established pattern there); `AutoItemizePage.ts` already has
   `totalAmountInput` / `getMetadataAmountInput()`.
+- WI/HI budget POST response shape: `{budget:{id}}` — capture `resp.json()` from the
+  `waitForResponse` promise (not a separate fetch) to get the created id without an extra round trip.

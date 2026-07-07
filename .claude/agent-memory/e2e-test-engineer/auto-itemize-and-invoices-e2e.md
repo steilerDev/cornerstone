@@ -39,7 +39,7 @@ See also `bug-1833-materialize-retry-dedup.md` for the retry-dedup regression te
 - Confirm button ("Create Invoice & Itemize") is `disabled={!vendorId}` — assert `toBeDisabled()` directly, can't click.
 - Preview endpoint mock: `page.route('**/api/invoices/auto-itemize/preview', ...)` (no invoice ID in URL — this is the create-from-scratch path, distinct from `**/api/invoices/:id/auto-itemize`).
 - `InvoicesPage` POM: `clickNewInvoice()`, `waitForPickerModal()`, `waitForManualModal()`.
-- Every scenario before Bug #1833's Scenario 19 used `mockCommit()` to fully mock the commit endpoint — Scenario 19 was the first to let it hit the real server (see bug-1833-materialize-retry-dedup.md).
+- **`POST /auto-itemize/commit` has a `paperlessEnabled` gate that 503s BEFORE any other validation** (server/src/routes/invoiceAutoItemize.ts) — the E2E container has no Paperless configured, so this endpoint can NEVER be hit for real in CI. Every scenario in this file mocks it (`mockCommit()` or an inline `page.route`) — do not attempt a real-server call against it. See bug-1833-materialize-retry-dedup.md for the full gotcha (this bit Scenario 19 once already — a real-server attempt got a 503 instead of the expected business-logic error).
 
 ## SearchPicker display-mode gotcha (applies to vendor picker on both AutoItemizePage flows, 2026-06-15)
 
