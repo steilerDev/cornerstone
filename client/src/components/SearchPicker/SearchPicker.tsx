@@ -10,6 +10,8 @@ import {
   size,
   FloatingPortal,
 } from '@floating-ui/react';
+import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
+import { useClickOutside } from '../../hooks/useClickOutside.js';
 
 import styles from './SearchPicker.module.css';
 
@@ -88,7 +90,6 @@ export function SearchPicker<T>({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { refs, floatingStyles, isPositioned } = useFloating({
     open: isOpen,
@@ -110,26 +111,7 @@ export function SearchPicker<T>({
   });
 
   // Close dropdown on click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        // Also check if the click was inside the portal dropdown
-        const portalEl = document.querySelector('[data-search-picker-dropdown]');
-        if (portalEl && portalEl.contains(event.target as Node)) {
-          return;
-        }
-        setIsOpen(false);
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
+  useClickOutside([containerRef, refs.floating], () => setIsOpen(false), isOpen);
 
   // Reset when value is cleared externally (e.g. after form submission)
   useEffect(() => {
@@ -145,15 +127,6 @@ export function SearchPicker<T>({
     }
     /* eslint-enable @eslint-react/set-state-in-effect */
   }, [value, specialOptions]);
-
-  // Cleanup debounce on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
 
   const fetchInitialResults = useCallback(async () => {
     setIsLoading(true);
@@ -193,17 +166,12 @@ export function SearchPicker<T>({
     [excludeIds, fetchInitialResults, searchFn, resolvedSearchError],
   );
 
+  const debouncedSearch = useDebouncedCallback(performSearch, 300);
+
   const handleInputChange = (inputValue: string) => {
     setSearchTerm(inputValue);
     setIsOpen(true);
-
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    debounceRef.current = setTimeout(() => {
-      performSearch(inputValue);
-    }, 300);
+    debouncedSearch.trigger(inputValue);
   };
 
   const handleFocus = () => {

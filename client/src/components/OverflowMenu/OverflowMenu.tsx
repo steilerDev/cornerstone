@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { useClickOutside } from '../../hooks/useClickOutside.js';
 import styles from './OverflowMenu.module.css';
 
 export const SCROLL_CLOSE_THRESHOLD_PX = 8;
@@ -43,21 +44,7 @@ export function OverflowMenu({
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside click
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleMouseDown = (e: MouseEvent) => {
-      if (usePortal && menuRef.current && menuRef.current.contains(e.target as Node)) {
-        return;
-      }
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [isOpen, usePortal]);
+  useClickOutside([wrapperRef, menuRef], () => setIsOpen(false), isOpen);
 
   // Close menu on scroll and resize when using portal
   useEffect(() => {

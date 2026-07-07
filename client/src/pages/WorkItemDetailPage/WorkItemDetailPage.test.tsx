@@ -610,9 +610,13 @@ describe('WorkItemDetailPage', () => {
   });
 
   describe('subtasks display', () => {
-    it('shows empty state when no subtasks exist', async () => {
+    it('shows empty state when no subtasks exist (via the workItems:detail.subtasks.noSubtasks i18n key, not a hardcoded literal)', async () => {
       renderPage();
 
+      // This text is now sourced from the `detail.subtasks.noSubtasks` translation
+      // key (client/src/i18n/en/workItems.json) rather than a hardcoded JSX literal.
+      // The English wording is unchanged, so the assertion string stays the same,
+      // but it now exercises the real i18n lookup rather than a static string.
       await waitFor(() => {
         expect(screen.getByText('No subtasks yet. Add one above.')).toBeInTheDocument();
       });

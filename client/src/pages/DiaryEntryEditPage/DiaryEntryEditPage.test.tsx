@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
@@ -44,13 +44,22 @@ jest.unstable_mockModule('../../hooks/usePhotos.js', () => ({
   }),
 }));
 
-// Mock PhotoUpload to capture its onUpload prop so tests can invoke it directly.
-// The real PhotoUpload uses XHR/FormData which are not available in jsdom.
+// Mock PhotoUpload to capture its onUpload and onUploadingCountChange props so
+// tests can invoke them directly. The real PhotoUpload uses XHR/FormData which
+// are not available in jsdom.
 let capturedOnUpload: ((photo: Photo) => void) | null = null;
+let capturedOnUploadingCountChange: ((count: number) => void) | null = null;
 
 jest.unstable_mockModule('../../components/photos/PhotoUpload.js', () => ({
-  PhotoUpload: ({ onUpload }: { onUpload: (photo: Photo) => void }) => {
+  PhotoUpload: ({
+    onUpload,
+    onUploadingCountChange,
+  }: {
+    onUpload: (photo: Photo) => void;
+    onUploadingCountChange?: (count: number) => void;
+  }) => {
     capturedOnUpload = onUpload;
+    capturedOnUploadingCountChange = onUploadingCountChange ?? null;
     return <div data-testid="photo-upload-mock" />;
   },
 }));
@@ -782,6 +791,52 @@ describe('DiaryEntryEditPage', () => {
           expect.objectContaining({ body: 'updated body' }),
         );
       });
+
+      jest.useRealTimers();
+    });
+
+    it('Scenario 44b: uploadingCount change while an autosave is pending cancels the debounced save (scheduleAutoSave.cancel via the uploadingCount-keyed cleanup effect)', async () => {
+      jest.useFakeTimers();
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      mockUpdateDiaryEntry.mockResolvedValue({ ...draftGeneralNoteEntry, body: 'updated' });
+      renderEditPage('draft-1');
+
+      await waitFor(() => {
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument();
+      });
+
+      // PhotoUpload only renders once `entry` has loaded — by this point it has.
+      expect(capturedOnUploadingCountChange).not.toBeNull();
+
+      // NOTE: mounting a draft entry fires one immediate autosave call on its own
+      // (pre-existing `skipAutoSaveOnMountRef` behavior in the metadata-change
+      // effect, unrelated to this PR's debounce-hook migration — see CODE_BUG
+      // note in the PR description). Flush and discard that call so this test
+      // isolates the debounce-cancel behavior under test.
+      await jest.advanceTimersByTimeAsync(50);
+      mockUpdateDiaryEntry.mockClear();
+
+      const textarea = screen.getByRole('textbox', { name: /^entry/i });
+      fireEvent.change(textarea, { target: { value: 'updated body' } });
+      fireEvent.blur(textarea);
+
+      // A debounced autosave (1000ms) is now pending. Advance partway — not
+      // enough to fire — then simulate a photo upload starting. The
+      // `uploadingCount`-keyed effect's cleanup calls `scheduleAutoSave.cancel()`
+      // every time `uploadingCount` changes (not just on unmount), which must
+      // cancel the pending debounced save.
+      await jest.advanceTimersByTimeAsync(500);
+      expect(mockUpdateDiaryEntry).not.toHaveBeenCalled();
+
+      act(() => {
+        capturedOnUploadingCountChange!(1);
+      });
+
+      // Advance well past the original 1000ms debounce window — if the pending
+      // save were NOT cancelled, updateDiaryEntry would have fired by now.
+      await jest.advanceTimersByTimeAsync(1100);
+
+      expect(mockUpdateDiaryEntry).not.toHaveBeenCalled();
 
       jest.useRealTimers();
     });

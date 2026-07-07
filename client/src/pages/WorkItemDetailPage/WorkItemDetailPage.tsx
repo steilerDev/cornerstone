@@ -1666,7 +1666,7 @@ export default function WorkItemDetailPage() {
 
             <div className={styles.subtasksList}>
               {subtasks.length === 0 && (
-                <div className={styles.emptyState}>No subtasks yet. Add one above.</div>
+                <div className={styles.emptyState}>{t('detail.subtasks.noSubtasks')}</div>
               )}
               {subtasks.map((subtask, index) => (
                 <div key={subtask.id} className={styles.subtaskItem}>

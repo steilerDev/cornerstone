@@ -5,6 +5,7 @@ import type { BudgetOverview, BudgetBreakdown, BudgetSource } from '@cornerstone
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
@@ -40,9 +41,8 @@ export function BudgetOverviewPage() {
   const [isBreakdownRefetching, setIsBreakdownRefetching] = useState(false);
   const [breakdownError, setBreakdownError] = useState<string>('');
 
-  // Refs for debounce + AbortController
+  // Ref for AbortController
   const abortRef = useRef<AbortController | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Budget sources state
   const [_budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
@@ -114,8 +114,8 @@ export function BudgetOverviewPage() {
     [setSearchParams],
   );
 
-  // Standalone fetch function for debounced refetch
-  const fetchBreakdown = useCallback(
+  // Standalone fetch function
+  const fetchBreakdownImpl = useCallback(
     async (sourceIds: Set<string>, signal?: AbortSignal) => {
       const deselectedArray = sourceIds.size > 0 ? [...sourceIds] : undefined;
       try {
@@ -136,31 +136,28 @@ export function BudgetOverviewPage() {
 
   // Debounced refetch on deselectedSourceIds change
   const DEBOUNCE_MS = 50;
-  useEffect(() => {
-    // 1. Clear any pending debounced fetch
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+  const scheduleFetchBreakdown = useDebouncedCallback((sourceIds: Set<string>) => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    void fetchBreakdownImpl(sourceIds, controller.signal);
+  }, DEBOUNCE_MS);
 
-    // 2. Abort any in-flight fetch
+  useEffect(() => {
+    // Abort any in-flight fetch
     if (abortRef.current) abortRef.current.abort();
 
     // Only trigger refetch after initial load completes
     if (isLoading) return;
 
-    // 3. Schedule new fetch after debounce window
     /* eslint-disable @eslint-react/set-state-in-effect -- initializing refetch state for debounced operation */
     setIsBreakdownRefetching(true);
     /* eslint-enable @eslint-react/set-state-in-effect */
-    debounceRef.current = setTimeout(() => {
-      const controller = new AbortController();
-      abortRef.current = controller;
-      void fetchBreakdown(deselectedSourceIds, controller.signal);
-    }, DEBOUNCE_MS);
+    scheduleFetchBreakdown.trigger(deselectedSourceIds);
 
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [deselectedSourceIds, paymentStatus, isLoading, fetchBreakdown]);
+  }, [deselectedSourceIds, paymentStatus, isLoading, scheduleFetchBreakdown]);
 
   // Close dropdown on outside click
   useEffect(() => {

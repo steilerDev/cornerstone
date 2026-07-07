@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
+import { Badge, type BadgeVariantMap } from '../Badge/Badge.js';
+import badgeStyles from '../Badge/Badge.module.css';
 import styles from './TimelineStatusCards.module.css';
 
 interface CriticalPathCardProps {
@@ -40,6 +42,39 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   }, [deadline]);
 
+  type HealthStatus = 'onTrack' | 'warning' | 'critical' | 'overdue';
+
+  let status: HealthStatus = 'onTrack';
+  if (daysRemaining < 0) {
+    status = 'overdue';
+  } else if (daysRemaining < 7) {
+    status = 'critical';
+  } else if (daysRemaining <= 14) {
+    status = 'warning';
+  }
+
+  const healthVariants = useMemo(
+    (): BadgeVariantMap => ({
+      onTrack: {
+        label: t('cards.criticalPath.health.onTrack'),
+        className: badgeStyles.scheduleOnTrack!,
+      },
+      warning: {
+        label: t('cards.criticalPath.health.warning'),
+        className: badgeStyles.scheduleWarning!,
+      },
+      critical: {
+        label: t('cards.criticalPath.health.critical'),
+        className: badgeStyles.scheduleAtRisk!,
+      },
+      overdue: {
+        label: t('cards.criticalPath.health.overdue'),
+        className: badgeStyles.scheduleAtRisk!,
+      },
+    }),
+    [t],
+  );
+
   if (criticalItems.length === 0) {
     return (
       <p data-testid="critical-empty" className={styles.emptyState}>
@@ -54,20 +89,6 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
         {t('cards.criticalPath.emptyAllCompleted')}
       </p>
     );
-  }
-
-  // Determine health indicator
-  let healthClass = styles.badgeGreen; // green >14 days
-  let healthLabel = t('cards.criticalPath.health.onTrack');
-  if (daysRemaining < 0) {
-    healthClass = styles.badgeRed; // red: overdue
-    healthLabel = t('cards.criticalPath.health.overdue');
-  } else if (daysRemaining < 7) {
-    healthClass = styles.badgeRed; // red <7 days
-    healthLabel = t('cards.criticalPath.health.critical');
-  } else if (daysRemaining <= 14) {
-    healthClass = styles.badgeYellow; // yellow 7-14 days
-    healthLabel = t('cards.criticalPath.health.warning');
   }
 
   return (
@@ -110,9 +131,7 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
             {daysRemaining}
           </div>
         </div>
-        <div data-testid="critical-health" className={`${styles.badge} ${healthClass}`}>
-          {healthLabel}
-        </div>
+        <Badge testId="critical-health" variants={healthVariants} value={status} />
       </div>
     </div>
   );

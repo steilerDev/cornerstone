@@ -32,10 +32,12 @@ describe('BudgetHealthIndicator', () => {
     expect(screen.getByRole('status')).toHaveTextContent('On Budget');
   });
 
-  it('applies onBudget CSS class when margin > 10%', () => {
+  it('applies budgetHealthOnBudget CSS class to the nested Badge span when margin > 10%', () => {
     render(<BudgetHealthIndicator remainingVsProjectedMax={50000} availableFunds={100000} />);
 
-    expect(screen.getByRole('status')).toHaveClass('onBudget');
+    const status = screen.getByRole('status');
+    const badge = status.querySelector('span');
+    expect(badge).toHaveClass('budgetHealthOnBudget');
   });
 
   // ── At Risk ──────────────────────────────────────────────────────────────
@@ -68,10 +70,12 @@ describe('BudgetHealthIndicator', () => {
     expect(screen.getByRole('status')).toHaveTextContent('At Risk');
   });
 
-  it('applies atRisk CSS class when margin <= 10%', () => {
+  it('applies budgetHealthAtRisk CSS class to the nested Badge span when margin <= 10%', () => {
     render(<BudgetHealthIndicator remainingVsProjectedMax={9000} availableFunds={100000} />);
 
-    expect(screen.getByRole('status')).toHaveClass('atRisk');
+    const status = screen.getByRole('status');
+    const badge = status.querySelector('span');
+    expect(badge).toHaveClass('budgetHealthAtRisk');
   });
 
   // ── Over Budget ──────────────────────────────────────────────────────────
@@ -88,10 +92,12 @@ describe('BudgetHealthIndicator', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Over Budget');
   });
 
-  it('applies overBudget CSS class when remaining is negative', () => {
+  it('applies budgetHealthOverBudget CSS class to the nested Badge span when remaining is negative', () => {
     render(<BudgetHealthIndicator remainingVsProjectedMax={-5000} availableFunds={100000} />);
 
-    expect(screen.getByRole('status')).toHaveClass('overBudget');
+    const status = screen.getByRole('status');
+    const badge = status.querySelector('span');
+    expect(badge).toHaveClass('budgetHealthOverBudget');
   });
 
   // ── Edge cases ────────────────────────────────────────────────────────────

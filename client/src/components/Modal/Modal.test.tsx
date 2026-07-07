@@ -256,4 +256,122 @@ describe('Modal', () => {
     // baseElement is document.body; portal content should be there
     expect(baseElement.querySelector('[data-testid="portal-content"]')).toBeTruthy();
   });
+
+  // ── Focus trap (Tab-cycling) ──────────────────────────────────────────────
+
+  it('Tab on the last focusable element wraps focus to the first', () => {
+    render(
+      <Modal {...defaultProps}>
+        <input data-testid="only-input" placeholder="Only field" />
+      </Modal>,
+    );
+
+    // Focusables in DOM order: close button (header), then the input (body).
+    const closeButton = screen.getByRole('button', { name: 'Close dialog' });
+    const input = screen.getByTestId('only-input');
+
+    // Close button is focused on mount; move focus to the last focusable (input).
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: false });
+
+    expect(document.activeElement).toBe(closeButton);
+  });
+
+  it('Shift+Tab on the first focusable element wraps focus to the last', () => {
+    render(
+      <Modal {...defaultProps}>
+        <input data-testid="only-input" placeholder="Only field" />
+      </Modal>,
+    );
+
+    const closeButton = screen.getByRole('button', { name: 'Close dialog' });
+    const input = screen.getByTestId('only-input');
+
+    // Close button is the first focusable (and is focused on mount).
+    closeButton.focus();
+    expect(document.activeElement).toBe(closeButton);
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('Tab and Shift+Tab with a single focusable element keep focus on it', () => {
+    render(
+      <Modal {...defaultProps}>
+        <p>No interactive elements in the body</p>
+      </Modal>,
+    );
+
+    // The only focusable element in the whole content panel is the close button.
+    const closeButton = screen.getByRole('button', { name: 'Close dialog' });
+    expect(document.activeElement).toBe(closeButton);
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: false });
+    expect(document.activeElement).toBe(closeButton);
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(closeButton);
+  });
+
+  it('Tab does not throw and does not move focus when the active element is neither first nor last', () => {
+    render(
+      <Modal {...defaultProps}>
+        <input data-testid="first-input" placeholder="First" />
+        <input data-testid="second-input" placeholder="Second" />
+      </Modal>,
+    );
+
+    // Focusables in DOM order: close button, first-input, second-input.
+    // Focus the middle element — neither first (close button) nor last (second-input).
+    const middleInput = screen.getByTestId('first-input');
+    middleInput.focus();
+    expect(document.activeElement).toBe(middleInput);
+
+    expect(() => {
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: false });
+    }).not.toThrow();
+
+    // The trap only intervenes at the boundaries; focus is left untouched here
+    // (the browser's native Tab order would normally move focus, but jsdom
+    // doesn't simulate that — this test only verifies the trap doesn't hijack it).
+    expect(document.activeElement).toBe(middleInput);
+  });
+
+  it('Tab does not throw when contentRef has no element ref yet (defensive null guard)', () => {
+    // Covers the `!contentRef.current` guard in the handler — exercised naturally
+    // once the Modal unmounts and its ref is cleared, but the listener is also
+    // removed on unmount, so this asserts the unmounted (no-op) case doesn't throw.
+    const { unmount } = render(
+      <Modal {...defaultProps}>
+        <input data-testid="only-input" placeholder="Only field" />
+      </Modal>,
+    );
+
+    unmount();
+
+    expect(() => {
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: false });
+    }).not.toThrow();
+  });
+
+  it('trap only affects focus within contentRef, not the whole document (non-Tab keys still ignored)', () => {
+    const onClose = jest.fn<() => void>();
+    render(
+      <Modal {...defaultProps} onClose={onClose}>
+        <input data-testid="only-input" placeholder="Only field" />
+      </Modal>,
+    );
+
+    const input = screen.getByTestId('only-input');
+    input.focus();
+
+    // A non-Tab key must not trigger the wrap logic or onClose.
+    fireEvent.keyDown(document, { key: 'ArrowDown' });
+
+    expect(document.activeElement).toBe(input);
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

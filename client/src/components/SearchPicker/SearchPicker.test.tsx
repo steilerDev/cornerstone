@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SearchPicker } from './SearchPicker.js';
 
@@ -999,6 +999,35 @@ describe('portal rendering (Story #1600)', () => {
     await waitFor(() => {
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     });
+  });
+
+  // ── Test 11b: click inside the portal dropdown is NOT treated as outside ──
+  // Regression test for the useClickOutside migration (#1816): the old
+  // implementation special-cased this via a
+  // `document.querySelector('[data-search-picker-dropdown]')` check inside its
+  // handler. useClickOutside instead includes `refs.floating` (the portal
+  // element) directly in its target list — this test locks in that the
+  // portal-aware behavior survived the migration.
+
+  it('clicking inside the portalled dropdown does not close it', async () => {
+    const user = userEvent.setup();
+    renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
+
+    const input = screen.getByPlaceholderText('Search...');
+    await user.click(input);
+
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument();
+    });
+
+    const listbox = screen.getByRole('listbox');
+
+    // A mousedown directly on the listbox container itself (not on an option,
+    // to avoid also triggering a selection) must NOT be treated as "outside".
+    fireEvent.mouseDown(listbox);
+
+    // The dropdown must remain open.
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
   });
 
   // ── Test 12: Escape inside portal closes dropdown ────────────────────────
