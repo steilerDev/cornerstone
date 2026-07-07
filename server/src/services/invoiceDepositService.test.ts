@@ -215,6 +215,80 @@ describe('invoiceDepositService', () => {
 
       expect(updated.amount).toBe(400);
     });
+
+    it('scenario 8: create deposit that sums to exactly the invoice total despite floating-point summation noise (issue #1806)', () => {
+      // 332.85 + 333.04 + 334.11 === 1000.0000000000001 in raw IEEE-754 arithmetic —
+      // a bare `sum > total` guard would wrongly reject this exact, valid sum.
+      const { userId, invoiceId } = setup();
+
+      createDeposit(db, invoiceId, { amount: 332.85, dueDate: '2026-02-01' }, userId);
+      createDeposit(db, invoiceId, { amount: 333.04, dueDate: '2026-02-02' }, userId);
+      const deposit3 = createDeposit(
+        db,
+        invoiceId,
+        { amount: 334.11, dueDate: '2026-02-03' },
+        userId,
+      );
+
+      expect(deposit3.amount).toBe(334.11);
+    });
+
+    it('scenario 9: still rejects a create that genuinely exceeds the invoice total by one cent, reporting correct availableHeadroom', () => {
+      const { userId, invoiceId } = setup();
+
+      createDeposit(db, invoiceId, { amount: 332.85, dueDate: '2026-02-01' }, userId);
+      createDeposit(db, invoiceId, { amount: 333.04, dueDate: '2026-02-02' }, userId);
+
+      expect(() => {
+        createDeposit(db, invoiceId, { amount: 334.12, dueDate: '2026-02-03' }, userId); // mathematically 1000.01
+      }).toThrow(DepositsExceedInvoiceTotalError);
+
+      try {
+        createDeposit(db, invoiceId, { amount: 334.12, dueDate: '2026-02-03' }, userId);
+      } catch (e) {
+        const err = e as DepositsExceedInvoiceTotalError;
+        expect(err.details).toMatchObject({
+          invoiceTotal: 1000,
+          requestedAmount: 334.12,
+        });
+        // availableHeadroom must reflect the non-float-noise remaining headroom
+        // (1000 - (332.85 + 333.04)), not a value polluted by summation noise.
+        expect(err.details.availableHeadroom as number).toBeCloseTo(334.11);
+      }
+    });
+
+    it('scenario 10: update that sums to exactly the invoice total despite floating-point summation noise (issue #1806)', () => {
+      const { userId, invoiceId } = setup();
+
+      createDeposit(db, invoiceId, { amount: 332.85, dueDate: '2026-02-01' }, userId);
+      createDeposit(db, invoiceId, { amount: 333.04, dueDate: '2026-02-02' }, userId);
+      const deposit3 = createDeposit(db, invoiceId, { amount: 100, dueDate: '2026-02-03' }, userId);
+
+      const updated = updateDeposit(db, invoiceId, deposit3.id, { amount: 334.11 });
+
+      expect(updated.amount).toBe(334.11);
+    });
+
+    it('scenario 11: still rejects an update that genuinely exceeds the invoice total by one cent, reporting correct availableHeadroom', () => {
+      const { userId, invoiceId } = setup();
+
+      createDeposit(db, invoiceId, { amount: 332.85, dueDate: '2026-02-01' }, userId);
+      createDeposit(db, invoiceId, { amount: 333.04, dueDate: '2026-02-02' }, userId);
+      const deposit3 = createDeposit(db, invoiceId, { amount: 100, dueDate: '2026-02-03' }, userId);
+
+      expect(() => {
+        updateDeposit(db, invoiceId, deposit3.id, { amount: 334.12 }); // mathematically 1000.01
+      }).toThrow(DepositsExceedInvoiceTotalError);
+
+      try {
+        updateDeposit(db, invoiceId, deposit3.id, { amount: 334.12 });
+      } catch (e) {
+        const err = e as DepositsExceedInvoiceTotalError;
+        // availableHeadroom must reflect the non-float-noise remaining headroom
+        // (1000 - (332.85 + 333.04)), not a value polluted by summation noise.
+        expect(err.details.availableHeadroom as number).toBeCloseTo(334.11);
+      }
+    });
   });
 
   // ─── State machine — allowed transitions ────────────────────────────────────

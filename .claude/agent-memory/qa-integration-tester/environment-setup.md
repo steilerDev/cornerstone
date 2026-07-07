@@ -70,4 +70,3 @@ NODE_PATH=/path/to/cornerstone/server/node_modules:/path/to/cornerstone/client/n
   → After changing `shared/src/types/`, rebuild main project's dist OR copy worktree dist files:
   `cp -r /worktree/shared/dist /path/to/cornerstone/shared/`
 - Server tests (better-sqlite3 native binary) may SIGKILL on ARM64 sandbox — validate via CI if needed
-

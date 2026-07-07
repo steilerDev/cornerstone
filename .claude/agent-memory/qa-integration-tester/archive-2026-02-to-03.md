@@ -905,4 +905,3 @@ Key learnings:
   (buildApp + temp-file SQLite + createUserWithSession + createTestWorkItem/HouseholdItem helpers).
 - **Test count**: 57 tests total, categorized as: 8 auth, 21 success path (201/204/200), 1 validation (400),
   15 not found (404), 2 conflict (409), 5 error handling (500), 5 data shape validation.
-

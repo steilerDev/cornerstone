@@ -28,7 +28,7 @@ already-materialized lines as `assignedBudgetLineId`-set (no draft) in page stat
   `mockCreateWorkItemBudget`/`mockCreateHouseholdItemBudget` (the mock block at the top previously
   used bare `jest.fn()` with no capture — had to add `import type * as WorkItemBudgetsApiModule`
   etc. and reset in `beforeEach`). New `describe('retry safety — no duplicate budget lines on commit
-  failure (#1833)', ...)` after the 'Save flow' describe: test 1 queues one row's inline draft via
+failure (#1833)', ...)` after the 'Save flow' describe: test 1 queues one row's inline draft via
   Assign…→Create Budget Line (reusing the picker-mock-with-non-empty-vendors/budgetSources pattern
   from `AutoItemizePage.queueSave.test.tsx`, NOT the sparser pattern in the main file's own picker
   mock which defaults `vendors: null`/`budgetSources: null`), fails the first commit, retries, and

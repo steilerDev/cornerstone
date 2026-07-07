@@ -8,9 +8,9 @@ metadata:
 ## Bug #1833 — materialize-then-commit retry-dedup regression
 
 **Root cause**: `materializeInlineDrafts` (`client/src/lib/autoItemizeDraftUtils.ts`) creates the
-WI/HI budget line via a real POST *before* the atomic auto-itemize commit call. Pre-fix,
-`setLines(mergeMaterializedLines(...))` was only called on the *materialize-failure* branch, not
-the *materialize-success* branch — so if materialize succeeded but the subsequent commit failed,
+WI/HI budget line via a real POST _before_ the atomic auto-itemize commit call. Pre-fix,
+`setLines(mergeMaterializedLines(...))` was only called on the _materialize-failure_ branch, not
+the _materialize-success_ branch — so if materialize succeeded but the subsequent commit failed,
 React state never recorded `assignedBudgetLineId`. A Save retry re-ran `materializeInlineDrafts`
 on the same stale draft and created a SECOND budget line. Fix: `setLines(prev =>
 mergeMaterializedLines(prev, materialized.lines))` now runs unconditionally right after materialize
@@ -37,19 +37,20 @@ Scenario 19 (new-invoice / PaperlessInvoiceReviewPage flow — MOCKED commit res
   (First learned the hard way: initial Scenario 19 tried the real-server approach and failed CI Shard
   5/16 with "got 503" instead of the expected 400.)
 
-**Fix pattern for Scenario 19**: mock ONLY the commit endpoint's *response* via `page.route`
+**Fix pattern for Scenario 19**: mock ONLY the commit endpoint's _response_ via `page.route`
 (call-count-keyed: 1st call → 400 `ITEMIZED_SUM_EXCEEDS_INVOICE`, 2nd call → 201 success), while
 leaving the WI-budgets POST (`materializeInlineDrafts`'s real create call) completely unmocked —
 that POST is the actual regression surface, not the commit call itself. Capture each mocked
 request's `postDataJSON()` into an array and assert `lines[0].assignmentMode === 'assign-existing'`
-+ `lines[0].assignedBudgetLineId === <id captured from the real WI-budget POST response>` on BOTH
-captured payloads — this proves the SAME budget line id is reused across both attempts (no
-duplicate), which is the real point of the test even though the commit failure itself is simulated.
-Pre-create a real invoice via `page.request.post(${API.vendors}/${vendorId}/invoices, ...)` and have
-the 2nd mocked response return `{invoice:{id: thatRealId}}` so post-save navigation to
-`/budget/invoices/:id` resolves against the real server (no extra invoice-detail-page mocking
-needed — `GET /api/invoices/:id`, `/budget-lines`, `/document-links` all just work since the invoice
-genuinely exists).
+
+- `lines[0].assignedBudgetLineId === <id captured from the real WI-budget POST response>` on BOTH
+  captured payloads — this proves the SAME budget line id is reused across both attempts (no
+  duplicate), which is the real point of the test even though the commit failure itself is simulated.
+  Pre-create a real invoice via `page.request.post(${API.vendors}/${vendorId}/invoices, ...)` and have
+  the 2nd mocked response return `{invoice:{id: thatRealId}}` so post-save navigation to
+  `/budget/invoices/:id` resolves against the real server (no extra invoice-detail-page mocking
+  needed — `GET /api/invoices/:id`, `/budget-lines`, `/document-links` all just work since the invoice
+  genuinely exists).
 
 ## Scenario 4 (existing-invoice flow) — REAL commit failure, still valid
 

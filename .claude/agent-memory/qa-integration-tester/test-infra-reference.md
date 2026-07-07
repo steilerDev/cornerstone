@@ -138,4 +138,3 @@ db.select().from(schema.tableName).where(eq(schema.tableName.column, value));
 - Test A→B direct cycle, A→B→C indirect, A→B→C→D chain
 - Verify `ConflictError` with `code: 'CIRCULAR_DEPENDENCY'` and `cyclePath` array
 - Diamond DAGs (A→B, A→C, B→D, C→D) must succeed
-
