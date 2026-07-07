@@ -65,3 +65,15 @@ Story 8.6 (#359, EPIC-08) is also a sub-issue of EPIC-04, blocked by #391 (detai
 - Story 4.7: 10 ACs, 11 UAT scenarios
 - Story 4.8: 12 ACs, 13 UAT scenarios
 - **Total**: 85 ACs, 103 UAT scenarios
+
+## Per-Story Review Notes (moved from MEMORY.md 2026-07-07)
+
+- **Story 4.1 (#387)** — PR #396 APPROVED. Architect refined schema: flat planned_cost/actual_cost/notes replaced by `household_item_budgets`/`household_item_notes` tables (mirrors EPIC-05). Extra columns: url, quantity. Category enum expanded to 8. 6 tables in migration 0010. Document link cascade is application-layer (Story 4.2).
+- **Story 4.2 (#388)** — PR #397 APPROVED. 5 CRUD endpoints, 90 tests (46 service + 44 route). Search uses `q` param. Vendor summary includes `specialty`. documentLinkService validates household_item entity type.
+- **Story 4.5 (#391)** — PR #400 REQUEST CHANGES. AC #11 fail: vendor/URL rows hidden when null instead of "--". AC #6 Notes section N/A — `household_item_notes` needs its own CRUD API (like work_item_notes), none exist yet. Follow-up story needed for HI notes CRUD.
+- **Story 4.6 (#392)** — PR #401 APPROVED (round 2). Fixed: budgetSummary in GET detail via getBudgetSummary()/getTotalSubsidyReduction(); confidence margin uses Math.round(...\*100); focus-visible/reduced-motion/aria/touch targets. AC #4 subsidy API uses POST/DELETE per-item (non-blocking deviation from PUT replace-all).
+- **Story 4.7 (#393)** — PR #402 REQUEST CHANGES round 1. 9/10 ACs. AC #3 FAIL: linked WI start/end dates rendered as raw ISO on HouseholdItemDetailPage (line 734) instead of formatDate(). Test authorship correct. 57 tests.
+- **Story 4.9 (#413)** — PR #414 REQUEST CHANGES round 1. 7/10 ACs. AC #3: error code generic `VALIDATION_ERROR` not `MUTUALLY_EXCLUSIVE_BUDGET_LINK`. AC #6: invoice date not rendered in HI budget invoices. AC #9: no "Linked To" column, no VendorDetailPage change. Migration 0011. Budget overview UNION ALL aggregates WI+HI invoices.
+- **Story 4.10 (#415)** — PR #416 APPROVED. All 11 ACs. Replaces `household_item_work_items` with `household_item_deps` (migration 0012). HIs modelled as zero-duration CPM nodes. CRUD on `/api/household-items/:id/dependencies`. Gantt circle markers (amber pending/green delivered). Two non-blocking: AC #5 returns 409 (consistent w/ CircularDependencyError) not 400; AC #6 timeline query filters only on delivery dates.
+- **Story 4.11 (#467)** — Inline date/dependency editing on HI Detail Page. Restructures into Details / Dates & Delivery / Dependencies sections; inline autosave for order/actual/earliest/latest delivery dates. Edit page reduced to details-only. Blocked by #391.
+- **Story 8.6 (#359, EPIC-08)** — linked as sub-issue, blocked by #391 (detail page).

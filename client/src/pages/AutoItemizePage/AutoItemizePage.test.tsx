@@ -17,10 +17,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as InvoicesApiModule from '../../lib/invoicesApi.js';
 import type * as InvoiceAutoItemizeApiModule from '../../lib/invoiceAutoItemizeApi.js';
 import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
+import type * as WorkItemBudgetsApiModule from '../../lib/workItemBudgetsApi.js';
+import type * as HouseholdItemBudgetsApiModule from '../../lib/householdItemBudgetsApi.js';
 import type {
   Invoice,
   AutoItemizeDryRunResponse,
   PaperlessDocumentDetailResponse,
+  WorkItemBudgetLine,
 } from '@cornerstone/shared';
 
 // ─── Mock: invoicesApi ────────────────────────────────────────────────────────
@@ -66,18 +69,23 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 
 // ─── Mock: workItemBudgetsApi ─────────────────────────────────────────────────
 
+const mockCreateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiModule.createWorkItemBudget>();
+
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
   fetchWorkItemBudgets: jest.fn(),
-  createWorkItemBudget: jest.fn(),
+  createWorkItemBudget: mockCreateWorkItemBudget,
   updateWorkItemBudget: jest.fn(),
   deleteWorkItemBudget: jest.fn(),
 }));
 
 // ─── Mock: householdItemBudgetsApi ────────────────────────────────────────────
 
+const mockCreateHouseholdItemBudget =
+  jest.fn<typeof HouseholdItemBudgetsApiModule.createHouseholdItemBudget>();
+
 jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
   fetchHouseholdItemBudgets: jest.fn(),
-  createHouseholdItemBudget: jest.fn(),
+  createHouseholdItemBudget: mockCreateHouseholdItemBudget,
   updateHouseholdItemBudget: jest.fn(),
   deleteHouseholdItemBudget: jest.fn(),
 }));
@@ -222,6 +230,8 @@ beforeEach(async () => {
   mockMergeLines.mockReset();
   mockGetPaperlessDocument.mockReset();
   mockGetDocumentThumbnailUrl.mockImplementation((id) => `/thumb/${id}`);
+  mockCreateWorkItemBudget.mockReset();
+  mockCreateHouseholdItemBudget.mockReset();
 
   // Reset picker mock overrides between tests
   mockPickerStateOverride = {};
@@ -819,6 +829,178 @@ describe('AutoItemizePage', () => {
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
+    });
+  });
+
+  // ─── Bug #1833 — retry safety: no duplicate budget lines on commit retry ─────
+  //
+  // materializeInlineDrafts creates a real budget line via createWorkItemBudget/
+  // createHouseholdItemBudget BEFORE the autoItemize commit call. Previously, if
+  // the commit call (or a later line's materialization) failed, the page state
+  // was never updated with the already-materialized line(s), so a retry would
+  // call materializeInlineDrafts again on the still-draft lines and create a
+  // second, duplicate budget line for work that had already been created server-side.
+  //
+  // The fix: MaterializeErr now carries `lines` (the partially-materialized array)
+  // and handleSave writes it back via `setLines(prev => mergeMaterializedLines(prev,
+  // materialized.lines))` on BOTH the failure branch and the success branch, so a
+  // retry only re-attempts lines that are still drafts.
+  describe('retry safety — no duplicate budget lines on commit failure (#1833)', () => {
+    async function setupQueuedDraftPage(
+      dryRunLines: Array<{ description: string; totalAmount: number; confidence: number }>,
+    ) {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse(dryRunLines));
+
+      // A picker mock with non-empty vendors/budgetSources so the "Create Budget Line"
+      // button in step 2 is always clickable, mirroring AutoItemizePage.queueSave.test.tsx.
+      mockPickerStateOverride = {
+        isOpen: true,
+        step: 2,
+        type: 'work_item',
+        itemId: 'wi-1',
+        itemTitle: 'Kitchen tiles',
+        isLoading: false,
+        error: null,
+        budgetLines: [],
+        showCreateForm: false,
+        createError: null,
+        vendors: [{ id: 'v-1', name: 'Builder Co', trade: null }],
+        budgetSources: [{ id: 'src-1', name: 'Main Fund', isDiscretionary: true }],
+        categories: [],
+      };
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
+      });
+    }
+
+    /**
+     * Queues an inline draft on the next row that still shows an "Assign…" button
+     * (rows that already have a draft or assignment no longer render it — see
+     * AutoItemizeLineCard's cardAssignZone conditional). Returns false when the
+     * picker mock is not intercepted (local sandbox limitation) so callers can
+     * skip gracefully; CI (Node 24) always intercepts.
+     */
+    async function queueNextDraft(): Promise<boolean> {
+      const assignBtn = screen.queryAllByRole('button', { name: /Assign…/i })[0];
+      if (!assignBtn) return false;
+
+      await act(async () => {
+        fireEvent.click(assignBtn);
+      });
+
+      const createBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
+      if (!createBtn) return false;
+
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
+
+      return true;
+    }
+
+    it('commit failure then retry does not re-create the work item budget line', async () => {
+      await setupQueuedDraftPage([{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }]);
+
+      const queued = await queueNextDraft();
+      if (!queued) return; // non-intercepting local env — covered by CI (Node 24)
+
+      mockCreateWorkItemBudget.mockResolvedValue({
+        id: 'new-wib-1',
+      } as unknown as WorkItemBudgetLine);
+      // First commit attempt fails; second (retry) succeeds.
+      mockAutoItemize.mockRejectedValueOnce(new Error('Commit failed'));
+      mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 1000 });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      // Materialization succeeded before the commit call failed — exactly one create call.
+      expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(1);
+
+      // Retry: click Save again. The row is already assign-existing in state, so
+      // materializeInlineDrafts must skip it — no second create call.
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+      });
+
+      expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(1);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
+      });
+
+      // Both commit attempts (dryRun: false) must carry assign-existing with the
+      // materialized budget line id — not 'create-new'.
+      const commitCalls = mockAutoItemize.mock.calls.filter(
+        (call) => (call[1] as { dryRun?: boolean }).dryRun === false,
+      );
+      expect(commitCalls).toHaveLength(2);
+      const secondCommitPayload = commitCalls[1]![1] as {
+        lines: Array<{ assignmentMode: string; assignedBudgetLineId?: string }>;
+      };
+      expect(secondCommitPayload.lines[0]).toMatchObject({
+        assignmentMode: 'assign-existing',
+        assignedBudgetLineId: 'new-wib-1',
+      });
+    });
+
+    it('partial materialization failure across two lines does not recreate the first line on retry', async () => {
+      await setupQueuedDraftPage([
+        { description: 'Tile work', totalAmount: 300, confidence: 0.9 },
+        { description: 'Grouting', totalAmount: 150, confidence: 0.9 },
+      ]);
+
+      const queuedFirst = await queueNextDraft();
+      if (!queuedFirst) return; // non-intercepting local env — covered by CI (Node 24)
+      const queuedSecond = await queueNextDraft();
+      if (!queuedSecond) return;
+
+      // First draft's create succeeds; second draft's create rejects.
+      mockCreateWorkItemBudget
+        .mockResolvedValueOnce({ id: 'new-wib-A' } as unknown as WorkItemBudgetLine)
+        .mockRejectedValueOnce(new Error('Network failure'));
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      // materializeInlineDrafts stops at the failing line: both create calls made
+      // (first succeeded, second rejected). autoItemize commit was never reached.
+      expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(2);
+      expect(mockAutoItemize).toHaveBeenCalledTimes(1); // dry-run only
+
+      // Retry: the first line is already assign-existing (materialized before the
+      // failure) and must NOT be re-created. Only the still-draft second line is
+      // retried.
+      mockCreateWorkItemBudget.mockResolvedValueOnce({
+        id: 'new-wib-B',
+      } as unknown as WorkItemBudgetLine);
+      mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 1000 });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
+      });
+
+      // Total create calls: 2 (first Save) + 1 (retry) = 3, not 4.
+      expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(3);
     });
   });
 
