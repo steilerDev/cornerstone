@@ -23,7 +23,7 @@ export class AppShellPage {
     // sidebarCloseButton is the FAB itself (it toggles: open→close, close→open).
     // We keep it as a separate property for API compatibility; it points to the same FAB.
     this.sidebarCloseButton = page.getByTestId('menu-fab');
-    this.nav = page.getByRole('navigation', { name: 'Main navigation' });
+    this.nav = page.getByRole('navigation', { name: /Main navigation|Hauptnavigation/ });
     // Overlay uses data-testid="sidebar-overlay" (AppShell.tsx) — not a generic div[aria-hidden].
     this.overlay = page.getByTestId('sidebar-overlay');
   }
