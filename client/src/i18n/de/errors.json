@@ -2,6 +2,7 @@
   "NOT_FOUND": "Die angeforderte Ressource wurde nicht gefunden.",
   "ROUTE_NOT_FOUND": "Der angeforderte Endpunkt existiert nicht.",
   "VALIDATION_ERROR": "Die übermittelten Daten sind ungültig. Bitte Eingabe prüfen.",
+  "PAYLOAD_TOO_LARGE": "Die übermittelten Daten sind zu groß. Bitte Größe reduzieren und erneut versuchen.",
   "UNAUTHORIZED": "Sie müssen angemeldet sein, um diese Aktion durchzuführen.",
   "FORBIDDEN": "Sie haben keine Berechtigung für diese Aktion.",
   "CONFLICT": "Ein Konflikt ist aufgetreten. Die Ressource existiert möglicherweise bereits.",

@@ -178,6 +178,157 @@ describe('Error Handler Plugin', () => {
     });
   });
 
+  describe('Fastify internal error code mapping', () => {
+    it('maps FST_ERR_CTP_BODY_TOO_LARGE to PAYLOAD_TOO_LARGE with status 413', async () => {
+      app = await buildApp();
+
+      app.post('/test/echo-body', async (request) => {
+        return { received: request.body };
+      });
+
+      const oversizedPayload = JSON.stringify({ data: 'x'.repeat(2 * 1024 * 1024) });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/test/echo-body',
+        headers: { 'content-type': 'application/json' },
+        payload: oversizedPayload,
+      });
+
+      expect(response.statusCode).toBe(413);
+      const body: ApiErrorResponse = JSON.parse(response.body);
+      expect(body.error.code).toBe('PAYLOAD_TOO_LARGE');
+    });
+
+    it('maps FST_ERR_CTP_INVALID_JSON_BODY to VALIDATION_ERROR with status 400', async () => {
+      app = await buildApp();
+
+      app.post('/test/echo-body', async (request) => {
+        return { received: request.body };
+      });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/test/echo-body',
+        headers: { 'content-type': 'application/json' },
+        payload: '{not valid json',
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body: ApiErrorResponse = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('maps FST_ERR_CTP_EMPTY_JSON_BODY to VALIDATION_ERROR with status 400', async () => {
+      app = await buildApp();
+
+      app.post('/test/echo-body', async (request) => {
+        return { received: request.body };
+      });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/test/echo-body',
+        headers: { 'content-type': 'application/json' },
+        payload: '',
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body: ApiErrorResponse = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('maps FST_REQ_FILE_TOO_LARGE to PAYLOAD_TOO_LARGE with status 413', async () => {
+      app = await buildApp();
+
+      app.get('/test/multipart-file-too-large', async () => {
+        const err = new Error('request file too large') as Error & {
+          code: string;
+          statusCode: number;
+        };
+        err.code = 'FST_REQ_FILE_TOO_LARGE';
+        err.statusCode = 413;
+        throw err;
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/test/multipart-file-too-large',
+      });
+
+      expect(response.statusCode).toBe(413);
+      const body: ApiErrorResponse = JSON.parse(response.body);
+      expect(body.error.code).toBe('PAYLOAD_TOO_LARGE');
+    });
+
+    it('falls back to VALIDATION_ERROR for an unmapped code with statusCode < 500', async () => {
+      app = await buildApp();
+
+      app.get('/test/unmapped-400', async () => {
+        const err = new Error('some unmapped client error') as Error & {
+          code: string;
+          statusCode: number;
+        };
+        err.code = 'FST_ERR_SOME_UNMAPPED_CODE';
+        err.statusCode = 400;
+        throw err;
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/test/unmapped-400',
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body: ApiErrorResponse = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('falls back to INTERNAL_ERROR for an unmapped code with statusCode >= 500', async () => {
+      app = await buildApp();
+
+      app.get('/test/unmapped-500', async () => {
+        const err = new Error('some unmapped server error') as Error & {
+          code: string;
+          statusCode: number;
+        };
+        err.code = 'FST_ERR_SOME_UNMAPPED_CODE';
+        err.statusCode = 500;
+        throw err;
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/test/unmapped-500',
+      });
+
+      expect(response.statusCode).toBe(500);
+      const body: ApiErrorResponse = JSON.parse(response.body);
+      expect(body.error.code).toBe('INTERNAL_ERROR');
+    });
+
+    it('falls back to VALIDATION_ERROR when statusCode is present but code is missing', async () => {
+      app = await buildApp();
+
+      app.get('/test/no-code', async () => {
+        const err = new Error('error with no code') as Error & { statusCode: number };
+        err.statusCode = 400;
+        throw err;
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/test/no-code',
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body: ApiErrorResponse = JSON.parse(response.body);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(body.error.code).not.toBe('undefined');
+      expect(body.error.code).not.toBe('REQUEST_ERROR');
+    });
+  });
+
   describe('Not-found handler', () => {
     it('returns 404 ROUTE_NOT_FOUND for unknown API routes', async () => {
       app = await buildApp();
