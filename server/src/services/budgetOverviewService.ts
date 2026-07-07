@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS, effectivePlannedAmount } from '@cornerstone/shared';
 import type { BudgetOverview, OversubscribedSubsidy } from '@cornerstone/shared';
 import { computeSubsidyEffects, applySubsidyCaps } from './shared/subsidyCalculationEngine.js';
 import type {
@@ -247,7 +247,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   // VAT helper: convert stored net amount to effective amount if VAT not included
   // SQLite returns 0/1 for boolean, so includesVat === 0 means false (VAT should be applied)
   const effective = (l: { plannedAmount: number; includesVat: number | null }): number =>
-    l.includesVat === 0 ? Math.round(l.plannedAmount * 1.19 * 100) / 100 : l.plannedAmount;
+    effectivePlannedAmount({ plannedAmount: l.plannedAmount, includesVat: l.includesVat !== 0 });
 
   for (const line of budgetLines) {
     const margin = CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0;
