@@ -194,17 +194,13 @@ Each agent receives:
 - PR number and URL
 - The full failed-check excerpt
 - The `BREAKING` findings from step 3 (if any)
-- Explicit instruction to commit on the current branch (the Dependabot branch) and NOT to push — the orchestrator pushes after committing.
+- Explicit instruction to only edit files — per CLAUDE.md's flat delegation model, implementation agents never run `git commit` or `git push` themselves. Staging, committing, and pushing are handled exclusively by `dev-team-lead [MODE: commit]` in step 5d.
 
 #### 5d. Commit & push
 
-Use `dev-team-lead [MODE: commit]` to stage, write the conventional commit message with all contributing agent trailers, and push. Per CLAUDE.md trailer-verification rules, every production-file change must carry the correct `Co-Authored-By` trailer.
+Launch `dev-team-lead [MODE: commit]` to stage the changes, write the conventional commit message with all contributing agent trailers, and push — this is the sole commit/push action for this PR; do not run a separate `git push`. Per CLAUDE.md trailer-verification rules, every production-file change must carry the correct `Co-Authored-By` trailer.
 
-```bash
-git push
-```
-
-(No `-u` — the branch already tracks the Dependabot remote ref.)
+This PR already exists (it _is_ the Dependabot PR) — explicitly instruct dev-team-lead to **skip PR creation** in its `[MODE: commit]` protocol (there is no new PR to open) and to push without `-u` (the branch already tracks the Dependabot remote ref).
 
 #### 5e. Wait for CI
 

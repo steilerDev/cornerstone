@@ -111,7 +111,7 @@ Specifically:
 
 2. **Execute `/epic-start` step 4** (Plan: Product Architect) — launches the architect agent to design schema/API/ADRs and update wiki pages.
 
-3. **Execute `/epic-start` step 5** (Present to User) — post the plan as a comment on the epic issue and present it to the user. Skip the step 6 handoff instructions (the user is not invoking `/develop` manually — Phase 2 handles it).
+3. **Execute `/epic-start` step 5** (Present to User) — post the plan as a comment on the epic issue and present it to the user. **Do not wait for explicit approval here** — unlike standalone `/epic-start`, `/epic-run` is autonomous end-to-end and only pauses at the `beta` → `main` promotion gate (see `/release` step 4). Proceed immediately to Build Story Queue. Skip the step 6 handoff instructions (the user is not invoking `/develop` manually — Phase 2 handles it).
 
 ### 1.4 Build Story Queue
 
@@ -169,7 +169,7 @@ Execute `/develop` steps 2 through 11 for the current story, using **single-item
 - **Step 8** (Review) — launch 4 reviewer agents in parallel
 - **Step 9** (Fix Loop) — fix loop if reviewers flag blocking issues
 - **Step 10** (Merge) — wait for CI, present summary, squash merge
-- **Step 11** (Close Issues & Clean Up) — close issue, move to Done on board. **Skip the branch cleanup and `/exit`** — the session continues with the next story.
+- **Step 11** (Close Issues & Clean Up) — close issue, move to Done on board. **Skip step 11's worktree/branch cleanup item** — the session continues with the next story.
 
 After step 11 completes, add the story to `completedStories`.
 

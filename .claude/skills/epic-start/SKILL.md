@@ -61,7 +61,7 @@ Launch the **product-owner** agent to:
 - Set board statuses: **Backlog** for future-sprint stories, **Todo** for first-sprint stories:
 
   ```bash
-  ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<issue-number>" --jq '.items[0].id')
+  ITEM_ID=$(gh project item-add 4 --owner steilerDev --url https://github.com/steilerDev/cornerstone/issues/<issue-number> --format json --jq '.id')
 
   # Move to Todo (dc74a3b0) or Backlog (7404f88c)
   gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id dc74a3b0
@@ -90,7 +90,7 @@ Present the complete epic plan to the user:
 - **Architecture**: Summary of schema changes, new API endpoints, ADRs created
 - **Sprint plan**: Which stories are in the first sprint (Todo) vs backlog
 
-Post the plan as a comment on the epic GitHub Issue and proceed immediately to step 6.
+Post the plan as a comment on the epic GitHub Issue. **Wait for the user to review and explicitly approve the plan before proceeding to step 6** — do not advance automatically.
 
 ### 6. Handoff
 

@@ -116,11 +116,13 @@ Provide each agent with:
 
 #### 4a. Commit
 
-Ensure the branch name follows conventions. If on a worktree branch, rename it:
+Ensure the branch name follows conventions. This skill's input is a CI run URL/ID, not an issue — there is no issue number to slot into the standard `<type>/<issue-number>-<short-description>` pattern. Use the run ID in its place (mirroring the precedent in `/dependabot` step 6d, which substitutes a GHSA ID for the same reason):
 
 ```bash
-git branch -m fix/<issue-number>-e2e-fixes
+git branch -m fix/e2e-<run-id>-<short-description>
 ```
+
+Where `<short-description>` is a 2–4 word kebab-case summary of the dominant failure category identified in step 1 (e.g., `fix/e2e-48213021-gantt-selector`).
 
 Commit with appropriate trailers based on which agents contributed:
 
@@ -145,7 +147,7 @@ git push -u origin <branch-name>
 If no PR exists, create one targeting `beta`:
 
 ```bash
-gh pr create --title "fix(e2e): resolve failing E2E tests" --body "$(cat <<'EOF'
+gh pr create --base beta --title "fix(e2e): resolve failing E2E tests" --body "$(cat <<'EOF'
 ## Summary
 - <bullet points describing fixes>
 
