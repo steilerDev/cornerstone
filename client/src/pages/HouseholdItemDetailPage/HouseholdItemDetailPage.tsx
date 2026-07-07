@@ -1390,7 +1390,7 @@ export function HouseholdItemDetailPage() {
               </div>
             )}
             {depError && (
-              <div role="alert" className={styles.errorBanner} style={{ marginTop: '0.5rem' }}>
+              <div role="alert" className={`${styles.errorBanner} ${styles.errorBannerSpacingTop}`}>
                 {depError}
               </div>
             )}

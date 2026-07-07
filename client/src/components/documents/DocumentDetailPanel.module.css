@@ -17,7 +17,7 @@
 
 .panelTitle {
   font-size: var(--font-size-lg);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
   flex: 1;
@@ -91,7 +91,7 @@
 
 .metaLabel {
   font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -114,7 +114,7 @@
   display: inline-block;
   padding: var(--spacing-0-5) var(--spacing-1-5);
   font-size: var(--font-size-xs);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   background-color: var(--color-primary-bg);
   color: var(--color-primary-badge-text);
   border-radius: var(--radius-sm);
@@ -127,7 +127,7 @@
 
 .snippetLabel {
   font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -146,7 +146,7 @@
   font-size: var(--font-size-sm);
   color: var(--color-primary);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .externalLink:hover {

@@ -20,7 +20,7 @@
 
 .groupHeader {
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
   margin: 0;
   text-transform: lowercase;
@@ -60,7 +60,7 @@
   color: var(--color-primary);
   text-decoration: none;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

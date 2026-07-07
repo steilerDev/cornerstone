@@ -35,7 +35,7 @@
   outline: none;
   box-shadow: var(--shadow-focus);
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raised);
 }
 
 .addDropdown {

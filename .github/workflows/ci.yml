@@ -63,6 +63,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Stylelint
+        run: npm run stylelint
+
       - name: Build
         run: npm run build
 

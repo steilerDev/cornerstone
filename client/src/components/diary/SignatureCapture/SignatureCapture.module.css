@@ -127,7 +127,7 @@
   aspect-ratio: 3 / 1;
   border: 2px solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: var(--color-white);
   overflow: hidden;
 }
 

@@ -17,7 +17,7 @@
 
 .errorTitle {
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-danger);
   margin-bottom: 1rem;
 }
@@ -31,7 +31,7 @@
 
 .cardTitle {
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0 0 0.5rem 0;
 }
@@ -62,7 +62,7 @@
 
 .infoLabel {
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
 }
 
@@ -106,7 +106,7 @@
 
 .label {
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
 }
 
@@ -148,7 +148,7 @@
   background-color: var(--color-primary);
   color: var(--color-primary-text);
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   border: none;
   border-radius: 0.375rem;
   cursor: pointer;
