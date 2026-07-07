@@ -154,7 +154,7 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 **NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
 
-**Do NOT remove worktrees.** Deleting local worktrees breaks inside the sandbox. Agents must never run `git worktree remove`, `git worktree prune`, or otherwise delete a worktree (or use a tool's worktree-removal/cleanup option). Leave worktrees in place when work is done — the repository owner cleans them up manually.
+**Clean up worktrees when work is complete.** Once a session's work is finished — its PR is merged (or the work is deliberately abandoned) and the worktree has no uncommitted changes — remove the worktree and delete its local branch: `git worktree remove <path>` (run from the base repository), then `git branch -D <branch>` (verify the PR is merged first; squash merges make `-d` refuse even for merged work). Never remove a worktree that has uncommitted changes, an unmerged/unpushed branch, or that another active session may be using — when in doubt, leave it and note it for manual cleanup.
 
 ### Release Model
 
