@@ -92,6 +92,67 @@
   word-break: break-all;
 }
 
+.schedulerStatus {
+  margin-bottom: var(--spacing-4);
+  padding: var(--spacing-4) var(--spacing-5);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.schedulerStatusHeading {
+  margin: 0 0 var(--spacing-3) 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.schedulerStatusGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+}
+
+.schedulerStatusRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.schedulerStatusRow dt {
+  flex: 0 0 auto;
+  min-width: 160px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.schedulerStatusRow dd {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.schedulerStatusTimestamp {
+  font-variant-numeric: tabular-nums;
+}
+
+.schedulerStatusMuted {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.schedulerStatusHint {
+  margin: var(--spacing-2) 0 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
 @media (max-width: 767px) {
   .page {
     padding: var(--spacing-4);
@@ -117,6 +178,20 @@
   .actions button {
     padding: var(--spacing-1-5) var(--spacing-2);
     font-size: var(--font-size-xs);
+  }
+
+  .schedulerStatus {
+    padding: var(--spacing-3) var(--spacing-4);
+  }
+
+  .schedulerStatusRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-1);
+  }
+
+  .schedulerStatusRow dt {
+    min-width: 0;
   }
 }
 

@@ -5,11 +5,18 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { listBackups, createBackup, deleteBackup, restoreBackup } from './backupsApi.js';
+import {
+  listBackups,
+  createBackup,
+  deleteBackup,
+  restoreBackup,
+  getSchedulerStatus,
+} from './backupsApi.js';
 import type {
   BackupListResponse,
   BackupResponse,
   RestoreInitiatedResponse,
+  BackupSchedulerStatusResponse,
 } from '@cornerstone/shared';
 
 describe('backupsApi', () => {
@@ -321,6 +328,120 @@ describe('backupsApi', () => {
       } as Response);
 
       await expect(restoreBackup('cornerstone-backup-2026-03-22T020000Z.tar.gz')).rejects.toThrow();
+    });
+  });
+
+  // ─── getSchedulerStatus ───────────────────────────────────────────────────
+
+  describe('getSchedulerStatus()', () => {
+    it('calls GET /api/backups/scheduler-status', async () => {
+      const mockResponse: BackupSchedulerStatusResponse = {
+        scheduler: { enabled: false, lastRun: null, nextRuns: [] },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      } as Response);
+
+      await getSchedulerStatus();
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/backups/scheduler-status', expect.any(Object));
+    });
+
+    it('returns the typed response with the disabled shape', async () => {
+      const mockResponse: BackupSchedulerStatusResponse = {
+        scheduler: { enabled: false, lastRun: null, nextRuns: [] },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      } as Response);
+
+      const result = await getSchedulerStatus();
+
+      expect(result).toEqual(mockResponse);
+      expect(result.scheduler.enabled).toBe(false);
+      expect(result.scheduler.lastRun).toBeNull();
+      expect(result.scheduler.nextRuns).toHaveLength(0);
+    });
+
+    it('returns the typed response with the enabled shape (lastRun + nextRuns populated)', async () => {
+      const mockResponse: BackupSchedulerStatusResponse = {
+        scheduler: {
+          enabled: true,
+          lastRun: { timestamp: '2026-03-22T02:00:00.000Z', success: true },
+          nextRuns: ['2026-03-23T02:00:00.000Z', '2026-03-24T02:00:00.000Z'],
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      } as Response);
+
+      const result = await getSchedulerStatus();
+
+      expect(result.scheduler.enabled).toBe(true);
+      expect(result.scheduler.lastRun?.success).toBe(true);
+      expect(result.scheduler.lastRun?.timestamp).toBe('2026-03-22T02:00:00.000Z');
+      expect(result.scheduler.nextRuns).toHaveLength(2);
+    });
+
+    it('returns a failed lastRun outcome untouched', async () => {
+      const mockResponse: BackupSchedulerStatusResponse = {
+        scheduler: {
+          enabled: true,
+          lastRun: { timestamp: '2026-03-22T02:00:00.000Z', success: false },
+          nextRuns: ['2026-03-23T02:00:00.000Z'],
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      } as Response);
+
+      const result = await getSchedulerStatus();
+
+      expect(result.scheduler.lastRun?.success).toBe(false);
+    });
+
+    it('throws ApiClientError when server returns 503 BACKUP_NOT_CONFIGURED', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({
+          error: { code: 'BACKUP_NOT_CONFIGURED', message: 'Backup is not configured' },
+        }),
+      } as Response);
+
+      await expect(getSchedulerStatus()).rejects.toThrow();
+    });
+
+    it('throws ApiClientError when server returns 403 FORBIDDEN', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({
+          error: { code: 'FORBIDDEN', message: 'Forbidden' },
+        }),
+      } as Response);
+
+      await expect(getSchedulerStatus()).rejects.toThrow();
+    });
+
+    it('throws ApiClientError when server returns 401 UNAUTHORIZED', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({
+          error: { code: 'UNAUTHORIZED', message: 'Unauthorized' },
+        }),
+      } as Response);
+
+      await expect(getSchedulerStatus()).rejects.toThrow();
     });
   });
 });

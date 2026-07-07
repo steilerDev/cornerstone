@@ -404,4 +404,7 @@ export type {
   BackupResponse,
   BackupListResponse,
   RestoreInitiatedResponse,
+  BackupSchedulerLastRun,
+  BackupSchedulerStatus,
+  BackupSchedulerStatusResponse,
 } from './types/backup.js';

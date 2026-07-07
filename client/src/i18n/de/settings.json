@@ -415,7 +415,22 @@
     },
     "restartingMessage": "Der Server wird neu gestartet. Bitte warten Sie einen Moment und laden Sie dann die Seite neu.",
     "createError": "Sicherung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-    "loadError": "Sicherungen konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+    "loadError": "Sicherungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "scheduler": {
+      "heading": "Automatischer Sicherungsplan",
+      "loading": "Planungsstatus wird geladen …",
+      "statusLabel": "Automatische Sicherungen",
+      "enabled": "Aktiviert",
+      "disabled": "Deaktiviert",
+      "disabledHint": "Setzen Sie die Umgebungsvariable BACKUP_CADENCE, um automatische Sicherungen zu aktivieren.",
+      "lastRunLabel": "Letzter geplanter Lauf",
+      "lastRunSuccess": "Erfolgreich",
+      "lastRunFailure": "Fehlgeschlagen",
+      "noRunsYet": "Es wurden noch keine automatischen Sicherungen ausgeführt",
+      "nextRunLabel": "Nächster geplanter Lauf",
+      "thenLabel": "dann",
+      "loadError": "Planungsstatus konnte nicht geladen werden. Bitte versuchen Sie es erneut."
+    }
   },
   "vendors": {
     "contacts": {
