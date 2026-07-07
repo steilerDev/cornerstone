@@ -1074,7 +1074,7 @@ export function BudgetSourcesPage() {
                           setEditingSource({ ...editingSource, terms: e.target.value })
                         }
                         className={styles.input}
-                        placeholder={t('budgetSources.termsPlaceholder')}
+                        placeholder={t('sources.form.placeholders.terms')}
                         maxLength={500}
                         disabled={isUpdating}
                       />
@@ -1091,7 +1091,7 @@ export function BudgetSourcesPage() {
                           setEditingSource({ ...editingSource, notes: e.target.value })
                         }
                         className={styles.textarea}
-                        placeholder={t('budgetSources.notesPlaceholder')}
+                        placeholder={t('sources.form.placeholders.notes')}
                         maxLength={2000}
                         disabled={isUpdating}
                         rows={3}
@@ -1250,7 +1250,7 @@ export function BudgetSourcesPage() {
                     />
 
                     {source.terms && (
-                      <p className={styles.sourceTerms} title={t('budgetSources.termsTitle')}>
+                      <p className={styles.sourceTerms} title={t('sources.form.terms')}>
                         {source.terms}
                       </p>
                     )}

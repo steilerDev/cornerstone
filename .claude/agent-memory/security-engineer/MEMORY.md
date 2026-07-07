@@ -30,7 +30,7 @@ Verified across EPIC-01/02/03/05 — all confirmed STRONG:
 - [Full PR review table](pr-review-table.md) — every PR reviewed since project inception, one line each
 - [Detailed review findings](review-history.md) — full write-ups for PRs with notable findings
 
-Most recent: **#1837** Fix #1806 float-sum epsilon in invoice guards — APPROVED (epsilon bounded <€0.005, non-cumulative by design).
+Most recent: **#1844** i18n sweep (69 strings/27 components) + dead MilestonePanel removal — APPROVED. Confirmed pattern: i18next `escapeValue:false` (client/src/i18n/index.ts:111) is safe because every `t()` interpolation in this codebase renders through plain JSX text children or JSX attributes (never `<Trans>`, never dangerouslySetInnerHTML) — React's own escaping covers it regardless of the i18next setting. Baseline check for future i18n PRs: grep new `t()` call sites for `<Trans>`/dangerouslySetInnerHTML, not the escapeValue config itself (already verified stable).
 
 ## Known Open Recommendations
 
