@@ -102,6 +102,39 @@ search for `jest.unstable_mockModule('.../formatters.js'` AND `'.../LocaleContex
 tree, and check whether the *specific new symbol* is exported at the mock's top level vs. nested inside the
 `useFormatters` return, since a component can consume the same module both ways in different files.
 
+### Round 2 CI fix (same PR #1845): one more grandparent consumer, closure walked to fixpoint
+
+`InvoicePaperlessPickerModal.test.tsx` still failed after round 1 — it renders the embedded `DocumentBrowser` →
+`DocumentCard`, which needs `useLocale()`. This is 2 hops away from the directly-changed component
+(`DocumentCard`), which is why the round-1 "grep for direct importers of each changed component" sweep missed
+it: `InvoicePaperlessPickerModal` imports `DocumentBrowser`, not `DocumentCard` directly. Fixed with the same
+standard `LocaleContext.js` mock block (mirrors `DocumentBrowser.test.tsx`'s block verbatim, same relative path
+`../../contexts/LocaleContext.js` since both live two levels under `client/src/`).
+
+**Corrected process — blast-radius checks must be a transitive closure, not one grep pass:**
+1. `grep -rl <ComponentName> client/src --include='*.tsx' --include='*.ts' | grep -v '\.test\.' | grep -v
+   '/<ComponentName>\.tsx?$'` to get direct importers.
+2. Re-run step 1 on *each new importer found*, accumulating a visited set, until a pass finds zero new files
+   (fixpoint). Two hops was not enough this time — went 3 deep (`DocumentCard` → `DocumentBrowser` →
+   `InvoicePaperlessPickerModal`; separately `LinkedDocumentsSection` → `HouseholdItemDetailPage`/etc. →
+   nothing further).
+3. Expect false positives at every round from CSS-module imports (`'../../pages/Foo/Foo.module.css'` matches a
+   naive grep for `Foo`) and comment/JSDoc mentions — inspect each hit's actual import line before trusting it,
+   don't just count grep matches.
+4. For every file in the closure that has a `.test.tsx`, either confirm existing LocaleContext/formatters
+   handling (mock block, or a real unmocked `LocaleProvider` ancestor like `App.test.tsx` uses) or actually run
+   it — do not assume "probably fine" from reading the mock list only. Batching ~5 suites per `npx jest <paths...>
+   --maxWorkers=1` invocation from repo root works fine and stays within the 2-minute default timeout.
+5. Root-level aggregators (`App.tsx`/`App.test.tsx`) are worth including explicitly since they're the
+   terminal node of nearly every closure in this codebase — check them once at the end rather than per-branch.
+
+Full verified closure for this round (all green, no further gaps): `LinkedDocumentsSection`, `LinkedDocumentCard`,
+`DocumentBrowser`, `GanttChart`, `CalendarView`, `DashboardPage`, `SignatureSection`, `DiaryEntryEditPage`,
+`DiaryEntryDetailPage`, `DiaryEntryCard`, `HouseholdItemDetailPage`, `WorkItemDetailPage`, `InvoiceDetailPage`,
+`SubsidyProgramsPage`, `TimelinePage`, `DiaryPage`, `BudgetSourcesPage`, `BackupsPage`, `App.test.tsx`, plus the
+11 originally-changed leaf components themselves (re-verified green, 366 tests) — 841 tests total across this
+round, zero new fixes needed beyond the `InvoicePaperlessPickerModal.test.tsx` mock block.
+
 ### Canvas mocking pattern for jsdom (new SignatureCapture.test.tsx, closed prior test-file-parity gap)
 
 jsdom has no real 2D canvas context (project policy forbids native `canvas` npm package). Stub
