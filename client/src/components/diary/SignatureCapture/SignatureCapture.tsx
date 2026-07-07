@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
+import { useFormatters } from '../../../lib/formatters.js';
 import styles from './SignatureCapture.module.css';
 
 export interface VendorOption {
@@ -32,6 +33,7 @@ export function SignatureCapture({
   vendors,
 }: SignatureCaptureProps) {
   const { t } = useTranslation('diary');
+  const { formatDateTimeWithZone } = useFormatters();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -296,14 +298,7 @@ export function SignatureCapture({
     const ctx = canvas.getContext('2d');
     if (ctx) {
       const rect = canvas.getBoundingClientRect();
-      const formattedDate = now.toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZoneName: 'short',
-      });
+      const formattedDate = formatDateTimeWithZone(now);
       const labelText = `${displayName} \u2014 ${formattedDate}`;
 
       ctx.save();

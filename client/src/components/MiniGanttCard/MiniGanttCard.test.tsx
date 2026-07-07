@@ -2,10 +2,27 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen } from '@testing-library/react';
-import { renderWithRouter } from '../../test/testUtils.js';
+import { screen, render as rtlRender } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import type { ReactElement } from 'react';
+import type { RenderOptions } from '@testing-library/react';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
 import type * as CardTypes from './MiniGanttCard.js';
 import type { TimelineResponse } from '@cornerstone/shared';
+
+/**
+ * Renders with both MemoryRouter and LocaleProvider — MiniGanttCard uses
+ * useFormatters() (via useLocale()), which throws outside a LocaleProvider,
+ * in addition to useNavigate() which requires a Router context.
+ */
+function renderWithRouter(ui: ReactElement, options?: RenderOptions) {
+  return rtlRender(
+    <LocaleProvider>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </LocaleProvider>,
+    options,
+  );
+}
 
 // CSS modules mocked via identity-obj-proxy
 
@@ -18,6 +35,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   window.getComputedStyle = originalGetComputedStyle;
+  localStorage.clear();
 });
 
 // Dynamic import — must happen after any jest.unstable_mockModule calls.
@@ -431,5 +449,44 @@ describe('MiniGanttCard', () => {
 
     // The grid alone must produce exactly 6 grid lines
     expect(linesNoDeps.length).toBeGreaterThanOrEqual(6);
+  });
+
+  // ── de-DE locale (Issue #1813) ────────────────────────────────────────────
+
+  describe('de-DE locale', () => {
+    it('renders German short weekday labels (e.g. "Mo") instead of English ("Mon")', () => {
+      localStorage.setItem('locale', 'de');
+
+      const timeline: TimelineResponse = {
+        ...emptyTimeline,
+        workItems: [{ ...baseWorkItem }],
+      };
+
+      const { container } = renderWithRouter(<MiniGanttCard timeline={timeline} />);
+
+      const textElements = Array.from(container.querySelectorAll('svg text'));
+      const labels = textElements.map((el) => el.textContent);
+
+      // German weekday abbreviations are 2 letters (Mo, Di, Mi, Do, Fr, Sa, So);
+      // none of the 5 rendered day labels should be an English 3-letter form.
+      const englishAbbrevs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const hasEnglishLabel = labels.some((l) => l !== null && englishAbbrevs.includes(l));
+      expect(hasEnglishLabel).toBe(false);
+
+      const germanAbbrevs = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+      const hasGermanLabel = labels.some((l) => l !== null && germanAbbrevs.includes(l));
+      expect(hasGermanLabel).toBe(true);
+    });
+
+    it('does not throw or render undefined/NaN weekday labels under de-DE locale', () => {
+      localStorage.setItem('locale', 'de');
+      const timeline: TimelineResponse = {
+        ...emptyTimeline,
+        workItems: [{ ...baseWorkItem }],
+      };
+
+      expect(() => renderWithRouter(<MiniGanttCard timeline={timeline} />)).not.toThrow();
+      expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
+    });
   });
 });

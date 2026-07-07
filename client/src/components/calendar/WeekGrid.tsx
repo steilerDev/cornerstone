@@ -162,7 +162,7 @@ export function WeekGrid({
                   : { position: 'relative' }
               }
               role="gridcell"
-              aria-label={formatDateForAria(day.dateStr)}
+              aria-label={formatDateForAria(day.dateStr, localeString)}
             >
               {/* Work item blocks */}
               {dayItems.map((item) => {

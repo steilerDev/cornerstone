@@ -8,7 +8,7 @@ import type {
 } from '@cornerstone/shared';
 import { Badge } from '../../Badge/Badge.js';
 import badgeStyles from '../../Badge/Badge.module.css';
-import { computeWorkDuration } from '../../../lib/formatters.js';
+import { computeWorkDuration, useFormatters } from '../../../lib/formatters.js';
 import styles from './DiaryMetadataSummary.module.css';
 
 interface DiaryMetadataSummaryProps {
@@ -40,6 +40,7 @@ const DIARY_SEVERITY_VARIANTS = {
 
 export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSummaryProps) {
   const { t } = useTranslation('diary');
+  const { formatHours } = useFormatters();
   if (entryType === 'daily_log' && metadata) {
     const m = metadata as DailyLogMetadata;
     const workDuration = computeWorkDuration(m.workStart, m.workEnd);
@@ -75,7 +76,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
             {t('metadata.workEnd')} {m.workEnd}
           </span>
         )}
-        {workDuration !== null && <span className={styles.item}>{workDuration.toFixed(2)} h</span>}
+        {workDuration !== null && <span className={styles.item}>{formatHours(workDuration)}</span>}
       </div>
     );
   }

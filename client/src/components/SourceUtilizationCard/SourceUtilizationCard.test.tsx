@@ -1,9 +1,10 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen } from '@testing-library/react';
 import { renderWithRouter } from '../../test/testUtils.js';
+import i18n from '../../i18n/index.js';
 import type { BudgetSource } from '@cornerstone/shared';
 
 // CSS modules mocked via identity-obj-proxy
@@ -33,14 +34,14 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
     formatDate: fmtDate,
     formatTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
     formatDateTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    formatPercent: (n: number, digits = 2) => `${n.toFixed(digits)}%`,
     computeActualDuration: () => null,
     useFormatters: () => ({
       formatCurrency: fmtCurrency,
       formatDate: fmtDate,
       formatTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
       formatDateTime: (ts: string | null | undefined, fallback = '—') => ts ?? fallback,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+      formatPercent: (n: number, digits = 2) => `${n.toFixed(digits)}%`,
     }),
   };
 });
@@ -245,5 +246,41 @@ describe('SourceUtilizationCard', () => {
 
     const allText = container.textContent ?? '';
     expect(allText).toContain('0% utilized');
+  });
+
+  // ── i18n template change regression (Issue #1813) ─────────────────────────
+  // The `%` used to be embedded in the translation template
+  // ("{{percent}}% utilized"); it now comes from formatPercent()'s own output
+  // ("{{percent}} utilized"). Guard against a regressed double "%%".
+
+  describe('utilized text — i18n template regression + de-DE locale', () => {
+    afterEach(() => {
+      void i18n.changeLanguage('en');
+    });
+
+    it('never renders a double "%%" for the sr-only utilized text (en)', () => {
+      const source: BudgetSource = {
+        ...baseSource,
+        id: 'bs-pct',
+        usedAmount: 500,
+        totalAmount: 1000,
+      };
+      const { container } = renderWithRouter(<SourceUtilizationCard sources={[source]} />);
+      expect(container.textContent ?? '').not.toContain('%%');
+    });
+
+    it('renders the German "genutzt" wording without a double "%%" when locale is de', async () => {
+      await i18n.changeLanguage('de');
+      const source: BudgetSource = {
+        ...baseSource,
+        id: 'bs-pct-de',
+        usedAmount: 500,
+        totalAmount: 1000,
+      };
+      const { container } = renderWithRouter(<SourceUtilizationCard sources={[source]} />);
+      const text = container.textContent ?? '';
+      expect(text).toContain('50% genutzt');
+      expect(text).not.toContain('%%');
+    });
   });
 });

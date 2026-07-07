@@ -7,10 +7,21 @@
  * Covers all the new daily_log metadata fields as well as the pre-existing
  * weather/temperature/workers behaviour and the site_visit render path.
  */
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { render as rtlRender, screen } from '@testing-library/react';
 import type React from 'react';
+import type { ReactElement } from 'react';
 import type { DiaryEntryType } from '@cornerstone/shared';
+import { LocaleProvider } from '../../../contexts/LocaleContext.js';
+
+/**
+ * Custom render function that wraps the component with LocaleProvider —
+ * DiaryMetadataSummary uses useFormatters() (via useLocale()), which throws
+ * outside a LocaleProvider. See DateRangePicker.test.tsx for the reference pattern.
+ */
+function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
+}
 
 // DiaryMetadataSummaryProps is not exported; reconstruct it from the component signature.
 interface DiaryMetadataSummaryProps {
@@ -27,6 +38,11 @@ describe('DiaryMetadataSummary', () => {
       const mod = await import('./DiaryMetadataSummary.js');
       DiaryMetadataSummary = mod.DiaryMetadataSummary;
     }
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
   });
 
   // ─── daily_log: new vendorName field (Story #1672) ─────────────────────────
@@ -83,6 +99,18 @@ describe('DiaryMetadataSummary', () => {
         />,
       );
       expect(screen.getByText(/8\.50 h/)).toBeInTheDocument();
+    });
+
+    it('renders computed duration "8,50 h" (comma decimal) under de-DE locale', () => {
+      localStorage.setItem('locale', 'de');
+      render(
+        <DiaryMetadataSummary
+          entryType="daily_log"
+          metadata={{ workStart: '08:00', workEnd: '16:30' }}
+        />,
+      );
+      expect(screen.getByText(/8,50 h/)).toBeInTheDocument();
+      expect(screen.queryByText(/8\.50 h/)).not.toBeInTheDocument();
     });
 
     it('does not render duration span when only workStart is present', () => {

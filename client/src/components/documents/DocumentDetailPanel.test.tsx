@@ -1,6 +1,17 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import type { ReactElement } from 'react';
 import type * as DocumentDetailPanelModule from './DocumentDetailPanel.js';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
+
+/**
+ * Custom render function that wraps the component with LocaleProvider —
+ * DocumentDetailPanel uses useFormatters() (via useLocale()), which throws
+ * outside a LocaleProvider. See DateRangePicker.test.tsx for the reference pattern.
+ */
+function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
+}
 
 const mockGetDocumentThumbnailUrl = jest.fn<(id: number) => string>();
 
@@ -20,6 +31,11 @@ beforeEach(async () => {
     (await import('./DocumentDetailPanel.js')) as typeof DocumentDetailPanelModule);
   mockGetDocumentThumbnailUrl.mockReset();
   mockGetDocumentThumbnailUrl.mockImplementation((id) => `/api/paperless/documents/${id}/thumb`);
+  localStorage.clear();
+});
+
+afterEach(() => {
+  localStorage.clear();
 });
 
 const makeDoc = (overrides = {}) => ({
@@ -197,6 +213,48 @@ describe('DocumentDetailPanel', () => {
       render(<DocumentDetailPanel document={makeDoc()} onClose={onClose} variant="standalone" />);
       fireEvent.click(screen.getByRole('button', { name: /close document details/i }));
       expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── UTC-midnight-shift regression (Issue #1813, Scenario 10) ──────────────
+
+  it('renders "February 24, 2026" (not Feb 23 or Feb 25) for created="2026-02-24"', () => {
+    render(
+      <DocumentDetailPanel document={makeDoc({ created: '2026-02-24' })} onClose={jest.fn()} />,
+    );
+    expect(screen.getByText('February 24, 2026')).toBeInTheDocument();
+    expect(screen.queryByText('February 23, 2026')).not.toBeInTheDocument();
+    expect(screen.queryByText('February 25, 2026')).not.toBeInTheDocument();
+  });
+
+  // ─── de-DE locale (Issue #1813) ──────────────────────────────────────────────
+
+  describe('de-DE locale', () => {
+    it('renders the full German month name for the created date (long monthStyle)', () => {
+      localStorage.setItem('locale', 'de');
+      render(
+        <DocumentDetailPanel document={makeDoc({ created: '2026-02-24' })} onClose={jest.fn()} />,
+      );
+      expect(screen.getByText(/Februar/)).toBeInTheDocument();
+      expect(screen.queryByText(/^Feb /)).not.toBeInTheDocument();
+    });
+
+    it('renders the full German month name for a May date (diverges from English)', () => {
+      localStorage.setItem('locale', 'de');
+      render(
+        <DocumentDetailPanel document={makeDoc({ created: '2026-05-24' })} onClose={jest.fn()} />,
+      );
+      expect(screen.getByText(/Mai/)).toBeInTheDocument();
+      expect(screen.queryByText(/May/)).not.toBeInTheDocument();
+    });
+
+    it('does not render undefined/NaN under de-DE locale', () => {
+      localStorage.setItem('locale', 'de');
+      render(
+        <DocumentDetailPanel document={makeDoc({ created: '2026-02-24' })} onClose={jest.fn()} />,
+      );
+      expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/\bNaN\b/)).not.toBeInTheDocument();
     });
   });
 });

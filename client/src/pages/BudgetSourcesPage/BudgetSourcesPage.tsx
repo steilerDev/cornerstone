@@ -86,14 +86,10 @@ function sourceToEditState(source: BudgetSource): EditingSource {
 interface SourceBarChartProps {
   source: BudgetSource;
   formatCurrency: (value: number) => string;
-  formatPercent: (value: number) => string;
+  formatPercent: (value: number, digits?: number) => string;
 }
 
-function SourceBarChart({
-  source,
-  formatCurrency,
-  formatPercent: _formatPercent,
-}: SourceBarChartProps) {
+function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChartProps) {
   const { t } = useTranslation('budget');
   const [hoveredSegment, setHoveredSegment] = useState<BudgetBarSegment | null>(null);
   const handleSegmentHover = useCallback((seg: BudgetBarSegment | null) => {
@@ -180,8 +176,8 @@ function SourceBarChart({
               </span>
               <span className={styles.segmentTooltipPct}>
                 {source.totalAmount > 0
-                  ? `${(((hoveredSegment.totalValue ?? hoveredSegment.value) / source.totalAmount) * 100).toFixed(1)}% ${t('sources.barChart.ofTotal')}`
-                  : `0.0% ${t('sources.barChart.ofTotal')}`}
+                  ? `${formatPercent(((hoveredSegment.totalValue ?? hoveredSegment.value) / source.totalAmount) * 100, 1)} ${t('sources.barChart.ofTotal')}`
+                  : `${formatPercent(0, 1)} ${t('sources.barChart.ofTotal')}`}
               </span>
               <span className={styles.segmentTooltipPct}>
                 {t('sources.barChart.remaining')}{' '}

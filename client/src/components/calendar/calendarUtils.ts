@@ -492,14 +492,14 @@ export const DAY_NAMES_NARROW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
  * Formats a YYYY-MM-DD date string as a human-readable aria-label.
  * Example: "2026-02-24" → "Tuesday, February 24, 2026"
  */
-export function formatDateForAria(dateStr: string): string {
+export function formatDateForAria(dateStr: string, locale = 'en-US'): string {
   const parts = dateStr.split('-').map(Number);
   const year = parts[0]!; // split ensures at least 1 part or throws
   const month = parts[1]!; // must be YYYY-MM-DD format
   const day = parts[2]!; // must be YYYY-MM-DD format
   const date = new Date(Date.UTC(year, month - 1, day));
-  const weekday = date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
-  const monthName = date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+  const weekday = date.toLocaleDateString(locale, { weekday: 'long', timeZone: 'UTC' });
+  const monthName = date.toLocaleDateString(locale, { month: 'long', timeZone: 'UTC' });
   return `${weekday}, ${monthName} ${day}, ${year}`;
 }
 

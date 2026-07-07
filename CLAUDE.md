@@ -380,7 +380,7 @@ The application supports multiple locales (English and German) via `i18next` and
 - **Translator owns non-English locales**: `translator` agent translates new keys and enforces glossary compliance.
 - **Glossary**: `client/src/i18n/glossary.json` — domain-specific terms only (Work Item, Invoice, etc.). Translator proposes new terms; product-owner approves. To add a locale: update `glossary.json` `_meta.locales`, create `client/src/i18n/{locale}/` namespace files, register in `client/src/i18n/index.ts`.
 - **Backend**: API error responses use `ErrorCode` enum values; frontend translates via `translateApiError()`. `CURRENCY` env var (default: `EUR`) exposed via `GET /api/config`.
-- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
+- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent`, `formatWeekdayShort`, `formatFileSize`, and `formatHours` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
 - **Testing**: QA verifies keys exist in both locales. E2E verifies locale detection and switching.
 - **Specs**: Dev-team-lead specs must include translation namespace, English keys to add, and a Translator Spec section.
 

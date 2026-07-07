@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemStatus, DependencyType } from '@cornerstone/shared';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './GanttTooltip.module.css';
 
 // ---------------------------------------------------------------------------
@@ -157,15 +158,6 @@ const OFFSET_Y = 8;
 
 const MAX_DEPS_SHOWN = 5;
 
-function formatDisplayDate(dateStr: string | null): string {
-  if (!dateStr) return '—';
-  // Input is YYYY-MM-DD; format to a readable form
-  const [year, month, day] = dateStr.split('-').map(Number);
-  // year, month, day are parsed from dateStr string (guaranteed to be valid numeric parts)
-  const d = new Date(year!, month! - 1, day!);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
 function WorkItemTooltipContent({
   data,
   isTouchDevice,
@@ -174,6 +166,7 @@ function WorkItemTooltipContent({
   isTouchDevice?: boolean;
 }) {
   const { t } = useTranslation('schedule');
+  const { formatDate } = useFormatters();
 
   const statusLabels: Record<WorkItemStatus, string> = {
     not_started: t('gantt.tooltip.status.not_started')!,
@@ -255,11 +248,11 @@ function WorkItemTooltipContent({
       {/* Date range */}
       <div className={styles.detailRow}>
         <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.startLabel')}</span>
-        <span className={styles.detailValue}>{formatDisplayDate(data.startDate)}</span>
+        <span className={styles.detailValue}>{formatDate(data.startDate)}</span>
       </div>
       <div className={styles.detailRow}>
         <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.endLabel')}</span>
-        <span className={styles.detailValue}>{formatDisplayDate(data.endDate)}</span>
+        <span className={styles.detailValue}>{formatDate(data.endDate)}</span>
       </div>
 
       {/* Duration section — planned/actual/variance when both available, single row fallback */}
@@ -382,6 +375,7 @@ function MilestoneTooltipContent({
   onMilestoneNavigate?: (milestoneId: number) => void;
 }) {
   const { t } = useTranslation('schedule');
+  const { formatDate } = useFormatters();
 
   let statusLabel: string;
   let statusClass: string;
@@ -430,7 +424,7 @@ function MilestoneTooltipContent({
       {/* Target date */}
       <div className={styles.detailRow}>
         <span className={styles.detailLabel}>{t('gantt.tooltip.milestone.targetLabel')}</span>
-        <span className={styles.detailValue}>{formatDisplayDate(data.targetDate)}</span>
+        <span className={styles.detailValue}>{formatDate(data.targetDate)}</span>
       </div>
 
       {/* Projected date — show when available and milestone is not yet completed */}
@@ -438,7 +432,7 @@ function MilestoneTooltipContent({
         <div className={styles.detailRow}>
           <span className={styles.detailLabel}>{t('gantt.tooltip.milestone.projectedLabel')}</span>
           <span className={`${styles.detailValue} ${data.isLate ? styles.detailValueLate : ''}`}>
-            {data.projectedDate !== null ? formatDisplayDate(data.projectedDate) : '—'}
+            {data.projectedDate !== null ? formatDate(data.projectedDate) : '—'}
           </span>
         </div>
       )}
@@ -447,9 +441,7 @@ function MilestoneTooltipContent({
       {data.isCompleted && data.completedAt !== null && (
         <div className={styles.detailRow}>
           <span className={styles.detailLabel}>{t('gantt.tooltip.milestone.doneLabel')}</span>
-          <span className={styles.detailValue}>
-            {formatDisplayDate(data.completedAt.slice(0, 10))}
-          </span>
+          <span className={styles.detailValue}>{formatDate(data.completedAt)}</span>
         </div>
       )}
 
@@ -554,6 +546,7 @@ function HouseholdItemTooltipContent({
   onNavigate?: (itemId: string) => void;
 }) {
   const { t } = useTranslation('schedule');
+  const { formatDate } = useFormatters();
 
   const statusLabel = data.status.replace(/_/g, ' ');
 
@@ -593,7 +586,7 @@ function HouseholdItemTooltipContent({
           <span className={styles.detailLabel}>
             {t('gantt.tooltip.householdItem.earliestLabel')}
           </span>
-          <span className={styles.detailValue}>{formatDisplayDate(data.earliestDeliveryDate)}</span>
+          <span className={styles.detailValue}>{formatDate(data.earliestDeliveryDate)}</span>
         </div>
       )}
 
@@ -601,7 +594,7 @@ function HouseholdItemTooltipContent({
       {data.targetDeliveryDate && (
         <div className={styles.detailRow}>
           <span className={styles.detailLabel}>{t('gantt.tooltip.householdItem.targetLabel')}</span>
-          <span className={styles.detailValue}>{formatDisplayDate(data.targetDeliveryDate)}</span>
+          <span className={styles.detailValue}>{formatDate(data.targetDeliveryDate)}</span>
         </div>
       )}
 
@@ -609,7 +602,7 @@ function HouseholdItemTooltipContent({
       {data.latestDeliveryDate && (
         <div className={styles.detailRow}>
           <span className={styles.detailLabel}>{t('gantt.tooltip.householdItem.latestLabel')}</span>
-          <span className={styles.detailValue}>{formatDisplayDate(data.latestDeliveryDate)}</span>
+          <span className={styles.detailValue}>{formatDate(data.latestDeliveryDate)}</span>
         </div>
       )}
 
@@ -617,7 +610,7 @@ function HouseholdItemTooltipContent({
       {data.actualDeliveryDate && (
         <div className={styles.detailRow}>
           <span className={styles.detailLabel}>{t('gantt.tooltip.householdItem.actualLabel')}</span>
-          <span className={styles.detailValue}>{formatDisplayDate(data.actualDeliveryDate)}</span>
+          <span className={styles.detailValue}>{formatDate(data.actualDeliveryDate)}</span>
         </div>
       )}
 

@@ -141,14 +141,14 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
     formatDate: fmtDate,
     formatTime: fmtTime,
     formatDateTime: fmtDateTime,
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    formatPercent: (n: number, digits = 2) => `${n.toFixed(digits)}%`,
     computeActualDuration: () => null,
     useFormatters: () => ({
       formatCurrency: fmtCurrency,
       formatDate: fmtDate,
       formatTime: fmtTime,
       formatDateTime: fmtDateTime,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+      formatPercent: (n: number, digits = 2) => `${n.toFixed(digits)}%`,
     }),
   };
 });
@@ -2154,6 +2154,36 @@ describe('BudgetSourcesPage', () => {
       const secondaryEl = claimedRow?.querySelector('[class*="summarySecondary"]');
       expect(secondaryEl).toBeTruthy();
       expect(secondaryEl?.className).toMatch(/summarySecondaryNegative/);
+    });
+
+    // ── segment hover tooltip percent text (Issue #1813) ───────────────────────
+    // formatPercent(value, 1) is used for the tooltip "X% of total" text.
+
+    it('segment hover tooltip shows a percent-of-total value formatted via formatPercent', async () => {
+      const activeSource: BudgetSource = {
+        ...sampleSource1,
+        totalAmount: 200000,
+        claimedAmount: 20000, // 20000 / 200000 = 10%
+        paidAmount: 20000,
+        projectedMinAmount: 20000,
+        projectedMaxAmount: 20000,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [activeSource] });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      const claimedSegment = container.querySelector('[class*="segment"]');
+      expect(claimedSegment).not.toBeNull();
+      fireEvent.mouseEnter(claimedSegment!);
+
+      // 10.0% of total, formatted with 1 digit via formatPercent(value, 1)
+      await waitFor(() => {
+        expect(screen.getByText(/10\.0%\s+of total/i)).toBeInTheDocument();
+      });
     });
   });
 

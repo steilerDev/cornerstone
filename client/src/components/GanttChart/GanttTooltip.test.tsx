@@ -6,17 +6,38 @@
  * and ArrowTooltipContent (Issue #287: arrow hover highlighting).
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { render as rtlRender, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import type { ReactElement } from 'react';
 import { GanttTooltip } from './GanttTooltip.js';
 import type {
   GanttTooltipWorkItemData,
   GanttTooltipArrowData,
   GanttTooltipMilestoneData,
+  GanttTooltipHouseholdItemData,
   GanttTooltipPosition,
 } from './GanttTooltip.js';
 import type { WorkItemStatus } from '@cornerstone/shared';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
+
+/**
+ * Custom render function that wraps the component tree with LocaleProvider —
+ * GanttTooltip's sub-components use useFormatters() (via useLocale()), which
+ * throws outside a LocaleProvider. See DateRangePicker.test.tsx for the
+ * reference pattern. Works regardless of whether `ui` already includes a
+ * MemoryRouter, since LocaleProvider simply wraps whatever is passed in.
+ */
+function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
+}
+
+// Reset the locale preference after every test in this file so a `de` locale
+// set by one test (see the "de-DE locale" describe block below) never bleeds
+// into subsequent tests via jsdom's persistent localStorage.
+afterEach(() => {
+  localStorage.clear();
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -1219,5 +1240,80 @@ describe('GanttTooltip — touch device navigation affordance (#342)', () => {
       </MemoryRouter>,
     );
     expect(screen.queryByText('View item')).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GanttTooltip — de-DE locale (Issue #1813)
+// ---------------------------------------------------------------------------
+
+describe('GanttTooltip — de-DE locale', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+    localStorage.setItem('locale', 'de');
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, value: 1280 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, value: 800 });
+    localStorage.clear();
+  });
+
+  it('work item tooltip renders German-formatted start/end dates (May diverges: "Mai")', () => {
+    render(
+      <MemoryRouter>
+        <GanttTooltip
+          data={{ ...DEFAULT_DATA, startDate: '2026-05-01', endDate: '2026-05-15' }}
+          position={DEFAULT_POSITION}
+        />
+      </MemoryRouter>,
+    );
+    const maiMatches = screen.getAllByText(/Mai/);
+    expect(maiMatches.length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/\bMay\b/)).not.toBeInTheDocument();
+  });
+
+  it('milestone tooltip renders German-formatted target date consistently with work item tooltip', () => {
+    const milestoneData: GanttTooltipMilestoneData = {
+      kind: 'milestone',
+      title: 'Foundation Complete',
+      targetDate: '2026-05-01',
+      projectedDate: null,
+      isCompleted: false,
+      isLate: false,
+      completedAt: null,
+      linkedWorkItems: [],
+      dependentWorkItems: [],
+    };
+    render(<GanttTooltip data={milestoneData} position={{ x: 100, y: 200 }} />);
+    expect(screen.getAllByText(/Mai/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('household item tooltip renders German-formatted delivery dates consistently', () => {
+    const hiData: GanttTooltipHouseholdItemData = {
+      kind: 'household-item',
+      name: 'Kitchen Cabinets',
+      category: 'furniture',
+      status: 'scheduled',
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
+      targetDeliveryDate: '2026-05-01',
+      actualDeliveryDate: null,
+      isLate: false,
+    };
+    render(<GanttTooltip data={hiData} position={{ x: 100, y: 200 }} />);
+    expect(screen.getAllByText(/Mai/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('does not throw or render undefined/NaN for a work item tooltip under de-DE locale', () => {
+    expect(() =>
+      render(
+        <MemoryRouter>
+          <GanttTooltip data={DEFAULT_DATA} position={DEFAULT_POSITION} />
+        </MemoryRouter>,
+      ),
+    ).not.toThrow();
+    expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
   });
 });
