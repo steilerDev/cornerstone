@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -831,6 +831,85 @@ describe('Work Item Service', () => {
       expect(() => workItemService.deleteWorkItem(db, 'non-existent')).toThrow(
         'Work item not found',
       );
+    });
+
+    it('rolls back all three deletes if a write mid-sequence throws (#1809)', () => {
+      // Given: A work item with an associated householdItemDeps row (predecessorType
+      // 'work_item') and a documentLinks row.
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, { title: 'To Delete' });
+
+      const now = new Date().toISOString();
+      const hiId = `hi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      db.insert(schema.householdItems)
+        .values({
+          id: hiId,
+          name: 'Test Household Item',
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          quantity: 1,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.householdItemDeps)
+        .values({
+          householdItemId: hiId,
+          predecessorType: 'work_item',
+          predecessorId: workItem.id,
+        })
+        .run();
+
+      const linkId = `link-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      db.insert(schema.documentLinks)
+        .values({
+          id: linkId,
+          entityType: 'work_item',
+          entityId: workItem.id,
+          paperlessDocumentId: 42,
+          createdBy: userId,
+          createdAt: now,
+        })
+        .run();
+
+      // When: db.delete is spied; call 1 (householdItemDeps) and call 2 (documentLinks) both
+      // "succeed", call 3 (the final workItems delete) throws.
+      const originalDelete = db.delete.bind(db);
+      let calls = 0;
+      const spy = jest
+        .spyOn(db, 'delete')
+        .mockImplementation((...args: Parameters<typeof db.delete>) => {
+          calls++;
+          if (calls === 3) {
+            throw new Error('Simulated crash mid-transaction');
+          }
+          return originalDelete(...args);
+        });
+
+      expect(() => workItemService.deleteWorkItem(db, workItem.id)).toThrow(
+        'Simulated crash mid-transaction',
+      );
+
+      spy.mockRestore();
+
+      // Then: the work item row, the householdItemDeps row, and the documentLinks row all
+      // still exist.
+      const workItemRow = workItemService.findWorkItemById(db, workItem.id);
+      expect(workItemRow).toBeDefined();
+
+      const depRow = db
+        .select()
+        .from(schema.householdItemDeps)
+        .where(eq(schema.householdItemDeps.householdItemId, hiId))
+        .get();
+      expect(depRow).toBeDefined();
+
+      const linkRow = db
+        .select()
+        .from(schema.documentLinks)
+        .where(eq(schema.documentLinks.id, linkId))
+        .get();
+      expect(linkRow).toBeDefined();
     });
   });
 

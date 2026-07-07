@@ -249,32 +249,36 @@ export function createMilestone(
 
   const now = new Date().toISOString();
 
-  const result = db
-    .insert(milestones)
-    .values({
-      title: data.title.trim(),
-      description: data.description ?? null,
-      targetDate: data.targetDate,
-      isCompleted: false,
-      completedAt: null,
-      color: data.color ?? null,
-      createdBy: userId,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning({ id: milestones.id })
-    .get();
+  const result = db.transaction(() => {
+    const inserted = db
+      .insert(milestones)
+      .values({
+        title: data.title.trim(),
+        description: data.description ?? null,
+        targetDate: data.targetDate,
+        isCompleted: false,
+        completedAt: null,
+        color: data.color ?? null,
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: milestones.id })
+      .get();
 
-  // Link work items if provided
-  if (data.workItemIds && data.workItemIds.length > 0) {
-    for (const workItemId of data.workItemIds) {
-      // Verify work item exists before linking (skip silently if not found)
-      const workItem = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
-      if (workItem) {
-        db.insert(milestoneWorkItems).values({ milestoneId: result.id, workItemId }).run();
+    // Link work items if provided
+    if (data.workItemIds && data.workItemIds.length > 0) {
+      for (const workItemId of data.workItemIds) {
+        // Verify work item exists before linking (skip silently if not found)
+        const workItem = db.select().from(workItems).where(eq(workItems.id, workItemId)).get();
+        if (workItem) {
+          db.insert(milestoneWorkItems).values({ milestoneId: inserted.id, workItemId }).run();
+        }
       }
     }
-  }
+
+    return inserted;
+  });
 
   const milestone = db.select().from(milestones).where(eq(milestones.id, result.id)).get()!;
   const areaMap = loadAreaMap(db);
@@ -369,17 +373,19 @@ export function deleteMilestone(db: DbType, id: number): void {
     throw new NotFoundError('Milestone not found');
   }
 
-  // Cascade delete household item dependencies where this milestone is the predecessor
-  db.delete(householdItemDeps)
-    .where(
-      and(
-        eq(householdItemDeps.predecessorType, 'milestone'),
-        eq(householdItemDeps.predecessorId, id.toString()),
-      ),
-    )
-    .run();
+  db.transaction(() => {
+    // Cascade delete household item dependencies where this milestone is the predecessor
+    db.delete(householdItemDeps)
+      .where(
+        and(
+          eq(householdItemDeps.predecessorType, 'milestone'),
+          eq(householdItemDeps.predecessorId, id.toString()),
+        ),
+      )
+      .run();
 
-  db.delete(milestones).where(eq(milestones.id, id)).run();
+    db.delete(milestones).where(eq(milestones.id, id)).run();
+  });
 }
 
 /**

@@ -28,7 +28,7 @@ pre-existing coverage gap on `applySubsidyCaps`'s clamp behavior, independent of
 `minPayback = maxPayback = reductionValue` **per entity**, ignoring category matching and line
 count — unlike `totalReductions`'s accumulation, which correctly divides across matching lines
 and applies a per-line `Math.min(perLineAmount, costBasis)` clamp. For fixed subsidies with
-multiple budget lines or category restrictions, `totalReductions` can legitimately be *less than*
+multiple budget lines or category restrictions, `totalReductions` can legitimately be _less than_
 `minTotalPayback`, breaking the `minTotalPayback <= totalReductions` invariant direction — this
 is unrelated to `maximumAmount` capping. **Do not** write a range-invariant test for multi-line
 or category-restricted fixed subsidies; keep such scenarios single-line and universal. Worth a

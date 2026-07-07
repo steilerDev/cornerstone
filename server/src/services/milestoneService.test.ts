@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { eq, and } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as milestoneService from './milestoneService.js';
@@ -517,6 +518,66 @@ describe('Milestone Service', () => {
 
       expect(result.workItems).toEqual([]);
     });
+
+    it('rolls back the milestone insert and all link inserts if a write mid-sequence throws (#1809)', () => {
+      // Given: Two work items to link
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemA = createTestWorkItem(userId, 'Foundation Work');
+      const workItemB = createTestWorkItem(userId, 'Framing Work');
+      const attemptedTitle = 'Phase 1 Complete (#1809 rollback)';
+
+      // When: db.insert is spied; call 1 (milestones row) and call 2 (1st milestoneWorkItems
+      // link) succeed, call 3 (2nd milestoneWorkItems link) throws — proving at least one link
+      // insert succeeding before the forced failure still gets rolled back alongside the
+      // milestone row itself.
+      const originalInsert = db.insert.bind(db);
+      let calls = 0;
+      const spy = jest
+        .spyOn(db, 'insert')
+        .mockImplementation((...args: Parameters<typeof db.insert>) => {
+          calls++;
+          if (calls === 3) {
+            throw new Error('Simulated crash mid-transaction');
+          }
+          return originalInsert(...args);
+        });
+
+      expect(() =>
+        milestoneService.createMilestone(
+          db,
+          {
+            title: attemptedTitle,
+            targetDate: '2026-06-01',
+            workItemIds: [workItemA, workItemB],
+          },
+          userId,
+        ),
+      ).toThrow('Simulated crash mid-transaction');
+
+      spy.mockRestore();
+
+      // Then: no milestone row exists for the attempted title...
+      const milestoneRow = db
+        .select()
+        .from(schema.milestones)
+        .where(eq(schema.milestones.title, attemptedTitle))
+        .get();
+      expect(milestoneRow).toBeUndefined();
+
+      // ...and no milestoneWorkItems link rows exist for either work item.
+      const linksA = db
+        .select()
+        .from(schema.milestoneWorkItems)
+        .where(eq(schema.milestoneWorkItems.workItemId, workItemA))
+        .all();
+      const linksB = db
+        .select()
+        .from(schema.milestoneWorkItems)
+        .where(eq(schema.milestoneWorkItems.workItemId, workItemB))
+        .all();
+      expect(linksA).toEqual([]);
+      expect(linksB).toEqual([]);
+    });
   });
 
   // ─── updateMilestone ─────────────────────────────────────────────────────────
@@ -781,6 +842,79 @@ describe('Milestone Service', () => {
       milestoneService.linkWorkItem(db, anotherMilestone.id, workItemB);
       const afterCheck = milestoneService.getMilestoneById(db, anotherMilestone.id);
       expect(afterCheck.workItems).toHaveLength(2);
+    });
+
+    it('rolls back both deletes if a write mid-sequence throws (#1809)', () => {
+      // Given: A milestone with an associated householdItemDeps row (predecessorType
+      // 'milestone') — reproduces the issue's described bug ("dependency rows destroyed
+      // while parent survives").
+      const userId = createTestUser('user@example.com', 'Test User');
+      const milestone = milestoneService.createMilestone(
+        db,
+        { title: 'Milestone With HI Dep', targetDate: '2026-04-15' },
+        userId,
+      );
+      const now = new Date().toISOString();
+      const hiId = `hi-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      db.insert(schema.householdItems)
+        .values({
+          id: hiId,
+          name: 'Test Household Item',
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          quantity: 1,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.householdItemDeps)
+        .values({
+          householdItemId: hiId,
+          predecessorType: 'milestone',
+          predecessorId: milestone.id.toString(),
+        })
+        .run();
+
+      // When: db.delete is spied; call 1 (householdItemDeps delete) succeeds, call 2 (the
+      // milestones delete) throws.
+      const originalDelete = db.delete.bind(db);
+      let calls = 0;
+      const spy = jest
+        .spyOn(db, 'delete')
+        .mockImplementation((...args: Parameters<typeof db.delete>) => {
+          calls++;
+          if (calls === 2) {
+            throw new Error('Simulated crash mid-transaction');
+          }
+          return originalDelete(...args);
+        });
+
+      expect(() => milestoneService.deleteMilestone(db, milestone.id)).toThrow(
+        'Simulated crash mid-transaction',
+      );
+
+      spy.mockRestore();
+
+      // Then: the milestone row AND the householdItemDeps row both still exist — neither is
+      // destroyed.
+      const milestoneRow = db
+        .select()
+        .from(schema.milestones)
+        .where(eq(schema.milestones.id, milestone.id))
+        .get();
+      expect(milestoneRow).toBeDefined();
+
+      const depRow = db
+        .select()
+        .from(schema.householdItemDeps)
+        .where(
+          and(
+            eq(schema.householdItemDeps.predecessorType, 'milestone'),
+            eq(schema.householdItemDeps.predecessorId, milestone.id.toString()),
+          ),
+        )
+        .get();
+      expect(depRow).toBeDefined();
     });
   });
 

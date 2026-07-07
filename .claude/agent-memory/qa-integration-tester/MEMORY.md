@@ -15,6 +15,7 @@
 
 ## Recent bug/story notes (2026-07)
 
+- [issue-1809-transaction-rollback-tests.md](issue-1809-transaction-rollback-tests.md) — db.transaction rollback test pattern via jest.spyOn(db, 'update'/'insert'/'delete') mid-sequence throw; verify call counts empirically not from spec guesses; console.log is globally mocked in setupTests.ts
 - [bug-1807-transitive-mock-drift.md](bug-1807-transitive-mock-drift.md) — grepping for a component tag misses transitive renderers; when a shared component (BudgetLineForm) gains a new required hook field, sweep by grepping for mocks of the _hook's module_ and actually run every match; never restate a prior pass count without re-running it
 - [bug-1833-retry-safety.md](bug-1833-retry-safety.md) — auto-itemize save retry-safety: `MaterializeErr.lines` + `mergeMaterializedLines()`, named budget-create mocks added to both AutoItemizePage/PaperlessInvoiceReviewPage test files
 - [Story #1805 — budget breakdown VAT gross-up](story-1805-vat-breakdown-gross-up.md) (2026-07-07) — fixed-subsidy `Math.min(perLineAmount,costBasis)` cap lives in overview.ts not breakdown.ts; CONFIDENCE_MARGINS.own_estimate is 20% not 0%; NOT NULL includes_vat is unreachable-null
