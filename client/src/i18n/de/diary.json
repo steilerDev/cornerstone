@@ -56,7 +56,6 @@
     "subsidy_status": "Förderprogrammstatus"
   },
   "create": {
-    "title": "Tagebucheintrag erstellen",
     "backLink": "← Tagebuch",
     "entryDate": "Einzugsdatum",
     "entryDateRequired": "Einzugsdatum ist erforderlich",
@@ -91,7 +90,6 @@
     "deleteErrorMessage": "Fehler beim Löschen des Tagebucheintrags. Bitte versuchen Sie es erneut."
   },
   "edit": {
-    "title": "Tagebucheintrag bearbeiten",
     "backLink": "← Zurück zum Tagebuch",
     "entryDate": "Einzugsdatum",
     "entryDateRequired": "Einzugsdatum ist erforderlich",

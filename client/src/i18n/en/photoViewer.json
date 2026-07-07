@@ -25,6 +25,8 @@
   "saveButton": "Save",
   "saving": "Saving...",
   "saveError": "Failed to save metadata",
+  "networkError": "Network error: Unable to connect to the server.",
+  "unexpectedError": "An unexpected error occurred.",
   "delete": "Delete photo",
   "deleteConfirmTitle": "Delete this photo?",
   "deleteConfirmBody": "This photo will be permanently removed. This action cannot be undone.",

@@ -227,25 +227,6 @@
       "notFound": "Meilenstein nicht gefunden",
       "notFoundMessage": "Der gesuchte Meilenstein existiert nicht.",
       "backLink": "Zurück zu Meilensteinen",
-      "edit": "Bearbeiten",
-      "view": {
-        "targetDate": "Zieldatum",
-        "projectedDate": "Voraussichtliches Datum",
-        "description": "Beschreibung",
-        "completedAt": "Abgeschlossen am",
-        "linkedItems": "Verknüpfte Artikel",
-        "workItem": "Arbeitspaket",
-        "householdItem": "Haushaltsartikel",
-        "noItems": "Keine Artikel verknüpft",
-        "dependentItems": "Abhängige Arbeitspakete",
-        "noDependentItems": "Keine abhängigen Arbeitspakete",
-        "searchPlaceholder": "Arbeitspakete oder Haushaltsartikel zum Verknüpfen durchsuchen...",
-        "depSearchPlaceholder": "Arbeitspakete zum Hinzufügen als abhängig durchsuchen...",
-        "noMatches": "Keine Artikel entsprechen Ihrer Suche",
-        "noDepMatches": "Keine Arbeitspakete entsprechen Ihrer Suche",
-        "deleteButton": "Meilenstein löschen",
-        "editButton": "Bearbeiten"
-      },
       "edit": {
         "title": "Meilenstein bearbeiten",
         "form": {

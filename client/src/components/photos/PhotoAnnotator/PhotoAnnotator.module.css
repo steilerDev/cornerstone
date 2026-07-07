@@ -67,11 +67,6 @@
   min-height: 44px;
 }
 
-.resetButton {
-  composes: btnSecondary from '../../../styles/shared.module.css';
-  min-height: 44px;
-}
-
 /* Shared iconButton sub-pattern (dark surface — used by PhotoViewer info bar buttons) */
 .iconButton {
   display: flex;
@@ -106,18 +101,6 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
-}
-
-/* Modal buttons (for reset confirmation) */
-.modalActions {
-  display: flex;
-  gap: var(--spacing-3);
-  justify-content: flex-end;
-  margin-top: var(--spacing-4);
-}
-
-.confirmButton {
-  composes: btnPrimary from '../../../styles/shared.module.css';
 }
 
 .liveRegion {

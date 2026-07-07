@@ -56,7 +56,6 @@
     "subsidy_status": "Subsidy Status"
   },
   "create": {
-    "title": "Create Diary Entry",
     "backLink": "← Diary",
     "entryDate": "Entry Date",
     "entryDateRequired": "Entry date is required",
@@ -91,7 +90,6 @@
     "deleteErrorMessage": "Failed to delete diary entry. Please try again."
   },
   "edit": {
-    "title": "Edit Diary Entry",
     "backLink": "← Back to Diary",
     "entryDate": "Entry Date",
     "entryDateRequired": "Entry date is required",
