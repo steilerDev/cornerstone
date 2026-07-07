@@ -17,6 +17,17 @@ updates:
       prod-dependencies:
         dependency-type: production
     open-pull-requests-limit: 10
+    # Hold @babel/* at v7 until the coordinated Babel 8 migration lands (issue #1823).
+    # Babel 8 breaks the webpack client build (@babel/preset-typescript@8 stops
+    # stripping TS types); a piecemeal 3-package bump cannot produce a coherent v8
+    # graph. Remove these ignore rules once #1823 completes the full migration.
+    ignore:
+      - dependency-name: '@babel/core'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@babel/preset-react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@babel/preset-typescript'
+        update-types: ['version-update:semver-major']
 
   # GitHub Actions
   - package-ecosystem: github-actions
