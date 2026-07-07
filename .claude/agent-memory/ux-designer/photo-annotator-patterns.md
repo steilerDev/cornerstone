@@ -8,9 +8,9 @@ metadata:
 Patterns for `client/src/components/photos/PhotoAnnotator/`. Consult before specifying or reviewing changes to this component.
 
 - Tool palette: `role="toolbar"` wrapper; each button `.toolButton` / `.toolButtonActive`; `min-width/height: 44px`; `aria-pressed`; inline SVG icons (24×24, `stroke="currentColor"`); HighlightIcon uses `fill="currentColor"` (established precedent)
-- Annotator dark-surface rgba values: `rgba(0,0,0,0.6)`, `rgba(255,255,255,0.4)` etc. in PhotoAnnotator.module.css are intentional photo-overlay hardcodes (pre-existing pattern); do NOT flag as token violations
+- Annotator dark-surface values are now real tokens (PR #1847, Issue #1815): `--color-photo-*` family in `tokens.css` (overlay-caption, control-bg/-hover, bar-bg, border, focus-ring, active-bg, action-primary-bg, action-danger-bg) — theme-invariant by design (no dark override), consumed by `PhotoAnnotator`, `PhotoViewer`, `PhotoCard`. If you see a raw rgba in this family in a future diff, it's a regression, not an accepted exception anymore.
 - Font-size radiogroup: `role="radiogroup"` + `role="radio"` + `aria-checked`; buttons use `.fontSizeButton`/`.fontSizeButtonActive`; hover inside `prefers-reduced-motion` block (consistent with toolButton + strokeButton pattern)
-- Inline text input (Story #1476): `.inlineTextInput` positioned absolute over canvas; focus managed via `requestAnimationFrame`; `aria-label` via `t('editText'|'editCallout')`; `z-index: 1000` is pre-existing (should be `var(--z-modal)`, refinement item); inline style should NOT duplicate CSS module's `min-width`/`z-index`
+- Inline text input (Story #1476): `.inlineTextInput` positioned absolute over canvas; focus managed via `requestAnimationFrame`; `aria-label` via `t('editText'|'editCallout')`; `z-index: 1000` fixed to `var(--z-modal)` in PR #1847; inline style should NOT duplicate CSS module's `min-width`/`z-index`
 - TextIcon uses SVG `<text>` element (not stroked path) — inconsistent with stroke icon family; flag for polish pass
 - Annotation colors in `ANNOTATION_COLORS` are intentionally hardcoded hex (not tokens) — marks must be theme-invariant; document this in any spec touching that file
 - Draft shape visual: `stroke-dasharray: 6 4`, `opacity: 0.8`, `pointer-events: none` — use for ALL new shape types

@@ -9,6 +9,7 @@ import type {
 } from '@cornerstone/shared';
 import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { useDebounce } from '../../hooks/useDebounce.js';
 import { DiaryFilterBar } from '../../components/diary/DiaryFilterBar/DiaryFilterBar.js';
 import { DiaryDateGroup } from '../../components/diary/DiaryDateGroup/DiaryDateGroup.js';
 import shared from '../../styles/shared.module.css';
@@ -54,7 +55,6 @@ export default function DiaryPage() {
   const urlPage = parseInt(searchParams.get('page') || '1', 10);
 
   const [searchInput, setSearchInput] = useState(searchQuery);
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const announcementRef = useRef<HTMLDivElement>(null);
 
   /* eslint-disable @eslint-react/set-state-in-effect -- synchronously sync URL page to component state on page param change */
@@ -63,22 +63,24 @@ export default function DiaryPage() {
   }, [urlPage, currentPage]);
   /* eslint-enable @eslint-react/set-state-in-effect */
 
+  // Debounced search with URL sync
+  const debouncedSearchInput = useDebounce(searchInput, 300);
+  const isFirstSearchSyncRef = useRef(true);
+
   useEffect(() => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      const newParams = new URLSearchParams(searchParams);
-      if (searchInput) {
-        newParams.set('q', searchInput);
-      } else {
-        newParams.delete('q');
-      }
-      newParams.set('page', '1');
-      setSearchParams(newParams);
-    }, 300);
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    };
-  }, [searchInput, searchParams, setSearchParams]);
+    if (isFirstSearchSyncRef.current) {
+      isFirstSearchSyncRef.current = false;
+      return;
+    }
+    const newParams = new URLSearchParams(searchParams);
+    if (debouncedSearchInput) {
+      newParams.set('q', debouncedSearchInput);
+    } else {
+      newParams.delete('q');
+    }
+    newParams.set('page', '1');
+    setSearchParams(newParams);
+  }, [debouncedSearchInput, searchParams, setSearchParams]);
 
   useEffect(() => {
     void loadEntries();

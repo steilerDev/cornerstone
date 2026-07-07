@@ -10,6 +10,7 @@ fix + `npm run stylelint` wired into root `lint`/`lint:fix` + CI `static-analysi
 no bugs found, no test assertion updates needed.
 
 **Verification approach that worked well for a CSS-only PR with no new test files:**
+
 - Ran the 5 touched-component test dirs batched in one `jest` invocation (29 suites / 1365 tests / 6 todo,
   all green) rather than one invocation per directory — faster and the spec explicitly listed them as a
   batch.

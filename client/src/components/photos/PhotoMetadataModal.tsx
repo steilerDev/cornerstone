@@ -38,36 +38,6 @@ export function PhotoMetadataModal({
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  // Focus trap: cycle Tab/Shift+Tab within the modal (form + footer buttons)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
-
-      // Find all focusable elements in the entire modal (form + footer buttons)
-      const allFocusable = Array.from(
-        document.querySelectorAll<HTMLElement>(
-          '[role="dialog"] button, [role="dialog"] [href], [role="dialog"] input, [role="dialog"] select, [role="dialog"] textarea, [role="dialog"] [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((el) => !el.hasAttribute('disabled'));
-
-      if (allFocusable.length === 0) return;
-
-      const first = allFocusable[0]!;
-      const last = allFocusable[allFocusable.length - 1]!;
-
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   const handleSave = () => {
     onSave({
       caption: caption || null,

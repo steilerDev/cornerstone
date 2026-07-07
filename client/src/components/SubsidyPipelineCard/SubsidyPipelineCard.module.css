@@ -17,37 +17,6 @@
   background-color: var(--color-bg-secondary);
 }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--spacing-0-5) var(--spacing-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.badgeGray {
-  background-color: var(--color-status-not-started-bg);
-  color: var(--color-status-not-started-text);
-}
-
-.badgeBlue {
-  background-color: var(--color-status-in-progress-bg);
-  color: var(--color-status-in-progress-text);
-}
-
-.badgeGreen {
-  background-color: var(--color-success-badge-bg);
-  color: var(--color-success-badge-text);
-}
-
-.badgeRed {
-  background-color: var(--color-danger-bg);
-  color: var(--color-danger-text-on-light);
-}
-
 .groupCount {
   flex: 1;
   font-size: var(--font-size-sm);

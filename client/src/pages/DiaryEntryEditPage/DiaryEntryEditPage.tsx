@@ -22,6 +22,7 @@ import {
   promoteDiaryEntry,
 } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
@@ -77,7 +78,6 @@ export default function DiaryEntryEditPage() {
   // Auto-save state
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const autoSaveAbortRef = useRef<AbortController | null>(null);
-  const autoSaveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [uploadingCount, setUploadingCount] = useState(0);
 
   // Photo state
@@ -154,6 +154,42 @@ export default function DiaryEntryEditPage() {
     void loadEntry();
   }, [id, navigate, showToast, t]);
 
+  // Hoisted auto-save functions to enable hook usage before use
+  const doSaveImpl = async () => {
+    if (autoSaveAbortRef.current) {
+      autoSaveAbortRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    autoSaveAbortRef.current = controller;
+
+    setSaveStatus('saving');
+
+    try {
+      const metadata = buildMetadata();
+      await updateDiaryEntry(entry!.id, {
+        entryDate: entryDate || undefined,
+        title: title.trim() || null,
+        body: body || undefined,
+        metadata,
+      });
+
+      if (!controller.signal.aborted) {
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        setSaveStatus('error');
+        console.error('Failed to auto-save:', err);
+      }
+    }
+  };
+
+  const scheduleAutoSave = useDebouncedCallback(() => {
+    void doSaveImpl();
+  }, 1000);
+
   // Auto-save on metadata field changes for drafts
   useEffect(() => {
     if (skipAutoSaveOnMountRef.current) {
@@ -199,11 +235,9 @@ export default function DiaryEntryEditPage() {
       if (autoSaveAbortRef.current) {
         autoSaveAbortRef.current.abort();
       }
-      if (autoSaveDebounceRef.current) {
-        clearTimeout(autoSaveDebounceRef.current);
-      }
+      scheduleAutoSave.cancel();
     };
-  }, [uploadingCount]);
+  }, [uploadingCount, scheduleAutoSave]);
 
   // Delete modal: focus trap and Escape key handler
   useEffect(() => {
@@ -388,46 +422,10 @@ export default function DiaryEntryEditPage() {
       return;
     }
 
-    const doSave = async () => {
-      if (autoSaveAbortRef.current) {
-        autoSaveAbortRef.current.abort();
-      }
-
-      const controller = new AbortController();
-      autoSaveAbortRef.current = controller;
-
-      setSaveStatus('saving');
-
-      try {
-        const metadata = buildMetadata();
-        await updateDiaryEntry(entry.id, {
-          entryDate: entryDate || undefined,
-          title: title.trim() || null,
-          body: body || undefined,
-          metadata,
-        });
-
-        if (!controller.signal.aborted) {
-          setSaveStatus('saved');
-          setTimeout(() => setSaveStatus('idle'), 3000);
-        }
-      } catch (err) {
-        if (!controller.signal.aborted) {
-          setSaveStatus('error');
-          console.error('Failed to auto-save:', err);
-        }
-      }
-    };
-
     if (immediate) {
-      void doSave();
+      void doSaveImpl();
     } else {
-      if (autoSaveDebounceRef.current) {
-        clearTimeout(autoSaveDebounceRef.current);
-      }
-      autoSaveDebounceRef.current = setTimeout(() => {
-        void doSave();
-      }, 1000);
+      scheduleAutoSave.trigger();
     }
   };
 

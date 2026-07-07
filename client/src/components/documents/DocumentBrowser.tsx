@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PaperlessDocumentSearchResult } from '@cornerstone/shared';
 import { usePaperless } from '../../hooks/usePaperless.js';
+import { useDebounce } from '../../hooks/useDebounce.js';
 import { DocumentCard } from './DocumentCard.js';
 import { DocumentDetailPanel } from './DocumentDetailPanel.js';
 import { DocumentSkeleton } from './DocumentSkeleton.js';
@@ -39,7 +40,6 @@ export function DocumentBrowser({
   const [selectedDoc, setSelectedDoc] = useState<PaperlessDocumentSearchResult | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [hideLinked, setHideLinked] = useState(defaultHideLinked);
-  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Forward correspondent prop changes to the hook
   useEffect(() => {
@@ -47,17 +47,18 @@ export function DocumentBrowser({
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- setCorrespondent is stable callback; only depend on correspondentId to trigger filter updates
   }, [correspondentId]);
 
-  // Debounced search — intentionally omits hook.search from dep array to prevent infinite loop
+  // Debounced search
+  const debouncedSearchInput = useDebounce(searchInput, 300);
+  const isFirstSearchRunRef = useRef(true);
+
   useEffect(() => {
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(() => {
-      hook.search(searchInput);
-    }, 300);
-    return () => {
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    };
+    if (isFirstSearchRunRef.current) {
+      isFirstSearchRunRef.current = false;
+      return;
+    }
+    hook.search(debouncedSearchInput);
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- hook is not directly used; it's queried via ref to avoid re-running on every hook change
-  }, [searchInput]);
+  }, [debouncedSearchInput]);
 
   const handleCardSelect = (doc: PaperlessDocumentSearchResult) => {
     if (onSelect) {

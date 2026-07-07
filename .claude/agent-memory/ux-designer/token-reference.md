@@ -28,6 +28,21 @@ metadata:
 - `--color-danger-text` = white (text ON danger bg) — NEVER use as border or text on `--color-danger-bg`; use `--color-danger-border` for border, `--color-danger-text-on-light` for red text on light bg
 - Budget bar, Gantt, and milestone tokens already exist in tokens.css — check before specifying new domain-specific colors
 
+## Stylelint-enforced literal bans (as of PR #1847 / Issue #1815)
+
+- `.stylelintrc.json` `declaration-property-value-disallowed-list` bans raw integer `z-index` and `font-weight` values via regex — any `z-index: 8` or `font-weight: 600` in a `.module.css` fails CI (`Stylelint` step in `static-analysis` job, wired into `npm run lint`/`lint:fix`).
+- Escape hatch for arbitrary component-internal values that don't belong in the shared z-scale: declare a local `--z-local: <value>;` custom property immediately before `z-index: var(--z-local);` in the same selector (see `PhotoMetadataSidepanel.module.css`). Use this instead of inventing a one-off global token nothing else will reuse.
+- `--z-raised: 1` now exists to fill the gap below `--z-dropdown: 10` — use it (or `calc(var(--z-raised) + 1)` etc.) for "lift element above local unstacked siblings" instead of a raw `z-index: 1`/`2`.
+- `tokens.css` itself is exempted from `color-no-hex`/`function-disallowed-list`/`declaration-property-value-disallowed-list` (and `color-function-alias-notation`) via a stylelintrc override — palette/raw values are expected there, only `.module.css` consumers must reference `var(--token)`.
+- `print.css` (global, not a CSS Module) legitimately uses Layer-1 palette tokens (`--color-black`, `--color-gray-700`, etc.) directly rather than Layer-2 semantic tokens — print output is intentionally theme-invariant, so this is not a violation of the "Layer 2 only in `.module.css`" rule.
+
+## New token families (PR #1847)
+
+- `--color-photo-*` (9 tokens) — theme-invariant photo-viewer/annotator chrome, no dark override by design. See [photo-annotator-patterns.md](photo-annotator-patterns.md).
+- `--color-tooltip-*` (7 tokens) — generic naming despite living in the Gantt-prefixed tokens.css section (only consumer today is `GanttTooltip`, but shared `Tooltip` component uses the same `--color-bg-inverse` surface and could adopt these later). Section comment says "GANTT TOOLTIP TOKENS" which is a minor mismatch vs. the generic names — flagged as a low-severity wiki/comment cleanup follow-up, not fixed yet.
+- `--color-warning-badge-bg` — follows the existing `--color-{semantic}-badge-bg`/`-badge-text`/`-badge-bg-alt` scheme (`success`, `primary` already had entries).
+- `--shadow-text-overlay` — text-shadow for legibility over image thumbnails (image-overlay exception pattern).
+
 ## Common token-substitution mistakes (recurring across PRs)
 
 - `0.875rem` → `var(--font-size-sm)`; `0.75rem` → `var(--font-size-xs)`; `0.375rem` → `var(--radius-md)`
