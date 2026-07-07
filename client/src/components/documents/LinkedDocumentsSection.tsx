@@ -39,7 +39,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         setConfig(cfg);
       } catch {
         // silently fail; button will be hidden if config is null
-        setConfig({ autoItemizeEnabled: false, currency: 'EUR' });
+        setConfig({ autoItemizeEnabled: false, currency: 'EUR', vatRate: 0.19 });
       }
     })();
   }, []);

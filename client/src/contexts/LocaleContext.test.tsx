@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import type * as PreferencesApiModule from '../lib/preferencesApi.js';
 import type * as ConfigApiModule from '../lib/configApi.js';
 import type * as LocaleContextModule from './LocaleContext.js';
+import type { AppConfigResponse } from '@cornerstone/shared';
 
 // ─── Mocks (must be registered BEFORE dynamic import) ─────────────────────────
 
@@ -55,7 +56,7 @@ beforeEach(async () => {
   mockChangeLanguage.mockResolvedValue(undefined);
 
   // Default: fetchConfig returns EUR and autoItemizeEnabled false
-  mockFetchConfig.mockResolvedValue({ currency: 'EUR', autoItemizeEnabled: false });
+  mockFetchConfig.mockResolvedValue({ currency: 'EUR', vatRate: 0.19, autoItemizeEnabled: false });
 
   try {
     localStorage.clear();
@@ -164,7 +165,11 @@ describe('LocaleProvider', () => {
     });
 
     it('updates currency from fetchConfig response', async () => {
-      mockFetchConfig.mockResolvedValue({ currency: 'CHF', autoItemizeEnabled: false });
+      mockFetchConfig.mockResolvedValue({
+        currency: 'CHF',
+        vatRate: 0.19,
+        autoItemizeEnabled: false,
+      });
 
       renderWithProvider();
 
@@ -189,6 +194,7 @@ describe('LocaleProvider', () => {
     it('keeps EUR when fetchConfig returns a config with no currency field', async () => {
       mockFetchConfig.mockResolvedValue({
         currency: undefined as unknown as string,
+        vatRate: 0.19,
         autoItemizeEnabled: false,
       });
 
@@ -241,7 +247,7 @@ describe('LocaleProvider', () => {
       mockFetchConfig.mockResolvedValue({
         currency: 'EUR',
         autoItemizeEnabled: false,
-      });
+      } as AppConfigResponse);
 
       renderWithProvider();
 
