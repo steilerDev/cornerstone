@@ -233,6 +233,13 @@
   border: 1px solid var(--color-danger-border);
 }
 
+/* Success badge (e.g., "Enabled", "Last run succeeded") */
+.success {
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+  border: 1px solid var(--color-success-border);
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {

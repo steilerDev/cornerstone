@@ -1,15 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { BackupMeta } from '@cornerstone/shared';
+import type { BackupMeta, BackupSchedulerStatus } from '@cornerstone/shared';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
+import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
-import { listBackups, createBackup, deleteBackup, restoreBackup } from '../../lib/backupsApi.js';
+import {
+  listBackups,
+  createBackup,
+  deleteBackup,
+  restoreBackup,
+  getSchedulerStatus,
+} from '../../lib/backupsApi.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './BackupsPage.module.css';
 
@@ -24,7 +32,7 @@ function formatFileSize(bytes: number): string {
 
 export function BackupsPage() {
   const { t } = useTranslation('settings');
-  const { formatDate } = useFormatters();
+  const { formatDate, formatDateTime } = useFormatters();
   const { user } = useAuth();
 
   const isAdmin = user?.role === 'admin';
@@ -68,6 +76,11 @@ export function BackupsPage() {
   const [restoreInitiated, setRestoreInitiated] = useState(false);
   const [restoreError, setRestoreError] = useState<string>('');
 
+  // Scheduler status state
+  const [schedulerStatus, setSchedulerStatus] = useState<BackupSchedulerStatus | null>(null);
+  const [isSchedulerLoading, setIsSchedulerLoading] = useState(true);
+  const [schedulerError, setSchedulerError] = useState<string>('');
+
   // Load backups on mount
   useEffect(() => {
     const loadBackupsData = async () => {
@@ -95,6 +108,49 @@ export function BackupsPage() {
 
     void loadBackupsData();
   }, [t]);
+
+  // Load scheduler status independently
+  useEffect(() => {
+    const loadSchedulerStatus = async () => {
+      setIsSchedulerLoading(true);
+      setSchedulerError('');
+      try {
+        const response = await getSchedulerStatus();
+        setSchedulerStatus(response.scheduler);
+      } catch (err) {
+        // A 503 here means backups aren't configured at all — the page-level
+        // isNotConfigured branch already hides this whole section in that case.
+        if (err instanceof ApiClientError && err.error.code === 'BACKUP_NOT_CONFIGURED') {
+          return;
+        }
+        if (err instanceof ApiClientError) {
+          setSchedulerError(err.error.message);
+        } else {
+          setSchedulerError(t('backups.scheduler.loadError'));
+        }
+      } finally {
+        setIsSchedulerLoading(false);
+      }
+    };
+
+    void loadSchedulerStatus();
+  }, [t]);
+
+  const schedulerEnabledVariants = useMemo(
+    (): BadgeVariantMap => ({
+      enabled: { label: t('backups.scheduler.enabled'), className: badgeStyles.success! },
+      disabled: { label: t('backups.scheduler.disabled'), className: badgeStyles.info! },
+    }),
+    [t],
+  );
+
+  const lastRunOutcomeVariants = useMemo(
+    (): BadgeVariantMap => ({
+      success: { label: t('backups.scheduler.lastRunSuccess'), className: badgeStyles.success! },
+      failure: { label: t('backups.scheduler.lastRunFailure'), className: badgeStyles.error! },
+    }),
+    [t],
+  );
 
   const handleCreateBackup = async () => {
     setIsCreating(true);
@@ -209,6 +265,83 @@ export function BackupsPage() {
       {/* Backups content */}
       {!isLoading && !isNotConfigured && (
         <>
+          <section className={styles.schedulerStatus} aria-labelledby="scheduler-status-heading">
+            <h2 id="scheduler-status-heading" className={styles.schedulerStatusHeading}>
+              {t('backups.scheduler.heading')}
+            </h2>
+
+            {isSchedulerLoading && (
+              <Skeleton lines={2} loadingLabel={t('backups.scheduler.loading')} />
+            )}
+
+            {!isSchedulerLoading && schedulerError && (
+              <div className={sharedStyles.bannerError} role="alert">
+                {schedulerError}
+              </div>
+            )}
+
+            {!isSchedulerLoading && !schedulerError && schedulerStatus && (
+              <dl className={styles.schedulerStatusGrid}>
+                <div className={styles.schedulerStatusRow}>
+                  <dt>{t('backups.scheduler.statusLabel')}</dt>
+                  <dd>
+                    <Badge
+                      variants={schedulerEnabledVariants}
+                      value={schedulerStatus.enabled ? 'enabled' : 'disabled'}
+                    />
+                  </dd>
+                </div>
+
+                {!schedulerStatus.enabled && (
+                  <p className={styles.schedulerStatusHint}>
+                    {t('backups.scheduler.disabledHint')}
+                  </p>
+                )}
+
+                {schedulerStatus.enabled && (
+                  <>
+                    <div className={styles.schedulerStatusRow}>
+                      <dt>{t('backups.scheduler.lastRunLabel')}</dt>
+                      <dd>
+                        {schedulerStatus.lastRun ? (
+                          <>
+                            <span className={styles.schedulerStatusTimestamp}>
+                              {formatDateTime(schedulerStatus.lastRun.timestamp)}
+                            </span>
+                            <Badge
+                              variants={lastRunOutcomeVariants}
+                              value={schedulerStatus.lastRun.success ? 'success' : 'failure'}
+                            />
+                          </>
+                        ) : (
+                          <span className={styles.schedulerStatusMuted}>
+                            {t('backups.scheduler.noRunsYet')}
+                          </span>
+                        )}
+                      </dd>
+                    </div>
+
+                    <div className={styles.schedulerStatusRow}>
+                      <dt>{t('backups.scheduler.nextRunLabel')}</dt>
+                      <dd>
+                        <span className={styles.schedulerStatusTimestamp}>
+                          {formatDateTime(schedulerStatus.nextRuns[0])}
+                        </span>
+                        {schedulerStatus.nextRuns[1] && (
+                          <span className={styles.schedulerStatusMuted}>
+                            {' · '}
+                            {t('backups.scheduler.thenLabel')}{' '}
+                            {formatDateTime(schedulerStatus.nextRuns[1])}
+                          </span>
+                        )}
+                      </dd>
+                    </div>
+                  </>
+                )}
+              </dl>
+            )}
+          </section>
+
           <div className={styles.toolbar}>
             <button
               type="button"

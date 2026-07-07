@@ -15,7 +15,7 @@ import type { FastifyInstance } from 'fastify';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type Database from 'better-sqlite3';
 import type { AppConfig } from '../plugins/config.js';
-import type { BackupMeta } from '@cornerstone/shared';
+import type { BackupMeta, BackupSchedulerStatus } from '@cornerstone/shared';
 import {
   BackupNotConfiguredError,
   BackupInProgressError,
@@ -318,6 +318,9 @@ export async function restoreBackup(
 
 /**
  * Initialize the automatic backup scheduler if BACKUP_CADENCE is configured.
+ *
+ * Uses `cron.validateDetailed()` (node-cron 4.4+) to validate the cadence up front,
+ * producing field-level error messages instead of relying on `cron.schedule` throwing.
  */
 export function initScheduler(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Schema generic deliberately erased to accept any schema
@@ -329,22 +332,67 @@ export function initScheduler(
     return;
   }
 
+  const validation = cron.validateDetailed(config.backupCadence);
+  if (!validation.valid) {
+    const fieldErrors = validation.errors
+      .map((fieldError) => `${fieldError.field}: ${fieldError.message}`)
+      .join('; ');
+    logger.error(
+      `Invalid BACKUP_CADENCE expression "${config.backupCadence}" — automatic backups disabled. ${fieldErrors}`,
+    );
+    return;
+  }
+
   try {
-    // Validate cron expression (will throw if invalid)
-    cronTask = cron.schedule(config.backupCadence, async () => {
-      try {
+    cronTask = cron.schedule(
+      config.backupCadence,
+      async () => {
         logger.info('Starting scheduled backup...');
-        await createBackup(db, config);
-        logger.info('Scheduled backup completed successfully');
-      } catch (error) {
-        logger.error(error, 'Scheduled backup failed');
-      }
-    });
+        try {
+          await createBackup(db, config);
+          logger.info('Scheduled backup completed successfully');
+        } catch (error) {
+          logger.error(error, 'Scheduled backup failed');
+          // Rethrow so node-cron's runner records this execution as failed
+          // (cronTask.lastRun().error) instead of always reporting success.
+          throw error;
+        }
+      },
+      {
+        name: 'backup-scheduler',
+        logger: {
+          info: (message: string) => logger.info(message),
+          warn: (message: string) => logger.warn(message),
+          error: (message: string | Error, err?: Error) => logger.error(err ?? message),
+          debug: (message: string | Error) => logger.debug(message),
+        },
+      },
+    );
 
     logger.info(`Backup scheduler initialized with cadence: ${config.backupCadence}`);
   } catch (error) {
     logger.error(error, 'Failed to initialize backup scheduler');
   }
+}
+
+/**
+ * Get the current status of the automatic backup scheduler.
+ * Returns `enabled: false` with empty `nextRuns` when no cadence is configured,
+ * or the configured cadence failed validation in `initScheduler`.
+ */
+export function getSchedulerStatus(): BackupSchedulerStatus {
+  if (!cronTask) {
+    return { enabled: false, lastRun: null, nextRuns: [] };
+  }
+
+  const last = cronTask.lastRun();
+  const nextRuns = cronTask.getNextRuns(2).map((date) => date.toISOString());
+
+  return {
+    enabled: true,
+    lastRun: last ? { timestamp: last.date.toISOString(), success: !last.error } : null,
+    nextRuns,
+  };
 }
 
 /**

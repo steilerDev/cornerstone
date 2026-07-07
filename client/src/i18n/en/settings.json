@@ -415,7 +415,22 @@
     },
     "restartingMessage": "Server is restarting. Please wait a few moments and then refresh the page.",
     "createError": "Failed to create backup. Please try again.",
-    "loadError": "Failed to load backups. Please try again."
+    "loadError": "Failed to load backups. Please try again.",
+    "scheduler": {
+      "heading": "Automatic Backup Schedule",
+      "loading": "Loading scheduler status…",
+      "statusLabel": "Automatic backups",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "disabledHint": "Set the BACKUP_CADENCE environment variable to enable automatic backups.",
+      "lastRunLabel": "Last scheduled run",
+      "lastRunSuccess": "Succeeded",
+      "lastRunFailure": "Failed",
+      "noRunsYet": "No automatic backups have run yet",
+      "nextRunLabel": "Next scheduled run",
+      "thenLabel": "then",
+      "loadError": "Failed to load scheduler status. Please try again."
+    }
   },
   "vendors": {
     "contacts": {

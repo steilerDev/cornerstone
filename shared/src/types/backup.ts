@@ -27,3 +27,24 @@ export interface BackupListResponse {
 export interface RestoreInitiatedResponse {
   message: string;
 }
+
+/** Outcome of the automatic backup scheduler's most recent run */
+export interface BackupSchedulerLastRun {
+  timestamp: string; // ISO 8601 UTC
+  success: boolean;
+}
+
+/** Automatic backup scheduler status */
+export interface BackupSchedulerStatus {
+  /** Whether the automatic scheduler is currently active (a valid BACKUP_CADENCE is configured) */
+  enabled: boolean;
+  /** Outcome of the most recent scheduled run, or null if none has run yet */
+  lastRun: BackupSchedulerLastRun | null;
+  /** Upcoming scheduled run times (ISO 8601 UTC), ascending order; empty when disabled */
+  nextRuns: string[];
+}
+
+/** Response for the scheduler status endpoint */
+export interface BackupSchedulerStatusResponse {
+  scheduler: BackupSchedulerStatus;
+}

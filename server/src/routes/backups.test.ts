@@ -18,7 +18,11 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import { disposableTempDir } from '../test-helpers/disposables.js';
 import type { FastifyInstance } from 'fastify';
-import type { ApiErrorResponse, BackupListResponse } from '@cornerstone/shared';
+import type {
+  ApiErrorResponse,
+  BackupListResponse,
+  BackupSchedulerStatusResponse,
+} from '@cornerstone/shared';
 import type { DisposableTempDir } from '../test-helpers/disposables.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -130,6 +134,40 @@ describe('Backup Routes', () => {
       const response = await app.inject({
         method: 'GET',
         url: '/api/backups',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('FORBIDDEN');
+    });
+  });
+
+  // ─── GET /api/backups/scheduler-status — without BACKUP_DIR ──────────────
+
+  describe('GET /api/backups/scheduler-status', () => {
+    it('returns 401 without authentication', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/backups/scheduler-status',
+      });
+
+      expect(response.statusCode).toBe(401);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('returns 403 when authenticated as member (non-admin)', async () => {
+      const { cookie } = await createUserWithSession(
+        'member@test.com',
+        'Member',
+        'password',
+        'member',
+      );
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/backups/scheduler-status',
         headers: { cookie },
       });
 
@@ -325,6 +363,20 @@ describe('Backup Routes', () => {
       expect(response.statusCode).toBe(204);
     });
 
+    it('GET /api/backups/scheduler-status returns 200 with disabled shape when no BACKUP_CADENCE is configured', async () => {
+      const cookie = await createAdminWithSession();
+
+      const response = await appWithBackup.inject({
+        method: 'GET',
+        url: '/api/backups/scheduler-status',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BackupSchedulerStatusResponse>();
+      expect(body.scheduler).toEqual({ enabled: false, lastRun: null, nextRuns: [] });
+    });
+
     it('POST /api/backups/:filename/restore returns 202 Accepted when file exists (async response)', async () => {
       const cookie = await createAdminWithSession();
       const { mkdirSync } = await import('node:fs');
@@ -368,6 +420,54 @@ describe('Backup Routes', () => {
       } finally {
         // Restore permissions so afterEach cleanup can delete the directory
         chmodSync(backupTempDir.path, 0o755);
+      }
+    });
+  });
+
+  // ─── GET /api/backups/scheduler-status — with BACKUP_CADENCE configured ──
+
+  describe('GET /api/backups/scheduler-status — with BACKUP_CADENCE configured', () => {
+    let appWithScheduler: FastifyInstance;
+
+    beforeEach(async () => {
+      // BACKUP_DIR + a valid BACKUP_CADENCE together enable the real scheduler
+      // during buildApp() (see app.ts: backupService.initScheduler(...)).
+      process.env.BACKUP_DIR = backupTempDir.path;
+      process.env.BACKUP_CADENCE = '0 2 * * *';
+      appWithScheduler = await buildApp();
+    });
+
+    afterEach(async () => {
+      if (appWithScheduler) {
+        // app.close() runs the onClose hook, which calls backupService.stopScheduler()
+        await appWithScheduler.close();
+      }
+    });
+
+    it('returns 200 with enabled shape: lastRun null (never run) and two upcoming nextRuns', async () => {
+      const user = await userService.createLocalUser(
+        appWithScheduler.db,
+        'admin-sched@test.com',
+        'Admin',
+        'password',
+        'admin',
+      );
+      const sessionToken = sessionService.createSession(appWithScheduler.db, user.id, 3600);
+      const cookie = `cornerstone_session=${sessionToken}`;
+
+      const response = await appWithScheduler.inject({
+        method: 'GET',
+        url: '/api/backups/scheduler-status',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<BackupSchedulerStatusResponse>();
+      expect(body.scheduler.enabled).toBe(true);
+      expect(body.scheduler.lastRun).toBeNull();
+      expect(body.scheduler.nextRuns).toHaveLength(2);
+      for (const iso of body.scheduler.nextRuns) {
+        expect(new Date(iso).toISOString()).toBe(iso);
       }
     });
   });

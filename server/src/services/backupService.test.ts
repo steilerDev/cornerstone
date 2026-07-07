@@ -8,6 +8,9 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { writeFileSync, chmodSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { getTasks } from 'node-cron';
+import type { ScheduledTask } from 'node-cron';
+import type { FastifyInstance } from 'fastify';
 import { disposableTempDir, disposableDb } from '../test-helpers/disposables.js';
 import type { DisposableTempDir } from '../test-helpers/disposables.js';
 
@@ -20,6 +23,9 @@ import {
   listBackups,
   deleteBackup,
   createBackup,
+  initScheduler,
+  getSchedulerStatus,
+  stopScheduler,
 } from './backupService.js';
 
 import type { AppConfig } from '../plugins/config.js';
@@ -63,6 +69,29 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   autoItemizeEnabled: false,
   ...overrides,
 });
+
+// ─── Logger mock ─────────────────────────────────────────────────────────────
+
+const mockLogger = {
+  debug: jest.fn(),
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  trace: jest.fn(),
+  fatal: jest.fn(),
+  child: jest.fn(),
+} as unknown as FastifyInstance['log'];
+
+/**
+ * Finds the most recently registered node-cron task named 'backup-scheduler'.
+ * initScheduler() never destroys previous tasks (only stop()s them), so multiple
+ * tasks with this name may accumulate in node-cron's internal registry across
+ * tests in this file — the most recently added one is the currently active one.
+ */
+function getRegisteredSchedulerTask(): ScheduledTask | undefined {
+  const matches = [...getTasks().values()].filter((t) => t.name === 'backup-scheduler');
+  return matches[matches.length - 1];
+}
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
@@ -486,6 +515,166 @@ describe('backupService', () => {
       // The two oldest stubs should have been deleted; only the 2 newest remain
       const filenames = remaining.map((b) => b.filename);
       expect(filenames).not.toContain(stub1);
+    });
+  });
+
+  // ─── initScheduler / getSchedulerStatus / stopScheduler ──────────────────
+
+  describe('scheduler (initScheduler / getSchedulerStatus / stopScheduler)', () => {
+    beforeEach(() => {
+      (mockLogger.debug as jest.Mock).mockClear();
+      (mockLogger.info as jest.Mock).mockClear();
+      (mockLogger.warn as jest.Mock).mockClear();
+      (mockLogger.error as jest.Mock).mockClear();
+    });
+
+    afterEach(() => {
+      // Guarantee module-level singleton state doesn't leak between tests
+      stopScheduler();
+    });
+
+    it('a valid cadence enables the scheduler and reports two upcoming run times', () => {
+      const config = makeConfig({ backupEnabled: true, backupCadence: '0 2 * * *' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback never invoked in this test
+      const db = {} as any;
+
+      initScheduler(db, config, mockLogger);
+
+      const status = getSchedulerStatus();
+      expect(status.enabled).toBe(true);
+      expect(status.nextRuns).toHaveLength(2);
+      for (const iso of status.nextRuns) {
+        expect(new Date(iso).toISOString()).toBe(iso);
+      }
+    });
+
+    it('an invalid cadence logs a field-level error and leaves the scheduler disabled', () => {
+      const config = makeConfig({ backupEnabled: true, backupCadence: '70 * * * *' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback never invoked in this test
+      const db = {} as any;
+
+      expect(() => initScheduler(db, config, mockLogger)).not.toThrow();
+
+      expect(mockLogger.error).toHaveBeenCalledTimes(1);
+      const [message] = (mockLogger.error as jest.Mock).mock.calls[0] as [string];
+      expect(message).toContain('Invalid BACKUP_CADENCE expression "70 * * * *"');
+      expect(message).toContain('minute');
+
+      expect(getSchedulerStatus()).toEqual({ enabled: false, lastRun: null, nextRuns: [] });
+    });
+
+    it('no cadence configured returns the disabled shape without logging an error', () => {
+      const config = makeConfig({ backupEnabled: true, backupCadence: undefined });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- initScheduler returns before touching db
+      const db = {} as any;
+
+      initScheduler(db, config, mockLogger);
+
+      expect(getSchedulerStatus()).toEqual({ enabled: false, lastRun: null, nextRuns: [] });
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
+
+    it('reports lastRun as null immediately after the scheduler starts (never run yet)', () => {
+      const config = makeConfig({ backupEnabled: true, backupCadence: '0 2 * * *' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback never invoked in this test
+      const db = {} as any;
+
+      initScheduler(db, config, mockLogger);
+
+      expect(getSchedulerStatus().lastRun).toBeNull();
+    });
+
+    it('stopScheduler stops the cron task and getSchedulerStatus reports disabled', () => {
+      const config = makeConfig({ backupEnabled: true, backupCadence: '0 2 * * *' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback never invoked in this test
+      const db = {} as any;
+
+      initScheduler(db, config, mockLogger);
+      expect(getSchedulerStatus().enabled).toBe(true);
+
+      stopScheduler();
+
+      expect(getSchedulerStatus()).toEqual({ enabled: false, lastRun: null, nextRuns: [] });
+    });
+
+    it('stopScheduler is a no-op when no scheduler is running', () => {
+      expect(() => stopScheduler()).not.toThrow();
+      expect(getSchedulerStatus()).toEqual({ enabled: false, lastRun: null, nextRuns: [] });
+    });
+
+    // ─── Scheduled run outcomes (real node-cron task, manually invoked) ────
+    //
+    // node-cron's ScheduledTask.execute() runs the scheduled callback immediately
+    // (bypassing the cron heartbeat) and records the outcome via lastRun(), which
+    // is exactly what getSchedulerStatus() reads. This exercises the real
+    // integration rather than a mocked one.
+
+    describe('scheduled run outcomes', () => {
+      let tempDir: DisposableTempDir;
+      let backupTempDir: DisposableTempDir;
+
+      beforeEach(() => {
+        tempDir = disposableTempDir('cornerstone-backup-scheduler-appdata-');
+        backupTempDir = disposableTempDir('cornerstone-backup-scheduler-backups-');
+      });
+
+      afterEach(() => {
+        tempDir[Symbol.dispose]();
+        backupTempDir[Symbol.dispose]();
+      });
+
+      it('a successful scheduled run records lastRun.success = true with an ISO timestamp', async () => {
+        using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+        const db = drizzle(rawDb);
+
+        const config = makeConfig({
+          databaseUrl: join(tempDir.path, 'test.db'),
+          backupDir: backupTempDir.path,
+          backupEnabled: true,
+          backupCadence: '0 2 * * *',
+        });
+
+        initScheduler(db, config, mockLogger);
+        const task = getRegisteredSchedulerTask();
+        expect(task).toBeDefined();
+
+        await expect(task!.execute()).resolves.toBeUndefined();
+
+        const status = getSchedulerStatus();
+        expect(status.lastRun).not.toBeNull();
+        expect(status.lastRun!.success).toBe(true);
+        expect(status.lastRun!.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      });
+
+      it('a failed scheduled run records lastRun.success = false and rethrows so node-cron records the failure', async () => {
+        using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+        const db = drizzle(rawDb);
+
+        const config = makeConfig({
+          databaseUrl: join(tempDir.path, 'test.db'),
+          backupDir: backupTempDir.path,
+          backupEnabled: true,
+          backupCadence: '0 2 * * *',
+        });
+
+        initScheduler(db, config, mockLogger);
+
+        // Force the next createBackup() call (invoked by the scheduled callback) to
+        // fail — config is captured by reference in the scheduled closure, so
+        // mutating it after initScheduler() affects the next invocation.
+        config.backupEnabled = false;
+
+        const task = getRegisteredSchedulerTask();
+        expect(task).toBeDefined();
+
+        await expect(task!.execute()).rejects.toMatchObject({ code: 'BACKUP_NOT_CONFIGURED' });
+
+        const status = getSchedulerStatus();
+        expect(status.lastRun).not.toBeNull();
+        expect(status.lastRun!.success).toBe(false);
+        expect(status.lastRun!.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+        expect(mockLogger.error).toHaveBeenCalled();
+      });
     });
   });
 });

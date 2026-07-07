@@ -15,10 +15,12 @@ import type { ReactNode } from 'react';
 import type * as BackupsApiTypes from '../../lib/backupsApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import type {
   BackupListResponse,
   BackupResponse,
   RestoreInitiatedResponse,
+  BackupSchedulerStatusResponse,
 } from '@cornerstone/shared';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
@@ -34,12 +36,14 @@ const mockListBackups = jest.fn<typeof BackupsApiTypes.listBackups>();
 const mockCreateBackup = jest.fn<typeof BackupsApiTypes.createBackup>();
 const mockDeleteBackup = jest.fn<typeof BackupsApiTypes.deleteBackup>();
 const mockRestoreBackup = jest.fn<typeof BackupsApiTypes.restoreBackup>();
+const mockGetSchedulerStatus = jest.fn<typeof BackupsApiTypes.getSchedulerStatus>();
 
 jest.unstable_mockModule('../../lib/backupsApi.js', () => ({
   listBackups: mockListBackups,
   createBackup: mockCreateBackup,
   deleteBackup: mockDeleteBackup,
   restoreBackup: mockRestoreBackup,
+  getSchedulerStatus: mockGetSchedulerStatus,
 }));
 
 // Mock formatters to provide stable date formatting in tests
@@ -104,6 +108,15 @@ describe('BackupsPage', () => {
     mockDeleteBackup.mockReset();
     mockRestoreBackup.mockReset();
     mockUseAuth.mockReset();
+    mockGetSchedulerStatus.mockReset();
+    // Default: disabled scheduler, resolved successfully. Individual tests in
+    // the "Scheduler status section" describe below override this per-case.
+    // Without a default, unrelated tests would see an unhandled scheduler
+    // fetch and render an unexpected error banner, breaking assertions like
+    // `screen.getByRole('alert')` that expect exactly one alert.
+    mockGetSchedulerStatus.mockResolvedValue({
+      scheduler: { enabled: false, lastRun: null, nextRuns: [] },
+    });
 
     // Default: admin user so all settings tabs are visible
     mockUseAuth.mockReturnValue({
@@ -540,6 +553,208 @@ describe('BackupsPage', () => {
       await waitFor(() => {
         expect(screen.getByText(/server is restarting/i)).toBeInTheDocument();
       });
+    });
+  });
+
+  // ─── Scheduler status section ────────────────────────────────────────────
+
+  describe('Scheduler status section', () => {
+    it('shows a skeleton while the scheduler status is loading', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      // Never resolves — scheduler status stays in loading state
+      mockGetSchedulerStatus.mockReturnValueOnce(new Promise(() => {}));
+
+      renderPage();
+
+      // Wait for the page-level backups list to finish loading first
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create backup/i })).toBeInTheDocument();
+      });
+
+      // The scheduler section renders its own heading and a loading skeleton
+      expect(
+        screen.getByRole('heading', { name: /automatic backup schedule/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: /loading scheduler status/i })).toBeInTheDocument();
+    });
+
+    it('renders the disabled badge and hint when the scheduler is disabled', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: { enabled: false, lastRun: null, nextRuns: [] },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Disabled')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Set the BACKUP_CADENCE environment variable/i)).toBeInTheDocument();
+
+      // Badge className regression guard — the rendered Badge must use the
+      // real CSS module class (badgeStyles.info), not a hardcoded literal.
+      const disabledBadge = screen.getByText('Disabled');
+      expect(disabledBadge.className).toContain(badgeStyles.info);
+    });
+
+    it('renders enabled badge, a successful lastRun, and both next run times (primary + "then" secondary)', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: {
+          enabled: true,
+          lastRun: { timestamp: '2026-03-22T02:00:00.000Z', success: true },
+          nextRuns: ['2026-03-23T02:00:00.000Z', '2026-03-24T02:00:00.000Z'],
+        },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Enabled')).toBeInTheDocument();
+      });
+
+      // Last run: success badge + formatted timestamp (identity-mocked formatDateTime)
+      expect(screen.getByText('Succeeded')).toBeInTheDocument();
+      expect(screen.getByText('2026-03-22T02:00:00.000Z')).toBeInTheDocument();
+
+      // Next runs: primary next run time is shown standalone...
+      expect(screen.getByText('2026-03-23T02:00:00.000Z')).toBeInTheDocument();
+      // ...and the secondary next run appears alongside a "then" label
+      expect(screen.getByText(/then/i)).toBeInTheDocument();
+      expect(screen.getByText(/2026-03-24T02:00:00\.000Z/)).toBeInTheDocument();
+
+      // Badge className regression guard
+      const enabledBadge = screen.getByText('Enabled');
+      expect(enabledBadge.className).toContain(badgeStyles.success);
+      const successBadge = screen.getByText('Succeeded');
+      expect(successBadge.className).toContain(badgeStyles.success);
+    });
+
+    it('renders the "no runs yet" message when the scheduler is enabled but has never run', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: {
+          enabled: true,
+          lastRun: null,
+          nextRuns: ['2026-03-23T02:00:00.000Z'],
+        },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/No automatic backups have run yet/i)).toBeInTheDocument();
+      });
+
+      // Only one next run configured — no "then" secondary text
+      expect(screen.queryByText(/then/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the failure badge for a failed lastRun', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: {
+          enabled: true,
+          lastRun: { timestamp: '2026-03-22T02:00:00.000Z', success: false },
+          nextRuns: ['2026-03-23T02:00:00.000Z'],
+        },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed')).toBeInTheDocument();
+      });
+
+      // Badge className regression guard
+      const failedBadge = screen.getByText('Failed');
+      expect(failedBadge.className).toContain(badgeStyles.error);
+    });
+
+    it('shows an error banner when the scheduler status fails to load with a non-503 error', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Something went wrong' }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    });
+
+    it('shows the generic scheduler load error translation when a non-ApiClientError is thrown', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockRejectedValueOnce(new Error('network dropped'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      expect(
+        screen.getByText(/Failed to load scheduler status\. Please try again\./i),
+      ).toBeInTheDocument();
+    });
+
+    it('silently swallows a 503 BACKUP_NOT_CONFIGURED scheduler error (no banner shown)', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockRejectedValueOnce(makeNotConfiguredError());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create backup/i })).toBeInTheDocument();
+      });
+
+      // No alert banner and no lingering skeleton in the scheduler section
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('status', { name: /loading scheduler status/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('does not render the scheduler status section when backups are not configured at the page level', async () => {
+      mockListBackups.mockRejectedValueOnce(makeNotConfiguredError());
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: { enabled: false, lastRun: null, nextRuns: [] },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+
+      expect(
+        screen.queryByRole('heading', { name: /automatic backup schedule/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('renders scheduler badges using the real Badge.module.css classes (not hardcoded literals)', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: {
+          enabled: true,
+          lastRun: { timestamp: '2026-03-22T02:00:00.000Z', success: true },
+          nextRuns: ['2026-03-23T02:00:00.000Z'],
+        },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Enabled')).toBeInTheDocument();
+      });
+
+      expect(badgeStyles.success).toBeTruthy();
+      expect(screen.getByText('Enabled').className).toContain(badgeStyles.success);
+      expect(screen.getByText('Succeeded').className).toContain(badgeStyles.success);
     });
   });
 });
