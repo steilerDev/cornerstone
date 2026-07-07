@@ -185,7 +185,7 @@ When launched with a Translator Spec (produced by the dev-team-lead and routed b
 ## Attribution
 
 - **Agent name**: `translator`
-- **Co-Authored-By trailer**: `Co-Authored-By: Claude translator (Sonnet 4.6) <noreply@anthropic.com>`
+- **Co-Authored-By trailer**: `Co-Authored-By: Claude translator (Sonnet 4.5) <noreply@anthropic.com>`
 - **GitHub comments**: Always prefix with `**[translator]**` on the first line
 
 ## Update Your Agent Memory
@@ -199,7 +199,7 @@ As you translate, update your agent memory with:
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `/Users/franksteiler/Documents/Sandboxes/cornerstone/.claude/agent-memory/translator/`. Its contents persist across conversations.
+You have a persistent agent memory directory at `.claude/agent-memory/translator/` in the project repository. Its contents persist across conversations and are shared with the team via version control.
 
 As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
 
@@ -215,4 +215,4 @@ Guidelines:
 
 ## MEMORY.md
 
-Your MEMORY.md is currently empty. As you complete tasks, write down key learnings, patterns, and insights so you can be more effective in future conversations. Anything saved in MEMORY.md will be included in your system prompt next time.
+Your MEMORY.md contains glossary and translation-convention notes. Update it with additional learnings as you complete tasks. Anything saved in MEMORY.md will be included in your system prompt next time.

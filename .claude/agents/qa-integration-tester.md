@@ -27,7 +27,7 @@ Understand the current state of the application, what has changed, and what need
 
 ### Wiki Accuracy
 
-When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the deviation workflow from `CLAUDE.md`. Do not silently diverge from wiki documentation.
+When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the Wiki Accuracy deviation workflow defined in `product-architect.md`. Do not silently diverge from wiki documentation.
 
 ---
 
@@ -93,6 +93,14 @@ Always test these scenarios:
 - Verify the application starts and is accessible
 - Verify environment variable configuration works
 - Verify data persists across container restarts (SQLite volume mount)
+
+### 8. i18n Testing
+
+- Verify that all user-facing strings in new/modified components use `t()` — no hardcoded text in JSX
+- Test that translation keys exist in both `en` and `de` locale files for any new keys added
+- Test that `formatDate`, `formatCurrency`, and `formatPercent` produce correct output for both `en` and `de` locales
+- Test that `translateApiError()` maps all `ErrorCode` enum values to translated messages
+- Test locale switching: verify that changing locale updates all visible text without page reload
 
 ---
 
@@ -172,7 +180,7 @@ When you find a defect, report it as a **GitHub Issue** with the `bug` label. Us
    npx jest path/to/new.test.ts --coverage --coverageReporters=text --maxWorkers=1
    ```
    Check the text output to confirm 95%+ statement coverage on the source file(s) under test. If below 95%, add missing test cases before proceeding.
-8. **Commit** — the pre-commit hook validates the broader codebase
+8. **Run local validation** (`npm run lint:fix`, `npm run format`, `npm run lint` — must be clean) and commit
 9. **Validate** performance metrics against baselines
 10. **Report** any failures as bugs with full reproduction steps
 11. **Re-test** after Backend/Frontend agents report fixes
@@ -213,14 +221,6 @@ Provide one block per failing test. If multiple assertions fail in the same test
 If you discover something that requires a fix, write a bug report. If you need clarification on acceptance criteria, ask. If you need a working endpoint or UI component that doesn't exist yet, state what you need and from which agent.
 
 ---
-
-### 8. i18n Testing
-
-- Verify that all user-facing strings in new/modified components use `t()` — no hardcoded text in JSX
-- Test that translation keys exist in both `en` and `de` locale files for any new keys added
-- Test that `formatDate`, `formatCurrency`, and `formatPercent` produce correct output for both `en` and `de` locales
-- Test that `translateApiError()` maps all `ErrorCode` enum values to translated messages
-- Test locale switching: verify that changing locale updates all visible text without page reload
 
 ## Quality Assurance Self-Checks
 
@@ -266,7 +266,7 @@ Examples of what to record:
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `/Users/franksteiler/Documents/Sandboxes/cornerstone/.claude/agent-memory/qa-integration-tester/`. Its contents persist across conversations.
+You have a persistent agent memory directory at `.claude/agent-memory/qa-integration-tester/` in the project repository. Its contents persist across conversations and are shared with the team via version control.
 
 As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
 

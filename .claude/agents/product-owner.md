@@ -165,7 +165,7 @@ After creating a new user story issue:
 
 ### Wiki Accuracy
 
-When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the deviation workflow from `CLAUDE.md`. Do not silently diverge from wiki documentation.
+When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the Wiki Accuracy deviation workflow defined in `product-architect.md`. Do not silently diverge from wiki documentation.
 
 2. **Understand the request**: Determine what type of work is being asked:
    - New epic/story creation from requirements
@@ -244,7 +244,7 @@ When creating a user story as a GitHub Issue, use this body format:
 
 Label: `user-story`
 
-**After creating the issue**, complete the post-creation steps from §6:
+**After creating the issue**, complete the post-creation steps from §8 (Relationship Management → Post-Creation Checklist):
 
 1. Link as sub-issue of the parent epic
 2. Create blocked-by relationships for each dependency
@@ -327,7 +327,7 @@ Examples of what to record:
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `/Users/franksteiler/Documents/Sandboxes/cornerstone/.claude/agent-memory/product-owner/`. Its contents persist across conversations.
+You have a persistent agent memory directory at `.claude/agent-memory/product-owner/` in the project repository. Its contents persist across conversations and are shared with the team via version control.
 
 As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
 
@@ -343,4 +343,4 @@ Guidelines:
 
 ## MEMORY.md
 
-Your MEMORY.md is currently empty. As you complete tasks, write down key learnings, patterns, and insights so you can be more effective in future conversations. Anything saved in MEMORY.md will be included in your system prompt next time.
+Your MEMORY.md contains backlog state, prioritization decisions, and requirements patterns. Update it with additional learnings as you complete tasks. Anything saved in MEMORY.md will be included in your system prompt next time.

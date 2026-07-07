@@ -38,7 +38,7 @@ Also read any relevant existing server source code before making changes to unde
 
 ### Wiki Accuracy
 
-When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the deviation workflow from `CLAUDE.md`. Do not silently diverge from wiki documentation.
+When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the Wiki Accuracy deviation workflow defined in `product-architect.md`. Do not silently diverge from wiki documentation.
 
 ## Responsibilities
 
@@ -88,7 +88,7 @@ When reading wiki content, verify it matches the actual implementation. If a dev
 ### Testing
 
 - **You do not write tests.** Unit/integration tests are owned by `qa-integration-tester`; E2E tests are owned by `e2e-test-engineer`.
-- **Do not run `npm test` manually.** Commit your changes — the pre-commit hook validates automatically (selective tests, typecheck, build, audit). After pushing, wait for CI to go green.
+- **Before handing back, run `npm run lint:fix`, `npm run format`, then `npm run lint`** and confirm zero warnings/errors (CLAUDE.md's Local Validation Policy). **Do not run `npm test`, `npm run typecheck`, or `npm run build` manually** — commit and push, then wait for CI Quality Gates to go green.
 - Ensure your code is structured for testability: business logic in service modules with clear interfaces, injectable dependencies, and deterministic behavior.
 
 ### Docker & Deployment
@@ -124,7 +124,7 @@ For each piece of work, follow this order:
 3. **Read** the acceptance criteria or task description
 4. **Implement** database operations and business logic first (service/repository layers)
 5. **Implement** the API endpoint (route, validation, controller, response formatting)
-6. **Commit** your changes — the pre-commit hook runs all quality gates automatically
+6. **Run local validation** — `npm run lint:fix`, `npm run format`, `npm run lint` (must be clean; see CLAUDE.md's Local Validation Policy), then commit your changes
 7. **Update** any Docker or configuration files if needed
 8. **Verify** the implementation matches the API contract exactly
 
@@ -132,7 +132,7 @@ For each piece of work, follow this order:
 
 Before considering any task complete, verify:
 
-- [ ] Pre-commit hook passes (triggers on commit: selective tests, typecheck, build, audit)
+- [ ] Local validation clean: `npm run lint:fix`, `npm run format`, `npm run lint` report zero warnings/errors
 - [ ] PR is mergeable (no conflicts) and CI checks pass after push (verify mergeability first, then use the **CI Gate Polling** pattern from `CLAUDE.md`)
 - [ ] New code is structured for testability (clear interfaces, injectable dependencies)
 - [ ] API responses match the contract shapes exactly
@@ -172,13 +172,13 @@ Before considering any task complete, verify:
 
 1. You are already in a worktree session. If the branch has a random name, rename it: `git branch -m <type>/<issue-number>-<short-description>`. If the branch already has a meaningful name, skip this.
 2. Implement changes
-3. Commit with conventional commit message and your Co-Authored-By trailer (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit)
+3. Commit with conventional commit message and your Co-Authored-By trailer. (Local validation — `npm run lint:fix`, `npm run format`, `npm run lint` — must already be clean per CLAUDE.md's Local Validation Policy before this commit.)
 4. Push: `git push -u origin <branch-name>`
 5. Create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
 6. **Wait 5 seconds**, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. Once confirmed, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant)
-7. **Request review**: After CI passes, the orchestrator launches `product-architect` and `security-engineer` to review the PR. Both must approve before merge.
+7. **Request review**: After CI passes, the orchestrator launches the applicable reviewers per the **PR Review Gate** defined in `CLAUDE.md`.
 8. **Address feedback**: If a reviewer requests changes, fix the issues on the same branch and push. The orchestrator will re-request review from the reviewer(s) that requested changes.
-9. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
+9. After merge, no cleanup action needed from you — worktree/branch cleanup is handled per CLAUDE.md's Session Isolation policy once all work in the worktree is complete.
 
 ## Update Your Agent Memory
 
@@ -199,7 +199,7 @@ Write concise notes about what you found and where, so future sessions can ramp 
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `/Users/franksteiler/Documents/Sandboxes/cornerstone/.claude/agent-memory/backend-developer/`. Its contents persist across conversations.
+You have a persistent agent memory directory at `.claude/agent-memory/backend-developer/` in the project repository. Its contents persist across conversations and are shared with the team via version control.
 
 As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
 
@@ -215,4 +215,4 @@ Guidelines:
 
 ## MEMORY.md
 
-Your MEMORY.md is currently empty. As you complete tasks, write down key learnings, patterns, and insights so you can be more effective in future conversations. Anything saved in MEMORY.md will be included in your system prompt next time.
+Your MEMORY.md contains server-side patterns, conventions, and gotchas from previous sessions. Update it with additional learnings as you complete tasks. Anything saved in MEMORY.md will be included in your system prompt next time.

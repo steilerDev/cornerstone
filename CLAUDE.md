@@ -38,15 +38,15 @@ This project uses a team of 11 specialized Claude Code agents defined in `.claud
 
 The GitHub Wiki is checked out as a git submodule at `wiki/` in the project root. All architecture documentation lives as markdown files in this submodule. The GitHub Projects board is the single source of truth for backlog management.
 
-### GitHub Wiki Pages (managed by product-architect and security-engineer)
+### GitHub Wiki Pages (owned by product-architect, except Security Audit and Style Guide)
 
 - **Architecture** — system design, tech stack, conventions
 - **API Contract** — REST API endpoint specifications
 - **Schema** — database schema documentation
 - **ADR Index** — links to all architectural decision records
 - **ADR-NNN-Title** — individual ADR pages
-- **Security Audit** — security findings and remediation status
-- **Style Guide** — design system, tokens, color palette, typography, component patterns, dark mode
+- **Security Audit** — security findings and remediation status (owned by `security-engineer`)
+- **Style Guide** — design system, tokens, color palette, typography, component patterns, dark mode (owned by `ux-designer`)
 
 ### Wiki Submodule
 
@@ -90,7 +90,7 @@ See the skill files (`.claude/skills/`) for the full operational checklists. The
 
 ### Acceptance & Validation
 
-Every epic has two phases: **Development** (`/develop`) where QA + E2E + security review each story PR; and **Epic validation** (`/epic-close`) where E2E coverage is confirmed and UAT runs before promotion. The only human gate is `beta` → `main` — the user approves after reviewing the change inventory. Feedback goes to `/tmp/notes.md`; fixes loop autonomously until approved.
+Every epic has two phases: **Development** (`/develop`) where QA and E2E write and run tests for each story and the applicable PR reviewers approve per the **PR Review Gate** below; and **Epic validation** (`/epic-close`) where E2E coverage is confirmed and UAT runs before promotion. The only human gate is `beta` → `main` — the user approves after reviewing the change inventory. Feedback goes to `/tmp/notes.md`; fixes loop autonomously until approved.
 
 ### Key Rules
 
@@ -98,9 +98,20 @@ Every epic has two phases: **Development** (`/develop`) where QA + E2E + securit
 - **Automated before manual** — all automated tests must be green before the user validates
 - **Iterate until right** — failed validation triggers a fix-and-revalidate loop (user writes feedback to `/tmp/notes.md`, system fixes autonomously and re-presents)
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
-- **Security review required** — the `security-engineer` must review every story PR
+- **Security review conditional** — the `security-engineer` reviews PRs touching security-relevant files per the **PR Review Gate**; not every story PR requires it (see Security Review Trigger Rules)
 - **Test agents own all tests** — `qa-integration-tester` owns unit and integration tests; `e2e-test-engineer` owns Playwright E2E browser tests. Developer agents do not write tests.
 - **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and `e2e-test-engineer`.
+
+### PR Review Gate
+
+Every story/bug PR is reviewed by the applicable subset of:
+
+- `product-architect` — always (architecture compliance, test coverage, code quality). Skipped only when product-architect is the PR's own author.
+- `security-engineer` — conditional: only when the PR touches security-relevant files (auth, API routes with data access, Dockerfile, dependency manifests). See Security Review Trigger Rules in `.claude/skills/develop/SKILL.md`. Skipped for frontend-only, test-only, or CSS-only PRs.
+- `product-owner` — user-story PRs only (requirements coverage, acceptance criteria). Skipped for bug-only PRs.
+- `ux-designer` — only for PRs touching `client/src/` (token adherence, visual consistency, dark mode, accessibility).
+
+All requested reviewers must approve (or post only medium/low findings, per each reviewer's verdict matrix) before merge.
 
 ### Delegation Enforcement
 
@@ -114,7 +125,7 @@ The orchestrator runs a **trailer verification** after every commit:
 4. Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `translator` trailer
 5. Files under `e2e/` → must have `e2e-test-engineer` trailer
 
-Commits that change production files without the appropriate Haiku co-author trailers are rejected and re-committed with corrected trailers.
+Commits that change production files without the appropriate co-author trailers (see the Canonical Agent Trailers table below) are rejected and re-committed with corrected trailers.
 
 Production files: any file under `server/`, `client/`, or `shared/`.
 
@@ -125,6 +136,24 @@ All agents must clearly identify themselves:
 - **Commits**: `Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>` — see each agent's definition file for the exact trailer.
 - **GitHub comments**: prefix with `**[agent-name]**` (e.g., `**[backend-developer]** This endpoint...`)
 - **Orchestrator**: when committing work produced by an agent, use that agent's name in the trailer.
+
+### Canonical Agent Trailers
+
+These are frozen per-agent labels — do not bump ad hoc; update this table first if the convention changes. All trailers are suffixed `<noreply@anthropic.com>`.
+
+| Agent                   | `model:` | Canonical trailer                           |
+| ----------------------- | -------- | ------------------------------------------- |
+| `backend-developer`     | haiku    | `Claude backend-developer (Haiku 4.5)`      |
+| `frontend-developer`    | haiku    | `Claude frontend-developer (Haiku 4.5)`     |
+| `qa-integration-tester` | sonnet   | `Claude qa-integration-tester (Sonnet 4.5)` |
+| `e2e-test-engineer`     | sonnet   | `Claude e2e-test-engineer (Sonnet 4.5)`     |
+| `security-engineer`     | sonnet   | `Claude security-engineer (Sonnet 4.5)`     |
+| `translator`            | sonnet   | `Claude translator (Sonnet 4.5)`            |
+| `dev-team-lead`         | sonnet   | `Claude dev-team-lead (Sonnet 4.6)`         |
+| `ux-designer`           | sonnet   | `Claude ux-designer (Sonnet 4.6)`           |
+| `product-architect`     | opus     | `Claude product-architect (Opus 4.6)`       |
+| `product-owner`         | opus     | `Claude product-owner (Opus 4.6)`           |
+| `docs-writer`           | opus     | `Claude docs-writer (Opus 4.6)`             |
 
 ## Git & Branching
 
