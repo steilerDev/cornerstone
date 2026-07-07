@@ -501,6 +501,42 @@ describe('editAndMoveBudgetLine()', () => {
     }).toThrow(ItemizedSumExceedsInvoiceError);
   });
 
+  it('accepts an edit-and-move whose sum equals exactly the invoice total despite floating-point summation noise (issue #1806)', () => {
+    // otherTotal (332.85 + 333.04) + 334.11 === 1000.0000000000001 in raw IEEE-754
+    // arithmetic — a bare `sum > total` guard would wrongly reject this exact sum.
+    const vendorId = createVendor();
+    const invoiceId = createInvoice(vendorId, 1000);
+    const wi1 = createWorkItem('Task Float A');
+    const wi2 = createWorkItem('Task Float B');
+    const wi3 = createWorkItem('Task Float C');
+    createIblOnWorkItem(invoiceId, wi1, 332.85);
+    createIblOnWorkItem(invoiceId, wi2, 333.04);
+    const { iblId } = createIblOnWorkItem(invoiceId, wi3, 100);
+
+    const result = invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+      itemizedAmount: 334.11,
+    });
+
+    expect(result.budgetLine.itemizedAmount).toBe(334.11);
+  });
+
+  it('still rejects an edit-and-move whose sum genuinely exceeds the invoice total by one cent', () => {
+    const vendorId = createVendor();
+    const invoiceId = createInvoice(vendorId, 1000);
+    const wi1 = createWorkItem('Task Float D');
+    const wi2 = createWorkItem('Task Float E');
+    const wi3 = createWorkItem('Task Float F');
+    createIblOnWorkItem(invoiceId, wi1, 332.85);
+    createIblOnWorkItem(invoiceId, wi2, 333.04);
+    const { iblId } = createIblOnWorkItem(invoiceId, wi3, 100);
+
+    expect(() => {
+      invoiceBudgetLineService.editAndMoveBudgetLine(db, invoiceId, iblId, {
+        itemizedAmount: 334.12, // mathematically 1000.01 — genuinely one cent over
+      });
+    }).toThrow(ItemizedSumExceedsInvoiceError);
+  });
+
   // ─── Scenario 10: NOT_FOUND guard — target WI/HI does not exist ─────────────
 
   it('guard: throws NotFoundError when target work item does not exist', () => {

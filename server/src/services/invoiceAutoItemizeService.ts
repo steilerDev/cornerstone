@@ -49,6 +49,7 @@ import type {
   MergeLinesResponse,
 } from '@cornerstone/shared';
 import { effectiveLineAmount } from '@cornerstone/shared';
+import { exceedsAmount } from './shared/money.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -528,7 +529,7 @@ export function persistLines(
   }
 
   // Validate Σ itemized ≤ effective invoice.amount
-  if (totalItemized > effectiveInvoiceAmount) {
+  if (exceedsAmount(totalItemized, effectiveInvoiceAmount)) {
     throw new ItemizedSumExceedsInvoiceError(
       `Sum of itemized amounts (${totalItemized}) exceeds invoice total (${effectiveInvoiceAmount})`,
     );

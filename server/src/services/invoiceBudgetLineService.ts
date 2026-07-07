@@ -28,6 +28,7 @@ import {
 } from '../errors/AppError.js';
 import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
 import { toAreaSummary } from './shared/converters.js';
+import { exceedsAmount } from './shared/money.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -343,7 +344,7 @@ export function createInvoiceBudgetLine(
     .all();
   const itemizedTotal = existingRows.reduce((sum, row) => sum + row.itemizedAmount, 0);
   const newTotal = itemizedTotal + data.itemizedAmount;
-  if (newTotal > invoice.amount) {
+  if (exceedsAmount(newTotal, invoice.amount)) {
     throw new ItemizedSumExceedsInvoiceError(
       `Sum of itemized amounts (${newTotal}) would exceed invoice total (${invoice.amount})`,
     );
@@ -430,7 +431,7 @@ export function updateInvoiceBudgetLine(
       .all();
     const otherTotal = otherRows.reduce((sum, row) => sum + row.itemizedAmount, 0);
     const newTotal = otherTotal + newItemizedAmount;
-    if (newTotal > invoice.amount) {
+    if (exceedsAmount(newTotal, invoice.amount)) {
       throw new ItemizedSumExceedsInvoiceError(
         `Sum of itemized amounts (${newTotal}) would exceed invoice total (${invoice.amount})`,
       );
@@ -671,7 +672,7 @@ export function editAndMoveBudgetLine(
       .all();
     const otherTotal = otherRows.reduce((sum, row) => sum + row.itemizedAmount, 0);
     const newTotal = otherTotal + newItemizedAmount;
-    if (newTotal > invoice.amount) {
+    if (exceedsAmount(newTotal, invoice.amount)) {
       throw new ItemizedSumExceedsInvoiceError(
         `Sum of itemized amounts (${newTotal}) would exceed invoice total (${invoice.amount})`,
       );

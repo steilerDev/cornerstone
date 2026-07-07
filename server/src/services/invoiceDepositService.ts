@@ -18,6 +18,7 @@ import {
   InvalidDepositDateForStatusError,
 } from '../errors/AppError.js';
 import { onDepositStatusChanged } from './diaryAutoEventService.js';
+import { exceedsAmount } from './shared/money.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -240,7 +241,7 @@ export function createDeposit(
     const currentSum = existingSum?.sum ?? 0;
     const proposedTotal = currentSum + data.amount;
 
-    if (proposedTotal > invoice.amount) {
+    if (exceedsAmount(proposedTotal, invoice.amount)) {
       const availableHeadroom = Math.max(0, invoice.amount - currentSum);
       throw new DepositsExceedInvoiceTotalError(
         'Sum of deposit amounts would exceed the invoice total',
@@ -425,7 +426,7 @@ export function updateDeposit(
       const otherTotal = otherSum?.sum ?? 0;
       const proposedTotal = otherTotal + data.amount!;
 
-      if (proposedTotal > invoice.amount) {
+      if (exceedsAmount(proposedTotal, invoice.amount)) {
         const availableHeadroom = Math.max(0, invoice.amount - otherTotal);
         throw new DepositsExceedInvoiceTotalError(
           'Sum of deposit amounts would exceed the invoice total',
