@@ -5,6 +5,7 @@ export default async function configRoutes(fastify: FastifyInstance) {
   fastify.get('/', async (_request, reply) => {
     const response: AppConfigResponse = {
       currency: fastify.config.currency,
+      vatRate: fastify.config.vatRate,
       autoItemizeEnabled: fastify.config.autoItemizeEnabled,
     };
     return reply.status(200).send(response);

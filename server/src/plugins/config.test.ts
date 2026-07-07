@@ -35,6 +35,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         diaryAutoEvents: true,
         diaryDraftRetentionDays: 30,
         currency: 'EUR',
+        vatRate: 0.19,
         backupDir: '/backups',
         backupCadence: undefined,
         backupRetention: undefined,
@@ -83,6 +84,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         diaryAutoEvents: true,
         diaryDraftRetentionDays: 30,
         currency: 'EUR',
+        vatRate: 0.19,
         backupDir: '/backups',
         backupCadence: undefined,
         backupRetention: undefined,
@@ -133,6 +135,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         diaryAutoEvents: true,
         diaryDraftRetentionDays: 30,
         currency: 'EUR',
+        vatRate: 0.19,
         backupDir: '/backups',
         backupCadence: undefined,
         backupRetention: undefined,
@@ -178,6 +181,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         diaryAutoEvents: true,
         diaryDraftRetentionDays: 30,
         currency: 'EUR',
+        vatRate: 0.19,
         backupDir: '/backups',
         backupCadence: undefined,
         backupRetention: undefined,
@@ -640,6 +644,57 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
 
     it('error message includes the invalid value that was provided', () => {
       expect(() => loadConfig({ CURRENCY: 'TOOLONG' })).toThrow('got: TOOLONG');
+    });
+  });
+
+  // ─── Story #1807: VAT_RATE ────────────────────────────────────────────────
+
+  describe('VAT_RATE Configuration (Story #1807)', () => {
+    it('Scenario 1: VAT_RATE unset → vatRate defaults to 0.19', () => {
+      const config = loadConfig({});
+      expect(config.vatRate).toBe(0.19);
+    });
+
+    it('Scenario 2: VAT_RATE=0.20 → vatRate equals 0.2', () => {
+      const config = loadConfig({ VAT_RATE: '0.20' });
+      expect(config.vatRate).toBe(0.2);
+    });
+
+    it('Scenario 3: VAT_RATE=abc (non-numeric) → throws containing "VAT_RATE must be a number between 0 and 1"', () => {
+      expect(() => loadConfig({ VAT_RATE: 'abc' })).toThrow(
+        'VAT_RATE must be a number between 0 and 1',
+      );
+    });
+
+    it('Scenario 4: VAT_RATE=1.5 (out of range) → throws the same validation message', () => {
+      expect(() => loadConfig({ VAT_RATE: '1.5' })).toThrow(
+        'VAT_RATE must be a number between 0 and 1',
+      );
+    });
+
+    it('Scenario 5: VAT_RATE=-0.1 (negative) → throws the same validation message', () => {
+      expect(() => loadConfig({ VAT_RATE: '-0.1' })).toThrow(
+        'VAT_RATE must be a number between 0 and 1',
+      );
+    });
+
+    it('Scenario 6a: VAT_RATE=0 (lower boundary) → accepted, vatRate equals 0', () => {
+      const config = loadConfig({ VAT_RATE: '0' });
+      expect(config.vatRate).toBe(0);
+    });
+
+    it('Scenario 6b: VAT_RATE=1 (upper boundary) → accepted, vatRate equals 1', () => {
+      const config = loadConfig({ VAT_RATE: '1' });
+      expect(config.vatRate).toBe(1);
+    });
+
+    it('Scenario 7: empty string VAT_RATE is treated as missing and defaults to 0.19', () => {
+      const config = loadConfig({ VAT_RATE: '' });
+      expect(config.vatRate).toBe(0.19);
+    });
+
+    it('error message includes the invalid value that was provided', () => {
+      expect(() => loadConfig({ VAT_RATE: 'abc' })).toThrow('got: abc');
     });
   });
 

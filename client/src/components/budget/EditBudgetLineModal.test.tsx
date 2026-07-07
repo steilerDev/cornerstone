@@ -3,22 +3,45 @@
  *
  * EditBudgetLineModal — unit tests
  *
- * Strategy: No module mocking. The real Modal (portal to document.body) and
- * real BudgetLineForm are used. Assertions query the live DOM, which is stable
- * across both local and CI environments regardless of jest.unstable_mockModule
- * interception status.
+ * Strategy: No module mocking of the component tree. The real Modal (portal to
+ * document.body), real BudgetLineForm, and real LocaleProvider are used.
+ * Assertions query the live DOM, which is stable across both local and CI
+ * environments regardless of jest.unstable_mockModule interception status.
+ *
+ * BudgetLineForm now calls useLocale()/useFormatters() unconditionally (#1807),
+ * so tests must wrap in the real LocaleProvider. configApi.js/preferencesApi.js
+ * are mocked so LocaleProvider's config fetch doesn't hit the real network.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, act } from '@testing-library/react';
 import type { BudgetSource, Vendor, BudgetCategory, ConfidenceLevel } from '@cornerstone/shared';
 import type { EditBudgetLineModalProps, EditableBudgetLine } from './EditBudgetLineModal.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import type * as EditBudgetLineModalModule from './EditBudgetLineModal.js';
+import type * as LocaleContextModule from '../../contexts/LocaleContext.js';
+
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: jest.fn(() =>
+    Promise.resolve({ currency: 'EUR', vatRate: 0.19, autoItemizeEnabled: false }),
+  ),
+}));
+
+jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
+  listPreferences: jest.fn(() => Promise.resolve([])),
+  upsertPreference: jest.fn(() => Promise.resolve()),
+}));
 
 // ─── Import component under test ──────────────────────────────────────────────
 
 let EditBudgetLineModal: (typeof EditBudgetLineModalModule)['EditBudgetLineModal'];
+let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
+
+// `render` wraps in the real LocaleProvider so BudgetLineForm's useLocale()/
+// useFormatters() calls resolve without throwing.
+function render(ui: React.ReactElement) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>);
+}
 
 // ─── Type factory helpers ──────────────────────────────────────────────────────
 
@@ -151,8 +174,12 @@ function buildProps(overrides?: Partial<EditBudgetLineModalProps>): EditBudgetLi
 describe('EditBudgetLineModal', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
-    const mod = await import('./EditBudgetLineModal.js');
+    const [mod, localeMod] = await Promise.all([
+      import('./EditBudgetLineModal.js'),
+      import('../../contexts/LocaleContext.js'),
+    ]);
     EditBudgetLineModal = mod.EditBudgetLineModal;
+    LocaleProvider = localeMod.LocaleProvider;
   });
 
   // ─── Modal renders ────────────────────────────────────────────────────────

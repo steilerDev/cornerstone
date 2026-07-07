@@ -74,12 +74,13 @@ afterEach(() => {
 // ─── Test component ────────────────────────────────────────────────────────────
 
 function TestComponent() {
-  const { locale, resolvedLocale, currency, setLocale, syncWithServer } = useLocale();
+  const { locale, resolvedLocale, currency, vatRate, setLocale, syncWithServer } = useLocale();
   return (
     <div>
       <div data-testid="locale">{locale}</div>
       <div data-testid="resolved-locale">{resolvedLocale}</div>
       <div data-testid="currency">{currency}</div>
+      <div data-testid="vat-rate">{vatRate}</div>
       <button onClick={() => setLocale('en')}>Set English</button>
       <button onClick={() => setLocale('de')}>Set German</button>
       <button onClick={() => setLocale('system')}>Set System</button>
@@ -196,6 +197,57 @@ describe('LocaleProvider', () => {
       await waitFor(() => {
         // undefined ?? 'EUR' → 'EUR'
         expect(screen.getByTestId('currency').textContent).toBe('EUR');
+      });
+    });
+  });
+
+  // ─── vatRate (Story #1807) ─────────────────────────────────────────────────
+
+  describe('vatRate', () => {
+    it('Scenario 17: vatRate defaults to 0.19 before config is fetched', () => {
+      // Suppress the fetchConfig so it never resolves
+      mockFetchConfig.mockReturnValue(new Promise(() => undefined));
+      renderWithProvider();
+      expect(screen.getByTestId('vat-rate').textContent).toBe('0.19');
+    });
+
+    it('Scenario 18: fetchConfig() resolves with vatRate: 0.20 → context vatRate updates to 0.2', async () => {
+      mockFetchConfig.mockResolvedValue({
+        currency: 'EUR',
+        vatRate: 0.2,
+        autoItemizeEnabled: false,
+      });
+
+      renderWithProvider();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('vat-rate').textContent).toBe('0.2');
+      });
+    });
+
+    it('Scenario 19: fetchConfig() rejects → vatRate stays at 0.19', async () => {
+      mockFetchConfig.mockRejectedValue(new Error('Network error'));
+
+      renderWithProvider();
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+
+      expect(screen.getByTestId('vat-rate').textContent).toBe('0.19');
+    });
+
+    it('Scenario 20: fetchConfig() resolves with no vatRate field → vatRate stays at 0.19', async () => {
+      mockFetchConfig.mockResolvedValue({
+        currency: 'EUR',
+        autoItemizeEnabled: false,
+      });
+
+      renderWithProvider();
+
+      await waitFor(() => {
+        // undefined ?? 0.19 → 0.19
+        expect(screen.getByTestId('vat-rate').textContent).toBe('0.19');
       });
     });
   });

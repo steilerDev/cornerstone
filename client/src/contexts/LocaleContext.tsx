@@ -21,6 +21,8 @@ export interface LocaleContextValue {
   resolvedLocale: ResolvedLocale;
   /** The currency code from server config (e.g. 'EUR') */
   currency: string;
+  /** VAT/sales-tax rate as a fraction from server config (e.g. 0.19) */
+  vatRate: number;
   /** Update the user's locale preference */
   setLocale: (locale: LocalePreference) => void;
   /** Sync locale preference with server (called when user authenticates) */
@@ -66,6 +68,7 @@ export function LocaleProvider({ children }: LocaleProviderProps) {
     resolveLocale(initialPreference),
   );
   const [currency, setCurrency] = useState<string>('EUR');
+  const [vatRate, setVatRate] = useState<number>(0.19);
 
   // Track authenticated user ID to avoid syncing with server for unauthenticated users
   const authenticatedUserIdRef = useRef<string | null>(null);
@@ -76,14 +79,15 @@ export function LocaleProvider({ children }: LocaleProviderProps) {
     void i18n.changeLanguage(resolvedLocale);
   }, [resolvedLocale]);
 
-  // Fetch config on mount to set currency (fire-and-forget)
+  // Fetch config on mount to set currency and vatRate (fire-and-forget)
   useEffect(() => {
     void fetchConfig()
       .then((config) => {
         setCurrency(config.currency ?? 'EUR');
+        setVatRate(config.vatRate ?? 0.19);
       })
       .catch(() => {
-        // Silently fail - currency stays at default EUR
+        // Silently fail - currency stays at default EUR, vatRate at default 0.19
       });
   }, []);
 
@@ -141,7 +145,7 @@ export function LocaleProvider({ children }: LocaleProviderProps) {
   }, []);
 
   return (
-    <LocaleContext value={{ locale, resolvedLocale, currency, setLocale, syncWithServer }}>
+    <LocaleContext value={{ locale, resolvedLocale, currency, vatRate, setLocale, syncWithServer }}>
       {children}
     </LocaleContext>
   );

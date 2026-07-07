@@ -2,15 +2,74 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
+import type { ReactElement, ReactNode } from 'react';
 import type { BudgetLineFormProps } from './BudgetLineForm.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import type { BudgetSource, Vendor, BudgetCategory } from '@cornerstone/shared';
 import type * as BudgetLineFormModule from './BudgetLineForm.js';
+import type * as LocaleContextModule from '../../contexts/LocaleContext.js';
+
+// ─── Mocks (must be registered before the dynamic import in beforeEach) ───────
+// BudgetLineForm now calls useLocale()/useFormatters() unconditionally (#1807).
+// jest.unstable_mockModule may not intercept in this sandbox (documented CI-vs-local
+// gap — see agent memory). Values here match the historical hardcoded defaults
+// (EUR / 19%) so existing assertions in this file keep passing either way.
+
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtCurrency = (n: number) => '€' + n.toFixed(2);
+  return {
+    formatCurrency: fmtCurrency,
+    getCurrencySymbol: () => '€',
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      getCurrencySymbol: () => '€',
+    }),
+  };
+});
+
+// Declared with a `mock` prefix so the jest.unstable_mockModule factory below can
+// close over it (required by Jest's ESM out-of-scope-variable convention). Kept
+// as module-scoped `const` so individual tests (Scenarios 27/28) can override the
+// return value to exercise a non-default vatRate.
+const mockUseLocale = jest.fn(() => ({
+  locale: 'en' as const,
+  resolvedLocale: 'en' as const,
+  currency: 'EUR',
+  vatRate: 0.19,
+  setLocale: jest.fn(),
+  syncWithServer: jest.fn(),
+}));
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: mockUseLocale,
+  LocaleProvider: ({ children }: { children: ReactNode }) => children,
+}));
+
+const mockFetchConfig = jest.fn(() =>
+  Promise.resolve({ currency: 'EUR', vatRate: 0.19, autoItemizeEnabled: false }),
+);
+
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: mockFetchConfig,
+}));
+
+jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
+  listPreferences: jest.fn(() => Promise.resolve([])),
+  upsertPreference: jest.fn(() => Promise.resolve()),
+}));
 
 // ─── Dynamic import (required for jest.unstable_mockModule pattern) ───────────
 
 let BudgetLineForm: (typeof BudgetLineFormModule)['BudgetLineForm'];
+let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
+
+// `render` is shadowed here so every existing `render(<BudgetLineForm ... />)`
+// call site automatically wraps in the real LocaleProvider — a fallback for when
+// jest.unstable_mockModule doesn't intercept locally (see mocks above).
+function render(ui: ReactElement) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>);
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -77,7 +136,23 @@ function buildProps(
 // ─── Load the component after setup ───────────────────────────────────────────
 
 beforeEach(async () => {
-  ({ BudgetLineForm } = await import('./BudgetLineForm.js'));
+  // Reset overridable mocks to the historical defaults (EUR / 19%) before each test.
+  mockUseLocale.mockReturnValue({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  });
+  mockFetchConfig.mockResolvedValue({ currency: 'EUR', vatRate: 0.19, autoItemizeEnabled: false });
+
+  const [formMod, localeMod] = await Promise.all([
+    import('./BudgetLineForm.js'),
+    import('../../contexts/LocaleContext.js'),
+  ]);
+  BudgetLineForm = formMod.BudgetLineForm;
+  LocaleProvider = localeMod.LocaleProvider;
 });
 
 // ─── Tests ─────────────────────────────────────────────────────────────────────
@@ -514,5 +589,59 @@ describe('BudgetLineForm — ParentPicker regression smoke', () => {
     // Use type="submit" to find it regardless of translated text.
     const submitBtn = document.querySelector('button[type="submit"]');
     expect(submitBtn).not.toBeNull();
+  });
+});
+
+// ─── Configurable VAT_RATE flows through to computed total & labels (#1807) ──
+
+describe('BudgetLineForm — configurable vatRate from LocaleContext (#1807)', () => {
+  it('Scenario 27: with mocked vatRate=0.25, qty=2/price=100/includesVat=false → computed total is €250.00', async () => {
+    mockUseLocale.mockReturnValue({
+      locale: 'en' as const,
+      resolvedLocale: 'en' as const,
+      currency: 'EUR',
+      vatRate: 0.25,
+      setLocale: jest.fn(),
+      syncWithServer: jest.fn(),
+    });
+    mockFetchConfig.mockResolvedValue({
+      currency: 'EUR',
+      vatRate: 0.25,
+      autoItemizeEnabled: false,
+    });
+
+    const props = buildProps(
+      buildUnitForm({ quantity: '2', unitPrice: '100', includesVat: false }),
+    );
+    render(<BudgetLineForm {...props} />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/€250\.00/)).toBeInTheDocument();
+    });
+  });
+
+  it('Scenario 28: with mocked vatRate=0.20, VAT checkbox label/note reflect "20%" instead of the "19%" default', async () => {
+    mockUseLocale.mockReturnValue({
+      locale: 'en' as const,
+      resolvedLocale: 'en' as const,
+      currency: 'EUR',
+      vatRate: 0.2,
+      setLocale: jest.fn(),
+      syncWithServer: jest.fn(),
+    });
+    mockFetchConfig.mockResolvedValue({ currency: 'EUR', vatRate: 0.2, autoItemizeEnabled: false });
+
+    const props = buildProps(buildDirectForm({ includesVat: false }));
+    render(<BudgetLineForm {...props} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('checkbox', { name: /Price includes VAT \(20%\)/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByText('+20% VAT will be added to the total')).toBeInTheDocument();
+    });
+
+    // Confirm the old 19% default is no longer shown anywhere.
+    expect(screen.queryByText(/19%/)).not.toBeInTheDocument();
   });
 });

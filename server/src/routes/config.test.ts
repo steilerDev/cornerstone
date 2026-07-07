@@ -7,6 +7,7 @@
  * - Response Content-Type is application/json
  * - Endpoint is accessible without authentication
  * - CURRENCY env var is reflected in the response
+ * - VAT_RATE env var is reflected in the response (Story #1807)
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
@@ -110,6 +111,41 @@ describe('Config Routes', () => {
       }
     });
 
+    // ─── Story #1807: VAT_RATE ─────────────────────────────────────────────
+
+    it('returns 200 with vatRate field, defaulting to 0.19', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/config',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AppConfigResponse>();
+      expect(body).toHaveProperty('vatRate');
+      expect(body.vatRate).toBe(0.19);
+    });
+
+    it('reflects VAT_RATE env var in the response', async () => {
+      // Must create a custom app instance AFTER setting the env var so the
+      // config plugin reads the overridden value.
+      process.env.VAT_RATE = '0.20';
+      const customApp = await buildApp();
+
+      try {
+        const response = await customApp.inject({
+          method: 'GET',
+          url: '/api/config',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<AppConfigResponse>();
+        expect(body.vatRate).toBe(0.2);
+      } finally {
+        await customApp.close();
+        delete process.env.VAT_RATE;
+      }
+    });
+
     it('returns the exact AppConfigResponse shape with no extra fields', async () => {
       const response = await app.inject({
         method: 'GET',
@@ -118,8 +154,8 @@ describe('Config Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<AppConfigResponse>();
-      // Fields present per the API contract: currency + autoItemizeEnabled (Story #1546)
-      expect(Object.keys(body).sort()).toEqual(['autoItemizeEnabled', 'currency']);
+      // Fields present per the API contract: currency + vatRate (Story #1807) + autoItemizeEnabled (Story #1546)
+      expect(Object.keys(body).sort()).toEqual(['autoItemizeEnabled', 'currency', 'vatRate']);
     });
 
     it('returns autoItemizeEnabled: false when LLM env vars are not set', async () => {

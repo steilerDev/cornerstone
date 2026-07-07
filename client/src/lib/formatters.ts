@@ -29,6 +29,20 @@ export function formatCurrency(amount: number, locale = 'en-US', currency = 'EUR
 }
 
 /**
+ * Returns the currency symbol for a given ISO 4217 currency code and locale
+ * (e.g. 'EUR' + 'en-US' → '€'). Falls back to the currency code itself if
+ * Intl cannot resolve a symbol.
+ *
+ * @param currency - ISO 4217 currency code (default: 'EUR').
+ * @param locale - The locale for symbol resolution (default: 'en-US').
+ * @returns The currency symbol string.
+ */
+export function getCurrencySymbol(currency = 'EUR', locale = 'en-US'): string {
+  const parts = new Intl.NumberFormat(locale, { style: 'currency', currency }).formatToParts(0);
+  return parts.find((p) => p.type === 'currency')?.value ?? currency;
+}
+
+/**
  * Format a number as a percentage string with 2 decimal places.
  *
  * @param rate - The raw percentage value (e.g. 3.5 → "3.50%").
@@ -193,6 +207,11 @@ export function useFormatters() {
      * Format a number as a currency string using the user's locale and currency.
      */
     formatCurrency: (amount: number) => formatCurrency(amount, localeString, currency),
+
+    /**
+     * Get the currency symbol for the user's currency and locale.
+     */
+    getCurrencySymbol: () => getCurrencySymbol(currency, localeString),
 
     /**
      * Format a date string using the user's locale.
