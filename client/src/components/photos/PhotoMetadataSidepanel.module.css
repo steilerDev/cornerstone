@@ -8,7 +8,10 @@
   width: 320px;
   max-height: 100%;
   overflow-y: auto;
-  z-index: 8;
+
+  --z-local: 8;
+
+  z-index: var(--z-local);
 }
 
 .header {
@@ -180,10 +183,13 @@
     border-radius: var(--radius-md);
     color: white;
     cursor: pointer;
-    z-index: 20;
     transition:
       background-color var(--transition-fast),
       transform var(--transition-fast);
+
+    --z-local: 20;
+
+    z-index: var(--z-local);
   }
 
   .toggleButton:hover {
@@ -208,7 +214,10 @@
     position: fixed;
     bottom: var(--spacing-4);
     right: var(--spacing-4);
-    z-index: 20;
+
+    --z-local: 20;
+
+    z-index: var(--z-local);
   }
 
   /* In-header toggle — flows statically in the header when panel is open */

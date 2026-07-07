@@ -149,6 +149,7 @@
   --color-warning: var(--color-orange-400);
   --color-warning-bg: #fff7ed;
   --color-warning-text-on-light: var(--color-orange-700);
+  --color-warning-badge-bg: rgba(251, 146, 60, 0.15);
 
   /* --- Success (green) --- */
   --color-success: var(--color-green-500);
@@ -254,6 +255,9 @@
   --shadow-focus-primary-alt: 0 0 0 3px rgba(37, 99, 235, 0.1);
   --shadow-focus-danger: 0 0 0 3px rgba(220, 38, 38, 0.1);
 
+  /* Text overlay shadow */
+  --shadow-text-overlay: 0 1px 3px rgba(0, 0, 0, 0.6);
+
   /* ============================================================
    * LAYER 2 — SPACING
    * ============================================================ */
@@ -324,6 +328,7 @@
    * LAYER 2 — Z-INDEX SCALE
    * ============================================================ */
 
+  --z-raised: 1; /* local stacking-context raise, e.g. lifting a focused row above unfocused siblings */
   --z-dropdown: 10;
   --z-overlay: 50;
   --z-sidebar: 100;
@@ -440,6 +445,32 @@
 
   /* Critical path bar border overlay */
   --color-gantt-bar-critical-border: var(--color-orange-400);
+
+  /* ============================================================
+   * LAYER 2 — GANTT TOOLTIP TOKENS
+   * ============================================================ */
+
+  --color-tooltip-subdued: rgba(255, 255, 255, 0.55);
+  --color-tooltip-bullet: rgba(255, 255, 255, 0.4);
+  --color-tooltip-separator: rgba(255, 255, 255, 0.15);
+  --color-tooltip-status-not-started-bg: rgba(156, 163, 175, 0.25);
+  --color-tooltip-status-in-progress-bg: rgba(59, 130, 246, 0.3);
+  --color-tooltip-status-completed-bg: rgba(16, 185, 129, 0.3);
+  --color-tooltip-status-late-bg: rgba(239, 68, 68, 0.3);
+
+  /* ============================================================
+   * LAYER 2 — PHOTO VIEWER/OVERLAY TOKENS (theme-invariant)
+   * ============================================================ */
+
+  --color-photo-overlay-caption: rgba(0, 0, 0, 0.8);
+  --color-photo-control-bg: rgba(0, 0, 0, 0.5);
+  --color-photo-control-bg-hover: rgba(0, 0, 0, 0.8);
+  --color-photo-bar-bg: rgba(0, 0, 0, 0.7);
+  --color-photo-border: rgba(255, 255, 255, 0.1);
+  --color-photo-focus-ring: rgba(255, 255, 255, 0.6);
+  --color-photo-active-bg: rgba(255, 255, 255, 0.25);
+  --color-photo-action-primary-bg: rgba(59, 130, 246, 0.9);
+  --color-photo-action-danger-bg: rgba(220, 38, 38, 0.9);
 
   /* ============================================================
    * LAYER 1-B — HOUSEHOLD ITEM GANTT TOKENS
@@ -644,6 +675,7 @@
   --color-warning: var(--color-orange-300);
   --color-warning-bg: rgba(251, 146, 60, 0.1);
   --color-warning-text-on-light: var(--color-orange-300);
+  --color-warning-badge-bg: rgba(251, 146, 60, 0.2);
 
   /* --- Danger / Error --- */
   --color-danger: var(--color-red-400);
@@ -810,6 +842,15 @@
 
   /* Critical path bar accent stripe (warmer orange in dark mode) */
   --color-gantt-bar-critical-border: var(--color-orange-300);
+
+  /* --- Gantt tooltip tokens (dark mode) --- */
+  --color-tooltip-subdued: rgba(0, 0, 0, 0.5);
+  --color-tooltip-bullet: rgba(0, 0, 0, 0.3);
+  --color-tooltip-separator: rgba(0, 0, 0, 0.15);
+  --color-tooltip-status-not-started-bg: rgba(107, 114, 128, 0.2);
+  --color-tooltip-status-in-progress-bg: rgba(59, 130, 246, 0.15);
+  --color-tooltip-status-completed-bg: rgba(16, 185, 129, 0.15);
+  --color-tooltip-status-late-bg: rgba(239, 68, 68, 0.15);
 
   /* Household item circle markers */
   --color-gantt-hi-fill: rgba(245, 158, 11, 0.2);

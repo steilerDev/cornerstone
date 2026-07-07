@@ -231,25 +231,25 @@
 }
 
 .tdDescription {
-  @extend .td;
+  padding: var(--spacing-3);
   color: var(--color-text-primary);
 }
 
 .tdCategory {
-  @extend .td;
+  padding: var(--spacing-3);
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
 }
 
 .tdPlanned {
-  @extend .td;
+  padding: var(--spacing-3);
   text-align: right;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
 }
 
 .tdItemized {
-  @extend .td;
+  padding: var(--spacing-3);
   text-align: right;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
@@ -257,7 +257,6 @@
 }
 
 .tdLinkedItem {
-  @extend .td;
   padding: var(--spacing-2) var(--spacing-3);
 }
 
@@ -305,7 +304,7 @@
 }
 
 .tdActions {
-  @extend .td;
+  padding: var(--spacing-3);
   text-align: center;
 }
 
@@ -424,14 +423,11 @@
 
 .trRemaining_warning .tdRemaining {
   color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
 }
 
 .trRemaining_danger .tdRemaining {
   color: var(--color-danger);
-  font-weight: var(--font-weight-semibold);
-}
-
-.trRemaining_warning .tdRemaining {
   font-weight: var(--font-weight-semibold);
 }
 
@@ -747,7 +743,7 @@
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border-width: 0;
 }

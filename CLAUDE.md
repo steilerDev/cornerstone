@@ -370,7 +370,7 @@ Before creating a new UI component, check if an existing shared component can be
 3. **Every new component must be built as a reusable shared component** — no one-off implementations. If a UI pattern doesn't fit an existing shared component, create a new shared component in `client/src/components/` that can be reused by future features
 4. New shared components require UX designer visual spec approval
 5. All CSS values must use design tokens from `tokens.css` — no hardcoded colors, spacing, radii, or font sizes
-6. Stylelint enforces token usage automatically
+6. Stylelint enforces token usage automatically (via `npm run lint` locally and the CI `static-analysis` job's `Stylelint` step; covers `client/src/**/*.css` and `client/src/**/*.module.css`, not `docs/`)
 
 ### Internationalization & Translation
 

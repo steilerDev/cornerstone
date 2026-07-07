@@ -103,7 +103,7 @@
   display: inline-block;
   padding: var(--spacing-0-5) var(--spacing-1-5);
   font-size: var(--font-size-xs);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   background-color: var(--color-primary-bg);
   color: var(--color-primary-badge-text);
   border-radius: var(--radius-full);
@@ -115,7 +115,7 @@
   display: inline-block;
   padding: var(--spacing-0-5) var(--spacing-1-5);
   font-size: var(--font-size-xs);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   background-color: var(--color-bg-tertiary);
   color: var(--color-text-muted);
   border-radius: var(--radius-sm);

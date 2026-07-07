@@ -36,7 +36,8 @@
       "rules": {
         "color-no-hex": null,
         "function-disallowed-list": null,
-        "declaration-property-value-disallowed-list": null
+        "declaration-property-value-disallowed-list": null,
+        "color-function-alias-notation": null
       }
     },
     {
