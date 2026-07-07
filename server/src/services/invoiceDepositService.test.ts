@@ -253,7 +253,7 @@ describe('invoiceDepositService', () => {
         });
         // availableHeadroom must reflect the non-float-noise remaining headroom
         // (1000 - (332.85 + 333.04)), not a value polluted by summation noise.
-        expect(err.details.availableHeadroom as number).toBeCloseTo(334.11);
+        expect(err.details?.availableHeadroom as number).toBeCloseTo(334.11);
       }
     });
 
@@ -286,7 +286,7 @@ describe('invoiceDepositService', () => {
         const err = e as DepositsExceedInvoiceTotalError;
         // availableHeadroom must reflect the non-float-noise remaining headroom
         // (1000 - (332.85 + 333.04)), not a value polluted by summation noise.
-        expect(err.details.availableHeadroom as number).toBeCloseTo(334.11);
+        expect(err.details?.availableHeadroom as number).toBeCloseTo(334.11);
       }
     });
   });
