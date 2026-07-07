@@ -44,8 +44,8 @@ effect (`skipAutoSaveOnMountRef` guard, lines ~194-219) consumes its "skip" flag
 effect run — which happens on initial mount (before `entry` loads, all metadata state is initial
 values). When `loadEntry()` resolves and `entry?.status` flips from `undefined` to `'draft'`, the
 effect's dependency array changes value, so it re-runs — but the skip flag is already spent, so it
-fires `triggerAutoSave(true)` → an immediate `updateDiaryEntry` call with the *just-loaded,
-unedited* content. Confirmed via isolated probe test (mount only, no interaction →
+fires `triggerAutoSave(true)` → an immediate `updateDiaryEntry` call with the _just-loaded,
+unedited_ content. Confirmed via isolated probe test (mount only, no interaction →
 `mockUpdateDiaryEntry` called once). This predates #1816 — the PR only touched the debounce/cancel
 plumbing (`doSaveImpl`/`scheduleAutoSave`), not this skip-ref effect. Existing Scenario 44 test
 doesn't catch it because it asserts `toHaveBeenCalledWith(...)` not call count. Worked around in
@@ -55,11 +55,54 @@ tracked — not in scope for me to fix (test-only agent).
 
 ## Reusable pattern: capturing an untested mock prop
 
-When a component under test mocks a child (e.g. `PhotoUpload`) and only captures *some* of its
+When a component under test mocks a child (e.g. `PhotoUpload`) and only captures _some_ of its
 props (e.g. `onUpload` but not `onUploadingCountChange`), and a new spec needs to exercise the
 uncaptured prop, extend the mock factory to also capture it — don't create a parallel mock. Wrap
 any resulting `setState`-triggering invocation in `act()` since it's called directly, not through
 `fireEvent`/`userEvent` (which auto-wrap).
+
+## Follow-up regression (PR #1848): hook tests must assert the RETURNED OBJECT's identity, not just its members
+
+The `useDebouncedCallback` "referentially stable" test above (added for #1816) only asserted
+`result.current.trigger` and `result.current.cancel` were stable individually — it did NOT assert
+`result.current` itself was the same object across re-renders. That was the exact gap: the hook
+returned a fresh `{ trigger, cancel }` object literal every render even though `trigger`/`cancel`
+were each individually memoized via `useCallback`. Any consumer effect that put the *whole hook
+return value* in its dependency array (not just `.trigger`/`.cancel`) saw that dependency change on
+every render, causing the effect to re-fire spuriously:
+- `BudgetOverviewPage.tsx`: `[deselectedSourceIds, paymentStatus, isLoading, scheduleFetchBreakdown]`
+  effect re-fired every time `isBreakdownRefetching` flipped after a fetch resolved → unbounded
+  false/true ping-pong, breakdown never stopped "refetching", `.breakdownRefetching`
+  (`pointer-events: none`) overlay stuck on. This was the deterministic E2E smoke failure.
+- `DiaryEntryEditPage.tsx`: `[uploadingCount, scheduleAutoSave]` cleanup effect called
+  `scheduleAutoSave.cancel()` on every render (not just `uploadingCount` changes), silently
+  cancelling any pending debounced autosave the instant an unrelated field caused a re-render.
+
+Fix: wrap the hook's return in `useMemo(() => ({ trigger, cancel }), [trigger, cancel])`.
+
+**Lesson for future hook tests**: when a hook returns an object/array bundling multiple values,
+always add a test asserting `result.current` (the whole thing) `.toBe()` its prior value across an
+unrelated re-render — in addition to (not instead of) testing individual member stability. Member
+stability does not imply container stability.
+
+**Regression tests added** (all mutation-checked: fail on the pre-`useMemo` hook, pass on the
+fixed one — verified via `git stash` on just `useDebouncedCallback.ts`, not the test files):
+- `useDebouncedCallback.test.ts`: `result.current` itself `.toBe()`s its prior value across
+  `rerender({ delay: 300 })` (same delay → no reason for identity to change).
+- `BudgetOverviewPage.test.tsx` (new describe "Regression #1816/#1848: breakdown refetch loop"):
+  after initial load settles, wait ~150ms real time (wrapped in `act`) for the debounce-triggered
+  refetch to resolve, snapshot `mockFetchBudgetBreakdown.mock.calls.length`, wait another ~500ms
+  real time with zero external state change, assert the call count did NOT grow further and
+  `document.querySelector('.breakdownRefetching')` is null. Used real timers + `act(async () => {
+  await new Promise(resolve => setTimeout(resolve, N)); })` rather than fake-timer stepping — more
+  robust for proving an *absence* of runaway async activity than manually stepping fake timers,
+  and avoids "not wrapped in act" warnings for the background state updates under test.
+- `DiaryEntryEditPage.test.tsx` (new test after Scenario 44b): blur body textarea to schedule a
+  debounced autosave, advance 400ms (fake timers), then `fireEvent.change` (NOT blur) the `title`
+  input to force an unrelated re-render via `setTitle` without invoking `onFieldBlur`, advance the
+  remaining 700ms, assert `updateDiaryEntry` fires with the original scheduled body. Reused the
+  existing "flush + discard the mount-time spurious autosave" workaround from Scenario 44b (see
+  CODE_BUG note below) before the real assertion.
 
 ## `.test.ts` vs `.test.tsx` for hook tests that need DOM fixtures
 

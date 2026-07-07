@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 export function useDebouncedCallback<Args extends unknown[]>(
   callback: (...args: Args) => void,
@@ -27,5 +27,5 @@ export function useDebouncedCallback<Args extends unknown[]>(
 
   useEffect(() => cancel, [cancel]);
 
-  return { trigger, cancel };
+  return useMemo(() => ({ trigger, cancel }), [trigger, cancel]);
 }

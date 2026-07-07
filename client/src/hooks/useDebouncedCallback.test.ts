@@ -124,6 +124,31 @@ describe('useDebouncedCallback', () => {
     expect(result.current.cancel).toBe(firstCancel);
   });
 
+  // Regression #1816/#1848: the hook used to return a brand-new `{ trigger, cancel }`
+  // object literal on every render, even when `trigger` and `cancel` were themselves
+  // referentially stable. Any consumer that put the *whole hook return value* in a
+  // `useEffect`/`useMemo` dependency array (e.g. `[uploadingCount, scheduleAutoSave]`
+  // in DiaryEntryEditPage, or `[..., scheduleFetchBreakdown]` in BudgetOverviewPage)
+  // saw that dependency change on every render, causing effects to re-fire
+  // spuriously. The fix wraps the return value in `useMemo(() => ({ trigger, cancel
+  // }), [trigger, cancel])`. This test asserts the identity of the returned object
+  // itself, not just its members — the previous "referentially stable" test above
+  // only checked `result.current.trigger` / `result.current.cancel` individually and
+  // did not catch this.
+  it('the returned object itself is referentially stable across re-renders with unchanged delayMs', () => {
+    const callback = jest.fn<() => void>();
+    const { result, rerender } = renderHook(
+      ({ delay }: { delay: number }) => useDebouncedCallback(callback, delay),
+      { initialProps: { delay: 300 } },
+    );
+
+    const firstResult = result.current;
+
+    rerender({ delay: 300 });
+
+    expect(result.current).toBe(firstResult);
+  });
+
   it('trigger changes reference when delayMs changes (cancel stays stable)', () => {
     const callback = jest.fn<() => void>();
     const { result, rerender } = renderHook(

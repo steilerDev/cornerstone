@@ -841,6 +841,60 @@ describe('DiaryEntryEditPage', () => {
       jest.useRealTimers();
     });
 
+    // Regression #1816/#1848: useDebouncedCallback used to return a brand-new
+    // `{trigger, cancel}` object on every render. The uploadingCount-keyed cleanup
+    // effect (lines ~222-240) depends on that whole object, so its cleanup —
+    // `scheduleAutoSave.cancel()` — used to re-run on *every* render, not just when
+    // `uploadingCount` actually changed. That silently cancelled any pending
+    // debounced autosave the instant an unrelated field caused a re-render. The fix
+    // wraps the hook's return value in `useMemo` so the object is referentially
+    // stable across renders that don't change `trigger`/`cancel` identity.
+    it('Regression #1816/#1848: a pending debounced autosave survives an unrelated re-render and fires after its full delay', async () => {
+      jest.useFakeTimers();
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      mockUpdateDiaryEntry.mockResolvedValue({ ...draftGeneralNoteEntry, body: 'updated' });
+      renderEditPage('draft-1');
+
+      await waitFor(() => {
+        expect(screen.getByRole('textbox', { name: /^entry/i })).toBeInTheDocument();
+      });
+
+      // Flush and discard the pre-existing spurious mount-time autosave (documented
+      // CODE_BUG, unrelated to this regression) so it doesn't muddy the assertion.
+      await jest.advanceTimersByTimeAsync(50);
+      mockUpdateDiaryEntry.mockClear();
+
+      // Blur the body textarea to schedule a debounced autosave (1000ms).
+      const textarea = screen.getByRole('textbox', { name: /^entry/i });
+      fireEvent.change(textarea, { target: { value: 'updated body' } });
+      fireEvent.blur(textarea);
+
+      // Advance partway — not enough to fire yet.
+      await jest.advanceTimersByTimeAsync(400);
+      expect(mockUpdateDiaryEntry).not.toHaveBeenCalled();
+
+      // Trigger a re-render that has nothing to do with autosave scheduling: change
+      // (not blur) the title field. This calls setTitle, forcing a re-render, but
+      // never touches `uploadingCount` or the autosave trigger/cancel path.
+      const titleInput = screen.getByLabelText(/^title$/i);
+      fireEvent.change(titleInput, { target: { value: 'An unrelated title edit' } });
+
+      // Advance the remaining time past the original 1000ms debounce window. If the
+      // unrelated re-render had cancelled the pending save (the pre-fix bug),
+      // updateDiaryEntry would never fire.
+      await jest.advanceTimersByTimeAsync(700);
+
+      await waitFor(() => {
+        expect(mockUpdateDiaryEntry).toHaveBeenCalledTimes(1);
+      });
+      expect(mockUpdateDiaryEntry).toHaveBeenCalledWith(
+        'draft-1',
+        expect.objectContaining({ body: 'updated body' }),
+      );
+
+      jest.useRealTimers();
+    });
+
     it('Scenario 46: weather select change on draft → triggers immediate auto-save', async () => {
       jest.useFakeTimers();
       const draftDailyLogEntry: DiaryEntryDetail = {
