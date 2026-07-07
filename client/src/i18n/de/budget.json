@@ -69,10 +69,14 @@
         "ariaLabel": "Budgetquelle: {{name}}",
         "unassigned": "Nicht zugewiesen"
       },
-      "autoOriginBadge": {
-        "label": "Auto-erstellt",
-        "ariaLabel": "Diese Budgetposition wurde automatisch per Aufschlüsselung erstellt"
-      }
+      "perspectiveAriaLabel": "Kostenperspektive",
+      "perspective": {
+        "min": "Min",
+        "avg": "Ø",
+        "max": "Max"
+      },
+      "expandSubsidyAdjustments": "Förderprogramm-Anpassungen aufklappen",
+      "expandAvailableFunds": "Verfügbare Mittelquellen aufklappen"
     }
   },
   "sources": {
@@ -438,7 +442,10 @@
       "invoiceCreateError": "Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
       "invoiceUpdateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
       "invoiceDeleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
-    }
+    },
+    "confirmDelete": "Löschen bestätigen",
+    "cancelDelete": "Löschen abbrechen",
+    "unlinkFromInvoice": "Von Rechnung trennen"
   },
   "invoiceDetail": {
     "loading": "Rechnung wird geladen...",
@@ -710,6 +717,23 @@
       "fixed": "Festbetrag (€)"
     },
     "oversubscribed": "Überzeichnet",
+    "linkSection": {
+      "emptyState": "Keine Förderprogramme verknüpft",
+      "selectAriaLabel": "Förderprogramm zum Verknüpfen auswählen",
+      "selectPlaceholder": "Förderprogramm auswählen...",
+      "addButton": "Förderprogramm Hinzufügen",
+      "linking": "Wird verknüpft...",
+      "unlinkAriaLabel": "Förderprogramm {{name}} trennen",
+      "reductionPercentage": "{{value}}% Reduktion",
+      "reductionFixed": "{{amount}} Reduktion"
+    },
+    "editForm": {
+      "placeholders": {
+        "description": "Optionale Beschreibung",
+        "eligibility": "Optionale Zulassungskriterien",
+        "notes": "Optionale Notizen"
+      }
+    },
     "statusLabels": {
       "eligible": "Berechtigt",
       "applied": "Eingereicht",
@@ -789,7 +813,36 @@
     "moveCrossTableHint": "Das Verschieben zu einem Haushaltsartikel überträgt diese Budgetposition in das Haushaltsartikelbudget.",
     "moveCrossTableHintReverse": "Das Verschieben zu einem Arbeitspaket überträgt diese Budgetposition in das Arbeitspaketbudget.",
     "itemizedAmountLabel": "Aufgeschlüsselter Betrag ({{currencySymbol}}) *",
-    "moveCrossTableNoInvoiceError": "Tabellenübergreifende Verschiebungen erfordern eine Rechnungsverknüpfung. Entfernen Sie entweder die Verschiebung oder verknüpfen Sie diese Budgetposition zuerst mit einer Rechnung."
+    "moveCrossTableNoInvoiceError": "Tabellenübergreifende Verschiebungen erfordern eine Rechnungsverknüpfung. Entfernen Sie entweder die Verschiebung oder verknüpfen Sie diese Budgetposition zuerst mit einer Rechnung.",
+    "addBudgetLineAriaLabel": "Budgetposition hinzufügen"
+  },
+  "invoiceLinkModal": {
+    "title": "Mit Rechnung verknüpfen",
+    "cancel": "Abbrechen",
+    "linkButton": "Mit Rechnung verknüpfen",
+    "linking": "Wird verknüpft...",
+    "invoiceLabel": "Rechnung",
+    "loading": "Rechnungen werden geladen...",
+    "emptyState": "Keine Rechnungen verfügbar",
+    "searchPlaceholder": "Nach Rechnungsnummer oder Beschreibung suchen...",
+    "noMatches": "Keine Rechnungen entsprechen Ihrer Suche",
+    "amountLabel": "Aufgeschlüsselter Betrag",
+    "overAvailable": "{{amount}} über verfügbar",
+    "willRemain": "{{amount}} verbleiben",
+    "availableOnInvoice": "{{amount}} auf dieser Rechnung verfügbar",
+    "overAllocated": "Überzuteilt um {{amount}}",
+    "invoiceFallbackLabel": "Rechnung {{id}}",
+    "successToast": "Budgetposition erfolgreich mit Rechnung verknüpft",
+    "errors": {
+      "loadFailed": "Rechnungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "selectInvoice": "Bitte wählen Sie eine Rechnung aus",
+      "invalidAmount": "Bitte geben Sie einen gültigen Betrag ein",
+      "exceedsBalance": "Betrag übersteigt den verfügbaren Saldo ({{amount}} verfügbar)",
+      "alreadyLinked": "Diese Budgetposition ist bereits mit einer Rechnung verknüpft",
+      "exceedsInvoiceTotal": "Der aufgeschlüsselte Betrag übersteigt den Rechnungsgesamtbetrag",
+      "linkFailed": "Budgetposition konnte nicht verknüpft werden",
+      "unexpected": "Ein unerwarteter Fehler ist aufgetreten"
+    }
   },
   "health": {
     "overBudget": "Über Budget",

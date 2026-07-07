@@ -92,7 +92,7 @@ export function SignatureSection({
         className={shared.btnSecondary}
         onClick={onAddSignature}
         disabled={disabled}
-        aria-label="Add signature"
+        aria-label={t('signature.addSignature')}
       >
         {t('signature.addSignature')}
       </button>

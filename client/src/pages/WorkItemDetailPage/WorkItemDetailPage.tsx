@@ -1273,7 +1273,7 @@ export default function WorkItemDetailPage() {
           className={styles.linkPickerSelect}
           value={selectedRequiredMilestoneId}
           onChange={(e) => setSelectedRequiredMilestoneId(e.target.value)}
-          aria-label="Select required milestone to add"
+          aria-label={t('detail.constraints.selectRequiredMilestoneAriaLabel')}
         >
           <option value="">{t('detail.constraints.selectMilestonePlaceholder')}</option>
           {availableRequiredMilestones.map((m) => (
@@ -1304,7 +1304,7 @@ export default function WorkItemDetailPage() {
           className={styles.linkPickerSelect}
           value={selectedLinkedMilestoneId}
           onChange={(e) => setSelectedLinkedMilestoneId(e.target.value)}
-          aria-label="Select milestone to link"
+          aria-label={t('detail.constraints.selectLinkedMilestoneAriaLabel')}
         >
           <option value="">{t('detail.constraints.selectMilestonePlaceholder')}</option>
           {availableLinkedMilestones.map((m) => (
@@ -1722,7 +1722,7 @@ export default function WorkItemDetailPage() {
                           onClick={() => handleMoveSubtask(index, 'up')}
                           className={styles.moveButton}
                           disabled={index === 0}
-                          title="Move up"
+                          title={t('detail.subtasks.moveUp')}
                         >
                           ↑
                         </button>
@@ -1731,7 +1731,7 @@ export default function WorkItemDetailPage() {
                           onClick={() => handleMoveSubtask(index, 'down')}
                           className={styles.moveButton}
                           disabled={index === subtasks.length - 1}
-                          title="Move down"
+                          title={t('detail.subtasks.moveDown')}
                         >
                           ↓
                         </button>
@@ -1797,7 +1797,7 @@ export default function WorkItemDetailPage() {
                       <button
                         type="button"
                         className={styles.clearDateButton}
-                        aria-label="Clear start after date"
+                        aria-label={t('detail.constraints.clearStartAfter')}
                         onClick={() => {
                           setLocalStartAfter('');
                           if (id && workItem && workItem.startAfter) {
@@ -1838,7 +1838,7 @@ export default function WorkItemDetailPage() {
                       <button
                         type="button"
                         className={styles.clearDateButton}
-                        aria-label="Clear start before date"
+                        aria-label={t('detail.constraints.clearStartBefore')}
                         onClick={() => {
                           setLocalStartBefore('');
                           if (id && workItem && workItem.startBefore) {
@@ -1879,7 +1879,7 @@ export default function WorkItemDetailPage() {
                       <button
                         type="button"
                         className={styles.clearDateButton}
-                        aria-label="Clear actual start date"
+                        aria-label={t('detail.constraints.clearActualStart')}
                         onClick={() => {
                           setLocalActualStartDate('');
                           if (id && workItem && workItem.actualStartDate) {
@@ -1920,7 +1920,7 @@ export default function WorkItemDetailPage() {
                       <button
                         type="button"
                         className={styles.clearDateButton}
-                        aria-label="Clear actual end date"
+                        aria-label={t('detail.constraints.clearActualEnd')}
                         onClick={() => {
                           setLocalActualEndDate('');
                           if (id && workItem && workItem.actualEndDate) {
@@ -2184,24 +2184,22 @@ export default function WorkItemDetailPage() {
         <div className={styles.modal}>
           <div className={styles.modalBackdrop} onClick={() => setDeletingSubtaskId(null)} />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Delete Subtask?</h2>
-            <p className={styles.modalText}>
-              Are you sure you want to delete this subtask? This action cannot be undone.
-            </p>
+            <h2 className={styles.modalTitle}>{t('detail.modals.deleteSubtask.title')}</h2>
+            <p className={styles.modalText}>{t('detail.modals.deleteSubtask.text')}</p>
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.modalCancelButton}
                 onClick={() => setDeletingSubtaskId(null)}
               >
-                Cancel
+                {t('detail.modals.deleteSubtask.cancel')}
               </button>
               <button
                 type="button"
                 className={styles.modalDeleteButton}
                 onClick={confirmDeleteSubtask}
               >
-                Delete
+                {t('detail.modals.deleteSubtask.delete')}
               </button>
             </div>
           </div>
@@ -2213,12 +2211,15 @@ export default function WorkItemDetailPage() {
         <div className={styles.modal}>
           <div className={styles.modalBackdrop} onClick={() => setDeletingDependency(null)} />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Remove Dependency?</h2>
+            <h2 className={styles.modalTitle}>{t('detail.modals.removeDependency.title')}</h2>
             <p className={styles.modalText}>
               {deletingDependency.type === 'predecessor'
-                ? `This item will no longer depend on "${deletingDependency.title}".`
-                : `This item will no longer block "${deletingDependency.title}".`}{' '}
-              This action cannot be undone.
+                ? t('detail.modals.removeDependency.textPredecessor', {
+                    title: deletingDependency.title,
+                  })
+                : t('detail.modals.removeDependency.textSuccessor', {
+                    title: deletingDependency.title,
+                  })}
             </p>
             <div className={styles.modalActions}>
               <button
@@ -2226,14 +2227,14 @@ export default function WorkItemDetailPage() {
                 className={styles.modalCancelButton}
                 onClick={() => setDeletingDependency(null)}
               >
-                Cancel
+                {t('detail.modals.removeDependency.cancel')}
               </button>
               <button
                 type="button"
                 className={styles.modalDeleteButton}
                 onClick={confirmDeleteDependency}
               >
-                Remove
+                {t('detail.modals.removeDependency.remove')}
               </button>
             </div>
           </div>
@@ -2245,24 +2246,22 @@ export default function WorkItemDetailPage() {
         <div className={styles.modal}>
           <div className={styles.modalBackdrop} onClick={() => setDeletingBudgetId(null)} />
           <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>Delete Budget Line?</h2>
-            <p className={styles.modalText}>
-              Are you sure you want to delete this budget line? This action cannot be undone.
-            </p>
+            <h2 className={styles.modalTitle}>{t('detail.modals.deleteBudgetLine.title')}</h2>
+            <p className={styles.modalText}>{t('detail.modals.deleteBudgetLine.text')}</p>
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.modalCancelButton}
                 onClick={() => setDeletingBudgetId(null)}
               >
-                Cancel
+                {t('detail.modals.deleteBudgetLine.cancel')}
               </button>
               <button
                 type="button"
                 className={styles.modalDeleteButton}
                 onClick={handleConfirmDeleteBudgetLine}
               >
-                Delete
+                {t('detail.modals.deleteBudgetLine.delete')}
               </button>
             </div>
           </div>

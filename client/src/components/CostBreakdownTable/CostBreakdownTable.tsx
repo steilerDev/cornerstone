@@ -177,10 +177,11 @@ function PerspectiveToggle({
   value: CostPerspective;
   onChange: (v: CostPerspective) => void;
 }) {
+  const { t } = useTranslation('budget');
   const options: { value: CostPerspective; label: string }[] = [
-    { value: 'min', label: 'Min' },
-    { value: 'avg', label: 'Avg' },
-    { value: 'max', label: 'Max' },
+    { value: 'min', label: t('overview.costBreakdown.perspective.min') },
+    { value: 'avg', label: t('overview.costBreakdown.perspective.avg') },
+    { value: 'max', label: t('overview.costBreakdown.perspective.max') },
   ];
   const groupRef = useRef<HTMLDivElement>(null);
 
@@ -208,7 +209,7 @@ function PerspectiveToggle({
       ref={groupRef}
       className={styles.perspectiveToggle}
       role="radiogroup"
-      aria-label="Cost perspective"
+      aria-label={t('overview.costBreakdown.perspectiveAriaLabel')}
     >
       {options.map((opt) => (
         <button
@@ -1246,7 +1247,7 @@ export function CostBreakdownTable({
                           type="button"
                           className={styles.expandBtn}
                           aria-expanded={adjSectionExpanded}
-                          aria-label="Expand subsidy adjustments"
+                          aria-label={t('overview.costBreakdown.expandSubsidyAdjustments')}
                           onClick={() => toggle(adjSectionKey)}
                         >
                           <ChevronSvg
@@ -1327,7 +1328,7 @@ export function CostBreakdownTable({
                           type="button"
                           className={styles.expandBtn}
                           aria-expanded={availFundsExpanded}
-                          aria-label="Expand available funds sources"
+                          aria-label={t('overview.costBreakdown.expandAvailableFunds')}
                           onClick={() => toggle(availFundsKey)}
                         >
                           <ChevronSvg

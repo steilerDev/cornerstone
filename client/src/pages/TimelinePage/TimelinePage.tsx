@@ -476,7 +476,7 @@ export function TimelinePage() {
                   onClick={() => adjustColumnWidth(-1)}
                   disabled={isAtMinZoom}
                   aria-label={t('timeline.toolbar.zoomOutColumns')}
-                  title="Zoom out (Ctrl+−)"
+                  title={t('toolbar.zoomOut')}
                 >
                   −
                 </button>
@@ -486,7 +486,7 @@ export function TimelinePage() {
                   onClick={() => adjustColumnWidth(1)}
                   disabled={isAtMaxZoom}
                   aria-label={t('timeline.toolbar.zoomInColumns')}
-                  title="Zoom in (Ctrl+=)"
+                  title={t('toolbar.zoomIn')}
                 >
                   +
                 </button>

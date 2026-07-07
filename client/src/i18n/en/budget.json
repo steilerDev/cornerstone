@@ -68,7 +68,15 @@
       "sourceBadge": {
         "ariaLabel": "Budget source: {{name}}",
         "unassigned": "Unassigned"
-      }
+      },
+      "perspectiveAriaLabel": "Cost perspective",
+      "perspective": {
+        "min": "Min",
+        "avg": "Avg",
+        "max": "Max"
+      },
+      "expandSubsidyAdjustments": "Expand subsidy adjustments",
+      "expandAvailableFunds": "Expand available funds sources"
     }
   },
   "sources": {
@@ -434,7 +442,10 @@
       "invoiceCreateError": "Failed to create invoice. Please try again.",
       "invoiceUpdateError": "Failed to update invoice. Please try again.",
       "invoiceDeleteError": "Failed to delete invoice. Please try again."
-    }
+    },
+    "confirmDelete": "Confirm delete",
+    "cancelDelete": "Cancel delete",
+    "unlinkFromInvoice": "Unlink from invoice"
   },
   "invoices": {
     "title": "Budget",
@@ -825,6 +836,23 @@
       "fixed": "Fixed Amount (€)"
     },
     "oversubscribed": "Oversubscribed",
+    "linkSection": {
+      "emptyState": "No subsidies linked",
+      "selectAriaLabel": "Select subsidy program to link",
+      "selectPlaceholder": "Select subsidy program...",
+      "addButton": "Add Subsidy",
+      "linking": "Linking...",
+      "unlinkAriaLabel": "Unlink subsidy {{name}}",
+      "reductionPercentage": "{{value}}% reduction",
+      "reductionFixed": "{{amount}} reduction"
+    },
+    "editForm": {
+      "placeholders": {
+        "description": "Optional description",
+        "eligibility": "Optional eligibility criteria",
+        "notes": "Optional notes"
+      }
+    },
     "statusLabels": {
       "eligible": "Eligible",
       "applied": "Applied",
@@ -904,7 +932,36 @@
     "moveCrossTableHint": "Moving to a household item will transfer this budget line to the household item budget.",
     "moveCrossTableHintReverse": "Moving to a work item will transfer this budget line to the work item budget.",
     "itemizedAmountLabel": "Itemized Amount ({{currencySymbol}}) *",
-    "moveCrossTableNoInvoiceError": "Cross-table moves require an invoice link. Either remove the move or link this budget line to an invoice first."
+    "moveCrossTableNoInvoiceError": "Cross-table moves require an invoice link. Either remove the move or link this budget line to an invoice first.",
+    "addBudgetLineAriaLabel": "Add budget line"
+  },
+  "invoiceLinkModal": {
+    "title": "Link to Invoice",
+    "cancel": "Cancel",
+    "linkButton": "Link to Invoice",
+    "linking": "Linking...",
+    "invoiceLabel": "Invoice",
+    "loading": "Loading invoices...",
+    "emptyState": "No invoices available",
+    "searchPlaceholder": "Search by invoice number or description...",
+    "noMatches": "No invoices match your search",
+    "amountLabel": "Itemized Amount",
+    "overAvailable": "{{amount}} over available",
+    "willRemain": "{{amount}} will remain",
+    "availableOnInvoice": "{{amount}} available on this invoice",
+    "overAllocated": "Over-allocated by {{amount}}",
+    "invoiceFallbackLabel": "Invoice {{id}}",
+    "successToast": "Budget line linked to invoice successfully",
+    "errors": {
+      "loadFailed": "Failed to load invoices. Please try again.",
+      "selectInvoice": "Please select an invoice",
+      "invalidAmount": "Please enter a valid amount",
+      "exceedsBalance": "Amount exceeds available balance ({{amount}} available)",
+      "alreadyLinked": "This budget line is already linked to an invoice",
+      "exceedsInvoiceTotal": "The itemized amount exceeds the invoice total",
+      "linkFailed": "Failed to link budget line",
+      "unexpected": "An unexpected error occurred"
+    }
   },
   "health": {
     "overBudget": "Over Budget",

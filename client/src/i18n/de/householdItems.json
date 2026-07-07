@@ -337,6 +337,7 @@
       "plannedAmountLabel": "Geplanter Betrag",
       "actualCostLabel": "Tatsächliche Kosten",
       "paybackLabel": "Rückzahlung"
-    }
+    },
+    "closeErrorMessage": "Fehlermeldung schließen"
   }
 }

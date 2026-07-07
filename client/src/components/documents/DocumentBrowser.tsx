@@ -259,7 +259,7 @@ export function DocumentBrowser({
 
       {/* Pagination */}
       {hook.pagination && hook.pagination.totalPages > 1 && (
-        <nav className={styles.pagination} aria-label="Document pagination">
+        <nav className={styles.pagination} aria-label={t('browser.paginationAriaLabel')}>
           <button
             type="button"
             className={styles.pageButton}

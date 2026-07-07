@@ -337,6 +337,7 @@
       "plannedAmountLabel": "Planned Amount",
       "actualCostLabel": "Actual Cost",
       "paybackLabel": "Payback"
-    }
+    },
+    "closeErrorMessage": "Close error message"
   }
 }

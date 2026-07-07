@@ -1,4 +1,10 @@
 {
+  "closeViewer": "Close photo viewer",
+  "previousPhoto": "Previous photo",
+  "nextPhoto": "Next photo",
+  "loadingPhotos": "Loading photos",
+  "photosListAriaLabel": "Photos",
+  "deleteWithShortcutHint": "Delete photo (or press Delete key)",
   "annotate": "Annotate photo",
   "annotateDisabledMissingDimensions": "Cannot annotate: photo dimensions are missing",
   "annotateDisabledSigned": "Signed entries cannot be annotated",

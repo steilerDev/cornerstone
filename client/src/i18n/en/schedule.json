@@ -25,7 +25,9 @@
       "addButton": "Add",
       "addWorkItem": "New Work Item",
       "addHouseholdItem": "New Household Item",
-      "addMilestone": "New Milestone"
+      "addMilestone": "New Milestone",
+      "zoomOutTitle": "Zoom out (Ctrl+−)",
+      "zoomInTitle": "Zoom in (Ctrl+=)"
     },
     "zoomOptions": {
       "day": "Day",
@@ -86,7 +88,9 @@
         "contributing": "Contributing",
         "blockedByThis": "Blocked by this",
         "linkedItems": "Linked Items",
-        "none": "None"
+        "none": "None",
+        "contributingAriaLabel": "Work items contributing to this milestone",
+        "blockedByThisAriaLabel": "Work items blocked by this milestone"
       },
       "householdItem": {
         "statusLabel": "Status",
@@ -114,7 +118,8 @@
     },
     "skeleton": {
       "loading": "Loading chart..."
-    }
+    },
+    "workItemBarsAriaLabel": "Work item bars"
   },
   "calendar": {
     "item": {
@@ -130,7 +135,9 @@
     "modes": {
       "month": "Month",
       "week": "Week"
-    }
+    },
+    "modeToggleAriaLabel": "Calendar display mode",
+    "weeklyCalendarAriaLabel": "Weekly calendar"
   },
   "milestones": {
     "page": {

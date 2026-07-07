@@ -332,7 +332,8 @@
     "noTokenInfo": "Noch kein Token generiert.",
     "loading": "DAV-Zugang wird geladen...",
     "generating": "Wird generiert...",
-    "revoking": "Wird widerrufen..."
+    "revoking": "Wird widerrufen...",
+    "hideTokenDisplay": "Token-Anzeige ausblenden"
   },
   "trades": {
     "plumbing": "Sanitär",

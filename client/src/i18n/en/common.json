@@ -37,7 +37,8 @@
     "selectTrade": "Select a trade",
     "selectOrientation": "Select an orientation",
     "selectAssignment": "Select user or vendor",
-    "unassigned": "Unassigned"
+    "unassigned": "Unassigned",
+    "mainNavigation": "Main navigation"
   },
   "loading": "Loading...",
   "searching": "Searching...",

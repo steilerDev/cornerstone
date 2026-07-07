@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { WorkItemDetail, WorkItemSummary } from '@cornerstone/shared';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
@@ -944,6 +944,203 @@ describe('WorkItemDetailPage', () => {
 
       // Count badge "1" should be visible in the heading area
       expect(screen.getByText('1')).toBeInTheDocument();
+    });
+  });
+
+  // Issue #1812: i18n sweep — modals and action labels that previously had zero
+  // test coverage now that their text/aria-labels are wired through t().
+  describe('modals and action labels (Issue #1812)', () => {
+    it('opens the delete-subtask confirmation modal with translated title/text/buttons', async () => {
+      mockListSubtasks.mockResolvedValue({
+        subtasks: [
+          {
+            id: 'subtask-1',
+            title: 'First subtask',
+            isCompleted: false,
+            sortOrder: 0,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+      });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('First subtask')).toBeInTheDocument();
+      });
+
+      const deleteButton = container.querySelector('.subtaskItem .deleteButton');
+      expect(deleteButton).not.toBeNull();
+      fireEvent.click(deleteButton!);
+
+      const dialogTitle = await screen.findByText('Delete Subtask?');
+      expect(dialogTitle).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Are you sure you want to delete this subtask? This action cannot be undone.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+
+      // Cancel closes the modal without calling the delete API
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => {
+        expect(screen.queryByText('Delete Subtask?')).not.toBeInTheDocument();
+      });
+      expect(mockDeleteSubtask).not.toHaveBeenCalled();
+    });
+
+    it('shows title attributes on move-up and move-down subtask buttons', async () => {
+      mockListSubtasks.mockResolvedValue({
+        subtasks: [
+          {
+            id: 'subtask-1',
+            title: 'First subtask',
+            isCompleted: false,
+            sortOrder: 0,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+          {
+            id: 'subtask-2',
+            title: 'Second subtask',
+            isCompleted: false,
+            sortOrder: 1,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Second subtask')).toBeInTheDocument();
+      });
+
+      const moveUpButtons = screen.getAllByTitle('Move up');
+      const moveDownButtons = screen.getAllByTitle('Move down');
+      expect(moveUpButtons).toHaveLength(2);
+      expect(moveDownButtons).toHaveLength(2);
+      // First subtask's "Move up" is disabled (already at top); second's "Move down" is disabled.
+      expect(moveUpButtons[0]).toBeDisabled();
+      expect(moveDownButtons[1]).toBeDisabled();
+    });
+
+    it('shows the 4 clear-date aria-labels when constraint dates are set', async () => {
+      mockGetWorkItem.mockResolvedValue({
+        ...mockWorkItem,
+        startAfter: '2024-02-01',
+        startBefore: '2024-02-15',
+        actualStartDate: '2024-01-05',
+        actualEndDate: '2024-01-20',
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
+        ).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('button', { name: 'Clear start after date' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Clear start before date' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Clear actual start date' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Clear actual end date' })).toBeInTheDocument();
+    });
+
+    it('opens the remove-dependency modal with the predecessor sentence (no duplicated "cannot be undone" text)', async () => {
+      const predecessorWorkItem: WorkItemSummary = {
+        id: 'work-0',
+        title: 'Foundation work',
+        status: 'completed',
+        startDate: null,
+        endDate: null,
+        durationDays: null,
+        actualStartDate: null,
+        actualEndDate: null,
+        assignedUser: null,
+        assignedVendor: null,
+        area: null,
+        budgetLineCount: 0,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+
+      mockGetDependencies.mockResolvedValue({
+        predecessors: [
+          { workItem: predecessorWorkItem, dependencyType: 'finish_to_start', leadLagDays: 0 },
+        ],
+        successors: [],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Foundation work')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Remove dependency on Foundation work' }));
+
+      expect(await screen.findByText('Remove Dependency?')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'This item will no longer depend on "Foundation work". This action cannot be undone.',
+        ),
+      ).toBeInTheDocument();
+      // Guard against the sentence being duplicated (the old code appended a static
+      // "This action cannot be undone." suffix on top of the already-inclusive key value).
+      expect(screen.getAllByText(/This action cannot be undone\./)).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => {
+        expect(screen.queryByText('Remove Dependency?')).not.toBeInTheDocument();
+      });
+      expect(mockDeleteDependency).not.toHaveBeenCalled();
+    });
+
+    it('opens the remove-dependency modal with the successor sentence', async () => {
+      const successorWorkItem: WorkItemSummary = {
+        id: 'work-3',
+        title: 'Roofing',
+        status: 'not_started',
+        startDate: null,
+        endDate: null,
+        durationDays: null,
+        actualStartDate: null,
+        actualEndDate: null,
+        assignedUser: null,
+        assignedVendor: null,
+        area: null,
+        budgetLineCount: 0,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+
+      mockGetDependencies.mockResolvedValue({
+        predecessors: [],
+        successors: [
+          { workItem: successorWorkItem, dependencyType: 'finish_to_start', leadLagDays: 0 },
+        ],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Roofing')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Remove dependency on Roofing' }));
+
+      expect(await screen.findByText('Remove Dependency?')).toBeInTheDocument();
+      expect(
+        screen.getByText('This item will no longer block "Roofing". This action cannot be undone.'),
+      ).toBeInTheDocument();
+      expect(screen.getAllByText(/This action cannot be undone\./)).toHaveLength(1);
     });
   });
 });

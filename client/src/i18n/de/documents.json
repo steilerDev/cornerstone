@@ -24,6 +24,7 @@
     "next": "Nächste",
     "nextPage": "Nächste Seite",
     "pageInfo": "Seite {{page}} von {{totalPages}}",
+    "paginationAriaLabel": "Dokument-Seitennavigation",
     "correspondentLabel": "Korrespondent",
     "correspondentPlaceholder": "Nach Korrespondent filtern…",
     "correspondentEmptyHint": "Tippen Sie, um Korrespondenten zu suchen",

@@ -957,7 +957,7 @@ export function HouseholdItemDetailPage() {
               <button
                 type="button"
                 onClick={() => setDateInlineError(null)}
-                aria-label="Close error message"
+                aria-label={t('detail.closeErrorMessage')}
                 style={{
                   background: 'none',
                   border: 'none',

@@ -332,7 +332,8 @@
     "noTokenInfo": "No token generated yet.",
     "loading": "Loading DAV access status...",
     "generating": "Generating...",
-    "revoking": "Revoking..."
+    "revoking": "Revoking...",
+    "hideTokenDisplay": "Hide token display"
   },
   "trades": {
     "plumbing": "Plumbing",

@@ -10,9 +10,10 @@ Issue #1811 fixed two non-enum error-code leaks: davTokens.ts hand-rolled `DAV_T
 passed `error.code` (raw `FST_*` strings) straight through instead of mapping to `ErrorCode` enum
 members.
 
-**Test pattern for FST_* mapping** (`server/src/plugins/errorHandler.test.ts`, new describe
+**Test pattern for FST\_\* mapping** (`server/src/plugins/errorHandler.test.ts`, new describe
 `'Fastify internal error code mapping'`): mix realistic and synthetic error injection based on how
 cheaply the real Fastify code path can be triggered via `app.inject()`:
+
 - **Realistic** (register a real route, trigger the actual Fastify internal parser error):
   `FST_ERR_CTP_BODY_TOO_LARGE` via POST with `'x'.repeat(2*1024*1024)` payload against the default
   1MB `bodyLimit` (no override in `app.ts`) → 413; `FST_ERR_CTP_INVALID_JSON_BODY` via malformed
@@ -39,7 +40,7 @@ normal flow, not a real gap).
 
 **Coverage result**: `errorHandler.ts` after the fix — 100% statements/functions/lines, 96.15%
 branch. The one uncovered branch (line 39, `error.statusCode >= 500 ? 'error' : 'warn'` inside the
-pre-existing `AppError` handling block) is *not* part of this issue's new code (the
+pre-existing `AppError` handling block) is _not_ part of this issue's new code (the
 `mapFastifyErrorCode` function and its call site are 100% covered) — it's a pre-existing gap
 (no test throws an `AppError` with `statusCode >= 500`, e.g. a hypothetical 500-level AppError).
 Left as-is since it's out of scope for #1811; flag if a future story touches that branch.
