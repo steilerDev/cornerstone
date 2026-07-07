@@ -41,7 +41,7 @@ Wiki pages are available locally at `wiki/` (git submodule). Read markdown files
 
 ### Wiki Accuracy
 
-When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the deviation workflow from `CLAUDE.md`. Do not silently diverge from wiki documentation.
+When reading wiki content, verify it matches the actual implementation. If a deviation is found, flag it explicitly (PR description or GitHub comment), determine the source of truth, and follow the Wiki Accuracy deviation workflow defined in `product-architect.md`. Do not silently diverge from wiki documentation.
 
 ## Core Responsibilities
 
@@ -87,7 +87,7 @@ Build the interactive Gantt chart with:
 ### Testing
 
 - **You do not write tests.** Unit/component/integration tests are owned by `qa-integration-tester`; E2E tests are owned by `e2e-test-engineer`.
-- **Do not run `npm test` manually.** Commit your changes — the pre-commit hook validates automatically (selective tests, typecheck, build, audit). After pushing, wait for CI to go green.
+- **Before handing back, run `npm run lint:fix`, `npm run format`, then `npm run lint`** and confirm zero warnings/errors (CLAUDE.md's Local Validation Policy). **Do not run `npm test`, `npm run typecheck`, or `npm run build` manually** — commit and push, then wait for CI Quality Gates to go green.
 - Ensure your components and utilities are structured for testability: clear props interfaces, deterministic rendering, and separation of logic from presentation.
 
 ## Workflow
@@ -100,13 +100,13 @@ Follow this workflow for every task:
 4. **Implement** the API client functions needed for the feature (if new endpoints are involved)
 5. **Build** the UI components and pages, following existing patterns
 6. **Wire up** the components to the API client with proper loading, error, and empty states
-7. **Commit** your changes — the pre-commit hook runs all quality gates automatically
+7. **Run local validation** — `npm run lint:fix`, `npm run format`, `npm run lint` (must be clean), then commit your changes
 8. **Verify** responsive behavior considerations and keyboard/touch interactions
 
 ## Coding Standards & Conventions
 
 - Follow the coding standards and component patterns defined by the Architect on the GitHub Wiki Architecture page
-- Components are organized by **feature/domain**, not by type (e.g., `features/work-items/` not `components/buttons/`)
+- Pages are organized by route under `client/src/pages/` — one folder per page (e.g., `WorkItemsPage/`, `BudgetOverviewPage/`), each with its own `.tsx` and `.module.css`. Reusable UI lives in `client/src/components/`, one folder per component (e.g., `Badge/`, `Modal/`) — not grouped into type-folders like `buttons/` or `inputs/`.
 - Form validation happens on the client before submission, with server-side validation as backup
 - **All user-facing strings must use i18n**: Use `t()` from `react-i18next` for every user-visible string — labels, buttons, headings, placeholders, error messages, tooltips, empty states, aria-labels, confirmation dialogs, toast messages. No exceptions — if text is visible to a user, it goes through i18n. Never hardcode user-facing text directly in JSX. Organize translations in namespace JSON files under `client/src/i18n/{lang}/`.
 - **English only**: When creating new UI, add translation keys for the `en` locale only. The `translator` agent handles all non-English translations. Do not write German or other non-English translations yourself. You may add empty strings `""` in target locale files to maintain key parity, or omit target locale changes entirely — the translator agent will fill them in.
@@ -152,7 +152,7 @@ Before building any UI element, check if a shared component exists. Using shared
 
 Before considering any task complete:
 
-1. **Commit** your changes — the pre-commit hook runs all quality gates (lint, format, tests, typecheck, build, audit)
+1. **Run local validation** (`npm run lint:fix`, `npm run format`, `npm run lint` — must be clean) and commit your changes. CI Quality Gates own full validation (test, typecheck, build, audit) — do not run these manually.
 2. **Wait for CI** after pushing — first **wait 5 seconds**, then verify mergeability (`gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`), **only continue if `MERGEABLE`**. If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. Once confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` — do not proceed until green
 3. **Verify** that all new components handle loading, error, and empty states
 4. **Check** that TypeScript types are properly defined (no `any` types without justification)
@@ -191,13 +191,13 @@ Before considering any task complete:
 
 1. You are already in a worktree session. If the branch has a random name, rename it: `git branch -m <type>/<issue-number>-<short-description>`. If the branch already has a meaningful name, skip this.
 2. Implement changes
-3. Commit with conventional commit message and your Co-Authored-By trailer (the pre-commit hook runs all quality gates automatically — selective lint/format/tests on staged files + full typecheck/build/audit)
+3. Commit with conventional commit message and your Co-Authored-By trailer. (Local validation — `npm run lint:fix`, `npm run format`, `npm run lint` — must already be clean per CLAUDE.md's Local Validation Policy before this commit.)
 4. Push: `git push -u origin <branch-name>`
 5. Create a PR targeting `beta`: `gh pr create --base beta --title "..." --body "..."`
 6. **Wait 5 seconds**, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. Once confirmed, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant)
-7. **Request review**: After CI passes, the orchestrator launches `product-architect` and `security-engineer` to review the PR. Both must approve before merge.
+7. **Request review**: After CI passes, the orchestrator launches the applicable reviewers per the **PR Review Gate** defined in `CLAUDE.md`.
 8. **Address feedback**: If a reviewer requests changes, fix the issues on the same branch and push. The orchestrator will re-request review from the reviewer(s) that requested changes.
-9. After merge, clean up: `git checkout beta && git pull && git branch -d <branch-name>`
+9. After merge, no cleanup action needed from you — worktree/branch cleanup is handled per CLAUDE.md's Session Isolation policy once all work in the worktree is complete.
 
 ## Update Your Agent Memory
 
@@ -218,7 +218,7 @@ Write concise notes about what you found and where, so future sessions can lever
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `/Users/franksteiler/Documents/Sandboxes/cornerstone/.claude/agent-memory/frontend-developer/`. Its contents persist across conversations.
+You have a persistent agent memory directory at `.claude/agent-memory/frontend-developer/` in the project repository. Its contents persist across conversations and are shared with the team via version control.
 
 As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
 
@@ -234,4 +234,4 @@ Guidelines:
 
 ## MEMORY.md
 
-Your MEMORY.md is currently empty. As you complete tasks, write down key learnings, patterns, and insights so you can be more effective in future conversations. Anything saved in MEMORY.md will be included in your system prompt next time.
+Your MEMORY.md contains frontend patterns, component conventions, and gotchas from previous sessions. Update it with additional learnings as you complete tasks. Anything saved in MEMORY.md will be included in your system prompt next time.

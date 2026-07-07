@@ -86,6 +86,8 @@ status=$(echo "$line" | cut -f2)   # "pass" / "fail" / "pending"
 
 Same fallback applies to the `E2E Gates` name for main-targeted PRs. Always sanity-check the polling command actually returns a value on the first iteration rather than trusting the timeout path.
 
+**Reconfirmed 2026-07-07 (PR #1849, issue #1817)**: still burned a full 5-minute timeout by running the canonical `--json` loop first even though the orchestrator's prompt explicitly said "plain-text gh pr checks workaround." When the prompt names this workaround, skip the `--json` attempt entirely and go straight to the plain-text `grep -P '^Quality Gates\t'` loop — don't re-verify `gh --version` each time, just use the fallback from the start.
+
 ## Wiki Submodule: Detached HEAD Needs Local git config Before Committing
 
 The `wiki/` submodule checkout starts in detached HEAD (matching `origin/master`) and has no local `user.name`/`user.email` (unlike the main repo worktree, which has them set locally). Before committing inside `wiki/`:

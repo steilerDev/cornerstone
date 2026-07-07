@@ -76,7 +76,7 @@ docs/
 **Local development:**
 
 ```bash
-npm run docs:dev    # Start at http://localhost:3000 (Docusaurus default port)
+npm run docs:dev    # Start at http://localhost:3001 (avoids colliding with the app server's default port 3000)
 npm run docs:build  # Build to docs/build/
 ```
 
