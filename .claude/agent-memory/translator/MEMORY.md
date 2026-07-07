@@ -10,9 +10,10 @@
 
 - Formal register: use "Sie" form in German
 - Translation files: `client/src/i18n/{locale}/{namespace}.json`
-- Namespaces: areas, auth, budget, common, dashboard, diary, documents, errors, householdItems, photoAnnotator, schedule, settings, workItems
+- Namespaces: areas, auth, budget, common, dashboard, diary, documents, errors, householdItems, photoAnnotator, photoViewer, schedule, settings, workItems
 - Preserve `{{variable}}` interpolation placeholders exactly
 - Preserve `_one` / `_other` pluralization suffixes
+- Detailed per-issue translation rationale from 2026 H1 (before Issue #1812) has been moved to [history-2026-h1.md](history-2026-h1.md) to keep this file within the 200-line budget
 
 ## Key Terminology (from glossary)
 
@@ -22,6 +23,7 @@
 | Household Item | Haushaltsartikel  | Haushaltsartikel |
 | Vendor         | Auftragnehmer     | Auftragnehmer    |
 | Budget Line    | Budgetposition    | Budgetpositionen |
+| Budget Source  | Budgetquelle      | Budgetquellen    |
 | Milestone      | Meilenstein       | Meilensteine     |
 | Invoice        | Rechnung          | Rechnungen       |
 | Subsidy        | Förderprogramm    | Förderprogramme  |
@@ -30,231 +32,38 @@
 | Area           | Bereich           | Bereiche         |
 | Trade          | Gewerk            | Gewerke          |
 | Draft          | Entwurf           | Entwürfe         |
+| Unassigned     | Nicht zugewiesen  | —                |
+| Correspondent  | Korrespondent     | Korrespondenten  |
 
 ## Button/Action Label Convention
 
-Action labels in German follow the pattern: `{Noun} {Verb}` with capitalised first letters on each word, e.g. `Rechnung Hinzufügen`, `Auftragnehmer Hinzufügen`, `Arbeitspaket Hinzufügen`. This matches the style already established in the existing de translation files (e.g. `"addVendor": "Auftragnehmer Hinzufügen"` in `budget.vendors.buttons.create`).
+- Two-word imperative buttons `{Noun} {Verb}` capitalise **both** words: `Rechnung Hinzufügen`, `Auftragnehmer Hinzufügen`, `Förderprogramm Hinzufügen`.
+- **Exception**: phrases starting with a preposition (`Mit …`, `Zu …`, `Von …`) keep the trailing verb **lowercase** — standard German sentence-case, not title-case. Confirmed pattern: `"Mit SSO anmelden"` (auth.json), `"Mit Rechnung verknüpfen"` (householdItems.json, budget.json `invoiceLinkModal.title`/`.linkButton`). Do not capitalise the verb in this construction even though it's a button/title.
 
-## Key Parity Notes
+## Orphan Cleanup Heuristic
 
-- `de/dashboard.json` was missing `page.actions` entirely at initial rollout — added 2026-03-19
-- `de/budget.json` was missing `overview.actions` entirely at initial rollout — added 2026-03-19
-- `de/common.json` was missing `aria.noArea`, `aria.noTrade`, `aria.selectArea`, `aria.selectTrade`, `aria.selectAssignment`, `aria.unassigned`, and `assignmentPicker.*` — added 2026-03-19 (Story #1035)
-- `de/settings.json` had `manage.tags` which was replaced by `manage.areas` + `manage.trades` in Story #1035
-- `de/common.json` was missing `subnav.settings.backups` — added 2026-03-22 (Issue #1146)
-- `de/settings.json` was missing `backups` section entirely — added 2026-03-22 (Issue #1146)
-- `de/errors.json` had four backup/restore keys with empty placeholder values (left by frontend-developer) — filled in 2026-03-22 (Issue #1146)
-- `de/areas.json` created 2026-04-16 (Story #1237): `noArea` → "Kein Bereich", `pathLabel` → "Bereichspfad"
-- `de/budget.json` — `overview.costBreakdown.area.unassigned` and `sources.lines.unassignedArea` both updated to "Kein Bereich" 2026-04-19 (Issue #1295), aligned with `de/areas.json` and the `noCategory` → "Keine Kategorie" parallel pattern
-- `de/budget.json` — `sources.lines.noCategory` orphan deleted 2026-04-19 (Issue #1313); `sources.lines.invoiceStatus.*`, `sources.lines.underArea`, `sources.lines.typeColumnHeader`, `sources.lines.statusColumnHeader` added 2026-04-19 (Issue #1313)
-- `de/budget.json` — Issue #1356 (2026-04-25): `sourceFilter` rework — removed `label`, `allSources`, `clearAriaLabel`, `chipSelected`, `chipNotSelected`, `activeAnnouncement`; added `statusAnnouncement`; added new blocks `sourceRow.*` and `availableFunds.*`
-- **Pre-existing gap** (as of 2026-04-25, outside #1356 scope): `sources.lines.typeColumnHeader` and `sources.lines.statusColumnHeader` exist in `en` but not `de` — needs a dedicated spec to fix
-- `de/budget.json` — `invoiceDetail.budgetLines` block added 2026-05-10 (Issue #1401): `createFormLegend` + `autoLinkedSuccess`
-- `de/budget.json` — Issue #1545 (2026-05-21): `invoiceDetail.budgetLines.unassigned`, `unassignedAriaLabel`, `assignButton`, `assigningButton`, `assignAriaLabel`, `assignedSuccess`, `assignParentRequired` added; `budgetLineForm.parentPickerLabel`, `parentPickerWorkItemTab`, `parentPickerHouseholdItemTab`, `parentPickerSeparator`, `parentPickerFieldsetLegend`, `parentPickerError` added
-- `de/errors.json` — `BUDGET_LINE_ALREADY_ASSIGNED` had glossary violations ("Arbeitselement" → "Arbeitspaket", "Haushaltsgegenstand" → "Haushaltsartikel") — corrected 2026-05-21 (Issue #1545)
-- `de/budget.json` — `budgetLineForm` parent-move keys added 2026-05-22 (Issue #1553): `linkedItemLegend`, `changeParentButton`, `cancelChangeParentButton`, `moveButton`, `movingButton`, `moveCrossTableHint`, `moveCrossTableHintReverse`, `itemizedAmountLabel` — see [parent-move-patterns.md](parent-move-patterns.md)
-- `de/diary.json` — Issue #1672 (2026-06-13): `form.dailyLogVendorPlaceholder`, `form.workStartTime`, `form.workEndTime`, `form.workDuration`, `metadata.workStart`, `metadata.workEnd` added; `metadata.vendor` colon added ("Auftragnehmer:"); new `validation` object added with `workTimeEndBeforeStart`
-- `de/budget.json` — `autoItemize` inline-draft keys added 2026-06-17: `creatingNewBadge`, `inlineFormLabel`, `discardInlineDraft`, `inlineDraftInvalid`, `inlineDraftCreateFailed`, `inlineDraftLinkFailed`, `inlineDraftPartialFailure`
-- `de/budget.json` — `overview.costBreakdown.costBasis.*` added 2026-06-25: `label`→"Kostenbasis", `all`→"Alle", `paid`→"Bezahlt", `outstanding`→"Ausstehend"
-- Always check key parity when picking up a new translator spec
+A DE key with **no EN counterpart** and **zero code references** (`grep -rn "<key>" client/src --include=*.tsx --include=*.ts`) is very likely a stale rename/supersession artifact — safe to delete. Confirmed case: `de/budget.json overview.costBreakdown.autoOriginBadge.*` (added Issue #1551, superseded by `autoItemize.createdFromAutoItemization`, orphan deleted during Issue #1812 full-namespace audit). Do NOT delete an orphan that still exists in the EN file (that's just a de-parity gap, not a true orphan) — only delete when it's absent from EN AND unreferenced in code.
 
-## Backup/Restore Terminology (2026-03-22)
+## Full-Namespace Diff Audits (Issue #1812, 2026-07-07)
 
-- "Backup" → "Sicherung" (noun, e.g. "Sicherung erstellen", "Sicherungen")
-- "Restore" / "Restore operation" → "Wiederherstellung" / "Wiederherstellungsoperation"
-- "Backup & Restore" (page title) → "Sicherung & Wiederherstellung"
-- "Restore & Restart" (button) → "Wiederherstellen & Neu starten"
-- Frontend-developer may leave empty placeholder values in error keys when adding new error codes — the translator must fill these in.
+When a spec says "diff flattened key sets across N namespaces," write a quick Node script that `JSON.parse`s both `en/<ns>.json` and `de/<ns>.json`, flattens to dotted paths, and diffs both directions — far more reliable than eyeballing. Re-run after every edit; require 0/0 before finishing. See `/tmp/i18n-audit/diff.mjs` pattern (flatten via recursive object walk, skip arrays).
 
-## Initial Cleanup (2026-03-17)
+**Critical gotcha — duplicate top-level JSON keys in `en/*.json`:** `en/diary.json` has had duplicate top-level keys (`page`, `filterBar`, `detailPage`) reappear **twice now** (first noted pre-#1426, recurred in #1812) — a frontend-developer adding new keys to an existing section appends a **second** top-level object with the same name instead of merging into the first. `JSON.parse`/JS object literals silently keep only the **last** occurrence, so the _entire first block_ (e.g. `page.title`, `filterBar.search`, `detailPage.backLink`, and ~40 sibling keys) is silently dropped from what i18next actually loads — a real production bug (raw keys or `undefined` shown to English AND German users, since the DE file may still have the correct un-duplicated structure). This is **frontend-developer's file to fix**, not mine to touch, but:
 
-Fixed terminology inconsistencies from EPIC-17 i18n rollout:
+- **Always** run the duplicate-key Python/Node check (`JSON.parse` with an `object_pairs_hook`/reviver that flags repeats) on any EN file before diffing, whenever the flattened diff shows a large, oddly-specific block of "missing in en" keys that already have plausible DE translations — that pattern is the signature of this bug, not a real translation gap.
+- On the DE side, merge new keys into the **existing** section (never duplicate) — this keeps `de/*.json` valid even while the EN source is broken.
+- **Flag the duplicate-key bug explicitly in the final report** every time it's found — it's a recurring defect worth escalating to dev-team-lead/frontend-developer for a real fix (dedupe + lint rule), not just a translator workaround.
 
-- "Arbeitselemente" / "Arbeitsgegenstand" / "Arbeitsgegenstände" → standardized to "Arbeitspaket(e)"
-- "Haushaltsgegenstände" / "Haushaltselement" → standardized to "Haushaltsartikel"
-- "Anbieter" (vendor context) → standardized to "Auftragnehmer"
+## Diary sourceType / entryTypes Glossary Fixes (Issue #1812, 2026-07-07)
 
-## Ongoing Violations to Watch (2026-03-19)
+Found and fixed pre-existing (not newly introduced) glossary violations while auditing `de/diary.json`:
 
-- "Budgetzeile" is a non-glossary term that had slipped into `de/workItems.json` (modals + inlineErrors). Corrected to "Budgetposition(en)". Always scan for "Budgetzeile" when touching workItems or budget namespaces.
+- `detailPage.sourceType.budget_source`: "Budget Quellen" (two words, wrong) → "Budgetquellen" (glossary compound)
+- `detailPage.sourceType.subsidy_program`: "Zuschuss Programme" → "Förderprogramme" (glossary term)
+- `entryTypes.subsidy_status` / `typeBadge.subsidyStatus`: "Zuschussstatus" → "Förderprogrammstatus" (glossary term; matches sibling compound pattern `Rechnungsstatus`, `Budgetüberschreitung`)
 
-## Pluralization Note for "Budgetpositionen" / "Position"
+**Lesson**: full-namespace audits are a good opportunity to re-scan for `Zuschuss` (old/wrong term for Subsidy) and `Budget Quellen`/`Haushalts Artikel`-style incorrectly-spaced compounds, not just the "Arbeitselement"/"Haushaltsgegenstand"/"Budgetzeile" terms already tracked. Ran `grep -niE 'Budgetzeile|Arbeitselement|Arbeitsgegenstand|Haushaltsgegenstand|Haushaltselement|Anbieter'` plus a separate `grep '"Zuschuss'` across all touched namespaces as a final pre-handoff sweep — worth repeating on every full-namespace audit.
 
-- When the English source uses `_one`/`_other` keys, German uses "Position" (singular) / "Positionen" (plural).
-- Example: `areaLineCount_one` = "{{count}} Position", `areaLineCount_other` = "{{count}} Positionen" (Issue #1247).
-- "Budgetposition(en)" is the glossary term for the entity "Budget Line". The word "Position" alone (without "Budget-" prefix) is acceptable as a short count label in compact UI contexts.
+## Cost Perspective / Avg Abbreviation
 
-## Confidence Level Labels (budget lines) — Issue #1247
-
-- `own_estimate` → "Eigene Schätzung"
-- `professional_estimate` → "Fachschätzung"
-- `quote` → "Angebot" (glossary: Quotation = Angebot)
-- `invoice` → "Rechnung" (glossary: Invoice = Rechnung)
-
-## "Invoiced" Badge vs "Claimed" Invoice Status — Issue #1247
-
-- `invoiceLinked` = "Verrechnet" — badge shown on a budget line that has a linked invoice (i.e. the cost has been invoiced/billed)
-- `invoiceStatusLabels.claimed` = "Eingereicht" — invoice payment status (submitted for reimbursement)
-- These are distinct concepts; do not conflate them.
-
-## Budget-Line invoiceStatus Labels — Issue #1313
-
-The `sources.lines.invoiceStatus.*` keys are budget-line-level status labels (different context from vendor invoice status labels):
-
-- `none` → "Nicht abgerechnet" (no invoice attached)
-- `pending` → "Ausstehend" (invoice submitted, not yet paid)
-- `paid` → "Bezahlt" (invoice fully paid)
-- `claimed` → "Beantragt" (subsidy claim submitted — distinct from `invoiceStatusLabels.claimed` = "Eingereicht" which is the vendor invoice status)
-- `quotation` → "Angebot" (glossary: Quotation = Angebot)
-
-Note: `claimed` here uses "Beantragt" (applied/requested for subsidy) rather than "Eingereicht" (filed/submitted) to distinguish the budget-line view (subsidy claim sense) from the vendor invoice status. Both are defensible; "Beantragt" better conveys the subsidy-application meaning.
-
-## i18n Coverage Fixes — Issue #1306 (2026-04-19)
-
-- Live-region contact toast pattern: "Kontakt {{name}} hinzugefügt/aktualisiert/gelöscht"
-- `milestones.detail.error` (singular) → "Fehler beim Laden des Meilensteins. Bitte versuchen Sie es erneut." (cf. plural `milestones.error` = "…Meilensteine…")
-- `invoices.modal.description` → full sentence with "Füllen Sie … aus, um … hinzuzufügen." (Sie form, imperative)
-- `invoices.form.placeholders.notes` → "Optionale Notizen zu dieser Rechnung" (matches other placeholder style in budget)
-- `dashboard:cards.budgetSummary.subsidiesOversubscribed` → "Einige Förderprogramme sind überzeichnet" (glossary: Subsidy = Förderprogramm)
-- Tier-3 audit tip: `budget:invoices.actions.menuAriaLabel` was already present in de/budget.json — always verify before adding
-- Orphan deletion: `de/householdItems.json` table.headers.room removed; `de/budget.json` vendors.tableHeaders.actions removed
-
-## Mass-Move Dialog Patterns — Issue #1248
-
-- `sources.budgetLines.move.*` added 2026-04-16 — mass-move dialog for budget lines
-- "Destination source" / "Target source" → "Zielquelle" (compound: "Ziel" + short form "Quelle" of glossary "Budgetquelle")
-- "Move lines" (button label) → "Positionen verschieben" — verb follows noun in imperative button labels of this type
-- "claimed invoice" in warning context → "eingereichte Rechnung" (consistent with `invoiceStatusLabels.claimed` = "Eingereicht")
-- Soft-warning copy pattern: state the non-effect first ("hat keinen Einfluss auf…"), then the advisory action ("Bitte prüfen Sie … mit Ihrem Steuerberater")
-- Checkbox confirmation label pattern: "Ich verstehe, dass hierdurch … neu zugeordnet werden" — use "hierdurch" for concise causal phrasing
-- "I understand" checkbox quoted reference → use German quotation marks „Ich verstehe" (not "Ich verstehe")
-- `confirmDisabledHint` quotes the checkbox label using „…" German quotation style within the sentence
-- `successToast_one` uses "wurde … verschoben" (sg); `successToast_other` uses "wurden … verschoben" (pl) — standard German passive past
-
-## Bar Chart Summary Labels — sources.barChart (2026-04-19)
-
-- `projectedRange` / `summaryProjectedLabel` → "Projiziert" (same as existing `projected`)
-- `projectedUncertainty` → "Prognoseunsicherheit" (range/uncertainty band label)
-- `headroom` → "Spielraum" (available unused budget headroom — natural German business term)
-- `totalBadge` → "Gesamt: {{amount}}" (preserving {{amount}} placeholder)
-- `totalBadgeAriaLabel` → "Gesamtbetrag: {{amount}}"
-- `summaryPaidLabel` → "Bezahlt"
-- `summaryClaimedLabel` → "Eingereicht" (bar chart summary; consistent with `barChart.claimed` = "Eingereicht")
-- `srOnly` screen reader text: "Eingereicht {{claimed}}, Bezahlt {{paid}}, Projiziert {{projectedMin}} bis {{projectedMax}}, von Gesamt {{total}}"
-- Obsolete keys removed in this update: `allocated`, `total`, `available`, `planned`
-
-## Source Filter & Source Badge Patterns — Issue #1354 (2026-04-25)
-
-- `overview.costBreakdown.sourceFilter.*`, `sourceImpact.*`, `sourceBadge.*` added to `de/budget.json`
-- "Unassigned" (source filter / source badge context) → "Nicht zugewiesen" (glossary `Unassigned` term, not "Kein X" pattern which is used for area/category absence)
-- "Budget source: {{name}}" (aria label) → "Budgetquelle: {{name}}" — always use full glossary term "Budgetquelle" in aria labels, short "Quelle" only in UI labels
-- `sourceImpact.allocated` → "Zugeordnet"; `sourceImpact.remaining` → "Verbleibend"
-- **Note**: `label`, `allSources`, `clearAriaLabel`, `chipSelected`, `chipNotSelected` and `activeAnnouncement` were added in #1354 but removed again in #1356 rework (chip-based filter replaced)
-
-## Source Row & Status Announcement Patterns — Issue #1356 (2026-04-25)
-
-- `sourceFilter.statusAnnouncement` → "{{selected}} von {{total}} Budgetquellen ausgewählt" (uses plural "Budgetquellen" from glossary)
-- `sourceRow.selectedAriaLabel` → "{{name}}, ausgewählt – zum Abwählen klicken" (en-dash, infinitive construction)
-- `sourceRow.deselectedAriaLabel` → "{{name}}, abgewählt – zum Auswählen klicken"
-- `availableFunds.activeFilterCaption` → "({{selected}} von {{total}} ausgewählt)"
-- Aria label click-instruction pattern: "– zum [Verb] klicken" (en-dash, infinitive with "zu")
-
-## Draft / Auto-Save Terminology — Issue #1426 (2026-05-16)
-
-- "Draft" → "Entwurf" (singular), "Entwürfe" (plural) — added to glossary
-- "Discard Draft" → "Entwurf verwerfen"
-- "Keep Draft" → "Entwurf behalten"
-- "Discard" (progressive) → "Wird verworfen..."
-- Auto-save status bar labels: "Gespeichert" (saved), "Wird gespeichert..." (saving), error uses em-dash: "Speichern fehlgeschlagen – wird beim nächsten Ändern erneut versucht"
-- "Promote" (draft → saved entry, button) → "Speichern" — matches the entry of the existing `saveChanges` pattern
-- Upload-blocker dialog: "Uploads laufen noch" (title); "Trotzdem verlassen" / "Auf Seite bleiben" (buttons)
-- Status filter chips: "Nur Entwürfe" / "Nur gespeicherte" (using "Nur" prefix, consistent with filter chip patterns)
-- Photo upload queue states: `stateQueued` → "In Warteschlange", `stateUploading` → "Wird hochgeladen ...", `stateSucceeded` → "Hochgeladen", `stateFailed` → "Fehlgeschlagen"
-- `queueAriaLabel` → "Foto-Upload-Warteschlange" (compound noun, no space)
-- `unknownError` → "Unbekannter Upload-Fehler"
-- **Duplicate key issue in en/diary.json**: The English file has duplicate top-level keys (`filterBar`, `createPage`, `editPage`). In JSON the last occurrence wins. The de/ file must be kept as a single flat object — never duplicate keys. New keys from the second English occurrence are appended to the existing de/ section.
-
-## Budget Line Assignment Patterns — Issue #1545 (2026-05-21)
-
-- `invoiceDetail.budgetLines.unassigned` → "Nicht zugewiesen" (glossary: Unassigned = "Nicht zugewiesen"; same as source-filter and source-badge contexts)
-- `unassignedAriaLabel` → "Nicht zugewiesen – kein Arbeitspaket oder Haushaltsartikel verknüpft" (en-dash separating state from elaboration)
-- `assignButton` → "Zuweisen…" (ellipsis = opens dialog/picker, consistent with German UI convention)
-- `assigningButton` → "Wird zugewiesen…" (progressive: "Wird [Verb]…" pattern)
-- `assignAriaLabel` → "{{description}} einem Arbeitspaket oder Haushaltsartikel zuweisen" (dative "einem" before Arbeitspaket; "oder einem" elided because Haushaltsartikel takes the same dative article)
-- `assignedSuccess` → "Budgetposition '{{lineDescription}}' wurde {{parentItemName}} zugewiesen" (passive past, glossary term "Budgetposition")
-- `assignParentRequired` → "Bitte wählen Sie ein Arbeitspaket oder einen Haushaltsartikel aus" ("ein" for neuter Arbeitspaket; "einen" for masculine Haushaltsartikel — correct article agreement)
-- `budgetLineForm.parentPickerLabel` → "Zuweisen zu" (short label; "Assign to" rendered as "Zuweisen zu" not "Zuweisung an" — verb-based label consistent with action buttons)
-- `parentPickerFieldsetLegend` → "Arbeitspaket oder Haushaltsartikel zuweisen" (infinitive phrase for fieldset legends)
-- `parentPickerError` → "Budgetposition konnte nicht zugewiesen werden. Bitte versuchen Sie es erneut." (standard error message pattern)
-- **Glossary violation found and fixed**: frontend-developer used "Arbeitselement" and "Haushaltsgegenstand" in `de/errors.json` `BUDGET_LINE_ALREADY_ASSIGNED` — always scan errors.json for non-glossary terms when new error codes are added
-
-## photoAnnotator Namespace Patterns (Issue #1475, 2026-05-18)
-
-- Namespace `photoAnnotator` added in Story #1483 (foundation); geometric tools added in Issue #1475
-- Tool aria-label pattern: `{Noun}-Werkzeug` (hyphenated compound) — e.g. "Pfeil-Werkzeug", "Linien-Werkzeug", "Ellipsen-Werkzeug"
-  - Note: "Linien-" and "Ellipsen-" use genitive/compound form; "Pfeil-" is the bare stem (standard German compounding)
-- Live-region announcement pattern: `{Noun} hinzugefügt` — e.g. "Pfeil hinzugefügt", "Linie hinzugefügt", "Ellipse hinzugefügt"
-- Geometric terms (not in glossary — use standard German): Pfeil (Arrow), Linie (Line), Ellipse (Ellipse), Rechteck (Rectangle)
-- Highlight → "Markierung" (not "Hervorhebung") — this is established in Story #1483 translations
-
-## photoAnnotator Measurement & Freehand Patterns (Issue #1477, 2026-05-18)
-
-- `toolMeasurement` → "Maß-Werkzeug" — stem is "Maß" (dimension/measure, construction context); NOT "Maßband" (physical tape measure object) and NOT "Messen" (verb)
-- `toolFreehand` → "Freihand-Werkzeug" — "Freihand" is the standard German compound stem (as in "Freihandzeichnung")
-- `shapeAddedMeasurement` → "Maß hinzugefügt" — consistent noun stem with toolMeasurement
-- `shapeAddedFreehand` → "Freihandlinie hinzugefügt" — "Linie" chosen over "Strich" or "Pfad" for consistency with existing "Linie hinzugefügt" in the file
-- `measurementPlaceholder` → "Maß eingeben" — placeholder for free-form distance text (e.g., "2.5 m"); "Maß" preferred over "Distanz" in construction context
-- `editMeasurement` → "Maßbeschriftung bearbeiten" — "Beschriftung" (label text) parallels `editCallout` = "Sprechblasentext bearbeiten"
-- "Freehand" added to glossary as `{ "de": { "singular": "Freihand" } }` — compound stem, no plural (it's always used as a modifier in German)
-
-## photoAnnotator Polish — Issue #1478 (2026-05-18)
-
-- Compound rule: "Annotations-" (noun stem) NOT "Annotierungs-" (gerund stem) — three keys fixed: `region`, `canvas`, `actions`
-- "Annotate" verb added to glossary: `{ "de": { "verb": "annotieren" } }` — loanword preferred over "markieren" (used for Highlight) or "anmerken"
-- `photoViewer.json` achieved exact parity (8 EN = 8 DE) with all #1475–#1477 keys present
-- `photoViewer.json` — 10 metadata sidepanel keys added 2026-05-19: `saving` → "Wird gespeichert..." (NOT "Speichern..."); `noArea` uses parenthesised lowercase `(kein Bereich)` as inline field fallback (distinct from `areas.noArea` = "Kein Bereich" heading form); parity now 19 EN = 19 DE
-
-## Auto-itemize UX Fixes — Issues #1584/#1591 (2026-05-26)
-
-- `autoItemize.vatApplies` removed (key deleted from both EN and DE)
-- `autoItemize.includesVat` updated: "inkl. MwSt." → "Preis inkl. MwSt." (aligns with `budgetLineForm.includesVatLabel` = "Preis inkl. MwSt. ({{vatRate}}%)")
-- New keys added: `categoryLabel` = "Kategorie", `categoryPlaceholder` = "Kategorie auswählen", `categoryAriaLabel` = "Budgetkategorie für Position auswählen", `fundingSourceLabel` = "Finanzierungsquelle", `fundingSourceAriaLabel` = "Finanzierungsquelle für Position auswählen", `categoryRequiredError` = "Bitte wählen Sie für alle einbezogenen Positionen eine Kategorie aus"
-- "Funding Source" not in glossary — used "Finanzierungsquelle" (natural German compound; consistent with `budgetLineForm.fundingSourceLabel`)
-- `autoItemize.createdFromAutoItemization` badge label → "Automatisch erstellt" (2026-05-26): plain adverb+participle; glossary `Itemize` = "aufschlüsseln" not used for this badge — the concept is auto-_creation_ of the budget line, not the act of itemizing
-
-## Auto-itemize Feature — Issues #1547 + #1564 (2026-05-22 / 2026-05-24)
-
-- See [auto-itemize-patterns.md](auto-itemize-patterns.md) for full details
-- "Auto-itemize" button → "Positionen Extrahieren" (`{Noun} {Verb}` capitalised pattern)
-- "Auto-itemization" as noun concept in errors → "Automatische Positionsextraktion" (not "Auto-Itemisierung")
-- "Itemize manually" → "manuell aufschlüsseln" (consistent with column `itemized` = "Aufgeschlüsselt")
-- `de/errors.json` LLM_NOT_CONFIGURED updated: "Auto-Itemisierung" → "Automatische Positionsextraktion"
-- Story #1564 Round 2: 19 keys added (`unit`, `includesVat`, `vatRate`, edit aria-labels, picker keys); duplicate `amount` removed; `pickerHouseholdItemType` = "Haushaltsartikel" (glossary wins over spec's "Haushaltsposten")
-- Edit aria-label pattern: "X der Position bearbeiten"; toggle exception: `editIncludesVatAriaLabel` = "MwSt.-Einschluss umschalten"
-
-## Auto-itemize Discretionary Funding & autoOriginBadge — Issue #1551 (2026-05-29)
-
-- `autoItemize.discretionaryFundingNote`: "Diskretionäre Finanzierungsquelle" — adjective form of `sources.sourceTypes.discretionary` = "Diskretionär" + glossary "Funding Source" = "Finanzierungsquelle"
-- `overview.costBreakdown.autoOriginBadge.label`: "Auto-erstellt" (13 chars, fits badge) — short compound preferred over "Automatisch erstellt" (20 chars)
-- `autoOriginBadge.ariaLabel`: uses glossary "Budgetposition" and glossary noun `Aufschlüsselung` (from `Itemize` glossary entry)
-- "Auto-itemized" as participial adjective in badge → "Auto-erstellt"; in aria-label → "per Aufschlüsselung erstellt"
-- Proposed glossary additions (need product-owner approval): "Discretionary Funding" → `{ "de": { "singular": "Diskretionäre Finanzierung" } }`; "Auto-itemized" → `{ "de": { "adjective": "automatisch aufgeschlüsselt", "short": "Auto-erstellt" } }`
-
-## Paperless-first Invoice + autoItemize from Document — Issue #1679 (2026-06-15)
-
-- "Correspondent" added to glossary → "Korrespondent" / "Korrespondenten"; used in `documents.browser.*` filter keys; existing `documentDetail.correspondent = "Absender"` left unchanged (pre-existing, out of scope)
-- `autoItemize` keys in budget.json `budgetLineForm` block (at end, alongside `invalidDocumentId`): `vendor` → "Auftragnehmer", `vendorPlaceholder` → "Auftragnehmer suchen…", `vendorRequired` → "Auftragnehmer ist erforderlich"
-- `createAndItemize` button → "Rechnung Erstellen & Aufschlüsseln" (follows `{Noun} {Verb}` capitalised pattern; `&` preserved)
-- Progress states: `extractingFromDocument` → "Dokument wird analysiert…"; `extractionStarted` → "Dokument wird mit KI analysiert…" (consistent with existing `spinnerLabel` "Wird analysiert" pattern; uses "KI" for AI)
-- `extractionComplete` → "Extraktion abgeschlossen. Bitte prüfen Sie die vorgeschlagenen Positionen." (Sie form, short noun "Positionen" matches existing `extractedLines`/`lineItemsListLabel` in same namespace)
-- `lineItems` → "Positionen"; `noLineItems` → "Keine Positionen extrahiert"; `backToInvoices` → "Zurück zu Rechnungen"
-- `invoices.pickerModal` added to `de/budget.json` (parallel to `en/budget.json invoices` section): `title` → "Rechnungsdokument auswählen", `manualEntry` → "Rechnung manuell erfassen", `manualEntryAriaLabel` → "Rechnung manuell erstellen ohne ein Dokument auszuwählen"
-- `documents.documentCard.openInPaperless` updated "In Paperless-ngx öffnen" → "In Paperless öffnen" (matches EN change); new `openInPaperlessAriaLabel` → "'{{title}}' in Paperless öffnen"
-
-## Invoice Vendor Field — Story #1736 (2026-06-17)
-
-- See [invoice-vendor-field.md](invoice-vendor-field.md) for full details
-- `invoiceDetail.form.placeholders.vendor` = "Auftragnehmer suchen…" (pattern: `{Noun} suchen…`, matches `budgetLineForm.vendorPlaceholder`)
-- `invoiceDetail.form.noVendorsFound` = "Keine Auftragnehmer gefunden"
-- `invoiceDetail.validation.vendorRequired` = "Bitte wählen Sie einen Auftragnehmer aus" ("einen" = accusative masculine)
-- `invoiceDetail.messages.vendorNotFound` = "Der ausgewählte Auftragnehmer konnte nicht gefunden werden"
+`overview.costBreakdown.perspective.avg` = "Avg" → "Ø" (German average symbol, compact for 3-way Min/Ø/Max segmented toggle) — not "Durchschn." (too long for a toggle button).

@@ -3,7 +3,8 @@
     "title": "Bautagebuch",
     "newEntryButton": "Neuer Eintrag",
     "entryCountSingular": "Eintrag",
-    "entryCountPlural": "Einträge"
+    "entryCountPlural": "Einträge",
+    "timelineAriaLabel": "Bautagebuch-Einträge"
   },
   "empty": {
     "title": "Noch keine Tagebucheinträge.",
@@ -34,7 +35,11 @@
     "fromLabel": "Von",
     "toLabel": "Bis",
     "entryTypesLabel": "Eintragstypen",
-    "clearAllButton": "Alles löschen"
+    "clearAllButton": "Alles löschen",
+    "toggleFiltersAriaLabel": "Filter ein-/ausblenden",
+    "modeGroupAriaLabel": "Nach Eintragsmodus filtern",
+    "searchAriaLabel": "Tagebucheinträge durchsuchen",
+    "typeGroupAriaLabel": "Nach Eintragstyp filtern"
   },
   "entryTypes": {
     "daily_log": "Tägliches Protokoll",
@@ -48,7 +53,7 @@
     "milestone_delay": "Meilenstein-Verzögerung",
     "budget_breach": "Budgetüberschreitung",
     "auto_reschedule": "Automatische Umplanung",
-    "subsidy_status": "Zuschussstatus"
+    "subsidy_status": "Förderprogrammstatus"
   },
   "create": {
     "title": "Tagebucheintrag erstellen",
@@ -214,7 +219,7 @@
     "milestoneDelay": "Meilenstein-Verzögerung",
     "budgetBreach": "Budgetüberschreitung",
     "autoReschedule": "Automatische Umplanung",
-    "subsidyStatus": "Zuschussstatus"
+    "subsidyStatus": "Förderprogrammstatus"
   },
   "outcomeBadge": {
     "pass": "Bestanden",
@@ -244,6 +249,7 @@
     "draftCreateError": "Entwurf konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
   },
   "detailPage": {
+    "backLinkAriaLabel": "Zurück zum Tagebuch",
     "backLink": "← Zurück zum Tagebuch",
     "edit": "Bearbeiten",
     "delete": "Löschen",
@@ -267,8 +273,8 @@
       "work_item": "Arbeitspaket",
       "invoice": "Rechnung",
       "milestone": "Meilenstein",
-      "budget_source": "Budget Quellen",
-      "subsidy_program": "Zuschuss Programme"
+      "budget_source": "Budgetquellen",
+      "subsidy_program": "Förderprogramme"
     }
   },
   "editPage": {

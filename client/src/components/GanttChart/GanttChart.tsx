@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TimelineResponse, WorkItemStatus, TimelineHouseholdItem } from '@cornerstone/shared';
 import { useTouchTooltip } from '../../hooks/useTouchTooltip.js';
 import { computeActualDuration } from '../../lib/formatters.js';
@@ -158,6 +159,8 @@ export function GanttChart({
   onHouseholdItemClick,
   onCtrlScroll,
 }: GanttChartProps) {
+  const { t } = useTranslation('schedule');
+
   // Refs for scroll synchronization
   const chartScrollRef = useRef<HTMLDivElement>(null);
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
@@ -1440,7 +1443,7 @@ export function GanttChart({
             )}
 
             {/* Work item bars (foreground layer) */}
-            <g role="list" aria-label="Work item bars">
+            <g role="list" aria-label={t('gantt.workItemBarsAriaLabel')}>
               {barData.map(({ item, position, rowIndex }) => (
                 <GanttBar
                   key={item.id}

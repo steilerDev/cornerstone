@@ -11,6 +11,7 @@
  */
 
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   TimelineWorkItem,
   TimelineMilestone,
@@ -91,6 +92,7 @@ export function WeekGrid({
 }: WeekGridProps) {
   const { resolvedLocale } = useLocale();
   const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
+  const { t } = useTranslation('schedule');
   const days = useMemo(() => getWeekDates(weekDate), [weekDate]);
 
   // Lane allocation for the entire week
@@ -117,7 +119,7 @@ export function WeekGrid({
       : undefined;
 
   return (
-    <div className={styles.grid} role="grid" aria-label="Weekly calendar">
+    <div className={styles.grid} role="grid" aria-label={t('calendar.weeklyCalendarAriaLabel')}>
       {/* Day column headers */}
       <div className={styles.headerRow} role="row">
         {days.map((day, i) => {

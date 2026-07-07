@@ -610,7 +610,11 @@ export function CalendarView({
         </h2>
 
         {/* Month/Week toggle */}
-        <div className={styles.modeToggle} role="toolbar" aria-label="Calendar display mode">
+        <div
+          className={styles.modeToggle}
+          role="toolbar"
+          aria-label={t('calendar.modeToggleAriaLabel')}
+        >
           <button
             type="button"
             className={`${styles.modeButton} ${calendarMode === 'month' ? styles.modeButtonActive : ''}`}

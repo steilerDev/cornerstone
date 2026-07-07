@@ -3,7 +3,8 @@
     "title": "Construction Diary",
     "newEntryButton": "New Entry",
     "entryCountSingular": "entry",
-    "entryCountPlural": "entries"
+    "entryCountPlural": "entries",
+    "timelineAriaLabel": "Construction diary entries"
   },
   "empty": {
     "title": "No diary entries yet.",
@@ -34,7 +35,11 @@
     "fromLabel": "From",
     "toLabel": "To",
     "entryTypesLabel": "Entry Types",
-    "clearAllButton": "Clear all"
+    "clearAllButton": "Clear all",
+    "toggleFiltersAriaLabel": "Toggle filters",
+    "modeGroupAriaLabel": "Filter by entry mode",
+    "searchAriaLabel": "Search diary entries",
+    "typeGroupAriaLabel": "Filter by entry type"
   },
   "entryTypes": {
     "daily_log": "Daily Log",
@@ -263,6 +268,7 @@
     "invalidEntryId": "Invalid diary entry ID",
     "deleteSuccess": "Diary entry deleted successfully",
     "deleteError": "Failed to delete diary entry. Please try again.",
+    "backLinkAriaLabel": "Go back to diary",
     "sourceType": {
       "work_item": "Work Item",
       "invoice": "Invoice",

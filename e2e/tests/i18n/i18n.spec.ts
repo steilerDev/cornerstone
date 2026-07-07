@@ -121,7 +121,7 @@ test.describe('i18n: Language Switching', () => {
 
     // Then: The page is in German (localStorage sets locale before first render)
     // Navigation sidebar links use German translation keys
-    const nav = page.getByRole('navigation', { name: 'Main navigation' });
+    const nav = page.getByRole('navigation', { name: /Main navigation|Hauptnavigation/ });
     await expect(nav.getByRole('link', { name: 'Projekt', exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Budget', exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Zeitplan', exact: true })).toBeVisible();

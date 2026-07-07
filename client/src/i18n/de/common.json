@@ -37,7 +37,8 @@
     "selectTrade": "Gewerk auswählen",
     "selectOrientation": "Ausrichtung auswählen",
     "selectAssignment": "Benutzer oder Auftragnehmer auswählen",
-    "unassigned": "Nicht zugewiesen"
+    "unassigned": "Nicht zugewiesen",
+    "mainNavigation": "Hauptnavigation"
   },
   "loading": "Wird geladen...",
   "searching": "Suche läuft...",

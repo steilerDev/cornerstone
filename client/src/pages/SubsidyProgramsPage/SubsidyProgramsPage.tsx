@@ -443,11 +443,8 @@ export function SubsidyProgramsPage() {
       {/* Create form */}
       {showCreateForm && (
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>New Subsidy Program</h2>
-          <p className={styles.cardDescription}>
-            Subsidy programs represent government or institutional programs that reduce construction
-            costs through percentage or fixed-amount reductions.
-          </p>
+          <h2 className={styles.cardTitle}>{t('subsidies.newSubsidyProgram')}</h2>
+          <p className={styles.cardDescription}>{t('subsidies.subsidyDescription')}</p>
 
           {createError && (
             <div className={styles.errorBanner} role="alert">
@@ -467,7 +464,7 @@ export function SubsidyProgramsPage() {
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 className={styles.input}
-                placeholder="e.g., Energy Efficiency Rebate Program"
+                placeholder={t('subsidies.form.placeholders.name')}
                 maxLength={200}
                 disabled={isCreating}
                 autoFocus
@@ -592,7 +589,7 @@ export function SubsidyProgramsPage() {
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 className={styles.textarea}
-                placeholder="Optional description of this program"
+                placeholder={t('subsidies.form.placeholders.description')}
                 maxLength={2000}
                 disabled={isCreating}
                 rows={2}
@@ -609,7 +606,7 @@ export function SubsidyProgramsPage() {
                 value={newEligibility}
                 onChange={(e) => setNewEligibility(e.target.value)}
                 className={styles.textarea}
-                placeholder="Optional eligibility criteria or requirements"
+                placeholder={t('subsidies.form.placeholders.eligibility')}
                 maxLength={2000}
                 disabled={isCreating}
                 rows={2}
@@ -626,7 +623,7 @@ export function SubsidyProgramsPage() {
                 value={newNotes}
                 onChange={(e) => setNewNotes(e.target.value)}
                 className={styles.textarea}
-                placeholder="Optional additional notes"
+                placeholder={t('subsidies.form.placeholders.notes')}
                 maxLength={2000}
                 disabled={isCreating}
                 rows={2}
@@ -702,12 +699,13 @@ export function SubsidyProgramsPage() {
 
       {/* Programs list */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>Programs ({programs.length})</h2>
+        <h2 className={styles.cardTitle}>
+          {t('subsidies.programsCount', { count: programs.length })}
+        </h2>
 
         {programs.length === 0 ? (
           <p className={styles.emptyState}>
-            No subsidy programs yet. Add your first program to start tracking available subsidies
-            and government incentives for your project.
+            {`${t('subsidies.noProgramsTitle')}. ${t('subsidies.noProgramsDescription')}`}
           </p>
         ) : (
           <div className={styles.programsList}>
@@ -868,7 +866,7 @@ export function SubsidyProgramsPage() {
                           setEditingProgram({ ...editingProgram, maximumAmount: e.target.value })
                         }
                         className={styles.input}
-                        placeholder="No limit"
+                        placeholder={t('subsidies.form.placeholders.maximumAmount')}
                         min={0}
                         step="0.01"
                         disabled={isUpdating}
@@ -888,7 +886,7 @@ export function SubsidyProgramsPage() {
                           setEditingProgram({ ...editingProgram, description: e.target.value })
                         }
                         className={styles.textarea}
-                        placeholder="Optional description"
+                        placeholder={t('subsidies.editForm.placeholders.description')}
                         maxLength={2000}
                         disabled={isUpdating}
                         rows={2}
@@ -907,7 +905,7 @@ export function SubsidyProgramsPage() {
                           setEditingProgram({ ...editingProgram, eligibility: e.target.value })
                         }
                         className={styles.textarea}
-                        placeholder="Optional eligibility criteria"
+                        placeholder={t('subsidies.editForm.placeholders.eligibility')}
                         maxLength={2000}
                         disabled={isUpdating}
                         rows={2}
@@ -926,7 +924,7 @@ export function SubsidyProgramsPage() {
                           setEditingProgram({ ...editingProgram, notes: e.target.value })
                         }
                         className={styles.textarea}
-                        placeholder="Optional notes"
+                        placeholder={t('subsidies.editForm.placeholders.notes')}
                         maxLength={2000}
                         disabled={isUpdating}
                         rows={2}
@@ -1144,12 +1142,12 @@ export function SubsidyProgramsPage() {
           <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
           <div className={styles.modalContent}>
             <h2 id="delete-modal-title" className={styles.modalTitle}>
-              Delete Subsidy Program
+              {t('subsidies.modal.deleteTitle')}
             </h2>
             <p className={styles.modalText}>
-              Are you sure you want to delete the program &quot;
-              <strong>{programs.find((p) => p.id === deletingProgramId)?.name}</strong>
-              &quot;?
+              {t('subsidies.modal.deleteConfirm', {
+                name: programs.find((p) => p.id === deletingProgramId)?.name,
+              })}
             </p>
 
             {deleteError ? (
@@ -1157,9 +1155,7 @@ export function SubsidyProgramsPage() {
                 {deleteError}
               </div>
             ) : (
-              <p className={styles.modalWarning}>
-                This action cannot be undone. The program will be permanently removed.
-              </p>
+              <p className={styles.modalWarning}>{t('subsidies.modal.deleteWarning')}</p>
             )}
 
             <div className={styles.modalActions}>
@@ -1169,7 +1165,7 @@ export function SubsidyProgramsPage() {
                 onClick={closeDeleteConfirm}
                 disabled={isDeleting}
               >
-                Cancel
+                {t('subsidies.buttons.cancel')}
               </button>
               {!deleteError && (
                 <button

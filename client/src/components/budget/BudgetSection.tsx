@@ -390,7 +390,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
           type="button"
           className={styles.addButton}
           onClick={openAddBudgetForm}
-          aria-label="Add budget line"
+          aria-label={t('budgetLineForm.addBudgetLineAriaLabel')}
         >
           {budgetLineType === 'household_item' ? t('detail.budget.addLineButton') : '+ Add Line'}
         </button>

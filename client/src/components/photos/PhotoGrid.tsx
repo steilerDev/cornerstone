@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { Photo } from '@cornerstone/shared';
 import { PhotoCard } from './PhotoCard.js';
 import styles from './PhotoGrid.module.css';
@@ -19,9 +20,10 @@ export function PhotoGrid({
   loading,
   editable = true,
 }: PhotoGridProps) {
+  const { t } = useTranslation('photoViewer');
   if (loading) {
     return (
-      <div className={styles.grid} role="list" aria-label="Loading photos">
+      <div className={styles.grid} role="list" aria-label={t('loadingPhotos')}>
         {Array.from({ length: 6 }).map((_, i) => (
           // eslint-disable-next-line @eslint-react/no-array-index-key -- static skeleton placeholders, never reorder
           <div key={i} className={`${styles.card} ${styles.skeleton}`} role="listitem" />
@@ -35,7 +37,7 @@ export function PhotoGrid({
   }
 
   return (
-    <div className={styles.grid} role="list" aria-label="Photos">
+    <div className={styles.grid} role="list" aria-label={t('photosListAriaLabel')}>
       {photos.map((photo) => (
         <PhotoCard
           key={photo.id}

@@ -247,7 +247,9 @@
         "start": "starten",
         "before": "bevor",
         "can": "kann",
-        "must": "muss"
+        "must": "muss",
+        "predecessorVerbAriaLabel": "Vorgänger-Verb",
+        "successorVerbAriaLabel": "Nachfolger-Verb"
       },
       "requiredMilestones": "Erforderliche Meilensteine",
       "requiredMilestonesDesc": "Meilensteine, die abgeschlossen sein müssen, bevor dieses Arbeitspaket beginnen kann.",

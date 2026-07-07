@@ -25,7 +25,9 @@
       "addButton": "Hinzufügen",
       "addWorkItem": "Neues Arbeitspaket",
       "addHouseholdItem": "Neuer Haushaltsartikel",
-      "addMilestone": "Neuer Meilenstein"
+      "addMilestone": "Neuer Meilenstein",
+      "zoomOutTitle": "Verkleinern (Strg+−)",
+      "zoomInTitle": "Vergrößern (Strg+=)"
     },
     "zoomOptions": {
       "day": "Tag",
@@ -86,7 +88,9 @@
         "contributing": "Beitrag",
         "blockedByThis": "Wird von diesem blockiert",
         "linkedItems": "Verknüpfte Elemente",
-        "none": "Keine"
+        "none": "Keine",
+        "contributingAriaLabel": "Arbeitspakete, die zu diesem Meilenstein beitragen",
+        "blockedByThisAriaLabel": "Arbeitspakete, die von diesem Meilenstein blockiert werden"
       },
       "householdItem": {
         "statusLabel": "Status",
@@ -114,7 +118,8 @@
     },
     "skeleton": {
       "loading": "Diagramm wird geladen..."
-    }
+    },
+    "workItemBarsAriaLabel": "Arbeitspaket-Balken"
   },
   "calendar": {
     "item": {
@@ -130,7 +135,9 @@
     "modes": {
       "month": "Monat",
       "week": "Woche"
-    }
+    },
+    "modeToggleAriaLabel": "Kalenderanzeigemodus",
+    "weeklyCalendarAriaLabel": "Wochenkalender"
   },
   "milestones": {
     "page": {

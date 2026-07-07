@@ -156,7 +156,7 @@ export function DavAccessCard() {
           type="button"
           className={styles.hideTokenButton}
           onClick={clearNewToken}
-          title="Hide token display"
+          title={t('dav.hideTokenDisplay')}
         >
           ×
         </button>

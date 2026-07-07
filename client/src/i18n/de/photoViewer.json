@@ -1,4 +1,10 @@
 {
+  "closeViewer": "Fotoansicht schließen",
+  "previousPhoto": "Vorheriges Foto",
+  "nextPhoto": "Nächstes Foto",
+  "loadingPhotos": "Fotos werden geladen",
+  "photosListAriaLabel": "Fotos",
+  "deleteWithShortcutHint": "Foto löschen (oder Entf-Taste drücken)",
   "annotate": "Foto annotieren",
   "viewOriginal": "Originalfoto anzeigen",
   "viewAnnotated": "Annotiertes Foto anzeigen",

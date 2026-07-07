@@ -477,7 +477,7 @@ function MilestoneTooltipContent({
               </span>
               <ul
                 className={styles.linkedItemsList}
-                aria-label="Work items contributing to this milestone"
+                aria-label={t('gantt.tooltip.milestone.contributingAriaLabel')}
               >
                 {shownLinked.map((item) => (
                   <li key={item.id} className={styles.linkedItem}>
@@ -506,7 +506,7 @@ function MilestoneTooltipContent({
               </span>
               <ul
                 className={styles.linkedItemsList}
-                aria-label="Work items blocked by this milestone"
+                aria-label={t('gantt.tooltip.milestone.blockedByThisAriaLabel')}
               >
                 {shownDependent.map((item) => (
                   <li key={item.id} className={styles.linkedItem}>
