@@ -46,7 +46,12 @@ jest.unstable_mockModule('../../lib/backupsApi.js', () => ({
   getSchedulerStatus: mockGetSchedulerStatus,
 }));
 
-// Mock formatters to provide stable date formatting in tests
+// Mock formatters to provide stable date formatting in tests.
+// `mockFormattersLocale` is a mutable closure variable so individual tests can
+// switch locale (e.g. de-DE) without needing a real LocaleProvider — the mock
+// factory below reads it lazily on every call.
+let mockFormattersLocale = 'en-US';
+
 jest.unstable_mockModule('../../lib/formatters.js', () => {
   const fmtDate = (d: string | null | undefined, fallback = '—') => {
     if (!d) return fallback;
@@ -57,12 +62,26 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       day: 'numeric',
     });
   };
+  // Faithful re-implementation of the real formatFileSize (formatters.ts) —
+  // locale-aware via the mutable mockFormattersLocale variable so tests can
+  // exercise de-DE comma-decimal formatting without a real LocaleProvider.
+  const fmtFileSize = (bytes: number) => {
+    const oneDecimal = (value: number) =>
+      new Intl.NumberFormat(mockFormattersLocale, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }).format(value);
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${oneDecimal(bytes / 1024)} KB`;
+    return `${oneDecimal(bytes / (1024 * 1024))} MB`;
+  };
   return {
     formatDate: fmtDate,
     formatCurrency: (n: number) => `€${n.toFixed(2)}`,
     formatTime: (ts: string | null | undefined) => ts ?? '—',
     formatDateTime: (ts: string | null | undefined) => ts ?? '—',
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    formatFileSize: fmtFileSize,
     computeActualDuration: () => null,
     useFormatters: () => ({
       formatDate: fmtDate,
@@ -70,6 +89,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       formatTime: (ts: string | null | undefined) => ts ?? '—',
       formatDateTime: (ts: string | null | undefined) => ts ?? '—',
       formatPercent: (n: number) => `${n.toFixed(2)}%`,
+      formatFileSize: fmtFileSize,
     }),
   };
 });
@@ -109,6 +129,7 @@ describe('BackupsPage', () => {
     mockRestoreBackup.mockReset();
     mockUseAuth.mockReset();
     mockGetSchedulerStatus.mockReset();
+    mockFormattersLocale = 'en-US';
     // Default: disabled scheduler, resolved successfully. Individual tests in
     // the "Scheduler status section" describe below override this per-case.
     // Without a default, unrelated tests would see an unhandled scheduler
@@ -269,6 +290,51 @@ describe('BackupsPage', () => {
         const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
         expect(restoreButtons).toHaveLength(2);
         expect(deleteButtons).toHaveLength(2);
+      });
+    });
+
+    it('renders backup file sizes formatted via formatFileSize (KB, en-US dot decimal)', async () => {
+      mockListBackups.mockResolvedValueOnce({
+        backups: [backup1],
+      } as BackupListResponse);
+
+      renderPage();
+
+      // backup1.sizeBytes = 102400 → 100.0 KB
+      await waitFor(() => {
+        expect(screen.getByText('100.0 KB')).toBeInTheDocument();
+      });
+    });
+
+    it('renders backup file sizes with a comma decimal separator under de-DE locale', async () => {
+      mockFormattersLocale = 'de-DE';
+      mockListBackups.mockResolvedValueOnce({
+        backups: [backup1],
+      } as BackupListResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('100,0 KB')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('100.0 KB')).not.toBeInTheDocument();
+    });
+
+    it('renders a 1.5 MB-scale backup as "1,5 MB" under de-DE locale', async () => {
+      mockFormattersLocale = 'de-DE';
+      const largeBackup = {
+        filename: 'cornerstone-backup-2026-04-01T020000Z.tar.gz',
+        createdAt: '2026-04-01T02:00:00.000Z',
+        sizeBytes: 1572864, // 1.5 MB
+      };
+      mockListBackups.mockResolvedValueOnce({
+        backups: [largeBackup],
+      } as BackupListResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('1,5 MB')).toBeInTheDocument();
       });
     });
   });

@@ -21,7 +21,9 @@ See `pr-1490-measurement-freehand.md`. Medium: `labelAttrs { display:'none' }` d
 - RECURRING BUG: when a page is refactored from a source page, CSS class migration is often incomplete — always grep all `styles.*` references in TSX against defined classes in the module to catch missing definitions
 - z-index stacking collision with sibling overlay (e.g. unlink button from #1680) — see [token-reference.md](token-reference.md)
 
-## PR #1844 — i18n/a11y sweep, 69 hardcoded strings → t() (CHANGES_REQUESTED/comment)
+## PR #1844 — i18n/a11y sweep, 69 hardcoded strings → t() (CHANGES_REQUESTED → fixed in aeeaffb4 → APPROVED, both posted via `--comment`)
+
+Follow-up commit aeeaffb4 fixed all 4 broken keys by reusing existing keys rather than inventing new ones: TimelinePage → `timeline.toolbar.zoomOutTitle`/`zoomInTitle`, BudgetSourcesPage → `sources.form.placeholders.terms`/`notes` + `sources.form.terms`, VendorDetailPage → `vendorDetail.invoices` (dropped the invented `invoicesAriaLabel`, reused the plain label instead). Verified all three resolve with exact original-string preservation in en+de. Re-ran the resolution-check script scoped to the branch's own new `t()` calls — 0 unresolved (2 flags were pre-existing/false-positive: conditional `useTranslation()` namespace not caught by regex, and one bug already broken on `beta` before #1812 touched the file).
 
 Large i18n sweep converting hardcoded aria-label/placeholder/title strings to `t()` across ~27 components. Found 4 genuinely broken translation keys that render as literal key strings in the UI (i18next default: no `parseMissingKeyHandler`/`returnNull` in `client/src/i18n/index.ts`, so missing key → key path shown verbatim to users):
 

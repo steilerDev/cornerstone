@@ -43,13 +43,21 @@ export function getCurrencySymbol(currency = 'EUR', locale = 'en-US'): string {
 }
 
 /**
- * Format a number as a percentage string with 2 decimal places.
+ * Format a number as a percentage string using `Intl.NumberFormat`.
+ *
+ * Uses `Intl.NumberFormat` so the output respects locale conventions for
+ * decimal separators (e.g. comma in de-DE). No space before the `%` sign.
  *
  * @param rate - The raw percentage value (e.g. 3.5 → "3.50%").
+ * @param locale - The locale for number formatting (default: 'en-US').
+ * @param digits - The number of fraction digits to display (default: 2).
  * @returns A formatted percentage string.
  */
-export function formatPercent(rate: number): string {
-  return `${rate.toFixed(2)}%`;
+export function formatPercent(rate: number, locale = 'en-US', digits = 2): string {
+  return `${new Intl.NumberFormat(locale, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(rate)}%`;
 }
 
 /**
@@ -63,19 +71,21 @@ export function formatPercent(rate: number): string {
  * @param dateStr - An ISO date string or null/undefined.
  * @param locale - The locale for formatting (default: 'en-US').
  * @param fallback - Value returned when dateStr is null/undefined/invalid. Defaults to '—'.
+ * @param monthStyle - The month format style: 'short' (e.g. "Feb") or 'long' (e.g. "February"). Defaults to 'short'.
  * @returns A localized date string, e.g. "Feb 27, 2026", or the fallback value.
  */
 export function formatDate(
   dateStr: string | null | undefined,
   locale = 'en-US',
   fallback = '—',
+  monthStyle: 'short' | 'long' = 'short',
 ): string {
   if (!dateStr) return fallback;
   const [year, month, day] = dateStr.slice(0, 10).split('-').map(Number);
   if (!year || !month || !day) return fallback;
   return new Date(year, month - 1, day).toLocaleDateString(locale, {
     year: 'numeric',
-    month: 'short',
+    month: monthStyle,
     day: 'numeric',
   });
 }
@@ -184,6 +194,84 @@ export function computeWorkDuration(
   return Math.round((diffMinutes / 60) * 100) / 100;
 }
 
+/**
+ * Format a Date as a short localized weekday label (e.g. "Mon", "Mo").
+ *
+ * @param date - The date to format.
+ * @param locale - The locale for formatting (default: 'en-US').
+ * @returns A short weekday string.
+ */
+export function formatWeekdayShort(date: Date, locale = 'en-US'): string {
+  return date.toLocaleDateString(locale, { weekday: 'short' });
+}
+
+/**
+ * Format a Date as a short weekday + short month + day label, with no year
+ * (e.g. "Mon, Feb 24"). Used for compact technical/chart-axis labels.
+ *
+ * @param date - The date to format.
+ * @param locale - The locale for formatting (default: 'en-US').
+ * @returns A formatted string.
+ */
+export function formatWeekdayMonthDay(date: Date, locale = 'en-US'): string {
+  return date.toLocaleDateString(locale, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+/**
+ * Format a byte count as a human-readable, locale-aware file size string
+ * (e.g. "1.5 MB", "1,5 MB" in de-DE). Unit suffixes (B/KB/MB) are not
+ * translated — they are standard abbreviations in both supported locales.
+ *
+ * @param bytes - The size in bytes.
+ * @param locale - The locale for number formatting (default: 'en-US').
+ * @returns A formatted file size string.
+ */
+export function formatFileSize(bytes: number, locale = 'en-US'): string {
+  const oneDecimal = (value: number) =>
+    new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(
+      value,
+    );
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${oneDecimal(bytes / 1024)} KB`;
+  return `${oneDecimal(bytes / (1024 * 1024))} MB`;
+}
+
+/**
+ * Format a duration in hours as a locale-aware string with 2 decimal places
+ * (e.g. "7.50 h" in en-US, "7,50 h" in de-DE).
+ *
+ * @param hours - The duration in hours.
+ * @param locale - The locale for number formatting (default: 'en-US').
+ * @returns A formatted duration string.
+ */
+export function formatHours(hours: number, locale = 'en-US'): string {
+  return `${new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(hours)} h`;
+}
+
+/**
+ * Format a Date as a localized date + time string including the time zone
+ * abbreviation (e.g. "Feb 24, 2026, 2:45 PM GMT+1"). Used where the output
+ * is burned into a static artifact (e.g. a signature image) and must be
+ * unambiguous about time zone.
+ *
+ * @param date - The date/time to format.
+ * @param locale - The locale for formatting (default: 'en-US').
+ * @returns A formatted date-time-with-zone string.
+ */
+export function formatDateTimeWithZone(date: Date, locale = 'en-US'): string {
+  return date.toLocaleString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+}
+
 import { useLocale } from '../contexts/LocaleContext.js';
 
 /**
@@ -192,7 +280,7 @@ import { useLocale } from '../contexts/LocaleContext.js';
  *
  * Usage:
  * ```tsx
- * const { formatCurrency, formatDate, formatTime, formatDateTime } = useFormatters();
+ * const { formatCurrency, formatDate, formatTime, formatDateTime, formatPercent, formatFileSize, formatHours } = useFormatters();
  * // Use these functions — they automatically apply the user's locale and currency
  * ```
  */
@@ -216,8 +304,11 @@ export function useFormatters() {
     /**
      * Format a date string using the user's locale.
      */
-    formatDate: (dateStr: string | null | undefined, fallback?: string) =>
-      formatDate(dateStr, localeString, fallback),
+    formatDate: (
+      dateStr: string | null | undefined,
+      fallback?: string,
+      monthStyle?: 'short' | 'long',
+    ) => formatDate(dateStr, localeString, fallback, monthStyle),
 
     /**
      * Format a time string using the user's locale.
@@ -232,8 +323,33 @@ export function useFormatters() {
       formatDateTime(timestamp, localeString, fallback),
 
     /**
-     * Format a percentage number.
+     * Format a percentage number using the user's locale.
      */
-    formatPercent,
+    formatPercent: (rate: number, digits?: number) => formatPercent(rate, localeString, digits),
+
+    /**
+     * Format a Date as a short localized weekday label using the user's locale.
+     */
+    formatWeekdayShort: (date: Date) => formatWeekdayShort(date, localeString),
+
+    /**
+     * Format a Date as a short weekday + short month + day label using the user's locale.
+     */
+    formatWeekdayMonthDay: (date: Date) => formatWeekdayMonthDay(date, localeString),
+
+    /**
+     * Format a byte count as a human-readable file size string using the user's locale.
+     */
+    formatFileSize: (bytes: number) => formatFileSize(bytes, localeString),
+
+    /**
+     * Format a duration in hours as a locale-aware string using the user's locale.
+     */
+    formatHours: (hours: number) => formatHours(hours, localeString),
+
+    /**
+     * Format a Date as a localized date + time string including time zone using the user's locale.
+     */
+    formatDateTimeWithZone: (date: Date) => formatDateTimeWithZone(date, localeString),
   };
 }

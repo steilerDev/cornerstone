@@ -21,18 +21,9 @@ import {
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './BackupsPage.module.css';
 
-/**
- * Format a file size in bytes to a human-readable string.
- */
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export function BackupsPage() {
   const { t } = useTranslation('settings');
-  const { formatDate, formatDateTime } = useFormatters();
+  const { formatDate, formatDateTime, formatFileSize } = useFormatters();
   const { user } = useAuth();
 
   const isAdmin = user?.role === 'admin';

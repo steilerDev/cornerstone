@@ -44,7 +44,7 @@
       "title": "Quellenauslastung",
       "emptyMessage": "Keine Budgetquellen konfiguriert",
       "emptyAction": "Budgetquelle hinzufügen",
-      "utilized": "{{percent}}% genutzt",
+      "utilized": "{{percent}} genutzt",
       "usedLabel": "Genutzt",
       "sourceTypes": {
         "bank_loan": "Bankdarlehen",

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineResponse, WorkItemStatus } from '@cornerstone/shared';
+import { useFormatters } from '../../lib/formatters.js';
 import { toUtcMidnight, addDays, daysBetween } from '../GanttChart/ganttUtils.js';
 import styles from './MiniGanttCard.module.css';
 
@@ -77,6 +78,7 @@ function dateToX(date: Date, weekStart: Date): number {
 export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
   const navigate = useNavigate();
   const { t } = useTranslation('dashboard');
+  const { formatWeekdayShort } = useFormatters();
 
   // CSS color values read from computed styles (updated on theme change)
   const [colors, setColors] = useState<ReturnType<typeof resolveColors>>(() => resolveColors());
@@ -217,7 +219,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
         {Array.from({ length: CHART_DAYS }).map((_, i) => {
           const labelDate = addDays(windowStart, i);
           const x = dateToX(labelDate, windowStart);
-          const dayLabel = labelDate.toLocaleDateString('en-US', { weekday: 'short' });
+          const dayLabel = formatWeekdayShort(labelDate);
           return (
             <text
               key={`header-${i}`} // eslint-disable-line @eslint-react/no-array-index-key -- static 5-day window header; index is a stable key here
