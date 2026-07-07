@@ -96,6 +96,17 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: jest
     .fn<

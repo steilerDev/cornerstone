@@ -82,6 +82,26 @@ it in `beforeEach`. The factory function isn't invoked until the dynamic `import
 which point the `let` has already initialized, so closure capture works correctly despite declaration-order
 looking suspicious.
 
+### Follow-up CI fix (PR #1845, branch fix/1813-formatters-locale): consumer-blast-radius gap
+
+The initial sweep missed 3 suites that mock `formatters.js`/`LocaleContext.js` per-file via
+`jest.unstable_mockModule` rather than through the shared `render` wrapper or `testUtils.tsx` — CI failed on:
+- `GanttChart.test.tsx`: `GanttHeader` (rendered by `GanttChart`) started statically importing the new
+  `formatWeekdayMonthDay` as a bare top-level named export (NOT via `useFormatters()`), so the file's existing
+  `jest.unstable_mockModule('../../lib/formatters.js', ...)` block needed a new top-level key added alongside
+  `formatCurrency`/`formatDate`/`formatPercent` — outside the `useFormatters` mock's return object.
+- `DocumentBrowser.test.tsx` and `DiaryEntryEditPage.test.tsx`: a descendant started calling `useLocale()`
+  directly (not via `formatters.js`), so these files needed a *new* `jest.unstable_mockModule('.../LocaleContext.js', ...)`
+  block added (mirroring the standard shape: `locale`/`resolvedLocale: 'en'`, `currency: 'EUR'`,
+  `setLocale`/`syncWithServer: jest.fn()`, passthrough `LocaleProvider`) — `formatters.js` itself stayed unmocked
+  in both.
+
+**Lesson**: when a component gains `useFormatters()` or a new static formatter/locale import, the
+consumer-blast-radius sweep must include every ancestor→descendant render chain, not just direct importers —
+search for `jest.unstable_mockModule('.../formatters.js'` AND `'.../LocaleContext.js'` across the whole client
+tree, and check whether the *specific new symbol* is exported at the mock's top level vs. nested inside the
+`useFormatters` return, since a component can consume the same module both ways in different files.
+
 ### Canvas mocking pattern for jsdom (new SignatureCapture.test.tsx, closed prior test-file-parity gap)
 
 jsdom has no real 2D canvas context (project policy forbids native `canvas` npm package). Stub
