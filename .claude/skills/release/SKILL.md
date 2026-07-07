@@ -77,7 +77,63 @@ Use the epic-enriched body provided by the calling skill — it includes stories
 
 ```bash
 gh pr create --base main --head beta --title "release: promote epic #<epic-number> to main" --body "$(cat <<'EOF'
-<epic-enriched body from /epic-close — see epic-close step 8 for format>
+## Release Summary
+
+<One-line summary of the epic and what this release includes>
+
+## Epic
+
+Closes #<epic-number> — <epic title>
+
+## Stories Completed
+
+- **#<story-number>** — <story title>
+- ...
+
+## Changes
+
+### Features
+- <list from git log, grouped>
+
+### Fixes
+- <list from git log, grouped>
+
+### Chores / Refactoring
+- <list from git log, grouped>
+
+## Change Inventory
+
+### Backend (`server/`, `shared/`)
+<List of changed files grouped by area>
+
+### Frontend (`client/`)
+<List of changed files grouped by area>
+
+### E2E Tests (`e2e/`)
+<List of changed files>
+
+### Docs / Config
+<List of changed files>
+
+## Refinement Summary
+<Summary from /epic-close step 4, or "None — no refinement items were needed" if skipped>
+
+## E2E Validation Summary
+<Summary from /epic-close step 5>
+
+## Security Findings Summary
+<Resolved/outstanding findings from story PR reviews>
+
+## UAT Validation Checklist
+<UAT scenarios from /epic-close step 6, formatted as a manual validation checklist>
+
+- [ ] <Scenario 1: page to visit, action to take, expected result>
+- [ ] <Scenario 2: ...>
+- ...
+
+## Testing
+- **DockerHub beta image**: `docker pull steilerdev/cornerstone:beta`
+- **PR-specific image**: `docker pull steilerdev/cornerstone:pr-<pr-number>`
 EOF
 )"
 ```
@@ -198,7 +254,7 @@ Launch the **product-owner** agent to:
 For each group of issues from 4d:
 
 1. Create a fresh branch from `origin/beta`: `git checkout -B fix/<issue-number>-<short-description> origin/beta`
-2. Execute `/develop` steps 2-11 (skipping step 1 Rebase and step 4 Branch — branch is already created)
+2. Execute `/develop` steps 2-11 (skipping step 1 Rebase and step 4 Branch — branch is already created), **and skip step 11's worktree/branch cleanup item** — the release session continues to process further fix groups (or step 4f) in the same worktree. The worktree is cleaned up once, at the very end of the whole `/release` flow, in step 7.
 3. **Fix batches MUST go through the standard review pipeline.** Launch at minimum:
    - `product-architect` review
    - `product-owner` review (if any items are user-story-adjacent or touch acceptance criteria)
@@ -263,17 +319,26 @@ Update the implementation checklist with patterns learned:
    - `ux-designer/MEMORY.md` — recurring token/pattern violations
    - `product-architect/MEMORY.md` — recurring architecture deviations
 2. Identify any new recurring patterns that are NOT yet in `.claude/checklists/implementation-checklist.md`
-3. If new patterns found, add them to the checklist and commit:
+3. If new patterns found, commit them via a dedicated PR — **never push directly to `beta`** (per CLAUDE.md's Branching Strategy):
 
    ```bash
+   git fetch origin beta
+   git checkout -b chore/lessons-learned-<yyyy-mm-dd> origin/beta
    git add .claude/checklists/implementation-checklist.md
-   git commit -m "chore: update implementation checklist with lessons learned
+   git commit -m "chore: update implementation checklist with lessons learned"
+   git push -u origin chore/lessons-learned-<yyyy-mm-dd>
+   gh pr create --base beta --title "chore: update implementation checklist with lessons learned" --body "$(cat <<'EOF'
+   ## Summary
+   - Add recurring patterns surfaced during this release's reviews to the implementation checklist
 
-   Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
-   git push
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+   EOF
+   )"
    ```
 
-4. If no new patterns, skip the commit
+   Wait for the beta CI gate (**CI Gate Polling** pattern from CLAUDE.md, beta variant), then squash-merge: `gh pr merge --squash <pr-url>`. Return to the original release branch/worktree afterward.
+
+4. If no new patterns, skip this step entirely.
 
 ### 7. Merge & Post-Merge
 
@@ -290,10 +355,17 @@ After user approval:
 3. **If epic context is provided**, close the epic issue and move to Done on the Projects board:
    ```bash
    gh issue close <epic-number>
-   ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<epic-number>" --jq '.items[0].id')
+   ITEM_ID=$(gh project item-add 4 --owner steilerDev --url https://github.com/steilerDev/cornerstone/issues/<epic-number> --format json --jq '.id')
    gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id c558f50d
    ```
-4. Exit the session and remove the worktree:
+4. Clean up the worktree and branch, per CLAUDE.md's Session Isolation policy (only once the promotion PR is merged and the worktree has no uncommitted changes):
+   ```bash
+   git status --porcelain   # must be empty before proceeding
+   CURRENT_BRANCH=$(git branch --show-current)
+   WORKTREE_PATH=$(pwd)
+   BASE_REPO=$(git worktree list --porcelain | awk '/^worktree/{print $2; exit}')
+   cd "$BASE_REPO"
+   git worktree remove "$WORKTREE_PATH"
+   git branch -D "$CURRENT_BRANCH"
    ```
-   /exit
-   ```
+   Use `-D`, not `-d` — squash/merge-commit history on this branch may not satisfy `-d`'s ancestry check. This must be the final action of the session.

@@ -5,7 +5,7 @@ description: 'Close an epic: refinement, E2E validation, UAT, documentation, and
 
 # Epic Close — Refinement, UAT & Promotion Workflow
 
-You are the orchestrator running the closing phase for a completed epic. Follow these 13 steps in order. **Do NOT skip steps.** The orchestrator delegates all work — never write production code, tests, or architectural artifacts directly.
+You are the orchestrator running the closing phase for a completed epic. Follow these 8 steps in order. **Do NOT skip steps.** The orchestrator delegates all work — never write production code, tests, or architectural artifacts directly.
 
 **When to use:** After all user stories in an epic have been merged to `beta` and are closed. This skill handles refinement, E2E validation, UAT, documentation, and promotion to `main`.
 **When NOT to use:** Planning a new epic (use `/epic-start`). Implementing a single story or bug fix (use `/develop`).
@@ -60,13 +60,10 @@ If any story is still open, stop and inform the user. All stories must be comple
 
 ### 2a. Lint Health Check
 
-Check the most recent auto-fix workflow run for unfixable lint issues:
+There is no CI job that runs lint (`ci.yml`'s Quality Gates covers typecheck + test + build + audit only; lint cleanliness is enforced per-PR by implementing agents and dev-team-lead's review per CLAUDE.md's Local Validation Policy). Run a full-repo lint pass directly to catch any cumulative drift across the epic's merged PRs:
 
 ```bash
-# Get the latest auto-fix run ID
-RUN_ID=$(gh run list --workflow=auto-fix.yml --limit=1 --json databaseId --jq '.[0].databaseId')
-# Extract lint errors and warnings
-gh run view "$RUN_ID" --log 2>/dev/null | grep -E '##\[(warning|error)\]' | grep -v 'Process completed'
+npm run lint
 ```
 
 If there are unfixable lint errors or warnings, include them in the refinement items (step 3). These should be addressed in the refinement PR alongside any review observations.

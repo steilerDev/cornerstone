@@ -5,7 +5,7 @@ description: 'Comprehensive PR review using the full agent team. Reviews for dup
 
 # Review PR — External & Internal PR Review Workflow
 
-You are the orchestrator running a comprehensive review of a pull request using the full agent team. Follow these 7 steps in order. **Do NOT skip steps.** The orchestrator delegates all reviews — never post review comments directly. The orchestrator reads the diff independently to produce a behavior change summary.
+You are the orchestrator running a comprehensive review of a pull request using the full agent team. Follow these 6 steps in order. **Do NOT skip steps.** The orchestrator delegates all reviews — never post review comments directly. The orchestrator reads the diff independently to produce a behavior change summary.
 
 **When to use:** Reviewing any PR — external contributions, Dependabot PRs, or re-reviewing after contributor pushes fixes.
 **When NOT to use:** PRs created by the `/develop` skill (those are reviewed inline during development).
@@ -66,7 +66,7 @@ Launch all applicable review agents simultaneously. Each agent posts its own `gh
 
 - **product-architect** — architecture compliance, API contract adherence, schema conventions, naming conventions, dependency policy
 - **security-engineer** — **conditional**: only launch if the PR touches security-relevant files. Launch if changed files match ANY of: `server/src/routes/**`, `server/src/plugins/auth*`, `server/src/plugins/session*`, `Dockerfile`, `docker-compose.yml`, `**/package.json`, `**/package-lock.json`, or any path containing `sql`, `crypto`, `cookie`, `session`, `token`, `auth`, or `secret`. Skip for frontend-only, test-only, docs-only, or CSS-only PRs.
-- **dev-team-lead** `[MODE: review]` — code quality, TypeScript strictness, ESM conventions, consistent-type-imports, test co-location
+- **dev-team-lead** `[MODE: review]` — code quality, TypeScript strictness, ESM conventions, consistent-type-imports, test co-location. **Does not post its own `gh pr review`** — per its defined interface it has no GitHub write access in this mode and returns `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUIRED` as plain text to the orchestrator (handled in Step 4 below).
 
 **Conditional launches (based on affected areas from Step 1):**
 
@@ -79,34 +79,35 @@ Each agent receives:
 
 - The PR number and URL
 - The list of changed files relevant to their domain
-- Instruction to post a `gh pr review` with their findings
+
+Each agent **except dev-team-lead** receives instruction to post its own `gh pr review` with its findings. dev-team-lead instead returns its `VERDICT` text directly to the orchestrator — it never calls `gh pr review`.
 
 ### 4. Aggregate Reviews
 
-After all agents complete, fetch all reviews:
+After all agents complete, fetch all posted reviews:
 
 ```bash
 gh api repos/steilerDev/cornerstone/pulls/<pr-number>/reviews
 ```
 
-Parse each review to determine the agent's verdict (`approve`, `request-changes`, or `comment`) and summarize their findings.
+Parse each posted review to determine the agent's verdict (`approve`, `request-changes`, or `comment`) and summarize their findings. Separately, take the `VERDICT` text `dev-team-lead` returned directly (it does not post to GitHub) and map it into the same vocabulary: `VERDICT: APPROVED` → `approve`, `VERDICT: CHANGES_REQUIRED` → `request-changes`.
 
-**Determine overall verdict:**
+**Determine overall verdict** across both the posted reviews and dev-team-lead's mapped verdict:
 
-- **BLOCK**: any agent posted `request-changes`
-- **APPROVE**: all agents approved or commented
+- **BLOCK**: any agent (including dev-team-lead's mapped verdict) is effectively `request-changes`
+- **APPROVE**: all posted reviews are `approve`/`comment` AND dev-team-lead returned `VERDICT: APPROVED`
 
 ### 5. Verdict Action
 
 #### If BLOCK
 
-Post a consolidated `gh pr review --request-changes` comment on the PR listing all blocking findings grouped by agent. Include specific file references and remediation guidance from each agent's review.
+Post a consolidated `gh pr review --request-changes` comment on the PR listing all blocking findings grouped by agent. Include specific file references and remediation guidance from each agent's review. Include dev-team-lead's findings (from its returned VERDICT text in Step 4) in this consolidated review, grouped alongside the other agents' findings.
 
 Present the blocking findings to the user. **Do NOT wait for CI.**
 
 #### If APPROVE
 
-Post a consolidated `gh pr review --approve` comment on the PR summarizing the review outcome.
+Post a consolidated `gh pr review --approve` comment on the PR summarizing the review outcome. Include dev-team-lead's findings (from its returned VERDICT text in Step 4) in this consolidated review, grouped alongside the other agents' findings.
 
 **Wait 5 seconds**, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if `MERGEABLE`.** If `CONFLICTING`, report the conflict to the user — do not attempt to resolve. Once mergeability is confirmed, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (use the beta or main variant based on the PR's target branch).
 
@@ -118,7 +119,7 @@ Present to the user:
 
 1. **Agent Review Summary** — the table from Step 4
 2. **Independent Behavior Change Summary** — read the diff stored from Step 1 and describe what actually changed in user-visible terms, independent of the PR description or changelog. Flag any discrepancies between what the PR claims to do and what the code actually does.
-3. **CI Status** — pass/fail for each required check (`Quality Gates`, `Docker`, `Merge E2E Reports`), or "skipped" if review was blocked
+3. **CI Status** — pass/fail for the required gate check(s) per CLAUDE.md: `Quality Gates` (required on both `beta`- and `main`-targeted PRs), plus `E2E Gates` (required only when the PR targets `main`). `Docker`, `Docker PR Release`, and `Merge E2E Reports` run but are not required gates — report them only if directly relevant, not as blocking checks. "Skipped" if review was blocked.
 4. **Overall Verdict** — `APPROVED` or `BLOCKED` with specific next steps:
    - If approved: user can merge at their discretion (`gh pr merge --squash <pr-number>`)
    - If blocked: list what the contributor needs to fix, suggest re-running `/review-pr <number>` after fixes are pushed

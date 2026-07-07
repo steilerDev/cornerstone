@@ -157,7 +157,7 @@ Move the issue(s) to **In Progress** on the Projects board.
 #### Single-item mode
 
 ```bash
-ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<issue-number>" --jq '.items[0].id')
+ITEM_ID=$(gh project item-add 4 --owner steilerDev --url https://github.com/steilerDev/cornerstone/issues/<issue-number> --format json --jq '.id')
 gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id 296eeabe
 ```
 
@@ -274,10 +274,11 @@ git log origin/beta..HEAD --format="%b"
 
 If production files were changed (`git diff --name-only origin/beta..HEAD | grep -E '^(server|client|shared)/'`), verify the commit body contains the appropriate Co-Authored-By trailers:
 
-- Files under `server/` or `shared/` → must have `Co-Authored-By: Claude backend-developer (Haiku`
-- Files under `client/` (except `client/src/i18n/de/` and `client/src/i18n/glossary.json`) → must have `Co-Authored-By: Claude frontend-developer (Haiku`
+- Files under `server/` or `shared/`, excluding `*.test.ts`/`*.test.tsx` → must have `Co-Authored-By: Claude backend-developer (Haiku`
+- Files under `client/` (except `client/src/i18n/de/`, `client/src/i18n/glossary.json`, and `*.test.ts`/`*.test.tsx`) → must have `Co-Authored-By: Claude frontend-developer (Haiku`
 - Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `Co-Authored-By: Claude translator (Sonnet`
 - Files under `e2e/` → must have `Co-Authored-By: Claude e2e-test-engineer (Sonnet`
+- Files matching `*.test.ts` or `*.test.tsx` outside `e2e/` → must have `Co-Authored-By: Claude qa-integration-tester (Sonnet`
 
 If trailers are missing, the dev-team-lead missed an agent in the contributing list. Re-launch `[MODE: commit]` with the corrected list.
 
@@ -299,7 +300,7 @@ Fixes #<issue-number>
 - [ ] Integration tests pass
 - [ ] Pre-commit hook quality gates pass
 
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )"
 ```
@@ -334,7 +335,7 @@ Fixes #61
 - [ ] Integration tests pass
 - [ ] Pre-commit hook quality gates pass
 
-Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )"
 ```
@@ -430,20 +431,23 @@ After merge:
    ```
 2. Move the issue to **Done** on the Projects board:
    ```bash
-   ITEM_ID=$(gh project item-list 4 --owner steilerDev --format json --limit 1 --query "is:issue #<issue-number>" --jq '.items[0].id')
+   ITEM_ID=$(gh project item-add 4 --owner steilerDev --url https://github.com/steilerDev/cornerstone/issues/<issue-number> --format json --jq '.id')
    gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id c558f50d
    ```
 3. **Remove resolved line from source file** (only when input was a `@`-prefixed file path):
    - Remove the line from the source file that produced the resolved item (matched by original text).
    - Preserve comments (`#`-prefixed lines) and empty lines.
-4. Clean up the branch:
+4. Clean up the worktree and branch, per CLAUDE.md's Session Isolation policy (only once the PR is merged and the worktree has no uncommitted changes):
+   ```bash
+   git status --porcelain   # must be empty before proceeding
+   CURRENT_BRANCH=$(git branch --show-current)
+   WORKTREE_PATH=$(pwd)
+   BASE_REPO=$(git worktree list --porcelain | awk '/^worktree/{print $2; exit}')
+   cd "$BASE_REPO"
+   git worktree remove "$WORKTREE_PATH"
+   git branch -D "$CURRENT_BRANCH"
    ```
-   git checkout beta && git pull && git branch -d <branch-name>
-   ```
-5. Exit the session and remove the worktree:
-   ```
-   /exit
-   ```
+   Use `-D` (force), not `-d` — this repo squash-merges to `beta`, so `-d`'s "fully merged" check will refuse even for genuinely merged branches. This must be the last action of the session (the working directory it started from no longer exists afterward).
 
 #### Multi-item mode
 
@@ -456,11 +460,14 @@ After merge:
    - For each closed issue, remove the line from the source file that produced it (matched by original text — the issue number or description as it appeared in the file).
    - Preserve comments (`#`-prefixed lines) and empty lines that were not part of the resolved items.
    - If all non-comment, non-empty lines have been removed, leave the file with only its comments (or empty).
-4. Clean up the branch:
+4. Clean up the worktree and branch, per CLAUDE.md's Session Isolation policy (only once the PR is merged and the worktree has no uncommitted changes):
+   ```bash
+   git status --porcelain   # must be empty before proceeding
+   CURRENT_BRANCH=$(git branch --show-current)
+   WORKTREE_PATH=$(pwd)
+   BASE_REPO=$(git worktree list --porcelain | awk '/^worktree/{print $2; exit}')
+   cd "$BASE_REPO"
+   git worktree remove "$WORKTREE_PATH"
+   git branch -D "$CURRENT_BRANCH"
    ```
-   git checkout beta && git pull && git branch -d <branch-name>
-   ```
-5. Exit the session and remove the worktree:
-   ```
-   /exit
-   ```
+   Use `-D` (force), not `-d` — this repo squash-merges to `beta`, so `-d`'s "fully merged" check will refuse even for genuinely merged branches. This must be the last action of the session (the working directory it started from no longer exists afterward).

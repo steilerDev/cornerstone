@@ -1,13 +1,13 @@
 ---
 name: batch-develop
-description: 'Reads /tmp/notes.md and runs /develop for each line sequentially. Each line gets its own branch, PR, and full development cycle. Skips /develop step 1 (Rebase) since it handles its own baseline reset.'
+description: 'Reads /tmp/batch-queue.md and runs /develop for each line sequentially. Each line gets its own branch, PR, and full development cycle. Skips /develop step 1 (Rebase) since it handles its own baseline reset.'
 ---
 
 # Batch Develop — Sequential Development from Notes File
 
-You are the orchestrator running a sequential development pipeline. This skill accepts a list of GitHub issue numbers (as arguments) or reads `/tmp/notes.md`, and invokes the `/develop` workflow for each item, one at a time. Each item gets its own branch, PR, and full development cycle.
+You are the orchestrator running a sequential development pipeline. This skill accepts a list of GitHub issue numbers (as arguments) or reads `/tmp/batch-queue.md`, and invokes the `/develop` workflow for each item, one at a time. Each item gets its own branch, PR, and full development cycle.
 
-**When to use:** Processing a backlog of issues or bug descriptions listed in `/tmp/notes.md`, where each item should be developed independently.
+**When to use:** Processing a backlog of issues or bug descriptions listed in `/tmp/batch-queue.md`, where each item should be developed independently.
 **When NOT to use:** When items should be batched into a single PR (use `/develop @/tmp/notes.md` instead). When running a full epic lifecycle (use `/epic-run`).
 
 ## Input
@@ -15,11 +15,11 @@ You are the orchestrator running a sequential development pipeline. This skill a
 `$ARGUMENTS` determines the input source:
 
 - **Issue list**: `$ARGUMENTS` contains issue numbers (e.g., `#741 #742 #743` or `741, 742, 743` or `#741 #742`). Any combination of `#N` or bare `N` separated by spaces, commas, or semicolons.
-- **File mode** (no arguments): When `$ARGUMENTS` is empty, falls back to reading `/tmp/notes.md`. If the file does not exist or is empty, ask the user to provide issue numbers or create the file before proceeding.
+- **File mode** (no arguments): When `$ARGUMENTS` is empty, falls back to reading `/tmp/batch-queue.md`. If the file does not exist or is empty, ask the user to provide issue numbers or create the file before proceeding.
 
-### File Format (when using `/tmp/notes.md`)
+### File Format (when using `/tmp/batch-queue.md`)
 
-`/tmp/notes.md` contains one item per line:
+`/tmp/batch-queue.md` contains one item per line:
 
 - **Issue number**: `#42` or `42`
 - **Bug/feature description**: Free-text description
@@ -32,7 +32,7 @@ Use tasks to track progress across the batch. Tasks survive context compression 
 
 **Create these tasks upfront** (using `TaskCreate`):
 
-1. **Read and parse queue** — Parse input arguments or /tmp/notes.md into items queue
+1. **Read and parse queue** — Parse input arguments or /tmp/batch-queue.md into items queue
 2. **Session setup** — Fetch latest beta, sync wiki
 
 **After parsing** — create one task per item in the queue:
@@ -53,7 +53,7 @@ Use tasks to track progress across the batch. Tasks survive context compression 
 
 **If `$ARGUMENTS` contains issue numbers:** Extract all issue numbers from the arguments (strip `#` prefixes, commas, semicolons). Each number becomes an item in the queue.
 
-**If `$ARGUMENTS` is empty:** Read `/tmp/notes.md`. Parse each non-empty, non-comment line into an ordered **items queue**.
+**If `$ARGUMENTS` is empty:** Read `/tmp/batch-queue.md`. Parse each non-empty, non-comment line into an ordered **items queue**.
 
 Print the queue:
 
@@ -98,14 +98,14 @@ git checkout -B batch-dev-temp origin/beta
 
 Invoke the `/develop` skill with the current item as `$ARGUMENTS`. The `/develop` skill handles the full cycle (steps 1–11): resolve issue → visual spec → branch → move to in progress → implement + test → verify PR → review → fix loop → merge → close.
 
-**Note:** Skip `/develop` step 1 (Rebase) — the baseline reset is already handled by step 3a above. Execute `/develop` steps 2–11 for each item.
+**Note:** Skip `/develop` step 1 (Rebase) — the baseline reset is already handled by step 3a above. Execute `/develop` steps 2–11 for each item, **except step 11's worktree/branch cleanup item** — the batch session must stay in the same worktree to process the next item. Do not let `/develop` run its worktree removal mid-batch; that step only runs once, after the entire queue is processed (see step 5, Session Cleanup, below). Per-item local branches are left in place during the loop rather than individually deleted — this avoids the checkout-conflict fragility of deleting a branch that a subsequent iteration's `git checkout -B` may still be touching, at the cost of leaving a handful of merged local branches for the final cleanup (or a manual `git branch --merged beta` sweep) to catch.
 
 #### 3c. Track Result
 
 After `/develop` completes for the item:
 
-- **Success** (PR merged, issue closed): Add to completed list. If in file mode, remove the line from `/tmp/notes.md`.
-- **Failure** (retry budget exhausted or error): Add to failed list, continue to next item. If in file mode, keep the line in `/tmp/notes.md`.
+- **Success** (PR merged, issue closed): Add to completed list. If in file mode, remove the line from `/tmp/batch-queue.md`.
+- **Failure** (retry budget exhausted or error): Add to failed list, continue to next item. If in file mode, keep the line in `/tmp/batch-queue.md`.
 
 #### 3d. Progress Update
 
@@ -125,7 +125,23 @@ Batch Develop Complete
 Total items:  N
 Completed:    N — #42, #55, #61
 Failed:       N — #88 (reason)
-Remaining in /tmp/notes.md: N lines
+Remaining in /tmp/batch-queue.md: N lines
 ```
 
-In file mode: if all items succeeded, `/tmp/notes.md` will be empty (or contain only comments). If any failed, the file retains those lines for a future run.
+In file mode: if all items succeeded, `/tmp/batch-queue.md` will be empty (or contain only comments). If any failed, the file retains those lines for a future run.
+
+### 5. Session Cleanup
+
+After the batch completes (all items processed, summary printed), clean up the worktree per CLAUDE.md's Session Isolation policy — the batch-deferred equivalent of `/develop` step 11's cleanup item:
+
+```bash
+git status --porcelain   # must be empty before proceeding
+CURRENT_BRANCH=$(git branch --show-current)
+WORKTREE_PATH=$(pwd)
+BASE_REPO=$(git worktree list --porcelain | awk '/^worktree/{print $2; exit}')
+cd "$BASE_REPO"
+git worktree remove "$WORKTREE_PATH"
+git branch -D "$CURRENT_BRANCH"
+```
+
+**Skip this step** if any items in the batch failed and remain unresolved in the queue file, or if the worktree has uncommitted changes — leave it in place for manual follow-up in that case.

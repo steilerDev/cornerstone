@@ -78,19 +78,24 @@ The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Won
 
 The orchestrator uses the following skills to drive work. Each skill contains the full operational checklist with exact commands and agent coordination.
 
-| Skill         | Purpose                                                                    | Input                                                           |
-| ------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `/epic-start` | Planning: PO creates stories, architect designs schema/API/ADRs            | Epic description or issue number                                |
-| `/develop`    | Full dev cycle for one or more stories/bug fixes, bundled into a single PR | Issue number, description, semicolon-separated list, or `@file` |
-| `/epic-close` | Refinement, E2E validation, UAT, then delegates to `/release`              | Epic issue number                                               |
-| `/release`    | Promote `beta` to `main`: sync, PR, CI, approval loop, docs, merge         | Optional epic issue number (standalone if omitted)              |
-| `/epic-run`   | Autonomous end-to-end epic: plan, develop all stories, close               | Epic description or issue number                                |
+| Skill            | Purpose                                                                                                                                                                 | Input                                                           |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `/epic-start`    | Planning: PO creates stories, architect designs schema/API/ADRs                                                                                                         | Epic description or issue number                                |
+| `/develop`       | Full dev cycle for one or more stories/bug fixes, bundled into a single PR                                                                                              | Issue number, description, semicolon-separated list, or `@file` |
+| `/epic-close`    | Refinement, E2E validation, UAT, then delegates to `/release`                                                                                                           | Epic issue number                                               |
+| `/release`       | Promote `beta` to `main`: sync, PR, CI, approval loop, docs, merge                                                                                                      | Optional epic issue number (standalone if omitted)              |
+| `/epic-run`      | Autonomous end-to-end epic: plan, develop all stories, close                                                                                                            | Epic description or issue number                                |
+| `/batch-develop` | Sequential development from a list/file: **each item gets its own branch and PR** (not bundled — contrast with `/develop`'s multi-item mode, which bundles into one PR) | Issue number list, or falls back to `/tmp/batch-queue.md`       |
+| `/mini-epic`     | Analyze a spec, decompose into 2–6 work items, challenge assumptions with the user, hand off to `/batch-develop`                                                        | Inline spec, `@file`, or issue number                           |
+| `/dependabot`    | Process every open Dependabot PR and security alert: changelog review, merge, fix, remediate orphans, file adoption follow-ups                                          | None (always processes the full queue)                          |
+| `/fix-e2e`       | Iteratively analyze and fix failing E2E tests from a CI run until all shards pass                                                                                       | GitHub Actions run URL or ID                                    |
+| `/review-pr`     | Comprehensive full-team review of a PR not created by `/develop` (external contributions, Dependabot, re-reviews)                                                       | PR number                                                       |
 
-See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases in a single session (only pauses for promotion approval). Use `/release` standalone to promote `beta` to `main` without a prior epic definition.
+See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases in a single session (only pauses for promotion approval). Use `/release` standalone to promote `beta` to `main` without a prior epic definition. `/mini-epic` and `/batch-develop` are the mid-size workflow for cohesive multi-item work that doesn't warrant full epic planning. `/dependabot`, `/fix-e2e`, and `/review-pr` are maintenance/support workflows invoked on demand.
 
 ### Acceptance & Validation
 
-Every epic has two phases: **Development** (`/develop`) where QA and E2E write and run tests for each story and the applicable PR reviewers approve per the **PR Review Gate** below; and **Epic validation** (`/epic-close`) where E2E coverage is confirmed and UAT runs before promotion. The only human gate is `beta` → `main` — the user approves after reviewing the change inventory. Feedback goes to `/tmp/notes.md`; fixes loop autonomously until approved.
+Every epic has two phases: **Development** (`/develop`) where QA and E2E write and run tests for each story and the applicable PR reviewers approve per the **PR Review Gate** below; and **Epic validation** (`/epic-close`) where E2E coverage is confirmed and UAT runs before promotion. The only human gate is `beta` → `main` — the user approves after reviewing the change inventory. Feedback goes to `/tmp/notes.md`; fixes loop autonomously until approved. This is the release/promotion feedback channel specifically — the `/batch-develop` work queue uses a separate file, `/tmp/batch-queue.md`, to avoid the two protocols colliding on one path.
 
 ### Key Rules
 
@@ -120,10 +125,11 @@ The orchestrator launches all implementation agents directly using specs produce
 The orchestrator runs a **trailer verification** after every commit:
 
 1. Commit trailers must include appropriate co-authors for production file changes
-2. Files under `server/` or `shared/` → must have `backend-developer` trailer
-3. Files under `client/` (except `client/src/i18n/de/` and `client/src/i18n/glossary.json`) → must have `frontend-developer` trailer
+2. Files under `server/` or `shared/`, excluding `*.test.ts`/`*.test.tsx` → must have `backend-developer` trailer
+3. Files under `client/` (except `client/src/i18n/de/`, `client/src/i18n/glossary.json`, and `*.test.ts`/`*.test.tsx`) → must have `frontend-developer` trailer
 4. Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `translator` trailer
 5. Files under `e2e/` → must have `e2e-test-engineer` trailer
+6. Files matching `*.test.ts` or `*.test.tsx` outside `e2e/` (co-located unit/integration tests) → must have `qa-integration-tester` trailer
 
 Commits that change production files without the appropriate co-author trailers (see the Canonical Agent Trailers table below) are rejected and re-committed with corrected trailers.
 
