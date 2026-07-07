@@ -855,190 +855,192 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
   let updatedCount = 0;
   const now = new Date().toISOString();
 
-  for (const scheduled of result.scheduledItems) {
-    // Process milestone nodes to detect delays
-    if (scheduled.workItemId.startsWith('milestone:')) {
-      const milestoneIdStr = scheduled.workItemId.substring('milestone:'.length);
-      const milestoneId = parseInt(milestoneIdStr, 10);
-      const milestone = milestoneMap.get(milestoneId);
-
-      if (milestone && options?.onMilestoneDelayed) {
-        const scheduledEnd = scheduled.scheduledEndDate;
-        const targetDate = milestone.targetDate;
-        if (scheduledEnd > targetDate) {
-          options.onMilestoneDelayed(milestoneId, milestone.title, targetDate, scheduledEnd);
-        }
-      }
-      continue;
-    }
-
-    const current = currentDatesMap.get(scheduled.workItemId);
-    if (!current) continue;
-
-    const newStart = scheduled.scheduledStartDate;
-    const newEnd = scheduled.scheduledEndDate;
-
-    const startChanged = newStart !== current.startDate;
-    const endChanged = newEnd !== current.endDate;
-
-    if (startChanged || endChanged) {
-      db.update(workItems)
-        .set({
-          startDate: newStart,
-          endDate: newEnd,
-          updatedAt: now,
-        })
-        .where(eq(workItems.id, scheduled.workItemId))
-        .run();
-      updatedCount++;
-    }
-  }
-
-  // ── 8. Compute household item delivery dates ──────────────────────────────────
-  //
-  // Build CPM nodes for household items using work item end dates.
-  // HIs are zero-duration terminal nodes.
-  // Note: milestoneMap was already loaded in section 3; reuse it here.
-
-  const allHouseholdItems = db.select().from(householdItems).all();
-  const allHIDeps = db.select().from(householdItemDeps).all();
-
-  // Build the scheduled result map for quick lookup of work item end dates
-  const scheduledMap = new Map<string, (typeof result.scheduledItems)[0]>();
-  for (const scheduled of result.scheduledItems) {
-    scheduledMap.set(scheduled.workItemId, scheduled);
-  }
-
-  // ── 9. Compute delivery dates for household items ─────────────────────────────
-
-  const hiDeliveryDates = new Map<string, { targetDate: string | null; isLate: boolean }>();
-
-  for (const hi of allHouseholdItems) {
-    // Find all dependencies for this HI
-    const hiDeps = allHIDeps.filter((dep) => dep.householdItemId === hi.id);
-
-    if (hiDeps.length === 0 && !hi.earliestDeliveryDate) {
-      // No dependencies and no earliest delivery constraint — HI is unconstrained
-      hiDeliveryDates.set(hi.id, { targetDate: null, isLate: false });
-      continue;
-    }
-
-    // Compute ES (earliest start): max of all predecessor finish times + lead/lag
-    let maxES = today; // Default to today if no predecessors
-
-    for (const dep of hiDeps) {
-      let predEF = today;
-
-      if (dep.predecessorType === 'work_item') {
-        // Look up the work item's end date from the scheduled result
-        const scheduled = scheduledMap.get(dep.predecessorId);
-        if (scheduled) {
-          predEF = scheduled.scheduledEndDate;
-        } else {
-          // Work item not in scheduled results (shouldn't happen, but fallback)
-          const wiRow = db
-            .select()
-            .from(workItems)
-            .where(eq(workItems.id, dep.predecessorId))
-            .get();
-          if (wiRow && wiRow.endDate) {
-            predEF = wiRow.endDate;
-          }
-        }
-      } else if (dep.predecessorType === 'milestone') {
-        // Determine effective milestone finish date using priority:
-        // 1. completedAt (actual) → truncate to YYYY-MM-DD
-        // 2. Projected: max scheduledEndDate of contributing work items
-        // 3. Fallback: targetDate
-        const milestoneId = parseInt(dep.predecessorId, 10);
+  db.transaction(() => {
+    for (const scheduled of result.scheduledItems) {
+      // Process milestone nodes to detect delays
+      if (scheduled.workItemId.startsWith('milestone:')) {
+        const milestoneIdStr = scheduled.workItemId.substring('milestone:'.length);
+        const milestoneId = parseInt(milestoneIdStr, 10);
         const milestone = milestoneMap.get(milestoneId);
-        if (milestone) {
-          if (milestone.completedAt) {
-            // Priority 1: milestone has been completed — use actual date
-            predEF = milestone.completedAt.slice(0, 10);
-          } else {
-            // Priority 2: compute projected date from contributing work items
-            const contributorIds = milestoneContributorsMap.get(milestoneId) ?? [];
-            let projectedDate: string | null = null;
-            for (const contributorId of contributorIds) {
-              const scheduled = scheduledMap.get(contributorId);
-              if (scheduled?.scheduledEndDate) {
-                projectedDate =
-                  projectedDate === null
-                    ? scheduled.scheduledEndDate
-                    : maxDate(projectedDate, scheduled.scheduledEndDate);
-              }
-            }
-            // Priority 3: fall back to targetDate if no projected date available
-            predEF = projectedDate ?? milestone.targetDate;
+
+        if (milestone && options?.onMilestoneDelayed) {
+          const scheduledEnd = scheduled.scheduledEndDate;
+          const targetDate = milestone.targetDate;
+          if (scheduledEnd > targetDate) {
+            options.onMilestoneDelayed(milestoneId, milestone.title, targetDate, scheduledEnd);
           }
+        }
+        continue;
+      }
+
+      const current = currentDatesMap.get(scheduled.workItemId);
+      if (!current) continue;
+
+      const newStart = scheduled.scheduledStartDate;
+      const newEnd = scheduled.scheduledEndDate;
+
+      const startChanged = newStart !== current.startDate;
+      const endChanged = newEnd !== current.endDate;
+
+      if (startChanged || endChanged) {
+        db.update(workItems)
+          .set({
+            startDate: newStart,
+            endDate: newEnd,
+            updatedAt: now,
+          })
+          .where(eq(workItems.id, scheduled.workItemId))
+          .run();
+        updatedCount++;
+      }
+    }
+
+    // ── 8. Compute household item delivery dates ──────────────────────────────────
+    //
+    // Build CPM nodes for household items using work item end dates.
+    // HIs are zero-duration terminal nodes.
+    // Note: milestoneMap was already loaded in section 3; reuse it here.
+
+    const allHouseholdItems = db.select().from(householdItems).all();
+    const allHIDeps = db.select().from(householdItemDeps).all();
+
+    // Build the scheduled result map for quick lookup of work item end dates
+    const scheduledMap = new Map<string, (typeof result.scheduledItems)[0]>();
+    for (const scheduled of result.scheduledItems) {
+      scheduledMap.set(scheduled.workItemId, scheduled);
+    }
+
+    // ── 9. Compute delivery dates for household items ─────────────────────────────
+
+    const hiDeliveryDates = new Map<string, { targetDate: string | null; isLate: boolean }>();
+
+    for (const hi of allHouseholdItems) {
+      // Find all dependencies for this HI
+      const hiDeps = allHIDeps.filter((dep) => dep.householdItemId === hi.id);
+
+      if (hiDeps.length === 0 && !hi.earliestDeliveryDate) {
+        // No dependencies and no earliest delivery constraint — HI is unconstrained
+        hiDeliveryDates.set(hi.id, { targetDate: null, isLate: false });
+        continue;
+      }
+
+      // Compute ES (earliest start): max of all predecessor finish times + lead/lag
+      let maxES = today; // Default to today if no predecessors
+
+      for (const dep of hiDeps) {
+        let predEF = today;
+
+        if (dep.predecessorType === 'work_item') {
+          // Look up the work item's end date from the scheduled result
+          const scheduled = scheduledMap.get(dep.predecessorId);
+          if (scheduled) {
+            predEF = scheduled.scheduledEndDate;
+          } else {
+            // Work item not in scheduled results (shouldn't happen, but fallback)
+            const wiRow = db
+              .select()
+              .from(workItems)
+              .where(eq(workItems.id, dep.predecessorId))
+              .get();
+            if (wiRow && wiRow.endDate) {
+              predEF = wiRow.endDate;
+            }
+          }
+        } else if (dep.predecessorType === 'milestone') {
+          // Determine effective milestone finish date using priority:
+          // 1. completedAt (actual) → truncate to YYYY-MM-DD
+          // 2. Projected: max scheduledEndDate of contributing work items
+          // 3. Fallback: targetDate
+          const milestoneId = parseInt(dep.predecessorId, 10);
+          const milestone = milestoneMap.get(milestoneId);
+          if (milestone) {
+            if (milestone.completedAt) {
+              // Priority 1: milestone has been completed — use actual date
+              predEF = milestone.completedAt.slice(0, 10);
+            } else {
+              // Priority 2: compute projected date from contributing work items
+              const contributorIds = milestoneContributorsMap.get(milestoneId) ?? [];
+              let projectedDate: string | null = null;
+              for (const contributorId of contributorIds) {
+                const scheduled = scheduledMap.get(contributorId);
+                if (scheduled?.scheduledEndDate) {
+                  projectedDate =
+                    projectedDate === null
+                      ? scheduled.scheduledEndDate
+                      : maxDate(projectedDate, scheduled.scheduledEndDate);
+                }
+              }
+              // Priority 3: fall back to targetDate if no projected date available
+              predEF = projectedDate ?? milestone.targetDate;
+            }
+          }
+        }
+
+        // All HI dependencies are finish-to-start with zero lag (HIs are zero-duration terminal nodes)
+        const depES = predEF;
+
+        maxES = maxDate(maxES, depES);
+      }
+
+      // Apply earliestDeliveryDate constraint (user-editable): ES >= earliestDeliveryDate if set
+      let es = maxES;
+      if (hi.earliestDeliveryDate) {
+        es = maxDate(es, hi.earliestDeliveryDate);
+      }
+
+      // Since HIs are zero-duration, EF = ES
+      let targetDate = es; // Start with the computed earliest date
+
+      // ── 10. Apply floor rules ─────────────────────────────────────────────────────
+
+      let isLate = false;
+
+      if (hi.actualDeliveryDate) {
+        // Actual date overrides CPM — use it directly
+        targetDate = hi.actualDeliveryDate;
+      } else if (hi.status === 'planned' || hi.status === 'purchased') {
+        // Floor to today; mark as late if floored
+        const targetBeforeFloor = targetDate;
+        targetDate = maxDate(targetDate, today);
+        if (targetDate !== targetBeforeFloor) {
+          isLate = true;
+        }
+      } else if (hi.status === 'scheduled') {
+        // Floor to today; mark as late if floored
+        const targetBeforeFloor = targetDate;
+        targetDate = maxDate(targetDate, today);
+        if (targetDate !== targetBeforeFloor) {
+          isLate = true;
         }
       }
 
-      // All HI dependencies are finish-to-start with zero lag (HIs are zero-duration terminal nodes)
-      const depES = predEF;
-
-      maxES = maxDate(maxES, depES);
+      hiDeliveryDates.set(hi.id, { targetDate, isLate });
     }
 
-    // Apply earliestDeliveryDate constraint (user-editable): ES >= earliestDeliveryDate if set
-    let es = maxES;
-    if (hi.earliestDeliveryDate) {
-      es = maxDate(es, hi.earliestDeliveryDate);
-    }
+    // ── 11. Write HI target delivery dates back to database ────────────────────────────────
+    // Note: scheduler does NOT write to earliestDeliveryDate or latestDeliveryDate.
+    // Those are now user-editable constraints. Only targetDeliveryDate and isLate are computed by scheduler.
 
-    // Since HIs are zero-duration, EF = ES
-    let targetDate = es; // Start with the computed earliest date
+    for (const [hiId, dates] of hiDeliveryDates) {
+      const current = allHouseholdItems.find((hi) => hi.id === hiId);
+      if (!current) continue;
 
-    // ── 10. Apply floor rules ─────────────────────────────────────────────────────
+      const targetDateChanged = dates.targetDate !== current.targetDeliveryDate;
+      const isLateChanged = dates.isLate !== current.isLate;
 
-    let isLate = false;
-
-    if (hi.actualDeliveryDate) {
-      // Actual date overrides CPM — use it directly
-      targetDate = hi.actualDeliveryDate;
-    } else if (hi.status === 'planned' || hi.status === 'purchased') {
-      // Floor to today; mark as late if floored
-      const targetBeforeFloor = targetDate;
-      targetDate = maxDate(targetDate, today);
-      if (targetDate !== targetBeforeFloor) {
-        isLate = true;
-      }
-    } else if (hi.status === 'scheduled') {
-      // Floor to today; mark as late if floored
-      const targetBeforeFloor = targetDate;
-      targetDate = maxDate(targetDate, today);
-      if (targetDate !== targetBeforeFloor) {
-        isLate = true;
+      if (targetDateChanged || isLateChanged) {
+        db.update(householdItems)
+          .set({
+            targetDeliveryDate: dates.targetDate,
+            isLate: dates.isLate,
+            updatedAt: now,
+          })
+          .where(eq(householdItems.id, hiId))
+          .run();
+        updatedCount++;
       }
     }
-
-    hiDeliveryDates.set(hi.id, { targetDate, isLate });
-  }
-
-  // ── 11. Write HI target delivery dates back to database ────────────────────────────────
-  // Note: scheduler does NOT write to earliestDeliveryDate or latestDeliveryDate.
-  // Those are now user-editable constraints. Only targetDeliveryDate and isLate are computed by scheduler.
-
-  for (const [hiId, dates] of hiDeliveryDates) {
-    const current = allHouseholdItems.find((hi) => hi.id === hiId);
-    if (!current) continue;
-
-    const targetDateChanged = dates.targetDate !== current.targetDeliveryDate;
-    const isLateChanged = dates.isLate !== current.isLate;
-
-    if (targetDateChanged || isLateChanged) {
-      db.update(householdItems)
-        .set({
-          targetDeliveryDate: dates.targetDate,
-          isLate: dates.isLate,
-          updatedAt: now,
-        })
-        .where(eq(householdItems.id, hiId))
-        .run();
-      updatedCount++;
-    }
-  }
+  });
 
   // Invoke completion callback if provided
   if (options?.onRescheduleCompleted) {

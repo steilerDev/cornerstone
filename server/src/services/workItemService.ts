@@ -593,20 +593,22 @@ export function deleteWorkItem(db: DbType, id: string): void {
     throw new NotFoundError('Work item not found');
   }
 
-  // Cascade delete household item dependencies where this work item is the predecessor
-  db.delete(householdItemDeps)
-    .where(
-      and(
-        eq(householdItemDeps.predecessorType, 'work_item'),
-        eq(householdItemDeps.predecessorId, id),
-      ),
-    )
-    .run();
+  db.transaction(() => {
+    // Cascade delete household item dependencies where this work item is the predecessor
+    db.delete(householdItemDeps)
+      .where(
+        and(
+          eq(householdItemDeps.predecessorType, 'work_item'),
+          eq(householdItemDeps.predecessorId, id),
+        ),
+      )
+      .run();
 
-  // Cascade delete document links (polymorphic FK, enforced at app layer)
-  deleteLinksForEntity(db, 'work_item', id);
+    // Cascade delete document links (polymorphic FK, enforced at app layer)
+    deleteLinksForEntity(db, 'work_item', id);
 
-  db.delete(workItems).where(eq(workItems.id, id)).run();
+    db.delete(workItems).where(eq(workItems.id, id)).run();
+  });
 }
 
 /**

@@ -228,27 +228,29 @@ export function createSubsidyProgram(
   const now = new Date().toISOString();
   const applicationStatus = data.applicationStatus ?? 'eligible';
 
-  db.insert(subsidyPrograms)
-    .values({
-      id,
-      name: trimmedName,
-      description: data.description ?? null,
-      eligibility: data.eligibility ?? null,
-      reductionType: data.reductionType,
-      reductionValue: data.reductionValue,
-      applicationStatus,
-      applicationDeadline: data.applicationDeadline ?? null,
-      notes: data.notes ?? null,
-      maximumAmount: data.maximumAmount ?? null,
-      createdBy: userId,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .run();
+  db.transaction(() => {
+    db.insert(subsidyPrograms)
+      .values({
+        id,
+        name: trimmedName,
+        description: data.description ?? null,
+        eligibility: data.eligibility ?? null,
+        reductionType: data.reductionType,
+        reductionValue: data.reductionValue,
+        applicationStatus,
+        applicationDeadline: data.applicationDeadline ?? null,
+        notes: data.notes ?? null,
+        maximumAmount: data.maximumAmount ?? null,
+        createdBy: userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
 
-  if (categoryIds.length > 0) {
-    replaceCategoryLinks(db, id, categoryIds);
-  }
+    if (categoryIds.length > 0) {
+      replaceCategoryLinks(db, id, categoryIds);
+    }
+  });
 
   return getSubsidyProgramById(db, id);
 }
@@ -378,19 +380,21 @@ export function updateSubsidyProgram(
   updates.updatedAt = now;
 
   // Perform main record update (only if scalar fields changed)
-  const scalarKeys = Object.keys(updates).filter((k) => k !== 'updatedAt');
-  if (scalarKeys.length > 0 || data.categoryIds === undefined) {
-    // Always update updatedAt when any field changes
-    db.update(subsidyPrograms).set(updates).where(eq(subsidyPrograms.id, id)).run();
-  } else {
-    // categoryIds only — still bump updatedAt
-    db.update(subsidyPrograms).set({ updatedAt: now }).where(eq(subsidyPrograms.id, id)).run();
-  }
+  db.transaction(() => {
+    const scalarKeys = Object.keys(updates).filter((k) => k !== 'updatedAt');
+    if (scalarKeys.length > 0 || data.categoryIds === undefined) {
+      // Always update updatedAt when any field changes
+      db.update(subsidyPrograms).set(updates).where(eq(subsidyPrograms.id, id)).run();
+    } else {
+      // categoryIds only — still bump updatedAt
+      db.update(subsidyPrograms).set({ updatedAt: now }).where(eq(subsidyPrograms.id, id)).run();
+    }
 
-  // Replace category links if provided
-  if (data.categoryIds !== undefined) {
-    replaceCategoryLinks(db, id, data.categoryIds);
-  }
+    // Replace category links if provided
+    if (data.categoryIds !== undefined) {
+      replaceCategoryLinks(db, id, data.categoryIds);
+    }
+  });
 
   // Log applicationStatus change to diary if enabled
   if (statusChanged && previousStatus !== undefined && newStatus !== undefined) {
