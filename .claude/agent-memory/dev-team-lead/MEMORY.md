@@ -25,6 +25,16 @@ The worktree sandbox frequently has corrupted packages. Common symptoms and fixe
 
 The main project is always at `/Users/franksteiler/Documents/Sandboxes/cornerstone/`.
 
+**Worktree has no `node_modules` at all** (not corruption, just missing): symlinking the whole
+directory works for spot-checking lint/tests during `[MODE: review]`: `ln -s /path/to/main/node_modules node_modules`
+from the worktree root. `eslint` works directly. For `jest`, don't pass `-c client/jest.config.js`
+(symlink confuses jest's rootDir resolution) — instead run from the worktree root using the root
+`test` script's binary path: `node --experimental-vm-modules node_modules/.bin/jest <path-to-test-file>`.
+It picks up the root `jest.config` correctly and works across workspaces (client/server). Remove
+the symlink (`rm node_modules`) when done — it's gitignored so leaving it is harmless, but tidy up
+review-only artifacts anyway. This let me directly execute an implementing agent's new tests during
+review (e.g. bug #1833's retry-safety tests) instead of only trusting the agent's self-report.
+
 ## Shared Package: Must Compile Before Server Tests
 
 `server/` tests import from `@cornerstone/shared`. The package exports `dist/index.d.ts` (compiled). If `shared/dist/` doesn't exist, server tests fail with TS errors on shared types.
