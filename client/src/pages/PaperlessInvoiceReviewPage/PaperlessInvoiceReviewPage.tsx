@@ -8,7 +8,10 @@ import type {
 } from '@cornerstone/shared';
 import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
 import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
-import { materializeInlineDrafts } from '../../lib/autoItemizeDraftUtils.js';
+import {
+  materializeInlineDrafts,
+  mergeMaterializedLines,
+} from '../../lib/autoItemizeDraftUtils.js';
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { getPaperlessDocument, getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { previewAutoItemize, commitAutoItemizeCreate } from '../../lib/invoiceAutoItemizeApi.js';
@@ -244,11 +247,13 @@ export function PaperlessInvoiceReviewPage() {
       );
 
       if (!materialized.ok) {
+        setLines((prev) => mergeMaterializedLines(prev, materialized.lines));
         setPageError(materialized.error);
         setPageStatus('ready');
         return;
       }
 
+      setLines((prev) => mergeMaterializedLines(prev, materialized.lines));
       const workingLines = materialized.lines;
 
       const invoice: CreateInvoiceRequest = {
@@ -298,7 +303,7 @@ export function PaperlessInvoiceReviewPage() {
       }
       setPageStatus('ready');
     }
-  }, [documentId, document, vendorId, lines, metadataEdits, navigate, t, tErrors]);
+  }, [documentId, document, vendorId, lines, metadataEdits, navigate, setLines, t, tErrors]);
 
   // Compute totals and variance (must be before any early returns for React rules)
   const computedTotal = useMemo(

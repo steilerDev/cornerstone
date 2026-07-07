@@ -1,215 +1,65 @@
 # Product Owner Agent Memory
 
-## Backlog State (as of 2026-03-13)
+## Backlog State
 
-- 16+ epics, 107+ user stories across all epics
-- Sprint 1 COMPLETE: EPIC-01, EPIC-02, EPIC-11
-- Sprint 2 COMPLETE: EPIC-03, EPIC-12
-- Sprint 3 COMPLETE: EPIC-05 (v1.9.0), EPIC-06 (v1.10.0)
-- Sprint 4: EPIC-08 COMPLETE (v1.11.0), EPIC-04 stories created (#387-#394, #413, #415, #467)
-- EPIC-14 COMPLETE (v1.13.0): Code Deduplication
-- EPIC-15 (#602): Budget-Line Invoice Linking Rework — 7 stories merged, 3 UAT bugs created (#622, #623, #624)
-- Security hygiene backlog: Issue #315 (rate limiting, headers, lockout, etc.)
-- GitHub Projects board: "Cornerstone Backlog" (project #4, owner steilerDev)
+- 16+ epics, 107+ user stories. Sprints 1-4 largely complete; standalone bug/story backlog growing (esp. budget/invoice, now 20+ items).
+- GitHub Projects board: "Cornerstone Backlog" (project #4, owner steilerDev).
+- Security hygiene backlog: Issue #315 (rate limiting, headers, lockout, etc.).
 
 ## Completed Epics
 
-- EPIC-02 (#2): App Shell & Infrastructure -- CLOSED 2026-02-08
-- EPIC-11 (#12): CI/CD Infrastructure -- CLOSED 2026-02-08
-- EPIC-01 (#1): Auth & User Mgmt -- CLOSED 2026-02-16, promoted via PR #82
-- EPIC-03 (#3): Work Items CRUD -- CLOSED 2026-02-17, promoted via PR #110
-- EPIC-12 (#115): Design System Bootstrap -- CLOSED 2026-02-18, promoted with EPIC-03 via PR #110
-- EPIC-05 (#5): Budget Management -- CLOSED (v1.9.0), all 12 stories
-- EPIC-06 (#6): Timeline & Gantt -- CLOSED (v1.10.0), all 9 stories
-- EPIC-08 (#8): Paperless-ngx Document Integration -- CLOSED (v1.11.0), all 6 stories
-- EPIC-14: Code Deduplication -- CLOSED (v1.13.0), promoted via PR #541
-- EPIC-15 (#602): Budget-Line Invoice Linking Rework -- 7 stories merged to beta, 3 UAT bugs (#622, #623, #624) created 2026-03-09
-- EPIC-16 (#752): Floor Plans & Utility Tracking (2.5D) -- 22 stories created (#753-#775), all Backlog. See [epic-16-planning.md](epic-16-planning.md)
+- EPIC-01 (#1) Auth & User Mgmt — CLOSED, promoted PR #82
+- EPIC-02 (#2) App Shell & Infra — CLOSED 2026-02-08
+- EPIC-03 (#3) Work Items CRUD — CLOSED, promoted PR #110. See [epic-03-details.md](epic-03-details.md)
+- EPIC-05 (#5) Budget Mgmt — CLOSED v1.9.0, 12 stories
+- EPIC-06 (#6) Timeline & Gantt — CLOSED v1.10.0, 9 stories
+- EPIC-08 (#8) Paperless-ngx — CLOSED v1.11.0, 6 stories. Story 8.6 (#359) still open, blocked by EPIC-04. See [epic-08-planning.md](epic-08-planning.md)
+- EPIC-11 (#12) CI/CD Infrastructure — CLOSED 2026-02-08
+- EPIC-12 (#115) Design System Bootstrap — CLOSED, promoted with EPIC-03 via PR #110
+- EPIC-14 Code Deduplication — CLOSED v1.13.0, promoted PR #541
+- EPIC-15 (#602) Budget-Line Invoice Linking Rework — 7 stories merged, 3 UAT bugs #622/#623/#624
 
-## Epic Quick Reference
+## Active / Planned Epics
 
-- EPIC-01 (#1): Auth & User Mgmt [Must, Sprint 1] -- no deps, foundation
-- EPIC-02 (#2): App Shell & Infra [Must, Sprint 1] -- no deps, foundation
-- EPIC-03 (#3): Work Items CRUD [Must, Sprint 2] -- depends on 01, 02
-- EPIC-04 (#4): Household Items [Must, Sprint 4] -- depends on 01, 02, 05
-- EPIC-05 (#5): Budget Mgmt [Must, Sprint 3] -- depends on 01, 02, 03
-- EPIC-06 (#6): Gantt/Timeline [Must, Sprint 3] -- depends on 02, 03
-- EPIC-07 (#7): Reporting [Should, Sprint 5] -- depends on 05, 08
-- EPIC-08 (#8): Paperless-ngx [Must, Sprint 4] -- depends on 02, 03, 04, 05
-- EPIC-09 (#9): Dashboard [Should, Sprint 5] -- depends on 02, 03, 05
-- EPIC-10 (#10): UX Polish [Could, Sprint 5] -- depends on all
-- EPIC-11 (#12): CI/CD Infrastructure [Must, Sprint 1] -- depends on EPIC-02
-- EPIC-12 (#115): Design System Bootstrap [Must, Sprint 2] -- depends on EPIC-02, blocks EPIC-10
-- EPIC-16 (#752): Floor Plans & Utility Tracking [Should, Future] -- depends on 01, 02; 22 stories, 6 phases
+- EPIC-04 (#4) Household Items [Must] — IN PROGRESS, 11 stories (#387-#394, #413, #415, #467). Full detail + per-story review notes in [epic-04-planning.md](epic-04-planning.md)
+- EPIC-16 (#752) Floor Plans & Utility Tracking (2.5D) [Should, Future] — 22 stories (#753-#775), all Backlog, 6 phases. See [epic-16-planning.md](epic-16-planning.md)
+- Backlog-only (not started): EPIC-07 Reporting [#7], EPIC-09 Dashboard [#9], EPIC-10 UX Polish [#10]. Deps: 07←05,08; 09←02,03,05; 10←all.
 
-## Completed Sprint Story References (condensed)
+## Completed Sprint Story References
 
-- EPIC-11 stories: #13-#18 (CI/CD, Sprint 1)
-- EPIC-01 stories: #28, #30, #32, #34-#38, #68 (Auth, Sprint 1)
-- EPIC-02 stories: #24-#27, #29, #31, #33 (App Shell, Sprint 1)
-- EPIC-12 stories: #116-#120 (Design System, Sprint 2)
+- EPIC-01: #28,#30,#32,#34-#38,#68 | EPIC-02: #24-#27,#29,#31,#33 | EPIC-11: #13-#18 | EPIC-12: #116-#120
 
-## EPIC-03 Stories (Work Items CRUD) — COMPLETE
+## Standalone bugs & stories (no active parent epic)
 
-All 8 stories merged to beta. Promotion PR #110 (beta -> main) merged. See [epic-03-details.md](epic-03-details.md) for details.
+Full detail in [standalone-bugs-and-stories.md](standalone-bugs-and-stories.md) (budget/invoice) and [standalone-diary-bugs.md](standalone-diary-bugs.md) / [standalone-photo-stories.md](standalone-photo-stories.md). Growing budget/invoice cluster (20+) → propose new "Budget/Invoice UX Polish" epic next planning cycle. Auto-itemize is standalone (no parent epic): stories #1545-#1547 + bug fixes.
 
-## EPIC-06 — COMPLETE (v1.10.0, promoted 2026-03-01)
-
-All 9 stories + refinement + E2E tests + UAT fixes merged and promoted to main.
-
-## EPIC-08 — COMPLETE (v1.11.0, promoted 2026-03-02)
-
-All 6 stories merged and promoted to main. Story 8.6 (#359) remains open, blocked by EPIC-04. See [epic-08-planning.md](epic-08-planning.md).
-
-## EPIC-04 Stories (Household Items & Furniture) — IN PROGRESS
-
-11 stories created (#387-#394, #413, #415, #467). See [epic-04-planning.md](epic-04-planning.md) for full details.
-Story 4.11 (#467): Inline date and dependency editing on HI Detail Page. Restructures page into Details / Dates & Delivery / Dependencies sections. Inline autosave for order date, actual delivery, earliest/latest delivery dates. Edit page reduced to details-only. Blocked by #391 (Story 4.5).
-Story 4.10 (#415): PR #416 reviewed APPROVED. All 11 ACs pass. Replaces `household_item_work_items` with `household_item_deps` table (migration 0012). Scheduling engine models HIs as zero-duration CPM nodes. CRUD API on `/api/household-items/:id/dependencies`. Gantt renders circle markers (amber pending, green delivered). Calendar shows HI delivery events. WorkItemDetailPage renamed to "Dependent Household Items". Two non-blocking: AC #5 says 400 for circular deps but 409 is consistent with existing `CircularDependencyError`; AC #6 timeline query filters only on delivery dates not deps-without-dates.
-Story 4.9 (#413): PR #414 reviewed REQUEST CHANGES (round 1). 7/10 ACs pass. AC #3 PARTIAL FAIL: error code is generic `VALIDATION_ERROR` instead of `MUTUALLY_EXCLUSIVE_BUDGET_LINK`. AC #6 PARTIAL FAIL: invoice date not rendered in HI detail budget line invoices section. AC #9 FAIL: no "Linked To" column in invoices list table, no changes to VendorDetailPage. Migration 0011, types well-structured (HouseholdItemBudgetSummary for invoices, HouseholdItemBudgetAggregate for HI detail). Budget overview UNION ALL correctly aggregates both WI and HI invoices.
-Story 4.1 (#387): PR #396 reviewed APPROVED. Architect refined schema: flat planned_cost/actual_cost/notes replaced by household_item_budgets/household_item_notes tables (mirrors EPIC-05 pattern). Extra columns: url, quantity. Category enum expanded to 8 values. 6 tables total in migration 0010. Document link cascade is application-layer (Story 4.2).
-Story 4.2 (#388): PR #397 reviewed APPROVED. 5 CRUD endpoints, 90 tests (46 service + 44 route). Search uses `q` param (consistent with work items). Vendor summary includes `specialty` (superset of AC). documentLinkService updated to validate household_item entity type.
-Story 8.6 (#359, EPIC-08) linked as sub-issue, blocked by #391 (detail page).
-Story 4.5 (#391): PR #400 reviewed REQUEST CHANGES. AC #11 fail: vendor/URL rows hidden when null instead of showing "--". AC #6 (Notes section) is N/A -- household_item_notes is a separate table requiring its own CRUD API (like work_item_notes), no endpoints exist yet. Need follow-up story for household item notes CRUD.
-Story 4.6 (#392): PR #401 re-reviewed APPROVED (round 2). Both blocking issues from round 1 fixed: (1) budgetSummary added to GET detail response via getBudgetSummary()/getTotalSubsidyReduction() in householdItemService.ts, (2) confidence margin display uses Math.round(CONFIDENCE_MARGINS[...] \* 100). Also fixed: EPIC-09->EPIC-04 comments in app.ts, focus-visible/reduced-motion/aria-labels/touch targets per UX review. AC #4 subsidy API uses POST/DELETE per-item (non-blocking deviation from PUT replace-all).
-Story 4.7 (#393): PR #402 reviewed REQUEST CHANGES (round 1). 9/10 ACs pass. AC #3 FAIL: linked work item start/end dates rendered as raw ISO strings on HouseholdItemDetailPage (line 734) instead of using formatDate(). WorkItemDetailPage correctly uses formatDate() for delivery dates. Fix: apply formatDate() to workItem.startDate/endDate. Test authorship correct (qa-integration-tester). 57 tests total.
-
-## EPIC-05 — COMPLETE (v1.9.0, promoted)
-
-All 12 stories merged. Paperless-ngx links for invoices are EPIC-08; budget reporting exports are EPIC-07.
-
-## Key Prioritization Decisions
-
-- Sprints 1-2 complete. Sprint 3: EPIC-05 (Budget) + EPIC-06 (Gantt) in parallel
-- Sprint 4: EPIC-04 (Household Items) + EPIC-08 (Paperless-ngx)
-- Sprint 5: EPIC-07 (Reporting), EPIC-09 (Dashboard), EPIC-10 (UX Polish)
+- Budget/invoice batches: #1369-#1373 (2026-04-28), #1389-#1390 (2026-04-29), #1401 (2026-05-10), #1421-#1425 (2026-05-15), #1439-#1441 (2026-05-17), #1553 (2026-05-22)
+- Auto-itemize: #1545/#1546/#1547 mini-epic (2026-05-21), #1600 (2026-05-26), **#1833 duplicate budget lines on commit retry (2026-07-07)**
+- Diary: #1426 critical photo data loss (2026-05-15)
+- Photo: #1723 lightbox picker UX (2026-06-16)
 
 ## Requirements Coverage
 
-- Full coverage tracked via GitHub Issues (epic issues reference requirements sections)
-- Section 2.6 (Reporting) has empty body in requirements -- EPIC-07 covers bank exports
-- Household Items are explicitly NOT work items (Section 5, Key Decisions)
-- Budget has 4 sub-domains: categories, vendors, creditors, subsidies -- all in EPIC-05
-- EPIC-11 covers cross-cutting non-functional: testing, Docker deployment, security
+- Full coverage tracked via GitHub Issues (epic issues reference requirements sections).
+- Section 2.6 Reporting has empty body — EPIC-07 covers bank exports.
+- Household Items are explicitly NOT work items (Section 5, Key Decisions).
+- Budget sub-domains: categories, vendors, creditors, subsidies — all in EPIC-05.
+- EPIC-11 covers cross-cutting non-functional: testing, Docker, security.
 
-## GitHub Projects Board
+## GitHub Projects Board — operational
 
-- Board name: "Cornerstone Backlog", project number 4, owner steilerDev
-- Project ID: `PVT_kwHOAGtLQM4BOlve`
-- Status Field ID: `PVTSSF_lAHOAGtLQM4BOlvezg9P0yo`
+- Project ID: `PVT_kwHOAGtLQM4BOlve` | Status Field ID: `PVTSSF_lAHOAGtLQM4BOlvezg9P0yo`
 - Status Option IDs: Backlog=`7404f88c`, Todo=`dc74a3b0`, In Progress=`296eeabe`, Done=`c558f50d`, Wont-Do=`90c1bc33`
-- Use native `gh project` commands for board management (not raw GraphQL):
-  - Query items: `gh project item-list 4 --owner steilerDev --format json --query "is:issue #<N>"`
-  - Set status: `gh project item-edit --id <ITEM_ID> --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id <STATUS_ID>`
-  - Add to board: `gh project item-add 4 --owner steilerDev --url <issue-url>`
-- GraphQL still needed for: `addSubIssue`, `addBlockedBy` (no native CLI equivalent yet)
-- GraphQL: `addBlockedBy` uses `blockingIssueId` (NOT `blockedByIssueId`)
-- If `gh project item-list` is empty right after `item-add` (indexing lag), resolve item node ID via issue `projectItems` GraphQL and set status by that ID. See [board-operations.md](board-operations.md)
-
-## User Feedback Batches
-
-- **2026-02-27** — 11 issues #328-#338 (EPIC-06 + EPIC-05 sub-issues, 6 bugs / 5 stories)
-- **2026-04-28** — 5 standalone UI bugs #1369-#1373 (no active parent epic; all related epics closed): #1369 hide-linked filter on Paperless picker, #1370 disable scroll-wheel on numeric inputs, #1371 "Includes VAT" parity for direct-amount budget lines, #1372 vendor in invoice picker, #1373 "Claimed" total on Budget Invoices summary. All Todo. Only EPIC-16 (Floor Plans) is currently open and is unrelated to these.
-- **2026-04-29** — 2 standalone Budget Overview bugs #1389-#1390 (no parent epic): #1389 remove Budget Health hero card from `/budget/overview` (full deletion incl. helpers, state, CSS classes, i18n keys, hero-card-only tests), #1390 source-name badge missing from print preview (mobile media query hides label on print-width pages). Both Todo.
-- **2026-05-10** — 1 standalone story #1401 (no parent epic; EPIC-15 closed): unify budget-line creation form on invoice/quotation flow with item-side rich form (qty × unit price, VAT incl/excl, vendor, confidence) and auto-link new line to invoice with planned amount as itemizedAmount. See [standalone-bugs-and-stories.md](standalone-bugs-and-stories.md). Todo.
-- **2026-05-15** — 5 standalone Budget/Invoice UX bugs #1421-#1425 (no parent epic): #1421 5th "Overdue" summary box, #1422 spacing summary vs search bar, #1423 deposit kebab popover clipping, #1424 raw i18n keys on edit deposit dialog, #1425 budget line kebab + full edit dialog parity with deposit lines (needs dev-team-lead audit). Total standalone budget/invoice items now 13 — propose new epic next planning cycle. All Todo. See [standalone-bugs-and-stories.md](standalone-bugs-and-stories.md).
-- **2026-05-15** — 1 critical standalone bug #1426 (no parent epic; EPIC-13 closed): diary photo data loss on create-flow upload failure. Spec proposes auto-draft + immediate photo upload on first interaction (24 ACs, 10 architect Qs, multi-story scope). Edit page already uploads immediately; create page buffers in `pendingFiles`. See [standalone-diary-bugs.md](standalone-diary-bugs.md). Todo.
-- **2026-05-17** — 3 standalone Budget/Invoice/Quotation bugs #1439-#1441 (no parent epic): #1439 direct-mode VAT toggle double-applies 19% uplift (regression from #1371); #1440 quotation-linked budget line shows €0.00 on work item view (backend excludes quotations from `actualCost`); #1441 quotations omitted from work item total cost + missing vendor name on quotation row in InvoiceGroup header. #1440 and #1441 share root cause (quotations excluded from `actualCost`) — coordinate as a single fix PR. Total standalone budget/invoice items now 16. See [standalone-bugs-and-stories.md](standalone-bugs-and-stories.md). All Todo.
-- **2026-05-22** — 1 standalone user story #1553 (no parent epic; EPIC-15 closed): full edit for invoice budget lines + linked-item (parent) move. Invoice→Budget Lines→Edit today only edits `itemizedAmount`; story expands edit to all fields (desc / category / pricing / vendor / source / confidence / itemized amount / linked work item or household item) and adds parent-picker to WI/HI inline edit too. 20 ACs grouped into 5 sections. Move semantics modelled on existing `budgetLineAssignService` (same-table = UPDATE FK, cross-table = insert + repoint IBL + delete). 4 open Qs for architect (cross-table category mapping, single vs two endpoints, subsidy linkage on cross-table move, audit trail). Standalone budget/invoice backlog now 20+ items — propose new epic next planning cycle. Todo.
-- **2026-05-26** — 1 standalone bug #1600 (no parent epic; auto-itemize delivered as standalone stories #1545-#1547 + bug fixes #1583-#1598). Three combined flaws in `AutoItemizePage` assignment Modal (lines ~1223-1382): (1) `SearchPicker` suggestion dropdown clipped by Modal/`pickerContent`/`pickerStep` overflow; (2) `useBudgetLinePicker` only renders "Create new budget line" inside the empty-state branch (`budgetLines.length === 0`), so when a parent already has unlinked lines the user has no create affordance; (3) `showCreateBudgetLineForm` seeds `initialForm` with empty strings — forcing manual re-entry of description/amount/category/vendor/qty/unit/unitPrice/includesVat that are already on the `ExtractedLine` (`shared/src/types/budgetExtraction.ts`). Spec proposes server-side auto-create from accepted extracted-line properties as preferred path (Option A), with form pre-fill as fallback (Option B); requires "Created from auto-itemization" badge variant approval. 18 ACs (Given/When/Then). Todo.
-- **2026-05-21** — Mini-epic "Auto-itemize invoices from Paperless OCR" filed as 3 standalone user stories (no parent epic; standalone budget/invoice backlog now 19+ items, definitely warrants a new epic next planning cycle). Sequential dependency chain: A → B → C (where C is blocked by BOTH A and B; A & B are independent). #1545 Story A: Unassigned budget lines + one-shot parent assignment (13 ACs, migration 0036 drops NOT NULL on `work_item_budgets.work_item_id` + adds `origin TEXT NOT NULL DEFAULT 'manual'`, new POST `/api/budget-lines/:id/assign` endpoint, supports cross-table WI→HI move with junction repointing). #1546 Story B: BudgetExtractionService with OpenAI-compatible LLM gateway (11 ACs, pure infrastructure + ADR — first outbound LLM integration in Cornerstone, requires security-engineer explicit review covering outbound network policy/PII/API keys/failure modes, env vars `LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL`/`LLM_REQUEST_TIMEOUT_MS`, `autoItemizeEnabled` flag on `/api/config`). #1547 Story C: Auto-itemize invoices endpoint + UI (19 ACs, POST `/api/invoices/:invoiceId/auto-itemize` with dry-run + commit semantics, append vs replace where replace only nukes `origin='auto'` lines preserving manual ones, AutoItemizePreviewModal with editable rows). All Todo, all blockedBy links wired (C blocked by A and B). Ready for /batch-develop.
-- **2026-06-16** — 1 standalone photo story #1723 (no parent epic; photo parents EPIC-13 #446 + annotation epic #1472 CLOSED). Follow-up to #1674/PR #1676 (mobile capture, released on beta). Lightbox picker UX: (i) lightbox `PhotoMetadataSidepanel` switches its raw inline `SearchPicker<AreaResponse>` to the shared `AreaPicker`; (ii) AreaPicker adds ancestor-path secondary line (like OrientationPicker's description line) + keeps depth indentation; (iii) hierarchy-aware area search (parent term returns descendants, leaf term returns all matches across floors, each disambiguated by ancestor path); (iv) OrientationPicker filter matches description OR name (today name only). 18 ACs across 5 sections. ONE combined PR per user. Architect Q flagged: client-side vs server-side hierarchy-aware area search; orientation description-match likely needs backend search change. See [standalone-photo-stories.md](standalone-photo-stories.md). Todo.
+- Native `gh project` commands (not raw GraphQL) for board mgmt: `item-list 4 --owner steilerDev --format json --query "is:issue #<N>"`; `item-edit --id <ITEM> --project-id <PID> --field-id <FID> --single-select-option-id <STATUS>`; `item-add 4 --owner steilerDev --url <url>`
+- GraphQL still needed for `addSubIssue` and `addBlockedBy` (`addBlockedBy` uses `blockingIssueId`, NOT `blockedByIssueId`)
+- If `item-list` is empty right after `item-add` (indexing lag), resolve item node ID via issue `projectItems` GraphQL and set status by that ID. See [board-operations.md](board-operations.md)
 
 ## Patterns and Conventions
 
-- Epic issues use format: "EPIC-NN: Title"
-- Story issues use format: "NN.X: Title" (e.g., "11.1: Automated Quality Checks")
-- Labels: `epic`, `user-story`, `priority: must have/should have/could have`, `sprint-N`
-- Epic body contains task list linking to story issues
-- Story body references parent epic with `**Parent Epic**: #NN`
-- IMPORTANT: GitHub issue numbers don't always match epic numbers (EPIC-11 is issue #12)
-- See detailed topic file: [epic-patterns.md](epic-patterns.md)
+- Epic issues: "EPIC-NN: Title". Story issues: "NN.X: Title". Labels: `epic`, `user-story`, `priority: …`, `sprint-N`.
+- Epic body has task list of story issues; story body references `**Parent Epic**: #NN`.
+- IMPORTANT: GitHub issue numbers ≠ epic numbers (EPIC-11 is issue #12). See [epic-patterns.md](epic-patterns.md).
 
-## PR Review Patterns
+## PR Review
 
-### Three-Phase Validation (per CLAUDE.md)
-
-1. **Planning Phase**: product-owner drafts UAT scenarios → qa-integration-tester reviews for testability → user approves
-2. **Development Phase**: developers implement → qa-integration-tester writes all tests (95%+ coverage target)
-3. **Validation Phase**: product-owner reviews PR → checks all ACs + UAT alignment + test coverage
-
-### PO Review Checklist
-
-- Verify ALL acceptance criteria from the story are met (line-by-line check)
-- Verify UAT scenarios are addressed (cross-reference product-owner UAT comment on issue)
-- Verify qa-integration-tester wrote the tests (check commit author, not developer)
-- Verify 95%+ test coverage on new/modified code (run coverage or review test files)
-- Verify all agent responsibilities fulfilled (QA wrote tests, architect reviewed, UAT scenarios exist)
-- Check quality gates: lint, typecheck, test, build, npm audit all pass
-- Look for common accessibility gaps: missing :focus styles, missing aria-labels, semantic HTML
-
-### Common Issues Found
-
-> **RECURRING VIOLATIONS** (check these FIRST — they have appeared in 3+ PRs):
->
-> - **Dependency pinning**: check all package.json changes for `^` or `~` ranges — must use exact versions. Found in PRs #49, #57, others.
-> - **Missing keyboard focus indicators**: check :focus or :focus-visible styles on all interactive elements (WCAG 2.1 AA). Recurring across multiple PRs.
-> - **Test authorship**: developer agents MUST NOT write tests. Check `Co-Authored-By` trailer in test commits. Caused BLOCKING in PR #152.
-> - **E2E gate**: any UAT scenario marked "Automated (E2E)" MUST have Playwright test coverage before PO approval. Caused BLOCKING in PR #157.
-
-- **Missing keyboard focus indicators** — always check for :focus or :focus-visible styles (WCAG 2.1 AA requirement)
-- **Test authorship** — verify qa-integration-tester wrote tests, not developer (Co-Authored-By trailer in commit)
-- **Incomplete UAT coverage** — check if all scenarios from product-owner UAT are addressed in implementation
-- **Dependency pinning** — always check new deps use exact versions (no `^` or `~`). Found caret range on css-minimizer-webpack-plugin in PR #49 and @fastify/cookie in PR #57. This is a recurring issue.
-- **Scope creep in CLAUDE.md** — process/convention changes should be separate PRs, not bundled with feature work
-- **Schema migrations with sessions table** — it's correct to include `sessions` table in the same migration as `users` if both are part of the same auth infrastructure (avoids fragmented migrations). Verified in PR #55.
-- **AC vs UAT scenario discrepancy** — PR #56 had AC #6 specifying `ACCOUNT_DEACTIVATED` error code but UAT scenario 13 said "generic error message (no indication)". ACs are the source of truth; flag discrepancy as non-blocking observation for security review.
-- **Fastify `additionalProperties: false` behavior** — AJV strips extra properties silently by default rather than rejecting 400. Tests correctly assert 201/200. Not a bug, just Fastify's default behavior.
-- **Fastify `request.url` includes query strings** — when checking routes against a Set, use `routeUrl` (route pattern) not `request.url` (which includes `?code=abc&state=xyz`). Fixed in PR #61 for auth plugin PUBLIC_ROUTES check.
-- **COOKIE_NAME duplication** — now triplicated across `plugins/auth.ts`, `routes/auth.ts`, `routes/oidc.ts`. Flagged as non-blocking in PRs #57 and #61. Should be extracted to shared constant in refinement.
-- **Transitive dependency caret ranges in lockfile** — when a direct dependency (e.g., `openid-client: "6.8.2"`) is pinned but its transitive deps in the lockfile show caret ranges (e.g., `jose: "^6.1.3"`), this is normal and acceptable. The lockfile controls exact versions installed.
-- **AuthGuard/AuthContext disconnect** — AuthGuard has its own independent state (calls getAuthMe directly, useEffect([],[])). It does NOT subscribe to AuthContext. This means clearing AuthContext.user (e.g., on logout) does NOT trigger AuthGuard to redirect to /login. Found in PR #69 review. Pre-existing design issue but causes AC failures when features depend on reactive auth state changes.
-- **UAT scenarios exceeding ACs** — UAT scenarios sometimes add constraints not in the ACs (e.g., UAT-3.4-03 max 10k chars for notes, UAT-3.4-26 max 500 chars for subtask titles, UAT-3.4-43 requiring ALL subtask IDs for reorder). ACs are the source of truth; flag UAT gaps as non-blocking refinement items, not blockers.
-- **Multi-select vs single-select filters** — AC #4 of Story 3.5 specified "multi-select dropdown" for status and tag filters, but implementation used single-select `<select>`. Flagged as non-blocking refinement item. When writing ACs, be explicit about "multi-select" vs "single-select" to avoid ambiguity.
-- **Shared React ref across mapped elements** — When a single `useRef` is assigned to elements inside `.map()`, only the last element gets the ref. This affects click-outside detection for action menus. Flag for E2E verification.
-- **Duplicate fetch logic in components** — `useEffect` fetch body duplicated as standalone function for re-fetch after delete. Refinement candidate to extract shared fetch logic.
-- **TODO comments in production code** — PR #105 had `{/* TODO: Load all work items and filter out self */}` in dependency dropdown, meaning the feature was incomplete. Always check for TODO/FIXME comments that indicate unfinished work.
-- **`alert()` and `confirm()` in React components** — PR #105 used browser `alert()` for inline edit errors and `confirm()` for note/subtask deletion, while work item deletion used a proper modal. Flag inconsistency for refinement.
-- **Color-coded status badge gap** — AC #2 asked for color-coded status (green/yellow/red/gray) but implementation used plain white dropdown. When ACs specify visual styling, verify CSS implements the colors.
-- **Server-side error parsing** — Generic error banners ("Failed to create...") don't parse API field-level validation errors. This is a recurring pattern in form pages; flag for refinement.
-- **Missing modifier key guards on keyboard shortcuts** — `useKeyboardShortcuts` hook does not check `event.ctrlKey`/`event.altKey`/`event.metaKey`. Ctrl+N sends `event.key: 'n'` with `ctrlKey: true`, incorrectly triggering the `n` shortcut instead of the browser's "new window". Shift+N works by accident (uppercase `N` !== `n`). Flag for refinement.
-- **Keyboard selection initial state** — `selectedIndex` starts at 0 instead of -1. Flag for refinement.
-- **Dead placeholder pages after route refactoring** — PR #150 replaced BudgetPage import with BudgetCategoriesPage but did not delete the old file. Flag for refinement cleanup.
-- **CSS token deviation from UX spec** — Error banner used `--color-danger-active` instead of `--color-danger-text-on-light`. Both are danger tokens but spec should match. Non-blocking. Recurred in PR #151 (VendorsPage + VendorDetailPage). Now a known pattern to watch.
-- **specialty/field maxLength mismatch** — PR #151: frontend edit form used `maxLength={100}` for specialty but backend/spec allows 200. Always verify frontend maxLength attributes match backend schema validation. Flag as refinement.
-- **Notes field missing empty-state placeholder** — PR #151: VendorDetailPage conditionally renders Notes row only when `vendor.notes` is truthy. Other optional fields show "—" placeholder. All optional fields should show "—" for null/empty values consistently. Flag for refinement.
-- **409 error message specificity** — PR #151: VendorDetailPage handleDelete 409 message mentioned only invoices, not work items. When backend returns `{ invoiceCount, workItemCount }` in error details, the frontend message should cover both cases or use the details to construct a precise message.
-- **Test authorship enforcement** — PR #152: All 211 tests (service unit, route integration, API client, component) written by frontend-developer, not qa-integration-tester. CLAUDE.md is explicit: "Developer agents do not write tests." Always check commit authors on test commits against Co-Authored-By trailer. Flag as BLOCKING.
-- **E2E gate for per-story merges** — PR #152: No Playwright E2E tests in e2e/tests/ for Story #144. UAT scenarios 1,2,6,7,8,10 were marked "Automated (E2E)" but had no coverage. Missing E2E is a BLOCKING issue.
-- **UX token deviation: borrowed status tokens** — PR #152: Used `--color-status-not-started-bg/text` (work item status tokens) for pending invoice badge instead of adding dedicated yellow/amber tokens per UX spec. When ux-designer spec calls for NEW palette tokens, verify tokens.css was actually updated. Missing yellow tokens = BLOCKING UX token deviation.
-- **UAT scenario vs implementation gap (minor)** — PR #152: UAT Scenario 1 said outstanding balance shown as $0.00 when empty. Implementation hides the badge entirely when no invoices. Unit test confirms implementation behavior. Flag as non-blocking refinement item (implementation tested, just differs from UAT wording).
-- **computeUsedAmount placeholder pattern** — Story 5.4 (PR #153): `computeUsedAmount` returns 0 until Story 5.6 adds budget_source_id FK to work_items. This is an ACCEPTED pattern for cross-story dependencies — document with TODO (Story 6) comment and the AC is considered CONDITIONAL PASS. The delete protection is similarly a placeholder and will be wired up in Story 5.6.
-- **Frontend totalAmount validation boundary** — PR #153: Frontend allows totalAmount = 0 (min={0}, checks `< 0`), but backend uses `exclusiveMinimum: 0`. Server rejects 0 with 400. Flag for refinement so client-side validation is consistent with server.
-- **statusExhausted badge semantic color** — PR #153: "Exhausted" status badge uses gray (`--color-status-not-started-bg`) instead of yellow/amber. Semantically "exhausted" should signal warning. Flag for UX review.
-- **E2E test gate is MANDATORY** — PR #157 (Story #148) had all 7 ACs met and 99 unit/integration tests passing, but CI showed "E2E Tests: SKIPPED". This is a BLOCKING issue per CLAUDE.md. When UAT scenarios are marked "Automated (E2E)", Playwright test coverage is mandatory before PO can approve. Requested changes and asked qa-integration-tester to write tests in e2e/tests/budget/.
-- **Conditional row rendering vs placeholder pattern** — PR #400 (Story 4.5): Vendor and URL rows used `{item.vendor && (...)}` which hides the entire row when null. AC #11 requires "--" placeholder for all optional fields. This is the same pattern as the VendorDetailPage Notes row issue from PR #151. ALWAYS check that optional field rows render unconditionally with ternary: `{item.field ? <value> : '\u2014'}`.
-- **CONFIDENCE_MARGINS display: fraction vs percentage** — PR #401 (Story 4.6): `CONFIDENCE_MARGINS` values are decimal fractions (0.2 = 20%). The WorkItemDetailPage correctly uses `Math.round(CONFIDENCE_MARGINS[...] * 100)` to display "20%". HouseholdItemDetailPage displayed raw value "0.2%". When reusing shared constants, verify the display conversion matches the established pattern.
-- **Raw date string rendering** — PR #402 (Story 4.7): HouseholdItemDetailPage displayed `workItem.startDate` and `workItem.endDate` as raw ISO strings instead of using `formatDate()`. The same PR correctly used `formatDate()` on WorkItemDetailPage for `hi.expectedDeliveryDate`. ALWAYS verify that date fields from API responses are passed through `formatDate()` before rendering. This is the 3rd occurrence of a "raw value display" bug (after CONFIDENCE_MARGINS and the initial expectedDeliveryDate fix in commit ccb50f7).
-- **Missing date field in invoice display** — PR #414 (Story 4.9): HI detail page budget section shows invoice number, amount, status badge, and link — but omits the invoice date. AC #6 explicitly lists "date" as a required field. This is the 4th occurrence of a missing display field.
-- **Specific error codes in ACs** — PR #414 (Story 4.9): AC #3 specifies `MUTUALLY_EXCLUSIVE_BUDGET_LINK` error code but `ValidationError` class always returns `VALIDATION_ERROR`. When ACs specify a custom error code, verify the implementation uses `AppError` with that specific code, not a subclass with a generic code.
-- **Missing list/table column for cross-entity links** — PR #414 (Story 4.9): AC #9 requires invoices list and vendor detail to show HI name when invoice is linked to HI budget. The create/edit forms were updated but the display table was not. When ACs specify display changes on list pages, verify the table/card rendering in addition to forms.
-
-### Chore/Maintenance PR Patterns
-
-- Chore PRs with no user stories do not require UAT scenarios.
-- Always verify PR description claims match the actual diff. PR #316 claimed MEMORY.md/SKILL.md changes that were not in the diff.
-- Function removal (e.g., formatDeadline) can leave double blank lines that Prettier flags. Check for this pattern.
-- Dep-pinning is now enforced via pre-commit hook (`scripts/check-dep-pinning.sh`).
-- Shared CSS utilities: `client/src/styles/shared.module.css` (CSS Modules `composes:` pattern).
-- Shared formatting: `client/src/lib/formatters.ts` (formatCurrency, formatPercent, formatDate).
-
-### When to Request Changes vs Approve
-
-- **Request changes**: AC not met, critical accessibility missing, or tests not written by QA
-- **Conditionally approve**: All ACs pass but security-engineer or product-architect reviews pending
-- **Approve**: All ACs met, all agent reviews present, minor improvements as comments only
+Detailed checklist, recurring violations, and per-PR findings in [pr-review-patterns.md](pr-review-patterns.md). Top recurring items to check FIRST: dependency pinning (exact versions), keyboard :focus indicators (WCAG AA), test authorship (QA not devs), E2E gate for "Automated (E2E)" scenarios, raw-value display bugs (formatDate/percent/"—" placeholder). Verdict matrix: `--request-changes` for functional AC gaps; `--comment` "MUST FIX" for display/formatting; `--approve` when all met.

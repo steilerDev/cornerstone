@@ -32,6 +32,8 @@
  *   16. @smoke "Create New Budget Line" closes picker and shows inline BudgetLineForm on card (Story #1764)
  *   17. Fill inline form and save creates budget line + invoice (Story #1764)
  *   18. Inline form validation: invalid amount shows inlineDraftInvalid error (Story #1764)
+ *   19. Regression test for bug #1833: retry after a REAL commit failure
+ *       (ITEMIZED_SUM_EXCEEDS_INVOICE) does not create a duplicate WI budget line.
  *
  * Mocking strategy:
  *   - GET /api/paperless/status → configured+reachable (mocked)
@@ -1636,6 +1638,169 @@ test.describe('Scenario 18 — Inline form validation: invalid amount shows erro
         `Expected no auto-itemize/commit POST — got ${commitCallCount} call(s)`,
       ).toBe(0);
     } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 19 — Regression test for bug #1833: retrying "Create Invoice &
+// Itemize" after a REAL commit failure does not create a duplicate WI budget
+// line (new-invoice / PaperlessInvoiceReviewPage flow).
+//
+// Before the fix, `materializeInlineDrafts` created the WI budget line via a
+// separate POST before the atomic /api/invoices/auto-itemize/commit call. If
+// commit then failed, the fact that the WI budget line had already been
+// created was never written back into page state — so a retry re-ran
+// materialization from scratch and created a SECOND WI budget line.
+//
+// This test triggers a genuine server-side 400 (ITEMIZED_SUM_EXCEEDS_INVOICE)
+// by setting the invoice amount metadata field below the queued line's
+// effective total, then fixes the amount and retries. The commit endpoint is
+// NOT mocked here — both attempts hit the real server.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 19 — Retry after real commit failure does not duplicate WI budget line (Bug #1833)', () => {
+  test('Queued inline draft: retrying Save after a real ITEMIZED_SUM_EXCEEDS_INVOICE failure reuses the already-created WI budget line', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — desktop/tablet only (≥600px)');
+      return;
+    }
+
+    test.setTimeout(60_000);
+
+    let vendorId = '';
+    let workItemId = '';
+    let invoiceId = '';
+
+    // Track every POST to the WI-budgets endpoint across BOTH save attempts.
+    let wiCreateCallCount = 0;
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} PF-S19 Vendor`);
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} PF-S19 WI` });
+
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
+      await mockDocumentDetail(page, MOCK_DOC_1.id);
+      // Single line: totalAmount=900, includesVat=false → effective gross = 1071.
+      // NO mockCommit here — the commit endpoint is left unmocked so both the
+      // failing and the retried attempt hit the real server.
+      await mockPreview(page, {
+        suggestedVendorId: null,
+        lines: [MOCK_EXTRACTED_LINES[0]],
+      });
+
+      page.on('request', (req) => {
+        if (
+          req.url().includes('/api/work-items/') &&
+          req.url().includes('/budgets') &&
+          req.method() === 'POST'
+        ) {
+          wiCreateCallCount++;
+        }
+      });
+
+      const reviewPage = await navigateToReviewPage(page);
+
+      // ── Queue create-new on the single extracted line ──────────────────────
+      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S19 WI`);
+      await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
+
+      // ── Set the invoice amount BELOW the line's effective total (1071) ─────
+      // so the real server rejects the first commit with ITEMIZED_SUM_EXCEEDS_INVOICE.
+      const amountInput = page.locator('#amount');
+      await amountInput.fill('500');
+
+      // ── Set vendor so vendor validation passes ──────────────────────────────
+      await reviewPage.setVendor(`${testPrefix} PF-S19 Vendor`);
+
+      // ── First confirm: materialize succeeds (real WI budget POST), commit fails ──
+      const firstWiCreatePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/work-items/') &&
+          resp.url().includes('/budgets') &&
+          resp.request().method() === 'POST' &&
+          resp.ok(),
+      );
+      const firstCommitPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/invoices/auto-itemize/commit') &&
+          resp.request().method() === 'POST',
+        { timeout: 30000 },
+      );
+
+      await reviewPage.confirmButton.click();
+      const [, firstCommitResp] = await Promise.all([firstWiCreatePromise, firstCommitPromise]);
+
+      // ── Assert: the real server genuinely rejected the commit ────────────────
+      expect(
+        firstCommitResp.status(),
+        `Expected first commit to fail with 400 ITEMIZED_SUM_EXCEEDS_INVOICE, got ${firstCommitResp.status()}`,
+      ).toBe(400);
+      const firstCommitBody = (await firstCommitResp.json()) as { error?: { code?: string } };
+      expect(firstCommitBody.error?.code).toBe('ITEMIZED_SUM_EXCEEDS_INVOICE');
+
+      // ── Assert: page-level error banner visible, no navigation ──────────────
+      await expect(reviewPage.pageErrorBanner).toBeVisible();
+      expect(page.url()).toContain('/budget/invoices/new/paperless');
+
+      // ── Assert: exactly one WI-budgets POST fired so far ─────────────────────
+      expect(
+        wiCreateCallCount,
+        `Expected exactly 1 WI-budgets POST after the first (failed) Save, got ${wiCreateCallCount}`,
+      ).toBe(1);
+
+      // ── Fix the failure: raise the invoice amount above the line total (1071) ──
+      await amountInput.fill('1200');
+
+      // ── Second confirm: commit should now succeed WITHOUT a second WI-budgets POST ──
+      const secondCommitPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/invoices/auto-itemize/commit') &&
+          resp.request().method() === 'POST',
+        { timeout: 30000 },
+      );
+
+      await reviewPage.confirmButton.click();
+      const secondCommitResp = await secondCommitPromise;
+
+      if (!secondCommitResp.ok()) {
+        const bodyText = await secondCommitResp.text().catch(() => '<no body>');
+        throw new Error(`Retry commit returned ${secondCommitResp.status()}: ${bodyText}`);
+      }
+      const secondCommitBody = (await secondCommitResp.json()) as { invoice: { id: string } };
+      invoiceId = secondCommitBody.invoice.id;
+
+      // ── Assert: navigated to the created invoice detail page ─────────────────
+      await page.waitForURL(`**/budget/invoices/${invoiceId}`);
+
+      // ── Regression guard: WI-budgets POST count did NOT increase on retry ─────
+      expect(
+        wiCreateCallCount,
+        `Expected WI-budgets POST count to remain 1 after the retry (no duplicate create), got ${wiCreateCallCount}`,
+      ).toBe(1);
+
+      // ── Verify via API: exactly 1 budget line exists under the work item ─────
+      const listResp = await page.request.get(`${API.workItems}/${workItemId}/budgets`);
+      expect(listResp.ok(), `GET /api/work-items/${workItemId}/budgets failed`).toBeTruthy();
+      const listBody = (await listResp.json()) as { budgets: Array<{ id: string }> };
+      expect(
+        listBody.budgets.length,
+        `Expected exactly 1 budget line under WI ${workItemId} after retry, got ${listBody.budgets.length}`,
+      ).toBe(1);
+    } finally {
+      if (invoiceId && vendorId) {
+        await page.request.delete(`${API.vendors}/${vendorId}/invoices/${invoiceId}`);
+      }
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
     }
