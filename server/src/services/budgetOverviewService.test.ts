@@ -239,6 +239,7 @@ describe('getBudgetOverview', () => {
     name?: string;
     reductionType: 'percentage' | 'fixed';
     reductionValue: number;
+    maximumAmount?: number | null;
     applicationStatus?: 'eligible' | 'applied' | 'approved' | 'received' | 'rejected';
     categoryIds?: string[];
   }): string {
@@ -250,6 +251,7 @@ describe('getBudgetOverview', () => {
         name: opts.name ?? `Subsidy Program ${id}`,
         reductionType: opts.reductionType,
         reductionValue: opts.reductionValue,
+        maximumAmount: opts.maximumAmount ?? null,
         applicationStatus: opts.applicationStatus ?? 'eligible',
         createdAt: now,
         updatedAt: now,
@@ -1412,6 +1414,144 @@ describe('getBudgetOverview', () => {
       // Only the line with matching category contributes: 10% of 1000 = 100
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(100);
       expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(100);
+    });
+  });
+
+  // ─── subsidySummary.totalReductions respects maximumAmount caps (#1808) ───
+
+  describe('subsidy summary — totalReductions maximumAmount cap (#1808)', () => {
+    it('caps a percentage subsidy — totalReductions matches capped payback (issue scenario)', () => {
+      // Uncapped would be 50000 * 0.10 = 5000, but maximumAmount caps the payout
+      // at maxPayout = maximumAmount * (reductionValue / 100) = 1000 * 0.10 = 100
+      const { workItemId } = insertWorkItem({ plannedAmount: 50000, confidence: 'invoice' });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+        maximumAmount: 1000,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(100);
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(
+        result.subsidySummary.minTotalPayback,
+      );
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(
+        result.subsidySummary.maxTotalPayback,
+      );
+    });
+
+    it('leaves an uncapped percentage subsidy unaffected (regression guard)', () => {
+      // maximumAmount: null → pass-through branch, unchanged from pre-fix behavior
+      const { workItemId } = insertWorkItem({ plannedAmount: 50000, confidence: 'invoice' });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+        maximumAmount: null,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(5000);
+      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(5000);
+      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(5000);
+    });
+
+    it('leaves an uncapped fixed subsidy unaffected (regression guard)', () => {
+      // costBasis (5000) >= reductionValue (2000), so the pre-existing per-line
+      // Math.min(perLineAmount, costBasis) clamp does not engage — isolates the
+      // maximumAmount cap behavior under test.
+      const { workItemId } = insertWorkItem({ plannedAmount: 5000, confidence: 'invoice' });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'fixed',
+        reductionValue: 2000,
+        maximumAmount: null,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(2000);
+      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(2000);
+      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(2000);
+    });
+
+    it('caps a fixed subsidy at maximumAmount (no rate multiplication)', () => {
+      // Same setup as the uncapped-fixed test, but maximumAmount: 500 caps the
+      // payout directly (fixed subsidies: maxPayout = maximumAmount)
+      const { workItemId } = insertWorkItem({ plannedAmount: 5000, confidence: 'invoice' });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'fixed',
+        reductionValue: 2000,
+        maximumAmount: 500,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(500);
+      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(500);
+      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(500);
+    });
+
+    it('sums mixed capped and uncapped subsidies across different work items', () => {
+      // Subsidy A: percentage 10%, capped at 1000 → capped contribution 100
+      // Subsidy B: fixed 300, uncapped → uncapped contribution 300
+      const { workItemId: wi1 } = insertWorkItem({ plannedAmount: 50000, confidence: 'invoice' });
+      const { workItemId: wi2 } = insertWorkItem({ plannedAmount: 10000, confidence: 'invoice' });
+
+      const subsidyA = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+        maximumAmount: 1000,
+      });
+      const subsidyB = insertSubsidyProgram({
+        reductionType: 'fixed',
+        reductionValue: 300,
+        maximumAmount: null,
+      });
+
+      linkWorkItemSubsidy(wi1, subsidyA);
+      linkWorkItemSubsidy(wi2, subsidyB);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(400); // 100 + 300
+      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(400);
+      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(400);
+    });
+
+    it('keeps totalReductions within [minTotalPayback, maxTotalPayback] when the cap sits between the confidence-margin range (consistency invariant)', () => {
+      // own_estimate confidence → ±20% margin
+      // Uncapped point estimate (old totalReductions behavior) = 50000 * 0.10 = 5000
+      // Uncapped minPayback = 50000 * 0.8 * 0.10 = 4000 (below cap, unaffected)
+      // Uncapped maxPayback = 50000 * 1.2 * 0.10 = 6000 (above cap, clamped)
+      // maxPayout = maximumAmount * (reductionValue / 100) = 45000 * 0.10 = 4500
+      const { workItemId } = insertWorkItem({ plannedAmount: 50000, confidence: 'own_estimate' });
+      const subsidyId = insertSubsidyProgram({
+        reductionType: 'percentage',
+        reductionValue: 10,
+        maximumAmount: 45000,
+      });
+      linkWorkItemSubsidy(workItemId, subsidyId);
+
+      const result = getBudgetOverview(db);
+
+      expect(result.subsidySummary.minTotalPayback).toBeCloseTo(4000);
+      expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(4500);
+      expect(result.subsidySummary.totalReductions).toBeCloseTo(4500);
+
+      // The exact consistency invariant the issue is about: before the fix,
+      // totalReductions (5000) > maxTotalPayback (4500), which is the reported
+      // inconsistency. After the fix, totalReductions must sit within range.
+      expect(result.subsidySummary.totalReductions).toBeLessThanOrEqual(
+        result.subsidySummary.maxTotalPayback,
+      );
+      expect(result.subsidySummary.totalReductions).toBeGreaterThanOrEqual(
+        result.subsidySummary.minTotalPayback,
+      );
     });
   });
 

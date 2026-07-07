@@ -242,7 +242,12 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   // Per-work-item fixed subsidy line counts (memoized):
   // key = `${workItemId}:${subsidyId}` -> count of matching lines
   const fixedSubsidyLineCountCache = new Map<string, number>();
-  let totalReductions = 0;
+
+  // Per-subsidy uncapped reduction totals (point estimate, no confidence margin).
+  // Capped against maximumAmount after the line loop (see step 3 below) so the
+  // response stays internally consistent with minTotalPayback/maxTotalPayback,
+  // which are capped the same way (#1808).
+  const perSubsidyReductionTotals = new Map<string, number>();
 
   // VAT helper: convert stored net amount to effective amount if VAT not included
   // SQLite returns 0/1 for boolean, so includesVat === 0 means false (VAT should be applied)
@@ -254,9 +259,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     const rawMin = effective(line) * (1 - margin);
     const rawMax = effective(line) * (1 + margin);
 
-    // Compute subsidy reduction for this line
-    let subsidyReduction = 0;
-
+    // Compute subsidy reduction for this line, accumulated per subsidy (capped
+    // against maximumAmount after the loop — see step 3 below)
     const linkedSubsidyIds = entitySubsidyMap.get(line.entityId);
     if (linkedSubsidyIds) {
       for (const subsidyId of linkedSubsidyIds) {
@@ -275,9 +279,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
           ? lineInvoiceMap.get(line.id)!.actualCost
           : effective(line);
 
+        let lineSubsidyContribution = 0;
+
         // This subsidy applies to this line
         if (meta.reductionType === 'percentage') {
-          subsidyReduction += costBasis * (meta.reductionValue / 100);
+          lineSubsidyContribution = costBasis * (meta.reductionValue / 100);
         } else if (meta.reductionType === 'fixed') {
           // Divide fixed amount equally across all matching budget lines for
           // this (entity, subsidy) combination.
@@ -297,12 +303,15 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
             fixedSubsidyLineCountCache.set(cacheKey, matchingLineCount);
           }
           const perLineAmount = meta.reductionValue / matchingLineCount;
-          subsidyReduction += Math.min(perLineAmount, costBasis);
+          lineSubsidyContribution = Math.min(perLineAmount, costBasis);
         }
+
+        perSubsidyReductionTotals.set(
+          subsidyId,
+          (perSubsidyReductionTotals.get(subsidyId) ?? 0) + lineSubsidyContribution,
+        );
       }
     }
-
-    totalReductions += subsidyReduction;
 
     const rawMinPlanned = rawMin;
     const rawMaxPlanned = rawMax;
@@ -472,6 +481,25 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       maxExcess: s.maxExcess,
     }),
   );
+
+  // ── 9b. Apply maximumAmount caps to totalReductions (#1808) ─────────────
+  // totalReductions is a point estimate (no confidence margin), but must respect
+  // the same per-subsidy maximumAmount cap as minTotalPayback/maxTotalPayback so
+  // the response stays internally consistent. Reuse applySubsidyCaps by feeding
+  // the same point-estimate total as both the "min" and "max" input for each
+  // subsidy — the capped min and capped max collapse to the same value, which is
+  // the capped point estimate. Only cappedMinPayback is read; the oversubscribed
+  // list from this call is intentionally discarded (the existing capResult above,
+  // computed from the payback engine, is what's surfaced in the response).
+  const reductionCapInputs: PerSubsidyTotals[] = [];
+  for (const [subsidyProgramId, total] of perSubsidyReductionTotals) {
+    reductionCapInputs.push({
+      subsidyProgramId,
+      uncappedMinPayback: total,
+      uncappedMaxPayback: total,
+    });
+  }
+  const totalReductions = applySubsidyCaps(reductionCapInputs, subsidyCapMeta).cappedMinPayback;
 
   const subsidySummary = {
     totalReductions,
