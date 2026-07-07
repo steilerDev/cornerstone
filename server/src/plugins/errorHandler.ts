@@ -1,7 +1,35 @@
 import fp from 'fastify-plugin';
 import type { FastifyError } from 'fastify';
-import type { ApiErrorResponse } from '@cornerstone/shared';
+import type { ApiErrorResponse, ErrorCode } from '@cornerstone/shared';
 import { AppError } from '../errors/AppError.js';
+
+/**
+ * Maps known Fastify/plugin internal error codes (FST_*) to translatable
+ * ErrorCode enum members. Codes not in this table fall back based on
+ * status range — see fallbackErrorCode().
+ */
+const FASTIFY_ERROR_CODE_MAP: Record<string, ErrorCode> = {
+  FST_ERR_CTP_BODY_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
+  FST_ERR_CTP_INVALID_JSON_BODY: 'VALIDATION_ERROR',
+  FST_ERR_CTP_EMPTY_JSON_BODY: 'VALIDATION_ERROR',
+  FST_ERR_CTP_INVALID_CONTENT_LENGTH: 'VALIDATION_ERROR',
+  FST_ERR_CTP_INVALID_MEDIA_TYPE: 'VALIDATION_ERROR',
+  FST_ERR_BAD_URL: 'VALIDATION_ERROR',
+  FST_REQ_FILE_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
+  FST_PARTS_LIMIT: 'PAYLOAD_TOO_LARGE',
+  FST_FILES_LIMIT: 'PAYLOAD_TOO_LARGE',
+  FST_FIELDS_LIMIT: 'PAYLOAD_TOO_LARGE',
+  FST_PROTO_VIOLATION: 'VALIDATION_ERROR',
+  FST_INVALID_MULTIPART_CONTENT_TYPE: 'VALIDATION_ERROR',
+  FST_INVALID_JSON_FIELD_ERROR: 'VALIDATION_ERROR',
+};
+
+function mapFastifyErrorCode(rawCode: string | undefined, statusCode: number): ErrorCode {
+  if (rawCode && rawCode in FASTIFY_ERROR_CODE_MAP) {
+    return FASTIFY_ERROR_CODE_MAP[rawCode]!;
+  }
+  return statusCode >= 500 ? 'INTERNAL_ERROR' : 'VALIDATION_ERROR';
+}
 
 export default fp(
   async function errorHandlerPlugin(fastify) {
@@ -46,9 +74,10 @@ export default fp(
       // Fastify internal errors with an explicit statusCode (e.g., FST_ERR_CTP_BODY_TOO_LARGE → 413)
       if ('statusCode' in error && typeof error.statusCode === 'number' && !error.validation) {
         request.log.warn({ err: error }, 'Fastify request error');
+        const code = mapFastifyErrorCode((error as FastifyError).code, error.statusCode);
         return reply.status(error.statusCode).send({
           error: {
-            code: (error as FastifyError).code ?? 'REQUEST_ERROR',
+            code,
             message: error.message,
           },
         });

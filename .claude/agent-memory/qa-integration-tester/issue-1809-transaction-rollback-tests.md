@@ -39,6 +39,7 @@ The implementation spec guessed call orderings (e.g. "throw on call 3, in case c
 internal fallback select"). Verified empirically via a throwaway scratch test file
 (`server/src/services/_scratch....test.ts`, deleted after use) that the actual call counts were
 simpler than guessed:
+
 - `replaceCategoryLinks()` (subsidyProgramService.ts) does ONE delete + ONE bulk insert (all
   categoryIds in a single `.values(rows)` call), not one insert per category — so
   `createSubsidyProgram` has exactly 2 `db.insert` calls (program row, then bulk category-links),
@@ -70,7 +71,7 @@ rollback tests in a batch.
 pre-existing baselines (confirmed by stashing the new test file and re-running: identical
 percentages before and after). The uncovered lines are unrelated untouched functions
 (`getDependentWorkItems`, unlink/link helpers, unrelated validation branches). What matters is
-that the *modified* transaction-wrapped regions (createMilestone/deleteMilestone,
+that the _modified_ transaction-wrapped regions (createMilestone/deleteMilestone,
 deleteWorkItem, etc.) show 0 uncovered lines in that range — confirmed by cross-referencing the
 `Uncovered Line #s` list against `grep -n '^export function'` for the target function's line
 range. Don't chase the whole-file 95% number if the gap is pre-existing and out of scope; do

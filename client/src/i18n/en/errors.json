@@ -2,6 +2,7 @@
   "NOT_FOUND": "The requested resource was not found.",
   "ROUTE_NOT_FOUND": "The requested endpoint does not exist.",
   "VALIDATION_ERROR": "The submitted data is invalid. Please check your input.",
+  "PAYLOAD_TOO_LARGE": "The submitted data is too large. Please reduce the size and try again.",
   "UNAUTHORIZED": "You must be logged in to perform this action.",
   "FORBIDDEN": "You do not have permission to perform this action.",
   "CONFLICT": "A conflict occurred. The resource may already exist.",
