@@ -306,7 +306,7 @@ Commit documentation updates to `beta` via a PR:
 gh pr create --base beta --title "docs: update documentation for release" --body "..."
 ```
 
-Wait for CI, then squash merge.
+Wait for CI, then squash merge. Rebuild the squash body per CLAUDE.md's **Squash-Merge Trailer Preservation** pattern (`SUBJECT="docs: update documentation for release"`, base branch `beta`) — `docs-writer`'s own trailer is the only one expected here, but the pattern still guards against GitHub dropping it on a single-commit PR.
 
 **Note:** Documentation runs after user approval (step 4) to ensure docs reflect the final state, including any changes from feedback rounds.
 

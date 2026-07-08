@@ -150,10 +150,18 @@ For each `READY` PR with no `BREAKING` or `BLOCKING` findings from step 3:
    if [ "$state" != "MERGEABLE" ]; then echo "PR is not mergeable (state: $state) — surfacing to user"; continue; fi
    ```
 
-3. Squash-merge:
+3. Squash-merge, rebuilding the body per CLAUDE.md's **Squash-Merge Trailer Preservation** pattern (the `TRAILERS` variable will be empty for PRs merged as-is with no agent fix commits — that's fine, the body is just omitted; only PRs that went through step 5's fix loop will have agent trailers to preserve):
 
    ```bash
-   gh pr merge <PR> --repo steilerDev/cornerstone --squash
+   BASE_BRANCH=beta
+   TRAILERS=$(git log origin/${BASE_BRANCH}..HEAD --format="%b" | grep -iE '^co-authored-by:' | sed -E 's/^[Cc]o-[Aa]uthored-[Bb]y:/Co-Authored-By:/' | sort -u)
+   BODY="$(cat <<EOF
+   Remediates Dependabot bump — see PR description.
+
+   ${TRAILERS}
+   EOF
+   )"
+   gh pr merge <PR> --repo steilerDev/cornerstone --squash --subject "<original PR title>" --body "$BODY"
    ```
 
 4. Mark the PR's task `completed` and record it for the final report. Continue to the next PR.

@@ -269,18 +269,10 @@ The dev-team-lead stages files, commits with conventional message + all agent tr
 After the commit is created, verify that commit trailers match the agents launched:
 
 ```bash
-git log origin/beta..HEAD --format="%b"
+bash scripts/check-trailers.sh origin/beta HEAD
 ```
 
-If production files were changed (`git diff --name-only origin/beta..HEAD | grep -E '^(server|client|shared)/'`), verify the commit body contains the appropriate Co-Authored-By trailers:
-
-- Files under `server/` or `shared/`, excluding `*.test.ts`/`*.test.tsx` → must have `Co-Authored-By: Claude backend-developer (Haiku`
-- Files under `client/` (except `client/src/i18n/de/`, `client/src/i18n/glossary.json`, and `*.test.ts`/`*.test.tsx`) → must have `Co-Authored-By: Claude frontend-developer (Haiku`
-- Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `Co-Authored-By: Claude translator (Sonnet`
-- Files under `e2e/` → must have `Co-Authored-By: Claude e2e-test-engineer (Sonnet`
-- Files matching `*.test.ts` or `*.test.tsx` outside `e2e/` → must have `Co-Authored-By: Claude qa-integration-tester (Sonnet`
-
-If trailers are missing, the dev-team-lead missed an agent in the contributing list. Re-launch `[MODE: commit]` with the corrected list.
+If this fails, the dev-team-lead missed an agent in the contributing list despite the Layer 0 self-check in its `[MODE: commit]` process (see `.claude/agents/dev-team-lead.md`). Re-launch `[MODE: commit]` with the corrected list — the CI `trailer-check` job will also catch this if it slips through.
 
 ### 7. Verify PR
 
@@ -411,10 +403,21 @@ In multi-item mode, present a **per-item summary table**:
 | #61   | Add export button to Gantt     | Resolved |
 ```
 
-Once CI is green and all reviewers have approved, merge to beta:
+Once CI is green and all reviewers have approved, merge to beta. Rebuild the squash body from the branch's commit trailers per CLAUDE.md's **Squash-Merge Trailer Preservation** canonical pattern:
 
-```
-gh pr merge --squash <pr-url>
+```bash
+BASE_BRANCH=beta
+SUBJECT="<the same conventional title used in step 7's PR creation>"
+TRAILERS=$(git log origin/${BASE_BRANCH}..HEAD --format="%b" | grep -iE '^co-authored-by:' | sed -E 's/^[Cc]o-[Aa]uthored-[Bb]y:/Co-Authored-By:/' | sort -u)
+BODY="$(cat <<EOF
+<1-3 bullet point summary reused from the PR body>
+
+Fixes #<issue-number>   # one line per issue in multi-item mode
+
+${TRAILERS}
+EOF
+)"
+gh pr merge <pr-url> --squash --subject "$SUBJECT" --body "$BODY"
 ```
 
 If the user reports issues with a merged PR, take the user's feedback as new input and start a new `/develop` cycle to address it.
