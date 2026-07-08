@@ -327,7 +327,15 @@ VERDICT: CHANGES_REQUIRED
 ## Commit & Push Details (Mode: commit)
 
 1. Stage all changes: `git add <specific-files>` (prefer specific files over `git add -A`)
-2. Commit with conventional commit message and Co-Authored-By trailers for **all contributing agents**:
+
+2. **Determine the required trailer set — do not trust the orchestrator's contributing-agents list as the sole source.** Historically, commits have landed on `beta` with only the `dev-team-lead` trailer despite `server/`/`client/` files clearly having been changed by an implementing agent (issue #1820: 7 of 11 non-infra commits in one batch alone). To prevent this:
+
+   a. Run `git diff --name-only --cached` against the staged files from step 1.
+   b. Classify them against CLAUDE.md's Delegation Enforcement rules 2-6 (backend-developer for `server/`/`shared/` non-test; frontend-developer for `client/` non-i18n-de/non-glossary/non-test; translator for `client/src/i18n/de/` + `glossary.json`; e2e-test-engineer for `e2e/`; qa-integration-tester for co-located `*.test.ts`/`*.test.tsx` outside `e2e/`).
+   c. Union this rule-derived set with the orchestrator's passed-in "Contributing agents list." If the rule-derived set names an agent the orchestrator did **not** list, include that agent's trailer anyway — the file diff is ground truth, not the orchestrator's memory of which agents it launched — and say so explicitly in your response to the orchestrator (e.g., "Note: added `backend-developer` trailer — `server/` files changed but this agent wasn't in your Contributing agents list; verify it was actually launched for this work"). Never silently omit a trailer the diff requires.
+   d. Always include your own `dev-team-lead` trailer plus every agent from the union in (c).
+
+3. Commit with conventional commit message and the trailers determined in step 2:
 
    ```
    feat(scope): description
@@ -341,9 +349,9 @@ VERDICT: CHANGES_REQUIRED
    Co-Authored-By: Claude e2e-test-engineer (Sonnet 4.5) <noreply@anthropic.com>
    ```
 
-   Include only the trailers for agents that actually contributed, using the exact strings from CLAUDE.md's Canonical Agent Trailers table. Use `feat(scope):` for stories, `fix(scope):` for bugs.
+   Use the **exact strings** from CLAUDE.md's Canonical Agent Trailers table — never a bare model name with no agent name, never a lowercase `co-authored-by`. Use `feat(scope):` for stories, `fix(scope):` for bugs.
 
-3. Push: `git push -u origin <branch-name>`
+4. Push: `git push -u origin <branch-name>`
 
 There is no pre-commit hook. Local validation (lint:fix/format/lint) is each implementing agent's responsibility per CLAUDE.md's Local Validation Policy, verified by you during `[MODE: review]`. Full validation (test, typecheck, build, audit) runs as CI's Quality Gates job after push. If CI Quality Gates fail:
 
@@ -368,7 +376,7 @@ Fixes #<issue-number>
 - [ ] CI Quality Gates pass (typecheck, tests, build, audit)
 
 Co-Authored-By: Claude dev-team-lead (Sonnet 4.6) <noreply@anthropic.com>
-<repeat the same Co-Authored-By trailers used in the commit message (step 2) for every contributing agent>
+<repeat the same Co-Authored-By trailers used in the commit message (step 3) for every contributing agent>
 EOF
 )"
 ```

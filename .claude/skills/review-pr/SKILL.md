@@ -121,7 +121,7 @@ Present to the user:
 2. **Independent Behavior Change Summary** — read the diff stored from Step 1 and describe what actually changed in user-visible terms, independent of the PR description or changelog. Flag any discrepancies between what the PR claims to do and what the code actually does.
 3. **CI Status** — pass/fail for the required gate check(s) per CLAUDE.md: `Quality Gates` (required on both `beta`- and `main`-targeted PRs), plus `E2E Gates` (required only when the PR targets `main`). `Docker`, `Docker PR Release`, and `Merge E2E Reports` run but are not required gates — report them only if directly relevant, not as blocking checks. "Skipped" if review was blocked.
 4. **Overall Verdict** — `APPROVED` or `BLOCKED` with specific next steps:
-   - If approved: user can merge at their discretion (`gh pr merge --squash <pr-number>`)
+   - If approved: user can merge at their discretion (`gh pr merge --squash <pr-number>`; for a single-commit PR, consider rebuilding the body per CLAUDE.md's **Squash-Merge Trailer Preservation** pattern if the PR carries agent trailers you want preserved)
    - If blocked: list what the contributor needs to fix, suggest re-running `/review-pr <number>` after fixes are pushed
 
 **The orchestrator never merges.** The user decides when to merge.

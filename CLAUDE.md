@@ -273,6 +273,61 @@ Detect: head commit's first line literally contains `[skip ci]`; `gh run list --
 
 **Recovery if it already happened:** push another commit to `beta` via a fresh tiny PR with a clean title (e.g., `chore: retrigger promotion CI`). That advances HEAD with a clean message, fires `pull_request:synchronize` on the promotion PR, and CI runs normally.
 
+### Squash-Merge Trailer Preservation (canonical pattern)
+
+GitHub's default `--squash` merge body varies with commit count and shape — for single-commit
+branches it may reuse the sole commit's body verbatim (so a commit missing a trailer stays
+missing); for multi-commit branches it concatenates all commit bodies (which tends to preserve
+trailers but also duplicates them, once per near-identical casing variant). Never rely on the
+default. Every skill that squash-merges a PR carrying agent trailers must rebuild the merge
+commit's subject and body explicitly:
+
+```bash
+BASE_BRANCH=beta   # or the PR's actual base
+SUBJECT="<type>(<scope>): <description>"   # clean conventional title -- must not contain a literal
+                                            # "[skip ci]" or equivalent (see CI Skip-Directive Quirks)
+TRAILERS=$(git log origin/${BASE_BRANCH}..HEAD --format="%b" \
+  | grep -iE '^co-authored-by:' \
+  | sed -E 's/^[Cc]o-[Aa]uthored-[Bb]y:/Co-Authored-By:/' \
+  | sort -u)
+BODY="$(cat <<EOF
+<1-3 bullet point summary>
+
+Fixes #<issue-number>
+
+${TRAILERS}
+EOF
+)"
+gh pr merge <pr-url> --squash --subject "$SUBJECT" --body "$BODY"
+```
+
+This normalizes the `Co-Authored-By:` label casing before deduplication, so `Co-Authored-By:` and
+`co-authored-by:` variants of the same line collapse to one. It does **not** merge a bare-model
+trailer (e.g. `Claude Sonnet 4.6` with no agent name) with a properly-named one — those are a
+distinct, pre-existing format-drift problem that Squash-Merge Trailer Preservation cannot repair
+after the fact. Going forward, `dev-team-lead [MODE: commit]` always writes the canonical
+per-agent string from the Canonical Agent Trailers table, and `scripts/check-trailers.sh` (see
+below) fails the PR before merge if a required agent's canonical name is absent — so bare-model
+trailers should not recur as the _only_ record of an agent's contribution.
+
+**Note**: this only applies to squash merges carrying agent trailers. It does not apply to the
+`beta` → `main` promotion merge (`gh pr merge --merge`), which preserves individual commits (and
+their trailers) natively by design — see the Release Model table above.
+
+### Trailer Verification Script
+
+`scripts/check-trailers.sh <base-ref> <head-ref>` is the single source of truth for "does this
+commit range carry the trailers CLAUDE.md's Delegation Enforcement rules require." It is used in
+two places:
+
+1. **`/develop` step 6h / step 9** (orchestrator, before merging) — run it directly instead of
+   hand-checking with grep.
+2. **CI's `trailer-check` job** (automated, on every PR touching production paths) — see
+   `.github/workflows/ci.yml`.
+
+Detection inside the script is case-insensitive; writing trailers is always canonical-case per the
+table above.
+
 ### GitHub Rate-Limit Retry Policy
 
 When `gh` or `git push` commands fail with a GitHub rate-limit error (primary API limit, secondary abuse limit, or `HTTP 403`/`HTTP 429` with a rate-limit message), retry with **exponential backoff** instead of aborting:

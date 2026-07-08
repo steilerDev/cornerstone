@@ -133,10 +133,12 @@ fix(e2e): <concise description of fixes>
 
 <details of what was fixed and why>
 
-Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>
+Co-Authored-By: Claude e2e-test-engineer (Sonnet 4.5) <noreply@anthropic.com>
 EOF
 )"
 ```
+
+Use the exact per-agent string from CLAUDE.md's **Canonical Agent Trailers** table — this commit is authored directly by this skill (not via `dev-team-lead [MODE: commit]`), so there is no automated normalization; get the casing and model string right the first time. If `backend-developer` or `frontend-developer` also contributed a fix (per step 3's classification table), include their canonical trailers too.
 
 #### 4b. Push and create/update PR
 
@@ -211,10 +213,20 @@ After CI completes:
      case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac
    done
    ```
-2. Squash merge the PR:
+2. Squash merge the PR, rebuilding the body per CLAUDE.md's **Squash-Merge Trailer Preservation** pattern:
+
    ```bash
-   gh pr merge <PR> --squash --repo steilerDev/cornerstone
+   BASE_BRANCH=beta
+   TRAILERS=$(git log origin/${BASE_BRANCH}..HEAD --format="%b" | grep -iE '^co-authored-by:' | sed -E 's/^[Cc]o-[Aa]uthored-[Bb]y:/Co-Authored-By:/' | sort -u)
+   BODY="$(cat <<EOF
+   <summary of E2E fixes applied>
+
+   ${TRAILERS}
+   EOF
+   )"
+   gh pr merge <PR> --squash --repo steilerDev/cornerstone --subject "<the PR title>" --body "$BODY"
    ```
+
 3. Mark all tasks completed. Report success to the user with:
    - Total iterations needed
    - Summary of all fixes applied
