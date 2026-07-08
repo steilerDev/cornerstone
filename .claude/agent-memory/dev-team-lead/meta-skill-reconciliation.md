@@ -44,15 +44,15 @@ trailer.
 ## Worktree cleanup sequence (post-#1825 policy)
 
 CLAUDE.md's Session Isolation section: remove the worktree **before** deleting the branch, both
-from the *base* repository, and force-delete (`-D` not `-d`) because this repo squash-merges to
+from the _base_ repository, and force-delete (`-D` not `-d`) because this repo squash-merges to
 `beta` — squash history fails `-d`'s ancestry check even for genuinely-merged branches. Capture
-`CURRENT_BRANCH`/`WORKTREE_PATH` *before* `cd`-ing to the base repo (`git worktree list
+`CURRENT_BRANCH`/`WORKTREE_PATH` _before_ `cd`-ing to the base repo (`git worktree list
 --porcelain | awk '/^worktree/{print $2; exit}'` finds the base repo path from any worktree). This
 must be the session's last action — the cwd it started from no longer exists afterward. Any skill
 that loops `/develop` as a sub-routine (`batch-develop`, `epic-run`, `release` step 4e) must
 explicitly exclude this cleanup mid-loop, or the first loop iteration terminates the whole batch.
 
-## Self-check gap: count *every* occurrence a fix pattern gets applied
+## Self-check gap: count _every_ occurrence a fix pattern gets applied
 
 When a spec says "apply fix X to every skill that does Y," explicitly enumerate the file list
 before writing the verification grep's expected count — I undercounted (said 3, actual was 4)
