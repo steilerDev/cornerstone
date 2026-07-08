@@ -30,9 +30,9 @@ Verified across EPIC-01/02/03/05 — all confirmed STRONG:
 - [Full PR review table](pr-review-table.md) — every PR reviewed since project inception, one line each
 - [Detailed review findings](review-history.md) — full write-ups for PRs with notable findings
 
-Most recent: **#1852** trailer-enforcement tooling (CI job + script + squash-merge pattern docs) — APPROVED, 1 informational (`github.base_ref` interpolated into `run:` shell, low exploitability, see architecture-patterns.md for the base_ref-vs-head_ref triage method and the heredoc double-expansion analysis — both reusable for future CI/workflow reviews).
+Most recent: **#1853** repo-hygiene (dead BudgetPage removal, AutoItemizePdfPreview.test.tsx, wiki doc for merge-lines endpoint, errorHandler.ts doc-comment fix, checklist/CLAUDE.md exemption wording) — APPROVED, no findings. Confirmed `getDocumentPreviewUrl()` iframe src always resolves to the app's own `getBaseUrl()` proxy path (never a raw external URL) so no SSRF/open-redirect; jsdom client project has no `resources: 'usable'` so iframe `src` never triggers a real fetch in unit tests — safe default worth reusing when reviewing any future iframe/img-src test.
 
-Previous: **#1844** i18n sweep (69 strings/27 components) + dead MilestonePanel removal — APPROVED. Confirmed pattern: i18next `escapeValue:false` (client/src/i18n/index.ts:111) is safe because every `t()` interpolation in this codebase renders through plain JSX text children or JSX attributes (never `<Trans>`, never dangerouslySetInnerHTML) — React's own escaping covers it regardless of the i18next setting. Baseline check for future i18n PRs: grep new `t()` call sites for `<Trans>`/dangerouslySetInnerHTML, not the escapeValue config itself (already verified stable).
+Previous: **#1852** trailer-enforcement tooling (CI job + script + squash-merge pattern docs) — APPROVED, 1 informational (`github.base_ref` interpolated into `run:` shell, low exploitability, see architecture-patterns.md for the base_ref-vs-head_ref triage method and the heredoc double-expansion analysis — both reusable for future CI/workflow reviews).
 
 ## Known Open Recommendations
 
