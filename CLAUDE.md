@@ -189,6 +189,8 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 **NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
 
+**Agent-memory updates must be committed from session worktrees.** Never leave `.claude/agent-memory/` edits uncommitted in the base checkout — commit them as part of the session's own PR (riding along with the production-code changes), matching current practice.
+
 **Clean up worktrees when work is complete.** Once a session's work is finished — its PR is merged (or the work is deliberately abandoned) and the worktree has no uncommitted changes — remove the worktree and delete its local branch: `git worktree remove <path>` (run from the base repository), then `git branch -D <branch>` (verify the PR is merged first; squash merges make `-d` refuse even for merged work). Never remove a worktree that has uncommitted changes, an unmerged/unpushed branch, or that another active session may be using — when in doubt, leave it and note it for manual cleanup.
 
 ### Release Model
@@ -495,7 +497,7 @@ The application supports multiple locales (English and German) via `i18next` and
 Coverage is enforced through three mechanisms:
 
 - **CI**: 6 Jest shards upload a `coverage-report` artifact (retained 30 days) — inspect via the CI run for per-file percentages.
-- **Test file parity**: dev-team-lead `[MODE: review]` rejects production files without a corresponding test file (`VERDICT: CHANGES_REQUIRED` → routed to `qa-integration-tester`).
+- **Test file parity**: dev-team-lead `[MODE: review]` rejects production files without a corresponding test file (`VERDICT: CHANGES_REQUIRED` → routed to `qa-integration-tester`) — type-only files, pure re-export barrels, and configuration are exempt (see `.claude/checklists/implementation-checklist.md`).
 - **Local**: QA runs `npx jest path/to/file.test.ts --coverage --coverageReporters=text --maxWorkers=1` before committing; 95%+ required.
 
 ### Test Failure Debugging Protocol

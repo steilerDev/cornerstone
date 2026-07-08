@@ -6,7 +6,7 @@ import { AppError } from '../errors/AppError.js';
 /**
  * Maps known Fastify/plugin internal error codes (FST_*) to translatable
  * ErrorCode enum members. Codes not in this table fall back based on
- * status range — see fallbackErrorCode().
+ * status range — see the fallback branch in mapFastifyErrorCode() below.
  */
 const FASTIFY_ERROR_CODE_MAP: Record<string, ErrorCode> = {
   FST_ERR_CTP_BODY_TOO_LARGE: 'PAYLOAD_TOO_LARGE',

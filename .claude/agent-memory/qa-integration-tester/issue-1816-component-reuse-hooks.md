@@ -67,9 +67,10 @@ The `useDebouncedCallback` "referentially stable" test above (added for #1816) o
 `result.current.trigger` and `result.current.cancel` were stable individually — it did NOT assert
 `result.current` itself was the same object across re-renders. That was the exact gap: the hook
 returned a fresh `{ trigger, cancel }` object literal every render even though `trigger`/`cancel`
-were each individually memoized via `useCallback`. Any consumer effect that put the *whole hook
-return value* in its dependency array (not just `.trigger`/`.cancel`) saw that dependency change on
+were each individually memoized via `useCallback`. Any consumer effect that put the _whole hook
+return value_ in its dependency array (not just `.trigger`/`.cancel`) saw that dependency change on
 every render, causing the effect to re-fire spuriously:
+
 - `BudgetOverviewPage.tsx`: `[deselectedSourceIds, paymentStatus, isLoading, scheduleFetchBreakdown]`
   effect re-fired every time `isBreakdownRefetching` flipped after a fetch resolved → unbounded
   false/true ping-pong, breakdown never stopped "refetching", `.breakdownRefetching`
@@ -87,6 +88,7 @@ stability does not imply container stability.
 
 **Regression tests added** (all mutation-checked: fail on the pre-`useMemo` hook, pass on the
 fixed one — verified via `git stash` on just `useDebouncedCallback.ts`, not the test files):
+
 - `useDebouncedCallback.test.ts`: `result.current` itself `.toBe()`s its prior value across
   `rerender({ delay: 300 })` (same delay → no reason for identity to change).
 - `BudgetOverviewPage.test.tsx` (new describe "Regression #1816/#1848: breakdown refetch loop"):
@@ -94,8 +96,8 @@ fixed one — verified via `git stash` on just `useDebouncedCallback.ts`, not th
   refetch to resolve, snapshot `mockFetchBudgetBreakdown.mock.calls.length`, wait another ~500ms
   real time with zero external state change, assert the call count did NOT grow further and
   `document.querySelector('.breakdownRefetching')` is null. Used real timers + `act(async () => {
-  await new Promise(resolve => setTimeout(resolve, N)); })` rather than fake-timer stepping — more
-  robust for proving an *absence* of runaway async activity than manually stepping fake timers,
+await new Promise(resolve => setTimeout(resolve, N)); })` rather than fake-timer stepping — more
+  robust for proving an _absence_ of runaway async activity than manually stepping fake timers,
   and avoids "not wrapped in act" warnings for the background state updates under test.
 - `DiaryEntryEditPage.test.tsx` (new test after Scenario 44b): blur body textarea to schedule a
   debounced autosave, advance 400ms (fake timers), then `fireEvent.change` (NOT blur) the `title`
