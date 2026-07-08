@@ -116,7 +116,16 @@ export default defineConfig({
   timeout: 15_000, // 15 seconds per test (desktop default)
 
   /* On main-targeted PRs, stop the shard after the first non-recoverable failure
-     so fail-fast can cancel the remaining shards immediately. */
+     so fail-fast can cancel the remaining shards immediately.
+     Verified (bug #1829, Playwright 1.61.1 runner/dispatcher.ts _reportTestEnd):
+     maxFailures only counts a test once it has exhausted ALL of its `retries` and
+     is still 'unexpected' — a test that fails on attempt 1 but passes on retry
+     ("flaky") never increments the failure count. This already gives one
+     retry-passing test a pass before cancelling the run; a genuinely flaky test
+     does not need special-casing here. Only a test that fails on every attempt
+     (a real bug, or a test with a real race) trips this. See
+     https://playwright.dev/docs/test-timeouts and the dispatcher source for the
+     exact accounting. */
   maxFailures: process.env.E2E_FAIL_FAST ? 1 : undefined,
 
   /* Global timeout: cap the entire suite at 30 minutes on CI to prevent stuck runs */

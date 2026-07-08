@@ -63,7 +63,7 @@ export async function startCornerstoneContainer(
         HTTPS_PROXY: httpsProxy || '',
         NODE_EXTRA_CA_CERTS: '/tmp/proxy-ca.crt',
       })
-      .withCopyFileToContainer(caPath, '/tmp/proxy-ca.crt');
+      .withCopyFilesToContainer([{ source: caPath, target: '/tmp/proxy-ca.crt' }]);
   }
 
   const container = await containerBuilder.start();

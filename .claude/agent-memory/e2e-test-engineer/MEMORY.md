@@ -19,8 +19,9 @@
 - [story-933-dav-vendor-contacts.md](story-933-dav-vendor-contacts.md) — vendor contacts / CardDAV story notes.
 - [story-1248-mass-move.md](story-1248-mass-move.md) — mass-move budget line story notes.
 - [story-epic08-e2e.md](story-epic08-e2e.md) — EPIC-08 Paperless integration (no testcontainer yet — all document tests validate "not configured" state only).
+- [bug-1829-shard3-flakes.md](bug-1829-shard3-flakes.md) — root cause + fix for the shard-3 diary flakes blocking main promotions; also proves `maxFailures` already tolerates one retry-passing test (Playwright source citation).
 
 ## Open follow-ups to flag to orchestrator
 
-- Diary shard-3 E2E Gates flakiness recurred with NEW failure signatures as of 2026-07-07 despite fix PRs #1790/#1792/#1793 — see known-flakes-and-regressions.md. Needs dedicated investigation before more diary work.
 - No Paperless-ngx testcontainer exists yet (story-epic08-e2e.md) — all Paperless E2E coverage is `page.route()` mocked, not real integration. Add the container when Paperless work resumes.
+- Full containerized E2E verification is not possible in sandboxes without `dhi.io` (Docker Hardened Images) registry credentials — building `cornerstone:e2e` fails with `401 Unauthorized`. This is an environment limitation, not a code issue; verification in such sandboxes must fall back to static checks (lint/prettier/tsc-diff/`playwright --list`) plus post-merge CI observation.

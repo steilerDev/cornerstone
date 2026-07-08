@@ -369,7 +369,7 @@ test.describe('Document Linking — System-wide Hide (Scenario 7)', { tag: '@res
   test('System-wide linked IDs filter the picker — toggle defaults ON and hides linked doc', async ({
     page,
     testPrefix,
-  }) => {
+  }, testInfo) => {
     let workItemAId: string | null = null;
     let workItemBId: string | null = null;
     try {
@@ -467,10 +467,18 @@ test.describe('Document Linking — System-wide Hide (Scenario 7)', { tag: '@res
       await expect(documentGrid.getByRole('listitem')).toHaveCount(1, { timeout: 10000 });
       await expect(documentGrid).not.toContainText(MOCK_DOCUMENT.title);
     } finally {
+      // Guarantee cleanup gets its own dedicated time budget on top of whatever
+      // remains of the describe-level 60s timeout (bug #1829: don't let a slow
+      // test body starve teardown of its own two API deletes).
+      testInfo.setTimeout(testInfo.timeout + 10_000);
       await cleanupMocks(page);
       await page.unroute('**/api/document-links/linked-ids');
-      if (workItemAId) await deleteWorkItemViaApi(page, workItemAId);
-      if (workItemBId) await deleteWorkItemViaApi(page, workItemBId);
+      try {
+        if (workItemAId) await deleteWorkItemViaApi(page, workItemAId);
+        if (workItemBId) await deleteWorkItemViaApi(page, workItemBId);
+      } catch (error) {
+        console.warn('[document-linking] cleanup failed for scenario 7a work items:', error);
+      }
     }
   });
 

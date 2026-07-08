@@ -853,10 +853,22 @@ test.describe('Drafts chip (Scenario 13)', () => {
 test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
   test('Clicking a draft entry card navigates to /diary/:id/edit, not /diary/:id', async ({
     page,
-  }) => {
-    // Triple default timeouts — the server under 8-worker CI load can respond slowly
-    // to getDiaryEntry(), causing the badge to appear >7s after navigation.
-    test.slow();
+  }, testInfo) => {
+    // Give this test its own generous absolute budget instead of test.slow().
+    // NOTE (bug #1829): test.slow() only triples the *overall* per-test timeout
+    // (15s -> 45s here) — it does NOT triple actionTimeout/expect.timeout, and it
+    // is a single shared ceiling for every step in the test PLUS the finally-block
+    // cleanup below. The previous version of this test paired test.slow() (45s
+    // total) with several individual step timeouts of 30_000-45_000ms each —
+    // any one of which could alone consume the entire budget. Under heavy 8-worker
+    // CI load the cumulative real time across steps regularly ate the whole 45s,
+    // starving the `deleteDiaryEntryViaApi` cleanup call and surfacing as
+    // "apiRequestContext.delete: Test timeout of 45000ms exceeded" — a cleanup
+    // symptom, not a cleanup cause. Use an explicit absolute timeout instead, and
+    // keep per-step ceilings proportionate (real durations are expected to be a
+    // few seconds; these are "something is actually stuck" ceilings, not budget
+    // reservations).
+    test.setTimeout(60_000);
 
     const diaryPage = new DiaryPage(page);
     const editPage = new DiaryEntryEditPage(page);
@@ -883,33 +895,45 @@ test.describe('Draft card click navigates to edit page (Scenario 14)', () => {
           resp.url().endsWith(`/api/diary-entries/${draftId}`) &&
           resp.request().method() === 'GET' &&
           resp.status() === 200,
-        { timeout: 45_000 },
+        { timeout: 15_000 },
       );
 
       await diaryPage.entryCard(draftId).click();
 
-      // Should navigate to /diary/:id/edit.
-      // Pass an explicit timeout (3× the 10s navigationTimeout) to match test.slow().
-      // test.slow() triples actionTimeout and expect.timeout but NOT navigationTimeout
-      // (which is set at the project config level). On loaded CI runners the SPA
-      // router + React re-render after the click can exceed the default 10s.
-      await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`), { timeout: 30_000 });
+      // Should navigate to /diary/:id/edit. On loaded CI runners the SPA router +
+      // React re-render after the click can exceed the default 10s navigationTimeout.
+      await page.waitForURL(new RegExp(`/diary/${draftId}/edit$`), { timeout: 15_000 });
       expect(page.url()).toContain(`/diary/${draftId}/edit`);
 
       // Explicitly await the getDiaryEntry API response before asserting the heading/badge.
-      // Under heavy 8-worker CI load the server can take >15s to respond; waiting for the
-      // actual response ensures the heading assertion fires only after data is in-flight,
-      // preventing the hardcoded timeout from being the bottleneck.
+      // Under heavy CI load the server can take several seconds to respond; waiting for
+      // the actual response ensures the heading assertion fires only after data is
+      // in-flight, preventing the hardcoded timeout from being the bottleneck.
       await entryLoadPromise;
 
-      // The heading and draft badge render after getDiaryEntry() returns — both assertions
-      // now have the full test.slow() budget (45s) since the API response has arrived.
-      await expect(editPage.heading).toBeVisible({ timeout: 45_000 });
+      // The heading and draft badge render after getDiaryEntry() returns.
+      await expect(editPage.heading).toBeVisible({ timeout: 15_000 });
 
       // Edit page should show the draft badge (entry.status === 'draft')
-      await expect(editPage.draftBadge).toBeVisible({ timeout: 45_000 });
+      await expect(editPage.draftBadge).toBeVisible({ timeout: 15_000 });
     } finally {
-      if (draftId) await deleteDiaryEntryViaApi(page, draftId);
+      // Guarantee cleanup gets its own dedicated time budget on top of whatever
+      // remains, regardless of how much of the test's overall timeout the steps
+      // above consumed. testInfo.setTimeout(timeout) is additive to the current
+      // remaining deadline (not a reset to an absolute value), so this always adds
+      // 15s of headroom from "now" — see https://playwright.dev/docs/test-timeouts.
+      testInfo.setTimeout(testInfo.timeout + 15_000);
+      if (draftId) {
+        try {
+          await deleteDiaryEntryViaApi(page, draftId);
+        } catch (error) {
+          // Best-effort cleanup: a slow/failed delete must not mask this test's
+          // actual pass/fail outcome or itself blow the (already-extended) test
+          // timeout. The container is torn down after the run, so an orphaned
+          // draft here is harmless.
+          console.warn(`[diary-drafts] cleanup failed for draft ${draftId}:`, error);
+        }
+      }
     }
   });
 });
