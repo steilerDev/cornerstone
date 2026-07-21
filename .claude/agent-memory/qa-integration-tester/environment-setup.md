@@ -70,3 +70,15 @@ NODE_PATH=/path/to/cornerstone/server/node_modules:/path/to/cornerstone/client/n
   → After changing `shared/src/types/`, rebuild main project's dist OR copy worktree dist files:
   `cp -r /worktree/shared/dist /path/to/cornerstone/shared/`
 - Server tests (better-sqlite3 native binary) may SIGKILL on ARM64 sandbox — validate via CI if needed
+
+## LoginPage.test.tsx — pre-existing local-only failures (verified not caused by new tests, 2026-07-21)
+
+Running `npx jest client/src/pages/LoginPage/LoginPage.test.tsx --coverage --maxWorkers=1` locally on Node 24.18.0
+in this worktree shows 9 of 18 tests failing with `expect(mockGetAuthMe).toHaveBeenCalled()` receiving 0 calls,
+plus `console.error: An update to LoginPage/AuthProvider inside a test was not wrapped in act(...)`. Confirmed via
+`git stash` that this reproduces identically on the pre-existing baseline (8/17 failing before any edit) — it is
+NOT caused by adding a new test and is not a regression. Root cause looks like an async-timing/jsdom quirk with
+the `getAuthMe` mock resolving after the effect's cleanup in this sandbox; all 7 `oidc*`/error-code tests
+(the simple render + findByText ones) reliably PASS regardless. Coverage numbers from a run with these failures
+are not representative of true coverage — treat CI's coverage-report artifact as authoritative for this file,
+not a local run.

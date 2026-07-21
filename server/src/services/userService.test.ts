@@ -7,6 +7,7 @@ import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as userService from './userService.js';
 import { users } from '../db/schema.js';
+import { OidcNoMatchingAccountError } from '../errors/AppError.js';
 
 describe('User Service', () => {
   let sqlite: Database.Database;
@@ -682,82 +683,50 @@ describe('User Service', () => {
       expect(foundUser).toBeUndefined();
     });
 
-    it('does not match local users (auth_provider=local)', async () => {
-      // Given: Local user in database (no oidcSubject)
+    it('does not match a local user whose oidcSubject is still null', async () => {
+      // Given: Local user in database with no linked oidcSubject
       await userService.createLocalUser(db, 'local@example.com', 'Local User', 'password123456');
 
       // When: Finding by any OIDC subject
       const foundUser = userService.findByOidcSubject(db, 'any-oidc-sub');
 
-      // Then: No user is found
+      // Then: No user is found — not because of an authProvider filter, but because
+      // oidcSubject is null for this row (the column itself doesn't match).
       expect(foundUser).toBeUndefined();
     });
 
-    it('only matches users with auth_provider=oidc', () => {
-      // Given: OIDC user and local user in database
-      const oidcSubject = 'oidc-sub-456';
+    it('matches a local user that has a linked oidcSubject', async () => {
+      // Given: A local-auth account that has already been linked to an OIDC identity
+      // (the key regression scenario for issue #1865 — findByOidcSubject must match on
+      // oidcSubject alone, regardless of authProvider).
+      const sub = 'linked-oidc-sub-789';
+      const localUser = await userService.createLocalUser(
+        db,
+        'linked-local@example.com',
+        'Linked Local User',
+        'password123456',
+      );
 
-      db.insert(schema.users)
-        .values({
-          id: 'oidc-user-2',
-          email: 'oidc2@example.com',
-          displayName: 'OIDC User Two',
-          role: 'member',
-          authProvider: 'oidc',
-          oidcSubject,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })
+      db.update(schema.users)
+        .set({ oidcSubject: sub })
+        .where(eq(schema.users.id, localUser.id))
         .run();
 
-      db.insert(schema.users)
-        .values({
-          id: 'local-user-2',
-          email: 'local2@example.com',
-          displayName: 'Local User Two',
-          role: 'member',
-          authProvider: 'local',
-          passwordHash: '$scrypt$n=16384,r=8,p=1$c29tZXNhbHQ=$c29tZWhhc2g=',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })
-        .run();
+      // When: Finding by the linked OIDC subject
+      const foundUser = userService.findByOidcSubject(db, sub);
 
-      // When: Finding by OIDC subject
-      const foundUser = userService.findByOidcSubject(db, oidcSubject);
-
-      // Then: Only OIDC user is found
+      // Then: The local-auth user is found
       expect(foundUser).toBeDefined();
-      expect(foundUser?.authProvider).toBe('oidc');
-      expect(foundUser?.id).toBe('oidc-user-2');
+      expect(foundUser?.id).toBe(localUser.id);
+      expect(foundUser?.authProvider).toBe('local');
+      expect(foundUser?.passwordHash).toBe(localUser.passwordHash);
+      expect(foundUser?.oidcSubject).toBe(sub);
     });
   });
 
-  describe('findOrCreateOidcUser()', () => {
-    it('creates a new user when no matching OIDC user exists', () => {
-      // Given: Empty database
-      const sub = 'new-oidc-sub-123';
-      const email = 'newoidc@example.com';
-      const displayName = 'New OIDC User';
-
-      // When: Finding or creating OIDC user
-      const user = userService.findOrCreateOidcUser(db, sub, email, displayName);
-
-      // Then: User is created
-      expect(user).toBeDefined();
-      expect(user.oidcSubject).toBe(sub);
-      expect(user.email).toBe(email);
-      expect(user.displayName).toBe(displayName);
-      expect(user.authProvider).toBe('oidc');
-      expect(user.role).toBe('member');
-      expect(user.passwordHash).toBeNull();
-      expect(user.createdAt).toBeDefined();
-      expect(user.updatedAt).toBeDefined();
-      expect(user.deactivatedAt).toBeNull();
-    });
-
-    it('returns existing user when OIDC subject matches', () => {
-      // Given: Existing OIDC user
+  describe('findOrLinkOidcUser()', () => {
+    it('returns existing user when OIDC subject already linked', () => {
+      // Given: A user already linked to this OIDC subject
       const sub = 'existing-oidc-sub';
       const email = 'existing@example.com';
       const displayName = 'Existing User';
@@ -775,105 +744,111 @@ describe('User Service', () => {
         })
         .run();
 
-      // When: Finding or creating with same OIDC subject
-      const user = userService.findOrCreateOidcUser(
-        db,
-        sub,
-        'different@example.com',
-        'Different Name',
-      );
+      // When: Calling findOrLinkOidcUser again with the same subject
+      const user = userService.findOrLinkOidcUser(db, sub, 'different@example.com');
 
-      // Then: Existing user is returned (email and displayName not updated)
-      expect(user).toBeDefined();
+      // Then: The same row is returned, unchanged (email is not re-matched/updated)
       expect(user.id).toBe('existing-oidc-user');
       expect(user.oidcSubject).toBe(sub);
-      expect(user.email).toBe(email); // Original email
-      expect(user.displayName).toBe(displayName); // Original displayName
-      expect(user.role).toBe('admin'); // Original role
+      expect(user.email).toBe(email);
+      expect(user.displayName).toBe(displayName);
+      expect(user.role).toBe('admin');
+      expect(user.updatedAt).toBe('2024-01-01T00:00:00.000Z');
     });
 
-    it('throws ConflictError when email is used by a different user (local)', async () => {
-      // Given: Local user with email
-      const email = 'conflict@example.com';
-      await userService.createLocalUser(db, email, 'Local User', 'password123456');
-
-      // When/Then: Creating OIDC user with same email throws
-      expect(() => {
-        userService.findOrCreateOidcUser(db, 'new-oidc-sub', email, 'OIDC User');
-      }).toThrow(userService.ConflictError);
-
-      expect(() => {
-        userService.findOrCreateOidcUser(db, 'new-oidc-sub', email, 'OIDC User');
-      }).toThrow('Email already in use by another account');
-    });
-
-    it('throws ConflictError when email is used by different OIDC user', () => {
-      // Given: Existing OIDC user with email
-      const email = 'oidc-conflict@example.com';
-
-      db.insert(schema.users)
-        .values({
-          id: 'oidc-user-1',
-          email,
-          displayName: 'OIDC User One',
-          role: 'member',
-          authProvider: 'oidc',
-          oidcSubject: 'oidc-sub-1',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })
-        .run();
-
-      // When/Then: Creating different OIDC user with same email throws
-      expect(() => {
-        userService.findOrCreateOidcUser(db, 'oidc-sub-2', email, 'OIDC User Two');
-      }).toThrow(userService.ConflictError);
-    });
-
-    it('created user has correct defaults (role=member, authProvider=oidc)', () => {
-      // Given: New OIDC user details
-      const sub = 'default-test-sub';
-      const email = 'defaults@example.com';
-      const displayName = 'Defaults User';
-
-      // When: Creating OIDC user
-      const user = userService.findOrCreateOidcUser(db, sub, email, displayName);
-
-      // Then: Defaults are applied
-      expect(user.role).toBe('member');
-      expect(user.authProvider).toBe('oidc');
-      expect(user.passwordHash).toBeNull();
-      expect(user.oidcSubject).toBe(sub);
-      expect(user.deactivatedAt).toBeNull();
-    });
-
-    it('generated user ID is a valid UUID', () => {
-      // Given: New OIDC user
-      const user = userService.findOrCreateOidcUser(
+    it('links an existing local account by email match on first OIDC login', async () => {
+      // Given: A pre-existing local password account, never used with OIDC before
+      const email = 'firstlogin@example.com';
+      const localUser = await userService.createLocalUser(
         db,
-        'uuid-test-sub',
-        'uuid@example.com',
-        'UUID User',
+        email,
+        'First Login User',
+        'password123456',
+        'admin',
+      );
+      expect(localUser.oidcSubject).toBeNull();
+
+      const sub = 'first-login-sub';
+
+      // When: The first OIDC login for this identity arrives
+      const linked = userService.findOrLinkOidcUser(db, sub, email);
+
+      // Then: The account is linked by setting oidcSubject only
+      expect(linked.id).toBe(localUser.id);
+      expect(linked.oidcSubject).toBe(sub);
+      expect(linked.authProvider).toBe('local');
+      expect(linked.passwordHash).toBe(localUser.passwordHash);
+      expect(linked.email).toBe(localUser.email);
+      expect(linked.displayName).toBe(localUser.displayName);
+      expect(linked.role).toBe(localUser.role);
+    });
+
+    it('a second OIDC login for a linked account is found by subject, not re-matched by email', async () => {
+      // Regression test for issue #1865: once linked, subsequent logins must resolve via
+      // oidcSubject, not re-run the email-match path.
+      const email = 'repeatlogin@example.com';
+      const localUser = await userService.createLocalUser(
+        db,
+        email,
+        'Repeat Login User',
+        'password123456',
+      );
+      const sub = 'repeat-login-sub';
+
+      const firstLogin = userService.findOrLinkOidcUser(db, sub, email);
+      expect(firstLogin.id).toBe(localUser.id);
+
+      // When: The same identity logs in again
+      const secondLogin = userService.findOrLinkOidcUser(db, sub, email);
+
+      // Then: The same user is returned without error
+      expect(secondLogin.id).toBe(localUser.id);
+      expect(secondLogin.oidcSubject).toBe(sub);
+    });
+
+    it('throws OidcNoMatchingAccountError when no account matches by subject or email', () => {
+      // Given: An empty/unrelated DB state — no account for this subject or email
+      // When/Then: findOrLinkOidcUser throws
+      expect(() => {
+        userService.findOrLinkOidcUser(db, 'unknown-sub', 'nobody@example.com');
+      }).toThrow(OidcNoMatchingAccountError);
+    });
+
+    it('does not create a new user row when no account matches', () => {
+      // Given: The current user count (proves auto-provisioning is gone)
+      const countBefore = userService.countUsers(db);
+
+      // When: findOrLinkOidcUser is called with a non-matching sub/email
+      expect(() => {
+        userService.findOrLinkOidcUser(db, 'no-match-sub', 'no-match@example.com');
+      }).toThrow(OidcNoMatchingAccountError);
+
+      // Then: No new user row was created
+      const countAfter = userService.countUsers(db);
+      expect(countAfter).toBe(countBefore);
+    });
+
+    it('does not modify authProvider, passwordHash, displayName, or role when linking', async () => {
+      // Given: A local account with distinctive field values
+      const email = 'fieldcheck@example.com';
+      const localUser = await userService.createLocalUser(
+        db,
+        email,
+        'Field Check User',
+        'password123456',
+        'admin',
       );
 
-      // Then: ID is a valid UUID
-      expect(user.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-    });
+      // When: Linking an OIDC identity to this account
+      const linked = userService.findOrLinkOidcUser(db, 'field-check-sub', email);
 
-    it('sets timestamps for newly created user', () => {
-      // Given: New OIDC user
-      const user = userService.findOrCreateOidcUser(
-        db,
-        'timestamp-test-sub',
-        'timestamp@example.com',
-        'Timestamp User',
-      );
-
-      // Then: Timestamps are set
-      expect(user.createdAt).toBeDefined();
-      expect(user.updatedAt).toBeDefined();
-      expect(user.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-      expect(user.updatedAt).toBe(user.createdAt);
+      // Then: Only oidcSubject and updatedAt were touched — everything else is untouched
+      expect(linked.authProvider).toBe(localUser.authProvider);
+      expect(linked.authProvider).toBe('local');
+      expect(linked.passwordHash).toBe(localUser.passwordHash);
+      expect(linked.displayName).toBe(localUser.displayName);
+      expect(linked.role).toBe(localUser.role);
+      expect(linked.role).toBe('admin');
     });
   });
 
