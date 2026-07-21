@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { AppError, ConflictError } from '../errors/AppError.js';
+import { AppError, OidcNoMatchingAccountError } from '../errors/AppError.js';
 import * as oidcService from '../services/oidcService.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -92,6 +92,7 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
       return reply.redirect('/login?error=invalid_state');
     }
 
+    let sub: string | undefined;
     try {
       // Discover OIDC configuration
       const config = await oidcService.discoverOidcConfig(
@@ -106,7 +107,12 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
       const callbackUrl = new URL(request.url, `${request.protocol}://${request.host}`);
 
       // Exchange code for tokens and extract claims
-      const { sub, email, name } = await oidcService.handleCallback(config, callbackUrl, state);
+      const { sub: subFromService, email } = await oidcService.handleCallback(
+        config,
+        callbackUrl,
+        state,
+      );
+      sub = subFromService;
 
       // Ensure email is present
       if (!email) {
@@ -114,14 +120,8 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
         return reply.redirect('/login?error=missing_email');
       }
 
-      // Find or create user
-      const user = userService.findOrCreateOidcUser(
-        fastify.db,
-        sub,
-        email,
-        name || email.split('@')[0]!,
-        // email.split('@')[0] is defined: email is non-empty and split always returns at least one element
-      );
+      // Find or link user
+      const user = userService.findOrLinkOidcUser(fastify.db, sub, email);
 
       // Check if user is deactivated
       if (user.deactivatedAt) {
@@ -148,10 +148,9 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
       // Redirect to the original app path
       return reply.redirect(appRedirect);
     } catch (error) {
-      // Email conflict: OIDC user's email matches a different auth provider's user
-      if (error instanceof ConflictError) {
-        fastify.log.warn({ error }, 'OIDC email conflict');
-        return reply.redirect('/login?error=email_conflict');
+      if (error instanceof OidcNoMatchingAccountError) {
+        fastify.log.warn({ error, sub }, 'OIDC login rejected: no matching account for email');
+        return reply.redirect('/login?error=oidc_no_matching_account');
       }
       fastify.log.error({ error }, 'OIDC callback error');
       return reply.redirect('/login?error=oidc_error');

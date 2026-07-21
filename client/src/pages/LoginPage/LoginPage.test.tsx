@@ -158,6 +158,16 @@ describe('LoginPage', () => {
     expect(await screen.findByText(/your account has been deactivated/i)).toBeInTheDocument();
   });
 
+  it('shows OIDC error message from URL query parameter (oidc_no_matching_account)', async () => {
+    window.history.pushState({}, '', '/login?error=oidc_no_matching_account');
+
+    renderWithAuth(<LoginPage />);
+
+    expect(
+      await screen.findByText(/no account was found for your email address/i),
+    ).toBeInTheDocument();
+  });
+
   it('does not show error message when no error in URL', async () => {
     renderWithAuth(<LoginPage />);
 

@@ -6,7 +6,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { users } from '../db/schema.js';
 import type { UserResponse } from '@cornerstone/shared';
-import { ConflictError } from '../errors/AppError.js';
+import { ConflictError, OidcNoMatchingAccountError } from '../errors/AppError.js';
 
 // Re-export ConflictError for tests
 export { ConflictError };
@@ -178,69 +178,58 @@ export function countActiveUsers(db: DbType): number {
 }
 
 /**
- * Find a user by OIDC subject.
+ * Find a user by OIDC subject, regardless of how the account was created
+ * (local password account that was later linked, or a legacy OIDC-created
+ * account). `oidcSubject` alone is the correlation key.
  *
  * @param db - Database instance
  * @param sub - OIDC subject identifier
  * @returns User row or undefined if not found
  */
 export function findByOidcSubject(db: DbType, sub: string): typeof users.$inferSelect | undefined {
-  return db
-    .select()
-    .from(users)
-    .where(and(eq(users.authProvider, 'oidc'), eq(users.oidcSubject, sub)))
-    .get();
+  return db.select().from(users).where(eq(users.oidcSubject, sub)).get();
 }
 
 /**
- * Find a user by OIDC subject or create a new one.
+ * Find the local account matching an OIDC identity, linking it on first
+ * successful login.
+ *
+ * OIDC is exclusively an alternate login method for accounts that already
+ * exist — it never creates a new account. Resolution order:
+ *   1. If `sub` is already linked to an account, return it.
+ *   2. Otherwise, if an account exists whose email matches the verified
+ *      email claim, link this OIDC subject to that account and return it.
+ *      `authProvider` and `passwordHash` are left untouched.
+ *   3. Otherwise, no account can be authorized for this identity.
  *
  * @param db - Database instance
  * @param sub - OIDC subject identifier
  * @param email - User email address
- * @param displayName - User display name
- * @returns The user row (existing or newly created)
- * @throws ConflictError if email is already in use by another account
+ * @returns The user row (existing or linked)
+ * @throws OidcNoMatchingAccountError if no account exists for this email
  */
-export function findOrCreateOidcUser(
+export function findOrLinkOidcUser(
   db: DbType,
   sub: string,
   email: string,
-  displayName: string,
 ): typeof users.$inferSelect {
-  // First, try to find by OIDC subject
   const existingUser = findByOidcSubject(db, sub);
   if (existingUser) {
     return existingUser;
   }
 
-  // Check if email is already used by another user
   const emailUser = findByEmail(db, email);
-  if (emailUser) {
-    throw new ConflictError('Email already in use by another account', {
-      email,
-    });
+  if (!emailUser) {
+    throw new OidcNoMatchingAccountError();
   }
 
-  // Create new OIDC user
   const now = new Date().toISOString();
-  const id = randomUUID();
-
-  db.insert(users)
-    .values({
-      id,
-      email,
-      displayName,
-      role: 'member',
-      authProvider: 'oidc',
-      oidcSubject: sub,
-      createdAt: now,
-      updatedAt: now,
-    })
+  db.update(users)
+    .set({ oidcSubject: sub, updatedAt: now })
+    .where(eq(users.id, emailUser.id))
     .run();
 
-  // Return the inserted row
-  const row = db.select().from(users).where(eq(users.id, id)).get();
+  const row = db.select().from(users).where(eq(users.id, emailUser.id)).get();
   return row!;
 }
 
