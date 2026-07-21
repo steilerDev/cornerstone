@@ -183,6 +183,13 @@ export class AccountLockedError extends AppError {
   }
 }
 
+export class OidcNoMatchingAccountError extends AppError {
+  constructor(message = 'No existing account matches this identity provider email address') {
+    super('OIDC_NO_MATCHING_ACCOUNT', 403, message);
+    this.name = 'OidcNoMatchingAccountError';
+  }
+}
+
 export class InvalidMetadataError extends AppError {
   constructor(message = 'Metadata does not match schema for the entry type') {
     super('INVALID_METADATA', 400, message);
