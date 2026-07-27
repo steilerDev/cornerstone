@@ -11,12 +11,12 @@
   },
   "dependencies": {
     "@cornerstone/shared": "*",
-    "@floating-ui/react": "0.27.19",
-    "i18next": "26.3.4",
+    "@floating-ui/react": "0.27.20",
+    "i18next": "26.3.6",
     "konva": "10.3.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "react-i18next": "17.0.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-i18next": "17.0.11",
     "react-konva": "19.2.5",
     "react-router-dom": "7.18.1"
   },
