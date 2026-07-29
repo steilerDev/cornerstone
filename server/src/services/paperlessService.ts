@@ -19,6 +19,7 @@ import type {
   PaperlessTagListResponse,
   PaperlessCorrespondentListResponse,
   PaperlessStatusResponse,
+  PaperlessUploadResponse,
 } from '@cornerstone/shared';
 import { AppError } from '../errors/AppError.js';
 
@@ -577,7 +578,7 @@ export async function uploadDocument(
   baseUrl: string,
   token: string,
   input: UploadDocumentInput,
-): Promise<{ taskId: string }> {
+): Promise<PaperlessUploadResponse> {
   let tagId: number | null = null;
   if (input.filterTagName) {
     tagId = await resolveFilterTagId(baseUrl, token, input.filterTagName);
@@ -615,7 +616,14 @@ export async function uploadDocument(
     );
   }
 
-  const taskId = (await response.json()) as string;
+  const taskId = await response.json();
+  if (typeof taskId !== 'string') {
+    throw new AppError(
+      'PAPERLESS_ERROR',
+      502,
+      'Unexpected response from Paperless-ngx: taskId is not a string',
+    );
+  }
   return { taskId };
 }
 

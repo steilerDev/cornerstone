@@ -165,21 +165,28 @@ export async function getSourceReport(
   // 6. Precompute deposit splits for all invoices
   const splitsByInvoiceId = splitByDeposits(rows);
 
-  // 7. Build report invoices
-  const reportInvoices: SourceReportInvoice[] = [];
-  for (const [invoiceId, rawAmount] of rawContributions) {
-    const metadata = invoiceMetadata.get(invoiceId)!;
-    const roundedAmount = toCents(rawAmount) / 100;
+  // 7. Batch fetch all document links for all report invoices (once, not per-invoice)
+  const allDocumentLinks = db
+    .select()
+    .from(documentLinks)
+    .where(
+      and(
+        eq(documentLinks.entityType, 'invoice'),
+        inArray(documentLinks.entityId, reportInvoiceIds),
+      ),
+    )
+    .all();
 
-    // Drop exactly 0, otherwise include
-    if (roundedAmount === 0) continue;
+  // Build a map: invoiceId → filtered document links (by stage rules)
+  const linksByInvoiceId = new Map<string, (typeof documentLinks.$inferSelect)[]>();
+  // Also collect all paperlessDocumentIds we'll need to fetch metadata for
+  const allPaperlessDocIds = new Set<number>();
 
-    const lineKind = roundedAmount > 0 ? 'invoice' : 'refund-adjustment';
-
-    // Determine which stages to include for document filtering
-    const stages = new Set<AttachmentType>();
+  for (const invoiceId of reportInvoiceIds) {
     const split = splitsByInvoiceId.get(invoiceId)!;
 
+    // Determine which stages to include for this invoice
+    const stages = new Set<AttachmentType>();
     if (split.invoiceStatus === 'quotation' && targetStatuses.has('quotation')) {
       stages.add('quotation');
     }
@@ -196,64 +203,74 @@ export async function getSourceReport(
       }
     }
 
-    // Fetch document links for this invoice
-    const links = db
-      .select()
-      .from(documentLinks)
-      .where(and(eq(documentLinks.entityType, 'invoice'), eq(documentLinks.entityId, invoiceId)))
-      .all();
-
-    // Filter docs to match stages, include untagged always
-    const documentIds = links
+    // Filter links for this invoice by stage, include untagged always
+    const invoiceLinks = allDocumentLinks
       .filter(
-        (link) => link.attachmentType === null || stages.has(link.attachmentType as AttachmentType),
-      )
-      .map((link) => link.paperlessDocumentId);
-
-    // Batch resolve ASN/title from Paperless
-    const paperlessDocMap = new Map<
-      number,
-      { archiveSerialNumber: number | null; title: string | null }
-    >();
-    if (
-      paperlessConfig.paperlessEnabled &&
-      paperlessConfig.paperlessUrl &&
-      paperlessConfig.paperlessApiToken &&
-      documentIds.length > 0
-    ) {
-      try {
-        const docs = await paperlessService.getDocuments(
-          paperlessConfig.paperlessUrl,
-          paperlessConfig.paperlessApiToken,
-          documentIds,
-        );
-        for (const doc of docs.values()) {
-          paperlessDocMap.set(doc.id, {
-            archiveSerialNumber: doc.archiveSerialNumber,
-            title: doc.title,
-          });
-        }
-      } catch (err) {
-        // Degrade gracefully — getDocuments throws, we just use nulls
-        console.warn('[sourceReport] Paperless.getDocuments failed, degrading to null ASN/title', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-
-    const documents: SourceReportDocument[] = links
-      .filter(
-        (link) => link.attachmentType === null || stages.has(link.attachmentType as AttachmentType),
+        (link) =>
+          link.entityId === invoiceId &&
+          (link.attachmentType === null || stages.has(link.attachmentType as AttachmentType)),
       )
       .map((link) => {
-        const paperlessEntry = paperlessDocMap.get(link.paperlessDocumentId);
-        return {
-          documentId: link.paperlessDocumentId,
-          archiveSerialNumber: paperlessEntry?.archiveSerialNumber ?? null,
-          title: paperlessEntry?.title ?? null,
-          attachmentType: link.attachmentType as AttachmentType | null,
-        };
+        allPaperlessDocIds.add(link.paperlessDocumentId);
+        return link;
       });
+
+    linksByInvoiceId.set(invoiceId, invoiceLinks);
+  }
+
+  // 8. Fetch metadata for ALL documents in one Paperless call (not per-invoice)
+  const paperlessDocMap = new Map<
+    number,
+    { archiveSerialNumber: number | null; title: string | null }
+  >();
+  if (
+    paperlessConfig.paperlessEnabled &&
+    paperlessConfig.paperlessUrl &&
+    paperlessConfig.paperlessApiToken &&
+    allPaperlessDocIds.size > 0
+  ) {
+    try {
+      const docs = await paperlessService.getDocuments(
+        paperlessConfig.paperlessUrl,
+        paperlessConfig.paperlessApiToken,
+        Array.from(allPaperlessDocIds),
+      );
+      for (const doc of docs.values()) {
+        paperlessDocMap.set(doc.id, {
+          archiveSerialNumber: doc.archiveSerialNumber,
+          title: doc.title,
+        });
+      }
+    } catch (err) {
+      // Degrade gracefully — getDocuments throws, we just use nulls
+      console.warn('[sourceReport] Paperless.getDocuments failed, degrading to null ASN/title', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  // 9. Build report invoices
+  const reportInvoices: SourceReportInvoice[] = [];
+  for (const [invoiceId, rawAmount] of rawContributions) {
+    const metadata = invoiceMetadata.get(invoiceId)!;
+    const roundedAmount = toCents(rawAmount) / 100;
+
+    // Drop exactly 0, otherwise include
+    if (roundedAmount === 0) continue;
+
+    const lineKind = roundedAmount > 0 ? 'invoice' : 'refund-adjustment';
+
+    // Map filtered document links to response documents
+    const links = linksByInvoiceId.get(invoiceId) ?? [];
+    const documents: SourceReportDocument[] = links.map((link) => {
+      const paperlessEntry = paperlessDocMap.get(link.paperlessDocumentId);
+      return {
+        documentId: link.paperlessDocumentId,
+        archiveSerialNumber: paperlessEntry?.archiveSerialNumber ?? null,
+        title: paperlessEntry?.title ?? null,
+        attachmentType: link.attachmentType as AttachmentType | null,
+      };
+    });
 
     reportInvoices.push({
       invoiceId,
@@ -270,7 +287,7 @@ export async function getSourceReport(
     });
   }
 
-  // 8. Query unallocated invoices (no budget lines, but matching status)
+  // 10. Query unallocated invoices (no budget lines, but matching status)
   const unallocatedInvoices: SourceReportUnallocatedInvoice[] = [];
   const unallocRows = db.all<{
     invoice_id: string;
@@ -310,7 +327,7 @@ export async function getSourceReport(
     });
   }
 
-  // 9. Compute total amount from rounded lines
+  // 11. Compute total amount from rounded lines
   const totalAmount =
     toCents(reportInvoices.reduce((sum, inv) => sum + inv.allocatedAmount, 0)) / 100;
 
