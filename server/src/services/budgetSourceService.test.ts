@@ -74,6 +74,8 @@ describe('Budget Source Service', () => {
         interestRate: overrides.interestRate ?? null,
         terms: overrides.terms ?? null,
         notes: overrides.notes ?? null,
+        reference: overrides.reference ?? null,
+        contactAddress: overrides.contactAddress ?? null,
         status: overrides.status ?? 'active',
         createdBy: overrides.createdBy ?? null,
         createdAt: ts,
@@ -558,6 +560,8 @@ describe('Budget Source Service', () => {
         interestRate: 5.25,
         terms: '5-year revolving',
         notes: 'Secondary credit',
+        reference: 'Account #98765',
+        contactAddress: '456 Bank Blvd, Metropolis',
         status: 'exhausted',
         createdBy: TEST_USER_ID,
       });
@@ -575,7 +579,21 @@ describe('Budget Source Service', () => {
       expect(result.interestRate).toBe(5.25);
       expect(result.terms).toBe('5-year revolving');
       expect(result.notes).toBe('Secondary credit');
+      expect(result.reference).toBe('Account #98765');
+      expect(result.contactAddress).toBe('456 Bank Blvd, Metropolis');
       expect(result.status).toBe('exhausted');
+    });
+
+    it('returns reference/contactAddress as null when not set (toBudgetSource mapping)', () => {
+      const raw = insertRawSource({
+        name: 'No Contact Fields',
+        sourceType: 'other',
+        totalAmount: 1,
+      });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.reference).toBeNull();
+      expect(result.contactAddress).toBeNull();
     });
 
     it('throws NotFoundError when source does not exist', () => {
@@ -952,6 +970,111 @@ describe('Budget Source Service', () => {
         budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
       }).toThrow('Invalid status');
     });
+
+    // ─── reference and contactAddress (Story #1877) ──────────────────────────
+
+    describe('reference and contactAddress', () => {
+      it('persists reference and contactAddress when provided', () => {
+        const data: CreateBudgetSourceRequest = {
+          name: 'With Contact Fields',
+          sourceType: 'bank_loan',
+          totalAmount: 10000,
+          reference: 'Account #12345',
+          contactAddress: '123 Bank St, Springfield',
+        };
+
+        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+
+        expect(result.reference).toBe('Account #12345');
+        expect(result.contactAddress).toBe('123 Bank St, Springfield');
+      });
+
+      it('defaults reference and contactAddress to null when omitted', () => {
+        const data: CreateBudgetSourceRequest = {
+          name: 'No Contact Fields',
+          sourceType: 'savings',
+          totalAmount: 10000,
+        };
+
+        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+
+        expect(result.reference).toBeNull();
+        expect(result.contactAddress).toBeNull();
+      });
+
+      it('accepts explicit null for reference and contactAddress', () => {
+        const data: CreateBudgetSourceRequest = {
+          name: 'Explicit Nulls',
+          sourceType: 'savings',
+          totalAmount: 10000,
+          reference: null,
+          contactAddress: null,
+        };
+
+        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+
+        expect(result.reference).toBeNull();
+        expect(result.contactAddress).toBeNull();
+      });
+
+      it('accepts reference at exactly 200 characters', () => {
+        const reference = 'R'.repeat(200);
+        const data: CreateBudgetSourceRequest = {
+          name: 'Max Reference',
+          sourceType: 'bank_loan',
+          totalAmount: 10000,
+          reference,
+        };
+
+        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        expect(result.reference).toBe(reference);
+      });
+
+      it('throws ValidationError when reference exceeds 200 characters', () => {
+        const data: CreateBudgetSourceRequest = {
+          name: 'Too Long Reference',
+          sourceType: 'bank_loan',
+          totalAmount: 10000,
+          reference: 'R'.repeat(201),
+        };
+
+        expect(() => {
+          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        }).toThrow(ValidationError);
+        expect(() => {
+          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        }).toThrow('Reference must be 200 characters or fewer');
+      });
+
+      it('accepts contactAddress at exactly 500 characters', () => {
+        const contactAddress = 'A'.repeat(500);
+        const data: CreateBudgetSourceRequest = {
+          name: 'Max Address',
+          sourceType: 'bank_loan',
+          totalAmount: 10000,
+          contactAddress,
+        };
+
+        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        expect(result.contactAddress).toBe(contactAddress);
+      });
+
+      it('throws ValidationError when contactAddress exceeds 500 characters', () => {
+        const data: CreateBudgetSourceRequest = {
+          name: 'Too Long Address',
+          sourceType: 'bank_loan',
+          totalAmount: 10000,
+          contactAddress: 'A'.repeat(501),
+        };
+
+        expect(() => {
+          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        }).toThrow(ValidationError);
+        expect(() => {
+          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        }).toThrow('Contact address must be 500 characters or fewer');
+      });
+    });
   });
 
   // ─── updateBudgetSource() ──────────────────────────────────────────────────
@@ -1277,6 +1400,106 @@ describe('Budget Source Service', () => {
       expect(() => {
         budgetSourceService.updateBudgetSource(db, raw.id, data);
       }).toThrow(ValidationError);
+    });
+
+    // ─── reference and contactAddress (Story #1877) ──────────────────────────
+
+    describe('reference and contactAddress', () => {
+      it('updates reference only (other fields unchanged)', () => {
+        const raw = insertRawSource({
+          name: 'Reference Update',
+          sourceType: 'bank_loan',
+          totalAmount: 10000,
+          contactAddress: 'Original Address',
+        });
+
+        const data: UpdateBudgetSourceRequest = { reference: 'New Reference' };
+        const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+
+        expect(result.reference).toBe('New Reference');
+        expect(result.contactAddress).toBe('Original Address');
+      });
+
+      it('updates contactAddress only (other fields unchanged)', () => {
+        const raw = insertRawSource({
+          name: 'Address Update',
+          sourceType: 'bank_loan',
+          totalAmount: 10000,
+          reference: 'Original Reference',
+        });
+
+        const data: UpdateBudgetSourceRequest = { contactAddress: 'New Address' };
+        const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+
+        expect(result.reference).toBe('Original Reference');
+        expect(result.contactAddress).toBe('New Address');
+      });
+
+      it('clears reference by setting it to null', () => {
+        const raw = insertRawSource({
+          name: 'Clear Reference',
+          sourceType: 'bank_loan',
+          totalAmount: 10000,
+          reference: 'To Be Cleared',
+        });
+
+        const data: UpdateBudgetSourceRequest = { reference: null };
+        const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+
+        expect(result.reference).toBeNull();
+      });
+
+      it('clears contactAddress by setting it to null', () => {
+        const raw = insertRawSource({
+          name: 'Clear Address',
+          sourceType: 'bank_loan',
+          totalAmount: 10000,
+          contactAddress: 'To Be Cleared',
+        });
+
+        const data: UpdateBudgetSourceRequest = { contactAddress: null };
+        const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+
+        expect(result.contactAddress).toBeNull();
+      });
+
+      it('reference alone satisfies the "at least one field" requirement', () => {
+        const raw = insertRawSource({
+          name: 'Ref Only',
+          sourceType: 'bank_loan',
+          totalAmount: 1000,
+        });
+
+        expect(() => {
+          budgetSourceService.updateBudgetSource(db, raw.id, { reference: 'Some Ref' });
+        }).not.toThrow();
+      });
+
+      it('throws ValidationError when reference exceeds 200 characters on update', () => {
+        const raw = insertRawSource({ name: 'Valid', sourceType: 'bank_loan', totalAmount: 1000 });
+
+        const data: UpdateBudgetSourceRequest = { reference: 'R'.repeat(201) };
+
+        expect(() => {
+          budgetSourceService.updateBudgetSource(db, raw.id, data);
+        }).toThrow(ValidationError);
+        expect(() => {
+          budgetSourceService.updateBudgetSource(db, raw.id, data);
+        }).toThrow('Reference must be 200 characters or fewer');
+      });
+
+      it('throws ValidationError when contactAddress exceeds 500 characters on update', () => {
+        const raw = insertRawSource({ name: 'Valid', sourceType: 'bank_loan', totalAmount: 1000 });
+
+        const data: UpdateBudgetSourceRequest = { contactAddress: 'A'.repeat(501) };
+
+        expect(() => {
+          budgetSourceService.updateBudgetSource(db, raw.id, data);
+        }).toThrow(ValidationError);
+        expect(() => {
+          budgetSourceService.updateBudgetSource(db, raw.id, data);
+        }).toThrow('Contact address must be 500 characters or fewer');
+      });
     });
   });
 

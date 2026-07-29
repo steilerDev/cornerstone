@@ -513,6 +513,111 @@ describe('Document Links Routes', () => {
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('NOT_FOUND');
     });
+
+    // ─── attachmentType (Story #1877) ────────────────────────────────────────
+
+    describe('attachmentType', () => {
+      it('creates an invoice link with attachmentType="quotation" and returns it in the response', async () => {
+        const { cookie } = await createUserWithSession();
+        const invoiceId = await createVendorAndInvoice(cookie);
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/document-links',
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: JSON.stringify({
+            entityType: 'invoice',
+            entityId: invoiceId,
+            paperlessDocumentId: 42,
+            attachmentType: 'quotation',
+          }),
+        });
+
+        expect(response.statusCode).toBe(201);
+        const body = response.json<DocumentLinkResponse>();
+        expect(body.documentLink.attachmentType).toBe('quotation');
+      });
+
+      it('defaults attachmentType to null when omitted', async () => {
+        const { cookie } = await createUserWithSession();
+        const invoiceId = await createVendorAndInvoice(cookie);
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/document-links',
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: JSON.stringify({
+            entityType: 'invoice',
+            entityId: invoiceId,
+            paperlessDocumentId: 42,
+          }),
+        });
+
+        expect(response.statusCode).toBe(201);
+        const body = response.json<DocumentLinkResponse>();
+        expect(body.documentLink.attachmentType).toBeNull();
+      });
+
+      it('normalizes attachmentType to null for a work_item entityType even when a value is provided', async () => {
+        const { cookie } = await createUserWithSession();
+        const workItemId = await createWorkItem(cookie);
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/document-links',
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: JSON.stringify({
+            entityType: 'work_item',
+            entityId: workItemId,
+            paperlessDocumentId: 42,
+            attachmentType: 'invoice',
+          }),
+        });
+
+        expect(response.statusCode).toBe(201);
+        const body = response.json<DocumentLinkResponse>();
+        expect(body.documentLink.attachmentType).toBeNull();
+      });
+
+      it('returns 400 when attachmentType is an invalid enum value', async () => {
+        const { cookie } = await createUserWithSession();
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/document-links',
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: JSON.stringify({
+            entityType: 'invoice',
+            entityId: 'some-id',
+            paperlessDocumentId: 42,
+            attachmentType: 'bogus',
+          }),
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('accepts attachmentType=null explicitly', async () => {
+        const { cookie } = await createUserWithSession();
+        const invoiceId = await createVendorAndInvoice(cookie);
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/document-links',
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: JSON.stringify({
+            entityType: 'invoice',
+            entityId: invoiceId,
+            paperlessDocumentId: 42,
+            attachmentType: null,
+          }),
+        });
+
+        expect(response.statusCode).toBe(201);
+        const body = response.json<DocumentLinkResponse>();
+        expect(body.documentLink.attachmentType).toBeNull();
+      });
+    });
   });
 
   // ─── GET /api/document-links ───────────────────────────────────────────────
@@ -1066,6 +1171,178 @@ describe('Document Links Routes', () => {
 
       // Avoid unused variable lint warning
       expect(newWorkItemId).toBeTruthy();
+    });
+  });
+
+  // ─── PATCH /api/document-links/:id (Story #1877) ──────────────────────────
+
+  describe('PATCH /api/document-links/:id', () => {
+    it('returns 401 when not authenticated', async () => {
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/document-links/some-id',
+        headers: { 'content-type': 'application/json' },
+        payload: JSON.stringify({ attachmentType: 'quotation' }),
+      });
+
+      expect(response.statusCode).toBe(401);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('tags an invoice link and returns 200 with the updated attachmentType', async () => {
+      const { cookie } = await createUserWithSession();
+      const invoiceId = await createVendorAndInvoice(cookie);
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'invoice',
+          entityId: invoiceId,
+          paperlessDocumentId: 42,
+        }),
+      });
+      const linkId = createResponse.json<DocumentLinkResponse>().documentLink.id;
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/document-links/${linkId}`,
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ attachmentType: 'quotation' }),
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<DocumentLinkResponse>();
+      expect(body.documentLink.attachmentType).toBe('quotation');
+    });
+
+    it('retags an already-tagged link to a different attachmentType', async () => {
+      const { cookie } = await createUserWithSession();
+      const invoiceId = await createVendorAndInvoice(cookie);
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'invoice',
+          entityId: invoiceId,
+          paperlessDocumentId: 42,
+          attachmentType: 'quotation',
+        }),
+      });
+      const linkId = createResponse.json<DocumentLinkResponse>().documentLink.id;
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/document-links/${linkId}`,
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ attachmentType: 'deposit' }),
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<DocumentLinkResponse>();
+      expect(body.documentLink.attachmentType).toBe('deposit');
+    });
+
+    it('untags a link by passing attachmentType: null', async () => {
+      const { cookie } = await createUserWithSession();
+      const invoiceId = await createVendorAndInvoice(cookie);
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'invoice',
+          entityId: invoiceId,
+          paperlessDocumentId: 42,
+          attachmentType: 'invoice',
+        }),
+      });
+      const linkId = createResponse.json<DocumentLinkResponse>().documentLink.id;
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/document-links/${linkId}`,
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ attachmentType: null }),
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<DocumentLinkResponse>();
+      expect(body.documentLink.attachmentType).toBeNull();
+    });
+
+    it('returns 404 NOT_FOUND when the link does not exist', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/document-links/non-existent-id',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ attachmentType: 'quotation' }),
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns 400 when attachmentType is an invalid enum value', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/document-links/some-id',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ attachmentType: 'bogus' }),
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('returns 400 when attachmentType is missing from the body (required field)', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/document-links/some-id',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({}),
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('normalizes to null for a non-invoice link regardless of the requested value', async () => {
+      const { cookie } = await createUserWithSession();
+      const workItemId = await createWorkItem(cookie);
+
+      const createResponse = await app.inject({
+        method: 'POST',
+        url: '/api/document-links',
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({
+          entityType: 'work_item',
+          entityId: workItemId,
+          paperlessDocumentId: 42,
+        }),
+      });
+      const linkId = createResponse.json<DocumentLinkResponse>().documentLink.id;
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/document-links/${linkId}`,
+        headers: { cookie, 'content-type': 'application/json' },
+        payload: JSON.stringify({ attachmentType: 'quotation' }),
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<DocumentLinkResponse>();
+      expect(body.documentLink.attachmentType).toBeNull();
     });
   });
 });

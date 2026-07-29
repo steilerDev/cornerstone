@@ -103,11 +103,25 @@
   "manage": {
     "pageTitle": "Manage",
     "tabs": {
+      "household": "Household",
       "areas": "Areas",
       "trades": "Trades",
       "orientations": "Orientations",
       "budgetCategories": "Budget Categories",
       "householdItemCategories": "Household Item Categories"
+    },
+    "household": {
+      "title": "Household Information",
+      "description": "Used as the sender name and address on report cover letters.",
+      "nameLabel": "Household Name",
+      "namePlaceholder": "e.g., Smith Family",
+      "addressLabel": "Household Address",
+      "addressPlaceholder": "e.g., 123 Main Street, City, State ZIP",
+      "save": "Save Changes",
+      "saving": "Saving...",
+      "saveSuccess": "Household information updated successfully",
+      "saveFailed": "Failed to save household information. Please try again.",
+      "loadError": "Failed to load household information. Please try again."
     },
     "areas": {
       "loading": "Loading areas...",

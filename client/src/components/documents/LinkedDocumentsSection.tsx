@@ -6,6 +6,7 @@ import type {
   DocumentLinkEntityType,
   PaperlessDocumentSearchResult,
   AppConfigResponse,
+  AttachmentType,
 } from '@cornerstone/shared';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { useDocumentLinks, useAllLinkedDocumentIds } from '../../hooks/useDocumentLinks.js';
@@ -100,6 +101,8 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
   const [isUnlinking, setIsUnlinking] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [announceMessage, setAnnounceMessage] = useState('');
+  const [updatingAttachmentTypeId, setUpdatingAttachmentTypeId] = useState<string | null>(null);
+  const [pendingAttachmentType, setPendingAttachmentType] = useState<AttachmentType | null>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const pickerModalRef = useRef<HTMLDivElement>(null);
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
@@ -158,6 +161,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
 
   const closePicker = useCallback(() => {
     setShowPicker(false);
+    setPendingAttachmentType(null);
     // Restore focus to add button
     setTimeout(() => {
       addButtonRef.current?.focus();
@@ -214,10 +218,11 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
       setShowPicker(false);
 
       try {
-        await hook.addLink(doc.id);
+        await hook.addLink(doc.id, entityType === 'invoice' ? pendingAttachmentType : undefined);
         // Announce success to screen readers
         setAnnounceMessage(t('linkedDocuments.documentLinked', { title: doc.title }));
         setTimeout(() => setAnnounceMessage(''), 3000);
+        setPendingAttachmentType(null);
       } catch (err) {
         if (err instanceof ApiClientError && err.error.code === 'DUPLICATE_DOCUMENT_LINK') {
           setLinkError(t('linkedDocuments.duplicateLink', { entity: entityLabel }));
@@ -231,7 +236,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         addButtonRef.current?.focus();
       }, 0);
     },
-    [hook, t, entityLabel],
+    [hook, t, entityLabel, entityType, pendingAttachmentType],
   );
 
   const handleUnlink = useCallback(async () => {
@@ -259,6 +264,37 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
     }
   }, [unlinkTarget, hook, t]);
 
+  const handleAttachmentTypeChange = useCallback(
+    async (link: DocumentLinkWithMetadata, type: AttachmentType | null) => {
+      setUpdatingAttachmentTypeId(link.id);
+      const title = link.document?.title ?? `Document #${link.paperlessDocumentId}`;
+
+      try {
+        await hook.updateAttachmentType(link.id, type);
+        // Announce change to screen readers
+        const typeLabel = type
+          ? t(`documentCard.attachmentType.${type}`)
+          : t('documentCard.attachmentType.none');
+        setAnnounceMessage(
+          t('linkedDocuments.attachmentTypeChanged', {
+            title,
+            type: typeLabel,
+          }),
+        );
+        setTimeout(() => setAnnounceMessage(''), 3000);
+      } catch (err) {
+        if (err instanceof ApiClientError) {
+          setLinkError(err.error.message ?? t('linkedDocuments.failedToUpdateAttachmentType'));
+        } else {
+          setLinkError(t('linkedDocuments.failedToUpdateAttachmentType'));
+        }
+      } finally {
+        setUpdatingAttachmentTypeId(null);
+      }
+    },
+    [hook, t],
+  );
+
   return (
     <section aria-labelledby="documents-section-title" className={styles.section}>
       <div className={styles.sectionHeader}>
@@ -279,6 +315,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
           className={styles.addButton}
           disabled={!paperlessStatus?.configured || hook.isLoading}
           onClick={() => {
+            setPendingAttachmentType(null);
             setShowPicker(true);
             setLinkError(null);
           }}
@@ -373,6 +410,10 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                       }
                     : undefined
                 }
+                onAttachmentTypeChange={
+                  entityType === 'invoice' ? handleAttachmentTypeChange : undefined
+                }
+                isUpdatingAttachmentType={updatingAttachmentTypeId === link.id}
               />
             </div>
           ))}
@@ -421,6 +462,26 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
               </button>
             </div>
             <div className={styles.pickerBody}>
+              {entityType === 'invoice' && (
+                <div className={styles.pickerAttachmentTypeRow}>
+                  <label htmlFor="picker-attachment-type" className={styles.pickerLabel}>
+                    {t('linkedDocuments.attachmentTypeLabel')}
+                  </label>
+                  <select
+                    id="picker-attachment-type"
+                    className={styles.attachmentTypeSelect}
+                    value={pendingAttachmentType ?? ''}
+                    onChange={(e) =>
+                      setPendingAttachmentType((e.target.value || null) as AttachmentType | null)
+                    }
+                  >
+                    <option value="">{t('documentCard.attachmentType.none')}</option>
+                    <option value="quotation">{t('documentCard.attachmentType.quotation')}</option>
+                    <option value="deposit">{t('documentCard.attachmentType.deposit')}</option>
+                    <option value="invoice">{t('documentCard.attachmentType.invoice')}</option>
+                  </select>
+                </div>
+              )}
               <DocumentBrowser
                 mode="modal"
                 onSelect={handleDocumentSelect}

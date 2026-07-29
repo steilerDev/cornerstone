@@ -39,6 +39,8 @@ export interface BudgetSource {
   interestRate: number | null;
   terms: string | null;
   notes: string | null;
+  reference: string | null;
+  contactAddress: string | null;
   status: BudgetSourceStatus;
   isDiscretionary: boolean;
   createdBy: UserSummary | null;
@@ -56,6 +58,8 @@ export interface CreateBudgetSourceRequest {
   interestRate?: number | null;
   terms?: string | null;
   notes?: string | null;
+  reference?: string | null;
+  contactAddress?: string | null;
   status?: BudgetSourceStatus;
 }
 
@@ -70,6 +74,8 @@ export interface UpdateBudgetSourceRequest {
   interestRate?: number | null;
   terms?: string | null;
   notes?: string | null;
+  reference?: string | null;
+  contactAddress?: string | null;
   status?: BudgetSourceStatus;
 }
 

@@ -79,6 +79,8 @@ describe('Budget Source Routes', () => {
     interestRate?: number | null;
     terms?: string | null;
     notes?: string | null;
+    reference?: string | null;
+    contactAddress?: string | null;
     status?: 'active' | 'exhausted' | 'closed';
     createdBy?: string | null;
   }) {
@@ -95,6 +97,8 @@ describe('Budget Source Routes', () => {
         interestRate: options.interestRate ?? null,
         terms: options.terms ?? null,
         notes: options.notes ?? null,
+        reference: options.reference ?? null,
+        contactAddress: options.contactAddress ?? null,
         status: options.status ?? 'active',
         createdBy: options.createdBy ?? null,
         createdAt: now,
@@ -708,6 +712,84 @@ describe('Budget Source Routes', () => {
       const body = response.json<BudgetSourceResponse>();
       expect(body.budgetSource.name).toBe('Member Source');
     });
+
+    // ─── reference and contactAddress (Story #1877) ────────────────────────
+
+    describe('reference and contactAddress', () => {
+      it('creates a source with reference and contactAddress (201)', async () => {
+        const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/budget-sources',
+          headers: { cookie },
+          payload: {
+            name: 'Bank Loan With Contact',
+            sourceType: 'bank_loan',
+            totalAmount: 200000,
+            reference: 'Account #12345',
+            contactAddress: '123 Bank St, Springfield',
+          },
+        });
+
+        expect(response.statusCode).toBe(201);
+        const body = response.json<BudgetSourceResponse>();
+        expect(body.budgetSource.reference).toBe('Account #12345');
+        expect(body.budgetSource.contactAddress).toBe('123 Bank St, Springfield');
+      });
+
+      it('defaults reference and contactAddress to null when omitted', async () => {
+        const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/budget-sources',
+          headers: { cookie },
+          payload: { name: 'No Contact Fields', sourceType: 'savings', totalAmount: 1000 },
+        });
+
+        expect(response.statusCode).toBe(201);
+        const body = response.json<BudgetSourceResponse>();
+        expect(body.budgetSource.reference).toBeNull();
+        expect(body.budgetSource.contactAddress).toBeNull();
+      });
+
+      it('returns 400 VALIDATION_ERROR when reference exceeds 200 characters', async () => {
+        const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/budget-sources',
+          headers: { cookie },
+          payload: {
+            name: 'Too Long Reference',
+            sourceType: 'bank_loan',
+            totalAmount: 1000,
+            reference: 'R'.repeat(201),
+          },
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('returns 400 VALIDATION_ERROR when contactAddress exceeds 500 characters', async () => {
+        const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/budget-sources',
+          headers: { cookie },
+          payload: {
+            name: 'Too Long Address',
+            sourceType: 'bank_loan',
+            totalAmount: 1000,
+            contactAddress: 'A'.repeat(501),
+          },
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+    });
   });
 
   // ─── GET /api/budget-sources/:id ──────────────────────────────────────────
@@ -1103,6 +1185,77 @@ describe('Budget Source Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<BudgetSourceResponse>();
       expect(body.budgetSource.name).toBe('Member Updated');
+    });
+
+    // ─── reference and contactAddress (Story #1877) ────────────────────────
+
+    describe('reference and contactAddress', () => {
+      it('updates reference and contactAddress (200)', async () => {
+        const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+        const src = createTestSource({ name: 'Contact Update', sourceType: 'bank_loan' });
+
+        const response = await app.inject({
+          method: 'PATCH',
+          url: `/api/budget-sources/${src.id}`,
+          headers: { cookie },
+          payload: { reference: 'New Reference', contactAddress: 'New Address' },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<BudgetSourceResponse>();
+        expect(body.budgetSource.reference).toBe('New Reference');
+        expect(body.budgetSource.contactAddress).toBe('New Address');
+      });
+
+      it('clears reference and contactAddress by setting them to null', async () => {
+        const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+        const src = createTestSource({
+          name: 'Clear Contact',
+          sourceType: 'bank_loan',
+          reference: 'Old Reference',
+          contactAddress: 'Old Address',
+        });
+
+        const response = await app.inject({
+          method: 'PATCH',
+          url: `/api/budget-sources/${src.id}`,
+          headers: { cookie },
+          payload: { reference: null, contactAddress: null },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<BudgetSourceResponse>();
+        expect(body.budgetSource.reference).toBeNull();
+        expect(body.budgetSource.contactAddress).toBeNull();
+      });
+
+      it('returns 400 VALIDATION_ERROR when reference exceeds 200 characters on update', async () => {
+        const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+        const src = createTestSource({ name: 'Bad Reference Update', sourceType: 'bank_loan' });
+
+        const response = await app.inject({
+          method: 'PATCH',
+          url: `/api/budget-sources/${src.id}`,
+          headers: { cookie },
+          payload: { reference: 'R'.repeat(201) },
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
+
+      it('returns 400 VALIDATION_ERROR when contactAddress exceeds 500 characters on update', async () => {
+        const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+        const src = createTestSource({ name: 'Bad Address Update', sourceType: 'bank_loan' });
+
+        const response = await app.inject({
+          method: 'PATCH',
+          url: `/api/budget-sources/${src.id}`,
+          headers: { cookie },
+          payload: { contactAddress: 'A'.repeat(501) },
+        });
+
+        expect(response.statusCode).toBe(400);
+      });
     });
   });
 

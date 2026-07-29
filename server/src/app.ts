@@ -49,6 +49,7 @@ import paperlessRoutes from './routes/paperless.js';
 import documentLinksRoutes from './routes/documentLinks.js';
 import photoRoutes from './routes/photos.js';
 import preferencesRoutes from './routes/preferences.js';
+import settingsRoutes from './routes/settings.js';
 import householdItemCategoryRoutes from './routes/householdItemCategories.js';
 import householdItemRoutes from './routes/householdItems.js';
 import diaryRoutes from './routes/diary.js';
@@ -231,6 +232,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // User preferences routes (EPIC-09 Story #470: User Preferences Infrastructure)
   await app.register(preferencesRoutes, { prefix: '/api/users/me/preferences' });
+
+  // Application settings routes (Story #1877: Household metadata settings)
+  await app.register(settingsRoutes, { prefix: '/api/settings' });
 
   // Household item category routes (EPIC-09: Story #509 - Unified Tags & Categories Management)
   await app.register(householdItemCategoryRoutes, { prefix: '/api/household-item-categories' });

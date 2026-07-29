@@ -96,12 +96,16 @@
       "totalAmount": "Total Amount ($)",
       "interestRate": "Interest Rate (%)",
       "terms": "Terms",
+      "reference": "Reference",
+      "contactAddress": "Contact Address",
       "notes": "Notes",
       "required": "*",
       "placeholders": {
         "name": "e.g., Primary Bank Loan",
         "interestRate": "e.g., 3.50",
         "terms": "e.g., 30-year fixed, monthly payments",
+        "reference": "e.g., Loan #12345",
+        "contactAddress": "e.g., 123 Main St, City, State ZIP",
         "notes": "Optional notes"
       }
     },

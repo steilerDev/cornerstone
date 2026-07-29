@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { DocumentLinkWithMetadata, DocumentLinkEntityType } from '@cornerstone/shared';
+import type {
+  DocumentLinkWithMetadata,
+  DocumentLinkEntityType,
+  AttachmentType,
+} from '@cornerstone/shared';
 import {
   listDocumentLinks,
   createDocumentLink,
   deleteDocumentLink,
   listAllLinkedDocumentIds,
+  updateDocumentLinkAttachmentType,
 } from '../lib/documentLinksApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 
@@ -12,8 +17,9 @@ export interface UseDocumentLinksResult {
   links: DocumentLinkWithMetadata[];
   isLoading: boolean;
   error: string | null;
-  addLink: (paperlessDocumentId: number) => Promise<void>;
+  addLink: (paperlessDocumentId: number, attachmentType?: AttachmentType | null) => Promise<void>;
   removeLink: (linkId: string) => Promise<void>;
+  updateAttachmentType: (linkId: string, attachmentType: AttachmentType | null) => Promise<void>;
   refresh: () => void;
 }
 
@@ -67,11 +73,12 @@ export function useDocumentLinks(
   }, [entityType, entityId, fetchCount]);
 
   const addLink = useCallback(
-    async (paperlessDocumentId: number) => {
+    async (paperlessDocumentId: number, attachmentType?: AttachmentType | null) => {
       await createDocumentLink({
         entityType,
         entityId,
         paperlessDocumentId,
+        attachmentType: attachmentType ?? undefined,
       });
       // Refresh the list after successful creation
       setFetchCount((c) => c + 1);
@@ -85,6 +92,19 @@ export function useDocumentLinks(
     setLinks((prev) => prev.filter((link) => link.id !== linkId));
   }, []);
 
+  const updateAttachmentType = useCallback(
+    async (linkId: string, attachmentType: AttachmentType | null) => {
+      const updated = await updateDocumentLinkAttachmentType(linkId, attachmentType);
+      // Optimistically update local state
+      setLinks((prev) =>
+        prev.map((link) =>
+          link.id === linkId ? { ...link, attachmentType: updated.attachmentType } : link,
+        ),
+      );
+    },
+    [],
+  );
+
   const refresh = useCallback(() => {
     setFetchCount((c) => c + 1);
   }, []);
@@ -95,6 +115,7 @@ export function useDocumentLinks(
     error,
     addLink,
     removeLink,
+    updateAttachmentType,
     refresh,
   };
 }

@@ -257,6 +257,47 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.pickerAttachmentTypeRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.pickerLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.attachmentTypeSelect {
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-input);
+}
+
+.attachmentTypeSelect:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+}
+
+.attachmentTypeSelect:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-primary);
+}
+
+.attachmentTypeSelect:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .modalText {

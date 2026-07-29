@@ -57,6 +57,8 @@ function makeBudgetSourceRow(
     interestRate: 3.5,
     terms: '20 years',
     notes: null,
+    reference: null,
+    contactAddress: null,
     status: 'active',
     isDiscretionary: false,
     createdBy: null,

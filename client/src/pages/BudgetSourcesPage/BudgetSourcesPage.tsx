@@ -64,6 +64,8 @@ type EditingSource = {
   totalAmount: string;
   interestRate: string;
   terms: string;
+  reference: string;
+  contactAddress: string;
   notes: string;
   status: BudgetSourceStatus;
 };
@@ -76,6 +78,8 @@ function sourceToEditState(source: BudgetSource): EditingSource {
     totalAmount: String(source.totalAmount),
     interestRate: source.interestRate != null ? String(source.interestRate) : '',
     terms: source.terms ?? '',
+    reference: source.reference ?? '',
+    contactAddress: source.contactAddress ?? '',
     notes: source.notes ?? '',
     status: source.status,
   };
@@ -284,6 +288,8 @@ export function BudgetSourcesPage() {
   const [newTotalAmount, setNewTotalAmount] = useState('');
   const [newInterestRate, setNewInterestRate] = useState('');
   const [newTerms, setNewTerms] = useState('');
+  const [newReference, setNewReference] = useState('');
+  const [newContactAddress, setNewContactAddress] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [newStatus, setNewStatus] = useState<BudgetSourceStatus>('active');
   const [isCreating, setIsCreating] = useState(false);
@@ -360,6 +366,8 @@ export function BudgetSourcesPage() {
     setNewTotalAmount('');
     setNewInterestRate('');
     setNewTerms('');
+    setNewReference('');
+    setNewContactAddress('');
     setNewNotes('');
     setNewStatus('active');
     setCreateError('');
@@ -395,6 +403,8 @@ export function BudgetSourcesPage() {
       totalAmount: totalAmountValue,
       interestRate: interestRateValue ?? null,
       terms: newTerms.trim() || null,
+      reference: newReference.trim() || null,
+      contactAddress: newContactAddress.trim() || null,
       notes: newNotes.trim() || null,
       status: newStatus,
     };
@@ -468,6 +478,8 @@ export function BudgetSourcesPage() {
         totalAmount: totalAmountValue,
         interestRate: interestRateValue,
         terms: editingSource.terms.trim() || null,
+        reference: editingSource.reference.trim() || null,
+        contactAddress: editingSource.contactAddress.trim() || null,
         notes: editingSource.notes.trim() || null,
         status: editingSource.status,
       });
@@ -885,6 +897,38 @@ export function BudgetSourcesPage() {
             </div>
 
             <div className={styles.field}>
+              <label htmlFor="sourceReference" className={styles.label}>
+                {t('sources.form.reference')}
+              </label>
+              <input
+                type="text"
+                id="sourceReference"
+                value={newReference}
+                onChange={(e) => setNewReference(e.target.value)}
+                className={styles.input}
+                placeholder={t('sources.form.placeholders.reference')}
+                maxLength={200}
+                disabled={isCreating}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="sourceContactAddress" className={styles.label}>
+                {t('sources.form.contactAddress')}
+              </label>
+              <textarea
+                id="sourceContactAddress"
+                value={newContactAddress}
+                onChange={(e) => setNewContactAddress(e.target.value)}
+                className={styles.textarea}
+                placeholder={t('sources.form.placeholders.contactAddress')}
+                maxLength={500}
+                disabled={isCreating}
+                rows={3}
+              />
+            </div>
+
+            <div className={styles.field}>
               <label htmlFor="sourceNotes" className={styles.label}>
                 {t('sources.form.notes')}
               </label>
@@ -1073,6 +1117,42 @@ export function BudgetSourcesPage() {
                         placeholder={t('sources.form.placeholders.terms')}
                         maxLength={500}
                         disabled={isUpdating}
+                      />
+                    </div>
+
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-reference-${source.id}`} className={styles.label}>
+                        {t('sources.form.reference')}
+                      </label>
+                      <input
+                        type="text"
+                        id={`edit-reference-${source.id}`}
+                        value={editingSource.reference}
+                        onChange={(e) =>
+                          setEditingSource({ ...editingSource, reference: e.target.value })
+                        }
+                        className={styles.input}
+                        placeholder={t('sources.form.placeholders.reference')}
+                        maxLength={200}
+                        disabled={isUpdating}
+                      />
+                    </div>
+
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-contactAddress-${source.id}`} className={styles.label}>
+                        {t('sources.form.contactAddress')}
+                      </label>
+                      <textarea
+                        id={`edit-contactAddress-${source.id}`}
+                        value={editingSource.contactAddress}
+                        onChange={(e) =>
+                          setEditingSource({ ...editingSource, contactAddress: e.target.value })
+                        }
+                        className={styles.textarea}
+                        placeholder={t('sources.form.placeholders.contactAddress')}
+                        maxLength={500}
+                        disabled={isUpdating}
+                        rows={3}
                       />
                     </div>
 

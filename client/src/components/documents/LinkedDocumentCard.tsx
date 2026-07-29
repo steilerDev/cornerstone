@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { DocumentLinkWithMetadata } from '@cornerstone/shared';
+import type { DocumentLinkWithMetadata, AttachmentType } from '@cornerstone/shared';
+import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
+import { Badge } from '../../components/Badge/Badge.js';
 import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
 import { formatDate } from '../../lib/formatters.js';
 import styles from './LinkedDocumentCard.module.css';
+import badgeStyles from '../Badge/Badge.module.css';
 
 interface LinkedDocumentCardProps {
   link: DocumentLinkWithMetadata;
@@ -11,6 +14,8 @@ interface LinkedDocumentCardProps {
   onView: (link: DocumentLinkWithMetadata) => void;
   onUnlink: (link: DocumentLinkWithMetadata) => void;
   onItemize?: (link: DocumentLinkWithMetadata) => void;
+  onAttachmentTypeChange?: (link: DocumentLinkWithMetadata, type: AttachmentType | null) => void;
+  isUpdatingAttachmentType?: boolean;
 }
 
 export function LinkedDocumentCard({
@@ -19,6 +24,8 @@ export function LinkedDocumentCard({
   onView,
   onUnlink,
   onItemize,
+  onAttachmentTypeChange,
+  isUpdatingAttachmentType,
 }: LinkedDocumentCardProps) {
   const { t } = useTranslation('documents');
   const [thumbError, setThumbError] = useState(false);
@@ -28,6 +35,21 @@ export function LinkedDocumentCard({
   const title = link.document?.title ?? `Document #${link.paperlessDocumentId}`;
   const created = link.document?.created ?? null;
   const tags = link.document?.tags ?? [];
+
+  const ATTACHMENT_TYPE_VARIANTS: BadgeVariantMap = {
+    quotation: {
+      label: t('documentCard.attachmentType.quotation'),
+      className: badgeStyles.attachmentQuotation,
+    },
+    deposit: {
+      label: t('documentCard.attachmentType.deposit'),
+      className: badgeStyles.attachmentDeposit,
+    },
+    invoice: {
+      label: t('documentCard.attachmentType.invoice'),
+      className: badgeStyles.attachmentInvoice,
+    },
+  };
 
   return (
     <div className={styles.card}>
@@ -62,6 +84,35 @@ export function LinkedDocumentCard({
         <h3 className={styles.title}>{title}</h3>
 
         {created && <p className={styles.meta}>{formatDate(created)}</p>}
+
+        {onAttachmentTypeChange && (
+          <div className={styles.attachmentTypeRow}>
+            {link.attachmentType && (
+              <Badge
+                variants={ATTACHMENT_TYPE_VARIANTS}
+                value={link.attachmentType}
+                testId={`attachment-type-badge-${link.id}`}
+              />
+            )}
+            <label htmlFor={`attachment-type-${link.id}`} className={styles.srOnly}>
+              {t('documentCard.attachmentType.selectLabel', { title })}
+            </label>
+            <select
+              id={`attachment-type-${link.id}`}
+              className={styles.attachmentTypeSelect}
+              value={link.attachmentType ?? ''}
+              onChange={(e) =>
+                onAttachmentTypeChange(link, (e.target.value || null) as AttachmentType | null)
+              }
+              disabled={isUpdatingAttachmentType}
+            >
+              <option value="">{t('documentCard.attachmentType.none')}</option>
+              <option value="quotation">{t('documentCard.attachmentType.quotation')}</option>
+              <option value="deposit">{t('documentCard.attachmentType.deposit')}</option>
+              <option value="invoice">{t('documentCard.attachmentType.invoice')}</option>
+            </select>
+          </div>
+        )}
 
         {tags.length > 0 && (
           <div className={styles.tags}>

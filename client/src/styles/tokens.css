@@ -235,6 +235,18 @@
   --color-hi-status-arrived-bg: var(--color-green-100);
   --color-hi-status-arrived-text: var(--color-green-900);
 
+  /* Document Attachment Type: Quotation (purple) */
+  --color-attachment-quotation-bg: #e9d5ff;
+  --color-attachment-quotation-text: #6b21a8;
+
+  /* Document Attachment Type: Deposit (teal) */
+  --color-attachment-deposit-bg: #ccfbf1;
+  --color-attachment-deposit-text: #134e4a;
+
+  /* Document Attachment Type: Invoice (cyan) */
+  --color-attachment-invoice-bg: #cffafe;
+  --color-attachment-invoice-text: #0c4a6e;
+
   /* ============================================================
    * LAYER 2 — SHADOWS
    * ============================================================ */
@@ -792,6 +804,16 @@
   --color-source-9-bg: rgba(249, 115, 22, 0.2);
   --color-source-9-text: #fed7aa;
   --color-source-9-dot: #f97316;
+
+  /* --- Document Attachment Type (dark mode) --- */
+  --color-attachment-quotation-bg: rgba(168, 85, 247, 0.2);
+  --color-attachment-quotation-text: #e9d5ff;
+
+  --color-attachment-deposit-bg: rgba(20, 184, 166, 0.15);
+  --color-attachment-deposit-text: #ccfbf1;
+
+  --color-attachment-invoice-bg: rgba(34, 211, 238, 0.15);
+  --color-attachment-invoice-text: #cffafe;
 
   /* --- Shadows (deeper/darker in dark mode) --- */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);

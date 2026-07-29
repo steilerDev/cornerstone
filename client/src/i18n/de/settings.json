@@ -103,11 +103,25 @@
   "manage": {
     "pageTitle": "Verwalten",
     "tabs": {
+      "household": "Haushalt",
       "areas": "Bereiche",
       "trades": "Gewerke",
       "orientations": "Ausrichtungen",
       "budgetCategories": "Budgetkategorien",
       "householdItemCategories": "Haushaltsartikel-Kategorien"
+    },
+    "household": {
+      "title": "Haushaltsinformationen",
+      "description": "Wird als Absendername und -adresse auf Berichts-Anschreiben verwendet.",
+      "nameLabel": "Haushaltsname",
+      "namePlaceholder": "z. B. Familie Schmidt",
+      "addressLabel": "Haushaltsadresse",
+      "addressPlaceholder": "z. B. Musterstraße 1, 12345 Musterstadt",
+      "save": "Änderungen speichern",
+      "saving": "Wird gespeichert...",
+      "saveSuccess": "Haushaltsinformationen erfolgreich aktualisiert",
+      "saveFailed": "Haushaltsinformationen konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      "loadError": "Haushaltsinformationen konnten nicht geladen werden. Bitte versuchen Sie es erneut."
     },
     "areas": {
       "loading": "Bereiche werden geladen...",

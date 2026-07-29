@@ -153,6 +153,7 @@ const makeHook = (overrides: Partial<UseDocumentLinksResult> = {}): UseDocumentL
   error: null,
   addLink: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   removeLink: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+  updateAttachmentType: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
   refresh: jest.fn(),
   ...overrides,
 });
@@ -172,6 +173,7 @@ const makeLink = (id: string): DocumentLinkWithMetadata => ({
   entityType: 'work_item',
   entityId: 'wi-abc',
   paperlessDocumentId: 42,
+  attachmentType: null,
   createdBy: null,
   createdAt: '2026-01-01T00:00:00Z',
   document: {
@@ -195,6 +197,7 @@ const makeInvoiceLink = (id: string): DocumentLinkWithMetadata => ({
   entityType: 'invoice',
   entityId: 'inv-xyz',
   paperlessDocumentId: 42,
+  attachmentType: null,
   createdBy: null,
   createdAt: '2026-01-01T00:00:00Z',
   document: {
@@ -398,7 +401,8 @@ describe('LinkedDocumentsSection', () => {
         fireEvent.click(screen.getByTestId('document-browser'));
       });
 
-      expect(addLink).toHaveBeenCalledWith(99);
+      // Story #1877: non-invoice entity types pass `undefined` as the (unused) attachmentType arg
+      expect(addLink).toHaveBeenCalledWith(99, undefined);
     });
 
     it('closes picker after successful selection', async () => {

@@ -32,6 +32,7 @@ const makeLink = (overrides: Partial<DocumentLinkWithMetadata> = {}): DocumentLi
   entityType: 'work_item',
   entityId: 'wi-1',
   paperlessDocumentId: 42,
+  attachmentType: null,
   createdBy: null,
   createdAt: '2026-01-01T00:00:00Z',
   document: {
@@ -520,6 +521,206 @@ describe('LinkedDocumentCard', () => {
         />,
       );
       expect(screen.queryByRole('button', { name: /Itemize/i })).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Attachment type badge and select (Story #1877) ──────────────────────
+
+  describe('attachment type badge and select', () => {
+    it('does not render a badge or select when onAttachmentTypeChange is omitted', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ attachmentType: 'quotation' })}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+        />,
+      );
+      expect(screen.queryByTestId('attachment-type-badge-link-1')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Tag document type/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the select when onAttachmentTypeChange is provided', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+        />,
+      );
+      expect(screen.getByLabelText(/Tag document type: Invoice March/i)).toBeInTheDocument();
+    });
+
+    it('does not render a badge when link.attachmentType is null (untagged)', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ attachmentType: null })}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+        />,
+      );
+      expect(screen.queryByTestId('attachment-type-badge-link-1')).not.toBeInTheDocument();
+    });
+
+    it('renders a "Quotation" badge with the correct variant class when tagged "quotation"', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ attachmentType: 'quotation' })}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+        />,
+      );
+      const badge = screen.getByTestId('attachment-type-badge-link-1');
+      expect(badge).toHaveTextContent('Quotation');
+      expect(badge.className).toContain('attachmentQuotation');
+    });
+
+    it('renders a "Deposit" badge with the correct variant class when tagged "deposit"', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ attachmentType: 'deposit' })}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+        />,
+      );
+      const badge = screen.getByTestId('attachment-type-badge-link-1');
+      expect(badge).toHaveTextContent('Deposit');
+      expect(badge.className).toContain('attachmentDeposit');
+    });
+
+    it('renders an "Invoice" badge with the correct variant class when tagged "invoice"', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ attachmentType: 'invoice' })}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+        />,
+      );
+      const badge = screen.getByTestId('attachment-type-badge-link-1');
+      expect(badge).toHaveTextContent('Invoice');
+      expect(badge.className).toContain('attachmentInvoice');
+    });
+
+    it('select value reflects link.attachmentType', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ attachmentType: 'deposit' })}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+        />,
+      );
+      const select = screen.getByLabelText(
+        /Tag document type: Invoice March/i,
+      ) as HTMLSelectElement;
+      expect(select.value).toBe('deposit');
+    });
+
+    it('select value is empty string when link.attachmentType is null', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink({ attachmentType: null })}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+        />,
+      );
+      const select = screen.getByLabelText(
+        /Tag document type: Invoice March/i,
+      ) as HTMLSelectElement;
+      expect(select.value).toBe('');
+    });
+
+    it('select offers "No tag", "Quotation", "Deposit", "Invoice" options', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+        />,
+      );
+      const select = screen.getByLabelText(
+        /Tag document type: Invoice March/i,
+      ) as HTMLSelectElement;
+      const optionTexts = Array.from(select.options).map((o) => o.text);
+      expect(optionTexts).toEqual(['No tag', 'Quotation', 'Deposit', 'Invoice']);
+    });
+
+    it('changing the select to "Quotation" calls onAttachmentTypeChange with (link, "quotation")', () => {
+      const onAttachmentTypeChange = jest.fn();
+      const link = makeLink({ attachmentType: null });
+      render(
+        <LinkedDocumentCard
+          link={link}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={onAttachmentTypeChange}
+        />,
+      );
+      const select = screen.getByLabelText(/Tag document type: Invoice March/i);
+      fireEvent.change(select, { target: { value: 'quotation' } });
+      expect(onAttachmentTypeChange).toHaveBeenCalledWith(link, 'quotation');
+    });
+
+    it('changing the select to "No tag" calls onAttachmentTypeChange with (link, null)', () => {
+      const onAttachmentTypeChange = jest.fn();
+      const link = makeLink({ attachmentType: 'quotation' });
+      render(
+        <LinkedDocumentCard
+          link={link}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={onAttachmentTypeChange}
+        />,
+      );
+      const select = screen.getByLabelText(/Tag document type: Invoice March/i);
+      fireEvent.change(select, { target: { value: '' } });
+      expect(onAttachmentTypeChange).toHaveBeenCalledWith(link, null);
+    });
+
+    it('select is disabled when isUpdatingAttachmentType is true', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+          isUpdatingAttachmentType={true}
+        />,
+      );
+      const select = screen.getByLabelText(/Tag document type: Invoice March/i);
+      expect(select).toBeDisabled();
+    });
+
+    it('select is not disabled when isUpdatingAttachmentType is false or omitted', () => {
+      render(
+        <LinkedDocumentCard
+          link={makeLink()}
+          paperlessBaseUrl={null}
+          onView={jest.fn()}
+          onUnlink={jest.fn()}
+          onAttachmentTypeChange={jest.fn()}
+        />,
+      );
+      const select = screen.getByLabelText(/Tag document type: Invoice March/i);
+      expect(select).not.toBeDisabled();
     });
   });
 });

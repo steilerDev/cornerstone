@@ -5,12 +5,13 @@ import type * as DocumentLinksApiModule from './documentLinksApi.js';
 const mockGet = jest.fn<() => Promise<unknown>>();
 const mockPost = jest.fn<() => Promise<unknown>>();
 const mockDel = jest.fn<() => Promise<unknown>>();
+const mockPatch = jest.fn<() => Promise<unknown>>();
 
 jest.unstable_mockModule('./apiClient.js', () => ({
   get: mockGet,
   post: mockPost,
   del: mockDel,
-  patch: jest.fn(),
+  patch: mockPatch,
   put: jest.fn(),
   setBaseUrl: jest.fn(),
   getBaseUrl: jest.fn().mockReturnValue('/api'),
@@ -34,6 +35,7 @@ beforeEach(async () => {
   mockGet.mockReset();
   mockPost.mockReset();
   mockDel.mockReset();
+  mockPatch.mockReset();
 });
 
 afterEach(() => {
@@ -243,6 +245,74 @@ describe('documentLinksApi', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]).toBe(42);
+    });
+  });
+
+  describe('updateDocumentLinkAttachmentType', () => {
+    it('calls PATCH /document-links/:id with the attachmentType body and returns documentLink', async () => {
+      const mockLink = {
+        id: 'link-1',
+        entityType: 'invoice',
+        entityId: 'inv-abc',
+        paperlessDocumentId: 42,
+        attachmentType: 'quotation',
+        createdBy: null,
+        createdAt: '2026-01-01T00:00:00Z',
+      };
+      mockPatch.mockResolvedValueOnce({ documentLink: mockLink });
+
+      const result = await documentLinksApi.updateDocumentLinkAttachmentType('link-1', 'quotation');
+
+      expect(mockPatch).toHaveBeenCalledWith('/document-links/link-1', {
+        attachmentType: 'quotation',
+      });
+      expect(result).toEqual(mockLink);
+    });
+
+    it('sends attachmentType: null to untag a link', async () => {
+      const mockLink = {
+        id: 'link-1',
+        entityType: 'invoice',
+        entityId: 'inv-abc',
+        paperlessDocumentId: 42,
+        attachmentType: null,
+        createdBy: null,
+        createdAt: '2026-01-01T00:00:00Z',
+      };
+      mockPatch.mockResolvedValueOnce({ documentLink: mockLink });
+
+      const result = await documentLinksApi.updateDocumentLinkAttachmentType('link-1', null);
+
+      expect(mockPatch).toHaveBeenCalledWith('/document-links/link-1', { attachmentType: null });
+      expect(result.attachmentType).toBeNull();
+    });
+
+    it('passes the link id in the URL path', async () => {
+      mockPatch.mockResolvedValueOnce({
+        documentLink: {
+          id: 'link-abc-xyz',
+          entityType: 'invoice',
+          entityId: 'inv-abc',
+          paperlessDocumentId: 42,
+          attachmentType: 'deposit',
+          createdBy: null,
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      });
+
+      await documentLinksApi.updateDocumentLinkAttachmentType('link-abc-xyz', 'deposit');
+
+      expect(mockPatch).toHaveBeenCalledWith('/document-links/link-abc-xyz', {
+        attachmentType: 'deposit',
+      });
+    });
+
+    it('propagates errors from the API client', async () => {
+      mockPatch.mockRejectedValueOnce(new Error('Not Found'));
+
+      await expect(
+        documentLinksApi.updateDocumentLinkAttachmentType('missing-id', 'invoice'),
+      ).rejects.toThrow('Not Found');
     });
   });
 });
