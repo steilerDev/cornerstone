@@ -982,7 +982,7 @@ test.describe(
 
           // A pending refund has not yet returned money — final payment amount unchanged (2000)
           await expect(detailPage.finalPaymentRow).toBeVisible();
-          await expect(detailPage.finalPaymentAmount).toContainText('2000');
+          await expect(detailPage.finalPaymentAmount).toContainText('2,000');
 
           // Mark the refund paid — now it reduces the final payment amount
           await detailPage.openDepositMenu();
@@ -998,7 +998,7 @@ test.describe(
           await expect(detailPage.refundAmountNegative.first()).toContainText('500');
 
           // Final payment = 2000 − 500 (received refund) = 1500
-          await expect(detailPage.finalPaymentAmount).toContainText('1500');
+          await expect(detailPage.finalPaymentAmount).toContainText('1,500');
         } finally {
           if (vendorId) await deleteVendorViaApi(page, vendorId);
         }
@@ -1185,7 +1185,7 @@ test.describe('Refund entries — status lifecycle reuses deposit menu/badges (S
       await expect(detailPage.depositsSection).toContainText('Pending');
       await expect(detailPage.refundBadge.first()).toBeVisible();
       // Pending refund does not yet reduce the final payment amount
-      await expect(detailPage.finalPaymentAmount).toContainText('1000');
+      await expect(detailPage.finalPaymentAmount).toContainText('1,000');
 
       // ── Mark paid — same menu item text as a regular deposit ("Mark paid…") ──
       await detailPage.openDepositMenu();
