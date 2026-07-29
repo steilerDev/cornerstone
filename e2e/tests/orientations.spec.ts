@@ -377,7 +377,7 @@ test.describe('ManagePage — Orientations tab navigation', { tag: '@responsive'
     await expect(orientationsPage.createFormHeading).toBeVisible();
   });
 
-  test('ManagePage now has 5 tabs (Areas, Trades, Orientations, Budget Categories, HI Categories)', async ({
+  test('ManagePage now has 6 tabs (Household, Areas, Trades, Orientations, Budget Categories, HI Categories)', async ({
     page,
   }) => {
     await page.goto(MANAGE_ROUTE);
@@ -386,7 +386,7 @@ test.describe('ManagePage — Orientations tab navigation', { tag: '@responsive'
     });
 
     const tabs = page.getByRole('tab');
-    await expect(tabs).toHaveCount(5);
+    await expect(tabs).toHaveCount(6);
 
     // Verify Orientations tab exists
     await expect(page.getByRole('tab', { name: 'Orientations', exact: true })).toBeVisible();
