@@ -159,7 +159,7 @@ test.describe('Tab navigation', { tag: '@responsive' }, () => {
     const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
     await heading.waitFor({ state: 'visible' });
 
-    await page.getByRole('tab', { name: 'Household' }).click();
+    await page.getByRole('tab', { name: 'Household', exact: true }).click();
 
     // Household card heading appears
     await expect(
@@ -247,7 +247,7 @@ test.describe('URL tab deep-linking', { tag: '@responsive' }, () => {
   test('?tab=household loads the Household tab as active', async ({ page }) => {
     await page.goto(`${MANAGE_ROUTE}?tab=household`);
 
-    const householdTab = page.getByRole('tab', { name: 'Household' });
+    const householdTab = page.getByRole('tab', { name: 'Household', exact: true });
     await expect(householdTab).toHaveAttribute('aria-selected', 'true');
     await expect(
       page.getByRole('heading', { level: 2, name: 'Household Information', exact: true }),
@@ -914,7 +914,7 @@ test.describe('Dark mode', () => {
       await expect(heading).toBeVisible();
 
       // Navigate through each tab in dark mode
-      await page.getByRole('tab', { name: 'Household' }).click();
+      await page.getByRole('tab', { name: 'Household', exact: true }).click();
       await expect(
         page.getByRole('heading', { level: 2, name: 'Household Information', exact: true }),
       ).toBeVisible();

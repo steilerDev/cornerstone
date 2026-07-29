@@ -410,8 +410,13 @@ test.describe('Invoice row click navigation (Scenario 7)', { tag: '@responsive' 
         date: '2026-01-10',
       });
 
-      await invoicesPage.goto();
-      await invoicesPage.waitForLoaded();
+      // Search by this test's own unique invoice number rather than an unfiltered
+      // goto(). With 8 parallel workers all creating invoices concurrently, the
+      // default date-desc sort can easily push this test's row past page 1 (25/page)
+      // before its own invoice gets there, making the row unclickable/not-found. The
+      // server-side search matches invoiceNumber, so this scopes the table to (at
+      // most) this test's own row regardless of how many other invoices exist.
+      await invoicesPage.search(`${testPrefix}-ROW-001`);
 
       // Click the invoice number link — on both desktop table and mobile cards.
       // DataTable renders both the table AND the mobile cards simultaneously and uses
@@ -902,6 +907,12 @@ test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' },
       expect(paidResp.ok(), `PATCH deposit pending→paid failed: ${paidResp.status()}`).toBeTruthy();
       // Effective Amount = 1000 − 150 (paid refund) = 850
 
+      // Reset the "table.invoices.columns" preference before asserting the
+      // hidden-by-default baseline — a prior run's debounced save (or this test's
+      // own retry) can otherwise leave "Effective Amount"/"Remaining Amount"
+      // already-visible for this account before we even start.
+      await page.request.delete('/api/users/me/preferences/table.invoices.columns');
+
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
 
@@ -923,6 +934,13 @@ test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' },
       expect(effectiveText).toContain('850');
       expect(effectiveText).not.toBe(remainingText);
     } finally {
+      // Column visibility/order is a per-user server-side SINGLETON preference
+      // (`table.invoices.columns`, see useColumnPreferences), not a per-test entity.
+      // Reset it so this test's "enable Remaining/Effective Amount" toggles never
+      // leak into a retry of this same test (the debounced save can persist after a
+      // failed assertion) or into any other invoices test running afterward against
+      // the same account. DELETE 404s if no preference was ever saved — fine either way.
+      await page.request.delete('/api/users/me/preferences/table.invoices.columns');
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
