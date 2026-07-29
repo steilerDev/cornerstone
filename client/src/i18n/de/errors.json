@@ -43,5 +43,6 @@
   "LLM_NOT_CONFIGURED": "Automatische Positionsextraktion ist auf diesem Server nicht konfiguriert.",
   "LLM_UNREACHABLE": "Der Extraktionsdienst ist nicht erreichbar. Bitte versuchen Sie es später erneut.",
   "LLM_INVALID_RESPONSE": "Der Extraktionsdienst hat eine ungültige Antwort zurückgegeben.",
-  "LLM_UPSTREAM_ERROR": "Der Extraktionsdienst hat einen Fehler zurückgegeben."
+  "LLM_UPSTREAM_ERROR": "Der Extraktionsdienst hat einen Fehler zurückgegeben.",
+  "REFUND_EXCEEDS_INVOICE": "Der Rückerstattungsbetrag übersteigt den Rechnungsbetrag."
 }

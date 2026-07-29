@@ -22,6 +22,7 @@ import * as invoiceService from './invoiceService.js';
 import {
   NotFoundError,
   DepositsExceedInvoiceTotalError,
+  RefundExceedsInvoiceError,
   InvalidDepositStatusTransitionError,
   InvalidDepositDateForStatusError,
 } from '../errors/AppError.js';
@@ -116,6 +117,17 @@ describe('invoiceDepositService', () => {
     const userId = createTestUser('user@example.com');
     const vendorId = createTestVendor();
     const invoiceId = createTestInvoice(vendorId, 1000, 'INV-001');
+    return { userId, vendorId, invoiceId };
+  }
+
+  /**
+   * Like setup(), but allows a custom invoice amount (Story #1876 refund scenarios
+   * use round-number invoice totals like €10,000 to match the AC's numeric examples).
+   */
+  function setup2(invoiceAmount: number) {
+    const userId = createTestUser('user@example.com');
+    const vendorId = createTestVendor();
+    const invoiceId = createTestInvoice(vendorId, invoiceAmount, 'INV-001');
     return { userId, vendorId, invoiceId };
   }
 
@@ -773,7 +785,7 @@ describe('invoiceDepositService', () => {
   // ─── listAllInvoices does NOT embed deposits ─────────────────────────────────
 
   describe('listAllInvoices does not embed deposits', () => {
-    it('scenario 30: invoice in list response has empty deposits and finalPaymentAmount = invoice amount', () => {
+    it('scenario 30: invoice in list response has empty deposits array (regardless of finalPaymentAmount)', () => {
       const { userId, vendorId } = setup();
       const invoiceId = createTestInvoice(vendorId, 800);
 
@@ -785,7 +797,292 @@ describe('invoiceDepositService', () => {
       const listed = result.invoices.find((inv) => inv.id === invoiceId);
       expect(listed).toBeDefined();
       expect(listed!.deposits).toHaveLength(0);
-      expect(listed!.finalPaymentAmount).toBe(800); // = invoice.amount, not computed
+    });
+
+    // Story #1876: finalPaymentAmount on list endpoints was previously hardcoded to
+    // row.amount. It is now computed via the same refund-aware formula as the detail
+    // endpoint (computeFinalPaymentAmounts): 800 - 200 (paid deposit) - 300 (pending
+    // deposit) = 300. This intentionally supersedes the pre-#1876 scenario 30 assertion
+    // that finalPaymentAmount === invoice.amount on list rows.
+    it('scenario 30b: finalPaymentAmount on list endpoint is computed (deposit-aware), matching detail endpoint formula', () => {
+      const { userId, vendorId } = setup();
+      const invoiceId = createTestInvoice(vendorId, 800);
+
+      createDeposit(db, invoiceId, { amount: 200, dueDate: '2026-02-01', status: 'paid' }, userId);
+      createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-02' }, userId);
+
+      const result = invoiceService.listAllInvoices(db, {});
+      const listed = result.invoices.find((inv) => inv.id === invoiceId);
+      expect(listed!.finalPaymentAmount).toBe(300); // 800 - 200 - 300
+
+      const detail = invoiceService.getInvoiceById(db, invoiceId);
+      expect(detail!.finalPaymentAmount).toBe(300); // matches detail endpoint
+    });
+  });
+
+  // ─── Story #1876: entryType create/default/immutability/refund invariants ───
+
+  describe('entryType (Story #1876)', () => {
+    it('Scenario 1/toInvoiceDeposit: creates a refund entry and maps entryType on the returned InvoiceDeposit', () => {
+      const { userId, vendorId } = setup();
+      const invoiceId = createTestInvoice(vendorId, 10000);
+
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 1500, dueDate: '2026-02-01', status: 'paid', entryType: 'refund' },
+        userId,
+      );
+
+      expect(deposit.entryType).toBe('refund');
+      expect(deposit.amount).toBe(1500);
+      expect(deposit.status).toBe('paid');
+    });
+
+    it('Scenario 2: entryType defaults to "deposit" when omitted', () => {
+      const { userId, invoiceId } = setup();
+
+      const deposit = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
+
+      expect(deposit.entryType).toBe('deposit');
+    });
+
+    it('listDepositsForInvoice returns entryType for each deposit', () => {
+      const { userId, invoiceId } = setup();
+      createDeposit(
+        db,
+        invoiceId,
+        { amount: 100, dueDate: '2026-02-01', entryType: 'refund' },
+        userId,
+      );
+      createDeposit(
+        db,
+        invoiceId,
+        { amount: 200, dueDate: '2026-02-02', entryType: 'deposit' },
+        userId,
+      );
+
+      const result = listDepositsForInvoice(db, invoiceId);
+      expect(result).toHaveLength(2);
+      expect(result.map((d) => d.entryType).sort()).toEqual(['deposit', 'refund']);
+    });
+
+    it('Scenario 3: refund sum invariant — refunds €9,000 + new €2,000 on €10,000 invoice throws RefundExceedsInvoiceError with availableHeadroom: 1000', () => {
+      const { userId, invoiceId } = setup2(10000);
+      createDeposit(
+        db,
+        invoiceId,
+        { amount: 9000, dueDate: '2026-02-01', entryType: 'refund' },
+        userId,
+      );
+
+      let error: unknown;
+      try {
+        createDeposit(
+          db,
+          invoiceId,
+          { amount: 2000, dueDate: '2026-02-02', entryType: 'refund' },
+          userId,
+        );
+      } catch (err) {
+        error = err;
+      }
+
+      expect(error).toBeInstanceOf(RefundExceedsInvoiceError);
+      const details = (error as RefundExceedsInvoiceError).details as {
+        invoiceTotal: number;
+        currentRefundSum: number;
+        requestedAmount: number;
+        availableHeadroom: number;
+      };
+      expect(details.invoiceTotal).toBe(10000);
+      expect(details.currentRefundSum).toBe(9000);
+      expect(details.requestedAmount).toBe(2000);
+      expect(details.availableHeadroom).toBe(1000);
+
+      // No row created
+      const remaining = listDepositsForInvoice(db, invoiceId);
+      expect(remaining).toHaveLength(1);
+    });
+
+    it('Scenario 3 (equal to total, no headroom left): refund exactly equal to invoice total succeeds; one more refund of any positive amount fails', () => {
+      const { userId, invoiceId } = setup2(1000);
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 1000, dueDate: '2026-02-01', entryType: 'refund' },
+        userId,
+      );
+      expect(deposit.amount).toBe(1000);
+
+      let error: unknown;
+      try {
+        createDeposit(
+          db,
+          invoiceId,
+          { amount: 1, dueDate: '2026-02-02', entryType: 'refund' },
+          userId,
+        );
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeInstanceOf(RefundExceedsInvoiceError);
+    });
+
+    it('Scenario 4: deposit and refund sum invariants are independent — €9,000 deposits AND €9,000 refunds both succeed on a €10,000 invoice', () => {
+      const { userId, invoiceId } = setup2(10000);
+
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 9000, dueDate: '2026-02-01', entryType: 'deposit' },
+        userId,
+      );
+      const refund = createDeposit(
+        db,
+        invoiceId,
+        { amount: 9000, dueDate: '2026-02-02', entryType: 'refund' },
+        userId,
+      );
+
+      expect(deposit.amount).toBe(9000);
+      expect(refund.amount).toBe(9000);
+
+      // Exceeding either cap now fails with its own distinct error code, and the
+      // other type's headroom is unaffected.
+      let depositError: unknown;
+      try {
+        createDeposit(
+          db,
+          invoiceId,
+          { amount: 1001, dueDate: '2026-02-03', entryType: 'deposit' },
+          userId,
+        );
+      } catch (err) {
+        depositError = err;
+      }
+      expect(depositError).toBeInstanceOf(DepositsExceedInvoiceTotalError);
+
+      let refundError: unknown;
+      try {
+        createDeposit(
+          db,
+          invoiceId,
+          { amount: 1001, dueDate: '2026-02-04', entryType: 'refund' },
+          userId,
+        );
+      } catch (err) {
+        refundError = err;
+      }
+      expect(refundError).toBeInstanceOf(RefundExceedsInvoiceError);
+    });
+
+    it('updateDeposit: amount update on a refund entry is scoped to other refund entries only (not deposits)', () => {
+      const { userId, invoiceId } = setup2(1000);
+      createDeposit(
+        db,
+        invoiceId,
+        { amount: 900, dueDate: '2026-02-01', entryType: 'deposit' },
+        userId,
+      );
+      const refund = createDeposit(
+        db,
+        invoiceId,
+        { amount: 200, dueDate: '2026-02-02', entryType: 'refund' },
+        userId,
+      );
+
+      // Refund headroom is 1000 - 200 = 800 (unaffected by the €900 deposit sum,
+      // which would already exceed 1000 if it were combined with the refund sum).
+      const updated = updateDeposit(db, invoiceId, refund.id, { amount: 800 });
+      expect(updated.amount).toBe(800);
+    });
+
+    it('updateDeposit: exceeding the refund cap on update throws RefundExceedsInvoiceError', () => {
+      const { userId, invoiceId } = setup2(1000);
+      const refund1 = createDeposit(
+        db,
+        invoiceId,
+        { amount: 400, dueDate: '2026-02-01', entryType: 'refund' },
+        userId,
+      );
+      createDeposit(
+        db,
+        invoiceId,
+        { amount: 400, dueDate: '2026-02-02', entryType: 'refund' },
+        userId,
+      );
+
+      let error: unknown;
+      try {
+        updateDeposit(db, invoiceId, refund1.id, { amount: 700 }); // 700 + 400 = 1100 > 1000
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeInstanceOf(RefundExceedsInvoiceError);
+    });
+  });
+
+  // ─── Story #1876: finalPaymentAmount refund-awareness (toInvoice) ───────────
+
+  describe('finalPaymentAmount refund-awareness (Story #1876)', () => {
+    it('Scenario 6: a paid refund of €1,500 on a €10,000 invoice reduces finalPaymentAmount to €8,500', () => {
+      const { userId, invoiceId } = setup2(10000);
+      createDeposit(
+        db,
+        invoiceId,
+        { amount: 1500, dueDate: '2026-02-01', status: 'paid', entryType: 'refund' },
+        userId,
+      );
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+      expect(invoice!.finalPaymentAmount).toBe(8500);
+    });
+
+    it('Scenario 7: a pending refund does not reduce finalPaymentAmount', () => {
+      const { userId, invoiceId } = setup2(10000);
+      createDeposit(
+        db,
+        invoiceId,
+        { amount: 1500, dueDate: '2026-02-01', entryType: 'refund' }, // pending
+        userId,
+      );
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+      expect(invoice!.finalPaymentAmount).toBe(10000);
+    });
+
+    it('Scenario 8: combined paid deposit €2,000 and claimed refund €1,000 on a €10,000 invoice → finalPaymentAmount = 7000', () => {
+      const { userId, invoiceId } = setup2(10000);
+      createDeposit(
+        db,
+        invoiceId,
+        { amount: 2000, dueDate: '2026-02-01', status: 'paid', entryType: 'deposit' },
+        userId,
+      );
+      const refund = createDeposit(
+        db,
+        invoiceId,
+        {
+          amount: 1000,
+          dueDate: '2026-02-02',
+          status: 'paid',
+          entryType: 'refund',
+        },
+        userId,
+      );
+      updateDeposit(db, invoiceId, refund.id, { status: 'claimed', claimedDate: '2026-02-10' });
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+      expect(invoice!.finalPaymentAmount).toBe(7000);
+    });
+
+    it('regression: zero refunds produces byte-identical finalPaymentAmount to the pre-#1876 formula', () => {
+      const { userId, invoiceId } = setup2(1000);
+      createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+      expect(invoice!.finalPaymentAmount).toBe(700); // 1000 - 300, unchanged formula
     });
   });
 
@@ -1004,6 +1301,184 @@ describe('invoiceDepositService', () => {
       const entries: DiaryRow[] = db.select().from(schema.diaryEntries).all();
       const depositEntries = entries.filter((e: DiaryRow) => e.sourceEntityId === deposit.id);
       expect(depositEntries).toHaveLength(0);
+    });
+  });
+
+  // ─── Additional coverage: pre-existing validation branches ──────────────────
+  //
+  // These validation paths pre-date Story #1876 but were not covered by any
+  // existing test in this file. Closing the gap here since this file is already
+  // being extended for #1876 and CI enforces 95%+ coverage on touched files.
+
+  describe('createDeposit validation branches', () => {
+    it('throws ValidationError when amount <= 0', () => {
+      const { userId, invoiceId } = setup();
+      expect(() => {
+        createDeposit(db, invoiceId, { amount: 0, dueDate: '2026-02-01' }, userId);
+      }).toThrow('Amount must be greater than 0');
+    });
+
+    it('throws ValidationError for a negative amount', () => {
+      const { userId, invoiceId } = setup();
+      expect(() => {
+        createDeposit(db, invoiceId, { amount: -50, dueDate: '2026-02-01' }, userId);
+      }).toThrow('Amount must be greater than 0');
+    });
+
+    it('throws ValidationError for an invalid dueDate', () => {
+      const { userId, invoiceId } = setup();
+      expect(() => {
+        createDeposit(db, invoiceId, { amount: 100, dueDate: 'not-a-date' }, userId);
+      }).toThrow('dueDate must be a valid ISO date (YYYY-MM-DD)');
+    });
+
+    it('throws ValidationError when description exceeds 500 characters', () => {
+      const { userId, invoiceId } = setup();
+      expect(() => {
+        createDeposit(
+          db,
+          invoiceId,
+          { amount: 100, dueDate: '2026-02-01', description: 'x'.repeat(501) },
+          userId,
+        );
+      }).toThrow('Description must be 500 characters or less');
+    });
+
+    it('throws InvalidDepositDateForStatusError when paidDate is set on a pending deposit', () => {
+      const { userId, invoiceId } = setup();
+      expect(() => {
+        createDeposit(
+          db,
+          invoiceId,
+          { amount: 100, dueDate: '2026-02-01', paidDate: '2026-02-05' },
+          userId,
+        );
+      }).toThrow(InvalidDepositDateForStatusError);
+    });
+
+    it('throws ValidationError when paidDate is an invalid ISO date on a paid deposit', () => {
+      const { userId, invoiceId } = setup();
+      expect(() => {
+        createDeposit(
+          db,
+          invoiceId,
+          { amount: 100, dueDate: '2026-02-01', status: 'paid', paidDate: 'not-a-date' },
+          userId,
+        );
+      }).toThrow('paidDate must be a valid ISO date (YYYY-MM-DD)');
+    });
+
+    it('throws InvalidDepositDateForStatusError when claimedDate is set on a paid (non-claimed) deposit', () => {
+      const { userId, invoiceId } = setup();
+      expect(() => {
+        createDeposit(
+          db,
+          invoiceId,
+          {
+            amount: 100,
+            dueDate: '2026-02-01',
+            status: 'paid',
+            claimedDate: '2026-02-05',
+          },
+          userId,
+        );
+      }).toThrow(InvalidDepositDateForStatusError);
+    });
+
+    // NOTE: createDeposit's `data.claimedDate` invalid-ISO-format check
+    // (the `targetStatus === 'claimed'` branch) is unreachable via the public
+    // API: creation validates the initial status transition from 'pending'
+    // BEFORE validating claimedDate, and ALLOWED_TRANSITIONS['pending'] only
+    // permits 'paid' as a creation-time target — 'claimed' is always rejected
+    // by InvalidDepositStatusTransitionError first. Pre-existing dead branch
+    // from Story #1403, out of scope for #1876 to change.
+  });
+
+  describe('updateDeposit validation branches', () => {
+    it('throws ValidationError when amount <= 0', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(db, invoiceId, { amount: 100, dueDate: '2026-02-01' }, userId);
+      expect(() => {
+        updateDeposit(db, invoiceId, deposit.id, { amount: 0 });
+      }).toThrow('Amount must be greater than 0');
+    });
+
+    it('throws ValidationError for an invalid dueDate', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(db, invoiceId, { amount: 100, dueDate: '2026-02-01' }, userId);
+      expect(() => {
+        updateDeposit(db, invoiceId, deposit.id, { dueDate: 'not-a-date' });
+      }).toThrow('dueDate must be a valid ISO date (YYYY-MM-DD)');
+    });
+
+    it('throws ValidationError when description exceeds 500 characters', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(db, invoiceId, { amount: 100, dueDate: '2026-02-01' }, userId);
+      expect(() => {
+        updateDeposit(db, invoiceId, deposit.id, { description: 'x'.repeat(501) });
+      }).toThrow('Description must be 500 characters or less');
+    });
+
+    it('successfully updates dueDate to a valid ISO date', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(db, invoiceId, { amount: 100, dueDate: '2026-02-01' }, userId);
+      const updated = updateDeposit(db, invoiceId, deposit.id, { dueDate: '2026-03-15' });
+      expect(updated.dueDate).toBe('2026-03-15');
+    });
+
+    it('successfully updates description', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(db, invoiceId, { amount: 100, dueDate: '2026-02-01' }, userId);
+      const updated = updateDeposit(db, invoiceId, deposit.id, { description: 'Updated note' });
+      expect(updated.description).toBe('Updated note');
+    });
+
+    it('throws InvalidDepositDateForStatusError when paidDate is set without a status change on a pending deposit', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(db, invoiceId, { amount: 100, dueDate: '2026-02-01' }, userId);
+      expect(() => {
+        updateDeposit(db, invoiceId, deposit.id, { paidDate: '2026-02-05' });
+      }).toThrow(InvalidDepositDateForStatusError);
+    });
+
+    it('throws ValidationError when paidDate override is an invalid ISO date on a paid deposit', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 100, dueDate: '2026-02-01', status: 'paid' },
+        userId,
+      );
+      expect(() => {
+        updateDeposit(db, invoiceId, deposit.id, { paidDate: 'not-a-date' });
+      }).toThrow('paidDate must be a valid ISO date (YYYY-MM-DD)');
+    });
+
+    it('throws InvalidDepositDateForStatusError when claimedDate is set without a status change on a paid deposit', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 100, dueDate: '2026-02-01', status: 'paid' },
+        userId,
+      );
+      expect(() => {
+        updateDeposit(db, invoiceId, deposit.id, { claimedDate: '2026-02-05' });
+      }).toThrow(InvalidDepositDateForStatusError);
+    });
+
+    it('throws ValidationError when claimedDate override is an invalid ISO date on a claimed deposit', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 100, dueDate: '2026-02-01', status: 'paid' },
+        userId,
+      );
+      updateDeposit(db, invoiceId, deposit.id, { status: 'claimed', claimedDate: '2026-02-05' });
+      expect(() => {
+        updateDeposit(db, invoiceId, deposit.id, { claimedDate: 'not-a-date' });
+      }).toThrow('claimedDate must be a valid ISO date (YYYY-MM-DD)');
     });
   });
 });

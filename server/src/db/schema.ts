@@ -463,6 +463,7 @@ export const invoiceBudgetLines = sqliteTable(
 
 /**
  * Invoice deposits table - tracks staged partial payments within a parent invoice.
+ * EPIC-16 Story #1876: added entry_type to distinguish deposits from refunds.
  * Cascade-deletes with the parent invoice.
  */
 export const invoiceDeposits = sqliteTable(
@@ -480,6 +481,9 @@ export const invoiceDeposits = sqliteTable(
     status: text('status', { enum: ['pending', 'paid', 'claimed'] })
       .notNull()
       .default('pending'),
+    entryType: text('entry_type', { enum: ['deposit', 'refund'] })
+      .notNull()
+      .default('deposit'),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),

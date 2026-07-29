@@ -485,6 +485,13 @@ export function InvoicesPage() {
         numberStep: 0.01,
         render: (inv) => formatCurrency(calculateRemaining(inv)),
       },
+      {
+        key: 'effectiveAmount',
+        label: t('invoices.tableHeaders.effectiveAmount')!,
+        sortable: false,
+        defaultVisible: false,
+        render: (inv) => formatCurrency(inv.finalPaymentAmount),
+      },
     ],
     [t, formatDate, formatCurrency, invoiceStatusVariants, vendors],
   );

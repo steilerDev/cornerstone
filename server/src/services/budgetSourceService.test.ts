@@ -2474,7 +2474,11 @@ describe('Budget Source Service', () => {
      */
     function insertDepositForInvoice(
       invoiceId: string,
-      opts: { amount: number; status: 'pending' | 'paid' | 'claimed' },
+      opts: {
+        amount: number;
+        status: 'pending' | 'paid' | 'claimed';
+        entryType?: 'deposit' | 'refund';
+      },
     ): string {
       const id = `dep-src-${++workItemCounter}`;
       const ts = new Date(Date.now() + workItemCounter).toISOString();
@@ -2485,6 +2489,7 @@ describe('Budget Source Service', () => {
           amount: opts.amount,
           dueDate: '2026-03-01',
           status: opts.status,
+          entryType: opts.entryType ?? 'deposit',
           createdAt: ts,
           updatedAt: ts,
         })
@@ -2618,6 +2623,50 @@ describe('Budget Source Service', () => {
       });
     });
 
+    // ─── Story #1876: refund entries net out claimed/unclaimed amounts ────────
+
+    describe('refund entries net out claimed/unclaimed amounts (Story #1876)', () => {
+      it('a claimed refund reduces claimedAmount (SQL wiring for deposit_entry_type)', () => {
+        // invoice=1000 pending, deposit 600 claimed, refund 200 claimed
+        // claimedAmount = 600 - 200 = 400
+        const raw = insertRawSource({ name: 'Refund Claim Source', totalAmount: 50000 });
+        const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+        const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'pending');
+        insertDepositForInvoice(invoiceId, { amount: 600, status: 'claimed' });
+        insertDepositForInvoice(invoiceId, {
+          amount: 200,
+          status: 'claimed',
+          entryType: 'refund',
+        });
+
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        expect(result.claimedAmount).toBeCloseTo(400);
+      });
+
+      it('a paid refund reduces unclaimedAmount (SQL wiring for deposit_entry_type)', () => {
+        // invoice=1000 pending, deposit 500 paid, refund 150 paid
+        // unclaimedAmount = 500 - 150 = 350
+        const raw = insertRawSource({ name: 'Refund Unclaim Source', totalAmount: 50000 });
+        const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+        const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'pending');
+        insertDepositForInvoice(invoiceId, { amount: 500, status: 'paid' });
+        insertDepositForInvoice(invoiceId, { amount: 150, status: 'paid', entryType: 'refund' });
+
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        expect(result.unclaimedAmount).toBeCloseTo(350);
+      });
+
+      it('regression: zero refunds — claimedAmount/unclaimedAmount unaffected (identical to pre-#1876)', () => {
+        const raw = insertRawSource({ name: 'No Refund Regression Source', totalAmount: 50000 });
+        const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+        const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'pending');
+        insertDepositForInvoice(invoiceId, { amount: 400, status: 'claimed' });
+
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        expect(result.claimedAmount).toBeCloseTo(400);
+      });
+    });
+
     describe('Discretionary source — deposit-aware catch-all amounts (#1743)', () => {
       /**
        * Insert a standalone invoice (with optional budget-line allocations) at any status,
@@ -2729,6 +2778,19 @@ describe('Budget Source Service', () => {
         expect(disc.claimedAmount).toBe(0);
         // paidAmount = claimedAmount + unclaimedAmount — no double-counting from quotation residual
         expect(disc.paidAmount).toBeCloseTo(300);
+      });
+
+      // ─── Story #1876: refund entries in the discretionary catch-all path ────
+
+      it('(e) Story #1876: a paid refund on a discretionary (no-source) invoice reduces discretionary unclaimedAmount', () => {
+        // pending invoice (1000), fully un-itemized (discretionary), paid deposit 300, paid refund 100
+        // unclaimedAmount = 300 - 100 = 200
+        const invoiceId = insertStandaloneInvoice(1000, 'pending', []);
+        insertDepositForInvoice(invoiceId, { amount: 300, status: 'paid' });
+        insertDepositForInvoice(invoiceId, { amount: 100, status: 'paid', entryType: 'refund' });
+
+        const disc = getDiscretionarySource();
+        expect(disc.unclaimedAmount).toBeCloseTo(200);
       });
     });
   });

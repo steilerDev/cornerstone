@@ -1605,7 +1605,11 @@ describe('getBudgetOverview', () => {
      */
     function insertDeposit(
       invoiceId: string,
-      opts: { amount: number; status: 'pending' | 'paid' | 'claimed' },
+      opts: {
+        amount: number;
+        status: 'pending' | 'paid' | 'claimed';
+        entryType?: 'deposit' | 'refund';
+      },
     ): void {
       const id = `dep-ov-${idCounter++}`;
       const now = new Date().toISOString();
@@ -1616,6 +1620,7 @@ describe('getBudgetOverview', () => {
           amount: opts.amount,
           dueDate: '2026-03-01',
           status: opts.status,
+          entryType: opts.entryType ?? 'deposit',
           createdAt: now,
           updatedAt: now,
         })
@@ -1797,6 +1802,69 @@ describe('getBudgetOverview', () => {
       expect(result.actualCost).toBe(500);
       // Paid deposit of 200 on invoice of 500 → fraction 0.4 → actualCostPaid = 0.4 * 500 = 200
       expect(result.actualCostPaid).toBe(200);
+    });
+
+    // ─── Story #1876: refund entries net out actualCostPaid/actualCostClaimed ─
+
+    describe('refund entries net out actualCostPaid/actualCostClaimed (Story #1876)', () => {
+      it('an isolated invoice with a claimed deposit + claimed refund nets to the expected actualCostClaimed (deposit_entry_type SQL wiring)', () => {
+        // Fresh, isolated work item / invoice: 1000 pending, deposit 600 claimed,
+        // refund 200 claimed. Net claimed contribution = 600 - 200 = 400.
+        const { budgetLineId } = insertWorkItem({ plannedAmount: 1000 });
+        if (budgetLineId === null) throw new Error('expected a budget line');
+        const now = new Date().toISOString();
+        const vendorId = `dep-ov-refund2-v-${idCounter++}`;
+        db.insert(schema.vendors)
+          .values({
+            id: vendorId,
+            name: `Refund2 Vendor ${vendorId}`,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        const invoiceId = `inv-ov-refund2-${idCounter++}`;
+        db.insert(schema.invoices)
+          .values({
+            id: invoiceId,
+            vendorId,
+            amount: 1000,
+            date: '2026-01-01',
+            status: 'pending',
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        db.insert(schema.invoiceBudgetLines)
+          .values({
+            id: randomUUID(),
+            invoiceId,
+            workItemBudgetId: budgetLineId,
+            itemizedAmount: 1000,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        insertDeposit(invoiceId, { amount: 600, status: 'claimed' });
+        insertDeposit(invoiceId, { amount: 200, status: 'claimed', entryType: 'refund' });
+
+        const result = getBudgetOverview(db);
+        // This test's DB is fresh per-test (beforeEach creates a new in-memory
+        // SQLite instance), so the net contribution is exact.
+        expect(result.actualCostClaimed).toBeCloseTo(400);
+        expect(result.actualCostPaid).toBeCloseTo(400);
+      });
+
+      it('regression: zero refunds — actualCostPaid/actualCostClaimed unchanged from AC-25', () => {
+        insertWorkItemWithPaidInvoiceAndDeposits({
+          plannedAmount: 1000,
+          invoiceAmount: 1000,
+          invoiceStatus: 'pending',
+          deposits: [{ amount: 400, status: 'claimed' }],
+        });
+
+        const result = getBudgetOverview(db);
+        expect(result.actualCostClaimed).toBeGreaterThanOrEqual(400);
+      });
     });
   });
 });

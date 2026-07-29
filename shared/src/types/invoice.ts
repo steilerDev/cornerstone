@@ -23,6 +23,12 @@ export type InvoiceStatus = 'pending' | 'paid' | 'claimed' | 'quotation';
 export type InvoiceDepositStatus = 'pending' | 'paid' | 'claimed';
 
 /**
+ * Deposit entry type: either a regular deposit or a refund.
+ * Story #1876: Refunds enable negative claim adjustments.
+ */
+export type InvoiceDepositEntryType = 'deposit' | 'refund';
+
+/**
  * Invoice deposit entity - represents a staged partial payment within an invoice.
  */
 export interface InvoiceDeposit {
@@ -34,6 +40,7 @@ export interface InvoiceDeposit {
   claimedDate: string | null;
   description: string | null;
   status: InvoiceDepositStatus;
+  entryType: InvoiceDepositEntryType;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;
@@ -47,6 +54,7 @@ export interface CreateDepositRequest {
   dueDate: string;
   description?: string | null;
   status?: InvoiceDepositStatus;
+  entryType?: InvoiceDepositEntryType; // default 'deposit'; immutable after creation
   paidDate?: string | null;
   claimedDate?: string | null;
 }

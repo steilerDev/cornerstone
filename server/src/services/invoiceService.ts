@@ -20,6 +20,8 @@ import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
 import { onInvoiceStatusChanged } from './diaryAutoEventService.js';
 import {
   aggregateInvoiceStatusBreakdown,
+  computeFinalPaymentAmount,
+  computeFinalPaymentAmounts,
   type InvoiceDepositRow,
 } from './shared/depositAggregateUtils.js';
 
@@ -96,15 +98,18 @@ export function toInvoice(
       claimedDate: depositRow.claimedDate,
       description: depositRow.description,
       status: depositRow.status,
+      entryType: depositRow.entryType,
       createdBy: toUserSummary(depositCreatedByUser),
       createdAt: depositRow.createdAt,
       updatedAt: depositRow.updatedAt,
     };
   });
 
-  // Compute finalPaymentAmount: invoice total minus sum of ALL deposits (regardless of status)
-  const depositSum = depositRows.reduce((sum, d) => sum + d.amount, 0);
-  const finalPaymentAmount = Math.max(0, row.amount - depositSum);
+  // Compute finalPaymentAmount using refund-aware formula
+  const finalPaymentAmount = computeFinalPaymentAmount(
+    row.amount,
+    depositRows.map((d) => ({ amount: d.amount, status: d.status, entryType: d.entryType })),
+  );
 
   return {
     id: row.id,
@@ -284,12 +289,14 @@ export function listAllInvoices(
       deposit_id: invoiceDeposits.id,
       deposit_amount: invoiceDeposits.amount,
       deposit_status: invoiceDeposits.status,
+      deposit_entry_type: invoiceDeposits.entryType,
     })
     .from(invoices)
     .leftJoin(invoiceDeposits, eq(invoiceDeposits.invoiceId, invoices.id))
     .all();
 
   const aggregated = aggregateInvoiceStatusBreakdown(summaryRawRows);
+  const finalPaymentAmountsByInvoice = computeFinalPaymentAmounts(summaryRawRows);
 
   // Compute overdue count + total: pending invoices with due_date < today (global, unfiltered)
   const overdueRow = db
@@ -320,7 +327,7 @@ export function listAllInvoices(
   };
 
   // Map rows directly (not using toInvoice()) to avoid fetching full deposits in list.
-  // NOTE: List endpoints set deposits: [] and finalPaymentAmount: row.amount to keep payload small.
+  // NOTE: List endpoints set deposits: [] but finalPaymentAmount is now refund-aware (still computed from summary query).
   // If new Invoice fields are added, ensure they are updated in BOTH toInvoice() (for detail endpoints)
   // AND here (for list endpoints).
   const invoiceList: Invoice[] = rows.map(({ invoice: row, vendorName: vName }) => {
@@ -347,7 +354,7 @@ export function listAllInvoices(
       budgetLines,
       remainingAmount,
       deposits: [],
-      finalPaymentAmount: row.amount,
+      finalPaymentAmount: finalPaymentAmountsByInvoice.get(row.id) ?? row.amount,
       createdBy: toUserSummary(createdByUser),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

@@ -6,6 +6,7 @@ import { invoiceDeposits, invoices, users } from '../db/schema.js';
 import type {
   InvoiceDeposit,
   InvoiceDepositStatus,
+  InvoiceDepositEntryType,
   CreateDepositRequest,
   UpdateDepositRequest,
   UserSummary,
@@ -14,6 +15,7 @@ import {
   NotFoundError,
   ValidationError,
   DepositsExceedInvoiceTotalError,
+  RefundExceedsInvoiceError,
   InvalidDepositStatusTransitionError,
   InvalidDepositDateForStatusError,
 } from '../errors/AppError.js';
@@ -82,6 +84,7 @@ function toInvoiceDeposit(db: DbType, row: typeof invoiceDeposits.$inferSelect):
     claimedDate: row.claimedDate,
     description: row.description,
     status: row.status as InvoiceDepositStatus,
+    entryType: row.entryType as InvoiceDepositEntryType,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -171,6 +174,9 @@ export function createDeposit(
     throw new ValidationError('Description must be 500 characters or less');
   }
 
+  // Determine entry type (default 'deposit')
+  const entryType: InvoiceDepositEntryType = data.entryType ?? 'deposit';
+
   // Determine target status (default 'pending')
   const targetStatus: InvoiceDepositStatus = data.status ?? 'pending';
 
@@ -231,11 +237,13 @@ export function createDeposit(
 
   // Perform atomic read-check-write in transaction
   const row = db.transaction((tx) => {
-    // Check sum invariant: existing deposits + new amount <= invoice total
+    // Check sum invariant: existing entries of same type + new amount <= invoice total
     const existingSum = tx
       .select({ sum: sql<number>`COALESCE(SUM(${invoiceDeposits.amount}), 0)` })
       .from(invoiceDeposits)
-      .where(eq(invoiceDeposits.invoiceId, invoiceId))
+      .where(
+        and(eq(invoiceDeposits.invoiceId, invoiceId), eq(invoiceDeposits.entryType, entryType)),
+      )
       .get();
 
     const currentSum = existingSum?.sum ?? 0;
@@ -243,15 +251,27 @@ export function createDeposit(
 
     if (exceedsAmount(proposedTotal, invoice.amount)) {
       const availableHeadroom = Math.max(0, invoice.amount - currentSum);
-      throw new DepositsExceedInvoiceTotalError(
-        'Sum of deposit amounts would exceed the invoice total',
-        {
-          invoiceTotal: invoice.amount,
-          currentDepositSum: currentSum,
-          requestedAmount: data.amount,
-          availableHeadroom,
-        },
-      );
+      if (entryType === 'refund') {
+        throw new RefundExceedsInvoiceError(
+          'Sum of refund amounts would exceed the invoice total',
+          {
+            invoiceTotal: invoice.amount,
+            currentRefundSum: currentSum,
+            requestedAmount: data.amount,
+            availableHeadroom,
+          },
+        );
+      } else {
+        throw new DepositsExceedInvoiceTotalError(
+          'Sum of deposit amounts would exceed the invoice total',
+          {
+            invoiceTotal: invoice.amount,
+            currentDepositSum: currentSum,
+            requestedAmount: data.amount,
+            availableHeadroom,
+          },
+        );
+      }
     }
 
     // Insert the deposit
@@ -265,6 +285,7 @@ export function createDeposit(
         claimedDate,
         description: data.description ?? null,
         status: targetStatus,
+        entryType,
         createdBy: userId,
         createdAt: now,
         updatedAt: now,
@@ -413,13 +434,17 @@ export function updateDeposit(
 
   // Perform atomic read-check-write in transaction
   const row = db.transaction((tx) => {
-    // Check sum invariant if amount is being updated (self-exclude)
+    // Check sum invariant if amount is being updated (self-exclude, scoped to same entry type)
     if (data.amount !== undefined) {
       const otherSum = tx
         .select({ sum: sql<number>`COALESCE(SUM(${invoiceDeposits.amount}), 0)` })
         .from(invoiceDeposits)
         .where(
-          and(eq(invoiceDeposits.invoiceId, invoiceId), sql`${invoiceDeposits.id} != ${depositId}`),
+          and(
+            eq(invoiceDeposits.invoiceId, invoiceId),
+            eq(invoiceDeposits.entryType, existing.entryType as InvoiceDepositEntryType),
+            sql`${invoiceDeposits.id} != ${depositId}`,
+          ),
         )
         .get();
 
@@ -428,15 +453,28 @@ export function updateDeposit(
 
       if (exceedsAmount(proposedTotal, invoice.amount)) {
         const availableHeadroom = Math.max(0, invoice.amount - otherTotal);
-        throw new DepositsExceedInvoiceTotalError(
-          'Sum of deposit amounts would exceed the invoice total',
-          {
-            invoiceTotal: invoice.amount,
-            currentDepositSum: otherTotal,
-            requestedAmount: data.amount!,
-            availableHeadroom,
-          },
-        );
+        const existingEntryType = existing.entryType as InvoiceDepositEntryType;
+        if (existingEntryType === 'refund') {
+          throw new RefundExceedsInvoiceError(
+            'Sum of refund amounts would exceed the invoice total',
+            {
+              invoiceTotal: invoice.amount,
+              currentRefundSum: otherTotal,
+              requestedAmount: data.amount!,
+              availableHeadroom,
+            },
+          );
+        } else {
+          throw new DepositsExceedInvoiceTotalError(
+            'Sum of deposit amounts would exceed the invoice total',
+            {
+              invoiceTotal: invoice.amount,
+              currentDepositSum: otherTotal,
+              requestedAmount: data.amount!,
+              availableHeadroom,
+            },
+          );
+        }
       }
     }
 

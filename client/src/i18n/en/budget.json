@@ -493,7 +493,8 @@
       "dueDate": "Due Date",
       "status": "Status",
       "notes": "Notes",
-      "remainingAmount": "Remaining Amount"
+      "remainingAmount": "Remaining Amount",
+      "effectiveAmount": "Effective Amount"
     },
     "form": {
       "vendor": "Vendor",
@@ -768,10 +769,18 @@
         "descriptionPlaceholder": "Optional description",
         "charCounter": "{{count}} / 500",
         "saving": "Saving...",
-        "required": "*"
+        "required": "*",
+        "entryType": "Entry type",
+        "entryTypeLabel": "Entry type",
+        "refundAmountHint": "Refund amounts are entered as a positive number."
+      },
+      "entryTypeLabels": {
+        "deposit": "Deposit",
+        "refund": "Refund"
       },
       "errors": {
         "exceedsTotal": "Deposit amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
+        "refundExceedsTotal": "Refund amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
         "invalidTransition": "Cannot transition from {{from}} to {{to}}",
         "invalidDate": "Invalid date for the selected status",
         "loadError": "Failed to load deposits. Please try again.",

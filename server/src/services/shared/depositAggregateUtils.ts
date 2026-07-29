@@ -21,6 +21,7 @@ export interface DepositAwareRow {
   deposit_id: string | null;
   deposit_amount: number | null;
   deposit_status: string | null;
+  deposit_entry_type: string | null;
 }
 
 /**
@@ -56,12 +57,13 @@ export function splitByDeposits(
     deposit_id: string | null;
     deposit_amount: number | null;
     deposit_status: string | null;
+    deposit_entry_type: string | null;
   }>,
 ): Map<string, InvoiceDepositSplit> {
   const invoiceMap = new Map<string, { invoiceAmount: number; invoiceStatus: string }>();
   const depositsByInvoice = new Map<
     string,
-    Array<{ depositId: string; depositAmount: number; depositStatus: string }>
+    Array<{ depositId: string; depositAmount: number; depositStatus: string; entryType: string }>
   >();
 
   // Group rows by invoice and deduplicate deposits by depositId
@@ -79,6 +81,7 @@ export function splitByDeposits(
           depositId: row.deposit_id,
           depositAmount: row.deposit_amount,
           depositStatus: row.deposit_status,
+          entryType: row.deposit_entry_type ?? 'deposit',
         });
         depositsByInvoice.set(row.invoice_id, deps);
       }
@@ -100,12 +103,17 @@ export function splitByDeposits(
         depositFractions: [],
       });
     } else {
-      const totalDepositAmount = deposits.reduce((s, d) => s + d.depositAmount, 0);
+      const totalDepositTypeAmount = deposits
+        .filter((d) => d.entryType !== 'refund')
+        .reduce((s, d) => s + d.depositAmount, 0);
       const residualFraction =
-        Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
+        Math.max(0, safeInvoiceAmount - totalDepositTypeAmount) / safeInvoiceAmount;
       const depositFractions = deposits.map((d) => ({
         depositStatus: d.depositStatus,
-        fraction: d.depositAmount / safeInvoiceAmount,
+        fraction:
+          d.entryType === 'refund'
+            ? -(d.depositAmount / safeInvoiceAmount)
+            : d.depositAmount / safeInvoiceAmount,
       }));
 
       result.set(invoiceId, {
@@ -225,6 +233,7 @@ export function computeStatusContribution(
     deposit_id: string | null;
     deposit_amount: number | null;
     deposit_status: string | null;
+    deposit_entry_type: string | null;
   }>,
   targetStatus: string,
 ): number {
@@ -277,6 +286,74 @@ export function computeStatusContribution(
 }
 
 /**
+ * Computes the refund-aware "final payment amount" for a single invoice:
+ * invoice total minus all deposit-type entries (any status) minus
+ * refund-type entries that have been received (status 'paid' or
+ * 'claimed'). A pending refund has not yet returned money, so it does
+ * not reduce the amount yet. With no refund entries this is identical
+ * to the pre-refund formula (invoice.amount - Σ deposits).
+ */
+export function computeFinalPaymentAmount(
+  invoiceAmount: number,
+  entries: Array<{ amount: number; status: string; entryType: string }>,
+): number {
+  let depositSum = 0;
+  let receivedRefundSum = 0;
+  for (const entry of entries) {
+    if (entry.entryType === 'refund') {
+      if (entry.status === 'paid' || entry.status === 'claimed') {
+        receivedRefundSum += entry.amount;
+      }
+    } else {
+      depositSum += entry.amount;
+    }
+  }
+  return Math.max(0, invoiceAmount - depositSum - receivedRefundSum);
+}
+
+/**
+ * Bulk version of computeFinalPaymentAmount for (invoices LEFT JOIN
+ * invoice_deposits) rows spanning multiple invoices in one query
+ * (e.g. invoiceService.listAllInvoices()'s single bulk summary query).
+ * Dedupes deposit rows by deposit_id per invoice, since a LEFT JOIN
+ * fans an invoice row out once per deposit.
+ */
+export function computeFinalPaymentAmounts(rows: InvoiceDepositRow[]): Map<string, number> {
+  const invoiceAmounts = new Map<string, number>();
+  const entriesByInvoice = new Map<
+    string,
+    Array<{ depositId: string; amount: number; status: string; entryType: string }>
+  >();
+
+  for (const row of rows) {
+    if (!invoiceAmounts.has(row.invoice_id)) {
+      invoiceAmounts.set(row.invoice_id, row.invoice_amount);
+    }
+    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
+      const list = entriesByInvoice.get(row.invoice_id) ?? [];
+      if (!list.some((e) => e.depositId === row.deposit_id)) {
+        list.push({
+          depositId: row.deposit_id,
+          amount: row.deposit_amount,
+          status: row.deposit_status,
+          entryType: row.deposit_entry_type ?? 'deposit',
+        });
+        entriesByInvoice.set(row.invoice_id, list);
+      }
+    }
+  }
+
+  const result = new Map<string, number>();
+  for (const [invoiceId, invoiceAmount] of invoiceAmounts) {
+    result.set(
+      invoiceId,
+      computeFinalPaymentAmount(invoiceAmount, entriesByInvoice.get(invoiceId) ?? []),
+    );
+  }
+  return result;
+}
+
+/**
  * Raw row for (invoices LEFT JOIN invoice_deposits) jointures, used by the
  * InvoiceStatusBreakdown summary computation in invoiceService.listAllInvoices.
  */
@@ -287,17 +364,19 @@ export interface InvoiceDepositRow {
   deposit_id: string | null;
   deposit_amount: number | null;
   deposit_status: string | null;
+  deposit_entry_type: string | null;
 }
 
 /**
  * Computes the InvoiceStatusBreakdown summary from (invoices LEFT JOIN invoice_deposits) rows.
  *
  * Per-invoice split (same as the budget-line rollup formula but at the invoice level):
- *   summary[I.status].totalAmount += max(0, I.amount − Σ deposits.amount)
- *   summary[deposit.status].totalAmount += deposit.amount  (for each deposit)
+ *   summary[I.status].totalAmount += max(0, I.amount − Σ deposit-type.amount)
+ *   summary[deposit.status].totalAmount += deposit.amount  (for each deposit, negative for refunds)
  *   summary[I.status].count += 1  (once per invoice, regardless of deposit rows)
  *
- * Invariant: Σ summary[s].totalAmount === Σ I.amount across all invoices in the input.
+ * Invariant: Σ summary[s].totalAmount === Σ I.amount only holds without refund entries.
+ * With refunds, the total can be less than invoice amount (money left the system).
  *
  * Returns a sparse map — callers must merge with defaults (e.g. { count: 0, totalAmount: 0 }).
  */

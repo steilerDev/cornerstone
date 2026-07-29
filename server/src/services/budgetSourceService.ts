@@ -136,7 +136,8 @@ function computeClaimedAmount(db: DbType, sourceId: string): number {
       i.status            AS invoice_status,
       d.id                AS deposit_id,
       d.amount            AS deposit_amount,
-      d.status            AS deposit_status
+      d.status            AS deposit_status,
+      d.entry_type        AS deposit_entry_type
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
@@ -172,7 +173,8 @@ function computeUnclaimedAmount(db: DbType, sourceId: string): number {
       i.status            AS invoice_status,
       d.id                AS deposit_id,
       d.amount            AS deposit_amount,
-      d.status            AS deposit_status
+      d.status            AS deposit_status,
+      d.entry_type        AS deposit_entry_type
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
@@ -227,6 +229,7 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
     deposit_id: string | null;
     deposit_amount: number | null;
     deposit_status: string | null;
+    deposit_entry_type: string | null;
   }>(
     sql`SELECT
       i.id              AS invoice_id,
@@ -235,7 +238,8 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
       COALESCE(SUM(ibl.itemized_amount), 0) AS total_itemized,
       d.id              AS deposit_id,
       d.amount          AS deposit_amount,
-      d.status          AS deposit_status
+      d.status          AS deposit_status,
+      d.entry_type      AS deposit_entry_type
     FROM invoices i
     LEFT JOIN invoice_budget_lines ibl ON ibl.invoice_id = i.id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
@@ -292,7 +296,8 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
       i.status            AS invoice_status,
       d.id                AS deposit_id,
       d.amount            AS deposit_amount,
-      d.status            AS deposit_status
+      d.status            AS deposit_status,
+      d.entry_type        AS deposit_entry_type
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id

@@ -168,6 +168,7 @@ function makeDeposit(id: string, overrides: Partial<InvoiceDeposit> = {}): Invoi
     claimedDate: null,
     description: null,
     status: 'pending',
+    entryType: 'deposit',
     createdBy: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
@@ -1276,6 +1277,293 @@ describe('InvoiceDepositsSection', () => {
           'translated:INVALID_DEPOSIT_STATUS_TRANSITION',
         );
       });
+    });
+  });
+
+  // ─── Story #1876: entry type / refunds ─────────────────────────────────────
+
+  describe('Story #1876: entry type radio group (add modal)', () => {
+    it('defaults to "Deposit" checked when opening the Add modal', () => {
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+
+      const depositRadio = screen.getByRole('radio', { name: /deposit/i }) as HTMLInputElement;
+      const refundRadio = screen.getByRole('radio', { name: /refund/i }) as HTMLInputElement;
+      expect(depositRadio.checked).toBe(true);
+      expect(refundRadio.checked).toBe(false);
+    });
+
+    it('both radios are enabled in Add mode', () => {
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+
+      const depositRadio = screen.getByRole('radio', { name: /deposit/i });
+      const refundRadio = screen.getByRole('radio', { name: /refund/i });
+      expect(depositRadio).not.toBeDisabled();
+      expect(refundRadio).not.toBeDisabled();
+    });
+
+    it('selecting "Refund" shows the refund amount hint', () => {
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+
+      // Hint not shown while "Deposit" is selected
+      expect(screen.queryByText(/positive number/i)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('radio', { name: /refund/i }));
+
+      expect(screen.getByText(/positive number/i)).toBeInTheDocument();
+    });
+
+    it('selecting "Deposit" after "Refund" hides the hint again', () => {
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+
+      fireEvent.click(screen.getByRole('radio', { name: /refund/i }));
+      expect(screen.getByText(/positive number/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('radio', { name: /deposit/i }));
+      expect(screen.queryByText(/positive number/i)).not.toBeInTheDocument();
+    });
+
+    it('form submit sends entryType: "refund" in the create payload when Refund is selected', async () => {
+      mockCreateDeposit.mockResolvedValueOnce({
+        deposit: makeDeposit('new-dep', { entryType: 'refund' }),
+      } as Awaited<ReturnType<typeof mockCreateDeposit>>);
+
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+      fireEvent.click(screen.getByRole('radio', { name: /refund/i }));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '150' } });
+      fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => {
+        expect(mockCreateDeposit).toHaveBeenCalledWith(
+          INVOICE_ID,
+          expect.objectContaining({ entryType: 'refund' }),
+        );
+      });
+    });
+
+    it('form submit sends entryType: "deposit" in the create payload by default', async () => {
+      mockCreateDeposit.mockResolvedValueOnce({
+        deposit: makeDeposit('new-dep'),
+      } as Awaited<ReturnType<typeof mockCreateDeposit>>);
+
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '150' } });
+      fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => {
+        expect(mockCreateDeposit).toHaveBeenCalledWith(
+          INVOICE_ID,
+          expect.objectContaining({ entryType: 'deposit' }),
+        );
+      });
+    });
+  });
+
+  describe('Story #1876: entry type radio group (edit modal — immutability)', () => {
+    it('shows both radios in the Edit modal but disabled, with the current entryType checked', async () => {
+      const deposit = makeDeposit('dep-1', { entryType: 'refund' });
+      renderSection([deposit]);
+
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(menuBtn);
+      const editBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
+      fireEvent.click(editBtn);
+
+      await waitFor(() => {
+        const depositRadio = screen.getByRole('radio', { name: /deposit/i }) as HTMLInputElement;
+        const refundRadio = screen.getByRole('radio', { name: /refund/i }) as HTMLInputElement;
+        expect(depositRadio).toBeDisabled();
+        expect(refundRadio).toBeDisabled();
+        expect(refundRadio.checked).toBe(true);
+        expect(depositRadio.checked).toBe(false);
+      });
+    });
+
+    it('edit submit does NOT include entryType in the update payload', async () => {
+      const deposit = makeDeposit('dep-1', { amount: 500, entryType: 'refund' });
+      mockUpdateDeposit.mockResolvedValueOnce({
+        deposit: { ...deposit, amount: 600 },
+      } as Awaited<ReturnType<typeof mockUpdateDeposit>>);
+
+      renderSection([deposit]);
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(menuBtn);
+      const editBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
+      fireEvent.click(editBtn);
+
+      await waitFor(() => screen.getByLabelText(/amount/i));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '600' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => {
+        expect(mockUpdateDeposit).toHaveBeenCalled();
+      });
+      const payload = mockUpdateDeposit.mock.calls[0]![2];
+      expect(payload).not.toHaveProperty('entryType');
+    });
+  });
+
+  describe('Story #1876: REFUND_EXCEEDS_INVOICE error', () => {
+    it('renders the refund-specific headroom message', async () => {
+      mockCreateDeposit.mockRejectedValueOnce(
+        new MockApiClientError(400, {
+          code: 'REFUND_EXCEEDS_INVOICE',
+          message: 'Refund exceeds invoice total',
+          details: { availableHeadroom: 1000 },
+        }),
+      );
+
+      renderSection([], { invoiceTotal: 10000 });
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+      fireEvent.click(screen.getByRole('radio', { name: /refund/i }));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '2000' } });
+      fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => {
+        const error = screen.getByTestId('form-error');
+        expect(error).toBeInTheDocument();
+        // formatCurrency mock renders as "$1000.00"
+        expect(error.textContent).toContain('$1000.00');
+      });
+    });
+
+    it('does NOT reuse the DEPOSITS_EXCEED_INVOICE_TOTAL message for REFUND_EXCEEDS_INVOICE', async () => {
+      mockCreateDeposit.mockRejectedValueOnce(
+        new MockApiClientError(400, {
+          code: 'REFUND_EXCEEDS_INVOICE',
+          details: { availableHeadroom: 500 },
+        }),
+      );
+
+      renderSection([], { invoiceTotal: 5000 });
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+      fireEvent.click(screen.getByRole('radio', { name: /refund/i }));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '1000' } });
+      fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => {
+        const error = screen.getByTestId('form-error');
+        // The generic translateApiError fallback would render "translated:REFUND_EXCEEDS_INVOICE";
+        // the specific branch must NOT fall through to that generic path.
+        expect(error.textContent).not.toContain('translated:REFUND_EXCEEDS_INVOICE');
+      });
+    });
+  });
+
+  describe('Story #1876: refund row rendering (table)', () => {
+    it('renders a red "Refund" badge and the negative formatted amount for a refund deposit', () => {
+      const deposits = [makeDeposit('dep-1', { amount: 400, entryType: 'refund' })];
+      renderSection(deposits);
+
+      expect(screen.getAllByTestId('badge-refund').length).toBeGreaterThan(0);
+      // formatCurrency mock: `$${n.toFixed(2)}` — negative amount renders with a minus sign
+      expect(screen.getAllByText('$-400.00').length).toBeGreaterThan(0);
+    });
+
+    it('does NOT render a "Refund" badge for a regular deposit', () => {
+      const deposits = [makeDeposit('dep-1', { amount: 400, entryType: 'deposit' })];
+      renderSection(deposits);
+
+      expect(screen.queryByTestId('badge-refund')).not.toBeInTheDocument();
+      expect(screen.getAllByText('$400.00').length).toBeGreaterThan(0);
+    });
+
+    it('the status badge is unaffected by entryType (refund row still shows its own status badge)', () => {
+      const deposits = [
+        makeDeposit('dep-1', {
+          amount: 400,
+          entryType: 'refund',
+          status: 'paid',
+          paidDate: '2026-03-10',
+        }),
+      ];
+      renderSection(deposits);
+
+      expect(screen.getAllByTestId('badge-refund').length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId('badge-paid').length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Story #1876: refund row rendering (mobile card)', () => {
+    it('renders a red "Refund" badge and the negative formatted amount inside the card amount area', () => {
+      // The mobile card list is always rendered alongside the table (CSS controls
+      // visibility per viewport); assert on the card-specific DOM structure.
+      const deposits = [makeDeposit('dep-1', { amount: 250, entryType: 'refund' })];
+      renderSection(deposits);
+
+      const cardList = document.querySelector('[role="list"]');
+      expect(cardList).toBeInTheDocument();
+      const cardAmount = cardList!.querySelector('[class*="cardAmount"]');
+      expect(cardAmount).toBeInTheDocument();
+      expect(cardAmount!.textContent).toContain('$-250.00');
+    });
+  });
+
+  describe('Story #1876: OverflowMenu aria-label entry-type fallback', () => {
+    it('table row: announces the entry type label when the refund deposit has no description', () => {
+      const deposits = [makeDeposit('dep-1', { entryType: 'refund', description: null })];
+      renderSection(deposits);
+
+      // OverflowMenu's triggerAriaLabel is passed through; find the button with
+      // an aria-label mentioning "Refund" (the entryTypeLabels.refund fallback).
+      const buttons = screen.getAllByRole('button');
+      const matched = buttons.some((b) => b.getAttribute('aria-label')?.includes('Refund'));
+      expect(matched).toBe(true);
+    });
+
+    it('table row: uses the description when present, not the entry type fallback', () => {
+      const deposits = [
+        makeDeposit('dep-1', { entryType: 'refund', description: 'Overpayment correction' }),
+      ];
+      renderSection(deposits);
+
+      const buttons = screen.getAllByRole('button');
+      const matched = buttons.some((b) =>
+        b.getAttribute('aria-label')?.includes('Overpayment correction'),
+      );
+      expect(matched).toBe(true);
+    });
+
+    it('deposit row: announces "Deposit" (not "Refund") when a description-less deposit has no description', () => {
+      const deposits = [makeDeposit('dep-1', { entryType: 'deposit', description: null })];
+      renderSection(deposits);
+
+      const buttons = screen.getAllByRole('button');
+      const matched = buttons.some((b) => b.getAttribute('aria-label')?.includes('Deposit'));
+      expect(matched).toBe(true);
     });
   });
 });

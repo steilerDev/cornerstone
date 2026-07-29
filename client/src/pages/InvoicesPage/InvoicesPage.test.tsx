@@ -1194,4 +1194,137 @@ describe('InvoicesPage', () => {
       });
     });
   });
+
+  // ─── Story #1876: effectiveAmount column ─────────────────────────────────
+
+  describe('effectiveAmount column (Story #1876)', () => {
+    // An invoice with both budget-line itemization (making remainingAmount
+    // differ from amount) AND a refund-driven finalPaymentAmount (making
+    // effectiveAmount differ from both amount and remainingAmount) — proves
+    // the two columns are computed independently.
+    const refundInvoice: Invoice = {
+      id: 'inv-refund-001',
+      vendorId: 'v-1',
+      vendorName: 'ACME Construction',
+      invoiceNumber: 'INV-2026-REFUND',
+      amount: 10000,
+      date: '2026-02-01',
+      dueDate: '2026-03-01',
+      status: 'pending',
+      notes: null,
+      budgetLines: [
+        {
+          id: 'ibl-refund-1',
+          budgetLineId: 'wib-refund-1',
+          budgetLineType: 'work_item',
+          itemName: 'Refund Test Work Item',
+          budgetLineDescription: null,
+          categoryName: null,
+          categoryColor: null,
+          categoryTranslationKey: null,
+          plannedAmount: 2000,
+          confidence: 'quote',
+          itemizedAmount: 2000,
+        },
+      ],
+      // remainingAmount = amount - Σ itemizedAmount = 10000 - 2000 = 8000
+      remainingAmount: 8000,
+      deposits: [],
+      // finalPaymentAmount = amount - deposits - received refunds = 10000 - 1500 = 8500
+      // (deliberately different from remainingAmount to prove independence)
+      finalPaymentAmount: 8500,
+      createdBy: null,
+      createdAt: '2026-02-01T00:00:00.000Z',
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    };
+
+    const refundResponse: InvoiceListPaginatedResponse = {
+      invoices: [refundInvoice],
+      pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: 1 },
+      summary: {
+        pending: { count: 1, totalAmount: 10000 },
+        paid: { count: 0, totalAmount: 0 },
+        claimed: { count: 0, totalAmount: 0 },
+        quotation: { count: 0, totalAmount: 0 },
+        overdue: { count: 0, totalAmount: 0 },
+      },
+    };
+
+    async function openColumnSettings() {
+      const settingsBtn = screen.getByRole('button', { name: /column settings/i });
+      fireEvent.click(settingsBtn);
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: /visible columns/i })).toBeInTheDocument();
+      });
+    }
+
+    it('the "Effective Amount" column is hidden by default (defaultVisible: false)', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(refundResponse);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('INV-2026-REFUND')[0]!).toBeInTheDocument();
+      });
+
+      // The formatted effectiveAmount value must not appear anywhere yet
+      expect(screen.queryByText('€8,500.00')).not.toBeInTheDocument();
+    });
+
+    it('toggling "Effective Amount" on renders formatCurrency(finalPaymentAmount), independent of "Remaining Amount"', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(refundResponse);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('INV-2026-REFUND')[0]!).toBeInTheDocument();
+      });
+
+      await openColumnSettings();
+
+      const effectiveAmountCheckbox = document.getElementById(
+        'col-effectiveAmount',
+      ) as HTMLInputElement;
+      expect(effectiveAmountCheckbox).toBeInTheDocument();
+      expect(effectiveAmountCheckbox.checked).toBe(false);
+
+      fireEvent.click(effectiveAmountCheckbox);
+
+      await waitFor(() => {
+        expect(screen.getAllByText('€8,500.00').length).toBeGreaterThan(0);
+      });
+    });
+
+    it('"Remaining Amount" and "Effective Amount" show distinct values for the same invoice when both are visible', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(refundResponse);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('INV-2026-REFUND')[0]!).toBeInTheDocument();
+      });
+
+      await openColumnSettings();
+
+      fireEvent.click(document.getElementById('col-remainingAmount')!);
+      fireEvent.click(document.getElementById('col-effectiveAmount')!);
+
+      await waitFor(() => {
+        // remainingAmount = 8000, finalPaymentAmount = 8500 — both visible and distinct
+        expect(screen.getAllByText('€8,000.00').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('€8,500.00').length).toBeGreaterThan(0);
+      });
+    });
+
+    it('the "Effective Amount" column label is "Effective Amount"', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(refundResponse);
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('INV-2026-REFUND')[0]!).toBeInTheDocument();
+      });
+
+      await openColumnSettings();
+
+      const label = screen.getByLabelText('Effective Amount');
+      expect(label).toBeInTheDocument();
+    });
+  });
 });

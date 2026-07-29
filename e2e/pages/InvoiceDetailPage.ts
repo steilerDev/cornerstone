@@ -53,6 +53,24 @@
  * - State confirm modal: contains h2 "Mark as paid" or "Mark as claimed"
  * - Form inputs: #deposit-amount, #deposit-dueDate, #deposit-status,
  *   #deposit-paidDate (conditional), #deposit-claimedDate (conditional), #deposit-description
+ *
+ * Entry Type (Refunds) — Issue #1876:
+ * - Entry-type radio group: role="group" aria-label="Entry type", first field in the
+ *   add/edit modal form, above the amount/due-date row. Two native radios:
+ *   input[name="entryType"][value="deposit"|"refund"], each wrapped in a <label>.
+ * - Both radios are DISABLED when editing an existing deposit (mode==='edit') — value is
+ *   still visible/checked, just not changeable. `entryType` is immutable after creation.
+ * - Refund amount hint: [class*="charCounter"] rendered below the amount input only when
+ *   the "Refund" radio is selected — "Refund amounts are entered as a positive number."
+ * - Refund badge: red Badge (variant className [class*="refund"]) rendered inline BEFORE
+ *   the amount in both DepositRow (table) and DepositCard (mobile), only for
+ *   deposit.entryType==='refund'. Label text "Refund".
+ * - Refund amount rendering: formatCurrency(-deposit.amount) wrapped in
+ *   [class*="amountNegative"] — a negative, differently-colored amount.
+ * - Table: badge + amount live inside [class*="amountCell"] (table td).
+ * - Card: badge + amount live inside [class*="cardAmount"] (mobile card top row).
+ * - OverflowMenu trigger aria-label falls back to the translated entry-type label
+ *   ("Deposit"/"Refund") when deposit.description is null (previously always "deposit").
  * - Save button: data-testid="deposit-modal-save" (added #1407)
  * - Cancel button: data-testid="deposit-modal-cancel" (add/edit modal, added #1407)
  * - Delete cancel: data-testid="deposit-delete-cancel" (delete modal, added #1407)
@@ -173,6 +191,35 @@ export class InvoiceDetailPage {
   readonly depositPaidDateInput: Locator;
   readonly depositClaimedDateInput: Locator;
   readonly depositDescriptionInput: Locator;
+
+  // ─── Entry Type (Refunds) locators (Issue #1876) ────────────────────────
+  /** Entry-type radio group inside the add/edit deposit modal: role="group" */
+  readonly depositEntryTypeGroup: Locator;
+
+  /** "Deposit" radio input (name="entryType", value="deposit") */
+  readonly depositEntryTypeDepositRadio: Locator;
+
+  /** "Refund" radio input (name="entryType", value="refund") */
+  readonly depositEntryTypeRefundRadio: Locator;
+
+  /**
+   * Refund amount hint shown below the amount input when the "Refund" radio
+   * is selected. Reuses the .charCounter style class.
+   */
+  readonly depositRefundAmountHint: Locator;
+
+  /**
+   * "Refund" entry-type Badge, scoped to the deposits section. Matches BOTH the
+   * desktop table row and the mobile card instance — filter to visible when a
+   * specific one is needed.
+   */
+  readonly refundBadge: Locator;
+
+  /**
+   * Negative-amount span rendered for refund-type deposit rows/cards
+   * ([class*="amountNegative"]).
+   */
+  readonly refundAmountNegative: Locator;
 
   /** Save button (type="submit", form="deposit-form", text="Save") */
   readonly depositModalSave: Locator;
@@ -601,6 +648,30 @@ export class InvoiceDetailPage {
     this.depositClaimedDateInput = page.locator('#deposit-claimedDate');
     this.depositDescriptionInput = page.locator('#deposit-description');
 
+    // ─── Entry Type (Refunds) locators (Issue #1876) ───────────────────────
+    // Page-scoped for the same reason as the other form inputs above — the deposit
+    // modal renders via a portal to document.body.
+    this.depositEntryTypeGroup = page.locator('[role="group"]').filter({
+      has: page.locator('input[name="entryType"]'),
+    });
+    this.depositEntryTypeDepositRadio = page.locator('input[name="entryType"][value="deposit"]');
+    this.depositEntryTypeRefundRadio = page.locator('input[name="entryType"][value="refund"]');
+    this.depositRefundAmountHint = page.locator('[class*="charCounter"]').filter({
+      hasText: 'Refund amounts are entered as a positive number.',
+    });
+
+    // Refund badge — scoped to the deposits section so it doesn't collide with other
+    // Badge instances (e.g. status badges) elsewhere on the page.
+    // NOTE: like the desktop table vs. mobile card list elsewhere in this section, both
+    // layouts render simultaneously in the DOM with CSS-driven visibility toggling. A
+    // bare locator's .first() would resolve to DOM order (table before card), which is
+    // the WRONG element whenever the mobile card is the visible one. Pre-filter to
+    // visible so .first() always resolves to the currently-rendered layout.
+    this.refundBadge = this.depositsSection.locator('[class*="refund"]').filter({ visible: true });
+    this.refundAmountNegative = this.depositsSection
+      .locator('[class*="amountNegative"]')
+      .filter({ visible: true });
+
     // Save button in add/edit deposit modal — stable data-testid added in #1407
     this.depositModalSave = page.getByTestId('deposit-modal-save');
 
@@ -977,6 +1048,18 @@ export class InvoiceDetailPage {
   }
 
   /**
+   * Selects the "Deposit" or "Refund" radio in the entry-type group (Issue #1876).
+   * The radios are disabled in edit mode (entryType is immutable after creation) —
+   * calling this in edit mode will time out on Playwright's actionability check,
+   * which is the desired behavior for asserting immutability.
+   */
+  async selectEntryType(entryType: 'deposit' | 'refund'): Promise<void> {
+    const radio =
+      entryType === 'refund' ? this.depositEntryTypeRefundRadio : this.depositEntryTypeDepositRadio;
+    await radio.check();
+  }
+
+  /**
    * Fills the add/edit deposit form. Only provided fields are updated.
    * For status values other than 'pending', paidDate is required by the submit button.
    */
@@ -987,7 +1070,11 @@ export class InvoiceDetailPage {
     paidDate?: string;
     claimedDate?: string;
     description?: string;
+    entryType?: 'deposit' | 'refund';
   }): Promise<void> {
+    if (data.entryType !== undefined) {
+      await this.selectEntryType(data.entryType);
+    }
     if (data.amount !== undefined) {
       await this.depositAmountInput.clear();
       await this.depositAmountInput.fill(data.amount);

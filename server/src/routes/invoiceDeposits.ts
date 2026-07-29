@@ -24,6 +24,7 @@ const createDepositSchema = {
       dueDate: { type: 'string' },
       description: { type: ['string', 'null'] },
       status: { type: 'string', enum: ['pending', 'paid', 'claimed'] },
+      entryType: { type: 'string', enum: ['deposit', 'refund'] },
       paidDate: { type: ['string', 'null'] },
       claimedDate: { type: ['string', 'null'] },
     },

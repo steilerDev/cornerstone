@@ -4,6 +4,8 @@ import {
   computeStatusContribution,
   aggregateInvoiceStatusBreakdown,
   splitByDeposits,
+  computeFinalPaymentAmount,
+  computeFinalPaymentAmounts,
   type DepositAwareRow,
   type InvoiceDepositRow,
 } from './depositAggregateUtils.js';
@@ -12,6 +14,7 @@ import {
 
 /**
  * Build a DepositAwareRow for a single invoice budget line with no deposits.
+ * `deposit.entryType` defaults to 'deposit' when a deposit is provided (Story #1876).
  */
 function makeRow(
   iblId: string,
@@ -19,7 +22,7 @@ function makeRow(
   invoiceId: string,
   invoiceAmount: number,
   invoiceStatus: string,
-  deposit?: { id: string; amount: number; status: string },
+  deposit?: { id: string; amount: number; status: string; entryType?: string },
 ): DepositAwareRow {
   return {
     ibl_id: iblId,
@@ -30,6 +33,7 @@ function makeRow(
     deposit_id: deposit?.id ?? null,
     deposit_amount: deposit?.amount ?? null,
     deposit_status: deposit?.status ?? null,
+    deposit_entry_type: deposit ? (deposit.entryType ?? 'deposit') : null,
   };
 }
 
@@ -368,6 +372,49 @@ describe('computeDepositAwareAggregates', () => {
       expect(result.invoiceCount).toBe(2);
     });
   });
+
+  // ─── Story #1876: refund entries net out actualCostPaid / actualCostClaimed ─
+
+  describe('refund entries (Story #1876)', () => {
+    it('a claimed refund reduces actualCostClaimed and actualCostPaid, actualCost unaffected', () => {
+      // invoice=1000, ibl=1000, deposit 600 claimed, refund 200 claimed
+      // residualFraction = (1000-600)/1000 = 0.4 (deposit-type only, pending parent → 0 to paid/claimed)
+      // deposit claimed contrib = 600; refund claimed contrib = -200
+      // actualCostPaid = 600 - 200 = 400; actualCostClaimed = 600 - 200 = 400
+      const rows = [
+        makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+          id: 'd-1',
+          amount: 600,
+          status: 'claimed',
+          entryType: 'deposit',
+        }),
+        makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+          id: 'r-1',
+          amount: 200,
+          status: 'claimed',
+          entryType: 'refund',
+        }),
+      ];
+      const result = computeDepositAwareAggregates(rows);
+      expect(result.actualCost).toBe(1000); // unaffected by refunds
+      expect(result.actualCostPaid).toBeCloseTo(400);
+      expect(result.actualCostClaimed).toBeCloseTo(400);
+    });
+
+    it('regression: zero refunds produces identical output to the pre-#1876 formula', () => {
+      const rows = [
+        makeRow('ibl-1', 1000, 'inv-1', 1000, 'paid', {
+          id: 'd-1',
+          amount: 400,
+          status: 'claimed',
+        }),
+      ];
+      const result = computeDepositAwareAggregates(rows);
+      expect(result.actualCost).toBe(1000);
+      expect(result.actualCostPaid).toBeCloseTo(1000);
+      expect(result.actualCostClaimed).toBeCloseTo(400);
+    });
+  });
 });
 
 // ─── computeStatusContribution ────────────────────────────────────────────────
@@ -444,18 +491,89 @@ describe('computeStatusContribution', () => {
     const rows = [makeRow('ibl-1', 0, 'inv-1', 0, 'claimed')];
     expect(() => computeStatusContribution(rows, 'claimed')).not.toThrow();
   });
+
+  // ─── Story #1876: claimed-then-refunded nets negative in the claimed slice ──
+
+  describe('refund entries (Story #1876)', () => {
+    it('Scenario 10: a claimed deposit fully offset by a claimed refund of equal amount nets to 0 in the claimed slice', () => {
+      // invoice=1000, ibl=1000: deposit 400 claimed + refund 400 claimed (same status slice)
+      // claimed slice contribution: 400 (deposit) + (-400) (refund) = 0
+      const rows = [
+        makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+          id: 'd-1',
+          amount: 400,
+          status: 'claimed',
+          entryType: 'deposit',
+        }),
+        makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+          id: 'r-1',
+          amount: 400,
+          status: 'claimed',
+          entryType: 'refund',
+        }),
+      ];
+      expect(computeStatusContribution(rows, 'claimed')).toBeCloseTo(0);
+    });
+
+    it('Scenario 10: a claimed refund alone reduces (goes negative in) the claimed slice', () => {
+      // invoice=1000, ibl=1000, no deposits, refund 300 claimed
+      // claimed slice: -300 (refund only, since there is no offsetting deposit)
+      const rows = [
+        makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+          id: 'r-1',
+          amount: 300,
+          status: 'claimed',
+          entryType: 'refund',
+        }),
+      ];
+      expect(computeStatusContribution(rows, 'claimed')).toBeCloseTo(-300);
+    });
+
+    it('a claimed refund smaller than a claimed deposit reduces (but does not fully offset) the claimed slice', () => {
+      const rows = [
+        makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+          id: 'd-1',
+          amount: 600,
+          status: 'claimed',
+          entryType: 'deposit',
+        }),
+        makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+          id: 'r-1',
+          amount: 200,
+          status: 'claimed',
+          entryType: 'refund',
+        }),
+      ];
+      expect(computeStatusContribution(rows, 'claimed')).toBeCloseTo(400); // 600 - 200
+    });
+
+    it('a refund does not affect the residual contribution under the parent invoice status', () => {
+      // invoice=1000, ibl=1000, refund 300 claimed; parent invoice status = pending
+      // pending slice: residualFraction = 1 (refund excluded) → full 1000 under pending
+      const rows = [
+        makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+          id: 'r-1',
+          amount: 300,
+          status: 'claimed',
+          entryType: 'refund',
+        }),
+      ];
+      expect(computeStatusContribution(rows, 'pending')).toBeCloseTo(1000);
+    });
+  });
 });
 
 // ─── aggregateInvoiceStatusBreakdown ──────────────────────────────────────────
 
 /**
  * Build an InvoiceDepositRow with no deposit (deposit columns null).
+ * `deposit.entryType` defaults to 'deposit' when a deposit is provided (Story #1876).
  */
 function makeInvoiceRow(
   invoiceId: string,
   invoiceAmount: number,
   invoiceStatus: string,
-  deposit?: { id: string; amount: number; status: string },
+  deposit?: { id: string; amount: number; status: string; entryType?: string },
 ): InvoiceDepositRow {
   return {
     invoice_id: invoiceId,
@@ -464,6 +582,7 @@ function makeInvoiceRow(
     deposit_id: deposit?.id ?? null,
     deposit_amount: deposit?.amount ?? null,
     deposit_status: deposit?.status ?? null,
+    deposit_entry_type: deposit ? (deposit.entryType ?? 'deposit') : null,
   };
 }
 
@@ -600,18 +719,81 @@ describe('aggregateInvoiceStatusBreakdown', () => {
     expect(result['pending']!.count).toBe(0);
     expect(result['pending']!.totalAmount).toBe(100);
   });
+
+  // ─── Story #1876: refunds reduce (or go negative in) their status slice ────
+
+  describe('refund entries (Story #1876)', () => {
+    it('a claimed refund contributes a negative totalAmount to the claimed slice; residual (pending) unaffected by the refund', () => {
+      // invoice 1000 pending, refund 300 claimed. Refunds are excluded from the
+      // residual computation, so pending.totalAmount stays 1000 (not 700).
+      const rows: InvoiceDepositRow[] = [
+        makeInvoiceRow('i1', 1000, 'pending', {
+          id: 'r1',
+          amount: 300,
+          status: 'claimed',
+          entryType: 'refund',
+        }),
+      ];
+      const result = aggregateInvoiceStatusBreakdown(rows);
+      expect(result['pending']!.totalAmount).toBe(1000);
+      expect(result['claimed']!.totalAmount).toBe(-300);
+      // count is only incremented for the parent invoice status bucket
+      expect(result['claimed']!.count).toBe(0);
+    });
+
+    it('with refunds, Σ totalAmount can be less than invoice.amount (money left the system, by design)', () => {
+      // invoice 1000, deposit 300 paid, refund 200 claimed
+      // pending residual = 1000 - 300 = 700; paid = 300; claimed = -200
+      // Σ = 700 + 300 - 200 = 800 < 1000 (invariant intentionally does not hold with refunds)
+      const rows: InvoiceDepositRow[] = [
+        makeInvoiceRow('i1', 1000, 'pending', {
+          id: 'd1',
+          amount: 300,
+          status: 'paid',
+          entryType: 'deposit',
+        }),
+        makeInvoiceRow('i1', 1000, 'pending', {
+          id: 'r1',
+          amount: 200,
+          status: 'claimed',
+          entryType: 'refund',
+        }),
+      ];
+      const result = aggregateInvoiceStatusBreakdown(rows);
+      const sum =
+        result['pending']!.totalAmount +
+        result['paid']!.totalAmount +
+        result['claimed']!.totalAmount;
+      expect(sum).toBe(800);
+      expect(sum).toBeLessThan(1000);
+    });
+
+    it('regression: zero refunds — sum invariant still holds exactly', () => {
+      const rows: InvoiceDepositRow[] = [
+        makeInvoiceRow('i1', 1000, 'quotation', {
+          id: 'd1',
+          amount: 200,
+          status: 'pending',
+          entryType: 'deposit',
+        }),
+      ];
+      const result = aggregateInvoiceStatusBreakdown(rows);
+      expect(result['quotation']!.totalAmount + result['pending']!.totalAmount).toBe(1000);
+    });
+  });
 });
 
 // ─── splitByDeposits ──────────────────────────────────────────────────────────
 
 /**
  * Build a minimal row for splitByDeposits (no ibl_id / itemized_amount needed).
+ * `deposit.entryType` defaults to 'deposit' when a deposit is provided (Story #1876).
  */
 function makeSplitRow(
   invoiceId: string,
   invoiceAmount: number,
   invoiceStatus: string,
-  deposit?: { id: string; amount: number; status: string },
+  deposit?: { id: string; amount: number; status: string; entryType?: string },
 ) {
   return {
     invoice_id: invoiceId,
@@ -620,6 +802,7 @@ function makeSplitRow(
     deposit_id: deposit?.id ?? null,
     deposit_amount: deposit?.amount ?? null,
     deposit_status: deposit?.status ?? null,
+    deposit_entry_type: deposit ? (deposit.entryType ?? 'deposit') : null,
   };
 }
 
@@ -769,5 +952,240 @@ describe('splitByDeposits', () => {
     const result = splitByDeposits(rows);
     const split = result.get('inv-1')!;
     expect(split.invoiceAmount).toBe(750);
+  });
+
+  // ─── Story #1876: refund entries — signed fractions, residual exclusion ────
+
+  describe('refund entries (Story #1876)', () => {
+    it('Scenario 9: single claimed refund → negative fraction; residualFraction = 1 (refunds excluded from residual)', () => {
+      // invoice=1000, refund 300 claimed → depositFraction = -300/1000 = -0.3
+      // residualFraction is computed from deposit-type entries only (none here) → 1
+      const rows = [
+        makeSplitRow('inv-1', 1000, 'paid', {
+          id: 'r-1',
+          amount: 300,
+          status: 'claimed',
+          entryType: 'refund',
+        }),
+      ];
+      const result = splitByDeposits(rows);
+      const split = result.get('inv-1')!;
+      expect(split.residualFraction).toBe(1);
+      expect(split.depositFractions).toHaveLength(1);
+      expect(split.depositFractions[0]!.fraction).toBeCloseTo(-0.3);
+      expect(split.depositFractions[0]!.depositStatus).toBe('claimed');
+    });
+
+    it('a paid refund also yields a negative fraction', () => {
+      const rows = [
+        makeSplitRow('inv-1', 500, 'pending', {
+          id: 'r-1',
+          amount: 100,
+          status: 'paid',
+          entryType: 'refund',
+        }),
+      ];
+      const result = splitByDeposits(rows);
+      const split = result.get('inv-1')!;
+      expect(split.depositFractions[0]!.fraction).toBeCloseTo(-0.2);
+      expect(split.residualFraction).toBe(1); // refund does not reduce residual
+    });
+
+    it('a pending refund still yields a negative fraction under its own (pending) status slice', () => {
+      const rows = [
+        makeSplitRow('inv-1', 1000, 'pending', {
+          id: 'r-1',
+          amount: 250,
+          status: 'pending',
+          entryType: 'refund',
+        }),
+      ];
+      const result = splitByDeposits(rows);
+      const split = result.get('inv-1')!;
+      expect(split.depositFractions[0]!.fraction).toBeCloseTo(-0.25);
+      expect(split.depositFractions[0]!.depositStatus).toBe('pending');
+    });
+
+    it('mixed deposit + refund: residualFraction is computed from deposit-type entries only, refund contributes a separate negative fraction', () => {
+      // invoice=1000, deposit 300 paid, refund 200 claimed
+      // residualFraction = max(0, 1000 - 300) / 1000 = 0.7 (refund excluded)
+      // depositFractions: [ {status: paid, fraction: 0.3}, {status: claimed, fraction: -0.2} ]
+      const rows = [
+        makeSplitRow('inv-1', 1000, 'pending', {
+          id: 'd-1',
+          amount: 300,
+          status: 'paid',
+          entryType: 'deposit',
+        }),
+        makeSplitRow('inv-1', 1000, 'pending', {
+          id: 'r-1',
+          amount: 200,
+          status: 'claimed',
+          entryType: 'refund',
+        }),
+      ];
+      const result = splitByDeposits(rows);
+      const split = result.get('inv-1')!;
+      expect(split.residualFraction).toBeCloseTo(0.7);
+      expect(split.depositFractions).toHaveLength(2);
+      const depositFraction = split.depositFractions.find((f) => f.depositStatus === 'paid')!;
+      const refundFraction = split.depositFractions.find((f) => f.depositStatus === 'claimed')!;
+      expect(depositFraction.fraction).toBeCloseTo(0.3);
+      expect(refundFraction.fraction).toBeCloseTo(-0.2);
+    });
+
+    it('refunds do not reduce residualFraction even when refund amount alone would exceed the invoice total', () => {
+      // A refund larger than the invoice (not possible in practice due to the sum
+      // invariant, but this unit tests the pure aggregation function in isolation):
+      // residualFraction must remain 1 since only deposit-type entries feed the
+      // Math.max(0, safeInvoiceAmount - totalDepositTypeAmount) computation.
+      const rows = [
+        makeSplitRow('inv-1', 100, 'pending', {
+          id: 'r-1',
+          amount: 500,
+          status: 'paid',
+          entryType: 'refund',
+        }),
+      ];
+      const result = splitByDeposits(rows);
+      const split = result.get('inv-1')!;
+      expect(split.residualFraction).toBe(1);
+      expect(split.depositFractions[0]!.fraction).toBeCloseTo(-5); // 500/100
+    });
+  });
+});
+
+// ─── computeFinalPaymentAmount (Story #1876) ──────────────────────────────────
+
+describe('computeFinalPaymentAmount', () => {
+  it('no entries: finalPaymentAmount = invoiceAmount', () => {
+    expect(computeFinalPaymentAmount(1000, [])).toBe(1000);
+  });
+
+  it('regression: deposit-only entries (any status) — identical to the pre-#1876 formula', () => {
+    const entries = [
+      { amount: 200, status: 'paid', entryType: 'deposit' },
+      { amount: 300, status: 'pending', entryType: 'deposit' },
+    ];
+    expect(computeFinalPaymentAmount(1000, entries)).toBe(500); // 1000 - 200 - 300
+  });
+
+  it('Scenario 6: a paid refund reduces the final payment amount', () => {
+    const entries = [{ amount: 1500, status: 'paid', entryType: 'refund' }];
+    expect(computeFinalPaymentAmount(10000, entries)).toBe(8500);
+  });
+
+  it('a claimed refund also reduces the final payment amount', () => {
+    const entries = [{ amount: 1500, status: 'claimed', entryType: 'refund' }];
+    expect(computeFinalPaymentAmount(10000, entries)).toBe(8500);
+  });
+
+  it('Scenario 7: a pending refund does NOT reduce the final payment amount (money not yet returned)', () => {
+    const entries = [{ amount: 1500, status: 'pending', entryType: 'refund' }];
+    expect(computeFinalPaymentAmount(10000, entries)).toBe(10000);
+  });
+
+  it('Scenario 8: combined paid deposit + claimed refund', () => {
+    const entries = [
+      { amount: 2000, status: 'paid', entryType: 'deposit' },
+      { amount: 1000, status: 'claimed', entryType: 'refund' },
+    ];
+    expect(computeFinalPaymentAmount(10000, entries)).toBe(7000);
+  });
+
+  it('clamps to 0 when refunds + deposits exceed the invoice amount (should not go negative)', () => {
+    const entries = [
+      { amount: 600, status: 'paid', entryType: 'deposit' },
+      { amount: 500, status: 'paid', entryType: 'refund' },
+    ];
+    expect(computeFinalPaymentAmount(1000, entries)).toBe(0); // max(0, 1000-600-500) = max(0,-100) = 0
+  });
+
+  it('a pending deposit still reduces the final payment amount (unlike a pending refund)', () => {
+    const entries = [{ amount: 400, status: 'pending', entryType: 'deposit' }];
+    expect(computeFinalPaymentAmount(1000, entries)).toBe(600);
+  });
+});
+
+// ─── computeFinalPaymentAmounts (bulk, Story #1876) ───────────────────────────
+
+describe('computeFinalPaymentAmounts', () => {
+  function makeFinalPaymentRow(
+    invoiceId: string,
+    invoiceAmount: number,
+    deposit?: { id: string; amount: number; status: string; entryType?: string },
+  ): InvoiceDepositRow {
+    return {
+      invoice_id: invoiceId,
+      invoice_amount: invoiceAmount,
+      invoice_status: 'pending',
+      deposit_id: deposit?.id ?? null,
+      deposit_amount: deposit?.amount ?? null,
+      deposit_status: deposit?.status ?? null,
+      deposit_entry_type: deposit ? (deposit.entryType ?? 'deposit') : null,
+    };
+  }
+
+  it('empty rows: returns an empty Map', () => {
+    expect(computeFinalPaymentAmounts([]).size).toBe(0);
+  });
+
+  it('single invoice, no deposits: finalPaymentAmount = invoiceAmount', () => {
+    const rows = [makeFinalPaymentRow('inv-1', 1000)];
+    const result = computeFinalPaymentAmounts(rows);
+    expect(result.get('inv-1')).toBe(1000);
+  });
+
+  it('single invoice with a paid refund: reduces finalPaymentAmount', () => {
+    const rows = [
+      makeFinalPaymentRow('inv-1', 10000, {
+        id: 'r-1',
+        amount: 1500,
+        status: 'paid',
+        entryType: 'refund',
+      }),
+    ];
+    const result = computeFinalPaymentAmounts(rows);
+    expect(result.get('inv-1')).toBe(8500);
+  });
+
+  it('deduplicates deposit rows by deposit_id (LEFT JOIN fan-out) before computing', () => {
+    const rows = [
+      makeFinalPaymentRow('inv-1', 1000, { id: 'd-1', amount: 300, status: 'paid' }),
+      // Same deposit_id 'd-1' appearing twice, simulating a LEFT JOIN row expansion
+      makeFinalPaymentRow('inv-1', 1000, { id: 'd-1', amount: 300, status: 'paid' }),
+    ];
+    const result = computeFinalPaymentAmounts(rows);
+    expect(result.get('inv-1')).toBe(700); // NOT 1000 - 600 = 400
+  });
+
+  it('multiple invoices computed independently', () => {
+    const rows = [
+      makeFinalPaymentRow('inv-1', 1000, { id: 'd-1', amount: 200, status: 'paid' }),
+      makeFinalPaymentRow('inv-2', 500, {
+        id: 'r-1',
+        amount: 100,
+        status: 'paid',
+        entryType: 'refund',
+      }),
+      makeFinalPaymentRow('inv-3', 300), // no deposits
+    ];
+    const result = computeFinalPaymentAmounts(rows);
+    expect(result.get('inv-1')).toBe(800);
+    expect(result.get('inv-2')).toBe(400);
+    expect(result.get('inv-3')).toBe(300);
+  });
+
+  it('a pending refund does not reduce the bulk-computed finalPaymentAmount', () => {
+    const rows = [
+      makeFinalPaymentRow('inv-1', 10000, {
+        id: 'r-1',
+        amount: 1500,
+        status: 'pending',
+        entryType: 'refund',
+      }),
+    ];
+    const result = computeFinalPaymentAmounts(rows);
+    expect(result.get('inv-1')).toBe(10000);
   });
 });

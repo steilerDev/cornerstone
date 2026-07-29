@@ -5,6 +5,18 @@ metadata:
   type: project
 ---
 
+## Issue #1876 — Deposit Refunds with Negative Claim Adjustments
+
+`InvoiceDepositsSection` gains an entry-type choice (Deposit/Refund); refunds render as negative rows reusing the exact same status Badge/labels (Pending/Paid/Claimed) — no relabeling, per explicit user decision.
+
+- **Entry-type radio group**: no segmented-control component exists in the codebase — reused the plain `<input type="radio">` + `role="group"` pattern from `AutoItemizePage.module.css` `.modeSelector` (mode: append/replace) verbatim instead of inventing a new control. This is the only other radio group in the app; treat it as the canonical pattern for any future "choose one of N" form field that isn't a `<select>`.
+- **Negative amount color**: `var(--color-danger-text-on-light)` (light=red-700, dark=red-300) — same alias already used by `--color-status-blocked-text`/`--color-user-inactive-text`/`--color-diary-issue-text`, so reusing it for a plain negative-amount `<span>` (not inside a badge) carries no new contrast risk.
+- **Refund type tag**: new `Badge` variant `refund` added to `Badge.module.css`, reusing `--color-status-blocked-bg`/`-text` (the existing red badge pair) rather than inventing new `--color-danger-badge-*` tokens (those don't exist — only success/warning have a `-badge-bg` alias family).
+- **Sign not by color alone**: satisfied via two channels — the Badge's literal "Refund" text label, plus `formatCurrency(-amount)` producing a literal minus-sign string (Intl.NumberFormat handles negative currency natively, no manual sign formatting needed).
+- **"Effective amount" displays** (invoice list `remainingAmount` column, detail `finalPaymentAmount` row): these are pre-existing slots whose value becomes refund-aware server-side — deliberately did NOT recolor them red/danger, since they're a computed remainder, not a refund row itself; recoloring would falsely imply an error state. Left their existing token treatment untouched.
+- **Scope boundary**: raw `invoice.amount` in the Invoice Details card is the gross contracted total and stays out of scope — only displays literally labeled "remaining amount" become net-of-refunds per the AC wording.
+- Flagged a real pre-existing a11y gap while reading `InvoiceDepositsSection.tsx`: `OverflowMenu triggerAriaLabel` falls back to the hardcoded string `'deposit'` (`deposit.description ?? 'deposit'`) — needs to become entry-type-aware once refunds exist, or a refund row's menu announces "deposit" to screen readers.
+
 ## Story #1736 — Invoice Vendor Change
 
 - Vendor picker in invoice edit modal: `SearchPicker<Vendor>` with `showItemsOnFocus`, `initialTitle={editForm.vendorName}`, `id="edit-vendor"` for label association

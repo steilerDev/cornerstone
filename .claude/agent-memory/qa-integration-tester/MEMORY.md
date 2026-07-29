@@ -15,6 +15,7 @@
 
 ## Recent bug/story notes (2026-07)
 
+- [Story #1876 — deposit refunds](story-1876-deposit-refunds.md) (2026-07-29) — spec claimed PATCH-immutable-field 400, actual is 200 silent strip (confirmed real Wiki Accuracy bug in API-Contract.md); refund/negative-fraction pattern for depositAggregateUtils; new DataTable column-visibility test pattern (no prior precedent); diff-vs-baseline coverage triage technique for large legacy files (~78-82% isolated % with 100% diff coverage, confirmed via git-diff-hunk cross-reference)
 - [Issue #1816 — component reuse + shared hooks](issue-1816-component-reuse-hooks.md) (2026-07-07) — 3 new 100%-covered hook tests (useDebounce/useDebouncedCallback/useClickOutside), Modal portal query gotcha (container vs document), CODE_BUG: pre-existing spurious autosave on draft-entry mount; `.test.ts`+JSX via React.createElement pattern
 - [Issue #1815 — stylelint remediation](issue-1815-stylelint-remediation.md) (2026-07-07) — 370-violation CSS lint sweep + CI gate wiring, clean verification pass (0 bugs); @extend-bug diff-check technique, keep-list grep technique
 - [Issue #1814 — i18n parity guard + usePhotos](issue-1814-i18n-parity-guard.md) (2026-07-07) — new `client/src/i18n/i18n.parity.test.ts`: generalized 14-namespace en/de key parity + 28-file duplicate-key raw-text scanner (canonical pattern going forward); `usePhotos.test.ts` reworked to assert real translateApiError/t() output; parallel translator/frontend edits landed before my first test run — all-green on first try was real, verified via git diff

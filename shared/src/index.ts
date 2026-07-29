@@ -135,6 +135,7 @@ export type {
   InvoiceStatus,
   InvoiceDeposit,
   InvoiceDepositStatus,
+  InvoiceDepositEntryType,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   CreateDepositRequest,

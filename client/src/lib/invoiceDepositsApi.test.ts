@@ -37,6 +37,7 @@ describe('invoiceDepositsApi', () => {
     claimedDate: null,
     description: 'Initial deposit',
     status: 'pending',
+    entryType: 'deposit',
     createdBy: null,
     createdAt: '2026-01-15T10:00:00.000Z',
     updatedAt: '2026-01-15T10:00:00.000Z',
@@ -167,6 +168,41 @@ describe('invoiceDepositsApi', () => {
       expect(result).toEqual({ deposit: sampleDeposit });
       expect(result.deposit.id).toBe(DEPOSIT_ID);
       expect(result.deposit.amount).toBe(500);
+    });
+
+    it('sends entryType: "refund" in the request body when provided (Story #1876)', async () => {
+      const refundPayload: CreateDepositRequest = {
+        amount: 1500,
+        dueDate: '2026-03-01',
+        entryType: 'refund',
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ deposit: { ...sampleDeposit, ...refundPayload } }),
+      } as Response);
+
+      await createDeposit(INVOICE_ID, refundPayload);
+
+      const call = mockFetch.mock.calls[0]!;
+      const init = call[1] as RequestInit;
+      const body = JSON.parse(init.body as string);
+      expect(body.entryType).toBe('refund');
+    });
+
+    it('omits entryType from the request body when not provided (defaults server-side)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ deposit: sampleDeposit }),
+      } as Response);
+
+      await createDeposit(INVOICE_ID, createPayload);
+
+      const call = mockFetch.mock.calls[0]!;
+      const init = call[1] as RequestInit;
+      const body = JSON.parse(init.body as string);
+      expect(body.entryType).toBeUndefined();
     });
 
     it('sends paidDate and claimedDate when provided', async () => {
