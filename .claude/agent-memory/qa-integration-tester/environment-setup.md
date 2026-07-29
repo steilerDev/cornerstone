@@ -70,3 +70,22 @@ NODE_PATH=/path/to/cornerstone/server/node_modules:/path/to/cornerstone/client/n
   → After changing `shared/src/types/`, rebuild main project's dist OR copy worktree dist files:
   `cp -r /worktree/shared/dist /path/to/cornerstone/shared/`
 - Server tests (better-sqlite3 native binary) may SIGKILL on ARM64 sandbox — validate via CI if needed
+
+## Haste Map Collision When Running Jest From the Main Repo Dir (Not a Worktree Issue)
+
+When running Jest from the **main project directory** (not a worktree) and `.claude/worktrees/` contains
+several stale worktrees, jest-haste-map scans them too and throws `The name '@cornerstone/shared' was
+looked up in the Haste module map... several different files... provide a module for that particular
+name` — because each worktree has its own `shared/package.json`. This is intermittent/order-dependent:
+one test file in a multi-file jest invocation may fail this way while another in the same run succeeds.
+
+**Fix**: add `--modulePathIgnorePatterns='<rootDir>/\.claude/worktrees'` to the jest CLI invocation:
+
+```bash
+NODE_OPTIONS=--experimental-vm-modules npx jest <test files> --maxWorkers=1 \
+  --modulePathIgnorePatterns='<rootDir>/\.claude/worktrees'
+```
+
+Confirmed working on Story #1878 follow-up (2026-07-29): `sourceReports.test.ts` failed with the haste
+error until this flag was added; `sourceReportService.test.ts` (run first in the same invocation) was
+unaffected. Not a jest.config.ts change — CLI flag only, keeps other suites unaffected.

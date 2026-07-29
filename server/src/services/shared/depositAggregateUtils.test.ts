@@ -2,6 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import {
   computeDepositAwareAggregates,
   computeStatusContribution,
+  computeStatusContributionByInvoice,
   aggregateInvoiceStatusBreakdown,
   splitByDeposits,
   computeFinalPaymentAmount,
@@ -560,6 +561,88 @@ describe('computeStatusContribution', () => {
       ];
       expect(computeStatusContribution(rows, 'pending')).toBeCloseTo(1000);
     });
+  });
+});
+
+// ─── computeStatusContributionByInvoice ───────────────────────────────────────
+
+describe('computeStatusContributionByInvoice', () => {
+  it('scenario 1: no deposits, status in target → full itemized amount', () => {
+    const rows = [makeRow('ibl-1', 400, 'inv-1', 400, 'paid')];
+    const result = computeStatusContributionByInvoice(rows, new Set(['pending', 'paid']));
+    expect(result.get('inv-1')).toBeCloseTo(400);
+  });
+
+  it('scenario 2: no deposits, status NOT in target → invoice present in map with value 0', () => {
+    const rows = [makeRow('ibl-1', 400, 'inv-1', 400, 'claimed')];
+    const result = computeStatusContributionByInvoice(rows, new Set(['pending', 'paid']));
+    expect(result.has('inv-1')).toBe(true);
+    expect(result.get('inv-1')).toBe(0);
+  });
+
+  it('scenario 3: deposit paid + residual paid, target {paid} → both portions summed', () => {
+    // invoice=1000, ibl=1000, deposit 300 paid, residual (700) also paid (parent status = paid)
+    const rows = [
+      makeRow('ibl-1', 1000, 'inv-1', 1000, 'paid', { id: 'd-1', amount: 300, status: 'paid' }),
+    ];
+    const result = computeStatusContributionByInvoice(rows, new Set(['paid']));
+    // deposit fraction 300/1000=0.3 → 1000*0.3=300; residual fraction 700/1000=0.7 → 1000*0.7=700
+    expect(result.get('inv-1')).toBeCloseTo(1000);
+  });
+
+  it('scenario 4: deposit claimed + residual pending, target {pending,paid} → only residual counted', () => {
+    // invoice=1000, ibl=1000, deposit 400 claimed, residual 600 pending
+    const rows = [
+      makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+        id: 'd-1',
+        amount: 400,
+        status: 'claimed',
+      }),
+    ];
+    const result = computeStatusContributionByInvoice(rows, new Set(['pending', 'paid']));
+    // deposit claimed not in target → excluded; residual pending fraction 600/1000=0.6 → 1000*0.6=600
+    expect(result.get('inv-1')).toBeCloseTo(600);
+  });
+
+  it('scenario 5: refund entry with status in target → negative contribution', () => {
+    // invoice=1000, ibl=1000, refund 300 claimed, no deposit; parent status pending
+    const rows = [
+      makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+        id: 'r-1',
+        amount: 300,
+        status: 'claimed',
+        entryType: 'refund',
+      }),
+    ];
+    const result = computeStatusContributionByInvoice(rows, new Set(['claimed']));
+    // residual pending not in target → 0; refund fraction -300/1000 → -300
+    expect(result.get('inv-1')).toBeCloseTo(-300);
+  });
+
+  it('scenario 6: multiple ibl rows same invoice (same source) → accumulate per invoice', () => {
+    const rows = [
+      makeRow('ibl-A', 300, 'inv-1', 1000, 'paid', { id: 'd-1', amount: 500, status: 'claimed' }),
+      makeRow('ibl-B', 200, 'inv-1', 1000, 'paid', { id: 'd-1', amount: 500, status: 'claimed' }),
+    ];
+    const result = computeStatusContributionByInvoice(rows, new Set(['claimed']));
+    // ibl-A: claimed deposit fraction 0.5 → 300*0.5=150; ibl-B: 200*0.5=100 → total 250
+    expect(result.get('inv-1')).toBeCloseTo(250);
+  });
+
+  it('scenario 6b: two distinct invoices are tracked independently in the same map', () => {
+    const rows = [
+      makeRow('ibl-1', 400, 'inv-1', 400, 'paid'),
+      makeRow('ibl-2', 600, 'inv-2', 600, 'pending'),
+    ];
+    const result = computeStatusContributionByInvoice(rows, new Set(['paid']));
+    expect(result.get('inv-1')).toBeCloseTo(400);
+    expect(result.get('inv-2')).toBe(0);
+    expect(result.size).toBe(2);
+  });
+
+  it('scenario 7: empty rows → empty map', () => {
+    const result = computeStatusContributionByInvoice([], new Set(['claimed']));
+    expect(result.size).toBe(0);
   });
 });
 

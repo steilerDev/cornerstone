@@ -385,26 +385,11 @@ describe('invoiceDepositService', () => {
   // ─── State machine — disallowed transitions ─────────────────────────────────
 
   describe('State machine — disallowed transitions', () => {
-    it('scenario 12: pending → claimed throws InvalidDepositStatusTransitionError with correct details', () => {
-      const { userId, invoiceId } = setup();
-
-      const deposit = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
-
-      expect(() => {
-        updateDeposit(db, invoiceId, deposit.id, { status: 'claimed' });
-      }).toThrow(InvalidDepositStatusTransitionError);
-
-      try {
-        updateDeposit(db, invoiceId, deposit.id, { status: 'claimed' });
-      } catch (e) {
-        const err = e as InvalidDepositStatusTransitionError;
-        expect(err.details).toMatchObject({
-          from: 'pending',
-          to: 'claimed',
-          allowedTargets: ['paid'],
-        });
-      }
-    });
+    // Story #1878 widened ALLOWED_TRANSITIONS.pending to ['paid', 'claimed'] (deposits can
+    // now be claimed directly via the source-report mark-claimed flow, or via a direct PATCH).
+    // Scenario 12 (originally "pending → claimed throws") is therefore superseded — see the
+    // "State machine — pending → claimed (Story #1878)" describe block below for the new,
+    // now-valid behavior.
 
     it('scenario 13: claimed → pending throws InvalidDepositStatusTransitionError with correct details', () => {
       const { userId, invoiceId } = setup();
@@ -432,6 +417,67 @@ describe('invoiceDepositService', () => {
           allowedTargets: ['paid'],
         });
       }
+    });
+  });
+
+  // ─── State machine — pending → claimed (Story #1878) ─────────────────────────
+
+  describe('State machine — pending → claimed (Story #1878)', () => {
+    it('scenario 42: PATCH pending → claimed now succeeds (no longer throws)', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
+      expect(deposit.status).toBe('pending');
+
+      const updated = updateDeposit(db, invoiceId, deposit.id, { status: 'claimed' });
+
+      expect(updated.status).toBe('claimed');
+    });
+
+    it('scenario 42b: PATCH pending → claimed auto-sets claimedDate to today, consistent with the paid → claimed and create-with-status=claimed paths', () => {
+      // AC-14's date side-effect table auto-sets claimedDate on every arrival at 'claimed'
+      // (see the paid → claimed branch in updateDeposit, and createDeposit's target-status
+      // handling for 'claimed'). This asserts the newly-reachable pending → claimed
+      // transition follows the same rule.
+      const { userId, invoiceId } = setup();
+      const today = new Date().toLocaleDateString('en-CA');
+      const deposit = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
+
+      const updated = updateDeposit(db, invoiceId, deposit.id, { status: 'claimed' });
+
+      expect(updated.claimedDate).toBe(today);
+    });
+
+    it('scenario 43 (regression): pending → paid, paid → claimed, paid → pending, claimed → paid all remain valid', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
+
+      const paid = updateDeposit(db, invoiceId, deposit.id, { status: 'paid' });
+      expect(paid.status).toBe('paid');
+
+      const claimed = updateDeposit(db, invoiceId, deposit.id, { status: 'claimed' });
+      expect(claimed.status).toBe('claimed');
+
+      const backToPaid = updateDeposit(db, invoiceId, deposit.id, { status: 'paid' });
+      expect(backToPaid.status).toBe('paid');
+
+      const backToPending = updateDeposit(db, invoiceId, deposit.id, { status: 'pending' });
+      expect(backToPending.status).toBe('pending');
+    });
+
+    it('scenario 43b (regression): claimed → pending remains disallowed', () => {
+      const { userId, invoiceId } = setup();
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 300, dueDate: '2026-02-01', status: 'paid' },
+        userId,
+      );
+      const claimed = updateDeposit(db, invoiceId, deposit.id, { status: 'claimed' });
+      expect(claimed.status).toBe('claimed');
+
+      expect(() => {
+        updateDeposit(db, invoiceId, deposit.id, { status: 'pending' });
+      }).toThrow(InvalidDepositStatusTransitionError);
     });
   });
 
@@ -615,33 +661,22 @@ describe('invoiceDepositService', () => {
       expect(deposit.paidDate).toBe(today);
     });
 
-    it('scenario 25: create with status = claimed throws InvalidDepositStatusTransitionError (pending → claimed disallowed)', () => {
+    it('scenario 25 (Story #1878): create with status = claimed now succeeds; both paidDate and claimedDate auto-set', () => {
+      // ALLOWED_TRANSITIONS.pending now includes 'claimed' — createDeposit's initial-status
+      // check (`allowedFromPending.includes(targetStatus)`) allows this directly.
       const { userId, invoiceId } = setup();
+      const today = new Date().toLocaleDateString('en-CA');
 
-      expect(() => {
-        createDeposit(
-          db,
-          invoiceId,
-          { amount: 300, dueDate: '2026-02-01', status: 'claimed' },
-          userId,
-        );
-      }).toThrow(InvalidDepositStatusTransitionError);
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 300, dueDate: '2026-02-01', status: 'claimed' },
+        userId,
+      );
 
-      try {
-        createDeposit(
-          db,
-          invoiceId,
-          { amount: 300, dueDate: '2026-02-01', status: 'claimed' },
-          userId,
-        );
-      } catch (e) {
-        const err = e as InvalidDepositStatusTransitionError;
-        expect(err.details).toMatchObject({
-          from: 'pending',
-          to: 'claimed',
-          allowedTargets: ['paid'],
-        });
-      }
+      expect(deposit.status).toBe('claimed');
+      expect(deposit.paidDate).toBe(today);
+      expect(deposit.claimedDate).toBe(today);
     });
   });
 

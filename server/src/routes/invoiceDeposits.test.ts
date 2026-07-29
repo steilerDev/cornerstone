@@ -479,18 +479,48 @@ describe('Invoice Deposit Routes', () => {
       );
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 1000);
-      const depositId = createTestDeposit(invoiceId, userId, 300, 'pending');
+      // Story #1878 widened ALLOWED_TRANSITIONS.pending to ['paid', 'claimed'], so pending →
+      // claimed is now valid (see scenario 47b below). claimed → pending remains disallowed
+      // (ALLOWED_TRANSITIONS.claimed = ['paid']), so exercise that transition here instead.
+      const depositId = createTestDeposit(invoiceId, userId, 300, 'claimed');
 
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/invoices/${invoiceId}/deposits/${depositId}`,
         headers: { cookie },
-        payload: { status: 'claimed' }, // pending → claimed is disallowed
+        payload: { status: 'pending' }, // claimed → pending is disallowed
       });
 
       expect(response.statusCode).toBe(400);
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('INVALID_DEPOSIT_STATUS_TRANSITION');
+    });
+
+    it('scenario 47b: 200 pending → claimed now succeeds (Story #1878); both paidDate and claimedDate auto-set to today', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user7b@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      const depositId = createTestDeposit(invoiceId, userId, 300, 'pending');
+      const today = new Date().toLocaleDateString('en-CA');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${depositId}`,
+        headers: { cookie },
+        payload: { status: 'claimed' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{
+        deposit: { status: string; paidDate: string | null; claimedDate: string | null };
+      }>();
+      expect(body.deposit.status).toBe('claimed');
+      expect(body.deposit.paidDate).toBe(today);
+      expect(body.deposit.claimedDate).toBe(today);
     });
 
     it('scenario 48: 404 deposit not found', async () => {
