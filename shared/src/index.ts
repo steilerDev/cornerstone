@@ -290,6 +290,7 @@ export type {
 export type {
   PaperlessCorrespondent,
   PaperlessCorrespondentListResponse,
+  PaperlessUploadResponse,
 } from './types/paperless.js';
 
 // Documents (Paperless-ngx Integration)
@@ -418,3 +419,15 @@ export type {
   UpdateHouseholdSettingsRequest,
   HouseholdSettingsResponse,
 } from './types/settings.js';
+
+// Source Reports
+export type {
+  SourceReportType,
+  SourceReportDocument,
+  SourceReportInvoice,
+  SourceReportUnallocatedInvoice,
+  SourceReportSourceSummary,
+  SourceReportResponse,
+  MarkClaimedRequest,
+  MarkClaimedResponse,
+} from './types/sourceReport.js';

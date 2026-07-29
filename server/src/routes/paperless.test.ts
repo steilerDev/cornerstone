@@ -997,4 +997,199 @@ describe('Paperless Routes', () => {
       expect(body.error.code).toBe('PAPERLESS_UNREACHABLE');
     });
   });
+
+  // ─── POST /api/paperless/documents ─────────────────────────────────────────
+
+  describe('POST /api/paperless/documents', () => {
+    /**
+     * Build a multipart/form-data body from parts (mirrors photos.test.ts's helper).
+     */
+    function buildMultipartBody(
+      parts: Array<{
+        name: string;
+        value: string | Buffer;
+        filename?: string;
+        contentType?: string;
+      }>,
+    ): { body: Buffer; contentType: string } {
+      const boundary = 'test-boundary-paperless-upload';
+      const CRLF = '\r\n';
+      const chunks: Buffer[] = [];
+
+      for (const part of parts) {
+        let header = `--${boundary}${CRLF}`;
+        if (part.filename) {
+          header += `Content-Disposition: form-data; name="${part.name}"; filename="${part.filename}"${CRLF}`;
+          header += `Content-Type: ${part.contentType ?? 'application/octet-stream'}${CRLF}`;
+        } else {
+          header += `Content-Disposition: form-data; name="${part.name}"${CRLF}`;
+        }
+        header += CRLF;
+
+        chunks.push(Buffer.from(header));
+        chunks.push(typeof part.value === 'string' ? Buffer.from(part.value) : part.value);
+        chunks.push(Buffer.from(CRLF));
+      }
+
+      chunks.push(Buffer.from(`--${boundary}--${CRLF}`));
+
+      return {
+        body: Buffer.concat(chunks),
+        contentType: `multipart/form-data; boundary=${boundary}`,
+      };
+    }
+
+    const PDF_PART = {
+      name: 'document',
+      value: Buffer.from('%PDF-1.4 fake pdf content'),
+      filename: 'invoice.pdf',
+      contentType: 'application/pdf',
+    };
+
+    it('scenario 40: returns 401 when not authenticated', async () => {
+      const { body, contentType } = buildMultipartBody([
+        PDF_PART,
+        { name: 'title', value: 'Invoice' },
+      ]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/paperless/documents',
+        headers: { 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('scenario 36: returns 503 PAPERLESS_NOT_CONFIGURED when not configured', async () => {
+      const { cookie } = await createUserWithSession();
+      const { body, contentType } = buildMultipartBody([
+        PDF_PART,
+        { name: 'title', value: 'Invoice' },
+      ]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/paperless/documents',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(503);
+      const responseBody = response.json<ApiErrorResponse>();
+      expect(responseBody.error.code).toBe('PAPERLESS_NOT_CONFIGURED');
+    });
+
+    it('scenario 35: valid PDF + title, configured → 201 with taskId', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      const { body, contentType } = buildMultipartBody([
+        PDF_PART,
+        { name: 'title', value: 'Invoice from Builder Co' },
+      ]);
+
+      mockFetch.mockResolvedValueOnce(mockJsonResponse('task-uuid-123'));
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/paperless/documents',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(201);
+      const responseBody = response.json<{ taskId: string }>();
+      expect(responseBody.taskId).toBe('task-uuid-123');
+    });
+
+    it('scenario 37: non-PDF file → 400, upload never attempted', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'document',
+          value: Buffer.from('not a pdf'),
+          filename: 'invoice.txt',
+          contentType: 'text/plain',
+        },
+        { name: 'title', value: 'Invoice' },
+      ]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/paperless/documents',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('scenario 38: missing title field → 400', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      const { body, contentType } = buildMultipartBody([PDF_PART]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/paperless/documents',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('scenario 39: no file uploaded → 400', async () => {
+      await rebuildAppWithPaperless();
+      const { cookie } = await createUserWithSession();
+      const { body, contentType } = buildMultipartBody([{ name: 'title', value: 'Invoice' }]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/paperless/documents',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('unresolvable filter tag configured → upload still succeeds untagged (201)', async () => {
+      await rebuildAppWithPaperless();
+      process.env.PAPERLESS_FILTER_TAG = 'nonexistent-tag';
+      await app.close();
+      app = await buildApp();
+      const { cookie } = await createUserWithSession();
+      const { body, contentType } = buildMultipartBody([
+        PDF_PART,
+        { name: 'title', value: 'Invoice' },
+      ]);
+
+      // 1. resolveFilterTagId's tag lookup returns no match
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+      // 2. the upload itself proceeds untagged
+      mockFetch.mockResolvedValueOnce(mockJsonResponse('task-untagged'));
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/paperless/documents',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+
+      expect(response.statusCode).toBe(201);
+      const responseBody = response.json<{ taskId: string }>();
+      expect(responseBody.taskId).toBe('task-untagged');
+
+      delete process.env.PAPERLESS_FILTER_TAG;
+    });
+
+    // scenario 41 (oversized → 413) is covered by errorHandler.test.ts's existing
+    // FST_REQ_FILE_TOO_LARGE → 413 mapping test (server/src/plugins/errorHandler.test.ts) —
+    // that test already exercises the same global 50MB multipart cap (app.ts) this route
+    // relies on; duplicating it here would test Fastify's multipart plugin, not this route.
+  });
 });

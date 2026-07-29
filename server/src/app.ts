@@ -41,6 +41,7 @@ import workItemSubsidyRoutes from './routes/workItemSubsidies.js';
 import workItemSubsidyPaybackRoutes from './routes/workItemSubsidyPayback.js';
 import workItemBudgetRoutes from './routes/workItemBudgets.js';
 import budgetOverviewRoutes from './routes/budgetOverview.js';
+import sourceReportRoutes from './routes/sourceReports.js';
 import milestoneRoutes from './routes/milestones.js';
 import workItemMilestoneRoutes from './routes/workItemMilestones.js';
 import scheduleRoutes from './routes/schedule.js';
@@ -206,6 +207,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Budget overview (aggregation dashboard endpoint)
   await app.register(budgetOverviewRoutes, { prefix: '/api/budget' });
+
+  // Source report routes (EPIC-20: Creditor Reporting)
+  await app.register(sourceReportRoutes, { prefix: '/api/source-reports' });
 
   // Milestone routes (EPIC-06: Timeline, Gantt Chart & Dependency Management)
   await app.register(milestoneRoutes, { prefix: '/api/milestones' });

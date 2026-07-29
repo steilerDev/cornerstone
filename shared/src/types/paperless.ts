@@ -19,3 +19,8 @@ export interface PaperlessCorrespondent {
 export interface PaperlessCorrespondentListResponse {
   correspondents: PaperlessCorrespondent[];
 }
+
+/** Response for POST /api/paperless/documents — the Paperless-ngx consumption task UUID. */
+export interface PaperlessUploadResponse {
+  taskId: string;
+}

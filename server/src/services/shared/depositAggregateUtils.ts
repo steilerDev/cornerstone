@@ -217,6 +217,61 @@ export function computeDepositAwareAggregates(rows: DepositAwareRow[]): {
 }
 
 /**
+ * Per-invoice variant of computeStatusContribution: computes each invoice's net
+ * contribution across a SET of target statuses. Used by sourceReportService, where a
+ * report's status slice (e.g. claim = pending+paid) must accumulate BOTH the invoice's
+ * own residual status AND every deposit/refund status in the slice, into one net figure
+ * per invoice.
+ *
+ * Does NOT drop zero or negative results — callers decide rounding/dropping/refund-adjustment
+ * classification themselves (rounding happens after aggregation at 2dp, so "zero" must be
+ * evaluated post-rounding by the caller).
+ */
+export function computeStatusContributionByInvoice(
+  rows: Array<{
+    ibl_id: string;
+    itemized_amount: number;
+    invoice_id: string;
+    invoice_amount: number;
+    invoice_status: string;
+    deposit_id: string | null;
+    deposit_amount: number | null;
+    deposit_status: string | null;
+    deposit_entry_type: string | null;
+  }>,
+  targetStatuses: Set<string>,
+): Map<string, number> {
+  const result = new Map<string, number>();
+  if (rows.length === 0) return result;
+
+  const iblMap = new Map<string, { itemizedAmount: number; invoiceId: string }>();
+  for (const row of rows) {
+    if (!iblMap.has(row.ibl_id)) {
+      iblMap.set(row.ibl_id, { itemizedAmount: row.itemized_amount, invoiceId: row.invoice_id });
+    }
+  }
+
+  const splitsByInvoiceId = splitByDeposits(rows);
+
+  for (const [_iblId, ibl] of iblMap) {
+    const split = splitsByInvoiceId.get(ibl.invoiceId)!;
+    let contribution = result.get(ibl.invoiceId) ?? 0;
+
+    if (targetStatuses.has(split.invoiceStatus)) {
+      contribution += ibl.itemizedAmount * split.residualFraction;
+    }
+    for (const df of split.depositFractions) {
+      if (targetStatuses.has(df.depositStatus)) {
+        contribution += ibl.itemizedAmount * df.fraction;
+      }
+    }
+    result.set(ibl.invoiceId, contribution);
+  }
+
+  return result;
+}
+
+/**
  * Computes the sum of contributions that match a specific status (for budgetSourceService).
  * Used for claimed/unclaimed/paid amount calculations.
  *

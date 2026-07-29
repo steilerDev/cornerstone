@@ -283,7 +283,7 @@ function sanitizeErrorMessage(message: string): string {
  * Results are cached module-level to avoid repeated lookups.
  * Returns null if the tag is not found or if an error occurs.
  */
-async function resolveFilterTagId(
+export async function resolveFilterTagId(
   baseUrl: string,
   token: string,
   tagName: string,
@@ -559,6 +559,64 @@ export async function getDocuments(
   }
 
   return result;
+}
+
+export interface UploadDocumentInput {
+  buffer: Buffer;
+  filename: string;
+  title: string;
+  filterTagName?: string;
+}
+
+/**
+ * Upload a PDF to Paperless-ngx's consumption pipeline.
+ * Returns the consumption task UUID (post_document does NOT return a document ID —
+ * uploads process asynchronously; no document_link is created — Paperless is the archive of record).
+ */
+export async function uploadDocument(
+  baseUrl: string,
+  token: string,
+  input: UploadDocumentInput,
+): Promise<{ taskId: string }> {
+  let tagId: number | null = null;
+  if (input.filterTagName) {
+    tagId = await resolveFilterTagId(baseUrl, token, input.filterTagName);
+    // resolveFilterTagId already warns+returns null on failure — upload proceeds untagged.
+  }
+
+  const form = new FormData();
+  form.append(
+    'document',
+    new Blob([new Uint8Array(input.buffer)], { type: 'application/pdf' }),
+    input.filename,
+  );
+  form.append('title', input.title);
+  if (tagId !== null) {
+    form.append('tags', String(tagId));
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/api/documents/post_document/`, {
+      method: 'POST',
+      headers: { Authorization: `Token ${token}` },
+      body: form,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new AppError('PAPERLESS_UNREACHABLE', 502, `Cannot connect to Paperless-ngx: ${message}`);
+  }
+
+  if (!response.ok) {
+    throw new AppError(
+      'PAPERLESS_ERROR',
+      502,
+      `Paperless-ngx returned ${response.status}: ${response.statusText}`,
+    );
+  }
+
+  const taskId = (await response.json()) as string;
+  return { taskId };
 }
 
 /**

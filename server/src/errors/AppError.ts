@@ -289,6 +289,16 @@ export class StaleOwnershipError extends AppError {
   }
 }
 
+export class InvoicesNotClaimableError extends AppError {
+  constructor(
+    message = 'One or more invoices are not in a claimable state',
+    details?: Record<string, unknown>,
+  ) {
+    super('INVOICES_NOT_CLAIMABLE', 409, message, details);
+    this.name = 'InvoicesNotClaimableError';
+  }
+}
+
 export class DepositsExceedInvoiceTotalError extends AppError {
   constructor(
     message = 'Sum of deposit amounts would exceed the invoice total',

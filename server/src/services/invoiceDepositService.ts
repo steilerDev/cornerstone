@@ -61,8 +61,8 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
 /**
  * Allowed status transitions for deposits.
  */
-const ALLOWED_TRANSITIONS: Record<InvoiceDepositStatus, InvoiceDepositStatus[]> = {
-  pending: ['paid'],
+export const ALLOWED_TRANSITIONS: Record<InvoiceDepositStatus, InvoiceDepositStatus[]> = {
+  pending: ['paid', 'claimed'],
   paid: ['claimed', 'pending'],
   claimed: ['paid'],
 };
@@ -379,6 +379,10 @@ export function updateDeposit(
         // pending → paid: auto-set paid_date = today unless paidDate supplied
         effectiveNewPaidDate = data.paidDate ?? today();
         effectiveNewClaimedDate = null;
+      } else if (oldStatus === 'pending' && newStatus === 'claimed') {
+        // pending → claimed: auto-set both paid_date and claimed_date = today unless supplied
+        effectiveNewPaidDate = data.paidDate ?? today();
+        effectiveNewClaimedDate = data.claimedDate ?? today();
       } else if (oldStatus === 'paid' && newStatus === 'claimed') {
         // paid → claimed: auto-set claimed_date = today unless claimedDate supplied
         effectiveNewClaimedDate = data.claimedDate ?? today();
