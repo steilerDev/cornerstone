@@ -104,6 +104,12 @@ export class InvoicesPage {
   readonly createCancelButton: Locator;
   readonly createErrorBanner: Locator;
 
+  /**
+   * DataTable column-settings gear button (Issue #1876 "Effective Amount" column,
+   * hidden by default). Desktop-only — hidden via CSS on viewports ≤767px.
+   */
+  readonly columnSettingsButton: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -170,6 +176,9 @@ export class InvoicesPage {
     });
     // Error banner inside the modal (role="alert" inside the modal's form area)
     this.createErrorBanner = this.createModal.locator('[role="alert"]');
+
+    // Column settings gear — aria-label "Column settings" (common:dataTable.columnSettings.ariaLabel)
+    this.columnSettingsButton = page.getByRole('button', { name: 'Column settings', exact: true });
   }
 
   /**
@@ -335,6 +344,52 @@ export class InvoicesPage {
     const countEl = card.locator('[class*="summaryCount"]');
     const text = await countEl.textContent();
     return parseInt(text ?? '0', 10);
+  }
+
+  /**
+   * Enables a hidden-by-default DataTable column via the column settings gear icon
+   * (Issue #1876 "Effective Amount" column). No-ops if already visible.
+   * Desktop-only — the gear button is hidden on viewports ≤767px.
+   */
+  async enableColumn(columnLabel: string): Promise<void> {
+    await this.columnSettingsButton.waitFor({ state: 'visible' });
+    await this.columnSettingsButton.click();
+    const checkbox = this.page.getByRole('checkbox', { name: columnLabel, exact: true });
+    await checkbox.waitFor({ state: 'visible' });
+    const checked = await checkbox.isChecked();
+    if (!checked) {
+      await checkbox.click();
+    }
+    // Close the popover so it doesn't obscure the table.
+    await this.page.keyboard.press('Escape');
+    await checkbox.waitFor({ state: 'hidden' });
+  }
+
+  /**
+   * Reads the text content of a specific column's cell in the desktop table row that
+   * contains `rowMatchText` (e.g. an invoice number). The column must currently be
+   * visible — use enableColumn() first for hidden-by-default columns. The column's
+   * position is resolved dynamically from the header row (matched by label prefix,
+   * since sortable headers append a " ↑"/" ↓" sort-direction suffix), so this stays
+   * correct regardless of column order or how many columns are visible.
+   */
+  async getColumnCellText(rowMatchText: string, columnLabel: string): Promise<string> {
+    const headers = this.tableContainer.locator('thead th');
+    const headerCount = await headers.count();
+    let columnIndex = -1;
+    for (let i = 0; i < headerCount; i++) {
+      const text = (await headers.nth(i).innerText()).trim();
+      if (text === columnLabel || text.startsWith(`${columnLabel} `)) {
+        columnIndex = i;
+        break;
+      }
+    }
+    if (columnIndex === -1) {
+      throw new Error(`Column "${columnLabel}" not found among visible table headers`);
+    }
+    const row = this.tableBody.locator('tr').filter({ hasText: rowMatchText }).first();
+    const cell = row.locator('td').nth(columnIndex);
+    return ((await cell.textContent()) ?? '').trim();
   }
 
   /**

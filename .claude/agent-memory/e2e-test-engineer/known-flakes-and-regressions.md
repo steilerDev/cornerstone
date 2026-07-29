@@ -8,6 +8,7 @@ metadata:
 ## Currently open / unresolved
 
 (none — see Resolved section for the #1829 shard-3 fix)
+
 - `i18n/i18n.spec.ts` "German text does not overflow navigation sidebar on desktop" — pre-existing locale-init race, needs separate investigation.
 - `i18n.spec.ts` "Key page headings render in German" — intermittent ~10-20%: concurrent worker `afterEach(resetToEnglish)` races with another test's `setLanguage('de')`. Pre-existing.
 - `i18n-categories.spec.ts` "German locale: Manage trades tab shows 'Sanitär'..." — intermittent, locale doesn't initialize before English page renders. Pre-existing (seen before PR #1186 too).

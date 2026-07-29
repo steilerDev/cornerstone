@@ -319,6 +319,16 @@ export class InvalidDepositDateForStatusError extends AppError {
   }
 }
 
+export class RefundExceedsInvoiceError extends AppError {
+  constructor(
+    message = 'Sum of refund amounts would exceed the invoice total',
+    details?: Record<string, unknown>,
+  ) {
+    super('REFUND_EXCEEDS_INVOICE', 400, message, details);
+    this.name = 'RefundExceedsInvoiceError';
+  }
+}
+
 export class PayloadTooLargeError extends AppError {
   constructor(message = 'Payload too large') {
     super('PAYLOAD_TOO_LARGE', 413, message);

@@ -1620,7 +1620,7 @@ describe('Invoice Service', () => {
       return id;
     }
 
-    it('list response has deposits: [] and finalPaymentAmount = invoice amount (not computed)', () => {
+    it('list response has deposits: [] (deposits are never embedded on list rows)', () => {
       const vendorId = createTestVendor('List Deposit Vendor');
       const invoiceId = insertRawInvoice(vendorId, { amount: 800 });
       insertRawDeposit(invoiceId, 200, 'paid');
@@ -1631,8 +1631,119 @@ describe('Invoice Service', () => {
       const listed = result.invoices.find((inv) => inv.id === invoiceId);
       expect(listed).toBeDefined();
       expect(listed!.deposits).toHaveLength(0);
-      // List intentionally sets finalPaymentAmount = row.amount without computing
-      expect(listed!.finalPaymentAmount).toBe(800);
+    });
+
+    // Story #1876: previously finalPaymentAmount on list rows was hardcoded to
+    // row.amount (not computed). It is now computed via the same refund-aware
+    // formula as the detail endpoint (computeFinalPaymentAmounts), matching
+    // getInvoiceById(). This intentionally supersedes the pre-#1876 assertion
+    // that finalPaymentAmount === invoice.amount on list rows.
+    it('list response finalPaymentAmount is computed (deposit-aware), matching the detail endpoint (Story #1876)', () => {
+      const vendorId = createTestVendor('List Deposit Vendor 2');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 800 });
+      insertRawDeposit(invoiceId, 200, 'paid');
+      insertRawDeposit(invoiceId, 300, 'claimed');
+
+      const result = invoiceService.listAllInvoices(db, {});
+      const listed = result.invoices.find((inv) => inv.id === invoiceId);
+      // 800 - 200 (paid) - 300 (claimed) = 300
+      expect(listed!.finalPaymentAmount).toBe(300);
+
+      const detail = invoiceService.getInvoiceById(db, invoiceId);
+      expect(detail.finalPaymentAmount).toBe(300);
+    });
+  });
+
+  // ─── entryType / refund-aware finalPaymentAmount (Story #1876) ──────────────
+
+  describe('entryType and refund-aware finalPaymentAmount (Story #1876)', () => {
+    function insertRawDepositWithType(
+      invoiceId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed' = 'pending',
+      entryType: 'deposit' | 'refund' = 'deposit',
+    ): string {
+      const id = `deposit-entrytype-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const ts = new Date(Date.now() + timestampOffset++).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount,
+          dueDate: '2026-02-01',
+          paidDate: status === 'paid' || status === 'claimed' ? '2026-01-20' : null,
+          claimedDate: status === 'claimed' ? '2026-01-25' : null,
+          description: null,
+          status,
+          entryType,
+          createdBy: null,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    it('toInvoice() maps entryType for each embedded deposit', () => {
+      const vendorId = createTestVendor('EntryType Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
+      insertRawDepositWithType(invoiceId, 200, 'paid', 'deposit');
+      insertRawDepositWithType(invoiceId, 100, 'paid', 'refund');
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+      expect(invoice.deposits).toHaveLength(2);
+      const types = invoice.deposits.map((d) => d.entryType).sort();
+      expect(types).toEqual(['deposit', 'refund']);
+    });
+
+    it('Scenario 6: a paid refund reduces finalPaymentAmount on the detail endpoint', () => {
+      const vendorId = createTestVendor('Refund Detail Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 10000 });
+      insertRawDepositWithType(invoiceId, 1500, 'paid', 'refund');
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+      expect(invoice.finalPaymentAmount).toBe(8500);
+    });
+
+    it('Scenario 7: a pending refund does not reduce finalPaymentAmount', () => {
+      const vendorId = createTestVendor('Pending Refund Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 10000 });
+      insertRawDepositWithType(invoiceId, 1500, 'pending', 'refund');
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+      expect(invoice.finalPaymentAmount).toBe(10000);
+    });
+
+    it('Scenario 8: combined paid deposit + claimed refund on the detail endpoint', () => {
+      const vendorId = createTestVendor('Combined Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 10000 });
+      insertRawDepositWithType(invoiceId, 2000, 'paid', 'deposit');
+      insertRawDepositWithType(invoiceId, 1000, 'claimed', 'refund');
+
+      const invoice = invoiceService.getInvoiceById(db, invoiceId);
+      expect(invoice.finalPaymentAmount).toBe(7000);
+    });
+
+    it('Scenario 6 (list): a paid refund reduces finalPaymentAmount on the list endpoint too', () => {
+      const vendorId = createTestVendor('Refund List Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 10000 });
+      insertRawDepositWithType(invoiceId, 1500, 'paid', 'refund');
+
+      const result = invoiceService.listAllInvoices(db, {});
+      const listed = result.invoices.find((inv) => inv.id === invoiceId);
+      expect(listed!.finalPaymentAmount).toBe(8500);
+    });
+
+    it('no-regression: an invoice with zero deposits/refunds has finalPaymentAmount = amount on both endpoints', () => {
+      const vendorId = createTestVendor('No Deposits Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 250 });
+
+      const detail = invoiceService.getInvoiceById(db, invoiceId);
+      expect(detail.finalPaymentAmount).toBe(250);
+
+      const result = invoiceService.listAllInvoices(db, {});
+      const listed = result.invoices.find((inv) => inv.id === invoiceId);
+      expect(listed!.finalPaymentAmount).toBe(250);
     });
   });
 

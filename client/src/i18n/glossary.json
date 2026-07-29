@@ -25,6 +25,7 @@
     "Trade": { "de": { "singular": "Gewerk", "plural": "Gewerke" } },
     "Unassigned": { "de": { "singular": "Nicht zugewiesen" } },
     "Deposit": { "de": { "singular": "Abschlagszahlung", "plural": "Abschlagszahlungen" } },
+    "Refund": { "de": { "singular": "Rückerstattung", "plural": "Rückerstattungen" } },
     "Final payment": { "de": { "singular": "Schlusszahlung" } },
     "Draft": { "de": { "singular": "Entwurf", "plural": "Entwürfe" } },
     "Annotation": { "de": { "singular": "Annotation", "plural": "Annotationen" } },

@@ -57,7 +57,7 @@ named in the issue.
 Both this test and `Scenario 9` mock `**/api/diary-entries*` with an ALWAYS-EMPTY
 paginated response (`makePaginatedEmpty()`). `DiaryPage.waitForLoaded()` races
 `timeline`/`emptyState`/`errorBanner` visibility — but since the empty state is
-already visible from a *prior* transition and never changes, `.waitFor({state:
+already visible from a _prior_ transition and never changes, `.waitFor({state:
 'visible'})` on an already-visible element resolves **instantly**, without
 synchronizing to the new request/response at all. Scenario 10 clicks "All" then
 "Manual" (two transitions before the assertion); after the "All" click,
@@ -65,7 +65,7 @@ synchronizing to the new request/response at all. Scenario 10 clicks "All" then
 array and register a fresh `waitForResponse` for the "Manual" click's response —
 but the "All" click's own response can still be in flight and arrive AFTER the
 reset, matching the loose `waitForResponse` predicate (any 200 response containing
-`/api/diary-entries`) and resolving it *before* the real "Manual" request/response
+`/api/diary-entries`) and resolving it _before_ the real "Manual" request/response
 pair occurs. Result: `requests[]` is empty when read → `expect(lastRequest).toBeDefined()`
 fails intermittently. Scenario 9 does NOT have this race because its `requests[]`
 reset happens right after the very first (`goto`) transition, whose response is

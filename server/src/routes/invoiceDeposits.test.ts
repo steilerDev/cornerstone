@@ -107,6 +107,7 @@ describe('Invoice Deposit Routes', () => {
     userId: string,
     amount = 300,
     status: 'pending' | 'paid' | 'claimed' = 'pending',
+    entryType: 'deposit' | 'refund' = 'deposit',
   ): string {
     const id = `deposit-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     const ts = new Date(Date.now() + tsOffset++).toISOString();
@@ -121,6 +122,7 @@ describe('Invoice Deposit Routes', () => {
         claimedDate: status === 'claimed' ? '2026-01-25' : null,
         description: null,
         status,
+        entryType,
         createdBy: userId,
         createdAt: ts,
         updatedAt: ts,
@@ -239,6 +241,208 @@ describe('Invoice Deposit Routes', () => {
       const body = response.json<{ deposit: { amount: number; status: string } }>();
       expect(body.deposit.amount).toBe(100);
       expect(body.deposit.status).toBe('pending');
+    });
+  });
+
+  // ─── Story #1876: entryType / refund route coverage ─────────────────────────
+
+  describe('POST /api/invoices/:invoiceId/deposits — entryType (Story #1876)', () => {
+    it('Scenario 1: creates a refund entry (entryType: refund, amount: 1500, status: paid) on a €10,000 invoice', async () => {
+      const { cookie } = await createUserWithSession(
+        'refundUser1@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 10000);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 1500, dueDate: '2026-02-01', status: 'paid', entryType: 'refund' },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ deposit: { amount: number; entryType: string } }>();
+      expect(body.deposit.entryType).toBe('refund');
+      expect(body.deposit.amount).toBe(1500);
+    });
+
+    it('Scenario 2: entryType defaults to "deposit" when omitted from the request body', async () => {
+      const { cookie } = await createUserWithSession(
+        'refundUser2@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 300, dueDate: '2026-02-01' },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ deposit: { entryType: string } }>();
+      expect(body.deposit.entryType).toBe('deposit');
+    });
+
+    it('Scenario 3: refund sum invariant — refunds €9,000 + new €2,000 on €10,000 invoice → 400 REFUND_EXCEEDS_INVOICE with availableHeadroom: 1000, no row created', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'refundUser3@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 10000);
+      createTestDeposit(invoiceId, userId, 9000, 'pending', 'refund');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 2000, dueDate: '2026-02-01', entryType: 'refund' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('REFUND_EXCEEDS_INVOICE');
+      expect((body.error.details as { availableHeadroom?: number })?.availableHeadroom).toBe(1000);
+
+      // No row created — GET still shows only the original refund.
+      const listResponse = await app.inject({
+        method: 'GET',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+      });
+      const listBody = listResponse.json<{ deposits: unknown[] }>();
+      expect(listBody.deposits).toHaveLength(1);
+    });
+
+    it('Scenario 4: deposit and refund sum invariants are independent — €9,000 deposits AND €9,000 refunds both succeed on a €10,000 invoice', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'refundUser4@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 10000);
+      createTestDeposit(invoiceId, userId, 9000, 'pending', 'deposit');
+      createTestDeposit(invoiceId, userId, 9000, 'pending', 'refund');
+
+      // Each type still has its own €1,000 headroom — verify both independently.
+      const depositResponse = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 1000, dueDate: '2026-02-01', entryType: 'deposit' },
+      });
+      expect(depositResponse.statusCode).toBe(201);
+
+      const refundResponse = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 1000, dueDate: '2026-02-01', entryType: 'refund' },
+      });
+      expect(refundResponse.statusCode).toBe(201);
+
+      // Exceeding either type's cap now fails with its own error code.
+      const overDeposit = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 1, dueDate: '2026-02-01', entryType: 'deposit' },
+      });
+      expect(overDeposit.statusCode).toBe(400);
+      expect(overDeposit.json<ApiErrorResponse>().error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
+
+      const overRefund = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 1, dueDate: '2026-02-01', entryType: 'refund' },
+      });
+      expect(overRefund.statusCode).toBe(400);
+      expect(overRefund.json<ApiErrorResponse>().error.code).toBe('REFUND_EXCEEDS_INVOICE');
+    });
+  });
+
+  describe('finalPaymentAmount refund-awareness (Story #1876)', () => {
+    it('Scenario 6: a received (paid) refund reduces finalPaymentAmount on both detail and list endpoints', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'refundUser6@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 10000);
+      createTestDeposit(invoiceId, userId, 1500, 'paid', 'refund');
+
+      const detailResponse = await app.inject({
+        method: 'GET',
+        url: `/api/invoices/${invoiceId}`,
+        headers: { cookie },
+      });
+      expect(
+        detailResponse.json<{ invoice: { finalPaymentAmount: number } }>().invoice
+          .finalPaymentAmount,
+      ).toBe(8500);
+
+      const listResponse = await app.inject({
+        method: 'GET',
+        url: `/api/invoices`,
+        headers: { cookie },
+      });
+      const listBody = listResponse.json<{
+        invoices: Array<{ id: string; finalPaymentAmount: number }>;
+      }>();
+      const listed = listBody.invoices.find((inv) => inv.id === invoiceId);
+      expect(listed?.finalPaymentAmount).toBe(8500);
+    });
+
+    it('Scenario 7: a pending refund does not yet reduce finalPaymentAmount', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'refundUser7@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 10000);
+      createTestDeposit(invoiceId, userId, 1500, 'pending', 'refund');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/invoices/${invoiceId}`,
+        headers: { cookie },
+      });
+      expect(
+        response.json<{ invoice: { finalPaymentAmount: number } }>().invoice.finalPaymentAmount,
+      ).toBe(10000);
+    });
+
+    it('Scenario 8: combined deposit + claimed refund — €10,000 invoice, paid deposit €2,000, claimed refund €1,000 → finalPaymentAmount = 7000', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'refundUser8@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 10000);
+      createTestDeposit(invoiceId, userId, 2000, 'paid', 'deposit');
+      createTestDeposit(invoiceId, userId, 1000, 'claimed', 'refund');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/invoices/${invoiceId}`,
+        headers: { cookie },
+      });
+      expect(
+        response.json<{ invoice: { finalPaymentAmount: number } }>().invoice.finalPaymentAmount,
+      ).toBe(7000);
     });
   });
 
@@ -532,6 +736,81 @@ describe('Invoice Deposit Routes', () => {
       });
 
       expect(response.statusCode).toBe(400);
+    });
+
+    // ─── Story #1876: entryType immutability ───────────────────────────────────
+    //
+    // NOTE: `updateDepositSchema` has no `entryType` property and
+    // `additionalProperties: false`. This codebase's Fastify/AJV compiler runs
+    // with the default `removeAdditional: true` (see invoices.test.ts's "strips
+    // unknown properties" tests for the established pattern), which SILENTLY
+    // STRIPS unknown properties before validation rather than rejecting the
+    // request with 400. Verified empirically against this route: PATCH with
+    // `entryType` in the body returns 200 (or, if `entryType` is the only field,
+    // is stripped to `{}` which the Ajv `minProperties` check does not
+    // re-evaluate post-strip, per the documented Ajv8+removeAdditional
+    // interaction) — the field is always ignored, never rejected with 400.
+    // The immutability guarantee (entryType never changes via PATCH) still
+    // holds; only the transport-level status code differs from a naive
+    // "unknown field -> 400" expectation.
+
+    it('Scenario 5: PATCH with entryType + status silently ignores entryType (200), entryType stored value unchanged', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user18@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      const depositId = createTestDeposit(invoiceId, userId, 200, 'pending', 'deposit');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${depositId}`,
+        headers: { cookie },
+        payload: { status: 'paid', entryType: 'refund' },
+      });
+
+      // AJV strips the unknown `entryType` property before validation; the
+      // remaining body ({ status: 'paid' }) is valid, so the request succeeds.
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ deposit: { status: string; entryType: string } }>();
+      expect(body.deposit.status).toBe('paid');
+      expect(body.deposit.entryType).toBe('deposit'); // unchanged — immutable
+
+      // Verify via GET that the stored value is genuinely unchanged, not just
+      // the PATCH response echoing stale data.
+      const getResponse = await app.inject({
+        method: 'GET',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+      });
+      const getBody = getResponse.json<{ deposits: Array<{ id: string; entryType: string }> }>();
+      const stored = getBody.deposits.find((d) => d.id === depositId);
+      expect(stored?.entryType).toBe('deposit');
+    });
+
+    it('Scenario 5b: PATCH with only entryType (no other field) is stripped to a no-op (200), does not trigger minProperties 400', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user19@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      const depositId = createTestDeposit(invoiceId, userId, 200, 'pending', 'deposit');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${depositId}`,
+        headers: { cookie },
+        payload: { entryType: 'refund' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ deposit: { status: string; entryType: string } }>();
+      expect(body.deposit.status).toBe('pending'); // unchanged
+      expect(body.deposit.entryType).toBe('deposit'); // unchanged — immutable
     });
   });
 });

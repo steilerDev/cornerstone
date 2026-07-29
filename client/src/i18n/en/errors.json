@@ -43,5 +43,6 @@
   "LLM_NOT_CONFIGURED": "Auto-itemization is not configured on this server.",
   "LLM_UNREACHABLE": "The extraction service is unavailable. Please try again later.",
   "LLM_INVALID_RESPONSE": "The extraction service returned an invalid response.",
-  "LLM_UPSTREAM_ERROR": "The extraction service returned an error."
+  "LLM_UPSTREAM_ERROR": "The extraction service returned an error.",
+  "REFUND_EXCEEDS_INVOICE": "Refund amount exceeds the invoice total."
 }

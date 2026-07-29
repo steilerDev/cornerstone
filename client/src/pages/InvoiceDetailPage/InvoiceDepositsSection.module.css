@@ -154,6 +154,9 @@
 }
 
 .cardAmount {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
@@ -270,6 +273,13 @@
   white-space: nowrap;
 }
 
+/* ---- Entry Type Badge ---- */
+
+.refund {
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+}
+
 /* ---- Modal Styles ---- */
 
 .modal {
@@ -310,6 +320,38 @@
   color: var(--color-text-muted);
   text-align: right;
   margin-top: var(--spacing-1);
+}
+
+/* ---- Entry Type Selector ---- */
+
+.entryTypeSelector {
+  display: flex;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
+.entryTypeSelector label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.entryTypeSelector input[type='radio'] {
+  cursor: pointer;
+}
+
+/* ---- Amount Cell ---- */
+
+.amountCell {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.amountNegative {
+  color: var(--color-danger-text-on-light);
 }
 
 /* ---- Conditional Fields Animation ---- */

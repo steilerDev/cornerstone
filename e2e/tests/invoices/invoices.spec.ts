@@ -24,6 +24,19 @@ import type { Page } from '@playwright/test';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { API } from '../../fixtures/testData.js';
+import {
+  createWorkItemViaApi,
+  deleteWorkItemViaApi,
+  createBudgetSourceViaApi,
+  deleteBudgetSourceViaApi,
+} from '../../fixtures/apiHelpers.js';
+
+// Issue #1876: "Effective Amount" column — hidden by default (defaultVisible: false),
+// toggled via the DataTable column settings gear, same as "Remaining Amount". Bound to
+// invoice.finalPaymentAmount (deposit/refund-aware), which is a DIFFERENT figure from
+// "Remaining Amount" (itemization-based: amount − Σ budgetLines[].itemizedAmount).
+// Note: this file already has its own "Scenario 7" (row click navigation, above) —
+// this addition is labeled by Issue number to avoid colliding with that numbering.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers
@@ -811,6 +824,108 @@ test.describe('Dark mode', () => {
       }
     } finally {
       if (vendorId) await deleteVendorViaApi(p, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// "Effective Amount" column (Issue #1876)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' }, () => {
+  test('Toggling "Effective Amount" shows a deposit/refund-aware value distinct from "Remaining Amount"', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Column settings gear is desktop-only (hidden ≤767px) — skip on mobile/tablet.
+    const viewportWidth = page.viewportSize()?.width ?? 1440;
+    if (viewportWidth < 1024) {
+      test.skip(true, 'Column settings — desktop viewport only');
+      return;
+    }
+
+    const invoicesPage = new InvoicesPage(page);
+    const vendorName = `${testPrefix} EffAmt Vendor`;
+    const invoiceNumber = `${testPrefix}-EFFAMT`;
+    let vendorId = '';
+    let workItemId = '';
+    let budgetSourceId = '';
+
+    try {
+      const vendor = await createVendorViaApi(page, vendorName);
+      vendorId = vendor.id;
+
+      // Invoice total = 1000
+      const invoice = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber,
+        amount: 1000,
+        date: '2026-01-01',
+      });
+
+      // Itemize part of the invoice via a budget line — this drives "Remaining Amount"
+      // (calculateRemaining = amount − Σ budgetLines[].itemizedAmount), which is
+      // UNRELATED to deposits/refunds.
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} EffAmt WI` });
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} EffAmt Source`,
+        totalAmount: 5000,
+      });
+      const budgetResp = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
+        data: {
+          plannedAmount: 300,
+          budgetSourceId,
+          confidence: 'own_estimate',
+          description: `${testPrefix} EffAmt line`,
+        },
+      });
+      expect(budgetResp.ok(), `POST work item budget failed: ${budgetResp.status()}`).toBeTruthy();
+      const budgetBody = (await budgetResp.json()) as { budget: { id: string } };
+      const linkResp = await page.request.post(`/api/invoices/${invoice.id}/budget-lines`, {
+        data: { workItemBudgetId: budgetBody.budget.id, itemizedAmount: 300 },
+      });
+      expect(linkResp.ok(), `POST invoice budget-line failed: ${linkResp.status()}`).toBeTruthy();
+      // Remaining Amount = 1000 − 300 = 700
+
+      // Add a refund and mark it paid — this drives "Effective Amount"
+      // (finalPaymentAmount = amount − deposits − received refunds), independent of
+      // itemization.
+      const depositResp = await page.request.post(`/api/invoices/${invoice.id}/deposits`, {
+        data: { entryType: 'refund', amount: 150, dueDate: '2026-02-01', status: 'pending' },
+      });
+      expect(depositResp.ok(), `POST deposit failed: ${depositResp.status()}`).toBeTruthy();
+      const depositBody = (await depositResp.json()) as { deposit: { id: string } };
+      const today = new Date().toISOString().slice(0, 10);
+      const paidResp = await page.request.patch(
+        `/api/invoices/${invoice.id}/deposits/${depositBody.deposit.id}`,
+        { data: { status: 'paid', paidDate: today } },
+      );
+      expect(paidResp.ok(), `PATCH deposit pending→paid failed: ${paidResp.status()}`).toBeTruthy();
+      // Effective Amount = 1000 − 150 (paid refund) = 850
+
+      await invoicesPage.goto();
+      await invoicesPage.waitForLoaded();
+
+      // Before enabling: neither hidden-by-default column header is rendered
+      await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).not.toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).not.toBeVisible();
+
+      // Both "Remaining Amount" and "Effective Amount" are hidden by default
+      // (defaultVisible: false) — enable both so we can compare their values.
+      await invoicesPage.enableColumn('Remaining Amount');
+      await invoicesPage.enableColumn('Effective Amount');
+      await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).toBeVisible();
+
+      const remainingText = await invoicesPage.getColumnCellText(invoiceNumber, 'Remaining Amount');
+      const effectiveText = await invoicesPage.getColumnCellText(invoiceNumber, 'Effective Amount');
+
+      expect(remainingText).toContain('700');
+      expect(effectiveText).toContain('850');
+      expect(effectiveText).not.toBe(remainingText);
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
     }
   });
 });

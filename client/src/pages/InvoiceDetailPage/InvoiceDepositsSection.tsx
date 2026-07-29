@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { InvoiceDeposit, InvoiceDepositStatus, InvoiceStatus } from '@cornerstone/shared';
+import type {
+  InvoiceDeposit,
+  InvoiceDepositStatus,
+  InvoiceDepositEntryType,
+  InvoiceStatus,
+} from '@cornerstone/shared';
 import { createDeposit, updateDeposit, deleteDeposit } from '../../lib/invoiceDepositsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -28,6 +33,7 @@ interface DepositFormState {
   paidDate: string;
   claimedDate: string;
   description: string;
+  entryType: InvoiceDepositEntryType;
 }
 
 type ModalMode = 'add' | 'edit' | 'delete' | null;
@@ -47,6 +53,7 @@ const getEmptyForm = (): DepositFormState => {
     paidDate: today,
     claimedDate: today,
     description: '',
+    entryType: 'deposit',
   };
 };
 
@@ -126,6 +133,7 @@ export function InvoiceDepositsSection({
       paidDate: deposit.paidDate ? deposit.paidDate.slice(0, 10) : '',
       claimedDate: deposit.claimedDate ? deposit.claimedDate.slice(0, 10) : '',
       description: deposit.description ?? '',
+      entryType: deposit.entryType,
     });
     setFormError('');
     setModalMode('edit');
@@ -187,6 +195,7 @@ export function InvoiceDepositsSection({
           amount,
           dueDate: depositForm.dueDate,
           status: depositForm.status as InvoiceDepositStatus,
+          entryType: depositForm.entryType,
           description: depositForm.description.trim() || null,
           ...(depositForm.status !== 'pending' ? { paidDate: depositForm.paidDate || null } : {}),
           ...(depositForm.status === 'claimed'
@@ -218,6 +227,14 @@ export function InvoiceDepositsSection({
             (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
           setFormError(
             t('budget:invoiceDetail.deposits.errors.exceedsTotal', {
+              availableHeadroom: formatCurrency(availableHeadroom),
+            }),
+          );
+        } else if (code === 'REFUND_EXCEEDS_INVOICE') {
+          const availableHeadroom =
+            (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
+          setFormError(
+            t('budget:invoiceDetail.deposits.errors.refundExceedsTotal', {
               availableHeadroom: formatCurrency(availableHeadroom),
             }),
           );
@@ -545,6 +562,13 @@ function DepositRow({
     },
   };
 
+  const entryTypeVariants: BadgeVariantMap = {
+    refund: {
+      label: t('budget:invoiceDetail.deposits.entryTypeLabels.refund')!,
+      className: styles.refund!,
+    },
+  };
+
   // Build menu items based on deposit status
   const menuItems: OverflowMenuItem[] = [];
 
@@ -607,7 +631,14 @@ function DepositRow({
       className={`${styles.tableRow} ${mutatingDepositId === deposit.id ? styles.tableRowMutating : ''}`}
     >
       <td>{formatDate(deposit.dueDate)}</td>
-      <td>{formatCurrency(deposit.amount)}</td>
+      <td>
+        <div className={styles.amountCell}>
+          {deposit.entryType === 'refund' && <Badge variants={entryTypeVariants} value="refund" />}
+          <span className={deposit.entryType === 'refund' ? styles.amountNegative : undefined}>
+            {formatCurrency(deposit.entryType === 'refund' ? -deposit.amount : deposit.amount)}
+          </span>
+        </div>
+      </td>
       <td>
         <Badge variants={statusVariants} value={deposit.status} />
       </td>
@@ -621,7 +652,9 @@ function DepositRow({
           <OverflowMenu
             items={menuItems}
             triggerAriaLabel={t('budget:invoiceDetail.deposits.menu.ariaLabel', {
-              description: deposit.description ?? 'deposit',
+              description:
+                deposit.description ??
+                t(`budget:invoiceDetail.deposits.entryTypeLabels.${deposit.entryType}`),
             })}
             placement="bottom-end"
             usePortal
@@ -659,6 +692,13 @@ function DepositCard({
     claimed: {
       label: t('invoiceDetail.statusLabels.claimed')!,
       className: styles.statusClaimed!,
+    },
+  };
+
+  const entryTypeVariants: BadgeVariantMap = {
+    refund: {
+      label: t('budget:invoiceDetail.deposits.entryTypeLabels.refund')!,
+      className: styles.refund!,
     },
   };
 
@@ -722,7 +762,12 @@ function DepositCard({
   return (
     <div className={styles.mobileCard}>
       <div className={styles.cardTopRow}>
-        <div className={styles.cardAmount}>{formatCurrency(deposit.amount)}</div>
+        <div className={styles.cardAmount}>
+          {deposit.entryType === 'refund' && <Badge variants={entryTypeVariants} value="refund" />}
+          <span className={deposit.entryType === 'refund' ? styles.amountNegative : undefined}>
+            {formatCurrency(deposit.entryType === 'refund' ? -deposit.amount : deposit.amount)}
+          </span>
+        </div>
         <Badge variants={statusVariants} value={deposit.status} />
       </div>
 
@@ -755,7 +800,9 @@ function DepositCard({
         <OverflowMenu
           items={menuItems}
           triggerAriaLabel={t('budget:invoiceDetail.deposits.menu.ariaLabel', {
-            description: deposit.description ?? 'deposit',
+            description:
+              deposit.description ??
+              t(`budget:invoiceDetail.deposits.entryTypeLabels.${deposit.entryType}`),
           })}
           placement="top-end"
           usePortal
@@ -833,6 +880,43 @@ function AddEditDepositModal({
       <form id="deposit-form" onSubmit={onSubmit} noValidate>
         {error && <FormError message={error} />}
 
+        {/* Entry type selector */}
+        <div className={styles.formField}>
+          <span className={styles.label}>{t('budget:invoiceDetail.deposits.form.entryType')}</span>
+          <div
+            className={styles.entryTypeSelector}
+            role="group"
+            aria-label={t('budget:invoiceDetail.deposits.form.entryTypeLabel')}
+          >
+            <label>
+              <input
+                type="radio"
+                name="entryType"
+                value="deposit"
+                checked={form.entryType === 'deposit'}
+                onChange={(e) =>
+                  onFormChange({ ...form, entryType: e.target.value as InvoiceDepositEntryType })
+                }
+                disabled={isMutating || isEdit}
+              />
+              {t('budget:invoiceDetail.deposits.entryTypeLabels.deposit')}
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="entryType"
+                value="refund"
+                checked={form.entryType === 'refund'}
+                onChange={(e) =>
+                  onFormChange({ ...form, entryType: e.target.value as InvoiceDepositEntryType })
+                }
+                disabled={isMutating || isEdit}
+              />
+              {t('budget:invoiceDetail.deposits.entryTypeLabels.refund')}
+            </label>
+          </div>
+        </div>
+
         {/* Row 1: amount + due date */}
         <div className={styles.formRow}>
           <div className={styles.formField}>
@@ -855,6 +939,11 @@ function AddEditDepositModal({
               disabled={isMutating}
               onWheel={(e) => e.currentTarget.blur()}
             />
+            {form.entryType === 'refund' && (
+              <div className={styles.charCounter}>
+                {t('budget:invoiceDetail.deposits.form.refundAmountHint')}
+              </div>
+            )}
           </div>
 
           <div className={styles.formField}>

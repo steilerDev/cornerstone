@@ -20,6 +20,7 @@
 - [story-1248-mass-move.md](story-1248-mass-move.md) — mass-move budget line story notes.
 - [story-epic08-e2e.md](story-epic08-e2e.md) — EPIC-08 Paperless integration (no testcontainer yet — all document tests validate "not configured" state only).
 - [bug-1829-shard3-flakes.md](bug-1829-shard3-flakes.md) — root cause + fix for the shard-3 diary flakes blocking main promotions; also proves `maxFailures` already tolerates one retry-passing test (Playwright source citation).
+- [story-1876-deposit-refunds.md](story-1876-deposit-refunds.md) — deposit `entryType` refunds; DataTable hidden-column read pattern (`getColumnCellText`), table+card dual-DOM visible-filter pitfall.
 
 ## Open follow-ups to flag to orchestrator
 

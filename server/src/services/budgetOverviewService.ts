@@ -351,7 +351,8 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
       i.status            AS invoice_status,
       d.id                AS deposit_id,
       d.amount            AS deposit_amount,
-      d.status            AS deposit_status
+      d.status            AS deposit_status,
+      d.entry_type        AS deposit_entry_type
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id`,

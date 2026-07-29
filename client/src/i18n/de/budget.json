@@ -649,10 +649,18 @@
         "descriptionPlaceholder": "Optionale Beschreibung",
         "charCounter": "{{count}} / 500",
         "saving": "Wird gespeichert...",
-        "required": "*"
+        "required": "*",
+        "entryType": "Eintragsart",
+        "entryTypeLabel": "Eintragsart",
+        "refundAmountHint": "Rückerstattungsbeträge werden als positive Zahl eingegeben."
+      },
+      "entryTypeLabels": {
+        "deposit": "Abschlagszahlung",
+        "refund": "Rückerstattung"
       },
       "errors": {
         "exceedsTotal": "Betrag der Abschlagszahlung überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{availableHeadroom}}",
+        "refundExceedsTotal": "Rückerstattungsbetrag überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{availableHeadroom}}",
         "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
         "invalidDate": "Ungültiges Datum für den ausgewählten Status",
         "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -900,7 +908,8 @@
       "dueDate": "Fälligkeitsdatum",
       "status": "Status",
       "notes": "Notizen",
-      "remainingAmount": "Verbleibender Betrag"
+      "remainingAmount": "Verbleibender Betrag",
+      "effectiveAmount": "Effektivbetrag"
     },
     "form": {
       "vendor": "Auftragnehmer",

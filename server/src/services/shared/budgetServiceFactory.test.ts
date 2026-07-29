@@ -1431,7 +1431,11 @@ describe('budgetServiceFactory — createBudgetService()', () => {
      */
     function insertDeposit(
       invoiceId: string,
-      opts: { amount: number; status: 'pending' | 'paid' | 'claimed' },
+      opts: {
+        amount: number;
+        status: 'pending' | 'paid' | 'claimed';
+        entryType?: 'deposit' | 'refund';
+      },
     ): string {
       const id = `dep-list-${++idCounter}`;
       const now = new Date(Date.now() + idCounter).toISOString();
@@ -1442,6 +1446,7 @@ describe('budgetServiceFactory — createBudgetService()', () => {
           amount: opts.amount,
           dueDate: '2026-03-01',
           status: opts.status,
+          entryType: opts.entryType ?? 'deposit',
           createdAt: now,
           updatedAt: now,
         })
@@ -1531,6 +1536,74 @@ describe('budgetServiceFactory — createBudgetService()', () => {
 
       expect(lineResult.actualCost).toBe(800);
       expect(lineResult.actualCostPaid).toBeCloseTo(500);
+    });
+
+    // ─── Story #1876: refund entries net out actualCostPaid ──────────────────
+
+    describe('refund entries net out actualCostPaid (Story #1876)', () => {
+      it('work-item list: a claimed refund reduces actualCostPaid (deposit_entry_type SQL wiring)', () => {
+        // Invoice 1000 pending; deposit 600 claimed + refund 200 claimed
+        // actualCostPaid = 600 - 200 = 400
+        const workItemId = insertWorkItem();
+        const vendorId = insertVendor();
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 1000,
+          budgetSourceId: 'discretionary-system',
+        });
+        const invoiceId = insertInvoiceForWorkItemBudget(line.id, vendorId, {
+          amount: 1000,
+          status: 'pending',
+        });
+        insertDeposit(invoiceId, { amount: 600, status: 'claimed' });
+        insertDeposit(invoiceId, { amount: 200, status: 'claimed', entryType: 'refund' });
+
+        const result = listWorkItemBudgets(db, workItemId);
+        const lineResult = result.find((r) => r.id === line.id)!;
+
+        expect(lineResult.actualCost).toBe(1000); // unaffected by refunds
+        expect(lineResult.actualCostPaid).toBeCloseTo(400);
+      });
+
+      it('household-item list: a paid refund reduces actualCostPaid (deposit_entry_type SQL wiring)', () => {
+        // Invoice 600 pending; deposit 400 paid + refund 150 paid
+        // actualCostPaid = 400 - 150 = 250
+        const hiId = insertHouseholdItem();
+        const vendorId = insertVendor();
+        const line = createHouseholdItemBudget(db, hiId, 'user-001', {
+          plannedAmount: 600,
+          budgetSourceId: 'discretionary-system',
+        });
+        const invoiceId = insertInvoiceForHouseholdItemBudget(line.id, vendorId, {
+          amount: 600,
+          status: 'pending',
+        });
+        insertDeposit(invoiceId, { amount: 400, status: 'paid' });
+        insertDeposit(invoiceId, { amount: 150, status: 'paid', entryType: 'refund' });
+
+        const result = listHouseholdItemBudgets(db, hiId);
+        const lineResult = result.find((r) => r.id === line.id)!;
+
+        expect(lineResult.actualCost).toBe(600);
+        expect(lineResult.actualCostPaid).toBeCloseTo(250);
+      });
+
+      it('regression: zero refunds — actualCostPaid unchanged from AC-22', () => {
+        const workItemId = insertWorkItem();
+        const vendorId = insertVendor();
+        const line = createWorkItemBudget(db, workItemId, 'user-001', {
+          plannedAmount: 1000,
+          budgetSourceId: 'discretionary-system',
+        });
+        const invoiceId = insertInvoiceForWorkItemBudget(line.id, vendorId, {
+          amount: 1000,
+          status: 'pending',
+        });
+        insertDeposit(invoiceId, { amount: 300, status: 'paid' });
+
+        const result = listWorkItemBudgets(db, workItemId);
+        const lineResult = result.find((r) => r.id === line.id)!;
+        expect(lineResult.actualCostPaid).toBeCloseTo(300);
+      });
     });
   });
 });
@@ -1985,6 +2058,7 @@ describe('resolveRelationsBatch()', () => {
         amount: number;
         status: 'pending' | 'paid' | 'claimed';
         dueDate?: string;
+        entryType?: 'deposit' | 'refund';
       },
     ): string {
       const id = `dep-${++idCounter}`;
@@ -1996,6 +2070,7 @@ describe('resolveRelationsBatch()', () => {
           amount: opts.amount,
           dueDate: opts.dueDate ?? '2026-03-01',
           status: opts.status,
+          entryType: opts.entryType ?? 'deposit',
           createdAt: now,
           updatedAt: now,
         })
@@ -2146,6 +2221,96 @@ describe('resolveRelationsBatch()', () => {
 
       const resolvedB = result.get(lineB.id)!;
       expect(resolvedB.actualCostPaid).toBe(400);
+    });
+
+    // ─── Story #1876: refund entries net out actualCostPaid via getInvoiceAggregates ─
+
+    describe('refund entries net out actualCostPaid (Story #1876)', () => {
+      it('a claimed refund reduces actualCostPaid/actualCostClaimed via resolveRelationsBatch (deposit_entry_type SQL wiring)', () => {
+        // Invoice 1000 pending; deposit 600 claimed + refund 200 claimed
+        // actualCostPaid = actualCostClaimed = 600 - 200 = 400
+        const workItemId = insertWorkItem();
+        const vendorId = insertVendor();
+        const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 1000 });
+        const { invoiceId } = insertInvoiceLinkedToWorkItemBudget(line.id, vendorId, {
+          amount: 1000,
+          status: 'pending',
+        });
+        insertDeposit(invoiceId, { amount: 600, status: 'claimed' });
+        insertDeposit(invoiceId, { amount: 200, status: 'claimed', entryType: 'refund' });
+
+        const rows = [
+          {
+            id: line.id,
+            confidence: line.confidence,
+            budgetCategoryId: line.budgetCategoryId,
+            budgetSourceId: line.budgetSourceId,
+            vendorId: line.vendorId,
+            createdBy: line.createdBy,
+          },
+        ];
+        const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+        const resolved = result.get(line.id)!;
+
+        expect(resolved.actualCost).toBe(1000); // unaffected by refunds
+        expect(resolved.actualCostPaid).toBeCloseTo(400);
+      });
+
+      it('batch with multiple lines: refund on one line does not affect the other (isolation)', () => {
+        // Line A: invoice 600 pending, deposit 200 paid, refund 50 paid → actualCostPaid=150
+        // Line B: invoice 400 paid (no deposits/refunds) → actualCostPaid=400
+        const workItemId = insertWorkItem();
+        const vendorId = insertVendor();
+        const lineA = insertWorkItemBudgetLine({ workItemId, plannedAmount: 600 });
+        const lineB = insertWorkItemBudgetLine({ workItemId, plannedAmount: 400 });
+        const { invoiceId: invA } = insertInvoiceLinkedToWorkItemBudget(lineA.id, vendorId, {
+          amount: 600,
+          status: 'pending',
+        });
+        insertDeposit(invA, { amount: 200, status: 'paid' });
+        insertDeposit(invA, { amount: 50, status: 'paid', entryType: 'refund' });
+        insertInvoiceLinkedToWorkItemBudget(lineB.id, vendorId, { amount: 400, status: 'paid' });
+
+        const rows = [lineA, lineB].map((l) => ({
+          id: l.id,
+          confidence: l.confidence,
+          budgetCategoryId: l.budgetCategoryId,
+          budgetSourceId: l.budgetSourceId,
+          vendorId: l.vendorId,
+          createdBy: l.createdBy,
+        }));
+        const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+
+        const resolvedA = result.get(lineA.id)!;
+        expect(resolvedA.actualCostPaid).toBeCloseTo(150);
+
+        const resolvedB = result.get(lineB.id)!;
+        expect(resolvedB.actualCostPaid).toBe(400);
+      });
+
+      it('regression: zero refunds — actualCostPaid unchanged from AC-22', () => {
+        const workItemId = insertWorkItem();
+        const vendorId = insertVendor();
+        const line = insertWorkItemBudgetLine({ workItemId, plannedAmount: 1000 });
+        const { invoiceId } = insertInvoiceLinkedToWorkItemBudget(line.id, vendorId, {
+          amount: 1000,
+          status: 'pending',
+        });
+        insertDeposit(invoiceId, { amount: 300, status: 'paid' });
+
+        const rows = [
+          {
+            id: line.id,
+            confidence: line.confidence,
+            budgetCategoryId: line.budgetCategoryId,
+            budgetSourceId: line.budgetSourceId,
+            vendorId: line.vendorId,
+            createdBy: line.createdBy,
+          },
+        ];
+        const result = resolveRelationsBatch(db, rows, 'work_item_budget_id');
+        expect(result.get(line.id)!.actualCostPaid).toBeCloseTo(300);
+      });
     });
   });
 

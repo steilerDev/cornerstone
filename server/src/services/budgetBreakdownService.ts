@@ -121,6 +121,7 @@ export function getBudgetBreakdown(
     deposit_id: string | null;
     deposit_amount: number | null;
     deposit_status: string | null;
+    deposit_entry_type: string | null;
   }>(
     sql`SELECT
       ibl.work_item_budget_id  AS budgetLineId,
@@ -131,7 +132,8 @@ export function getBudgetBreakdown(
       i.status                 AS invoice_status,
       id.id                    AS deposit_id,
       id.amount                AS deposit_amount,
-      id.status                AS deposit_status
+      id.status                AS deposit_status,
+      id.entry_type            AS deposit_entry_type
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits id ON id.invoice_id = i.id
@@ -212,6 +214,7 @@ export function getBudgetBreakdown(
     deposit_id: string | null;
     deposit_amount: number | null;
     deposit_status: string | null;
+    deposit_entry_type: string | null;
   }>(
     sql`SELECT
       ibl.household_item_budget_id AS budgetLineId,
@@ -222,7 +225,8 @@ export function getBudgetBreakdown(
       i.status                     AS invoice_status,
       id.id                        AS deposit_id,
       id.amount                    AS deposit_amount,
-      id.status                    AS deposit_status
+      id.status                    AS deposit_status,
+      id.entry_type                AS deposit_entry_type
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits id ON id.invoice_id = i.id
