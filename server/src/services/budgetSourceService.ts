@@ -95,6 +95,8 @@ function toBudgetSource(
     interestRate: row.interestRate,
     terms: row.terms,
     notes: row.notes,
+    reference: row.reference,
+    contactAddress: row.contactAddress,
     status: row.status as BudgetSourceStatus,
     isDiscretionary: row.isDiscretionary,
     createdBy: toUserSummary(createdByUser),
@@ -529,6 +531,20 @@ export function createBudgetSource(
     }
   }
 
+  // Validate reference if provided
+  if (data.reference !== undefined && data.reference !== null) {
+    if (data.reference.length > 200) {
+      throw new ValidationError('Reference must be 200 characters or fewer');
+    }
+  }
+
+  // Validate contactAddress if provided
+  if (data.contactAddress !== undefined && data.contactAddress !== null) {
+    if (data.contactAddress.length > 500) {
+      throw new ValidationError('Contact address must be 500 characters or fewer');
+    }
+  }
+
   // Validate status if provided
   if (data.status !== undefined && !VALID_STATUSES.includes(data.status)) {
     throw new ValidationError(`Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`);
@@ -547,6 +563,8 @@ export function createBudgetSource(
       interestRate: data.interestRate ?? null,
       terms: data.terms ?? null,
       notes: data.notes ?? null,
+      reference: data.reference ?? null,
+      contactAddress: data.contactAddress ?? null,
       status,
       createdBy: userId,
       createdAt: now,
@@ -581,6 +599,8 @@ export function updateBudgetSource(
     data.interestRate === undefined &&
     data.terms === undefined &&
     data.notes === undefined &&
+    data.reference === undefined &&
+    data.contactAddress === undefined &&
     data.status === undefined
   ) {
     throw new ValidationError('At least one field must be provided');
@@ -641,6 +661,22 @@ export function updateBudgetSource(
   // Add notes if provided
   if (data.notes !== undefined) {
     updates.notes = data.notes;
+  }
+
+  // Validate and add reference if provided
+  if (data.reference !== undefined) {
+    if (data.reference !== null && data.reference.length > 200) {
+      throw new ValidationError('Reference must be 200 characters or fewer');
+    }
+    updates.reference = data.reference;
+  }
+
+  // Validate and add contactAddress if provided
+  if (data.contactAddress !== undefined) {
+    if (data.contactAddress !== null && data.contactAddress.length > 500) {
+      throw new ValidationError('Contact address must be 500 characters or fewer');
+    }
+    updates.contactAddress = data.contactAddress;
   }
 
   // Validate and add status if provided

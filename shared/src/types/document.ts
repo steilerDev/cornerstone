@@ -24,6 +24,12 @@ export type DocumentLinkEntityType =
   | 'budget_source'
   | 'subsidy_program';
 
+/**
+ * Tag applied to an invoice document link, indicating its role in the claim report.
+ * Meaningful only for entityType='invoice'; always null otherwise.
+ */
+export type AttachmentType = 'quotation' | 'deposit' | 'invoice';
+
 // ─── Paperless-ngx Proxy Types ───────────────────────────────────────────────
 
 /**
@@ -159,6 +165,7 @@ export interface DocumentLink {
   entityType: DocumentLinkEntityType;
   entityId: string;
   paperlessDocumentId: number;
+  attachmentType: AttachmentType | null;
   createdBy: {
     id: string;
     displayName: string;
@@ -182,6 +189,16 @@ export interface CreateDocumentLinkRequest {
   entityType: DocumentLinkEntityType;
   entityId: string;
   paperlessDocumentId: number;
+  /** Only meaningful when entityType='invoice'; ignored/normalized to null otherwise. */
+  attachmentType?: AttachmentType | null;
+}
+
+/**
+ * Request body for PATCH /api/document-links/:id.
+ * Set to null to untag.
+ */
+export interface UpdateDocumentLinkRequest {
+  attachmentType: AttachmentType | null;
 }
 
 /**

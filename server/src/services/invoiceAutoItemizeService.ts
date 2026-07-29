@@ -761,6 +761,7 @@ export async function commitAutoItemizeCreate(
         entityType: 'invoice',
         entityId: invoiceId,
         paperlessDocumentId: body.paperlessDocumentId,
+        attachmentType: 'invoice',
         createdBy: userId,
         createdAt: now,
       })

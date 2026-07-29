@@ -96,12 +96,16 @@
       "totalAmount": "Gesamtbetrag (€)",
       "interestRate": "Zinssatz (%)",
       "terms": "Bedingungen",
+      "reference": "Referenz",
+      "contactAddress": "Kontaktadresse",
       "notes": "Notizen",
       "required": "*",
       "placeholders": {
         "name": "z. B. Hauptbankkredite",
         "interestRate": "z. B. 3,50",
         "terms": "z. B. 30-jähriger fester Satz, monatliche Zahlungen",
+        "reference": "z. B. Darlehen Nr. 12345",
+        "contactAddress": "z. B. Musterstraße 1, 12345 Musterstadt",
         "notes": "Optionale Notizen"
       }
     },

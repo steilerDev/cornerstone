@@ -5,12 +5,14 @@ const mockListDocumentLinks = jest.fn<() => Promise<unknown>>();
 const mockCreateDocumentLink = jest.fn<() => Promise<unknown>>();
 const mockDeleteDocumentLink = jest.fn<() => Promise<unknown>>();
 const mockListAllLinkedDocumentIds = jest.fn<() => Promise<unknown>>();
+const mockUpdateDocumentLinkAttachmentType = jest.fn<() => Promise<unknown>>();
 
 jest.unstable_mockModule('../lib/documentLinksApi.js', () => ({
   listDocumentLinks: mockListDocumentLinks,
   createDocumentLink: mockCreateDocumentLink,
   deleteDocumentLink: mockDeleteDocumentLink,
   listAllLinkedDocumentIds: mockListAllLinkedDocumentIds,
+  updateDocumentLinkAttachmentType: mockUpdateDocumentLinkAttachmentType,
 }));
 
 class MockApiClientError extends Error {
@@ -76,6 +78,7 @@ beforeEach(async () => {
   mockCreateDocumentLink.mockReset();
   mockDeleteDocumentLink.mockReset();
   mockListAllLinkedDocumentIds.mockReset();
+  mockUpdateDocumentLinkAttachmentType.mockReset();
 
   // Default: returns empty list
   mockListDocumentLinks.mockResolvedValue([]);
@@ -333,6 +336,164 @@ describe('useDocumentLinks', () => {
       });
 
       expect(thrownError).toBeInstanceOf(Error);
+    });
+
+    it('passes attachmentType through to createDocumentLink when provided', async () => {
+      mockListDocumentLinks.mockResolvedValue([]);
+      mockCreateDocumentLink.mockResolvedValueOnce({
+        id: 'link-new',
+        entityType: 'invoice',
+        entityId: 'inv-xyz',
+        paperlessDocumentId: 42,
+        attachmentType: 'quotation',
+        createdBy: null,
+        createdAt: '2026-01-01T00:00:00Z',
+      });
+
+      const { result } = renderHook(() => useDocumentLinks('invoice', 'inv-xyz'));
+      await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        await result.current.addLink(42, 'quotation');
+      });
+
+      expect(mockCreateDocumentLink).toHaveBeenCalledWith({
+        entityType: 'invoice',
+        entityId: 'inv-xyz',
+        paperlessDocumentId: 42,
+        attachmentType: 'quotation',
+      });
+    });
+
+    it('passes attachmentType: undefined to createDocumentLink when explicitly null', async () => {
+      mockListDocumentLinks.mockResolvedValue([]);
+      mockCreateDocumentLink.mockResolvedValueOnce({
+        id: 'link-new',
+        entityType: 'invoice',
+        entityId: 'inv-xyz',
+        paperlessDocumentId: 42,
+        attachmentType: null,
+        createdBy: null,
+        createdAt: '2026-01-01T00:00:00Z',
+      });
+
+      const { result } = renderHook(() => useDocumentLinks('invoice', 'inv-xyz'));
+      await waitFor(() => expect(mockListDocumentLinks).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        await result.current.addLink(42, null);
+      });
+
+      // toHaveBeenCalledWith treats an explicit `undefined` value the same as an
+      // absent key, so this also confirms attachmentType was normalized away.
+      expect(mockCreateDocumentLink).toHaveBeenCalledWith({
+        entityType: 'invoice',
+        entityId: 'inv-xyz',
+        paperlessDocumentId: 42,
+        attachmentType: undefined,
+      });
+    });
+  });
+
+  describe('updateAttachmentType()', () => {
+    it('calls updateDocumentLinkAttachmentType with the correct linkId and attachmentType', async () => {
+      const existingLink = { ...makeLink('link-1'), attachmentType: null };
+      mockListDocumentLinks.mockResolvedValue([existingLink]);
+      mockUpdateDocumentLinkAttachmentType.mockResolvedValueOnce({
+        ...existingLink,
+        attachmentType: 'deposit',
+      });
+
+      const { result } = renderHook(() => useDocumentLinks('invoice', 'inv-xyz'));
+      await waitFor(() => expect(result.current.links).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.updateAttachmentType('link-1', 'deposit');
+      });
+
+      expect(mockUpdateDocumentLinkAttachmentType).toHaveBeenCalledWith('link-1', 'deposit');
+    });
+
+    it('optimistically updates local state without triggering a refetch', async () => {
+      const existingLink = { ...makeLink('link-1'), attachmentType: null };
+      mockListDocumentLinks.mockResolvedValue([existingLink]);
+      mockUpdateDocumentLinkAttachmentType.mockResolvedValueOnce({
+        ...existingLink,
+        attachmentType: 'invoice',
+      });
+
+      const { result } = renderHook(() => useDocumentLinks('invoice', 'inv-xyz'));
+      await waitFor(() => expect(result.current.links).toHaveLength(1));
+
+      const callsBefore = mockListDocumentLinks.mock.calls.length;
+
+      await act(async () => {
+        await result.current.updateAttachmentType('link-1', 'invoice');
+      });
+
+      expect(result.current.links[0]!.attachmentType).toBe('invoice');
+      // No additional fetch was triggered — the update is applied locally.
+      expect(mockListDocumentLinks.mock.calls.length).toBe(callsBefore);
+    });
+
+    it('updates only the targeted link when multiple links are present', async () => {
+      const link1 = { ...makeLink('link-1', 42), attachmentType: null };
+      const link2 = { ...makeLink('link-2', 99), attachmentType: null };
+      mockListDocumentLinks.mockResolvedValue([link1, link2]);
+      mockUpdateDocumentLinkAttachmentType.mockResolvedValueOnce({
+        ...link1,
+        attachmentType: 'quotation',
+      });
+
+      const { result } = renderHook(() => useDocumentLinks('invoice', 'inv-xyz'));
+      await waitFor(() => expect(result.current.links).toHaveLength(2));
+
+      await act(async () => {
+        await result.current.updateAttachmentType('link-1', 'quotation');
+      });
+
+      expect(result.current.links.find((l) => l.id === 'link-1')!.attachmentType).toBe('quotation');
+      expect(result.current.links.find((l) => l.id === 'link-2')!.attachmentType).toBeNull();
+    });
+
+    it('untags a link by passing null', async () => {
+      const existingLink = { ...makeLink('link-1'), attachmentType: 'quotation' as const };
+      mockListDocumentLinks.mockResolvedValue([existingLink]);
+      mockUpdateDocumentLinkAttachmentType.mockResolvedValueOnce({
+        ...existingLink,
+        attachmentType: null,
+      });
+
+      const { result } = renderHook(() => useDocumentLinks('invoice', 'inv-xyz'));
+      await waitFor(() => expect(result.current.links).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.updateAttachmentType('link-1', null);
+      });
+
+      expect(result.current.links[0]!.attachmentType).toBeNull();
+    });
+
+    it('re-throws when updateDocumentLinkAttachmentType rejects', async () => {
+      const existingLink = { ...makeLink('link-1'), attachmentType: null };
+      mockListDocumentLinks.mockResolvedValue([existingLink]);
+      mockUpdateDocumentLinkAttachmentType.mockRejectedValueOnce(new Error('Server error'));
+
+      const { result } = renderHook(() => useDocumentLinks('invoice', 'inv-xyz'));
+      await waitFor(() => expect(result.current.links).toHaveLength(1));
+
+      let thrownError: unknown;
+      await act(async () => {
+        try {
+          await result.current.updateAttachmentType('link-1', 'quotation');
+        } catch (err) {
+          thrownError = err;
+        }
+      });
+
+      expect(thrownError).toBeInstanceOf(Error);
+      // Local state is unchanged when the call fails.
+      expect(result.current.links[0]!.attachmentType).toBeNull();
     });
   });
 

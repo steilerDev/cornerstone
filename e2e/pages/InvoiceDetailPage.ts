@@ -407,6 +407,39 @@ export class InvoiceDetailPage {
     });
   }
 
+  // ─── Attachment-type tagging (Story #1877) ───────────────────────────────
+  //
+  // Only rendered on LinkedDocumentCard when entityType='invoice' (onAttachmentTypeChange
+  // prop is passed conditionally by LinkedDocumentsSection). The select has id
+  // `attachment-type-{linkId}` with an sr-only label; the Badge (rendered only when
+  // link.attachmentType is non-null) has testId `attachment-type-badge-{linkId}`.
+
+  /**
+   * Returns the attachment-type <select> for the linked-document card with the given
+   * document-link id. Present only on invoice-entity document cards.
+   */
+  getAttachmentTypeSelect(linkId: string): Locator {
+    return this.documentsSection.locator(`#attachment-type-${linkId}`);
+  }
+
+  /**
+   * Returns the attachment-type Badge for the linked-document card with the given
+   * document-link id. Only rendered in the DOM when the link's attachmentType is
+   * non-null (untagged links render no badge at all — not a "No tag" chip).
+   */
+  getAttachmentTypeBadge(linkId: string): Locator {
+    return this.documentsSection.getByTestId(`attachment-type-badge-${linkId}`);
+  }
+
+  /**
+   * Returns the attachment-type <select> inside the "Add Document" picker modal body.
+   * Only rendered when entityType='invoice'. id="picker-attachment-type", visible label
+   * (not sr-only, unlike the per-card select).
+   */
+  getPickerAttachmentTypeSelect(): Locator {
+    return this.documentsSection.locator('#picker-attachment-type');
+  }
+
   /**
    * Returns a locator for the OLD "Auto-itemize" button that was in the budget lines
    * section header. After story #1564 this button NO LONGER EXISTS.

@@ -18,6 +18,7 @@ import type {
   UpdateOrientationRequest,
 } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { fetchHouseholdSettings, updateHouseholdSettings } from '../../lib/settingsApi.js';
 import { generateRandomColor } from '../../lib/colorUtils.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useTranslation } from 'react-i18next';
@@ -47,7 +48,165 @@ import styles from './ManagePage.module.css';
 
 const DEFAULT_COLOR = '#3b82f6';
 
-type Tab = 'areas' | 'trades' | 'orientations' | 'budget-categories' | 'hi-categories';
+type Tab =
+  | 'household'
+  | 'areas'
+  | 'trades'
+  | 'orientations'
+  | 'budget-categories'
+  | 'hi-categories';
+
+// ============================================================
+// HOUSEHOLD TAB
+// ============================================================
+
+function HouseholdTab() {
+  const { t } = useTranslation('settings');
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [savedName, setSavedName] = useState('');
+  const [savedAddress, setSavedAddress] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSettings() {
+      setIsLoading(true);
+      setLoadError('');
+
+      try {
+        const settings = await fetchHouseholdSettings();
+        if (!cancelled) {
+          setSavedName(settings.householdName ?? '');
+          setSavedAddress(settings.householdAddress ?? '');
+          setName(settings.householdName ?? '');
+          setAddress(settings.householdAddress ?? '');
+        }
+      } catch (err) {
+        if (!cancelled) {
+          if (err instanceof ApiClientError) {
+            setLoadError(err.error.message ?? t('manage.household.loadError'));
+          } else {
+            setLoadError(t('manage.household.loadError'));
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
+
+  const handleSave = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setIsSaving(true);
+
+    try {
+      const updated = await updateHouseholdSettings({
+        householdName: name.trim() || null,
+        householdAddress: address.trim() || null,
+      });
+      setSavedName(updated.householdName ?? '');
+      setSavedAddress(updated.householdAddress ?? '');
+      setSuccessMessage(t('manage.household.saveSuccess'));
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setError(err.error.message ?? t('manage.household.saveFailed'));
+      } else {
+        setError(t('manage.household.saveFailed'));
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return <Skeleton lines={5} />;
+  }
+
+  if (loadError) {
+    return (
+      <section className={styles.card}>
+        <div className={styles.errorBanner} role="alert">
+          {loadError}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className={styles.card}>
+      <h2 className={styles.cardTitle}>{t('manage.household.title')}</h2>
+      <p className={styles.cardDescription}>{t('manage.household.description')}</p>
+
+      {successMessage && (
+        <div className={styles.successBanner} role="alert">
+          {successMessage}
+        </div>
+      )}
+      {error && (
+        <div className={styles.errorBanner} role="alert">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSave} className={styles.form}>
+        <div className={styles.field}>
+          <label htmlFor="householdName" className={styles.label}>
+            {t('manage.household.nameLabel')}
+          </label>
+          <input
+            type="text"
+            id="householdName"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={styles.input}
+            placeholder={t('manage.household.namePlaceholder')}
+            maxLength={200}
+            disabled={isSaving}
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="householdAddress" className={styles.label}>
+            {t('manage.household.addressLabel')}
+          </label>
+          <textarea
+            id="householdAddress"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            className={styles.textarea}
+            placeholder={t('manage.household.addressPlaceholder')}
+            maxLength={500}
+            disabled={isSaving}
+            rows={3}
+          />
+        </div>
+
+        <button
+          type="submit"
+          className={styles.button}
+          disabled={isSaving || (name === savedName && address === savedAddress)}
+        >
+          {isSaving ? t('manage.household.saving') : t('manage.household.save')}
+        </button>
+      </form>
+    </section>
+  );
+}
 
 // ============================================================
 // AREAS TAB
@@ -2619,6 +2778,14 @@ export function ManagePage() {
       <div className={styles.tabList} role="tablist">
         <button
           role="tab"
+          aria-selected={activeTab === 'household'}
+          className={`${styles.tab} ${activeTab === 'household' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('household')}
+        >
+          {t('manage.tabs.household')}
+        </button>
+        <button
+          role="tab"
           aria-selected={activeTab === 'areas'}
           className={`${styles.tab} ${activeTab === 'areas' ? styles.tabActive : ''}`}
           onClick={() => setActiveTab('areas')}
@@ -2660,6 +2827,7 @@ export function ManagePage() {
       </div>
 
       <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
+        {activeTab === 'household' && <HouseholdTab />}
         {activeTab === 'areas' && <AreasTab />}
         {activeTab === 'trades' && <TradesTab />}
         {activeTab === 'orientations' && <OrientationsTab />}

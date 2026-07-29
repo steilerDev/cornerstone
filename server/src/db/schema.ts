@@ -340,6 +340,8 @@ export const budgetSources = sqliteTable('budget_sources', {
   interestRate: real('interest_rate'),
   terms: text('terms'),
   notes: text('notes'),
+  reference: text('reference'),
+  contactAddress: text('contact_address'),
   status: text('status', { enum: ['active', 'exhausted', 'closed'] })
     .notNull()
     .default('active'),
@@ -645,6 +647,7 @@ export const documentLinks = sqliteTable(
     }).notNull(),
     entityId: text('entity_id').notNull(),
     paperlessDocumentId: integer('paperless_document_id').notNull(),
+    attachmentType: text('attachment_type', { enum: ['quotation', 'deposit', 'invoice'] }),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
   },
@@ -851,6 +854,17 @@ export const userPreferences = sqliteTable(
     userIdIdx: index('idx_user_preferences_user_id').on(table.userId),
   }),
 );
+
+/**
+ * App-wide settings table - stores application-level configuration (not per-user).
+ * Used for household metadata and other global preferences.
+ * EPIC-09: Story #1877 - Household name & address for Bank Report Wizard.
+ */
+export const appSettings = sqliteTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: text('value'),
+  updatedAt: text('updated_at').notNull(),
+});
 
 /**
  * Household item subsidies junction table - M:N relationship between household items and subsidy programs.

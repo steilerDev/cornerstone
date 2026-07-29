@@ -294,6 +294,7 @@ export type {
 
 // Documents (Paperless-ngx Integration)
 export type {
+  AttachmentType,
   DocumentLinkEntityType,
   PaperlessTag,
   PaperlessDocument,
@@ -307,6 +308,7 @@ export type {
   DocumentLink,
   DocumentLinkWithMetadata,
   CreateDocumentLinkRequest,
+  UpdateDocumentLinkRequest,
   DocumentLinkResponse,
   DocumentLinkListResponse,
   AllLinkedDocumentIdsResponse,
@@ -409,3 +411,10 @@ export type {
   BackupSchedulerStatus,
   BackupSchedulerStatusResponse,
 } from './types/backup.js';
+
+// App Settings
+export type {
+  HouseholdSettings,
+  UpdateHouseholdSettingsRequest,
+  HouseholdSettingsResponse,
+} from './types/settings.js';

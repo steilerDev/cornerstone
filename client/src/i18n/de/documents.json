@@ -61,7 +61,10 @@
     "householdItemEmpty": "Verknüpfen Sie Quittungen, Garantien und Handbücher aus Paperless-ngx, um alles an einem Ort zu haben.",
     "invoiceEmpty": "Verknüpfen Sie Rechnungs-PDFs, Quittungen und verwandte Dokumente aus Paperless-ngx, um alles an einem Ort zu haben.",
     "budgetSourceEmpty": "Verknüpfen Sie Verträge, Garantien und verwandte Dokumente aus Paperless-ngx, um alles an einem Ort zu haben.",
-    "subsidyProgramEmpty": "Verknüpfen Sie Antragsformulare, Genehmigungsschreiben und verwandte Dokumente aus Paperless-ngx, um alles an einem Ort zu haben."
+    "subsidyProgramEmpty": "Verknüpfen Sie Antragsformulare, Genehmigungsschreiben und verwandte Dokumente aus Paperless-ngx, um alles an einem Ort zu haben.",
+    "attachmentTypeLabel": "Dokumenttyp (optional)",
+    "attachmentTypeChanged": "{{title}} als {{type}} gekennzeichnet",
+    "failedToUpdateAttachmentType": "Dokumenttyp konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
   },
   "documentCard": {
     "documentLabel": "Dokument: {{title}}{{date}}",
@@ -70,7 +73,14 @@
     "itemize": "Aufschlüsseln",
     "openInPaperless": "In Paperless öffnen",
     "openInPaperlessAriaLabel": "'{{title}}' in Paperless öffnen",
-    "removeLink": "Dokumentverknüpfung entfernen"
+    "removeLink": "Dokumentverknüpfung entfernen",
+    "attachmentType": {
+      "none": "Kein Etikett",
+      "quotation": "Angebot",
+      "deposit": "Abschlagszahlung",
+      "invoice": "Rechnung",
+      "selectLabel": "Dokumenttyp kennzeichnen: {{title}}"
+    }
   },
   "documentDetail": {
     "detailsLabel": "Details für {{title}}",

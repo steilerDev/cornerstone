@@ -2694,6 +2694,30 @@ describe('invoiceAutoItemizeService', () => {
       expect(result.remainingAmount).toBe(500); // 1000 - 400 - 100
     });
 
+    // Story #1877: the document_links row inserted at step 5 must always be tagged
+    // attachmentType='invoice' — this is the invoice's own source document, hardcoded
+    // rather than exposed as a picker option in this flow.
+    it('always inserts the document_links row with attachmentType="invoice"', async () => {
+      const vendorId = insertVendor(db, 'Attachment Type Vendor');
+      const config = makeConfig();
+
+      await commitAutoItemizeCreate(db, config, 'user-1', {
+        paperlessDocumentId: 123,
+        vendorId,
+        invoice: { amount: 200, date: '2026-03-01' },
+        lines: [{ description: 'Item', totalAmount: 200, confidence: 0.9 }] as any,
+      });
+
+      const link = db
+        .select()
+        .from(schema.documentLinks)
+        .all()
+        .find((l) => l.paperlessDocumentId === 123);
+
+      expect(link).toBeDefined();
+      expect(link!.attachmentType).toBe('invoice');
+    });
+
     it('throws NotFoundError (vendor not found) when vendorId does not exist', async () => {
       const config = makeConfig();
 

@@ -61,7 +61,10 @@
     "householdItemEmpty": "Link receipts, warranties, and manuals from Paperless-ngx to keep everything in one place.",
     "invoiceEmpty": "Link invoice PDFs, receipts, and related documents from Paperless-ngx to keep everything in one place.",
     "budgetSourceEmpty": "Link contracts, warranties, and related documents from Paperless-ngx to keep everything in one place.",
-    "subsidyProgramEmpty": "Link application forms, approval letters, and related documents from Paperless-ngx to keep everything in one place."
+    "subsidyProgramEmpty": "Link application forms, approval letters, and related documents from Paperless-ngx to keep everything in one place.",
+    "attachmentTypeLabel": "Document Type (optional)",
+    "attachmentTypeChanged": "{{title}} tagged as {{type}}",
+    "failedToUpdateAttachmentType": "Failed to update document type. Please try again."
   },
   "documentCard": {
     "documentLabel": "Document: {{title}}{{date}}",
@@ -70,7 +73,14 @@
     "itemize": "Itemize",
     "openInPaperless": "Open in Paperless",
     "openInPaperlessAriaLabel": "Open '{{title}}' in Paperless",
-    "removeLink": "Remove document link"
+    "removeLink": "Remove document link",
+    "attachmentType": {
+      "none": "No tag",
+      "quotation": "Quotation",
+      "deposit": "Deposit",
+      "invoice": "Invoice",
+      "selectLabel": "Tag document type: {{title}}"
+    }
   },
   "documentDetail": {
     "detailsLabel": "Details for {{title}}",

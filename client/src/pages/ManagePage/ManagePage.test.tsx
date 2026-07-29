@@ -11,6 +11,7 @@ import type * as UseTradesTypes from '../../hooks/useTrades.js';
 import type * as UseOrientationsTypes from '../../hooks/useOrientations.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as HICApiTypes from '../../lib/householdItemCategoriesApi.js';
+import type * as SettingsApiTypes from '../../lib/settingsApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type {
@@ -19,6 +20,7 @@ import type {
   AreaResponse,
   TradeResponse,
   OrientationResponse,
+  ApiError,
 } from '@cornerstone/shared';
 
 // ─── Mock hooks and API modules BEFORE importing components ───────────────────
@@ -67,6 +69,14 @@ jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   createHouseholdItemCategory: mockCreateHICCategory,
   updateHouseholdItemCategory: mockUpdateHICCategory,
   deleteHouseholdItemCategory: mockDeleteHICCategory,
+}));
+
+const mockFetchHouseholdSettings = jest.fn<typeof SettingsApiTypes.fetchHouseholdSettings>();
+const mockUpdateHouseholdSettings = jest.fn<typeof SettingsApiTypes.updateHouseholdSettings>();
+
+jest.unstable_mockModule('../../lib/settingsApi.js', () => ({
+  fetchHouseholdSettings: mockFetchHouseholdSettings,
+  updateHouseholdSettings: mockUpdateHouseholdSettings,
 }));
 
 // Mock AreaPicker — pure display component, no need for full rendering
@@ -285,6 +295,8 @@ describe('ManagePage', () => {
     mockCreateHICCategory.mockReset();
     mockUpdateHICCategory.mockReset();
     mockDeleteHICCategory.mockReset();
+    mockFetchHouseholdSettings.mockReset();
+    mockUpdateHouseholdSettings.mockReset();
     mockUseAuth.mockReset();
 
     // Default: admin user so all settings tabs are visible
@@ -316,18 +328,49 @@ describe('ManagePage', () => {
       categories: [sampleBudgetCat1, sampleBudgetCat2],
     });
     mockFetchHICCategories.mockResolvedValue({ categories: [sampleHICat1, sampleHICat2] });
+
+    // Household settings default — only fetched when the household tab is active
+    mockFetchHouseholdSettings.mockResolvedValue({ householdName: null, householdAddress: null });
   });
 
   // ─── Tab rendering ─────────────────────────────────────────────────────────
 
   describe('Tab navigation', () => {
-    it('renders all five tab buttons', async () => {
+    it('renders all six tab buttons', async () => {
       renderManagePage();
+      expect(screen.getByRole('tab', { name: 'Household' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Areas' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Trades' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Orientations' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Budget Categories' })).toBeInTheDocument();
       expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toBeInTheDocument();
+    });
+
+    it('Household tab is first in the tab list', async () => {
+      renderManagePage();
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs[0]).toHaveAccessibleName('Household');
+    });
+
+    it('Household tab is active when ?tab=household in URL', async () => {
+      renderManagePage('/settings/manage?tab=household');
+      const householdTab = screen.getByRole('tab', { name: 'Household' });
+      expect(householdTab).toHaveAttribute('aria-selected', 'true');
+      const areasTab = screen.getByRole('tab', { name: 'Areas' });
+      expect(areasTab).toHaveAttribute('aria-selected', 'false');
+    });
+
+    it('clicking Household tab makes it active', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage');
+
+      await user.click(screen.getByRole('tab', { name: 'Household' }));
+
+      expect(screen.getByRole('tab', { name: 'Household' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'false');
     });
 
     it('Areas tab is active by default (no URL param)', async () => {
@@ -1635,6 +1678,268 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=orientations');
       await waitFor(() => {
         expect(mockUseOrientations).toHaveBeenCalled();
+      });
+      expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
+      expect(mockFetchHICCategories).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── Household tab (Story #1877) ───────────────────────────────────────────
+
+  describe('Household tab', () => {
+    it('shows a loading skeleton while settings are being fetched', async () => {
+      mockFetchHouseholdSettings.mockImplementationOnce(() => new Promise(() => {}));
+      renderManagePage('/settings/manage?tab=household');
+
+      expect(document.querySelector('[class*="skeleton"]')).toBeInTheDocument();
+    });
+
+    it('loads and displays existing household settings', async () => {
+      mockFetchHouseholdSettings.mockResolvedValueOnce({
+        householdName: 'The Smith Family',
+        householdAddress: '123 Main St',
+      });
+
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('The Smith Family')).toBeInTheDocument();
+      });
+      expect(screen.getByDisplayValue('123 Main St')).toBeInTheDocument();
+    });
+
+    it('shows empty fields when settings are null', async () => {
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Household Name')).toBeInTheDocument();
+      });
+      expect(screen.getByLabelText('Household Name')).toHaveValue('');
+      expect(screen.getByLabelText('Household Address')).toHaveValue('');
+    });
+
+    it('shows an error banner when loading settings fails', async () => {
+      mockFetchHouseholdSettings.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+      );
+
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(screen.getByText('Server error')).toBeInTheDocument();
+      });
+    });
+
+    it('shows the generic load error message when the error has no server message', async () => {
+      // Simulates a malformed API response missing `message` despite the ApiError
+      // contract requiring it — exercises the `err.error.message ?? fallback` branch.
+      mockFetchHouseholdSettings.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR' } as unknown as ApiError),
+      );
+
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Failed to load household information. Please try again.'),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('shows the generic load error message when the rejection is not an ApiClientError', async () => {
+      mockFetchHouseholdSettings.mockRejectedValueOnce(new Error('Network failure'));
+
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Failed to load household information. Please try again.'),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('Save button is disabled until a field is changed (dirty-gated save)', async () => {
+      mockFetchHouseholdSettings.mockResolvedValueOnce({
+        householdName: 'Original',
+        householdAddress: 'Original Address',
+      });
+
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Original')).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+    });
+
+    it('Save button becomes enabled after editing the name field', async () => {
+      mockFetchHouseholdSettings.mockResolvedValueOnce({
+        householdName: 'Original',
+        householdAddress: null,
+      });
+
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Original')).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText('Household Name'), ' Updated');
+
+      expect(screen.getByRole('button', { name: 'Save Changes' })).not.toBeDisabled();
+    });
+
+    it('saves the household name and address and shows a success banner', async () => {
+      mockFetchHouseholdSettings.mockResolvedValueOnce({
+        householdName: null,
+        householdAddress: null,
+      });
+      mockUpdateHouseholdSettings.mockResolvedValueOnce({
+        householdName: 'New Household',
+        householdAddress: '456 Oak Ave',
+      });
+
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Household Name')).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText('Household Name'), 'New Household');
+      await user.type(screen.getByLabelText('Household Address'), '456 Oak Ave');
+
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => {
+        expect(mockUpdateHouseholdSettings).toHaveBeenCalledWith({
+          householdName: 'New Household',
+          householdAddress: '456 Oak Ave',
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('Household information updated successfully')).toBeInTheDocument();
+      });
+    });
+
+    it('trims whitespace and converts an empty field to null on save', async () => {
+      mockFetchHouseholdSettings.mockResolvedValueOnce({
+        householdName: '  ',
+        householdAddress: null,
+      });
+      mockUpdateHouseholdSettings.mockResolvedValueOnce({
+        householdName: null,
+        householdAddress: null,
+      });
+
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Household Name')).toBeInTheDocument();
+      });
+
+      // Dirty the form so Save is enabled, then clear it back out.
+      const nameInput = screen.getByLabelText('Household Name');
+      await user.type(nameInput, 'x');
+      await user.clear(nameInput);
+
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => {
+        expect(mockUpdateHouseholdSettings).toHaveBeenCalledWith({
+          householdName: null,
+          householdAddress: null,
+        });
+      });
+    });
+
+    it('shows an error banner when save fails', async () => {
+      mockFetchHouseholdSettings.mockResolvedValueOnce({
+        householdName: 'Original',
+        householdAddress: null,
+      });
+      mockUpdateHouseholdSettings.mockRejectedValueOnce(
+        new ApiClientError(400, {
+          code: 'VALIDATION_ERROR',
+          message: 'Household name must be 200 characters or fewer',
+        }),
+      );
+
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Original')).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText('Household Name'), ' Extra');
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Household name must be 200 characters or fewer'),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('shows the generic save error message when the rejection is not an ApiClientError', async () => {
+      mockFetchHouseholdSettings.mockResolvedValueOnce({
+        householdName: 'Original',
+        householdAddress: null,
+      });
+      mockUpdateHouseholdSettings.mockRejectedValueOnce(new Error('Network failure'));
+
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Original')).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText('Household Name'), ' Extra');
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('Failed to save household information. Please try again.'),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('re-disables the Save button after a successful save (form no longer dirty)', async () => {
+      mockFetchHouseholdSettings.mockResolvedValueOnce({
+        householdName: 'Original',
+        householdAddress: null,
+      });
+      mockUpdateHouseholdSettings.mockResolvedValueOnce({
+        householdName: 'Original Updated',
+        householdAddress: null,
+      });
+
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Original')).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByLabelText('Household Name'), ' Updated');
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+      });
+    });
+
+    it('does not call fetchBudgetCategories or fetchHouseholdItemCategories when Household tab is active', async () => {
+      renderManagePage('/settings/manage?tab=household');
+
+      await waitFor(() => {
+        expect(mockFetchHouseholdSettings).toHaveBeenCalledTimes(1);
       });
       expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
       expect(mockFetchHICCategories).not.toHaveBeenCalled();

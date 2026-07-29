@@ -176,6 +176,8 @@ describe('BudgetSourcesPage', () => {
     interestRate: 3.5,
     terms: '30-year fixed',
     notes: 'Primary financing',
+    reference: null,
+    contactAddress: null,
     status: 'active',
     isDiscretionary: false,
     createdBy: null,
@@ -200,6 +202,8 @@ describe('BudgetSourcesPage', () => {
     interestRate: null,
     terms: null,
     notes: null,
+    reference: null,
+    contactAddress: null,
     status: 'active',
     isDiscretionary: false,
     createdBy: null,
@@ -747,6 +751,71 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
+    it('submits reference and contactAddress when filled in (Story #1877)', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
+      mockCreateBudgetSource.mockResolvedValueOnce({
+        ...sampleSource1,
+        id: 'src-new',
+        name: 'Contact Fields Loan',
+        reference: 'Account #12345',
+        contactAddress: '123 Bank St',
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add source/i }));
+
+      await user.type(screen.getByLabelText(/^name/i), 'Contact Fields Loan');
+      fireEvent.change(screen.getByLabelText(/total amount/i), { target: { value: '10000' } });
+      await user.type(screen.getByLabelText('Reference'), 'Account #12345');
+      await user.type(screen.getByLabelText('Contact Address'), '123 Bank St');
+
+      await user.click(screen.getByRole('button', { name: /create source/i }));
+
+      await waitFor(() => {
+        expect(mockCreateBudgetSource).toHaveBeenCalledWith(
+          expect.objectContaining({
+            reference: 'Account #12345',
+            contactAddress: '123 Bank St',
+          }),
+        );
+      });
+    });
+
+    it('submits reference and contactAddress as null when left empty (Story #1877)', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
+      mockCreateBudgetSource.mockResolvedValueOnce({
+        ...sampleSource1,
+        id: 'src-new',
+        name: 'No Contact Fields',
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add source/i }));
+
+      await user.type(screen.getByLabelText(/^name/i), 'No Contact Fields');
+      fireEvent.change(screen.getByLabelText(/total amount/i), { target: { value: '10000' } });
+
+      await user.click(screen.getByRole('button', { name: /create source/i }));
+
+      await waitFor(() => {
+        expect(mockCreateBudgetSource).toHaveBeenCalledWith(
+          expect.objectContaining({ reference: null, contactAddress: null }),
+        );
+      });
+    });
+
     it('hides create form after successful creation', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
 
@@ -992,6 +1061,82 @@ describe('BudgetSourcesPage', () => {
         expect(
           screen.getByText(/budget source "updated home loan" updated successfully/i),
         ).toBeInTheDocument();
+      });
+    });
+
+    it('pre-fills Reference and Contact Address fields from the source, and updates them (Story #1877)', async () => {
+      const sourceWithContact = {
+        ...sampleSource1,
+        reference: 'Old Ref',
+        contactAddress: 'Old Addr',
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sourceWithContact] });
+
+      mockUpdateBudgetSource.mockResolvedValueOnce({
+        ...sourceWithContact,
+        reference: 'New Ref',
+        contactAddress: 'New Addr',
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit home loan/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit home loan/i }));
+
+      const referenceInput = screen.getByDisplayValue('Old Ref');
+      const contactAddressInput = screen.getByDisplayValue('Old Addr');
+
+      await user.clear(referenceInput);
+      await user.type(referenceInput, 'New Ref');
+      await user.clear(contactAddressInput);
+      await user.type(contactAddressInput, 'New Addr');
+
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+      await waitFor(() => {
+        expect(mockUpdateBudgetSource).toHaveBeenCalledWith(
+          'src-1',
+          expect.objectContaining({ reference: 'New Ref', contactAddress: 'New Addr' }),
+        );
+      });
+    });
+
+    it('clears Reference and Contact Address to null when emptied on save (Story #1877)', async () => {
+      const sourceWithContact = {
+        ...sampleSource1,
+        reference: 'Old Ref',
+        contactAddress: 'Old Addr',
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sourceWithContact] });
+      mockUpdateBudgetSource.mockResolvedValueOnce({
+        ...sourceWithContact,
+        reference: null,
+        contactAddress: null,
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit home loan/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit home loan/i }));
+
+      await user.clear(screen.getByDisplayValue('Old Ref'));
+      await user.clear(screen.getByDisplayValue('Old Addr'));
+
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+      await waitFor(() => {
+        expect(mockUpdateBudgetSource).toHaveBeenCalledWith(
+          'src-1',
+          expect.objectContaining({ reference: null, contactAddress: null }),
+        );
       });
     });
 
@@ -1450,6 +1595,8 @@ describe('BudgetSourcesPage', () => {
       interestRate: null,
       terms: null,
       notes: null,
+      reference: null,
+      contactAddress: null,
       status: 'active',
       isDiscretionary: true,
       createdBy: null,

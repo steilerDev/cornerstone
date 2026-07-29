@@ -293,6 +293,22 @@
   color: var(--color-danger-text-on-light);
 }
 
+/* Document Attachment Type variants */
+.attachmentQuotation {
+  background-color: var(--color-attachment-quotation-bg);
+  color: var(--color-attachment-quotation-text);
+}
+
+.attachmentDeposit {
+  background-color: var(--color-attachment-deposit-bg);
+  color: var(--color-attachment-deposit-text);
+}
+
+.attachmentInvoice {
+  background-color: var(--color-attachment-invoice-bg);
+  color: var(--color-attachment-invoice-text);
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {

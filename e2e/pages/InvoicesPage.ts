@@ -34,7 +34,7 @@
  * - Create form is in a Modal component (uses the shared Modal component)
  */
 
-import type { Page, Locator } from '@playwright/test';
+import { expect, type Page, type Locator } from '@playwright/test';
 import { PaperlessPickerModal } from './PaperlessPickerModal.js';
 
 export const INVOICES_ROUTE = '/budget/invoices';
@@ -372,21 +372,30 @@ export class InvoicesPage {
    * position is resolved dynamically from the header row (matched by label prefix,
    * since sortable headers append a " ↑"/" ↓" sort-direction suffix), so this stays
    * correct regardless of column order or how many columns are visible.
+   *
+   * The header scan is wrapped in `toPass()`: right after toggling a hidden-by-default
+   * column on, the column-preferences persistence effect (debounced save + optimistic
+   * re-sync in useColumnPreferences) can cause a transient extra re-render of the
+   * header row. A single unretried read can land in that gap; retrying self-heals
+   * without weakening what's actually asserted (the column must still be found).
    */
   async getColumnCellText(rowMatchText: string, columnLabel: string): Promise<string> {
     const headers = this.tableContainer.locator('thead th');
-    const headerCount = await headers.count();
     let columnIndex = -1;
-    for (let i = 0; i < headerCount; i++) {
-      const text = (await headers.nth(i).innerText()).trim();
-      if (text === columnLabel || text.startsWith(`${columnLabel} `)) {
-        columnIndex = i;
-        break;
+    await expect(async () => {
+      const headerCount = await headers.count();
+      columnIndex = -1;
+      for (let i = 0; i < headerCount; i++) {
+        const text = (await headers.nth(i).innerText()).trim();
+        if (text === columnLabel || text.startsWith(`${columnLabel} `)) {
+          columnIndex = i;
+          break;
+        }
       }
-    }
-    if (columnIndex === -1) {
-      throw new Error(`Column "${columnLabel}" not found among visible table headers`);
-    }
+      if (columnIndex === -1) {
+        throw new Error(`Column "${columnLabel}" not found among visible table headers`);
+      }
+    }).toPass({ timeout: 3_000 });
     const row = this.tableBody.locator('tr').filter({ hasText: rowMatchText }).first();
     const cell = row.locator('td').nth(columnIndex);
     return ((await cell.textContent()) ?? '').trim();

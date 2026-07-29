@@ -91,6 +91,8 @@ function makeBudgetSource(): BudgetSource {
     interestRate: null,
     terms: null,
     notes: null,
+    reference: null,
+    contactAddress: null,
     status: 'active',
     isDiscretionary: false,
     createdBy: null,

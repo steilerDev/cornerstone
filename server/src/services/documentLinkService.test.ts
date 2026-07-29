@@ -448,6 +448,102 @@ describe('documentLinkService', () => {
       expect(all[0]!.entityId).toBe(workItemId);
       expect(all[0]!.paperlessDocumentId).toBe(42);
     });
+
+    // ─── attachmentType (Story #1877) ────────────────────────────────────────
+
+    describe('attachmentType', () => {
+      it('defaults attachmentType to null when not provided', () => {
+        const workItemId = insertTestWorkItem();
+
+        const result = documentLinkService.createLink(db, 'work_item', workItemId, 42, 'user-001');
+
+        expect(result.attachmentType).toBeNull();
+      });
+
+      it('normalizes attachmentType to null for a non-invoice entityType (work_item + "invoice")', () => {
+        const workItemId = insertTestWorkItem();
+
+        const result = documentLinkService.createLink(
+          db,
+          'work_item',
+          workItemId,
+          42,
+          'user-001',
+          'invoice',
+        );
+
+        expect(result.attachmentType).toBeNull();
+        const row = db
+          .select()
+          .from(schema.documentLinks)
+          .all()
+          .find((r) => r.id === result.id);
+        expect(row!.attachmentType).toBeNull();
+      });
+
+      it('persists attachmentType="quotation" for an invoice entityType', () => {
+        const vendorId = insertTestVendor();
+        const invoiceId = insertTestInvoice(vendorId);
+
+        const result = documentLinkService.createLink(
+          db,
+          'invoice',
+          invoiceId,
+          42,
+          'user-001',
+          'quotation',
+        );
+
+        expect(result.attachmentType).toBe('quotation');
+      });
+
+      it('persists attachmentType="deposit" for an invoice entityType', () => {
+        const vendorId = insertTestVendor();
+        const invoiceId = insertTestInvoice(vendorId);
+
+        const result = documentLinkService.createLink(
+          db,
+          'invoice',
+          invoiceId,
+          42,
+          'user-001',
+          'deposit',
+        );
+
+        expect(result.attachmentType).toBe('deposit');
+      });
+
+      it('persists attachmentType="invoice" for an invoice entityType', () => {
+        const vendorId = insertTestVendor();
+        const invoiceId = insertTestInvoice(vendorId);
+
+        const result = documentLinkService.createLink(
+          db,
+          'invoice',
+          invoiceId,
+          42,
+          'user-001',
+          'invoice',
+        );
+
+        expect(result.attachmentType).toBe('invoice');
+      });
+
+      it('normalizes attachmentType to null for a budget_source entityType even when a value is requested', () => {
+        const sourceId = insertTestBudgetSource();
+
+        const result = documentLinkService.createLink(
+          db,
+          'budget_source',
+          sourceId,
+          42,
+          'user-001',
+          'quotation',
+        );
+
+        expect(result.attachmentType).toBeNull();
+      });
+    });
   });
 
   // ─── getLinksForEntity() ───────────────────────────────────────────────────
@@ -685,6 +781,87 @@ describe('documentLinkService', () => {
       const remaining = db.select().from(schema.documentLinks).all();
       expect(remaining).toHaveLength(1);
       expect(remaining[0]!.paperlessDocumentId).toBe(99);
+    });
+  });
+
+  // ─── updateAttachmentType() (Story #1877) ──────────────────────────────────
+
+  describe('updateAttachmentType()', () => {
+    it('tags an untagged invoice link with a new attachmentType', () => {
+      const vendorId = insertTestVendor();
+      const invoiceId = insertTestInvoice(vendorId);
+      const linkId = insertRawDocumentLink('invoice', invoiceId, 42);
+
+      const result = documentLinkService.updateAttachmentType(db, linkId, 'quotation');
+
+      expect(result.attachmentType).toBe('quotation');
+    });
+
+    it('retags an already-tagged invoice link to a different attachmentType', () => {
+      const vendorId = insertTestVendor();
+      const invoiceId = insertTestInvoice(vendorId);
+      const linkId = documentLinkService.createLink(
+        db,
+        'invoice',
+        invoiceId,
+        42,
+        'user-001',
+        'quotation',
+      ).id;
+
+      const result = documentLinkService.updateAttachmentType(db, linkId, 'deposit');
+
+      expect(result.attachmentType).toBe('deposit');
+    });
+
+    it('untags a link by passing null', () => {
+      const vendorId = insertTestVendor();
+      const invoiceId = insertTestInvoice(vendorId);
+      const linkId = documentLinkService.createLink(
+        db,
+        'invoice',
+        invoiceId,
+        42,
+        'user-001',
+        'invoice',
+      ).id;
+
+      const result = documentLinkService.updateAttachmentType(db, linkId, null);
+
+      expect(result.attachmentType).toBeNull();
+    });
+
+    it('persists the change to the database', () => {
+      const vendorId = insertTestVendor();
+      const invoiceId = insertTestInvoice(vendorId);
+      const linkId = insertRawDocumentLink('invoice', invoiceId, 42);
+
+      documentLinkService.updateAttachmentType(db, linkId, 'deposit');
+
+      const row = db
+        .select()
+        .from(schema.documentLinks)
+        .all()
+        .find((r) => r.id === linkId);
+      expect(row!.attachmentType).toBe('deposit');
+    });
+
+    it('normalizes to null when the link is not an invoice, regardless of the requested value', () => {
+      const workItemId = insertTestWorkItem();
+      const linkId = insertRawDocumentLink('work_item', workItemId, 42);
+
+      const result = documentLinkService.updateAttachmentType(db, linkId, 'quotation');
+
+      expect(result.attachmentType).toBeNull();
+    });
+
+    it('throws NotFoundError when the link does not exist', () => {
+      expect(() => {
+        documentLinkService.updateAttachmentType(db, 'non-existent-id', 'quotation');
+      }).toThrow(NotFoundError);
+      expect(() => {
+        documentLinkService.updateAttachmentType(db, 'non-existent-id', 'quotation');
+      }).toThrow('Document link not found');
     });
   });
 

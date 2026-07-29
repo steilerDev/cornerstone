@@ -1,9 +1,11 @@
-import { get, post, del } from './apiClient.js';
+import { get, post, del, patch } from './apiClient.js';
 import type {
   DocumentLink,
   DocumentLinkWithMetadata,
   CreateDocumentLinkRequest,
   AllLinkedDocumentIdsResponse,
+  AttachmentType,
+  UpdateDocumentLinkRequest,
 } from '@cornerstone/shared';
 
 /**
@@ -41,4 +43,17 @@ export function listAllLinkedDocumentIds(): Promise<number[]> {
   return get<AllLinkedDocumentIdsResponse>('/document-links/linked-ids').then(
     (r) => r.paperlessDocumentIds,
   );
+}
+
+/**
+ * Updates (or clears) the attachment type tag on a document link.
+ * Non-invoice links are normalized to null regardless of the requested value.
+ */
+export function updateDocumentLinkAttachmentType(
+  id: string,
+  attachmentType: AttachmentType | null,
+): Promise<DocumentLink> {
+  return patch<{ documentLink: DocumentLink }>(`/document-links/${id}`, {
+    attachmentType,
+  } satisfies UpdateDocumentLinkRequest).then((r) => r.documentLink);
 }

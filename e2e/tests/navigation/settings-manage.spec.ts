@@ -1,9 +1,11 @@
 /**
  * E2E tests for the Settings/Manage page tab navigation
  *
- * The ManagePage (/settings/manage) has four tabs:
+ * The ManagePage (/settings/manage) has six tabs (Household added first, Story #1877):
+ *   - Household (?tab=household) — household-wide name/address, feeds bank report cover letters
  *   - Areas  (?tab=areas)  — create/edit/delete areas for organizing work items
  *   - Trades (?tab=trades) — create/edit/delete trades for organizing vendors
+ *   - Orientations (?tab=orientations) — tag photos with a direction
  *   - Budget Categories (?tab=budget-categories) — managed by budget-categories.spec.ts
  *   - Household Item Categories (?tab=hi-categories) — household item classification
  *
@@ -14,11 +16,21 @@
  * - Areas tab: create area happy path, area appears in list, delete area
  * - Trades tab: create trade happy path, trade appears in list, delete trade
  * - HI Categories tab: create HI category, category appears in list, delete it
+ * - Household tab (Story #1877): singleton settings form — load, dirty-gated save,
+ *   persistence across reload, clearing fields, error banner on save failure
  * - Responsive layout (@responsive)
  * - Dark mode
  *
  * Budget Categories tab already has comprehensive coverage in
  * e2e/tests/budget/budget-categories.spec.ts — this file does not duplicate it.
+ *
+ * Household tab data-isolation note: /api/settings is a household-wide SINGLETON
+ * (unlike Areas/Trades/HI-Categories, which are independently-named per-test entities).
+ * Mutating tests snapshot the pre-test values via GET and restore them via PATCH in a
+ * `finally` block, and the whole "Household tab — settings persistence" describe block
+ * runs in serial mode (test.describe.configure({ mode: 'serial' })) so two singleton
+ * mutations never race across parallel workers — the same pattern already used for
+ * other singleton state in e2e/tests/profile/update-display-name.spec.ts.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -26,9 +38,34 @@ import type { Page } from '@playwright/test';
 import { BudgetCategoriesPage } from '../../pages/BudgetCategoriesPage.js';
 
 const MANAGE_ROUTE = '/settings/manage';
+const HOUSEHOLD_PANEL_ID = 'household-panel';
 const AREAS_PANEL_ID = 'areas-panel';
 const TRADES_PANEL_ID = 'trades-panel';
 const HI_CATEGORIES_PANEL_ID = 'hi-categories-panel';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Household settings API helpers (Story #1877)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface HouseholdSettingsApiData {
+  householdName: string | null;
+  householdAddress: string | null;
+}
+
+async function fetchHouseholdSettingsViaApi(page: Page): Promise<HouseholdSettingsApiData> {
+  const response = await page.request.get('/api/settings');
+  if (!response.ok()) throw new Error(`GET /api/settings returned ${response.status()}`);
+  const body = (await response.json()) as { settings: HouseholdSettingsApiData };
+  return body.settings;
+}
+
+async function patchHouseholdSettingsViaApi(
+  page: Page,
+  data: Partial<HouseholdSettingsApiData>,
+): Promise<void> {
+  const response = await page.request.patch('/api/settings', { data });
+  if (!response.ok()) throw new Error(`PATCH /api/settings returned ${response.status()}`);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers
@@ -116,6 +153,23 @@ test.describe('Settings/Manage page — smoke test', { tag: '@responsive' }, () 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Tab navigation', { tag: '@responsive' }, () => {
+  test('Clicking Household tab shows the Household Information form', async ({ page }) => {
+    // Start on trades tab then navigate to household
+    await page.goto(`${MANAGE_ROUTE}?tab=trades`);
+    const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+    await heading.waitFor({ state: 'visible' });
+
+    await page.getByRole('tab', { name: 'Household', exact: true }).click();
+
+    // Household card heading appears
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Household Information', exact: true }),
+    ).toBeVisible();
+
+    // URL param updated
+    await expect(page).toHaveURL(/\?tab=household/);
+  });
+
   test('Clicking Areas tab shows the Areas create form', async ({ page }) => {
     // Start on trades tab then navigate to areas
     await page.goto(`${MANAGE_ROUTE}?tab=trades`);
@@ -190,6 +244,16 @@ test.describe('Tab navigation', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('URL tab deep-linking', { tag: '@responsive' }, () => {
+  test('?tab=household loads the Household tab as active', async ({ page }) => {
+    await page.goto(`${MANAGE_ROUTE}?tab=household`);
+
+    const householdTab = page.getByRole('tab', { name: 'Household', exact: true });
+    await expect(householdTab).toHaveAttribute('aria-selected', 'true');
+    await expect(
+      page.getByRole('heading', { level: 2, name: 'Household Information', exact: true }),
+    ).toBeVisible();
+  });
+
   test('?tab=areas loads the Areas tab as active', async ({ page }) => {
     await page.goto(`${MANAGE_ROUTE}?tab=areas`);
 
@@ -242,6 +306,174 @@ test.describe('URL tab deep-linking', { tag: '@responsive' }, () => {
     await expect(
       page.getByRole('heading', { level: 2, name: 'Create orientation', exact: true }),
     ).toBeVisible();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Household tab — settings persistence (Story #1877)
+//
+// /api/settings is a household-wide SINGLETON (one row for the whole install), unlike
+// Areas/Trades/HI-Categories which are independently-named per-test entities. Each
+// mutating test snapshots the pre-test values via GET and restores them via PATCH in a
+// `finally` block, mirroring the existing "Discretionary Funding" system-source pattern
+// in budget-sources.spec.ts (also a global singleton mutated by tests).
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Household tab — settings persistence', { tag: '@responsive' }, () => {
+  // /api/settings is a global singleton — multiple tests in this block PATCH it.
+  // With fullyParallel:true, Playwright can otherwise schedule two of these tests on
+  // separate workers at the same time, racing on the same row. Force serial execution
+  // within this describe (same mitigation used for other singleton-mutating specs,
+  // e.g. profile/update-display-name.spec.ts).
+  test.describe.configure({ mode: 'serial' });
+
+  test('Fill name and address, save, reload — values persist', async ({ page, testPrefix }) => {
+    const original = await fetchHouseholdSettingsViaApi(page);
+    const name = `${testPrefix} Household`;
+    const address = `${testPrefix} 123 Main Street, Springfield`;
+
+    try {
+      await page.goto(`${MANAGE_ROUTE}?tab=household`);
+      const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
+      await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
+        state: 'visible',
+      });
+
+      const nameInput = panel.locator('#householdName');
+      const addressInput = panel.locator('#householdAddress');
+      await nameInput.fill(name);
+      await addressInput.fill(address);
+
+      const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
+      await expect(saveButton).toBeEnabled();
+
+      const responsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/settings') &&
+          resp.request().method() === 'PATCH' &&
+          resp.status() === 200,
+      );
+      await saveButton.click();
+      await responsePromise;
+
+      // Success banner appears
+      const successBanner = panel.locator('[class*="successBanner"][role="alert"]');
+      await expect(successBanner).toBeVisible();
+
+      // Save button becomes disabled again once saved values match the form (no longer dirty)
+      await expect(saveButton).toBeDisabled();
+
+      // Reload the page — values must persist (re-fetched from the server)
+      await page.reload();
+      await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
+        state: 'visible',
+      });
+      await expect(page.locator('#householdName')).toHaveValue(name);
+      await expect(page.locator('#householdAddress')).toHaveValue(address);
+    } finally {
+      await patchHouseholdSettingsViaApi(page, original);
+    }
+  });
+
+  test('Clear both fields, save, reload — values are empty', async ({ page, testPrefix }) => {
+    const original = await fetchHouseholdSettingsViaApi(page);
+
+    try {
+      // Seed non-empty values first so clearing has an observable effect
+      await patchHouseholdSettingsViaApi(page, {
+        householdName: `${testPrefix} Pre-clear Name`,
+        householdAddress: `${testPrefix} Pre-clear Address`,
+      });
+
+      await page.goto(`${MANAGE_ROUTE}?tab=household`);
+      const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
+      const nameInput = panel.locator('#householdName');
+      const addressInput = panel.locator('#householdAddress');
+      await expect(nameInput).toHaveValue(`${testPrefix} Pre-clear Name`);
+
+      await nameInput.fill('');
+      await addressInput.fill('');
+
+      const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
+      const responsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/settings') &&
+          resp.request().method() === 'PATCH' &&
+          resp.status() === 200,
+      );
+      await saveButton.click();
+      await responsePromise;
+
+      const successBanner = panel.locator('[class*="successBanner"][role="alert"]');
+      await expect(successBanner).toBeVisible();
+
+      // Reload — both fields must be empty
+      await page.reload();
+      await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
+        state: 'visible',
+      });
+      await expect(page.locator('#householdName')).toHaveValue('');
+      await expect(page.locator('#householdAddress')).toHaveValue('');
+    } finally {
+      await patchHouseholdSettingsViaApi(page, original);
+    }
+  });
+
+  test('Save button is disabled until a field is edited (dirty-gated)', async ({ page }) => {
+    await page.goto(`${MANAGE_ROUTE}?tab=household`);
+    const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
+    await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
+      state: 'visible',
+    });
+
+    const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
+    // No edits yet — form matches saved state, button disabled
+    await expect(saveButton).toBeDisabled();
+
+    // Edit the name field — button becomes enabled
+    await panel.locator('#householdName').fill('Temporary Dirty Value');
+    await expect(saveButton).toBeEnabled();
+  });
+
+  test('Save failure shows an error banner and keeps the entered values', async ({
+    page,
+    testPrefix,
+  }) => {
+    await page.goto(`${MANAGE_ROUTE}?tab=household`);
+    const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
+    await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
+      state: 'visible',
+    });
+
+    try {
+      await page.route('**/api/settings', async (route) => {
+        if (route.request().method() === 'PATCH') {
+          await route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
+            }),
+          });
+        } else {
+          await route.continue();
+        }
+      });
+
+      const failName = `${testPrefix} Should Not Persist`;
+      await panel.locator('#householdName').fill(failName);
+
+      const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
+      await saveButton.click();
+
+      const errorBanner = panel.locator('[class*="errorBanner"][role="alert"]');
+      await expect(errorBanner).toBeVisible();
+
+      // The entered value remains in the input (not reset on failure)
+      await expect(panel.locator('#householdName')).toHaveValue(failName);
+    } finally {
+      await page.unroute('**/api/settings');
+    }
   });
 });
 
@@ -650,16 +882,17 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
     expect(overflow).toBe(false);
   });
 
-  test('All five tabs are accessible/scrollable on all viewports', async ({ page }) => {
+  test('All six tabs are accessible/scrollable on all viewports', async ({ page }) => {
     await page.goto(MANAGE_ROUTE);
     await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
       state: 'visible',
     });
 
     // All tab buttons must be present in the DOM (even if scrollable on mobile).
-    // Story #1674 added the Orientations tab — now 5 total.
+    // Story #1674 added the Orientations tab (5 total); Story #1877 added the
+    // Household tab as the first tab — now 6 total.
     const tabs = page.getByRole('tab');
-    await expect(tabs).toHaveCount(5);
+    await expect(tabs).toHaveCount(6);
   });
 });
 
@@ -681,6 +914,11 @@ test.describe('Dark mode', () => {
       await expect(heading).toBeVisible();
 
       // Navigate through each tab in dark mode
+      await page.getByRole('tab', { name: 'Household', exact: true }).click();
+      await expect(
+        page.getByRole('heading', { level: 2, name: 'Household Information', exact: true }),
+      ).toBeVisible();
+
       await page.getByRole('tab', { name: 'Trades' }).click();
       await expect(
         page.getByRole('heading', { level: 2, name: 'Create New Trade', exact: true }),
