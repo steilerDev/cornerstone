@@ -7,6 +7,12 @@
  *
  * jsdom does not implement URL.createObjectURL/revokeObjectURL — they must be stubbed directly
  * (not via jest.spyOn, which requires the property to already exist on the object).
+ *
+ * downloadPdf's revoke now happens inside `setTimeout(() => URL.revokeObjectURL(url), 0)` (item
+ * 17 of the frontend fix spec — deferring revocation so the anchor's navigation/download has a
+ * chance to actually start before the blob URL is invalidated). The two revoke-ordering tests
+ * below use fake timers and advance them explicitly after the synchronous `downloadPdf()` call
+ * returns, since the revoke call is no longer observable synchronously.
  */
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import type * as PaperlessApiModule from '../paperlessApi.js';
@@ -38,7 +44,15 @@ afterEach(() => {
 });
 
 describe('downloadPdf', () => {
-  it('creates an object URL, triggers an anchor click with the given filename, and revokes the URL', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('creates an object URL, triggers an anchor click with the given filename, and revokes the URL after the deferred timer fires', () => {
     const clickSpy = jest.fn();
     const originalCreateElement = document.createElement.bind(document);
     jest.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
@@ -59,6 +73,10 @@ describe('downloadPdf', () => {
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(appendSpy).toHaveBeenCalled();
     expect(removeSpy).toHaveBeenCalled();
+    // Revocation is deferred via setTimeout(..., 0) — not yet called synchronously.
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+
+    jest.runAllTimers();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
 
     const anchorArg = appendSpy.mock.calls[0]![0] as HTMLAnchorElement;
@@ -66,7 +84,7 @@ describe('downloadPdf', () => {
     expect(anchorArg.href).toContain('blob:mock-url');
   });
 
-  it('revokes the object URL only after the click is triggered (not before)', () => {
+  it('revokes the object URL only after the click is triggered AND the deferred timer fires (not before)', () => {
     const callOrder: string[] = [];
     (URL.createObjectURL as jest.Mock).mockImplementation(() => {
       callOrder.push('create');
@@ -85,7 +103,10 @@ describe('downloadPdf', () => {
     });
 
     sinks.downloadPdf(new Blob(['x']), 'file.pdf');
+    // Click has fired synchronously, but the revoke timer has not yet run.
+    expect(callOrder).toEqual(['create', 'click']);
 
+    jest.runAllTimers();
     expect(callOrder).toEqual(['create', 'click', 'revoke']);
   });
 });

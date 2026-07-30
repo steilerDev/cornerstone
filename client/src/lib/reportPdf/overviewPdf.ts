@@ -4,12 +4,8 @@
 import type { TFunction } from 'i18next';
 import type { Content } from 'pdfmake/build/pdfmake';
 import type { SourceReportResponse, InvoiceStatus } from '@cornerstone/shared';
-import {
-  formatCurrencyForPdf,
-  formatDateForPdf,
-  TABLE_LAYOUT,
-  REFUND_TEXT_COLOR,
-} from './shared.js';
+import type { Formatters } from '../formatters.js';
+import { TABLE_LAYOUT, REFUND_TEXT_COLOR } from './shared.js';
 
 export function buildOverviewContent(
   report: SourceReportResponse,
@@ -18,6 +14,8 @@ export function buildOverviewContent(
   skippedDocuments: Map<string, string[]>,
   useCase: string,
   t: TFunction,
+  formatters?: Formatters,
+  includedTotal?: number,
 ): Content[] {
   const content: Content[] = [];
 
@@ -44,7 +42,7 @@ export function buildOverviewContent(
           }
         : null,
       {
-        text: `${t('sourceReports.table.generatedAt')}: ${formatDateForPdf(new Date())}`,
+        text: `${t('sourceReports.table.generatedAt')}: ${formatters?.formatDate(new Date().toISOString().split('T')[0]) ?? new Date().toISOString().split('T')[0]}`,
         style: 'small',
       },
     ].filter(Boolean) as Content[],
@@ -75,6 +73,30 @@ export function buildOverviewContent(
     quotation: 0,
   };
 
+  // Track split invoice indices for footnote numbering
+  const splitFootnotesByInvoiceId = new Map<string, number>();
+  let splitFootnoteNum = 1;
+  for (const invoice of report.invoices) {
+    if (includedInvoiceIds.has(invoice.invoiceId) && invoice.isSplit) {
+      splitFootnotesByInvoiceId.set(invoice.invoiceId, splitFootnoteNum);
+      splitFootnoteNum++;
+    }
+  }
+
+  // Track skip footnotes by invoice (for marker rendering)
+  const skipFootnotesByInvoiceId = new Map<string, number[]>();
+  let skipFootnoteNum = 1;
+  for (const [invoiceId, reasons] of skippedDocuments) {
+    if (!skipFootnotesByInvoiceId.has(invoiceId)) {
+      skipFootnotesByInvoiceId.set(invoiceId, []);
+    }
+    const noteNums = skipFootnotesByInvoiceId.get(invoiceId)!;
+    for (const _reason of reasons) {
+      noteNums.push(skipFootnoteNum);
+      skipFootnoteNum++;
+    }
+  }
+
   for (const invoice of report.invoices) {
     if (!includedInvoiceIds.has(invoice.invoiceId)) {
       continue;
@@ -86,45 +108,49 @@ export function buildOverviewContent(
     const row: Content[] = [
       { text: invoice.vendorName, style: 'tableCell' },
       { text: invoice.invoiceNumber ?? '—', style: 'tableCell' },
-      { text: formatDateForPdf(invoice.date), style: 'tableCell' },
-      { text: t(`invoiceStatus.${status}`), style: 'tableCell' },
+      { text: formatters?.formatDate(invoice.date) ?? invoice.date, style: 'tableCell' },
+      { text: t(`sources.lines.invoiceStatus.${status}`), style: 'tableCell' },
     ];
 
     // Invoice amount
+    const invoiceAmountText = formatters?.formatCurrency(invoice.invoiceAmount) ?? '—';
     if (invoice.lineKind === 'refund-adjustment') {
       row.push({
-        text: `-${formatCurrencyForPdf(invoice.invoiceAmount)}`,
+        text: invoiceAmountText,
         style: 'tableCell',
         alignment: 'right',
         color: REFUND_TEXT_COLOR,
       });
     } else {
       row.push({
-        text: formatCurrencyForPdf(invoice.invoiceAmount),
+        text: invoiceAmountText,
         style: 'tableCell',
         alignment: 'right',
       });
     }
 
-    // Allocated amount
+    // Allocated amount with footnote markers
+    const allocatedText = formatters?.formatCurrency(invoice.allocatedAmount) ?? '—';
+    const skipMarkers = skipFootnotesByInvoiceId.get(invoice.invoiceId) ?? [];
+    const splitMarker = splitFootnotesByInvoiceId.get(invoice.invoiceId);
+    let markerText = '';
+    for (const noteNum of skipMarkers) {
+      markerText += `*${noteNum}`;
+    }
+    if (splitMarker) {
+      markerText += `†${splitMarker}`;
+    }
+
     if (invoice.lineKind === 'refund-adjustment') {
       row.push({
-        text: `-${formatCurrencyForPdf(invoice.allocatedAmount)} ${t('sourceReports.table.refundNote')}`,
+        text: `${allocatedText}${markerText} ${t('sourceReports.table.refundNote')}`,
         style: 'tableCell',
         alignment: 'right',
         color: REFUND_TEXT_COLOR,
       });
-    } else if (invoice.isSplit) {
-      const appendixNum = appendixByInvoiceId.get(invoice.invoiceId);
-      const appendixRef = appendixNum ? `*${appendixNum}` : '';
-      row.push({
-        text: formatCurrencyForPdf(invoice.allocatedAmount) + appendixRef,
-        style: 'tableCell',
-        alignment: 'right',
-      });
     } else {
       row.push({
-        text: formatCurrencyForPdf(invoice.allocatedAmount),
+        text: `${allocatedText}${markerText}`,
         style: 'tableCell',
         alignment: 'right',
       });
@@ -144,10 +170,10 @@ export function buildOverviewContent(
 
   // Add subtotal rows per status present
   const statusLabels: Record<InvoiceStatus, string> = {
-    pending: 'invoiceStatus.pending',
-    paid: 'invoiceStatus.paid',
-    claimed: 'invoiceStatus.claimed',
-    quotation: 'invoiceStatus.quotation',
+    pending: 'sources.lines.invoiceStatus.pending',
+    paid: 'sources.lines.invoiceStatus.paid',
+    claimed: 'sources.lines.invoiceStatus.claimed',
+    quotation: 'sources.lines.invoiceStatus.quotation',
   };
 
   for (const [status] of Object.entries(statusCounts)) {
@@ -158,6 +184,7 @@ export function buildOverviewContent(
       );
       const subtotal = invoicesWithStatus.reduce((sum, inv) => sum + inv.allocatedAmount, 0);
 
+      const subtotalText = formatters?.formatCurrency(subtotal) ?? '—';
       const subtotalRow: Content[] = [
         { text: '', style: 'tableCell' },
         { text: '', style: 'tableCell' },
@@ -169,7 +196,7 @@ export function buildOverviewContent(
         },
         { text: '', style: 'tableCell' },
         {
-          text: formatCurrencyForPdf(subtotal),
+          text: subtotalText,
           style: 'tableCell',
           alignment: 'right',
           bold: true,
@@ -185,6 +212,7 @@ export function buildOverviewContent(
   }
 
   // Add total row
+  const totalText = formatters?.formatCurrency(includedTotal ?? 0) ?? '—';
   const totalRow: Content[] = [
     { text: '', style: 'tableCell' },
     { text: '', style: 'tableCell' },
@@ -192,7 +220,7 @@ export function buildOverviewContent(
     { text: t('sourceReports.table.total'), style: 'tableCell', bold: true },
     { text: '', style: 'tableCell' },
     {
-      text: formatCurrencyForPdf(report.totalAmount),
+      text: totalText,
       style: 'tableCell',
       alignment: 'right',
       bold: true,
@@ -211,34 +239,54 @@ export function buildOverviewContent(
       headerRows: 1,
       widths:
         appendixByInvoiceId.size > 0
-          ? ['auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto']
-          : ['auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+          ? ['*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto']
+          : ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
       body: rows,
     },
     layout: TABLE_LAYOUT,
     margin: [0, 0, 0, 20],
   });
 
+  // Add footnotes (skip and split)
+  const footnotes: Content[] = [];
+
   // Add skipped documents footnotes
   if (skippedDocuments.size > 0) {
-    const notes: Content[] = [];
-    let footnoteNum = 1;
-    for (const [_invoiceId, reasons] of skippedDocuments) {
+    let skipFootnoteNum = 1;
+    for (const [invoiceId, reasons] of skippedDocuments) {
+      const invoice = report.invoices.find((inv) => inv.invoiceId === invoiceId);
+      const vendorName = invoice?.vendorName ?? '—';
+      const invoiceNumber = invoice?.invoiceNumber ?? '—';
+
       for (const reason of reasons) {
-        notes.push({
-          text: `*${footnoteNum}: ${t(`sourceReports.table.${reason}`)}`,
+        footnotes.push({
+          text: `*${skipFootnoteNum}: ${vendorName} (${invoiceNumber}) — ${t(`sourceReports.table.${reason}`)}`,
           style: 'small',
         });
-        footnoteNum++;
+        skipFootnoteNum++;
       }
     }
+  }
 
-    if (notes.length > 0) {
-      content.push({
-        stack: notes,
-        margin: [0, 0, 0, 0],
+  // Add split invoice footnotes
+  if (splitFootnotesByInvoiceId.size > 0) {
+    for (const [invoiceId, splitNum] of splitFootnotesByInvoiceId) {
+      const invoice = report.invoices.find((inv) => inv.invoiceId === invoiceId);
+      const vendorName = invoice?.vendorName ?? '—';
+      const invoiceNumber = invoice?.invoiceNumber ?? '—';
+
+      footnotes.push({
+        text: `†${splitNum}: ${vendorName} (${invoiceNumber}) — ${t('sourceReports.table.splitFootnote')}`,
+        style: 'small',
       });
     }
+  }
+
+  if (footnotes.length > 0) {
+    content.push({
+      stack: footnotes,
+      margin: [0, 0, 0, 0],
+    });
   }
 
   return content;

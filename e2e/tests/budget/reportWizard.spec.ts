@@ -592,17 +592,28 @@ test.describe('Report wizard — Paperless upload (Scenarios 5 & 6)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard — sourceId prefill (Scenario 7)', () => {
-  test('?sourceId= pre-selects the source once a use case is picked at step 1', async ({
+  test('?sourceId= pre-selects the source once a use case is picked at step 1, and the deep link carries through to a working step 3/4', async ({
     page,
     testPrefix,
   }) => {
+    test.slow();
     const wizard = new ReportWizardPage(page);
 
+    let vendorId = '';
     let sourceId = '';
+    let workItemId = '';
     try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Prefill Vendor` });
       sourceId = await createBudgetSourceViaApi(page, {
         name: `${testPrefix} Prefill Source`,
         totalAmount: 15000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Prefill` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-PF-001`,
+        amount: 350,
+        date: '2026-03-12',
+        status: 'pending',
       });
 
       await wizard.goto(sourceId);
@@ -614,8 +625,23 @@ test.describe('Report wizard — sourceId prefill (Scenario 7)', () => {
       await wizard.goNextFromStep1();
 
       await expect(wizard.sourceRow(sourceId)).toBeChecked();
+
+      // Picking the use case fires the effect that pre-loads the report for the pre-checked
+      // ?sourceId= source — walk the rest of the wizard through to prove the deep link no
+      // longer dead-ends: step 3 shows the seeded invoice (report actually loaded, not stuck
+      // on the skeleton) and step 4's preview becomes ready.
+      await wizard.goNextFromStep2();
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} Prefill Vendor`, invoice.invoiceNumber!),
+      ).toBeVisible();
+
+      await wizard.goNextFromStep3();
+      await wizard.waitForPreviewReady();
+      await expect(wizard.downloadButton).toBeEnabled();
     } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
   });
 });

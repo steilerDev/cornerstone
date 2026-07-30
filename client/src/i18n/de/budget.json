@@ -245,7 +245,7 @@
     "summary": {
       "remainingLabel": "Verbleibend"
     },
-    "generateReport": "Bericht Erstellen",
+    "generateReport": "Bericht erstellen",
     "generateReportMenuAriaLabel": "Bericht für {{name}} erstellen"
   },
   "vendors": {
@@ -1157,10 +1157,11 @@
     "hasAttachment": "Dokument angehängt",
     "noDocument": "Kein Dokument",
     "refund": "Rückerstattung",
-    "splitBadge": "anteilig {{allocated}} € von {{total}} €",
+    "splitBadge": "anteilig {{allocated}} von {{total}}",
     "splitTooltip": "Diese Rechnung ist auf mehrere Quellen aufgeteilt",
-    "selectedCount": "{{count}} von {{total}} | Gesamt: {{total}}",
+    "selectedCount": "{{count}} von {{totalCount}} | Gesamt: {{totalAmount}}",
     "resetSelection": "Auswahl zurücksetzen",
+    "subNavAriaLabel": "Budget-Abschnittsnavigation",
     "coverLetter": {
       "subjectLabel": "Betreff",
       "reference": "Referenz",
@@ -1197,7 +1198,8 @@
       "total": "Gesamt",
       "refundNote": "(Rückerstattung)",
       "footnoteFetchFailed": "Dokument konnte nicht abgerufen werden",
-      "footnoteInvalidPdf": "Dokument ist keine gültige PDF-Datei"
+      "footnoteInvalidPdf": "Dokument ist keine gültige PDF-Datei",
+      "splitFootnote": "Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil."
     },
     "sourceType": {
       "bank_loan": "Bankdarlehen",

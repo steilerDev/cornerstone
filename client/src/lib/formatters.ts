@@ -275,6 +275,19 @@ export function formatDateTimeWithZone(date: Date, locale = 'en-US'): string {
 import { useLocale } from '../contexts/LocaleContext.js';
 
 /**
+ * Formatters interface for PDF builders (subset of full formatters).
+ * Contains only formatCurrency and formatDate methods.
+ */
+export interface Formatters {
+  formatCurrency: (amount: number) => string;
+  formatDate: (
+    dateStr: string | null | undefined,
+    fallback?: string,
+    monthStyle?: 'short' | 'long',
+  ) => string;
+}
+
+/**
  * Hook that provides locale-aware formatting functions.
  * Uses the user's current locale and currency preferences.
  *

@@ -8,44 +8,56 @@
  *
  * FIXED (Round 5): loader.ts used to do `const pdfMake = pdfMakeModule;`, assigning
  * the raw dynamic-import() MODULE NAMESPACE OBJECT to `pdfMake` instead of the real CJS interop
- * default. Namespace objects are non-extensible per spec, so the very next line — assigning
- * `pdfMake.vfs = ...` — threw `TypeError: Cannot add property vfs, object is not extensible`,
- * rejecting `loadPdfLibs()` on every call. Production code now does
- * `const pdfMake = pdfMakeModule.default;` (loader.ts line 22), which is the real, extensible CJS
- * export — confirmed below: `loadPdfLibs()` now resolves successfully.
+ * default. Namespace objects are non-extensible per spec, so any direct property assignment onto
+ * that object (e.g. `pdfMake.vfs = ...`) threw `TypeError: Cannot add property vfs, object is not
+ * extensible`. Production code now does `const pdfMake = pdfMakeModule.default;` (loader.ts),
+ * which is the real, extensible CJS export.
  *
- * FIXED (Round 6): loader.ts's vfs assignment — `vfsModule_.default?.pdfMake?.vfs` — was
- * incorrectly assuming 'pdfmake/build/vfs_fonts.js' has a `default.pdfMake.vfs` shape. The
- * actually-installed pdfmake@0.3.11's vfs_fonts.js default-exports the font map DIRECTLY (no
- * `pdfMake` wrapper). Production code now correctly assigns the vfs font map directly:
- * `const vfsFontMap = vfsModule.default; pdfMake.vfs = vfsFontMap;` (loader.ts lines 23-24).
- * This fixes embedded Roboto font support.
- *
- * FIXED (Round 6): merge.ts's document definition was setting `defaultStyle: { font: 'Helvetica' }`
- * (merge.ts line 122) but pdfmake@0.3.11 ships with `pdfMake.fonts` defaulting to `{ Roboto: {...} }`
- * ONLY. Every real call to `pdfMake.createPdf(...)` — i.e. every real PDF generation — was
- * throwing: `Error: Font 'Helvetica' in style 'normal' is not defined in the font
- * section of the document definition.` Production code now uses the available 'Roboto' font
- * instead (merge.ts line 122). Both the font fix and vfs fix are confirmed working via the
- * real-package probe in the test suite.
+ * FIXED (Round 7 / frontend fix spec item 1): pdfmake@0.3.11 has NO `.vfs` setter at all — an
+ * earlier round's `pdfMake.vfs = vfsFontMap` direct-assignment approach was based on a
+ * misunderstanding of the installed version's real API. Production code now uses the real 0.3.x
+ * public API: `pdfMake.addVirtualFileSystem(vfsFontMap)` followed by
+ * `pdfMake.addFonts({ Roboto: { normal, bold, italics, bolditalics } })`. Internally,
+ * `addVirtualFileSystem` writes each font file into a module-level `VirtualFileSystem` instance
+ * exposed as `pdfMake.virtualfs` (confirmed by reading node_modules/pdfmake/build/pdfmake.js) —
+ * `pdfMake.virtualfs.existsSync(filename)` is the correct way to verify the vfs was populated,
+ * not `Object.prototype.hasOwnProperty.call(pdfMake, 'vfs')` (there never was a `.vfs` own
+ * property to check for on this pdfmake version).
  */
 import { describe, it, expect } from '@jest/globals';
 
 describe('loadPdfLibs', () => {
-  it('FIXED: resolves successfully now that pdfMake is extracted from the CJS interop default (not the frozen ESM namespace), and vfs is properly assigned from vfs_fonts.default', async () => {
+  it('resolves successfully — pdfMake is extracted from the CJS interop default (not the frozen ESM namespace)', async () => {
     const { loadPdfLibs } = await import('./loader.js');
 
     const libs = await loadPdfLibs();
 
     expect(typeof libs.pdfMake.createPdf).toBe('function');
     expect(typeof libs.PDFDocument.create).toBe('function');
-    // `vfs` is now properly assigned to the font map from vfs_fonts.default
-    expect(Object.prototype.hasOwnProperty.call(libs.pdfMake, 'vfs')).toBe(true);
-    const vfs = (libs.pdfMake as unknown as { vfs?: unknown }).vfs;
-    expect(vfs).toBeDefined();
-    expect(typeof vfs).toBe('object');
-    // Verify the font map contains expected Roboto font files
-    expect('Roboto-Regular.ttf' in (vfs as Record<string, unknown>)).toBe(true);
+  });
+
+  it('populates the virtual file system with the Roboto font files via addVirtualFileSystem()', async () => {
+    const { loadPdfLibs } = await import('./loader.js');
+    const { pdfMake } = await loadPdfLibs();
+
+    const virtualfs = (pdfMake as unknown as { virtualfs: { existsSync: (f: string) => boolean } })
+      .virtualfs;
+    expect(virtualfs).toBeDefined();
+    expect(virtualfs.existsSync('Roboto-Regular.ttf')).toBe(true);
+    expect(virtualfs.existsSync('Roboto-Medium.ttf')).toBe(true);
+  });
+
+  it('registers the Roboto font family via addFonts()', async () => {
+    const { loadPdfLibs } = await import('./loader.js');
+    const { pdfMake } = await loadPdfLibs();
+
+    expect(Object.keys(pdfMake.fonts)).toEqual(['Roboto']);
+    expect(pdfMake.fonts.Roboto).toEqual({
+      normal: 'Roboto-Regular.ttf',
+      bold: 'Roboto-Medium.ttf',
+      italics: 'Roboto-Italic.ttf',
+      bolditalics: 'Roboto-MediumItalic.ttf',
+    });
   });
 
   it('caches the promise — a second call returns the identical (resolved) promise instance without re-importing', async () => {
@@ -60,17 +72,29 @@ describe('loadPdfLibs', () => {
     expect(third).toBe(first);
   });
 
-  it("FIXED: pdfMake.createPdf() now works with Roboto font (was broken with 'Helvetica')", async () => {
+  it('createPdf() with plain Roboto text produces a non-empty PDF blob', async () => {
     const { loadPdfLibs } = await import('./loader.js');
     const { pdfMake } = await loadPdfLibs();
 
-    // pdfMake.fonts defaults to { Roboto: {...} } only
-    expect(Object.keys(pdfMake.fonts)).toEqual(['Roboto']);
-
-    // createPdf() with Roboto (the font now used in merge.ts) works correctly
-    // and getBlob() generates a valid PDF blob (no longer throws)
     const pdfDoc = pdfMake.createPdf({
       content: [{ text: 'hello' }],
+      defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4 },
+    });
+    const blob = await pdfDoc.getBlob();
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.size).toBeGreaterThan(0);
+  });
+
+  it('createPdf() with bold Roboto text (the "Roboto-Medium.ttf" font file) produces a non-empty PDF blob', async () => {
+    // Exercises the embedded bold font specifically — merge.ts's own document definition uses
+    // `bold: true` throughout (table headers, subtotal/total rows, styles.title, etc.), so this
+    // confirms addFonts()'s `bold: 'Roboto-Medium.ttf'` mapping is actually resolvable from the
+    // virtual file system populated by addVirtualFileSystem(), not just the `normal` variant.
+    const { loadPdfLibs } = await import('./loader.js');
+    const { pdfMake } = await loadPdfLibs();
+
+    const pdfDoc = pdfMake.createPdf({
+      content: [{ text: 'test', bold: true }],
       defaultStyle: { font: 'Roboto', fontSize: 11, lineHeight: 1.4 },
     });
     const blob = await pdfDoc.getBlob();

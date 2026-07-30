@@ -1157,10 +1157,11 @@
     "hasAttachment": "Document attached",
     "noDocument": "No document",
     "refund": "Refund",
-    "splitBadge": "partial €{{allocated}} of €{{total}}",
+    "splitBadge": "partial {{allocated}} of {{total}}",
     "splitTooltip": "This invoice is split across multiple sources",
-    "selectedCount": "{{count}} of {{total}} | Total: {{total}}",
+    "selectedCount": "{{count}} of {{totalCount}} | Total: {{totalAmount}}",
     "resetSelection": "Reset selection",
+    "subNavAriaLabel": "Budget section navigation",
     "coverLetter": {
       "subjectLabel": "Subject",
       "reference": "Reference",
@@ -1197,7 +1198,8 @@
       "total": "Total",
       "refundNote": "(refund)",
       "footnoteFetchFailed": "Document could not be retrieved",
-      "footnoteInvalidPdf": "Document is not a valid PDF"
+      "footnoteInvalidPdf": "Document is not a valid PDF",
+      "splitFootnote": "Amount shown reflects only the portion allocated to this source."
     },
     "sourceType": {
       "bank_loan": "Bank Loan",

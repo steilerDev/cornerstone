@@ -21,11 +21,21 @@
  * Blob(...)`), matching production: merge.ts now does `await pdfDoc.getBlob()` per
  * @types/pdfmake@0.3.3's promise-returning signature (previously callback-style,
  * `getBlob((blob) => ...)`, which this mock was updated to match). This mock isolates merge.ts's
- * own orchestration from pdfmake's real, still-broken font registration (see loader.test.ts for
- * the NEW BLOCKER found this pass: real pdfMake.createPdf() throws for merge.ts's actual
- * `font: 'Helvetica'` defaultStyle because 'Helvetica' is never registered in `pdfMake.fonts`) —
- * that bug is invisible to this file by design and must be exercised against the real package,
- * which loader.test.ts now does.
+ * own orchestration from pdfmake/pdf-lib's real behavior (loader.test.ts and the new
+ * realRender.test.ts exercise the real, unmocked packages end-to-end).
+ *
+ * NOTE: `SkippedDocument` now carries `vendorName`/`invoiceNumber` attribution (frontend fix spec
+ * item 11 — footnotes and the on-screen skip list attribute each skip to its invoice) — every
+ * push site in merge.ts (including the previously-silent step-4 embed catch block) populates both
+ * fields from the invoice being processed. Assertions on skippedDocuments below either use
+ * `expect.objectContaining` (fields incidental to the case under test) or list both fields
+ * explicitly where the full array shape is asserted with `toEqual`.
+ *
+ * NOTE: `buildCoverLetterContent`/`buildOverviewContent` now receive two additional trailing
+ * params — an optional `formatters: Formatters` object and a `includedTotal: number` computed
+ * once in merge.ts from `report.invoices` filtered to `includedInvoiceIds` (respecting exclusions
+ * and the refund-adjustment sign convention). Call-site assertions below were updated to include
+ * both.
  */
 import { describe, it, expect, jest, beforeEach, beforeAll } from '@jest/globals';
 import type { TFunction } from 'i18next';
@@ -34,6 +44,7 @@ import type {
   SourceReportInvoice,
   HouseholdSettings,
 } from '@cornerstone/shared';
+import type { Formatters } from '../formatters.js';
 import type * as MergeModule from './merge.js';
 import type * as CoverLetterPdfModule from './coverLetterPdf.js';
 import type * as OverviewPdfModule from './overviewPdf.js';
@@ -244,10 +255,87 @@ describe('generateReportPdf', () => {
       t,
     );
 
-    expect(mockBuildCoverLetterContent).toHaveBeenCalledWith(report, household, 'claim', t);
+    // merge.ts computes includedTotal once (report has no invoices here, so it's 0) and passes it
+    // through to buildCoverLetterContent alongside the (here, unset) formatters param.
+    expect(mockBuildCoverLetterContent).toHaveBeenCalledWith(
+      report,
+      household,
+      'claim',
+      t,
+      undefined,
+      0,
+    );
     const passedContent = (mockCreatePdf.mock.calls[0]![0] as { content: { text: string }[] })
       .content;
     expect(passedContent).toEqual([{ text: 'COVER_LETTER' }, { text: 'OVERVIEW' }]);
+  });
+
+  describe('includedTotal computation (frontend fix spec item 5 — grand total respects exclusions)', () => {
+    it('sums allocatedAmount across included invoices only, unconditionally (refund-adjustment lines already arrive pre-signed)', async () => {
+      const included = makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 1000 });
+      const refund = makeInvoice({
+        invoiceId: 'inv-refund',
+        lineKind: 'refund-adjustment',
+        allocatedAmount: -200,
+        invoiceAmount: 200,
+      });
+      const excluded = makeInvoice({ invoiceId: 'inv-excluded', allocatedAmount: 5000 });
+      const report = makeReport([included, refund, excluded]);
+
+      await generateReportPdf(
+        report,
+        new Set(['inv-1', 'inv-refund']), // excludes inv-excluded
+        'claim',
+        { attachDocuments: false, includeCoverLetter: true },
+        household,
+        t,
+      );
+
+      // 1000 + (-200) = 800; the excluded invoice's 5000 must never be added.
+      const coverLetterIncludedTotal = mockBuildCoverLetterContent.mock.calls[0]![5];
+      const overviewIncludedTotal = mockBuildOverviewContent.mock.calls[0]![7];
+      expect(coverLetterIncludedTotal).toBe(800);
+      expect(overviewIncludedTotal).toBe(800);
+    });
+
+    it('passes the SAME computed includedTotal value to both buildCoverLetterContent and buildOverviewContent (computed once)', async () => {
+      const invoice = makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 333 });
+      const report = makeReport([invoice]);
+
+      await generateReportPdf(
+        report,
+        new Set(['inv-1']),
+        'claim',
+        { attachDocuments: false, includeCoverLetter: true },
+        household,
+        t,
+      );
+
+      expect(mockBuildCoverLetterContent.mock.calls[0]![5]).toBe(333);
+      expect(mockBuildOverviewContent.mock.calls[0]![7]).toBe(333);
+    });
+
+    it('forwards the formatters param through to both builders when provided', async () => {
+      const invoice = makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 100 });
+      const report = makeReport([invoice]);
+      const stubFormatters: Formatters = {
+        formatCurrency: (n: number) => `€${n}`,
+        formatDate: (d) => (typeof d === 'string' ? d : '—'),
+      };
+
+      await generateReportPdf(
+        report,
+        new Set(['inv-1']),
+        'claim',
+        { attachDocuments: false, includeCoverLetter: true },
+        household,
+        t,
+        stubFormatters,
+      );
+
+      expect(mockBuildCoverLetterContent.mock.calls[0]![4]).toBe(stubFormatters);
+      expect(mockBuildOverviewContent.mock.calls[0]![6]).toBe(stubFormatters);
+    });
   });
 
   it('omits cover letter content when includeCoverLetter is false', async () => {
@@ -506,6 +594,114 @@ describe('generateReportPdf', () => {
     );
   });
 
+  it('a document that validates fine in step 1 but fails to copy/embed in step 4 is pushed to skippedDocuments with attribution (the previously-silent embed-phase catch)', async () => {
+    // Step 1 validation (PDFDocument.load(bytes) + no copyPages call) succeeds — the document is
+    // cached and gets an appendix number. Step 4 re-loads the text blob's own pages fine (1st
+    // copyPages call succeeds) but the invoice document's own copyPages call (2nd call) throws —
+    // this exercises merge.ts's step-4 embed-loop catch block, which used to silently swallow the
+    // error. It must now push a skippedDocuments entry (frontend fix spec item 11) with vendor/
+    // invoice-number attribution, exactly like the step-1 failure paths.
+    const invoice = makeInvoice({
+      invoiceId: 'inv-1',
+      vendorName: 'Delta Supplies',
+      invoiceNumber: 'D-77',
+      documents: [{ documentId: 9, archiveSerialNumber: null, title: null, attachmentType: null }],
+    });
+    const report = makeReport([invoice]);
+    mockFetch.mockResolvedValue(okResponse());
+    mockPdfDocumentLoad.mockResolvedValue({ getPageIndices: () => [0] });
+    mockCopyPages
+      .mockResolvedValueOnce([{ page: 'text-page' }]) // step 4: text blob's own pages
+      .mockRejectedValueOnce(new Error('corrupt during embed')); // step 4: this invoice's pages
+
+    const result = await generateReportPdf(
+      report,
+      new Set(['inv-1']),
+      'claim',
+      { attachDocuments: true, includeCoverLetter: false },
+      household,
+      t,
+    );
+
+    expect(result.skippedDocuments).toEqual([
+      {
+        invoiceId: 'inv-1',
+        documentId: '9',
+        reason: 'footnoteInvalidPdf',
+        vendorName: 'Delta Supplies',
+        invoiceNumber: 'D-77',
+      },
+    ]);
+    // The report as a whole still completes (finalDoc.save() still runs) despite the embed
+    // failure — it degrades gracefully rather than aborting.
+    expect(mockSave).toHaveBeenCalledTimes(1);
+    expect(result.blob).toBeInstanceOf(Blob);
+  });
+
+  it('a single invoice with one valid and two invalid documents: caches only the valid one for step 4, records two skip entries for the invalid ones, and skips their (never-cached) bytes in the embed loop', async () => {
+    // Exercises two branches together:
+    //  - the step-2 `skippedByInvoice` map's "already has this invoiceId" branch (line 92) — two
+    //    failing documents on the SAME invoice produce two skippedDocuments entries sharing one
+    //    invoiceId.
+    //  - the step-4 embed loop's `if (!bytes) continue` branch (line 213) — the invoice still gets
+    //    an appendix number (from its one valid document), so the embed loop runs for it, but the
+    //    two invalid documents were never cached in step 1 and must be skipped without re-fetching
+    //    or crashing.
+    const invoice = makeInvoice({
+      invoiceId: 'inv-1',
+      documents: [
+        { documentId: 1, archiveSerialNumber: null, title: null, attachmentType: null }, // valid
+        { documentId: 2, archiveSerialNumber: null, title: null, attachmentType: null }, // invalid
+        { documentId: 3, archiveSerialNumber: null, title: null, attachmentType: null }, // invalid
+      ],
+    });
+    const report = makeReport([invoice]);
+
+    mockFetch.mockResolvedValue(okResponse());
+    // Resolve call 1 (doc 1, step 1 validation), reject calls 2 and 3 (docs 2 and 3, step 1
+    // validation). Step 4 only re-loads doc 1 (the only one with cached bytes / an appendix
+    // number), so no further PDFDocument.load calls occur for docs 2/3.
+    mockPdfDocumentLoad
+      .mockReset()
+      .mockResolvedValueOnce({ getPageIndices: () => [0] }) // doc 1: valid (step 1)
+      .mockRejectedValueOnce(new Error('bad pdf')) // doc 2: invalid (step 1)
+      .mockRejectedValueOnce(new Error('bad pdf')) // doc 3: invalid (step 1)
+      .mockResolvedValueOnce({ getPageIndices: () => [0] }) // step 4: text blob's own re-load
+      .mockResolvedValueOnce({ getPageIndices: () => [0] }); // step 4: doc 1's cached-bytes re-load
+
+    const result = await generateReportPdf(
+      report,
+      new Set(['inv-1']),
+      'claim',
+      { attachDocuments: true, includeCoverLetter: false },
+      household,
+      t,
+    );
+
+    expect(result.skippedDocuments).toEqual([
+      {
+        invoiceId: 'inv-1',
+        documentId: '2',
+        reason: 'footnoteInvalidPdf',
+        vendorName: 'ACME Builders',
+        invoiceNumber: 'INV-001',
+      },
+      {
+        invoiceId: 'inv-1',
+        documentId: '3',
+        reason: 'footnoteInvalidPdf',
+        vendorName: 'ACME Builders',
+        invoiceNumber: 'INV-001',
+      },
+    ]);
+
+    const appendixArg = mockBuildOverviewContent.mock.calls[0]![2];
+    expect(appendixArg.get('inv-1')).toBe(1);
+    // Step 4 embeds only the one cached (valid) document — no crash, no re-fetch attempt for the
+    // two uncached ones.
+    expect(mockCopyPages).toHaveBeenCalledTimes(2); // 1x text blob + 1x doc 1
+  });
+
   it('a fetch that throws (network error) is caught and recorded as footnoteFetchFailed, without aborting the rest of the report', async () => {
     const invoice = makeInvoice({
       documents: [{ documentId: 7, archiveSerialNumber: null, title: null, attachmentType: null }],
@@ -523,7 +719,13 @@ describe('generateReportPdf', () => {
     );
 
     expect(result.skippedDocuments).toEqual([
-      { invoiceId: 'inv-1', documentId: '7', reason: 'footnoteFetchFailed' },
+      {
+        invoiceId: 'inv-1',
+        documentId: '7',
+        reason: 'footnoteFetchFailed',
+        vendorName: 'ACME Builders',
+        invoiceNumber: 'INV-001',
+      },
     ]);
     // Never aborts — the pdfmake text blob is still produced.
     expect(result.blob).toBeInstanceOf(Blob);

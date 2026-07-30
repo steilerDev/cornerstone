@@ -4,6 +4,7 @@
  */
 import type pdfmakeType from 'pdfmake/build/pdfmake';
 import type { PDFDocument as PDFDocumentType } from 'pdf-lib';
+import type { TVirtualFileSystem } from 'pdfmake/interfaces';
 
 export interface PdfLibs {
   pdfMake: typeof pdfmakeType;
@@ -21,8 +22,16 @@ export function loadPdfLibs(): Promise<PdfLibs> {
     ]).then(([pdfMakeModule, vfsModule, pdfLibModule]) => {
       const pdfMake = pdfMakeModule.default;
       // pdfmake@0.3.11's vfs_fonts.js default-exports the font map directly (no .pdfMake wrapper)
-      const vfsFontMap = (vfsModule as unknown as { default: unknown }).default;
-      (pdfMake as unknown as { vfs?: unknown }).vfs = vfsFontMap;
+      const vfsFontMap = vfsModule.default as TVirtualFileSystem;
+      pdfMake.addVirtualFileSystem(vfsFontMap);
+      pdfMake.addFonts({
+        Roboto: {
+          normal: 'Roboto-Regular.ttf',
+          bold: 'Roboto-Medium.ttf',
+          italics: 'Roboto-Italic.ttf',
+          bolditalics: 'Roboto-MediumItalic.ttf',
+        },
+      });
       return {
         pdfMake: pdfMake as typeof pdfmakeType,
         PDFDocument: pdfLibModule.PDFDocument as typeof PDFDocumentType,

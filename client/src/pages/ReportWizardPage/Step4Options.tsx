@@ -23,6 +23,8 @@ interface Step4OptionsProps {
   onFinishWithoutMarking?: () => void;
   onUploadPaperless: () => void;
   isSaving: boolean;
+  hasError: boolean;
+  hasBlob: boolean;
   t: TFunction;
 }
 
@@ -45,6 +47,8 @@ export function Step4Options({
   onFinishWithoutMarking,
   onUploadPaperless,
   isSaving,
+  hasError,
+  hasBlob,
   t,
 }: Step4OptionsProps) {
   const isClaim = useCase === 'claim';
@@ -110,7 +114,7 @@ export function Step4Options({
               type="button"
               className={sharedStyles.btnPrimary}
               onClick={onDownload}
-              disabled={isSaving}
+              disabled={isSaving || hasError || !hasBlob}
             >
               {t('sourceReports.download')}
             </button>
@@ -121,7 +125,7 @@ export function Step4Options({
                   type="button"
                   className={sharedStyles.btnPrimary}
                   onClick={onMarkClaimed}
-                  disabled={isSaving || isMarkingClaimed}
+                  disabled={isSaving || hasError || !hasBlob || isMarkingClaimed}
                 >
                   {t('sourceReports.markClaimed', { count: selectedInvoiceCount })}
                 </button>
@@ -130,7 +134,7 @@ export function Step4Options({
                   type="button"
                   className={sharedStyles.btnSecondaryCompact}
                   onClick={onFinishWithoutMarking}
-                  disabled={isSaving}
+                  disabled={isSaving || hasError || !hasBlob}
                 >
                   {t('sourceReports.finishWithoutMarking')}
                 </button>
@@ -142,7 +146,7 @@ export function Step4Options({
                 type="button"
                 className={sharedStyles.btnSecondary}
                 onClick={onUploadPaperless}
-                disabled={isSaving}
+                disabled={isSaving || hasError || !hasBlob}
               >
                 {t('sourceReports.uploadPaperless')}
               </button>

@@ -35,7 +35,7 @@ export function ReportInvoiceList({
     const statuses: InvoiceStatus[] = ['pending', 'paid', 'claimed', 'quotation'];
     for (const status of statuses) {
       variants[status] = {
-        label: t(`invoiceStatus.${status}`),
+        label: t(`sources.lines.invoiceStatus.${status}`),
         className: styles[status]!,
       };
     }
@@ -64,12 +64,7 @@ export function ReportInvoiceList({
     () =>
       allocatedInvoices
         .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
-        .reduce((sum, inv) => {
-          if (inv.lineKind === 'refund-adjustment') {
-            return sum - inv.allocatedAmount;
-          }
-          return sum + inv.allocatedAmount;
-        }, 0),
+        .reduce((sum, inv) => sum + inv.allocatedAmount, 0),
     [allocatedInvoices, excludedInvoiceIds],
   );
 
@@ -105,28 +100,28 @@ export function ReportInvoiceList({
       {allocatedInvoices.map((invoice) => {
         const isExcluded = excludedInvoiceIds.has(invoice.invoiceId);
         const hasDocuments = (invoice.documents && invoice.documents.length > 0) || false;
-        const isSplit =
-          invoice.lineKind === 'invoice' && invoice.allocatedAmount < invoice.invoiceAmount;
 
         return (
           <div key={invoice.invoiceId} className={styles.invoiceRow}>
-            <input
-              type="checkbox"
-              className={styles.checkbox}
-              checked={!isExcluded}
-              onChange={(e) => onToggle(invoice.invoiceId, !e.target.checked)}
-              aria-label={t('sourceReports.toggleInvoice', {
-                vendor: invoice.vendorName,
-                number: invoice.invoiceNumber,
-              })}
-            />
+            <label className={styles.checkboxWithContent}>
+              <input
+                type="checkbox"
+                className={styles.checkbox}
+                checked={!isExcluded}
+                onChange={(e) => onToggle(invoice.invoiceId, !e.target.checked)}
+                aria-label={t('sourceReports.toggleInvoice', {
+                  vendor: invoice.vendorName,
+                  number: invoice.invoiceNumber,
+                })}
+              />
 
-            <div className={styles.vendorInfo}>
-              <div className={styles.vendorName}>{invoice.vendorName}</div>
-              <div className={styles.invoiceDate}>
-                {t('sourceReports.invoiceNumber')}: {invoice.invoiceNumber}
+              <div className={styles.vendorInfo}>
+                <div className={styles.vendorName}>{invoice.vendorName}</div>
+                <div className={styles.invoiceDate}>
+                  {t('sourceReports.table.invoiceNumber')}: {invoice.invoiceNumber}
+                </div>
               </div>
-            </div>
+            </label>
 
             <Badge variants={invoiceStatusVariants} value={invoice.status} />
 
@@ -140,7 +135,7 @@ export function ReportInvoiceList({
                     value="refund"
                   />
                   <div className={`${styles.amount} ${styles.amountNegative}`}>
-                    -{formatCurrency(invoice.allocatedAmount)}
+                    {formatCurrency(invoice.allocatedAmount)}
                   </div>
                 </div>
               ) : (
@@ -149,7 +144,7 @@ export function ReportInvoiceList({
             </div>
 
             <div className={styles.attachmentColumn}>
-              {isSplit ? (
+              {invoice.isSplit && (
                 <Tooltip content={t('sourceReports.splitTooltip')}>
                   <Badge
                     variants={{
@@ -164,8 +159,9 @@ export function ReportInvoiceList({
                     value="split"
                   />
                 </Tooltip>
-              ) : hasDocuments ? (
-                <div className={styles.paperclip} aria-label={t('sourceReports.hasAttachment')}>
+              )}
+              {hasDocuments ? (
+                <div className={styles.paperclip}>
                   <svg
                     width="16"
                     height="16"
@@ -173,9 +169,11 @@ export function ReportInvoiceList({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
+                    aria-hidden="true"
                   >
                     <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 2.2" />
                   </svg>
+                  <span className={styles.srOnly}>{t('sourceReports.hasAttachment')}</span>
                 </div>
               ) : (
                 <div className={styles.noDocument}>{t('sourceReports.noDocument')}</div>
@@ -223,10 +221,18 @@ export function ReportInvoiceList({
               {unallocatedInvoices.map((invoice) => (
                 <div key={invoice.invoiceId} className={styles.unallocatedRow}>
                   <Tooltip content={t('sourceReports.unallocatedExplained')}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" />
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                    </svg>
                   </Tooltip>
                   <div className={styles.vendorName}>{invoice.vendorName}</div>
-                  <div className={styles.amount}>{formatCurrency(0)}</div>
+                  <div className={styles.amount}>{formatCurrency(invoice.invoiceAmount)}</div>
                 </div>
               ))}
             </div>
@@ -238,7 +244,8 @@ export function ReportInvoiceList({
       <SelectionActionBar
         countLabel={t('sourceReports.selectedCount', {
           count: selectedCount,
-          total: formatCurrency(runningTotal),
+          totalCount: allocatedInvoices.length,
+          totalAmount: formatCurrency(runningTotal),
         })}
         clearLabel={t('sourceReports.resetSelection')}
         onClear={() => onToggleAll(false)}

@@ -11,6 +11,24 @@
  * `npx tsc -p client/tsconfig.json --noEmit`: TS2322 / TS2739). Both were fixed in production
  * during this same QA session (verified by re-reading the file and re-running these tests) — the
  * two tests below now assert the corrected, accessible behavior directly.
+ *
+ * FIXED (frontend fix spec item 3 — refund sign contract): the server now returns a NEGATIVE
+ * allocatedAmount for refund-adjustment lines (invoiceAmount stays positive), and the component
+ * no longer branches on lineKind when summing — `runningTotal` is an unconditional
+ * `sum + inv.allocatedAmount`. Refund fixtures below use negative allocatedAmount accordingly.
+ *
+ * FIXED (frontend fix spec item 8): `sourceReports.selectedCount` is interpolated with
+ * `{ count, totalCount, totalAmount }` (previously `{ total }`) — assertions matching against the
+ * JSON-stringified t() call args below match on the `"totalAmount":` key, not `"total":`.
+ *
+ * FIXED (frontend fix spec item 12): the split badge now reads the server's `invoice.isSplit`
+ * field directly instead of deriving it locally from `allocatedAmount < invoiceAmount` — fixtures
+ * for the split-badge-gating tests set `isSplit` explicitly rather than relying on amount deltas.
+ *
+ * FIXED (UX fix, frontend fix spec item 12 attachment column): the "has attachment" indicator's
+ * accessible text moved from an `aria-label` on the `.paperclip` div to a visually-hidden
+ * (`.srOnly`) `<span>` sibling of the paperclip SVG — it's asserted via `getByText`, not
+ * `getByLabelText` (a plain, non-form `<div>` has no label association for RTL's label query).
  */
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, jest, beforeAll } from '@jest/globals';
@@ -256,7 +274,7 @@ describe('ReportInvoiceList', () => {
   });
 
   describe('running total (refund netting)', () => {
-    it('sums allocatedAmount for non-excluded, non-refund invoice lines', () => {
+    it('sums allocatedAmount for non-excluded invoice lines', () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 300 }),
         makeInvoice({ invoiceId: 'inv-2', allocatedAmount: 200 }),
@@ -270,16 +288,16 @@ describe('ReportInvoiceList', () => {
           t={t}
         />,
       );
-      expect(screen.getByText(/"total":"€500\.00"/)).toBeInTheDocument();
+      expect(screen.getByText(/"totalAmount":"€500\.00"/)).toBeInTheDocument();
     });
 
-    it('subtracts refund-adjustment allocatedAmount from the running total', () => {
+    it('nets a refund-adjustment line into the running total via its already-negative allocatedAmount (unconditional sum, no lineKind branch)', () => {
       const report = makeReport([
         makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 300 }),
         makeInvoice({
           invoiceId: 'inv-2',
           lineKind: 'refund-adjustment',
-          allocatedAmount: 100,
+          allocatedAmount: -100,
           invoiceAmount: 100,
         }),
       ]);
@@ -292,8 +310,8 @@ describe('ReportInvoiceList', () => {
           t={t}
         />,
       );
-      // 300 - 100 = 200
-      expect(screen.getByText(/"total":"€200\.00"/)).toBeInTheDocument();
+      // 300 + (-100) = 200
+      expect(screen.getByText(/"totalAmount":"€200\.00"/)).toBeInTheDocument();
     });
 
     it('excluding a refund-adjustment row INCREASES the running total (sign behavior)', () => {
@@ -302,7 +320,7 @@ describe('ReportInvoiceList', () => {
         makeInvoice({
           invoiceId: 'inv-refund',
           lineKind: 'refund-adjustment',
-          allocatedAmount: 100,
+          allocatedAmount: -100,
           invoiceAmount: 100,
         }),
       ]);
@@ -316,10 +334,10 @@ describe('ReportInvoiceList', () => {
           t={t}
         />,
       );
-      // Both included: 300 - 100 = 200.
-      expect(screen.getByText(/"total":"€200\.00"/)).toBeInTheDocument();
+      // Both included: 300 + (-100) = 200.
+      expect(screen.getByText(/"totalAmount":"€200\.00"/)).toBeInTheDocument();
 
-      // Excluding the refund row removes the subtraction: 300 - 0 = 300 (an INCREASE).
+      // Excluding the refund row removes its negative contribution: 300 + 0 = 300 (an INCREASE).
       rerender(
         <ReportInvoiceList
           report={report}
@@ -329,14 +347,19 @@ describe('ReportInvoiceList', () => {
           t={t}
         />,
       );
-      expect(screen.getByText(/"total":"€300\.00"/)).toBeInTheDocument();
+      expect(screen.getByText(/"totalAmount":"€300\.00"/)).toBeInTheDocument();
     });
   });
 
-  describe('split badge gating', () => {
-    it('shows a split badge when lineKind is "invoice" and allocatedAmount < invoiceAmount', () => {
+  describe('split badge gating (server-driven isSplit, not a locally-derived amount comparison)', () => {
+    it('shows a split badge when isSplit is true', () => {
       const report = makeReport([
-        makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 400, invoiceAmount: 1000 }),
+        makeInvoice({
+          invoiceId: 'inv-1',
+          isSplit: true,
+          allocatedAmount: 400,
+          invoiceAmount: 1000,
+        }),
       ]);
       render(
         <ReportInvoiceList
@@ -350,29 +373,15 @@ describe('ReportInvoiceList', () => {
       expect(screen.getByText(/sourceReports\.splitBadge/)).toBeInTheDocument();
     });
 
-    it('does NOT show a split badge when fully allocated (allocatedAmount === invoiceAmount)', () => {
-      const report = makeReport([
-        makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 1000, invoiceAmount: 1000 }),
-      ]);
-      render(
-        <ReportInvoiceList
-          report={report}
-          excludedInvoiceIds={new Set()}
-          onToggle={jest.fn()}
-          onToggleAll={jest.fn()}
-          t={t}
-        />,
-      );
-      expect(screen.queryByText(/sourceReports\.splitBadge/)).not.toBeInTheDocument();
-    });
-
-    it('does NOT show a split badge for a refund-adjustment line, even if amounts differ from a hypothetical total', () => {
+    it('does NOT show a split badge when isSplit is false, even if allocatedAmount < invoiceAmount', () => {
+      // isSplit is now taken verbatim from the server, not re-derived from an amount comparison —
+      // an amount delta alone must not conjure a badge.
       const report = makeReport([
         makeInvoice({
-          invoiceId: 'inv-refund',
-          lineKind: 'refund-adjustment',
-          allocatedAmount: 50,
-          invoiceAmount: 100,
+          invoiceId: 'inv-1',
+          isSplit: false,
+          allocatedAmount: 400,
+          invoiceAmount: 1000,
         }),
       ]);
       render(
@@ -386,10 +395,55 @@ describe('ReportInvoiceList', () => {
       );
       expect(screen.queryByText(/sourceReports\.splitBadge/)).not.toBeInTheDocument();
     });
+
+    it('does NOT show a split badge when fully allocated (isSplit false, allocatedAmount === invoiceAmount)', () => {
+      const report = makeReport([
+        makeInvoice({
+          invoiceId: 'inv-1',
+          isSplit: false,
+          allocatedAmount: 1000,
+          invoiceAmount: 1000,
+        }),
+      ]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      expect(screen.queryByText(/sourceReports\.splitBadge/)).not.toBeInTheDocument();
+    });
+
+    it('shows a split badge for a refund-adjustment line when the server marks it isSplit', () => {
+      // isSplit is now an independent server-provided field, not gated on lineKind — a
+      // refund-adjustment row can in principle also be flagged split.
+      const report = makeReport([
+        makeInvoice({
+          invoiceId: 'inv-refund',
+          lineKind: 'refund-adjustment',
+          isSplit: true,
+          allocatedAmount: -50,
+          invoiceAmount: 100,
+        }),
+      ]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      expect(screen.getByText(/sourceReports\.splitBadge/)).toBeInTheDocument();
+    });
   });
 
   describe('paperclip / no-document indicator', () => {
-    it('shows a paperclip indicator when the invoice has at least one document', () => {
+    it('shows a paperclip indicator (with a visually-hidden accessible label) when the invoice has at least one document', () => {
       const report = makeReport([
         makeInvoice({
           invoiceId: 'inv-1',
@@ -407,7 +461,10 @@ describe('ReportInvoiceList', () => {
           t={t}
         />,
       );
-      expect(screen.getByLabelText('sourceReports.hasAttachment')).toBeInTheDocument();
+      // The accessible label lives in a visually-hidden (.srOnly) <span> sibling of the paperclip
+      // SVG, not an aria-label on the wrapping <div> — getByText finds it directly.
+      expect(screen.getByText('sourceReports.hasAttachment')).toBeInTheDocument();
+      expect(screen.queryByText('sourceReports.noDocument')).not.toBeInTheDocument();
     });
 
     it('shows "no document" text when the invoice has zero documents', () => {
@@ -421,6 +478,55 @@ describe('ReportInvoiceList', () => {
           t={t}
         />,
       );
+      expect(screen.getByText('sourceReports.noDocument')).toBeInTheDocument();
+      expect(screen.queryByText('sourceReports.hasAttachment')).not.toBeInTheDocument();
+    });
+
+    it('renders the split badge ALONGSIDE the attachment indicator, not instead of it — both coexist on a split invoice with a document', () => {
+      const report = makeReport([
+        makeInvoice({
+          invoiceId: 'inv-1',
+          isSplit: true,
+          allocatedAmount: 400,
+          invoiceAmount: 1000,
+          documents: [
+            { documentId: 1, archiveSerialNumber: null, title: null, attachmentType: null },
+          ],
+        }),
+      ]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      expect(screen.getByText(/sourceReports\.splitBadge/)).toBeInTheDocument();
+      expect(screen.getByText('sourceReports.hasAttachment')).toBeInTheDocument();
+    });
+
+    it('renders the split badge alongside "no document" when a split invoice has no attachments', () => {
+      const report = makeReport([
+        makeInvoice({
+          invoiceId: 'inv-1',
+          isSplit: true,
+          allocatedAmount: 400,
+          invoiceAmount: 1000,
+          documents: [],
+        }),
+      ]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      expect(screen.getByText(/sourceReports\.splitBadge/)).toBeInTheDocument();
       expect(screen.getByText('sourceReports.noDocument')).toBeInTheDocument();
     });
   });
@@ -488,7 +594,7 @@ describe('ReportInvoiceList', () => {
           t={t}
         />,
       );
-      expect(screen.getByText(/"count":1.*"total":"€300\.00"/)).toBeInTheDocument();
+      expect(screen.getByText(/"count":1.*"totalAmount":"€300\.00"/)).toBeInTheDocument();
     });
   });
 

@@ -1,10 +1,94 @@
 ---
 name: story-1879-report-wizard-frontend
-description: Story #1879 bank report wizard frontend testing — concurrent-modification handling (production files edited by another process mid-session), jsdom Blob/URL polyfill gaps, i18next dot-vs-colon cross-namespace bug family (4 rounds of fix/reverify), ESM ts-jest jest.spyOn immutability, en/de i18n parity gaps flagged for translator. Round 5: CRITICAL loader.ts bug found (dynamic-import namespace object is non-extensible, pdfMake.vfs assignment throws — whole PDF feature broken against real pdfmake package), WizardStepper dual-tree (CSS-only responsive) test rewrite pattern. Round 6: namespace-object bug fixed (pdfMakeModule.default), but a NEW, still-open blocker found underneath it — pdfMake.fonts never registers 'Helvetica', so getBlob() rejects on every real PDF generation.
+description: Story #1879 bank report wizard frontend testing — concurrent-modification handling (production files edited by another process mid-session), jsdom Blob/URL polyfill gaps, i18next dot-vs-colon cross-namespace bug family (4 rounds of fix/reverify), ESM ts-jest jest.spyOn immutability, en/de i18n parity gaps flagged for translator. Round 5: CRITICAL loader.ts bug found (dynamic-import namespace object is non-extensible, pdfMake.vfs assignment throws — whole PDF feature broken against real pdfmake package), WizardStepper dual-tree (CSS-only responsive) test rewrite pattern. Round 6: namespace-object bug fixed (pdfMakeModule.default), but a NEW, still-open blocker found underneath it — pdfMake.fonts never registers 'Helvetica', so getBlob() rejects on every real PDF generation. Round 7 (PR #1887 QA fix spec): vfs/font blocker resolved via real addVirtualFileSystem()/addFonts() API (pdfMake.virtualfs.existsSync is the correct probe, not .vfs); NEW realRender.test.ts added; CRITICAL still-open bug found — ReportWizardPage's regeneration effect has `previewBlob` in its own dependency array, causing an infinite regeneration loop in real usage (confirmed via standalone repro: call count 1→3→7 within 3s when generateReportPdf returns a fresh Blob per call, which it always does in production).
 
 metadata:
   type: project
 ---
+
+## Round 7 (2026-07-30, PR #1887 QA fix spec — 6 QA items): vfs/font blocker resolved, but a real infinite-loop bug found in ReportWizardPage
+
+Frontend landed all 17 items from the fix spec, including the loader.ts rewrite to the real
+pdfmake@0.3.11 public API: `pdfMake.addVirtualFileSystem(vfsFontMap)` +
+`pdfMake.addFonts({ Roboto: {...} })` (no `.vfs =` assignment — that setter never existed on this
+version; the round-6 "Helvetica never registered" blocker is also gone, merge.ts now declares
+`font: 'Roboto'` throughout). Confirmed for real via a standalone node script: `addVirtualFileSystem`
+populates a module-level `VirtualFileSystem` singleton exposed as `pdfMake.virtualfs`
+(`node_modules/pdfmake/build/pdfmake.js` — `class pdfmake { constructor() { this.virtualfs =
+virtual_fs['default']; } }`), so `pdfMake.virtualfs.existsSync('Roboto-Regular.ttf')` is the
+correct probe — not `Object.prototype.hasOwnProperty.call(pdfMake, 'vfs')` (never existed) and not
+a camelCase `virtualFileSystem` (it's lowercase `virtualfs`). Rewrote loader.test.ts accordingly,
+added a dedicated bold-text (`Roboto-Medium.ttf`) real-getBlob test per the QA spec.
+
+Rewrote overviewPdf.test.ts and coverLetterPdf.test.ts in full — both builders now take an
+optional `formatters: Formatters` param instead of importing module-level `formatCurrencyForPdf`/
+`formatDateForPdf` from shared.ts (those two + `LIGHT_SOURCE_PALETTE` were deleted from shared.ts
+entirely — shared.test.ts now only covers `REFUND_TEXT_COLOR`/`buildPageHeader`/`buildPageFooter`/
+`TABLE_LAYOUT`). overviewPdf.ts's footnote/marker model changed shape: `*` markers are SKIP-only,
+`†` markers are SPLIT-only and now unconditional per `isSplit` row (previously implicitly gated on
+having an appendix number) — the two can concatenate on one cell (`*1†1`). The grand total row now
+renders a passed-in `includedTotal` param (computed once in merge.ts from included, signed
+`allocatedAmount`s) instead of re-deriving from `report.totalAmount`. Refund-adjustment
+`allocatedAmount` now arrives NEGATIVE from the server (invoiceAmount stays positive) — no sign
+negation anywhere in the builders or in ReportInvoiceList.tsx's running total (unconditional sum,
+no `lineKind` branch). `ReportInvoiceList.test.tsx`'s `sourceReports.selectedCount` interpolation
+key changed from `{ total }` to `{ totalAmount }` — old tests asserting `/"total":"..."/ ` never
+matched the real JSON (`"totalAmount":...`), a bug independent of the sign-convention rewrite; grep
+for `"total":` vs `"totalAmount":` before reusing this pattern elsewhere. Split-badge gating now
+reads server `invoice.isSplit` directly (no local `allocatedAmount < invoiceAmount` derivation) —
+rewrote the gating tests to drive `isSplit` explicitly and added a badge+attachment-indicator
+coexistence test (they render side by side, not as alternatives). The paperclip "has attachment"
+label moved from an `aria-label` on the wrapping `<div>` to a visually-hidden `.srOnly` `<span>`
+sibling of the SVG — `getByLabelText` never matches a non-form div; use `getByText` on the sr-only
+span's translated text instead.
+
+`merge.test.ts`'s `SkippedDocument` fixtures needed `vendorName`/`invoiceNumber` added to every
+strict `toEqual` assertion (the type gained these fields — `expect.objectContaining` calls were
+already forward-compatible, only bare `toEqual` literals broke). Found and closed a genuine
+branch-coverage gap here too: the step-4 embed-loop's catch block (previously silent, now pushes a
+skip entry per QA item 11) had zero test coverage because no existing fixture made step-1
+validation succeed while step-4's own `copyPages` call failed — added a dedicated test sequencing
+`mockCopyPages`. Also added a 3-document-per-invoice test (1 valid + 2 invalid) to cover the
+genuinely-reachable "two skip entries share one invoiceId" and "step-4 `!bytes` continue" branches;
+left the `invoice.documents?.length` / `invoice.documents || []` defensive branches uncovered on
+purpose — `SourceReportInvoice.documents` is a non-optional `SourceReportDocument[]` in the shared
+type, so the "undefined documents" branch is unreachable by design (same pattern as several other
+files noted elsewhere in this memory file).
+
+**NEW realRender.test.ts** (QA item 3): fully unmocked end-to-end test — real pdfmake/pdf-lib, a
+real `i18next.createInstance()` loaded with the actual `en`/`de` `budget.json` bundles (not the app
+singleton, which needs `localStorage`/`navigator`), and real `formatCurrency`/`formatDate` bound
+per-locale. Only `global.fetch` is stubbed (jsdom has no network), serving a real pdf-lib-generated
+PDF for one document and a 404 for another. Needed the same `Blob.prototype.arrayBuffer` FileReader
+polyfill merge.test.ts already documents (jsdom's Blob lacks `.arrayBuffer()`). The "German 7-col
+width ≤515.28pt" check from the QA spec is NOT verifiable via pdfmake's public API — there is no
+documented way to introspect the layout engine's computed pixel widths for `'auto'` columns after
+`createPdf()`; flagged this explicitly in the test file's comments and settled for asserting the
+declared `widths` array contract (`'*'` first, `'auto'` rest) via a real German-locale
+`buildOverviewContent` call instead, per the QA spec's own "if metrics accessible (else flag)"
+allowance.
+
+**CRITICAL, still-open production bug found (not weakened, test left failing on purpose):**
+`ReportWizardPage.tsx`'s PDF-regeneration `useEffect` has `previewBlob` in its own dependency array
+and gates `isFirstGeneration` on `!previewBlob`. The very first successful generation calls
+`setPreviewBlob(result.blob)`, which is a NEW object reference from the caller's perspective in
+real usage (`generateReportPdf` always constructs a fresh `Blob`) — that state change re-fires the
+effect, `previewBlob` is now truthy so `isFirstGeneration` flips false, taking the *debounced
+regeneration* branch instead of doing nothing, producing yet another new Blob, repeating
+indefinitely. Confirmed via a standalone repro script (mock `generateReportPdf` returning
+`new Blob(...)` per call, real timers): call count grew 1 → 3 (at 1s) → 7 (at 3s) — genuinely
+unbounded, not just "one extra call". This directly contradicts frontend fix spec item 2 ("kill the
+regeneration loop") and item 2's claimed single-effect fix did NOT actually remove `previewBlob`
+from the deps array. The existing test suite's own `mockGenerateReportPdf.mockResolvedValue(...)`
+pattern (reusing ONE object literal across all calls) accidentally masks this in most tests, since
+React bails out of re-rendering when `setState` receives the *same* reference twice — only the
+dedicated `mockImplementation(async () => ({ blob: new Blob(...), ... }))` pattern (a fresh Blob
+per call, matching real behavior) reveals it. Wrote
+`'does not keep re-triggering generateReportPdf once settled (no runaway regeneration loop)'` in
+ReportWizardPage.test.tsx using that pattern; it is LEFT FAILING on purpose (asserts call count
+stays at 1) — this is a production defect for backend/frontend/dev-team-lead to fix (remove
+`previewBlob` from the effect's dependency array, or restructure the first-vs-subsequent-generation
+gate to not depend on the very state it sets), not a test to weaken.
 
 ## Round 6 (2026-07-30): namespace-object bug fixed, but a deeper font-registration blocker surfaced underneath
 
@@ -27,7 +111,7 @@ elsewhere referenced the callback shape, so this was the only change needed in t
 
 **NEW BLOCKER found this round (reported via test + memory, not fixed — production file, out of
 QA's edit scope)**: fixing the namespace-object bug was necessary but not sufficient — the whole
-report-PDF-generation feature is *still* completely non-functional against the real installed
+report-PDF-generation feature is _still_ completely non-functional against the real installed
 packages, for an unrelated reason one layer deeper:
 
 - `pdfmake@0.3.11`'s `pdfMake.fonts` defaults to `{ Roboto: {...} }` **only** (confirmed via
@@ -38,7 +122,7 @@ packages, for an unrelated reason one layer deeper:
   several `styles` entries use `bold: true` with that same family.
 - Because `'Helvetica'` was never registered in `pdfMake.fonts`, `await pdfDoc.getBlob()` — i.e.
   every real PDF render — rejects: `Error: Font 'Helvetica' in style 'normal' is not defined in
-  the font section of the document definition.`
+the font section of the document definition.`
 - **Important debugging gotcha**: `pdfMake.createPdf(docDefinition)` itself is lazy and does
   **not** throw synchronously — pdfmake only measures/renders (and looks up the font family) when
   `getBlob()`/`getBuffer()`/etc. is actually called. My first attempt at a repro test wrapped
@@ -46,7 +130,7 @@ packages, for an unrelated reason one layer deeper:
   **crashes the entire Jest worker child process** ("Jest worker encountered 4 child process
   exceptions, exceeding retry limit") because the real failure happens asynchronously inside
   `getBlob()`'s internal stream machinery, outside any synchronous try/catch. The fix: `await
-  expect(pdfDoc.getBlob()).rejects.toThrow(...)`, mirroring merge.ts's own call site exactly. If a
+expect(pdfDoc.getBlob()).rejects.toThrow(...)`, mirroring merge.ts's own call site exactly. If a
   test around real pdfmake usage kills the whole worker instead of just failing, suspect a
   synchronous-vs-lazy-async mismatch in the assertion, not a real crash bug.
 - This is independent of the still-open vfs-shape bug (`vfsModule_.default?.pdfMake?.vfs`
@@ -54,7 +138,7 @@ packages, for an unrelated reason one layer deeper:
   `.pdfMake` wrapper) — vfs only matters for embedded TTF fonts (Roboto), never referenced by this
   app; 'Helvetica' is meant to be one of pdfkit's standard-14 fonts, which pdfmake still requires
   an explicit `pdfMake.fonts.Helvetica = { normal: 'Helvetica', bold: 'Helvetica-Bold', italics:
-  'Helvetica-Oblique', bolditalics: 'Helvetica-BoldOblique' }`-style registration for, regardless
+'Helvetica-Oblique', bolditalics: 'Helvetica-BoldOblique' }`-style registration for, regardless
   of vfs.
 - Added a new `loader.test.ts` test (`'NEW BLOCKER (still open): ...'`) that reproduces this
   against the real package and documents the exact fix shape needed
@@ -382,14 +466,15 @@ all anymore. The OLD test file's `setDesktopViewport()`/`setMobileViewport()` he
 CSS Modules can't evaluate real media queries anyway, so there's no way to unit-test the actual
 show/hide (that's an E2E concern). Rewrote the file: merged the two `describe('desktop
 layout')`/`describe('mobile layout')` viewport-gated blocks into `describe('desktop nav/ol tree')`
-+ `describe('mobile summary tree')`, since both trees coexist always; removed now-false
-`.not.toBeInTheDocument()` assertions that assumed JS-conditional exclusivity between the trees.
-Also DROPPED the old `describe('BUG: focus management ...')` block entirely — WizardStepper no
-longer has ANY internal focus-ref logic (no `headingRef`/`useRef` at all); that responsibility
-moved up to `ReportWizardPage.tsx` itself (`stepHeadingsRef` array + `ref={...}` + `tabIndex={-1}`
-on each step's own `<h2>` + `requestAnimationFrame(() => heading.focus())`) — testing WizardStepper
-for a responsibility it no longer claims would be testing something that doesn't exist, not
-documenting a real gap.
+
+- `describe('mobile summary tree')`, since both trees coexist always; removed now-false
+  `.not.toBeInTheDocument()` assertions that assumed JS-conditional exclusivity between the trees.
+  Also DROPPED the old `describe('BUG: focus management ...')` block entirely — WizardStepper no
+  longer has ANY internal focus-ref logic (no `headingRef`/`useRef` at all); that responsibility
+  moved up to `ReportWizardPage.tsx` itself (`stepHeadingsRef` array + `ref={...}` + `tabIndex={-1}`
+  on each step's own `<h2>` + `requestAnimationFrame(() => heading.focus())`) — testing WizardStepper
+  for a responsibility it no longer claims would be testing something that doesn't exist, not
+  documenting a real gap.
 
 **Stale "BUG:"-prefixed tests reconfirmed FIXED and renamed** (2 in `ReportWizardPage.test.tsx`,
 both `sourceReports.claimFailed`/`uploadFailed` en keys now genuinely exist in `budget.json`, and

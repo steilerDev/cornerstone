@@ -3,7 +3,9 @@
  *
  * Covers: toggle defaults/wiring, disabled-with-title cover letter checkbox, action wiring per
  * use case (download always; claim-only mark-claimed/finish-without-marking; Paperless-gated
- * upload), claim-error banner, and the claim-success banner + "view invoices" link.
+ * upload), claim-error banner, the claim-success banner + "view invoices" link, and the
+ * hasError/hasBlob action-disabling gate (frontend fix spec item 13 — a failed regeneration
+ * invalidates the previous blob, so every action button must disable until a fresh one exists).
  */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
@@ -35,6 +37,8 @@ function baseProps() {
     onFinishWithoutMarking: jest.fn(),
     onUploadPaperless: jest.fn(),
     isSaving: false,
+    hasError: false,
+    hasBlob: true,
     t,
   };
 }
@@ -157,6 +161,79 @@ describe('Step4Options', () => {
     ).toBeDisabled();
   });
 
+  describe('hasError / hasBlob action gating (a failed regeneration invalidates the blob)', () => {
+    it('all actions are enabled by default (hasError: false, hasBlob: true)', () => {
+      renderStep4({
+        ...baseProps(),
+        useCase: 'claim',
+        paperlessStatus: {
+          configured: true,
+          reachable: true,
+          error: null,
+          paperlessUrl: null,
+          filterTag: null,
+        },
+      });
+      expect(screen.getByRole('button', { name: 'sourceReports.download' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: markClaimedName(3) })).toBeEnabled();
+      expect(
+        screen.getByRole('button', { name: 'sourceReports.finishWithoutMarking' }),
+      ).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'sourceReports.uploadPaperless' })).toBeEnabled();
+    });
+
+    it('disables every action when hasError is true, even though a stale blob still exists', () => {
+      renderStep4({
+        ...baseProps(),
+        useCase: 'claim',
+        hasError: true,
+        hasBlob: true,
+        paperlessStatus: {
+          configured: true,
+          reachable: true,
+          error: null,
+          paperlessUrl: null,
+          filterTag: null,
+        },
+      });
+      expect(screen.getByRole('button', { name: 'sourceReports.download' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: markClaimedName(3) })).toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: 'sourceReports.finishWithoutMarking' }),
+      ).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'sourceReports.uploadPaperless' })).toBeDisabled();
+    });
+
+    it('disables every action when hasBlob is false (no successful generation yet), even with no error', () => {
+      renderStep4({
+        ...baseProps(),
+        useCase: 'claim',
+        hasError: false,
+        hasBlob: false,
+        paperlessStatus: {
+          configured: true,
+          reachable: true,
+          error: null,
+          paperlessUrl: null,
+          filterTag: null,
+        },
+      });
+      expect(screen.getByRole('button', { name: 'sourceReports.download' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: markClaimedName(3) })).toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: 'sourceReports.finishWithoutMarking' }),
+      ).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'sourceReports.uploadPaperless' })).toBeDisabled();
+    });
+
+    it('a click on a disabled action (hasError true) does not invoke its handler', () => {
+      const onDownload = jest.fn();
+      renderStep4({ ...baseProps(), useCase: 'claim', hasError: true, onDownload });
+      fireEvent.click(screen.getByRole('button', { name: 'sourceReports.download' }));
+      expect(onDownload).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Paperless upload gating', () => {
     it('hides the Upload button when paperlessStatus is null', () => {
       renderStep4({ ...baseProps(), paperlessStatus: null });
@@ -259,6 +336,18 @@ describe('Step4Options', () => {
       renderStep4({ ...baseProps(), useCase: 'claim', claimSuccess: true, claimedCount: 5 });
       const link = screen.getByRole('link', { name: 'sourceReports.viewInvoices' });
       expect(link).toHaveAttribute('href', '/budget/invoices');
+    });
+
+    it('shows the distinct "finished without marking" success text instead of claimSuccess when finishedWithoutMarking is true', () => {
+      renderStep4({
+        ...baseProps(),
+        useCase: 'claim',
+        claimSuccess: true,
+        finishedWithoutMarking: true,
+        claimedCount: 5,
+      });
+      expect(screen.getByText('sourceReports.finishedWithoutMarkingSuccess')).toBeInTheDocument();
+      expect(screen.queryByText('sourceReports.claimSuccess::{"count":5}')).not.toBeInTheDocument();
     });
   });
 });

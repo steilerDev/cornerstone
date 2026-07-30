@@ -8,6 +8,7 @@ import type {
   SourceReportType,
   HouseholdSettings,
 } from '@cornerstone/shared';
+import type { Formatters } from '../formatters.js';
 import { loadPdfLibs } from './loader.js';
 import { buildPageHeader, buildPageFooter } from './shared.js';
 import { buildCoverLetterContent } from './coverLetterPdf.js';
@@ -22,6 +23,7 @@ export async function generateReportPdf(
   options: { attachDocuments: boolean; includeCoverLetter: boolean },
   household: HouseholdSettings | null,
   t: TFunction,
+  formatters?: Formatters,
 ): Promise<GeneratedReport> {
   const { pdfMake, PDFDocument } = await loadPdfLibs();
   const skippedDocuments: SkippedDocument[] = [];
@@ -47,6 +49,8 @@ export async function generateReportPdf(
               invoiceId: invoice.invoiceId,
               documentId: doc.documentId.toString(),
               reason: 'footnoteFetchFailed',
+              vendorName: invoice.vendorName,
+              invoiceNumber: invoice.invoiceNumber,
             });
             continue;
           }
@@ -65,6 +69,8 @@ export async function generateReportPdf(
               invoiceId: invoice.invoiceId,
               documentId: doc.documentId.toString(),
               reason: 'footnoteInvalidPdf',
+              vendorName: invoice.vendorName,
+              invoiceNumber: invoice.invoiceNumber,
             });
           }
         } catch {
@@ -72,6 +78,8 @@ export async function generateReportPdf(
             invoiceId: invoice.invoiceId,
             documentId: doc.documentId.toString(),
             reason: 'footnoteFetchFailed',
+            vendorName: invoice.vendorName,
+            invoiceNumber: invoice.invoiceNumber,
           });
         }
       }
@@ -87,10 +95,22 @@ export async function generateReportPdf(
     skippedByInvoice.get(skip.invoiceId)!.push(skip.reason);
   }
 
+  // Calculate included total (respects exclusions and sign)
+  const includedTotal = report.invoices
+    .filter((inv) => includedInvoiceIds.has(inv.invoiceId))
+    .reduce((sum, inv) => sum + inv.allocatedAmount, 0);
+
   const content: Content[] = [];
 
   if (options.includeCoverLetter) {
-    const coverLetter = buildCoverLetterContent(report, household, useCase, t);
+    const coverLetter = buildCoverLetterContent(
+      report,
+      household,
+      useCase,
+      t,
+      formatters,
+      includedTotal,
+    );
     content.push(...coverLetter);
   }
 
@@ -101,6 +121,8 @@ export async function generateReportPdf(
     skippedByInvoice,
     useCase,
     t,
+    formatters,
+    includedTotal,
   );
   content.push(...overview);
 
@@ -124,6 +146,9 @@ export async function generateReportPdf(
       lineHeight: 1.4,
     },
     styles: {
+      normal: {
+        fontSize: 11,
+      },
       title: {
         fontSize: 16,
         bold: true,
@@ -197,7 +222,14 @@ export async function generateReportPdf(
             finalDoc.addPage(page);
           });
         } catch {
-          // Skip failed documents
+          // Track failed documents as skipped
+          skippedDocuments.push({
+            invoiceId: invoice.invoiceId,
+            documentId: doc.documentId.toString(),
+            reason: 'footnoteInvalidPdf',
+            vendorName: invoice.vendorName,
+            invoiceNumber: invoice.invoiceNumber,
+          });
         }
       }
     }

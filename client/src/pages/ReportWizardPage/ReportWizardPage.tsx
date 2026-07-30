@@ -6,11 +6,13 @@ import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchHouseholdSettings } from '../../lib/settingsApi.js';
 import { getSourceReport, markInvoicesClaimed } from '../../lib/sourceReportsApi.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
+import { useFormatters } from '../../lib/formatters.js';
 import {
   generateReportPdf,
   downloadPdf,
   createPreviewUrl,
   uploadToPaperless,
+  type SkippedDocument,
 } from '../../lib/reportPdf/index.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -36,6 +38,7 @@ export function ReportWizardPage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { showToast } = useToast();
+  const formatters = useFormatters();
   const [searchParams] = useSearchParams();
 
   // Step navigation
@@ -78,7 +81,12 @@ export function ReportWizardPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [previewError, setPreviewError] = useState(false);
-  const [skippedDocuments, setSkippedDocuments] = useState<Array<any>>([]);
+  const [skippedDocuments, setSkippedDocuments] = useState<SkippedDocument[]>([]);
+
+  // Refs for PDF generation tracking
+  const previewUrlRef = useRef<string | null>(null);
+  const generationIdRef = useRef<number>(0);
+  const hasGeneratedRef = useRef(false);
 
   // Household settings
   const [household, setHousehold] = useState<HouseholdSettings | null>(null);
@@ -155,6 +163,7 @@ export function ReportWizardPage() {
         getSourceReport(useCase, sid)
           .then((r) => {
             setReport(r);
+            hasGeneratedRef.current = false;
             // Auto-enable cover letter based on source
             setIncludeCoverLetter(Boolean(r.source.contactAddress || r.source.reference));
             setReportStatus('ready');
@@ -168,13 +177,22 @@ export function ReportWizardPage() {
     [useCase],
   );
 
+  // Handle ?sourceId= query parameter deep link
+  useEffect(() => {
+    if (useCase && sourceIdFromQuery && !report) {
+      handleSourceChange(sourceIdFromQuery);
+    }
+  }, [useCase, sourceIdFromQuery, report, handleSourceChange]);
+
   // Regenerate PDF on options change (debounced)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const regeneratePdf = useCallback(async () => {
     // Allow regeneration if we have report+useCase (for retries after errors or option changes)
-    // Don't check shouldRegenerate here — that guard is only for debounced option changes
     if (!report || !useCase) return;
+
+    // Capture current generation ID to detect stale results
+    const myGenerationId = ++generationIdRef.current;
 
     setIsRegenerating(true);
     try {
@@ -191,88 +209,72 @@ export function ReportWizardPage() {
         { attachDocuments, includeCoverLetter },
         household,
         t,
+        formatters,
       );
 
+      // Bail if a newer generation has started
+      if (myGenerationId !== generationIdRef.current) return;
+
       // Revoke previous URL
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
       }
 
       setPreviewBlob(result.blob);
-      setPreviewUrl(createPreviewUrl(result.blob));
+      const newUrl = createPreviewUrl(result.blob);
+      setPreviewUrl(newUrl);
+      previewUrlRef.current = newUrl;
       setSkippedDocuments(result.skippedDocuments);
       setPreviewError(false);
     } catch (err) {
       console.error(err);
+      // Bail if a newer generation has started
+      if (myGenerationId !== generationIdRef.current) return;
+      setPreviewBlob(null);
       setPreviewUrl(null);
+      previewUrlRef.current = null;
       setPreviewError(true);
     } finally {
       setIsRegenerating(false);
     }
-  }, [
-    report,
-    useCase,
-    excludedInvoiceIds,
-    previewUrl,
-    attachDocuments,
-    includeCoverLetter,
-    household,
-    t,
-  ]);
+  }, [report, useCase, excludedInvoiceIds, attachDocuments, includeCoverLetter, household, t]);
 
-  // Initial PDF generation
+  // PDF generation: immediate on first load, debounced on option changes
   useEffect(() => {
-    if (report && !previewBlob && useCase && reportStatus === 'ready') {
-      const init = async () => {
-        setIsRegenerating(true);
-        try {
-          const included = new Set(
-            report.invoices
-              .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
-              .map((inv) => inv.invoiceId),
-          );
+    if (!report || !useCase || reportStatus !== 'ready') return;
 
-          const result = await generateReportPdf(
-            report,
-            included,
-            useCase,
-            { attachDocuments, includeCoverLetter },
-            household,
-            t,
-          );
+    const isFirstGeneration = !hasGeneratedRef.current;
 
-          setPreviewBlob(result.blob);
-          setPreviewUrl(createPreviewUrl(result.blob));
-          setSkippedDocuments(result.skippedDocuments);
-          setPreviewError(false);
-          setMaxReachedStep(4);
-        } catch (err) {
-          console.error(err);
-          setPreviewError(true);
-        } finally {
-          setIsRegenerating(false);
-        }
-      };
-      void init();
-    }
-    // eslint-disable-next-line @eslint-react/exhaustive-deps
-  }, [report, useCase, household, reportStatus]);
-
-  // Debounced regenerate on option changes
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    debounceTimerRef.current = setTimeout(() => {
+    if (isFirstGeneration) {
+      // Immediate generation for first PDF
+      hasGeneratedRef.current = true;
       void regeneratePdf();
-    }, 400);
-
-    return () => {
+      setMaxReachedStep(4);
+    } else {
+      // Debounced regeneration on option/exclusion changes
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-    };
-  }, [attachDocuments, includeCoverLetter, excludedInvoiceIds, regeneratePdf]);
+      debounceTimerRef.current = setTimeout(() => {
+        void regeneratePdf();
+      }, 400);
+
+      return () => {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+      };
+    }
+  }, [
+    report,
+    useCase,
+    reportStatus,
+    household,
+    attachDocuments,
+    includeCoverLetter,
+    excludedInvoiceIds,
+    regeneratePdf,
+  ]);
 
   // Handle claim
   const handleMarkClaimed = async () => {
@@ -296,6 +298,7 @@ export function ReportWizardPage() {
           try {
             const updated = await getSourceReport(useCase, sourceId);
             setReport(updated);
+            hasGeneratedRef.current = false;
             // Reset excluded to only include still-present invoices
             const stillPresent = new Set<string>();
             for (const id of excludedInvoiceIds) {
@@ -358,11 +361,11 @@ export function ReportWizardPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
       }
     };
-  }, [previewUrl]);
+  }, []);
 
   // Move focus to the active step panel's heading on step change
   useEffect(() => {
@@ -385,7 +388,7 @@ export function ReportWizardPage() {
 
   return (
     <PageLayout title={t('sourceReports.title')}>
-      <SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />
+      <SubNav tabs={BUDGET_TABS} ariaLabel={t('sourceReports.subNavAriaLabel')} />
 
       <WizardStepper
         steps={steps}
@@ -574,6 +577,8 @@ export function ReportWizardPage() {
                 }}
                 onUploadPaperless={handleUploadPaperless}
                 isSaving={isRegenerating}
+                hasError={previewError}
+                hasBlob={!!previewBlob}
                 t={t}
               />
 
@@ -595,6 +600,7 @@ export function ReportWizardPage() {
               <div className={styles.skippedNote}>
                 {skippedDocuments.map((doc) => (
                   <div key={`${doc.invoiceId}-${doc.documentId}`} className={styles.skippedItem}>
+                    {doc.vendorName} ({doc.invoiceNumber ?? '—'}) —{' '}
                     {t(`sourceReports.table.${doc.reason}`)}
                   </div>
                 ))}

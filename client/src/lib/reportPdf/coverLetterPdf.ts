@@ -4,15 +4,19 @@
 import type { TFunction } from 'i18next';
 import type { Content } from 'pdfmake/build/pdfmake';
 import type { SourceReportResponse, HouseholdSettings } from '@cornerstone/shared';
-import { formatDateForPdf } from './shared.js';
+import type { Formatters } from '../formatters.js';
 
 export function buildCoverLetterContent(
   report: SourceReportResponse,
   household: HouseholdSettings | null,
   useCase: string,
   t: TFunction,
+  formatters?: Formatters,
+  includedTotal?: number,
 ): Content[] {
-  const today = formatDateForPdf(new Date());
+  const today =
+    formatters?.formatDate(new Date().toISOString().slice(0, 10)) ??
+    new Date().toISOString().slice(0, 10);
 
   const content: Content[] = [];
 
@@ -61,7 +65,8 @@ export function buildCoverLetterContent(
 
   // Body text
   const bodyKey = `sourceReports.coverLetter.body.${useCase}`;
-  const body = t(bodyKey, { total: report.totalAmount });
+  const total = formatters?.formatCurrency(includedTotal ?? 0) ?? '';
+  const body = t(bodyKey, { total });
   content.push({
     text: body,
     style: 'normal',

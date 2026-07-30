@@ -16,4 +16,6 @@ export interface SkippedDocument {
   invoiceId: string;
   documentId: string;
   reason: 'footnoteFetchFailed' | 'footnoteInvalidPdf';
+  vendorName: string;
+  invoiceNumber: string | null;
 }

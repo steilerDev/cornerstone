@@ -56,9 +56,14 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 
 const mockGenerateReportPdf = jest.fn<typeof ReportPdfIndexTypes.generateReportPdf>();
 const mockDownloadPdf = jest.fn<typeof ReportPdfIndexTypes.downloadPdf>();
+// Returns a UNIQUE URL per call by default (matching real URL.createObjectURL behavior) so that
+// tests asserting "the previous URL was revoked, a NEW one was assigned" can't pass by accident
+// on a repeated fixed string. Tests that need a specific sequence still override with
+// mockReturnValueOnce/mockImplementationOnce.
+let previewUrlCallCount = 0;
 const mockCreatePreviewUrl = jest
   .fn<typeof ReportPdfIndexTypes.createPreviewUrl>()
-  .mockReturnValue('blob:preview-url');
+  .mockImplementation(() => `blob:preview-url-${++previewUrlCallCount}`);
 const mockUploadToPaperless = jest.fn<typeof ReportPdfIndexTypes.uploadToPaperless>();
 jest.unstable_mockModule('../../lib/reportPdf/index.js', () => ({
   generateReportPdf: mockGenerateReportPdf,
@@ -90,6 +95,8 @@ let savedRevokeObjectURL: typeof URL.revokeObjectURL;
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  previewUrlCallCount = 0;
+  mockCreatePreviewUrl.mockImplementation(() => `blob:preview-url-${++previewUrlCallCount}`);
   ({ ReportWizardPage } = await import('./ReportWizardPage.js'));
 
   mockFetchHouseholdSettings.mockResolvedValue({ householdName: null, householdAddress: null });
@@ -313,6 +320,38 @@ describe('ReportWizardPage', () => {
     });
   });
 
+  it(
+    'the ?sourceId= deep link fires handleSourceChange automatically and carries all the way ' +
+      'through to a loaded step-3 report, without the user manually re-selecting the source',
+    async () => {
+      // Extends the prefill test above (which only asserts the step-2 radio is pre-checked) to
+      // confirm the ?sourceId= effect (`if (useCase && sourceIdFromQuery && !report)
+      // handleSourceChange(sourceIdFromQuery)`) actually fetches and renders the report — not
+      // just pre-selects the radio button.
+      mockFetchBudgetSources.mockResolvedValue({
+        budgetSources: [makeSource({ id: 'src-42', name: 'Prefilled Source' })],
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage(['/budget/reports?sourceId=src-42']);
+
+      await waitFor(() => screen.getByRole('radiogroup'));
+      const user = userEvent.setup();
+      await user.click(screen.getAllByRole('radio')[1]!); // pick a use case
+      await clickNext(user); // step 1 -> 2
+
+      await waitFor(() => {
+        const sourceRadios = screen.getAllByRole('radio') as HTMLInputElement[];
+        expect(sourceRadios.some((r) => r.checked && r.value === 'src-42')).toBe(true);
+      });
+      await clickNext(user); // step 2 -> 3
+
+      await waitFor(() => {
+        expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-42');
+      });
+      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+    },
+  );
+
   it('fetches the report when a source is selected on step 2', async () => {
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
     mockGetSourceReport.mockResolvedValue(makeReport());
@@ -354,6 +393,87 @@ describe('ReportWizardPage', () => {
       expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1);
     });
     expect(mockCreatePreviewUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls generateReportPdf with the page's formatters object as the 7th (final) argument", async () => {
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+    mockGetSourceReport.mockResolvedValue(makeReport());
+    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
+
+    renderPage();
+    const user = userEvent.setup();
+    await goToStep4(user);
+
+    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+    const callArgs = mockGenerateReportPdf.mock.calls[0]!;
+    expect(callArgs).toHaveLength(7);
+    // Matches the useFormatters() mock configured at the top of this file.
+    expect(callArgs[6]).toEqual(
+      expect.objectContaining({
+        formatCurrency: expect.any(Function),
+        formatDate: expect.any(Function),
+      }),
+    );
+  });
+
+  it('does not keep re-triggering generateReportPdf once settled (no runaway regeneration loop)', async () => {
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+    mockGetSourceReport.mockResolvedValue(makeReport());
+    // A FRESH Blob object per call — matching real generateReportPdf's behavior (it always
+    // constructs a new Blob). A single shared mockResolvedValue() object would mask this bug: the
+    // regeneration effect depends on `previewBlob` itself, so if setPreviewBlob() is ever called
+    // with a NEW object reference (as it is in real usage), the effect's dependency array sees a
+    // change and re-runs — and since `previewBlob` is now truthy, `isFirstGeneration` flips to
+    // false, taking the debounced-regeneration branch instead of doing nothing. That branch then
+    // produces yet another new Blob, repeating indefinitely.
+    mockGenerateReportPdf.mockImplementation(async () => ({
+      blob: new Blob(['pdf']),
+      skippedDocuments: [],
+    }));
+
+    renderPage();
+    const user = userEvent.setup();
+    await goToStep4(user);
+    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+    // Idle window spanning several 400ms debounce cycles — if the regeneration effect re-triggers
+    // itself off its own `previewBlob` write (see comment above), the call count keeps climbing
+    // instead of settling. It must stay pinned at 1.
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+    expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables Step4 actions after a failed regeneration invalidates the previous blob', async () => {
+    mockFetchBudgetSources.mockResolvedValue({
+      budgetSources: [makeSource({ contactAddress: '123 Bank St' })],
+    });
+    mockGetSourceReport.mockResolvedValue(makeReport());
+    mockGenerateReportPdf
+      .mockResolvedValueOnce({ blob: new Blob(['pdf']), skippedDocuments: [] })
+      .mockRejectedValueOnce(new Error('regen boom'));
+
+    renderPage();
+    const user = userEvent.setup();
+    await goToStep4(user);
+    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
+
+    const coverLetterCheckbox = screen.getByLabelText('Include cover letter');
+    await user.click(coverLetterCheckbox);
+
+    await waitFor(
+      () => {
+        expect(screen.getAllByText('PDF generation failed').length).toBeGreaterThan(0);
+      },
+      { timeout: 2000 },
+    );
+
+    // hasError is now true AND hasBlob is false (the catch clears previewBlob), so every action
+    // must be disabled, not just visually flagged by the error banner.
+    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Finish without marking' })).toBeDisabled();
   });
 
   it('revokes the previous preview URL before assigning a new one when regenerating (option toggle)', async () => {
@@ -843,13 +963,19 @@ describe('ReportWizardPage', () => {
     expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
   });
 
-  it('shows a skipped-document note when generateReportPdf reports skipped documents', async () => {
+  it('shows a skipped-document note (with vendor/invoice-number attribution) when generateReportPdf reports skipped documents', async () => {
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
     mockGetSourceReport.mockResolvedValue(makeReport());
     mockGenerateReportPdf.mockResolvedValue({
       blob: new Blob(['pdf']),
       skippedDocuments: [
-        { invoiceId: 'inv-1', documentId: 'doc-1', reason: 'footnoteFetchFailed' },
+        {
+          invoiceId: 'inv-1',
+          documentId: 'doc-1',
+          reason: 'footnoteFetchFailed',
+          vendorName: 'ACME',
+          invoiceNumber: 'INV-001',
+        },
       ],
     });
 
@@ -858,7 +984,9 @@ describe('ReportWizardPage', () => {
     await goToStep4(user);
 
     await waitFor(() => {
-      expect(screen.getByText('Document could not be retrieved')).toBeInTheDocument();
+      expect(
+        screen.getByText('ACME (INV-001) — Document could not be retrieved'),
+      ).toBeInTheDocument();
     });
   });
 
