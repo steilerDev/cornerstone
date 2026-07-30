@@ -92,12 +92,12 @@ per-invoice sum (grouped after the fact). Got depositAggregateUtils.ts to 100%/9
   state (not reactively), opening the modal too early captures a stale (empty) `sourceStats` and
   the default silently comes out wrong — intermittently, not on every run. Fixed by adding a
   `flushBudgetDataLoad()` helper: `await act(async () => { await Promise.resolve(); await
-  Promise.resolve(); await Promise.resolve(); });` called AFTER the mock-called `waitFor`, before
+Promise.resolve(); await Promise.resolve(); });` called AFTER the mock-called `waitFor`, before
   opening the modal. Use this pattern (extra microtask-flushing `act()`) whenever a component reads
   async-loaded state synchronously inside a click handler.
 - `OverflowMenu`'s trigger button accessible name is exactly `triggerAriaLabel` (no literal "menu"
   substring) — for `InvoiceDepositsSection`'s deposit row menu it resolves to `"Deposit actions for
-  {description-or-entryTypeLabel}"` (e.g. `"Deposit actions for Deposit"` for a null-description
+{description-or-entryTypeLabel}"` (e.g. `"Deposit actions for Deposit"` for a null-description
   deposit-type deposit). Don't guess `/menu/i` — check the real i18n string and the component's
   `triggerAriaLabel={...}` expression first.
 - Real i18n (not a fake `t`) is used in `ReportWizardPage.test.tsx` — cross-referenced exact English
@@ -110,9 +110,8 @@ per-invoice sum (grouped after the fact). Got depositAggregateUtils.ts to 100%/9
   `container.querySelector('[aria-controls="invoice-expand-${id}"]')` instead of
   `getByRole('button', {name})`. Worth a minor a11y note if asked, not filed as a blocking bug
   (spec's Compliance section didn't explicitly require an aria-label on this element).
-- `formatCurrency` test mocks in this codebase are typically `(n) => \`€${n.toFixed(2)}...\`` —
-  for a negative number this produces `"€-75.00"` (minus AFTER the currency symbol), not
-  `"-€75.00"`. Don't assume sign placement; check the mock's actual `toFixed` composition.
+- `formatCurrency` test mocks in this codebase are typically `(n) => \`€${n.toFixed(2)}...\``—
+for a negative number this produces`"€-75.00"`(minus AFTER the currency symbol), not`"-€75.00"`. Don't assume sign placement; check the mock's actual `toFixed` composition.
 - Migration 0044 test followed the established `0043_app_settings.test.ts` dynamic
   pre-migration-file-list pattern exactly (see `test-infra-reference.md`) — added FK-specific
   cases (invalid FK → `FOREIGN KEY constraint failed`, `ON DELETE SET NULL` → row survives with
@@ -121,22 +120,22 @@ per-invoice sum (grouped after the fact). Got depositAggregateUtils.ts to 100%/9
 
 ## Coverage achieved (final, all touched files)
 
-| File | Stmts | Branch | New tests |
-|---|---|---|---|
-| `depositAggregateUtils.ts` | 100% | 95.33% | +59 (106 total in file) |
-| migration `0044...test.ts` (new) | n/a (SQL) | — | 8 |
-| `reportExclusions.ts` (new) | 100% | 100% | 12 |
-| `sourceReportService.ts` | 100% | 91.3% (defensive FK-guard branches only) | +12 (44 total, 1 known pre-existing fail) |
-| `budgetSourceService.ts` | modified fns (114-400) fully covered; file-wide 67% (huge pre-existing untested surface, out of scope) | — | +11 (172 total) |
-| `invoiceDepositService.ts` | 97.31% | 89.47% | +9 (90 total) |
-| `invoiceDeposits.ts` route | 85.71% (gaps are pre-existing `!request.user` guards) | 50% | +14 (41 total) |
-| `sourceReports.ts` route | n/a | — | +1 (15 total) |
-| `helmetPlugin.ts` | 100% | 100% | +2 (8 total) |
-| `ReportInvoiceList.tsx` | 100% | 92.77% | +26 (51 total) |
-| `ReportWizardPage.tsx` | 97.02% | 86.3% | +8 (41 total, 1 known pre-existing fail) |
-| `InvoiceDepositsSection.tsx` | 84.92% file-wide (new code 104-200/1007-1044 fully covered; gaps are pre-existing form-validation branches) | 80.39% | +19 (87 total) |
-| `SelectionActionBar.tsx` | 100% | 100% | +2 (9 total) |
-| Ripple fixture-only fixes (no new tests) | — | — | `invoiceDepositsApi.test.ts`, `reportPdf/{merge,overviewPdf,realRender}.test.ts` |
+| File                                     | Stmts                                                                                                       | Branch                                   | New tests                                                                        |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
+| `depositAggregateUtils.ts`               | 100%                                                                                                        | 95.33%                                   | +59 (106 total in file)                                                          |
+| migration `0044...test.ts` (new)         | n/a (SQL)                                                                                                   | —                                        | 8                                                                                |
+| `reportExclusions.ts` (new)              | 100%                                                                                                        | 100%                                     | 12                                                                               |
+| `sourceReportService.ts`                 | 100%                                                                                                        | 91.3% (defensive FK-guard branches only) | +12 (44 total, 1 known pre-existing fail)                                        |
+| `budgetSourceService.ts`                 | modified fns (114-400) fully covered; file-wide 67% (huge pre-existing untested surface, out of scope)      | —                                        | +11 (172 total)                                                                  |
+| `invoiceDepositService.ts`               | 97.31%                                                                                                      | 89.47%                                   | +9 (90 total)                                                                    |
+| `invoiceDeposits.ts` route               | 85.71% (gaps are pre-existing `!request.user` guards)                                                       | 50%                                      | +14 (41 total)                                                                   |
+| `sourceReports.ts` route                 | n/a                                                                                                         | —                                        | +1 (15 total)                                                                    |
+| `helmetPlugin.ts`                        | 100%                                                                                                        | 100%                                     | +2 (8 total)                                                                     |
+| `ReportInvoiceList.tsx`                  | 100%                                                                                                        | 92.77%                                   | +26 (51 total)                                                                   |
+| `ReportWizardPage.tsx`                   | 97.02%                                                                                                      | 86.3%                                    | +8 (41 total, 1 known pre-existing fail)                                         |
+| `InvoiceDepositsSection.tsx`             | 84.92% file-wide (new code 104-200/1007-1044 fully covered; gaps are pre-existing form-validation branches) | 80.39%                                   | +19 (87 total)                                                                   |
+| `SelectionActionBar.tsx`                 | 100%                                                                                                        | 100%                                     | +2 (9 total)                                                                     |
+| Ripple fixture-only fixes (no new tests) | —                                                                                                           | —                                        | `invoiceDepositsApi.test.ts`, `reportPdf/{merge,overviewPdf,realRender}.test.ts` |
 
 All server tsc (`--noEmit`) and client tsc (`--noEmit`) clean at session end. i18n parity
 (`i18n.parity.test.ts`) 46/46 green — translator had already landed full en/de parity for all new

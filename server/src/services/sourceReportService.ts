@@ -246,19 +246,33 @@ export async function getSourceReport(
   }
 
   // Step f: Compute isSplit for all report invoices in one query
-  // isSplit = true if invoice has budget lines referencing multiple different sources
+  // isSplit = true if invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits
   const reportInvoiceIds = Array.from(combinedContributions.keys());
+  const joinedInvoiceIds = sql.join(
+    reportInvoiceIds.map((id) => sql`${id}`),
+    sql`, `,
+  );
   const splitRows = db.all<{ invoice_id: string; source_count: number }>(
-    sql`SELECT ibl.invoice_id AS invoice_id,
-           COUNT(DISTINCT COALESCE(wib.budget_source_id, hib.budget_source_id)) AS source_count
-    FROM invoice_budget_lines ibl
-    LEFT JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
-    LEFT JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
-    WHERE ibl.invoice_id IN (${sql.join(
-      reportInvoiceIds.map((id) => sql`${id}`),
-      sql`, `,
-    )})
-    GROUP BY ibl.invoice_id`,
+    sql`SELECT split_data.invoice_id AS invoice_id,
+           COUNT(DISTINCT split_data.source_id) AS source_count
+    FROM (
+      SELECT ibl.invoice_id,
+             COALESCE(wib.budget_source_id, hib.budget_source_id) AS source_id
+      FROM invoice_budget_lines ibl
+      LEFT JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
+      LEFT JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
+      WHERE ibl.invoice_id IN (${joinedInvoiceIds})
+        AND COALESCE(wib.budget_source_id, hib.budget_source_id) IS NOT NULL
+
+      UNION
+
+      SELECT d.invoice_id,
+             d.budget_source_id AS source_id
+      FROM invoice_deposits d
+      WHERE d.invoice_id IN (${joinedInvoiceIds})
+        AND d.budget_source_id IS NOT NULL
+    ) AS split_data
+    GROUP BY split_data.invoice_id`,
   );
 
   const isSplitMap = new Map<string, boolean>();
@@ -427,7 +441,7 @@ export async function getSourceReport(
       invoiceAmount: metadata.invoiceAmount,
       allocatedAmount: roundedAmount,
       lineKind,
-      isSplit: isSplitMap.get(invoiceId) ?? false, // Line-derived: true iff invoice has lines from 2+ sources
+      isSplit: isSplitMap.get(invoiceId) ?? false, // true iff invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits
       documents,
       budgetLines: budgetLinesByInvoiceId.get(invoiceId) ?? [],
       deposits: depositsByInvoiceId.get(invoiceId) ?? [],

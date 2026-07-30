@@ -492,11 +492,19 @@ export function splitByDepositsExcludingTagged(
   const invoiceMap = new Map<string, { invoiceAmount: number; invoiceStatus: string }>();
   const depositsByInvoice = new Map<
     string,
-    Array<{ depositId: string; depositAmount: number; depositStatus: string; entryType: string }>
+    Array<{
+      depositId: string;
+      depositAmount: number;
+      depositStatus: string;
+      entryType: string;
+      isTagged: boolean;
+    }>
   >();
 
-  // Group rows by invoice and deduplicate deposits by depositId
-  // SKIP deposits with non-null budget_source_id
+  // Group rows by invoice and deduplicate deposits by depositId.
+  // Include ALL deposits (tagged or not), but mark tagged ones.
+  // Tagging affects which deposits are emitted in depositFractions (Rail A),
+  // but not the residual fraction denominator.
   for (const row of rows) {
     if (!invoiceMap.has(row.invoice_id)) {
       invoiceMap.set(row.invoice_id, {
@@ -504,12 +512,7 @@ export function splitByDepositsExcludingTagged(
         invoiceStatus: row.invoice_status,
       });
     }
-    if (
-      row.deposit_id !== null &&
-      row.deposit_amount !== null &&
-      row.deposit_status !== null &&
-      row.deposit_budget_source_id === null
-    ) {
+    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
       const deps = depositsByInvoice.get(row.invoice_id) ?? [];
       if (!deps.some((d) => d.depositId === row.deposit_id)) {
         deps.push({
@@ -517,13 +520,14 @@ export function splitByDepositsExcludingTagged(
           depositAmount: row.deposit_amount,
           depositStatus: row.deposit_status,
           entryType: row.deposit_entry_type ?? 'deposit',
+          isTagged: row.deposit_budget_source_id !== null,
         });
         depositsByInvoice.set(row.invoice_id, deps);
       }
     }
   }
 
-  // Compute splits for each invoice (same logic as splitByDeposits)
+  // Compute splits for each invoice (same residual logic as splitByDeposits)
   const result = new Map<string, InvoiceDepositSplit>();
   for (const [invoiceId, inv] of invoiceMap) {
     const deposits = depositsByInvoice.get(invoiceId) ?? [];
@@ -537,18 +541,25 @@ export function splitByDepositsExcludingTagged(
         depositFractions: [],
       });
     } else {
+      // Residual computation includes ALL deposits (tagged or not), excluding refund-type.
+      // This matches legacy splitByDeposits logic regardless of tagging.
       const totalDepositTypeAmount = deposits
         .filter((d) => d.entryType !== 'refund')
         .reduce((s, d) => s + d.depositAmount, 0);
       const residualFraction =
         Math.max(0, safeInvoiceAmount - totalDepositTypeAmount) / safeInvoiceAmount;
-      const depositFractions = deposits.map((d) => ({
-        depositStatus: d.depositStatus,
-        fraction:
-          d.entryType === 'refund'
-            ? -(d.depositAmount / safeInvoiceAmount)
-            : d.depositAmount / safeInvoiceAmount,
-      }));
+
+      // Only emit untagged deposits in depositFractions (Rail A).
+      // Tagged deposits are handled separately by Rail B (sumTaggedDepositContributions).
+      const depositFractions = deposits
+        .filter((d) => !d.isTagged)
+        .map((d) => ({
+          depositStatus: d.depositStatus,
+          fraction:
+            d.entryType === 'refund'
+              ? -(d.depositAmount / safeInvoiceAmount)
+              : d.depositAmount / safeInvoiceAmount,
+        }));
 
       result.set(invoiceId, {
         invoiceStatus: inv.invoiceStatus,

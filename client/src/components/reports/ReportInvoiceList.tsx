@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import type { TFunction } from 'i18next';
 import type { SourceReportResponse, InvoiceStatus } from '@cornerstone/shared';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
@@ -33,7 +34,8 @@ export function ReportInvoiceList({
 }: ReportInvoiceListProps) {
   const { formatCurrency, formatDate } = useFormatters();
   const [unallocatedExpanded, setUnallocatedExpanded] = useState(false);
-  const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<Set<string>>(new Set());
+  const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<Set<string>>(() => new Set());
+  const lastExpandedIdRef = useRef<string | null>(null);
   const expandPanelRefsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Invoice status badge variants
@@ -86,10 +88,13 @@ export function ReportInvoiceList({
   const toggleExpand = (invoiceId: string) => {
     setExpandedInvoiceIds((prev) => {
       const next = new Set(prev);
-      if (next.has(invoiceId)) {
+      const isCurrentlyOpen = next.has(invoiceId);
+      if (isCurrentlyOpen) {
         next.delete(invoiceId);
       } else {
         next.add(invoiceId);
+        // Only update lastExpandedIdRef when opening (not closing)
+        lastExpandedIdRef.current = invoiceId;
       }
       return next;
     });
@@ -102,16 +107,13 @@ export function ReportInvoiceList({
     }
   };
 
-  // Focus panel on expand
+  // Focus panel on genuine open transition (not on collapse)
   useEffect(() => {
-    if (expandedInvoiceIds.size > 0) {
-      // Find the last expanded invoice and focus its panel
-      const lastExpanded = Array.from(expandedInvoiceIds).pop();
-      if (lastExpanded) {
-        const panelRef = expandPanelRefsRef.current.get(lastExpanded);
-        if (panelRef) {
-          panelRef.focus();
-        }
+    const lastExpandedId = lastExpandedIdRef.current;
+    if (lastExpandedId && expandedInvoiceIds.has(lastExpandedId)) {
+      const panelRef = expandPanelRefsRef.current.get(lastExpandedId);
+      if (panelRef) {
+        panelRef.focus();
       }
     }
   }, [expandedInvoiceIds]);
@@ -287,6 +289,7 @@ export function ReportInvoiceList({
                     >
                       {t('sourceReports.expand.itemsHeading')}
                     </h4>
+                    {/* Desktop table */}
                     <div className={styles.tableWrapper}>
                       <table
                         className={styles.table}
@@ -308,8 +311,8 @@ export function ReportInvoiceList({
                                 <td>{line.description || t('sourceReports.expand.unnamedLine')}</td>
                                 <td>
                                   {line.linkedItem ? (
-                                    <a
-                                      href={
+                                    <Link
+                                      to={
                                         line.linkedItem.type === 'work_item'
                                           ? `/project/work-items/${line.linkedItem.id}`
                                           : `/household-items/${line.linkedItem.id}`
@@ -317,13 +320,13 @@ export function ReportInvoiceList({
                                       className={styles.linkedItemLink}
                                     >
                                       {line.linkedItem.name}
-                                    </a>
+                                    </Link>
                                   ) : (
                                     <Badge
                                       variants={{
                                         unassigned: {
                                           label: t('sourceReports.unassigned'),
-                                          className: BadgeStyles.info,
+                                          className: BadgeStyles.iblUnassigned,
                                         },
                                       }}
                                       value="unassigned"
@@ -349,6 +352,65 @@ export function ReportInvoiceList({
                         </tbody>
                       </table>
                     </div>
+                    {/* Mobile card list */}
+                    <div className={styles.mobileCardList} role="list">
+                      {invoice.budgetLines.map((line) => {
+                        const isLineExcluded = excludedLineIds.has(line.id);
+                        return (
+                          <div key={line.id} className={styles.mobileCard} role="listitem">
+                            <div className={styles.mobileCardTopRow}>
+                              <span className={styles.mobileCardHeading}>
+                                {line.description || t('sourceReports.expand.unnamedLine')}
+                              </span>
+                              <span className={styles.amount}>
+                                {formatCurrency(line.allocatedPortion)}
+                              </span>
+                            </div>
+                            <div className={styles.mobileCardRow}>
+                              <span className={styles.mobileCardHeading}>
+                                {t('sourceReports.expand.linkedColumnHeader')}
+                              </span>
+                              {line.linkedItem ? (
+                                <Link
+                                  to={
+                                    line.linkedItem.type === 'work_item'
+                                      ? `/project/work-items/${line.linkedItem.id}`
+                                      : `/household-items/${line.linkedItem.id}`
+                                  }
+                                  className={styles.linkedItemLink}
+                                >
+                                  {line.linkedItem.name}
+                                </Link>
+                              ) : (
+                                <Badge
+                                  variants={{
+                                    unassigned: {
+                                      label: t('sourceReports.unassigned'),
+                                      className: BadgeStyles.iblUnassigned,
+                                    },
+                                  }}
+                                  value="unassigned"
+                                />
+                              )}
+                            </div>
+                            <div className={styles.mobileCardRow}>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  className={styles.checkbox}
+                                  checked={!isLineExcluded}
+                                  onChange={(e) => onToggleLine(line.id, !e.target.checked)}
+                                  aria-label={t('sourceReports.expand.excludeItemAriaLabel', {
+                                    name: line.description || t('sourceReports.expand.unnamedLine'),
+                                  })}
+                                />
+                                <span>{t('sourceReports.expand.includeColumnHeader')}</span>
+                              </label>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : (
                   <div className={styles.subTableSection}>
@@ -361,20 +423,14 @@ export function ReportInvoiceList({
 
                 {/* Deposits sub-table */}
                 {invoice.deposits.length > 0 ? (
-                  <div
-                    className={styles.subTableSection}
-                    style={{
-                      marginTop: 'var(--spacing-4)',
-                      paddingTop: 'var(--spacing-4)',
-                      borderTop: '1px solid var(--color-border)',
-                    }}
-                  >
+                  <div className={`${styles.subTableSection} ${styles.subTableSeparated}`}>
                     <h4
                       className={styles.subTableHeading}
                       id={`deposits-heading-${invoice.invoiceId}`}
                     >
                       {t('sourceReports.expand.depositsHeading')}
                     </h4>
+                    {/* Desktop table */}
                     <div className={styles.tableWrapper}>
                       <table
                         className={styles.table}
@@ -480,16 +536,92 @@ export function ReportInvoiceList({
                         </tbody>
                       </table>
                     </div>
+                    {/* Mobile card list */}
+                    <div className={styles.mobileCardList} role="list">
+                      {invoice.deposits.map((deposit) => (
+                        <div key={deposit.id} className={styles.mobileCard} role="listitem">
+                          <div className={styles.mobileCardTopRow}>
+                            <span className={styles.amount}>
+                              {formatCurrency(
+                                deposit.entryType === 'refund' ? -deposit.amount : deposit.amount,
+                              )}
+                            </span>
+                            <Badge
+                              variants={{
+                                [deposit.status]: {
+                                  label: t(`sources.lines.invoiceStatus.${deposit.status}`),
+                                  className: styles[deposit.status]!,
+                                },
+                              }}
+                              value={deposit.status}
+                            />
+                          </div>
+                          <div className={styles.mobileCardRow}>
+                            <span className={styles.mobileCardHeading}>
+                              {t('sourceReports.expand.entryTypeColumnHeader')}
+                            </span>
+                            <Badge
+                              variants={{
+                                [deposit.entryType]: {
+                                  label:
+                                    deposit.entryType === 'deposit'
+                                      ? t('sourceReports.expand.entryTypeDeposit')
+                                      : t('sourceReports.expand.entryTypeRefund'),
+                                  className:
+                                    deposit.entryType === 'deposit'
+                                      ? BadgeStyles.info
+                                      : styles.refund,
+                                },
+                              }}
+                              value={deposit.entryType}
+                            />
+                          </div>
+                          <div className={styles.mobileCardRow}>
+                            <span className={styles.mobileCardHeading}>
+                              {t('sourceReports.expand.datesColumnHeader')}
+                            </span>
+                            <div className={styles.depositDatesCell}>
+                              <div>
+                                {t('sourceReports.expand.dueDate')}: {formatDate(deposit.dueDate)}
+                              </div>
+                              {deposit.paidDate && (
+                                <div>
+                                  {t('sourceReports.expand.paidDate')}:{' '}
+                                  {formatDate(deposit.paidDate)}
+                                </div>
+                              )}
+                              {deposit.claimedDate && (
+                                <div>
+                                  {t('sourceReports.expand.claimedDate')}:{' '}
+                                  {formatDate(deposit.claimedDate)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {deposit.budgetSourceId && (
+                            <div className={styles.mobileCardRow}>
+                              <span className={styles.mobileCardHeading}>
+                                {t('sourceReports.expand.allocatedSourceColumnHeader')}
+                              </span>
+                              <Badge
+                                variants={{
+                                  [deposit.budgetSourceId]: {
+                                    label: report.source.name,
+                                    className:
+                                      BadgeStyles[getSourceBadgeStyleKey(deposit.budgetSourceId)] ||
+                                      BadgeStyles.default,
+                                  },
+                                }}
+                                value={deposit.budgetSourceId}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
-                  <div
-                    className={styles.subTableSection}
-                    style={{
-                      marginTop: 'var(--spacing-4)',
-                      paddingTop: 'var(--spacing-4)',
-                      borderTop: '1px solid var(--color-border)',
-                    }}
-                  >
+                  <div className={`${styles.subTableSection} ${styles.subTableSeparated}`}>
                     <h4 className={styles.subTableHeading}>
                       {t('sourceReports.expand.depositsHeading')}
                     </h4>

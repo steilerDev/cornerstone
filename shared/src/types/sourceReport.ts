@@ -52,7 +52,7 @@ export interface SourceReportInvoice {
   /** Net contribution to this source for the report's status slice, rounded to 2dp. Negative for refund-adjustment lines. */
   allocatedAmount: number;
   lineKind: 'invoice' | 'refund-adjustment';
-  /** True iff this invoice's budget lines reference more than one distinct budget source. */
+  /** True iff the invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits. */
   isSplit: boolean;
   documents: SourceReportDocument[];
   /** Budget line subtraction rows: all ibl lines per invoice (even portion 0). Deposit-only invoices: []. */

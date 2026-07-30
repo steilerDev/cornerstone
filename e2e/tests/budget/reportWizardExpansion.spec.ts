@@ -25,9 +25,9 @@
  *   `ReportWizardPage.ts` class docstring, "Design decision" in the story's Frontend Spec) is
  *   that the row clamps to €0.00 (never negative), its TriState checkbox renders unchecked
  *   (not indeterminate), and the invoice remains counted as included for claiming/PDF
- *   purposes. **This scenario currently fails** — see the KNOWN BUG note below and in
- *   `ReportWizardPage.ts`; the test encodes the spec-conformant behavior per the project's
- *   test-failure-debugging protocol rather than being weakened to match the buggy output.
+ *   purposes. This is a regression-guard for the fixed bug #1892 (see the note below and in
+ *   `ReportWizardPage.ts`) — the row now stays visible at €0.00 instead of being filtered out
+ *   of the list entirely.
  * - Scenario 5: A deposit tagged directly to a budget source that has ZERO budget lines for
  *   an invoice still surfaces that invoice in the tagged source's report (Rail B), with the
  *   deposit's "Allocated Source" column showing a tagged badge in the expansion panel, and an
@@ -40,17 +40,18 @@
  *   `clearSelectionButton`, `selectionCountLabel`) still resolve correctly against the new
  *   `1.5rem auto 1fr auto auto auto` grid (leading chevron column added by this story).
  *
- * KNOWN BUG (Scenario 4) — filed as a GitHub issue (see PR description / issue tracker):
- * `applyLineExclusions()` (`client/src/lib/reportExclusions.ts`) clamps a fully-line-excluded
- * invoice's `allocatedAmount` to exactly `0` (never negative — that part is correct), but
- * `ReportInvoiceList.tsx`'s `allocatedInvoices` filter
- * (`inv.allocatedAmount > 0 || inv.lineKind === 'refund-adjustment'`) then filters that
- * invoice OUT of the visible list entirely instead of rendering a `€0.00` row, because a
- * net-zero non-refund invoice satisfies neither condition. This also removes the only UI path
- * back to un-excluding those lines (the row's own expand toggle disappears with it). The PDF
- * export and the actual claim submission are unaffected — both operate on `excludedInvoiceIds`
- * against the ORIGINAL (unfiltered) report, not the filtered display list — so this is a
- * display-only regression, not a data-integrity one.
+ * FIXED REGRESSION #1892 (Scenario 4): `applyLineExclusions()`
+ * (`client/src/lib/reportExclusions.ts`) clamps a fully-line-excluded invoice's
+ * `allocatedAmount` to exactly `0` (never negative). `ReportInvoiceList.tsx`'s
+ * `allocatedInvoices` filter now reads
+ * `inv.allocatedAmount > 0 || inv.lineKind === 'refund-adjustment' || inv.budgetLines.length > 0
+ * || inv.deposits.length > 0` — the added `budgetLines.length`/`deposits.length` clauses keep a
+ * net-zero non-refund invoice with budget lines or deposits visible as a `€0.00` row instead of
+ * being filtered out, which also preserves the only UI path back to un-excluding those lines
+ * (the row's own expand toggle). The PDF export and the actual claim submission were never
+ * affected either way — both operate on `excludedInvoiceIds` against the ORIGINAL (unfiltered)
+ * report, not the filtered display list — so this was a display-only regression, not a
+ * data-integrity one. Scenario 4 below is the regression guard for this fix.
  *
  * PDF generation (pdfmake + pdf-lib via dynamic `import()`) can be slow, especially on a cold
  * chunk load — every scenario that reaches Step 4 uses `test.slow()`.
@@ -513,11 +514,11 @@ test.describe('Report wizard expansion — full line exclusion (Scenario 4)', ()
         .itemExclusionCheckbox(vendorName, invoice.invoiceNumber!, `${testPrefix} Full Line B`)
         .click();
 
-      // ── KNOWN BUG (see file-level docstring + ReportWizardPage.ts class docstring) ──
-      // These assertions encode the SPEC-CONFORMANT behavior (row stays visible at €0.00,
-      // never negative) and are expected to fail in CI until the filed bug is fixed —
-      // ReportInvoiceList.tsx's `allocatedInvoices` filter currently drops a net-zero
-      // non-refund invoice from the list entirely instead of rendering it at €0.00.
+      // ── Regression guard for fixed bug #1892 (see file-level docstring + ReportWizardPage.ts
+      // class docstring) ── These assertions encode the SPEC-CONFORMANT behavior (row stays
+      // visible at €0.00, never negative): ReportInvoiceList.tsx's `allocatedInvoices` filter
+      // now keeps a net-zero non-refund invoice with budget lines or deposits in the list
+      // instead of dropping it, so the row renders at €0.00 rather than disappearing.
       const row = wizard.invoiceRow(vendorName, invoice.invoiceNumber!);
       await expect(row).toBeVisible();
       const amountEl = wizard.invoiceRowAmount(vendorName, invoice.invoiceNumber!);

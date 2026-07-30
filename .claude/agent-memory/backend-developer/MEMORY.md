@@ -193,12 +193,13 @@ Key files added/modified:
 - `server/src/errors/AppError.ts` — added CircularDependencyError (409)
 
 CPM Dependency Math (ADR-014):
-| Type | Forward ES | Backward LF |
-|------|-----------|-------------|
-| FS | PredEF + LL | SucLS - LL |
-| SS | PredES + LL | (SucLS - LL) + predDur |
-| FF | (PredEF + LL) - succDur | SucLF - LL |
-| SF | (PredES + LL) - succDur | (SucLF - LL) + predDur |
+
+| Type | Forward ES              | Backward LF            |
+| ---- | ----------------------- | ---------------------- |
+| FS   | PredEF + LL             | SucLS - LL             |
+| SS   | PredES + LL             | (SucLS - LL) + predDur |
+| FF   | (PredEF + LL) - succDur | SucLF - LL             |
+| SF   | (PredES + LL) - succDur | (SucLF - LL) + predDur |
 
 Engine is a pure function with injectable `today` parameter for testability.
 Cascade mode uses BFS from anchor to collect all downstream successors.

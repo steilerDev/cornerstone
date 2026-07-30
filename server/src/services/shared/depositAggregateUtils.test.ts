@@ -1369,7 +1369,7 @@ describe('splitByDepositsExcludingTagged', () => {
     expect(newResult).toEqual(legacyResult);
   });
 
-  it('a deposit tagged to a budget source is excluded entirely from the split (residual reverts to 1, no depositFractions entry for it)', () => {
+  it('a tagged deposit is omitted from depositFractions but still reduces the residual', () => {
     const rows = [
       makeTaggableSplitRow('inv-1', 1000, 'pending', {
         id: 'd-1',
@@ -1380,11 +1380,15 @@ describe('splitByDepositsExcludingTagged', () => {
     ];
     const result = splitByDepositsExcludingTagged(rows);
     const split = result.get('inv-1')!;
-    expect(split.residualFraction).toBe(1);
+    // A tagged deposit contributes 100% to its source via Rail B (sumTaggedDepositContributions),
+    // so it must still be subtracted from Rail A's residual to avoid double-counting:
+    // residual = (1000 - 300) / 1000 = 0.7 (identical to legacy splitByDeposits residual math).
+    // It is still omitted from depositFractions (Rail A) since Rail B accounts for it separately.
+    expect(split.residualFraction).toBeCloseTo(0.7);
     expect(split.depositFractions).toHaveLength(0);
   });
 
-  it('mixed: one untagged deposit included, one tagged deposit excluded, on the same invoice', () => {
+  it('mixed: one untagged deposit included, one tagged deposit omitted from depositFractions, on the same invoice', () => {
     const rows = [
       makeTaggableSplitRow('inv-1', 1000, 'pending', {
         id: 'd-untagged',
@@ -1400,8 +1404,11 @@ describe('splitByDepositsExcludingTagged', () => {
     ];
     const result = splitByDepositsExcludingTagged(rows);
     const split = result.get('inv-1')!;
-    // Only the untagged deposit counts toward the residual computation: residual = (1000-300)/1000 = 0.7
-    expect(split.residualFraction).toBeCloseTo(0.7);
+    // Both deposits (tagged and untagged) count toward the residual denominator, matching
+    // legacy splitByDeposits: residual = (1000 - 300 - 200) / 1000 = 0.5.
+    // Only the untagged deposit is emitted in depositFractions (Rail A); the tagged one is
+    // handled separately via Rail B (sumTaggedDepositContributions).
+    expect(split.residualFraction).toBeCloseTo(0.5);
     expect(split.depositFractions).toHaveLength(1);
     expect(split.depositFractions[0]!.depositStatus).toBe('paid');
     expect(split.depositFractions[0]!.fraction).toBeCloseTo(0.3);

@@ -3191,6 +3191,102 @@ describe('Budget Source Service', () => {
       expect(result.unclaimedAmount).toBeCloseTo(1000);
     });
 
+    it("canonical same-invoice case: a tagged deposit combines additively with the SAME invoice's residual to net exactly the invoice amount, and the untagged/legacy path is unaffected", () => {
+      // Canonical repro (Story #1891 double-count bug): a €1000 paid invoice, a €1000 line to
+      // source S, and a €400 claimed deposit tagged to S — all on the SAME invoice (unlike the
+      // "combine additively" test above, which uses two different invoices).
+      const raw = insertRawSource({ name: 'Canonical Same-Invoice Source', totalAmount: 50000 });
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+      const ts = new Date().toISOString();
+      const vendorId = `vendor-canonical-${++workItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Canonical Vendor`, createdAt: ts, updatedAt: ts })
+        .run();
+      const invoiceId = `inv-canonical-${workItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount: 1000,
+          date: '2026-01-01',
+          status: 'paid',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount: 1000,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      insertTaggedDeposit(invoiceId, { amount: 400, status: 'claimed', budgetSourceId: raw.id });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      // Rail B (tagged deposit) counts 100% toward claimedAmount: deposit status 'claimed' → 400.
+      // Rail A (line share) still has the tagged deposit subtracted from its residual
+      // denominator (even though it's omitted from Rail A's depositFractions):
+      // residual = (1000 - 400) / 1000 = 0.6. Invoice status 'paid' → residual contributes to
+      // unclaimedAmount: 1000 * 0.6 = 600.
+      expect(result.claimedAmount).toBeCloseTo(400);
+      expect(result.unclaimedAmount).toBeCloseTo(600);
+      // paidAmount = claimedAmount + unclaimedAmount = 400 + 600 = 1000, exactly the invoice
+      // amount — NOT 1400 (what the pre-fix bug produced by treating the tagged deposit as if
+      // it didn't exist at all in Rail A's residual computation, so nothing was subtracted).
+      expect(result.paidAmount).toBeCloseTo(1000);
+
+      // Legacy path: prove the fix leaves UNTAGGED deposits untouched. Same fixture shape,
+      // but the deposit is left untagged (budgetSourceId: null) — this exercises the exact
+      // computeStatusContributionExcludingTagged code path that behaves byte-identically to
+      // the pre-#1891 computeStatusContribution for untagged rows (see the "regression:
+      // untagged fixtures produce byte-identical output" tests in depositAggregateUtils.test.ts).
+      const legacyRaw = insertRawSource({ name: 'Canonical Legacy Source', totalAmount: 50000 });
+      const { budgetId: legacyBudgetId } = insertRawWorkItemWithSource(legacyRaw.id, 1000);
+      const legacyVendorId = `vendor-legacy-${++workItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: legacyVendorId, name: `Legacy Vendor`, createdAt: ts, updatedAt: ts })
+        .run();
+      const legacyInvoiceId = `inv-legacy-${workItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: legacyInvoiceId,
+          vendorId: legacyVendorId,
+          amount: 1000,
+          date: '2026-01-01',
+          status: 'paid',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: legacyInvoiceId,
+          workItemBudgetId: legacyBudgetId,
+          itemizedAmount: 1000,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      insertTaggedDeposit(legacyInvoiceId, {
+        amount: 400,
+        status: 'claimed',
+        budgetSourceId: null,
+      });
+
+      const legacyResult = budgetSourceService.getBudgetSourceById(db, legacyRaw.id);
+      // Untagged deposit: residual and deposit fraction both derive from the same source's own
+      // lines, so claimedAmount(400)/unclaimedAmount(600) split identically here — the point is
+      // that paidAmount still nets to exactly 1000, proving legacy (untagged) behavior is
+      // unaffected by the Rail A/Rail B tagging fix.
+      expect(legacyResult.paidAmount).toBeCloseTo(1000);
+    });
+
     describe('discretionary variant: tagged deposit on the discretionary source', () => {
       it('a deposit tagged directly to the discretionary source contributes to discretionary claimedAmount', () => {
         const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');

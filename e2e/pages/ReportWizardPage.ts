@@ -72,14 +72,16 @@
  *   purposes only. It NEVER touches `excludedInvoiceIds` — the invoice is still submitted in
  *   full to `markInvoicesClaimed` regardless of line exclusions (hence the claim-confirm
  *   modal's warning block, see `markClaimedWarningBlock` below).
- * - **KNOWN BUG (filed, see story E2E memory)**: `applyLineExclusions` clamps a fully-excluded
- *   invoice's `allocatedAmount` to exactly `0`, but `ReportInvoiceList`'s `allocatedInvoices`
- *   filter is `inv.allocatedAmount > 0 || inv.lineKind === 'refund-adjustment'` — so a
- *   fully-line-excluded invoice (net exactly 0, `lineKind` stays `'invoice'`) is filtered OUT
- *   of the visible list entirely instead of rendering a `€0.00` row. This also removes the
- *   only UI path back to un-excluding those lines (the row's own expand toggle). The PDF and
- *   the actual claim submission are unaffected (both operate on `excludedInvoiceIds`, not the
- *   filtered display list) — this is a display-only regression.
+ * - **Fixed regression (#1892)**: `applyLineExclusions` clamps a fully-excluded invoice's
+ *   `allocatedAmount` to exactly `0`. `ReportInvoiceList`'s `allocatedInvoices` filter is
+ *   `inv.allocatedAmount > 0 || inv.lineKind === 'refund-adjustment' || inv.budgetLines.length > 0
+ *   || inv.deposits.length > 0` — the added `budgetLines.length > 0 || deposits.length > 0`
+ *   clauses keep a fully-line-excluded invoice (net exactly 0, `lineKind` stays `'invoice'`)
+ *   visible as a `€0.00` row instead of being filtered out, which also preserves the only UI
+ *   path back to un-excluding those lines (the row's own expand toggle). The PDF and the actual
+ *   claim submission were never affected either way (both operate on `excludedInvoiceIds`, not
+ *   the filtered display list) — this was a display-only regression. See
+ *   `reportWizardExpansion.spec.ts` Scenario 4 for the regression-guard test.
  * - Deposits sub-table's "Allocated Source" column renders a source-colored Badge only when
  *   `deposit.budgetSourceId === report.source.id` (the CURRENTLY viewed source); any other
  *   value (including a different source's id) renders a plain `—` — deposits tagged to a

@@ -112,7 +112,7 @@ helper) per the story AC's literal wording.
 The FIRST shipped version of `assertFrameActuallyNavigated(src: string)` did a single, immediate
 `page.frames().find(f => f.url() === src)` right after the loading overlay hid / the src
 attribute was read. This is a **reusable anti-pattern**: `frame.url()` only reflects a navigation
-that has *already completed* — there is a real gap between "the loading overlay hides" / "the src
+that has _already completed_ — there is a real gap between "the loading overlay hides" / "the src
 attribute changed" and "the nested browsing context has actually finished navigating to it".
 Reading `page.frames()` exactly once right after either signal races that navigation. CI caught
 this: 3 scenarios across `reportWizard.spec.ts`/`reportWizardExpansion.spec.ts` failed
@@ -164,7 +164,7 @@ and confirming the hardened check goes red before restoring the file. What happe
    documented CI expectation**, reasoned through in detail:
    - Chromium's CSP enforcement for `frame-src` blocks the nested browsing context's
      navigation and logs a console error of the form `Refused to frame 'blob:...' because it
-     violates the following Content Security Policy directive: "frame-src 'self'".` — this is
+violates the following Content Security Policy directive: "frame-src 'self'".` — this is
      standard, spec-defined CSP behavior (Content-Security-Policy Level 3 §6.4, "navigate-to"
      analog for frame-src), not app-specific behavior that could vary.
    - With `frameSrc: ["'self'"]` (no `blob:`), the preview iframe's blocked navigation leaves
@@ -178,7 +178,7 @@ and confirming the hardened check goes red before restoring the file. What happe
      both is deliberate defense-in-depth (documented in the method's own docstring) so a future
      Chromium wording change to the console message doesn't silently disable the guard.
 4. Restored `helmetPlugin.ts` to its exact prior working-tree state (`frameSrc: ["'self'",
-   'blob:']`) and confirmed via `git diff` matching the diff observed at the start of the
+'blob:']`) and confirmed via `git diff` matching the diff observed at the start of the
    session, byte-for-byte.
 5. Cleaned up all verification-run side effects: removed the throwaway `cornerstone:e2e` Docker
    image (built against the deliberately-broken config — must not be silently reused by a later
@@ -231,7 +231,7 @@ in `ReportWizardPage.ts`).
   from `COALESCE(wib.description, hib.description)`, NOT from the invoice-budget-line's own
   `description` column (that field exists in the schema but isn't what the report reads).
 - Deposit→source tagging: `POST /api/invoices/:id/deposits` accepts `budgetSourceId: string |
-  null` directly in the body (added this story) — no separate endpoint. A deposit tagged to a
+null` directly in the body (added this story) — no separate endpoint. A deposit tagged to a
   source with ZERO budget lines for that invoice still surfaces the invoice in that source's
   report via Rail B (`sumTaggedDepositContributionsByInvoice`), with `budgetLines: []` for that
   invoice specifically (scoped to the report's own source, not the invoice's other sources).
