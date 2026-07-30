@@ -288,6 +288,7 @@ export function ReportWizardPage() {
       await markInvoicesClaimed(included);
       setClaimedCount(included.length);
       setClaimSuccess(true);
+      setShowClaimConfirm(false);
     } catch (err) {
       if (err instanceof ApiClientError && err.error.code === 'INVOICES_NOT_CLAIMABLE') {
         setClaimError(translateApiError('INVOICES_NOT_CLAIMABLE', tErrors));
@@ -312,8 +313,10 @@ export function ReportWizardPage() {
         }
       } else if (err instanceof ApiClientError) {
         setClaimError(translateApiError(err.error.code, tErrors));
+        setShowClaimConfirm(false);
       } else {
         setClaimError(t('sourceReports.claimFailed'));
+        setShowClaimConfirm(false);
       }
     } finally {
       setIsMarkingClaimed(false);
