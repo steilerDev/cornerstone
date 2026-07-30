@@ -95,6 +95,46 @@ After `setLanguage(page,'de')` + `page.goto()`, always `page.reload()` before as
 
 AreaPicker has two DOM states: unselected (input visible, `placeholder="Select an area"`) vs selected (`[class*="selectedDisplay"]` visible, input gone). After selection, URL gets `?areaId=<id>`; clearing removes it. Use `waitForResponse` BEFORE selection.
 
+## Headless Chromium shell has no PDF viewer plugin — `<iframe>`-to-`blob:`-PDF navigation is unverifiable via `page.frames()` (Story #1891 TEST_ENVIRONMENT fix, 2026-07-29)
+
+CI run 30530648400 (shard 2) proved that `page.frames().find(f => f.url() === blobSrc)` — even
+wrapped in a 10s `expect(...).toPass()` poll (see `story-1891-wizard-followup.md`'s earlier
+"one-shot race" fix) — **never** matches when the target is a PDF `blob:` URL, and **zero**
+CSP-violation console messages fire either. Root cause: Playwright's bundled headless Chromium
+shell has no built-in PDF viewer plugin. An `<iframe src="blob:...">` pointed at a PDF silently
+aborts/blanks (stays effectively at `about:blank`) **without any CSP violation being logged** —
+this happens identically whether or not the CSP `frame-src` directive actually permits `blob:`.
+So the "prove a frame navigated to the blob src" technique cannot distinguish a correctly
+configured CSP from a broken one in this CI environment, regardless of how it's polled — it's
+not a timing bug, it's a structural gap in the headless shell's rendering capability for PDFs.
+**General lesson: don't use `page.frames()`/iframe-navigation matching to prove anything about
+an `<iframe>` whose target content type the headless Chromium shell can't natively render (PDF
+is the known case; likely also true for other browser-plugin-dependent content).**
+
+**Replacement pattern — verify the CSP contract server-side, not the browser's enforcement of it:**
+1. **Direct CSP header assertion** (the deterministic core): `page.request.get(route)` (shares
+   the page's cookie jar/session automatically) then read
+   `response.headers()['content-security-policy']`, regex out the specific directive
+   (`frame-src`, `script-src`, whatever's relevant), and assert the required source token is
+   present. This is a server-side contract check — it fails/passes by construction based on the
+   actual `helmetPlugin.ts` config, completely independent of what any given browser does when
+   asked to render the content. This is the primary, CI-reliable regression guard now.
+2. Keep a zero-CSP-console-violation assertion as defense in depth — real (non-headless-shell)
+   browsers still log synchronously on a block, so this remains a meaningful second signal even
+   though it can't be the *only* signal in CI.
+3. For iframe content that's blocked from headless rendering (PDF blobs): replace "prove the
+   iframe navigated" with "prove the blob itself is genuine" — `page.evaluate(async (src) => {
+   const b = await (await fetch(src)).blob(); return { size: b.size, type: b.type }; }, src)`
+   and assert `size` is non-trivial and `type` matches the expected MIME type. This proves the
+   `<iframe>`'s `src` attribute points at real content without depending on the iframe's own
+   browsing context completing a navigation the shell can't perform.
+
+See `ReportWizardPage.ts`'s `assertPreviewHardened`/`fetchCspFrameSrcDirective`/
+`fetchPreviewBlobInfo` for the reference implementation, and
+`story-1891-wizard-followup.md` for the full before/after narrative (this superseded that
+story's own earlier `page.frames()`-polling fix, which turned out to just be racing an
+unwinnable race).
+
 ## Key file locations
 
 - Test fixtures: `e2e/fixtures/auth.ts` (testPrefix, authenticatedPage)

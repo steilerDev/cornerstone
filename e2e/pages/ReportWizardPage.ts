@@ -476,53 +476,86 @@ export class ReportWizardPage {
   }
 
   /**
-   * HARDENED proof that the preview `<iframe>`'s `blob:` src actually navigated, rather than
-   * merely being assigned as a DOM attribute while the underlying browsing-context navigation
-   * was silently blocked by CSP (Story #1891 AC). `helmetPlugin.ts`'s `frameSrc` directive
-   * must include `blob:` — if it doesn't, Chromium blocks the frame-src navigation and the
-   * iframe's browsing context stays at `about:blank` FOREVER even though React has already
-   * set `<iframe src="blob:...">` in the DOM (React has no visibility into the navigation
-   * being blocked, so reading the `src` attribute alone is not proof of anything — this is
-   * exactly the gap the pre-fix version of this check had).
+   * Fetches the report wizard page's own HTTP response and returns the CSP header's
+   * `frame-src` directive as its space-separated source tokens (e.g. `["'self'", 'blob:']`).
+   * Throws if the header or the directive is missing.
    *
-   * `page.frames()` returns the actual navigated browsing contexts, keyed by their REAL
-   * current `url()` — not the DOM attribute — so finding a frame whose `url()` equals the
-   * iframe's `src` attribute is a hard proof of a completed navigation. Combined with a
-   * zero-CSP-violation-message assertion for defense in depth (a CSP block always also logs a
-   * console error synchronously with the blocked navigation, so either signal alone would
-   * catch a regression — checking both guards against either detection path silently
-   * regressing on its own, e.g. a future Chromium version changing its console wording).
-   *
-   * MANDATORY per Story #1891 AC: this check was manually verified to go RED by temporarily
-   * reverting `helmetPlugin.ts`'s `frameSrc` to `["'self'"]` (dropping `blob:`) — see the
-   * e2e-test-engineer agent memory (`story-1891-wizard-followup.md`) for the verification
-   * record and reasoning (a live CI/browser run, not this authoring sandbox, is the actual
-   * red/green proof; the sandbox cannot build the `dhi.io`-based app image).
-   *
-   * POLLS rather than checking once: `getExpectedSrc` is invoked on every retry so it can
-   * re-read the iframe's live `src` attribute (or re-derive the expected regenerated src) —
-   * `page.frames()` only reflects a navigation that has already completed, and there is a
-   * real gap between the loading overlay hiding / the src attribute changing and the browsing
-   * context actually finishing navigation to it. A one-shot `page.frames().find(...)`
-   * immediately after that signal races the navigation and fails intermittently (CI PR #1894,
-   * shard 2, ~2.6-3.2s) even though zero CSP-violation console messages fire — proving the
-   * CSP fix itself was never the problem, only the single-shot timing of this proof. Because
-   * `getExpectedSrc` re-reads on each retry, a mid-poll blob URL swap (e.g. a fast-arriving
-   * regeneration) is naturally picked up rather than asserted against a stale src.
+   * This is a direct server-side contract check — it fails deterministically against a
+   * pre-fix `frameSrc: ["'self'"]` `helmetPlugin.ts` config (no `blob:` token) and passes
+   * deterministically once `blob:` is added, entirely independent of what a given browser
+   * (headless or not) actually does when asked to navigate an `<iframe>` to a `blob:` PDF URL.
+   * See `assertPreviewHardened`'s docstring for why this replaced the earlier
+   * `page.frames()`-based navigation-matching technique.
    */
-  private async assertFrameActuallyNavigated(getExpectedSrc: () => Promise<string>): Promise<void> {
-    await expect(async () => {
-      const src = await getExpectedSrc();
-      const frame = this.page.frames().find((f) => f.url() === src);
-      if (!frame) {
-        throw new Error(
-          `Preview iframe src is "${src}" but no browsing-context frame has actually ` +
-            'navigated to it (page.frames() has no matching frame — the iframe is likely ' +
-            'stuck at about:blank). This is the signature of a CSP frame-src block: check ' +
-            "helmetPlugin.ts's frameSrc directive includes 'blob:'.",
-        );
-      }
-    }).toPass({ timeout: 10_000 });
+  async fetchCspFrameSrcDirective(): Promise<string[]> {
+    const response = await this.page.request.get(REPORT_WIZARD_ROUTE);
+    const cspHeader = response.headers()['content-security-policy'];
+    if (!cspHeader) {
+      throw new Error(
+        `Expected a Content-Security-Policy response header on ${REPORT_WIZARD_ROUTE}, got none.`,
+      );
+    }
+    const frameSrcMatch = cspHeader.match(/frame-src\s+([^;]+)/i);
+    const frameSrcValue = frameSrcMatch?.[1];
+    if (!frameSrcValue) {
+      throw new Error(`Expected a frame-src directive in the CSP header, got: "${cspHeader}"`);
+    }
+    return frameSrcValue.trim().split(/\s+/);
+  }
+
+  /**
+   * Fetches the preview iframe's `blob:` src FROM WITHIN the page (`fetch()` inside
+   * `page.evaluate`) and returns its size in bytes and MIME type. Proves the src genuinely
+   * resolves to a real, non-empty PDF document — the thing a frame-src CSP block would
+   * otherwise prevent the iframe from rendering — without depending on the iframe's own
+   * browsing-context navigation completing (see `assertPreviewHardened`'s docstring for why
+   * that can't be proven headlessly).
+   */
+  async fetchPreviewBlobInfo(src: string): Promise<{ size: number; type: string }> {
+    return this.page.evaluate(async (blobSrc) => {
+      const response = await fetch(blobSrc);
+      const blob = await response.blob();
+      return { size: blob.size, type: blob.type };
+    }, src);
+  }
+
+  /**
+   * HARDENED proof that the report preview is genuinely permitted and correctly generated —
+   * Story #1891 AC, reworked per a TEST_ENVIRONMENT-fix follow-up (see below for why).
+   *
+   * ORIGINAL APPROACH (superseded): polling `page.frames()` for a browsing-context frame
+   * whose live `url()` matched the iframe's `blob:` src attribute, treating a match as proof
+   * the navigation actually completed (as opposed to being silently CSP-blocked while the DOM
+   * `src` attribute still got set by React). That technique turned out to be UNVERIFIABLE in
+   * this project's CI environment: Playwright's bundled headless Chromium shell has no
+   * built-in PDF viewer plugin, so an `<iframe>` pointed at a PDF `blob:` URL aborts/blanks
+   * WITHOUT ever completing a navigation or firing a CSP violation — `page.frames()` never
+   * contains a matching frame REGARDLESS of whether the CSP frame-src directive is correct.
+   * Confirmed via CI run 30530648400 (shard 2): even with a 10s poll, zero frame matches AND
+   * zero CSP console violations, on a build where the `blob:` fix was already present. See the
+   * e2e-test-engineer agent memory (`general-e2e-patterns.md`) for the investigation record.
+   *
+   * CURRENT APPROACH — three independent, headless-safe signals, all of which must pass:
+   *  1. Direct CSP header assertion (`fetchCspFrameSrcDirective`) — the deterministic core. A
+   *     server-side contract check that fails against a pre-fix `frameSrc: ["'self'"]` config
+   *     and passes against the fixed `["'self'", 'blob:']` config, regardless of browser
+   *     behavior.
+   *  2. Zero CSP-violation console messages (`cspViolationMessages`) — defense in depth for
+   *     real (non-headless-shell) browsers, where a frame-src block always also logs a console
+   *     error synchronously with the blocked navigation.
+   *  3. Blob resolvability + content (`fetchPreviewBlobInfo`) — proves the iframe's src
+   *     genuinely resolves to a real, non-empty PDF, without depending on the iframe's own
+   *     browsing-context navigation (which the headless shell cannot complete for PDFs).
+   */
+  private async assertPreviewHardened(src: string): Promise<void> {
+    const frameSrcValues = await this.fetchCspFrameSrcDirective();
+    if (!frameSrcValues.includes("'self'") || !frameSrcValues.includes('blob:')) {
+      throw new Error(
+        "Expected CSP frame-src directive to include both 'self' and blob:, got: " +
+          `[${frameSrcValues.join(', ')}]`,
+      );
+    }
+
     if (this.cspViolationMessages.length > 0) {
       throw new Error(
         `Detected ${this.cspViolationMessages.length} Content-Security-Policy violation ` +
@@ -530,27 +563,34 @@ export class ReportWizardPage {
           `${this.cspViolationMessages.join('; ')}`,
       );
     }
+
+    const blobInfo = await this.fetchPreviewBlobInfo(src);
+    if (blobInfo.size <= 1000 || blobInfo.type !== 'application/pdf') {
+      throw new Error(
+        `Expected preview blob "${src}" to be a non-empty PDF (size > 1000, type ` +
+          `"application/pdf"), got size=${blobInfo.size}, type="${blobInfo.type}".`,
+      );
+    }
   }
 
   /**
    * Waits for PDF generation to settle: the loading overlay disappears, the preview iframe
-   * has a non-empty `blob:` src, AND (Story #1891 hardening) that src is proven to have
-   * actually navigated — see `assertFrameActuallyNavigated`'s docstring for why the src
-   * attribute alone is not sufficient proof. PDF generation (pdfmake + pdf-lib, both loaded
-   * via dynamic `import()`) can be slow, especially on the first call of a test (cold chunk
-   * load) — callers should pair this with `test.slow()` and rely on Playwright's default
-   * generous `expect()` timeout rather than a short custom one.
+   * has a non-empty `blob:` src, AND (Story #1891 hardening) that src is proven safe — see
+   * `assertPreviewHardened`'s docstring for why the src attribute alone is not sufficient
+   * proof and why a browsing-context navigation match isn't either, in this environment. PDF
+   * generation (pdfmake + pdf-lib, both loaded via dynamic `import()`) can be slow, especially
+   * on the first call of a test (cold chunk load) — callers should pair this with
+   * `test.slow()` and rely on Playwright's default generous `expect()` timeout rather than a
+   * short custom one.
    */
   async waitForPreviewReady(): Promise<void> {
     await this.previewLoadingOverlay.waitFor({ state: 'hidden' });
     await this.previewIframe.waitFor({ state: 'visible' });
-    await this.assertFrameActuallyNavigated(async () => {
-      const src = await this.previewIframe.getAttribute('src');
-      if (!src || !src.startsWith('blob:')) {
-        throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
-      }
-      return src;
-    });
+    const src = await this.previewIframe.getAttribute('src');
+    if (!src || !src.startsWith('blob:')) {
+      throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
+    }
+    await this.assertPreviewHardened(src);
   }
 
   /** Current preview iframe `blob:` src, for detecting a regeneration via a src change. */
@@ -572,12 +612,10 @@ export class ReportWizardPage {
   async waitForPreviewRegenerated(previousSrc: string): Promise<void> {
     await this.previewLoadingOverlay.waitFor({ state: 'hidden' });
     await this.previewIframe.waitFor({ state: 'visible' });
-    // Story #1891 hardening — same frame-navigation + zero-CSP-violation proof as
-    // waitForPreviewReady, polling for a frame that has actually navigated to the NEW src (see
-    // assertFrameActuallyNavigated docstring). Re-reads the src on every retry so a mid-poll
-    // blob URL swap (e.g. a fast-arriving further regeneration) is picked up rather than
-    // asserted against a stale src captured before this poll began.
-    await this.assertFrameActuallyNavigated(async () => {
+    // Poll until the src attribute actually changes from previousSrc (a fresh regeneration can
+    // race the overlay hiding), then run the same Story #1891 hardened checks — see
+    // assertPreviewHardened's docstring — once on the new, settled src.
+    await expect(async () => {
       const src = await this.getPreviewSrc();
       if (!src.startsWith('blob:')) {
         throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
@@ -585,8 +623,8 @@ export class ReportWizardPage {
       if (src === previousSrc) {
         throw new Error('Preview src has not changed yet — regeneration still pending');
       }
-      return src;
-    });
+    }).toPass({ timeout: 10_000 });
+    await this.assertPreviewHardened(await this.getPreviewSrc());
   }
 
   async download(): Promise<Download> {

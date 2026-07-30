@@ -1,9 +1,24 @@
 ---
 name: story-1891-wizard-followup
-description: Bank Report Wizard follow-up (Story #1891) — expandable invoice rows, CSP blob: frame-src hardened preview check (incl. one-shot page.frames() race fix, CI PR #1894), deposit budget-source tagging; 2 filed production bugs.
+description: Bank Report Wizard follow-up (Story #1891) — expandable invoice rows, CSP blob: frame-src hardened preview check (superseded page.frames()-based proof, now header+blob based per the TEST_ENVIRONMENT fix — see general-e2e-patterns.md), deposit budget-source tagging; 2 filed production bugs.
 metadata:
   type: project
 ---
+
+## SUPERSEDED: the `page.frames()` frame-navigation proof (see below) was replaced 2026-07-29
+
+Everything under "CSP hardened-check design" and its "Follow-up fix" subsection below describes
+the ORIGINAL implementation, which is now **historical** — CI proved the whole
+`page.frames().find(...)` technique (one-shot AND polled) is structurally unverifiable in this
+project's headless Chromium shell for PDF `blob:` iframes (no PDF viewer plugin → silent
+about:blank stall, zero CSP console violations, either way). `ReportWizardPage.ts` was reworked
+to prove the same AC via `fetchCspFrameSrcDirective()` (direct CSP response-header assertion —
+now the deterministic primary signal), the same zero-CSP-violation-message check, and
+`fetchPreviewBlobInfo()` (in-page `fetch()` + blob size/MIME assertion, replacing the
+frame-navigation check). See `general-e2e-patterns.md`'s "Headless Chromium shell has no PDF
+viewer plugin" section for the full pattern write-up (this is a reusable lesson, not specific to
+this story) — keeping the narrative below for historical context on why the polling fix was
+tried first and why it still wasn't enough.
 
 ## Files
 
