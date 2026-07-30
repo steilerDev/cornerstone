@@ -504,38 +504,34 @@ export class ReportWizardPage {
   }
 
   /**
-   * Fetches the preview iframe's `blob:` src FROM WITHIN the page (`fetch()` inside
-   * `page.evaluate`) and returns its size in bytes and MIME type. Proves the src genuinely
-   * resolves to a real, non-empty PDF document — the thing a frame-src CSP block would
-   * otherwise prevent the iframe from rendering — without depending on the iframe's own
-   * browsing-context navigation completing (see `assertPreviewHardened`'s docstring for why
-   * that can't be proven headlessly).
-   */
-  async fetchPreviewBlobInfo(src: string): Promise<{ size: number; type: string }> {
-    return this.page.evaluate(async (blobSrc) => {
-      const response = await fetch(blobSrc);
-      const blob = await response.blob();
-      return { size: blob.size, type: blob.type };
-    }, src);
-  }
-
-  /**
-   * HARDENED proof that the report preview is genuinely permitted and correctly generated —
-   * Story #1891 AC, reworked per a TEST_ENVIRONMENT-fix follow-up (see below for why).
+   * HARDENED proof that the report preview is genuinely permitted — Story #1891 AC, reworked
+   * TWICE per two separate TEST_ENVIRONMENT-fix follow-ups (see below for why).
    *
-   * ORIGINAL APPROACH (superseded): polling `page.frames()` for a browsing-context frame
-   * whose live `url()` matched the iframe's `blob:` src attribute, treating a match as proof
-   * the navigation actually completed (as opposed to being silently CSP-blocked while the DOM
+   * ATTEMPT 1 (superseded): polling `page.frames()` for a browsing-context frame whose live
+   * `url()` matched the iframe's `blob:` src attribute, treating a match as proof the
+   * navigation actually completed (as opposed to being silently CSP-blocked while the DOM
    * `src` attribute still got set by React). That technique turned out to be UNVERIFIABLE in
    * this project's CI environment: Playwright's bundled headless Chromium shell has no
    * built-in PDF viewer plugin, so an `<iframe>` pointed at a PDF `blob:` URL aborts/blanks
    * WITHOUT ever completing a navigation or firing a CSP violation — `page.frames()` never
    * contains a matching frame REGARDLESS of whether the CSP frame-src directive is correct.
    * Confirmed via CI run 30530648400 (shard 2): even with a 10s poll, zero frame matches AND
-   * zero CSP console violations, on a build where the `blob:` fix was already present. See the
-   * e2e-test-engineer agent memory (`general-e2e-patterns.md`) for the investigation record.
+   * zero CSP console violations, on a build where the `blob:` fix was already present.
    *
-   * CURRENT APPROACH — three independent, headless-safe signals, all of which must pass:
+   * ATTEMPT 2 (superseded): replaced the frame-navigation check with an in-page
+   * `fetch(blobSrc)` (inside `page.evaluate`) that read the blob's size/MIME type, reasoning
+   * that a genuinely-resolvable non-empty PDF blob was proof enough on its own. That ALSO
+   * turned out to be a dead end, for a different reason: the app's own CSP `connect-src` is
+   * `'self'` and does not (and must not) include `blob:` — `fetch()`/`XHR` to a `blob:` URL is
+   * itself a `connect-src`-governed request, so the in-page fetch was blocked by the exact
+   * policy this test exists to verify. The application itself never fetches its own preview
+   * blob (the browser resolves `<iframe src="blob:...">` internally, not via `fetch`), so
+   * loosening `connect-src` to accommodate this test technique would weaken production CSP for
+   * no product reason — rejected. Confirmed via CI run 30531695763 (shard 2): every scenario
+   * failed in ~2s with `page.evaluate: TypeError: Failed to fetch`.
+   *
+   * CURRENT APPROACH — two independent, headless-safe signals, both of which must pass here,
+   * plus the plain src-attribute check callers already do before calling this method:
    *  1. Direct CSP header assertion (`fetchCspFrameSrcDirective`) — the deterministic core. A
    *     server-side contract check that fails against a pre-fix `frameSrc: ["'self'"]` config
    *     and passes against the fixed `["'self'", 'blob:']` config, regardless of browser
@@ -543,11 +539,12 @@ export class ReportWizardPage {
    *  2. Zero CSP-violation console messages (`cspViolationMessages`) — defense in depth for
    *     real (non-headless-shell) browsers, where a frame-src block always also logs a console
    *     error synchronously with the blocked navigation.
-   *  3. Blob resolvability + content (`fetchPreviewBlobInfo`) — proves the iframe's src
-   *     genuinely resolves to a real, non-empty PDF, without depending on the iframe's own
-   *     browsing-context navigation (which the headless shell cannot complete for PDFs).
+   *
+   * See the e2e-test-engineer agent memory (`general-e2e-patterns.md`) for the investigation
+   * record of both superseded attempts, and the connect-src pitfall specifically, so a future
+   * refactor doesn't re-add an in-page blob fetch.
    */
-  private async assertPreviewHardened(src: string): Promise<void> {
+  private async assertPreviewHardened(): Promise<void> {
     const frameSrcValues = await this.fetchCspFrameSrcDirective();
     if (!frameSrcValues.includes("'self'") || !frameSrcValues.includes('blob:')) {
       throw new Error(
@@ -561,14 +558,6 @@ export class ReportWizardPage {
         `Detected ${this.cspViolationMessages.length} Content-Security-Policy violation ` +
           `console message(s) while loading the report preview: ` +
           `${this.cspViolationMessages.join('; ')}`,
-      );
-    }
-
-    const blobInfo = await this.fetchPreviewBlobInfo(src);
-    if (blobInfo.size <= 1000 || blobInfo.type !== 'application/pdf') {
-      throw new Error(
-        `Expected preview blob "${src}" to be a non-empty PDF (size > 1000, type ` +
-          `"application/pdf"), got size=${blobInfo.size}, type="${blobInfo.type}".`,
       );
     }
   }
@@ -590,7 +579,7 @@ export class ReportWizardPage {
     if (!src || !src.startsWith('blob:')) {
       throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
     }
-    await this.assertPreviewHardened(src);
+    await this.assertPreviewHardened();
   }
 
   /** Current preview iframe `blob:` src, for detecting a regeneration via a src change. */
@@ -614,7 +603,7 @@ export class ReportWizardPage {
     await this.previewIframe.waitFor({ state: 'visible' });
     // Poll until the src attribute actually changes from previousSrc (a fresh regeneration can
     // race the overlay hiding), then run the same Story #1891 hardened checks — see
-    // assertPreviewHardened's docstring — once on the new, settled src.
+    // assertPreviewHardened's docstring — once the new src has settled.
     await expect(async () => {
       const src = await this.getPreviewSrc();
       if (!src.startsWith('blob:')) {
@@ -624,7 +613,7 @@ export class ReportWizardPage {
         throw new Error('Preview src has not changed yet — regeneration still pending');
       }
     }).toPass({ timeout: 10_000 });
-    await this.assertPreviewHardened(await this.getPreviewSrc());
+    await this.assertPreviewHardened();
   }
 
   async download(): Promise<Download> {

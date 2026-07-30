@@ -1,11 +1,33 @@
 ---
 name: story-1891-wizard-followup
-description: Bank Report Wizard follow-up (Story #1891) — expandable invoice rows, CSP blob: frame-src hardened preview check (superseded page.frames()-based proof, now header+blob based per the TEST_ENVIRONMENT fix — see general-e2e-patterns.md), deposit budget-source tagging; 2 filed production bugs.
+description: Bank Report Wizard follow-up (Story #1891) — expandable invoice rows, CSP blob: frame-src hardened preview check (superseded TWICE — page.frames() then in-page blob fetch — now header+console-only per two TEST_ENVIRONMENT fixes, see general-e2e-patterns.md), deposit budget-source tagging; 2 filed production bugs.
 metadata:
   type: project
 ---
 
-## SUPERSEDED: the `page.frames()` frame-navigation proof (see below) was replaced 2026-07-29
+## SUPERSEDED AGAIN 2026-07-30: the in-page `fetch(blobSrc)` leg was removed
+
+The "header+blob based" design described in the section below (added 2026-07-29) was itself
+short-lived. CI run 30531695763 (shard 2) showed every wizard scenario failing in ~2s with
+`page.evaluate: TypeError: Failed to fetch` — the new `fetchPreviewBlobInfo()` in-page
+`fetch(blobSrc)` is blocked by the app's own CSP `connect-src 'self'` (no `blob:` token, and
+correctly so: the app itself never fetches its own preview blob — the browser resolves
+`<iframe src="blob:...">` internally, not via `fetch`/`XHR`). Loosening `connect-src` to
+accommodate this test technique would weaken production CSP for no product reason, so the fix
+was to remove `fetchPreviewBlobInfo()` and the blob-fetch leg from `assertPreviewHardened`
+entirely, not to touch the CSP config.
+
+**Current (and hopefully final) design**: `assertPreviewHardened()` now checks exactly two
+signals — (1) the CSP header's `frame-src` directive contains both `'self'` and `blob:`
+(`fetchCspFrameSrcDirective()`, the deterministic server-side contract check) and (2) zero
+CSP-violation console messages were captured. The plain "overlay hidden + iframe visible + src
+is a `blob:` URL" check that callers already did before invoking `assertPreviewHardened` was
+kept as-is (it never depended on the blob-fetch). See `general-e2e-patterns.md`'s "blob: fetch
+is connect-src-governed, not frame-src" entry for the reusable lesson — **do not re-add an
+in-page fetch of a blob: URL as a verification technique; it will always be CSP-blocked by
+design.**
+
+## SUPERSEDED (2026-07-29): the `page.frames()` frame-navigation proof
 
 Everything under "CSP hardened-check design" and its "Follow-up fix" subsection below describes
 the ORIGINAL implementation, which is now **historical** — CI proved the whole
@@ -13,12 +35,12 @@ the ORIGINAL implementation, which is now **historical** — CI proved the whole
 project's headless Chromium shell for PDF `blob:` iframes (no PDF viewer plugin → silent
 about:blank stall, zero CSP console violations, either way). `ReportWizardPage.ts` was reworked
 to prove the same AC via `fetchCspFrameSrcDirective()` (direct CSP response-header assertion —
-now the deterministic primary signal), the same zero-CSP-violation-message check, and
-`fetchPreviewBlobInfo()` (in-page `fetch()` + blob size/MIME assertion, replacing the
-frame-navigation check). See `general-e2e-patterns.md`'s "Headless Chromium shell has no PDF
-viewer plugin" section for the full pattern write-up (this is a reusable lesson, not specific to
-this story) — keeping the narrative below for historical context on why the polling fix was
-tried first and why it still wasn't enough.
+the deterministic primary signal) plus the same zero-CSP-violation-message check. (An
+intermediate version also added an in-page `fetchPreviewBlobInfo()` blob-content check — see the
+"SUPERSEDED AGAIN" section above for why that was removed too.) See `general-e2e-patterns.md`'s
+"Headless Chromium shell has no PDF viewer plugin" section for the full pattern write-up (this is
+a reusable lesson, not specific to this story) — keeping the narrative below for historical
+context on why the polling fix was tried first and why it still wasn't enough.
 
 ## Files
 

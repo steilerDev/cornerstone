@@ -122,18 +122,35 @@ is the known case; likely also true for other browser-plugin-dependent content).
 2. Keep a zero-CSP-console-violation assertion as defense in depth — real (non-headless-shell)
    browsers still log synchronously on a block, so this remains a meaningful second signal even
    though it can't be the *only* signal in CI.
-3. For iframe content that's blocked from headless rendering (PDF blobs): replace "prove the
-   iframe navigated" with "prove the blob itself is genuine" — `page.evaluate(async (src) => {
-   const b = await (await fetch(src)).blob(); return { size: b.size, type: b.type }; }, src)`
-   and assert `size` is non-trivial and `type` matches the expected MIME type. This proves the
-   `<iframe>`'s `src` attribute points at real content without depending on the iframe's own
-   browsing context completing a navigation the shell can't perform.
+3. Do NOT try to fetch the iframe's `blob:` src from within the page as a third signal — see the
+   "blob: fetch is connect-src-governed, not frame-src" entry immediately below for why that's a
+   dead end, not just an unnecessary extra.
 
-See `ReportWizardPage.ts`'s `assertPreviewHardened`/`fetchCspFrameSrcDirective`/
-`fetchPreviewBlobInfo` for the reference implementation, and
-`story-1891-wizard-followup.md` for the full before/after narrative (this superseded that
-story's own earlier `page.frames()`-polling fix, which turned out to just be racing an
-unwinnable race).
+See `ReportWizardPage.ts`'s `assertPreviewHardened`/`fetchCspFrameSrcDirective` for the reference
+implementation, and `story-1891-wizard-followup.md` for the full before/after narrative (this
+superseded that story's own earlier `page.frames()`-polling fix, which turned out to just be
+racing an unwinnable race).
+
+## blob: fetch is connect-src-governed, not frame-src — don't add an in-page `fetch(blobSrc)` as a "prove the blob is genuine" check (Story #1891 second TEST_ENVIRONMENT fix, 2026-07-30)
+
+An earlier revision of the pattern above (item 3, since removed) tried to compensate for the
+headless shell's inability to render PDF iframes by having the PAGE itself `fetch()` the blob:
+URL from `page.evaluate` and inspect the resulting `Blob`'s `size`/`type`. This looked reasonable
+but is a dead end: `fetch()`/`XHR` to a URL — including a `blob:` URL — is governed by the page's
+`connect-src` CSP directive, not `frame-src`. Cornerstone's `connect-src` is (correctly)
+`'self'` only, with no `blob:` token, because the application itself never fetches its own
+preview blob — the browser resolves `<iframe src="blob:...">` internally without going through
+`fetch`/`XHR` at all. So the in-page fetch was blocked by the exact CSP it was trying to
+characterize, and CI (run 30531695763, shard 2) showed every wizard scenario failing in ~2s with
+`page.evaluate: TypeError: Failed to fetch`. **Do not loosen `connect-src` to accommodate this
+test technique** — it would weaken production CSP for no product reason, since the app has no
+legitimate need to fetch blob: URLs itself. The fix was simply to delete the blob-fetch check
+(`fetchPreviewBlobInfo` in `ReportWizardPage.ts`) and rely on the two signals above (CSP header +
+zero console violations) plus the plain "src attribute starts with `blob:`" check callers already
+did. **General lesson: when a CSP directive blocks something, don't assume any other in-page
+technique that touches network/fetch is a safe workaround — check which specific directive
+(`connect-src` vs `frame-src` vs `script-src`, etc.) governs the technique you're about to add,
+since they're independently configured and a fix for one doesn't imply permission under another.**
 
 ## Key file locations
 

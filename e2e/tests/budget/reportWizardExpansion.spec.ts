@@ -6,10 +6,15 @@
  * - Scenario 1: CSP headline — the report wizard page's own CSP response header is asserted to
  *   have a `frame-src` directive containing both `'self'` and `blob:` (the deterministic,
  *   headless-safe core of this proof), zero CSP-violation console messages were captured, and
- *   the preview iframe's `blob:` src is fetched from within the page and proven to resolve to
- *   a real, non-empty PDF. (This replaced an earlier `page.frames()` navigation-match
- *   technique that turned out to be unverifiable in CI's headless Chromium shell — see
- *   `ReportWizardPage.ts`'s `assertPreviewHardened` docstring.)
+ *   the preview overlay/iframe/src reach their expected settled state (overlay hidden, iframe
+ *   visible, src is a `blob:` URL). This does NOT fetch the blob's bytes from within the page:
+ *   an in-page `fetch(blobSrc)` is itself governed by the app's CSP `connect-src 'self'` (which
+ *   does not, and must not, include `blob:` — the app itself never fetches its own preview
+ *   blob, the browser resolves `<iframe src="blob:...">` internally), so that technique is a
+ *   dead end and production CSP will not be loosened to accommodate a test. (This also replaced
+ *   an earlier `page.frames()` navigation-match technique that turned out to be unverifiable in
+ *   CI's headless Chromium shell — see `ReportWizardPage.ts`'s `assertPreviewHardened`
+ *   docstring for the full history of both superseded attempts.)
  * - Scenario 2: Status chip width — a short label ("Paid") and a long label ("Quotation")
  *   render at genuinely different widths, proving the chip sizes to its content instead of
  *   stretching to a fixed grid-column width.
@@ -211,7 +216,7 @@ async function createDepositViaApi(
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard expansion — CSP frame-src headline (Scenario 1)', () => {
-  test('CSP frame-src header allows blob:, zero CSP violations, and the preview blob is a genuine non-empty PDF', async ({
+  test('CSP frame-src header allows blob:, zero CSP violations, and the preview settles on a blob: src', async ({
     page,
     testPrefix,
   }) => {
@@ -245,13 +250,14 @@ test.describe('Report wizard expansion — CSP frame-src headline (Scenario 1)',
       ).toBeVisible();
       await wizard.goNextFromStep3();
 
-      // waitForPreviewReady() already runs the hardened CSP-header + zero-CSP-message +
-      // blob-content proof internally (see ReportWizardPage.ts's assertPreviewHardened
-      // docstring) — this scenario ALSO re-asserts explicitly per the story's AC, so a future
-      // refactor of the POM's internal check can't silently drop this specific proof from
-      // coverage.
+      // waitForPreviewReady() already runs the hardened CSP-header + zero-CSP-message proof
+      // internally (see ReportWizardPage.ts's assertPreviewHardened docstring) — this scenario
+      // ALSO re-asserts explicitly per the story's AC, so a future refactor of the POM's
+      // internal check can't silently drop this specific proof from coverage.
       await wizard.waitForPreviewReady();
 
+      // (3) Overlay hidden + iframe visible + src is a blob: URL — already true by construction
+      // once waitForPreviewReady() resolves, re-asserted here per the story's AC.
       const src = await wizard.getPreviewSrc();
       expect(src).toMatch(/^blob:/);
 
@@ -268,19 +274,20 @@ test.describe('Report wizard expansion — CSP frame-src headline (Scenario 1)',
       // (2) Zero CSP-violation console messages — defense in depth for real (non-headless-
       // shell) browsers, where a frame-src block always also logs a console error
       // synchronously with the blocked navigation.
+      //
+      // We deliberately do NOT assert on `page.frames()` matching the iframe's own browsing
+      // context, and we deliberately do NOT `fetch()` the blob's bytes from within the page:
+      // Playwright's bundled headless Chromium shell has no built-in PDF viewer plugin, so an
+      // `<iframe src="blob:...pdf">` aborts/blanks WITHOUT ever completing navigation or firing
+      // a CSP violation, REGARDLESS of whether frame-src is correct (confirmed via CI run
+      // 30530648400, shard 2) — that frame-navigation technique is unverifiable in this
+      // environment. And an in-page `fetch(blobSrc)` is itself governed by the app's CSP
+      // `connect-src 'self'` (no `blob:` token, by design — the app never fetches its own
+      // preview blob), so it is blocked by the very policy this test verifies (confirmed via CI
+      // run 30531695763, shard 2: every scenario failed in ~2s with `page.evaluate: TypeError:
+      // Failed to fetch`). See ReportWizardPage.ts's assertPreviewHardened docstring for the
+      // full history.
       expect(wizard.getCspViolations()).toEqual([]);
-
-      // (3) Blob resolvability + content — proves the iframe's src genuinely resolves to a
-      // real, non-empty PDF. We deliberately do NOT assert on `page.frames()` matching the
-      // iframe's own browsing context here: Playwright's bundled headless Chromium shell has
-      // no built-in PDF viewer plugin, so an `<iframe src="blob:...pdf">` aborts/blanks
-      // WITHOUT ever completing navigation or firing a CSP violation, REGARDLESS of whether
-      // frame-src is correct (confirmed via CI run 30530648400, shard 2: 10s of polling, zero
-      // frame matches, zero CSP messages, on a build where the `blob:` fix was already
-      // present). That frame-navigation technique is unverifiable in this environment.
-      const blobInfo = await wizard.fetchPreviewBlobInfo(src);
-      expect(blobInfo.size).toBeGreaterThan(1000);
-      expect(blobInfo.type).toBe('application/pdf');
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
