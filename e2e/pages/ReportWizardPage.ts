@@ -4,12 +4,17 @@
  * The page renders:
  * - An h1 "Bank Reports" page title (PageLayout)
  * - BUDGET_TABS SubNav ("Reports" tab, 5th)
- * - A WizardStepper (`client/src/components/WizardStepper`):
- *   - Desktop (>=768px): `<nav><ol class*="stepList">` of `<li class*="stepItem">`, each
- *     containing either a `<button class*="stepButton">` (reachable step, stepNum <=
+ * - A WizardStepper (`client/src/components/WizardStepper`): BOTH trees below are ALWAYS
+ *   present in the DOM simultaneously — visibility is toggled purely via a
+ *   `@media (max-width: 767px)` CSS rule in `WizardStepper.module.css` (`.stepper{display:
+ *   none}`/`.stepperMobile{display:flex}` under the breakpoint), not conditional rendering.
+ *   Locators that need viewport-specific behavior must assert visibility (`toBeVisible()` /
+ *   `not.toBeVisible()`), never DOM presence (`toHaveCount()`), against these two trees.
+ *   - Desktop (>=768px, visible): `<nav><ol class*="stepList">` of `<li class*="stepItem">`,
+ *     each containing either a `<button class*="stepButton">` (reachable step, stepNum <=
  *     maxReachedStep) or a non-interactive `<div class*="stepButtonDisabled">` (forward-locked
  *     step — NOT a button, not in the a11y/tab tree).
- *   - Mobile (<768px): `<p class*="stepCount">` + `<div class*="dotIndicators"><div
+ *   - Mobile (<768px, visible): `<p class*="stepCount">` + `<div class*="dotIndicators"><div
  *     class*="dot">`.
  *
  *   NOTE: `WizardStepper`'s own strings (`reportWizard.stepOfTotal`,
@@ -43,7 +48,7 @@
  * - Claim success: `[class*="bannerSuccess"]` banner (replaces the action buttons in Step 4).
  */
 
-import type { Page, Locator, Download } from '@playwright/test';
+import { expect, type Page, type Locator, type Download } from '@playwright/test';
 
 export const REPORT_WIZARD_ROUTE = '/budget/reports';
 
@@ -315,6 +320,36 @@ export class ReportWizardPage {
     if (!src || !src.startsWith('blob:')) {
       throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
     }
+  }
+
+  /** Current preview iframe `blob:` src, for detecting a regeneration via a src change. */
+  async getPreviewSrc(): Promise<string> {
+    return (await this.previewIframe.getAttribute('src')) ?? '';
+  }
+
+  /**
+   * Waits for a NEW preview to be ready after an options change, proven by the iframe's
+   * `blob:` src actually changing from `previousSrc` (not merely re-reading the same URL).
+   * Deliberately does NOT assert the loading overlay becomes visible first: regeneration is
+   * debounced (400ms) then CPU-bound (pdfmake, no network I/O for attachment-less test
+   * invoices), and for trivial content that round trip can complete fast enough that the
+   * transient overlay never has an observable "visible" window for Playwright's polling to
+   * reliably catch — the established convention elsewhere in the suite
+   * (`invoice-auto-itemize-page.spec.ts`) only ever asserts the overlay's terminal hidden
+   * state, never its transient appearance, for the same reason.
+   */
+  async waitForPreviewRegenerated(previousSrc: string): Promise<void> {
+    await this.previewLoadingOverlay.waitFor({ state: 'hidden' });
+    await this.previewIframe.waitFor({ state: 'visible' });
+    await expect(async () => {
+      const src = await this.getPreviewSrc();
+      if (!src.startsWith('blob:')) {
+        throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
+      }
+      if (src === previousSrc) {
+        throw new Error('Preview src has not changed yet — regeneration still pending');
+      }
+    }).toPass();
   }
 
   async download(): Promise<Download> {

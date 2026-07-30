@@ -273,23 +273,25 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
       // Step 4: preview generates on entry.
       await wizard.waitForPreviewReady();
 
-      // Toggle attach documents off then on — spinner appears/clears each time.
+      // Toggle attach documents off then on — each toggle produces a genuinely new preview
+      // (proven by the iframe's blob: src changing, not by the loading spinner's transient
+      // visibility — see waitForPreviewRegenerated's docstring for why).
+      let previousSrc = await wizard.getPreviewSrc();
       await wizard.toggleAttachDocuments();
-      await expect(wizard.previewLoadingOverlay).toBeVisible();
-      await wizard.waitForPreviewReady();
+      await wizard.waitForPreviewRegenerated(previousSrc);
 
+      previousSrc = await wizard.getPreviewSrc();
       await wizard.toggleAttachDocuments();
-      await expect(wizard.previewLoadingOverlay).toBeVisible();
-      await wizard.waitForPreviewReady();
+      await wizard.waitForPreviewRegenerated(previousSrc);
 
-      // Toggle cover letter off then on — spinner appears/clears each time.
+      // Toggle cover letter off then on — same regeneration proof.
+      previousSrc = await wizard.getPreviewSrc();
       await wizard.toggleCoverLetter();
-      await expect(wizard.previewLoadingOverlay).toBeVisible();
-      await wizard.waitForPreviewReady();
+      await wizard.waitForPreviewRegenerated(previousSrc);
 
+      previousSrc = await wizard.getPreviewSrc();
       await wizard.toggleCoverLetter();
-      await expect(wizard.previewLoadingOverlay).toBeVisible();
-      await wizard.waitForPreviewReady();
+      await wizard.waitForPreviewRegenerated(previousSrc);
 
       // Download — filename `claim-<slug>-<date>.pdf`.
       const today = new Date().toISOString().slice(0, 10);
@@ -445,7 +447,19 @@ test.describe('Report wizard — proof of funds smoke (Scenario 3)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard — empty state (Scenario 4)', () => {
-  test('Zero-match use case/source combination shows an EmptyState, not a crash', async ({
+  // NOTE: the wizard's <EmptyState> only renders when BOTH this source's allocated invoices
+  // AND the *household-wide* unallocated-invoice list are empty (`ReportInvoiceList.tsx`:
+  // `allocatedInvoices.length === 0 && unallocatedInvoices.length === 0`) — the unallocated
+  // list is a global query with no source scoping at all
+  // (`sourceReportService.ts`'s `unallocRows` query has no `budget_source_id` filter). Under
+  // full parallel CI (8 workers × 3 viewports, dozens of concurrent spec files creating
+  // pending/paid invoices), the household-wide unallocated count is usually non-zero, so the
+  // <EmptyState> component itself is NOT reliably reachable in this environment — the only
+  // thing deterministic for a freshly created, never-allocated source is that ITS OWN
+  // allocated list is empty. Assert that directly, and branch on whichever of the two valid
+  // renders actually occurred (EmptyState vs. a zero-row list with a disabled Next) rather
+  // than assuming one is always reachable.
+  test('A source with zero allocated invoices shows no rows and no crash, regardless of global unallocated noise', async ({
     page,
     testPrefix,
   }) => {
@@ -464,8 +478,21 @@ test.describe('Report wizard — empty state (Scenario 4)', () => {
       await wizard.selectSource(sourceId);
       await wizard.goNextFromStep2();
 
-      await expect(wizard.emptyState).toBeVisible();
+      // Wait for the report to actually finish loading (either terminal render is fine —
+      // the Skeleton placeholder renders zero rows too, which would otherwise false-pass the
+      // count assertion below before real data arrives).
+      await wizard.emptyState.or(wizard.selectAllCheckbox).waitFor({ state: 'visible' });
       await expect(wizard.invoiceRows).toHaveCount(0);
+
+      if (await wizard.emptyState.isVisible()) {
+        // No unallocated invoices exist household-wide right now — the EmptyState branch.
+        await expect(wizard.emptyState).toBeVisible();
+      } else {
+        // Other concurrent tests' unallocated invoices keep the list rendered — the
+        // zero-allocated-rows branch, proven via the selection bar and disabled Next.
+        await expect(wizard.selectionCountLabel).toContainText('0 of 0');
+        await expect(wizard.step3NextButton).toBeDisabled();
+      }
     } finally {
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
     }
@@ -704,7 +731,12 @@ test.describe('Report wizard — mobile stepper (Scenario 10)', { tag: '@respons
     await expect(wizard.mobileStepCount).toContainText('1');
     await expect(wizard.mobileStepCount).toContainText('4');
     await expect(wizard.mobileDots).toHaveCount(4);
-    await expect(wizard.stepListDesktop).toHaveCount(0);
+    // WizardStepper renders BOTH the desktop <ol class="stepList"> and the mobile
+    // stepperMobile tree unconditionally, toggling which is shown purely via a
+    // `@media (max-width: 767px)` CSS rule (WizardStepper.module.css) — the desktop tree is
+    // still present in the DOM at mobile viewport width, just `display:none`. Assert on
+    // visibility, not DOM presence.
+    await expect(wizard.stepListDesktop).not.toBeVisible();
   });
 });
 
@@ -715,7 +747,18 @@ test.describe('Report wizard — mobile stepper (Scenario 10)', { tag: '@respons
 // budget-sources.spec.ts — this scenario intentionally does not duplicate it.)
 
 test.describe('Report wizard — refund cross-story integration (Scenario 11)', () => {
-  test('A refund entry surfaces as a negative line and increases the running total when excluded', async ({
+  // NOTE ON SEED SHAPE: the source report contract is documented (wiki/API-Contract.md,
+  // `sourceReportService.ts`, confirmed by its unit test "scenario 14") as exactly ONE row per
+  // invoice, carrying the NET contribution across the report's status-target set — `lineKind`
+  // only flips to 'refund-adjustment' when that net goes negative. A refund against an invoice
+  // that's ALSO itself in-scope just reduces that invoice's own row (still `lineKind:
+  // 'invoice'`); it does not spawn a second row. To exercise a genuine 'refund-adjustment' row
+  // this seeds TWO invoices: one plain in-scope invoice (positive row) and a SEPARATE
+  // out-of-scope invoice (`status: 'claimed'`, contributes nothing on its own for a 'claim'
+  // report) carrying an in-scope refund (`status: 'paid'`) — its net is therefore purely
+  // negative, matching a real "already-claimed invoice, partially refunded during the current
+  // claim period" scenario.
+  test('A refund against an out-of-scope invoice surfaces as its own negative line and increases the running total when excluded', async ({
     page,
     testPrefix,
   }) => {
@@ -734,13 +777,25 @@ test.describe('Report wizard — refund cross-story integration (Scenario 11)', 
       });
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Refund` });
 
+      // In-scope invoice: 'pending' is within the 'claim' report's target statuses
+      // (pending+paid) — contributes its full amount as a normal, positive 'invoice' row.
       const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
         invoiceNumber: `${testPrefix}-RF-001`,
         amount: 1000,
         date: '2026-03-15',
-        status: 'paid',
+        status: 'pending',
       });
-      await createDepositViaApi(page, invoice.id, {
+
+      // Out-of-scope invoice: 'claimed' is OUTSIDE {pending, paid}, so its own residual
+      // contributes 0 — but its 'paid' refund IS in scope, so the net for this invoice is
+      // purely the (negative) refund contribution.
+      const refundedInvoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-RF-002`,
+        amount: 1000,
+        date: '2026-03-16',
+        status: 'claimed',
+      });
+      await createDepositViaApi(page, refundedInvoice.id, {
         amount: 200,
         dueDate: '2026-03-20',
         status: 'paid',
@@ -755,12 +810,12 @@ test.describe('Report wizard — refund cross-story integration (Scenario 11)', 
 
       const vendorName = `${testPrefix} Refund Vendor`;
       await expect(wizard.regularInvoiceRow(vendorName, invoice.invoiceNumber!)).toBeVisible();
-      const refundRow = wizard.refundRow(vendorName, invoice.invoiceNumber!);
+      const refundRow = wizard.refundRow(vendorName, refundedInvoice.invoiceNumber!);
       await expect(refundRow).toBeVisible();
       await expect(refundRow).toContainText('Refund');
       await expect(refundRow).toContainText('-');
 
-      // Running total: 1000 (invoice) - 200 (refund) = 800.
+      // Running total: 1000 (in-scope invoice) - 200 (refund-adjustment) = 800.
       await expect(wizard.selectionCountLabel).toContainText('800');
 
       // Excluding the refund-adjustment row INCREASES the running total (sign behavior).

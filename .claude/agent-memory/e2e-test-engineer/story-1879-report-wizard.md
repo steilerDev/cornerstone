@@ -82,6 +82,77 @@ Report-type → included invoice statuses (`server/src/services/sourceReportServ
 in a report if the REFUND'S OWN status is in the report type's target status set (e.g. a `paid`
 refund shows up in a `claim` report).
 
+## Fix-round triage (PR #1887, commit fdba5cd8) — 5 E2E failures after #1886 landed
+
+`ReportWizardPage.tsx` now correctly unwraps `fetchBudgetSources()` (`setBudgetSources(sources.budgetSources)`)
+and the missing-i18n-key/markClaimed-interpolation bugs from the original authoring round are
+also fixed — the wizard now genuinely progresses past step 1. Triaged the 5 remaining shard
+failures (shard 2/16 desktop scenarios 1/4/9/11, shard 13/16 mobile scenario 10):
+
+- **Scenario 1 (claim walk) — TEST_BUG, fixed.** `expect(previewLoadingOverlay).toBeVisible()`
+  after each Step 4 checkbox toggle is a transient-state assertion: regeneration is a 400ms
+  debounce (`ReportWizardPage.tsx:258`) then CPU-bound `pdfmake`/`pdf-lib` work with NO network
+  I/O for attachment-less test invoices (`reportPdf/merge.ts` — the document-fetch loop is
+  skipped entirely when `invoice.documents` is empty), so the whole regen can complete fast
+  enough that the overlay's "visible" window is never reliably observed by Playwright's
+  polling. The suite's own established convention elsewhere
+  (`invoice-auto-itemize-page.spec.ts:1589`) only ever asserts the overlay's terminal *hidden*
+  state, never its transient appearance — same lesson applies here. Fixed by adding
+  `ReportWizardPage.getPreviewSrc()` / `waitForPreviewRegenerated(previousSrc)` to the POM,
+  which prove a regeneration happened via the iframe's `blob:` src actually changing (every
+  `URL.createObjectURL()` call yields a unique URL) instead of racing the spinner.
+- **Scenario 4 (empty state) — TEST_BUG, fixed.** `ReportInvoiceList.tsx`'s `<EmptyState>` only
+  renders when BOTH this source's allocated invoices AND the *household-wide* unallocated list
+  are empty — `sourceReportService.ts`'s `unallocRows` query has **no** `budget_source_id`
+  filter at all (confirmed by reading the SQL), so it's global across every vendor/spec file.
+  Under full 8-worker parallel CI this is essentially always non-zero, making the EmptyState
+  branch unreachable most runs. Fixed by branching on whichever of the two valid renders
+  actually occurred (`emptyState.or(selectAllCheckbox).waitFor()` first to avoid a
+  skeleton-false-pass, then check `emptyState.isVisible()`) rather than assuming one is always
+  reachable.
+- **Scenario 9 (forward-lock) — CODE_BUG, reported, NOT fixed (production code).**
+  `ReportWizardPage.tsx:243-277`'s PDF-generation effect calls `setMaxReachedStep(4)`
+  (line ~252) as soon as `reportStatus === 'ready'` — which fires right after Step 2's source
+  selection resolves, **not** gated on the user having reached/completed Step 3. This lets the
+  desktop stepper's Step 4 item render as an interactive `<button>` (bypassing the intended
+  forward-lock) before the user has ever seen the invoice list. Fix should move
+  `setMaxReachedStep(4)` to the Step 3 "Next" button's `onClick` (`ReportWizardPage.tsx:528`
+  `onClick={() => setCurrentStep(4)}`) instead of the background data-ready effect.
+- **Scenario 10 (mobile stepper) — TEST_BUG, fixed.** `WizardStepper.tsx` renders BOTH the
+  desktop `<ol class="stepList">` and the mobile `stepperMobile` tree unconditionally
+  (confirmed in `WizardStepper.module.css:197-205` — a `@media (max-width:767px)` rule toggles
+  `display`, nothing is conditionally mounted). `toHaveCount(0)` on the desktop tree at mobile
+  viewport was wrong from authoring (assumed structural exclusivity that was never true) —
+  changed to `not.toBeVisible()`. Corrected the POM's own docstring (previously described the
+  two trees as viewport-exclusive) to document the dual-tree-plus-CSS pattern explicitly, so
+  future scenarios don't repeat the same wrong assumption.
+- **Scenario 11 (refund) — TEST_BUG, fixed.** The original seed put BOTH a positive invoice
+  (`status:'paid'`, amount 1000) and its own refund (200) on the SAME invoice — but
+  `sourceReportService.ts` computes exactly ONE row per invoice as the NET contribution across
+  the report's target-status set (`computeStatusContributionByInvoice`), and `lineKind` only
+  flips to `'refund-adjustment'` when that net goes negative (documented at
+  `wiki/API-Contract.md:3606-3607`, proven by `sourceReportService.test.ts` "scenario 14"). A
+  refund that merely reduces an already-in-scope invoice's contribution stays merged into that
+  SAME positive row — it does NOT spawn a second row. Fixed by seeding TWO invoices: one plain
+  in-scope invoice (`status:'pending'`, positive row) and a separate OUT-of-scope invoice
+  (`status:'claimed'` — outside `claim`'s {pending,paid} set, so its own residual is 0) that
+  carries an in-scope refund (`status:'paid'`), giving it a purely negative net → a genuine
+  `refund-adjustment` row. This preserves the original 800/1,000 running-total assertions
+  unchanged while matching the documented contract. Mirrors a real "already-claimed invoice,
+  partially refunded during the current claim period" scenario, which is also a nice
+  confirmation the design is intentional, not a shortcut.
+
+Files touched this round: `e2e/pages/ReportWizardPage.ts` (added `getPreviewSrc`/
+`waitForPreviewRegenerated`, corrected stepper docstring), `e2e/tests/budget/reportWizard.spec.ts`
+(scenarios 1/4/10/11 rewritten per above; scenario 9 left unchanged — it correctly encodes
+spec-conformant behavior and is expected to keep failing until the CODE_BUG above is fixed).
+Verified via `npx eslint --fix` + `npx prettier --write` (clean), `npx playwright test --list`
+(16 tests, same count/scenario shape), `npx tsc --noEmit -p e2e/tsconfig.json` scoped diff
+(zero new errors in the two touched files; the ~123 pre-existing errors across ~20 unrelated
+files are the same sandbox/stale-build noise documented in
+`story-1877-contact-fields-attachment-typing.md`). No live CI run performed by me — awaiting
+the next push.
+
 ## Prior-PR triage confirms two previously-known flakes are ALREADY self-healed on beta
 
 Checked the 3 most recent beta merges before this story (#1885/#1883/#1880, all merged

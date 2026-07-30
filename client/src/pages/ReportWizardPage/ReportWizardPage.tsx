@@ -249,7 +249,6 @@ export function ReportWizardPage() {
       // Immediate generation for first PDF
       hasGeneratedRef.current = true;
       void regeneratePdf();
-      setMaxReachedStep(4);
     } else {
       // Debounced regeneration on option/exclusion changes
       if (debounceTimerRef.current) {
@@ -525,7 +524,10 @@ export function ReportWizardPage() {
                   <button
                     type="button"
                     className={sharedStyles.btnPrimary}
-                    onClick={() => setCurrentStep(4)}
+                    onClick={() => {
+                      setMaxReachedStep((s) => Math.max(s, 4));
+                      setCurrentStep(4);
+                    }}
                     disabled={excludedInvoiceIds.size === report.invoices.length}
                     title={
                       excludedInvoiceIds.size === report.invoices.length
