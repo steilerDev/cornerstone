@@ -27,7 +27,7 @@
     "node-cron": "4.5.0",
     "openid-client": "6.8.4",
     "sharp": "0.35.2",
-    "tar": "^7.5.17",
+    "tar": "^7.5.21",
     "vcard-creator": "1.0.0"
   },
   "devDependencies": {
