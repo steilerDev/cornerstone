@@ -825,8 +825,7 @@ describe('Invoice Service', () => {
       invoiceService.updateInvoice(db, vendorAId, invoiceId, { vendorId: vendorBId });
 
       const row = sqlite.prepare('SELECT * FROM invoice_deposits WHERE id = ?').get(depositId) as
-        | { invoice_id: string }
-        | undefined;
+        { invoice_id: string } | undefined;
       expect(row).toBeDefined();
       expect(row!.invoice_id).toBe(invoiceId);
     });
@@ -1812,8 +1811,7 @@ describe('Invoice Service', () => {
 
       // Deposit must still exist and be linked to the same invoice
       const row = sqlite.prepare('SELECT * FROM invoice_deposits WHERE id = ?').get(depositId) as
-        | { invoice_id: string }
-        | undefined;
+        { invoice_id: string } | undefined;
 
       expect(row).toBeDefined();
       expect(row!.invoice_id).toBe(invoiceId);

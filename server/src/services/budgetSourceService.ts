@@ -15,8 +15,9 @@ import {
 } from '../db/schema.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import {
-  computeStatusContribution,
-  splitByDeposits,
+  computeStatusContributionExcludingTagged,
+  splitByDepositsExcludingTagged,
+  sumTaggedDepositContributions,
   type DepositAwareRow,
 } from './shared/depositAggregateUtils.js';
 import type {
@@ -124,12 +125,14 @@ function computeUsedAmount(db: DbType, sourceId: string): number {
 
 /**
  * Compute the claimed amount for a budget source.
+ * Story #1891: Rail A (line-derived via ExcludingTagged) + Rail B (tagged deposits).
  * Sums claimed contributions from invoice budget lines linked to this source,
- * including deposits split proportionally by amount.
- * Returns 0 if no claimed invoices exist.
+ * plus direct contributions from deposits tagged to this source.
+ * Returns 0 if no claimed invoices/deposits exist.
  */
 function computeClaimedAmount(db: DbType, sourceId: string): number {
-  const rows = db.all<DepositAwareRow>(
+  // Rail A: invoice budget lines (excluding tagged deposits)
+  const railARows = db.all<DepositAwareRow & { deposit_budget_source_id: string | null }>(
     sql`SELECT
       ibl.id              AS ibl_id,
       ibl.itemized_amount AS itemized_amount,
@@ -139,7 +142,8 @@ function computeClaimedAmount(db: DbType, sourceId: string): number {
       d.id                AS deposit_id,
       d.amount            AS deposit_amount,
       d.status            AS deposit_status,
-      d.entry_type        AS deposit_entry_type
+      d.entry_type        AS deposit_entry_type,
+      d.budget_source_id  AS deposit_budget_source_id
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
@@ -156,17 +160,37 @@ function computeClaimedAmount(db: DbType, sourceId: string): number {
     )`,
   );
 
-  return computeStatusContribution(rows, 'claimed');
+  const railAAmount = computeStatusContributionExcludingTagged(railARows, 'claimed');
+
+  // Rail B: deposits tagged to this source
+  const railBRows = db.all<{
+    amount: number;
+    status: string;
+    entryType: string;
+  }>(
+    sql`SELECT
+      d.amount AS amount,
+      d.status AS status,
+      d.entry_type AS entryType
+    FROM invoice_deposits d
+    WHERE d.budget_source_id = ${sourceId}`,
+  );
+
+  const railBAmount = sumTaggedDepositContributions(railBRows, new Set(['claimed']));
+
+  return railAAmount + railBAmount;
 }
 
 /**
  * Compute the unclaimed (paid but not claimed) amount for a budget source.
+ * Story #1891: Rail A (line-derived via ExcludingTagged) + Rail B (tagged deposits).
  * Sums paid contributions from invoice budget lines linked to this source,
- * including deposits split proportionally by amount.
- * Returns 0 if no paid invoices exist.
+ * plus direct contributions from deposits tagged to this source.
+ * Returns 0 if no paid invoices/deposits exist.
  */
 function computeUnclaimedAmount(db: DbType, sourceId: string): number {
-  const rows = db.all<DepositAwareRow>(
+  // Rail A: invoice budget lines (excluding tagged deposits)
+  const railARows = db.all<DepositAwareRow & { deposit_budget_source_id: string | null }>(
     sql`SELECT
       ibl.id              AS ibl_id,
       ibl.itemized_amount AS itemized_amount,
@@ -176,7 +200,8 @@ function computeUnclaimedAmount(db: DbType, sourceId: string): number {
       d.id                AS deposit_id,
       d.amount            AS deposit_amount,
       d.status            AS deposit_status,
-      d.entry_type        AS deposit_entry_type
+      d.entry_type        AS deposit_entry_type,
+      d.budget_source_id  AS deposit_budget_source_id
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
@@ -193,7 +218,25 @@ function computeUnclaimedAmount(db: DbType, sourceId: string): number {
     )`,
   );
 
-  return computeStatusContribution(rows, 'paid');
+  const railAAmount = computeStatusContributionExcludingTagged(railARows, 'paid');
+
+  // Rail B: deposits tagged to this source
+  const railBRows = db.all<{
+    amount: number;
+    status: string;
+    entryType: string;
+  }>(
+    sql`SELECT
+      d.amount AS amount,
+      d.status AS status,
+      d.entry_type AS entryType
+    FROM invoice_deposits d
+    WHERE d.budget_source_id = ${sourceId}`,
+  );
+
+  const railBAmount = sumTaggedDepositContributions(railBRows, new Set(['paid']));
+
+  return railAAmount + railBAmount;
 }
 
 /**
@@ -214,25 +257,36 @@ function countBudgetLineReferences(db: DbType, sourceId: string): number {
 
 /**
  * Compute the discretionary invoice amount for a given status.
+ * Story #1891: Rail A (unallocated remainder + unallocated lines, excluding tagged deposits) + Rail B (tagged to discretionary source).
  * Includes:
  * 1. Unallocated remainder: invoice.amount - SUM(itemized_amount) for invoices with this status,
- *    split proportionally by deposits
+ *    split proportionally by deposits (excluding tagged)
  * 2. Lines with no budget_source: amount allocated to budget lines where source is NULL,
- *    split proportionally by deposits
+ *    split proportionally by deposits (excluding tagged)
+ * 3. Deposits tagged to the discretionary source
  */
 function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
-  // 1. Unallocated remainder with deposit-aware split
-  // Fetch all invoices with unallocated remainder, along with their deposits
-  const remainderRows = db.all<{
-    invoice_id: string;
-    invoice_amount: number;
-    invoice_status: string;
-    total_itemized: number | null;
-    deposit_id: string | null;
-    deposit_amount: number | null;
-    deposit_status: string | null;
-    deposit_entry_type: string | null;
-  }>(
+  // Find the discretionary source ID
+  const discretionarySource = db
+    .select()
+    .from(budgetSources)
+    .where(eq(budgetSources.isDiscretionary, true))
+    .get();
+  const discretionarySourceId = discretionarySource?.id;
+
+  // 1. Unallocated remainder with deposit-aware split (excluding tagged)
+  const remainderRows = db.all<
+    {
+      invoice_id: string;
+      invoice_amount: number;
+      invoice_status: string;
+      total_itemized: number | null;
+      deposit_id: string | null;
+      deposit_amount: number | null;
+      deposit_status: string | null;
+      deposit_entry_type: string | null;
+    } & { deposit_budget_source_id: string | null }
+  >(
     sql`SELECT
       i.id              AS invoice_id,
       i.amount          AS invoice_amount,
@@ -241,7 +295,8 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
       d.id              AS deposit_id,
       d.amount          AS deposit_amount,
       d.status          AS deposit_status,
-      d.entry_type      AS deposit_entry_type
+      d.entry_type      AS deposit_entry_type,
+      d.budget_source_id AS deposit_budget_source_id
     FROM invoices i
     LEFT JOIN invoice_budget_lines ibl ON ibl.invoice_id = i.id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
@@ -253,10 +308,8 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
     HAVING (i.amount - COALESCE(SUM(ibl.itemized_amount), 0)) > 0`,
   );
 
-  // Build remainder amounts map and split by deposits
   let remainderTotal = 0;
   if (remainderRows.length > 0) {
-    // First pass: collect remainder amounts
     const remainderAmountByInvoice = new Map<string, number>();
     for (const row of remainderRows) {
       if (!remainderAmountByInvoice.has(row.invoice_id)) {
@@ -265,20 +318,16 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
       }
     }
 
-    // Split invoices by deposits
-    const splitsByInvoiceId = splitByDeposits(remainderRows);
+    const splitsByInvoiceId = splitByDepositsExcludingTagged(remainderRows);
 
-    // Compute proportional split for remainder
     for (const [invoiceId, split] of splitsByInvoiceId) {
       const remainderAmount = remainderAmountByInvoice.get(invoiceId)!;
 
-      // Residual contribution under parent invoice status
       const residualAmount = remainderAmount * split.residualFraction;
       if (split.invoiceStatus === status) {
         remainderTotal += residualAmount;
       }
 
-      // Per-deposit contributions
       for (const df of split.depositFractions) {
         if (df.depositStatus === status) {
           const depositContribution = remainderAmount * df.fraction;
@@ -288,8 +337,8 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
     }
   }
 
-  // 2. Lines with no budget_source with deposit-aware split
-  const noSourceRows = db.all<DepositAwareRow>(
+  // 2. Lines with no budget_source with deposit-aware split (excluding tagged)
+  const noSourceRows = db.all<DepositAwareRow & { deposit_budget_source_id: string | null }>(
     sql`SELECT
       ibl.id              AS ibl_id,
       ibl.itemized_amount AS itemized_amount,
@@ -299,7 +348,8 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
       d.id                AS deposit_id,
       d.amount            AS deposit_amount,
       d.status            AS deposit_status,
-      d.entry_type        AS deposit_entry_type
+      d.entry_type        AS deposit_entry_type,
+      d.budget_source_id  AS deposit_budget_source_id
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
@@ -316,9 +366,31 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
     )`,
   );
 
-  const noSourceTotal = computeStatusContribution(noSourceRows, status);
+  const noSourceTotal = computeStatusContributionExcludingTagged(noSourceRows, status);
 
-  return remainderTotal + noSourceTotal;
+  // 3. Rail B: Deposits tagged to discretionary source (if it exists)
+  let railBAmount = 0;
+  if (discretionarySourceId) {
+    const railBRows = db.all<{
+      amount: number;
+      status: string;
+      entryType: string;
+    }>(
+      sql`SELECT
+        d.amount AS amount,
+        d.status AS status,
+        d.entry_type AS entryType
+      FROM invoice_deposits d
+      WHERE d.budget_source_id = ${discretionarySourceId}`,
+    );
+
+    railBAmount = sumTaggedDepositContributions(
+      railBRows,
+      new Set([status === 'claimed' ? 'claimed' : 'paid']),
+    );
+  }
+
+  return remainderTotal + noSourceTotal + railBAmount;
 }
 
 /**

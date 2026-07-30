@@ -250,6 +250,37 @@
   justify-content: flex-end;
 }
 
+/* ---- Warning Block (ported from MassMoveModal) ---- */
+
+.warningBlock {
+  display: flex;
+  gap: var(--spacing-3);
+  background-color: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3) var(--spacing-4);
+  margin-top: var(--spacing-4);
+}
+
+.warningIconContainer {
+  flex-shrink: 0;
+  padding-top: var(--spacing-1);
+}
+
+.warningIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-warning);
+  flex-shrink: 0;
+}
+
+.warningBody {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 860px) {

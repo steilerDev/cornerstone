@@ -658,7 +658,12 @@
         "required": "*",
         "entryType": "Eintragsart",
         "entryTypeLabel": "Eintragsart",
-        "refundAmountHint": "Rückerstattungsbeträge werden als positive Zahl eingegeben."
+        "refundAmountHint": "Rückerstattungsbeträge werden als positive Zahl eingegeben.",
+        "budgetSource": "Budgetquelle",
+        "budgetSourceNone": "Keine (anteilig)",
+        "budgetSourceHintSingle": "Standardmäßig auf {{name}} gesetzt – die einzige Budgetquelle dieser Rechnung.",
+        "budgetSourceHintLargest": "Standardmäßig auf {{name}} gesetzt, die Quelle mit dem größten zugeordneten Anteil dieser Rechnung.",
+        "budgetSourceHintNone": "Diese Rechnung hat keine Budgetpositionen – wählen Sie eine Quelle aus, oder lassen Sie das Feld leer, um diese Abschlagszahlung anteilig zu belassen."
       },
       "entryTypeLabels": {
         "deposit": "Abschlagszahlung",
@@ -1207,7 +1212,33 @@
       "savings": "Ersparnisse",
       "other": "Sonstiges",
       "discretionary": "Diskretionär"
-    }
+    },
+    "expand": {
+      "expandInvoice": "Rechnungsdetails einblenden",
+      "collapseInvoice": "Rechnungsdetails ausblenden",
+      "itemsHeading": "Budgetpositionen",
+      "depositsHeading": "Abschlagszahlungen & Rückerstattungen",
+      "itemsEmpty": "Keine Budgetpositionen für diese Rechnung",
+      "depositsEmpty": "Keine Abschlagszahlungen oder Rückerstattungen für diese Rechnung",
+      "excludeItemAriaLabel": "{{name}} vom Bericht ausschließen",
+      "unnamedLine": "(Unbenannte Budgetposition)",
+      "linkedColumnHeader": "Verknüpft mit",
+      "itemColumnHeader": "Position",
+      "allocatedColumnHeader": "Zugeordnet",
+      "includeColumnHeader": "Einbeziehen",
+      "amountColumnHeader": "Betrag",
+      "statusColumnHeader": "Status",
+      "datesColumnHeader": "Termine",
+      "entryTypeColumnHeader": "Eintragsart",
+      "allocatedSourceColumnHeader": "Zugeordnete Quelle",
+      "entryTypeDeposit": "Abschlagszahlung",
+      "entryTypeRefund": "Rückerstattung",
+      "dueDate": "Fällig",
+      "paidDate": "Bezahlt",
+      "claimedDate": "Eingereicht"
+    },
+    "unassigned": "Nicht zugewiesen",
+    "confirmClaimExcludedItemsWarning": "{{count}} Rechnung(en) werden vollständig als eingereicht markiert, obwohl einige Positionen von diesem Bericht ausgeschlossen wurden."
   },
   "common": {
     "loading": "Wird geladen...",

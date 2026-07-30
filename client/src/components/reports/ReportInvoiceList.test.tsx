@@ -70,6 +70,8 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
     lineKind: 'invoice',
     isSplit: false,
     documents: [],
+    budgetLines: [],
+    deposits: [],
     ...overrides,
   };
 }
@@ -100,7 +102,9 @@ describe('ReportInvoiceList', () => {
       <ReportInvoiceList
         report={makeReport([])}
         excludedInvoiceIds={new Set()}
+        excludedLineIds={new Set()}
         onToggle={jest.fn()}
+        onToggleLine={jest.fn()}
         onToggleAll={jest.fn()}
         t={t}
       />,
@@ -117,7 +121,9 @@ describe('ReportInvoiceList', () => {
       <ReportInvoiceList
         report={report}
         excludedInvoiceIds={new Set()}
+        excludedLineIds={new Set()}
         onToggle={jest.fn()}
+        onToggleLine={jest.fn()}
         onToggleAll={jest.fn()}
         t={t}
       />,
@@ -136,7 +142,9 @@ describe('ReportInvoiceList', () => {
       <ReportInvoiceList
         report={report}
         excludedInvoiceIds={new Set(['inv-2'])}
+        excludedLineIds={new Set()}
         onToggle={jest.fn()}
+        onToggleLine={jest.fn()}
         onToggleAll={jest.fn()}
         t={t}
       />,
@@ -154,7 +162,9 @@ describe('ReportInvoiceList', () => {
       <ReportInvoiceList
         report={report}
         excludedInvoiceIds={new Set()}
+        excludedLineIds={new Set()}
         onToggle={onToggle}
+        onToggleLine={jest.fn()}
         onToggleAll={jest.fn()}
         t={t}
       />,
@@ -171,7 +181,9 @@ describe('ReportInvoiceList', () => {
       <ReportInvoiceList
         report={report}
         excludedInvoiceIds={new Set(['inv-1'])}
+        excludedLineIds={new Set()}
         onToggle={onToggle}
+        onToggleLine={jest.fn()}
         onToggleAll={jest.fn()}
         t={t}
       />,
@@ -191,7 +203,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -210,7 +224,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set(['inv-2'])}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -226,7 +242,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={onToggleAll}
           t={t}
         />,
@@ -246,7 +264,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set(['inv-2'])}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={onToggleAll}
           t={t}
         />,
@@ -262,7 +282,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -283,7 +305,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -305,7 +329,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -329,7 +355,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -342,7 +370,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set(['inv-refund'])}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -365,7 +395,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -388,7 +420,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -409,7 +443,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -433,7 +469,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -456,7 +494,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -473,7 +513,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -498,7 +540,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -521,7 +565,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -550,7 +596,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -566,7 +614,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -589,7 +639,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -605,7 +657,9 @@ describe('ReportInvoiceList', () => {
         <ReportInvoiceList
           report={report}
           excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
           onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
           onToggleAll={jest.fn()}
           t={t}
         />,
@@ -614,6 +668,640 @@ describe('ReportInvoiceList', () => {
       const clearBtn = buttons.find((b) => b.className.includes('btnSecondaryCompact'));
       expect(clearBtn).toBeDefined();
       expect(clearBtn?.textContent).toBe('sourceReports.resetSelection');
+    });
+
+    it('clicking the "clear" button calls onToggleAll(false)', () => {
+      const onToggleAll = jest.fn();
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
+      const { container } = render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={onToggleAll}
+          t={t}
+        />,
+      );
+      const buttons = within(container).getAllByRole('button');
+      const clearBtn = buttons.find((b) => b.className.includes('btnSecondaryCompact'))!;
+      fireEvent.click(clearBtn);
+      expect(onToggleAll).toHaveBeenCalledWith(false);
+    });
+  });
+
+  // ─── Story #1891: expand/collapse, sub-tables, tri-state, onToggleLine ─────
+
+  describe('statusChip class (Story #1891 chip-width fix)', () => {
+    it('applies the statusChip class to the invoice status Badge', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', status: 'paid' })]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const statusEl = screen.getByText('sources.lines.invoiceStatus.paid');
+      expect(statusEl.className).toContain('statusChip');
+    });
+  });
+
+  describe('expand/collapse (chevron, aria contract, sub-tables)', () => {
+    const budgetLine = {
+      id: 'line-1',
+      description: 'Foundation work',
+      allocatedPortion: 400,
+      linkedItem: null,
+    };
+    const workItemLine = {
+      id: 'line-2',
+      description: 'Roofing',
+      allocatedPortion: 200,
+      linkedItem: { type: 'work_item' as const, id: 'wi-1', name: 'Roof Replacement' },
+    };
+    const householdItemLine = {
+      id: 'line-3',
+      description: 'Cabinet',
+      allocatedPortion: 100,
+      linkedItem: { type: 'household_item' as const, id: 'hi-1', name: 'Kitchen Cabinet' },
+    };
+    const deposit = {
+      id: 'dep-1',
+      amount: 50,
+      status: 'pending' as const,
+      entryType: 'deposit' as const,
+      dueDate: '2026-02-01',
+      paidDate: null,
+      claimedDate: null,
+      budgetSourceId: null,
+    };
+
+    function findExpandButton(container: HTMLElement, invoiceId: string): HTMLElement {
+      const btn = container.querySelector(`[aria-controls="invoice-expand-${invoiceId}"]`);
+      expect(btn).not.toBeNull();
+      return btn as HTMLElement;
+    }
+
+    it('renders NO chevron/expand button for an invoice with zero budgetLines and zero deposits', () => {
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLines: [], deposits: [] }),
+      ]);
+      const { container } = render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      expect(container.querySelector('[aria-controls="invoice-expand-inv-1"]')).toBeNull();
+    });
+
+    it('renders a chevron/expand button when the invoice has at least one budgetLine', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const { container } = render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      expect(findExpandButton(container, 'inv-1')).toBeInTheDocument();
+    });
+
+    it('renders a chevron/expand button when the invoice has at least one deposit (even with zero budgetLines)', () => {
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLines: [], deposits: [deposit] }),
+      ]);
+      const { container } = render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      expect(findExpandButton(container, 'inv-1')).toBeInTheDocument();
+    });
+
+    it('aria-expanded starts false, and the expansion panel is not rendered before clicking', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const { container } = render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const btn = findExpandButton(container, 'inv-1');
+      expect(btn).toHaveAttribute('aria-expanded', 'false');
+      expect(container.querySelector('#invoice-expand-inv-1')).toBeNull();
+    });
+
+    it('clicking the chevron sets aria-expanded=true and renders a panel with matching id, tabIndex -1, and focuses it', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const { container } = render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const btn = findExpandButton(container, 'inv-1');
+      fireEvent.click(btn);
+
+      expect(btn).toHaveAttribute('aria-expanded', 'true');
+      const panel = container.querySelector('#invoice-expand-inv-1');
+      expect(panel).not.toBeNull();
+      expect(panel).toHaveAttribute('tabindex', '-1');
+      expect(document.activeElement).toBe(panel);
+    });
+
+    it('clicking the chevron again collapses the panel (aria-expanded=false, panel removed)', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const { container } = render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const btn = findExpandButton(container, 'inv-1');
+      fireEvent.click(btn);
+      fireEvent.click(btn);
+
+      expect(btn).toHaveAttribute('aria-expanded', 'false');
+      expect(container.querySelector('#invoice-expand-inv-1')).toBeNull();
+    });
+
+    it('Enter and Space keys on the chevron toggle expansion (keyboard operability)', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const { container } = render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const btn = findExpandButton(container, 'inv-1');
+      fireEvent.keyDown(btn, { key: 'Enter' });
+      expect(btn).toHaveAttribute('aria-expanded', 'true');
+      fireEvent.keyDown(btn, { key: ' ' });
+      expect(btn).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('the expand button has a translated accessible name that flips to the collapse variant after expanding (Story #1891 follow-up: aria-label fix)', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+
+      // Reachable by role + accessible name (the t-mock returns the bare key when called
+      // with no interpolation options, which is how expandInvoice/collapseInvoice are used).
+      const expandBtn = screen.getByRole('button', {
+        name: 'sourceReports.expand.expandInvoice',
+      });
+      expect(expandBtn).toBeInTheDocument();
+
+      fireEvent.click(expandBtn);
+
+      // The label must flip to the collapse variant — same element, new accessible name —
+      // and the expand-variant name must no longer resolve any button.
+      expect(
+        screen.getByRole('button', { name: 'sourceReports.expand.collapseInvoice' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'sourceReports.expand.expandInvoice' }),
+      ).not.toBeInTheDocument();
+    });
+
+    describe('items sub-table', () => {
+      it('renders a row per budgetLine with description, allocated portion, and a linked-item link', () => {
+        const report = makeReport([
+          makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine, workItemLine] }),
+        ]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        expect(screen.getByText('Foundation work')).toBeInTheDocument();
+        expect(screen.getByText('€400.00')).toBeInTheDocument();
+        const link = screen.getByRole('link', { name: 'Roof Replacement' });
+        expect(link).toHaveAttribute('href', '/project/work-items/wi-1');
+      });
+
+      it('renders a household_item linkedItem with the correct href', () => {
+        const report = makeReport([
+          makeInvoice({ invoiceId: 'inv-1', budgetLines: [householdItemLine] }),
+        ]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        const link = screen.getByRole('link', { name: 'Kitchen Cabinet' });
+        expect(link).toHaveAttribute('href', '/household-items/hi-1');
+      });
+
+      it('renders an "unassigned" badge instead of a link when linkedItem is null', () => {
+        const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        expect(screen.getByText('sourceReports.unassigned')).toBeInTheDocument();
+      });
+
+      it('falls back to "unnamedLine" text when description is null', () => {
+        const report = makeReport([
+          makeInvoice({
+            invoiceId: 'inv-1',
+            budgetLines: [{ ...budgetLine, description: null }],
+          }),
+        ]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        expect(screen.getByText('sourceReports.expand.unnamedLine')).toBeInTheDocument();
+      });
+
+      it('renders an EmptyState for the items sub-table when budgetLines is empty (deposit-only invoice)', () => {
+        const report = makeReport([
+          makeInvoice({ invoiceId: 'inv-1', budgetLines: [], deposits: [deposit] }),
+        ]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        expect(screen.getByText('sourceReports.expand.itemsEmpty')).toBeInTheDocument();
+      });
+
+      it('calls onToggleLine(lineId, true) when unchecking an included line, and does NOT call onToggle', () => {
+        const onToggleLine = jest.fn();
+        const onToggle = jest.fn();
+        const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={onToggle}
+            onToggleLine={onToggleLine}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        const lineCheckbox = screen.getByRole('checkbox', {
+          name: /excludeItemAriaLabel/,
+        });
+        fireEvent.click(lineCheckbox);
+
+        expect(onToggleLine).toHaveBeenCalledWith('line-1', true);
+        expect(onToggle).not.toHaveBeenCalled();
+      });
+
+      it('calls onToggleLine(lineId, false) when re-checking an excluded line', () => {
+        const onToggleLine = jest.fn();
+        const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set(['line-1'])}
+            onToggle={jest.fn()}
+            onToggleLine={onToggleLine}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        const lineCheckbox = screen.getByRole('checkbox', {
+          name: /excludeItemAriaLabel/,
+        }) as HTMLInputElement;
+        expect(lineCheckbox.checked).toBe(false);
+        fireEvent.click(lineCheckbox);
+
+        expect(onToggleLine).toHaveBeenCalledWith('line-1', false);
+      });
+    });
+
+    describe('deposits sub-table', () => {
+      it('renders a row per deposit with amount, status, dates, and entry type', () => {
+        const report = makeReport([
+          makeInvoice({
+            invoiceId: 'inv-1',
+            budgetLines: [],
+            deposits: [{ ...deposit, status: 'paid', paidDate: '2026-01-20' }],
+          }),
+        ]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        expect(screen.getByText('€50.00')).toBeInTheDocument();
+        expect(screen.getByText('sources.lines.invoiceStatus.paid')).toBeInTheDocument();
+        expect(screen.getByText('sourceReports.expand.entryTypeDeposit')).toBeInTheDocument();
+      });
+
+      it('displays a refund badge and negates the amount for a refund-type deposit', () => {
+        const report = makeReport([
+          makeInvoice({
+            invoiceId: 'inv-1',
+            budgetLines: [],
+            deposits: [{ ...deposit, amount: 75, entryType: 'refund' }],
+          }),
+        ]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        expect(screen.getByText('€-75.00')).toBeInTheDocument();
+        expect(screen.getAllByText('sourceReports.expand.entryTypeRefund').length).toBeGreaterThan(
+          0,
+        );
+      });
+
+      it("shows a source badge when the deposit is tagged to the report's own source", () => {
+        const report = makeReport([
+          makeInvoice({
+            invoiceId: 'inv-1',
+            budgetLines: [],
+            deposits: [{ ...deposit, budgetSourceId: 'src-1' }],
+          }),
+        ]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        // The report's own source name ("Home Loan" per makeReport fixture) is used as the badge label.
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      it('renders an em-dash instead of a badge when a deposit is untagged (budgetSourceId null)', () => {
+        const report = makeReport([
+          makeInvoice({
+            invoiceId: 'inv-1',
+            budgetLines: [],
+            deposits: [{ ...deposit, budgetSourceId: null }],
+          }),
+        ]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        expect(screen.getByText('—')).toBeInTheDocument();
+      });
+
+      it('renders an EmptyState for the deposits sub-table when deposits is empty', () => {
+        const report = makeReport([
+          makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine], deposits: [] }),
+        ]);
+        const { container } = render(
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />,
+        );
+        fireEvent.click(findExpandButton(container, 'inv-1'));
+
+        expect(screen.getByText('sourceReports.expand.depositsEmpty')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('parent TriStateCheckbox (invoice-level, driven by line exclusions)', () => {
+    const lineA = { id: 'line-a', description: 'A', allocatedPortion: 300, linkedItem: null };
+    const lineB = { id: 'line-b', description: 'B', allocatedPortion: 200, linkedItem: null };
+
+    it('state 1 (checked): invoice not excluded and no lines excluded', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [lineA, lineB] })]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const rowCheckboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      // index 0 = header, index 1 = the single invoice row's parent checkbox
+      expect(rowCheckboxes[1]!.checked).toBe(true);
+      expect(rowCheckboxes[1]!.indeterminate).toBe(false);
+    });
+
+    it('state 2 (indeterminate): invoice not excluded, SOME (not all) lines excluded', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [lineA, lineB] })]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set(['line-a'])}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const rowCheckboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(rowCheckboxes[1]!.indeterminate).toBe(true);
+      expect(rowCheckboxes[1]!.checked).toBe(false);
+    });
+
+    it('state 3 (unchecked, but invoice remains included): ALL lines excluded, invoice itself not excluded — checkbox reads unchecked, not indeterminate', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [lineA, lineB] })]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set(['line-a', 'line-b'])}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const rowCheckboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(rowCheckboxes[1]!.checked).toBe(false);
+      expect(rowCheckboxes[1]!.indeterminate).toBe(false);
+      // The invoice is still present in the (allocated, selectable) list — not moved to
+      // excluded/unallocated — since excludedInvoiceIds does not contain it.
+      expect(screen.getByText('ACME Builders')).toBeInTheDocument();
+    });
+
+    it('clicking the parent checkbox calls onToggle for the INVOICE, never onToggleLine — even with lines excluded', () => {
+      const onToggle = jest.fn();
+      const onToggleLine = jest.fn();
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [lineA, lineB] })]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set(['line-a'])}
+          onToggle={onToggle}
+          onToggleLine={onToggleLine}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const rowCheckboxes = screen.getAllByRole('checkbox');
+      // The parent checkbox reflects the indeterminate/unchecked visual state (some lines
+      // excluded), so clicking it fires a native checked=true change event — which maps to
+      // onToggle(id, false) (i.e. "un-exclude the invoice"). The key assertion here is that
+      // ONLY onToggle fires (never onToggleLine), regardless of direction.
+      fireEvent.click(rowCheckboxes[1]!);
+
+      expect(onToggle).toHaveBeenCalledWith('inv-1', false);
+      expect(onToggleLine).not.toHaveBeenCalled();
+    });
+
+    it('an invoice with zero budgetLines is always in the "checked" tri-state (excludedLineCount === 0 vacuously)', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [] })]);
+      render(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const rowCheckboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+      expect(rowCheckboxes[1]!.checked).toBe(true);
+      expect(rowCheckboxes[1]!.indeterminate).toBe(false);
     });
   });
 });

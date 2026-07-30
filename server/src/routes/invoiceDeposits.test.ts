@@ -843,4 +843,220 @@ describe('Invoice Deposit Routes', () => {
       expect(body.deposit.entryType).toBe('deposit'); // unchanged — immutable
     });
   });
+
+  // ─── budgetSourceId schema validation (Story #1891) ─────────────────────────
+
+  describe('budgetSourceId AJV schema (Story #1891)', () => {
+    function createTestBudgetSource(name = 'Test Source'): string {
+      const id = `src-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const ts = new Date(Date.now() + tsOffset++).toISOString();
+      app.db
+        .insert(schema.budgetSources)
+        .values({
+          id,
+          name,
+          sourceType: 'bank_loan',
+          totalAmount: 50000,
+          isDiscretionary: false,
+          status: 'active',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    it('POST accepts a string budgetSourceId and persists it', async () => {
+      const { cookie } = await createUserWithSession('user20@test.com', 'Test User', 'password123');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      const sourceId = createTestBudgetSource();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 200, dueDate: '2026-02-01', budgetSourceId: sourceId },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ deposit: { budgetSourceId: string | null } }>();
+      expect(body.deposit.budgetSourceId).toBe(sourceId);
+    });
+
+    it('POST accepts an explicit null budgetSourceId', async () => {
+      const { cookie } = await createUserWithSession('user21@test.com', 'Test User', 'password123');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 200, dueDate: '2026-02-01', budgetSourceId: null },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ deposit: { budgetSourceId: string | null } }>();
+      expect(body.deposit.budgetSourceId).toBeNull();
+    });
+
+    it('POST omitting budgetSourceId entirely still succeeds and defaults to null', async () => {
+      const { cookie } = await createUserWithSession('user22@test.com', 'Test User', 'password123');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 200, dueDate: '2026-02-01' },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = response.json<{ deposit: { budgetSourceId: string | null } }>();
+      expect(body.deposit.budgetSourceId).toBeNull();
+    });
+
+    // NOTE: a bare number (e.g. `12345`) is NOT a suitable "wrong type" probe here — Fastify's
+    // AJV compiler runs with the default `coerceTypes: true`, which silently stringifies a
+    // JSON number into `"12345"` for a `type: ['string', 'null']` field (schema validation
+    // passes). An object/array is not coercible to a string, so it reliably reaches the AJV
+    // type-mismatch 400 path instead.
+    it('POST rejects a non-string, non-null, non-coercible budgetSourceId (e.g. an object) with 400', async () => {
+      const { cookie } = await createUserWithSession('user23@test.com', 'Test User', 'password123');
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 200, dueDate: '2026-02-01', budgetSourceId: { nested: 'object' } },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('POST with a number budgetSourceId is coerced to a string by AJV (not rejected) — and then fails the FK constraint as an unhandled 500, since the service layer performs no existence check (documented FK-reliant convention)', async () => {
+      const { cookie } = await createUserWithSession(
+        'user23b@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 200, dueDate: '2026-02-01', budgetSourceId: 12345 },
+      });
+
+      // Pins the CURRENT (FK-reliant, no service-level existence check) behavior: AJV
+      // coerces 12345 -> "12345", which is not a real budget source id, so the INSERT
+      // trips the SQLite FK constraint and the error propagates as an unhandled 500
+      // rather than a clean 400/404 API error. This mirrors workItemBudgetService's
+      // documented "no existence validation" convention that this story's spec follows.
+      expect(response.statusCode).toBe(500);
+    });
+
+    it('PATCH accepts a string budgetSourceId and updates it', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user24@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      const depositId = createTestDeposit(invoiceId, userId, 200, 'pending');
+      const sourceId = createTestBudgetSource();
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${depositId}`,
+        headers: { cookie },
+        payload: { budgetSourceId: sourceId },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ deposit: { budgetSourceId: string | null } }>();
+      expect(body.deposit.budgetSourceId).toBe(sourceId);
+    });
+
+    it('PATCH accepts an explicit null to clear budgetSourceId', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user25@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      const sourceId = createTestBudgetSource();
+      const depositId = createTestDeposit(invoiceId, userId, 200, 'pending');
+      // Tag it first via PATCH
+      await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${depositId}`,
+        headers: { cookie },
+        payload: { budgetSourceId: sourceId },
+      });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${depositId}`,
+        headers: { cookie },
+        payload: { budgetSourceId: null },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ deposit: { budgetSourceId: string | null } }>();
+      expect(body.deposit.budgetSourceId).toBeNull();
+    });
+
+    it('PATCH rejects a non-string, non-null budgetSourceId (e.g. an array) with 400', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user26@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      const depositId = createTestDeposit(invoiceId, userId, 200, 'pending');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${depositId}`,
+        headers: { cookie },
+        payload: { budgetSourceId: ['not', 'a', 'string'] },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('budgetSourceId can be tagged on a claimed deposit via PATCH (no status/edit-mode gating)', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user27@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      const sourceId = createTestBudgetSource();
+      const depositId = createTestDeposit(invoiceId, userId, 200, 'claimed');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${depositId}`,
+        headers: { cookie },
+        payload: { budgetSourceId: sourceId },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ deposit: { status: string; budgetSourceId: string | null } }>();
+      expect(body.deposit.status).toBe('claimed'); // status unaffected
+      expect(body.deposit.budgetSourceId).toBe(sourceId);
+    });
+  });
 });

@@ -30,6 +30,7 @@ export type InvoiceDepositEntryType = 'deposit' | 'refund';
 
 /**
  * Invoice deposit entity - represents a staged partial payment within an invoice.
+ * Story #1891: budgetSourceId links deposit directly to a source (optional).
  */
 export interface InvoiceDeposit {
   id: string;
@@ -41,6 +42,7 @@ export interface InvoiceDeposit {
   description: string | null;
   status: InvoiceDepositStatus;
   entryType: InvoiceDepositEntryType;
+  budgetSourceId: string | null;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;
@@ -57,6 +59,7 @@ export interface CreateDepositRequest {
   entryType?: InvoiceDepositEntryType; // default 'deposit'; immutable after creation
   paidDate?: string | null;
   claimedDate?: string | null;
+  budgetSourceId?: string | null;
 }
 
 /**
@@ -69,6 +72,7 @@ export interface UpdateDepositRequest {
   status?: InvoiceDepositStatus;
   paidDate?: string | null;
   claimedDate?: string | null;
+  budgetSourceId?: string | null;
 }
 
 /**

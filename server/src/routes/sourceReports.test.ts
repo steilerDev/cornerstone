@@ -271,6 +271,34 @@ describe('Source Report Routes', () => {
       expect(body.report.totalAmount).toBeCloseTo(500);
     });
 
+    // Story #1891: response shape now includes budgetLines[]/deposits[] per invoice.
+    it('populated invoices include budgetLines[] and deposits[] arrays in the response shape', async () => {
+      const { cookie } = await createUserWithSession();
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/source-reports?type=claim&sourceId=${sourceId}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ report: SourceReportResponse }>();
+      expect(body.report.invoices).toHaveLength(1);
+      const invoice = body.report.invoices[0]!;
+      expect(Array.isArray(invoice.budgetLines)).toBe(true);
+      expect(invoice.budgetLines).toHaveLength(1);
+      expect(invoice.budgetLines[0]).toMatchObject({
+        allocatedPortion: expect.any(Number),
+      });
+      expect(Array.isArray(invoice.deposits)).toBe(true);
+      expect(invoice.deposits).toEqual([]);
+    });
+
     it('silently strips unknown query parameters (Fastify/AJV removeAdditional default) rather than rejecting with 400', async () => {
       // @fastify/ajv-compiler defaults to removeAdditional: true — additionalProperties:
       // false STRIPS unknown properties instead of returning 400. See qa-integration-tester

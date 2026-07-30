@@ -251,6 +251,24 @@ export class InvoiceDetailPage {
   /** Confirm delete button inside the delete deposit modal */
   readonly deleteDepositConfirmButton: Locator;
 
+  /**
+   * Budget-source `<select id="deposit-budgetSource">` in the add/edit deposit modal
+   * (Story #1891) — links a deposit directly to a budget source (independent of budget
+   * lines). Empty option value `""` = "None (pro-rated)". On the ADD modal only (not edit),
+   * this defaults per `invoice.budgetLines` grouped by `budgetSourceId`: 0 sources → `null`
+   * + `budgetSourceHintNone`; 1 source → that source + `budgetSourceHintSingle`; >1 sources
+   * → the largest-sum source + `budgetSourceHintLargest`. Always editable (gated only on
+   * `isMutating`, unlike the entry-type radios which are edit-mode-disabled).
+   */
+  readonly depositBudgetSourceSelect: Locator;
+
+  /**
+   * The hint text below the budget-source select — reuses `.charCounter` styling (Story
+   * #1891). Text is one of `budgetSourceHintNone`/`budgetSourceHintSingle`/
+   * `budgetSourceHintLargest`, only rendered on the ADD modal (default-selection hint).
+   */
+  readonly depositBudgetSourceHint: Locator;
+
   /** Final payment row at the bottom of the deposits table */
   readonly finalPaymentRow: Locator;
 
@@ -738,6 +756,15 @@ export class InvoiceDetailPage {
 
     // Delete deposit confirm button — stable data-testid added in #1407
     this.deleteDepositConfirmButton = page.getByTestId('deposit-delete-confirm');
+
+    // Budget-source select in the add/edit deposit modal (Story #1891) — page-scoped for the
+    // same reason as the other form inputs above (the deposit modal renders via a portal).
+    this.depositBudgetSourceSelect = page.locator('#deposit-budgetSource');
+
+    // Hint text (reuses .charCounter styling) below the budget-source select.
+    this.depositBudgetSourceHint = page
+      .locator('label[for="deposit-budgetSource"]')
+      .locator('xpath=parent::div//*[contains(@class,"charCounter")]');
 
     // Final payment row (always visible when deposits.length > 0)
     this.finalPaymentRow = page.locator('[class*="finalPaymentRow"]');

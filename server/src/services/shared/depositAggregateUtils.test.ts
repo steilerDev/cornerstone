@@ -7,6 +7,11 @@ import {
   splitByDeposits,
   computeFinalPaymentAmount,
   computeFinalPaymentAmounts,
+  splitByDepositsExcludingTagged,
+  computeLineContributionsExcludingTagged,
+  computeStatusContributionExcludingTagged,
+  sumTaggedDepositContributions,
+  sumTaggedDepositContributionsByInvoice,
   type DepositAwareRow,
   type InvoiceDepositRow,
 } from './depositAggregateUtils.js';
@@ -1270,5 +1275,337 @@ describe('computeFinalPaymentAmounts', () => {
     ];
     const result = computeFinalPaymentAmounts(rows);
     expect(result.get('inv-1')).toBe(10000);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════
+// Story #1891: Rail A/Rail B additive functions
+// ═════════════════════════════════════════════════════════════════════════
+//
+// Design invariant under test: these five functions are PURELY ADDITIVE. The six
+// legacy functions above (splitByDeposits, computeStatusContribution,
+// computeStatusContributionByInvoice, aggregateInvoiceStatusBreakdown,
+// computeFinalPaymentAmount(s)) must remain byte-identical for their existing
+// consumers (budgetOverviewService, budgetBreakdownService, invoiceService,
+// budgetServiceFactory — none of which have a reporting-source concept). The
+// tests above already exercise the legacy functions completely unmodified,
+// which is the primary regression proof (if this PR touched their logic, those
+// tests would fail). The tests below add an EXPLICIT, direct comparison: running
+// the same untagged fixture through both the legacy function and its
+// ExcludingTagged sibling must produce identical output, proving the new
+// "exclude tagged deposits" branch is a true no-op when nothing is tagged.
+
+/**
+ * Build a row shaped for splitByDepositsExcludingTagged / computeStatusContributionExcludingTagged
+ * (adds deposit_budget_source_id on top of the legacy makeSplitRow shape).
+ */
+function makeTaggableSplitRow(
+  invoiceId: string,
+  invoiceAmount: number,
+  invoiceStatus: string,
+  deposit?: {
+    id: string;
+    amount: number;
+    status: string;
+    entryType?: string;
+    budgetSourceId?: string | null;
+  },
+) {
+  return {
+    invoice_id: invoiceId,
+    invoice_amount: invoiceAmount,
+    invoice_status: invoiceStatus,
+    deposit_id: deposit?.id ?? null,
+    deposit_amount: deposit?.amount ?? null,
+    deposit_status: deposit?.status ?? null,
+    deposit_entry_type: deposit ? (deposit.entryType ?? 'deposit') : null,
+    deposit_budget_source_id: deposit ? (deposit.budgetSourceId ?? null) : null,
+  };
+}
+
+/** Same as makeTaggableSplitRow but also carries ibl_id/itemized_amount for the line-level fns. */
+function makeTaggableRow(
+  iblId: string,
+  itemizedAmount: number,
+  invoiceId: string,
+  invoiceAmount: number,
+  invoiceStatus: string,
+  deposit?: {
+    id: string;
+    amount: number;
+    status: string;
+    entryType?: string;
+    budgetSourceId?: string | null;
+  },
+) {
+  return {
+    ibl_id: iblId,
+    itemized_amount: itemizedAmount,
+    ...makeTaggableSplitRow(invoiceId, invoiceAmount, invoiceStatus, deposit),
+  };
+}
+
+describe('splitByDepositsExcludingTagged', () => {
+  it('empty input returns empty Map', () => {
+    expect(splitByDepositsExcludingTagged([]).size).toBe(0);
+  });
+
+  it('regression: untagged fixtures produce byte-identical output to splitByDeposits', () => {
+    const legacyRows = [
+      makeSplitRow('inv-1', 1000, 'pending', { id: 'd-1', amount: 300, status: 'paid' }),
+      makeSplitRow('inv-2', 500, 'claimed'),
+      makeSplitRow('inv-3', 1000, 'pending', {
+        id: 'r-1',
+        amount: 200,
+        status: 'claimed',
+        entryType: 'refund',
+      }),
+    ];
+    const taggedRows = legacyRows.map((r) => ({ ...r, deposit_budget_source_id: null }));
+
+    const legacyResult = splitByDeposits(legacyRows);
+    const newResult = splitByDepositsExcludingTagged(taggedRows);
+
+    expect(newResult).toEqual(legacyResult);
+  });
+
+  it('a deposit tagged to a budget source is excluded entirely from the split (residual reverts to 1, no depositFractions entry for it)', () => {
+    const rows = [
+      makeTaggableSplitRow('inv-1', 1000, 'pending', {
+        id: 'd-1',
+        amount: 300,
+        status: 'paid',
+        budgetSourceId: 'src-A',
+      }),
+    ];
+    const result = splitByDepositsExcludingTagged(rows);
+    const split = result.get('inv-1')!;
+    expect(split.residualFraction).toBe(1);
+    expect(split.depositFractions).toHaveLength(0);
+  });
+
+  it('mixed: one untagged deposit included, one tagged deposit excluded, on the same invoice', () => {
+    const rows = [
+      makeTaggableSplitRow('inv-1', 1000, 'pending', {
+        id: 'd-untagged',
+        amount: 300,
+        status: 'paid',
+      }),
+      makeTaggableSplitRow('inv-1', 1000, 'pending', {
+        id: 'd-tagged',
+        amount: 200,
+        status: 'claimed',
+        budgetSourceId: 'src-A',
+      }),
+    ];
+    const result = splitByDepositsExcludingTagged(rows);
+    const split = result.get('inv-1')!;
+    // Only the untagged deposit counts toward the residual computation: residual = (1000-300)/1000 = 0.7
+    expect(split.residualFraction).toBeCloseTo(0.7);
+    expect(split.depositFractions).toHaveLength(1);
+    expect(split.depositFractions[0]!.depositStatus).toBe('paid');
+    expect(split.depositFractions[0]!.fraction).toBeCloseTo(0.3);
+  });
+
+  it('a tagged deposit is still deduplicated by depositId (dedup happens before the tag filter)', () => {
+    const rows = [
+      makeTaggableSplitRow('inv-1', 1000, 'pending', {
+        id: 'd-1',
+        amount: 300,
+        status: 'paid',
+      }),
+      // Same deposit id appears again, this time WITHOUT the tag (simulates a LEFT JOIN
+      // row-expansion artifact) — dedup must not double count either way.
+      makeTaggableSplitRow('inv-1', 1000, 'pending', {
+        id: 'd-1',
+        amount: 300,
+        status: 'paid',
+      }),
+    ];
+    const result = splitByDepositsExcludingTagged(rows);
+    const split = result.get('inv-1')!;
+    expect(split.depositFractions).toHaveLength(1);
+  });
+});
+
+describe('computeLineContributionsExcludingTagged', () => {
+  it('empty rows → empty map', () => {
+    expect(computeLineContributionsExcludingTagged([], new Set(['claimed'])).size).toBe(0);
+  });
+
+  it('regression: untagged fixture, grouped-by-invoice sum matches computeStatusContributionByInvoice', () => {
+    const legacyRows = [
+      makeRow('ibl-A', 300, 'inv-1', 1000, 'paid', { id: 'd-1', amount: 500, status: 'claimed' }),
+      makeRow('ibl-B', 200, 'inv-1', 1000, 'paid', { id: 'd-1', amount: 500, status: 'claimed' }),
+      makeRow('ibl-C', 400, 'inv-2', 400, 'pending'),
+    ];
+    const taggedRows = legacyRows.map((r) => ({ ...r, deposit_budget_source_id: null }));
+    const targetStatuses = new Set(['claimed']);
+
+    const legacyByInvoice = computeStatusContributionByInvoice(legacyRows, targetStatuses);
+    const newByIbl = computeLineContributionsExcludingTagged(taggedRows, targetStatuses);
+
+    const newByInvoice = new Map<string, number>();
+    for (const [, { invoiceId, contribution }] of newByIbl) {
+      newByInvoice.set(invoiceId, (newByInvoice.get(invoiceId) ?? 0) + contribution);
+    }
+
+    expect(newByInvoice.get('inv-1')).toBeCloseTo(legacyByInvoice.get('inv-1')!);
+    expect(newByInvoice.get('inv-2')).toBeCloseTo(legacyByInvoice.get('inv-2')!);
+  });
+
+  it('returns per-ibl entries (not collapsed per invoice) so callers can build budgetLines[]', () => {
+    const rows = [
+      makeTaggableRow('ibl-A', 300, 'inv-1', 1000, 'paid'),
+      makeTaggableRow('ibl-B', 700, 'inv-1', 1000, 'paid'),
+    ];
+    const result = computeLineContributionsExcludingTagged(rows, new Set(['paid']));
+    expect(result.size).toBe(2);
+    expect(result.get('ibl-A')).toEqual({ invoiceId: 'inv-1', contribution: 300 });
+    expect(result.get('ibl-B')).toEqual({ invoiceId: 'inv-1', contribution: 700 });
+  });
+
+  it('a tagged deposit is excluded: its ibl contribution reflects only the untagged residual/deposits', () => {
+    // invoice=1000, ibl=1000, deposit 400 claimed TAGGED to src-A (excluded) → residual=1 (full 1000)
+    // parent status = pending, target={claimed} → residual doesn't count either.
+    // So contribution should be 0, NOT 400 (which is what it would be if the tag were ignored).
+    const rows = [
+      makeTaggableRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+        id: 'd-1',
+        amount: 400,
+        status: 'claimed',
+        budgetSourceId: 'src-A',
+      }),
+    ];
+    const result = computeLineContributionsExcludingTagged(rows, new Set(['claimed']));
+    expect(result.get('ibl-1')!.contribution).toBe(0);
+  });
+});
+
+describe('computeStatusContributionExcludingTagged', () => {
+  it('returns 0 for empty rows array', () => {
+    expect(computeStatusContributionExcludingTagged([], 'claimed')).toBe(0);
+  });
+
+  it('regression: untagged fixture is byte-identical to computeStatusContribution', () => {
+    const legacyRows = [
+      makeRow('ibl-1', 1000, 'inv-1', 1000, 'paid', { id: 'd-1', amount: 300, status: 'paid' }),
+      makeRow('ibl-2', 500, 'inv-2', 500, 'claimed'),
+    ];
+    const taggedRows = legacyRows.map((r) => ({ ...r, deposit_budget_source_id: null }));
+
+    expect(computeStatusContributionExcludingTagged(taggedRows, 'paid')).toBeCloseTo(
+      computeStatusContribution(legacyRows, 'paid'),
+    );
+    expect(computeStatusContributionExcludingTagged(taggedRows, 'claimed')).toBeCloseTo(
+      computeStatusContribution(legacyRows, 'claimed'),
+    );
+  });
+
+  it('a tagged deposit is excluded from the target-status sum entirely', () => {
+    // invoice=1000, ibl=1000, deposit 400 paid TAGGED to src-A → excluded.
+    // Parent status pending (not 'paid') → 0 total, not 400.
+    const rows = [
+      makeTaggableRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+        id: 'd-1',
+        amount: 400,
+        status: 'paid',
+        budgetSourceId: 'src-A',
+      }),
+    ];
+    expect(computeStatusContributionExcludingTagged(rows, 'paid')).toBe(0);
+  });
+
+  it('an untagged deposit alongside a tagged one on the same invoice: only the untagged one contributes', () => {
+    const rows = [
+      makeTaggableRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+        id: 'd-untagged',
+        amount: 300,
+        status: 'paid',
+      }),
+      makeTaggableRow('ibl-1', 1000, 'inv-1', 1000, 'pending', {
+        id: 'd-tagged',
+        amount: 700,
+        status: 'paid',
+        budgetSourceId: 'src-A',
+      }),
+    ];
+    expect(computeStatusContributionExcludingTagged(rows, 'paid')).toBeCloseTo(300);
+  });
+});
+
+describe('sumTaggedDepositContributions', () => {
+  it('returns 0 for empty rows array', () => {
+    expect(sumTaggedDepositContributions([], new Set(['claimed']))).toBe(0);
+  });
+
+  it('sums deposit-type amounts whose status is in targetStatuses', () => {
+    const rows = [
+      { amount: 100, status: 'claimed', entryType: 'deposit' },
+      { amount: 200, status: 'paid', entryType: 'deposit' },
+      { amount: 50, status: 'claimed', entryType: 'deposit' },
+    ];
+    expect(sumTaggedDepositContributions(rows, new Set(['claimed']))).toBe(150);
+  });
+
+  it('excludes rows whose status is not in targetStatuses', () => {
+    const rows = [{ amount: 100, status: 'pending', entryType: 'deposit' }];
+    expect(sumTaggedDepositContributions(rows, new Set(['claimed', 'paid']))).toBe(0);
+  });
+
+  it('a refund entry contributes negatively (signed)', () => {
+    const rows = [
+      { amount: 500, status: 'claimed', entryType: 'deposit' },
+      { amount: 200, status: 'claimed', entryType: 'refund' },
+    ];
+    expect(sumTaggedDepositContributions(rows, new Set(['claimed']))).toBe(300);
+  });
+
+  it('a refund alone can drive the sum negative', () => {
+    const rows = [{ amount: 150, status: 'paid', entryType: 'refund' }];
+    expect(sumTaggedDepositContributions(rows, new Set(['paid']))).toBe(-150);
+  });
+
+  it('supports a multi-status target set (e.g. claim report = {pending, paid})', () => {
+    const rows = [
+      { amount: 100, status: 'pending', entryType: 'deposit' },
+      { amount: 200, status: 'paid', entryType: 'deposit' },
+      { amount: 300, status: 'claimed', entryType: 'deposit' },
+    ];
+    expect(sumTaggedDepositContributions(rows, new Set(['pending', 'paid']))).toBe(300);
+  });
+});
+
+describe('sumTaggedDepositContributionsByInvoice', () => {
+  it('returns an empty map for empty rows', () => {
+    expect(sumTaggedDepositContributionsByInvoice([], new Set(['claimed'])).size).toBe(0);
+  });
+
+  it('accumulates signed contributions per invoiceId independently', () => {
+    const rows = [
+      { invoiceId: 'inv-1', amount: 100, status: 'claimed', entryType: 'deposit' },
+      { invoiceId: 'inv-1', amount: 30, status: 'claimed', entryType: 'refund' },
+      { invoiceId: 'inv-2', amount: 500, status: 'claimed', entryType: 'deposit' },
+    ];
+    const result = sumTaggedDepositContributionsByInvoice(rows, new Set(['claimed']));
+    expect(result.get('inv-1')).toBe(70);
+    expect(result.get('inv-2')).toBe(500);
+    expect(result.size).toBe(2);
+  });
+
+  it('rows whose status is outside targetStatuses do not create a map entry', () => {
+    const rows = [{ invoiceId: 'inv-1', amount: 100, status: 'pending', entryType: 'deposit' }];
+    const result = sumTaggedDepositContributionsByInvoice(rows, new Set(['claimed']));
+    expect(result.has('inv-1')).toBe(false);
+  });
+
+  it('multiple deposits for the same invoice accumulate rather than overwrite', () => {
+    const rows = [
+      { invoiceId: 'inv-1', amount: 100, status: 'paid', entryType: 'deposit' },
+      { invoiceId: 'inv-1', amount: 200, status: 'paid', entryType: 'deposit' },
+      { invoiceId: 'inv-1', amount: 50, status: 'paid', entryType: 'deposit' },
+    ];
+    const result = sumTaggedDepositContributionsByInvoice(rows, new Set(['paid']));
+    expect(result.get('inv-1')).toBe(350);
   });
 });

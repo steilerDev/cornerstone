@@ -9,7 +9,7 @@
 
 .listHeader {
   display: grid;
-  grid-template-columns: auto 1fr auto auto auto;
+  grid-template-columns: 1.5rem auto 1fr auto auto auto;
   gap: var(--spacing-3);
   align-items: center;
   padding: var(--spacing-3) var(--spacing-4);
@@ -34,7 +34,7 @@
 
 .invoiceRow {
   display: grid;
-  grid-template-columns: auto 1fr auto auto auto;
+  grid-template-columns: 1.5rem auto 1fr auto auto auto;
   gap: var(--spacing-3);
   align-items: center;
   padding: var(--spacing-3) var(--spacing-4);
@@ -48,6 +48,7 @@
   gap: var(--spacing-3);
   cursor: pointer;
   min-height: 44px;
+  grid-column: span 2;
 }
 
 .invoiceRow:hover {
@@ -215,4 +216,130 @@
   clip-path: inset(50%);
   white-space: nowrap;
   border-width: 0;
+}
+
+/* ---- Expand Button & Chevron ---- */
+
+.expandButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-width: 44px;
+  min-height: 44px;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color var(--transition-fast);
+  color: var(--color-text-primary);
+}
+
+.expandButton:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.expandButton:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+/* ---- Status Chip Fix ---- */
+
+.statusChip {
+  justify-self: start;
+}
+
+/* ---- Expansion Panel ---- */
+
+.expansionPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  outline: none;
+}
+
+.subTableSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.subTableHeading {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.table thead {
+  background-color: var(--color-bg-primary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table th {
+  padding: var(--spacing-2) var(--spacing-3);
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.table td {
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.table tbody tr:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.linkedItemLink {
+  color: var(--color-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.linkedItemLink:hover {
+  text-decoration: underline;
+}
+
+.linkedItemLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.depositAmountContainer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.depositDatesCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  font-size: var(--font-size-xs);
 }

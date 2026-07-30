@@ -73,3 +73,17 @@ Found and fixed pre-existing (not newly introduced) glossary violations while au
 Established de pattern for `"<X> section navigation"` aria labels (SubNav component instances) is the compound `"<X>-Abschnittsnavigation"` — confirmed from `schedule.json`'s `navigation.ariaLabel`: en "Schedule section navigation" → de "Zeitplan-Abschnittsnavigation". Applied same pattern for `budget.json` `sourceReports.subNavAriaLabel`: en "Budget section navigation" → de "Budget-Abschnittsnavigation". Note: `DashboardPage.tsx` ("Project section navigation") and `VendorsPage.tsx` ("Settings section navigation") hardcode this string directly in JSX rather than using `t()` — not a translator concern, but means those two instances have no de counterpart to check against; only use schedule.json as the reference pattern.
 
 Also confirmed: "allocated" vocabulary in de/budget.json is consistently `zugeordnet`/`Zuordnung` (e.g. `allocatedAmount` → "Zugeordneter Betrag", `unallocatedExplained` → "...nicht zugeordnet"). Used for new `sourceReports.table.splitFootnote`: "Amount shown reflects only the portion allocated to this source." → "Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil."
+
+## Dash Convention: en dash "–" not em dash "—" (Issue #1891, 2026-07-30)
+
+`en/*.json` source text uses em dash "—" for parenthetical asides (e.g. `budgetSourceHintSingle`: "Defaulted to {{name}} — this invoice's only budget source."). Confirmed de/budget.json convention (grep for "–"/"—" across the file) consistently uses a spaced en dash "–" instead, never em dash — e.g. `revertNetworkError`: "Netzwerkfehler – Status...", `coverLetterDisabledReason`: "...Referenz – ein Anschreiben...". Always substitute "–" for en's "—" when translating, don't copy the em dash verbatim.
+
+## Report-Wizard Expand/Deposit-Tagging Keys (Issue #1891, 2026-07-30)
+
+New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + deposits in the report wizard invoice list) and `invoiceDetail.deposits.form.budgetSource*` (deposit→source picker) keys translated. Judgment calls, useful as precedent for future column-header/table keys:
+- `itemColumnHeader`: "Item" (generic table header for a budget-line description) → "Position" — parallels German invoicing convention where each line is a "Position"; distinct from `itemsHeading` "Budgetpositionen" (glossary Budget Line plural) which is the sub-table's section heading, not the column.
+- `datesColumnHeader`: "Dates" (column stacking due/paid/claimed dates) → "Termine", not "Daten" (which reads as "data" in modern German, not "dates").
+- `linkedColumnHeader`: "Linked to" → "Verknüpft mit" (consistent with existing `linkedItem`/`linkedItemLegend` → "Verknüpftes Element").
+- `budgetSourceNone`: "None (pro-rated)" → "Keine (anteilig)" — reused "anteilig" from the existing `splitBadge`: "anteilig {{allocated}} von {{total}}" rather than inventing a new word for "pro-rated".
+- `confirmClaimExcludedItemsWarning`: matched the sibling `confirmClaimBody`'s "Rechnung(en)" pluralization-count pattern and "eingereicht" (this locale's established word for "claimed", not "beansprucht").
+- Full flatten-diff parity (0/0) and `i18n.parity.test.ts` (46/46) both green after the change.

@@ -7,6 +7,7 @@ import { fetchHouseholdSettings } from '../../lib/settingsApi.js';
 import { getSourceReport, markInvoicesClaimed } from '../../lib/sourceReportsApi.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { applyLineExclusions } from '../../lib/reportExclusions.js';
 import {
   generateReportPdf,
   downloadPdf,
@@ -73,6 +74,9 @@ export function ReportWizardPage() {
 
   // Invoice selection
   const [excludedInvoiceIds, setExcludedInvoiceIds] = useState<Set<string>>(new Set());
+
+  // Line-level exclusions
+  const [excludedLineIds, setExcludedLineIds] = useState<Set<string>>(new Set());
 
   // PDF generation
   const [attachDocuments, setAttachDocuments] = useState(true);
@@ -156,6 +160,7 @@ export function ReportWizardPage() {
     (sid: string) => {
       setSourceId(sid);
       setExcludedInvoiceIds(new Set());
+      setExcludedLineIds(new Set());
       setMaxReachedStep(3);
       setReportStatus('loading');
 
@@ -187,9 +192,14 @@ export function ReportWizardPage() {
   // Regenerate PDF on options change (debounced)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // regeneratePdf depends on raw inputs (report, excludedLineIds) not the derived effectiveReport memo
+  // This prevents the effect loop where effectiveReport memo identity changes → regeneratePdf recreated → effect re-fires
   const regeneratePdf = useCallback(async () => {
     // Allow regeneration if we have report+useCase (for retries after errors or option changes)
     if (!report || !useCase) return;
+
+    // Compute effectiveReport internally to avoid depending on the memo
+    const currentEffectiveReport = applyLineExclusions(report, excludedLineIds);
 
     // Capture current generation ID to detect stale results
     const myGenerationId = ++generationIdRef.current;
@@ -197,13 +207,13 @@ export function ReportWizardPage() {
     setIsRegenerating(true);
     try {
       const included = new Set(
-        report.invoices
+        currentEffectiveReport.invoices
           .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
           .map((inv) => inv.invoiceId),
       );
 
       const result = await generateReportPdf(
-        report,
+        currentEffectiveReport,
         included,
         useCase,
         { attachDocuments, includeCoverLetter },
@@ -237,9 +247,22 @@ export function ReportWizardPage() {
     } finally {
       setIsRegenerating(false);
     }
-  }, [report, useCase, excludedInvoiceIds, attachDocuments, includeCoverLetter, household, t]);
+  }, [
+    report,
+    useCase,
+    excludedLineIds,
+    excludedInvoiceIds,
+    attachDocuments,
+    includeCoverLetter,
+    household,
+    formatters,
+    t,
+  ]);
 
   // PDF generation: immediate on first load, debounced on option changes
+  // Depend ONLY on raw inputs (report, useCase, reportStatus, etc.), NOT on regeneratePdf or derived effectiveReport memo.
+  // This prevents effect re-fires from regeneratePdf's dependencies (formatters, t, household) changing.
+  // The effect calls regeneratePdf(), which is captured in the closure and will be the latest version.
   useEffect(() => {
     if (!report || !useCase || reportStatus !== 'ready') return;
 
@@ -264,15 +287,15 @@ export function ReportWizardPage() {
         }
       };
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [
     report,
     useCase,
     reportStatus,
-    household,
     attachDocuments,
     includeCoverLetter,
     excludedInvoiceIds,
-    regeneratePdf,
+    excludedLineIds,
   ]);
 
   // Handle claim
@@ -493,56 +516,73 @@ export function ReportWizardPage() {
                 </button>
               </div>
             )}
-            {reportStatus === 'ready' && report && (
-              <>
-                <ReportInvoiceList
-                  report={report}
-                  excludedInvoiceIds={excludedInvoiceIds}
-                  onToggle={(id, excluded) => {
-                    const newSet = new Set(excludedInvoiceIds);
-                    if (excluded) {
-                      newSet.add(id);
-                    } else {
-                      newSet.delete(id);
-                    }
-                    setExcludedInvoiceIds(newSet);
-                  }}
-                  onToggleAll={(excludeAll) => {
-                    if (excludeAll) {
-                      setExcludedInvoiceIds(new Set(report.invoices.map((inv) => inv.invoiceId)));
-                    } else {
-                      setExcludedInvoiceIds(new Set());
-                    }
-                  }}
-                  t={t}
-                />
-                <div className={styles.buttonRow}>
-                  <button
-                    type="button"
-                    className={sharedStyles.btnSecondary}
-                    onClick={() => setCurrentStep(2)}
-                  >
-                    {t('common:button.back')}
-                  </button>
-                  <button
-                    type="button"
-                    className={sharedStyles.btnPrimary}
-                    onClick={() => {
-                      setMaxReachedStep((s) => Math.max(s, 4));
-                      setCurrentStep(4);
-                    }}
-                    disabled={excludedInvoiceIds.size === report.invoices.length}
-                    title={
-                      excludedInvoiceIds.size === report.invoices.length
-                        ? t('sourceReports.selectAtLeastOne')
-                        : undefined
-                    }
-                  >
-                    {t('common:button.next')}
-                  </button>
-                </div>
-              </>
-            )}
+            {reportStatus === 'ready' &&
+              report &&
+              (() => {
+                const effectiveReport = applyLineExclusions(report, excludedLineIds);
+                return (
+                  <>
+                    <ReportInvoiceList
+                      report={effectiveReport}
+                      excludedInvoiceIds={excludedInvoiceIds}
+                      excludedLineIds={excludedLineIds}
+                      onToggle={(id, excluded) => {
+                        const newSet = new Set(excludedInvoiceIds);
+                        if (excluded) {
+                          newSet.add(id);
+                        } else {
+                          newSet.delete(id);
+                        }
+                        setExcludedInvoiceIds(newSet);
+                      }}
+                      onToggleAll={(excludeAll) => {
+                        if (excludeAll) {
+                          setExcludedInvoiceIds(
+                            new Set(report.invoices.map((inv) => inv.invoiceId)),
+                          );
+                        } else {
+                          setExcludedInvoiceIds(new Set());
+                        }
+                      }}
+                      onToggleLine={(lineId, excluded) => {
+                        const newSet = new Set(excludedLineIds);
+                        if (excluded) {
+                          newSet.add(lineId);
+                        } else {
+                          newSet.delete(lineId);
+                        }
+                        setExcludedLineIds(newSet);
+                      }}
+                      t={t}
+                    />
+                    <div className={styles.buttonRow}>
+                      <button
+                        type="button"
+                        className={sharedStyles.btnSecondary}
+                        onClick={() => setCurrentStep(2)}
+                      >
+                        {t('common:button.back')}
+                      </button>
+                      <button
+                        type="button"
+                        className={sharedStyles.btnPrimary}
+                        onClick={() => {
+                          setMaxReachedStep((s) => Math.max(s, 4));
+                          setCurrentStep(4);
+                        }}
+                        disabled={excludedInvoiceIds.size === report.invoices.length}
+                        title={
+                          excludedInvoiceIds.size === report.invoices.length
+                            ? t('sourceReports.selectAtLeastOne')
+                            : undefined
+                        }
+                      >
+                        {t('common:button.next')}
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
           </div>
         )}
 
@@ -658,6 +698,35 @@ export function ReportWizardPage() {
               ).length,
             })}
           </p>
+
+          {(() => {
+            // Find invoices with excluded lines (and not excluded at invoice level)
+            const invoicesWithExcludedItems = report.invoices.filter(
+              (inv) =>
+                !excludedInvoiceIds.has(inv.invoiceId) &&
+                inv.budgetLines.some((line) => excludedLineIds.has(line.id)),
+            );
+
+            return invoicesWithExcludedItems.length > 0 ? (
+              <div className={styles.warningBlock} role="alert">
+                <div className={styles.warningIconContainer}>
+                  <svg
+                    className={styles.warningIcon}
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
+                  </svg>
+                </div>
+                <p className={styles.warningBody}>
+                  {t('sourceReports.confirmClaimExcludedItemsWarning', {
+                    count: invoicesWithExcludedItems.length,
+                  })}
+                </p>
+              </div>
+            ) : null;
+          })()}
         </Modal>
       )}
     </PageLayout>

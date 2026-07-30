@@ -424,6 +424,9 @@ export type {
 export type {
   SourceReportType,
   SourceReportDocument,
+  SourceReportLinkedItem,
+  SourceReportBudgetLine,
+  SourceReportDeposit,
   SourceReportInvoice,
   SourceReportUnallocatedInvoice,
   SourceReportSourceSummary,
