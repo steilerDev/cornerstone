@@ -30,6 +30,17 @@ metadata:
 - **Test authorship**: developer agents MUST NOT write tests. Check `Co-Authored-By` trailer in test commits. Caused BLOCKING in PR #152 (all 211 tests by frontend-developer).
 - **E2E gate**: any UAT scenario marked "Automated (E2E)" MUST have Playwright coverage in `e2e/tests/` before PO approval. Caused BLOCKING in PRs #152 and #157 (CI showed "E2E Tests: SKIPPED").
 - **Raw value display (formatDate / percent / placeholder)**: the single most recurring functional bug. See "Display formatting" cluster below.
+- **Tests that ENCODE the defect**: a test named "does NOT do X" that asserts X, or a test comment containing unresolved reasoning ("— wait, actually…"). Green CI then certifies the bug. Grep new/changed test files for hedging words in comments; a title contradicting its own assertion is the tell. Caught the AC 4.6 blocker on PR #1894 (asserted €1400 on a €1000 invoice).
+- **Conservation assertions for money math**: for any split/apportionment logic, demand a test that the parts sum to the whole across ALL consumers — not just a per-consumer number. Per-source numbers can each look plausible while the total is inflated (PR #1894).
+
+## Dual desktop/mobile rendering (responsive card-list pattern)
+
+When a PR adds a mobile card list beside a desktop table, re-check rather than assume:
+
+- Both copies must call the **same handler** — two exclusion/toggle paths can diverge silently.
+- Confirm the hidden copy uses `display: none` (removed from the a11y tree), not just visual hiding — otherwise duplicate accessible names.
+- jsdom renders BOTH, so `getByRole` becomes ambiguous. `getAllByRole(...)[0]` is the accepted convention here — legitimate disambiguation, not a weakened test. But `getByText` → `getAllByText(...).length > 0` does drop the "exactly one" guarantee; `within(desktopTable)` keeps both properties.
+- Check any scoped CSS-class fix (e.g. a `justify-self` chip fix) is not overridden or bypassed by the new media query, and that a shared wrapper class (`.tableWrapper`) hidden on mobile isn't also used by an unrelated always-visible region.
 
 ## Display-formatting cluster (verdict = `--comment` "MUST FIX", non-blocking)
 

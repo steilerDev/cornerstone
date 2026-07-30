@@ -164,3 +164,44 @@ When using polymorphic FKs (no DB-level constraint), ALL services that delete th
 
 4. Client allows `itemizedAmount >= 0` but API requires `> 0`.
 5. `loadBudgetLines` not memoized -- eslint exhaustive-deps warning risk.
+
+---
+
+# Review Log (migrated from MEMORY.md index, 2026-07-30)
+
+## EPIC-04 Household Items
+
+- PR #399 (4.4): Request Changes -- missing quantity field
+- PR #401 (4.6): Request Changes -- confidence margin display bug (fractions not percentages)
+- PR #402 (4.7): Comment -- 1 medium (wiki gap, resolved; `GET /api/work-items/:id/household-items` added to API-Contract.md)
+- PR #414 (4.9): Request Changes -- missing invoice delete guard, wiki gaps
+- PR #416 (4.10): Request Changes -- orphaned deps on WI/milestone delete, deleted 1060-line test file, wiki not updated
+
+## PR #460 (2026-03-04) -- inline status selector
+
+Auto-sets `actualDeliveryDate` when status -> 'arrived' and date is null. Backend/frontend/tests correct;
+API Contract wiki not updated to document the auto-set behaviour. Doc gap flagged.
+
+## PR #612 (2026-03-08) -- EPIC-15 Story 15.1, invoice_budget_lines (migration 0017)
+
+Request changes:
+
+- CRITICAL: broken test assertions -- `MutuallyExclusiveBudgetLinkError` tests retained but validation removed from service. CI red.
+- HIGH: wiki Schema.md said ON DELETE SET NULL for budget FKs; migration/Drizzle/ADR-018 use ON DELETE CASCADE.
+- MEDIUM: `InvoiceBudgetLineSummary` shared type diverged from wiki API Contract shape. Deferred to Story 15.2.
+
+## PR #1150 (2026-03-22) -- EPIC-19 Backup & Restore
+
+Request changes (2 critical, 3 high, 2 medium):
+
+- CRITICAL: wiki not updated (API-Contract.md, Architecture.md) -- zero wiki changes in PR
+- CRITICAL: CLAUDE.md env var table missing BACKUP_DIR, BACKUP_CADENCE, BACKUP_RETENTION
+- HIGH: `stopScheduler()` never called on app close -- needs onClose hook
+- HIGH: module-level mutable state (`operationInProgress`, `cronTask`) -- testing concern
+- MEDIUM: `process.exit(0)` bypasses Fastify graceful shutdown
+- MEDIUM: `createError` state set but never rendered in UI (bug #1164)
+
+## PR #1894 (2026-07-30) -- Story #1891 dual-rail deposit aggregation
+
+Round 1 CHANGES_REQUIRED (1 critical: Rail A/B double-count), round 2 APPROVED after commit 86a9770a.
+Full invariants and review heuristics in `dual-rail-aggregation.md`.
