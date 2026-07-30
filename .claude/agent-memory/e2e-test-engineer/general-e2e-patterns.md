@@ -18,6 +18,7 @@ metadata:
 - After `fill(query)` in a search box, add `page.waitForURL(url => url.searchParams.get('q') === query)` BEFORE `waitForResponse` — confirms the debounce fired and React committed state. Don't call `waitForLoaded()` after the response for search — it can resolve on stale DOM from a WebKit clear-event race; let the assertion's own retry converge.
 - Dashboard reload: register `waitForResponse('/api/users/me/preferences')` BEFORE reload, but prefer `page.waitForLoadState('networkidle')` AFTER the heading is visible for "dismissed card stays hidden" — LocaleContext's GET resolves first and `usePreferences`'s second GET (which applies hiddenCards) arrives later.
 - Count assertions with parallel workers sharing one DB are fragile — use `>=` / `not.toContain(name)` instead of exact equality.
+- **One-shot `page.frames().find(...)` (or any raw one-shot read of live browsing-context state) right after a "done" signal (overlay hidden, attribute set) is a race, not a proof.** `frame.url()` only reflects a navigation that has already completed — there's a real gap between the DOM signaling "done" and the nested browsing context actually finishing navigation. Wrap it in `await expect(async () => {...}).toPass({timeout: N})`, re-deriving the expected value on every retry (don't capture it once before the poll — a value that can legitimately change mid-wait, e.g. a regenerated blob URL, needs re-reading each attempt). Found via CI PR #1894 (`ReportWizardPage.assertFrameActuallyNavigated`) — see story-1891-wizard-followup.md for the full writeup and the "zero console messages alongside the failure" diagnostic that proved it was a timing race, not the CSP guard it was built to detect.
 
 ## Viewport timeouts (Playwright projects)
 
@@ -93,6 +94,63 @@ After `setLanguage(page,'de')` + `page.goto()`, always `page.reload()` before as
 ## SearchPicker/AreaPicker filter pattern (2026-03-19, issue #1074)
 
 AreaPicker has two DOM states: unselected (input visible, `placeholder="Select an area"`) vs selected (`[class*="selectedDisplay"]` visible, input gone). After selection, URL gets `?areaId=<id>`; clearing removes it. Use `waitForResponse` BEFORE selection.
+
+## Headless Chromium shell has no PDF viewer plugin — `<iframe>`-to-`blob:`-PDF navigation is unverifiable via `page.frames()` (Story #1891 TEST_ENVIRONMENT fix, 2026-07-29)
+
+CI run 30530648400 (shard 2) proved that `page.frames().find(f => f.url() === blobSrc)` — even
+wrapped in a 10s `expect(...).toPass()` poll (see `story-1891-wizard-followup.md`'s earlier
+"one-shot race" fix) — **never** matches when the target is a PDF `blob:` URL, and **zero**
+CSP-violation console messages fire either. Root cause: Playwright's bundled headless Chromium
+shell has no built-in PDF viewer plugin. An `<iframe src="blob:...">` pointed at a PDF silently
+aborts/blanks (stays effectively at `about:blank`) **without any CSP violation being logged** —
+this happens identically whether or not the CSP `frame-src` directive actually permits `blob:`.
+So the "prove a frame navigated to the blob src" technique cannot distinguish a correctly
+configured CSP from a broken one in this CI environment, regardless of how it's polled — it's
+not a timing bug, it's a structural gap in the headless shell's rendering capability for PDFs.
+**General lesson: don't use `page.frames()`/iframe-navigation matching to prove anything about
+an `<iframe>` whose target content type the headless Chromium shell can't natively render (PDF
+is the known case; likely also true for other browser-plugin-dependent content).**
+
+**Replacement pattern — verify the CSP contract server-side, not the browser's enforcement of it:**
+1. **Direct CSP header assertion** (the deterministic core): `page.request.get(route)` (shares
+   the page's cookie jar/session automatically) then read
+   `response.headers()['content-security-policy']`, regex out the specific directive
+   (`frame-src`, `script-src`, whatever's relevant), and assert the required source token is
+   present. This is a server-side contract check — it fails/passes by construction based on the
+   actual `helmetPlugin.ts` config, completely independent of what any given browser does when
+   asked to render the content. This is the primary, CI-reliable regression guard now.
+2. Keep a zero-CSP-console-violation assertion as defense in depth — real (non-headless-shell)
+   browsers still log synchronously on a block, so this remains a meaningful second signal even
+   though it can't be the *only* signal in CI.
+3. Do NOT try to fetch the iframe's `blob:` src from within the page as a third signal — see the
+   "blob: fetch is connect-src-governed, not frame-src" entry immediately below for why that's a
+   dead end, not just an unnecessary extra.
+
+See `ReportWizardPage.ts`'s `assertPreviewHardened`/`fetchCspFrameSrcDirective` for the reference
+implementation, and `story-1891-wizard-followup.md` for the full before/after narrative (this
+superseded that story's own earlier `page.frames()`-polling fix, which turned out to just be
+racing an unwinnable race).
+
+## blob: fetch is connect-src-governed, not frame-src — don't add an in-page `fetch(blobSrc)` as a "prove the blob is genuine" check (Story #1891 second TEST_ENVIRONMENT fix, 2026-07-30)
+
+An earlier revision of the pattern above (item 3, since removed) tried to compensate for the
+headless shell's inability to render PDF iframes by having the PAGE itself `fetch()` the blob:
+URL from `page.evaluate` and inspect the resulting `Blob`'s `size`/`type`. This looked reasonable
+but is a dead end: `fetch()`/`XHR` to a URL — including a `blob:` URL — is governed by the page's
+`connect-src` CSP directive, not `frame-src`. Cornerstone's `connect-src` is (correctly)
+`'self'` only, with no `blob:` token, because the application itself never fetches its own
+preview blob — the browser resolves `<iframe src="blob:...">` internally without going through
+`fetch`/`XHR` at all. So the in-page fetch was blocked by the exact CSP it was trying to
+characterize, and CI (run 30531695763, shard 2) showed every wizard scenario failing in ~2s with
+`page.evaluate: TypeError: Failed to fetch`. **Do not loosen `connect-src` to accommodate this
+test technique** — it would weaken production CSP for no product reason, since the app has no
+legitimate need to fetch blob: URLs itself. The fix was simply to delete the blob-fetch check
+(`fetchPreviewBlobInfo` in `ReportWizardPage.ts`) and rely on the two signals above (CSP header +
+zero console violations) plus the plain "src attribute starts with `blob:`" check callers already
+did. **General lesson: when a CSP directive blocks something, don't assume any other in-page
+technique that touches network/fetch is a safe workaround — check which specific directive
+(`connect-src` vs `frame-src` vs `script-src`, etc.) governs the technique you're about to add,
+since they're independently configured and a fix for one doesn't imply permission under another.**
 
 ## Key file locations
 

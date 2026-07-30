@@ -46,6 +46,50 @@
  *   `[class*="pdfPreviewWrapper"]`.
  * - Claim confirmation modal: `role="dialog"` (name "Mark Invoices as Claimed?").
  * - Claim success: `[class*="bannerSuccess"]` banner (replaces the action buttons in Step 4).
+ *
+ * Story #1891 follow-up additions (`ReportInvoiceList.tsx`):
+ * - Each allocated invoice row is a `<div class*="invoiceRow">` on a `1.5rem auto 1fr auto
+ *   auto auto` grid: [chevron|non-interactive span] [TriState checkbox + vendor info]
+ *   [status Badge `class*="statusChip"`] [amount] [attachment column]. The row is only
+ *   expandable (chevron rendered as a real `<button class*="expandButton">` with
+ *   `aria-expanded`/`aria-controls="invoice-expand-{invoiceId}"`) when
+ *   `budgetLines.length > 0 || deposits.length > 0`; otherwise a bare `aria-hidden` span
+ *   fills the grid cell and there is nothing to expand.
+ * - The expansion panel (`class*="expansionPanel"`, `id="invoice-expand-{invoiceId}"`) is a
+ *   DOM SIBLING immediately after the row's own `invoiceRow` div (both children of the same
+ *   per-invoice wrapper `<div key={invoice.invoiceId}>`), not a descendant — locators below
+ *   reach it via `xpath=following-sibling::*`.
+ * - Inside the panel: an items sub-table (`class*="subTableSection"` #1, budget lines, else
+ *   `EmptyState`) then a deposits sub-table (`class*="subTableSection"` #2, else
+ *   `EmptyState`) — always in this DOM order, so `.nth(0)`/`.nth(1)` disambiguates without
+ *   depending on i18n heading text.
+ * - Each budget-line row's exclusion checkbox has `aria-label="Exclude {name} from report"`
+ *   (`sourceReports.expand.excludeItemAriaLabel`, `name` = line description or
+ *   `t('sourceReports.expand.unnamedLine')`). Toggling it updates `excludedLineIds`
+ *   (`ReportWizardPage.tsx`), which is applied PURELY client-side via
+ *   `applyLineExclusions()` (`client/src/lib/reportExclusions.ts`) — it subtracts the
+ *   excluded lines' `allocatedPortion` from the invoice's `allocatedAmount` for display/PDF
+ *   purposes only. It NEVER touches `excludedInvoiceIds` — the invoice is still submitted in
+ *   full to `markInvoicesClaimed` regardless of line exclusions (hence the claim-confirm
+ *   modal's warning block, see `markClaimedWarningBlock` below).
+ * - **Fixed regression (#1892)**: `applyLineExclusions` clamps a fully-excluded invoice's
+ *   `allocatedAmount` to exactly `0`. `ReportInvoiceList`'s `allocatedInvoices` filter is
+ *   `inv.allocatedAmount > 0 || inv.lineKind === 'refund-adjustment' || inv.budgetLines.length > 0
+ *   || inv.deposits.length > 0` — the added `budgetLines.length > 0 || deposits.length > 0`
+ *   clauses keep a fully-line-excluded invoice (net exactly 0, `lineKind` stays `'invoice'`)
+ *   visible as a `€0.00` row instead of being filtered out, which also preserves the only UI
+ *   path back to un-excluding those lines (the row's own expand toggle). The PDF and the actual
+ *   claim submission were never affected either way (both operate on `excludedInvoiceIds`, not
+ *   the filtered display list) — this was a display-only regression. See
+ *   `reportWizardExpansion.spec.ts` Scenario 4 for the regression-guard test.
+ * - Deposits sub-table's "Allocated Source" column renders a source-colored Badge only when
+ *   `deposit.budgetSourceId === report.source.id` (the CURRENTLY viewed source); any other
+ *   value (including a different source's id) renders a plain `—` — deposits tagged to a
+ *   different source are never shown as tagged in someone else's report.
+ * - Claim confirm modal warning block: `[role="alert"]` (`class*="warningBlock"`) rendered
+ *   inside the modal ONLY when at least one included (non invoice-excluded) invoice has one
+ *   or more excluded lines — text is `sourceReports.confirmClaimExcludedItemsWarning`
+ *   ("{{count}} invoice(s) will be claimed in full even though...").
  */
 
 import { expect, type Page, type Locator, type Download } from '@playwright/test';
@@ -115,8 +159,29 @@ export class ReportWizardPage {
   // Data-loading error
   readonly errorLoadingDataBanner: Locator;
 
+  // Story #1891: expandable rows, items/deposits sub-tables, claim warning
+  readonly markClaimedWarningBlock: Locator;
+
+  /**
+   * Console messages captured since construction whose text matches
+   * `/content security policy/i`. Registered in the constructor — NOT lazily on first use —
+   * so a violation that fires before/during `goto()` is never missed (mirrors the established
+   * convention in `invoice-auto-itemize-page.spec.ts` Scenario 18's `page.on('console', ...)`
+   * CSP-error capture). A blocked `frame-src` navigation for the report preview `<iframe>`
+   * surfaces here as a Chromium-emitted `'error'`-type console message, e.g.
+   * `Refused to frame 'blob:...' because it violates the following Content Security Policy
+   * directive: "frame-src 'self'".`
+   */
+  private readonly cspViolationMessages: string[] = [];
+
   constructor(page: Page) {
     this.page = page;
+
+    page.on('console', (msg) => {
+      if (msg.type() === 'error' && /content security policy/i.test(msg.text())) {
+        this.cspViolationMessages.push(msg.text());
+      }
+    });
 
     this.heading = page.getByRole('heading', { level: 1 });
 
@@ -175,6 +240,10 @@ export class ReportWizardPage {
     this.claimConfirmCancelButton = this.claimConfirmModal.locator('[class*="btnSecondary"]');
 
     this.errorLoadingDataBanner = page.locator('[class*="metadataCard"] [role="alert"]').first();
+
+    // Warning block ([role="alert"], class*="warningBlock") shown inside the claim-confirm
+    // modal only when an included invoice has excluded lines (see class docstring above).
+    this.markClaimedWarningBlock = this.claimConfirmModal.locator('[role="alert"]');
   }
 
   async goto(sourceId?: string): Promise<void> {
@@ -251,6 +320,98 @@ export class ReportWizardPage {
     await this.invoiceRowCheckbox(vendorName, invoiceNumber).click();
   }
 
+  /**
+   * The row's own displayed amount element — `[class*="amount"]` WITHOUT the `Column`
+   * substring, so it excludes the `.amountColumn` grid-cell wrapper (which also contains
+   * "amount" as a substring) and resolves to the innermost `.amount`/`.amount.amountNegative`
+   * div regardless of whether the row is a plain invoice or a refund-adjustment (which nests
+   * an extra unstyled wrapper `<div>` around a Badge + this same element).
+   */
+  invoiceRowAmount(vendorName: string, invoiceNumber: string): Locator {
+    return this.invoiceRow(vendorName, invoiceNumber)
+      .locator('[class*="amount"]:not([class*="Column"])')
+      .first();
+  }
+
+  /**
+   * The chevron expand/collapse button for an allocated invoice row (Story #1891). Only
+   * present when the invoice has budget lines and/or deposits — see class docstring.
+   */
+  invoiceExpandToggle(vendorName: string, invoiceNumber: string): Locator {
+    return this.invoiceRow(vendorName, invoiceNumber).locator('[class*="expandButton"]');
+  }
+
+  /**
+   * The expansion panel for an allocated invoice row — a DOM SIBLING of the row's own
+   * `invoiceRow` div (both children of the same per-invoice wrapper), not a descendant, so
+   * this is reached via a relative `following-sibling::` xpath rather than `.locator()`
+   * descendant search. Only present in the DOM while `isExpanded` is true.
+   */
+  expansionPanel(vendorName: string, invoiceNumber: string): Locator {
+    return this.invoiceRow(vendorName, invoiceNumber).locator(
+      'xpath=following-sibling::*[contains(@class,"expansionPanel")]',
+    );
+  }
+
+  /**
+   * The items (budget lines) sub-table section — always the FIRST `class*="subTableSection"`
+   * child of the expansion panel, whether it renders the real `<table>` or the `EmptyState`
+   * fallback (`budgetLines.length === 0`). Structural indexing avoids depending on i18n
+   * heading text.
+   */
+  itemsSubTable(vendorName: string, invoiceNumber: string): Locator {
+    return this.expansionPanel(vendorName, invoiceNumber)
+      .locator('[class*="subTableSection"]')
+      .nth(0);
+  }
+
+  /**
+   * The deposits sub-table section — always the SECOND `class*="subTableSection"` child of
+   * the expansion panel (see `itemsSubTable` docstring for the same structural-order
+   * rationale).
+   */
+  depositsSubTable(vendorName: string, invoiceNumber: string): Locator {
+    return this.expansionPanel(vendorName, invoiceNumber)
+      .locator('[class*="subTableSection"]')
+      .nth(1);
+  }
+
+  /**
+   * A specific budget-line row within the items sub-table, matched by its description text
+   * (or `t('sourceReports.expand.unnamedLine')` for an unnamed line).
+   */
+  itemRow(vendorName: string, invoiceNumber: string, lineDescription: string): Locator {
+    return this.itemsSubTable(vendorName, invoiceNumber)
+      .locator('tbody tr')
+      .filter({ hasText: lineDescription });
+  }
+
+  /**
+   * The "Include" checkbox for a specific budget line, matched by its
+   * `aria-label="Exclude {name} from report"` (`sourceReports.expand.excludeItemAriaLabel`).
+   * Unchecking it excludes the line from the display/PDF amount (never from claim eligibility
+   * — see class docstring).
+   */
+  itemExclusionCheckbox(
+    vendorName: string,
+    invoiceNumber: string,
+    lineDescription: string,
+  ): Locator {
+    return this.itemsSubTable(vendorName, invoiceNumber).getByRole('checkbox', {
+      name: `Exclude ${lineDescription} from report`,
+    });
+  }
+
+  /**
+   * A specific deposit row within the deposits sub-table, matched by its formatted amount
+   * text (e.g. from `useFormatters().formatCurrency`).
+   */
+  depositRow(vendorName: string, invoiceNumber: string, formattedAmount: string): Locator {
+    return this.depositsSubTable(vendorName, invoiceNumber)
+      .locator('tbody tr')
+      .filter({ hasText: formattedAmount });
+  }
+
   async toggleSelectAll(): Promise<void> {
     await this.selectAllCheckbox.click();
   }
@@ -307,11 +468,111 @@ export class ReportWizardPage {
   }
 
   /**
-   * Waits for PDF generation to settle: the loading overlay disappears AND the preview
-   * iframe has a non-empty `blob:` src. PDF generation (pdfmake + pdf-lib, both loaded via
-   * dynamic `import()`) can be slow, especially on the first call of a test (cold chunk
-   * load) — callers should pair this with `test.slow()` and rely on Playwright's default
-   * generous `expect()` timeout rather than a short custom one.
+   * Copy of all Content-Security-Policy violation console messages captured since this POM
+   * was constructed (see `cspViolationMessages` field docstring). Exposed for tests that want
+   * to assert on it directly rather than only through `waitForPreviewReady`/
+   * `waitForPreviewRegenerated`'s implicit check.
+   */
+  getCspViolations(): string[] {
+    return [...this.cspViolationMessages];
+  }
+
+  /**
+   * Fetches the report wizard page's own HTTP response and returns the CSP header's
+   * `frame-src` directive as its space-separated source tokens (e.g. `["'self'", 'blob:']`).
+   * Throws if the header or the directive is missing.
+   *
+   * This is a direct server-side contract check — it fails deterministically against a
+   * pre-fix `frameSrc: ["'self'"]` `helmetPlugin.ts` config (no `blob:` token) and passes
+   * deterministically once `blob:` is added, entirely independent of what a given browser
+   * (headless or not) actually does when asked to navigate an `<iframe>` to a `blob:` PDF URL.
+   * See `assertPreviewHardened`'s docstring for why this replaced the earlier
+   * `page.frames()`-based navigation-matching technique.
+   */
+  async fetchCspFrameSrcDirective(): Promise<string[]> {
+    const response = await this.page.request.get(REPORT_WIZARD_ROUTE);
+    const cspHeader = response.headers()['content-security-policy'];
+    if (!cspHeader) {
+      throw new Error(
+        `Expected a Content-Security-Policy response header on ${REPORT_WIZARD_ROUTE}, got none.`,
+      );
+    }
+    const frameSrcMatch = cspHeader.match(/frame-src\s+([^;]+)/i);
+    const frameSrcValue = frameSrcMatch?.[1];
+    if (!frameSrcValue) {
+      throw new Error(`Expected a frame-src directive in the CSP header, got: "${cspHeader}"`);
+    }
+    return frameSrcValue.trim().split(/\s+/);
+  }
+
+  /**
+   * HARDENED proof that the report preview is genuinely permitted — Story #1891 AC, reworked
+   * TWICE per two separate TEST_ENVIRONMENT-fix follow-ups (see below for why).
+   *
+   * ATTEMPT 1 (superseded): polling `page.frames()` for a browsing-context frame whose live
+   * `url()` matched the iframe's `blob:` src attribute, treating a match as proof the
+   * navigation actually completed (as opposed to being silently CSP-blocked while the DOM
+   * `src` attribute still got set by React). That technique turned out to be UNVERIFIABLE in
+   * this project's CI environment: Playwright's bundled headless Chromium shell has no
+   * built-in PDF viewer plugin, so an `<iframe>` pointed at a PDF `blob:` URL aborts/blanks
+   * WITHOUT ever completing a navigation or firing a CSP violation — `page.frames()` never
+   * contains a matching frame REGARDLESS of whether the CSP frame-src directive is correct.
+   * Confirmed via CI run 30530648400 (shard 2): even with a 10s poll, zero frame matches AND
+   * zero CSP console violations, on a build where the `blob:` fix was already present.
+   *
+   * ATTEMPT 2 (superseded): replaced the frame-navigation check with an in-page
+   * `fetch(blobSrc)` (inside `page.evaluate`) that read the blob's size/MIME type, reasoning
+   * that a genuinely-resolvable non-empty PDF blob was proof enough on its own. That ALSO
+   * turned out to be a dead end, for a different reason: the app's own CSP `connect-src` is
+   * `'self'` and does not (and must not) include `blob:` — `fetch()`/`XHR` to a `blob:` URL is
+   * itself a `connect-src`-governed request, so the in-page fetch was blocked by the exact
+   * policy this test exists to verify. The application itself never fetches its own preview
+   * blob (the browser resolves `<iframe src="blob:...">` internally, not via `fetch`), so
+   * loosening `connect-src` to accommodate this test technique would weaken production CSP for
+   * no product reason — rejected. Confirmed via CI run 30531695763 (shard 2): every scenario
+   * failed in ~2s with `page.evaluate: TypeError: Failed to fetch`.
+   *
+   * CURRENT APPROACH — two independent, headless-safe signals, both of which must pass here,
+   * plus the plain src-attribute check callers already do before calling this method:
+   *  1. Direct CSP header assertion (`fetchCspFrameSrcDirective`) — the deterministic core. A
+   *     server-side contract check that fails against a pre-fix `frameSrc: ["'self'"]` config
+   *     and passes against the fixed `["'self'", 'blob:']` config, regardless of browser
+   *     behavior.
+   *  2. Zero CSP-violation console messages (`cspViolationMessages`) — defense in depth for
+   *     real (non-headless-shell) browsers, where a frame-src block always also logs a console
+   *     error synchronously with the blocked navigation.
+   *
+   * See the e2e-test-engineer agent memory (`general-e2e-patterns.md`) for the investigation
+   * record of both superseded attempts, and the connect-src pitfall specifically, so a future
+   * refactor doesn't re-add an in-page blob fetch.
+   */
+  private async assertPreviewHardened(): Promise<void> {
+    const frameSrcValues = await this.fetchCspFrameSrcDirective();
+    if (!frameSrcValues.includes("'self'") || !frameSrcValues.includes('blob:')) {
+      throw new Error(
+        "Expected CSP frame-src directive to include both 'self' and blob:, got: " +
+          `[${frameSrcValues.join(', ')}]`,
+      );
+    }
+
+    if (this.cspViolationMessages.length > 0) {
+      throw new Error(
+        `Detected ${this.cspViolationMessages.length} Content-Security-Policy violation ` +
+          `console message(s) while loading the report preview: ` +
+          `${this.cspViolationMessages.join('; ')}`,
+      );
+    }
+  }
+
+  /**
+   * Waits for PDF generation to settle: the loading overlay disappears, the preview iframe
+   * has a non-empty `blob:` src, AND (Story #1891 hardening) that src is proven safe — see
+   * `assertPreviewHardened`'s docstring for why the src attribute alone is not sufficient
+   * proof and why a browsing-context navigation match isn't either, in this environment. PDF
+   * generation (pdfmake + pdf-lib, both loaded via dynamic `import()`) can be slow, especially
+   * on the first call of a test (cold chunk load) — callers should pair this with
+   * `test.slow()` and rely on Playwright's default generous `expect()` timeout rather than a
+   * short custom one.
    */
   async waitForPreviewReady(): Promise<void> {
     await this.previewLoadingOverlay.waitFor({ state: 'hidden' });
@@ -320,6 +581,7 @@ export class ReportWizardPage {
     if (!src || !src.startsWith('blob:')) {
       throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
     }
+    await this.assertPreviewHardened();
   }
 
   /** Current preview iframe `blob:` src, for detecting a regeneration via a src change. */
@@ -341,6 +603,9 @@ export class ReportWizardPage {
   async waitForPreviewRegenerated(previousSrc: string): Promise<void> {
     await this.previewLoadingOverlay.waitFor({ state: 'hidden' });
     await this.previewIframe.waitFor({ state: 'visible' });
+    // Poll until the src attribute actually changes from previousSrc (a fresh regeneration can
+    // race the overlay hiding), then run the same Story #1891 hardened checks — see
+    // assertPreviewHardened's docstring — once the new src has settled.
     await expect(async () => {
       const src = await this.getPreviewSrc();
       if (!src.startsWith('blob:')) {
@@ -349,7 +614,8 @@ export class ReportWizardPage {
       if (src === previousSrc) {
         throw new Error('Preview src has not changed yet — regeneration still pending');
       }
-    }).toPass();
+    }).toPass({ timeout: 10_000 });
+    await this.assertPreviewHardened();
   }
 
   async download(): Promise<Download> {

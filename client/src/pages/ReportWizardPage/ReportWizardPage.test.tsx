@@ -182,6 +182,8 @@ function makeReport(overrides: Partial<SourceReportResponse> = {}): SourceReport
         lineKind: 'invoice',
         isSplit: false,
         documents: [],
+        budgetLines: [],
+        deposits: [],
       },
     ],
     totalAmount: 1000,
@@ -557,6 +559,8 @@ describe('ReportWizardPage', () => {
           lineKind: 'invoice',
           isSplit: false,
           documents: [],
+          budgetLines: [],
+          deposits: [],
         },
       ],
     });
@@ -1097,5 +1101,275 @@ describe('ReportWizardPage', () => {
       expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
     });
     expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
+  });
+
+  // ─── Story #1891: line exclusions feed the amount-adjusted effectiveReport ─
+
+  describe('line exclusions (Story #1891)', () => {
+    function makeReportWithLines(): SourceReportResponse {
+      return makeReport({
+        invoices: [
+          {
+            invoiceId: 'inv-1',
+            vendorId: 'vend-1',
+            vendorName: 'ACME',
+            invoiceNumber: 'INV-001',
+            date: '2026-01-10',
+            status: 'pending',
+            invoiceAmount: 1000,
+            allocatedAmount: 1000,
+            lineKind: 'invoice',
+            isSplit: false,
+            documents: [],
+            budgetLines: [
+              {
+                id: 'line-1',
+                description: 'Foundation work',
+                allocatedPortion: 600,
+                linkedItem: null,
+              },
+              { id: 'line-2', description: 'Roofing', allocatedPortion: 400, linkedItem: null },
+            ],
+            deposits: [],
+          },
+        ],
+        totalAmount: 1000,
+      });
+    }
+
+    it('excluding a budget line via the item checkbox regenerates the PDF with the amount-ADJUSTED effectiveReport, not the raw report', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReportWithLines());
+      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      // First (initial) call receives the report with the FULL, un-adjusted amount.
+      const firstCallReport = mockGenerateReportPdf.mock.calls[0]![0];
+      expect(firstCallReport.invoices[0]!.allocatedAmount).toBe(1000);
+
+      // Expand the invoice row and exclude "Foundation work" (600).
+      const expandButton = document.querySelector(
+        '[aria-controls="invoice-expand-inv-1"]',
+      ) as HTMLElement;
+      await user.click(expandButton);
+      // The expansion panel renders both a desktop table and a mobile card list for the same
+      // budget lines (CSS hides one per viewport; jsdom has no layout engine, so both are in the
+      // DOM) — select the desktop instance, matching the convention in ReportInvoiceList.test.tsx.
+      const excludeCheckbox = screen.getAllByRole('checkbox', {
+        name: 'Exclude Foundation work from report',
+      })[0]!;
+      await user.click(excludeCheckbox);
+
+      await waitFor(
+        () => {
+          expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2);
+        },
+        { timeout: 2000 },
+      );
+
+      // The regenerated call must receive the ADJUSTED effectiveReport: 1000 - 600 = 400.
+      const secondCallReport =
+        mockGenerateReportPdf.mock.calls[mockGenerateReportPdf.mock.calls.length - 1]![0];
+      expect(secondCallReport.invoices[0]!.allocatedAmount).toBe(400);
+      expect(secondCallReport.invoices[0]!.lineKind).toBe('invoice');
+    });
+
+    it('excluding a line large enough to flip the sign passes a negative allocatedAmount / refund-adjustment lineKind to generateReportPdf', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(
+        makeReport({
+          invoices: [
+            {
+              invoiceId: 'inv-1',
+              vendorId: 'vend-1',
+              vendorName: 'ACME',
+              invoiceNumber: 'INV-001',
+              date: '2026-01-10',
+              status: 'pending',
+              invoiceAmount: 1000,
+              allocatedAmount: 200,
+              lineKind: 'invoice',
+              isSplit: false,
+              documents: [],
+              budgetLines: [
+                {
+                  id: 'line-1',
+                  description: 'Overpaid deposit',
+                  allocatedPortion: 500,
+                  linkedItem: null,
+                },
+              ],
+              deposits: [],
+            },
+          ],
+          totalAmount: 200,
+        }),
+      );
+      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      const expandButton = document.querySelector(
+        '[aria-controls="invoice-expand-inv-1"]',
+      ) as HTMLElement;
+      await user.click(expandButton);
+      // Desktop instance — see the comment on the "Foundation work" test above for why this is
+      // ambiguous under jsdom (both desktop table and mobile card list render simultaneously).
+      const excludeCheckbox = screen.getAllByRole('checkbox', {
+        name: 'Exclude Overpaid deposit from report',
+      })[0]!;
+      await user.click(excludeCheckbox);
+
+      await waitFor(
+        () => {
+          expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2);
+        },
+        { timeout: 2000 },
+      );
+
+      const secondCallReport =
+        mockGenerateReportPdf.mock.calls[mockGenerateReportPdf.mock.calls.length - 1]![0];
+      expect(secondCallReport.invoices[0]!.allocatedAmount).toBe(-300);
+      expect(secondCallReport.invoices[0]!.lineKind).toBe('refund-adjustment');
+    });
+
+    it('zero exclusions: effectiveReport passed to generateReportPdf is identical to the server report (no drift)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      const report = makeReportWithLines();
+      mockGetSourceReport.mockResolvedValue(report);
+      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep4(user);
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      const callReport = mockGenerateReportPdf.mock.calls[0]![0];
+      expect(callReport.invoices[0]!.allocatedAmount).toBe(1000);
+      expect(callReport.invoices[0]!.lineKind).toBe('invoice');
+    });
+  });
+
+  // ─── Story #1891: claim-confirm modal warning for excluded items ──────────
+
+  describe('claim confirmation modal — excluded-items warning (Story #1891)', () => {
+    function makeReportWithLines(): SourceReportResponse {
+      return makeReport({
+        invoices: [
+          {
+            invoiceId: 'inv-1',
+            vendorId: 'vend-1',
+            vendorName: 'ACME',
+            invoiceNumber: 'INV-001',
+            date: '2026-01-10',
+            status: 'pending',
+            invoiceAmount: 1000,
+            allocatedAmount: 1000,
+            lineKind: 'invoice',
+            isSplit: false,
+            documents: [],
+            budgetLines: [
+              {
+                id: 'line-1',
+                description: 'Foundation work',
+                allocatedPortion: 600,
+                linkedItem: null,
+              },
+            ],
+            deposits: [],
+          },
+        ],
+        totalAmount: 1000,
+      });
+    }
+
+    it('does NOT show the warning when no lines are excluded', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReportWithLines());
+      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep4(user);
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('shows the warning with the correct count when an included invoice has an excluded line', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReportWithLines());
+      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      const expandButton = document.querySelector(
+        '[aria-controls="invoice-expand-inv-1"]',
+      ) as HTMLElement;
+      await user.click(expandButton);
+      // Desktop instance — see the "Foundation work" test in the "line exclusions" describe
+      // block above for why getAllByRole(...)[0] is required here.
+      await user.click(
+        screen.getAllByRole('checkbox', { name: 'Exclude Foundation work from report' })[0]!,
+      );
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), {
+        timeout: 2000,
+      });
+
+      await clickNext(user); // step 3 -> 4
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+
+      const warning = screen.getByRole('alert');
+      expect(warning).toHaveTextContent('1 invoice(s) will be claimed in full');
+    });
+
+    it('does NOT show the warning when the only invoice with an excluded line is itself invoice-level excluded', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReportWithLines());
+      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      // Exclude the WHOLE invoice at the parent (tri-state) checkbox level FIRST — while
+      // checked (no lines excluded yet), clicking transitions checked=true -> false, which
+      // is the deterministic "exclude" direction (onToggle(id, true)).
+      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+
+      // Then also exclude a line within it (independent state — excludedLineIds is not
+      // gated on the invoice-level exclusion).
+      const expandButton = document.querySelector(
+        '[aria-controls="invoice-expand-inv-1"]',
+      ) as HTMLElement;
+      await user.click(expandButton);
+      // Desktop instance — same dual-DOM ambiguity as above.
+      await user.click(
+        screen.getAllByRole('checkbox', { name: 'Exclude Foundation work from report' })[0]!,
+      );
+
+      // With the sole invoice excluded, excludedInvoiceIds.size === report.invoices.length,
+      // so step 3's own "Next" button is disabled (title: sourceReports.selectAtLeastOne) —
+      // the wizard cannot even reach step 4's claim modal, so no warning can be shown at all.
+      const nextButtons = screen
+        .getAllByRole('button')
+        .filter((b) => b.className.includes('btnPrimary'));
+      expect(nextButtons[nextButtons.length - 1]).toBeDisabled();
+    });
   });
 });

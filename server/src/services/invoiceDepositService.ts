@@ -85,6 +85,7 @@ function toInvoiceDeposit(db: DbType, row: typeof invoiceDeposits.$inferSelect):
     description: row.description,
     status: row.status as InvoiceDepositStatus,
     entryType: row.entryType as InvoiceDepositEntryType,
+    budgetSourceId: row.budgetSourceId,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -286,6 +287,7 @@ export function createDeposit(
         description: data.description ?? null,
         status: targetStatus,
         entryType,
+        budgetSourceId: data.budgetSourceId ?? null,
         createdBy: userId,
         createdAt: now,
         updatedAt: now,
@@ -355,6 +357,11 @@ export function updateDeposit(
       throw new ValidationError('Description must be 500 characters or less');
     }
     updates.description = data.description ?? null;
+  }
+
+  // Update budgetSourceId if provided
+  if (data.budgetSourceId !== undefined) {
+    updates.budgetSourceId = data.budgetSourceId ?? null;
   }
 
   // Handle status transition if provided

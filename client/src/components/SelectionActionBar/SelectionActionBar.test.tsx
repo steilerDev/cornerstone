@@ -90,4 +90,32 @@ describe('SelectionActionBar', () => {
       ),
     ).not.toThrow();
   });
+
+  // ─── Story #1891: aria-live announcement of the running count/total ───────
+
+  it('the count span has aria-live="polite" and aria-atomic="true" (Story #1891)', () => {
+    render(
+      <SelectionActionBar countLabel="2 selected" onClear={jest.fn()} clearLabel="Clear selection">
+        <button type="button">Merge</button>
+      </SelectionActionBar>,
+    );
+    const countSpan = screen.getByText('2 selected');
+    expect(countSpan).toHaveAttribute('aria-live', 'polite');
+    expect(countSpan).toHaveAttribute('aria-atomic', 'true');
+  });
+
+  it('re-rendering with an updated countLabel keeps the aria-live attributes on the same span', () => {
+    const { rerender } = render(
+      <SelectionActionBar countLabel="2 selected" onClear={jest.fn()} clearLabel="Clear selection">
+        <button type="button">Merge</button>
+      </SelectionActionBar>,
+    );
+    rerender(
+      <SelectionActionBar countLabel="5 selected" onClear={jest.fn()} clearLabel="Clear selection">
+        <button type="button">Merge</button>
+      </SelectionActionBar>,
+    );
+    const countSpan = screen.getByText('5 selected');
+    expect(countSpan).toHaveAttribute('aria-live', 'polite');
+  });
 });

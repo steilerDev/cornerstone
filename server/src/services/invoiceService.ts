@@ -99,6 +99,7 @@ export function toInvoice(
       description: depositRow.description,
       status: depositRow.status,
       entryType: depositRow.entryType,
+      budgetSourceId: depositRow.budgetSourceId,
       createdBy: toUserSummary(depositCreatedByUser),
       createdAt: depositRow.createdAt,
       updatedAt: depositRow.updatedAt,

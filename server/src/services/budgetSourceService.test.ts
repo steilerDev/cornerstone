@@ -2701,6 +2701,7 @@ describe('Budget Source Service', () => {
         amount: number;
         status: 'pending' | 'paid' | 'claimed';
         entryType?: 'deposit' | 'refund';
+        budgetSourceId?: string | null;
       },
     ): string {
       const id = `dep-src-${++workItemCounter}`;
@@ -2713,6 +2714,7 @@ describe('Budget Source Service', () => {
           dueDate: '2026-03-01',
           status: opts.status,
           entryType: opts.entryType ?? 'deposit',
+          budgetSourceId: opts.budgetSourceId ?? null,
           createdAt: ts,
           updatedAt: ts,
         })
@@ -3014,6 +3016,310 @@ describe('Budget Source Service', () => {
 
         const disc = getDiscretionarySource();
         expect(disc.unclaimedAmount).toBeCloseTo(200);
+      });
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Story #1891: Rail B — deposits tagged directly to a budget source
+  // contribute to claimed/unclaimed/discretionary amounts even with ZERO
+  // budget lines referencing that source.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('Rail B — tagged deposits (Story #1891)', () => {
+    function insertStandaloneInvoiceNoLines(
+      invoiceAmount: number,
+      status: 'pending' | 'paid' | 'claimed' | 'quotation',
+    ): string {
+      const ts = new Date(Date.now() + workItemCounter).toISOString();
+      const vendorId = `vendor-railb-${++workItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Rail B Vendor ${vendorId}`, createdAt: ts, updatedAt: ts })
+        .run();
+      const invoiceId = `inv-railb-${workItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount: invoiceAmount,
+          date: '2026-01-01',
+          status,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return invoiceId;
+    }
+
+    function insertTaggedDeposit(
+      invoiceId: string,
+      opts: {
+        amount: number;
+        status: 'pending' | 'paid' | 'claimed';
+        entryType?: 'deposit' | 'refund';
+        budgetSourceId: string | null;
+      },
+    ): string {
+      const id = `dep-railb-${++workItemCounter}`;
+      const ts = new Date(Date.now() + workItemCounter).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount: opts.amount,
+          dueDate: '2026-03-01',
+          status: opts.status,
+          entryType: opts.entryType ?? 'deposit',
+          budgetSourceId: opts.budgetSourceId,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    it('a deposit tagged directly to a source with ZERO budget lines contributes to claimedAmount', () => {
+      // Source has no work_item_budgets / household_item_budgets referencing it at all —
+      // Rail A alone would report claimedAmount = 0. Rail B must still surface the tagged
+      // deposit's claimed contribution.
+      const raw = insertRawSource({ name: 'Zero-Line Tagged Source', totalAmount: 50000 });
+      const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
+      insertTaggedDeposit(invoiceId, { amount: 250, status: 'claimed', budgetSourceId: raw.id });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.claimedAmount).toBeCloseTo(250);
+    });
+
+    it('a deposit tagged directly to a source with ZERO budget lines contributes to unclaimedAmount when paid', () => {
+      const raw = insertRawSource({ name: 'Zero-Line Unclaimed Source', totalAmount: 50000 });
+      const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
+      insertTaggedDeposit(invoiceId, { amount: 150, status: 'paid', budgetSourceId: raw.id });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.unclaimedAmount).toBeCloseTo(150);
+      expect(result.claimedAmount).toBe(0);
+    });
+
+    it('a pending-status tagged deposit contributes to neither claimedAmount nor unclaimedAmount', () => {
+      const raw = insertRawSource({ name: 'Zero-Line Pending Source', totalAmount: 50000 });
+      const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
+      insertTaggedDeposit(invoiceId, { amount: 400, status: 'pending', budgetSourceId: raw.id });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.claimedAmount).toBe(0);
+      expect(result.unclaimedAmount).toBe(0);
+    });
+
+    it('a deposit tagged to a DIFFERENT source does not leak into this source’s claimedAmount', () => {
+      const sourceA = insertRawSource({ name: 'Rail B Source A', totalAmount: 50000 });
+      const sourceB = insertRawSource({ name: 'Rail B Source B', totalAmount: 50000 });
+      const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
+      insertTaggedDeposit(invoiceId, {
+        amount: 500,
+        status: 'claimed',
+        budgetSourceId: sourceB.id,
+      });
+
+      const resultA = budgetSourceService.getBudgetSourceById(db, sourceA.id);
+      expect(resultA.claimedAmount).toBe(0);
+      const resultB = budgetSourceService.getBudgetSourceById(db, sourceB.id);
+      expect(resultB.claimedAmount).toBeCloseTo(500);
+    });
+
+    it('a refund entry tagged directly to a source nets negative against a tagged deposit in claimedAmount', () => {
+      const raw = insertRawSource({ name: 'Rail B Refund Source', totalAmount: 50000 });
+      const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
+      insertTaggedDeposit(invoiceId, {
+        amount: 500,
+        status: 'claimed',
+        entryType: 'deposit',
+        budgetSourceId: raw.id,
+      });
+      insertTaggedDeposit(invoiceId, {
+        amount: 200,
+        status: 'claimed',
+        entryType: 'refund',
+        budgetSourceId: raw.id,
+      });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      expect(result.claimedAmount).toBeCloseTo(300);
+    });
+
+    it('Rail A (line) + Rail B (tagged deposit) combine additively for the same source', () => {
+      const raw = insertRawSource({ name: 'Combined Rail Source', totalAmount: 50000 });
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+      const ts = new Date().toISOString();
+      const vendorId = `vendor-combined-${++workItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Combined Vendor`, createdAt: ts, updatedAt: ts })
+        .run();
+      const invoiceId = `inv-combined-${workItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount: 1000,
+          date: '2026-01-01',
+          status: 'paid', // Rail A: 1000 residual, status 'paid' → claimed target excludes it
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount: 1000,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      // Rail B: a SEPARATE deposit tagged to this source on a DIFFERENT invoice.
+      const otherInvoiceId = insertStandaloneInvoiceNoLines(500, 'pending');
+      insertTaggedDeposit(otherInvoiceId, {
+        amount: 100,
+        status: 'claimed',
+        budgetSourceId: raw.id,
+      });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      // claimedAmount: Rail A contributes 0 (invoice paid, not claimed) + Rail B 100 = 100
+      expect(result.claimedAmount).toBeCloseTo(100);
+      // unclaimedAmount: Rail A contributes 1000 (paid, untagged, undeposited residual) + Rail B 0 = 1000
+      expect(result.unclaimedAmount).toBeCloseTo(1000);
+    });
+
+    it("canonical same-invoice case: a tagged deposit combines additively with the SAME invoice's residual to net exactly the invoice amount, and the untagged/legacy path is unaffected", () => {
+      // Canonical repro (Story #1891 double-count bug): a €1000 paid invoice, a €1000 line to
+      // source S, and a €400 claimed deposit tagged to S — all on the SAME invoice (unlike the
+      // "combine additively" test above, which uses two different invoices).
+      const raw = insertRawSource({ name: 'Canonical Same-Invoice Source', totalAmount: 50000 });
+      const { budgetId } = insertRawWorkItemWithSource(raw.id, 1000);
+      const ts = new Date().toISOString();
+      const vendorId = `vendor-canonical-${++workItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `Canonical Vendor`, createdAt: ts, updatedAt: ts })
+        .run();
+      const invoiceId = `inv-canonical-${workItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount: 1000,
+          date: '2026-01-01',
+          status: 'paid',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount: 1000,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      insertTaggedDeposit(invoiceId, { amount: 400, status: 'claimed', budgetSourceId: raw.id });
+
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+
+      // Rail B (tagged deposit) counts 100% toward claimedAmount: deposit status 'claimed' → 400.
+      // Rail A (line share) still has the tagged deposit subtracted from its residual
+      // denominator (even though it's omitted from Rail A's depositFractions):
+      // residual = (1000 - 400) / 1000 = 0.6. Invoice status 'paid' → residual contributes to
+      // unclaimedAmount: 1000 * 0.6 = 600.
+      expect(result.claimedAmount).toBeCloseTo(400);
+      expect(result.unclaimedAmount).toBeCloseTo(600);
+      // paidAmount = claimedAmount + unclaimedAmount = 400 + 600 = 1000, exactly the invoice
+      // amount — NOT 1400 (what the pre-fix bug produced by treating the tagged deposit as if
+      // it didn't exist at all in Rail A's residual computation, so nothing was subtracted).
+      expect(result.paidAmount).toBeCloseTo(1000);
+
+      // Legacy path: prove the fix leaves UNTAGGED deposits untouched. Same fixture shape,
+      // but the deposit is left untagged (budgetSourceId: null) — this exercises the exact
+      // computeStatusContributionExcludingTagged code path that behaves byte-identically to
+      // the pre-#1891 computeStatusContribution for untagged rows (see the "regression:
+      // untagged fixtures produce byte-identical output" tests in depositAggregateUtils.test.ts).
+      const legacyRaw = insertRawSource({ name: 'Canonical Legacy Source', totalAmount: 50000 });
+      const { budgetId: legacyBudgetId } = insertRawWorkItemWithSource(legacyRaw.id, 1000);
+      const legacyVendorId = `vendor-legacy-${++workItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: legacyVendorId, name: `Legacy Vendor`, createdAt: ts, updatedAt: ts })
+        .run();
+      const legacyInvoiceId = `inv-legacy-${workItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: legacyInvoiceId,
+          vendorId: legacyVendorId,
+          amount: 1000,
+          date: '2026-01-01',
+          status: 'paid',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: legacyInvoiceId,
+          workItemBudgetId: legacyBudgetId,
+          itemizedAmount: 1000,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      insertTaggedDeposit(legacyInvoiceId, {
+        amount: 400,
+        status: 'claimed',
+        budgetSourceId: null,
+      });
+
+      const legacyResult = budgetSourceService.getBudgetSourceById(db, legacyRaw.id);
+      // Untagged deposit: residual and deposit fraction both derive from the same source's own
+      // lines, so claimedAmount(400)/unclaimedAmount(600) split identically here — the point is
+      // that paidAmount still nets to exactly 1000, proving legacy (untagged) behavior is
+      // unaffected by the Rail A/Rail B tagging fix.
+      expect(legacyResult.paidAmount).toBeCloseTo(1000);
+    });
+
+    describe('discretionary variant: tagged deposit on the discretionary source', () => {
+      it('a deposit tagged directly to the discretionary source contributes to discretionary claimedAmount', () => {
+        const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
+        insertTaggedDeposit(invoiceId, {
+          amount: 350,
+          status: 'claimed',
+          budgetSourceId: 'discretionary-system',
+        });
+
+        const disc = getDiscretionarySource();
+        expect(disc.claimedAmount).toBeCloseTo(350);
+      });
+
+      it('a deposit tagged directly to the discretionary source contributes to discretionary unclaimedAmount when paid', () => {
+        const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
+        insertTaggedDeposit(invoiceId, {
+          amount: 200,
+          status: 'paid',
+          budgetSourceId: 'discretionary-system',
+        });
+
+        const disc = getDiscretionarySource();
+        expect(disc.unclaimedAmount).toBeCloseTo(200);
+        expect(disc.claimedAmount).toBe(0);
+      });
+
+      it('a deposit tagged to a NON-discretionary source does not leak into discretionary amounts', () => {
+        const raw = insertRawSource({ name: 'Non-Discretionary Tag Target', totalAmount: 50000 });
+        const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
+        insertTaggedDeposit(invoiceId, { amount: 300, status: 'claimed', budgetSourceId: raw.id });
+
+        const disc = getDiscretionarySource();
+        expect(disc.claimedAmount).toBe(0);
       });
     });
   });

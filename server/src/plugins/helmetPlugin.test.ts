@@ -92,6 +92,61 @@ describe('Helmet Plugin — security headers', () => {
     expect(csp).not.toContain("frame-src 'none'");
   });
 
+  // Story #1891: blob: URLs are used for the client-side-generated PDF preview iframe
+  // (pdfmake produces a Blob, rendered via URL.createObjectURL). Without 'blob:' in
+  // frame-src, the browser blocks navigation to the blob: URL and the iframe silently
+  // stays blank (this is exactly what e2e-test-engineer's hardened waitForPreviewReady/
+  // waitForPreviewRegenerated assertions in reportWizardExpansion.spec.ts are designed
+  // to catch — see the QA spec for #1891).
+  it("CSP header's frame-src directive contains exactly \"'self' blob:\" in that order (exact emitted serialization)", async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/health',
+    });
+
+    const csp = response.headers['content-security-policy'] as string;
+    expect(csp).toBeDefined();
+    // helmet/CSP serializes each directive as "directive-name value1 value2; ..." — assert
+    // the exact frame-src clause (not just substring containment of 'blob:' anywhere in
+    // the header, which could pass even if blob: leaked into an unrelated directive).
+    const frameSrcClause = csp
+      .split(';')
+      .map((c) => c.trim())
+      .find((c) => c.startsWith('frame-src'));
+    expect(frameSrcClause).toBe("frame-src 'self' blob:");
+  });
+
+  it('CSP header directives other than frame-src are unchanged by the blob: addition', async () => {
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/health',
+    });
+
+    const csp = response.headers['content-security-policy'] as string;
+    const clauses = new Map(
+      csp
+        .split(';')
+        .map((c) => c.trim())
+        .filter(Boolean)
+        .map((c) => {
+          const [name, ...rest] = c.split(' ');
+          return [name!, rest.join(' ')];
+        }),
+    );
+
+    expect(clauses.get('default-src')).toBe("'self'");
+    expect(clauses.get('script-src')).toBe("'self'");
+    expect(clauses.get('style-src')).toBe("'self' 'unsafe-inline'");
+    expect(clauses.get('img-src')).toBe("'self' data: blob:");
+    expect(clauses.get('font-src')).toBe("'self'");
+    expect(clauses.get('connect-src')).toBe("'self'");
+    expect(clauses.get('object-src')).toBe("'none'");
+    expect(clauses.get('base-uri')).toBe("'self'");
+    expect(clauses.get('form-action')).toBe("'self'");
+    // upgrade-insecure-requests must still be absent (directive removed via `null`)
+    expect(csp).not.toContain('upgrade-insecure-requests');
+  });
+
   it("CSP header contains object-src 'none' (no <object>/<embed> allowed)", async () => {
     const response = await app.inject({
       method: 'GET',

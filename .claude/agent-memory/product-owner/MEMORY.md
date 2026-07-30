@@ -37,6 +37,7 @@ Full detail in [standalone-bugs-and-stories.md](standalone-bugs-and-stories.md) 
 - Auto-itemize: #1545/#1546/#1547 mini-epic (2026-05-21), #1600 (2026-05-26), **#1833 duplicate budget lines on commit retry (2026-07-07)**
 - Diary: #1426 critical photo data loss (2026-05-15)
 - Photo: #1723 lightbox picker UX (2026-06-16)
+- **Bank Report Wizard mini-epic** (no parent epic): #1876 refunds (PR #1880) → #1877 contact/household/attachment typing (PR #1883) → #1878 report backend → #1879 wizard+PDF (PR #1887, CHANGES_REQUIRED then **APPROVED** round 2, 2026-07-30). Domain decisions, contract facts (refund sign, `isSplit`, `totalAmount` scope) and deferrals in [bank-report-wizard.md](bank-report-wizard.md). Open: **#1891** user-verification follow-up (Todo, PR #1894 **APPROVED** 32/32 round 2, 2026-07-30 — 2 wiki MUST FIX outstanding); **#1888** stage-matched attachment indicator (Backlog, blocked-by #1879); **#1895** HIGH claim close-out cross-source sweep, **#1896** quotation-deposit 409 (blocked-by #1895), **#1897** deposit-blind drill-down — all Backlog, from the #1891 architect audit; E2E shard 5 pre-existing flake must be triaged before promoting to `main`.
 
 ## Requirements Coverage
 
@@ -62,4 +63,4 @@ Full detail in [standalone-bugs-and-stories.md](standalone-bugs-and-stories.md) 
 
 ## PR Review
 
-Detailed checklist, recurring violations, and per-PR findings in [pr-review-patterns.md](pr-review-patterns.md). Top recurring items to check FIRST: dependency pinning (exact versions), keyboard :focus indicators (WCAG AA), test authorship (QA not devs), E2E gate for "Automated (E2E)" scenarios, raw-value display bugs (formatDate/percent/"—" placeholder). Verdict matrix: `--request-changes` for functional AC gaps; `--comment` "MUST FIX" for display/formatting; `--approve` when all met.
+Detailed checklist, recurring violations, and per-PR findings in [pr-review-patterns.md](pr-review-patterns.md). Top recurring items to check FIRST: **CI shard status (`Quality Gates` green ≠ E2E green)**, **test doubles hiding defects (wrong-sign fixtures / key-echoing `t` mocks / mocked libs)**, **every `t()` path actually resolves in `en/<ns>.json`**, dependency pinning (exact versions), keyboard :focus indicators (WCAG AA), test authorship (QA not devs), E2E gate for "Automated (E2E)" scenarios, raw-value display bugs (formatDate/percent/"—" placeholder). Verdict matrix: `--request-changes` for functional AC gaps; `--comment` "MUST FIX" for display/formatting; `--approve` when all met.

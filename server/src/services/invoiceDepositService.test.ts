@@ -1516,4 +1516,161 @@ describe('invoiceDepositService', () => {
       }).toThrow('claimedDate must be a valid ISO date (YYYY-MM-DD)');
     });
   });
+
+  // ─── budgetSourceId (Story #1891) ───────────────────────────────────────────
+
+  describe('budgetSourceId (Story #1891)', () => {
+    function createTestBudgetSource(name = 'Test Source'): string {
+      const id = `src-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const ts = new Date(Date.now() + tsOffset++).toISOString();
+      db.insert(schema.budgetSources)
+        .values({
+          id,
+          name,
+          sourceType: 'bank_loan',
+          totalAmount: 50000,
+          isDiscretionary: false,
+          status: 'active',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    it('createDeposit with no budgetSourceId defaults to null', () => {
+      const { userId, invoiceId } = setup();
+
+      const deposit = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
+
+      expect(deposit.budgetSourceId).toBeNull();
+    });
+
+    it('createDeposit persists a provided budgetSourceId', () => {
+      const { userId, invoiceId } = setup();
+      const sourceId = createTestBudgetSource();
+
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 300, dueDate: '2026-02-01', budgetSourceId: sourceId },
+        userId,
+      );
+
+      expect(deposit.budgetSourceId).toBe(sourceId);
+
+      const row = sqlite
+        .prepare('SELECT budget_source_id FROM invoice_deposits WHERE id = ?')
+        .get(deposit.id) as { budget_source_id: string | null };
+      expect(row.budget_source_id).toBe(sourceId);
+    });
+
+    it('createDeposit with budgetSourceId explicitly null persists null (not undefined-coerced-to-something-else)', () => {
+      const { userId, invoiceId } = setup();
+
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 300, dueDate: '2026-02-01', budgetSourceId: null },
+        userId,
+      );
+
+      expect(deposit.budgetSourceId).toBeNull();
+    });
+
+    it('updateDeposit sets budgetSourceId on a deposit that previously had none', () => {
+      const { userId, invoiceId } = setup();
+      const sourceId = createTestBudgetSource();
+      const deposit = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-01' }, userId);
+      expect(deposit.budgetSourceId).toBeNull();
+
+      const updated = updateDeposit(db, invoiceId, deposit.id, { budgetSourceId: sourceId });
+
+      expect(updated.budgetSourceId).toBe(sourceId);
+    });
+
+    it('updateDeposit clears budgetSourceId back to null', () => {
+      const { userId, invoiceId } = setup();
+      const sourceId = createTestBudgetSource();
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 300, dueDate: '2026-02-01', budgetSourceId: sourceId },
+        userId,
+      );
+      expect(deposit.budgetSourceId).toBe(sourceId);
+
+      const updated = updateDeposit(db, invoiceId, deposit.id, { budgetSourceId: null });
+
+      expect(updated.budgetSourceId).toBeNull();
+    });
+
+    it('updateDeposit re-tags a deposit from one source to another', () => {
+      const { userId, invoiceId } = setup();
+      const sourceA = createTestBudgetSource('Source A');
+      const sourceB = createTestBudgetSource('Source B');
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 300, dueDate: '2026-02-01', budgetSourceId: sourceA },
+        userId,
+      );
+
+      const updated = updateDeposit(db, invoiceId, deposit.id, { budgetSourceId: sourceB });
+
+      expect(updated.budgetSourceId).toBe(sourceB);
+    });
+
+    it('updateDeposit omitting budgetSourceId entirely leaves the existing tag untouched', () => {
+      const { userId, invoiceId } = setup();
+      const sourceId = createTestBudgetSource();
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 300, dueDate: '2026-02-01', budgetSourceId: sourceId },
+        userId,
+      );
+
+      // Update something unrelated (description) without mentioning budgetSourceId at all.
+      const updated = updateDeposit(db, invoiceId, deposit.id, { description: 'renamed' });
+
+      expect(updated.budgetSourceId).toBe(sourceId);
+      expect(updated.description).toBe('renamed');
+    });
+
+    it('budgetSourceId can be set/edited regardless of the deposit’s current status (no edit-mode gating)', () => {
+      const { userId, invoiceId } = setup();
+      const sourceId = createTestBudgetSource();
+      const deposit = createDeposit(
+        db,
+        invoiceId,
+        { amount: 300, dueDate: '2026-02-01', status: 'claimed' },
+        userId,
+      );
+      expect(deposit.status).toBe('claimed');
+
+      // Tagging a budget source is independent of the status state machine — must not throw.
+      const updated = updateDeposit(db, invoiceId, deposit.id, { budgetSourceId: sourceId });
+
+      expect(updated.budgetSourceId).toBe(sourceId);
+      expect(updated.status).toBe('claimed'); // status unaffected
+    });
+
+    it('budgetSourceId is not validated for existence (FK-reliant, per workItemBudgetService convention) — an unknown id is stored as-is at the service layer', () => {
+      // The service layer does not perform an existence check (relies on the SQLite FK
+      // constraint to reject truly invalid references at the DB layer). This test pins that
+      // documented behavior: a syntactically well-formed but non-existent id raises the
+      // underlying FK error, not a service-level NotFoundError/ValidationError.
+      const { userId, invoiceId } = setup();
+
+      expect(() => {
+        createDeposit(
+          db,
+          invoiceId,
+          { amount: 300, dueDate: '2026-02-01', budgetSourceId: 'does-not-exist' },
+          userId,
+        );
+      }).toThrow(/FOREIGN KEY constraint failed/i);
+    });
+  });
 });

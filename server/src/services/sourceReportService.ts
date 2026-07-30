@@ -1,4 +1,4 @@
-import { eq, inArray, and, sql } from 'drizzle-orm';
+import { eq, inArray, and, sql, asc } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { budgetSources, invoices, invoiceDeposits, documentLinks } from '../db/schema.js';
@@ -11,12 +11,18 @@ import type {
   MarkClaimedResponse,
   AttachmentType,
   SourceReportDocument,
+  SourceReportBudgetLine,
+  SourceReportDeposit,
+  SourceReportLinkedItem,
+  InvoiceDepositStatus,
+  InvoiceDepositEntryType,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, InvoicesNotClaimableError } from '../errors/AppError.js';
 import { toCents } from './shared/money.js';
 import {
-  computeStatusContributionByInvoice,
-  splitByDeposits,
+  computeLineContributionsExcludingTagged,
+  splitByDepositsExcludingTagged,
+  sumTaggedDepositContributionsByInvoice,
   type DepositAwareRow,
 } from './shared/depositAggregateUtils.js';
 import { onInvoiceStatusChanged, onDepositStatusChanged } from './diaryAutoEventService.js';
@@ -34,7 +40,8 @@ function today(): string {
 
 /**
  * Get a source report for a given budget source and report type.
- * The report includes all invoices whose budget lines reference this source,
+ * Story #1891: Implements Rail A (line-derived via ExcludingTagged) + Rail B (deposit-direct).
+ * The report includes all invoices whose budget lines or deposits reference this source,
  * filtered by the statuses specified for the report type.
  */
 export async function getSourceReport(
@@ -57,32 +64,35 @@ export async function getSourceReport(
   const targetStatuses = new Set<string>();
   switch (type) {
     case 'budget-overview':
-      // All 4 statuses including quotation
       targetStatuses.add('quotation');
       targetStatuses.add('pending');
       targetStatuses.add('paid');
       targetStatuses.add('claimed');
       break;
     case 'claim':
-      // Only pending and paid
       targetStatuses.add('pending');
       targetStatuses.add('paid');
       break;
     case 'proof-of-funds':
-      // Only claimed
       targetStatuses.add('claimed');
       break;
   }
 
-  // 3. Query rows (invoice + deposits) for this source
-  type SourceReportRow = DepositAwareRow & {
+  // Step a: Query rows (invoice + deposits) for Rail A (line-derived via ExcludingTagged)
+  type RailARow = DepositAwareRow & {
     invoice_number: string | null;
     invoice_date: string;
     vendor_id: string;
     vendor_name: string;
+    deposit_budget_source_id: string | null;
+    line_description: string | null;
+    work_item_id: string | null;
+    work_item_title: string | null;
+    household_item_id: string | null;
+    household_item_name: string | null;
   };
 
-  const rows = db.all<SourceReportRow>(
+  const railARows = db.all<RailARow>(
     sql`SELECT
       ibl.id              AS ibl_id,
       ibl.itemized_amount AS itemized_amount,
@@ -96,28 +106,67 @@ export async function getSourceReport(
       d.id                AS deposit_id,
       d.amount            AS deposit_amount,
       d.status            AS deposit_status,
-      d.entry_type        AS deposit_entry_type
+      d.entry_type        AS deposit_entry_type,
+      d.budget_source_id  AS deposit_budget_source_id,
+      COALESCE(wib.description, hib.description) AS line_description,
+      wib.work_item_id    AS work_item_id,
+      wi.title            AS work_item_title,
+      hib.household_item_id AS household_item_id,
+      hi.name             AS household_item_name
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     INNER JOIN vendors v ON v.id = i.vendor_id
     LEFT JOIN invoice_deposits d ON d.invoice_id = i.id
+    LEFT JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
+    LEFT JOIN work_items wi ON wi.id = wib.work_item_id
+    LEFT JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
+    LEFT JOIN household_items hi ON hi.id = hib.household_item_id
     WHERE (
       (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM work_item_budgets wib
-        WHERE wib.id = ibl.work_item_budget_id AND wib.budget_source_id = ${sourceId}
+        SELECT 1 FROM work_item_budgets wib2
+        WHERE wib2.id = ibl.work_item_budget_id AND wib2.budget_source_id = ${sourceId}
       ))
       OR
       (ibl.household_item_budget_id IS NOT NULL AND EXISTS (
-        SELECT 1 FROM household_item_budgets hib
-        WHERE hib.id = ibl.household_item_budget_id AND hib.budget_source_id = ${sourceId}
+        SELECT 1 FROM household_item_budgets hib2
+        WHERE hib2.id = ibl.household_item_budget_id AND hib2.budget_source_id = ${sourceId}
       ))
     )`,
   );
 
-  // 4. Compute contributions per invoice, then round to 2dp
-  const rawContributions = computeStatusContributionByInvoice(rows, targetStatuses);
+  // Step b: Rail A contributions per invoice (excluding tagged deposits)
+  const railALineContributions = computeLineContributionsExcludingTagged(railARows, targetStatuses);
 
-  // Build a map of invoice metadata for quick lookup
+  // Build ibl-level details map for budgetLines[] per invoice
+  const iblDetails = new Map<
+    string,
+    {
+      id: string;
+      description: string | null;
+      linkedItem: SourceReportLinkedItem | null;
+    }
+  >();
+  for (const row of railARows) {
+    if (!iblDetails.has(row.ibl_id)) {
+      let linkedItem: SourceReportLinkedItem | null = null;
+      if (row.work_item_id && row.work_item_title) {
+        linkedItem = { type: 'work_item', id: row.work_item_id, name: row.work_item_title };
+      } else if (row.household_item_id && row.household_item_name) {
+        linkedItem = {
+          type: 'household_item',
+          id: row.household_item_id,
+          name: row.household_item_name,
+        };
+      }
+      iblDetails.set(row.ibl_id, {
+        id: row.ibl_id,
+        description: row.line_description,
+        linkedItem,
+      });
+    }
+  }
+
+  // Build invoice metadata from Rail A rows
   const invoiceMetadata = new Map<
     string,
     {
@@ -129,7 +178,7 @@ export async function getSourceReport(
       invoiceAmount: number;
     }
   >();
-  for (const row of rows) {
+  for (const row of railARows) {
     if (!invoiceMetadata.has(row.invoice_id)) {
       invoiceMetadata.set(row.invoice_id, {
         vendorId: row.vendor_id,
@@ -142,19 +191,88 @@ export async function getSourceReport(
     }
   }
 
-  // 5. Compute isSplit for all report invoices in one query
-  const reportInvoiceIds = Array.from(invoiceMetadata.keys());
+  // Step c: Rail B - deposits tagged to this source
+  type RailBRow = {
+    invoiceId: string;
+    amount: number;
+    status: string;
+    entryType: string;
+  };
+
+  const railBRows = db.all<RailBRow>(
+    sql`SELECT
+      d.invoice_id AS invoiceId,
+      d.amount AS amount,
+      d.status AS status,
+      d.entry_type AS entryType
+    FROM invoice_deposits d
+    WHERE d.budget_source_id = ${sourceId}`,
+  );
+
+  const railBContributions = sumTaggedDepositContributionsByInvoice(railBRows, targetStatuses);
+
+  // Step d: Merge Rail B-only invoices (deposits with no budget lines)
+  for (const invoiceId of railBContributions.keys()) {
+    if (!invoiceMetadata.has(invoiceId)) {
+      // Rail B-only invoice: fetch metadata
+      const inv = db.select().from(invoices).where(eq(invoices.id, invoiceId)).get();
+      if (inv) {
+        const vendorLookup = db.all<{ vendor_id: string; vendor_name: string }>(
+          sql`SELECT id AS vendor_id, name AS vendor_name FROM vendors WHERE id = ${inv.vendorId}`,
+        );
+        if (vendorLookup.length > 0) {
+          invoiceMetadata.set(invoiceId, {
+            vendorId: inv.vendorId,
+            vendorName: vendorLookup[0]!.vendor_name,
+            invoiceNumber: inv.invoiceNumber,
+            date: inv.date,
+            status: inv.status,
+            invoiceAmount: inv.amount,
+          });
+        }
+      }
+    }
+  }
+
+  // Step e: Combined contributions (Rail A + Rail B)
+  const combinedContributions = new Map<string, number>();
+  for (const [_iblId, lineContrib] of railALineContributions) {
+    const existing = combinedContributions.get(lineContrib.invoiceId) ?? 0;
+    combinedContributions.set(lineContrib.invoiceId, existing + lineContrib.contribution);
+  }
+  for (const [invoiceId, railBAmount] of railBContributions) {
+    const existing = combinedContributions.get(invoiceId) ?? 0;
+    combinedContributions.set(invoiceId, existing + railBAmount);
+  }
+
+  // Step f: Compute isSplit for all report invoices in one query
+  // isSplit = true if invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits
+  const reportInvoiceIds = Array.from(combinedContributions.keys());
+  const joinedInvoiceIds = sql.join(
+    reportInvoiceIds.map((id) => sql`${id}`),
+    sql`, `,
+  );
   const splitRows = db.all<{ invoice_id: string; source_count: number }>(
-    sql`SELECT ibl.invoice_id AS invoice_id,
-           COUNT(DISTINCT COALESCE(wib.budget_source_id, hib.budget_source_id)) AS source_count
-    FROM invoice_budget_lines ibl
-    LEFT JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
-    LEFT JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
-    WHERE ibl.invoice_id IN (${sql.join(
-      reportInvoiceIds.map((id) => sql`${id}`),
-      sql`, `,
-    )})
-    GROUP BY ibl.invoice_id`,
+    sql`SELECT split_data.invoice_id AS invoice_id,
+           COUNT(DISTINCT split_data.source_id) AS source_count
+    FROM (
+      SELECT ibl.invoice_id,
+             COALESCE(wib.budget_source_id, hib.budget_source_id) AS source_id
+      FROM invoice_budget_lines ibl
+      LEFT JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
+      LEFT JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
+      WHERE ibl.invoice_id IN (${joinedInvoiceIds})
+        AND COALESCE(wib.budget_source_id, hib.budget_source_id) IS NOT NULL
+
+      UNION
+
+      SELECT d.invoice_id,
+             d.budget_source_id AS source_id
+      FROM invoice_deposits d
+      WHERE d.invoice_id IN (${joinedInvoiceIds})
+        AND d.budget_source_id IS NOT NULL
+    ) AS split_data
+    GROUP BY split_data.invoice_id`,
   );
 
   const isSplitMap = new Map<string, boolean>();
@@ -162,48 +280,50 @@ export async function getSourceReport(
     isSplitMap.set(row.invoice_id, row.source_count > 1);
   }
 
-  // 6. Precompute deposit splits for all invoices
-  const splitsByInvoiceId = splitByDeposits(rows);
+  // Step g: Compute deposit splits excluding tagged (for stage-determination logic)
+  const splitsByInvoiceId = splitByDepositsExcludingTagged(railARows);
 
-  // 7. Batch fetch all document links for all report invoices (once, not per-invoice)
+  // Step h: Batch fetch document links
+  const allInvoiceIds = Array.from(invoiceMetadata.keys());
   const allDocumentLinks = db
     .select()
     .from(documentLinks)
     .where(
-      and(
-        eq(documentLinks.entityType, 'invoice'),
-        inArray(documentLinks.entityId, reportInvoiceIds),
-      ),
+      and(eq(documentLinks.entityType, 'invoice'), inArray(documentLinks.entityId, allInvoiceIds)),
     )
     .all();
 
-  // Build a map: invoiceId → filtered document links (by stage rules)
   const linksByInvoiceId = new Map<string, (typeof documentLinks.$inferSelect)[]>();
-  // Also collect all paperlessDocumentIds we'll need to fetch metadata for
   const allPaperlessDocIds = new Set<number>();
 
-  for (const invoiceId of reportInvoiceIds) {
-    const split = splitsByInvoiceId.get(invoiceId)!;
+  for (const invoiceId of allInvoiceIds) {
+    const split = splitsByInvoiceId.get(invoiceId);
 
-    // Determine which stages to include for this invoice
+    // Determine stages: if deposit-only (no split entry), include 'deposit' if any tagged deposit in slice
     const stages = new Set<AttachmentType>();
-    if (split.invoiceStatus === 'quotation' && targetStatuses.has('quotation')) {
-      stages.add('quotation');
-    }
-    if (
-      split.residualFraction > 0 &&
-      split.invoiceStatus !== 'quotation' &&
-      targetStatuses.has(split.invoiceStatus)
-    ) {
-      stages.add('invoice');
-    }
-    for (const df of split.depositFractions) {
-      if (targetStatuses.has(df.depositStatus)) {
+    if (split) {
+      if (split.invoiceStatus === 'quotation' && targetStatuses.has('quotation')) {
+        stages.add('quotation');
+      }
+      if (
+        split.residualFraction > 0 &&
+        split.invoiceStatus !== 'quotation' &&
+        targetStatuses.has(split.invoiceStatus)
+      ) {
+        stages.add('invoice');
+      }
+      for (const df of split.depositFractions) {
+        if (targetStatuses.has(df.depositStatus)) {
+          stages.add('deposit');
+        }
+      }
+    } else {
+      // Deposit-only: check if any tagged deposit in target statuses
+      if (railBContributions.has(invoiceId)) {
         stages.add('deposit');
       }
     }
 
-    // Filter links for this invoice by stage, include untagged always
     const invoiceLinks = allDocumentLinks
       .filter(
         (link) =>
@@ -218,7 +338,7 @@ export async function getSourceReport(
     linksByInvoiceId.set(invoiceId, invoiceLinks);
   }
 
-  // 8. Fetch metadata for ALL documents in one Paperless call (not per-invoice)
+  // Fetch Paperless metadata
   const paperlessDocMap = new Map<
     number,
     { archiveSerialNumber: number | null; title: string | null }
@@ -242,25 +362,64 @@ export async function getSourceReport(
         });
       }
     } catch (err) {
-      // Degrade gracefully — getDocuments throws, we just use nulls
       console.warn('[sourceReport] Paperless.getDocuments failed, degrading to null ASN/title', {
         error: err instanceof Error ? err.message : String(err),
       });
     }
   }
 
-  // 9. Build report invoices
+  // Step i: Build budget lines per invoice
+  const budgetLinesByInvoiceId = new Map<string, SourceReportBudgetLine[]>();
+  for (const [iblId, lineContrib] of railALineContributions) {
+    const invoiceId = lineContrib.invoiceId;
+    const details = iblDetails.get(iblId)!;
+    const lines = budgetLinesByInvoiceId.get(invoiceId) ?? [];
+    const portion = toCents(lineContrib.contribution) / 100;
+    lines.push({
+      id: details.id,
+      description: details.description,
+      allocatedPortion: portion,
+      linkedItem: details.linkedItem,
+    });
+    budgetLinesByInvoiceId.set(invoiceId, lines);
+  }
+
+  // Step j: Fetch deposits for each invoice (unfiltered by status, but filtered by source tag)
+  const depositsByInvoiceId = new Map<string, SourceReportDeposit[]>();
+  for (const invoiceId of allInvoiceIds) {
+    const deposits = db
+      .select()
+      .from(invoiceDeposits)
+      .where(eq(invoiceDeposits.invoiceId, invoiceId))
+      .orderBy(asc(invoiceDeposits.dueDate), asc(invoiceDeposits.createdAt))
+      .all();
+
+    const filtered: SourceReportDeposit[] = deposits
+      .filter((d) => d.budgetSourceId === null || d.budgetSourceId === sourceId)
+      .map((d) => ({
+        id: d.id,
+        amount: d.amount,
+        status: d.status as InvoiceDepositStatus,
+        entryType: d.entryType as InvoiceDepositEntryType,
+        dueDate: d.dueDate,
+        paidDate: d.paidDate,
+        claimedDate: d.claimedDate,
+        budgetSourceId: d.budgetSourceId,
+      }));
+
+    depositsByInvoiceId.set(invoiceId, filtered);
+  }
+
+  // Build report invoices
   const reportInvoices: SourceReportInvoice[] = [];
-  for (const [invoiceId, rawAmount] of rawContributions) {
+  for (const [invoiceId, rawAmount] of combinedContributions) {
     const metadata = invoiceMetadata.get(invoiceId)!;
     const roundedAmount = toCents(rawAmount) / 100;
 
-    // Drop exactly 0, otherwise include
     if (roundedAmount === 0) continue;
 
     const lineKind = roundedAmount > 0 ? 'invoice' : 'refund-adjustment';
 
-    // Map filtered document links to response documents
     const links = linksByInvoiceId.get(invoiceId) ?? [];
     const documents: SourceReportDocument[] = links.map((link) => {
       const paperlessEntry = paperlessDocMap.get(link.paperlessDocumentId);
@@ -282,12 +441,14 @@ export async function getSourceReport(
       invoiceAmount: metadata.invoiceAmount,
       allocatedAmount: roundedAmount,
       lineKind,
-      isSplit: isSplitMap.get(invoiceId) ?? false,
+      isSplit: isSplitMap.get(invoiceId) ?? false, // true iff invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits
       documents,
+      budgetLines: budgetLinesByInvoiceId.get(invoiceId) ?? [],
+      deposits: depositsByInvoiceId.get(invoiceId) ?? [],
     });
   }
 
-  // 10. Query unallocated invoices (no budget lines, but matching status)
+  // Step k: Query unallocated invoices (excluding those with tagged deposits)
   const unallocatedInvoices: SourceReportUnallocatedInvoice[] = [];
   const unallocRows = db.all<{
     invoice_id: string;
@@ -312,7 +473,8 @@ export async function getSourceReport(
       Array.from(targetStatuses).map((status) => sql`${status}`),
       sql`, `,
     )})
-    AND NOT EXISTS (SELECT 1 FROM invoice_budget_lines ibl WHERE ibl.invoice_id = i.id)`,
+    AND NOT EXISTS (SELECT 1 FROM invoice_budget_lines ibl WHERE ibl.invoice_id = i.id)
+    AND NOT EXISTS (SELECT 1 FROM invoice_deposits d WHERE d.invoice_id = i.id AND d.budget_source_id = ${sourceId})`,
   );
 
   for (const row of unallocRows) {
@@ -327,7 +489,7 @@ export async function getSourceReport(
     });
   }
 
-  // 11. Compute total amount from rounded lines
+  // Compute total from rounded lines
   const totalAmount =
     toCents(reportInvoices.reduce((sum, inv) => sum + inv.allocatedAmount, 0)) / 100;
 

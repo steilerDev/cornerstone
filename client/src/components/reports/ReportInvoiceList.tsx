@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import type { TFunction } from 'i18next';
 import type { SourceReportResponse, InvoiceStatus } from '@cornerstone/shared';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
@@ -8,26 +9,34 @@ import { SelectionActionBar } from '../SelectionActionBar/SelectionActionBar.js'
 import { Tooltip } from '../Tooltip/Tooltip.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { getSourceBadgeStyleKey } from '../../lib/budgetSourceColors.js';
 import BadgeStyles from '../Badge/Badge.module.css';
 import styles from './ReportInvoiceList.module.css';
 
 interface ReportInvoiceListProps {
   report: SourceReportResponse;
   excludedInvoiceIds: Set<string>;
+  excludedLineIds: Set<string>;
   onToggle: (invoiceId: string, excluded: boolean) => void;
   onToggleAll: (excludeAll: boolean) => void;
+  onToggleLine: (lineId: string, excluded: boolean) => void;
   t: TFunction;
 }
 
 export function ReportInvoiceList({
   report,
   excludedInvoiceIds,
+  excludedLineIds,
   onToggle,
   onToggleAll,
+  onToggleLine,
   t,
 }: ReportInvoiceListProps) {
-  const { formatCurrency } = useFormatters();
+  const { formatCurrency, formatDate } = useFormatters();
   const [unallocatedExpanded, setUnallocatedExpanded] = useState(false);
+  const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<Set<string>>(() => new Set());
+  const lastExpandedIdRef = useRef<string | null>(null);
+  const expandPanelRefsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Invoice status badge variants
   const invoiceStatusVariants = useMemo((): BadgeVariantMap => {
@@ -45,7 +54,11 @@ export function ReportInvoiceList({
   const allocatedInvoices = useMemo(
     () =>
       report.invoices.filter(
-        (inv) => inv.allocatedAmount > 0 || inv.lineKind === 'refund-adjustment',
+        (inv) =>
+          inv.allocatedAmount > 0 ||
+          inv.lineKind === 'refund-adjustment' ||
+          inv.budgetLines.length > 0 ||
+          inv.deposits.length > 0,
       ),
     [report.invoices],
   );
@@ -72,6 +85,39 @@ export function ReportInvoiceList({
     onToggleAll(selectedCount === allocatedInvoices.length);
   };
 
+  const toggleExpand = (invoiceId: string) => {
+    setExpandedInvoiceIds((prev) => {
+      const next = new Set(prev);
+      const isCurrentlyOpen = next.has(invoiceId);
+      if (isCurrentlyOpen) {
+        next.delete(invoiceId);
+      } else {
+        next.add(invoiceId);
+        // Only update lastExpandedIdRef when opening (not closing)
+        lastExpandedIdRef.current = invoiceId;
+      }
+      return next;
+    });
+  };
+
+  const handleExpandKeyDown = (e: React.KeyboardEvent, invoiceId: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleExpand(invoiceId);
+    }
+  };
+
+  // Focus panel on genuine open transition (not on collapse)
+  useEffect(() => {
+    const lastExpandedId = lastExpandedIdRef.current;
+    if (lastExpandedId && expandedInvoiceIds.has(lastExpandedId)) {
+      const panelRef = expandPanelRefsRef.current.get(lastExpandedId);
+      if (panelRef) {
+        panelRef.focus();
+      }
+    }
+  }, [expandedInvoiceIds]);
+
   if (allocatedInvoices.length === 0 && unallocatedInvoices.length === 0) {
     return (
       <EmptyState
@@ -85,7 +131,8 @@ export function ReportInvoiceList({
     <div className={styles.invoiceListContainer}>
       {/* Header with select-all */}
       <div className={styles.listHeader}>
-        <div className={styles.headerCheckbox}>
+        <span aria-hidden="true" />
+        <div className={`${styles.headerCheckbox} ${styles.checkboxWithContent}`}>
           <TriStateCheckbox
             checked={selectedCount === allocatedInvoices.length && allocatedInvoices.length > 0}
             indeterminate={selectedCount > 0 && selectedCount < allocatedInvoices.length}
@@ -100,69 +147,36 @@ export function ReportInvoiceList({
       {allocatedInvoices.map((invoice) => {
         const isExcluded = excludedInvoiceIds.has(invoice.invoiceId);
         const hasDocuments = (invoice.documents && invoice.documents.length > 0) || false;
+        const isExpanded = expandedInvoiceIds.has(invoice.invoiceId);
+        const isExpandable = invoice.budgetLines.length > 0 || invoice.deposits.length > 0;
+
+        // Tri-state logic: indeterminate if some but not all lines are excluded
+        const excludedLineCount = invoice.budgetLines.filter((l) =>
+          excludedLineIds.has(l.id),
+        ).length;
+        const isTriStateIndeterminate =
+          !isExcluded && excludedLineCount > 0 && excludedLineCount < invoice.budgetLines.length;
+        const isTriStateChecked = !isExcluded && excludedLineCount === 0;
 
         return (
-          <div key={invoice.invoiceId} className={styles.invoiceRow}>
-            <label className={styles.checkboxWithContent}>
-              <input
-                type="checkbox"
-                className={styles.checkbox}
-                checked={!isExcluded}
-                onChange={(e) => onToggle(invoice.invoiceId, !e.target.checked)}
-                aria-label={t('sourceReports.toggleInvoice', {
-                  vendor: invoice.vendorName,
-                  number: invoice.invoiceNumber,
-                })}
-              />
-
-              <div className={styles.vendorInfo}>
-                <div className={styles.vendorName}>{invoice.vendorName}</div>
-                <div className={styles.invoiceDate}>
-                  {t('sourceReports.table.invoiceNumber')}: {invoice.invoiceNumber}
-                </div>
-              </div>
-            </label>
-
-            <Badge variants={invoiceStatusVariants} value={invoice.status} />
-
-            <div className={styles.amountColumn}>
-              {invoice.lineKind === 'refund-adjustment' ? (
-                <div>
-                  <Badge
-                    variants={{
-                      refund: { label: t('sourceReports.refund'), className: styles.refund },
-                    }}
-                    value="refund"
-                  />
-                  <div className={`${styles.amount} ${styles.amountNegative}`}>
-                    {formatCurrency(invoice.allocatedAmount)}
-                  </div>
-                </div>
-              ) : (
-                <div className={styles.amount}>{formatCurrency(invoice.allocatedAmount)}</div>
-              )}
-            </div>
-
-            <div className={styles.attachmentColumn}>
-              {invoice.isSplit && (
-                <Tooltip content={t('sourceReports.splitTooltip')}>
-                  <Badge
-                    variants={{
-                      split: {
-                        label: t('sourceReports.splitBadge', {
-                          allocated: formatCurrency(invoice.allocatedAmount),
-                          total: formatCurrency(invoice.invoiceAmount),
-                        }),
-                        className: BadgeStyles.info,
-                      },
-                    }}
-                    value="split"
-                  />
-                </Tooltip>
-              )}
-              {hasDocuments ? (
-                <div className={styles.paperclip}>
+          <div key={invoice.invoiceId}>
+            <div className={styles.invoiceRow}>
+              {isExpandable ? (
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(invoice.invoiceId)}
+                  onKeyDown={(e) => handleExpandKeyDown(e, invoice.invoiceId)}
+                  className={styles.expandButton}
+                  aria-expanded={isExpanded}
+                  aria-controls={`invoice-expand-${invoice.invoiceId}`}
+                  aria-label={
+                    isExpanded
+                      ? t('sourceReports.expand.collapseInvoice')
+                      : t('sourceReports.expand.expandInvoice')
+                  }
+                >
                   <svg
+                    className={`${styles.chevron} ${isExpanded ? styles.chevronOpen : ''}`}
                     width="16"
                     height="16"
                     viewBox="0 0 24 24"
@@ -171,14 +185,451 @@ export function ReportInvoiceList({
                     strokeWidth="2"
                     aria-hidden="true"
                   >
-                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 2.2" />
+                    <polyline points="6 9 12 15 18 9" />
                   </svg>
-                  <span className={styles.srOnly}>{t('sourceReports.hasAttachment')}</span>
-                </div>
+                </button>
               ) : (
-                <div className={styles.noDocument}>{t('sourceReports.noDocument')}</div>
+                <span aria-hidden="true" />
               )}
+
+              <label className={styles.checkboxWithContent}>
+                <TriStateCheckbox
+                  checked={isTriStateChecked}
+                  indeterminate={isTriStateIndeterminate}
+                  onChange={(checked) => onToggle(invoice.invoiceId, !checked)}
+                  label=""
+                />
+
+                <div className={styles.vendorInfo}>
+                  <div className={styles.vendorName}>{invoice.vendorName}</div>
+                  <div className={styles.invoiceDate}>
+                    {t('sourceReports.table.invoiceNumber')}: {invoice.invoiceNumber}
+                  </div>
+                </div>
+              </label>
+
+              <Badge
+                className={styles.statusChip}
+                variants={invoiceStatusVariants}
+                value={invoice.status}
+              />
+
+              <div className={styles.amountColumn}>
+                {invoice.lineKind === 'refund-adjustment' ? (
+                  <div>
+                    <Badge
+                      variants={{
+                        refund: { label: t('sourceReports.refund'), className: styles.refund },
+                      }}
+                      value="refund"
+                    />
+                    <div className={`${styles.amount} ${styles.amountNegative}`}>
+                      {formatCurrency(invoice.allocatedAmount)}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.amount}>{formatCurrency(invoice.allocatedAmount)}</div>
+                )}
+              </div>
+
+              <div className={styles.attachmentColumn}>
+                {invoice.isSplit && (
+                  <Tooltip content={t('sourceReports.splitTooltip')}>
+                    <Badge
+                      variants={{
+                        split: {
+                          label: t('sourceReports.splitBadge', {
+                            allocated: formatCurrency(invoice.allocatedAmount),
+                            total: formatCurrency(invoice.invoiceAmount),
+                          }),
+                          className: BadgeStyles.info,
+                        },
+                      }}
+                      value="split"
+                    />
+                  </Tooltip>
+                )}
+                {hasDocuments ? (
+                  <div className={styles.paperclip}>
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      aria-hidden="true"
+                    >
+                      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 2.2" />
+                    </svg>
+                    <span className={styles.srOnly}>{t('sourceReports.hasAttachment')}</span>
+                  </div>
+                ) : (
+                  <div className={styles.noDocument}>{t('sourceReports.noDocument')}</div>
+                )}
+              </div>
             </div>
+
+            {/* Expansion panel - items sub-table */}
+            {isExpanded && isExpandable && (
+              <div
+                className={styles.expansionPanel}
+                id={`invoice-expand-${invoice.invoiceId}`}
+                tabIndex={-1}
+                ref={(el) => {
+                  if (el) expandPanelRefsRef.current.set(invoice.invoiceId, el);
+                }}
+              >
+                {/* Items sub-table */}
+                {invoice.budgetLines.length > 0 ? (
+                  <div className={styles.subTableSection}>
+                    <h4
+                      className={styles.subTableHeading}
+                      id={`items-heading-${invoice.invoiceId}`}
+                    >
+                      {t('sourceReports.expand.itemsHeading')}
+                    </h4>
+                    {/* Desktop table */}
+                    <div className={styles.tableWrapper}>
+                      <table
+                        className={styles.table}
+                        aria-labelledby={`items-heading-${invoice.invoiceId}`}
+                      >
+                        <thead>
+                          <tr>
+                            <th>{t('sourceReports.expand.itemColumnHeader')}</th>
+                            <th>{t('sourceReports.expand.linkedColumnHeader')}</th>
+                            <th>{t('sourceReports.expand.allocatedColumnHeader')}</th>
+                            <th>{t('sourceReports.expand.includeColumnHeader')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {invoice.budgetLines.map((line) => {
+                            const isLineExcluded = excludedLineIds.has(line.id);
+                            return (
+                              <tr key={line.id}>
+                                <td>{line.description || t('sourceReports.expand.unnamedLine')}</td>
+                                <td>
+                                  {line.linkedItem ? (
+                                    <Link
+                                      to={
+                                        line.linkedItem.type === 'work_item'
+                                          ? `/project/work-items/${line.linkedItem.id}`
+                                          : `/household-items/${line.linkedItem.id}`
+                                      }
+                                      className={styles.linkedItemLink}
+                                    >
+                                      {line.linkedItem.name}
+                                    </Link>
+                                  ) : (
+                                    <Badge
+                                      variants={{
+                                        unassigned: {
+                                          label: t('sourceReports.unassigned'),
+                                          className: BadgeStyles.iblUnassigned,
+                                        },
+                                      }}
+                                      value="unassigned"
+                                    />
+                                  )}
+                                </td>
+                                <td>{formatCurrency(line.allocatedPortion)}</td>
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    className={styles.checkbox}
+                                    checked={!isLineExcluded}
+                                    onChange={(e) => onToggleLine(line.id, !e.target.checked)}
+                                    aria-label={t('sourceReports.expand.excludeItemAriaLabel', {
+                                      name:
+                                        line.description || t('sourceReports.expand.unnamedLine'),
+                                    })}
+                                  />
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Mobile card list */}
+                    <div className={styles.mobileCardList} role="list">
+                      {invoice.budgetLines.map((line) => {
+                        const isLineExcluded = excludedLineIds.has(line.id);
+                        return (
+                          <div key={line.id} className={styles.mobileCard} role="listitem">
+                            <div className={styles.mobileCardTopRow}>
+                              <span className={styles.mobileCardHeading}>
+                                {line.description || t('sourceReports.expand.unnamedLine')}
+                              </span>
+                              <span className={styles.amount}>
+                                {formatCurrency(line.allocatedPortion)}
+                              </span>
+                            </div>
+                            <div className={styles.mobileCardRow}>
+                              <span className={styles.mobileCardHeading}>
+                                {t('sourceReports.expand.linkedColumnHeader')}
+                              </span>
+                              {line.linkedItem ? (
+                                <Link
+                                  to={
+                                    line.linkedItem.type === 'work_item'
+                                      ? `/project/work-items/${line.linkedItem.id}`
+                                      : `/household-items/${line.linkedItem.id}`
+                                  }
+                                  className={styles.linkedItemLink}
+                                >
+                                  {line.linkedItem.name}
+                                </Link>
+                              ) : (
+                                <Badge
+                                  variants={{
+                                    unassigned: {
+                                      label: t('sourceReports.unassigned'),
+                                      className: BadgeStyles.iblUnassigned,
+                                    },
+                                  }}
+                                  value="unassigned"
+                                />
+                              )}
+                            </div>
+                            <div className={styles.mobileCardRow}>
+                              <label>
+                                <input
+                                  type="checkbox"
+                                  className={styles.checkbox}
+                                  checked={!isLineExcluded}
+                                  onChange={(e) => onToggleLine(line.id, !e.target.checked)}
+                                  aria-label={t('sourceReports.expand.excludeItemAriaLabel', {
+                                    name: line.description || t('sourceReports.expand.unnamedLine'),
+                                  })}
+                                />
+                                <span>{t('sourceReports.expand.includeColumnHeader')}</span>
+                              </label>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.subTableSection}>
+                    <h4 className={styles.subTableHeading}>
+                      {t('sourceReports.expand.itemsHeading')}
+                    </h4>
+                    <EmptyState message={t('sourceReports.expand.itemsEmpty')} />
+                  </div>
+                )}
+
+                {/* Deposits sub-table */}
+                {invoice.deposits.length > 0 ? (
+                  <div className={`${styles.subTableSection} ${styles.subTableSeparated}`}>
+                    <h4
+                      className={styles.subTableHeading}
+                      id={`deposits-heading-${invoice.invoiceId}`}
+                    >
+                      {t('sourceReports.expand.depositsHeading')}
+                    </h4>
+                    {/* Desktop table */}
+                    <div className={styles.tableWrapper}>
+                      <table
+                        className={styles.table}
+                        aria-labelledby={`deposits-heading-${invoice.invoiceId}`}
+                      >
+                        <thead>
+                          <tr>
+                            <th>{t('sourceReports.expand.amountColumnHeader')}</th>
+                            <th>{t('sourceReports.expand.statusColumnHeader')}</th>
+                            <th>{t('sourceReports.expand.datesColumnHeader')}</th>
+                            <th>{t('sourceReports.expand.entryTypeColumnHeader')}</th>
+                            <th>{t('sourceReports.expand.allocatedSourceColumnHeader')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {invoice.deposits.map((deposit) => (
+                            <tr key={deposit.id}>
+                              <td>
+                                <div className={styles.depositAmountContainer}>
+                                  {deposit.entryType === 'refund' && (
+                                    <Badge
+                                      variants={{
+                                        refund: {
+                                          label: t('sourceReports.expand.entryTypeRefund'),
+                                          className: styles.refund,
+                                        },
+                                      }}
+                                      value="refund"
+                                    />
+                                  )}
+                                  {formatCurrency(
+                                    deposit.entryType === 'refund'
+                                      ? -deposit.amount
+                                      : deposit.amount,
+                                  )}
+                                </div>
+                              </td>
+                              <td>
+                                <Badge
+                                  variants={{
+                                    [deposit.status]: {
+                                      label: t(`sources.lines.invoiceStatus.${deposit.status}`),
+                                      className: styles[deposit.status]!,
+                                    },
+                                  }}
+                                  value={deposit.status}
+                                />
+                              </td>
+                              <td className={styles.depositDatesCell}>
+                                <div>
+                                  {t('sourceReports.expand.dueDate')}: {formatDate(deposit.dueDate)}
+                                </div>
+                                {deposit.paidDate && (
+                                  <div>
+                                    {t('sourceReports.expand.paidDate')}:{' '}
+                                    {formatDate(deposit.paidDate)}
+                                  </div>
+                                )}
+                                {deposit.claimedDate && (
+                                  <div>
+                                    {t('sourceReports.expand.claimedDate')}:{' '}
+                                    {formatDate(deposit.claimedDate)}
+                                  </div>
+                                )}
+                              </td>
+                              <td>
+                                <Badge
+                                  variants={{
+                                    [deposit.entryType]: {
+                                      label:
+                                        deposit.entryType === 'deposit'
+                                          ? t('sourceReports.expand.entryTypeDeposit')
+                                          : t('sourceReports.expand.entryTypeRefund'),
+                                      className:
+                                        deposit.entryType === 'deposit'
+                                          ? BadgeStyles.info
+                                          : styles.refund,
+                                    },
+                                  }}
+                                  value={deposit.entryType}
+                                />
+                              </td>
+                              <td>
+                                {deposit.budgetSourceId ? (
+                                  <Badge
+                                    variants={{
+                                      [deposit.budgetSourceId]: {
+                                        label: report.source.name,
+                                        className:
+                                          BadgeStyles[
+                                            getSourceBadgeStyleKey(deposit.budgetSourceId)
+                                          ] || BadgeStyles.default,
+                                      },
+                                    }}
+                                    value={deposit.budgetSourceId}
+                                  />
+                                ) : (
+                                  <span>—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {/* Mobile card list */}
+                    <div className={styles.mobileCardList} role="list">
+                      {invoice.deposits.map((deposit) => (
+                        <div key={deposit.id} className={styles.mobileCard} role="listitem">
+                          <div className={styles.mobileCardTopRow}>
+                            <span className={styles.amount}>
+                              {formatCurrency(
+                                deposit.entryType === 'refund' ? -deposit.amount : deposit.amount,
+                              )}
+                            </span>
+                            <Badge
+                              variants={{
+                                [deposit.status]: {
+                                  label: t(`sources.lines.invoiceStatus.${deposit.status}`),
+                                  className: styles[deposit.status]!,
+                                },
+                              }}
+                              value={deposit.status}
+                            />
+                          </div>
+                          <div className={styles.mobileCardRow}>
+                            <span className={styles.mobileCardHeading}>
+                              {t('sourceReports.expand.entryTypeColumnHeader')}
+                            </span>
+                            <Badge
+                              variants={{
+                                [deposit.entryType]: {
+                                  label:
+                                    deposit.entryType === 'deposit'
+                                      ? t('sourceReports.expand.entryTypeDeposit')
+                                      : t('sourceReports.expand.entryTypeRefund'),
+                                  className:
+                                    deposit.entryType === 'deposit'
+                                      ? BadgeStyles.info
+                                      : styles.refund,
+                                },
+                              }}
+                              value={deposit.entryType}
+                            />
+                          </div>
+                          <div className={styles.mobileCardRow}>
+                            <span className={styles.mobileCardHeading}>
+                              {t('sourceReports.expand.datesColumnHeader')}
+                            </span>
+                            <div className={styles.depositDatesCell}>
+                              <div>
+                                {t('sourceReports.expand.dueDate')}: {formatDate(deposit.dueDate)}
+                              </div>
+                              {deposit.paidDate && (
+                                <div>
+                                  {t('sourceReports.expand.paidDate')}:{' '}
+                                  {formatDate(deposit.paidDate)}
+                                </div>
+                              )}
+                              {deposit.claimedDate && (
+                                <div>
+                                  {t('sourceReports.expand.claimedDate')}:{' '}
+                                  {formatDate(deposit.claimedDate)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {deposit.budgetSourceId && (
+                            <div className={styles.mobileCardRow}>
+                              <span className={styles.mobileCardHeading}>
+                                {t('sourceReports.expand.allocatedSourceColumnHeader')}
+                              </span>
+                              <Badge
+                                variants={{
+                                  [deposit.budgetSourceId]: {
+                                    label: report.source.name,
+                                    className:
+                                      BadgeStyles[getSourceBadgeStyleKey(deposit.budgetSourceId)] ||
+                                      BadgeStyles.default,
+                                  },
+                                }}
+                                value={deposit.budgetSourceId}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`${styles.subTableSection} ${styles.subTableSeparated}`}>
+                    <h4 className={styles.subTableHeading}>
+                      {t('sourceReports.expand.depositsHeading')}
+                    </h4>
+                    <EmptyState message={t('sourceReports.expand.depositsEmpty')} />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}

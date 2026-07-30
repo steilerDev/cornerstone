@@ -486,12 +486,16 @@ export const invoiceDeposits = sqliteTable(
     entryType: text('entry_type', { enum: ['deposit', 'refund'] })
       .notNull()
       .default('deposit'),
+    budgetSourceId: text('budget_source_id').references(() => budgetSources.id, {
+      onDelete: 'set null',
+    }),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
   (table) => ({
     invoiceIdIdx: index('idx_invoice_deposits_invoice_id').on(table.invoiceId),
+    budgetSourceIdIdx: index('idx_invoice_deposits_budget_source_id').on(table.budgetSourceId),
   }),
 );
 

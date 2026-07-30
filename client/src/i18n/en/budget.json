@@ -778,7 +778,12 @@
         "required": "*",
         "entryType": "Entry type",
         "entryTypeLabel": "Entry type",
-        "refundAmountHint": "Refund amounts are entered as a positive number."
+        "refundAmountHint": "Refund amounts are entered as a positive number.",
+        "budgetSource": "Budget source",
+        "budgetSourceNone": "None (pro-rated)",
+        "budgetSourceHintSingle": "Defaulted to {{name}} — this invoice's only budget source.",
+        "budgetSourceHintLargest": "Defaulted to {{name}}, this invoice's largest allocated source.",
+        "budgetSourceHintNone": "This invoice has no budget lines — pick a source, or leave blank to keep this deposit pro-rated."
       },
       "entryTypeLabels": {
         "deposit": "Deposit",
@@ -1207,7 +1212,33 @@
       "savings": "Savings",
       "other": "Other",
       "discretionary": "Discretionary"
-    }
+    },
+    "expand": {
+      "expandInvoice": "Expand invoice details",
+      "collapseInvoice": "Collapse invoice details",
+      "itemsHeading": "Budget Lines",
+      "depositsHeading": "Deposits & Refunds",
+      "itemsEmpty": "No budget lines for this invoice",
+      "depositsEmpty": "No deposits or refunds for this invoice",
+      "excludeItemAriaLabel": "Exclude {{name}} from report",
+      "unnamedLine": "(Unnamed budget line)",
+      "linkedColumnHeader": "Linked to",
+      "itemColumnHeader": "Item",
+      "allocatedColumnHeader": "Allocated",
+      "includeColumnHeader": "Include",
+      "amountColumnHeader": "Amount",
+      "statusColumnHeader": "Status",
+      "datesColumnHeader": "Dates",
+      "entryTypeColumnHeader": "Entry Type",
+      "allocatedSourceColumnHeader": "Allocated Source",
+      "entryTypeDeposit": "Deposit",
+      "entryTypeRefund": "Refund",
+      "dueDate": "Due",
+      "paidDate": "Paid",
+      "claimedDate": "Claimed"
+    },
+    "unassigned": "Unassigned",
+    "confirmClaimExcludedItemsWarning": "{{count}} invoice(s) will be claimed in full even though some line items are excluded from this report."
   },
   "common": {
     "loading": "Loading...",
