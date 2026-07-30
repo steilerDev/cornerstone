@@ -204,6 +204,10 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
       sourceAId = await createBudgetSourceViaApi(page, {
         name: `${testPrefix} Source A`,
         totalAmount: 50000,
+        // Cover letter requires a contact address + reference (Story #1877) — this scenario
+        // exercises the cover-letter toggle, so both must be seeded.
+        contactAddress: '123 Bank St, Springfield',
+        reference: 'Account #12345',
       });
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Claim` });
 
