@@ -244,7 +244,9 @@
       "expandAriaLabel": "Show documents for {{name}}",
       "collapseAriaLabel": "Hide documents for {{name}}",
       "panelAriaLabel": "Documents for {{name}}"
-    }
+    },
+    "generateReport": "Generate Report",
+    "generateReportMenuAriaLabel": "Generate report for {{name}}"
   },
   "vendors": {
     "title": "Vendors",
@@ -1092,6 +1094,118 @@
     "mergeErrorBadge": "Merge failed",
     "mergeRetryButton": "Retry",
     "mergeUndoButton": "Restore original lines"
+  },
+  "sourceReports": {
+    "title": "Bank Reports",
+    "subtitle": "Generate financial reports for budget sources",
+    "stepper": {
+      "useCase": "Report Type",
+      "source": "Budget Source",
+      "invoices": "Select Invoices",
+      "options": "Preview & Export"
+    },
+    "stepperAriaLabel": "Report wizard steps",
+    "mobileStepLabel": "Step {{current}} of {{total}}",
+    "useCaseLabel": "Which report do you need?",
+    "useCase": {
+      "budget-overview": "Budget Overview",
+      "claim": "Claim",
+      "proof-of-funds": "Proof of Funds"
+    },
+    "useCaseHelper": {
+      "budget-overview": "A summary of all invoices and their allocations",
+      "claim": "Document invoices marked as paid or claimed",
+      "proof-of-funds": "Show only claimed invoices"
+    },
+    "sourceLabel": "Select a budget source",
+    "amountLabel": {
+      "overview": "Total Amount",
+      "claim": "Pending Amount",
+      "proofOfFunds": "Claimed Amount"
+    },
+    "discretionary": "Discretionary",
+    "selectAllInvoices": "Select all invoices",
+    "toggleInvoice": "Toggle invoice {{vendor}} #{{number}}",
+    "invoicesHeading": "Select Invoices to Include",
+    "unallocatedGroupTitle": "Unallocated Invoices ({{count}})",
+    "unallocatedExplained": "These invoices have no allocation for this source",
+    "emptyInvoices": "No invoices found",
+    "emptyInvoicesDescription": "This budget source has no invoices for this report type",
+    "selectAtLeastOne": "Select at least one invoice to proceed",
+    "attachDocuments": "Attach invoice PDFs",
+    "attachDocumentsHelper": "Appends each selected invoice's source PDF as an appendix",
+    "includeCoverLetter": "Include cover letter",
+    "includeCoverLetterHelper": "Adds a formal letter to the report",
+    "coverLetterDisabledReason": "This source has no contact address or reference number—cover letter is not available",
+    "download": "Download PDF",
+    "markClaimed": "Mark {{count}} invoices as claimed",
+    "finishWithoutMarking": "Finish without marking",
+    "uploadPaperless": "Upload to Paperless",
+    "uploadSuccess": "Document uploaded to Paperless",
+    "confirmClaimTitle": "Mark Invoices as Claimed?",
+    "confirmClaimBody": "This will mark {{count}} invoice(s) as claimed ({{pendingCount}} pending). This action cannot be undone.",
+    "claimSuccess": "{{count}} invoice(s) marked as claimed",
+    "finishedWithoutMarkingSuccess": "Report finished without marking invoices as claimed.",
+    "claimFailed": "Marking invoices as claimed failed. Please try again.",
+    "uploadFailed": "Upload to Paperless failed. Please try again.",
+    "viewInvoices": "View invoices",
+    "errorLoadingData": "Failed to load report data",
+    "errorLoadingReport": "Failed to load report",
+    "previewGenerationFailed": "PDF generation failed",
+    "previewRegenerating": "Regenerating preview…",
+    "pdfPreviewTitle": "Report PDF preview",
+    "hasAttachment": "Document attached",
+    "noDocument": "No document",
+    "refund": "Refund",
+    "splitBadge": "partial €{{allocated}} of €{{total}}",
+    "splitTooltip": "This invoice is split across multiple sources",
+    "selectedCount": "{{count}} of {{total}} | Total: {{total}}",
+    "resetSelection": "Reset selection",
+    "coverLetter": {
+      "subjectLabel": "Subject",
+      "reference": "Reference",
+      "subject": {
+        "budget-overview": "Project Budget Overview",
+        "claim": "Claim Documentation",
+        "proof-of-funds": "Proof of Funds"
+      },
+      "body": {
+        "budget-overview": "Please find attached the budget overview for our project totaling {{total}}.",
+        "claim": "We are submitting a claim for invoices totaling {{total}}.",
+        "proof-of-funds": "Please find attached proof of funds totaling {{total}}."
+      }
+    },
+    "table": {
+      "title": {
+        "budget-overview": "Budget Overview",
+        "claim": "Claim Report",
+        "proof-of-funds": "Proof of Funds"
+      },
+      "source": "Source",
+      "sourceType": "Source Type",
+      "reference": "Reference",
+      "generatedAt": "Generated",
+      "pageLabel": "Page",
+      "vendor": "Vendor",
+      "invoiceNumber": "Invoice No.",
+      "date": "Date",
+      "status": "Status",
+      "invoiceAmount": "Invoice Amount",
+      "allocatedAmount": "Allocated Amount",
+      "appendix": "Appendix",
+      "subtotal": "Subtotal",
+      "total": "Total",
+      "refundNote": "(refund)",
+      "footnoteFetchFailed": "Document could not be retrieved",
+      "footnoteInvalidPdf": "Document is not a valid PDF"
+    },
+    "sourceType": {
+      "bank_loan": "Bank Loan",
+      "credit_line": "Credit Line",
+      "savings": "Savings",
+      "other": "Other",
+      "discretionary": "Discretionary"
+    }
   },
   "common": {
     "loading": "Loading...",

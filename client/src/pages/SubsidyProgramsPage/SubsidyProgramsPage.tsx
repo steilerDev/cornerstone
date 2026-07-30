@@ -19,16 +19,10 @@ import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
+import { SubNav } from '../../components/SubNav/SubNav.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
+import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import styles from './SubsidyProgramsPage.module.css';
-
-const BUDGET_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.budget.overview', to: '/budget/overview', ns: 'common' },
-  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices', ns: 'common' },
-  { labelKey: 'subnav.budget.sources', to: '/budget/sources', ns: 'common' },
-  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies', ns: 'common' },
-];
 
 // ---- Display helpers ----
 

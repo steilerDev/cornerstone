@@ -1103,6 +1103,40 @@ describe('Paperless Routes', () => {
       expect(responseBody.taskId).toBe('task-uuid-123');
     });
 
+    // M3 (carried over from #1878 architect review): if Paperless-ngx's post_document
+    // endpoint responds 2xx but with a malformed body (taskId not a string — e.g. a bare
+    // number, an object, or null), paperlessService.uploadDocument's typeof guard must
+    // convert this into a clean 502 PAPERLESS_ERROR, not crash the request or return a 201
+    // with a bogus taskId.
+    it.each([
+      ['a bare number', 12345],
+      ['an object', { id: 'task-uuid-123' }],
+      ['null', null],
+    ])(
+      'M3: taskId response shaped as %s → 502 PAPERLESS_ERROR, not a crash or 201',
+      async (_label, malformedTaskId) => {
+        await rebuildAppWithPaperless();
+        const { cookie } = await createUserWithSession();
+        const { body, contentType } = buildMultipartBody([
+          PDF_PART,
+          { name: 'title', value: 'Invoice from Builder Co' },
+        ]);
+
+        mockFetch.mockResolvedValueOnce(mockJsonResponse(malformedTaskId));
+
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/paperless/documents',
+          headers: { cookie, 'content-type': contentType },
+          payload: body,
+        });
+
+        expect(response.statusCode).toBe(502);
+        const responseBody = response.json<ApiErrorResponse>();
+        expect(responseBody.error.code).toBe('PAPERLESS_ERROR');
+      },
+    );
+
     it('scenario 37: non-PDF file → 400, upload never attempted', async () => {
       await rebuildAppWithPaperless();
       const { cookie } = await createUserWithSession();

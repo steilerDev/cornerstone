@@ -1,0 +1,198 @@
+.invoiceListContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.listHeader {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  gap: var(--spacing-3);
+  align-items: center;
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.headerCheckbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.headerTitle {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.invoiceRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  gap: var(--spacing-3);
+  align-items: center;
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color var(--transition-fast);
+}
+
+.invoiceRow:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+.checkbox {
+  width: 1.125rem;
+  height: 1.125rem;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+
+.vendorInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+}
+
+.vendorName {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.invoiceDate {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.amountColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-1);
+}
+
+.amount {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.amountNegative {
+  color: var(--color-danger-text);
+}
+
+.attachmentColumn {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 60px;
+  justify-content: flex-end;
+}
+
+.paperclip {
+  display: flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
+.noDocument {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.refund {
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+}
+
+/* ---- Invoice Status Badges ---- */
+
+.pending {
+  background-color: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
+}
+
+.paid {
+  background-color: var(--color-status-completed-bg);
+  color: var(--color-status-completed-text);
+}
+
+.claimed {
+  background-color: var(--color-status-completed-bg);
+  color: var(--color-status-completed-text);
+}
+
+.quotation {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
+}
+
+/* ---- Unallocated Group ---- */
+
+.unallocatedSection {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-border-strong);
+  opacity: 0.85;
+}
+
+.unallocatedHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  text-align: left;
+  font-size: inherit;
+  color: inherit;
+}
+
+.unallocatedHeader:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.unallocatedHeader:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+.chevron {
+  display: inline-block;
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.unallocatedList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background-color: var(--color-bg-secondary);
+  padding: var(--spacing-2) var(--spacing-4);
+}
+
+.unallocatedRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.unallocatedRow:last-child {
+  border-bottom: none;
+}

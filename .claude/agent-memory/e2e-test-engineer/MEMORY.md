@@ -21,6 +21,8 @@
 - [story-epic08-e2e.md](story-epic08-e2e.md) — EPIC-08 Paperless integration (no testcontainer yet — all document tests validate "not configured" state only).
 - [bug-1829-shard3-flakes.md](bug-1829-shard3-flakes.md) — root cause + fix for the shard-3 diary flakes blocking main promotions; also proves `maxFailures` already tolerates one retry-passing test (Playwright source citation).
 - [story-1876-deposit-refunds.md](story-1876-deposit-refunds.md) — deposit `entryType` refunds; DataTable hidden-column read pattern (`getColumnCellText`), table+card dual-DOM visible-filter pitfall.
+- [story-1877-contact-fields-attachment-typing.md](story-1877-contact-fields-attachment-typing.md) — budget-source contact fields, household settings singleton (needs `mode:'serial'`, not just try/finally), document-link attachment typing; route-mock last-registered-runs-first ordering hazard; sandbox lint/tsc caveats.
+- [story-1879-report-wizard.md](story-1879-report-wizard.md) — Bank Report Wizard POM/spec; Blocker bug #1886 (budgetSources envelope crash blocks all progress past step 1) + compile errors/missing i18n keys found via `tsc`; source-report E2E seeding pattern (WI budget → invoice-budget-line link).
 
 ## Open follow-ups to flag to orchestrator
 

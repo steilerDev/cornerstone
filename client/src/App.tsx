@@ -87,6 +87,7 @@ const BackupsPage = lazy(() => import('./pages/BackupsPage/BackupsPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage/InvoicesPage'));
 const InvoiceDetailPage = lazy(() => import('./pages/InvoiceDetailPage/InvoiceDetailPage'));
 const AutoItemizePage = lazy(() => import('./pages/AutoItemizePage/index.js'));
+const ReportWizardPage = lazy(() => import('./pages/ReportWizardPage/index.js'));
 const PaperlessInvoiceReviewPage = lazy(
   () => import('./pages/PaperlessInvoiceReviewPage/index.js'),
 );
@@ -182,6 +183,7 @@ export function App() {
                             </Suspense>
                           }
                         />
+                        <Route path="reports" element={<ReportWizardPage />} />
                       </Route>
 
                       {/* Schedule (renamed from Timeline) */}
