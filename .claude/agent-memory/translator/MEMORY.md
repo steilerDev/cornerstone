@@ -67,3 +67,9 @@ Found and fixed pre-existing (not newly introduced) glossary violations while au
 ## Cost Perspective / Avg Abbreviation
 
 `overview.costBreakdown.perspective.avg` = "Avg" → "Ø" (German average symbol, compact for 3-way Min/Ø/Max segmented toggle) — not "Durchschn." (too long for a toggle button).
+
+## Section-Navigation Aria Label Pattern (Issue #1887, 2026-07-30)
+
+Established de pattern for `"<X> section navigation"` aria labels (SubNav component instances) is the compound `"<X>-Abschnittsnavigation"` — confirmed from `schedule.json`'s `navigation.ariaLabel`: en "Schedule section navigation" → de "Zeitplan-Abschnittsnavigation". Applied same pattern for `budget.json` `sourceReports.subNavAriaLabel`: en "Budget section navigation" → de "Budget-Abschnittsnavigation". Note: `DashboardPage.tsx` ("Project section navigation") and `VendorsPage.tsx` ("Settings section navigation") hardcode this string directly in JSX rather than using `t()` — not a translator concern, but means those two instances have no de counterpart to check against; only use schedule.json as the reference pattern.
+
+Also confirmed: "allocated" vocabulary in de/budget.json is consistently `zugeordnet`/`Zuordnung` (e.g. `allocatedAmount` → "Zugeordneter Betrag", `unallocatedExplained` → "...nicht zugeordnet"). Used for new `sourceReports.table.splitFootnote`: "Amount shown reflects only the portion allocated to this source." → "Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil."

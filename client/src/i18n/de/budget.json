@@ -244,7 +244,9 @@
     },
     "summary": {
       "remainingLabel": "Verbleibend"
-    }
+    },
+    "generateReport": "Bericht erstellen",
+    "generateReportMenuAriaLabel": "Bericht für {{name}} erstellen"
   },
   "vendors": {
     "title": "Auftragnehmer",
@@ -1092,6 +1094,120 @@
     "mergeErrorBadge": "Zusammenführen fehlgeschlagen",
     "mergeRetryButton": "Erneut versuchen",
     "mergeUndoButton": "Ursprüngliche Positionen wiederherstellen"
+  },
+  "sourceReports": {
+    "title": "Bankberichte",
+    "subtitle": "Finanzberichte für Budgetquellen erstellen",
+    "stepper": {
+      "useCase": "Berichtsart",
+      "source": "Budgetquelle",
+      "invoices": "Rechnungen auswählen",
+      "options": "Vorschau & Export"
+    },
+    "stepperAriaLabel": "Schritte des Berichtsassistenten",
+    "mobileStepLabel": "Schritt {{current}} von {{total}}",
+    "useCaseLabel": "Welchen Bericht benötigen Sie?",
+    "useCase": {
+      "budget-overview": "Budgetübersicht",
+      "claim": "Einreichung",
+      "proof-of-funds": "Verwendungsnachweis"
+    },
+    "useCaseHelper": {
+      "budget-overview": "Eine Zusammenfassung aller Rechnungen und ihrer Zuordnungen",
+      "claim": "Dokumentiert als bezahlt oder eingereicht markierte Rechnungen",
+      "proof-of-funds": "Zeigt nur eingereichte Rechnungen an"
+    },
+    "sourceLabel": "Wählen Sie eine Budgetquelle aus",
+    "amountLabel": {
+      "overview": "Gesamtbetrag",
+      "claim": "Ausstehender Betrag",
+      "proofOfFunds": "Eingereichter Betrag"
+    },
+    "discretionary": "Diskretionär",
+    "selectAllInvoices": "Alle Rechnungen auswählen",
+    "toggleInvoice": "Rechnung {{vendor}} #{{number}} umschalten",
+    "invoicesHeading": "Einzubeziehende Rechnungen auswählen",
+    "unallocatedGroupTitle": "Nicht zugeordnete Rechnungen ({{count}})",
+    "unallocatedExplained": "Diese Rechnungen sind dieser Budgetquelle nicht zugeordnet",
+    "emptyInvoices": "Keine Rechnungen gefunden",
+    "emptyInvoicesDescription": "Diese Budgetquelle hat keine Rechnungen für diesen Berichtstyp",
+    "selectAtLeastOne": "Wählen Sie mindestens eine Rechnung aus, um fortzufahren",
+    "attachDocuments": "Rechnungs-PDFs anhängen",
+    "attachDocumentsHelper": "Fügt das Quell-PDF jeder ausgewählten Rechnung als Anhang hinzu",
+    "includeCoverLetter": "Anschreiben einfügen",
+    "includeCoverLetterHelper": "Fügt dem Bericht ein formelles Anschreiben hinzu",
+    "coverLetterDisabledReason": "Diese Quelle hat weder eine Kontaktadresse noch eine Referenz – ein Anschreiben ist nicht verfügbar",
+    "download": "PDF herunterladen",
+    "markClaimed": "{{count}} Rechnungen als eingereicht markieren",
+    "finishWithoutMarking": "Abschließen ohne Markierung",
+    "uploadPaperless": "Zu Paperless hochladen",
+    "uploadSuccess": "Dokument zu Paperless hochgeladen",
+    "confirmClaimTitle": "Rechnungen als eingereicht markieren?",
+    "confirmClaimBody": "Dadurch werden {{count}} Rechnung(en) als eingereicht markiert ({{pendingCount}} davon ausstehend). Diese Aktion kann nicht rückgängig gemacht werden.",
+    "claimSuccess": "{{count}} Rechnung(en) als eingereicht markiert",
+    "finishedWithoutMarkingSuccess": "Bericht abgeschlossen, ohne Rechnungen als eingereicht zu markieren.",
+    "claimFailed": "Rechnungen konnten nicht als eingereicht markiert werden. Bitte versuchen Sie es erneut.",
+    "uploadFailed": "Hochladen zu Paperless fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "viewInvoices": "Rechnungen anzeigen",
+    "errorLoadingData": "Berichtsdaten konnten nicht geladen werden",
+    "errorLoadingReport": "Bericht konnte nicht geladen werden",
+    "previewGenerationFailed": "PDF-Erstellung fehlgeschlagen",
+    "previewRegenerating": "Vorschau wird aktualisiert…",
+    "pdfPreviewTitle": "Berichts-PDF-Vorschau",
+    "hasAttachment": "Dokument angehängt",
+    "noDocument": "Kein Dokument",
+    "refund": "Rückerstattung",
+    "splitBadge": "anteilig {{allocated}} von {{total}}",
+    "splitTooltip": "Diese Rechnung ist auf mehrere Quellen aufgeteilt",
+    "selectedCount": "{{count}} von {{totalCount}} | Gesamt: {{totalAmount}}",
+    "resetSelection": "Auswahl zurücksetzen",
+    "subNavAriaLabel": "Budget-Abschnittsnavigation",
+    "coverLetter": {
+      "subjectLabel": "Betreff",
+      "reference": "Referenz",
+      "subject": {
+        "budget-overview": "Budgetübersicht unseres Bauprojekts",
+        "claim": "Einreichungsunterlagen",
+        "proof-of-funds": "Verwendungsnachweis"
+      },
+      "body": {
+        "budget-overview": "Anbei erhalten Sie die Budgetübersicht unseres Bauprojekts mit einer Gesamtsumme von {{total}}.",
+        "claim": "Hiermit reichen wir Rechnungen in Höhe von insgesamt {{total}} zur Erstattung ein.",
+        "proof-of-funds": "Anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
+      }
+    },
+    "table": {
+      "title": {
+        "budget-overview": "Budgetübersicht",
+        "claim": "Einreichungsbericht",
+        "proof-of-funds": "Verwendungsnachweis"
+      },
+      "source": "Budgetquelle",
+      "sourceType": "Quellentyp",
+      "reference": "Referenz",
+      "generatedAt": "Erstellt am",
+      "pageLabel": "Seite",
+      "vendor": "Auftragnehmer",
+      "invoiceNumber": "Rechnungsnr.",
+      "date": "Datum",
+      "status": "Status",
+      "invoiceAmount": "Rechnungsbetrag",
+      "allocatedAmount": "Zugeordneter Betrag",
+      "appendix": "Anhang",
+      "subtotal": "Zwischensumme",
+      "total": "Gesamt",
+      "refundNote": "(Rückerstattung)",
+      "footnoteFetchFailed": "Dokument konnte nicht abgerufen werden",
+      "footnoteInvalidPdf": "Dokument ist keine gültige PDF-Datei",
+      "splitFootnote": "Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil."
+    },
+    "sourceType": {
+      "bank_loan": "Bankdarlehen",
+      "credit_line": "Kreditlinie",
+      "savings": "Ersparnisse",
+      "other": "Sonstiges",
+      "discretionary": "Diskretionär"
+    }
   },
   "common": {
     "loading": "Wird geladen...",

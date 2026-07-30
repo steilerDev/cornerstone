@@ -15,7 +15,7 @@ import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
+import { SubNav } from '../../components/SubNav/SubNav.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
@@ -25,15 +25,9 @@ import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
+import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoicesPage.module.css';
-
-const BUDGET_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
-  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
-  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
-  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
-];
 
 interface InvoiceFormState {
   vendorId: string;

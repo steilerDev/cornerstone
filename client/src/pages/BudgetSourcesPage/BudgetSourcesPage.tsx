@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetSource,
@@ -18,20 +19,15 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
+import { SubNav } from '../../components/SubNav/SubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { SourceBudgetLinePanel } from '../../components/SourceBudgetLinePanel/SourceBudgetLinePanel.js';
 import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
+import { OverflowMenu } from '../../components/OverflowMenu/index.js';
+import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import styles from './BudgetSourcesPage.module.css';
-
-const BUDGET_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
-  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
-  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
-  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
-];
 
 // ---- Display helpers ----
 
@@ -274,6 +270,7 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
 
 export function BudgetSourcesPage() {
   const { t } = useTranslation('budget');
+  const navigate = useNavigate();
   const { formatCurrency, formatPercent } = useFormatters();
   const { showToast } = useToast();
   const [sources, setSources] = useState<BudgetSource[]>([]);
@@ -628,7 +625,11 @@ export function BudgetSourcesPage() {
   const handleToggleDocs = useCallback((sourceId: string) => {
     setExpandedDocsSources((prev) => {
       const next = new Set(prev);
-      next.has(sourceId) ? next.delete(sourceId) : next.add(sourceId);
+      if (next.has(sourceId)) {
+        next.delete(sourceId);
+      } else {
+        next.add(sourceId);
+      }
       return next;
     });
   }, []);
@@ -1310,6 +1311,19 @@ export function BudgetSourcesPage() {
                             {t('sources.buttons.delete')}
                           </button>
                         )}
+                        <OverflowMenu
+                          items={[
+                            {
+                              label: t('sources.generateReport'),
+                              onClick: () => navigate(`/budget/reports?sourceId=${source.id}`),
+                            },
+                          ]}
+                          triggerAriaLabel={t('sources.generateReportMenuAriaLabel', {
+                            name: source.name,
+                          })}
+                          placement="bottom-end"
+                          usePortal
+                        />
                       </div>
                     </div>
 

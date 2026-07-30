@@ -1,0 +1,267 @@
+.metadataCard {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
+  margin-bottom: var(--spacing-6);
+}
+
+.metadataCard h2 {
+  margin-top: 0;
+  margin-bottom: var(--spacing-4);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+/* ---- Step 1: Use Case ---- */
+
+.useCaseFieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.useCaseLabel {
+  display: block;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-4);
+}
+
+.useCaseGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+}
+
+.useCaseCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-primary);
+  cursor: pointer;
+  transition:
+    border-color var(--transition-button-border),
+    background-color var(--transition-button-border),
+    box-shadow var(--transition-button-border);
+}
+
+.useCaseCard:has(input:checked) {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-bg);
+  box-shadow: var(--shadow-sm);
+}
+
+.useCaseCard:has(input:focus-visible) {
+  box-shadow: var(--shadow-focus);
+}
+
+.useCaseCard:hover {
+  border-color: var(--color-border-focus);
+}
+
+.useCaseRadio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.useCaseTitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.useCaseHelper {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* ---- Step 2: Source List ---- */
+
+.sourceList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--spacing-4);
+}
+
+.sourceRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.sourceRow:last-child {
+  border-bottom: none;
+}
+
+.sourceRow:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.sourceRowDisc {
+  opacity: 0.75;
+}
+
+.sourceRadio {
+  width: 1.125rem;
+  height: 1.125rem;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.sourceName {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.sourceAmount {
+  margin-left: auto;
+  text-align: right;
+}
+
+.amount {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.amountLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-0-5);
+}
+
+/* ---- Step 4: Layout ---- */
+
+.step4Body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+.step4Layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-6);
+}
+
+.step4Column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.optionsCard {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.optionRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.optionCheckbox {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: var(--spacing-0-5);
+  cursor: pointer;
+  accent-color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.optionCheckbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.optionLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.optionCheckbox:disabled + .optionLabel {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.optionHelper {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-0-5);
+}
+
+.actionsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.buttonRow {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+  margin-top: var(--spacing-4);
+}
+
+.skippedNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.skippedItem {
+  display: list-item;
+  margin-left: var(--spacing-4);
+}
+
+.modalFooter {
+  display: flex;
+  gap: var(--spacing-2);
+  justify-content: flex-end;
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 860px) {
+  .useCaseGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .step4Layout {
+    grid-template-columns: 1fr;
+  }
+
+  .step4Column {
+    order: 2;
+  }
+}

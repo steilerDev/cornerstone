@@ -546,6 +546,47 @@ describe('sourceReportService', () => {
       expect(doc.title).toBeNull();
     });
 
+    // M2 (carried over from #1878 architect review): a report with multiple invoices, each
+    // referencing a Paperless document, must call paperlessService.getDocuments exactly ONCE
+    // with all document ids batched together — never once per invoice/document.
+    //
+    // getDocuments itself is a named export on an ESM module namespace object, which Jest
+    // cannot spy on directly under NodeNext ESM (`jest.spyOn` throws "Cannot assign to read
+    // only property" — this is a real ESM immutability constraint, not something to work
+    // around with jest.unstable_mockModule for a single test in an otherwise-real-DB test
+    // file). Instead, this test distinguishes getDocuments' own outbound call from every other
+    // Paperless call (e.g. fetchTagsMap) by its distinctive `/api/documents/?id__in=` URL —
+    // getDocuments makes exactly one call to that specific endpoint per invocation, so counting
+    // matches against that URL pattern is an equally precise way to pin "called exactly once,
+    // batched" as spying on the function reference would have been.
+    it('M2: the batched /api/documents/?id__in= call happens exactly once for a multi-invoice report', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+
+      const docIds = [101, 102, 103];
+      for (const docId of docIds) {
+        const budgetId = insertWorkItemBudget(sourceId);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+        insertInvoiceBudgetLine(invId, budgetId, 500);
+        insertDocumentLink(invId, docId, null);
+      }
+
+      mockFetch.mockResolvedValue(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_CONFIG_ENABLED);
+
+      expect(result.invoices).toHaveLength(3);
+
+      const documentListCalls = mockFetch.mock.calls.filter((call) =>
+        String(call[0]).includes('/api/documents/?id__in='),
+      );
+      expect(documentListCalls).toHaveLength(1);
+
+      const calledUrl = String(documentListCalls[0]![0]);
+      const idParam = new URL(calledUrl, 'http://paperless:8000').searchParams.get('id__in');
+      expect(new Set(idParam!.split(',').map(Number))).toEqual(new Set(docIds));
+    });
+
     it('scenario 21: totalAmount is the exact sum of decimal-noisy rounded lines', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();

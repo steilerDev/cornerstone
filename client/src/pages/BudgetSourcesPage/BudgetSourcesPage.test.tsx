@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import type React from 'react';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -2346,8 +2346,8 @@ describe('BudgetSourcesPage', () => {
       const actionsDiv = container.querySelector('[class*="sourceActions"]');
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
-      // Order: Show lines → docs toggle (paperclip) → Edit → Delete
-      expect(buttons.length).toBe(4);
+      // Order: Show lines → docs toggle (paperclip) → Edit → Delete → Generate report (#1879)
+      expect(buttons.length).toBe(5);
       expect(buttons[0]).toHaveAttribute(
         'aria-label',
         expect.stringMatching(/expand budget lines for home loan/i),
@@ -2356,6 +2356,7 @@ describe('BudgetSourcesPage', () => {
       expect(buttons[1]).toHaveAttribute('aria-controls', expect.stringContaining('source-docs-'));
       expect(buttons[2]).toHaveAccessibleName(/edit home loan/i);
       expect(buttons[3]).toHaveAccessibleName(/delete home loan/i);
+      expect(buttons[4]).toHaveAccessibleName('Generate report for Home Loan');
     });
 
     it('discretionary source shows Show lines and Edit in sourceActions but not Delete', async () => {
@@ -2373,8 +2374,9 @@ describe('BudgetSourcesPage', () => {
       const actionsDiv = container.querySelector('[class*="sourceActions"]');
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
-      // Discretionary sources have no Delete: Show lines → docs toggle (paperclip) → Edit
-      expect(buttons.length).toBe(3);
+      // Discretionary sources have no Delete: Show lines → docs toggle (paperclip) → Edit →
+      // Generate report (#1879)
+      expect(buttons.length).toBe(4);
       expect(buttons[0]).toHaveAttribute(
         'aria-label',
         expect.stringMatching(/expand budget lines for contingency reserve/i),
@@ -2382,6 +2384,7 @@ describe('BudgetSourcesPage', () => {
       // The docs toggle sits between Show lines and Edit
       expect(buttons[1]).toHaveAttribute('aria-controls', expect.stringContaining('source-docs-'));
       expect(buttons[2]).toHaveAccessibleName(/edit contingency reserve/i);
+      expect(buttons[3]).toHaveAccessibleName('Generate report for Contingency Reserve');
       expect(
         screen.queryByRole('button', { name: /delete contingency reserve/i }),
       ).not.toBeInTheDocument();
@@ -2610,6 +2613,84 @@ describe('BudgetSourcesPage', () => {
       await waitFor(() =>
         expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
       );
+    });
+  });
+
+  // ─── OverflowMenu: Generate report (#1879) ─────────────────────────────────
+
+  describe('OverflowMenu — Generate report', () => {
+    function LocationDisplay() {
+      const location = useLocation();
+      return <div data-testid="location">{location.pathname + location.search}</div>;
+    }
+
+    function renderPageWithLocation() {
+      return render(
+        <LocaleProvider>
+          <MemoryRouter initialEntries={['/budget/sources']}>
+            <BudgetSourcesPage />
+            <LocationDisplay />
+          </MemoryRouter>
+        </LocaleProvider>,
+      );
+    }
+
+    it('renders a "Generate report" item in the source row OverflowMenu', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      renderPage();
+
+      await waitFor(() => expect(screen.getByText('Home Loan')).toBeInTheDocument());
+
+      const trigger = screen.getByRole('button', {
+        name: 'Generate report for Home Loan',
+      });
+      fireEvent.click(trigger);
+
+      expect(screen.getByRole('menuitem', { name: 'Generate Report' })).toBeInTheDocument();
+    });
+
+    it('navigates to /budget/reports?sourceId=<id> when "Generate report" is clicked', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      renderPageWithLocation();
+
+      await waitFor(() => expect(screen.getByText('Home Loan')).toBeInTheDocument());
+
+      const trigger = screen.getByRole('button', {
+        name: 'Generate report for Home Loan',
+      });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Generate Report' }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent(
+          `/budget/reports?sourceId=${sampleSource1.id}`,
+        );
+      });
+    });
+
+    it('renders one "Generate report" trigger per source row, each scoped to its own source', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1, sampleSource2],
+      });
+      renderPageWithLocation();
+
+      await waitFor(() => expect(screen.getByText('Savings Account')).toBeInTheDocument());
+
+      expect(
+        screen.getByRole('button', { name: 'Generate report for Home Loan' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Generate report for Savings Account' }),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Generate report for Savings Account' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Generate Report' }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent(
+          `/budget/reports?sourceId=${sampleSource2.id}`,
+        );
+      });
     });
   });
 });

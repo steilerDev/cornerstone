@@ -21,7 +21,9 @@
     "confirm": "Confirm",
     "back": "Back",
     "search": "Search",
-    "clearFilters": "Clear Filters"
+    "clearFilters": "Clear Filters",
+    "next": "Next",
+    "retry": "Retry"
   },
   "optional": "(optional)",
   "aria": {
@@ -108,7 +110,8 @@
       "overview": "Overview",
       "invoices": "Invoices",
       "sources": "Sources",
-      "subsidies": "Subsidies"
+      "subsidies": "Subsidies",
+      "reports": "Reports"
     },
     "settings": {
       "profile": "Profile",

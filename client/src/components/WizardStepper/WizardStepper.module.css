@@ -1,0 +1,205 @@
+.stepper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-6);
+}
+
+.stepList {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stepItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  position: relative;
+}
+
+.stepButton,
+.stepButtonDisabled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2);
+  min-height: 44px;
+  min-width: 44px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: center;
+}
+
+.stepButton {
+  cursor: pointer;
+}
+
+.stepButtonDisabled {
+  cursor: default;
+}
+
+.circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  transition: color var(--transition-fast);
+}
+
+/* ---- Step States ---- */
+
+.stepCompleted .circle {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+}
+
+.stepCompleted .label {
+  color: var(--color-text-primary);
+}
+
+.stepCompleted .stepButton:hover .circle {
+  background-color: var(--color-bg-hover);
+}
+
+.stepCompleted .stepButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-lg);
+}
+
+.stepCurrent .circle {
+  background-color: var(--color-bg-primary);
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
+}
+
+.stepCurrent .label {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.stepUpcoming .circle {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+}
+
+.stepUpcoming .label {
+  color: var(--color-text-muted);
+}
+
+.stepUpcoming .stepButtonDisabled:hover .circle {
+  background-color: var(--color-bg-tertiary);
+}
+
+/* ---- Connector Line ---- */
+
+.connector {
+  position: absolute;
+  left: 100%;
+  top: 1rem;
+  width: 40px;
+  height: 1px;
+  background-color: var(--color-border);
+  transition: background-color var(--transition-fast);
+  margin-left: var(--spacing-2);
+}
+
+.stepCompleted ~ .stepItem .connector {
+  background-color: var(--color-primary);
+}
+
+.stepCompleted .connector {
+  background-color: var(--color-primary);
+}
+
+/* ---- Mobile Styles ---- */
+
+.stepperMobile {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-4);
+}
+
+.stepCount {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+
+.dotIndicators {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-full);
+  transition: background-color var(--transition-fast);
+}
+
+.dotFilled {
+  background-color: var(--color-primary);
+}
+
+.dotOutline {
+  border: 1px solid var(--color-border-strong);
+  background-color: transparent;
+}
+
+/* ---- Reduced Motion ---- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .circle,
+  .label,
+  .connector,
+  .dot {
+    transition:
+      background-color var(--transition-normal),
+      color var(--transition-normal),
+      border-color var(--transition-normal);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .circle,
+  .label,
+  .connector,
+  .dot {
+    transition: none;
+  }
+}
+
+/* ---- Mobile Breakpoint ---- */
+
+@media (max-width: 767px) {
+  .stepper {
+    display: none;
+  }
+
+  .stepperMobile {
+    display: flex;
+  }
+}

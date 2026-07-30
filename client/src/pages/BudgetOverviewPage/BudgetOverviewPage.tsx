@@ -7,16 +7,10 @@ import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
+import { SubNav } from '../../components/SubNav/SubNav.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
+import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import styles from './BudgetOverviewPage.module.css';
-
-const BUDGET_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
-  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
-  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
-  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
-];
 
 // ---- Main component ----
 
