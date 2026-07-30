@@ -498,17 +498,31 @@ export class ReportWizardPage {
    * e2e-test-engineer agent memory (`story-1891-wizard-followup.md`) for the verification
    * record and reasoning (a live CI/browser run, not this authoring sandbox, is the actual
    * red/green proof; the sandbox cannot build the `dhi.io`-based app image).
+   *
+   * POLLS rather than checking once: `getExpectedSrc` is invoked on every retry so it can
+   * re-read the iframe's live `src` attribute (or re-derive the expected regenerated src) —
+   * `page.frames()` only reflects a navigation that has already completed, and there is a
+   * real gap between the loading overlay hiding / the src attribute changing and the browsing
+   * context actually finishing navigation to it. A one-shot `page.frames().find(...)`
+   * immediately after that signal races the navigation and fails intermittently (CI PR #1894,
+   * shard 2, ~2.6-3.2s) even though zero CSP-violation console messages fire — proving the
+   * CSP fix itself was never the problem, only the single-shot timing of this proof. Because
+   * `getExpectedSrc` re-reads on each retry, a mid-poll blob URL swap (e.g. a fast-arriving
+   * regeneration) is naturally picked up rather than asserted against a stale src.
    */
-  private async assertFrameActuallyNavigated(src: string): Promise<void> {
-    const frame = this.page.frames().find((f) => f.url() === src);
-    if (!frame) {
-      throw new Error(
-        `Preview iframe src is "${src}" but no browsing-context frame has actually ` +
-          'navigated to it (page.frames() has no matching frame — the iframe is likely ' +
-          'stuck at about:blank). This is the signature of a CSP frame-src block: check ' +
-          "helmetPlugin.ts's frameSrc directive includes 'blob:'.",
-      );
-    }
+  private async assertFrameActuallyNavigated(getExpectedSrc: () => Promise<string>): Promise<void> {
+    await expect(async () => {
+      const src = await getExpectedSrc();
+      const frame = this.page.frames().find((f) => f.url() === src);
+      if (!frame) {
+        throw new Error(
+          `Preview iframe src is "${src}" but no browsing-context frame has actually ` +
+            'navigated to it (page.frames() has no matching frame — the iframe is likely ' +
+            'stuck at about:blank). This is the signature of a CSP frame-src block: check ' +
+            "helmetPlugin.ts's frameSrc directive includes 'blob:'.",
+        );
+      }
+    }).toPass({ timeout: 10_000 });
     if (this.cspViolationMessages.length > 0) {
       throw new Error(
         `Detected ${this.cspViolationMessages.length} Content-Security-Policy violation ` +
@@ -530,11 +544,13 @@ export class ReportWizardPage {
   async waitForPreviewReady(): Promise<void> {
     await this.previewLoadingOverlay.waitFor({ state: 'hidden' });
     await this.previewIframe.waitFor({ state: 'visible' });
-    const src = await this.previewIframe.getAttribute('src');
-    if (!src || !src.startsWith('blob:')) {
-      throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
-    }
-    await this.assertFrameActuallyNavigated(src);
+    await this.assertFrameActuallyNavigated(async () => {
+      const src = await this.previewIframe.getAttribute('src');
+      if (!src || !src.startsWith('blob:')) {
+        throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
+      }
+      return src;
+    });
   }
 
   /** Current preview iframe `blob:` src, for detecting a regeneration via a src change. */
@@ -556,8 +572,12 @@ export class ReportWizardPage {
   async waitForPreviewRegenerated(previousSrc: string): Promise<void> {
     await this.previewLoadingOverlay.waitFor({ state: 'hidden' });
     await this.previewIframe.waitFor({ state: 'visible' });
-    let newSrc = '';
-    await expect(async () => {
+    // Story #1891 hardening — same frame-navigation + zero-CSP-violation proof as
+    // waitForPreviewReady, polling for a frame that has actually navigated to the NEW src (see
+    // assertFrameActuallyNavigated docstring). Re-reads the src on every retry so a mid-poll
+    // blob URL swap (e.g. a fast-arriving further regeneration) is picked up rather than
+    // asserted against a stale src captured before this poll began.
+    await this.assertFrameActuallyNavigated(async () => {
       const src = await this.getPreviewSrc();
       if (!src.startsWith('blob:')) {
         throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
@@ -565,11 +585,8 @@ export class ReportWizardPage {
       if (src === previousSrc) {
         throw new Error('Preview src has not changed yet — regeneration still pending');
       }
-      newSrc = src;
-    }).toPass();
-    // Story #1891 hardening — same frame-navigation + zero-CSP-violation proof as
-    // waitForPreviewReady, applied to the NEW src (see assertFrameActuallyNavigated docstring).
-    await this.assertFrameActuallyNavigated(newSrc);
+      return src;
+    });
   }
 
   async download(): Promise<Download> {

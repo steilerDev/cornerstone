@@ -1,6 +1,6 @@
 ---
 name: story-1891-wizard-followup
-description: Bank Report Wizard follow-up (Story #1891) — expandable invoice rows, CSP blob: frame-src hardened preview check, deposit budget-source tagging; 2 filed production bugs.
+description: Bank Report Wizard follow-up (Story #1891) — expandable invoice rows, CSP blob: frame-src hardened preview check (incl. one-shot page.frames() race fix, CI PR #1894), deposit budget-source tagging; 2 filed production bugs.
 metadata:
   type: project
 ---
@@ -69,6 +69,37 @@ zero such messages were captured.
 Both `waitForPreviewReady()` and `waitForPreviewRegenerated()` run this check internally now;
 Scenario 1 additionally re-asserts it explicitly at the test level (not just trusting the POM
 helper) per the story AC's literal wording.
+
+### Follow-up fix: one-shot `page.frames().find()` is a race, not a proof (CI PR #1894, shard 2)
+
+The FIRST shipped version of `assertFrameActuallyNavigated(src: string)` did a single, immediate
+`page.frames().find(f => f.url() === src)` right after the loading overlay hid / the src
+attribute was read. This is a **reusable anti-pattern**: `frame.url()` only reflects a navigation
+that has *already completed* — there is a real gap between "the loading overlay hides" / "the src
+attribute changed" and "the nested browsing context has actually finished navigating to it".
+Reading `page.frames()` exactly once right after either signal races that navigation. CI caught
+this: 3 scenarios across `reportWizard.spec.ts`/`reportWizardExpansion.spec.ts` failed
+consistently at ~2.6-3.2s with "no browsing-context frame has actually navigated" — but ZERO
+CSP-violation console messages were ever captured in those failures, which is the tell: if CSP
+were actually blocking the frame-src navigation, the console listener (registered in the
+constructor) would have fired synchronously with the block. Zero console messages + a
+`page.frames()` miss = the navigation just hadn't finished yet, not "blocked".
+
+**Fix**: turned `assertFrameActuallyNavigated` into a poller — it now takes a `getExpectedSrc: ()
+=> Promise<string>` callback (not a static `src` string) and wraps the frame lookup in `await
+expect(async () => {...}).toPass({ timeout: 10_000 })`, re-invoking the callback on every retry.
+Re-reading src on every retry (not capturing it once before the poll) also matters for
+`waitForPreviewRegenerated` specifically — a fast-arriving further regeneration mid-poll would
+otherwise get asserted against a now-stale captured src. Both `waitForPreviewReady` and
+`waitForPreviewRegenerated` now share this single polling helper; the CSP-violation-count check
+still runs once, after the poll resolves, preserving the "either signal alone would catch a
+regression" defense-in-depth property.
+
+**General lesson**: any `page.frames().find(...)` (or similarly, a raw one-shot check against
+live browsing-context state that isn't itself an auto-retrying Playwright locator/`expect`) taken
+immediately after a UI-visible "done" signal (overlay hidden, attribute set) is a latent race —
+wrap it in `expect(async () => {...}).toPass()` rather than trusting the single read, even when
+the surrounding steps already used proper waits.
 
 ## MANDATORY red-test verification — what was actually done
 
