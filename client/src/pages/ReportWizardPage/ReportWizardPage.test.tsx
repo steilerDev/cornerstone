@@ -1156,9 +1156,12 @@ describe('ReportWizardPage', () => {
         '[aria-controls="invoice-expand-inv-1"]',
       ) as HTMLElement;
       await user.click(expandButton);
-      const excludeCheckbox = screen.getByRole('checkbox', {
+      // The expansion panel renders both a desktop table and a mobile card list for the same
+      // budget lines (CSS hides one per viewport; jsdom has no layout engine, so both are in the
+      // DOM) — select the desktop instance, matching the convention in ReportInvoiceList.test.tsx.
+      const excludeCheckbox = screen.getAllByRole('checkbox', {
         name: 'Exclude Foundation work from report',
-      });
+      })[0]!;
       await user.click(excludeCheckbox);
 
       await waitFor(
@@ -1217,9 +1220,11 @@ describe('ReportWizardPage', () => {
         '[aria-controls="invoice-expand-inv-1"]',
       ) as HTMLElement;
       await user.click(expandButton);
-      const excludeCheckbox = screen.getByRole('checkbox', {
+      // Desktop instance — see the comment on the "Foundation work" test above for why this is
+      // ambiguous under jsdom (both desktop table and mobile card list render simultaneously).
+      const excludeCheckbox = screen.getAllByRole('checkbox', {
         name: 'Exclude Overpaid deposit from report',
-      });
+      })[0]!;
       await user.click(excludeCheckbox);
 
       await waitFor(
@@ -1315,8 +1320,10 @@ describe('ReportWizardPage', () => {
         '[aria-controls="invoice-expand-inv-1"]',
       ) as HTMLElement;
       await user.click(expandButton);
+      // Desktop instance — see the "Foundation work" test in the "line exclusions" describe
+      // block above for why getAllByRole(...)[0] is required here.
       await user.click(
-        screen.getByRole('checkbox', { name: 'Exclude Foundation work from report' }),
+        screen.getAllByRole('checkbox', { name: 'Exclude Foundation work from report' })[0]!,
       );
       await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), {
         timeout: 2000,
@@ -1351,8 +1358,9 @@ describe('ReportWizardPage', () => {
         '[aria-controls="invoice-expand-inv-1"]',
       ) as HTMLElement;
       await user.click(expandButton);
+      // Desktop instance — same dual-DOM ambiguity as above.
       await user.click(
-        screen.getByRole('checkbox', { name: 'Exclude Foundation work from report' }),
+        screen.getAllByRole('checkbox', { name: 'Exclude Foundation work from report' })[0]!,
       );
 
       // With the sole invoice excluded, excludedInvoiceIds.size === report.invoices.length,
