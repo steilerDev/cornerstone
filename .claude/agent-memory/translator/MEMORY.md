@@ -13,6 +13,7 @@
 - Namespaces: areas, auth, budget, common, dashboard, diary, documents, errors, householdItems, photoAnnotator, photoViewer, schedule, settings, workItems
 - Preserve `{{variable}}` interpolation placeholders exactly
 - Preserve `_one` / `_other` pluralization suffixes
+- **Always verify persistence before reporting done**: after Edit tool calls, run `git diff --stat <file>` and confirm it shows non-zero changes (plus a JSON-parse assertion of the new keys) BEFORE writing the final summary. A prior session (story #1900, `sourceReports.editable` in `de/budget.json`) reported a successful edit that had in fact not persisted — `git diff` was empty and the file was byte-identical to `beta`, requiring a full re-do. Root cause unconfirmed (possibly a worktree/session state issue), but the fix is cheap: never trust an Edit tool "success" response alone as proof of a persisted change — always re-verify with git diff before the final report.
 - Detailed per-issue translation rationale from 2026 H1 (before Issue #1812) has been moved to [history-2026-h1.md](history-2026-h1.md) to keep this file within the 200-line budget
 
 ## Key Terminology (from glossary)

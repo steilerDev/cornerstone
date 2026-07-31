@@ -4,7 +4,6 @@
 
 export interface ReportPdfOptions {
   attachDocuments: boolean;
-  includeCoverLetter: boolean;
 }
 
 export interface GeneratedReport {

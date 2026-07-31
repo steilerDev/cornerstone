@@ -212,7 +212,7 @@ APPROVED (2 medium, 3 low). Architecture verified sound; see `client-pdf-pipelin
 locale-decoupling contract this established.
 
 - **M1**: `reportLanguage` seeded once via `useState(resolvedLocale)`. `LocaleContext.syncWithServer`
-  sets `resolvedLocale` *asynchronously* after auth AND deletes the `locale` localStorage key when
+  sets `resolvedLocale` _asynchronously_ after auth AND deletes the `locale` localStorage key when
   the server has a preference -- so every load starts at `detectBrowserLocale()` and flips later.
   Any component seeding state from `resolvedLocale` at mount has this bug. **Reusable review check:
   never `useState(resolvedLocale)` / `useState(currency)` / `useState(vatRate)` without a
@@ -224,3 +224,28 @@ locale-decoupling contract this established.
   filename AC vacuously satisfied (ISO date + raw enum, nothing locale-dependent -- flag to PO).
 - CI: Quality Gates green; E2E shard 5/16 red (known recurring flake in this wizard area -- must be
   triaged before beta->main, not before the beta merge).
+
+## PR #1909 — Story #1900 editable HTML report preview (REQUEST-CHANGES, 2026-07-31)
+
+Posted as a `gh pr comment` with an explicit `**Verdict:**` line — `gh pr review --request-changes` is
+rejected on a self-authored PR.
+
+Approved as designed: the `reportContent/` content-model split (see [[client-pdf-pipeline]]), pure
+`applyOverrides`, `guardedUpdate` discard flow, and the `realRender.test.ts` override→rendered-PDF chain
+(the strongest test file in the repo — real pdfmake, real en/de bundles, field-isolation test).
+
+Blockers, all in the presentation layer:
+
+- **B1/B2** `EditableField.module.css` styled the field through `:global(.input)` — dead under hashed
+  CSS Modules, and 13 stylelint errors turned `Static Analysis` red. Edited-dot was permanently
+  `opacity: 0`. See [[recurring-patterns]].
+- **B3** `ReportContentEditor` got the chrome `t` instead of `reportT` → preview in UI locale, PDF in
+  report language (AC #5). Also made `ReportContentRow.statusText` dead — the Badge label came from the
+  chrome-locale variant map instead.
+- **B4** `var(--color-refund-text)` in an inline `style={{}}` — token defined nowhere, refund highlight
+  silently dead. Sibling `ReportInvoiceList.module.css` `.refund` is the correct pattern.
+- **B5** `field: 'usage'` / `'attachmentsNote'` raw identifiers interpolated into a translated aria-label.
+
+Lesson worth repeating: 407 green tests, and the three highest-severity defects were all "the code runs
+but does nothing" — dead CSS selector, undefined token, wrong `t`. None are catchable by assertions on DOM
+presence. Read the CSS and trace which `t` each consumer receives.

@@ -1,40 +1,32 @@
 /**
  * Cover letter PDF content builder.
+ * Consumes ReportContent.coverLetter (text only); no data derivation.
  */
 import type { TFunction } from 'i18next';
 import type { Content } from 'pdfmake/build/pdfmake';
-import type { SourceReportResponse, HouseholdSettings } from '@cornerstone/shared';
-import type { Formatters } from '../formatters.js';
+import type { ReportContent } from '../reportContent/index.js';
 
-export function buildCoverLetterContent(
-  report: SourceReportResponse,
-  household: HouseholdSettings | null,
-  useCase: string,
-  t: TFunction,
-  formatters?: Formatters,
-  includedTotal?: number,
-): Content[] {
-  const today =
-    formatters?.formatDate(new Date().toISOString().slice(0, 10)) ??
-    new Date().toISOString().slice(0, 10);
-
+export function buildCoverLetterContent(reportContent: ReportContent, t: TFunction): Content[] {
   const content: Content[] = [];
+  const coverLetter = reportContent.coverLetter;
+
+  if (!coverLetter) {
+    return content;
+  }
 
   // Sender block
-  if (household?.householdName || household?.householdAddress) {
+  if (coverLetter.sender) {
     content.push({
-      stack: [
-        household?.householdName ? { text: household.householdName, style: 'normal' } : null,
-        household?.householdAddress ? { text: household.householdAddress, style: 'normal' } : null,
-      ].filter(Boolean) as Content[],
+      text: coverLetter.sender,
+      style: 'normal',
       margin: [0, 0, 0, 20],
     });
   }
 
   // Recipient block
-  if (report.source.contactAddress) {
+  if (coverLetter.recipient) {
     content.push({
-      text: report.source.contactAddress,
+      text: coverLetter.recipient,
       style: 'normal',
       margin: [0, 0, 0, 20],
     });
@@ -42,41 +34,37 @@ export function buildCoverLetterContent(
 
   // Date
   content.push({
-    text: today,
+    text: coverLetter.dateLine,
     margin: [0, 0, 0, 20],
   });
 
   // Reference line
-  if (report.source.reference) {
+  if (coverLetter.reference) {
     content.push({
-      text: `${t('sourceReports.coverLetter.reference')}: ${report.source.reference}`,
+      text: `${t('sourceReports.coverLetter.reference')}: ${coverLetter.reference}`,
       style: 'small',
       margin: [0, 0, 0, 20],
     });
   }
 
   // Subject line
-  const subject = t(`sourceReports.coverLetter.subject.${useCase}`);
   content.push({
-    text: `${t('sourceReports.coverLetter.subjectLabel')}: ${subject}`,
+    text: `${t('sourceReports.coverLetter.subjectLabel')}: ${coverLetter.subject}`,
     style: 'normal',
     margin: [0, 0, 0, 20],
   });
 
   // Body text
-  const bodyKey = `sourceReports.coverLetter.body.${useCase}`;
-  const total = formatters?.formatCurrency(includedTotal ?? 0) ?? '';
-  const body = t(bodyKey, { total });
   content.push({
-    text: body,
+    text: coverLetter.body,
     style: 'normal',
     margin: [0, 0, 0, 20],
   });
 
   // Signature
-  if (household?.householdName) {
+  if (coverLetter.signature) {
     content.push({
-      text: household.householdName,
+      text: coverLetter.signature,
       style: 'normal',
       margin: [0, 40, 0, 0],
     });

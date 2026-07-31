@@ -1,0 +1,108 @@
+/**
+ * EditableField styles — always-visible input with edited indicator and reset button.
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+.container label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.fieldWrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+
+/* Compose shared input/textarea styles and apply EditableField-specific styles */
+.field {
+  composes: input from '../../styles/shared.module.css';
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid transparent;
+  transition:
+    background-color var(--transition-normal),
+    border-color var(--transition-normal);
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--spacing-1) var(--spacing-2);
+}
+
+.fieldTextarea {
+  composes: textarea from '../../styles/shared.module.css';
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid transparent;
+  transition:
+    background-color var(--transition-normal),
+    border-color var(--transition-normal);
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--spacing-1) var(--spacing-2);
+}
+
+/* Hover state */
+.field:hover,
+.fieldTextarea:hover {
+  background-color: var(--color-bg-secondary);
+}
+
+/* Focus state */
+.field:focus,
+.fieldTextarea:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+.field:focus {
+  box-shadow: var(--shadow-focus-subtle);
+}
+
+.fieldTextarea:focus {
+  box-shadow: var(--shadow-focus);
+}
+
+/* Edited indicator dot */
+.editedDot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 0.375rem;
+  height: 0.375rem;
+  background-color: var(--color-primary);
+  border-radius: 50%;
+  opacity: 1;
+}
+
+/* Reset button */
+.resetButton {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: var(--spacing-2-5);
+  margin: calc(var(--spacing-2-5) * -1);
+  font-size: var(--font-size-base);
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resetButton:hover {
+  color: var(--color-text-primary);
+}
+
+.resetButton svg {
+  width: 100%;
+  height: 100%;
+}

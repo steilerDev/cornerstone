@@ -22,14 +22,14 @@ the "right" pattern for Fastify+better-sqlite3 integration suites (freeze only `
 route on every request, throttled to once per real calendar day per process). Freezing `Date` in
 one test causes `ensureDailyReschedule` to compute `today` from the frozen clock and write that
 frozen value into the shared `lastRescheduleDate` gate. The clock is restored after the test, but
-the gate is left desynced from the real date — so the *next* test in the file sees
+the gate is left desynced from the real date — so the _next_ test in the file sees
 `lastRescheduleDate !== realToday` and triggers an unwanted **real** `autoReschedule()` pass
 against its own (otherwise-unrelated) database. In this case it broke the very next test
 (`'returns projectedDate: null when all linked work items have null endDate'`), which uses an
 `in_progress` item with no endDate — Rule 3's in_progress end-date floor kicked in via the
 unwanted autoReschedule pass and persisted `endDate = today` to that test's DB row, turning a
 previously-passing `null` assertion into a failure. Confirmed via `git stash` + full-suite run
-that the *original* file only had one failure — the second one was self-inflicted by the
+that the _original_ file only had one failure — the second one was self-inflicted by the
 fake-timers fix.
 
 Diagnosed by adding temporary `console.error` debug lines directly into
@@ -58,12 +58,12 @@ path into `schedulingEngine.ts`'s module-level reschedule gate.
 ## Future-drift risks found elsewhere (NOT fixed — not currently failing, out of scope per task)
 
 - `server/src/services/householdItemDepService.test.ts` (~line 270-282), test `'creates a
-  work_item dependency with default FS type and 0 lag'`: not_started work item with
+work_item dependency with default FS type and 0 lag'`: not_started work item with
   `endDate: '2027-06-15'` (no startDate/durationDays) asserted verbatim after `createDep()` calls
   `autoReschedule()`. Safe only while `2027-06-15 >= today`. MEDIUM risk (~10-11 months out as of
   2026-07-31).
 - `server/src/routes/schedule.test.ts` (~line 767-786), test `'should apply startAfter hard
-  constraint when scheduling'`: not_started item with `startAfter: '2027-06-01'`, asserts CPM
+constraint when scheduling'`: not_started item with `startAfter: '2027-06-01'`, asserts CPM
   output `scheduledStartDate` equals that literal. Safe only while `2027-06-01 >= today`. MEDIUM
   risk.
 - Everything else audited (schedulingEngine*.test.ts — `today` is an injected param, immune;

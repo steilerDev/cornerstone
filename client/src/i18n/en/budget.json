@@ -1162,6 +1162,8 @@
     "errorLoadingData": "Failed to load report data",
     "errorLoadingReport": "Failed to load report",
     "previewGenerationFailed": "PDF generation failed",
+    "downloadFailed": "Failed to generate the PDF for download.",
+    "loadingPreview": "Generating preview…",
     "previewRegenerating": "Regenerating preview…",
     "pdfPreviewTitle": "Report PDF preview",
     "hasAttachment": "Document attached",
@@ -1174,6 +1176,7 @@
     "subNavAriaLabel": "Budget section navigation",
     "coverLetter": {
       "subjectLabel": "Subject",
+      "dateLabel": "Date",
       "reference": "Reference",
       "subject": {
         "budget-overview": "Project Budget Overview",
@@ -1185,6 +1188,26 @@
         "claim": "We are submitting a claim for invoices totaling {{total}}.",
         "proof-of-funds": "Please find attached proof of funds totaling {{total}}."
       }
+    },
+    "editable": {
+      "senderLabel": "Sender",
+      "recipientLabel": "Recipient",
+      "referenceLabel": "Reference",
+      "subjectLabel": "Subject",
+      "bodyLabel": "Body",
+      "attachmentsNoteLabel": "Attachments Note",
+      "usageTextAriaLabel": "Usage text for {{vendor}}, {{invoiceNumber}}",
+      "attachmentsNoteAriaLabel": "Attachments note for {{vendor}}, {{invoiceNumber}}",
+      "editedSuffix": " (edited)",
+      "resetFieldAriaLabel": "Reset {{field}} to generated text",
+      "previewPdf": "Preview PDF",
+      "previewModalTitle": "PDF Preview",
+      "discardConfirmTitle": "Discard your edits?",
+      "discardConfirmBody": "Changing this will regenerate the report content and your edits will be lost.",
+      "discardAndContinue": "Discard and Continue",
+      "keepEditing": "Keep Editing",
+      "coverLetterHeading": "Cover Letter",
+      "tableHeading": "Report Table"
     },
     "table": {
       "title": {

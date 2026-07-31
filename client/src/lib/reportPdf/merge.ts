@@ -3,12 +3,8 @@
  */
 import type { TFunction } from 'i18next';
 import type { Content } from 'pdfmake/build/pdfmake';
-import type {
-  SourceReportResponse,
-  SourceReportType,
-  HouseholdSettings,
-} from '@cornerstone/shared';
-import type { Formatters } from '../formatters.js';
+import type { SourceReportResponse } from '@cornerstone/shared';
+import type { ReportContent } from '../reportContent/index.js';
 import { loadPdfLibs } from './loader.js';
 import { buildPageHeader, buildPageFooter } from './shared.js';
 import { buildCoverLetterContent } from './coverLetterPdf.js';
@@ -19,11 +15,9 @@ import { getDocumentPreviewUrl } from '../paperlessApi.js';
 export async function generateReportPdf(
   report: SourceReportResponse,
   includedInvoiceIds: Set<string>,
-  useCase: SourceReportType,
-  options: { attachDocuments: boolean; includeCoverLetter: boolean },
-  household: HouseholdSettings | null,
+  reportContent: ReportContent,
+  options: { attachDocuments: boolean },
   t: TFunction,
-  formatters?: Formatters,
 ): Promise<GeneratedReport> {
   const { pdfMake, PDFDocument } = await loadPdfLibs();
   const skippedDocuments: SkippedDocument[] = [];
@@ -95,35 +89,14 @@ export async function generateReportPdf(
     skippedByInvoice.get(skip.invoiceId)!.push(skip.reason);
   }
 
-  // Calculate included total (respects exclusions and sign)
-  const includedTotal = report.invoices
-    .filter((inv) => includedInvoiceIds.has(inv.invoiceId))
-    .reduce((sum, inv) => sum + inv.allocatedAmount, 0);
-
   const content: Content[] = [];
 
-  if (options.includeCoverLetter) {
-    const coverLetter = buildCoverLetterContent(
-      report,
-      household,
-      useCase,
-      t,
-      formatters,
-      includedTotal,
-    );
+  if (reportContent.coverLetter) {
+    const coverLetter = buildCoverLetterContent(reportContent, t);
     content.push(...coverLetter);
   }
 
-  const overview = buildOverviewContent(
-    report,
-    includedInvoiceIds,
-    appendixByInvoiceId,
-    skippedByInvoice,
-    useCase,
-    t,
-    formatters,
-    includedTotal,
-  );
+  const overview = buildOverviewContent(reportContent, skippedByInvoice, t);
   content.push(...overview);
 
   // Step 3: Generate pdfmake document
@@ -134,8 +107,8 @@ export async function generateReportPdf(
     header: (currentPage: number) => {
       if (currentPage === 1) return null; // No header on first page
       return buildPageHeader(
-        t(`sourceReports.table.title.${useCase}`),
-        report.source.name,
+        reportContent.tableTitle,
+        reportContent.sourceInfo.sourceName,
         t('sourceReports.table.generatedAt'),
       );
     },

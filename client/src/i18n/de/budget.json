@@ -1162,6 +1162,8 @@
     "errorLoadingData": "Berichtsdaten konnten nicht geladen werden",
     "errorLoadingReport": "Bericht konnte nicht geladen werden",
     "previewGenerationFailed": "PDF-Erstellung fehlgeschlagen",
+    "downloadFailed": "Die PDF-Datei für den Download konnte nicht erstellt werden.",
+    "loadingPreview": "Vorschau wird erstellt…",
     "previewRegenerating": "Vorschau wird aktualisiert…",
     "pdfPreviewTitle": "Berichts-PDF-Vorschau",
     "hasAttachment": "Dokument angehängt",
@@ -1174,6 +1176,7 @@
     "subNavAriaLabel": "Budget-Abschnittsnavigation",
     "coverLetter": {
       "subjectLabel": "Betreff",
+      "dateLabel": "Datum",
       "reference": "Referenz",
       "subject": {
         "budget-overview": "Budgetübersicht unseres Bauprojekts",
@@ -1185,6 +1188,26 @@
         "claim": "Hiermit reichen wir Rechnungen in Höhe von insgesamt {{total}} zur Erstattung ein.",
         "proof-of-funds": "Anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
       }
+    },
+    "editable": {
+      "senderLabel": "Absender",
+      "recipientLabel": "Empfänger",
+      "referenceLabel": "Referenz",
+      "subjectLabel": "Betreff",
+      "bodyLabel": "Brieftext",
+      "attachmentsNoteLabel": "Anhangshinweis",
+      "usageTextAriaLabel": "Verwendungstext für {{vendor}}, {{invoiceNumber}}",
+      "attachmentsNoteAriaLabel": "Anhangshinweis für {{vendor}}, {{invoiceNumber}}",
+      "editedSuffix": " (bearbeitet)",
+      "resetFieldAriaLabel": "{{field}} auf generierten Text zurücksetzen",
+      "previewPdf": "PDF-Vorschau anzeigen",
+      "previewModalTitle": "PDF-Vorschau",
+      "discardConfirmTitle": "Ihre Bearbeitungen verwerfen?",
+      "discardConfirmBody": "Dadurch wird der Berichtsinhalt neu generiert und Ihre Bearbeitungen gehen verloren.",
+      "discardAndContinue": "Verwerfen und Fortfahren",
+      "keepEditing": "Weiter bearbeiten",
+      "coverLetterHeading": "Anschreiben",
+      "tableHeading": "Berichtstabelle"
     },
     "table": {
       "title": {

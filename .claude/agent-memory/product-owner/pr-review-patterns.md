@@ -80,7 +80,7 @@ When a PR adds a mobile card list beside a desktop table, re-check rather than a
 - **Duplicate fetch logic** — `useEffect` fetch body duplicated for re-fetch after delete; extract shared fetch.
 - **Dead placeholder pages after route refactor** — PR #150 left old BudgetPage after swapping to BudgetCategoriesPage. Delete orphans.
 - **COOKIE_NAME duplication** — triplicated across `plugins/auth.ts`, `routes/auth.ts`, `routes/oidc.ts`. Extract to shared constant.
-- **`useState(contextValue)` seeding from LocaleContext/ThemeContext is stale-prone** — `useState(resolvedLocale)` only runs its initializer on first render, but `LocaleContext.syncWithServer` (fired from `App.tsx`'s `LocaleServerSync` after auth) applies the server-stored locale *asynchronously* AND clears `localStorage`, so every later hard load starts at the browser-detected locale before flipping. Any page seeding state from `resolvedLocale`/`currency`/`vatRate` at mount can capture the pre-sync value and never correct. Fix pattern: `const [override, setOverride] = useState<T | null>(null); const value = override ?? contextValue;` — default tracks context, explicit choice sticks. Found in PR #1903 (AC "defaults to my current UI locale"). Same class of bug applies to `ThemeContext.syncWithServer`.
+- **`useState(contextValue)` seeding from LocaleContext/ThemeContext is stale-prone** — `useState(resolvedLocale)` only runs its initializer on first render, but `LocaleContext.syncWithServer` (fired from `App.tsx`'s `LocaleServerSync` after auth) applies the server-stored locale _asynchronously_ AND clears `localStorage`, so every later hard load starts at the browser-detected locale before flipping. Any page seeding state from `resolvedLocale`/`currency`/`vatRate` at mount can capture the pre-sync value and never correct. Fix pattern: `const [override, setOverride] = useState<T | null>(null); const value = override ?? contextValue;` — default tracks context, explicit choice sticks. Found in PR #1903 (AC "defaults to my current UI locale"). Same class of bug applies to `ThemeContext.syncWithServer`.
 
 ## Chore/Maintenance PR patterns
 
@@ -88,6 +88,17 @@ When a PR adds a mobile card list beside a desktop table, re-check rather than a
 - Always verify PR description claims match the actual diff. PR #316 claimed MEMORY.md/SKILL.md changes not in the diff.
 - Function removal (e.g. formatDeadline) can leave double blank lines that Prettier flags.
 - Shared CSS utilities: `client/src/styles/shared.module.css` (`composes:`). Shared formatting: `client/src/lib/formatters.ts`.
+
+## CSS Modules / styling defects (recurring)
+
+- **`:global(.someClass)` targeting another CSS module's class is ALWAYS dead CSS.** `client/webpack.config.cjs` sets `localIdentName: '[local]_[hash:base64:5]'` (prod) / `'[name]__[local]--[hash]'` (dev), so `sharedStyles.input` renders as `input_aB3xY`. `:global(.input)` compiles to a literal `.input` selector that matches nothing — and there is no global (non-module) `.input`/`.textarea` rule anywhere in `client/src`. Correct pattern is a local class with `composes: input from '../../styles/shared.module.css';`. Stylelint also rejects it (`selector-pseudo-class-no-unknown`). Found in PR #1909 `EditableField.module.css` — the whole approved field treatment (at-rest tint, hover, focus-ring split, `width:100%`, dense padding) silently never applied. **Grep new `.module.css` for `:global(` — no other file in the repo uses it.**
+- **Reimplemented visually-hidden utility** — `shared.module.css:455` already has `.srOnly` with modern `clip-path: inset(50%)`. Hand-rolled copies use the deprecated `clip: rect(...)` and trip Stylelint `property-no-deprecated`. PR #1909.
+- **Stylelint is a REQUIRED gate inside `Static Analysis`** (step 8, before Build). A red `Static Analysis` on a CSS-touching PR is almost always token adherence (`declaration-property-value-disallowed-list`, e.g. bare `font-weight: 500`) — this is a direct AC violation whenever the story has a "design tokens only" criterion. Check `gh api repos/.../actions/jobs/<id> --jq '.steps[]'` to see which step failed; `--log-failed` returns nothing while the run is still in progress.
+
+## i18n defects (recurring)
+
+- **Raw English identifiers interpolated into translated strings.** `t('...resetFieldAriaLabel', { field: 'attachmentsNote' })` renders in German as "attachmentsNote auf generierten Text zurücksetzen". Key parity checks pass; the defect is in the _interpolation value_, not the key. Always inspect what is passed into `{{...}}` placeholders, especially for aria-labels (user-facing to screen readers → counts against "every new string resolves in en and de"). PR #1909.
+- **Key-echoing `t` mocks hide this entirely** — a mock like `(key, opts) => opts ? key+JSON.stringify(opts) : key` accepts raw literals happily. Compensating control worth asking for: a real-bundle render test with a leaked-key regex — but check the regex covers ALL namespaces used, not just the feature's own prefix (PR #1909's `/^sourceReports\./` missed `sources.lines.invoiceStatus.*`).
 
 ## When to Request Changes vs Approve
 

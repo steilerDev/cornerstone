@@ -124,3 +124,30 @@ These are settled — build on them, don't re-litigate:
 - "Remaining Amount" in the invoice list stays **itemization-based** (amount − Σ budget lines) and was deliberately left unchanged. Different question from "how much is still to pay" — do not merge the two.
 
 Related: [[glossary-decisions]] (the `Refund` term), [[standalone-bugs-and-stories]].
+
+## Locale layering: artifact content vs. edit affordance (#1899, #1900 — settled)
+
+The wizard has **two independent locales** and the split is deliberate. Do not "fix" the resulting
+mixed-language UI — it was proposed as a change request on PR #1909 and ruled ACCEPTED.
+
+- **Artifact content follows the report language.** Anything that will appear in the exported PDF —
+  table captions, cover-letter text, status text, source-info block, footnotes, summary labels —
+  renders in the user-selected report language. This is what makes the preview genuinely WYSIWYG.
+- **Edit affordances follow the UI language.** Editable-field labels, buttons, headings, aria-labels
+  — chrome that never reaches the PDF — stay in the user's UI locale, so someone who picks a report
+  language they don't read can still operate the editor.
+
+Consequence: a mobile card (and the cover-letter card) legitimately shows report-language captions
+next to UI-language field labels. Forcing consistency costs either WYSIWYG fidelity or editor
+usability; both are worse. No AC requires single-language cards.
+
+**Single source of labels**: `buildReportContent` emits `ReportContent.labels` using `reportT`
+(`i18n.getFixedT(reportLanguage, 'budget')`), consumed by BOTH `ReportContentEditor` and
+`reportPdf/overviewPdf`. Added in #1900 to fix the preview/export mismatch the architect flagged.
+Any new report label must go through `content.labels`, never a direct `t()` in either consumer —
+a direct `t()` reintroduces the mismatch silently.
+
+**Known gap, tracked as #1910**: report-language content carries no `lang` attribute, so screen
+readers announce it with UI-locale pronunciation. Applies to the whole preview, predates #1900.
+
+Related: [[pr-review-patterns]].

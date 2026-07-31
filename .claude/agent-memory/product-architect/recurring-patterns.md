@@ -20,7 +20,7 @@ bug once (PR #401).
 
 ## SQLite: XOR CHECK is incompatible with ON DELETE SET NULL (bug #611)
 
-SQLite enforces CHECK constraints *during* the FK SET NULL action. Given
+SQLite enforces CHECK constraints _during_ the FK SET NULL action. Given
 `CHECK((a IS NOT NULL AND b IS NULL) OR (b IS NOT NULL AND a IS NULL))` plus `ON DELETE SET NULL` on `a`,
 deleting the referenced row fires SET NULL, which then violates the XOR CHECK and aborts.
 **Use ON DELETE CASCADE instead.** This is why `invoice_budget_lines` (ADR-018) cascades.
@@ -47,3 +47,48 @@ Not bugs, but do not let them become the copied pattern:
 
 - `getAllMilestones`: per-row `countLinkedWorkItems` + `getCreatedByUser`
 - `sourceReportService.getSourceReport` steps d/j: per-invoice deposit fetch + per-Rail-B-invoice vendor lookup (PR #1894 M1)
+
+## CSS Modules: `:global(.x)` never matches another module's class (PR #1909, B1)
+
+`client/webpack.config.cjs` hashes every module class (`localIdentName: '[local]_[hash:base64:5]'` prod /
+`'[name]__[local]--[hash:base64:5]'` dev). So `sharedStyles.input` renders as `input_aB3xY`, and a rule like
+
+```css
+.container :global(.input) { ... }   /* DEAD -- matches a literal class "input" that never exists */
+```
+
+silently applies to nothing. It also trips stylelint's `selector-pseudo-class-no-unknown`, which is how it
+surfaces (as a lint failure, masking the real defect). **The fix is always `composes:`** on a plain local
+class — `composes: input from '../../styles/shared.module.css';` — then use the local class in the TSX.
+That is a _different_ construct from `composes` used _inside_ a `:global` block, which is the separate,
+genuinely-illegal form. `ReportContentEditor.module.css` (`composes: badge from '../Badge/Badge.module.css'`)
+is the correct in-repo template.
+
+Review heuristic: any `:global(` in a `*.module.css` referencing a class the component gets from a
+`*.module.css` import is dead code. Grep for it. Corollary — CSS is untested under jsdom
+(identity-obj-proxy), so a `.editedDot { opacity: 0 }` whose show-rule never matches passes a green suite
+that only asserts DOM presence. Visibility assertions belong in E2E.
+
+**The E2E guard shape that actually catches this** (`reportWizardEditableContent.spec.ts` Scenario 13, PR
+#1909 round 2): resolve the token through a throwaway probe element in the page, then compare it to the
+target's computed value — don't hardcode an rgb string (theme-fragile) and don't just assert "not
+transparent" (passes on the page background).
+
+```js
+const probe = document.createElement('div');
+probe.style.backgroundColor = 'var(--color-bg-tertiary)';
+document.body.appendChild(probe);
+const resolved = getComputedStyle(probe).backgroundColor; // compare against the real element
+```
+
+Ask for this whenever a CSS-Modules composition bug is the thing being fixed — it is falsifiable against a
+real webpack build (class hashing included) and is the only test class that fails on dead CSS.
+
+## Stylelint gates CI, and inline `style={{}}` escapes it
+
+`npm run lint` = `eslint . && npm run stylelint`, and the CI `Static Analysis` job runs Stylelint as its own
+step — a stylelint error is a hard beta-PR blocker. But `stylelint` only globs `client/src/**/*.css`, so
+**inline `style={{ color: 'var(--nonexistent-token)' }}` in TSX is completely unchecked**. PR #1909 shipped
+`var(--color-refund-text)`, a token defined nowhere; the declaration is invalid-at-computed-value and the
+styling silently does nothing. When reviewing client code, grep every `var(--…)` appearing inside a `.tsx`
+against `client/src/styles/tokens.css`, and push the value into a CSS Module class instead.

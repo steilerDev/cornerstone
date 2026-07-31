@@ -8,8 +8,9 @@
  *   3. Select Invoices (`ReportInvoiceList.tsx`)
  *   4. Settings (`Step4Settings.tsx`) — NEW: report-language radio group + the
  *      attach-documents/cover-letter toggles (moved here from the old step 4)
- *   5. Preview & Export (`Step5Actions.tsx` + `ReportPdfPreview.tsx`) — unchanged content,
- *      renamed/renumbered from the old step 4
+ *   5. Preview & Export (`Step5Actions.tsx` + `ReportContentEditor.tsx`) — renamed/renumbered
+ *      from the old step 4; REWORKED again by Story #1900 into an editable HTML surface with
+ *      on-demand PDF generation (see the step-5 bullet below for the full detail)
  *
  * The page renders:
  * - An h1 "Bank Reports" page title (PageLayout)
@@ -56,15 +57,89 @@
  *   `#attachDocuments`/`#includeCoverLetter` checkboxes that used to live on the old step 4 —
  *   same DOM ids, just relocated. This step has NO preview iframe — `ReportPdfPreview` is only
  *   mounted on step 5, so preview state changes triggered here (including a report-language
- *   change, which regenerates the PDF via a fixed-locale `t`/formatters pair independent of the
- *   app's own UI language) are only OBSERVABLE once you advance to step 5 and call
- *   `waitForPreviewReady()`/`waitForPreviewRegenerated()` there.
- * - Step 5 (`Step5Actions.tsx` + `ReportPdfPreview.tsx`, renamed/renumbered from the old step
- *   4): action buttons (Download PDF / Mark N invoices as claimed / Finish without marking /
- *   Upload to Paperless — all via correctly-resolving `sourceReports.*` keys), and
- *   `iframe[title="Report PDF preview"]` with a `[class*="pdfLoadingOverlay"]` spinner shown
- *   while `aria-busy="true"` on `[class*="pdfPreviewWrapper"]`.
- * - Claim confirmation modal: `role="dialog"` (name "Mark Invoices as Claimed?").
+ *   change) are only OBSERVABLE once you advance to step 5 — as of Story #1900, that no longer
+ *   means calling a `waitForPreview*` helper: `reportLanguage` now only feeds the CLIENT-SIDE
+ *   editable content (`ReportContentEditor.tsx`'s live field VALUES, e.g. `letterField('subject')`),
+ *   reactively and without any PDF generation; a PDF is only produced on-demand via
+ *   `openPdfPreviewModal()`/`download()`/`clickUploadToPaperless()`.
+ * - Step 5 (`Step5Actions.tsx` + `ReportContentEditor.tsx`, renamed/renumbered from the old step
+ *   4) — REWORKED by Story #1900 from an always-present auto-regenerating PDF iframe into an
+ *   editable HTML surface with ON-DEMAND PDF generation:
+ *   - `ReportContentEditor.tsx` renders the effective (overrides-applied) report content as
+ *     live, always-editable `EditableField` inputs (`client/src/components/EditableField/`) —
+ *     NOT click-to-edit. A cover letter card (`[class*="coverLetterCard"]`, only when
+ *     `content.coverLetter` is non-null) with visibly-labelled fields (`getByLabel('Sender'
+ *     |'Recipient'|'Reference'|'Subject'|'Body')` — `Recipient`/`Reference` only when their
+ *     underlying value is non-null) plus a read-only `dateLine`, followed by a `<table
+ *     class*="table">` inside `[class*="tableWrapper"]` (the ONLY `<table>` inside that
+ *     wrapper — `.summaryTable` is a separate sibling table outside it, so scoping via the
+ *     wrapper avoids the shared "table" class-substring collision) with one row per invoice:
+ *     read-only vendor/invoiceNumber/date/status-badge/amounts cells, plus a dense (unlabelled)
+ *     `usageText` `EditableField` (accessible name `Usage text for {{vendor}},
+ *     {{invoiceNumber}}` — `sourceReports.editable.usageTextAriaLabel`) and, only when
+ *     `row.attachmentsNote !== null`, an `attachmentsNote` `EditableField` (`Attachments note
+ *     for {{vendor}}, {{invoiceNumber}}`). Each `EditableField` shows a `[class*="editedDot"]`
+ *     indicator (a DOM SIBLING of the input within `[class*="fieldWrapper"]`, conditionally
+ *     MOUNTED not just opacity-toggled — see `hasEditedIndicator`) and a `[class*="resetButton"]`
+ *     (a DOM SIBLING of `fieldWrapper` itself, one level further up — see `resetField`) only
+ *     while that specific field `isEdited`.
+ *   - **Fixed (#1904)**: below 767px, the desktop `<table>` (`display:none` under the
+ *     breakpoint) is replaced by a mobile-card fallback — `[class*="mobileCardList"]`, a
+ *     DIRECT CHILD `[class*="mobileCard"]` per invoice (see `mobileCard()`), each containing
+ *     `[class*="mobileCardRow"]` pairs. **Round 3 markup change**: the READ-ONLY rows (Vendor,
+ *     Invoice Number, Date, Status, Invoice Amount, Allocated Amount) no longer use `<label>`
+ *     elements — they render as a `[class*="mobileCardCaption"]` span (the caption) followed by
+ *     a `[class*="mobileCardValue"]` span (the value); there is nothing to `getByLabel()` for
+ *     these. The EDITABLE rows (`usageText`/`attachmentsNote` `EditableField`s), conversely,
+ *     now DO get a real, visible `label` prop (unlike the desktop table's dense/unlabelled
+ *     copy) — see `mobileUsageField()`'s docstring for why that changes its accessible-name
+ *     lookup strategy. Both the desktop `<table>` and the mobile card list are ALWAYS in the
+ *     DOM simultaneously (CSS `display:none` toggles per viewport, same convention as the
+ *     `WizardStepper` desktop/mobile trees above) — `usageField()`/`attachmentsNoteField()`
+ *     stay correctly scoped to `contentTable` and therefore never collide with the mobile
+ *     copy, but any NEW mobile-specific locator (`mobileCard()`/`mobileUsageField()` below)
+ *     must likewise stay scoped to `mobileCardList`, or it will strict-mode-collide with the
+ *     desktop table's copy. **Follow-up bug (#1908)**: `.mobileCardList`
+ *     itself has no default `display: none` outside the `@media (max-width: 767px)` block (a
+ *     one-line CSS gap relative to the established pattern elsewhere, e.g.
+ *     `InvoiceDepositsSection.module.css`), so it is currently ALSO visible — duplicating
+ *     every row — on desktop/tablet, not just hidden as intended. Scenario 1 in
+ *     `reportWizardEditableContent.spec.ts` asserts `mobileCardList` is not visible on
+ *     desktop as a regression guard for the fix. The cover letter card has no mobile-specific
+ *     CSS at all and stays visible/usable at every width regardless of either bug.
+ *   - No auto-generation, no debounce: `Step5Actions.tsx` gained a NEW leftmost "Preview PDF"
+ *     button (`sourceReports.editable.previewPdf`) which is now the ONLY way to see rendered
+ *     PDF output on step 5 — clicking it calls `generatePdfFromContent()` fresh (always a new
+ *     `URL.createObjectURL()` blob, never memoized/skipped) and opens a wide `Modal`
+ *     (`role="dialog"`, name `sourceReports.editable.previewModalTitle` = "PDF Preview")
+ *     wrapping the UNCHANGED `ReportPdfPreview.tsx` — same `iframe[title="Report PDF
+ *     preview"]`/`[class*="pdfLoadingOverlay"]`/`[class*="pdfPreviewWrapper"]` structure as
+ *     before, just now scoped INSIDE the modal instead of permanently mounted on the page. The
+ *     modal's own close affordance is the shared `Modal` component's built-in header × button
+ *     (accessible name `common:aria.closeDialog` = "Close dialog") — `ReportWizardPage.tsx`
+ *     passes no `footer` prop to this particular `Modal` instance (no separate "Close" button).
+ *     Download PDF / Upload to Paperless are ALSO now on-demand (`generatePdfFromContent()` is
+ *     called fresh inside each handler, independent of whether the preview modal was ever
+ *     opened) — every action button disables (`Step5Actions.tsx`'s `activeAction !== null`
+ *     gate) for the duration of its own generation and re-enables once settled, regardless of
+ *     success/failure (`finally`/synchronous-clear in every handler).
+ *   - `skippedDocuments` (per-document PDF-attachment failures, e.g. an unreachable Paperless
+ *     preview URL — reason `footnoteFetchFailed`/`footnoteInvalidPdf`,
+ *     `sourceReports.table.<reason>`) render as a `[class*="skippedNote"]` block on the STEP 5
+ *     PAGE ITSELF (below `ReportContentEditor`, above `Step5Actions`) once any action has run —
+ *     NOT inside the PDF preview modal, which has no skip-note rendering of its own.
+ * - Discard-edits confirmation modal (Story #1900): `role="dialog"` (name
+ *   `sourceReports.editable.discardConfirmTitle` = "Discard your edits?"), shown whenever a
+ *   guarded step 1-4 mutation (use case, source, any invoice/line toggle, settings toggle) is
+ *   attempted while `overrides` is non-empty (`isDirty`). "Keep Editing"
+ *   (`[class*="btnSecondary"]`) closes without discarding; "Discard and Continue"
+ *   (`[class*="btnPrimary"]`) clears `overrides` THEN applies the originally-attempted change.
+ * - Claim confirmation modal: `role="dialog"` (name "Mark Invoices as Claimed?"). Structurally
+ *   never concurrent with the PDF preview modal or the discard-confirm modal (all three are
+ *   independent `showX` booleans, only one user action path opens any given one at a time) —
+ *   but if a PDF preview modal IS left open, its backdrop/overlay will intercept clicks
+ *   intended for anything underneath (including the Mark Claimed button), so always
+ *   `closePdfPreviewModal()` before triggering another modal-opening action.
  * - Claim success: `[class*="bannerSuccess"]` banner (replaces the action buttons in step 5).
  *
  * Back/Next button locators (`step2BackButton`/`step2NextButton`/`step4BackButton`/
@@ -171,12 +246,10 @@ export class ReportWizardPage {
   readonly step4BackButton: Locator;
   readonly step4NextButton: Locator;
 
-  // Step 5: Preview + actions (renamed/renumbered from the old "step 4" — Story #1899)
-  readonly previewWrapper: Locator;
-  readonly previewIframe: Locator;
-  readonly previewLoadingOverlay: Locator;
-  readonly previewErrorFallback: Locator;
-  readonly previewRetryButton: Locator;
+  // Step 5: Preview + actions (renamed/renumbered from the old "step 4" — Story #1899).
+  // Story #1900: the PDF preview is no longer permanently mounted here — see `pdfPreviewModal*`
+  // below.
+  readonly previewPdfButton: Locator;
   readonly downloadButton: Locator;
   readonly markClaimedButton: Locator;
   readonly finishWithoutMarkingButton: Locator;
@@ -186,6 +259,32 @@ export class ReportWizardPage {
   readonly claimSuccessInvoicesLink: Locator;
   readonly skippedDocumentsNote: Locator;
   readonly step5BackButton: Locator;
+
+  // Story #1900: on-demand PDF preview modal (opened by `previewPdfButton`, replaces the old
+  // always-present step-5 iframe).
+  readonly pdfPreviewModal: Locator;
+  readonly pdfPreviewModalCloseButton: Locator;
+  readonly pdfPreviewModalIframe: Locator;
+  readonly pdfPreviewModalLoadingOverlay: Locator;
+  readonly pdfPreviewModalErrorBanner: Locator;
+
+  // Story #1900: discard-edits confirmation modal (guards step 1-4 mutations while dirty).
+  readonly discardConfirmModal: Locator;
+  readonly discardConfirmKeepEditingButton: Locator;
+  readonly discardConfirmDiscardButton: Locator;
+
+  // Story #1900: editable report content (ReportContentEditor.tsx) — cover letter card + table.
+  readonly coverLetterCard: Locator;
+  // Read-only source-info block (Round 3 addition) — sits between the cover letter card and
+  // the table heading, rendering `content.labels.source`/`sourceType`/`reference`/`generatedAt`
+  // paired with `content.sourceInfo.*` values, one `<p>` per line. Scoped via `[class*=...]` so
+  // assertions against it never collide with unrelated page text (e.g. the step 2 source list).
+  readonly sourceInfoBlock: Locator;
+  readonly contentTable: Locator;
+  // Mobile-card fallback for the same content (fixed #1904; see class docstring's "Fixed
+  // (#1904)" paragraph for the dual-DOM-tree caveat, and #1908 for the desktop-visible
+  // follow-up bug).
+  readonly mobileCardList: Locator;
 
   // Claim confirm modal
   readonly claimConfirmModal: Locator;
@@ -253,11 +352,7 @@ export class ReportWizardPage {
     this.step4BackButton = this.step2BackButton;
     this.step4NextButton = this.step2NextButton;
 
-    this.previewWrapper = page.locator('[class*="pdfPreviewWrapper"]');
-    this.previewIframe = page.locator('iframe[title="Report PDF preview"]');
-    this.previewLoadingOverlay = page.locator('[class*="pdfLoadingOverlay"]');
-    this.previewErrorFallback = page.locator('[class*="pdfFallback"]');
-    this.previewRetryButton = this.previewErrorFallback.getByRole('button');
+    this.previewPdfButton = page.getByRole('button', { name: 'Preview PDF' });
     this.downloadButton = page.getByRole('button', { name: 'Download PDF' });
     // `Step5Actions.tsx` (renamed from `Step4Options.tsx` — Story #1899) correctly passes
     // `{ count: selectedInvoiceCount }` to `t('sourceReports.markClaimed')`. The regex still
@@ -271,6 +366,36 @@ export class ReportWizardPage {
     this.claimSuccessInvoicesLink = this.claimSuccessBanner.getByRole('link');
     this.skippedDocumentsNote = page.locator('[class*="skippedNote"]');
     this.step5BackButton = page.locator('[class*="buttonRow"] [class*="btnSecondary"]').last();
+
+    // Story #1900: on-demand PDF preview modal.
+    this.pdfPreviewModal = page.getByRole('dialog', { name: 'PDF Preview' });
+    this.pdfPreviewModalCloseButton = this.pdfPreviewModal.getByRole('button', {
+      name: 'Close dialog',
+    });
+    this.pdfPreviewModalIframe = this.pdfPreviewModal.locator('iframe[title="Report PDF preview"]');
+    this.pdfPreviewModalLoadingOverlay = this.pdfPreviewModal.locator(
+      '[class*="pdfLoadingOverlay"]',
+    );
+    // `FormError` (`variant="banner"`, the default) renders `[class*="banner"]` with
+    // `role="alert"` — used inside the modal only when `actionError` is set (a hard PDF
+    // generation failure, distinct from a per-document `skippedDocuments` entry).
+    this.pdfPreviewModalErrorBanner = this.pdfPreviewModal.locator('[role="alert"]');
+
+    // Story #1900: discard-edits confirmation modal.
+    this.discardConfirmModal = page.getByRole('dialog', { name: 'Discard your edits?' });
+    this.discardConfirmKeepEditingButton =
+      this.discardConfirmModal.locator('[class*="btnSecondary"]');
+    this.discardConfirmDiscardButton = this.discardConfirmModal.locator('[class*="btnPrimary"]');
+
+    // Story #1900: editable report content.
+    this.coverLetterCard = page.locator('[class*="coverLetterCard"]');
+    // The `<table>` inside `[class*="tableWrapper"]` specifically — `.summaryTable` is a
+    // separate sibling `<table>` OUTSIDE the wrapper, so scoping via the wrapper (rather than a
+    // bare `[class*="table"]`, which would also match `.summaryTable`/`.tableWrapper`
+    // themselves via substring) lands unambiguously on the row table.
+    this.sourceInfoBlock = page.locator('[class*="sourceInfoBlock"]');
+    this.contentTable = page.locator('[class*="tableWrapper"] table');
+    this.mobileCardList = page.locator('[class*="mobileCardList"]');
 
     this.claimConfirmModal = page.getByRole('dialog', { name: 'Mark Invoices as Claimed?' });
     this.claimConfirmModalBody = this.claimConfirmModal.locator('p');
@@ -521,8 +646,7 @@ export class ReportWizardPage {
   /**
    * Copy of all Content-Security-Policy violation console messages captured since this POM
    * was constructed (see `cspViolationMessages` field docstring). Exposed for tests that want
-   * to assert on it directly rather than only through `waitForPreviewReady`/
-   * `waitForPreviewRegenerated`'s implicit check.
+   * to assert on it directly rather than only through `openPdfPreviewModal`'s implicit check.
    */
   getCspViolations(): string[] {
     return [...this.cspViolationMessages];
@@ -616,64 +740,217 @@ export class ReportWizardPage {
   }
 
   /**
-   * Waits for PDF generation to settle: the loading overlay disappears, the preview iframe
-   * has a non-empty `blob:` src, AND (Story #1891 hardening) that src is proven safe — see
-   * `assertPreviewHardened`'s docstring for why the src attribute alone is not sufficient
-   * proof and why a browsing-context navigation match isn't either, in this environment. PDF
-   * generation (pdfmake + pdf-lib, both loaded via dynamic `import()`) can be slow, especially
-   * on the first call of a test (cold chunk load) — callers should pair this with
-   * `test.slow()` and rely on Playwright's default generous `expect()` timeout rather than a
-   * short custom one.
+   * Clicks "Preview PDF" (Step5Actions, the leftmost step-5 action button —
+   * `sourceReports.editable.previewPdf`) and waits for the on-demand PDF Modal to open and
+   * settle: the modal becomes visible, its loading overlay clears (best-effort — a fast,
+   * attachment-less generation can complete before the transient spinner ever has an
+   * observable "visible" window, same lesson as elsewhere in this suite — harmless if it never
+   * appears), the iframe is visible with a non-empty `blob:` src, AND (Story #1891 hardening,
+   * unaffected by this story) that src is proven safe via `assertPreviewHardened`. Story #1900
+   * replaced the old
+   * always-present, auto-regenerating step-5 iframe with this on-demand flow — every call
+   * genuinely (re)generates the PDF from the CURRENT effective content (including any
+   * unsaved field edits), there is no debounce/memoization to wait out. PDF generation
+   * (pdfmake + pdf-lib, both loaded via dynamic `import()`) can be slow, especially on the
+   * first call of a test (cold chunk load) — callers should pair this with `test.slow()` and
+   * rely on Playwright's default generous `expect()` timeout rather than a short custom one.
    */
-  async waitForPreviewReady(): Promise<void> {
-    await this.previewLoadingOverlay.waitFor({ state: 'hidden' });
-    await this.previewIframe.waitFor({ state: 'visible' });
-    const src = await this.previewIframe.getAttribute('src');
+  async openPdfPreviewModal(): Promise<void> {
+    await this.previewPdfButton.click();
+    await this.pdfPreviewModal.waitFor({ state: 'visible' });
+    await this.pdfPreviewModalLoadingOverlay.waitFor({ state: 'hidden' }).catch(() => {});
+    await this.pdfPreviewModalIframe.waitFor({ state: 'visible' });
+    const src = await this.pdfPreviewModalIframe.getAttribute('src');
     if (!src || !src.startsWith('blob:')) {
-      throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
+      throw new Error(`Expected PDF preview modal iframe src to be a blob: URL, got "${src}"`);
     }
     await this.assertPreviewHardened();
   }
 
-  /** Current preview iframe `blob:` src, for detecting a regeneration via a src change. */
+  /**
+   * Closes the PDF preview modal via its built-in header × close button (shared `Modal`
+   * component — `ReportWizardPage.tsx` passes no `footer` for this instance) and waits for it
+   * to unmount. `onClose` synchronously revokes the modal's blob URL and clears
+   * `actionError`/`modalPreviewUrl` — always close the modal before triggering another
+   * modal-opening action (e.g. Mark Claimed), since its backdrop otherwise intercepts clicks
+   * intended for the page underneath.
+   */
+  async closePdfPreviewModal(): Promise<void> {
+    await this.pdfPreviewModalCloseButton.click();
+    await this.pdfPreviewModal.waitFor({ state: 'hidden' });
+  }
+
+  /** Current PDF preview modal iframe `blob:` src — only meaningful while the modal is open. */
   async getPreviewSrc(): Promise<string> {
-    return (await this.previewIframe.getAttribute('src')) ?? '';
+    return (await this.pdfPreviewModalIframe.getAttribute('src')) ?? '';
+  }
+
+  // ─── Story #1900: editable report content (ReportContentEditor.tsx) ────────────────────────
+
+  private static readonly LETTER_FIELD_LABELS = {
+    sender: 'Sender',
+    recipient: 'Recipient',
+    reference: 'Reference',
+    subject: 'Subject',
+    body: 'Body',
+  } as const;
+
+  /**
+   * A cover-letter `EditableField` by its VISIBLE label (`sourceReports.editable.*Label`) —
+   * scoped to `coverLetterCard` so this can never collide with an unrelated "Reference" label
+   * elsewhere on the page. `recipient`/`reference` are only present in the DOM when their
+   * underlying value is non-null (see class docstring) — callers must confirm the field exists
+   * for the scenario's seed data before using it.
+   *
+   * `{ exact: true }` is REQUIRED here (fixed — shard-2 CI regression, e.g. run 30632348922):
+   * each field's `resetButton` — mounted only once that field `isEdited` — has an
+   * `aria-label="Reset {{field}} to generated text"` (`resetFieldAriaLabel`), which CONTAINS
+   * the field's own label text as a substring (e.g. "Reset Subject to generated text" contains
+   * "Subject"). `getByLabel()`'s default non-exact matching therefore strict-mode-collides the
+   * input with its own reset button the moment a test edits the field and then re-resolves this
+   * SAME locator (e.g. `expect(subject).toHaveValue(...)` after `editField(subject, ...)`) —
+   * deterministic, not flaky, and previously caught EVERY cover-letter scenario that edits a
+   * field before re-querying it (Scenario 3, 4, 15). `exact: true` matches only the full
+   * accessible name ("Subject"), never the longer reset-button string.
+   */
+  letterField(key: keyof typeof ReportWizardPage.LETTER_FIELD_LABELS): Locator {
+    return this.coverLetterCard.getByLabel(ReportWizardPage.LETTER_FIELD_LABELS[key], {
+      exact: true,
+    });
   }
 
   /**
-   * Waits for a NEW preview to be ready after an options change, proven by the iframe's
-   * `blob:` src actually changing from `previousSrc` (not merely re-reading the same URL).
-   * Deliberately does NOT assert the loading overlay becomes visible first: regeneration is
-   * debounced (400ms) then CPU-bound (pdfmake, no network I/O for attachment-less test
-   * invoices), and for trivial content that round trip can complete fast enough that the
-   * transient overlay never has an observable "visible" window for Playwright's polling to
-   * reliably catch — the established convention elsewhere in the suite
-   * (`invoice-auto-itemize-page.spec.ts`) only ever asserts the overlay's terminal hidden
-   * state, never its transient appearance, for the same reason.
+   * A specific row of the editable content table, matched by vendor name AND invoice number
+   * (mirrors `invoiceRow`'s disambiguation rationale on the step-3 `ReportInvoiceList` grid —
+   * this is a SEPARATE DOM tree, `ReportContentEditor.tsx`'s own `<table>`, not the step-3
+   * one).
    */
-  async waitForPreviewRegenerated(previousSrc: string): Promise<void> {
-    await this.previewLoadingOverlay.waitFor({ state: 'hidden' });
-    await this.previewIframe.waitFor({ state: 'visible' });
-    // Poll until the src attribute actually changes from previousSrc (a fresh regeneration can
-    // race the overlay hiding), then run the same Story #1891 hardened checks — see
-    // assertPreviewHardened's docstring — once the new src has settled.
-    await expect(async () => {
-      const src = await this.getPreviewSrc();
-      if (!src.startsWith('blob:')) {
-        throw new Error(`Expected preview iframe src to be a blob: URL, got "${src}"`);
-      }
-      if (src === previousSrc) {
-        throw new Error('Preview src has not changed yet — regeneration still pending');
-      }
-    }).toPass({ timeout: 10_000 });
-    await this.assertPreviewHardened();
+  contentTableRow(vendorName: string, invoiceNumber: string): Locator {
+    return this.contentTable
+      .locator('tbody tr')
+      .filter({ hasText: vendorName })
+      .filter({ hasText: invoiceNumber });
   }
 
+  /**
+   * The dense (unlabelled) `usageText` `EditableField` for a table row — accessible name
+   * `Usage text for {{vendor}}, {{invoiceNumber}}` (`sourceReports.editable.usageTextAriaLabel`).
+   * Playwright's default (non-`exact`) role-name matching is a substring match, so this still
+   * resolves once the field becomes edited and its accessible name gains the
+   * `sourceReports.editable.editedSuffix` (" (edited)") tail.
+   */
+  usageField(vendorName: string, invoiceNumber: string): Locator {
+    return this.contentTableRow(vendorName, invoiceNumber).getByRole('textbox', {
+      name: `Usage text for ${vendorName}, ${invoiceNumber}`,
+    });
+  }
+
+  /**
+   * The `attachmentsNote` `EditableField` for a table row — only present when
+   * `row.attachmentsNote !== null` (i.e. the invoice has linked documents). Same
+   * substring-name-matching note as `usageField`.
+   */
+  attachmentsNoteField(vendorName: string, invoiceNumber: string): Locator {
+    return this.contentTableRow(vendorName, invoiceNumber).getByRole('textbox', {
+      name: `Attachments note for ${vendorName}, ${invoiceNumber}`,
+    });
+  }
+
+  /**
+   * A single mobile-card row within `mobileCardList` (fixed #1904) — a DIRECT CHILD
+   * (`>` combinator) so this never also matches a nested `[class*="mobileCardRow"]`
+   * label/value pair, which shares the "mobileCard" class substring. Matched by vendor name
+   * AND invoice number, mirroring `contentTableRow`'s disambiguation rationale — this is a
+   * SEPARATE, always-in-DOM tree from the desktop `<table>`, not merely a hidden duplicate of
+   * the same elements (see class docstring's "Fixed (#1904)" paragraph).
+   */
+  mobileCard(vendorName: string, invoiceNumber: string): Locator {
+    return this.mobileCardList
+      .locator('> [class*="mobileCard"]')
+      .filter({ hasText: vendorName })
+      .filter({ hasText: invoiceNumber });
+  }
+
+  /**
+   * The mobile card's own `usageText` `EditableField` — as of Round 3, this DIVERGES from the
+   * desktop table's dense/unlabelled `usageField()`: the mobile-card copy now gets a real,
+   * visible `label={t('sourceReports.table.usage')}` prop ("Usage"), so `EditableField.tsx`
+   * renders an actual `<label htmlFor>` and — per its `effectiveAriaLabel` branch — suppresses
+   * `aria-label` entirely (the accessible name comes from the associated `<label>` instead, not
+   * from the vendor/invoiceNumber-specific `ariaLabel` string still passed as a prop but no
+   * longer used for naming while `label` is set). The accessible name is therefore just
+   * "Usage" — identical across every mobile card — so disambiguation between rows relies
+   * entirely on scoping via `mobileCard()` first (never query this role/name page-wide). This
+   * MUST stay scoped to a specific `mobileCard()`, both to disambiguate from other rows and to
+   * avoid strict-mode-colliding with the desktop table's differently-scoped copy (both trees
+   * are always in the DOM simultaneously).
+   */
+  mobileUsageField(vendorName: string, invoiceNumber: string): Locator {
+    return this.mobileCard(vendorName, invoiceNumber).getByLabel('Usage', { exact: true });
+  }
+
+  /** Fills an `EditableField` (input or textarea) with `value`, firing its `onChange`. */
+  async editField(field: Locator, value: string): Promise<void> {
+    await field.fill(value);
+  }
+
+  /**
+   * Whether `field`'s edited-dot indicator (`[class*="editedDot"]`) is currently in the DOM.
+   * `EditableField.tsx` CONDITIONALLY MOUNTS the dot only while `isEdited` is true (not merely
+   * opacity-toggled) — it's a DOM SIBLING of `field` within the same `[class*="fieldWrapper"]`
+   * container, reached by walking up one level then searching descendants.
+   */
+  async hasEditedIndicator(field: Locator): Promise<boolean> {
+    return (await field.locator('xpath=..').locator('[class*="editedDot"]').count()) > 0;
+  }
+
+  /**
+   * `field`'s per-field reset button (`[class*="resetButton"]`), which reverts that one field
+   * to its generated baseline value. The button is a DOM SIBLING of `field`'s
+   * `[class*="fieldWrapper"]` — one level further up than the edited dot (see
+   * `EditableField.tsx`'s `container > [label?, fieldWrapper, resetButton?]` structure) — and,
+   * like the dot, only mounted while `field` `isEdited`. Exposed separately from `resetField`
+   * (which just clicks it) so callers that need the locator itself — e.g. to measure its touch
+   * target size — don't have to duplicate the DOM traversal.
+   */
+  resetButtonFor(field: Locator): Locator {
+    return field.locator('xpath=../..').locator('[class*="resetButton"]');
+  }
+
+  /** Clicks `field`'s reset button — see `resetButtonFor`'s docstring for the DOM traversal. */
+  async resetField(field: Locator): Promise<void> {
+    await this.resetButtonFor(field).click();
+  }
+
+  // ─── Story #1900: discard-edits confirmation modal ──────────────────────────────────────────
+
+  /** "Discard and Continue" — clears all overrides then applies the originally-attempted change. */
+  async confirmDiscard(): Promise<void> {
+    await this.discardConfirmDiscardButton.click();
+    await this.discardConfirmModal.waitFor({ state: 'hidden' });
+  }
+
+  /** "Keep Editing" — closes the modal without discarding anything or applying the change. */
+  async cancelDiscard(): Promise<void> {
+    await this.discardConfirmKeepEditingButton.click();
+    await this.discardConfirmModal.waitFor({ state: 'hidden' });
+  }
+
+  // ─── Step 5: actions ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Clicks Download PDF and waits for the browser download event. Generation is on-demand
+   * (Story #1900) — after the download resolves, also waits for the button's own busy/disabled
+   * state to clear (`Step5Actions.tsx`'s `activeAction !== null` gate, cleared unconditionally
+   * once `handleDownload` settles) so callers can safely chain a further action immediately
+   * afterward without racing the still-in-flight React state update.
+   */
   async download(): Promise<Download> {
     const [download] = await Promise.all([
       this.page.waitForEvent('download'),
       this.downloadButton.click(),
     ]);
+    await expect(this.downloadButton).toBeEnabled();
     return download;
   }
 
@@ -695,7 +972,13 @@ export class ReportWizardPage {
     await this.finishWithoutMarkingButton.click();
   }
 
+  /**
+   * Clicks Upload to Paperless and waits for its own on-demand generation + upload to fully
+   * settle (busy state clears — same rationale as `download()`) before returning, so callers
+   * can immediately assert the resulting toast/side effect without a race.
+   */
   async clickUploadToPaperless(): Promise<void> {
     await this.uploadPaperlessButton.click();
+    await expect(this.uploadPaperlessButton).toBeEnabled();
   }
 }

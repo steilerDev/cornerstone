@@ -1,50 +1,29 @@
 /**
  * Unit tests for client/src/lib/reportPdf/merge.ts (generateReportPdf)
  *
- * Covers: assembly order (cover letter + overview → pdfmake doc → optional pdf-lib splice),
- * attach-off skips the pdf-lib round-trip entirely, appendix numbering in report order, and
- * the skip-and-footnote path for failed/invalid document fetches.
+ * Story #1900 REWRITE. generateReportPdf's signature dropped `useCase`, `household`, and
+ * `formatters` entirely — all text derivation now happens ONCE upstream (ReportWizardPage calls
+ * buildReportContent + applyOverrides, producing the EFFECTIVE ReportContent) and is passed in
+ * directly:
  *
- * Isolation strategy: mocks ./loader.js, ./shared.js, ./coverLetterPdf.js, ./overviewPdf.js,
- * and ../paperlessApi.js so this file tests ONLY merge.ts's own orchestration logic — not the
- * (separately tested) builder functions themselves. global.fetch is stubbed per test to control
- * per-document success/failure.
+ *   generateReportPdf(report, includedInvoiceIds, reportContent: ReportContent,
+ *     options: { attachDocuments: boolean }, t: TFunction): Promise<GeneratedReport>
  *
- * NOTE: an earlier pass of this file documented a critical bug where merge.ts read `doc.id`
- * instead of `doc.documentId` (the real SourceReportDocument field), causing the
- * skip-and-footnote path to crash instead of degrade gracefully. That was fixed in production
- * (merge.ts now reads `doc.documentId` throughout) during this same QA session — verified by
- * re-reading the file and re-running these tests. All fixtures below use the correct
- * `documentId` field and assert the now-correct, fixed behavior.
+ * `includeCoverLetter` is no longer a separate options flag — merge.ts now derives it purely from
+ * `reportContent.coverLetter !== null` (the caller already decided whether to include a cover
+ * letter when it built reportContent). buildCoverLetterContent/buildOverviewContent's own
+ * signatures shrank correspondingly (reportContent [, skippedByInvoice], t) — see
+ * coverLetterPdf.test.ts / overviewPdf.test.ts for their own coverage.
  *
- * NOTE: this file's `./loader.js` mock's `getBlob` is promise-based (`async () => new
- * Blob(...)`), matching production: merge.ts now does `await pdfDoc.getBlob()` per
- * @types/pdfmake@0.3.3's promise-returning signature (previously callback-style,
- * `getBlob((blob) => ...)`, which this mock was updated to match). This mock isolates merge.ts's
- * own orchestration from pdfmake/pdf-lib's real behavior (loader.test.ts and the new
- * realRender.test.ts exercise the real, unmocked packages end-to-end).
- *
- * NOTE: `SkippedDocument` now carries `vendorName`/`invoiceNumber` attribution (frontend fix spec
- * item 11 — footnotes and the on-screen skip list attribute each skip to its invoice) — every
- * push site in merge.ts (including the previously-silent step-4 embed catch block) populates both
- * fields from the invoice being processed. Assertions on skippedDocuments below either use
- * `expect.objectContaining` (fields incidental to the case under test) or list both fields
- * explicitly where the full array shape is asserted with `toEqual`.
- *
- * NOTE: `buildCoverLetterContent`/`buildOverviewContent` now receive two additional trailing
- * params — an optional `formatters: Formatters` object and a `includedTotal: number` computed
- * once in merge.ts from `report.invoices` filtered to `includedInvoiceIds` (respecting exclusions
- * and the refund-adjustment sign convention). Call-site assertions below were updated to include
- * both.
+ * Isolation strategy unchanged from the pre-#1900 file: mocks ./loader.js, ./shared.js,
+ * ./coverLetterPdf.js, ./overviewPdf.js, and ../paperlessApi.js so this file tests ONLY merge.ts's
+ * own orchestration logic (document fetch/embed pipeline, appendix numbering, skip tracking) — not
+ * the (separately tested) content-building functions themselves. global.fetch is stubbed per test.
  */
 import { describe, it, expect, jest, beforeEach, beforeAll } from '@jest/globals';
 import type { TFunction } from 'i18next';
-import type {
-  SourceReportResponse,
-  SourceReportInvoice,
-  HouseholdSettings,
-} from '@cornerstone/shared';
-import type { Formatters } from '../formatters.js';
+import type { SourceReportResponse, SourceReportInvoice } from '@cornerstone/shared';
+import type { ReportContent } from '../reportContent/index.js';
 import type * as MergeModule from './merge.js';
 import type * as CoverLetterPdfModule from './coverLetterPdf.js';
 import type * as OverviewPdfModule from './overviewPdf.js';
@@ -195,6 +174,38 @@ function makeReport(invoices: SourceReportInvoice[]): SourceReportResponse {
   };
 }
 
+function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
+  return {
+    isOverview: false,
+    tableTitle: 'Claim Report',
+    labels: {
+      vendor: 'Vendor',
+      invoiceNumber: 'Invoice No.',
+      date: 'Date',
+      status: 'Status',
+      invoiceAmount: 'Invoice Amount',
+      allocatedAmount: 'Allocated Amount',
+      usage: 'Usage',
+      attachmentsNote: 'Attachments Note',
+      source: 'Source',
+      sourceType: 'Source Type',
+      reference: 'Reference',
+      generatedAt: 'Generated At',
+    },
+    sourceInfo: {
+      sourceName: 'Home Loan',
+      sourceTypeText: 'Bank Loan',
+      referenceText: null,
+      generatedAtText: '01/15/2026',
+    },
+    coverLetter: null,
+    rows: [],
+    summaryRows: [],
+    footnotes: [],
+    ...overrides,
+  };
+}
+
 function okResponse(bytes: ArrayBuffer = new ArrayBuffer(4)): Response {
   return { ok: true, status: 200, arrayBuffer: async () => bytes } as unknown as Response;
 }
@@ -202,8 +213,6 @@ function okResponse(bytes: ArrayBuffer = new ArrayBuffer(4)): Response {
 function notOkResponse(status = 404): Response {
   return { ok: false, status, arrayBuffer: async () => new ArrayBuffer(0) } as unknown as Response;
 }
-
-const household: HouseholdSettings = { householdName: null, householdAddress: null };
 
 describe('generateReportPdf', () => {
   it('attach-off: never calls PDFDocument.create/copyPages, returns the pdfmake text blob as-is', async () => {
@@ -215,9 +224,8 @@ describe('generateReportPdf', () => {
     const result = await generateReportPdf(
       report,
       new Set(['inv-1']),
-      'claim',
-      { attachDocuments: false, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: false },
       t,
     );
 
@@ -228,16 +236,15 @@ describe('generateReportPdf', () => {
     expect(await result.blob.text()).toBe('TEXT_PDF');
   });
 
-  it('attach-on but no documents anywhere: still skips the pdf-lib round-trip (appendixByInvoiceId stays empty)', async () => {
+  it('attach-on but no documents anywhere: still skips the pdf-lib round-trip', async () => {
     const invoice = makeInvoice({ documents: [] });
     const report = makeReport([invoice]);
 
     const result = await generateReportPdf(
       report,
       new Set(['inv-1']),
-      'claim',
-      { attachDocuments: true, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
@@ -245,120 +252,75 @@ describe('generateReportPdf', () => {
     expect(result.skippedDocuments).toEqual([]);
   });
 
-  it('concatenates cover letter content before overview content when includeCoverLetter is true', async () => {
-    const report = makeReport([]);
-
-    await generateReportPdf(
-      report,
-      new Set(),
-      'claim',
-      { attachDocuments: false, includeCoverLetter: true },
-      household,
-      t,
-    );
-
-    // merge.ts computes includedTotal once (report has no invoices here, so it's 0) and passes it
-    // through to buildCoverLetterContent alongside the (here, unset) formatters param.
-    expect(mockBuildCoverLetterContent).toHaveBeenCalledWith(
-      report,
-      household,
-      'claim',
-      t,
-      undefined,
-      0,
-    );
-    const passedContent = (mockCreatePdf.mock.calls[0]![0] as { content: { text: string }[] })
-      .content;
-    expect(passedContent).toEqual([{ text: 'COVER_LETTER' }, { text: 'OVERVIEW' }]);
-  });
-
-  describe('includedTotal computation (frontend fix spec item 5 — grand total respects exclusions)', () => {
-    it('sums allocatedAmount across included invoices only, unconditionally (refund-adjustment lines already arrive pre-signed)', async () => {
-      const included = makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 1000 });
-      const refund = makeInvoice({
-        invoiceId: 'inv-refund',
-        lineKind: 'refund-adjustment',
-        allocatedAmount: -200,
-        invoiceAmount: 200,
+  describe('cover letter inclusion (derived from reportContent.coverLetter, no separate options flag)', () => {
+    it('concatenates cover letter content before overview content when reportContent.coverLetter is non-null', async () => {
+      const report = makeReport([]);
+      const content = makeContent({
+        coverLetter: {
+          sender: 'S',
+          recipient: null,
+          dateLine: 'D',
+          reference: null,
+          subject: 'Subj',
+          body: 'Body',
+          signature: 'S',
+        },
       });
-      const excluded = makeInvoice({ invoiceId: 'inv-excluded', allocatedAmount: 5000 });
-      const report = makeReport([included, refund, excluded]);
 
-      await generateReportPdf(
-        report,
-        new Set(['inv-1', 'inv-refund']), // excludes inv-excluded
-        'claim',
-        { attachDocuments: false, includeCoverLetter: true },
-        household,
-        t,
-      );
+      await generateReportPdf(report, new Set(), content, { attachDocuments: false }, t);
 
-      // 1000 + (-200) = 800; the excluded invoice's 5000 must never be added.
-      const coverLetterIncludedTotal = mockBuildCoverLetterContent.mock.calls[0]![5];
-      const overviewIncludedTotal = mockBuildOverviewContent.mock.calls[0]![7];
-      expect(coverLetterIncludedTotal).toBe(800);
-      expect(overviewIncludedTotal).toBe(800);
+      expect(mockBuildCoverLetterContent).toHaveBeenCalledWith(content, t);
+      const passedContent = (mockCreatePdf.mock.calls[0]![0] as { content: { text: string }[] })
+        .content;
+      expect(passedContent).toEqual([{ text: 'COVER_LETTER' }, { text: 'OVERVIEW' }]);
     });
 
-    it('passes the SAME computed includedTotal value to both buildCoverLetterContent and buildOverviewContent (computed once)', async () => {
-      const invoice = makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 333 });
-      const report = makeReport([invoice]);
+    it('omits cover letter content entirely when reportContent.coverLetter is null', async () => {
+      const report = makeReport([]);
+      const content = makeContent({ coverLetter: null });
 
-      await generateReportPdf(
-        report,
-        new Set(['inv-1']),
-        'claim',
-        { attachDocuments: false, includeCoverLetter: true },
-        household,
-        t,
-      );
+      await generateReportPdf(report, new Set(), content, { attachDocuments: false }, t);
 
-      expect(mockBuildCoverLetterContent.mock.calls[0]![5]).toBe(333);
-      expect(mockBuildOverviewContent.mock.calls[0]![7]).toBe(333);
-    });
-
-    it('forwards the formatters param through to both builders when provided', async () => {
-      const invoice = makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 100 });
-      const report = makeReport([invoice]);
-      const stubFormatters: Formatters = {
-        formatCurrency: (n: number) => `€${n}`,
-        formatDate: (d) => (typeof d === 'string' ? d : '—'),
-      };
-
-      await generateReportPdf(
-        report,
-        new Set(['inv-1']),
-        'claim',
-        { attachDocuments: false, includeCoverLetter: true },
-        household,
-        t,
-        stubFormatters,
-      );
-
-      expect(mockBuildCoverLetterContent.mock.calls[0]![4]).toBe(stubFormatters);
-      expect(mockBuildOverviewContent.mock.calls[0]![6]).toBe(stubFormatters);
+      expect(mockBuildCoverLetterContent).not.toHaveBeenCalled();
+      const passedContent = (mockCreatePdf.mock.calls[0]![0] as { content: { text: string }[] })
+        .content;
+      expect(passedContent).toEqual([{ text: 'OVERVIEW' }]);
     });
   });
 
-  it('omits cover letter content when includeCoverLetter is false', async () => {
-    const report = makeReport([]);
+  it('calls buildOverviewContent with (reportContent, skippedByInvoice map, t) — the new 3-arg shape', async () => {
+    const invoice = makeInvoice({ invoiceId: 'inv-1' });
+    const report = makeReport([invoice]);
+    const content = makeContent();
+
+    await generateReportPdf(report, new Set(['inv-1']), content, { attachDocuments: false }, t);
+
+    expect(mockBuildOverviewContent).toHaveBeenCalledWith(content, expect.any(Map), t);
+    const skippedByInvoiceArg = mockBuildOverviewContent.mock.calls[0]![1] as Map<string, string[]>;
+    expect(skippedByInvoiceArg.size).toBe(0);
+  });
+
+  it('builds the skippedByInvoice map passed to buildOverviewContent from actual skip failures', async () => {
+    const invoice = makeInvoice({
+      invoiceId: 'inv-1',
+      documents: [{ documentId: 1, archiveSerialNumber: null, title: null, attachmentType: null }],
+    });
+    const report = makeReport([invoice]);
+    mockFetch.mockResolvedValue(notOkResponse(404));
 
     await generateReportPdf(
       report,
-      new Set(),
-      'claim',
-      { attachDocuments: false, includeCoverLetter: false },
-      household,
+      new Set(['inv-1']),
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
-    expect(mockBuildCoverLetterContent).not.toHaveBeenCalled();
-    const passedContent = (mockCreatePdf.mock.calls[0]![0] as { content: { text: string }[] })
-      .content;
-    expect(passedContent).toEqual([{ text: 'OVERVIEW' }]);
+    const skippedByInvoiceArg = mockBuildOverviewContent.mock.calls[0]![1] as Map<string, string[]>;
+    expect(skippedByInvoiceArg.get('inv-1')).toEqual(['footnoteFetchFailed']);
   });
 
-  it('happy path: a single successfully-fetched+valid document triggers the pdf-lib merge and is embedded as appendix 1', async () => {
+  it('happy path: a single successfully-fetched+valid document triggers the pdf-lib merge (appendix numbering happens purely in the pdf-lib splice step, never passed to buildOverviewContent)', async () => {
     const invoice = makeInvoice({
       documents: [{ documentId: 1, archiveSerialNumber: null, title: null, attachmentType: null }],
     });
@@ -370,9 +332,8 @@ describe('generateReportPdf', () => {
     const result = await generateReportPdf(
       report,
       new Set(['inv-1']),
-      'claim',
-      { attachDocuments: true, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
@@ -383,16 +344,16 @@ describe('generateReportPdf', () => {
     expect(mockSave).toHaveBeenCalledTimes(1);
     expect(result.skippedDocuments).toEqual([]);
 
-    // overviewPdf receives the appendix map with invoice 1 → appendix number 1.
-    const appendixArg = mockBuildOverviewContent.mock.calls[0]![2];
-    expect(appendixArg.get('inv-1')).toBe(1);
+    // buildOverviewContent no longer receives an appendix map argument at all (only reportContent,
+    // skippedByInvoice, t) — appendix numbering is purely internal to the pdf-lib splice step.
+    expect(mockBuildOverviewContent.mock.calls[0]).toHaveLength(3);
 
     // Final blob comes from finalDoc.save(), not the raw pdfmake text blob.
     const bytes = new Uint8Array(await result.blob.arrayBuffer());
     expect(Array.from(bytes)).toEqual([1, 2, 3]);
   });
 
-  it('assigns sequential appendix numbers to successful documents in report order across multiple invoices', async () => {
+  it('assigns sequential appendix numbers to successful documents in report order across multiple invoices (internal to the embed step only)', async () => {
     const invoice1 = makeInvoice({
       invoiceId: 'inv-1',
       documents: [{ documentId: 10, archiveSerialNumber: null, title: null, attachmentType: null }],
@@ -406,18 +367,18 @@ describe('generateReportPdf', () => {
     mockFetch.mockResolvedValue(okResponse());
     mockPdfDocumentLoad.mockResolvedValue({ getPageIndices: () => [0] });
 
-    await generateReportPdf(
+    const result = await generateReportPdf(
       report,
       new Set(['inv-1', 'inv-2']),
-      'claim',
-      { attachDocuments: true, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
-    const appendixArg = mockBuildOverviewContent.mock.calls[0]![2];
-    expect(appendixArg.get('inv-1')).toBe(1);
-    expect(appendixArg.get('inv-2')).toBe(2);
+    // Both invoices' documents were embedded (2 copyPages calls beyond the text-blob's own: one
+    // per invoice) and no skips were recorded, confirming both got processed in report order.
+    expect(mockCopyPages).toHaveBeenCalledTimes(3); // 1x text blob + 1x per invoice
+    expect(result.skippedDocuments).toEqual([]);
   });
 
   it('excluded invoices are never fetched or embedded, even with attachDocuments on', async () => {
@@ -437,30 +398,27 @@ describe('generateReportPdf', () => {
     await generateReportPdf(
       report,
       new Set(['inv-1']),
-      'claim',
-      { attachDocuments: true, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
     // The included invoice's one document is fetched exactly once — merge.ts caches the bytes
-    // fetched during the appendix-numbering pass (Step 1) in `documentBytesByInvoiceAndDoc` and
-    // reuses them in the pdf-lib embed pass (Step 4) instead of re-fetching. The excluded
-    // invoice's document must never be fetched at all.
+    // fetched during the appendix-numbering pass (Step 1) and reuses them in the pdf-lib embed
+    // pass (Step 4) instead of re-fetching. The excluded invoice's document must never be fetched.
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    for (const call of mockFetch.mock.calls) {
-      expect(call[0]).toBe('/api/paperless/documents/1/preview');
-      expect(call[1]).toEqual(expect.objectContaining({ credentials: 'include' }));
-    }
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/paperless/documents/1/preview',
+      expect.objectContaining({ credentials: 'include' }),
+    );
   });
 
-  it('a single invoice with 2+ successful documents gets exactly one appendix number, and appendix numbers stay contiguous across invoices (no gaps for extra documents)', async () => {
+  it('a single invoice with 2+ successful documents gets exactly one appendix number, and appendix numbers stay contiguous across invoices', async () => {
     const multiDocInvoice = makeInvoice({
       invoiceId: 'inv-1',
       documents: [
         { documentId: 10, archiveSerialNumber: null, title: null, attachmentType: null },
         { documentId: 11, archiveSerialNumber: null, title: null, attachmentType: null },
-        { documentId: 12, archiveSerialNumber: null, title: null, attachmentType: null },
       ],
     });
     const singleDocInvoice = makeInvoice({
@@ -475,27 +433,19 @@ describe('generateReportPdf', () => {
     await generateReportPdf(
       report,
       new Set(['inv-1', 'inv-2']),
-      'claim',
-      { attachDocuments: true, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
-    const appendixArg = mockBuildOverviewContent.mock.calls[0]![2];
-    // inv-1 has 3 valid documents but is assigned only ONE appendix number (the first successful
-    // doc claims it; the 2nd/3rd don't bump the counter again).
-    expect(appendixArg.get('inv-1')).toBe(1);
-    // inv-2's appendix number is contiguous (2), not 4 — proving inv-1's extra documents never
-    // inflated the shared `appendixNum` counter.
-    expect(appendixArg.get('inv-2')).toBe(2);
-    expect(appendixArg.size).toBe(2);
-
-    // All 3 of inv-1's documents were still fetched/validated (each is embedded individually in
-    // Step 4) — only the appendix NUMBER assignment is deduped to once per invoice.
-    expect(mockFetch).toHaveBeenCalledTimes(4);
+    // inv-1 has 2 documents but only ONE appendix slot (1 extra copyPages call beyond text blob +
+    // inv-2's own), confirming the appendix counter isn't inflated per extra document.
+    // 1 (text blob) + 2 (inv-1's two documents individually embedded) + 1 (inv-2) = 4.
+    expect(mockCopyPages).toHaveBeenCalledTimes(4);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
-  it('step-4 embed path reuses the bytes fetched during step-1 appendix numbering instead of re-fetching — fetch is called exactly once per document across the whole generate, even with multiple documents per invoice', async () => {
+  it('step-4 embed path reuses the bytes fetched during step-1 appendix numbering instead of re-fetching', async () => {
     const invoice = makeInvoice({
       invoiceId: 'inv-1',
       documents: [
@@ -511,26 +461,18 @@ describe('generateReportPdf', () => {
     const result = await generateReportPdf(
       report,
       new Set(['inv-1']),
-      'claim',
-      { attachDocuments: true, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
-    // 2 documents, fetched exactly once each (2 total) — not twice each (4 total), which is what
-    // a re-fetching (uncached) Step 4 embed pass would produce.
+    // 2 documents, fetched exactly once each (2 total) — not twice each (4 total).
     expect(mockFetch).toHaveBeenCalledTimes(2);
     const fetchedUrls = mockFetch.mock.calls.map((call) => call[0]);
     expect(fetchedUrls).toEqual([
       '/api/paperless/documents/30/preview',
       '/api/paperless/documents/31/preview',
     ]);
-
-    // Both documents were still embedded: PDFDocument.load is called once per document during
-    // step-1 validation (2), once for the text blob itself in step 4 (1), and once per document
-    // again in step 4's embed loop — from the cached bytes, not a re-fetch (2) — 5 total. This
-    // confirms the cached bytes actually got used for the embed, not silently skipped.
-    expect(mockPdfDocumentLoad).toHaveBeenCalledTimes(5);
     expect(mockCopyPages).toHaveBeenCalledTimes(3); // 1x text blob + 1x per invoice document
     expect(result.skippedDocuments).toEqual([]);
   });
@@ -548,14 +490,7 @@ describe('generateReportPdf', () => {
       mockFetch.mockResolvedValue(notOkResponse(404));
 
       await expect(
-        generateReportPdf(
-          report,
-          new Set(['inv-1']),
-          'claim',
-          { attachDocuments: true, includeCoverLetter: false },
-          household,
-          t,
-        ),
+        generateReportPdf(report, new Set(['inv-1']), makeContent(), { attachDocuments: true }, t),
       ).resolves.toEqual(
         expect.objectContaining({
           skippedDocuments: [
@@ -579,14 +514,7 @@ describe('generateReportPdf', () => {
     mockPdfDocumentLoad.mockRejectedValue(new Error('not a valid PDF'));
 
     await expect(
-      generateReportPdf(
-        report,
-        new Set(['inv-1']),
-        'claim',
-        { attachDocuments: true, includeCoverLetter: false },
-        household,
-        t,
-      ),
+      generateReportPdf(report, new Set(['inv-1']), makeContent(), { attachDocuments: true }, t),
     ).resolves.toEqual(
       expect.objectContaining({
         skippedDocuments: [
@@ -596,13 +524,7 @@ describe('generateReportPdf', () => {
     );
   });
 
-  it('a document that validates fine in step 1 but fails to copy/embed in step 4 is pushed to skippedDocuments with attribution (the previously-silent embed-phase catch)', async () => {
-    // Step 1 validation (PDFDocument.load(bytes) + no copyPages call) succeeds — the document is
-    // cached and gets an appendix number. Step 4 re-loads the text blob's own pages fine (1st
-    // copyPages call succeeds) but the invoice document's own copyPages call (2nd call) throws —
-    // this exercises merge.ts's step-4 embed-loop catch block, which used to silently swallow the
-    // error. It must now push a skippedDocuments entry (frontend fix spec item 11) with vendor/
-    // invoice-number attribution, exactly like the step-1 failure paths.
+  it('a document that validates fine in step 1 but fails to copy/embed in step 4 is pushed to skippedDocuments with attribution', async () => {
     const invoice = makeInvoice({
       invoiceId: 'inv-1',
       vendorName: 'Delta Supplies',
@@ -619,9 +541,8 @@ describe('generateReportPdf', () => {
     const result = await generateReportPdf(
       report,
       new Set(['inv-1']),
-      'claim',
-      { attachDocuments: true, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
@@ -634,21 +555,12 @@ describe('generateReportPdf', () => {
         invoiceNumber: 'D-77',
       },
     ]);
-    // The report as a whole still completes (finalDoc.save() still runs) despite the embed
-    // failure — it degrades gracefully rather than aborting.
+    // The report as a whole still completes despite the embed failure.
     expect(mockSave).toHaveBeenCalledTimes(1);
     expect(result.blob).toBeInstanceOf(Blob);
   });
 
-  it('a single invoice with one valid and two invalid documents: caches only the valid one for step 4, records two skip entries for the invalid ones, and skips their (never-cached) bytes in the embed loop', async () => {
-    // Exercises two branches together:
-    //  - the step-2 `skippedByInvoice` map's "already has this invoiceId" branch (line 92) — two
-    //    failing documents on the SAME invoice produce two skippedDocuments entries sharing one
-    //    invoiceId.
-    //  - the step-4 embed loop's `if (!bytes) continue` branch (line 213) — the invoice still gets
-    //    an appendix number (from its one valid document), so the embed loop runs for it, but the
-    //    two invalid documents were never cached in step 1 and must be skipped without re-fetching
-    //    or crashing.
+  it('a single invoice with one valid and two invalid documents: caches only the valid one for step 4, records two skip entries for the invalid ones', async () => {
     const invoice = makeInvoice({
       invoiceId: 'inv-1',
       documents: [
@@ -660,9 +572,6 @@ describe('generateReportPdf', () => {
     const report = makeReport([invoice]);
 
     mockFetch.mockResolvedValue(okResponse());
-    // Resolve call 1 (doc 1, step 1 validation), reject calls 2 and 3 (docs 2 and 3, step 1
-    // validation). Step 4 only re-loads doc 1 (the only one with cached bytes / an appendix
-    // number), so no further PDFDocument.load calls occur for docs 2/3.
     mockPdfDocumentLoad
       .mockReset()
       .mockResolvedValueOnce({ getPageIndices: () => [0] }) // doc 1: valid (step 1)
@@ -674,9 +583,8 @@ describe('generateReportPdf', () => {
     const result = await generateReportPdf(
       report,
       new Set(['inv-1']),
-      'claim',
-      { attachDocuments: true, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
@@ -696,11 +604,7 @@ describe('generateReportPdf', () => {
         invoiceNumber: 'INV-001',
       },
     ]);
-
-    const appendixArg = mockBuildOverviewContent.mock.calls[0]![2];
-    expect(appendixArg.get('inv-1')).toBe(1);
-    // Step 4 embeds only the one cached (valid) document — no crash, no re-fetch attempt for the
-    // two uncached ones.
+    // Step 4 embeds only the one cached (valid) document — no crash, no re-fetch attempt.
     expect(mockCopyPages).toHaveBeenCalledTimes(2); // 1x text blob + 1x doc 1
   });
 
@@ -714,9 +618,8 @@ describe('generateReportPdf', () => {
     const result = await generateReportPdf(
       report,
       new Set(['inv-1']),
-      'claim',
-      { attachDocuments: true, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
@@ -729,15 +632,10 @@ describe('generateReportPdf', () => {
         invoiceNumber: 'INV-001',
       },
     ]);
-    // Never aborts — the pdfmake text blob is still produced.
     expect(result.blob).toBeInstanceOf(Blob);
   });
 
   it('an included invoice with no documents is skipped in the pdf-lib embed pass without breaking the others', async () => {
-    // Invoice 1 has a successful document (makes appendixByInvoiceId non-empty, so the pdf-lib
-    // embed pass in Step 4 actually runs). Invoice 2 has no documents at all, so it never gets
-    // an appendix number — Step 4's embed loop must skip it via its own `!appendixNum` guard
-    // rather than crashing or omitting invoice 1's embed.
     const withDoc = makeInvoice({
       invoiceId: 'inv-1',
       documents: [{ documentId: 1, archiveSerialNumber: null, title: null, attachmentType: null }],
@@ -751,9 +649,8 @@ describe('generateReportPdf', () => {
     const result = await generateReportPdf(
       report,
       new Set(['inv-1', 'inv-2']),
-      'claim',
-      { attachDocuments: true, includeCoverLetter: false },
-      household,
+      makeContent(),
+      { attachDocuments: true },
       t,
     );
 
@@ -762,23 +659,34 @@ describe('generateReportPdf', () => {
     expect(result.blob).toBeInstanceOf(Blob);
   });
 
-  it('pdfmake header callback omits the header on page 1 and renders it on subsequent pages', async () => {
+  it('pdfmake header callback omits the header on page 1, renders it on subsequent pages, and reads title/sourceName from reportContent', async () => {
     const invoice = makeInvoice();
     const report = makeReport([invoice]);
+    const content = makeContent({
+      tableTitle: 'My Title',
+      sourceInfo: {
+        sourceName: 'My Source',
+        sourceTypeText: 'Bank Loan',
+        referenceText: null,
+        generatedAtText: '01/15/2026',
+      },
+    });
 
-    await generateReportPdf(
-      report,
-      new Set(['inv-1']),
-      'claim',
-      { attachDocuments: false, includeCoverLetter: false },
-      household,
-      t,
-    );
+    await generateReportPdf(report, new Set(['inv-1']), content, { attachDocuments: false }, t);
 
     const def = mockCreatePdf.mock.calls[0]![0] as {
       header: (currentPage: number) => unknown;
     };
     expect(def.header(1)).toBeNull();
     expect(def.header(2)).not.toBeNull();
+
+    const sharedModule = (await import('./shared.js')) as unknown as {
+      buildPageHeader: jest.Mock;
+    };
+    expect(sharedModule.buildPageHeader).toHaveBeenCalledWith(
+      'My Title',
+      'My Source',
+      'sourceReports.table.generatedAt',
+    );
   });
 });

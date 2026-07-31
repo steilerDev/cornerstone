@@ -9,3 +9,4 @@ export { buildCoverLetterContent } from './coverLetterPdf.js';
 export { buildOverviewContent } from './overviewPdf.js';
 export { generateReportPdf } from './merge.js';
 export { downloadPdf, createPreviewUrl, uploadToPaperless } from './sinks.js';
+export type { ReportContent } from '../reportContent/index.js';

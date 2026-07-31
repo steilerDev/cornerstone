@@ -21,7 +21,7 @@ Source reports allocate an invoice to a budget source via two independent rails.
 
 **Testable consequence:** summing `allocatedAmount` across all sources on a fully-line-covered invoice reconstructs the invoice amount exactly. Canonical fixture: 1000€ invoice, 600€ line→A, 400€ line→B, 150€ deposit tagged A ⇒ residual 0.85, A = 600×0.85+150 = 660, B = 400×0.85 = 340, Σ = 1000. Pin this invariant on any change here.
 
-**Non-obvious corollary:** the residual fraction is *invoice-level*, so a deposit tagged to source A also reduces the Rail A share of a source-B line on the same invoice. That looks wrong at first glance; it is exactly what makes the rails reconcile.
+**Non-obvious corollary:** the residual fraction is _invoice-level_, so a deposit tagged to source A also reduces the Rail A share of a source-B line on the same invoice. That looks wrong at first glance; it is exactly what makes the rails reconcile.
 
 ## `isSplit`
 
@@ -30,8 +30,8 @@ UNION over two arms (budget-line sources via `work_item_budgets`/`household_item
 ## Review heuristics that earned their keep
 
 1. **When a function is forked into an `XExcludingY` variant, diff its core formula against the original line by line.** The residual expression was the only divergence and the only bug. ~200 lines of near-duplicate logic, one of two copies wrong.
-2. **A combined-rail test that puts the two rails on *different* invoices proves nothing.** The original suite had exactly that and passed while the same-invoice case was off by 40%. Always demand the same-entity crossing case.
-3. **Additive-only diffs (`@@ -N,3 +N,269 @@`, zero deletions) are strong containment** — verify with `git diff origin/beta...HEAD -- <file>` — but they only bound the blast radius to *new* code paths. They say nothing about whether the new path is correct.
+2. **A combined-rail test that puts the two rails on _different_ invoices proves nothing.** The original suite had exactly that and passed while the same-invoice case was off by 40%. Always demand the same-entity crossing case.
+3. **Additive-only diffs (`@@ -N,3 +N,269 @@`, zero deletions) are strong containment** — verify with `git diff origin/beta...HEAD -- <file>` — but they only bound the blast radius to _new_ code paths. They say nothing about whether the new path is correct.
 4. **Tests that assert a surprising number with a long apologetic comment are a smell.** The pre-fix test literally said "1400 … is intentionally MORE than the invoice amount". That comment was the bug report.
 
 ## Open follow-ups
