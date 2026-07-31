@@ -15,7 +15,7 @@ routes). The immutability guarantee holds (stored value genuinely unchanged, ver
 transport-level status code is 200, not 400.
 
 `wiki/API-Contract.md` line ~3658 (PATCH `/api/invoices/:invoiceId/deposits/:depositId`) explicitly
-states: *"PATCH requests with `entryType` are rejected with a schema validation error"* — this is
+states: _"PATCH requests with `entryType` are rejected with a schema validation error"_ — this is
 inaccurate per the codebase's established AJV convention. Flagged as a Wiki Accuracy deviation in my
 final report (production code is source of truth here, consistent with `invoices.test.ts`'s "strips
 unknown properties" precedent) — did not edit the wiki myself (out of QA scope); routed to
@@ -38,17 +38,18 @@ no-op (other fields like `updatedAt` still get bumped since `updateDeposit()` un
 
 `entryType: 'deposit' | 'refund'` column added to `invoice_deposits`. Refunds are **stored positive**;
 negation is a pure aggregation-time transform:
+
 - `splitByDeposits`: refund entries get `fraction = -(amount / safeInvoiceAmount)`; **residualFraction is
   computed from deposit-type entries only** (refunds never reduce the residual — this is the trickiest
   invariant to test correctly, easy to accidentally assert refunds DO reduce residual).
 - New pure functions `computeFinalPaymentAmount(invoiceAmount, entries)` /
   `computeFinalPaymentAmounts(rows)` in `depositAggregateUtils.ts`: `finalPaymentAmount = invoiceAmount -
-  Σ(deposit-type, any status) - Σ(refund-type, status ∈ {paid, claimed})`. A **pending** refund does NOT
+Σ(deposit-type, any status) - Σ(refund-type, status ∈ {paid, claimed})`. A **pending** refund does NOT
   reduce the amount (money hasn't returned yet) — deposits DO reduce it even pending. Easy to invert this
   by accident when writing tests.
 - 8 raw-SQL sites across `budgetSourceService.ts` (4), `budgetBreakdownService.ts` (2),
   `budgetOverviewService.ts` (1), `budgetServiceFactory.ts` (2) all needed `d.entry_type AS
-  deposit_entry_type` added — grep for `deposit_status AS\|AS deposit_status` in the service files (not
+deposit_entry_type` added — grep for `deposit_status AS\|AS deposit_status` in the service files (not
   test files) to find all sites; TypeScript does NOT catch a missed site (the row type param is a cast).
   Verified via `git diff main -- <file>` that all sites were actually touched by backend-developer before
   writing integration tests — cheap sanity check, do this first before writing 20 tests around a maybe-gap.
@@ -69,6 +70,7 @@ formula, verifiable by hand-computing it).
 No page in the codebase had a test driving the "Columns" settings popover before this story. Pattern that
 worked, verified against the real (unmocked) `DataTable`/`DataTableColumnSettings`/`useColumnPreferences`/
 `usePreferences` stack:
+
 1. Click `screen.getByRole('button', { name: /column settings/i })` (aria-label = `t('common:dataTable.columnSettings.ariaLabel')` = "Column settings").
 2. `await waitFor` for `screen.getByRole('dialog', { name: /visible columns/i })` (title = "Visible columns").
 3. Checkbox has stable id `col-${columnKey}` — use `document.getElementById('col-effectiveAmount')` and `fireEvent.click`.

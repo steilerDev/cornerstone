@@ -53,7 +53,7 @@ Even with the container stack fully working, `npx playwright test` still fails a
    This is a `sbx policy allow network <domain>` decision for the user/host, not something to
    work around unilaterally.
 2. **Ubuntu's `chromium-browser` apt package is a non-functional snap stub.** `apt-get install
-   chromium-browser` succeeds and installs `/usr/bin/chromium-browser`, but running it (even
+chromium-browser` succeeds and installs `/usr/bin/chromium-browser`, but running it (even
    pointed to via a local `playwright.config.ts` override's `use.launchOptions.executablePath`)
    fails immediately:
    ```
@@ -66,8 +66,8 @@ Even with the container stack fully working, `npx playwright test` still fails a
    Ubuntu release. No other route to a real browser binary was found in this session
    (no cached `~/.cache/ms-playwright` binaries, no `google-chrome`/`firefox` either).
 
-**Net effect**: a fully live Playwright *browser* run is still not achievable in this sandbox
-class, even though the *container/app* side now works. If a future story's AC needs an actual
+**Net effect**: a fully live Playwright _browser_ run is still not achievable in this sandbox
+class, even though the _container/app_ side now works. If a future story's AC needs an actual
 red/green browser proof, either (a) ask the user to `sbx policy allow network
 playwright.download.prss.microsoft.com,cdn.playwright.dev` for that session, or (b) fall back
 to the established pattern: build+boot the containers to prove the app-level behavior (e.g. the
@@ -112,7 +112,7 @@ module resolution works — a file outside the workspace fails with `Cannot find
 - `rm` any scratch `playwright.*.config.ts` file.
 - `rm -rf e2e/e2e/ e2e/playwright-output/ e2e/playwright-report/ e2e/test-results/` — a
   misconfigured `--config` path or an interrupted run can leave a nested `e2e/e2e/test-results/
-  .state/containers.json` artifact (from `containers/setup.ts`'s state file) that `git status`
+.state/containers.json` artifact (from `containers/setup.ts`'s state file) that `git status`
   won't flag as tracked but that still clutters the worktree.
 - `docker images` / `docker rmi cornerstone:e2e` if you built a throwaway/deliberately-broken
   image for a red-test proof — a stale local image with the wrong config baked in will silently

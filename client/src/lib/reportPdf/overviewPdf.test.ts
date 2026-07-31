@@ -1,41 +1,61 @@
 /**
  * Unit tests for client/src/lib/reportPdf/overviewPdf.ts
  *
- * Covers: columns incl. conditional Appendix column, the dual footnote-marker model (`*` = a
- * skipped document, unconditional per skip; `†` = a split invoice, unconditional per included
- * isSplit row — both may concatenate on the same cell), refund-adjustment rows (no sign
- * negation — allocatedAmount/invoiceAmount arrive already correctly signed from the server per
- * frontend fix spec item 3), per-status subtotal rows, the `includedTotal` grand-total param, and
- * skipped-document footnotes with vendor/invoice-number attribution.
+ * Story #1898 rewrite. The table layout changed substantially from the prior implementation:
+ *   - The Status column is now conditional on `useCase === 'budget-overview'` (previously
+ *     unconditional — always rendered regardless of useCase). This shifts column indices for
+ *     every non-overview ('claim' / 'proof-of-funds') fixture used below relative to the old
+ *     test file.
+ *   - The Appendix column is REMOVED entirely. `appendixByInvoiceId` is still accepted as a
+ *     parameter (call-site/signature stability for merge.ts) but is never rendered — see the
+ *     "Appendix never renders" scenario below.
+ *   - A new trailing Usage column was added (last column in both layouts), which can render a
+ *     plain text cell or a `stack` of [usage text, attachment note] when the invoice has linked
+ *     documents.
+ *   - The split marker (`†`) is no longer unconditional for every `isSplit: true` invoice. It now
+ *     requires `isSplit && budgetLines.length > 0`. A new deposit marker (`‡`) was added,
+ *     requiring `isSplit && deposits.length > 0`, with wording depending on whether any deposit is
+ *     tagged to this source (`budgetSourceId === report.source.id`).
  *
- * FIXED (frontend fix spec item 6): `buildOverviewContent` no longer imports a module-level
- * `formatCurrencyForPdf`/`formatDateForPdf` from ./shared.js (both were deleted — see
- * shared.test.ts). It now takes an optional `formatters: Formatters` param and falls back to '—'
- * (amount cells) or the raw ISO date string (date cells) when omitted. TABLE_LAYOUT and
- * REFUND_TEXT_COLOR are still imported from the real (unmocked) ./shared.js — they're simple
- * constants with no formatting logic worth isolating.
+ * Column layouts:
+ *   - budget-overview (isOverview=true), 7 columns: vendor(0) invoiceNumber(1) date(2) status(3)
+ *     invoiceAmount(4) allocatedAmount(5) usage(6).
+ *   - claim / proof-of-funds (isOverview=false), 6 columns: vendor(0) invoiceNumber(1) date(2)
+ *     invoiceAmount(3) allocatedAmount(4) usage(5).
  *
- * FIXED (frontend fix spec item 3): allocatedAmount/invoiceAmount are NEVER negated by this
- * builder — the server already returns a negative allocatedAmount for refund-adjustment lines
- * (invoiceAmount stays positive). Fixtures below reflect that sign contract directly.
+ * Summary-row (subtotal/total) leading-cell count is layout-aware: leadingCount = isOverview ? 4
+ * : 3. The bold label lands at index `leadingCount - 1`; the bold right-aligned amount at index
+ * `leadingCount + 1` (an empty invoiceAmount cell sits at `leadingCount`); the trailing usage cell
+ * is always empty.
  *
- * FIXED (frontend fix spec item 5): the grand total row renders the `includedTotal` param passed
- * in by the caller (merge.ts computes it once, respecting exclusions and signs, and forwards the
- * same value to both builders) — NOT a re-derivation of `report.totalAmount`. See merge.test.ts
- * for coverage of the includedTotal computation itself.
- *
- * FIXED (frontend fix spec item 11): the split marker (`†`) is now assigned to EVERY included
- * invoice with `isSplit === true`, independent of whether it has an appendix number (previously
- * it was implicitly gated on appendixByInvoiceId containing the invoice). Skip footnotes
- * (`*`) now include vendor/invoice-number attribution, matching the split footnote's format.
+ * Audit note (scenario 21): every `isSplit: true` fixture below carries EXPLICIT `budgetLines`
+ * and/or `deposits` arrays — `makeInvoice()`'s defaults (`budgetLines: []`, `deposits: []`) would
+ * otherwise silently produce a split invoice with NEITHER marker under the new classification
+ * rules, which is almost never the scenario under test. No fixture relies on the empty defaults
+ * while also setting `isSplit: true`, except the one dedicated "isSplit true but no lines/deposits
+ * -> neither marker" case, where that's the explicit point being tested.
  */
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import type { TFunction } from 'i18next';
-import type { SourceReportResponse, SourceReportInvoice } from '@cornerstone/shared';
+import type {
+  SourceReportResponse,
+  SourceReportInvoice,
+  SourceReportBudgetLine,
+  SourceReportDeposit,
+  SourceReportDocument,
+} from '@cornerstone/shared';
 import type { Formatters } from '../formatters.js';
 import { buildOverviewContent } from './overviewPdf.js';
 
 const t = ((key: string) => key) as unknown as TFunction;
+
+/** A `t` that records every call for assertions on interpolation options (raw-key-echo style — no
+ * real interpolation happens; realRender.test.ts covers actual plural/interpolation output via a
+ * real i18next instance). */
+function makeTrackedT(): { t: TFunction; calls: () => unknown[][] } {
+  const fn = jest.fn((key: string) => key);
+  return { t: fn as unknown as TFunction, calls: () => fn.mock.calls as unknown[][] };
+}
 
 const formatters: Formatters = {
   formatCurrency: (n: number) => `€${n.toFixed(2)}`,
@@ -61,6 +81,40 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
   };
 }
 
+function makeBudgetLine(overrides: Partial<SourceReportBudgetLine> = {}): SourceReportBudgetLine {
+  return {
+    id: 'bl-1',
+    description: null,
+    allocatedPortion: 100,
+    linkedItem: null,
+    ...overrides,
+  };
+}
+
+function makeDeposit(overrides: Partial<SourceReportDeposit> = {}): SourceReportDeposit {
+  return {
+    id: 'dep-1',
+    amount: 100,
+    status: 'paid',
+    entryType: 'deposit',
+    dueDate: '2026-01-01',
+    paidDate: null,
+    claimedDate: null,
+    budgetSourceId: null,
+    ...overrides,
+  };
+}
+
+function makeDocument(overrides: Partial<SourceReportDocument> = {}): SourceReportDocument {
+  return {
+    documentId: 1,
+    archiveSerialNumber: null,
+    title: null,
+    attachmentType: null,
+    ...overrides,
+  };
+}
+
 function makeReport(invoices: SourceReportInvoice[]): SourceReportResponse {
   return {
     type: 'claim',
@@ -78,7 +132,8 @@ function makeReport(invoices: SourceReportInvoice[]): SourceReportResponse {
   };
 }
 
-// Flattens a pdfmake `table.body` row into plain text strings for easy assertions.
+// Flattens a pdfmake `table.body` row into plain text strings for easy assertions. Cells that are
+// `stack`s (the Usage column when an attachment note is present) yield `undefined`.
 function rowTexts(row: unknown): (string | undefined)[] {
   return (row as { text?: string }[]).map((cell) => cell.text);
 }
@@ -191,23 +246,23 @@ describe('buildOverviewContent', () => {
     expect(refLine).toBeDefined();
   });
 
-  it('uses exactly the 6 spec-defined columns when no appendix is present', () => {
+  // ─── Scenario 1 & 2: header columns per layout ─────────────────────────────
+
+  it('[Scenario 1] budget-overview header is exactly [vendor, invoiceNumber, date, status, invoiceAmount, allocatedAmount, usage], widths ["*","auto","auto","auto","auto","auto","*"]', () => {
     const report = makeReport([]);
     const content = buildOverviewContent(
       report,
       new Set(),
       new Map(),
       new Map(),
-      'claim',
+      'budget-overview',
       t,
       formatters,
       0,
     );
     const table = getTable(content);
 
-    expect(table.widths).toHaveLength(6);
-    expect(table.widths[0]).toBe('*');
-    expect(table.widths.slice(1)).toEqual(['auto', 'auto', 'auto', 'auto', 'auto']);
+    expect(table.widths).toEqual(['*', 'auto', 'auto', 'auto', 'auto', 'auto', '*']);
     const headerRow = rowTexts(table.body[0]);
     expect(headerRow).toEqual([
       'sourceReports.table.vendor',
@@ -216,28 +271,64 @@ describe('buildOverviewContent', () => {
       'sourceReports.table.status',
       'sourceReports.table.invoiceAmount',
       'sourceReports.table.allocatedAmount',
+      'sourceReports.table.usage',
     ]);
   });
 
-  it('adds a 7th Appendix column only when appendixByInvoiceId is non-empty, keeping the "*" + auto width pattern', () => {
+  it('[Scenario 2] claim/proof-of-funds header has exactly 6 cells with no status column, widths ["*","auto","auto","auto","auto","*"]', () => {
+    const report = makeReport([]);
+    for (const useCase of ['claim', 'proof-of-funds'] as const) {
+      const content = buildOverviewContent(
+        report,
+        new Set(),
+        new Map(),
+        new Map(),
+        useCase,
+        t,
+        formatters,
+        0,
+      );
+      const table = getTable(content);
+
+      expect(table.widths).toEqual(['*', 'auto', 'auto', 'auto', 'auto', '*']);
+      const headerRow = rowTexts(table.body[0]);
+      expect(headerRow).toEqual([
+        'sourceReports.table.vendor',
+        'sourceReports.table.invoiceNumber',
+        'sourceReports.table.date',
+        'sourceReports.table.invoiceAmount',
+        'sourceReports.table.allocatedAmount',
+        'sourceReports.table.usage',
+      ]);
+    }
+  });
+
+  // ─── Scenario 3: appendix never renders ────────────────────────────────────
+
+  it('[Scenario 3] never renders an Appendix column, even with a non-empty appendixByInvoiceId, in either useCase', () => {
     const invoice = makeInvoice();
     const report = makeReport([invoice]);
-    const content = buildOverviewContent(
-      report,
-      new Set(['inv-1']),
-      new Map([['inv-1', 1]]),
-      new Map(),
-      'claim',
-      t,
-      formatters,
-      1000,
-    );
-    const table = getTable(content);
-    expect(table.widths).toHaveLength(7);
-    expect(table.widths[0]).toBe('*');
-    expect(table.widths.slice(1)).toEqual(['auto', 'auto', 'auto', 'auto', 'auto', 'auto']);
-    const headerRow = rowTexts(table.body[0]);
-    expect(headerRow[6]).toBe('sourceReports.table.appendix');
+    const nonEmptyAppendixMap = new Map([['inv-1', 1]]);
+
+    for (const useCase of ['budget-overview', 'claim'] as const) {
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        nonEmptyAppendixMap,
+        new Map(),
+        useCase,
+        t,
+        formatters,
+        1000,
+      );
+      const table = getTable(content);
+      const expectedCols = useCase === 'budget-overview' ? 7 : 6;
+      expect(table.widths).toHaveLength(expectedCols);
+      const headerRow = rowTexts(table.body[0]);
+      expect(headerRow).not.toContain('sourceReports.table.appendix');
+      // The row must not gain an extra trailing appendix cell beyond the usage cell.
+      expect((table.body[1] as unknown[]).length).toBe(expectedCols);
+    }
   });
 
   it('only includes invoices present in includedInvoiceIds (excluded ones are skipped entirely)', () => {
@@ -279,16 +370,18 @@ describe('buildOverviewContent', () => {
     );
     const table = getTable(content);
     const row = rowTexts(table.body[1]);
+    // claim layout: vendor(0) invoiceNumber(1) date(2) invoiceAmount(3) allocatedAmount(4) usage(5)
     expect(row[1]).toBe('—'); // invoiceNumber ?? '—'
     expect(row[2]).toBe('2026-02-01'); // raw date, no formatters
-    expect(row[4]).toBe('—'); // invoiceAmountText fallback
-    expect(row[5]).toBe('—'); // allocatedText fallback
+    expect(row[3]).toBe('—'); // invoiceAmountText fallback
+    expect(row[4]).toBe('—'); // allocatedText fallback
+    expect(row[5]).toBe('—'); // usage placeholder ('—' — empty budgetLines default)
 
     const subtotalRow = rowTexts(table.body[2]);
-    expect(subtotalRow[5]).toBe('—'); // subtotalText fallback
+    expect(subtotalRow[4]).toBe('—'); // subtotalText fallback
 
     const totalRow = rowTexts(table.body[table.body.length - 1]);
-    expect(totalRow[5]).toBe('—'); // totalText fallback (includedTotal ?? 0, still no formatters)
+    expect(totalRow[4]).toBe('—'); // totalText fallback (includedTotal ?? 0, still no formatters)
   });
 
   it('renders the invoice date via formatters.formatDate', () => {
@@ -330,9 +423,9 @@ describe('buildOverviewContent', () => {
       const table = getTable(content);
       const row = rowTexts(table.body[1]);
 
-      expect(row[4]).toBe('€200.00');
+      expect(row[3]).toBe('€200.00');
       const rawRow = table.body[1] as { color?: string }[];
-      expect(rawRow[4]!.color).toBe('#991b1b');
+      expect(rawRow[3]!.color).toBe('#991b1b');
     });
 
     it('renders the already-negative allocated amount as-is (no double negation) with a refund note', () => {
@@ -356,44 +449,30 @@ describe('buildOverviewContent', () => {
       const table = getTable(content);
       const row = rowTexts(table.body[1]);
 
-      expect(row[5]).toContain('€-200.00');
-      expect(row[5]).toContain('sourceReports.table.refundNote');
+      expect(row[4]).toContain('€-200.00');
+      expect(row[4]).toContain('sourceReports.table.refundNote');
       const rawRow = table.body[1] as { color?: string }[];
-      expect(rawRow[5]!.color).toBe('#991b1b');
+      expect(rawRow[4]!.color).toBe('#991b1b');
     });
   });
 
-  describe('dual footnote-marker model', () => {
-    it('marks a split invoice with "†N" unconditionally, even with NO appendix number assigned', () => {
-      const split = makeInvoice({
-        invoiceId: 'inv-split',
-        isSplit: true,
-        allocatedAmount: 400,
-        invoiceAmount: 1000,
-      });
-      const report = makeReport([split]);
-      const content = buildOverviewContent(
-        report,
-        new Set(['inv-split']),
-        new Map(), // no appendix entry
-        new Map(),
-        'claim',
-        t,
-        formatters,
-        400,
-      );
-      const table = getTable(content);
-      const row = rowTexts(table.body[1]);
-      expect(row[5]).toBe('€400.00†1');
-    });
+  // ─── Scenarios 4-13: Usage column ──────────────────────────────────────────
 
-    it('does not mark a non-split invoice, regardless of appendix presence', () => {
-      const invoice = makeInvoice({ invoiceId: 'inv-1', isSplit: false });
+  describe('Usage column', () => {
+    it('[Scenario 4] dedupes a repeated linked-item name and comma-joins distinct names in first-occurrence order', () => {
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        budgetLines: [
+          makeBudgetLine({ linkedItem: { type: 'work_item', id: 'wi-1', name: 'Kitchen' } }),
+          makeBudgetLine({ linkedItem: { type: 'work_item', id: 'wi-2', name: 'Bathroom' } }),
+          makeBudgetLine({ linkedItem: { type: 'work_item', id: 'wi-1', name: 'Kitchen' } }),
+        ],
+      });
       const report = makeReport([invoice]);
       const content = buildOverviewContent(
         report,
         new Set(['inv-1']),
-        new Map([['inv-1', 1]]),
+        new Map(),
         new Map(),
         'claim',
         t,
@@ -401,12 +480,403 @@ describe('buildOverviewContent', () => {
         1000,
       );
       const table = getTable(content);
-      const row = rowTexts(table.body[1]);
-      expect(row[5]).toBe('€1000.00');
+      expect(rowTexts(table.body[1])[5]).toBe('Kitchen, Bathroom');
     });
 
-    it('marks a skipped document with "*N" on the invoice with the failed/invalid document', () => {
-      const invoice = makeInvoice({ invoiceId: 'inv-1' });
+    it('[Scenario 5] falls back to distinct budget-line descriptions when no line has a linkedItem', () => {
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        budgetLines: [
+          makeBudgetLine({ linkedItem: null, description: 'Materials' }),
+          makeBudgetLine({ linkedItem: null, description: 'Labor' }),
+          makeBudgetLine({ linkedItem: null, description: 'Materials' }),
+        ],
+      });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        1000,
+      );
+      const table = getTable(content);
+      expect(rowTexts(table.body[1])[5]).toBe('Materials, Labor');
+    });
+
+    it('[Scenario 6] shows only the linked item name(s) when linked and unlinked-with-description lines are mixed (binary discriminator)', () => {
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        budgetLines: [
+          makeBudgetLine({
+            linkedItem: { type: 'household_item', id: 'hi-1', name: 'Kitchen' },
+            description: null,
+          }),
+          makeBudgetLine({ linkedItem: null, description: 'Misc costs' }),
+        ],
+      });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        1000,
+      );
+      const table = getTable(content);
+      expect(rowTexts(table.body[1])[5]).toBe('Kitchen');
+    });
+
+    it('[Scenario 7] renders "—" when budgetLines is empty', () => {
+      const invoice = makeInvoice({ invoiceId: 'inv-1', budgetLines: [] });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        1000,
+      );
+      const table = getTable(content);
+      expect(rowTexts(table.body[1])[5]).toBe('—');
+    });
+
+    it('[Scenario 8] renders a plain { text } cell (not a stack) when the invoice has no documents', () => {
+      const invoice = makeInvoice({ invoiceId: 'inv-1', documents: [] });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        1000,
+      );
+      const table = getTable(content);
+      const cell = (table.body[1] as unknown[])[5] as { text?: string; stack?: unknown };
+      expect(cell.stack).toBeUndefined();
+      expect(cell.text).toBe('—');
+    });
+
+    it('[Scenario 9] singular typed attachment note: attachmentsNote_one with {count, types} interpolation options (raw-key-echo)', () => {
+      const { t: trackedT, calls } = makeTrackedT();
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        documents: [makeDocument({ attachmentType: 'invoice' })],
+      });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        trackedT,
+        formatters,
+        1000,
+      );
+      const table = getTable(content);
+      const cell = (table.body[1] as unknown[])[5] as { stack: { text: string }[] };
+      expect(cell.stack).toBeDefined();
+      // Note text is the raw echoed key (unit-level t has no real interpolation).
+      expect(cell.stack[1]!.text).toBe('sourceReports.table.attachmentsNote_one');
+
+      expect(calls()).toContainEqual([
+        'sourceReports.table.attachmentsNote_one',
+        { count: 1, types: 'sourceReports.table.attachmentType.invoice' },
+      ]);
+    });
+
+    it('[Scenario 10] plural, multiple distinct types deduped: attachmentsNote_other with all distinct type labels joined', () => {
+      const { t: trackedT, calls } = makeTrackedT();
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        documents: [
+          makeDocument({ documentId: 1, attachmentType: 'invoice' }),
+          makeDocument({ documentId: 2, attachmentType: 'quotation' }),
+          makeDocument({ documentId: 3, attachmentType: 'invoice' }),
+        ],
+      });
+      const report = makeReport([invoice]);
+      buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        trackedT,
+        formatters,
+        1000,
+      );
+      expect(calls()).toContainEqual([
+        'sourceReports.table.attachmentsNote_other',
+        {
+          count: 3,
+          types:
+            'sourceReports.table.attachmentType.invoice, sourceReports.table.attachmentType.quotation',
+        },
+      ]);
+    });
+
+    it('[Scenario 11] a type repeated across multiple documents is listed only once', () => {
+      const { t: trackedT, calls } = makeTrackedT();
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        documents: [
+          makeDocument({ documentId: 1, attachmentType: 'quotation' }),
+          makeDocument({ documentId: 2, attachmentType: 'quotation' }),
+        ],
+      });
+      const report = makeReport([invoice]);
+      buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        trackedT,
+        formatters,
+        1000,
+      );
+      expect(calls()).toContainEqual([
+        'sourceReports.table.attachmentsNote_other',
+        { count: 2, types: 'sourceReports.table.attachmentType.quotation' },
+      ]);
+    });
+
+    it('[Scenario 12] all-null-type documents render attachmentsNoteNoType_one / _other (count only, no types option)', () => {
+      const { t: trackedT, calls } = makeTrackedT();
+      const singleDocInvoice = makeInvoice({
+        invoiceId: 'inv-1',
+        documents: [makeDocument({ documentId: 1, attachmentType: null })],
+      });
+      const multiDocInvoice = makeInvoice({
+        invoiceId: 'inv-2',
+        documents: [
+          makeDocument({ documentId: 2, attachmentType: null }),
+          makeDocument({ documentId: 3, attachmentType: null }),
+        ],
+      });
+      const report = makeReport([singleDocInvoice, multiDocInvoice]);
+      buildOverviewContent(
+        report,
+        new Set(['inv-1', 'inv-2']),
+        new Map(),
+        new Map(),
+        'claim',
+        trackedT,
+        formatters,
+        1000,
+      );
+      expect(calls()).toContainEqual([
+        'sourceReports.table.attachmentsNoteNoType_one',
+        { count: 1 },
+      ]);
+      expect(calls()).toContainEqual([
+        'sourceReports.table.attachmentsNoteNoType_other',
+        { count: 2 },
+      ]);
+    });
+
+    it('[Scenario 13] mixed typed+null documents: count includes all documents, types option lists only the typed label', () => {
+      const { t: trackedT, calls } = makeTrackedT();
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        documents: [
+          makeDocument({ documentId: 1, attachmentType: 'deposit' }),
+          makeDocument({ documentId: 2, attachmentType: null }),
+        ],
+      });
+      const report = makeReport([invoice]);
+      buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        trackedT,
+        formatters,
+        1000,
+      );
+      expect(calls()).toContainEqual([
+        'sourceReports.table.attachmentsNote_other',
+        { count: 2, types: 'sourceReports.table.attachmentType.deposit' },
+      ]);
+    });
+  });
+
+  // ─── Scenarios 14-19: split/deposit footnote markers ───────────────────────
+
+  describe('split (†) and deposit (‡) footnote markers', () => {
+    it('[Scenario 14 / AC1] deposit-only, cross-source: isSplit true, no budget lines, a tagged deposit -> ‡1 "constituted", no †', () => {
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        isSplit: true,
+        allocatedAmount: 400,
+        budgetLines: [],
+        deposits: [makeDeposit({ budgetSourceId: 'src-1' })], // tagged to report.source.id
+      });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        400,
+      );
+      const table = getTable(content);
+      expect(rowTexts(table.body[1])[4]).toBe('€400.00‡1');
+    });
+
+    it('[Scenario 15 / AC2] pure line-split: isSplit true, budget lines, no deposits -> †1, no ‡', () => {
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        isSplit: true,
+        allocatedAmount: 400,
+        budgetLines: [makeBudgetLine()],
+        deposits: [],
+      });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        400,
+      );
+      const table = getTable(content);
+      expect(rowTexts(table.body[1])[4]).toBe('€400.00†1');
+    });
+
+    it('[Scenario 16 / AC3] both budget lines and a tagged deposit -> †1 AND ‡1 "constituted", neither suppressed', () => {
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        isSplit: true,
+        allocatedAmount: 400,
+        budgetLines: [makeBudgetLine()],
+        deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
+      });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        400,
+      );
+      const table = getTable(content);
+      expect(rowTexts(table.body[1])[4]).toBe('€400.00†1‡1');
+
+      const notesStack = content[content.length - 1] as { stack: { text: string }[] };
+      const depositNote = notesStack.stack.find((s) => s.text.startsWith('‡1'));
+      expect(depositNote?.text).toBe(
+        '‡1: ACME Builders (INV-001) — sourceReports.table.depositConstitutedFootnote',
+      );
+    });
+
+    it('[Scenario 17] reduced wording boundary: budget lines + an untagged-only deposit -> †1 + ‡1 "reduced"', () => {
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        isSplit: true,
+        allocatedAmount: 400,
+        budgetLines: [makeBudgetLine()],
+        deposits: [makeDeposit({ budgetSourceId: null })], // untagged
+      });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        400,
+      );
+      const table = getTable(content);
+      expect(rowTexts(table.body[1])[4]).toBe('€400.00†1‡1');
+
+      const notesStack = content[content.length - 1] as { stack: { text: string }[] };
+      const depositNote = notesStack.stack.find((s) => s.text.startsWith('‡1'));
+      expect(depositNote?.text).toBe(
+        '‡1: ACME Builders (INV-001) — sourceReports.table.depositReducedFootnote',
+      );
+    });
+
+    it('[Scenario 18 / AC4] isSplit false suppresses both markers regardless of budgetLines/deposits content', () => {
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        isSplit: false,
+        allocatedAmount: 400,
+        budgetLines: [makeBudgetLine()],
+        deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
+      });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        400,
+      );
+      const table = getTable(content);
+      expect(rowTexts(table.body[1])[4]).toBe('€400.00');
+    });
+
+    it('isSplit true with neither budget lines nor deposits produces neither marker', () => {
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        isSplit: true,
+        allocatedAmount: 400,
+        budgetLines: [],
+        deposits: [],
+      });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        400,
+      );
+      const table = getTable(content);
+      expect(rowTexts(table.body[1])[4]).toBe('€400.00');
+    });
+
+    it('[Scenario 19] marker concatenation order is *N -> †N -> ‡N on the same cell', () => {
+      const invoice = makeInvoice({
+        invoiceId: 'inv-1',
+        isSplit: true,
+        allocatedAmount: 400,
+        budgetLines: [makeBudgetLine()],
+        deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
+      });
       const report = makeReport([invoice]);
       const skipped = new Map<string, string[]>([['inv-1', ['footnoteFetchFailed']]]);
       const content = buildOverviewContent(
@@ -417,72 +887,85 @@ describe('buildOverviewContent', () => {
         'claim',
         t,
         formatters,
-        1000,
-      );
-      const table = getTable(content);
-      const row = rowTexts(table.body[1]);
-      expect(row[5]).toBe('€1000.00*1');
-    });
-
-    it('concatenates both markers ("*N†M") on a single cell when a split invoice also has a skipped document', () => {
-      const invoice = makeInvoice({ invoiceId: 'inv-1', isSplit: true, allocatedAmount: 400 });
-      const report = makeReport([invoice]);
-      const skipped = new Map<string, string[]>([['inv-1', ['footnoteInvalidPdf']]]);
-      const content = buildOverviewContent(
-        report,
-        new Set(['inv-1']),
-        new Map(),
-        skipped,
-        'claim',
-        t,
-        formatters,
         400,
       );
       const table = getTable(content);
-      const row = rowTexts(table.body[1]);
-      // Skip marker(s) always precede the split marker in markerText concatenation order.
-      expect(row[5]).toBe('€400.00*1†1');
+      expect(rowTexts(table.body[1])[4]).toBe('€400.00*1†1‡1');
     });
 
-    it('numbers multiple skip reasons on the same invoice sequentially', () => {
-      const invoice = makeInvoice({ invoiceId: 'inv-1' });
-      const report = makeReport([invoice]);
-      const skipped = new Map<string, string[]>([
-        ['inv-1', ['footnoteFetchFailed', 'footnoteInvalidPdf']],
+    it('[Scenario 20] footnote block margins: split-first and deposit-first entries carry margin [0,4,0,0]; skip entries and non-first split/deposit entries do not', () => {
+      const skippedInvoice = makeInvoice({
+        invoiceId: 'inv-skip',
+        vendorName: 'Skip Vendor',
+        invoiceNumber: 'K-1',
+        isSplit: false,
+      });
+      const splitOnly = makeInvoice({
+        invoiceId: 'inv-split-only',
+        vendorName: 'Split Only',
+        invoiceNumber: 'S-1',
+        isSplit: true,
+        allocatedAmount: 100,
+        budgetLines: [makeBudgetLine()],
+        deposits: [],
+      });
+      const splitAndTaggedDeposit = makeInvoice({
+        invoiceId: 'inv-split-deposit-1',
+        vendorName: 'Split Deposit One',
+        invoiceNumber: 'SD-1',
+        isSplit: true,
+        allocatedAmount: 200,
+        budgetLines: [makeBudgetLine()],
+        deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
+      });
+      const splitAndUntaggedDeposit = makeInvoice({
+        invoiceId: 'inv-split-deposit-2',
+        vendorName: 'Split Deposit Two',
+        invoiceNumber: 'SD-2',
+        isSplit: true,
+        allocatedAmount: 300,
+        budgetLines: [makeBudgetLine()],
+        deposits: [makeDeposit({ budgetSourceId: null })],
+      });
+      const report = makeReport([
+        skippedInvoice,
+        splitOnly,
+        splitAndTaggedDeposit,
+        splitAndUntaggedDeposit,
       ]);
+      const skipped = new Map<string, string[]>([['inv-skip', ['footnoteFetchFailed']]]);
       const content = buildOverviewContent(
         report,
-        new Set(['inv-1']),
+        new Set(['inv-skip', 'inv-split-only', 'inv-split-deposit-1', 'inv-split-deposit-2']),
         new Map(),
         skipped,
         'claim',
         t,
         formatters,
-        1000,
+        600,
       );
-      const table = getTable(content);
-      const row = rowTexts(table.body[1]);
-      expect(row[5]).toBe('€1000.00*1*2');
-    });
-  });
+      const notesStack = content[content.length - 1] as {
+        stack: (Record<string, unknown> & { text: string })[];
+      };
+      const notes = notesStack.stack;
 
-  it('renders the appendix column value or an em-dash placeholder when appendix tracking is active', () => {
-    const withAppendix = makeInvoice({ invoiceId: 'inv-1' });
-    const withoutAppendix = makeInvoice({ invoiceId: 'inv-2' });
-    const report = makeReport([withAppendix, withoutAppendix]);
-    const content = buildOverviewContent(
-      report,
-      new Set(['inv-1', 'inv-2']),
-      new Map([['inv-1', 1]]),
-      new Map(),
-      'claim',
-      t,
-      formatters,
-      2000,
-    );
-    const table = getTable(content);
-    expect(rowTexts(table.body[1])[6]).toBe('1');
-    expect(rowTexts(table.body[2])[6]).toBe('—');
+      // Block order: skip, split, deposit.
+      expect(notes).toHaveLength(1 + 3 + 2);
+
+      const skipEntry = notes.find((n) => n.text.startsWith('*1'))!;
+      expect(skipEntry.margin).toBeUndefined();
+
+      const splitEntries = notes.filter((n) => /^†\d/.test(n.text));
+      expect(splitEntries).toHaveLength(3);
+      expect(splitEntries[0]!.margin).toEqual([0, 4, 0, 0]); // †1 (splitOnly) — first of block
+      expect(splitEntries[1]!.margin).toBeUndefined(); // †2 (splitAndTaggedDeposit)
+      expect(splitEntries[2]!.margin).toBeUndefined(); // †3 (splitAndUntaggedDeposit)
+
+      const depositEntries = notes.filter((n) => /^‡\d/.test(n.text));
+      expect(depositEntries).toHaveLength(2);
+      expect(depositEntries[0]!.margin).toEqual([0, 4, 0, 0]); // ‡1 — first of block
+      expect(depositEntries[1]!.margin).toBeUndefined(); // ‡2
+    });
   });
 
   it('adds one subtotal row per distinct status present among included invoices', () => {
@@ -539,6 +1022,63 @@ describe('buildOverviewContent', () => {
     expect(table.body).toHaveLength(4);
   });
 
+  // ─── Scenario 22: summary-row (subtotal/total) cell shape per layout ──────
+
+  describe('[Scenario 22] summary-row shape', () => {
+    it('budget-overview (isOverview=true): label at index 3 (leadingCount-1=3), amount at index 5, all other cells empty text, trailing usage cell empty', () => {
+      const invoice = makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 500 });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'budget-overview',
+        t,
+        formatters,
+        500,
+      );
+      const table = getTable(content);
+      const totalRow = table.body[table.body.length - 1] as Record<string, unknown>[];
+
+      expect(totalRow).toEqual([
+        { text: '', style: 'tableCell' },
+        { text: '', style: 'tableCell' },
+        { text: '', style: 'tableCell' },
+        { text: 'sourceReports.table.total', style: 'tableCell', bold: true },
+        { text: '', style: 'tableCell' },
+        { text: '€500.00', style: 'tableCell', alignment: 'right', bold: true },
+        { text: '', style: 'tableCell' },
+      ]);
+    });
+
+    it('claim (isOverview=false): label at index 2 (leadingCount-1=2), amount at index 4, all other cells empty text, trailing usage cell empty', () => {
+      const invoice = makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 500 });
+      const report = makeReport([invoice]);
+      const content = buildOverviewContent(
+        report,
+        new Set(['inv-1']),
+        new Map(),
+        new Map(),
+        'claim',
+        t,
+        formatters,
+        500,
+      );
+      const table = getTable(content);
+      const totalRow = table.body[table.body.length - 1] as Record<string, unknown>[];
+
+      expect(totalRow).toEqual([
+        { text: '', style: 'tableCell' },
+        { text: '', style: 'tableCell' },
+        { text: 'sourceReports.table.total', style: 'tableCell', bold: true },
+        { text: '', style: 'tableCell' },
+        { text: '€500.00', style: 'tableCell', alignment: 'right', bold: true },
+        { text: '', style: 'tableCell' },
+      ]);
+    });
+  });
+
   describe('grand total row (includedTotal param)', () => {
     it('renders the includedTotal param passed by the caller, not a re-derived sum of visible rows', () => {
       const invoice = makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 500 });
@@ -557,8 +1097,8 @@ describe('buildOverviewContent', () => {
       );
       const table = getTable(content);
       const totalRow = rowTexts(table.body[table.body.length - 1]);
-      expect(totalRow[3]).toBe('sourceReports.table.total');
-      expect(totalRow[5]).toBe('€999.00');
+      expect(totalRow[2]).toBe('sourceReports.table.total');
+      expect(totalRow[4]).toBe('€999.00');
     });
 
     it('defaults includedTotal to 0 when the param is omitted', () => {
@@ -575,7 +1115,7 @@ describe('buildOverviewContent', () => {
       );
       const table = getTable(content);
       const totalRow = rowTexts(table.body[table.body.length - 1]);
-      expect(totalRow[5]).toBe('€0.00');
+      expect(totalRow[4]).toBe('€0.00');
     });
 
     it('renders a negative includedTotal as-is (a net-refund report)', () => {
@@ -599,7 +1139,7 @@ describe('buildOverviewContent', () => {
       );
       const table = getTable(content);
       const totalRow = rowTexts(table.body[table.body.length - 1]);
-      expect(totalRow[5]).toBe('€-200.00');
+      expect(totalRow[4]).toBe('€-200.00');
     });
   });
 
@@ -660,6 +1200,7 @@ describe('buildOverviewContent', () => {
         invoiceNumber: 'G-9',
         isSplit: true,
         allocatedAmount: 400,
+        budgetLines: [makeBudgetLine()],
       });
       const report = makeReport([split]);
       const content = buildOverviewContent(
@@ -691,6 +1232,7 @@ describe('buildOverviewContent', () => {
         invoiceNumber: 'B-2',
         isSplit: true,
         allocatedAmount: 400,
+        budgetLines: [makeBudgetLine()],
       });
       const report = makeReport([skippedInv, splitInv]);
       const skipped = new Map<string, string[]>([['inv-1', ['footnoteFetchFailed']]]);
@@ -712,7 +1254,7 @@ describe('buildOverviewContent', () => {
       expect(notesStack.stack[1]!.text).toBe('†1: Beta (B-2) — sourceReports.table.splitFootnote');
     });
 
-    it('does not render a footnotes block when there are no skipped documents and no split invoices', () => {
+    it('does not render a footnotes block when there are no skipped documents and no split/deposit-marked invoices', () => {
       const report = makeReport([]);
       const content = buildOverviewContent(
         report,

@@ -81,6 +81,7 @@ Also confirmed: "allocated" vocabulary in de/budget.json is consistently `zugeor
 ## Report-Wizard Expand/Deposit-Tagging Keys (Issue #1891, 2026-07-30)
 
 New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + deposits in the report wizard invoice list) and `invoiceDetail.deposits.form.budgetSource*` (deposit→source picker) keys translated. Judgment calls, useful as precedent for future column-header/table keys:
+
 - `itemColumnHeader`: "Item" (generic table header for a budget-line description) → "Position" — parallels German invoicing convention where each line is a "Position"; distinct from `itemsHeading` "Budgetpositionen" (glossary Budget Line plural) which is the sub-table's section heading, not the column.
 - `datesColumnHeader`: "Dates" (column stacking due/paid/claimed dates) → "Termine", not "Daten" (which reads as "data" in modern German, not "dates").
 - `linkedColumnHeader`: "Linked to" → "Verknüpft mit" (consistent with existing `linkedItem`/`linkedItemLegend` → "Verknüpftes Element").

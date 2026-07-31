@@ -96,13 +96,13 @@ failures (shard 2/16 desktop scenarios 1/4/9/11, shard 13/16 mobile scenario 10)
   skipped entirely when `invoice.documents` is empty), so the whole regen can complete fast
   enough that the overlay's "visible" window is never reliably observed by Playwright's
   polling. The suite's own established convention elsewhere
-  (`invoice-auto-itemize-page.spec.ts:1589`) only ever asserts the overlay's terminal *hidden*
+  (`invoice-auto-itemize-page.spec.ts:1589`) only ever asserts the overlay's terminal _hidden_
   state, never its transient appearance — same lesson applies here. Fixed by adding
   `ReportWizardPage.getPreviewSrc()` / `waitForPreviewRegenerated(previousSrc)` to the POM,
   which prove a regeneration happened via the iframe's `blob:` src actually changing (every
   `URL.createObjectURL()` call yields a unique URL) instead of racing the spinner.
 - **Scenario 4 (empty state) — TEST_BUG, fixed.** `ReportInvoiceList.tsx`'s `<EmptyState>` only
-  renders when BOTH this source's allocated invoices AND the *household-wide* unallocated list
+  renders when BOTH this source's allocated invoices AND the _household-wide_ unallocated list
   are empty — `sourceReportService.ts`'s `unallocRows` query has **no** `budget_source_id`
   filter at all (confirmed by reading the SQL), so it's global across every vendor/spec file.
   Under full 8-worker parallel CI this is essentially always non-zero, making the EmptyState
