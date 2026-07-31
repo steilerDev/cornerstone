@@ -1,6 +1,6 @@
 ---
 name: story-1879-report-wizard
-description: Story #1879 Bank Report Wizard (/budget/reports) — POM/spec authored against a frontend implementation with a Blocker runtime crash (filed #1886); orientations.spec.ts and invoices.spec.ts:395 known-flake fixes confirmed self-healed on beta before this story.
+description: Story #1879 Bank Report Wizard (/budget/reports) — POM/spec authored against a frontend implementation with a Blocker runtime crash (filed #1886); orientations.spec.ts and invoices.spec.ts:395 known-flake fixes confirmed self-healed on beta before this story. Story #1899 added a 5th step (Settings — report language + moved toggles).
 metadata:
   type: project
 ---
@@ -168,3 +168,48 @@ with "received 6" on PR #1883 (desktop/tablet/mobile) — PR #1883 added a 6th "
 (Household, Areas, ...)") landed in the very next commit (`fc7f6ad2`, PR #1885) and is present at
 my branch's HEAD. No new regressions from this triage — see `known-flakes-and-regressions.md` for
 the canonical entries; this file only records the fresh confirmation.
+
+## Story #1899 — 5th step inserted ("Settings"), old step 4 renumbered to step 5
+
+`ReportWizardPage.tsx` gained a NEW step 4 ("Settings" — `Step4Settings.tsx`): a report-language
+radio group (`input[name="reportLanguage"][value="en"|"de"]`, plain/visible, literal
+"English"/"Deutsch" labels NOT wrapped in `t()`) PLUS the `#attachDocuments`/`#includeCoverLetter`
+toggles relocated verbatim from the old step 4 (same DOM ids). The old step 4 (preview iframe +
+`Step4Options.tsx`) was renamed `Step5Actions.tsx` and pushed to step 5, content byte-identical
+minus the toggle props/JSX. **Key consequence for every E2E scenario that used to do
+`goNextFromStep3(); waitForPreviewReady();`**: the preview `<iframe>`/`ReportPdfPreview` component
+is now ONLY mounted at step 5 — there is no way to observe `previewLoadingOverlay`/
+`previewIframe`/`getPreviewSrc()` while on the new step 4. Every such call site became
+`goNextFromStep3(); step4NextButton.click(); waitForPreviewReady();` (12 call sites across
+`reportWizard.spec.ts` + `reportWizardExpansion.spec.ts`). One consequence: Scenario 1's old
+"toggle attach/cover-letter, verify regeneration via `waitForPreviewRegenerated` after EACH
+individual toggle" pattern no longer works (nothing to observe on step 4) — simplified to
+"toggle all options on step 4 (asserting only checkbox check-state, not regeneration), advance
+once, single `waitForPreviewReady()` on step 5". The still-valid multi-step regeneration proof
+(`getPreviewSrc()` before, `waitForPreviewRegenerated(previousSrc)` after) now requires reaching
+step 5 fully (via step 4) each time, and going back now needs TWO `goBack()` calls (step 5 → step
+4 → step 3) instead of one — `goBack()` itself needed NO change since it's a generic
+`[class*="buttonRow"] [class*="btnSecondary"]` re-query (works for whichever step is currently
+mounted; only one `buttonRow` div is ever in the DOM at a time across all 5 steps, confirmed via
+grep — this is also why `step2BackButton`/`step3BackButton`/`step4BackButton` are literally the
+same object reference, and `.first()`/`.last()` are never load-bearing disambiguators, just
+defensive tie-breakers).
+
+Added `reportLanguageRadio(lang)`/`selectReportLanguage(lang)` (POM) and a new Scenario 12
+(`reportWizard.spec.ts`) proving a `reportLanguage` change on step 4 regenerates the preview
+(blob src change, via `waitForPreviewRegenerated`) while the wizard's OWN chrome (heading,
+stepper labels, Back/Next button text) stays English — `reportLanguage` only feeds
+`generateReportPdf`'s fixed-locale `i18n.getFixedT(reportLanguage, 'budget')`/`createFormatters()`
+pair, completely independent of the app's `resolvedLocale`/normal `t`. Deliberately did NOT
+assert on PDF byte content (that's the Jest `realRender.test.ts` unit test's job per the QA
+spec) — only the blob-src-changed proof + suggestedFilename pattern (still untranslated:
+`${useCase}-${slug}-${date}.pdf`, confirmed unaffected).
+
+Verified via `npx eslint`, `npx prettier --check`, `npx tsc --noEmit -p e2e/tsconfig.json`
+(zero errors referencing ReportWizard files; the ~123 pre-existing errors in ~22 unrelated files,
+mostly `capture-docs-screenshots.spec.ts`'s `TestDetails` type mismatch, are the same
+sandbox/stale-@playwright/test-version noise as prior stories — confirm this is still true each
+session rather than assuming). No live Playwright run — browser binary download is blocked by
+network policy in this sandbox (`cdn.playwright.dev`/`playwright.download.prss.microsoft.com`
+both 403 "blocked by network policy: domain ... — no matching allow rule"), consistent with
+`sandbox-live-verification.md`'s finding. CI's full E2E matrix is the real verification gate.

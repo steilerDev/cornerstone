@@ -693,3 +693,33 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     });
   });
 });
+
+// ─── Story #1899: the PRODUCTION i18n singleton, not an isolated instance ─────────────────────
+//
+// Every test above uses an isolated i18next instance created via i18next.createInstance() in the
+// beforeAll block near the top of this file — deliberately decoupled from localStorage/navigator
+// and the rest of the app. ReportWizardPage's actual `reportT` construction
+// (`i18n.getFixedT(reportLanguage, 'budget')`) calls the real, app-wide i18n singleton instead
+// (../../i18n/index.js). This closes that gap: it confirms the production singleton's
+// getFixedT() genuinely produces a German-language TFunction even while the singleton's own
+// ambient/active language stays English — i.e. selecting a report language never has to (and
+// must not) call i18n.changeLanguage() to work.
+describe('production i18n singleton — getFixedT resolves a language independent of the ambient one', () => {
+  it('getFixedT("de", "budget") resolves real German copy while the singleton\'s active language stays English', async () => {
+    const i18n = (await import('../../i18n/index.js')).default;
+    // jsdom's default navigator.language ('en-US') and no stored 'locale' preference resolve the
+    // singleton's ambient language to 'en' — matching ReportWizardPage's default reportLanguage
+    // (seeded from useLocale().resolvedLocale, which uses the same detection).
+    expect(i18n.language).toBe('en');
+
+    const fixedDe = i18n.getFixedT('de', 'budget');
+    expect(fixedDe('sourceReports.table.vendor')).toBe('Auftragnehmer');
+    expect(fixedDe('sourceReports.download')).toBe('PDF herunterladen');
+
+    // Calling getFixedT for a different locale must not mutate the singleton's own active
+    // language — a fixed TFunction is a read, not a global language switch.
+    expect(i18n.language).toBe('en');
+    const fixedEn = i18n.getFixedT('en', 'budget');
+    expect(fixedEn('sourceReports.table.vendor')).toBe('Vendor');
+  });
+});

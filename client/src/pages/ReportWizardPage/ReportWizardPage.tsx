@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { BudgetSource, SourceReportType, HouseholdSettings } from '@cornerstone/shared';
+import i18n from '../../i18n/index.js';
+import { useLocale, type ResolvedLocale } from '../../contexts/LocaleContext.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchHouseholdSettings } from '../../lib/settingsApi.js';
 import { getSourceReport, markInvoicesClaimed } from '../../lib/sourceReportsApi.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
-import { useFormatters } from '../../lib/formatters.js';
+import { createFormatters } from '../../lib/formatters.js';
 import { applyLineExclusions } from '../../lib/reportExclusions.js';
 import {
   generateReportPdf,
@@ -29,7 +31,8 @@ import { ReportPdfPreview } from '../../components/reports/ReportPdfPreview.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import { Step1UseCase } from './Step1UseCase.js';
 import { Step2Source } from './Step2Source.js';
-import { Step4Options } from './Step4Options.js';
+import { Step4Settings } from './Step4Settings.js';
+import { Step5Actions } from './Step5Actions.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportWizardPage.module.css';
 
@@ -39,7 +42,7 @@ export function ReportWizardPage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { showToast } = useToast();
-  const formatters = useFormatters();
+  const { resolvedLocale, currency } = useLocale();
   const [searchParams] = useSearchParams();
 
   // Step navigation
@@ -48,6 +51,9 @@ export function ReportWizardPage() {
 
   // Focus management for step headings
   const stepHeadingsRef = useRef<(HTMLHeadingElement | null)[]>([]);
+
+  // Report language selection
+  const [reportLanguage, setReportLanguage] = useState<ResolvedLocale>(resolvedLocale);
 
   // Use case selection
   const [useCase, setUseCase] = useState<SourceReportType | null>(null);
@@ -189,6 +195,14 @@ export function ReportWizardPage() {
     }
   }, [useCase, sourceIdFromQuery, report, handleSourceChange]);
 
+  // Report-language-specific translation and formatters
+  const reportT = useMemo(() => i18n.getFixedT(reportLanguage, 'budget'), [reportLanguage]);
+
+  const reportFormatters = useMemo(
+    () => createFormatters(reportLanguage === 'de' ? 'de-DE' : 'en-US', currency),
+    [reportLanguage, currency],
+  );
+
   // Regenerate PDF on options change (debounced)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -218,8 +232,8 @@ export function ReportWizardPage() {
         useCase,
         { attachDocuments, includeCoverLetter },
         household,
-        t,
-        formatters,
+        reportT,
+        reportFormatters,
       );
 
       // Bail if a newer generation has started
@@ -255,8 +269,8 @@ export function ReportWizardPage() {
     attachDocuments,
     includeCoverLetter,
     household,
-    formatters,
-    t,
+    reportT,
+    reportFormatters,
   ]);
 
   // PDF generation: immediate on first load, debounced on option changes
@@ -296,6 +310,7 @@ export function ReportWizardPage() {
     includeCoverLetter,
     excludedInvoiceIds,
     excludedLineIds,
+    reportLanguage,
   ]);
 
   // Handle claim
@@ -406,7 +421,8 @@ export function ReportWizardPage() {
     { id: 'use-case', label: t('sourceReports.stepper.useCase') },
     { id: 'source', label: t('sourceReports.stepper.source') },
     { id: 'invoices', label: t('sourceReports.stepper.invoices') },
-    { id: 'options', label: t('sourceReports.stepper.options') },
+    { id: 'settings', label: t('sourceReports.stepper.settings') },
+    { id: 'actions', label: t('sourceReports.stepper.options') },
   ];
 
   const coverLetterDisabled = !selectedSource?.contactAddress && !selectedSource?.reference;
@@ -587,7 +603,7 @@ export function ReportWizardPage() {
         )}
 
         {currentStep === 4 && (
-          <div className={styles.step4Body}>
+          <div>
             <h2
               ref={(el) => {
                 stepHeadingsRef.current[3] = el;
@@ -596,16 +612,53 @@ export function ReportWizardPage() {
             >
               {steps[3]?.label}
             </h2>
+            <Step4Settings
+              reportLanguage={reportLanguage}
+              onReportLanguageChange={setReportLanguage}
+              attachDocuments={attachDocuments}
+              onAttachDocumentsChange={setAttachDocuments}
+              includeCoverLetter={includeCoverLetter}
+              onIncludeCoverLetterChange={setIncludeCoverLetter}
+              coverLetterDisabled={coverLetterDisabled}
+              t={t}
+            />
+            <div className={styles.buttonRow}>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={() => setCurrentStep(3)}
+              >
+                {t('common:button.back')}
+              </button>
+              <button
+                type="button"
+                className={sharedStyles.btnPrimary}
+                onClick={() => {
+                  setMaxReachedStep((s) => Math.max(s, 5));
+                  setCurrentStep(5);
+                }}
+              >
+                {t('common:button.next')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {currentStep === 5 && (
+          <div className={styles.step4Body}>
+            <h2
+              ref={(el) => {
+                stepHeadingsRef.current[4] = el;
+              }}
+              tabIndex={-1}
+            >
+              {steps[4]?.label}
+            </h2>
             {previewError && !isRegenerating && (
               <FormError message={t('sourceReports.previewGenerationFailed')} />
             )}
             <div className={styles.step4Layout}>
-              <Step4Options
-                attachDocuments={attachDocuments}
-                onAttachDocumentsChange={setAttachDocuments}
-                includeCoverLetter={includeCoverLetter}
-                onIncludeCoverLetterChange={setIncludeCoverLetter}
-                coverLetterDisabled={coverLetterDisabled}
+              <Step5Actions
                 useCase={useCase!}
                 paperlessStatus={paperlessStatus}
                 isMarkingClaimed={isMarkingClaimed}
@@ -656,7 +709,7 @@ export function ReportWizardPage() {
               <button
                 type="button"
                 className={sharedStyles.btnSecondary}
-                onClick={() => setCurrentStep(3)}
+                onClick={() => setCurrentStep(4)}
               >
                 {t('common:button.back')}
               </button>

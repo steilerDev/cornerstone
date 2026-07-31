@@ -15,6 +15,9 @@
  * - Scenario 10: Mobile stepper layout.
  * - Scenario 11: Cross-story integration — a refund entry (Issue #1876) surfaces as a
  *   negative line in a generated claim report.
+ * - Scenario 12: Story #1899 — selecting "Deutsch" on the new Settings step regenerates the
+ *   PDF preview (proven via a blob: src change) while the wizard's own chrome (heading,
+ *   stepper labels, Back/Next buttons) stays English throughout.
  *
  * NOTE ON CURRENT IMPLEMENTATION STATE: as of this story, `ReportWizardPage.tsx` calls
  * `setBudgetSources(sources)` with the raw `fetchBudgetSources()` response
@@ -28,7 +31,7 @@
  * accommodate buggy code) and will pass once the fix lands.
  *
  * PDF generation (pdfmake + pdf-lib via dynamic `import()`) can be slow, especially on a
- * cold chunk load — every scenario that reaches Step 4 uses `test.slow()`.
+ * cold chunk load — every scenario that reaches step 5 (the preview) uses `test.slow()`.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -274,28 +277,25 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
 
       await wizard.goNextFromStep3();
 
-      // Step 4: preview generates on entry.
+      // Step 4: Settings — attach-documents/cover-letter toggles now live here, BEFORE the
+      // preview exists (the preview iframe is only mounted on step 5 — see ReportWizardPage.ts
+      // class docstring). Toggle each option off then on to exercise the controls directly;
+      // the regeneration this produces happens in the background and is proven once, below,
+      // via waitForPreviewReady() after advancing.
+      await wizard.toggleAttachDocuments();
+      await expect(wizard.attachDocumentsCheckbox).not.toBeChecked();
+      await wizard.toggleAttachDocuments();
+      await expect(wizard.attachDocumentsCheckbox).toBeChecked();
+
+      await wizard.toggleCoverLetter();
+      await expect(wizard.includeCoverLetterCheckbox).not.toBeChecked();
+      await wizard.toggleCoverLetter();
+      await expect(wizard.includeCoverLetterCheckbox).toBeChecked();
+
+      await wizard.step4NextButton.click();
+
+      // Step 5: preview generates/settles once we land here with the final Settings state.
       await wizard.waitForPreviewReady();
-
-      // Toggle attach documents off then on — each toggle produces a genuinely new preview
-      // (proven by the iframe's blob: src changing, not by the loading spinner's transient
-      // visibility — see waitForPreviewRegenerated's docstring for why).
-      let previousSrc = await wizard.getPreviewSrc();
-      await wizard.toggleAttachDocuments();
-      await wizard.waitForPreviewRegenerated(previousSrc);
-
-      previousSrc = await wizard.getPreviewSrc();
-      await wizard.toggleAttachDocuments();
-      await wizard.waitForPreviewRegenerated(previousSrc);
-
-      // Toggle cover letter off then on — same regeneration proof.
-      previousSrc = await wizard.getPreviewSrc();
-      await wizard.toggleCoverLetter();
-      await wizard.waitForPreviewRegenerated(previousSrc);
-
-      previousSrc = await wizard.getPreviewSrc();
-      await wizard.toggleCoverLetter();
-      await wizard.waitForPreviewRegenerated(previousSrc);
 
       // Download — filename `claim-<slug>-<date>.pdf`.
       const today = new Date().toISOString().slice(0, 10);
@@ -342,7 +342,7 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard — budget overview smoke (Scenario 2)', () => {
-  test('Quotation invoices appear in step 3 and reach a downloadable step 4', async ({
+  test('Quotation invoices appear in step 3 and reach a downloadable step 5', async ({
     page,
     testPrefix,
   }) => {
@@ -379,6 +379,7 @@ test.describe('Report wizard — budget overview smoke (Scenario 2)', () => {
       ).toBeVisible();
 
       await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
       await wizard.waitForPreviewReady();
       await expect(wizard.downloadButton).toBeEnabled();
     } finally {
@@ -556,6 +557,7 @@ test.describe('Report wizard — Paperless upload (Scenarios 5 & 6)', () => {
         wizard.regularInvoiceRow(`${testPrefix} Upload Vendor`, invoice.invoiceNumber!),
       ).toBeVisible();
       await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
       await wizard.waitForPreviewReady();
 
       await expect(wizard.uploadPaperlessButton).toBeVisible();
@@ -607,6 +609,7 @@ test.describe('Report wizard — Paperless upload (Scenarios 5 & 6)', () => {
         wizard.regularInvoiceRow(`${testPrefix} NoUpload Vendor`, invoice.invoiceNumber!),
       ).toBeVisible();
       await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
       await wizard.waitForPreviewReady();
 
       await expect(wizard.uploadPaperlessButton).toHaveCount(0);
@@ -660,13 +663,14 @@ test.describe('Report wizard — sourceId prefill (Scenario 7)', () => {
       // Picking the use case fires the effect that pre-loads the report for the pre-checked
       // ?sourceId= source — walk the rest of the wizard through to prove the deep link no
       // longer dead-ends: step 3 shows the seeded invoice (report actually loaded, not stuck
-      // on the skeleton) and step 4's preview becomes ready.
+      // on the skeleton) and step 5's preview becomes ready.
       await wizard.goNextFromStep2();
       await expect(
         wizard.regularInvoiceRow(`${testPrefix} Prefill Vendor`, invoice.invoiceNumber!),
       ).toBeVisible();
 
       await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
       await wizard.waitForPreviewReady();
       await expect(wizard.downloadButton).toBeEnabled();
     } finally {
@@ -687,6 +691,8 @@ test.describe('Report wizard — route smoke (Scenario 8)', { tag: '@responsive'
     await wizard.goto();
     await expect(wizard.heading).toHaveText('Bank Reports');
     await expect(wizard.useCaseRadioGroup).toBeVisible();
+    // 5 steps as of Story #1899 (Settings inserted at position 4).
+    await expect(wizard.stepItems).toHaveCount(5);
   });
 });
 
@@ -695,14 +701,30 @@ test.describe('Report wizard — route smoke (Scenario 8)', { tag: '@responsive'
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard — forward-lock (Scenario 9)', () => {
-  test('Step 4 is not clickable in the stepper from step 3', async ({ page, testPrefix }) => {
+  test('Step 4 is not clickable in the stepper from step 3, and step 5 is not clickable from step 4', async ({
+    page,
+    testPrefix,
+  }) => {
     const wizard = new ReportWizardPage(page);
 
+    let vendorId = '';
     let sourceId = '';
+    let workItemId = '';
     try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Lock Vendor` });
       sourceId = await createBudgetSourceViaApi(page, {
         name: `${testPrefix} Lock Source`,
         totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Lock` });
+      // A real allocated invoice is required so step 3's Next button is enabled — otherwise
+      // this source's report has zero rows and the "select at least one" guard would block
+      // reaching step 4 at all.
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LOCK-001`,
+        amount: 100,
+        date: '2026-05-01',
+        status: 'pending',
       });
 
       await wizard.goto();
@@ -710,13 +732,23 @@ test.describe('Report wizard — forward-lock (Scenario 9)', () => {
       await wizard.goNextFromStep1();
       await wizard.selectSource(sourceId);
       await wizard.goNextFromStep2();
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} Lock Vendor`, invoice.invoiceNumber!),
+      ).toBeVisible();
 
       // maxReachedStep is 3 here — step 4's stepper item must render as a non-interactive
       // element (no <button>), not merely a disabled one.
       expect(await wizard.isStepInteractive(4)).toBe(false);
       await expect(wizard.stepItems.nth(3).locator('button')).toHaveCount(0);
+
+      // Advancing to step 4 (Settings) bumps maxReachedStep to 4 — step 5 must still be locked.
+      await wizard.goNextFromStep3();
+      expect(await wizard.isStepInteractive(5)).toBe(false);
+      await expect(wizard.stepItems.nth(4).locator('button')).toHaveCount(0);
     } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
   });
 });
@@ -726,15 +758,15 @@ test.describe('Report wizard — forward-lock (Scenario 9)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard — mobile stepper (Scenario 10)', { tag: '@responsive' }, () => {
-  test('Shows "Step N of 4" + dots instead of the desktop stepper', async ({ page }) => {
+  test('Shows "Step N of 5" + dots instead of the desktop stepper', async ({ page }) => {
     test.skip(test.info().project.name !== 'mobile', 'Mobile-only layout check');
     const wizard = new ReportWizardPage(page);
     await wizard.goto();
 
     await expect(wizard.mobileStepCount).toBeVisible();
     await expect(wizard.mobileStepCount).toContainText('1');
-    await expect(wizard.mobileStepCount).toContainText('4');
-    await expect(wizard.mobileDots).toHaveCount(4);
+    await expect(wizard.mobileStepCount).toContainText('5');
+    await expect(wizard.mobileDots).toHaveCount(5);
     // WizardStepper renders BOTH the desktop <ol class="stepList"> and the mobile
     // stepperMobile tree unconditionally, toggling which is shown purely via a
     // `@media (max-width: 767px)` CSS rule (WizardStepper.module.css) — the desktop tree is
@@ -825,6 +857,98 @@ test.describe('Report wizard — refund cross-story integration (Scenario 11)', 
       // Excluding the refund-adjustment row INCREASES the running total (sign behavior).
       await refundRow.locator('input[type="checkbox"]').click();
       await expect(wizard.selectionCountLabel).toContainText('1,000');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 12: German report language from an English UI (Story #1899)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — German report language from English UI (Scenario 12)', () => {
+  test('Selecting Deutsch on the Settings step regenerates the preview while the wizard chrome stays English', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Lang Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Lang Source`,
+        totalAmount: 20000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Lang` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANG-001`,
+        amount: 450,
+        date: '2026-05-15',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await wizard.goNextFromStep3();
+
+      // Settings step — chrome (heading, stepper labels, buttons) is rendered via the app's
+      // own English `t`, entirely independent of `reportLanguage`, which only feeds
+      // `generateReportPdf`'s fixed-locale t/formatters pair (ReportWizardPage.tsx).
+      await expect(page.getByRole('heading', { name: 'Settings', level: 2 })).toBeVisible();
+      await expect(wizard.stepItems.nth(3)).toContainText('Settings');
+      await expect(wizard.stepItems.nth(4)).toContainText('Preview & Export');
+      await expect(wizard.step4BackButton).toHaveText('Back');
+      await expect(wizard.step4NextButton).toHaveText('Next');
+
+      // Default selection is the resolved app locale — English here.
+      await expect(wizard.reportLanguageRadio('en')).toBeChecked();
+      await expect(wizard.reportLanguageRadio('de')).not.toBeChecked();
+
+      // Reach step 5 once with the default (English) report language to capture a baseline
+      // preview src — the Settings step itself has no preview iframe (see the POM's class
+      // docstring), so this proof can only happen once we're on step 5.
+      await wizard.step4NextButton.click();
+      await wizard.waitForPreviewReady();
+      const englishSrc = await wizard.getPreviewSrc();
+
+      // Back to Settings, switch to Deutsch, advance again — the regenerated preview must be
+      // a genuinely different blob (proving the language change actually re-ran PDF
+      // generation), while the wizard chrome never switches out of English.
+      await wizard.step5BackButton.click();
+      await wizard.selectReportLanguage('de');
+      await expect(wizard.reportLanguageRadio('de')).toBeChecked();
+      await expect(wizard.reportLanguageRadio('en')).not.toBeChecked();
+
+      await wizard.step4NextButton.click();
+      await wizard.waitForPreviewRegenerated(englishSrc);
+
+      // Wizard chrome — heading, stepper labels, action buttons — stays English regardless of
+      // the report's own selected language. No PDF byte-content assertions here: the actual
+      // German PDF text is covered by the Jest `realRender` test (see the story's QA spec).
+      await expect(wizard.heading).toHaveText('Bank Reports');
+      await expect(wizard.stepItems.nth(3)).toContainText('Settings');
+      await expect(wizard.stepItems.nth(4)).toContainText('Preview & Export');
+      await expect(wizard.step5BackButton).toHaveText('Back');
+
+      // Download still succeeds with the unaffected (untranslated) filename pattern.
+      const today = new Date().toISOString().slice(0, 10);
+      const slug = `${testPrefix} Lang Source`
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^\w-]/g, '');
+      const download = await wizard.download();
+      expect(download.suggestedFilename()).toBe(`claim-${slug}-${today}.pdf`);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
