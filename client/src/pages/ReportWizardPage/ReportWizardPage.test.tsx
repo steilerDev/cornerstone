@@ -531,7 +531,7 @@ describe('ReportWizardPage', () => {
 
       expect(within(desktopTable()).getByDisplayValue('Edited Usage Text')).toBeInTheDocument();
       expect(
-        within(desktopTable()).getByRole('button', { name: 'Reset usage to generated text' }),
+        within(desktopTable()).getByRole('button', { name: 'Reset Usage to generated text' }),
       ).toBeInTheDocument();
       expect(mockGenerateReportPdf).not.toHaveBeenCalled();
     });
@@ -546,12 +546,12 @@ describe('ReportWizardPage', () => {
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
       await user.click(
-        within(desktopTable()).getByRole('button', { name: 'Reset usage to generated text' }),
+        within(desktopTable()).getByRole('button', { name: 'Reset Usage to generated text' }),
       );
 
       expect(within(desktopTable()).getByDisplayValue('Original Usage Text')).toBeInTheDocument();
       expect(
-        screen.queryAllByRole('button', { name: 'Reset usage to generated text' }),
+        screen.queryAllByRole('button', { name: 'Reset Usage to generated text' }),
       ).toHaveLength(0);
     });
 

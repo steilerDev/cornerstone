@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { TFunction } from 'i18next';
 import type { SourceReportType, PaperlessStatusResponse } from '@cornerstone/shared';
+import { Spinner } from '../../components/Spinner/Spinner.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportWizardPage.module.css';
 
@@ -62,7 +63,11 @@ export function Step5Actions({
             onClick={onPreviewPdf}
             disabled={activeAction !== null}
           >
-            {activeAction === 'preview' && <span>⟳ </span>}
+            {activeAction === 'preview' && (
+              <span aria-hidden="true">
+                <Spinner size="sm" color="muted" />
+              </span>
+            )}
             {t('sourceReports.editable.previewPdf')}
           </button>
 
@@ -72,7 +77,11 @@ export function Step5Actions({
             onClick={onDownload}
             disabled={activeAction !== null}
           >
-            {activeAction === 'download' && <span>⟳ </span>}
+            {activeAction === 'download' && (
+              <span aria-hidden="true">
+                <Spinner size="sm" color="muted" />
+              </span>
+            )}
             {t('sourceReports.download')}
           </button>
 
@@ -105,7 +114,11 @@ export function Step5Actions({
               onClick={onUploadPaperless}
               disabled={activeAction !== null}
             >
-              {activeAction === 'paperless' && <span>⟳ </span>}
+              {activeAction === 'paperless' && (
+                <span aria-hidden="true">
+                  <Spinner size="sm" color="muted" />
+                </span>
+              )}
               {t('sourceReports.uploadPaperless')}
             </button>
           )}

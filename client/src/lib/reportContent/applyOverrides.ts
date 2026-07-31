@@ -7,6 +7,7 @@
  */
 
 import type { ReportContent, ReportContentOverrides } from './types.js';
+import { overrideKey } from './overrideKeys.js';
 
 export function applyOverrides(
   content: ReportContent,
@@ -30,21 +31,36 @@ export function applyOverrides(
 
   // Apply cover letter overrides
   if (result.coverLetter) {
-    if ('coverLetter.sender' in overrides) {
-      result.coverLetter.sender = overrides['coverLetter.sender'];
-      senderChanged = true;
+    if (overrideKey.coverLetter.sender in overrides) {
+      const senderOverride = overrides[overrideKey.coverLetter.sender];
+      if (senderOverride !== undefined) {
+        result.coverLetter.sender = senderOverride;
+        senderChanged = true;
+      }
     }
-    if ('coverLetter.recipient' in overrides) {
-      result.coverLetter.recipient = overrides['coverLetter.recipient'];
+    if (overrideKey.coverLetter.recipient in overrides) {
+      const recipientOverride = overrides[overrideKey.coverLetter.recipient];
+      if (recipientOverride !== undefined) {
+        result.coverLetter.recipient = recipientOverride;
+      }
     }
-    if ('coverLetter.reference' in overrides) {
-      result.coverLetter.reference = overrides['coverLetter.reference'];
+    if (overrideKey.coverLetter.reference in overrides) {
+      const referenceOverride = overrides[overrideKey.coverLetter.reference];
+      if (referenceOverride !== undefined) {
+        result.coverLetter.reference = referenceOverride;
+      }
     }
-    if ('coverLetter.subject' in overrides) {
-      result.coverLetter.subject = overrides['coverLetter.subject'];
+    if (overrideKey.coverLetter.subject in overrides) {
+      const subjectOverride = overrides[overrideKey.coverLetter.subject];
+      if (subjectOverride !== undefined) {
+        result.coverLetter.subject = subjectOverride;
+      }
     }
-    if ('coverLetter.body' in overrides) {
-      result.coverLetter.body = overrides['coverLetter.body'];
+    if (overrideKey.coverLetter.body in overrides) {
+      const bodyOverride = overrides[overrideKey.coverLetter.body];
+      if (bodyOverride !== undefined) {
+        result.coverLetter.body = bodyOverride;
+      }
     }
 
     // Recompute signature if sender changed
@@ -58,14 +74,13 @@ export function applyOverrides(
     const row = result.rows[i];
     if (!row) continue;
 
-    const usageKey = `row.${row.invoiceId}.usageText`;
-    const attachmentsKey = `row.${row.invoiceId}.attachmentsNote`;
+    const rowKeys = overrideKey.row(row.invoiceId);
 
-    if (usageKey in overrides) {
-      row.usageText = overrides[usageKey] || '';
+    if (rowKeys.usageText in overrides) {
+      row.usageText = overrides[rowKeys.usageText] || '';
     }
-    if (attachmentsKey in overrides) {
-      row.attachmentsNote = overrides[attachmentsKey] || null;
+    if (rowKeys.attachmentsNote in overrides) {
+      row.attachmentsNote = overrides[rowKeys.attachmentsNote] || null;
     }
   }
 

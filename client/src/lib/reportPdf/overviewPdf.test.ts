@@ -42,10 +42,33 @@ function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
   };
 }
 
+// Key-echo convention: labels values equal the i18n key strings themselves, matching the mock
+// `t` used throughout this file (`t = (key) => key`). This keeps every existing header/source-info
+// assertion (which asserts against the raw key string) passing unchanged, since buildReportContent
+// (not tested here) is what would normally produce these translated values — overviewPdf.ts only
+// ever reads reportContent.labels.*, never calls t() for label text itself.
+function makeLabels(): ReportContent['labels'] {
+  return {
+    vendor: 'sourceReports.table.vendor',
+    invoiceNumber: 'sourceReports.table.invoiceNumber',
+    date: 'sourceReports.table.date',
+    status: 'sourceReports.table.status',
+    invoiceAmount: 'sourceReports.table.invoiceAmount',
+    allocatedAmount: 'sourceReports.table.allocatedAmount',
+    usage: 'sourceReports.table.usage',
+    attachmentsNote: 'sourceReports.editable.attachmentsNoteLabel',
+    source: 'sourceReports.table.source',
+    sourceType: 'sourceReports.table.sourceType',
+    reference: 'sourceReports.table.reference',
+    generatedAt: 'sourceReports.table.generatedAt',
+  };
+}
+
 function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   return {
     isOverview: false,
     tableTitle: 'sourceReports.table.title.claim',
+    labels: makeLabels(),
     sourceInfo: {
       sourceName: 'Home Loan',
       sourceTypeText: 'sourceReports.sourceType.bank_loan',

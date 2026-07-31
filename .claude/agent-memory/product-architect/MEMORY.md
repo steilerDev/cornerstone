@@ -6,7 +6,7 @@
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
 - [Source-report split inference](source-report-split-inference.md) — budgetLines[]/deposits[] are this-source-scoped, so †/‡ classification is a proxy; proposed `splitKind`; pdfmake `'2*'` width trap
 - [Story reviews](story-reviews.md) — per-story and per-PR review log
-- [Client PDF pipeline](client-pdf-pipeline.md) — ADR-034 report PDF generation
+- [Client PDF pipeline](client-pdf-pipeline.md) — ADR-034 report PDF generation + the reportContent content/layout split (#1900)
 - [Diary drafts pattern](diary-drafts-pattern.md) — ADR-022 draft lifecycle via status column on parent table
 - [EPIC-03 refinement](epic03-refinement.md) — 40 consolidated refinement items
 - [EPIC-04 household items](epic04-household-items.md) · [EPIC-05 budget](epic05-budget.md) · [EPIC-17 i18n](epic17-i18n.md) · [EPIC-18 areas & trades](epic18-areas-trades.md)

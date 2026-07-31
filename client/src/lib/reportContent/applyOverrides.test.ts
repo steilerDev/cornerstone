@@ -30,10 +30,28 @@ function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
   };
 }
 
+function makeLabels(): ReportContent['labels'] {
+  return {
+    vendor: 'Vendor',
+    invoiceNumber: 'Invoice No.',
+    date: 'Date',
+    status: 'Status',
+    invoiceAmount: 'Invoice Amount',
+    allocatedAmount: 'Allocated Amount',
+    usage: 'Usage',
+    attachmentsNote: 'Attachments Note',
+    source: 'Source',
+    sourceType: 'Source Type',
+    reference: 'Reference',
+    generatedAt: 'Generated At',
+  };
+}
+
 function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   return {
     isOverview: false,
     tableTitle: 'Title',
+    labels: makeLabels(),
     sourceInfo: {
       sourceName: 'Home Loan',
       sourceTypeText: 'Bank Loan',
@@ -261,5 +279,15 @@ describe('applyOverrides — immutability', () => {
     expect(result.sourceInfo).toEqual(content.sourceInfo);
     expect(result.isOverview).toBe(content.isOverview);
     expect(result.tableTitle).toBe(content.tableTitle);
+  });
+
+  it('passes labels through unchanged (same reference, no override key targets it) when other overrides are applied', () => {
+    const content = makeContent();
+    const result = applyOverrides(content, {
+      'coverLetter.sender': 'Changed',
+      'row.inv-1.usageText': 'Changed usage',
+    });
+    expect(result.labels).toBe(content.labels);
+    expect(result.labels).toEqual(content.labels);
   });
 });

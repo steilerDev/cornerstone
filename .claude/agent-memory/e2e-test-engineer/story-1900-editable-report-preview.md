@@ -9,6 +9,7 @@ metadata:
 
 Step 5 is no longer an always-mounted `iframe[title="Report PDF preview"]` that auto-regenerates on
 a 400ms debounce. It is now:
+
 - `ReportContentEditor.tsx` — live, ALWAYS-editable `EditableField` inputs (not click-to-edit): a
   cover letter card (`[class*="coverLetterCard"]`, only when `content.coverLetter` non-null) with
   VISIBLY-labelled fields (`getByLabel('Sender'|'Recipient'|'Reference'|'Subject'|'Body')`) plus a
@@ -128,7 +129,7 @@ scope without comment or leaving a broken build to honor the letter of the instr
   makes `usageField`/`attachmentsNoteField` locators keep resolving after the field's accessible name
   gains the " (edited)" suffix, without needing two separate locators for edited/unedited states.
 - **EditableField DOM traversal for the edited-dot / reset button**: `container > [label?,
-  fieldWrapper > [input/textarea, editedDot?], resetButton?]`. From the input/textarea itself: the
+fieldWrapper > [input/textarea, editedDot?], resetButton?]`. From the input/textarea itself: the
   dot is a sibling ONE level up (`field.locator('xpath=..')`); the reset button is a sibling TWO
   levels up (`field.locator('xpath=../..')`). Both are CONDITIONALLY MOUNTED (not just
   opacity/visibility toggled) — a `.count() > 0` check, not a visibility assertion, is the correct
@@ -139,6 +140,7 @@ scope without comment or leaving a broken build to honor the letter of the instr
 All 4 filed bugs verified fixed in code and closed (#1904, #1905, #1906, #1907 — comments +
 `gh issue close`). Reconciled the two "EXPECTED TO FAIL" scenarios into normal passing
 assertions:
+
 - **Scenario 11** (mobile card fallback, #1904): now asserts the mobile card renders real data
   (vendor, invoice number) AND is genuinely editable — fills the mobile usage field, checks the
   edited-dot appears, resets it. Needed two NEW POM locators since the mobile card's

@@ -21,7 +21,7 @@ metadata:
 
 Invoice with all lines on source A + a deposit tagged to source B, no untagged deposits:
 `isSplit` true, `budgetLines.length > 0`, `deposits.length === 0` → renders `†` (generic split).
-AC #1898-4 says it should render `‡ reduced` — and that wording is *correct*, because the
+AC #1898-4 says it should render `‡ reduced` — and that wording is _correct_, because the
 invoice-level residual rule means a B-tagged deposit does reduce A's Rail A share
 (see [[dual-rail-aggregation]]).
 
@@ -46,7 +46,7 @@ Client becomes `† iff splitKind !== 'deposits'`, `‡ iff splitKind !== 'lines
 ## Wiki deviation to fix (open)
 
 `wiki/API-Contract.md` L~3610 and `shared/src/types/sourceReport.ts` both describe `budgetLines[]`
-as *"all ibl lines per invoice (even portion 0)"*. Wrong — it is all of **this source's** ibl lines.
+as _"all ibl lines per invoice (even portion 0)"_. Wrong — it is all of **this source's** ibl lines.
 Pre-existing since #1878/#1891. Needs the correction + a Deviation Log row on API-Contract.md.
 
 ## pdfmake width gotcha (confirmed by QA on #1898)

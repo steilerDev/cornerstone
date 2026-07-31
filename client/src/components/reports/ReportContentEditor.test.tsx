@@ -18,34 +18,71 @@
  *     appears TWICE in the rendered tree — once in the desktop `<table class="table">` and once in
  *     the mobile `.mobileCardList`. Tests that assert on row content therefore scope queries with
  *     `within(table)` or `within(mobileList)` to disambiguate, per the same pattern used in
- *     WizardStepper.test.tsx.
+ *     WizardStepper.test.tsx. CSS FINDING from a prior round (missing base `.mobileCardList {
+ *     display: none }` rule) has since been fixed in ReportContentEditor.module.css — a base
+ *     `display: none` rule now exists outside the media query, matching the WizardStepper/
+ *     ReportInvoiceList pattern; not independently re-verifiable from jsdom (no real CSS cascade).
  *
- *     CSS FINDING (reported separately, not fixable from a test file): unlike ReportInvoiceList's
- *     and WizardStepper's `.module.css` files, ReportContentEditor.module.css has no *base* rule
- *     setting `.mobileCardList { display: none; }` outside the `@media (max-width: 767px)` block —
- *     only `.table { display: none; }` is set inside that block. A plain `<div>` defaults to
- *     `display: block`, so on real desktop/tablet viewports (>767px) the mobile card list would
- *     render VISIBLY beneath the desktop table, duplicating every row's content on screen. This is
- *     undetectable via jsdom (no real CSS cascade is computed here) and is out of scope to fix from
- *     a test file — flagged as a bug finding instead.
+ *  2. Status badge coloring: the table's Badge is invoked as `<Badge value={row.status}
+ *     variants={statusBadgeVariants} />` where `statusBadgeVariants[row.status].className` supplies
+ *     the raw-status-keyed CSS class and `.label` supplies the badge's rendered text.
  *
- *  2. Status badge coloring: the table's Badge is now invoked as `<Badge value={row.status}
- *     variants={statusBadgeVariants} />` — the RAW status ('pending'/'paid'/'claimed'/'quotation'),
- *     not the pre-translated `row.statusText`. `statusBadgeVariants` is keyed by that same raw
- *     status, so `variants[row.status]` now matches and the badge's rendered label comes from
- *     `variant.label` (i.e. `t('sources.lines.invoiceStatus.<status>')`) with the correct
- *     status-specific `className`. `row.statusText` is retained only as a truthiness gate
- *     alongside `row.status`, not rendered directly.
+ * QA re-verification round 2 (labels field + editable-preview follow-up): `content.labels` (a new
+ * REQUIRED `ReportContentLabels` field, built with `reportT` — the user-selected REPORT language,
+ * distinct from the app's own chrome `t`) now supplies every table header, mobile-card read-only
+ * caption, mobile-card EditableField `label=` prop, and source-info-block label. The chrome `t`
+ * prop passed to this component (mocked below to ECHO its key, e.g.
+ * `t('sourceReports.table.usage') === 'sourceReports.table.usage'`) is used ONLY for: headings
+ * (Cover Letter/Report Table), field aria-labels/edited-suffix/reset-aria-label text. A previously
+ * documented asymmetry — the two mobile-card editable rows (Usage/Attachments Note) rendering
+ * their visible `<label>` from the chrome `t()` echo instead of `content.labels.*` — has since
+ * been fixed: `ReportContentEditor.tsx` now passes `label={content.labels.usage}` /
+ * `label={content.labels.attachmentsNote}` directly to `EditableField`, which renders a real
+ * `<label htmlFor>` association (resolvable via `getByLabelText`), and the old standalone
+ * chrome-t `<label>` element that preceded the Usage `EditableField` has been removed entirely.
+ * The fixture's `labels` values below are deliberately prefixed `REPORT_*_LABEL` — a differently-
+ * shaped string from anything the chrome `t` mock would ever echo — so that any test asserting
+ * header/caption/source-info/mobile-card-editable-label text is a genuine regression guard: if the
+ * component ever regressed to calling `t()` for one of these fields instead of reading
+ * `content.labels`, the assertion would see a `sourceReports.table.*` echo instead of the
+ * fixture's `REPORT_*_LABEL` value and fail loudly, rather than passing by coincidence.
+ *
+ * Status badge label: `row.statusText` (pre-translated by buildReportContent via reportT, e.g.
+ * fixture value `REPORT_PAID_TEXT` below) supplies the Badge's rendered label — NOT the chrome `t`
+ * mock's echo of `sources.lines.invoiceStatus.<status>` — while `row.status` (the raw enum value)
+ * only supplies the status-specific className via the STATUS_BADGE_CLASSNAME map.
  */
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
 import type { TFunction } from 'i18next';
-import type { ReportContent, ReportContentRow } from '../../lib/reportContent/index.js';
+import type {
+  ReportContent,
+  ReportContentRow,
+  ReportContentLabels,
+} from '../../lib/reportContent/index.js';
 import { ReportContentEditor } from './ReportContentEditor.js';
 import styles from './ReportContentEditor.module.css';
 
 const t = ((key: string, opts?: Record<string, unknown>) =>
   opts ? `${key}::${JSON.stringify(opts)}` : key) as unknown as TFunction;
+
+// Deliberately differently-prefixed from anything the chrome `t` mock above would ever echo (which
+// always yields a `sourceReports.*`/`sources.*` dotted key) — see header comment for why this
+// shape matters for regression protection.
+const LABELS: ReportContentLabels = {
+  vendor: 'REPORT_VENDOR_LABEL',
+  invoiceNumber: 'REPORT_INVOICE_NUMBER_LABEL',
+  date: 'REPORT_DATE_LABEL',
+  status: 'REPORT_STATUS_LABEL',
+  invoiceAmount: 'REPORT_INVOICE_AMOUNT_LABEL',
+  allocatedAmount: 'REPORT_ALLOCATED_AMOUNT_LABEL',
+  usage: 'REPORT_USAGE_LABEL',
+  attachmentsNote: 'REPORT_ATTACHMENTS_NOTE_LABEL',
+  source: 'REPORT_SOURCE_LABEL',
+  sourceType: 'REPORT_SOURCE_TYPE_LABEL',
+  reference: 'REPORT_REFERENCE_LABEL',
+  generatedAt: 'REPORT_GENERATED_AT_LABEL',
+};
 
 function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
   return {
@@ -70,6 +107,7 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   return {
     isOverview: false,
     tableTitle: 'Title',
+    labels: LABELS,
     sourceInfo: {
       sourceName: 'Home Loan',
       sourceTypeText: 'Bank Loan',
@@ -110,6 +148,23 @@ function renderEditor(overridesProp: Partial<Parameters<typeof ReportContentEdit
     />,
   );
   return { ...utils, onFieldChange, onFieldReset };
+}
+
+// A fully-populated ReportContent (cover letter + one row with a non-null attachmentsNote) used by
+// the field-wiring matrix and the reset-button accessible-name tests below.
+function fullContent(): ReportContent {
+  return makeContent({
+    coverLetter: {
+      sender: 'Sender baseline',
+      recipient: 'Recipient baseline',
+      dateLine: '01/15/2026',
+      reference: 'Reference baseline',
+      subject: 'Subject baseline',
+      body: 'Body baseline',
+      signature: 'Sender baseline',
+    },
+    rows: [makeRow({ invoiceId: 'inv-1', attachmentsNote: 'Note baseline' })],
+  });
 }
 
 describe('ReportContentEditor — cover letter card', () => {
@@ -246,26 +301,55 @@ describe('ReportContentEditor — cover letter card', () => {
   });
 });
 
+describe('ReportContentEditor — source info block (read-only, prefixed with content.labels.*)', () => {
+  it('renders sourceName/sourceType/generatedAt lines, each prefixed with its content.labels value', () => {
+    const content = makeContent({
+      sourceInfo: {
+        sourceName: 'Home Loan',
+        sourceTypeText: 'Bank Loan',
+        referenceText: null,
+        generatedAtText: '01/15/2026',
+      },
+    });
+    renderEditor({ content });
+    expect(screen.getByText(`${LABELS.source}: Home Loan`)).toBeInTheDocument();
+    expect(screen.getByText(`${LABELS.sourceType}: Bank Loan`)).toBeInTheDocument();
+    expect(screen.getByText(`${LABELS.generatedAt}: 01/15/2026`)).toBeInTheDocument();
+  });
+
+  it('omits the reference line entirely when sourceInfo.referenceText is null', () => {
+    const content = makeContent({
+      sourceInfo: {
+        sourceName: 'Home Loan',
+        sourceTypeText: 'Bank Loan',
+        referenceText: null,
+        generatedAtText: '01/15/2026',
+      },
+    });
+    renderEditor({ content });
+    expect(screen.queryByText(new RegExp(`^${LABELS.reference}:`))).not.toBeInTheDocument();
+  });
+
+  it('renders the reference line prefixed with content.labels.reference when referenceText is present', () => {
+    const content = makeContent({
+      sourceInfo: {
+        sourceName: 'Home Loan',
+        sourceTypeText: 'Bank Loan',
+        referenceText: 'SRC-REF-9',
+        generatedAtText: '01/15/2026',
+      },
+    });
+    renderEditor({ content });
+    expect(screen.getByText(`${LABELS.reference}: SRC-REF-9`)).toBeInTheDocument();
+  });
+});
+
 describe('ReportContentEditor — full field-wiring matrix (onChange + onReset per field)', () => {
   // Each EditableField's onChange/onReset prop is itself an inline arrow function whose BODY is a
   // distinct statement from the JSX attribute assignment that creates it — coverage only counts
   // the body as hit once the callback actually fires. This block exercises every editable field
   // (both cover-letter and per-row) via both onChange and onReset, closing that gap explicitly
   // rather than relying on it being incidentally covered by the behavior-focused tests above.
-  function fullContent(): ReportContent {
-    return makeContent({
-      coverLetter: {
-        sender: 'Sender baseline',
-        recipient: 'Recipient baseline',
-        dateLine: '01/15/2026',
-        reference: 'Reference baseline',
-        subject: 'Subject baseline',
-        body: 'Body baseline',
-        signature: 'Sender baseline',
-      },
-      rows: [makeRow({ invoiceId: 'inv-1', attachmentsNote: 'Note baseline' })],
-    });
-  }
 
   it.each([
     ['coverLetter.sender', 'sourceReports.editable.senderLabel'],
@@ -322,7 +406,81 @@ describe('ReportContentEditor — full field-wiring matrix (onChange + onReset p
   });
 });
 
+describe('ReportContentEditor — reset button accessible names (no raw field-identifier leakage)', () => {
+  it('composes the row-level usage/attachmentsNote reset button names from a translated field name, never the raw "usage"/"attachmentsNote" identifier', () => {
+    const content = fullContent();
+    const { container } = renderEditor({
+      content,
+      overrides: {
+        'row.inv-1.usageText': content.rows[0]!.usageText,
+        'row.inv-1.attachmentsNote': content.rows[0]!.attachmentsNote as string,
+      },
+    });
+    const table = getDesktopTable(container);
+
+    expect(
+      within(table).getByRole('button', {
+        name: 'sourceReports.editable.resetFieldAriaLabel::{"field":"sourceReports.table.usage"}',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(table).getByRole('button', {
+        name: 'sourceReports.editable.resetFieldAriaLabel::{"field":"sourceReports.editable.attachmentsNoteLabel"}',
+      }),
+    ).toBeInTheDocument();
+
+    // Neither raw, untranslated identifier ever stands alone as a button's accessible name.
+    expect(within(table).queryByRole('button', { name: 'usage' })).not.toBeInTheDocument();
+    expect(
+      within(table).queryByRole('button', { name: 'attachmentsNote' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('composes each cover-letter reset button name from its own translated field label', () => {
+    const content = fullContent();
+    renderEditor({
+      content,
+      overrides: {
+        'coverLetter.sender': content.coverLetter!.sender,
+        'coverLetter.recipient': content.coverLetter!.recipient as string,
+        'coverLetter.reference': content.coverLetter!.reference as string,
+        'coverLetter.subject': content.coverLetter!.subject,
+        'coverLetter.body': content.coverLetter!.body,
+      },
+    });
+
+    for (const labelKey of [
+      'senderLabel',
+      'recipientLabel',
+      'referenceLabel',
+      'subjectLabel',
+      'bodyLabel',
+    ]) {
+      expect(
+        screen.getByRole('button', {
+          name: `sourceReports.editable.resetFieldAriaLabel::{"field":"sourceReports.editable.${labelKey}"}`,
+        }),
+      ).toBeInTheDocument();
+    }
+  });
+});
+
 describe('ReportContentEditor — table rows', () => {
+  it('renders the desktop table headers from content.labels.*, not a chrome t() echo', () => {
+    const rows = [makeRow()];
+    const { container } = renderEditor({ content: makeContent({ rows }) });
+    const table = getDesktopTable(container);
+    expect(within(table).getByText(LABELS.vendor)).toBeInTheDocument();
+    expect(within(table).getByText(LABELS.invoiceNumber)).toBeInTheDocument();
+    expect(within(table).getByText(LABELS.date)).toBeInTheDocument();
+    expect(within(table).getByText(LABELS.invoiceAmount)).toBeInTheDocument();
+    expect(within(table).getByText(LABELS.allocatedAmount)).toBeInTheDocument();
+    expect(within(table).getByText(LABELS.usage)).toBeInTheDocument();
+    // None of the chrome-t echoes for these same concepts ever leak into the header row.
+    expect(within(table).queryByText('sourceReports.table.vendor')).not.toBeInTheDocument();
+    expect(within(table).queryByText('sourceReports.table.usage')).not.toBeInTheDocument();
+  });
+
   it('renders exactly one <tr> per content.rows entry, matching vendor/invoiceNumber/date', () => {
     const rows = [
       makeRow({ invoiceId: 'inv-1', vendor: 'ACME', invoiceNumber: 'A-1' }),
@@ -362,6 +520,30 @@ describe('ReportContentEditor — table rows', () => {
     expect(within(table).getByText('€-200.00†1 (refund)')).toBeInTheDocument();
   });
 
+  it('applies the refundAmount CSS class (not an inline style) to both amount cells when isRefund', () => {
+    const rows = [
+      makeRow({
+        isRefund: true,
+        invoiceAmountText: '€200.00',
+        allocatedAmountValueText: '€-200.00',
+      }),
+    ];
+    const { container } = renderEditor({ content: makeContent({ rows }) });
+    const table = getDesktopTable(container);
+    const refundCells = table.querySelectorAll(`td.${styles.refundAmount}`);
+    expect(refundCells).toHaveLength(2); // invoiceAmount cell + allocatedAmount cell
+    for (const cell of Array.from(refundCells)) {
+      expect(cell).not.toHaveAttribute('style');
+    }
+  });
+
+  it('never applies the refundAmount class to a non-refund row', () => {
+    const rows = [makeRow({ isRefund: false })];
+    const { container } = renderEditor({ content: makeContent({ rows }) });
+    const table = getDesktopTable(container);
+    expect(table.querySelectorAll(`td.${styles.refundAmount}`)).toHaveLength(0);
+  });
+
   it('renders a Usage EditableField per row, wired to row.<invoiceId>.usageText', () => {
     const rows = [makeRow({ invoiceId: 'inv-9', usageText: 'Kitchen work' })];
     const { container } = renderEditor({ content: makeContent({ rows }) });
@@ -388,48 +570,45 @@ describe('ReportContentEditor — table rows', () => {
   it('renders no Status column/badge when isOverview is false', () => {
     const rows = [makeRow({ statusText: null })];
     renderEditor({ content: makeContent({ isOverview: false, rows }) });
-    expect(screen.queryByText('sourceReports.table.status')).not.toBeInTheDocument();
+    expect(screen.queryByText(LABELS.status)).not.toBeInTheDocument();
   });
 
-  it('renders a Status column and a Badge whose label comes from statusBadgeVariants[row.status], not row.statusText', () => {
-    // row.status is the raw value fed to Badge; row.statusText is only a truthiness gate now.
-    const rows = [makeRow({ status: 'paid', statusText: 'Paid' })];
+  it('renders a Status column (labeled from content.labels.status) and a Badge whose label comes from row.statusText, not a chrome t() echo', () => {
+    // row.status is the raw value fed to Badge for className purposes; row.statusText (already
+    // translated via reportT by buildReportContent) supplies the rendered label text.
+    const rows = [makeRow({ status: 'paid', statusText: 'REPORT_PAID_TEXT' })];
     const { container } = renderEditor({ content: makeContent({ isOverview: true, rows }) });
     const table = getDesktopTable(container);
-    expect(within(table).getByText('sourceReports.table.status')).toBeInTheDocument();
-    // Badge renders variants['paid'].label = t('sources.lines.invoiceStatus.paid'), NOT the
-    // pre-translated row.statusText ("Paid") — the mock t() returns the raw key verbatim.
-    expect(within(table).getByText('sources.lines.invoiceStatus.paid')).toBeInTheDocument();
-    expect(within(table).queryByText('Paid')).not.toBeInTheDocument();
+    expect(within(table).getByText(LABELS.status)).toBeInTheDocument();
+    expect(within(table).getByText('REPORT_PAID_TEXT')).toBeInTheDocument();
+    // The chrome-t echo for this same concept never appears — the Badge label is NOT re-derived
+    // via the chrome t() prop.
+    expect(within(table).queryByText('sources.lines.invoiceStatus.paid')).not.toBeInTheDocument();
   });
 
-  it('gives the status Badge the status-specific className via the raw row.status key (regression guard — previously mismatched against row.statusText)', () => {
-    const rows = [makeRow({ status: 'paid', statusText: 'Paid' })];
+  it('gives the status Badge the status-specific className via the raw row.status key', () => {
+    const rows = [makeRow({ status: 'paid', statusText: 'REPORT_PAID_TEXT' })];
     const { container } = renderEditor({ content: makeContent({ isOverview: true, rows }) });
     const table = getDesktopTable(container);
-    const badge = within(table).getByText('sources.lines.invoiceStatus.paid');
+    const badge = within(table).getByText('REPORT_PAID_TEXT');
     expect(badge.className).toContain(styles.statusPaid);
   });
 
-  it('renders an Attachments Note column and EditableField only for rows with a non-null note', () => {
+  it('renders an Attachments Note column (labeled from content.labels.attachmentsNote) and EditableField only for rows with a non-null note', () => {
     const rows = [
       makeRow({ invoiceId: 'inv-1', attachmentsNote: '1 attachment: Invoice' }),
       makeRow({ invoiceId: 'inv-2', attachmentsNote: null }),
     ];
     const { container } = renderEditor({ content: makeContent({ rows }) });
     const table = getDesktopTable(container);
-    expect(
-      within(table).getByText('sourceReports.editable.attachmentsNoteLabel'),
-    ).toBeInTheDocument();
+    expect(within(table).getByText(LABELS.attachmentsNote)).toBeInTheDocument();
     expect(within(table).getByDisplayValue('1 attachment: Invoice')).toBeInTheDocument();
   });
 
   it('omits the Attachments Note column entirely when no row has a non-null note', () => {
     const rows = [makeRow({ attachmentsNote: null })];
     renderEditor({ content: makeContent({ rows }) });
-    expect(
-      screen.queryByText('sourceReports.editable.attachmentsNoteLabel'),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(LABELS.attachmentsNote)).not.toBeInTheDocument();
   });
 
   it('calls onFieldChange with the correct row.<invoiceId>.usageText key on edit', () => {
@@ -515,7 +694,7 @@ describe(
   'ReportContentEditor — mobile card list (CSS-only responsive, ' +
     'always rendered alongside the desktop table — see header comment)',
   () => {
-    it('renders one .mobileCard per content.rows entry with visible field labels', () => {
+    it('renders one .mobileCard per content.rows entry, read-only fields as .mobileCardCaption spans labeled from content.labels.*', () => {
       const rows = [
         makeRow({
           invoiceId: 'inv-1',
@@ -533,51 +712,65 @@ describe(
       expect(mobileList.querySelectorAll(`.${styles.mobileCard}`)).toHaveLength(1);
 
       const card = within(mobileList);
-      expect(card.getByText('sourceReports.table.vendor')).toBeInTheDocument();
+      // Read-only fields: caption spans, labeled from content.labels.* (never a chrome t() echo).
+      expect(card.getByText(LABELS.vendor)).toBeInTheDocument();
+      expect(card.getByText(LABELS.vendor).tagName).toBe('SPAN');
+      expect(card.getByText(LABELS.vendor).className).toContain(styles.mobileCardCaption);
       expect(card.getByText('ACME')).toBeInTheDocument();
-      expect(card.getByText('sourceReports.table.invoiceNumber')).toBeInTheDocument();
+      expect(card.getByText(LABELS.invoiceNumber)).toBeInTheDocument();
       expect(card.getByText('A-1')).toBeInTheDocument();
-      expect(card.getByText('sourceReports.table.date')).toBeInTheDocument();
+      expect(card.getByText(LABELS.date)).toBeInTheDocument();
       expect(card.getByText('01/10/2026')).toBeInTheDocument();
-      expect(card.getByText('sourceReports.table.invoiceAmount')).toBeInTheDocument();
+      expect(card.getByText(LABELS.invoiceAmount)).toBeInTheDocument();
       expect(card.getByText('€777.00')).toBeInTheDocument();
-      expect(card.getByText('sourceReports.table.allocatedAmount')).toBeInTheDocument();
+      expect(card.getByText(LABELS.allocatedAmount)).toBeInTheDocument();
       expect(card.getByText('€555.00')).toBeInTheDocument();
-      expect(card.getByText('sourceReports.table.usage')).toBeInTheDocument();
-      expect(card.getByDisplayValue('Kitchen work')).toBeInTheDocument();
+
+      // Editable field (Usage): no separate caption span — resolves via getByLabelText, a real
+      // <label htmlFor> association (EditableField's labelled mode). Its visible label text comes
+      // from content.labels.usage (report language), matching the read-only captions above — the
+      // chrome t() echo must never leak in as the visible label (see header comment).
+      const usageField = card.getByLabelText(LABELS.usage);
+      expect(usageField).toHaveValue('Kitchen work');
+      expect(usageField.tagName).toBe('INPUT');
+      expect(card.queryByText('sourceReports.table.usage')).not.toBeInTheDocument();
     });
 
-    it('renders the mobile card Status label/Badge and Attachments Note field consistently with the desktop table', () => {
+    it('renders the mobile card Status label (from content.labels.status) and Badge (labeled from row.statusText) and Attachments Note field (labeled from content.labels.attachmentsNote via a real htmlFor association) consistently with the desktop table', () => {
       const rows = [
         makeRow({
           invoiceId: 'inv-1',
           status: 'paid',
-          statusText: 'Paid',
+          statusText: 'REPORT_PAID_TEXT',
           attachmentsNote: '1 attachment: Invoice',
         }),
       ];
       const { container } = renderEditor({ content: makeContent({ isOverview: true, rows }) });
       const card = within(getMobileList(container));
-      expect(card.getByText('sourceReports.table.status')).toBeInTheDocument();
-      expect(card.getByText('sources.lines.invoiceStatus.paid')).toBeInTheDocument();
-      expect(card.getByText('sourceReports.editable.attachmentsNoteLabel')).toBeInTheDocument();
-      expect(card.getByDisplayValue('1 attachment: Invoice')).toBeInTheDocument();
+      expect(card.getByText(LABELS.status)).toBeInTheDocument();
+      expect(card.getByText('REPORT_PAID_TEXT')).toBeInTheDocument();
+      const noteField = card.getByLabelText(LABELS.attachmentsNote);
+      expect(noteField).toHaveValue('1 attachment: Invoice');
+      expect(noteField.tagName).toBe('INPUT');
+      // The old standalone chrome-t label (removed from production code) must never reappear.
+      expect(
+        card.queryByText('sourceReports.editable.attachmentsNoteLabel'),
+      ).not.toBeInTheDocument();
     });
 
     it('omits the mobile card Status row when isOverview is false, mirroring the desktop table', () => {
       const rows = [makeRow({ invoiceId: 'inv-1', status: null, statusText: null })];
       const { container } = renderEditor({ content: makeContent({ isOverview: false, rows }) });
       const card = within(getMobileList(container));
-      expect(card.queryByText('sourceReports.table.status')).not.toBeInTheDocument();
+      expect(card.queryByText(LABELS.status)).not.toBeInTheDocument();
     });
 
     it('omits the mobile card Attachments Note row when the row has no note', () => {
       const rows = [makeRow({ invoiceId: 'inv-1', attachmentsNote: null })];
       const { container } = renderEditor({ content: makeContent({ rows }) });
       const card = within(getMobileList(container));
-      expect(
-        card.queryByText('sourceReports.editable.attachmentsNoteLabel'),
-      ).not.toBeInTheDocument();
+      expect(card.queryByText(LABELS.attachmentsNote)).not.toBeInTheDocument();
+      expect(card.queryByLabelText(LABELS.attachmentsNote)).not.toBeInTheDocument();
     });
 
     it('composes the mobile card allocated amount as valueText + markers + refund note when isRefund, matching the desktop cell', () => {

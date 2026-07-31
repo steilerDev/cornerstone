@@ -178,6 +178,20 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   return {
     isOverview: false,
     tableTitle: 'Claim Report',
+    labels: {
+      vendor: 'Vendor',
+      invoiceNumber: 'Invoice No.',
+      date: 'Date',
+      status: 'Status',
+      invoiceAmount: 'Invoice Amount',
+      allocatedAmount: 'Allocated Amount',
+      usage: 'Usage',
+      attachmentsNote: 'Attachments Note',
+      source: 'Source',
+      sourceType: 'Source Type',
+      reference: 'Reference',
+      generatedAt: 'Generated At',
+    },
     sourceInfo: {
       sourceName: 'Home Loan',
       sourceTypeText: 'Bank Loan',

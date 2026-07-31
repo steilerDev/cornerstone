@@ -24,21 +24,21 @@ export function buildOverviewContent(
   // Source info
   const sourceInfoStack: Array<Content | null> = [
     {
-      text: `${t('sourceReports.table.source')}: ${reportContent.sourceInfo.sourceName}`,
+      text: `${reportContent.labels.source}: ${reportContent.sourceInfo.sourceName}`,
       style: 'small',
     },
     {
-      text: `${t('sourceReports.table.sourceType')}: ${reportContent.sourceInfo.sourceTypeText}`,
+      text: `${reportContent.labels.sourceType}: ${reportContent.sourceInfo.sourceTypeText}`,
       style: 'small',
     },
     reportContent.sourceInfo.referenceText
       ? {
-          text: `${t('sourceReports.table.reference')}: ${reportContent.sourceInfo.referenceText}`,
+          text: `${reportContent.labels.reference}: ${reportContent.sourceInfo.referenceText}`,
           style: 'small',
         }
       : null,
     {
-      text: `${t('sourceReports.table.generatedAt')}: ${reportContent.sourceInfo.generatedAtText}`,
+      text: `${reportContent.labels.generatedAt}: ${reportContent.sourceInfo.generatedAtText}`,
       style: 'small',
     },
   ];
@@ -50,20 +50,20 @@ export function buildOverviewContent(
 
   // Build table columns
   const columns: Content[] = [
-    { text: t('sourceReports.table.vendor'), style: 'tableHeader' },
-    { text: t('sourceReports.table.invoiceNumber'), style: 'tableHeader' },
-    { text: t('sourceReports.table.date'), style: 'tableHeader' },
+    { text: reportContent.labels.vendor, style: 'tableHeader' },
+    { text: reportContent.labels.invoiceNumber, style: 'tableHeader' },
+    { text: reportContent.labels.date, style: 'tableHeader' },
   ];
 
   // Add status column only if budget-overview
   if (reportContent.isOverview) {
-    columns.push({ text: t('sourceReports.table.status'), style: 'tableHeader' });
+    columns.push({ text: reportContent.labels.status, style: 'tableHeader' });
   }
 
   columns.push(
-    { text: t('sourceReports.table.invoiceAmount'), style: 'tableHeader', alignment: 'right' },
-    { text: t('sourceReports.table.allocatedAmount'), style: 'tableHeader', alignment: 'right' },
-    { text: t('sourceReports.table.usage'), style: 'tableHeader' },
+    { text: reportContent.labels.invoiceAmount, style: 'tableHeader', alignment: 'right' },
+    { text: reportContent.labels.allocatedAmount, style: 'tableHeader', alignment: 'right' },
+    { text: reportContent.labels.usage, style: 'tableHeader' },
   );
 
   /**

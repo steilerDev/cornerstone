@@ -43,7 +43,10 @@
  * - Scenario 12: Mobile (≤767px) — the per-field reset button meets the WCAG 2.5.5 AA 44×44px
  *   minimum touch target size (fixed #1905 — was 24×24px).
  * - Scenario 13: Keyboard-only — Tab/Shift+Tab reaches a field and it shows a box-shadow focus
- *   ring (never `outline: 2px solid`).
+ *   ring (never `outline: 2px solid`). Also asserts (Round 3 regression guard) that an at-rest
+ *   table-cell field's computed `background-color` genuinely resolves to the
+ *   `--color-bg-tertiary` token — falsifiable by the pre-fix `:global()` dead-CSS bug in
+ *   `EditableField.module.css`.
  * - Scenario 14: A per-document PDF-attachment fetch failure (naturally reachable in this E2E
  *   environment since no real Paperless instance is configured — the server's
  *   `/api/paperless/documents/:id/preview` proxy returns `PAPERLESS_NOT_CONFIGURED`) produces a
@@ -268,6 +271,14 @@ test.describe('Report wizard editable content — live surface, no auto-generati
       await expect(wizard.contentTable).toBeVisible();
       const vendorName = `${testPrefix} Live Vendor`;
       await expect(wizard.usageField(vendorName, invoice.invoiceNumber!)).toBeVisible();
+
+      // Round 3 addition: the read-only source-info block (between the cover letter card and
+      // the table heading) shows the source's name and type — scoped to the block itself so
+      // this never collides with the source name appearing elsewhere on the page (e.g. a step
+      // 2 radio label, were the user to navigate back).
+      await expect(wizard.sourceInfoBlock).toBeVisible();
+      await expect(wizard.sourceInfoBlock).toContainText(`${testPrefix} Live Source`);
+      await expect(wizard.sourceInfoBlock).toContainText('Savings');
 
       // No PDF has ever been generated: no iframe anywhere on the page, the preview modal is
       // absent, and the action buttons are all immediately enabled (not mid-generation).
@@ -1102,7 +1113,7 @@ test.describe('Report wizard editable content — keyboard focus rings (Scenario
         reference: 'Ref-KBD',
       });
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Kbd` });
-      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
         invoiceNumber: `${testPrefix}-KBD-001`,
         amount: 160,
         date: '2026-06-16',
@@ -1110,6 +1121,34 @@ test.describe('Report wizard editable content — keyboard focus rings (Scenario
       });
 
       await reachStep5(wizard, sourceId);
+
+      // Round 3 regression guard: EditableField's local `.field`/`.fieldTextarea` classes
+      // (`EditableField.module.css`) replaced a `:global(.input)`/`:global(.textarea)`
+      // composition that silently never matched the actual generated class names — dead CSS
+      // that a pre-fix build would ship without any visible failure (the shared `.input`/
+      // `.textarea` base rules from `shared.module.css` still applied, just none of
+      // `EditableField`'s OWN background/border/transition rules did). Assert an at-rest
+      // (unfocused) table-cell `usageText` field's computed `background-color` resolves to the
+      // SAME color as the `--color-bg-tertiary` token — not transparent, not the page
+      // background — which only holds true when `.field`'s `background-color:
+      // var(--color-bg-tertiary)` rule genuinely applies. This is only falsifiable against a
+      // real webpack build (CSS Modules class hashing), not a shallow markup check.
+      const vendorName = `${testPrefix} Kbd Vendor`;
+      const usageField = wizard.usageField(vendorName, invoice.invoiceNumber!);
+      const bgCheck = await usageField.evaluate((el) => {
+        const probe = document.createElement('div');
+        probe.style.backgroundColor = 'var(--color-bg-tertiary)';
+        document.body.appendChild(probe);
+        const resolvedTertiary = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return {
+          fieldBackground: getComputedStyle(el as HTMLElement).backgroundColor,
+          resolvedTertiary,
+        };
+      });
+      expect(bgCheck.fieldBackground).not.toBe('rgba(0, 0, 0, 0)');
+      expect(bgCheck.fieldBackground).not.toBe('transparent');
+      expect(bgCheck.fieldBackground).toBe(bgCheck.resolvedTertiary);
 
       // Subject and Body are both ALWAYS-present EditableFields (never gated on a non-null
       // value, unlike Recipient/Reference), rendered adjacent in the DOM — a real Shift+Tab

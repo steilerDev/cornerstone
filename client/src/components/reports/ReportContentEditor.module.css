@@ -54,6 +54,19 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* Source Info Block (read-only) */
+.sourceInfoBlock {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
 /* Table Heading */
 .tableHeading {
   margin: 0 0 var(--spacing-3) 0;
@@ -110,6 +123,10 @@
 
 .rightAlign {
   text-align: right;
+}
+
+.refundAmount {
+  color: var(--color-danger-text-on-light);
 }
 
 /* Status badge styles */
@@ -220,13 +237,13 @@
     gap: var(--spacing-1);
   }
 
-  .mobileCardRow label {
+  .mobileCardCaption {
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text-muted);
   }
 
-  .mobileCardRow span {
+  .mobileCardValue {
     font-size: var(--font-size-base);
     color: var(--color-text-primary);
   }

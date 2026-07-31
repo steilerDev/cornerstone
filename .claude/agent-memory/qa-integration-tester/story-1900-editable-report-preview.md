@@ -19,7 +19,7 @@ confirming the underlying code was actually fixed first):
 
 1. **Status badge never gets its color class.** `ReportContentEditor.tsx`'s `statusBadgeVariants`
    map is keyed by the raw status (`pending`/`paid`/`claimed`/`quotation`), but `<Badge
-   value={row.statusText} .../>` passes the already-TRANSLATED text (`row.statusText` comes
+value={row.statusText} .../>` passes the already-TRANSLATED text (`row.statusText` comes
    pre-translated from `buildReportContent.ts`). `variants[value]` never matches, so
    `variant?.className` is always undefined — badges always render with only the generic `.badge`
    class, no status color, regardless of actual status. Test: `ReportContentEditor.test.tsx`.
@@ -31,7 +31,7 @@ confirming the underlying code was actually fixed first):
    it — dead CSS, not partial implementation. Test: `ReportContentEditor.test.tsx`.
 3. **Preview PDF failure is silently swallowed — the modal never opens on failure.**
    `handlePreviewPdf` in `ReportWizardPage.tsx` only calls `setShowPdfPreviewModal(true)` on the
-   *success* path (after the `if (!result) { setActionError(...); return; }` early-return).
+   _success_ path (after the `if (!result) { setActionError(...); return; }` early-return).
    `actionError` state IS set on failure, but since the whole preview `<Modal>` JSX is gated by
    `{showPdfPreviewModal && (...)}`, the FormError showing that error text never mounts anywhere.
    User experience: click Preview PDF, it fails, the button just stops spinning, nothing else
@@ -64,7 +64,7 @@ actually happened at QA time. Report as a finding for translator, don't silently
   tests already pass — don't assume rendering assertions imply the callback-body lines are hit.
 - **`getByText` normalizes whitespace, so leading/trailing-space translation strings (e.g.
   `editedSuffix: " (edited)"`) must be queried without the surrounding space** (`getByText(
-  '(edited)')`, not `getByText(' (edited)')`), or query via `container.querySelector` /
+'(edited)')`, not `getByText(' (edited)')`), or query via `container.querySelector` /
   `getAllByRole` on the parent instead.
 - **Badge status-lookup pattern**: when a component builds a `BadgeVariantMap` keyed by a raw enum
   and the `value` prop passed to `<Badge>` doesn't match those keys, `identity-obj-proxy`'s CSS
@@ -73,7 +73,7 @@ actually happened at QA time. Report as a finding for translator, don't silently
   (not a false negative from CSS module hashing), unlike in a real webpack build.
 - **`useCallback`-wrapped page handlers passing a "raw" vs "adjusted" object matters for
   assertions.** `ReportWizardPage.tsx`'s `generatePdfFromContent()` computes `effectiveReport =
-  applyLineExclusions(report, excludedLineIds)` but then calls `generateReportPdf(report, ...)`
+applyLineExclusions(report, excludedLineIds)` but then calls `generateReportPdf(report, ...)`
   with the RAW (unadjusted) `report` as the first arg — `effectiveReport` is only used to derive
   `includedInvoiceIds`. This is NOT a bug: `report` in the new architecture is only read by
   `merge.ts` for its document-fetch/embed loop (never for `allocatedAmount`), and the actual
@@ -114,6 +114,7 @@ Dev-team-lead reported a batch of 8 fixes landed (frontend + translator). Outcom
 all 5 target files:
 
 **Confirmed genuinely fixed (regression-guard tests now pass, renamed off "BUG:" titles):**
+
 1. Status badge coloring — `Badge value={row.status}` (raw) now matches `statusBadgeVariants`
    correctly. `ReportContentRow` gained a new `status: string | null` field (raw value, separate
    from the pre-translated `statusText`) in `types.ts`/`buildReportContent.ts` specifically for

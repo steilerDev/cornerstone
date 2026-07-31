@@ -4,7 +4,9 @@
  */
 
 import type { TFunction } from 'i18next';
+import type { InvoiceStatus } from '@cornerstone/shared';
 import type { ReportContent, ReportContentOverrides } from '../../lib/reportContent/index.js';
+import { overrideKey } from '../../lib/reportContent/index.js';
 import { Badge } from '../Badge/Badge.js';
 import { EditableField } from '../EditableField/EditableField.js';
 import styles from './ReportContentEditor.module.css';
@@ -17,6 +19,14 @@ export interface ReportContentEditorProps {
   t: TFunction;
 }
 
+// Status badge className mapping
+const STATUS_BADGE_CLASSNAME: Record<InvoiceStatus, string> = {
+  pending: styles.statusPending!,
+  paid: styles.statusPaid!,
+  claimed: styles.statusClaimed!,
+  quotation: styles.statusQuotation!,
+};
+
 export function ReportContentEditor({
   content,
   overrides,
@@ -26,26 +36,6 @@ export function ReportContentEditor({
 }: ReportContentEditorProps) {
   // Helper: check if a field has been overridden
   const isFieldEdited = (key: string): boolean => key in overrides;
-
-  // Status badge variants
-  const statusBadgeVariants = {
-    pending: {
-      label: t('sources.lines.invoiceStatus.pending'),
-      className: styles.statusPending,
-    },
-    paid: {
-      label: t('sources.lines.invoiceStatus.paid'),
-      className: styles.statusPaid,
-    },
-    claimed: {
-      label: t('sources.lines.invoiceStatus.claimed'),
-      className: styles.statusClaimed,
-    },
-    quotation: {
-      label: t('sources.lines.invoiceStatus.quotation'),
-      className: styles.statusQuotation,
-    },
-  };
 
   return (
     <div className={styles.container}>
@@ -64,9 +54,9 @@ export function ReportContentEditor({
                 field: t('sourceReports.editable.senderLabel'),
               })}
               value={content.coverLetter.sender}
-              onChange={(value) => onFieldChange('coverLetter.sender', value)}
-              isEdited={isFieldEdited('coverLetter.sender')}
-              onReset={() => onFieldReset('coverLetter.sender')}
+              onChange={(value) => onFieldChange(overrideKey.coverLetter.sender, value)}
+              isEdited={isFieldEdited(overrideKey.coverLetter.sender)}
+              onReset={() => onFieldReset(overrideKey.coverLetter.sender)}
               rows={4}
             />
 
@@ -80,9 +70,9 @@ export function ReportContentEditor({
                   field: t('sourceReports.editable.recipientLabel'),
                 })}
                 value={content.coverLetter.recipient}
-                onChange={(value) => onFieldChange('coverLetter.recipient', value)}
-                isEdited={isFieldEdited('coverLetter.recipient')}
-                onReset={() => onFieldReset('coverLetter.recipient')}
+                onChange={(value) => onFieldChange(overrideKey.coverLetter.recipient, value)}
+                isEdited={isFieldEdited(overrideKey.coverLetter.recipient)}
+                onReset={() => onFieldReset(overrideKey.coverLetter.recipient)}
                 rows={3}
               />
             )}
@@ -104,9 +94,9 @@ export function ReportContentEditor({
                   field: t('sourceReports.editable.referenceLabel'),
                 })}
                 value={content.coverLetter.reference}
-                onChange={(value) => onFieldChange('coverLetter.reference', value)}
-                isEdited={isFieldEdited('coverLetter.reference')}
-                onReset={() => onFieldReset('coverLetter.reference')}
+                onChange={(value) => onFieldChange(overrideKey.coverLetter.reference, value)}
+                isEdited={isFieldEdited(overrideKey.coverLetter.reference)}
+                onReset={() => onFieldReset(overrideKey.coverLetter.reference)}
               />
             )}
 
@@ -119,9 +109,9 @@ export function ReportContentEditor({
                 field: t('sourceReports.editable.subjectLabel'),
               })}
               value={content.coverLetter.subject}
-              onChange={(value) => onFieldChange('coverLetter.subject', value)}
-              isEdited={isFieldEdited('coverLetter.subject')}
-              onReset={() => onFieldReset('coverLetter.subject')}
+              onChange={(value) => onFieldChange(overrideKey.coverLetter.subject, value)}
+              isEdited={isFieldEdited(overrideKey.coverLetter.subject)}
+              onReset={() => onFieldReset(overrideKey.coverLetter.subject)}
             />
 
             <EditableField
@@ -133,14 +123,32 @@ export function ReportContentEditor({
                 field: t('sourceReports.editable.bodyLabel'),
               })}
               value={content.coverLetter.body}
-              onChange={(value) => onFieldChange('coverLetter.body', value)}
-              isEdited={isFieldEdited('coverLetter.body')}
-              onReset={() => onFieldReset('coverLetter.body')}
+              onChange={(value) => onFieldChange(overrideKey.coverLetter.body, value)}
+              isEdited={isFieldEdited(overrideKey.coverLetter.body)}
+              onReset={() => onFieldReset(overrideKey.coverLetter.body)}
               rows={6}
             />
           </div>
         </div>
       )}
+
+      {/* Source Info Block */}
+      <div className={styles.sourceInfoBlock}>
+        <p>
+          {content.labels.source}: {content.sourceInfo.sourceName}
+        </p>
+        <p>
+          {content.labels.sourceType}: {content.sourceInfo.sourceTypeText}
+        </p>
+        {content.sourceInfo.referenceText && (
+          <p>
+            {content.labels.reference}: {content.sourceInfo.referenceText}
+          </p>
+        )}
+        <p>
+          {content.labels.generatedAt}: {content.sourceInfo.generatedAtText}
+        </p>
+      </div>
 
       {/* Report Table */}
       <h3 className={styles.tableHeading}>{t('sourceReports.editable.tableHeading')}</h3>
@@ -148,15 +156,15 @@ export function ReportContentEditor({
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>{t('sourceReports.table.vendor')}</th>
-              <th>{t('sourceReports.table.invoiceNumber')}</th>
-              <th>{t('sourceReports.table.date')}</th>
-              {content.isOverview && <th>{t('sourceReports.table.status')}</th>}
-              <th className={styles.rightAlign}>{t('sourceReports.table.invoiceAmount')}</th>
-              <th className={styles.rightAlign}>{t('sourceReports.table.allocatedAmount')}</th>
-              <th>{t('sourceReports.table.usage')}</th>
+              <th>{content.labels.vendor}</th>
+              <th>{content.labels.invoiceNumber}</th>
+              <th>{content.labels.date}</th>
+              {content.isOverview && <th>{content.labels.status}</th>}
+              <th className={styles.rightAlign}>{content.labels.invoiceAmount}</th>
+              <th className={styles.rightAlign}>{content.labels.allocatedAmount}</th>
+              <th>{content.labels.usage}</th>
               {content.rows.some((r) => r.attachmentsNote !== null) && (
-                <th>{t('sourceReports.editable.attachmentsNoteLabel')}</th>
+                <th>{content.labels.attachmentsNote}</th>
               )}
             </tr>
           </thead>
@@ -166,25 +174,23 @@ export function ReportContentEditor({
                 <td>{row.vendor}</td>
                 <td>{row.invoiceNumber}</td>
                 <td>{row.dateText}</td>
-                {content.isOverview && row.status && row.statusText && (
+                {content.isOverview && row.status && row.statusText != null && (
                   <td>
-                    <Badge value={row.status} variants={statusBadgeVariants} />
+                    <Badge
+                      value={row.status}
+                      variants={{
+                        [row.status]: {
+                          label: row.statusText,
+                          className: STATUS_BADGE_CLASSNAME[row.status as InvoiceStatus],
+                        },
+                      }}
+                    />
                   </td>
                 )}
-                <td
-                  className={styles.rightAlign}
-                  style={{
-                    color: row.isRefund ? 'var(--color-refund-text)' : 'inherit',
-                  }}
-                >
+                <td className={`${styles.rightAlign} ${row.isRefund ? styles.refundAmount : ''}`}>
                   {row.invoiceAmountText}
                 </td>
-                <td
-                  className={styles.rightAlign}
-                  style={{
-                    color: row.isRefund ? 'var(--color-refund-text)' : 'inherit',
-                  }}
-                >
+                <td className={`${styles.rightAlign} ${row.isRefund ? styles.refundAmount : ''}`}>
                   {row.allocatedAmountValueText}
                   {row.allocatedMarkers}
                   {row.isRefund && ` ${row.refundNoteText}`}
@@ -198,12 +204,14 @@ export function ReportContentEditor({
                     })}
                     editedSuffix={t('sourceReports.editable.editedSuffix')}
                     resetAriaLabel={t('sourceReports.editable.resetFieldAriaLabel', {
-                      field: 'usage',
+                      field: t('sourceReports.table.usage'),
                     })}
                     value={row.usageText}
-                    onChange={(value) => onFieldChange(`row.${row.invoiceId}.usageText`, value)}
-                    isEdited={isFieldEdited(`row.${row.invoiceId}.usageText`)}
-                    onReset={() => onFieldReset(`row.${row.invoiceId}.usageText`)}
+                    onChange={(value) =>
+                      onFieldChange(overrideKey.row(row.invoiceId).usageText, value)
+                    }
+                    isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
+                    onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
                   />
                 </td>
                 {row.attachmentsNote !== null && (
@@ -216,14 +224,14 @@ export function ReportContentEditor({
                       })}
                       editedSuffix={t('sourceReports.editable.editedSuffix')}
                       resetAriaLabel={t('sourceReports.editable.resetFieldAriaLabel', {
-                        field: 'attachmentsNote',
+                        field: t('sourceReports.editable.attachmentsNoteLabel'),
                       })}
                       value={row.attachmentsNote}
                       onChange={(value) =>
-                        onFieldChange(`row.${row.invoiceId}.attachmentsNote`, value)
+                        onFieldChange(overrideKey.row(row.invoiceId).attachmentsNote, value)
                       }
-                      isEdited={isFieldEdited(`row.${row.invoiceId}.attachmentsNote`)}
-                      onReset={() => onFieldReset(`row.${row.invoiceId}.attachmentsNote`)}
+                      isEdited={isFieldEdited(overrideKey.row(row.invoiceId).attachmentsNote)}
+                      onReset={() => onFieldReset(overrideKey.row(row.invoiceId).attachmentsNote)}
                     />
                   </td>
                 )}
@@ -238,39 +246,43 @@ export function ReportContentEditor({
         {content.rows.map((row) => (
           <div key={row.invoiceId} className={styles.mobileCard}>
             <div className={styles.mobileCardRow}>
-              <label>{t('sourceReports.table.vendor')}</label>
-              <span>{row.vendor}</span>
+              <span className={styles.mobileCardCaption}>{content.labels.vendor}</span>
+              <span className={styles.mobileCardValue}>{row.vendor}</span>
             </div>
             <div className={styles.mobileCardRow}>
-              <label>{t('sourceReports.table.invoiceNumber')}</label>
-              <span>{row.invoiceNumber}</span>
+              <span className={styles.mobileCardCaption}>{content.labels.invoiceNumber}</span>
+              <span className={styles.mobileCardValue}>{row.invoiceNumber}</span>
             </div>
             <div className={styles.mobileCardRow}>
-              <label>{t('sourceReports.table.date')}</label>
-              <span>{row.dateText}</span>
+              <span className={styles.mobileCardCaption}>{content.labels.date}</span>
+              <span className={styles.mobileCardValue}>{row.dateText}</span>
             </div>
-            {content.isOverview && row.status && (
+            {content.isOverview && row.status && row.statusText != null && (
               <div className={styles.mobileCardRow}>
-                <label>{t('sourceReports.table.status')}</label>
-                <Badge value={row.status} variants={statusBadgeVariants} />
+                <span className={styles.mobileCardCaption}>{content.labels.status}</span>
+                <Badge
+                  value={row.status}
+                  variants={{
+                    [row.status]: {
+                      label: row.statusText,
+                      className: STATUS_BADGE_CLASSNAME[row.status as InvoiceStatus],
+                    },
+                  }}
+                />
               </div>
             )}
             <div className={styles.mobileCardRow}>
-              <label>{t('sourceReports.table.invoiceAmount')}</label>
+              <span className={styles.mobileCardCaption}>{content.labels.invoiceAmount}</span>
               <span
-                style={{
-                  color: row.isRefund ? 'var(--color-refund-text)' : 'inherit',
-                }}
+                className={`${styles.mobileCardValue} ${row.isRefund ? styles.refundAmount : ''}`}
               >
                 {row.invoiceAmountText}
               </span>
             </div>
             <div className={styles.mobileCardRow}>
-              <label>{t('sourceReports.table.allocatedAmount')}</label>
+              <span className={styles.mobileCardCaption}>{content.labels.allocatedAmount}</span>
               <span
-                style={{
-                  color: row.isRefund ? 'var(--color-refund-text)' : 'inherit',
-                }}
+                className={`${styles.mobileCardValue} ${row.isRefund ? styles.refundAmount : ''}`}
               >
                 {row.allocatedAmountValueText}
                 {row.allocatedMarkers}
@@ -278,40 +290,42 @@ export function ReportContentEditor({
               </span>
             </div>
             <div className={styles.mobileCardRow}>
-              <label>{t('sourceReports.table.usage')}</label>
               <EditableField
                 as="input"
+                label={content.labels.usage}
                 ariaLabel={t('sourceReports.editable.usageTextAriaLabel', {
                   vendor: row.vendor,
                   invoiceNumber: row.invoiceNumber,
                 })}
                 editedSuffix={t('sourceReports.editable.editedSuffix')}
                 resetAriaLabel={t('sourceReports.editable.resetFieldAriaLabel', {
-                  field: 'usage',
+                  field: t('sourceReports.table.usage'),
                 })}
                 value={row.usageText}
-                onChange={(value) => onFieldChange(`row.${row.invoiceId}.usageText`, value)}
-                isEdited={isFieldEdited(`row.${row.invoiceId}.usageText`)}
-                onReset={() => onFieldReset(`row.${row.invoiceId}.usageText`)}
+                onChange={(value) => onFieldChange(overrideKey.row(row.invoiceId).usageText, value)}
+                isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
+                onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
               />
             </div>
             {row.attachmentsNote !== null && (
               <div className={styles.mobileCardRow}>
-                <label>{t('sourceReports.editable.attachmentsNoteLabel')}</label>
                 <EditableField
                   as="input"
+                  label={content.labels.attachmentsNote}
                   ariaLabel={t('sourceReports.editable.attachmentsNoteAriaLabel', {
                     vendor: row.vendor,
                     invoiceNumber: row.invoiceNumber,
                   })}
                   editedSuffix={t('sourceReports.editable.editedSuffix')}
                   resetAriaLabel={t('sourceReports.editable.resetFieldAriaLabel', {
-                    field: 'attachmentsNote',
+                    field: t('sourceReports.editable.attachmentsNoteLabel'),
                   })}
                   value={row.attachmentsNote}
-                  onChange={(value) => onFieldChange(`row.${row.invoiceId}.attachmentsNote`, value)}
-                  isEdited={isFieldEdited(`row.${row.invoiceId}.attachmentsNote`)}
-                  onReset={() => onFieldReset(`row.${row.invoiceId}.attachmentsNote`)}
+                  onChange={(value) =>
+                    onFieldChange(overrideKey.row(row.invoiceId).attachmentsNote, value)
+                  }
+                  isEdited={isFieldEdited(overrideKey.row(row.invoiceId).attachmentsNote)}
+                  onReset={() => onFieldReset(overrideKey.row(row.invoiceId).attachmentsNote)}
                 />
               </div>
             )}

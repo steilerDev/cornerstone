@@ -7,9 +7,14 @@
  * 'download' | 'paperless' | null` prop plus a new `onPreviewPdf` handler. Per the spec: "Preview
  * PDF" (btnSecondary) renders FIRST/leftmost, before Download; every action button disables
  * whenever ANY action is in flight (`activeAction !== null`), not just its own; each of
- * preview/download/paperless shows its own spinner glyph only while IT is the active action.
+ * preview/download/paperless shows its own spinner only while IT is the active action.
+ *
+ * QA re-verification round (story #1900 fix batch): the spinner is now the shared `Spinner`
+ * component (an `<svg role="img" aria-label="Loading">`), not a text glyph — spinner-presence
+ * assertions below query `within(button).queryByRole('img')` instead of checking `textContent`
+ * for a literal '⟳' character.
  */
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
 import { MemoryRouter } from 'react-router-dom';
 import type { TFunction } from 'i18next';
@@ -86,11 +91,14 @@ describe('Step5Actions — Preview PDF button (first/leftmost, always rendered)'
     ).toBeInTheDocument();
   });
 
-  it('shows a spinner glyph only while activeAction === "preview"', () => {
+  it('shows a spinner only while activeAction === "preview"', () => {
     const { rerender } = renderStep5({ ...baseProps(), activeAction: null });
     expect(
-      screen.getByRole('button', { name: 'sourceReports.editable.previewPdf' }).textContent,
-    ).not.toContain('⟳');
+      within(screen.getByRole('button', { name: 'sourceReports.editable.previewPdf' })).queryByRole(
+        'img',
+        { hidden: true },
+      ),
+    ).not.toBeInTheDocument();
 
     rerender(
       <MemoryRouter>
@@ -98,8 +106,11 @@ describe('Step5Actions — Preview PDF button (first/leftmost, always rendered)'
       </MemoryRouter>,
     );
     expect(
-      screen.getByRole('button', { name: /sourceReports.editable.previewPdf/ }).textContent,
-    ).toContain('⟳');
+      within(screen.getByRole('button', { name: /sourceReports.editable.previewPdf/ })).getByRole(
+        'img',
+        { hidden: true },
+      ),
+    ).toBeInTheDocument();
   });
 });
 
@@ -112,18 +123,22 @@ describe('Step5Actions — Download button', () => {
     expect(onDownload).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a spinner glyph only while activeAction === "download"', () => {
+  it('shows a spinner only while activeAction === "download"', () => {
     renderStep5({ ...baseProps(), activeAction: 'download' });
-    expect(screen.getByRole('button', { name: /sourceReports.download/ }).textContent).toContain(
-      '⟳',
-    );
+    expect(
+      within(screen.getByRole('button', { name: /sourceReports.download/ })).getByRole('img', {
+        hidden: true,
+      }),
+    ).toBeInTheDocument();
   });
 
   it('does not show a spinner on Download while a different action is active', () => {
     renderStep5({ ...baseProps(), activeAction: 'preview' });
     expect(
-      screen.getByRole('button', { name: 'sourceReports.download' }).textContent,
-    ).not.toContain('⟳');
+      within(screen.getByRole('button', { name: 'sourceReports.download' })).queryByRole('img', {
+        hidden: true,
+      }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -269,15 +284,18 @@ describe('Step5Actions — Paperless upload gating', () => {
     expect(onUploadPaperless).toHaveBeenCalledTimes(1);
   });
 
-  it('shows a spinner glyph only while activeAction === "paperless"', () => {
+  it('shows a spinner only while activeAction === "paperless"', () => {
     renderStep5({
       ...baseProps(),
       paperlessStatus: paperlessConfigured,
       activeAction: 'paperless',
     });
     expect(
-      screen.getByRole('button', { name: /sourceReports.uploadPaperless/ }).textContent,
-    ).toContain('⟳');
+      within(screen.getByRole('button', { name: /sourceReports.uploadPaperless/ })).getByRole(
+        'img',
+        { hidden: true },
+      ),
+    ).toBeInTheDocument();
   });
 });
 

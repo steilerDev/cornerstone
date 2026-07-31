@@ -59,6 +59,7 @@ real (unmocked) render test catches it.
 ## Coverage ceiling on overviewPdf.ts (94.82% branch, 100% stmts/funcs/lines)
 
 Three unreachable-by-construction branches remain uncovered after full scenario coverage:
+
 - `skipFootnotesByInvoiceId.has(invoiceId)` guard: always false-first-time because `skippedDocuments`
   is itself a `Map` (unique keys), so the "already has this key" else-branch can never fire within a
   single iteration.
@@ -72,10 +73,11 @@ Three unreachable-by-construction branches remain uncovered after full scenario 
 ## Fixture-audit gotcha (recurring across #1898 scenarios)
 
 When a marker/classification rule changes to require a NEW field (here: `isSplit && budgetLines.length
-> 0` for †, replacing an unconditional-on-isSplit rule), grep every existing `isSplit: true` fixture
-in the file(s) under test — `makeInvoice()`'s convenience defaults (`budgetLines: []`, `deposits: []`)
+
+> 0`for †, replacing an unconditional-on-isSplit rule), grep every existing`isSplit: true`fixture
+in the file(s) under test —`makeInvoice()`'s convenience defaults (`budgetLines: []`, `deposits: []`)
 will silently satisfy the OLD rule's requirements while silently violating the NEW one, producing an
 invoice that looks "split" but renders with NEITHER marker. This recurred in both
-`overviewPdf.test.ts` and `realRender.test.ts`'s `makeMixedReport()` fixture (`splitNoDoc`/
-`splitWithDoc` both needed explicit `budgetLines` added). See also the general pattern in
-[[test-infra-reference]].
+`overviewPdf.test.ts`and`realRender.test.ts`'s `makeMixedReport()` fixture (`splitNoDoc`/
+`splitWithDoc`both needed explicit`budgetLines` added). See also the general pattern in
+> [[test-infra-reference]].

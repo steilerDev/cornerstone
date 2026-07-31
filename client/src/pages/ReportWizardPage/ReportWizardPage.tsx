@@ -783,16 +783,6 @@ export function ReportWizardPage() {
             <div className={styles.modalFooter}>
               <button
                 type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={() => {
-                  setShowDiscardConfirm(false);
-                  pendingChangeRef.current = null;
-                }}
-              >
-                {t('sourceReports.editable.keepEditing')}
-              </button>
-              <button
-                type="button"
                 className={sharedStyles.btnPrimary}
                 onClick={() => {
                   pendingChangeRef.current?.();
@@ -801,6 +791,16 @@ export function ReportWizardPage() {
                 }}
               >
                 {t('sourceReports.editable.discardAndContinue')}
+              </button>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={() => {
+                  setShowDiscardConfirm(false);
+                  pendingChangeRef.current = null;
+                }}
+              >
+                {t('sourceReports.editable.keepEditing')}
               </button>
             </div>
           }
@@ -878,6 +878,7 @@ export function ReportWizardPage() {
       {showPdfPreviewModal && (
         <Modal
           title={t('sourceReports.editable.previewModalTitle')}
+          className={styles.previewModalContent}
           onClose={() => {
             if (modalPreviewUrlRef.current) {
               URL.revokeObjectURL(modalPreviewUrlRef.current);
@@ -888,19 +889,17 @@ export function ReportWizardPage() {
             setActionError('');
           }}
         >
-          <div className={styles.previewModalContent}>
-            {modalPreviewUrl || actionError ? (
-              <ReportPdfPreview
-                blobUrl={modalPreviewUrl}
-                isRegenerating={activeAction === 'preview'}
-                hasError={!!actionError}
-                onRetry={handlePreviewPdf}
-                t={t}
-              />
-            ) : (
-              <p>{t('sourceReports.loadingPreview')}</p>
-            )}
-          </div>
+          {modalPreviewUrl || actionError ? (
+            <ReportPdfPreview
+              blobUrl={modalPreviewUrl}
+              isRegenerating={activeAction === 'preview'}
+              hasError={!!actionError}
+              onRetry={handlePreviewPdf}
+              t={t}
+            />
+          ) : (
+            <p>{t('sourceReports.loadingPreview')}</p>
+          )}
 
           {skippedDocuments.length > 0 && (
             <div className={styles.skippedNote}>

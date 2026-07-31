@@ -107,7 +107,8 @@ export function buildReportContent(
 
   // Build source info
   const sourceTypeText = reportT(`sourceReports.sourceType.${report.source.sourceType}`);
-  const todayStr = new Date().toISOString().split('T')[0] || '';
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0] ?? '';
   const generatedAtText: string = reportFormatters
     ? reportFormatters.formatDate(todayStr)
     : todayStr;
@@ -276,9 +277,7 @@ export function buildReportContent(
   // Build cover letter (if enabled)
   let coverLetter: ReportContentCoverLetter | null = null;
   if (includeCoverLetter) {
-    const dateLine = reportFormatters
-      ? reportFormatters.formatDate(new Date().toISOString().slice(0, 10))
-      : new Date().toISOString().slice(0, 10);
+    const dateLine = reportFormatters ? reportFormatters.formatDate(todayStr) : todayStr;
 
     const senderLines = [];
     if (household?.householdName) senderLines.push(household.householdName);
@@ -304,6 +303,20 @@ export function buildReportContent(
   return {
     isOverview,
     tableTitle,
+    labels: {
+      vendor: reportT('sourceReports.table.vendor'),
+      invoiceNumber: reportT('sourceReports.table.invoiceNumber'),
+      date: reportT('sourceReports.table.date'),
+      status: reportT('sourceReports.table.status'),
+      invoiceAmount: reportT('sourceReports.table.invoiceAmount'),
+      allocatedAmount: reportT('sourceReports.table.allocatedAmount'),
+      usage: reportT('sourceReports.table.usage'),
+      attachmentsNote: reportT('sourceReports.editable.attachmentsNoteLabel'),
+      source: reportT('sourceReports.table.source'),
+      sourceType: reportT('sourceReports.table.sourceType'),
+      reference: reportT('sourceReports.table.reference'),
+      generatedAt: reportT('sourceReports.table.generatedAt'),
+    },
     sourceInfo,
     coverLetter,
     rows,

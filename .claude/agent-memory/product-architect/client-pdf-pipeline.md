@@ -88,7 +88,7 @@ app's ambient locale**. Two locale-bound artifacts are built in `ReportWizardPag
 into `generateReportPdf` -- nothing else in the pipeline is locale-aware:
 
 - `reportT = i18n.getFixedT(reportLanguage, 'budget')` -- works synchronously because
-  `client/src/i18n/index.ts` statically imports *both* `en` and `de` bundles into one `resources`
+  `client/src/i18n/index.ts` statically imports _both_ `en` and `de` bundles into one `resources`
   object. **Never call `i18n.changeLanguage()` to switch report language** -- that mutates the app UI.
 - `reportFormatters = createFormatters(localeTag, currency)` in `client/src/lib/formatters.ts`.
   `useFormatters()` is now a thin wrapper over the same factory, so UI and report formatting can
@@ -101,3 +101,58 @@ took `t: TFunction` + `formatters?: Formatters` params and contain **no** ambien
 `reportPdf/` would silently leak the UI locale into the exported PDF.
 
 TODO (mine): ADR-034 does not yet record this contract. Add it.
+
+## Content/layout split: `client/src/lib/reportContent/` (Story #1900, PR #1909)
+
+An editable content model now sits between the API response and the pdfmake builders:
+
+```
+SourceReportResponse --buildReportContent(report, includedIds, useCase, reportT, reportFormatters,
+                       {includeCoverLetter, household})--> ReportContent (plain strings)
+ReportContent + Record<string,string> overrides --applyOverrides--> effective ReportContent
+effective ReportContent --generateReportPdf--> Blob
+```
+
+- `buildReportContent` owns **all** text derivation, including `includedTotal` and per-status subtotals.
+  `merge.ts` / `overviewPdf.ts` / `coverLetterPdf.ts` are now pure layout with zero derivation — this
+  finally removes the "`report.totalAmount` is not the grand total once invoices are excluded" trap from
+  the layout layer.
+- `applyOverrides` is pure, ignores unknown keys, and **recomputes `coverLetter.signature` from `sender`**
+  (the one derived-field invariant). Override keys: `coverLetter.{sender,recipient,reference,subject,body}`
+  and `row.<invoiceId>.{usageText,attachmentsNote}`.
+- Two independent references by design: `coverLetter.reference` (editable) vs `sourceInfo.referenceText`
+  (the overview block's read-only Reference line). Both baseline off `report.source.reference`; editing the
+  letter does **not** change the table.
+- `ReportContentRow.status` = raw key for the `Badge` variant map; `statusText` = report-language label.
+  Both are needed; a consumer that renders the Badge label from its own `t()` re-introduces the UI-locale leak.
+
+**Labels live in the model (closed on PR #1909 round 2).** `ReportContentLabels` (12 strings) is built with
+`reportT` in `buildReportContent` and consumed by BOTH `ReportContentEditor` and `overviewPdf` — one
+translated string set per report, so a second consumer cannot drift. Still re-translated independently
+(correct today, both receive `reportT`): `overviewPdf` skip-footnote reasons, `merge.ts` page header/footer.
+General rule when adding a consumer: **check which `t` it receives.**
+
+### Report-language vs UI-language: the export test
+
+The discriminator is **"does this exact string appear in the exported PDF?"** — NOT "is it next to an
+editable control?". Ruled on PR #1909 round 2:
+
+- `labels.usage` IS a PDF `tableHeader` (`overviewPdf.ts`) -> report language everywhere it captions that
+  data, including the responsive mobile card. Labeling it from chrome `t` on mobile only made the language
+  flip at a breakpoint.
+- `labels.attachmentsNote` is NOT exported (no attachments column in the PDF) — but its desktop header
+  already reads from `content.labels`, so mobile must match or desktop/mobile split.
+- Cover-letter `senderLabel`/`recipientLabel`/`bodyLabel` stay UI-language because `coverLetterPdf` renders
+  those blocks with **no label prefix at all** — they are genuinely unexported. (`Reference:`/`Subject:` DO
+  print in the PDF, but from separate `sourceReports.coverLetter.*` keys.) So the cover-letter card is not a
+  precedent for putting editable-field labels on chrome `t`.
+
+One-line statement of the rule: **visible captions of exported data follow the report language;
+screen-reader affordance sentences (`ariaLabel`, `resetAriaLabel`) are wholly UI language** — never splice a
+report-language noun into a UI-language sentence. This pre-decides the same question for #1901.
+
+**Forward note for #1901 (AI generation):** `ReportContentOverrides` has no provenance concept, and
+`buildReportContent` is a closed pure derivation with no injection seam. AI text dumped into `overrides`
+would show the "edited" dot on every field, offer a reset-to-non-AI-text, and be silently wiped by
+`guardedUpdate` on any step 1-4 change. Design a third layer (`baseline -> generated -> user`) or a
+`generatedText` parameter — do not let it default into the overrides map.

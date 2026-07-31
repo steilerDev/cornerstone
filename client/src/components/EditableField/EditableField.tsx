@@ -41,7 +41,7 @@ export function EditableField({
   const editedHintId = `${fieldId}-edited-hint`;
 
   const containerClassName = [styles.container, className].filter(Boolean).join(' ');
-  const fieldClassName = as === 'textarea' ? sharedStyles.textarea : sharedStyles.input;
+  const fieldClassName = as === 'textarea' ? styles.fieldTextarea : styles.field;
 
   const ariaDescribedBy = isEdited && label ? editedHintId : undefined;
   const effectiveAriaLabel = label
@@ -81,7 +81,7 @@ export function EditableField({
           <>
             <div className={styles.editedDot} aria-hidden="true" />
             {label && (
-              <span id={editedHintId} className={styles.visuallyHidden}>
+              <span id={editedHintId} className={sharedStyles.srOnly}>
                 {editedSuffix}
               </span>
             )}

@@ -42,9 +42,25 @@ export interface ReportContentCoverLetter {
   signature: string; // DERIVED: sender.split('\n')[0]?.trim() ?? ''; recomputed by applyOverrides when sender overridden; PDF renders only when non-empty
 }
 
+export interface ReportContentLabels {
+  vendor: string;
+  invoiceNumber: string;
+  date: string;
+  status: string;
+  invoiceAmount: string;
+  allocatedAmount: string;
+  usage: string;
+  attachmentsNote: string;
+  source: string;
+  sourceType: string;
+  reference: string;
+  generatedAt: string;
+}
+
 export interface ReportContent {
   isOverview: boolean;
   tableTitle: string;
+  labels: ReportContentLabels;
   sourceInfo: {
     sourceName: string;
     sourceTypeText: string;

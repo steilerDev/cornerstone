@@ -86,17 +86,20 @@
  *   - **Fixed (#1904)**: below 767px, the desktop `<table>` (`display:none` under the
  *     breakpoint) is replaced by a mobile-card fallback — `[class*="mobileCardList"]`, a
  *     DIRECT CHILD `[class*="mobileCard"]` per invoice (see `mobileCard()`), each containing
- *     `[class*="mobileCardRow"]` label/value pairs (Vendor, Invoice Number, Date, Status,
- *     Invoice Amount, Allocated Amount) plus the SAME `usageText`/`attachmentsNote`
- *     `EditableField`s as the desktop table row — same accessible name/role, since
- *     `ReportContentEditor.tsx` passes an identical `ariaLabel` (no `label` prop) to both.
- *     Both the desktop `<table>` and the mobile card list are ALWAYS in the DOM
- *     simultaneously (CSS `display:none` toggles per viewport, same convention as the
+ *     `[class*="mobileCardRow"]` pairs. **Round 3 markup change**: the READ-ONLY rows (Vendor,
+ *     Invoice Number, Date, Status, Invoice Amount, Allocated Amount) no longer use `<label>`
+ *     elements — they render as a `[class*="mobileCardCaption"]` span (the caption) followed by
+ *     a `[class*="mobileCardValue"]` span (the value); there is nothing to `getByLabel()` for
+ *     these. The EDITABLE rows (`usageText`/`attachmentsNote` `EditableField`s), conversely,
+ *     now DO get a real, visible `label` prop (unlike the desktop table's dense/unlabelled
+ *     copy) — see `mobileUsageField()`'s docstring for why that changes its accessible-name
+ *     lookup strategy. Both the desktop `<table>` and the mobile card list are ALWAYS in the
+ *     DOM simultaneously (CSS `display:none` toggles per viewport, same convention as the
  *     `WizardStepper` desktop/mobile trees above) — `usageField()`/`attachmentsNoteField()`
  *     stay correctly scoped to `contentTable` and therefore never collide with the mobile
  *     copy, but any NEW mobile-specific locator (`mobileCard()`/`mobileUsageField()` below)
  *     must likewise stay scoped to `mobileCardList`, or it will strict-mode-collide with the
- *     desktop table's identically-named field. **Follow-up bug (#1908)**: `.mobileCardList`
+ *     desktop table's copy. **Follow-up bug (#1908)**: `.mobileCardList`
  *     itself has no default `display: none` outside the `@media (max-width: 767px)` block (a
  *     one-line CSS gap relative to the established pattern elsewhere, e.g.
  *     `InvoiceDepositsSection.module.css`), so it is currently ALSO visible — duplicating
@@ -272,6 +275,11 @@ export class ReportWizardPage {
 
   // Story #1900: editable report content (ReportContentEditor.tsx) — cover letter card + table.
   readonly coverLetterCard: Locator;
+  // Read-only source-info block (Round 3 addition) — sits between the cover letter card and
+  // the table heading, rendering `content.labels.source`/`sourceType`/`reference`/`generatedAt`
+  // paired with `content.sourceInfo.*` values, one `<p>` per line. Scoped via `[class*=...]` so
+  // assertions against it never collide with unrelated page text (e.g. the step 2 source list).
+  readonly sourceInfoBlock: Locator;
   readonly contentTable: Locator;
   // Mobile-card fallback for the same content (fixed #1904; see class docstring's "Fixed
   // (#1904)" paragraph for the dual-DOM-tree caveat, and #1908 for the desktop-visible
@@ -385,6 +393,7 @@ export class ReportWizardPage {
     // separate sibling `<table>` OUTSIDE the wrapper, so scoping via the wrapper (rather than a
     // bare `[class*="table"]`, which would also match `.summaryTable`/`.tableWrapper`
     // themselves via substring) lands unambiguously on the row table.
+    this.sourceInfoBlock = page.locator('[class*="sourceInfoBlock"]');
     this.contentTable = page.locator('[class*="tableWrapper"] table');
     this.mobileCardList = page.locator('[class*="mobileCardList"]');
 
@@ -792,9 +801,22 @@ export class ReportWizardPage {
    * elsewhere on the page. `recipient`/`reference` are only present in the DOM when their
    * underlying value is non-null (see class docstring) — callers must confirm the field exists
    * for the scenario's seed data before using it.
+   *
+   * `{ exact: true }` is REQUIRED here (fixed — shard-2 CI regression, e.g. run 30632348922):
+   * each field's `resetButton` — mounted only once that field `isEdited` — has an
+   * `aria-label="Reset {{field}} to generated text"` (`resetFieldAriaLabel`), which CONTAINS
+   * the field's own label text as a substring (e.g. "Reset Subject to generated text" contains
+   * "Subject"). `getByLabel()`'s default non-exact matching therefore strict-mode-collides the
+   * input with its own reset button the moment a test edits the field and then re-resolves this
+   * SAME locator (e.g. `expect(subject).toHaveValue(...)` after `editField(subject, ...)`) —
+   * deterministic, not flaky, and previously caught EVERY cover-letter scenario that edits a
+   * field before re-querying it (Scenario 3, 4, 15). `exact: true` matches only the full
+   * accessible name ("Subject"), never the longer reset-button string.
    */
   letterField(key: keyof typeof ReportWizardPage.LETTER_FIELD_LABELS): Locator {
-    return this.coverLetterCard.getByLabel(ReportWizardPage.LETTER_FIELD_LABELS[key]);
+    return this.coverLetterCard.getByLabel(ReportWizardPage.LETTER_FIELD_LABELS[key], {
+      exact: true,
+    });
   }
 
   /**
@@ -850,16 +872,21 @@ export class ReportWizardPage {
   }
 
   /**
-   * The mobile card's own `usageText` `EditableField` — SAME accessible name/role as the
-   * desktop table's `usageField` (`ReportContentEditor.tsx` passes an identical `ariaLabel`,
-   * no `label` prop, to both). This MUST stay scoped to a specific `mobileCard()` rather than
-   * queried page-wide, or it would strict-mode-collide with the desktop table's copy (both
-   * trees are always in the DOM simultaneously).
+   * The mobile card's own `usageText` `EditableField` — as of Round 3, this DIVERGES from the
+   * desktop table's dense/unlabelled `usageField()`: the mobile-card copy now gets a real,
+   * visible `label={t('sourceReports.table.usage')}` prop ("Usage"), so `EditableField.tsx`
+   * renders an actual `<label htmlFor>` and — per its `effectiveAriaLabel` branch — suppresses
+   * `aria-label` entirely (the accessible name comes from the associated `<label>` instead, not
+   * from the vendor/invoiceNumber-specific `ariaLabel` string still passed as a prop but no
+   * longer used for naming while `label` is set). The accessible name is therefore just
+   * "Usage" — identical across every mobile card — so disambiguation between rows relies
+   * entirely on scoping via `mobileCard()` first (never query this role/name page-wide). This
+   * MUST stay scoped to a specific `mobileCard()`, both to disambiguate from other rows and to
+   * avoid strict-mode-colliding with the desktop table's differently-scoped copy (both trees
+   * are always in the DOM simultaneously).
    */
   mobileUsageField(vendorName: string, invoiceNumber: string): Locator {
-    return this.mobileCard(vendorName, invoiceNumber).getByRole('textbox', {
-      name: `Usage text for ${vendorName}, ${invoiceNumber}`,
-    });
+    return this.mobileCard(vendorName, invoiceNumber).getByLabel('Usage', { exact: true });
   }
 
   /** Fills an `EditableField` (input or textarea) with `value`, firing its `onChange`. */
