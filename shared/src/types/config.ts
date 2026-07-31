@@ -9,4 +9,6 @@ export interface AppConfigResponse {
   vatRate: number;
   /** Whether LLM auto-itemization is enabled (all LLM env vars are set). */
   autoItemizeEnabled: boolean;
+  /** Alias for autoItemizeEnabled — clearer name for LLM capabilities. Story #1901. */
+  llmEnabled: boolean;
 }

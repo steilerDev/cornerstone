@@ -10,8 +10,15 @@ import {
   buildUserPrompt,
   MERGE_SYSTEM_PROMPT,
   buildMergeUserPrompt,
+  REPORT_CONTENT_SYSTEM_PROMPT,
+  buildReportContentUserPrompt,
 } from './prompts.js';
-import { buildRequestBody } from './providerProfiles.js';
+import {
+  buildRequestBody,
+  EXTRACTED_LINES_SCHEMA,
+  MERGE_RESULT_SCHEMA,
+  REPORT_CONTENT_SCHEMA,
+} from './providerProfiles.js';
 import type {
   BudgetExtractionProvider,
   ExtractedLine,
@@ -295,12 +302,93 @@ export function validateMergeResult(body: unknown): MergeLinesLlmResult {
 }
 
 /**
+ * Validates that an unknown value conforms to GenerateReportContentLlmResult schema.
+ * Validates structure, length caps, and presence of all requested invoice IDs.
+ * Converts descriptions array to Record<string, string> (invoice ID → description).
+ * Throws LlmInvalidResponseError on any structural mismatch or missing invoices.
+ *
+ * @param body - Unknown value to validate
+ * @param requestedInvoiceIds - Invoice IDs that must all appear in the response
+ * @returns Object with letterSubject, letterBody, and descriptions as Record
+ * @throws LlmInvalidResponseError if validation fails
+ */
+export function validateGenerateReportContentResult(
+  body: unknown,
+  requestedInvoiceIds: string[],
+): { letterSubject: string; letterBody: string; descriptions: Record<string, string> } {
+  if (!body || typeof body !== 'object') {
+    throw new LlmInvalidResponseError('LLM response must be a JSON object');
+  }
+
+  const obj = body as Record<string, unknown>;
+
+  // Validate letterSubject (non-empty string, max 200 chars)
+  if (typeof obj.letterSubject !== 'string' || obj.letterSubject.trim() === '') {
+    throw new LlmInvalidResponseError('LLM response missing or invalid "letterSubject"');
+  }
+  const trimmedSubject = obj.letterSubject.trim();
+  const letterSubject = trimmedSubject.length > 200 ? trimmedSubject.slice(0, 200) : trimmedSubject;
+
+  // Validate letterBody (non-empty string, max 3000 chars)
+  if (typeof obj.letterBody !== 'string' || obj.letterBody.trim() === '') {
+    throw new LlmInvalidResponseError('LLM response missing or invalid "letterBody"');
+  }
+  const trimmedBody = obj.letterBody.trim();
+  const letterBody = trimmedBody.length > 3000 ? trimmedBody.slice(0, 3000) : trimmedBody;
+
+  // Validate descriptions (array of {invoiceId, description})
+  if (!Array.isArray(obj.descriptions)) {
+    throw new LlmInvalidResponseError('LLM response "descriptions" must be an array');
+  }
+
+  const descriptions: Record<string, string> = {};
+  const foundInvoiceIds = new Set<string>();
+
+  for (let i = 0; i < obj.descriptions.length; i++) {
+    const item = obj.descriptions[i];
+    if (!item || typeof item !== 'object') {
+      throw new LlmInvalidResponseError(`LLM response descriptions[${i}] is not an object`);
+    }
+
+    const entry = item as Record<string, unknown>;
+    if (typeof entry.invoiceId !== 'string' || entry.invoiceId.trim() === '') {
+      throw new LlmInvalidResponseError(
+        `LLM response descriptions[${i}] missing or invalid "invoiceId"`,
+      );
+    }
+    if (typeof entry.description !== 'string' || entry.description.trim() === '') {
+      throw new LlmInvalidResponseError(
+        `LLM response descriptions[${i}] missing or invalid "description"`,
+      );
+    }
+
+    const invoiceId = entry.invoiceId.trim();
+    const trimmedDesc = entry.description.trim();
+    const cappedDesc = trimmedDesc.length > 300 ? trimmedDesc.slice(0, 300) : trimmedDesc;
+    descriptions[invoiceId] = cappedDesc;
+    foundInvoiceIds.add(invoiceId);
+  }
+
+  // Check that all requested invoices are present
+  const missingInvoiceIds = requestedInvoiceIds.filter((id) => !foundInvoiceIds.has(id));
+  if (missingInvoiceIds.length > 0) {
+    throw new LlmInvalidResponseError(
+      `LLM response missing descriptions for ${missingInvoiceIds.length} invoice(s)`,
+      { missingCount: missingInvoiceIds.length },
+    );
+  }
+
+  return { letterSubject, letterBody, descriptions };
+}
+
+/**
  * Shared fetch/timeout/JSON-parsing logic for calling the LLM chat completions endpoint.
- * Reusable by both extract and summarizeMerge methods.
+ * Reusable by extract, summarizeMerge, and generateReportContent methods.
  *
  * @param config - LLM configuration
  * @param systemPrompt - System prompt for the LLM
  * @param userPrompt - User prompt for the LLM
+ * @param responseSchema - JSON schema for structured output validation
  * @returns Parsed JSON body from the LLM response
  * @throws LlmUnreachableError, LlmUpstreamError, or LlmInvalidResponseError
  */
@@ -308,6 +396,7 @@ async function callChatCompletion(
   config: LlmConfig,
   systemPrompt: string,
   userPrompt: string,
+  responseSchema: Record<string, unknown>,
 ): Promise<unknown> {
   const url = `${config.baseUrl.replace(/\/$/, '')}/chat/completions`;
   const controller = new AbortController();
@@ -328,6 +417,7 @@ async function callChatCompletion(
           systemPrompt,
           userPrompt,
           maxTokens: config.maxTokens,
+          responseSchema,
         }),
       ),
       signal: controller.signal,
@@ -425,7 +515,12 @@ async function callChatCompletion(
 export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtractionProvider {
   return {
     async extract(ocrText, hints) {
-      const body = await callChatCompletion(config, SYSTEM_PROMPT, buildUserPrompt(ocrText, hints));
+      const body = await callChatCompletion(
+        config,
+        SYSTEM_PROMPT,
+        buildUserPrompt(ocrText, hints),
+        EXTRACTED_LINES_SCHEMA,
+      );
       return validateExtractedLines(body);
     },
 
@@ -434,8 +529,22 @@ export function createOpenAICompatibleProvider(config: LlmConfig): BudgetExtract
         config,
         MERGE_SYSTEM_PROMPT,
         buildMergeUserPrompt(input.descriptions, input.documentSummary, input.availableCategories),
+        MERGE_RESULT_SCHEMA,
       );
       return validateMergeResult(body);
+    },
+
+    async generateReportContent(input) {
+      const body = await callChatCompletion(
+        config,
+        REPORT_CONTENT_SYSTEM_PROMPT,
+        buildReportContentUserPrompt(input),
+        REPORT_CONTENT_SCHEMA,
+      );
+      return validateGenerateReportContentResult(
+        body,
+        input.invoices.map((inv) => inv.invoiceId),
+      );
     },
   };
 }

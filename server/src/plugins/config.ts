@@ -50,6 +50,8 @@ export interface AppConfig {
    */
   llmProvider: 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'generic';
   autoItemizeEnabled: boolean;
+  /** Alias of autoItemizeEnabled — clearer name for LLM capabilities. Story #1901. */
+  llmEnabled: boolean;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -386,6 +388,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     llmMaxTokens,
     llmProvider,
     autoItemizeEnabled,
+    llmEnabled: autoItemizeEnabled, // Alias for clearer naming
   };
 }
 

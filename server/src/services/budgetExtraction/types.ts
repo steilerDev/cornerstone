@@ -16,6 +16,38 @@ export interface MergeLinesLlmResult {
   category: string | null;
 }
 
+export interface GenerateReportContentLlmInvoiceLine {
+  description: string;
+  linkedItemName: string;
+  linkedItemDescription: string | null;
+}
+
+export interface GenerateReportContentLlmInvoice {
+  invoiceId: string;
+  vendorName: string;
+  invoiceNumber: string | null;
+  date: string;
+  amount: number;
+  notes: string | null;
+  budgetLines: GenerateReportContentLlmInvoiceLine[];
+}
+
+export interface GenerateReportContentLlmInput {
+  language: 'en' | 'de';
+  reportType: string; // SourceReportType
+  sourceName: string;
+  sourceType: string; // BudgetSourceType
+  totalAmount: number;
+  currency: string;
+  invoices: GenerateReportContentLlmInvoice[];
+}
+
+export interface GenerateReportContentLlmResult {
+  letterSubject: string;
+  letterBody: string;
+  descriptions: Record<string, string>;
+}
+
 export interface BudgetExtractionProvider {
   extract(ocrText: string, hints: ExtractionHints): Promise<ExtractionResult>;
   summarizeMerge(input: {
@@ -23,6 +55,9 @@ export interface BudgetExtractionProvider {
     documentSummary?: string | null;
     availableCategories: string[];
   }): Promise<MergeLinesLlmResult>;
+  generateReportContent(
+    input: GenerateReportContentLlmInput,
+  ): Promise<GenerateReportContentLlmResult>;
 }
 
 export interface LlmConfig {

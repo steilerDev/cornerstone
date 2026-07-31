@@ -98,3 +98,19 @@ export interface MarkClaimedResponse {
   claimedInvoiceIds: string[];
   claimedDepositIds: string[];
 }
+
+/** Request to generate AI-assisted report content. Story #1901. */
+export interface GenerateReportContentRequest {
+  type: SourceReportType;
+  sourceId: string;
+  language: 'en' | 'de';
+  includedInvoiceIds: string[];
+  excludedLineIds?: string[];
+}
+
+/** Response with AI-generated report content. Story #1901. */
+export interface GenerateReportContentResponse {
+  letterSubject: string;
+  letterBody: string;
+  descriptions: Record<string, string>;
+}
