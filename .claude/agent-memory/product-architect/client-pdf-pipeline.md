@@ -80,3 +80,24 @@ and pdf-lib merges/appends existing Paperless PDFs -- pdfmake cannot embed forei
 
 `GET /api/source-reports`, `POST /api/source-reports/mark-claimed`,
 `POST /api/paperless/documents`, `GET /api/paperless/documents/:id/preview`.
+
+## Report language is decoupled from the UI locale (Story #1899, PR #1903)
+
+The report's language is chosen per-run in the wizard's Settings step and is **independent of the
+app's ambient locale**. Two locale-bound artifacts are built in `ReportWizardPage.tsx` and passed
+into `generateReportPdf` -- nothing else in the pipeline is locale-aware:
+
+- `reportT = i18n.getFixedT(reportLanguage, 'budget')` -- works synchronously because
+  `client/src/i18n/index.ts` statically imports *both* `en` and `de` bundles into one `resources`
+  object. **Never call `i18n.changeLanguage()` to switch report language** -- that mutates the app UI.
+- `reportFormatters = createFormatters(localeTag, currency)` in `client/src/lib/formatters.ts`.
+  `useFormatters()` is now a thin wrapper over the same factory, so UI and report formatting can
+  never diverge in implementation (only in bound locale).
+
+Why `reportPdf/*` needed zero changes: `merge.ts` / `overviewPdf.ts` / `coverLetterPdf.ts` already
+took `t: TFunction` + `formatters?: Formatters` params and contain **no** ambient `i18n`, `Intl.`, or
+`toLocale*` usage, and **no namespace-prefixed keys** (all keys are bare `sourceReports.*` in the
+`budget` ns). Preserve both properties -- a single `t('common:…')` call or a raw `Intl` use inside
+`reportPdf/` would silently leak the UI locale into the exported PDF.
+
+TODO (mine): ADR-034 does not yet record this contract. Add it.

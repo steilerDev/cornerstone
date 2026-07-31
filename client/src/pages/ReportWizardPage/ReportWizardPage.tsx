@@ -52,8 +52,9 @@ export function ReportWizardPage() {
   // Focus management for step headings
   const stepHeadingsRef = useRef<(HTMLHeadingElement | null)[]>([]);
 
-  // Report language selection
-  const [reportLanguage, setReportLanguage] = useState<ResolvedLocale>(resolvedLocale);
+  // Report language selection (derived default: override takes precedence, falls back to resolvedLocale)
+  const [reportLanguageOverride, setReportLanguageOverride] = useState<ResolvedLocale | null>(null);
+  const reportLanguage = reportLanguageOverride ?? resolvedLocale;
 
   // Use case selection
   const [useCase, setUseCase] = useState<SourceReportType | null>(null);
@@ -614,7 +615,7 @@ export function ReportWizardPage() {
             </h2>
             <Step4Settings
               reportLanguage={reportLanguage}
-              onReportLanguageChange={setReportLanguage}
+              onReportLanguageChange={setReportLanguageOverride}
               attachDocuments={attachDocuments}
               onAttachDocumentsChange={setAttachDocuments}
               includeCoverLetter={includeCoverLetter}
