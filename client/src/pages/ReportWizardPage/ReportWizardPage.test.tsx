@@ -1,20 +1,41 @@
 /**
  * Unit tests for client/src/pages/ReportWizardPage/ReportWizardPage.tsx
  *
- * Covers the step machine: source-prefill from ?sourceId=, parallel step-2 amount fetch,
- * step-3 report fetch, debounced PDF regeneration (a `useRef<NodeJS.Timeout | null>` +
- * `setTimeout`/`clearTimeout` in a `useEffect` — no `shouldRegenerate` gate, no external debounce
- * hook), the "current preview blob is always what ships" invariant, claim confirm -> success ->
- * link, 409 silent refetch + banner, finish-without-marking (its own distinct success message,
- * `sourceReports.finishedWithoutMarkingSuccess`), and Paperless upload gating.
+ * Story #1900 REWRITE. The page moved from a debounced auto-regeneration model (a PDF blob kept
+ * continuously in sync with every option change) to an EDITABLE-CONTENT + ON-DEMAND generation
+ * model:
+ *   - Step 5 renders `ReportContentEditor` over `effectiveContent` (baselineContent with
+ *     `overrides` applied via `applyOverrides`) — no PDF call happens just from reaching step 5.
+ *   - `generateReportPdf` is now called ONLY when the user explicitly clicks Preview PDF,
+ *     Download, or Upload to Paperless — each on-demand, from `generatePdfFromContent()`.
+ *   - Mutating any upstream input (use case, source, invoice/line exclusions, document/cover-letter
+ *     settings) while `overrides` is non-empty (`isDirty`) now shows a discard-confirmation modal
+ *     (`guardedUpdate`) instead of silently regenerating; confirming discards overrides and applies
+ *     the change, "Keep Editing" cancels the pending change entirely.
+ *   - `formatters.js` and the real `reportContent/*` modules are intentionally NOT mocked here (as
+ *     in the pre-#1900 file for formatters) — content-building and override-application run for
+ *     real, exercising the actual page/lib integration, not a stub.
  *
- * Error translation: both `handleMarkClaimed`'s catch-else branch and `handleUploadPaperless`'s
- * catch call `translateApiError(err.error.code, tErrors)` with a dedicated
- * `useTranslation('errors')` translator (see InvoiceDepositsSection.tsx for the same pattern);
- * non-`ApiClientError` failures fall back to the page's own `sourceReports.claimFailed` /
- * `sourceReports.uploadFailed` budget-namespace keys.
+ * Two DOM-vs-heading gotcha carried over from the pre-#1900 file: the wizard renders BOTH a
+ * desktop stepper nav (button labels e.g. "Report Type") and a step-panel `<h2>` heading with the
+ * SAME translated text at once — tests that assert step identity select the `<h2>` (via
+ * `getByRole('heading', ...)`) to disambiguate from the stepper nav's own buttons.
+ *
+ * QA re-verification round (story #1900 fix batch): step 5's ReportContentEditor now renders BOTH
+ * a desktop `<table class="table">` and a mobile card list unconditionally (CSS-only responsive —
+ * see ReportContentEditor.test.tsx), so row-level queries (usage text, its reset button) match
+ * twice unless scoped — see the `desktopTable()` helper below. All five previously-pinned "BUG:"
+ * tests are now regression guards, reflecting fixes landed this round: the Preview PDF modal opens
+ * immediately on click (before generation resolves, success or failure), Download failures now
+ * show an error toast, the skip note also renders inside the PDF preview modal (in addition to the
+ * page level), and the modal's Retry button is reachable — the modal body's ternary now renders
+ * `modalPreviewUrl || actionError ? <ReportPdfPreview hasError={!!actionError} .../> : <p>loading</p>`,
+ * so a failed generation routes into ReportPdfPreview's own `hasError` branch (with its Retry
+ * button) instead of a dead-end `<FormError/>` banner. The final QA re-verification round confirmed
+ * clicking Retry from inside the modal re-invokes `generatePdfFromContent()` and, on success,
+ * replaces the error state with the regenerated PDF iframe.
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MemoryRouter } from 'react-router-dom';
@@ -57,10 +78,6 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 
 const mockGenerateReportPdf = jest.fn<typeof ReportPdfIndexTypes.generateReportPdf>();
 const mockDownloadPdf = jest.fn<typeof ReportPdfIndexTypes.downloadPdf>();
-// Returns a UNIQUE URL per call by default (matching real URL.createObjectURL behavior) so that
-// tests asserting "the previous URL was revoked, a NEW one was assigned" can't pass by accident
-// on a repeated fixed string. Tests that need a specific sequence still override with
-// mockReturnValueOnce/mockImplementationOnce.
 let previewUrlCallCount = 0;
 const mockCreatePreviewUrl = jest
   .fn<typeof ReportPdfIndexTypes.createPreviewUrl>()
@@ -78,16 +95,16 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
   useToast: () => ({ toasts: [], showToast: mockShowToast, dismissToast: jest.fn() }),
 }));
 
-// formatters.js is intentionally NOT mocked: production now calls createFormatters(...) directly
-// (not the useFormatters() hook), and the QA spec asks for the real formatter implementation to
-// run end-to-end so the "generateReportPdf receives real, locale-bound formatters" and "language
-// change resolves real German copy" tests exercise genuine behavior rather than a stub.
+// formatters.js and lib/reportContent/* are intentionally NOT mocked: production builds
+// baselineContent/effectiveContent via the real buildReportContent/applyOverrides + real
+// createFormatters(...), and these tests exercise that real integration end-to-end rather than a
+// stub.
 
 let ReportWizardPage: React.ComponentType;
 
-// jsdom does not implement URL.createObjectURL/revokeObjectURL — ReportWizardPage's
-// preview-cleanup effect calls URL.revokeObjectURL(previewUrl) on unmount/URL change, which
-// would otherwise throw "URL.revokeObjectURL is not a function" and crash the render tree.
+// jsdom does not implement URL.createObjectURL/revokeObjectURL — ReportWizardPage's modal-preview
+// cleanup calls URL.revokeObjectURL on close/unmount, which would otherwise throw and crash the
+// render tree.
 let savedCreateObjectURL: typeof URL.createObjectURL;
 let savedRevokeObjectURL: typeof URL.revokeObjectURL;
 
@@ -105,8 +122,8 @@ beforeEach(async () => {
     paperlessUrl: null,
     filterTag: null,
   });
-  // Report loading always triggers the initial PDF-generation effect — default every test to a
-  // resolving mock so tests that don't care about PDF output aren't tripped up by it.
+  // No PDF generation happens automatically anymore, but default every test to a resolving mock
+  // so tests that explicitly trigger a generation aren't tripped up by an unhandled rejection.
   mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
 
   savedCreateObjectURL = URL.createObjectURL;
@@ -121,13 +138,6 @@ afterEach(() => {
 });
 
 function renderPage(initialEntries: string[] = ['/budget/reports']) {
-  // ReportWizardPage now calls useLocale() directly (for resolvedLocale/currency, used to seed
-  // reportLanguage and build reportFormatters), so it must be wrapped in a real LocaleProvider.
-  // LocaleProvider's own fetchConfig() call targets a relative '/config' URL that is invalid for
-  // the global fetch in jsdom/Node and rejects asynchronously, silently caught internally — so
-  // currency/locale stay at their synchronous defaults (EUR / resolvedLocale 'en', since jsdom's
-  // navigator.language is 'en-US') for the duration of every test (see formatters.test.ts for the
-  // same documented behavior).
   return render(
     <LocaleProvider>
       <MemoryRouter initialEntries={initialEntries}>
@@ -189,7 +199,14 @@ function makeReport(overrides: Partial<SourceReportResponse> = {}): SourceReport
         lineKind: 'invoice',
         isSplit: false,
         documents: [],
-        budgetLines: [],
+        budgetLines: [
+          {
+            id: 'bl-1',
+            description: 'Original Usage Text',
+            allocatedPortion: 0,
+            linkedItem: null,
+          },
+        ],
         deposits: [],
       },
     ],
@@ -200,21 +217,27 @@ function makeReport(overrides: Partial<SourceReportResponse> = {}): SourceReport
   };
 }
 
-// Step navigation is manual in ReportWizardPage: selecting a use case / source only advances
-// `maxReachedStep`, not `currentStep` — the user must click "Next" explicitly at each step.
-//
-// The "Next" button's accessible name now correctly resolves to "Next" (see the dedicated
-// "Next" button test below). This helper is pure navigation plumbing though, not an assertion
-// about translated text, so it deliberately selects the primary-action button by its stable
-// `btnPrimary` shared-style class rather than by name — decoupling every business-logic test
-// below from label text. Exactly one `btnPrimary` button is present at a time during steps 1-3
-// (the claim-confirm modal's "Confirm" button, also `btnPrimary`, is never mounted while this
-// helper runs).
+// Step navigation is manual: selecting a use case / source only advances `maxReachedStep`, not
+// `currentStep` — the user must click "Next" explicitly at each step. `clickNext` selects the
+// primary-action button by its stable `btnPrimary` shared-style class rather than by name,
+// decoupling navigation from label text (exactly one `btnPrimary` button is present at a time
+// during steps 1-3; the claim-confirm/discard modals' own `btnPrimary` buttons are never mounted
+// while this helper runs in the tests below that use it purely for forward navigation).
 async function clickNext(user: ReturnType<typeof userEvent.setup>) {
   const primaryButtons = screen
     .getAllByRole('button')
     .filter((b) => b.className.includes('btnPrimary'));
   await user.click(primaryButtons[primaryButtons.length - 1]!);
+}
+
+// Step 5's ReportContentEditor renders BOTH a desktop <table class="table"> and a mobile card
+// list unconditionally (CSS-only responsive breakpoint — see ReportContentEditor.test.tsx). Both
+// trees mirror the same row content/overrides, so `screen.getByDisplayValue`/`getByText` queries
+// for row-level fields (usage text, its reset button) match twice unless scoped. Scope to the
+// desktop table for all row-level step-5 interactions; edits made through either tree are
+// equivalent since both are driven by the same lifted `overrides` state.
+function desktopTable(): HTMLElement {
+  return document.querySelector('table.table') as HTMLElement;
 }
 
 async function goToStep3(user: ReturnType<typeof userEvent.setup>, useCaseIndex = 1) {
@@ -238,9 +261,6 @@ async function goToStep4(user: ReturnType<typeof userEvent.setup>, useCaseIndex 
   await clickNext(user); // step 3 -> 4 (Settings: language + document options)
 }
 
-// Step 5 (Preview & Export: download/claim/upload actions + the PDF preview panel) is the step
-// that used to be step 4 before Story #1899 inserted the Settings step. Any test asserting on
-// download/claim/upload/preview/skipped-document DOM must reach step 5, not step 4.
 async function goToStep5(user: ReturnType<typeof userEvent.setup>, useCaseIndex = 1) {
   await goToStep4(user, useCaseIndex);
   await clickNext(user); // step 4 -> 5
@@ -254,9 +274,7 @@ describe('ReportWizardPage', () => {
 
   it('fetches budget sources, household settings, and Paperless status on mount', async () => {
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-
     renderPage();
-
     await waitFor(() => {
       expect(mockFetchBudgetSources).toHaveBeenCalledTimes(1);
       expect(mockFetchHouseholdSettings).toHaveBeenCalledTimes(1);
@@ -267,22 +285,12 @@ describe('ReportWizardPage', () => {
   it('renders the use-case step first, with the WizardStepper on step 1', async () => {
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
     renderPage();
-
     await waitFor(() => {
       expect(screen.getByRole('radiogroup')).toBeInTheDocument();
     });
   });
 
-  it('shows a real, translated "Next" label (not a raw i18next key) once a use case is selected', async () => {
-    // FIXED, in two parts:
-    // 1. The dot-vs-colon namespace-separator bug originally documented here — production now
-    //    correctly calls t('common:button.next') (colon-separated, cross-namespace lookup).
-    // 2. common.json's `button` object now has a `next` entry (grep confirms), so the lookup
-    //    resolves to real text instead of falling back to the raw key.
-    // Note the button itself is conditionally rendered — `{useCase && (<button>...</button>)}`
-    // in ReportWizardPage.tsx — so it doesn't exist in the DOM at all until a use case radio
-    // is selected; this test selects one before asserting on the label. Selecting a use case
-    // also triggers the parallel step-2 amounts fetch, so getSourceReport must be mocked.
+  it('shows a real, translated "Next" label once a use case is selected', async () => {
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
     mockGetSourceReport.mockResolvedValue(makeReport());
     renderPage();
@@ -290,13 +298,7 @@ describe('ReportWizardPage', () => {
 
     const user = userEvent.setup();
     await user.click(screen.getAllByRole('radio')[1]!);
-
-    // Spec-conformant expectation: a real, translated "Next" label.
     expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
-
-    // Sanity check that this isn't an isolated fix: advancing to step 2 shows a
-    // correctly-translated "Back" button too (`common:button.back` already resolved before
-    // this round of fixes).
     await user.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
@@ -319,7 +321,7 @@ describe('ReportWizardPage', () => {
     });
   });
 
-  it('prefills the source from ?sourceId= (pre-selected once the use case is picked)', async () => {
+  it('prefills the source from ?sourceId= and carries through to a loaded step-3 report', async () => {
     mockFetchBudgetSources.mockResolvedValue({
       budgetSources: [makeSource({ id: 'src-42', name: 'Prefilled Source' })],
     });
@@ -328,46 +330,19 @@ describe('ReportWizardPage', () => {
 
     await waitFor(() => screen.getByRole('radiogroup'));
     const user = userEvent.setup();
-    await user.click(screen.getAllByRole('radio')[1]!); // pick a use case first
+    await user.click(screen.getAllByRole('radio')[1]!);
     await clickNext(user);
 
     await waitFor(() => {
       const sourceRadios = screen.getAllByRole('radio') as HTMLInputElement[];
       expect(sourceRadios.some((r) => r.checked && r.value === 'src-42')).toBe(true);
     });
+    await clickNext(user);
+    await waitFor(() => {
+      expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-42');
+    });
+    await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
   });
-
-  it(
-    'the ?sourceId= deep link fires handleSourceChange automatically and carries all the way ' +
-      'through to a loaded step-3 report, without the user manually re-selecting the source',
-    async () => {
-      // Extends the prefill test above (which only asserts the step-2 radio is pre-checked) to
-      // confirm the ?sourceId= effect (`if (useCase && sourceIdFromQuery && !report)
-      // handleSourceChange(sourceIdFromQuery)`) actually fetches and renders the report — not
-      // just pre-selects the radio button.
-      mockFetchBudgetSources.mockResolvedValue({
-        budgetSources: [makeSource({ id: 'src-42', name: 'Prefilled Source' })],
-      });
-      mockGetSourceReport.mockResolvedValue(makeReport());
-      renderPage(['/budget/reports?sourceId=src-42']);
-
-      await waitFor(() => screen.getByRole('radiogroup'));
-      const user = userEvent.setup();
-      await user.click(screen.getAllByRole('radio')[1]!); // pick a use case
-      await clickNext(user); // step 1 -> 2
-
-      await waitFor(() => {
-        const sourceRadios = screen.getAllByRole('radio') as HTMLInputElement[];
-        expect(sourceRadios.some((r) => r.checked && r.value === 'src-42')).toBe(true);
-      });
-      await clickNext(user); // step 2 -> 3
-
-      await waitFor(() => {
-        expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-42');
-      });
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
-    },
-  );
 
   it('fetches the report when a source is selected on step 2', async () => {
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
@@ -390,514 +365,14 @@ describe('ReportWizardPage', () => {
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
     mockGetSourceReport.mockResolvedValue(makeReport());
     renderPage();
-
     const user = userEvent.setup();
     await goToStep3(user);
-
     expect(screen.getByText('ACME')).toBeInTheDocument();
   });
-
-  it('generates the initial PDF preview once the report loads and step 4 is reached', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep4(user);
-
-    await waitFor(() => {
-      expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1);
-    });
-    expect(mockCreatePreviewUrl).toHaveBeenCalledTimes(1);
-  });
-
-  it('calls generateReportPdf with a REAL, locale-bound formatters object as the 7th (final) argument', async () => {
-    // formatters.js is unmocked in this file (see the comment near the top) — ReportWizardPage
-    // builds reportFormatters via createFormatters(reportLanguage === 'de' ? 'de-DE' : 'en-US',
-    // currency), so the object passed through must be the genuine 11-formatter shape, actually
-    // bound to en-US (the default resolvedLocale in this jsdom test environment).
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep4(user);
-
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    const callArgs = mockGenerateReportPdf.mock.calls[0]!;
-    expect(callArgs).toHaveLength(7);
-    const formatters = callArgs[6] as {
-      formatCurrency: (n: number) => string;
-      getCurrencySymbol: () => string;
-      formatDate: (d: string | null | undefined) => string;
-      formatPercent: (n: number) => string;
-    };
-    expect(formatters).toEqual(
-      expect.objectContaining({
-        formatCurrency: expect.any(Function),
-        getCurrencySymbol: expect.any(Function),
-        formatDate: expect.any(Function),
-        formatTime: expect.any(Function),
-        formatDateTime: expect.any(Function),
-        formatPercent: expect.any(Function),
-        formatWeekdayShort: expect.any(Function),
-        formatWeekdayMonthDay: expect.any(Function),
-        formatFileSize: expect.any(Function),
-        formatHours: expect.any(Function),
-        formatDateTimeWithZone: expect.any(Function),
-      }),
-    );
-    // Exercise the real closures to confirm they're bound to en-US/EUR, not just present.
-    expect(formatters.formatCurrency(1234.56)).toContain('1,234.56');
-    expect(formatters.getCurrencySymbol()).toBe('€');
-    expect(formatters.formatDate('2026-03-15')).toContain('Mar');
-  });
-
-  it('does not keep re-triggering generateReportPdf once settled (no runaway regeneration loop)', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    // A FRESH Blob object per call — matching real generateReportPdf's behavior (it always
-    // constructs a new Blob). A single shared mockResolvedValue() object would mask this bug: the
-    // regeneration effect depends on `previewBlob` itself, so if setPreviewBlob() is ever called
-    // with a NEW object reference (as it is in real usage), the effect's dependency array sees a
-    // change and re-runs — and since `previewBlob` is now truthy, `isFirstGeneration` flips to
-    // false, taking the debounced-regeneration branch instead of doing nothing. That branch then
-    // produces yet another new Blob, repeating indefinitely.
-    mockGenerateReportPdf.mockImplementation(async () => ({
-      blob: new Blob(['pdf']),
-      skippedDocuments: [],
-    }));
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep4(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    // Idle window spanning several 400ms debounce cycles — if the regeneration effect re-triggers
-    // itself off its own `previewBlob` write (see comment above), the call count keeps climbing
-    // instead of settling. It must stay pinned at 1.
-    await new Promise((resolve) => setTimeout(resolve, 1300));
-    expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1);
-  });
-
-  it('disables Step5 actions after a failed regeneration invalidates the previous blob', async () => {
-    mockFetchBudgetSources.mockResolvedValue({
-      budgetSources: [makeSource({ contactAddress: '123 Bank St' })],
-    });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf
-      .mockResolvedValueOnce({ blob: new Blob(['pdf']), skippedDocuments: [] })
-      .mockRejectedValueOnce(new Error('regen boom'));
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
-
-    // The cover-letter toggle now lives on the Settings step (4), not the Preview & Export step
-    // (5) that the download button is on — go back to reach it. Regeneration is triggered by the
-    // debounced effect regardless of which step is currently visible.
-    await user.click(screen.getByRole('button', { name: 'Back' }));
-    const coverLetterCheckbox = screen.getByLabelText('Include cover letter');
-    await user.click(coverLetterCheckbox);
-
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), { timeout: 2000 });
-
-    // Forward again to Preview & Export, where the failure banner and action buttons live.
-    await clickNext(user);
-    await waitFor(
-      () => {
-        expect(screen.getAllByText('PDF generation failed').length).toBeGreaterThan(0);
-      },
-      { timeout: 2000 },
-    );
-
-    // hasError is now true AND hasBlob is false (the catch clears previewBlob), so every action
-    // must be disabled, not just visually flagged by the error banner.
-    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Finish without marking' })).toBeDisabled();
-  });
-
-  it('revokes the previous preview URL before assigning a new one when regenerating (option toggle)', async () => {
-    // contactAddress makes coverLetterDisabled false, so the checkbox below is togglable.
-    mockFetchBudgetSources.mockResolvedValue({
-      budgetSources: [makeSource({ contactAddress: '123 Bank St' })],
-    });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-    mockCreatePreviewUrl.mockReturnValueOnce('blob:first').mockReturnValueOnce('blob:second');
-
-    const savedRevoke = URL.revokeObjectURL;
-    const revokeSpy = jest.fn();
-    URL.revokeObjectURL = revokeSpy;
-
-    try {
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep4(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-      // Toggle an option to trigger the debounced regenerate path (any of attachDocuments /
-      // includeCoverLetter / excludedInvoiceIds changing re-triggers it — there is no
-      // `shouldRegenerate` gate; regeneratePdf()'s only guard is `!report || !useCase`).
-      const coverLetterCheckbox = screen.getByLabelText('Include cover letter');
-      await user.click(coverLetterCheckbox);
-
-      await waitFor(
-        () => {
-          expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2);
-        },
-        { timeout: 2000 },
-      );
-      expect(revokeSpy).toHaveBeenCalledWith('blob:first');
-    } finally {
-      URL.revokeObjectURL = savedRevoke;
-    }
-  });
-
-  it('claim confirm → markInvoicesClaimed success → success banner with claimedCount', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-    mockMarkInvoicesClaimed.mockResolvedValue({
-      claimedInvoiceIds: ['inv-1'],
-      claimedDepositIds: [],
-    });
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
-    // Claim confirm modal
-    await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-    await user.click(screen.getByRole('button', { name: 'Confirm' }));
-
-    await waitFor(() => {
-      expect(mockMarkInvoicesClaimed).toHaveBeenCalledWith(['inv-1']);
-    });
-    await waitFor(() => {
-      expect(screen.getByText(/invoice\(s\) marked as claimed/)).toBeInTheDocument();
-    });
-  });
-
-  it('409 INVOICES_NOT_CLAIMABLE: closes the modal, shows a banner, and silently refetches without navigating away', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    const twoInvoiceReport = makeReport({
-      invoices: [
-        ...makeReport().invoices,
-        {
-          invoiceId: 'inv-2',
-          vendorId: 'vend-2',
-          vendorName: 'Beta Supplies',
-          invoiceNumber: 'INV-002',
-          date: '2026-01-11',
-          status: 'pending',
-          invoiceAmount: 500,
-          allocatedAmount: 500,
-          lineKind: 'invoice',
-          isSplit: false,
-          documents: [],
-          budgetLines: [],
-          deposits: [],
-        },
-      ],
-    });
-    mockGetSourceReport.mockResolvedValue(twoInvoiceReport);
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    const ApiClientErrorModule = await import('../../lib/apiClient.js');
-    const conflictErr = new ApiClientErrorModule.ApiClientError(409, {
-      code: 'INVOICES_NOT_CLAIMABLE',
-      message: 'not claimable',
-    });
-    mockMarkInvoicesClaimed.mockRejectedValueOnce(conflictErr);
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep3(user);
-
-    // Exclude one of the two invoices before advancing (the other stays selected, so the "Next"
-    // button stays enabled), so the post-409 "reset excludedInvoiceIds to only invoices still
-    // present in the refetched report" filter (which retains it, since the silently-refetched
-    // report still contains both) has something to iterate over.
-    await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
-    await clickNext(user); // step 3 -> 4
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-    await clickNext(user); // step 4 -> 5
-
-    await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
-    await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-    await user.click(screen.getByRole('button', { name: 'Confirm' }));
-
-    await waitFor(() => {
-      // Modal closed (Confirm button gone).
-      expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
-    });
-    // getSourceReport is called 3 times total: once per source for the step-2 amounts
-    // (1 source here), once for the initial step-3 report fetch, and once more for the
-    // silent 409 refetch.
-    await waitFor(() => {
-      expect(mockGetSourceReport).toHaveBeenCalledTimes(3);
-    });
-  });
-
-  it('"Finish without marking" shows its own distinct success message, without calling markInvoicesClaimed', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    await user.click(screen.getByRole('button', { name: 'Finish without marking' }));
-
-    expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
-    // Finish-without-marking uses its own success copy (sourceReports.finishedWithoutMarkingSuccess)
-    // — distinct from the "N invoice(s) marked as claimed" text shown after a real claim.
-    await waitFor(() => {
-      expect(
-        screen.getByText('Report finished without marking invoices as claimed.'),
-      ).toBeInTheDocument();
-    });
-    expect(screen.queryByText(/invoice\(s\) marked as claimed/)).not.toBeInTheDocument();
-  });
-
-  it('hides the Upload-to-Paperless action when Paperless is not configured/reachable', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetPaperlessStatus.mockResolvedValue({
-      configured: false,
-      reachable: false,
-      error: null,
-      paperlessUrl: null,
-      filterTag: null,
-    });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    expect(screen.queryByRole('button', { name: 'Upload to Paperless' })).not.toBeInTheDocument();
-  });
-
-  it('shows the Upload-to-Paperless action when configured and reachable, and uploads the current preview blob', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetPaperlessStatus.mockResolvedValue({
-      configured: true,
-      reachable: true,
-      error: null,
-      paperlessUrl: null,
-      filterTag: null,
-    });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    const previewBlob = new Blob(['pdf']);
-    mockGenerateReportPdf.mockResolvedValue({ blob: previewBlob, skippedDocuments: [] });
-    mockUploadToPaperless.mockResolvedValue(undefined);
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    const uploadBtn = screen.getByRole('button', { name: 'Upload to Paperless' });
-    await user.click(uploadBtn);
-
-    await waitFor(() => {
-      expect(mockUploadToPaperless).toHaveBeenCalledWith(previewBlob, expect.any(String));
-    });
-    await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith('success', 'Document uploaded to Paperless');
-    });
-  });
-
-  it('a Paperless upload failure (ApiClientError) shows a translated error toast', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetPaperlessStatus.mockResolvedValue({
-      configured: true,
-      reachable: true,
-      error: null,
-      paperlessUrl: null,
-      filterTag: null,
-    });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    const ApiClientErrorModule = await import('../../lib/apiClient.js');
-    mockUploadToPaperless.mockRejectedValue(
-      new ApiClientErrorModule.ApiClientError(502, {
-        code: 'PAPERLESS_UNREACHABLE',
-        message: 'unreachable',
-      }),
-    );
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    const uploadBtn = screen.getByRole('button', { name: 'Upload to Paperless' });
-    await user.click(uploadBtn);
-
-    // translateApiError(err.error.code, tErrors) resolves PAPERLESS_UNREACHABLE to its real
-    // errors.json message.
-    await waitFor(() => {
-      expect(mockShowToast).toHaveBeenCalledWith(
-        'error',
-        'The document management system could not be reached.',
-      );
-    });
-  });
-
-  // ─── Story #1899: report language (Settings step) ─────────────────────────
-
-  describe('report language selection (Story #1899)', () => {
-    it('defaults the report language radio group to the current resolvedLocale (en in this jsdom test environment)', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReport());
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep4(user);
-
-      expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
-      expect(screen.getByRole('radio', { name: 'Deutsch' })).not.toBeChecked();
-    });
-
-    it('the selected report language persists across Back (to step 3) / Next (back to step 4) navigation', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReport());
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep4(user);
-
-      await user.click(screen.getByRole('radio', { name: 'Deutsch' }));
-      expect(screen.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
-
-      // step4 -> step3 -> step4: reportLanguage is page-level state, not local to Step4Settings,
-      // so it must survive the component being unmounted/remounted across step navigation.
-      await user.click(screen.getByRole('button', { name: 'Back' }));
-      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
-      await clickNext(user);
-
-      expect(screen.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
-    });
-
-    it('changing the report language re-triggers generateReportPdf with a fixed t that resolves REAL German strings (not the app-wide i18n language)', async () => {
-      // reportT = i18n.getFixedT(reportLanguage, 'budget') against the real i18n singleton (not
-      // mocked in this file) — asserting the resolved string for a known key is the only way to
-      // confirm the fixed translator is actually locked to the chosen report language, distinct
-      // from whatever language the rest of the app UI is currently rendering in.
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReport());
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep4(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-      await user.click(screen.getByRole('radio', { name: 'Deutsch' }));
-
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), {
-        timeout: 2000,
-      });
-
-      const lastCall = mockGenerateReportPdf.mock.calls.at(-1)!;
-      const reportT = lastCall[5] as (key: string) => string;
-      expect(reportT('sourceReports.table.vendor')).toBe('Auftragnehmer');
-
-      // The wizard chrome itself (a heading rendered via the page's own useTranslation('budget')
-      // t, not reportT) stays in English — selecting a report language never calls
-      // i18n.changeLanguage() / affects the ambient app language.
-      expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
-    });
-  });
-
-  // ─── Story #1899: 5-step wizard structure ──────────────────────────────────
-
-  describe('5-step wizard structure (Story #1899)', () => {
-    it('renders exactly 5 items in the desktop stepper nav', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      renderPage();
-      await waitFor(() => screen.getByRole('radiogroup'));
-
-      const stepperNav = screen.getByRole('navigation', { name: 'Report wizard steps' });
-      expect(within(stepperNav).getAllByRole('listitem')).toHaveLength(5);
-    });
-
-    it('shows "Step 1 of 5" in the mobile stepper on the first step', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      renderPage();
-      await waitFor(() => screen.getByRole('radiogroup'));
-
-      expect(screen.getByText('Step 1 of 5')).toBeInTheDocument();
-    });
-
-    it('shows "Step 4 of 5" in the mobile stepper on the Settings step', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReport());
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep4(user);
-
-      expect(screen.getByText('Step 4 of 5')).toBeInTheDocument();
-    });
-
-    it('shows "Step 5 of 5" in the mobile stepper on the Preview & Export step', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReport());
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep5(user);
-
-      expect(screen.getByText('Step 5 of 5')).toBeInTheDocument();
-    });
-
-    it('the Settings step (4) shows the language radios and toggles, but no download/claim/preview UI', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReport());
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep4(user);
-
-      expect(screen.getByRole('radio', { name: 'English' })).toBeInTheDocument();
-      expect(screen.getByLabelText('Include cover letter')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }),
-      ).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Upload to Paperless' })).not.toBeInTheDocument();
-      expect(document.querySelector('iframe')).not.toBeInTheDocument();
-    });
-
-    it('the Preview & Export step (5) shows the actions/preview UI, but no language radios or document toggles', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReport());
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep5(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-      expect(screen.getByRole('button', { name: 'Download PDF' })).toBeInTheDocument();
-      expect(screen.queryByRole('radio', { name: 'English' })).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Include cover letter')).not.toBeInTheDocument();
-    });
-  });
-
-  // ─── Error-path and navigation coverage ────────────────────────────────────
 
   it('shows an error banner when the initial data load fails', async () => {
     mockFetchBudgetSources.mockRejectedValue(new Error('network down'));
     renderPage();
-
     await waitFor(() => {
       expect(screen.getByText('Failed to load report data')).toBeInTheDocument();
     });
@@ -917,12 +392,10 @@ describe('ReportWizardPage', () => {
     const user = userEvent.setup();
     await waitFor(() => screen.getByRole('radiogroup'));
     await user.click(screen.getAllByRole('radio')[1]!);
-
     await waitFor(() => {
       expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-1');
       expect(mockGetSourceReport).toHaveBeenCalledWith('claim', 'src-2');
     });
-    // Both sources remain selectable afterwards — the rejected source didn't block step2Loading.
     await clickNext(user);
     await waitFor(() => {
       expect(screen.getAllByRole('radio')).toHaveLength(2);
@@ -934,8 +407,6 @@ describe('ReportWizardPage', () => {
     let callCount = 0;
     mockGetSourceReport.mockImplementation(() => {
       callCount += 1;
-      // Call 1 is the step-2 parallel amounts fetch (1 source here); call 2 is the initial
-      // step-3 report fetch, which we fail; call 3+ (the retry) resolves normally.
       if (callCount === 2) return Promise.reject(new Error('boom'));
       return Promise.resolve(makeReport());
     });
@@ -953,112 +424,971 @@ describe('ReportWizardPage', () => {
         .filter((b) => b.className.includes('btnPrimary'));
       expect(primaryButtons[primaryButtons.length - 1]).not.toBeDisabled();
     });
-    await clickNext(user); // step 2 -> 3, triggering the report fetch that rejects
+    await clickNext(user);
 
     await waitFor(() => {
       expect(screen.getByText('Failed to load report')).toBeInTheDocument();
     });
-
-    // The retry button's translated label is a separate, already-reported bug
-    // (t('common:retry') — "retry" is also missing from common.json's top level), so select it
-    // by its stable shared-style class rather than by name; it's the only `btnSecondary` button
-    // rendered in this error state.
     const retryBtn = screen
       .getAllByRole('button')
       .find((b) => b.className.includes('btnSecondary'));
     await user.click(retryBtn!);
-
     await waitFor(() => {
       expect(screen.getByText('ACME')).toBeInTheDocument();
     });
   });
 
-  it('shows a preview error banner when the initial PDF generation fails', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockRejectedValueOnce(new Error('pdf boom'));
+  // ─── 5-step wizard structure (Story #1899, unaffected by #1900) ────────────
 
-    renderPage();
-    const user = userEvent.setup();
-    // Generation starts as soon as the report is ready (not step-gated), but the failure banner
-    // only renders inside the Preview & Export step (5).
-    await goToStep5(user);
-
-    await waitFor(() => {
-      expect(screen.getAllByText('PDF generation failed').length).toBeGreaterThan(0);
+  describe('5-step wizard structure', () => {
+    it('renders exactly 5 items in the desktop stepper nav', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      renderPage();
+      await waitFor(() => screen.getByRole('radiogroup'));
+      const stepperNav = screen.getByRole('navigation', { name: 'Report wizard steps' });
+      expect(within(stepperNav).getAllByRole('listitem')).toHaveLength(5);
     });
-  });
 
-  it('shows a preview error banner when a debounced regeneration fails', async () => {
-    mockFetchBudgetSources.mockResolvedValue({
-      budgetSources: [makeSource({ contactAddress: '123 Bank St' })],
-    });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf
-      .mockResolvedValueOnce({ blob: new Blob(['pdf']), skippedDocuments: [] })
-      .mockRejectedValueOnce(new Error('regen boom'));
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep4(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    const coverLetterCheckbox = screen.getByLabelText('Include cover letter');
-    await user.click(coverLetterCheckbox);
-
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), { timeout: 2000 });
-
-    // The failure banner only renders on the Preview & Export step.
-    await clickNext(user); // step 4 -> 5
-    await waitFor(
-      () => {
-        expect(screen.getAllByText('PDF generation failed').length).toBeGreaterThan(0);
-      },
-      { timeout: 2000 },
-    );
-  });
-
-  it('shows a translated claim error for an ApiClientError other than INVOICES_NOT_CLAIMABLE', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    const ApiClientErrorModule = await import('../../lib/apiClient.js');
-    mockMarkInvoicesClaimed.mockRejectedValueOnce(
-      new ApiClientErrorModule.ApiClientError(500, {
-        code: 'TOTALLY_UNKNOWN_CODE' as ErrorCode,
-        message: 'oops',
-      }),
-    );
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
-    await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-    await user.click(screen.getByRole('button', { name: 'Confirm' }));
-
-    // translateApiError's fallback (no matching errors.json key) title-cases the code.
-    await waitFor(() => {
-      expect(screen.getByText('Totally Unknown Code')).toBeInTheDocument();
-    });
-  });
-
-  it(
-    'shows a real, translated generic error message for a non-ApiClientError claim failure ' +
-      '(sourceReports.claimFailed)',
-    async () => {
+    it('shows "Step 5 of 5" in the mobile stepper on the Preview & Export step', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
-      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      expect(screen.getByText('Step 5 of 5')).toBeInTheDocument();
+    });
+
+    it('the Settings step (4) shows the language radios and toggles, but no download/claim/preview UI', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep4(user);
+
+      expect(screen.getByRole('radio', { name: 'English' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Include cover letter')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument();
+      expect(document.querySelector('iframe')).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Story #1900: no PDF call on step-5 arrival; content editor renders baseline ──────────────
+
+  describe('Step 5 arrival: no PDF generation until an explicit action (Story #1900)', () => {
+    it('reaching step 5 does NOT call generateReportPdf', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      expect(mockGenerateReportPdf).not.toHaveBeenCalled();
+    });
+
+    it('never opens the PDF preview modal (no iframe) just from reaching step 5', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      expect(document.querySelector('iframe')).not.toBeInTheDocument();
+    });
+
+    it("renders the ReportContentEditor with the baseline usage text for the report's invoice", async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      expect(within(desktopTable()).getByDisplayValue('Original Usage Text')).toBeInTheDocument();
+    });
+
+    it('renders the editable content table heading (tableHeading) as an h3', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      expect(screen.getByRole('heading', { level: 3, name: 'Report Table' })).toBeInTheDocument();
+    });
+  });
+
+  // ─── Story #1900: editing content, isDirty, reset, discard-confirm ────────────────────────────
+
+  describe('editable content: overrides, isDirty, per-field reset (Story #1900)', () => {
+    it('editing the usage field shows an edited indicator and does not call generateReportPdf', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+
+      expect(within(desktopTable()).getByDisplayValue('Edited Usage Text')).toBeInTheDocument();
+      expect(
+        within(desktopTable()).getByRole('button', { name: 'Reset usage to generated text' }),
+      ).toBeInTheDocument();
+      expect(mockGenerateReportPdf).not.toHaveBeenCalled();
+    });
+
+    it('clicking the per-field reset button reverts the field to its baseline value and removes the edited indicator', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+      await user.click(
+        within(desktopTable()).getByRole('button', { name: 'Reset usage to generated text' }),
+      );
+
+      expect(within(desktopTable()).getByDisplayValue('Original Usage Text')).toBeInTheDocument();
+      expect(
+        screen.queryAllByRole('button', { name: 'Reset usage to generated text' }),
+      ).toHaveLength(0);
+    });
+
+    it('does NOT show the discard-confirmation modal for an upstream change when there are no edits (isDirty false)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      // Back to step 3, toggle exclusion — no prior edits exist, so no discard modal.
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+
+      expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
+    });
+
+    it('shows the discard-confirmation modal for an upstream change when isDirty (an override exists)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+
+      expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
+    });
+
+    it('"Keep Editing" cancels the pending change entirely — the guarded mutation never applies', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+
+      await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
+
+      expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
+      // The exclusion checkbox itself: still checked, since the guarded change never committed.
+      expect(screen.getByRole('checkbox', { name: /ACME/ })).toBeChecked();
+    });
+
+    it('"Discard and Continue" clears overrides and applies the pending change', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+
+      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+
+      expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /ACME/ })).not.toBeChecked();
+
+      // Re-include the invoice (the discarded change excluded the report's only invoice, which
+      // disables step 3's Next button) so navigation back to step 5 is possible again.
+      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+
+      // Overrides were cleared: navigating back to step 5 shows the baseline value again, not the
+      // discarded edit.
+      await clickNext(user);
+      await waitFor(() => expect(mockGenerateReportPdf).not.toHaveBeenCalled());
+      await clickNext(user);
+      await clickNext(user);
+      expect(within(desktopTable()).getByDisplayValue('Original Usage Text')).toBeInTheDocument();
+    });
+
+    it('guardedUpdate also covers use-case selection (step 1) — shows the discard modal when dirty', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+
+      // Jump back to step 1 via the stepper nav.
+      await user.click(screen.getByRole('button', { name: 'Report Type' }));
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[0]!); // pick a different use case
+
+      expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
+    });
+
+    it('guardedUpdate covers toggling attachDocuments and includeCoverLetter on step 4', async () => {
+      mockFetchBudgetSources.mockResolvedValue({
+        budgetSources: [makeSource({ contactAddress: '123 Bank St' })],
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await user.click(screen.getByLabelText('Include cover letter'));
+
+      expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      expect(screen.getByLabelText('Include cover letter')).toBeChecked();
+    });
+
+    it('guardedUpdate covers toggling attachDocuments specifically on step 4', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      expect(screen.getByLabelText('Attach invoice PDFs')).toBeChecked();
+      await user.click(screen.getByLabelText('Attach invoice PDFs'));
+
+      expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      expect(screen.getByLabelText('Attach invoice PDFs')).not.toBeChecked();
+    });
+
+    it('guardedUpdate also covers changing the report language on step 4 when dirty', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      expect(screen.getByLabelText('English')).toBeChecked();
+      await user.click(screen.getByLabelText('Deutsch'));
+
+      expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
+      // The radio itself: still on the prior selection, since the guarded change never committed.
+      expect(screen.getByLabelText('English')).toBeChecked();
+
+      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+      expect(screen.getByLabelText('Deutsch')).toBeChecked();
+    });
+
+    it('closing the discard-confirmation modal without choosing an option (Escape) leaves the pending change uncommitted', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
+      expect(screen.getByRole('checkbox', { name: /ACME/ })).toBeChecked();
+    });
+
+    it("re-including a previously-excluded budget line reverts excludedLineIds (onToggleLine's else branch)", async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(
+        makeReport({
+          invoices: [
+            {
+              invoiceId: 'inv-1',
+              vendorId: 'vend-1',
+              vendorName: 'ACME',
+              invoiceNumber: 'INV-001',
+              date: '2026-01-10',
+              status: 'pending',
+              invoiceAmount: 1000,
+              allocatedAmount: 1000,
+              lineKind: 'invoice',
+              isSplit: false,
+              documents: [],
+              budgetLines: [
+                {
+                  id: 'line-1',
+                  description: 'Foundation work',
+                  allocatedPortion: 600,
+                  linkedItem: null,
+                },
+              ],
+              deposits: [],
+            },
+          ],
+        }),
+      );
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+
+      const expandButton = document.querySelector(
+        '[aria-controls="invoice-expand-inv-1"]',
+      ) as HTMLElement;
+      await user.click(expandButton);
+      const excludeCheckbox = screen.getAllByRole('checkbox', {
+        name: 'Exclude Foundation work from report',
+      })[0]!;
+      await user.click(excludeCheckbox); // exclude
+      await user.click(excludeCheckbox); // re-include
+
+      await clickNext(user);
+      await clickNext(user);
+      await user.click(screen.getByRole('button', { name: 'Download PDF' }));
+
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+      const effectiveContent = mockGenerateReportPdf.mock.calls[0]![2];
+      expect(effectiveContent.rows[0]!.allocatedAmountValueText).toContain('1,000');
+    });
+  });
+
+  // ─── Story #1900: on-demand generation — Preview PDF ───────────────────────────────────────────
+
+  describe('on-demand generation: Preview PDF (Story #1900)', () => {
+    it('clicking Preview PDF calls generateReportPdf exactly once, with the effective content and options', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+      const callArgs = mockGenerateReportPdf.mock.calls[0]!;
+      expect(callArgs[0]).toEqual(expect.objectContaining({ type: 'claim' })); // report
+      expect(callArgs[1]).toEqual(new Set(['inv-1'])); // includedInvoiceIds
+      expect(callArgs[2]).toEqual(expect.objectContaining({ isOverview: false })); // effectiveContent
+      expect(callArgs[3]).toEqual({ attachDocuments: true }); // default attachDocuments
+    });
+
+    it('opens the PDF preview modal and renders an iframe once generation succeeds', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+
+      await waitFor(() => expect(document.querySelector('iframe')).toBeInTheDocument());
+      expect(screen.getByText('PDF Preview')).toBeInTheDocument();
+    });
+
+    it('opens the PDF preview modal IMMEDIATELY on click, showing a loading state before generation resolves (regression guard — previously the modal only opened after a successful generation)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      let resolveGeneration!: (value: { blob: Blob; skippedDocuments: never[] }) => void;
+      mockGenerateReportPdf.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveGeneration = resolve;
+        }),
+      );
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+
+      // Modal is open BEFORE generation resolves: shows the loading text, no iframe yet.
+      expect(screen.getByRole('dialog', { name: 'PDF Preview' })).toBeInTheDocument();
+      expect(screen.getByText('Generating preview…')).toBeInTheDocument();
+      expect(document.querySelector('iframe')).not.toBeInTheDocument();
+
+      resolveGeneration({ blob: new Blob(['pdf']), skippedDocuments: [] });
+      await waitFor(() => expect(document.querySelector('iframe')).toBeInTheDocument());
+      expect(screen.queryByText('Generating preview…')).not.toBeInTheDocument();
+    });
+
+    it("an edited (overridden) field's value is included in the effectiveContent passed to generateReportPdf", async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+      const effectiveContent = mockGenerateReportPdf.mock.calls[0]![2];
+      expect(effectiveContent.rows[0]!.usageText).toBe('Edited Usage Text');
+    });
+
+    it('closing the modal revokes the created blob URL and clears the iframe', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+      await waitFor(() => expect(document.querySelector('iframe')).toBeInTheDocument());
+
+      const closeBtn = screen.getByRole('button', { name: /close/i });
+      await user.click(closeBtn);
+
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview-url-1');
+      expect(document.querySelector('iframe')).not.toBeInTheDocument();
+    });
+
+    it('previewing a second time (without closing the modal first) revokes the FIRST modal URL before assigning the new one', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(document.querySelector('iframe')).toHaveAttribute('src', 'blob:preview-url-1'),
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2));
+
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview-url-1');
+      await waitFor(() =>
+        expect(document.querySelector('iframe')).toHaveAttribute('src', 'blob:preview-url-2'),
+      );
+    });
+
+    it(
+      'a Preview PDF failure opens the modal and shows an error state inside it (regression guard ' +
+        '— previously handlePreviewPdf only called setShowPdfPreviewModal(true) on the SUCCESS ' +
+        'path, so a failure left the modal closed with no feedback; the modal now opens ' +
+        'immediately on click, before generation resolves either way).',
+      async () => {
+        mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+        mockGetSourceReport.mockResolvedValue(makeReport());
+        mockGenerateReportPdf.mockRejectedValueOnce(new Error('pdf boom'));
+        renderPage();
+        const user = userEvent.setup();
+        await goToStep5(user);
+
+        const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+        fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+        await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+
+        await waitFor(() => {
+          expect(screen.getByRole('dialog', { name: 'PDF Preview' })).toBeInTheDocument();
+        });
+        expect(screen.getByText('PDF generation failed')).toBeInTheDocument();
+        // The edit itself survives the failed generation attempt — overrides are never cleared by
+        // a failed generatePdfFromContent() call.
+        expect(within(desktopTable()).getByDisplayValue('Edited Usage Text')).toBeInTheDocument();
+      },
+    );
+
+    it('a failed generatePdfFromContent() call never clears existing overrides (edit-preservation half of the bug above, independently verified)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportPdf.mockRejectedValueOnce(new Error('pdf boom'));
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+      expect(within(desktopTable()).getByDisplayValue('Edited Usage Text')).toBeInTheDocument();
+    });
+
+    it(
+      'clicking Retry inside the failed-preview modal re-generates the PDF (regression guard — ' +
+        "previously ReportWizardPage.tsx's modal body was `actionError ? <FormError/> : " +
+        'modalPreviewUrl ? <ReportPdfPreview .../> : <p>loading</p>`, so every actionError-truthy ' +
+        'case rendered a static <FormError> banner with no way to retry from inside the modal, and ' +
+        "ReportPdfPreview's own hasError/Retry branch was unreachable dead code. The modal body now " +
+        'renders `modalPreviewUrl || actionError ? <ReportPdfPreview hasError={!!actionError} ' +
+        'onRetry={handlePreviewPdf} .../> : <p>loading</p>`, so a failed generation reaches ' +
+        "ReportPdfPreview's Retry button, which re-invokes handlePreviewPdf and, on success, " +
+        'replaces the error state with the regenerated PDF iframe).',
+      async () => {
+        mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+        mockGetSourceReport.mockResolvedValue(makeReport());
+        mockGenerateReportPdf
+          .mockRejectedValueOnce(new Error('pdf boom'))
+          .mockResolvedValueOnce({ blob: new Blob(['pdf']), skippedDocuments: [] });
+        renderPage();
+        const user = userEvent.setup();
+        await goToStep5(user);
+
+        await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+        await waitFor(() => expect(screen.getByText('PDF generation failed')).toBeInTheDocument());
+
+        await user.click(screen.getByRole('button', { name: 'Retry' }));
+
+        await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(document.querySelector('iframe')).toBeInTheDocument());
+      },
+    );
+  });
+
+  // ─── Story #1900: on-demand generation — Download ──────────────────────────────────────────────
+
+  describe('on-demand generation: Download (Story #1900)', () => {
+    it('clicking Download generates on-demand and downloads with a generated filename', async () => {
+      mockFetchBudgetSources.mockResolvedValue({
+        budgetSources: [makeSource({ name: 'Home Loan' })],
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      const blob = new Blob(['pdf']);
+      mockGenerateReportPdf.mockResolvedValue({ blob, skippedDocuments: [] });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      expect(mockGenerateReportPdf).not.toHaveBeenCalled();
+      await user.click(screen.getByRole('button', { name: 'Download PDF' }));
+
+      // Assert the final (post-await) effect directly rather than splitting across two waitFor
+      // calls — mockGenerateReportPdf being called does not guarantee handleDownload's `await
+      // generatePdfFromContent()` continuation (which calls downloadPdf) has already run.
+      await waitFor(() => {
+        expect(mockDownloadPdf).toHaveBeenCalledWith(
+          blob,
+          expect.stringMatching(/^claim-home-loan-\d{4}-\d{2}-\d{2}\.pdf$/),
+        );
+      });
+    });
+
+    it('does not open the PDF preview modal when downloading', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Download PDF' }));
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      expect(document.querySelector('iframe')).not.toBeInTheDocument();
+    });
+
+    it('a Download failure shows an error toast (sourceReports.downloadFailed), does not throw, and preserves edits', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportPdf.mockRejectedValueOnce(new Error('boom'));
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+
+      await user.click(screen.getByRole('button', { name: 'Download PDF' }));
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      // Regression guard: handleDownload's catch/`!result` branch now calls
+      // showToast('error', t('sourceReports.downloadFailed')) — previously this failure path gave
+      // the user NO feedback at all.
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'error',
+          'Failed to generate the PDF for download.',
+        );
+      });
+      expect(mockDownloadPdf).not.toHaveBeenCalled();
+      expect(document.querySelector('iframe')).not.toBeInTheDocument();
+      expect(within(desktopTable()).getByDisplayValue('Edited Usage Text')).toBeInTheDocument();
+    });
+  });
+
+  // ─── Story #1900: on-demand generation — Paperless upload ──────────────────────────────────────
+
+  describe('on-demand generation: Upload to Paperless (Story #1900)', () => {
+    it('shows the Upload-to-Paperless action when configured/reachable and uploads on-demand', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      const previewBlob = new Blob(['pdf']);
+      mockGenerateReportPdf.mockResolvedValue({ blob: previewBlob, skippedDocuments: [] });
+      mockUploadToPaperless.mockResolvedValue(undefined);
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      expect(mockGenerateReportPdf).not.toHaveBeenCalled();
+      const uploadBtn = screen.getByRole('button', { name: 'Upload to Paperless' });
+      await user.click(uploadBtn);
+
+      await waitFor(() => {
+        expect(mockUploadToPaperless).toHaveBeenCalledWith(previewBlob, expect.any(String));
+      });
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('success', 'Document uploaded to Paperless');
+      });
+    });
+
+    it('hides the Upload-to-Paperless action when Paperless is not configured/reachable', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      expect(screen.queryByRole('button', { name: 'Upload to Paperless' })).not.toBeInTheDocument();
+    });
+
+    it('a Paperless upload failure (ApiClientError) shows a translated error toast', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      const ApiClientErrorModule = await import('../../lib/apiClient.js');
+      mockUploadToPaperless.mockRejectedValue(
+        new ApiClientErrorModule.ApiClientError(502, {
+          code: 'PAPERLESS_UNREACHABLE',
+          message: 'unreachable',
+        }),
+      );
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Upload to Paperless' }));
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'error',
+          'The document management system could not be reached.',
+        );
+      });
+    });
+
+    it('a generic (non-ApiClientError) Paperless upload failure shows the generic uploadFailed message', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockUploadToPaperless.mockRejectedValueOnce(new Error('network dropped'));
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      await user.click(screen.getByRole('button', { name: 'Upload to Paperless' }));
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'error',
+          'Upload to Paperless failed. Please try again.',
+        );
+      });
+    });
+
+    it('a generation failure during Paperless upload shows an error toast instead of uploading', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportPdf.mockRejectedValueOnce(new Error('boom'));
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      await user.click(screen.getByRole('button', { name: 'Upload to Paperless' }));
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'error',
+          'Upload to Paperless failed. Please try again.',
+        );
+      });
+      expect(mockUploadToPaperless).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── Story #1900: skipped-document notes (rendered at BOTH the page level and inside the modal) ─
+
+  describe('skipped-document notes (Story #1900)', () => {
+    it('shows a skipped-document note (vendor/invoice-number attribution) below the content editor after a generation reports skips', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportPdf.mockResolvedValue({
+        blob: new Blob(['pdf']),
+        skippedDocuments: [
+          {
+            invoiceId: 'inv-1',
+            documentId: 'doc-1',
+            reason: 'footnoteFetchFailed',
+            vendorName: 'ACME',
+            invoiceNumber: 'INV-001',
+          },
+        ],
+      });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+
+      // The note is now rendered TWICE — once below the content editor at the page level, once
+      // inside the PDF preview modal (see the modal-scoped test below). Confirm a page-level
+      // instance specifically exists, i.e. one outside the modal dialog.
+      await waitFor(() => {
+        expect(
+          screen.getAllByText('ACME (INV-001) — Document could not be retrieved').length,
+        ).toBeGreaterThanOrEqual(1);
+      });
+      const dialog = screen.getByRole('dialog', { name: 'PDF Preview' });
+      const pageLevelNote = screen
+        .getAllByText('ACME (INV-001) — Document could not be retrieved')
+        .find((el) => !dialog.contains(el));
+      expect(pageLevelNote).toBeTruthy();
+    });
+
+    it(
+      'the skip note also renders INSIDE the PDF preview modal (regression guard — previously ' +
+        'the skip note was specced to render both at the page level and inside the modal, but the ' +
+        'actual JSX only rendered it at the page level).',
+      async () => {
+        mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+        mockGetSourceReport.mockResolvedValue(makeReport());
+        mockGenerateReportPdf.mockResolvedValue({
+          blob: new Blob(['pdf']),
+          skippedDocuments: [
+            {
+              invoiceId: 'inv-1',
+              documentId: 'doc-1',
+              reason: 'footnoteFetchFailed',
+              vendorName: 'ACME',
+              invoiceNumber: 'INV-001',
+            },
+          ],
+        });
+
+        renderPage();
+        const user = userEvent.setup();
+        await goToStep5(user);
+        await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+        await waitFor(() => expect(document.querySelector('iframe')).toBeInTheDocument());
+
+        const modal = screen.getByRole('dialog', { name: 'PDF Preview' });
+        expect(
+          within(modal).getByText('ACME (INV-001) — Document could not be retrieved'),
+        ).toBeInTheDocument();
+      },
+    );
+  });
+
+  // ─── Mark Claimed (unchanged behavior per spec) ────────────────────────────────────────────────
+
+  describe('Mark Claimed (unchanged behavior)', () => {
+    it('claim confirm → markInvoicesClaimed success → success banner with claimedCount', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockMarkInvoicesClaimed.mockResolvedValue({
+        claimedInvoiceIds: ['inv-1'],
+        claimedDepositIds: [],
+      });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(mockMarkInvoicesClaimed).toHaveBeenCalledWith(['inv-1']);
+      });
+      await waitFor(() => {
+        expect(screen.getByText(/invoice\(s\) marked as claimed/)).toBeInTheDocument();
+      });
+      // Mark Claimed never touches the PDF-generation pipeline (no PDF step in this flow).
+      expect(mockGenerateReportPdf).not.toHaveBeenCalled();
+    });
+
+    it('409 INVOICES_NOT_CLAIMABLE: closes the modal, shows a banner, and silently refetches without navigating away', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      const twoInvoiceReport = makeReport({
+        invoices: [
+          ...makeReport().invoices,
+          {
+            invoiceId: 'inv-2',
+            vendorId: 'vend-2',
+            vendorName: 'Beta Supplies',
+            invoiceNumber: 'INV-002',
+            date: '2026-01-11',
+            status: 'pending',
+            invoiceAmount: 500,
+            allocatedAmount: 500,
+            lineKind: 'invoice',
+            isSplit: false,
+            documents: [],
+            budgetLines: [],
+            deposits: [],
+          },
+        ],
+      });
+      mockGetSourceReport.mockResolvedValue(twoInvoiceReport);
+
+      const ApiClientErrorModule = await import('../../lib/apiClient.js');
+      const conflictErr = new ApiClientErrorModule.ApiClientError(409, {
+        code: 'INVOICES_NOT_CLAIMABLE',
+        message: 'not claimable',
+      });
+      mockMarkInvoicesClaimed.mockRejectedValueOnce(conflictErr);
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+
+      await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
+      await clickNext(user); // step 3 -> 4
+      await clickNext(user); // step 4 -> 5
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(mockGetSourceReport).toHaveBeenCalledTimes(3);
+      });
+    });
+
+    it('"Finish without marking" shows its own distinct success message, without calling markInvoicesClaimed', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Finish without marking' }));
+
+      expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(
+          screen.getByText('Report finished without marking invoices as claimed.'),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('shows a translated claim error for an ApiClientError other than INVOICES_NOT_CLAIMABLE', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      const ApiClientErrorModule = await import('../../lib/apiClient.js');
+      mockMarkInvoicesClaimed.mockRejectedValueOnce(
+        new ApiClientErrorModule.ApiClientError(500, {
+          code: 'TOTALLY_UNKNOWN_CODE' as ErrorCode,
+          message: 'oops',
+        }),
+      );
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(screen.getByText('Totally Unknown Code')).toBeInTheDocument();
+      });
+    });
+
+    it('shows a generic error message for a non-ApiClientError claim failure', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
       mockMarkInvoicesClaimed.mockRejectedValueOnce(new Error('network dropped'));
 
       renderPage();
       const user = userEvent.setup();
       await goToStep5(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
@@ -1069,233 +1399,46 @@ describe('ReportWizardPage', () => {
           screen.getByText('Marking invoices as claimed failed. Please try again.'),
         ).toBeInTheDocument();
       });
-      expect(screen.queryByText('sourceReports.claimFailed')).not.toBeInTheDocument();
-    },
-  );
-
-  it('downloads the PDF with a generated filename when Download is clicked', async () => {
-    mockFetchBudgetSources.mockResolvedValue({
-      budgetSources: [makeSource({ name: 'Home Loan' })],
-    });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    const blob = new Blob(['pdf']);
-    mockGenerateReportPdf.mockResolvedValue({ blob, skippedDocuments: [] });
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    await user.click(screen.getByRole('button', { name: 'Download PDF' }));
-
-    expect(mockDownloadPdf).toHaveBeenCalledWith(
-      blob,
-      expect.stringMatching(/^claim-home-loan-\d{4}-\d{2}-\d{2}\.pdf$/),
-    );
-  });
-
-  it('navigates backward via the per-step Back buttons and the stepper nav', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    // step5 -> step4
-    await user.click(screen.getByRole('button', { name: 'Back' }));
-    await waitFor(() => expect(screen.getByRole('radio', { name: 'English' })).toBeInTheDocument());
-
-    // step4 -> step3
-    await user.click(screen.getByRole('button', { name: 'Back' }));
-    await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
-
-    // step3 -> step2
-    await user.click(screen.getByRole('button', { name: 'Back' }));
-    await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(0));
-
-    // step2 -> step1
-    await user.click(screen.getByRole('button', { name: 'Back' }));
-    await waitFor(() => expect(screen.getByRole('radiogroup')).toBeInTheDocument());
-
-    // Forward again, then jump straight back to step 1 via the stepper nav (onStepClick).
-    await user.click(screen.getAllByRole('radio')[1]!);
-    await clickNext(user);
-    await waitFor(() => screen.getAllByRole('radio').length > 0);
-    await user.click(screen.getByRole('button', { name: 'Report Type' }));
-    await waitFor(() => expect(screen.getByRole('radiogroup')).toBeInTheDocument());
-  });
-
-  it('toggles individual invoice exclusion and cancels the claim confirmation modal', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep3(user);
-
-    const checkbox = screen.getByRole('checkbox', { name: /ACME/ });
-    await user.click(checkbox); // exclude
-    expect(checkbox).not.toBeChecked();
-    await user.click(checkbox); // re-include
-    expect(checkbox).toBeChecked();
-
-    await clickNext(user); // step3 -> step4
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-    await clickNext(user); // step4 -> step5
-
-    await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
-    await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
-    });
-    expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
-  });
-
-  it('shows a skipped-document note (with vendor/invoice-number attribution) when generateReportPdf reports skipped documents', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({
-      blob: new Blob(['pdf']),
-      skippedDocuments: [
-        {
-          invoiceId: 'inv-1',
-          documentId: 'doc-1',
-          reason: 'footnoteFetchFailed',
-          vendorName: 'ACME',
-          invoiceNumber: 'INV-001',
-        },
-      ],
     });
 
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-
-    await waitFor(() => {
-      expect(
-        screen.getByText('ACME (INV-001) — Document could not be retrieved'),
-      ).toBeInTheDocument();
-    });
-  });
-
-  it(
-    'shows a real, translated generic error message for a non-ApiClientError Paperless upload ' +
-      'failure (sourceReports.uploadFailed)',
-    async () => {
+    it('closes the claim confirmation modal via Escape without marking anything claimed', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetPaperlessStatus.mockResolvedValue({
-        configured: true,
-        reachable: true,
-        error: null,
-        paperlessUrl: null,
-        filterTag: null,
-      });
       mockGetSourceReport.mockResolvedValue(makeReport());
-      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-      mockUploadToPaperless.mockRejectedValueOnce(new Error('network dropped'));
-
       renderPage();
       const user = userEvent.setup();
       await goToStep5(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
-      await user.click(screen.getByRole('button', { name: 'Upload to Paperless' }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.keyboard('{Escape}');
 
       await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'error',
-          'Upload to Paperless failed. Please try again.',
-        );
+        expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
       });
-      expect(mockShowToast).not.toHaveBeenCalledWith('error', 'sourceReports.uploadFailed');
-    },
-  );
+      expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
+    });
 
-  it('selects and deselects all invoices via the list header checkbox', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep3(user);
-
-    const selectAll = screen.getByRole('checkbox', { name: 'Select all invoices' });
-    const invoiceCheckbox = screen.getByRole('checkbox', { name: /ACME/ });
-    expect(invoiceCheckbox).toBeChecked();
-
-    await user.click(selectAll); // all -> none
-    expect(invoiceCheckbox).not.toBeChecked();
-
-    await user.click(selectAll); // none -> all
-    expect(invoiceCheckbox).toBeChecked();
-  });
-
-  it(
-    'the preview panel\'s "Retry" button re-attempts PDF generation and clears the error ' +
-      'after the INITIAL PDF generation fails',
-    async () => {
-      // regeneratePdf()'s only guard is `if (!report || !useCase) return;` — there is no
-      // `shouldRegenerate`-style gate requiring a pre-existing previewBlob — so retry works even
-      // when the INITIAL generation attempt is what failed (previewBlob was never set).
+    it('cancels the claim confirmation modal via Cancel without marking anything claimed', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
-      mockGenerateReportPdf
-        .mockRejectedValueOnce(new Error('pdf boom'))
-        .mockResolvedValueOnce({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
       renderPage();
       const user = userEvent.setup();
       await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
       await waitFor(() => {
-        expect(screen.getAllByText('PDF generation failed').length).toBeGreaterThan(0);
+        expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
       });
-
-      // FIXED: the preview panel's retry button now resolves `t('common:button.retry')` via the
-      // correct cross-namespace colon separator, and `button.retry` exists in common.json, so it
-      // renders real translated text ("Retry") instead of a raw i18next key.
-      await user.click(screen.getByRole('button', { name: 'Retry' }));
-
-      // Spec-conformant expectation: retry re-attempts generation and clears the error.
-      await waitFor(() => {
-        expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2);
-      });
-      await waitFor(() => {
-        expect(screen.queryAllByText('PDF generation failed')).toHaveLength(0);
-      });
-    },
-  );
-
-  it('closes the claim confirmation modal via Escape without marking anything claimed', async () => {
-    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-    mockGetSourceReport.mockResolvedValue(makeReport());
-    mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-    renderPage();
-    const user = userEvent.setup();
-    await goToStep5(user);
-    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-    await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
-    await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-
-    await user.keyboard('{Escape}');
-
-    await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
+      expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
     });
-    expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
   });
 
-  // ─── Story #1891: line exclusions feed the amount-adjusted effectiveReport ─
+  // ─── Line/invoice exclusions feed the amount-adjusted content (Story #1891, adapted for #1900) ─
 
-  describe('line exclusions (Story #1891)', () => {
+  describe('invoice/line exclusions feed the effective content (Story #1891, adapted)', () => {
     function makeReportWithLines(): SourceReportResponse {
       return makeReport({
         invoices: [
@@ -1327,58 +1470,13 @@ describe('ReportWizardPage', () => {
       });
     }
 
-    it('excluding a budget line via the item checkbox regenerates the PDF with the amount-ADJUSTED effectiveReport, not the raw report', async () => {
+    it('excluding a budget line adjusts the amount passed to generateReportPdf on the next on-demand generation', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReportWithLines());
-      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
 
       renderPage();
       const user = userEvent.setup();
       await goToStep3(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-      // First (initial) call receives the report with the FULL, un-adjusted amount.
-      const firstCallReport = mockGenerateReportPdf.mock.calls[0]![0];
-      expect(firstCallReport.invoices[0]!.allocatedAmount).toBe(1000);
-
-      // Expand the invoice row and exclude "Foundation work" (600).
-      const expandButton = document.querySelector(
-        '[aria-controls="invoice-expand-inv-1"]',
-      ) as HTMLElement;
-      await user.click(expandButton);
-      // The expansion panel renders both a desktop table and a mobile card list for the same
-      // budget lines (CSS hides one per viewport; jsdom has no layout engine, so both are in the
-      // DOM) — select the desktop instance, matching the convention in ReportInvoiceList.test.tsx.
-      const excludeCheckbox = screen.getAllByRole('checkbox', {
-        name: 'Exclude Foundation work from report',
-      })[0]!;
-      await user.click(excludeCheckbox);
-
-      await waitFor(
-        () => {
-          expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2);
-        },
-        { timeout: 2000 },
-      );
-
-      // The regenerated call must receive the ADJUSTED effectiveReport: 1000 - 600 = 400.
-      const secondCallReport =
-        mockGenerateReportPdf.mock.calls[mockGenerateReportPdf.mock.calls.length - 1]![0];
-      expect(secondCallReport.invoices[0]!.allocatedAmount).toBe(400);
-      expect(secondCallReport.invoices[0]!.lineKind).toBe('invoice');
-    });
-
-    it('re-including a previously excluded budget line reverts excludedLineIds and regenerates with the FULL amount again', async () => {
-      // Covers onToggleLine's `else` branch (excluded === false → newSet.delete(lineId)), which
-      // the "exclude" test above never exercises since it only ever checks the box once.
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReportWithLines());
-      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep3(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
       const expandButton = document.querySelector(
         '[aria-controls="invoice-expand-inv-1"]',
@@ -1387,172 +1485,37 @@ describe('ReportWizardPage', () => {
       const excludeCheckbox = screen.getAllByRole('checkbox', {
         name: 'Exclude Foundation work from report',
       })[0]!;
-      await user.click(excludeCheckbox); // exclude: 1000 -> 400
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), {
-        timeout: 2000,
-      });
-
-      await user.click(excludeCheckbox); // re-include: 400 -> 1000 again
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(3), {
-        timeout: 2000,
-      });
-
-      const thirdCallReport =
-        mockGenerateReportPdf.mock.calls[mockGenerateReportPdf.mock.calls.length - 1]![0];
-      expect(thirdCallReport.invoices[0]!.allocatedAmount).toBe(1000);
-      expect(thirdCallReport.invoices[0]!.lineKind).toBe('invoice');
-    });
-
-    it('excluding a line large enough to flip the sign passes a negative allocatedAmount / refund-adjustment lineKind to generateReportPdf', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(
-        makeReport({
-          invoices: [
-            {
-              invoiceId: 'inv-1',
-              vendorId: 'vend-1',
-              vendorName: 'ACME',
-              invoiceNumber: 'INV-001',
-              date: '2026-01-10',
-              status: 'pending',
-              invoiceAmount: 1000,
-              allocatedAmount: 200,
-              lineKind: 'invoice',
-              isSplit: false,
-              documents: [],
-              budgetLines: [
-                {
-                  id: 'line-1',
-                  description: 'Overpaid deposit',
-                  allocatedPortion: 500,
-                  linkedItem: null,
-                },
-              ],
-              deposits: [],
-            },
-          ],
-          totalAmount: 200,
-        }),
-      );
-      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep3(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-      const expandButton = document.querySelector(
-        '[aria-controls="invoice-expand-inv-1"]',
-      ) as HTMLElement;
-      await user.click(expandButton);
-      // Desktop instance — see the comment on the "Foundation work" test above for why this is
-      // ambiguous under jsdom (both desktop table and mobile card list render simultaneously).
-      const excludeCheckbox = screen.getAllByRole('checkbox', {
-        name: 'Exclude Overpaid deposit from report',
-      })[0]!;
       await user.click(excludeCheckbox);
 
-      await waitFor(
-        () => {
-          expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2);
-        },
-        { timeout: 2000 },
-      );
+      await clickNext(user); // step 3 -> 4
+      await clickNext(user); // step 4 -> 5
+      await user.click(screen.getByRole('button', { name: 'Download PDF' }));
 
-      const secondCallReport =
-        mockGenerateReportPdf.mock.calls[mockGenerateReportPdf.mock.calls.length - 1]![0];
-      expect(secondCallReport.invoices[0]!.allocatedAmount).toBe(-300);
-      expect(secondCallReport.invoices[0]!.lineKind).toBe('refund-adjustment');
-    });
-
-    it('zero exclusions: effectiveReport passed to generateReportPdf is identical to the server report (no drift)', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      const report = makeReportWithLines();
-      mockGetSourceReport.mockResolvedValue(report);
-      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep4(user);
       await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-      const callReport = mockGenerateReportPdf.mock.calls[0]![0];
-      expect(callReport.invoices[0]!.allocatedAmount).toBe(1000);
-      expect(callReport.invoices[0]!.lineKind).toBe('invoice');
+      // The line-exclusion amount adjustment is baked into `effectiveContent` (the 3rd arg,
+      // already built via applyLineExclusions inside baselineContent's own useMemo) — NOT into
+      // the raw `report` object passed as the 1st arg, which merge.ts only reads for its
+      // document-fetch/embed loop (never for allocatedAmount) and is intentionally left
+      // unadjusted. 1000 - 600 (Foundation work) = 400.
+      const effectiveContent = mockGenerateReportPdf.mock.calls[0]![2];
+      expect(effectiveContent.rows[0]!.allocatedAmountValueText).toContain('400');
     });
-  });
 
-  // ─── Story #1891: claim-confirm modal warning for excluded items ──────────
-
-  describe('claim confirmation modal — excluded-items warning (Story #1891)', () => {
-    function makeReportWithLines(): SourceReportResponse {
-      return makeReport({
-        invoices: [
-          {
-            invoiceId: 'inv-1',
-            vendorId: 'vend-1',
-            vendorName: 'ACME',
-            invoiceNumber: 'INV-001',
-            date: '2026-01-10',
-            status: 'pending',
-            invoiceAmount: 1000,
-            allocatedAmount: 1000,
-            lineKind: 'invoice',
-            isSplit: false,
-            documents: [],
-            budgetLines: [
-              {
-                id: 'line-1',
-                description: 'Foundation work',
-                allocatedPortion: 600,
-                linkedItem: null,
-              },
-            ],
-            deposits: [],
-          },
-        ],
-        totalAmount: 1000,
-      });
-    }
-
-    it('does NOT show the warning when no lines are excluded', async () => {
+    it('excluding the only invoice with excluded lines shows the claim-modal warning about excluded items', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReportWithLines());
-      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
-
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep5(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
-
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
-      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
-
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    });
-
-    it('shows the warning with the correct count when an included invoice has an excluded line', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReportWithLines());
-      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
 
       renderPage();
       const user = userEvent.setup();
       await goToStep3(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
       const expandButton = document.querySelector(
         '[aria-controls="invoice-expand-inv-1"]',
       ) as HTMLElement;
       await user.click(expandButton);
-      // Desktop instance — see the "Foundation work" test in the "line exclusions" describe
-      // block above for why getAllByRole(...)[0] is required here.
       await user.click(
         screen.getAllByRole('checkbox', { name: 'Exclude Foundation work from report' })[0]!,
       );
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), {
-        timeout: 2000,
-      });
 
       await clickNext(user); // step 3 -> 4
       await clickNext(user); // step 4 -> 5
@@ -1563,39 +1526,62 @@ describe('ReportWizardPage', () => {
       expect(warning).toHaveTextContent('1 invoice(s) will be claimed in full');
     });
 
-    it('does NOT show the warning when the only invoice with an excluded line is itself invoice-level excluded', async () => {
+    it('excluding the sole invoice at the invoice level disables the step-3 Next button (cannot reach step 5)', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReportWithLines());
-      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
 
       renderPage();
       const user = userEvent.setup();
       await goToStep3(user);
-      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
-      // Exclude the WHOLE invoice at the parent (tri-state) checkbox level FIRST — while
-      // checked (no lines excluded yet), clicking transitions checked=true -> false, which
-      // is the deterministic "exclude" direction (onToggle(id, true)).
       await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
 
-      // Then also exclude a line within it (independent state — excludedLineIds is not
-      // gated on the invoice-level exclusion).
-      const expandButton = document.querySelector(
-        '[aria-controls="invoice-expand-inv-1"]',
-      ) as HTMLElement;
-      await user.click(expandButton);
-      // Desktop instance — same dual-DOM ambiguity as above.
-      await user.click(
-        screen.getAllByRole('checkbox', { name: 'Exclude Foundation work from report' })[0]!,
-      );
-
-      // With the sole invoice excluded, excludedInvoiceIds.size === report.invoices.length,
-      // so step 3's own "Next" button is disabled (title: sourceReports.selectAtLeastOne) —
-      // the wizard cannot even reach step 4's claim modal, so no warning can be shown at all.
       const nextButtons = screen
         .getAllByRole('button')
         .filter((b) => b.className.includes('btnPrimary'));
       expect(nextButtons[nextButtons.length - 1]).toBeDisabled();
     });
+
+    it('selects and deselects all invoices via the list header checkbox', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+
+      const selectAll = screen.getByRole('checkbox', { name: 'Select all invoices' });
+      const invoiceCheckbox = screen.getByRole('checkbox', { name: /ACME/ });
+      expect(invoiceCheckbox).toBeChecked();
+
+      await user.click(selectAll);
+      expect(invoiceCheckbox).not.toBeChecked();
+      await user.click(selectAll);
+      expect(invoiceCheckbox).toBeChecked();
+    });
+  });
+
+  // ─── Navigation ─────────────────────────────────────────────────────────────
+
+  it('navigates backward via the per-step Back buttons and the stepper nav', async () => {
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+    mockGetSourceReport.mockResolvedValue(makeReport());
+    renderPage();
+    const user = userEvent.setup();
+    await goToStep5(user);
+
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'English' })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(0));
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(screen.getByRole('radiogroup')).toBeInTheDocument());
+
+    await user.click(screen.getAllByRole('radio')[1]!);
+    await clickNext(user);
+    await waitFor(() => screen.getAllByRole('radio').length > 0);
+    await user.click(screen.getByRole('button', { name: 'Report Type' }));
+    await waitFor(() => expect(screen.getByRole('radiogroup')).toBeInTheDocument());
   });
 });

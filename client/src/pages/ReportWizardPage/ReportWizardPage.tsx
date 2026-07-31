@@ -11,6 +11,12 @@ import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { createFormatters } from '../../lib/formatters.js';
 import { applyLineExclusions } from '../../lib/reportExclusions.js';
 import {
+  buildReportContent,
+  applyOverrides,
+  type ReportContent,
+  type ReportContentOverrides,
+} from '../../lib/reportContent/index.js';
+import {
   generateReportPdf,
   downloadPdf,
   createPreviewUrl,
@@ -28,6 +34,7 @@ import { FormError } from '../../components/FormError/FormError.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { ReportInvoiceList } from '../../components/reports/ReportInvoiceList.js';
 import { ReportPdfPreview } from '../../components/reports/ReportPdfPreview.js';
+import { ReportContentEditor } from '../../components/reports/ReportContentEditor.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import { Step1UseCase } from './Step1UseCase.js';
 import { Step2Source } from './Step2Source.js';
@@ -85,19 +92,26 @@ export function ReportWizardPage() {
   // Line-level exclusions
   const [excludedLineIds, setExcludedLineIds] = useState<Set<string>>(new Set());
 
-  // PDF generation
+  // PDF generation & options
   const [attachDocuments, setAttachDocuments] = useState(true);
   const [includeCoverLetter, setIncludeCoverLetter] = useState(false);
-  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isRegenerating, setIsRegenerating] = useState(false);
-  const [previewError, setPreviewError] = useState(false);
-  const [skippedDocuments, setSkippedDocuments] = useState<SkippedDocument[]>([]);
 
-  // Refs for PDF generation tracking
-  const previewUrlRef = useRef<string | null>(null);
-  const generationIdRef = useRef<number>(0);
-  const hasGeneratedRef = useRef(false);
+  // Editable content overrides
+  const [overrides, setOverrides] = useState<ReportContentOverrides>({});
+
+  // Discard confirmation modal
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const pendingChangeRef = useRef<(() => void) | null>(null);
+
+  // PDF preview modal
+  const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
+  const [activeAction, setActiveAction] = useState<'preview' | 'download' | 'paperless' | null>(
+    null,
+  );
+  const [actionError, setActionError] = useState<string>('');
+  const modalPreviewUrlRef = useRef<string | null>(null);
+  const [modalPreviewUrl, setModalPreviewUrl] = useState<string | null>(null);
+  const [skippedDocuments, setSkippedDocuments] = useState<SkippedDocument[]>([]);
 
   // Household settings
   const [household, setHousehold] = useState<HouseholdSettings | null>(null);
@@ -135,58 +149,78 @@ export function ReportWizardPage() {
     void init();
   }, []);
 
+  // Guard for mutations: if overrides exist, commit & show confirm modal; else apply change immediately
+  const guardedUpdate = useCallback(
+    (applyChange: () => void) => {
+      const isDirty = Object.keys(overrides).length > 0;
+      if (isDirty) {
+        pendingChangeRef.current = () => {
+          setOverrides({});
+          applyChange();
+        };
+        setShowDiscardConfirm(true);
+      } else {
+        applyChange();
+      }
+    },
+    [overrides],
+  );
+
   // Handle use case selection
   const handleUseCaseChange = useCallback(
     (uc: SourceReportType) => {
-      setUseCase(uc);
-      setMaxReachedStep(2);
-      setStep2Amounts(new Map());
-      setStep2Loading(true);
+      guardedUpdate(() => {
+        setUseCase(uc);
+        setMaxReachedStep(2);
+        setStep2Amounts(new Map());
+        setStep2Loading(true);
 
-      // Fetch amounts for all sources in parallel
-      Promise.all(
-        budgetSources.map((source) =>
-          getSourceReport(uc, source.id)
-            .then((r) => ({ sourceId: source.id, amount: r.totalAmount }))
-            .catch(() => ({ sourceId: source.id, amount: 0 })),
-        ),
-      )
-        .then((results) => {
-          const map = new Map(results.map((r) => [r.sourceId, r.amount]));
-          setStep2Amounts(map);
-        })
-        .finally(() => {
-          setStep2Loading(false);
-        });
+        // Fetch amounts for all sources in parallel
+        Promise.all(
+          budgetSources.map((source) =>
+            getSourceReport(uc, source.id)
+              .then((r) => ({ sourceId: source.id, amount: r.totalAmount }))
+              .catch(() => ({ sourceId: source.id, amount: 0 })),
+          ),
+        )
+          .then((results) => {
+            const map = new Map(results.map((r) => [r.sourceId, r.amount]));
+            setStep2Amounts(map);
+          })
+          .finally(() => {
+            setStep2Loading(false);
+          });
+      });
     },
-    [budgetSources],
+    [budgetSources, guardedUpdate],
   );
 
   // Handle source selection
   const handleSourceChange = useCallback(
     (sid: string) => {
-      setSourceId(sid);
-      setExcludedInvoiceIds(new Set());
-      setExcludedLineIds(new Set());
-      setMaxReachedStep(3);
-      setReportStatus('loading');
+      guardedUpdate(() => {
+        setSourceId(sid);
+        setExcludedInvoiceIds(new Set());
+        setExcludedLineIds(new Set());
+        setMaxReachedStep(3);
+        setReportStatus('loading');
 
-      if (useCase) {
-        getSourceReport(useCase, sid)
-          .then((r) => {
-            setReport(r);
-            hasGeneratedRef.current = false;
-            // Auto-enable cover letter based on source
-            setIncludeCoverLetter(Boolean(r.source.contactAddress || r.source.reference));
-            setReportStatus('ready');
-          })
-          .catch((err) => {
-            console.error(err);
-            setReportStatus('error');
-          });
-      }
+        if (useCase) {
+          getSourceReport(useCase, sid)
+            .then((r) => {
+              setReport(r);
+              // Auto-enable cover letter based on source
+              setIncludeCoverLetter(Boolean(r.source.contactAddress || r.source.reference));
+              setReportStatus('ready');
+            })
+            .catch((err) => {
+              console.error(err);
+              setReportStatus('error');
+            });
+        }
+      });
     },
-    [useCase],
+    [useCase, guardedUpdate],
   );
 
   // Handle ?sourceId= query parameter deep link
@@ -204,117 +238,163 @@ export function ReportWizardPage() {
     [reportLanguage, currency],
   );
 
-  // Regenerate PDF on options change (debounced)
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Baseline content (no overrides applied)
+  const baselineContent = useMemo<ReportContent | null>(() => {
+    if (!report || !useCase) return null;
 
-  // regeneratePdf depends on raw inputs (report, excludedLineIds) not the derived effectiveReport memo
-  // This prevents the effect loop where effectiveReport memo identity changes → regeneratePdf recreated → effect re-fires
-  const regeneratePdf = useCallback(async () => {
-    // Allow regeneration if we have report+useCase (for retries after errors or option changes)
-    if (!report || !useCase) return;
+    const effectiveReport = applyLineExclusions(report, excludedLineIds);
+    const includedInvoiceIds = new Set(
+      effectiveReport.invoices
+        .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
+        .map((inv) => inv.invoiceId),
+    );
 
-    // Compute effectiveReport internally to avoid depending on the memo
-    const currentEffectiveReport = applyLineExclusions(report, excludedLineIds);
+    return buildReportContent(
+      effectiveReport,
+      includedInvoiceIds,
+      useCase,
+      reportT,
+      reportFormatters,
+      { includeCoverLetter, household },
+    );
+  }, [
+    report,
+    useCase,
+    excludedLineIds,
+    excludedInvoiceIds,
+    reportT,
+    reportFormatters,
+    includeCoverLetter,
+    household,
+  ]);
 
-    // Capture current generation ID to detect stale results
-    const myGenerationId = ++generationIdRef.current;
+  // Effective content (with overrides applied)
+  const effectiveContent = useMemo<ReportContent | null>(() => {
+    if (!baselineContent) return null;
+    return applyOverrides(baselineContent, overrides);
+  }, [baselineContent, overrides]);
 
-    setIsRegenerating(true);
+  // Generate PDF from effective content (used by preview, download, paperless)
+  const generatePdfFromContent = useCallback(async () => {
+    if (!report || !useCase || !effectiveContent) return null;
+
     try {
-      const included = new Set(
-        currentEffectiveReport.invoices
+      const effectiveReport = applyLineExclusions(report, excludedLineIds);
+      const includedInvoiceIds = new Set(
+        effectiveReport.invoices
           .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
           .map((inv) => inv.invoiceId),
       );
 
       const result = await generateReportPdf(
-        currentEffectiveReport,
-        included,
-        useCase,
-        { attachDocuments, includeCoverLetter },
-        household,
+        report,
+        includedInvoiceIds,
+        effectiveContent,
+        { attachDocuments },
         reportT,
-        reportFormatters,
       );
 
-      // Bail if a newer generation has started
-      if (myGenerationId !== generationIdRef.current) return;
-
-      // Revoke previous URL
-      if (previewUrlRef.current) {
-        URL.revokeObjectURL(previewUrlRef.current);
-      }
-
-      setPreviewBlob(result.blob);
-      const newUrl = createPreviewUrl(result.blob);
-      setPreviewUrl(newUrl);
-      previewUrlRef.current = newUrl;
       setSkippedDocuments(result.skippedDocuments);
-      setPreviewError(false);
+      return result;
     } catch (err) {
       console.error(err);
-      // Bail if a newer generation has started
-      if (myGenerationId !== generationIdRef.current) return;
-      setPreviewBlob(null);
-      setPreviewUrl(null);
-      previewUrlRef.current = null;
-      setPreviewError(true);
-    } finally {
-      setIsRegenerating(false);
+      return null;
     }
   }, [
     report,
     useCase,
+    effectiveContent,
     excludedLineIds,
     excludedInvoiceIds,
     attachDocuments,
-    includeCoverLetter,
-    household,
     reportT,
-    reportFormatters,
   ]);
 
-  // PDF generation: immediate on first load, debounced on option changes
-  // Depend ONLY on raw inputs (report, useCase, reportStatus, etc.), NOT on regeneratePdf or derived effectiveReport memo.
-  // This prevents effect re-fires from regeneratePdf's dependencies (formatters, t, household) changing.
-  // The effect calls regeneratePdf(), which is captured in the closure and will be the latest version.
-  useEffect(() => {
-    if (!report || !useCase || reportStatus !== 'ready') return;
+  // Handle preview PDF
+  const handlePreviewPdf = useCallback(async () => {
+    setActiveAction('preview');
+    setActionError('');
+    setShowPdfPreviewModal(true);
 
-    const isFirstGeneration = !hasGeneratedRef.current;
-
-    if (isFirstGeneration) {
-      // Immediate generation for first PDF
-      hasGeneratedRef.current = true;
-      void regeneratePdf();
-    } else {
-      // Debounced regeneration on option/exclusion changes
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      debounceTimerRef.current = setTimeout(() => {
-        void regeneratePdf();
-      }, 400);
-
-      return () => {
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
-        }
-      };
+    const result = await generatePdfFromContent();
+    if (!result) {
+      setActionError(t('sourceReports.previewGenerationFailed'));
+      setActiveAction(null);
+      return;
     }
-    // eslint-disable-next-line @eslint-react/exhaustive-deps
-  }, [
-    report,
-    useCase,
-    reportStatus,
-    attachDocuments,
-    includeCoverLetter,
-    excludedInvoiceIds,
-    excludedLineIds,
-    reportLanguage,
-  ]);
 
-  // Handle claim
+    // Revoke old modal URL
+    if (modalPreviewUrlRef.current) {
+      URL.revokeObjectURL(modalPreviewUrlRef.current);
+    }
+
+    const newUrl = createPreviewUrl(result.blob);
+    setModalPreviewUrl(newUrl);
+    modalPreviewUrlRef.current = newUrl;
+    setActiveAction(null);
+  }, [generatePdfFromContent, t]);
+
+  // Handle download
+  const handleDownload = useCallback(async () => {
+    if (!selectedSource || !useCase) return;
+
+    setActiveAction('download');
+    setActionError('');
+
+    const result = await generatePdfFromContent();
+    if (!result) {
+      showToast('error', t('sourceReports.downloadFailed'));
+      setActiveAction(null);
+      return;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const slug = selectedSource.name
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^\w-]/g, '');
+    const filename = `${useCase}-${slug}-${today}.pdf`;
+
+    downloadPdf(result.blob, filename);
+    setActiveAction(null);
+  }, [generatePdfFromContent, selectedSource, useCase, t, showToast]);
+
+  // Handle upload to Paperless
+  const handleUploadPaperless = useCallback(async () => {
+    if (!selectedSource || !useCase) return;
+
+    setActiveAction('paperless');
+    setActionError('');
+
+    try {
+      const result = await generatePdfFromContent();
+      if (!result) {
+        showToast('error', t('sourceReports.uploadFailed'));
+        setActiveAction(null);
+        return;
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const slug = selectedSource.name
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^\w-]/g, '');
+      const title = `${useCase}-${slug}-${today}`;
+
+      await uploadToPaperless(result.blob, title);
+      showToast('success', t('sourceReports.uploadSuccess'));
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        showToast('error', translateApiError(err.error.code, tErrors));
+      } else {
+        showToast('error', t('sourceReports.uploadFailed'));
+      }
+    } finally {
+      setActiveAction(null);
+    }
+  }, [generatePdfFromContent, selectedSource, useCase, t, showToast, tErrors]);
+
+  // Handle mark claimed (unchanged)
   const handleMarkClaimed = async () => {
     if (!report) return;
 
@@ -337,7 +417,6 @@ export function ReportWizardPage() {
           try {
             const updated = await getSourceReport(useCase, sourceId);
             setReport(updated);
-            hasGeneratedRef.current = false;
             // Reset excluded to only include still-present invoices
             const stillPresent = new Set<string>();
             for (const id of excludedInvoiceIds) {
@@ -362,48 +441,11 @@ export function ReportWizardPage() {
     }
   };
 
-  // Handle download
-  const handleDownload = () => {
-    if (!previewBlob || !selectedSource || !useCase) return;
-
-    const today = new Date().toISOString().slice(0, 10);
-    const slug = selectedSource.name
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w-]/g, '');
-    const filename = `${useCase}-${slug}-${today}.pdf`;
-
-    downloadPdf(previewBlob, filename);
-  };
-
-  // Handle upload to Paperless
-  const handleUploadPaperless = async () => {
-    if (!previewBlob || !selectedSource || !useCase) return;
-
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      const slug = selectedSource.name
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^\w-]/g, '');
-      const title = `${useCase}-${slug}-${today}`;
-
-      await uploadToPaperless(previewBlob, title);
-      showToast('success', t('sourceReports.uploadSuccess'));
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        showToast('error', translateApiError(err.error.code, tErrors));
-      } else {
-        showToast('error', t('sourceReports.uploadFailed'));
-      }
-    }
-  };
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (previewUrlRef.current) {
-        URL.revokeObjectURL(previewUrlRef.current);
+      if (modalPreviewUrlRef.current) {
+        URL.revokeObjectURL(modalPreviewUrlRef.current);
       }
     };
   }, []);
@@ -544,31 +586,37 @@ export function ReportWizardPage() {
                       excludedInvoiceIds={excludedInvoiceIds}
                       excludedLineIds={excludedLineIds}
                       onToggle={(id, excluded) => {
-                        const newSet = new Set(excludedInvoiceIds);
-                        if (excluded) {
-                          newSet.add(id);
-                        } else {
-                          newSet.delete(id);
-                        }
-                        setExcludedInvoiceIds(newSet);
+                        guardedUpdate(() => {
+                          const newSet = new Set(excludedInvoiceIds);
+                          if (excluded) {
+                            newSet.add(id);
+                          } else {
+                            newSet.delete(id);
+                          }
+                          setExcludedInvoiceIds(newSet);
+                        });
                       }}
                       onToggleAll={(excludeAll) => {
-                        if (excludeAll) {
-                          setExcludedInvoiceIds(
-                            new Set(report.invoices.map((inv) => inv.invoiceId)),
-                          );
-                        } else {
-                          setExcludedInvoiceIds(new Set());
-                        }
+                        guardedUpdate(() => {
+                          if (excludeAll) {
+                            setExcludedInvoiceIds(
+                              new Set(report.invoices.map((inv) => inv.invoiceId)),
+                            );
+                          } else {
+                            setExcludedInvoiceIds(new Set());
+                          }
+                        });
                       }}
                       onToggleLine={(lineId, excluded) => {
-                        const newSet = new Set(excludedLineIds);
-                        if (excluded) {
-                          newSet.add(lineId);
-                        } else {
-                          newSet.delete(lineId);
-                        }
-                        setExcludedLineIds(newSet);
+                        guardedUpdate(() => {
+                          const newSet = new Set(excludedLineIds);
+                          if (excluded) {
+                            newSet.add(lineId);
+                          } else {
+                            newSet.delete(lineId);
+                          }
+                          setExcludedLineIds(newSet);
+                        });
                       }}
                       t={t}
                     />
@@ -615,11 +663,17 @@ export function ReportWizardPage() {
             </h2>
             <Step4Settings
               reportLanguage={reportLanguage}
-              onReportLanguageChange={setReportLanguageOverride}
+              onReportLanguageChange={(lang) =>
+                guardedUpdate(() => setReportLanguageOverride(lang))
+              }
               attachDocuments={attachDocuments}
-              onAttachDocumentsChange={setAttachDocuments}
+              onAttachDocumentsChange={(value) => {
+                guardedUpdate(() => setAttachDocuments(value));
+              }}
               includeCoverLetter={includeCoverLetter}
-              onIncludeCoverLetterChange={setIncludeCoverLetter}
+              onIncludeCoverLetterChange={(value) => {
+                guardedUpdate(() => setIncludeCoverLetter(value));
+              }}
               coverLetterDisabled={coverLetterDisabled}
               t={t}
             />
@@ -645,7 +699,7 @@ export function ReportWizardPage() {
           </div>
         )}
 
-        {currentStep === 5 && (
+        {currentStep === 5 && effectiveContent && (
           <div className={styles.step4Body}>
             <h2
               ref={(el) => {
@@ -655,45 +709,22 @@ export function ReportWizardPage() {
             >
               {steps[4]?.label}
             </h2>
-            {previewError && !isRegenerating && (
-              <FormError message={t('sourceReports.previewGenerationFailed')} />
-            )}
-            <div className={styles.step4Layout}>
-              <Step5Actions
-                useCase={useCase!}
-                paperlessStatus={paperlessStatus}
-                isMarkingClaimed={isMarkingClaimed}
-                claimError={claimError}
-                claimSuccess={claimSuccess}
-                claimedCount={claimedCount}
-                finishedWithoutMarking={finishedWithoutMarking}
-                selectedInvoiceCount={report ? report.invoices.length - excludedInvoiceIds.size : 0}
-                onDownload={handleDownload}
-                onMarkClaimed={() => setShowClaimConfirm(true)}
-                onFinishWithoutMarking={() => {
-                  setFinishedWithoutMarking(true);
-                  setClaimSuccess(true);
-                }}
-                onUploadPaperless={handleUploadPaperless}
-                isSaving={isRegenerating}
-                hasError={previewError}
-                hasBlob={!!previewBlob}
-                t={t}
-              />
 
-              <ReportPdfPreview
-                blobUrl={previewUrl}
-                isRegenerating={isRegenerating}
-                hasError={previewError}
-                onRetry={() => {
-                  if (report && useCase) {
-                    // Regenerate PDF
-                    void regeneratePdf();
-                  }
-                }}
-                t={t}
-              />
-            </div>
+            <ReportContentEditor
+              content={effectiveContent}
+              overrides={overrides}
+              onFieldChange={(key, value) => {
+                setOverrides((prev) => ({ ...prev, [key]: value }));
+              }}
+              onFieldReset={(key) => {
+                setOverrides((prev) => {
+                  const next = { ...prev };
+                  delete next[key];
+                  return next;
+                });
+              }}
+              t={t}
+            />
 
             {skippedDocuments.length > 0 && (
               <div className={styles.skippedNote}>
@@ -705,6 +736,27 @@ export function ReportWizardPage() {
                 ))}
               </div>
             )}
+
+            <Step5Actions
+              useCase={useCase!}
+              paperlessStatus={paperlessStatus}
+              isMarkingClaimed={isMarkingClaimed}
+              claimError={claimError}
+              claimSuccess={claimSuccess}
+              claimedCount={claimedCount}
+              finishedWithoutMarking={finishedWithoutMarking}
+              selectedInvoiceCount={report ? report.invoices.length - excludedInvoiceIds.size : 0}
+              onPreviewPdf={handlePreviewPdf}
+              onDownload={handleDownload}
+              onMarkClaimed={() => setShowClaimConfirm(true)}
+              onFinishWithoutMarking={() => {
+                setFinishedWithoutMarking(true);
+                setClaimSuccess(true);
+              }}
+              onUploadPaperless={handleUploadPaperless}
+              activeAction={activeAction}
+              t={t}
+            />
 
             <div className={styles.buttonRow}>
               <button
@@ -718,6 +770,44 @@ export function ReportWizardPage() {
           </div>
         )}
       </div>
+
+      {/* Discard edits confirmation modal */}
+      {showDiscardConfirm && (
+        <Modal
+          title={t('sourceReports.editable.discardConfirmTitle')}
+          onClose={() => {
+            setShowDiscardConfirm(false);
+            pendingChangeRef.current = null;
+          }}
+          footer={
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={() => {
+                  setShowDiscardConfirm(false);
+                  pendingChangeRef.current = null;
+                }}
+              >
+                {t('sourceReports.editable.keepEditing')}
+              </button>
+              <button
+                type="button"
+                className={sharedStyles.btnPrimary}
+                onClick={() => {
+                  pendingChangeRef.current?.();
+                  setShowDiscardConfirm(false);
+                  pendingChangeRef.current = null;
+                }}
+              >
+                {t('sourceReports.editable.discardAndContinue')}
+              </button>
+            </div>
+          }
+        >
+          <p>{t('sourceReports.editable.discardConfirmBody')}</p>
+        </Modal>
+      )}
 
       {/* Claim confirmation modal */}
       {showClaimConfirm && report && (
@@ -781,6 +871,47 @@ export function ReportWizardPage() {
               </div>
             ) : null;
           })()}
+        </Modal>
+      )}
+
+      {/* PDF preview modal */}
+      {showPdfPreviewModal && (
+        <Modal
+          title={t('sourceReports.editable.previewModalTitle')}
+          onClose={() => {
+            if (modalPreviewUrlRef.current) {
+              URL.revokeObjectURL(modalPreviewUrlRef.current);
+              modalPreviewUrlRef.current = null;
+              setModalPreviewUrl(null);
+            }
+            setShowPdfPreviewModal(false);
+            setActionError('');
+          }}
+        >
+          <div className={styles.previewModalContent}>
+            {modalPreviewUrl || actionError ? (
+              <ReportPdfPreview
+                blobUrl={modalPreviewUrl}
+                isRegenerating={activeAction === 'preview'}
+                hasError={!!actionError}
+                onRetry={handlePreviewPdf}
+                t={t}
+              />
+            ) : (
+              <p>{t('sourceReports.loadingPreview')}</p>
+            )}
+          </div>
+
+          {skippedDocuments.length > 0 && (
+            <div className={styles.skippedNote}>
+              {skippedDocuments.map((doc) => (
+                <div key={`${doc.invoiceId}-${doc.documentId}`} className={styles.skippedItem}>
+                  {doc.vendorName} ({doc.invoiceNumber ?? '—'}) —{' '}
+                  {t(`sourceReports.table.${doc.reason}`)}
+                </div>
+              ))}
+            </div>
+          )}
         </Modal>
       )}
     </PageLayout>

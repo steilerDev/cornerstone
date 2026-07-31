@@ -13,13 +13,12 @@ interface Step5ActionsProps {
   claimedCount: number;
   finishedWithoutMarking: boolean;
   selectedInvoiceCount: number;
+  onPreviewPdf: () => void;
   onDownload: () => void;
   onMarkClaimed?: () => void;
   onFinishWithoutMarking?: () => void;
   onUploadPaperless: () => void;
-  isSaving: boolean;
-  hasError: boolean;
-  hasBlob: boolean;
+  activeAction: 'preview' | 'download' | 'paperless' | null;
   t: TFunction;
 }
 
@@ -32,80 +31,88 @@ export function Step5Actions({
   claimedCount,
   finishedWithoutMarking,
   selectedInvoiceCount,
+  onPreviewPdf,
   onDownload,
   onMarkClaimed,
   onFinishWithoutMarking,
   onUploadPaperless,
-  isSaving,
-  hasError,
-  hasBlob,
+  activeAction,
   t,
 }: Step5ActionsProps) {
   const isClaim = useCase === 'claim';
 
   return (
-    <div className={styles.step4Column}>
-      {/* Actions */}
-      <div className={styles.actionsContainer}>
-        {claimSuccess ? (
-          <div className={sharedStyles.bannerSuccess}>
-            <div>
-              {finishedWithoutMarking
-                ? t('sourceReports.finishedWithoutMarkingSuccess')
-                : t('sourceReports.claimSuccess', { count: claimedCount })}
-            </div>
-            <Link to="/budget/invoices" className={sharedStyles.bannerLink}>
-              {t('sourceReports.viewInvoices')}
-            </Link>
+    <div className={styles.actionsContainer}>
+      {claimSuccess ? (
+        <div className={sharedStyles.bannerSuccess}>
+          <div>
+            {finishedWithoutMarking
+              ? t('sourceReports.finishedWithoutMarkingSuccess')
+              : t('sourceReports.claimSuccess', { count: claimedCount })}
           </div>
-        ) : (
-          <>
-            <button
-              type="button"
-              className={sharedStyles.btnPrimary}
-              onClick={onDownload}
-              disabled={isSaving || hasError || !hasBlob}
-            >
-              {t('sourceReports.download')}
-            </button>
+          <Link to="/budget/invoices" className={sharedStyles.bannerLink}>
+            {t('sourceReports.viewInvoices')}
+          </Link>
+        </div>
+      ) : (
+        <>
+          <button
+            type="button"
+            className={sharedStyles.btnSecondary}
+            onClick={onPreviewPdf}
+            disabled={activeAction !== null}
+          >
+            {activeAction === 'preview' && <span>⟳ </span>}
+            {t('sourceReports.editable.previewPdf')}
+          </button>
 
-            {isClaim && (
-              <>
-                <button
-                  type="button"
-                  className={sharedStyles.btnPrimary}
-                  onClick={onMarkClaimed}
-                  disabled={isSaving || hasError || !hasBlob || isMarkingClaimed}
-                >
-                  {t('sourceReports.markClaimed', { count: selectedInvoiceCount })}
-                </button>
+          <button
+            type="button"
+            className={sharedStyles.btnPrimary}
+            onClick={onDownload}
+            disabled={activeAction !== null}
+          >
+            {activeAction === 'download' && <span>⟳ </span>}
+            {t('sourceReports.download')}
+          </button>
 
-                <button
-                  type="button"
-                  className={sharedStyles.btnSecondaryCompact}
-                  onClick={onFinishWithoutMarking}
-                  disabled={isSaving || hasError || !hasBlob}
-                >
-                  {t('sourceReports.finishWithoutMarking')}
-                </button>
-              </>
-            )}
-
-            {paperlessStatus?.configured && paperlessStatus?.reachable && (
+          {isClaim && (
+            <>
               <button
                 type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={onUploadPaperless}
-                disabled={isSaving || hasError || !hasBlob}
+                className={sharedStyles.btnPrimary}
+                onClick={onMarkClaimed}
+                disabled={activeAction !== null || isMarkingClaimed}
               >
-                {t('sourceReports.uploadPaperless')}
+                {t('sourceReports.markClaimed', { count: selectedInvoiceCount })}
               </button>
-            )}
-          </>
-        )}
 
-        {claimError && <div className={sharedStyles.formErrorBanner}>{claimError}</div>}
-      </div>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondaryCompact}
+                onClick={onFinishWithoutMarking}
+                disabled={activeAction !== null}
+              >
+                {t('sourceReports.finishWithoutMarking')}
+              </button>
+            </>
+          )}
+
+          {paperlessStatus?.configured && paperlessStatus?.reachable && (
+            <button
+              type="button"
+              className={sharedStyles.btnSecondary}
+              onClick={onUploadPaperless}
+              disabled={activeAction !== null}
+            >
+              {activeAction === 'paperless' && <span>⟳ </span>}
+              {t('sourceReports.uploadPaperless')}
+            </button>
+          )}
+        </>
+      )}
+
+      {claimError && <div className={sharedStyles.formErrorBanner}>{claimError}</div>}
     </div>
   );
 }

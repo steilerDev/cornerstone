@@ -1,9 +1,10 @@
 /**
- * End-to-end, fully REAL render test for the report PDF pipeline (QA fix spec item 3).
+ * End-to-end, fully REAL render test for the report PDF pipeline (originally QA fix spec item 3;
+ * extended for Story #1900's editable-content pipeline).
  *
  * Unlike every other test file in this directory, this one mocks NOTHING in the pipeline:
  *   - loader.ts is real (real pdfmake@0.3.11 + pdf-lib, real addVirtualFileSystem/addFonts)
- *   - merge.ts / overviewPdf.ts / coverLetterPdf.ts / shared.ts are all real
+ *   - merge.ts / overviewPdf.ts / coverLetterPdf.ts / shared.ts / reportContent/* are all real
  *   - i18next is a real instance loaded with the ACTUAL en/de `budget` namespace JSON bundles
  *     (not a stub `t()` that echoes keys)
  *   - formatters are the real `formatCurrency`/`formatDate` from ../formatters.ts, bound to each
@@ -14,18 +15,18 @@
  * attach-documents/skip-footnote code paths are exercised with genuine bytes, not fixtures that
  * merely claim to be PDFs.
  *
- * Fixture covers, in one report: a normal invoice, a split invoice with no document, a split
- * invoice WITH a (successfully embedded) document, a refund-adjustment line (negative
- * allocatedAmount per the frontend fix spec item 3 sign contract), a skipped document (fetch
- * 404), and an EXCLUDED invoice that must never appear in the grand total or the generated PDF.
+ * Story #1900 pipeline shape: buildReportContent(report, includedIds, useCase, t, formatters,
+ * {includeCoverLetter, household}) produces the baseline ReportContent; applyOverrides(baseline,
+ * overrides) produces the EFFECTIVE content actually rendered — generateReportPdf/buildOverviewContent
+ * no longer derive text themselves, they only consume the already-built ReportContent. Every test
+ * below that previously called generateReportPdf/buildOverviewContent with raw
+ * report+useCase+household+formatters params now builds `content` first via the real
+ * buildReportContent (and applyOverrides, where overrides are under test) and passes that through.
  *
- * NOTE (story #1898 fix round): overviewPdf.ts's `widths` arrays previously ended in the string
- * literal `'2*'` (both the 6- and 7-column layouts), which pdfmake 0.3.11 does not support as a
- * width unit (@types/pdfmake@0.3.x's `Size` type is only `number | 'auto' | '*' | <percentage
- * string>` — see node_modules/@types/pdfmake/interfaces.d.ts) and crashed the real pdfmake
- * renderer with `unsupported number: NaN` the first time any overview table was rendered via
- * `pdfMake.createPdf(...).getBlob()`. This has been fixed in production code (both arrays now end
- * in a plain `'*'`); every test below renders successfully.
+ * NOTE (story #1898 fix round, still applicable): overviewPdf.ts's `widths` arrays previously
+ * ended in the string literal `'2*'`, which pdfmake 0.3.11 does not support as a width unit — this
+ * was fixed in production (both arrays now end in a plain `'*'`); every test below renders
+ * successfully.
  */
 import { describe, it, expect, beforeAll } from '@jest/globals';
 import i18next from 'i18next';
@@ -38,6 +39,8 @@ import type {
 } from '@cornerstone/shared';
 import type { Formatters } from '../formatters.js';
 import { formatCurrency, formatDate } from '../formatters.js';
+import { buildReportContent, applyOverrides } from '../reportContent/index.js';
+import type { ReportContentOverrides } from '../reportContent/index.js';
 import enBudget from '../../i18n/en/budget.json';
 import deBudget from '../../i18n/de/budget.json';
 
@@ -137,9 +140,6 @@ async function makeMixedReport(): Promise<{
     isSplit: true,
     invoiceAmount: 800,
     allocatedAmount: 300,
-    // Explicit budgetLines: the split (†) marker requires isSplit && budgetLines.length > 0
-    // (story #1898) — makeInvoice()'s default `budgetLines: []` would silently produce a split
-    // invoice with NO marker at all under the new classification rules.
     budgetLines: [
       { id: 'bl-split-nodoc', description: null, allocatedPortion: 300, linkedItem: null },
     ],
@@ -251,6 +251,10 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { report, includedIds, expectedIncludedTotal } = await makeMixedReport();
       const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
       const t = getT();
+      const content = buildReportContent(report, includedIds, 'claim', t, formatters, {
+        includeCoverLetter: true,
+        household,
+      });
 
       const { calls, restore } = stubFetch();
       let result: Awaited<ReturnType<typeof generateReportPdf>>;
@@ -258,11 +262,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         result = await generateReportPdf(
           report,
           includedIds,
-          'claim',
-          { attachDocuments: true, includeCoverLetter: true },
-          household,
+          content,
+          { attachDocuments: true },
           t,
-          formatters,
         );
       } finally {
         restore();
@@ -288,12 +290,10 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         }),
       ]);
 
-      // Cross-check the grand total independently via buildOverviewContent's own includedTotal
-      // computation, run through the same real code path merge.ts uses internally.
-      const includedTotal = report.invoices
-        .filter((inv) => includedIds.has(inv.invoiceId))
-        .reduce((sum, inv) => sum + inv.allocatedAmount, 0);
-      expect(includedTotal).toBe(expectedIncludedTotal);
+      // Cross-check the grand total independently — computed the same way buildReportContent does
+      // internally, from the total summary row.
+      const totalRow = content.summaryRows.at(-1)!;
+      expect(totalRow.amountText).toBe(formatters.formatCurrency(expectedIncludedTotal));
 
       // Re-derive the rendered PDF's own page count sanity check: the merged document contains
       // both the (multi-row) text pages AND the one embedded appendix document's page.
@@ -303,12 +303,6 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
   );
 
   it('renders every declared pdfmake style (including bold: title/tableHeader/subtotal/total rows) without throwing, for both locales', async () => {
-    // merge.ts's own document definition declares styles.title (bold), styles.tableHeader
-    // (bold), and applies `bold: true` directly to subtotal/total table cells (see
-    // overviewPdf.ts). A real getBlob() success proves the 'Roboto-Medium.ttf' bold font file is
-    // actually resolvable from the virtual file system for every one of those usages, not just a
-    // single isolated `{ text: 'x', bold: true }` probe (see loader.test.ts for that narrower
-    // check).
     const { generateReportPdf } = await import('./merge.js');
     for (const [localeStr, t] of [
       ['en-US', tEn],
@@ -316,17 +310,19 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     ] as const) {
       const { report, includedIds } = await makeMixedReport();
       const formatters = formattersFor(localeStr);
+      const content = buildReportContent(report, includedIds, 'claim', t, formatters, {
+        includeCoverLetter: true,
+        household,
+      });
       const { restore } = stubFetch();
       let result: Awaited<ReturnType<typeof generateReportPdf>>;
       try {
         result = await generateReportPdf(
           report,
           includedIds,
-          'claim',
-          { attachDocuments: false, includeCoverLetter: true },
-          household,
+          content,
+          { attachDocuments: false },
           t,
-          formatters,
         );
       } finally {
         restore();
@@ -339,17 +335,13 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     const { generateReportPdf } = await import('./merge.js');
     const { report, includedIds } = await makeMixedReport();
     const formatters = formattersFor('en-US');
+    const content = buildReportContent(report, includedIds, 'claim', tEn, formatters, {
+      includeCoverLetter: false,
+      household: null,
+    });
     const { calls, restore } = stubFetch();
     try {
-      await generateReportPdf(
-        report,
-        includedIds,
-        'claim',
-        { attachDocuments: true, includeCoverLetter: false },
-        household,
-        tEn,
-        formatters,
-      );
+      await generateReportPdf(report, includedIds, content, { attachDocuments: true }, tEn);
     } finally {
       restore();
     }
@@ -361,11 +353,39 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     );
   });
 
+  describe('excluded rows never appear in the rendered content (Story #1900)', () => {
+    it('the excluded invoice never appears as a row in ReportContent, and never contributes to the total', async () => {
+      const { report, includedIds } = await makeMixedReport();
+      const formatters = formattersFor('en-US');
+      const content = buildReportContent(report, includedIds, 'claim', tEn, formatters, {
+        includeCoverLetter: false,
+        household: null,
+      });
+      expect(content.rows.some((r) => r.vendor === 'Excluded Vendor')).toBe(false);
+      const total = content.summaryRows.at(-1)!;
+      // 999999 would dominate the total if it leaked in — it does not appear anywhere.
+      expect(total.amountText).not.toContain('999999');
+    });
+
+    it("excluding a previously-included invoice removes it from buildOverviewContent's rendered table body", async () => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const { report, includedIds } = await makeMixedReport();
+      const formatters = formattersFor('en-US');
+      const withoutNormal = new Set([...includedIds].filter((id) => id !== 'inv-normal'));
+      const content = buildReportContent(report, withoutNormal, 'claim', tEn, formatters, {
+        includeCoverLetter: false,
+        household: null,
+      });
+      const pdfContent = buildOverviewContent(content, new Map(), tEn);
+      const tableItem = pdfContent.find(
+        (c) => typeof c === 'object' && c !== null && 'table' in c,
+      ) as { table: { body: { text?: string }[][] } };
+      const vendorCells = tableItem.table.body.map((row) => row[0]?.text);
+      expect(vendorCells).not.toContain('Normal Vendor');
+    });
+  });
+
   describe('German overview table column widths (frontend fix spec item 15; updated story #1898)', () => {
-    // [Scenario 24] The appendix column was removed entirely in story #1898 — appendixByInvoiceId
-    // no longer affects the rendered column count at all (see overviewPdf.test.ts "[Scenario 3]").
-    // This test now exercises the 6-column claim/proof-of-funds layout (no status, no appendix)
-    // rather than the old "appendix-present" 7-column case, which no longer exists.
     it('uses the "*"-first / "auto"-rest width pattern for the 6-column claim/proof-of-funds table — the layout contract that keeps German label text from overflowing', async () => {
       // pdfmake's public Node API does not expose the LAYOUT ENGINE'S COMPUTED pixel widths for
       // 'auto' columns after createPdf()/getBlob() — there is no documented way to introspect the
@@ -379,20 +399,13 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { buildOverviewContent } = await import('./overviewPdf.js');
       const { report, includedIds } = await makeMixedReport();
       const formatters = formattersFor('de-DE');
+      const content = buildReportContent(report, includedIds, 'claim', tDe, formatters, {
+        includeCoverLetter: false,
+        household: null,
+      });
 
-      // appendixByInvoiceId is still passed (call-site/signature stability) but is provably
-      // irrelevant to the rendered width contract now — non-empty here on purpose.
-      const content = buildOverviewContent(
-        report,
-        includedIds,
-        new Map([['inv-split-doc', 1]]),
-        new Map(),
-        'claim',
-        tDe,
-        formatters,
-        1300,
-      );
-      const tableItem = content.find(
+      const pdfContent = buildOverviewContent(content, new Map(), tDe);
+      const tableItem = pdfContent.find(
         (c) => typeof c === 'object' && c !== null && 'table' in c,
       ) as { table: { widths: string[] } };
 
@@ -403,18 +416,13 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { buildOverviewContent } = await import('./overviewPdf.js');
       const { report, includedIds } = await makeMixedReport();
       const formatters = formattersFor('de-DE');
+      const content = buildReportContent(report, includedIds, 'budget-overview', tDe, formatters, {
+        includeCoverLetter: false,
+        household: null,
+      });
 
-      const content = buildOverviewContent(
-        report,
-        includedIds,
-        new Map(),
-        new Map(),
-        'budget-overview',
-        tDe,
-        formatters,
-        1300,
-      );
-      const tableItem = content.find(
+      const pdfContent = buildOverviewContent(content, new Map(), tDe);
+      const tableItem = pdfContent.find(
         (c) => typeof c === 'object' && c !== null && 'table' in c,
       ) as { table: { widths: string[] } };
 
@@ -422,14 +430,10 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     });
   });
 
-  // ─── Scenarios 23 & 25: Usage column, attachment note, deposit-footnote wordings — real,
-  // unmocked i18next + formatters, both locales ────────────────────────────────────────────────
+  // ─── Usage column, attachment note, deposit-footnote wordings — real, unmocked i18next +
+  // formatters, both locales ────────────────────────────────────────────────────────────────────
 
   describe('Usage column, attachment note, and deposit-footnote wordings (real en+de rendering)', () => {
-    // Dedicated fixture, independent of makeMixedReport / stubFetch — these invoices exercise
-    // Usage/attachment/deposit features only and are never fed through generateReportPdf's
-    // document-fetch pipeline (attachDocuments stays false everywhere below), so no new document
-    // IDs need to be wired into stubFetch's routing.
     function makeUsageFeatureReport(): SourceReportResponse {
       const linkedUsage = makeInvoice({
         invoiceId: 'inv-usage-linked',
@@ -527,17 +531,13 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           contactAddress: null,
         },
         invoices: [linkedUsage, attachSingle, attachMulti, depositConstituted, depositReduced],
-        // Sum of each invoice's allocatedAmount (linkedUsage/attachSingle/attachMulti default to
-        // 100 via makeInvoice(); depositConstituted=250, depositReduced=150 explicitly above).
         totalAmount: 100 + 100 + 100 + 250 + 150,
         unallocatedInvoices: [],
         generatedAt: '2026-02-15T00:00:00.000Z',
       };
     }
 
-    // Recursively collects every string value anywhere in the pdfmake Content[] tree (text cells,
-    // stacks, table bodies, nested columns, etc.) — deliberately structure-agnostic so it doesn't
-    // need to know pdfmake's exact node shapes.
+    // Recursively collects every string value anywhere in the pdfmake Content[] tree.
     function collectAllStrings(node: unknown, out: string[] = []): string[] {
       if (typeof node === 'string') {
         out.push(node);
@@ -560,30 +560,23 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
         const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
         const t = getT();
+        const content = buildReportContent(report, includedIds, 'claim', t, formatters, {
+          includeCoverLetter: true,
+          household,
+        });
 
         const result = await generateReportPdf(
           report,
           includedIds,
-          'claim',
-          { attachDocuments: false, includeCoverLetter: true },
-          household,
+          content,
+          { attachDocuments: false },
           t,
-          formatters,
         );
         expect(result.blob).toBeInstanceOf(Blob);
         expect(result.blob.size).toBeGreaterThan(0);
 
-        const content = buildOverviewContent(
-          report,
-          includedIds,
-          new Map(),
-          new Map(),
-          'claim',
-          t,
-          formatters,
-          700, // sum of all 5 fixture invoices' allocatedAmount
-        );
-        const allStrings = collectAllStrings(content);
+        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const allStrings = collectAllStrings(pdfContent);
         const leakedKeys = allStrings.filter((s) => /^sourceReports\.[a-zA-Z.]+$/.test(s));
         expect(leakedKeys).toEqual([]);
       },
@@ -593,21 +586,22 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { buildOverviewContent } = await import('./overviewPdf.js');
       const report = makeUsageFeatureReport();
       const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
-      const content = buildOverviewContent(
+      const content = buildReportContent(
         report,
         includedIds,
-        new Map(),
-        new Map(),
         'claim',
         tEn,
         formattersFor('en-US'),
-        700, // sum of all 5 fixture invoices' allocatedAmount
+        {
+          includeCoverLetter: false,
+          household: null,
+        },
       );
-      const tableItem = content.find(
+      const pdfContent = buildOverviewContent(content, new Map(), tEn);
+      const tableItem = pdfContent.find(
         (c) => typeof c === 'object' && c !== null && 'table' in c,
       ) as { table: { body: unknown[][] } };
       const linkedRow = tableItem.table.body[1] as { text?: string }[];
-      // Deduped despite the two budget lines sharing the same linkedItem name.
       expect(linkedRow[5]!.text).toBe('Roof Replacement');
     });
 
@@ -628,21 +622,15 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           { single: '1 Anhang: Rechnung', multi: '2 Anhänge: Angebot, Rechnung' },
         ],
       ] as const) {
-        const content = buildOverviewContent(
-          report,
-          includedIds,
-          new Map(),
-          new Map(),
-          'claim',
-          t,
-          formatters,
-          700, // sum of all 5 fixture invoices' allocatedAmount
-        );
-        const tableItem = content.find(
+        const content = buildReportContent(report, includedIds, 'claim', t, formatters, {
+          includeCoverLetter: false,
+          household: null,
+        });
+        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: unknown[][] } };
 
-        // Row order matches report.invoices: [linkedUsage, attachSingle, attachMulti, ...]
         const singleRow = tableItem.table.body[2] as { stack: { text: string }[] }[];
         const multiRow = tableItem.table.body[3] as { stack: { text: string }[] }[];
         expect(singleRow[5]!.stack[1]!.text).toBe(expected.single);
@@ -675,21 +663,165 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           },
         ],
       ] as const) {
-        const content = buildOverviewContent(
-          report,
-          includedIds,
-          new Map(),
-          new Map(),
-          'claim',
-          t,
-          formatters,
-          700, // sum of all 5 fixture invoices' allocatedAmount
-        );
-        const notesStack = content[content.length - 1] as { stack: { text: string }[] };
+        const content = buildReportContent(report, includedIds, 'claim', t, formatters, {
+          includeCoverLetter: false,
+          household: null,
+        });
+        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const notesStack = pdfContent[pdfContent.length - 1] as { stack: { text: string }[] };
         const texts = notesStack.stack.map((n) => n.text);
         expect(texts).toContain(expected.constituted);
         expect(texts).toContain(expected.reduced);
       }
+    });
+  });
+
+  // ─── Story #1900: edited-override text reaches the real rendered PDF content tree ─────────────
+
+  describe('edited overrides reach the real, unmocked PDF content tree (Story #1900)', () => {
+    function collectAllStrings(node: unknown, out: string[] = []): string[] {
+      if (typeof node === 'string') {
+        out.push(node);
+      } else if (Array.isArray(node)) {
+        for (const item of node) collectAllStrings(item, out);
+      } else if (node !== null && typeof node === 'object') {
+        for (const value of Object.values(node as Record<string, unknown>)) {
+          collectAllStrings(value, out);
+        }
+      }
+      return out;
+    }
+
+    it.each([['en', 'en-US', () => tEn] as const, ['de', 'de-DE', () => tDe] as const])(
+      'a row-level usageText override reaches the real rendered overview table, replacing the baseline usage text (%s locale)',
+      async (_label, localeStr, getT) => {
+        const { buildOverviewContent } = await import('./overviewPdf.js');
+        const { report: baseReport, includedIds } = await makeMixedReport();
+        const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
+        const t = getT();
+        // Give the target invoice a distinct, non-placeholder baseline usage text (the fixture's
+        // default rows all fall back to the shared '—' placeholder, which is too ambiguous a
+        // string to assert absence of — it legitimately appears in several OTHER rows too).
+        const report: SourceReportResponse = {
+          ...baseReport,
+          invoices: baseReport.invoices.map((inv) =>
+            inv.invoiceId === 'inv-normal'
+              ? {
+                  ...inv,
+                  budgetLines: [
+                    {
+                      id: 'bl-normal',
+                      description: 'ORIGINAL BASELINE USAGE TEXT',
+                      allocatedPortion: 0,
+                      linkedItem: null,
+                    },
+                  ],
+                }
+              : inv,
+          ),
+        };
+        const baseline = buildReportContent(report, includedIds, 'claim', t, formatters, {
+          includeCoverLetter: false,
+          household: null,
+        });
+        const targetRow = baseline.rows.find((r) => r.invoiceId === 'inv-normal')!;
+        expect(targetRow.usageText).toBe('ORIGINAL BASELINE USAGE TEXT');
+
+        const overrides: ReportContentOverrides = {
+          'row.inv-normal.usageText': 'CUSTOM EDITED USAGE TEXT',
+        };
+        const effective = applyOverrides(baseline, overrides);
+
+        const pdfContent = buildOverviewContent(effective, new Map(), t);
+        const tableItem = pdfContent.find(
+          (c) => typeof c === 'object' && c !== null && 'table' in c,
+        ) as { table: { body: { text?: string }[][] } };
+        const targetRowIndex = baseline.rows.findIndex((r) => r.invoiceId === 'inv-normal');
+        const renderedUsageCell = tableItem.table.body[1 + targetRowIndex]![5]!.text;
+        expect(renderedUsageCell).toBe('CUSTOM EDITED USAGE TEXT');
+
+        const allStrings = collectAllStrings(pdfContent);
+        // The un-overridden baseline string must be gone entirely — not just appended alongside
+        // the edit — from the whole rendered content tree.
+        expect(allStrings).not.toContain('ORIGINAL BASELINE USAGE TEXT');
+
+        // Confirm the whole real pipeline (real pdfmake render) still succeeds with the edited
+        // content, not just that the Content[] tree looks right in isolation.
+        const { generateReportPdf } = await import('./merge.js');
+        const result = await generateReportPdf(
+          report,
+          includedIds,
+          effective,
+          { attachDocuments: false },
+          t,
+        );
+        expect(result.blob.size).toBeGreaterThan(0);
+      },
+    );
+
+    it('a cover-letter body override reaches the real rendered cover-letter content, replacing the baseline body', async () => {
+      const { buildCoverLetterContent } = await import('./coverLetterPdf.js');
+      const { report, includedIds } = await makeMixedReport();
+      const formatters = formattersFor('en-US');
+      const baseline = buildReportContent(report, includedIds, 'claim', tEn, formatters, {
+        includeCoverLetter: true,
+        household,
+      });
+      const baselineBody = baseline.coverLetter!.body;
+      const overrides: ReportContentOverrides = {
+        'coverLetter.body': 'This is a completely custom cover letter body written by the user.',
+      };
+      const effective = applyOverrides(baseline, overrides);
+
+      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const allStrings = collectAllStrings(pdfContent);
+      expect(allStrings).toContain(
+        'This is a completely custom cover letter body written by the user.',
+      );
+      expect(allStrings).not.toContain(baselineBody);
+    });
+
+    it('overriding coverLetter.sender changes the rendered signature too (recomputed by applyOverrides)', async () => {
+      const { buildCoverLetterContent } = await import('./coverLetterPdf.js');
+      const { report, includedIds } = await makeMixedReport();
+      const formatters = formattersFor('en-US');
+      const baseline = buildReportContent(report, includedIds, 'claim', tEn, formatters, {
+        includeCoverLetter: true,
+        household,
+      });
+      const overrides: ReportContentOverrides = {
+        'coverLetter.sender': 'Jane Doe\n99 New Address',
+      };
+      const effective = applyOverrides(baseline, overrides);
+      expect(effective.coverLetter!.signature).toBe('Jane Doe');
+
+      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const allStrings = collectAllStrings(pdfContent);
+      expect(allStrings).toContain('Jane Doe\n99 New Address');
+      expect(allStrings).toContain('Jane Doe'); // the (distinct) signature line
+      expect(allStrings).not.toContain(baseline.coverLetter!.sender);
+    });
+
+    it("an un-overridden field never picks up another field's override text (isolation, real render)", async () => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const { report, includedIds } = await makeMixedReport();
+      const formatters = formattersFor('en-US');
+      const baseline = buildReportContent(report, includedIds, 'claim', tEn, formatters, {
+        includeCoverLetter: false,
+        household: null,
+      });
+      const otherRowBaselineUsage = baseline.rows.find(
+        (r) => r.invoiceId === 'inv-split-nodoc',
+      )!.usageText;
+      const overrides: ReportContentOverrides = {
+        'row.inv-normal.usageText': 'ONLY THIS ROW IS EDITED',
+      };
+      const effective = applyOverrides(baseline, overrides);
+      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const allStrings = collectAllStrings(pdfContent);
+      expect(allStrings).toContain('ONLY THIS ROW IS EDITED');
+      // The untouched row's own baseline usage text survives unchanged.
+      expect(allStrings).toContain(otherRowBaselineUsage);
     });
   });
 });

@@ -5,6 +5,18 @@ metadata:
   type: project
 ---
 
+## Issue #1900 — Bank Report Wizard Step 5: editable HTML preview before export
+
+Replaces Step 5's live PDF iframe with editable HTML (cover letter fields + report table + footnotes) and makes PDF on-demand. Part of "Bank Report Wizard — Refinement Round 2" mini-epic.
+
+- **New shared component spec'd**: `EditableField` (`client/src/components/EditableField/`), `as="input"|"textarea"` variant, wraps `shared.module.css` `.input`/`.textarea` base + adds at-rest tinted-background affordance (`--color-bg-tertiary`), hover (`--color-bg-secondary`), edited-dot + per-field reset button. Needed because no existing component covers "always-editable field with baseline-diff indicator" — see next point for why the obvious candidate was rejected.
+- **Rejected `WorkItemDetailPage`'s click-to-edit pattern as reuse target** (`isEditingTitle`/`isEditingDescription`, `.inlineFieldWrapper`, `.autosaveIndicator`, `.clearDateButton` in `WorkItemDetailPage.module.css`): that's hidden-until-click + explicit Save/Cancel + direct API persist per field — a different paradigm from "always-visible input, ambient override, page-level discard-confirmation" needed here. Don't conflate the two when a future story mentions "inline editing" — check which paradigm actually applies first.
+- **Read-only cells need no `aria-readonly`**: for a cell that must never be editable (amounts/totals here), the spec is simply "render plain text, no `<input>` at all" — no form control means no programmatic marking is needed; `aria-readonly` only has meaning on actual controls. Don't over-engineer read-only-ness onto a control that shouldn't exist in the first place.
+- **Discard-edits confirmation precedent found**: `AutoItemizePage.tsx` already has this exact "you have unsaved edits, are you sure" Modal (`autoItemize.cancelConfirmTitle/cancelConfirmBody`, footer `btnPrimary` "Discard Changes" first + `btnSecondary` "Keep Editing" second). Mandated reuse of that exact button-order/label convention rather than the page's own amber `.warningBlock` (that's reserved for an informational sub-note inside a larger confirm, e.g. the claim-modal's excluded-items notice on this same page — not the primary discard-confirm dialog itself).
+- **Wide-Modal precedent**: `shared.module.css`'s `.modalContent` comment explicitly documents "use a local override to adjust max-width per dialog type" — this is the sanctioned way to get a wide PDF-preview Modal; no dedicated "large modal" component/prop exists and none is needed.
+- **Table/mobile-card breakpoint**: reused `ReportInvoiceList`'s existing `max-width: 767px` split verbatim rather than the page's own ad hoc `860px` breakpoint (`.step4Layout` collapse) — the two breakpoints coexist in this file for different purposes (860px = two-column layout collapse, 767px = table→cards), don't conflate them.
+- Full field inventory for the cover letter (from `coverLetterPdf.ts`): sender (household name+address), recipient (`source.contactAddress`), reference (`source.reference`, optional), subject (per-use-case string), body (per-use-case template with `{{total}}`). A signature block also exists in the generated PDF (echoes household name a second time) but isn't in the issue's "settled decisions" list of 5 editable fields — spec'd it as derived-display-only (mirrors Sender), flagged as an open question rather than deciding unilaterally.
+
 ## Issue #1876 — Deposit Refunds with Negative Claim Adjustments
 
 `InvoiceDepositsSection` gains an entry-type choice (Deposit/Refund); refunds render as negative rows reusing the exact same status Badge/labels (Pending/Paid/Claimed) — no relabeling, per explicit user decision.

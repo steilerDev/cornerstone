@@ -15,9 +15,11 @@
  * - Scenario 10: Mobile stepper layout.
  * - Scenario 11: Cross-story integration — a refund entry (Issue #1876) surfaces as a
  *   negative line in a generated claim report.
- * - Scenario 12: Story #1899 — selecting "Deutsch" on the new Settings step regenerates the
- *   PDF preview (proven via a blob: src change) while the wizard's own chrome (heading,
- *   stepper labels, Back/Next buttons) stays English throughout.
+ * - Scenario 12: Story #1899/#1900 — selecting "Deutsch" on the Settings step produces German
+ *   BASELINE FIELD VALUES on the editable step-5 content (proven directly via the live Subject
+ *   field's value — no PDF generation needed) while the wizard's own chrome (heading, stepper
+ *   labels, field LABELS, Back/Next buttons) stays English throughout, and the on-demand
+ *   download still succeeds.
  *
  * NOTE ON CURRENT IMPLEMENTATION STATE: as of this story, `ReportWizardPage.tsx` calls
  * `setBudgetSources(sources)` with the raw `fetchBudgetSources()` response
@@ -277,11 +279,12 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
 
       await wizard.goNextFromStep3();
 
-      // Step 4: Settings — attach-documents/cover-letter toggles now live here, BEFORE the
-      // preview exists (the preview iframe is only mounted on step 5 — see ReportWizardPage.ts
-      // class docstring). Toggle each option off then on to exercise the controls directly;
-      // the regeneration this produces happens in the background and is proven once, below,
-      // via waitForPreviewReady() after advancing.
+      // Step 4: Settings — attach-documents/cover-letter toggles now live here, BEFORE any PDF
+      // has ever been generated (Story #1900: generation only happens on-demand once the user
+      // clicks "Preview PDF"/Download/Upload on step 5 — see ReportWizardPage.ts class
+      // docstring). Toggle each option off then on to exercise the controls directly; the
+      // resulting settings feed the on-demand generation proven once, below, via
+      // openPdfPreviewModal() after advancing.
       await wizard.toggleAttachDocuments();
       await expect(wizard.attachDocumentsCheckbox).not.toBeChecked();
       await wizard.toggleAttachDocuments();
@@ -294,8 +297,11 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
 
       await wizard.step4NextButton.click();
 
-      // Step 5: preview generates/settles once we land here with the final Settings state.
-      await wizard.waitForPreviewReady();
+      // Step 5: open the on-demand PDF preview modal once with the final Settings state (also
+      // proves the Story #1891 CSP-hardened checks still pass), then close it before triggering
+      // the (separately on-demand) download below — Story #1900.
+      await wizard.openPdfPreviewModal();
+      await wizard.closePdfPreviewModal();
 
       // Download — filename `claim-<slug>-<date>.pdf`.
       const today = new Date().toISOString().slice(0, 10);
@@ -380,7 +386,10 @@ test.describe('Report wizard — budget overview smoke (Scenario 2)', () => {
 
       await wizard.goNextFromStep3();
       await wizard.step4NextButton.click();
-      await wizard.waitForPreviewReady();
+      // Story #1900: open the on-demand preview modal once to prove generation actually
+      // succeeds, then confirm the (independently on-demand) Download button is ready.
+      await wizard.openPdfPreviewModal();
+      await wizard.closePdfPreviewModal();
       await expect(wizard.downloadButton).toBeEnabled();
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
@@ -558,8 +567,9 @@ test.describe('Report wizard — Paperless upload (Scenarios 5 & 6)', () => {
       ).toBeVisible();
       await wizard.goNextFromStep3();
       await wizard.step4NextButton.click();
-      await wizard.waitForPreviewReady();
 
+      // Story #1900: Upload to Paperless is itself on-demand — no need to open the preview
+      // modal first (`clickUploadToPaperless()` waits out its own busy state internally).
       await expect(wizard.uploadPaperlessButton).toBeVisible();
       await wizard.clickUploadToPaperless();
 
@@ -610,7 +620,6 @@ test.describe('Report wizard — Paperless upload (Scenarios 5 & 6)', () => {
       ).toBeVisible();
       await wizard.goNextFromStep3();
       await wizard.step4NextButton.click();
-      await wizard.waitForPreviewReady();
 
       await expect(wizard.uploadPaperlessButton).toHaveCount(0);
     } finally {
@@ -671,7 +680,8 @@ test.describe('Report wizard — sourceId prefill (Scenario 7)', () => {
 
       await wizard.goNextFromStep3();
       await wizard.step4NextButton.click();
-      await wizard.waitForPreviewReady();
+      await wizard.openPdfPreviewModal();
+      await wizard.closePdfPreviewModal();
       await expect(wizard.downloadButton).toBeEnabled();
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
@@ -870,7 +880,7 @@ test.describe('Report wizard — refund cross-story integration (Scenario 11)', 
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard — German report language from English UI (Scenario 12)', () => {
-  test('Selecting Deutsch on the Settings step regenerates the preview while the wizard chrome stays English', async ({
+  test('Selecting Deutsch on the Settings step yields German baseline field values on step 5 while the wizard chrome and field labels stay English', async ({
     page,
     testPrefix,
   }) => {
@@ -886,6 +896,11 @@ test.describe('Report wizard — German report language from English UI (Scenari
       sourceId = await createBudgetSourceViaApi(page, {
         name: `${testPrefix} Lang Source`,
         totalAmount: 20000,
+        // Cover letter must be enabled (auto-derived from contactAddress/reference — see
+        // ReportWizardPage.tsx's handleSourceChange) so the Subject field this scenario reads
+        // actually renders.
+        contactAddress: '1 Bank Platz, Berlin',
+        reference: 'Konto #98765',
       });
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Lang` });
       await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
@@ -904,7 +919,8 @@ test.describe('Report wizard — German report language from English UI (Scenari
 
       // Settings step — chrome (heading, stepper labels, buttons) is rendered via the app's
       // own English `t`, entirely independent of `reportLanguage`, which only feeds
-      // `generateReportPdf`'s fixed-locale t/formatters pair (ReportWizardPage.tsx).
+      // `buildReportContent`'s fixed-locale `reportT`/`reportFormatters` pair
+      // (ReportWizardPage.tsx).
       await expect(page.getByRole('heading', { name: 'Settings', level: 2 })).toBeVisible();
       await expect(wizard.stepItems.nth(3)).toContainText('Settings');
       await expect(wizard.stepItems.nth(4)).toContainText('Preview & Export');
@@ -915,33 +931,33 @@ test.describe('Report wizard — German report language from English UI (Scenari
       await expect(wizard.reportLanguageRadio('en')).toBeChecked();
       await expect(wizard.reportLanguageRadio('de')).not.toBeChecked();
 
-      // Reach step 5 once with the default (English) report language to capture a baseline
-      // preview src — the Settings step itself has no preview iframe (see the POM's class
-      // docstring), so this proof can only happen once we're on step 5.
-      await wizard.step4NextButton.click();
-      await wizard.waitForPreviewReady();
-      const englishSrc = await wizard.getPreviewSrc();
-
-      // Back to Settings, switch to Deutsch, advance again — the regenerated preview must be
-      // a genuinely different blob (proving the language change actually re-ran PDF
-      // generation), while the wizard chrome never switches out of English.
-      await wizard.step5BackButton.click();
       await wizard.selectReportLanguage('de');
       await expect(wizard.reportLanguageRadio('de')).toBeChecked();
       await expect(wizard.reportLanguageRadio('en')).not.toBeChecked();
 
       await wizard.step4NextButton.click();
-      await wizard.waitForPreviewRegenerated(englishSrc);
 
-      // Wizard chrome — heading, stepper labels, action buttons — stays English regardless of
-      // the report's own selected language. No PDF byte-content assertions here: the actual
-      // German PDF text is covered by the Jest `realRender` test (see the story's QA spec).
+      // Step 5 (Story #1900): the editable content is built CLIENT-SIDE via the
+      // reportLanguage-fixed `reportT` — no PDF generation is required to observe the language
+      // switch, unlike the always-present-auto-regenerating-iframe design this replaced. The
+      // Subject field's baseline value comes straight from
+      // `reportT('sourceReports.coverLetter.subject.claim')` — the German translation for the
+      // 'claim' use case, pre-existing since Story #1879/#1899 (NOT part of this story's new
+      // `sourceReports.editable.*` namespace, which isn't localized into German yet).
+      await expect(wizard.letterField('subject')).toHaveValue('Einreichungsunterlagen');
+
+      // Field LABELS (this story's new sourceReports.editable.* keys, e.g. "Subject" itself)
+      // and every other piece of wizard chrome stay English regardless of `reportLanguage` —
+      // proven by having successfully located the field via its English label above, plus the
+      // heading/stepper/button checks below.
       await expect(wizard.heading).toHaveText('Bank Reports');
-      await expect(wizard.stepItems.nth(3)).toContainText('Settings');
       await expect(wizard.stepItems.nth(4)).toContainText('Preview & Export');
       await expect(wizard.step5BackButton).toHaveText('Back');
 
-      // Download still succeeds with the unaffected (untranslated) filename pattern.
+      // Download still succeeds via the on-demand generation path (Story #1900), with the
+      // unaffected (untranslated) filename pattern. No PDF byte-content assertions here: the
+      // actual German PDF text is covered by the Jest `realRender` test (see the story's QA
+      // spec).
       const today = new Date().toISOString().slice(0, 10);
       const slug = `${testPrefix} Lang Source`
         .toLowerCase()

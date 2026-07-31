@@ -253,14 +253,16 @@ test.describe('Report wizard expansion — CSP frame-src headline (Scenario 1)',
       // Step 4 (Settings) has no preview — advance to step 5 to reach it (Story #1899).
       await wizard.step4NextButton.click();
 
-      // waitForPreviewReady() already runs the hardened CSP-header + zero-CSP-message proof
-      // internally (see ReportWizardPage.ts's assertPreviewHardened docstring) — this scenario
-      // ALSO re-asserts explicitly per the story's AC, so a future refactor of the POM's
-      // internal check can't silently drop this specific proof from coverage.
-      await wizard.waitForPreviewReady();
+      // openPdfPreviewModal() (Story #1900 — replaces the old always-present step-5 iframe with
+      // an on-demand "Preview PDF" button + Modal) already runs the hardened CSP-header +
+      // zero-CSP-message proof internally (see ReportWizardPage.ts's assertPreviewHardened
+      // docstring) — this scenario ALSO re-asserts explicitly per the story's AC, so a future
+      // refactor of the POM's internal check can't silently drop this specific proof from
+      // coverage.
+      await wizard.openPdfPreviewModal();
 
       // (3) Overlay hidden + iframe visible + src is a blob: URL — already true by construction
-      // once waitForPreviewReady() resolves, re-asserted here per the story's AC.
+      // once openPdfPreviewModal() resolves, re-asserted here per the story's AC.
       const src = await wizard.getPreviewSrc();
       expect(src).toMatch(/^blob:/);
 
@@ -430,16 +432,18 @@ test.describe('Report wizard expansion — line exclusion updates row, total, an
         wizard.itemRow(vendorName, invoice.invoiceNumber!, `${testPrefix} Line B`),
       ).toContainText('200');
 
-      // Reach step 5 once (via the Settings step, which has no preview — Story #1899) to
-      // capture a baseline preview src.
+      // Reach step 5 once (via the Settings step, which has no preview — Story #1899) to open
+      // the on-demand PDF preview modal once with the pre-exclusion content.
       await wizard.goNextFromStep3();
       await wizard.step4NextButton.click();
-      await wizard.waitForPreviewReady();
-      const previousSrc = await wizard.getPreviewSrc();
+      await wizard.openPdfPreviewModal();
+      await wizard.closePdfPreviewModal();
 
       // Back to step 3 (two steps: step 5 -> Settings -> invoices) — ReportInvoiceList
       // remounts (resetting local expand state) but excludedLineIds/excludedInvoiceIds live in
-      // ReportWizardPage and persist across the step navigation.
+      // ReportWizardPage and persist across the step navigation. (The preview modal must be
+      // closed first — Story #1900 — since its backdrop would otherwise intercept the Back
+      // button clicks below.)
       await wizard.goBack();
       await wizard.goBack();
       await wizard.invoiceExpandToggle(vendorName, invoice.invoiceNumber!).click();
@@ -454,11 +458,17 @@ test.describe('Report wizard expansion — line exclusion updates row, total, an
       // Running total in the SelectionActionBar reflects the same 500 -> 300 drop.
       await expect(wizard.selectionCountLabel).toContainText('300');
 
-      // Advancing to step 5 again (via Settings) proves the PDF preview regenerated for the
-      // new exclusion state (new blob: src, hardened frame-navigation + zero-CSP proof).
+      // Advancing to step 5 again (via Settings) and re-opening the preview modal proves a
+      // fresh PDF generation succeeds for the new exclusion state (hardened CSP-header +
+      // zero-CSP-message proof, same as the first open above). Story #1900 made every "Preview
+      // PDF" click generate unconditionally from the current effective content (no
+      // debounce/memoization to prove was "skipped" vs. "ran") — the earlier blob-src-changed
+      // comparison this replaced is no longer a meaningful signal on its own, since every open
+      // now yields a fresh `URL.createObjectURL()` blob regardless of whether content actually
+      // changed.
       await wizard.goNextFromStep3();
       await wizard.step4NextButton.click();
-      await wizard.waitForPreviewRegenerated(previousSrc);
+      await wizard.openPdfPreviewModal();
     } finally {
       if (workItemAId) await deleteWorkItemViaApi(page, workItemAId);
       if (workItemBId) await deleteWorkItemViaApi(page, workItemBId);
@@ -698,7 +708,10 @@ test.describe('Report wizard expansion — claim warning count (Scenario 6)', ()
 
       await wizard.goNextFromStep3();
       await wizard.step4NextButton.click();
-      await wizard.waitForPreviewReady();
+      await wizard.openPdfPreviewModal();
+      // Story #1900: the PDF preview modal must be closed before opening the claim-confirm
+      // modal — its backdrop would otherwise intercept the Mark Claimed button click below.
+      await wizard.closePdfPreviewModal();
 
       await wizard.clickMarkClaimed();
       await expect(wizard.markClaimedWarningBlock).toBeVisible();

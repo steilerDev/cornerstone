@@ -1,0 +1,233 @@
+/**
+ * ReportContentEditor styles — editable report content with cover letter, table, and footnotes.
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+/* Cover Letter Card */
+.coverLetterCard {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.coverLetterCard h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.letterFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.dateLineField {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-bg-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+}
+
+.dateLineLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.dateLineValue {
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Table Heading */
+.tableHeading {
+  margin: 0 0 var(--spacing-3) 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+/* Table Wrapper (Desktop) */
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.table thead {
+  background-color: var(--color-bg-secondary);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.table th {
+  padding: var(--spacing-3);
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  border-right: 1px solid var(--color-border);
+}
+
+.table th:last-child {
+  border-right: none;
+}
+
+.table td {
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table td:last-child {
+  border-right: none;
+}
+
+.rightAlign {
+  text-align: right;
+}
+
+/* Status badge styles */
+.statusPending {
+  composes: badge from '../Badge/Badge.module.css';
+  background-color: var(--color-status-pending-bg);
+  color: var(--color-status-pending-text);
+}
+
+.statusPaid {
+  composes: badge from '../Badge/Badge.module.css';
+  background-color: var(--color-status-paid-bg);
+  color: var(--color-status-paid-text);
+}
+
+.statusClaimed {
+  composes: badge from '../Badge/Badge.module.css';
+  background-color: var(--color-status-claimed-bg);
+  color: var(--color-status-claimed-text);
+}
+
+.statusQuotation {
+  composes: badge from '../Badge/Badge.module.css';
+  background-color: var(--color-status-quotation-bg);
+  color: var(--color-status-quotation-text);
+}
+
+/* Summary Table */
+.summaryTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-4);
+}
+
+.summaryTable td {
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.summaryLabel {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.summaryAmount {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+/* Footnotes */
+.footnotes {
+  background-color: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.footnotes ul {
+  margin: 0;
+  padding-left: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.footnotes li {
+  display: list-item;
+}
+
+.footnoteMarker {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+/* Mobile Card List */
+.mobileCardList {
+  display: none;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+/* Mobile responsive (767px breakpoint) */
+@media (max-width: 767px) {
+  .table {
+    display: none;
+  }
+
+  .mobileCardList {
+    display: flex;
+  }
+
+  .mobileCard {
+    background-color: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+  }
+
+  .mobileCardRow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+  }
+
+  .mobileCardRow label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-muted);
+  }
+
+  .mobileCardRow span {
+    font-size: var(--font-size-base);
+    color: var(--color-text-primary);
+  }
+}

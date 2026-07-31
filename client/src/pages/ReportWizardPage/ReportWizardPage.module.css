@@ -157,18 +157,6 @@
   gap: var(--spacing-6);
 }
 
-.step4Layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-6);
-}
-
-.step4Column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-4);
-}
-
 .settingsCard {
   background-color: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
@@ -314,18 +302,14 @@
   line-height: 1.5;
 }
 
+.previewModalContent {
+  max-width: 50rem;
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 860px) {
   .useCaseGrid {
     grid-template-columns: 1fr;
-  }
-
-  .step4Layout {
-    grid-template-columns: 1fr;
-  }
-
-  .step4Column {
-    order: 2;
   }
 }
