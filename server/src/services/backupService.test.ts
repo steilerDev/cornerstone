@@ -68,6 +68,7 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   llmMaxTokens: 16384,
   llmProvider: 'generic',
   autoItemizeEnabled: false,
+  llmEnabled: false,
   ...overrides,
 });
 

@@ -45,5 +45,6 @@
   "LLM_INVALID_RESPONSE": "Der Extraktionsdienst hat eine ungültige Antwort zurückgegeben.",
   "LLM_UPSTREAM_ERROR": "Der Extraktionsdienst hat einen Fehler zurückgegeben.",
   "REFUND_EXCEEDS_INVOICE": "Der Rückerstattungsbetrag übersteigt den Rechnungsbetrag.",
-  "INVOICES_NOT_CLAIMABLE": "Eine oder mehrere Rechnungen konnten nicht als eingereicht markiert werden. Sie wurden möglicherweise bereits eingereicht oder befinden sich in einem ungültigen Status."
+  "INVOICES_NOT_CLAIMABLE": "Eine oder mehrere Rechnungen konnten nicht als eingereicht markiert werden. Sie wurden möglicherweise bereits eingereicht oder befinden sich in einem ungültigen Status.",
+  "EMPTY_SELECTION": "Wählen Sie mindestens eine Rechnung aus."
 }

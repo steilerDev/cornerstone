@@ -46,6 +46,8 @@ import type {
   SourceReportResponse,
   MarkClaimedResponse,
   PaperlessStatusResponse,
+  GenerateReportContentResponse,
+  AppConfigResponse,
   ErrorCode,
 } from '@cornerstone/shared';
 import type * as ReportPdfIndexTypes from '../../lib/reportPdf/index.js';
@@ -63,12 +65,31 @@ jest.unstable_mockModule('../../lib/settingsApi.js', () => ({
   fetchHouseholdSettings: mockFetchHouseholdSettings,
 }));
 
+// Story #1901: fetchConfig() is called on mount (Promise.all alongside the other init fetches) to
+// determine llmEnabled. Default resolves with AI disabled — the AI-generation-specific test file
+// (ReportWizardPage.aiGeneration.test.tsx) overrides this to llmEnabled: true.
+const mockFetchConfig = jest.fn<() => Promise<AppConfigResponse>>();
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: mockFetchConfig,
+}));
+
 const mockGetSourceReport =
   jest.fn<(type: string, sourceId: string) => Promise<SourceReportResponse>>();
 const mockMarkInvoicesClaimed = jest.fn<(ids: string[]) => Promise<MarkClaimedResponse>>();
+const mockGenerateReportContent =
+  jest.fn<
+    (body: {
+      type: string;
+      sourceId: string;
+      language: string;
+      includedInvoiceIds: string[];
+      excludedLineIds?: string[];
+    }) => Promise<GenerateReportContentResponse>
+  >();
 jest.unstable_mockModule('../../lib/sourceReportsApi.js', () => ({
   getSourceReport: mockGetSourceReport,
   markInvoicesClaimed: mockMarkInvoicesClaimed,
+  generateReportContent: mockGenerateReportContent,
 }));
 
 const mockGetPaperlessStatus = jest.fn<() => Promise<PaperlessStatusResponse>>();
@@ -114,6 +135,12 @@ beforeEach(async () => {
   mockCreatePreviewUrl.mockImplementation(() => `blob:preview-url-${++previewUrlCallCount}`);
   ({ ReportWizardPage } = await import('./ReportWizardPage.js'));
 
+  mockFetchConfig.mockResolvedValue({
+    currency: 'EUR',
+    vatRate: 0.19,
+    autoItemizeEnabled: false,
+    llmEnabled: false,
+  });
   mockFetchHouseholdSettings.mockResolvedValue({ householdName: null, householdAddress: null });
   mockGetPaperlessStatus.mockResolvedValue({
     configured: false,

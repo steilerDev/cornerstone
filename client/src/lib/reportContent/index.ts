@@ -14,4 +14,5 @@ export type {
 
 export { buildReportContent } from './buildReportContent.js';
 export { applyOverrides } from './applyOverrides.js';
+export { applyAiContent } from './applyAiContent.js';
 export { overrideKey } from './overrideKeys.js';

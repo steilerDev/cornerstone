@@ -10,6 +10,9 @@ import {
   buildRequestBody,
   isOpenAiReasoningModel,
   LLM_PROVIDERS,
+  EXTRACTED_LINES_SCHEMA,
+  MERGE_RESULT_SCHEMA,
+  REPORT_CONTENT_SCHEMA,
 } from './providerProfiles.js';
 
 describe('detectProvider', () => {
@@ -54,10 +57,17 @@ describe('parseProviderEnv', () => {
 });
 
 describe('buildRequestBody', () => {
+  // Story #1901: responseSchema is now a REQUIRED field on RequestBodyInput (each call site
+  // supplies its own schema — extract() -> EXTRACTED_LINES_SCHEMA, summarizeMerge() ->
+  // MERGE_RESULT_SCHEMA, generateReportContent() -> REPORT_CONTENT_SCHEMA). `common` defaults to
+  // EXTRACTED_LINES_SCHEMA (the extract() call site) since that's what the pre-existing tests
+  // below (which don't care about schema selection) were written against; the anthropic-specific
+  // schema-selection regression tests further down override it explicitly per call site.
   const common = {
     model: 'test-model',
     systemPrompt: 'sys',
     userPrompt: 'user',
+    responseSchema: EXTRACTED_LINES_SCHEMA as Record<string, unknown>,
   };
 
   function assertBaseFields(body: Record<string, unknown>) {
@@ -170,6 +180,49 @@ describe('buildRequestBody', () => {
     const body = buildRequestBody({ ...common, provider: 'generic' });
     assertBaseFields(body);
     expect(body.response_format).toBeUndefined();
+  });
+
+  // ─── Story #1901: per-call-site schema selection (bug-fix regression guard) ────────
+  //
+  // Prior to #1901, the anthropic profile hardcoded EXTRACTED_LINES_SCHEMA into every
+  // response_format.json_schema regardless of which method (extract/summarizeMerge/
+  // generateReportContent) was calling buildRequestBody. responseSchema is now a required
+  // input threaded through from each call site — these tests pin that each call site's own
+  // schema (not always EXTRACTED_LINES_SCHEMA) reaches the anthropic wire format.
+  describe('anthropic schema selection is call-site-specific (Story #1901 bug fix)', () => {
+    it('extract() call site (responseSchema: EXTRACTED_LINES_SCHEMA) → anthropic json_schema.name is "extracted_lines"', () => {
+      const body = buildRequestBody({
+        ...common,
+        provider: 'anthropic',
+        responseSchema: EXTRACTED_LINES_SCHEMA,
+      });
+      const rf = body.response_format as { json_schema: { name: string } };
+      expect(rf.json_schema.name).toBe('extracted_lines');
+    });
+
+    it('summarizeMerge() call site (responseSchema: MERGE_RESULT_SCHEMA) → anthropic json_schema.name is "merge_result", NOT "extracted_lines"', () => {
+      const body = buildRequestBody({
+        ...common,
+        provider: 'anthropic',
+        responseSchema: MERGE_RESULT_SCHEMA,
+      });
+      const rf = body.response_format as { json_schema: { name: string; schema: unknown } };
+      expect(rf.json_schema.name).toBe('merge_result');
+      expect(rf.json_schema.name).not.toBe('extracted_lines');
+      expect(rf.json_schema.schema).toEqual(MERGE_RESULT_SCHEMA.schema);
+    });
+
+    it('generateReportContent() call site (responseSchema: REPORT_CONTENT_SCHEMA) → anthropic json_schema.name is "report_content", NOT "extracted_lines"', () => {
+      const body = buildRequestBody({
+        ...common,
+        provider: 'anthropic',
+        responseSchema: REPORT_CONTENT_SCHEMA,
+      });
+      const rf = body.response_format as { json_schema: { name: string; schema: unknown } };
+      expect(rf.json_schema.name).toBe('report_content');
+      expect(rf.json_schema.name).not.toBe('extracted_lines');
+      expect(rf.json_schema.schema).toEqual(REPORT_CONTENT_SCHEMA.schema);
+    });
   });
 
   it('all profiles produce JSON-serializable bodies', () => {

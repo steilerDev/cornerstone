@@ -55,8 +55,13 @@ beforeEach(async () => {
   mockChangeLanguage.mockReset();
   mockChangeLanguage.mockResolvedValue(undefined);
 
-  // Default: fetchConfig returns EUR and autoItemizeEnabled false
-  mockFetchConfig.mockResolvedValue({ currency: 'EUR', vatRate: 0.19, autoItemizeEnabled: false });
+  // Default: fetchConfig returns EUR and autoItemizeEnabled/llmEnabled false
+  mockFetchConfig.mockResolvedValue({
+    currency: 'EUR',
+    vatRate: 0.19,
+    autoItemizeEnabled: false,
+    llmEnabled: false,
+  });
 
   try {
     localStorage.clear();
@@ -169,6 +174,7 @@ describe('LocaleProvider', () => {
         currency: 'CHF',
         vatRate: 0.19,
         autoItemizeEnabled: false,
+        llmEnabled: false,
       });
 
       renderWithProvider();
@@ -196,6 +202,7 @@ describe('LocaleProvider', () => {
         currency: undefined as unknown as string,
         vatRate: 0.19,
         autoItemizeEnabled: false,
+        llmEnabled: false,
       });
 
       renderWithProvider();
@@ -222,6 +229,7 @@ describe('LocaleProvider', () => {
         currency: 'EUR',
         vatRate: 0.2,
         autoItemizeEnabled: false,
+        llmEnabled: false,
       });
 
       renderWithProvider();
@@ -247,6 +255,7 @@ describe('LocaleProvider', () => {
       mockFetchConfig.mockResolvedValue({
         currency: 'EUR',
         autoItemizeEnabled: false,
+        llmEnabled: false,
       } as AppConfigResponse);
 
       renderWithProvider();

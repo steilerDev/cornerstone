@@ -89,3 +89,9 @@ New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + depos
 - `budgetSourceNone`: "None (pro-rated)" → "Keine (anteilig)" — reused "anteilig" from the existing `splitBadge`: "anteilig {{allocated}} von {{total}}" rather than inventing a new word for "pro-rated".
 - `confirmClaimExcludedItemsWarning`: matched the sibling `confirmClaimBody`'s "Rechnung(en)" pluralization-count pattern and "eingereicht" (this locale's established word for "claimed", not "beansprucht").
 - Full flatten-diff parity (0/0) and `i18n.parity.test.ts` (46/46) both green after the change.
+
+## AI/KI + Progress-Label Lessons (Issue #1901, 2026-07-31)
+
+- [AI/KI terminology](ai-ki-terminology.md) — "AI" in user-facing German copy is always "KI", never "AI-…"; a future glossary entry should be "KI-Unterstützung", not "AI-Unterstützung"
+- [Progress/status label style](progress-label-style.md) — two co-existing patterns for "X-ing… (Ns)" labels; pick the closer sibling key as precedent (`autoItemize.analyzing` → "Analysiere… ({{seconds}}s)")
+- [EMPTY_SELECTION backfill](empty-selection-error-code.md) — pre-existing error code with no locale entry in either en or de; verify via server code before assuming a key is "new"

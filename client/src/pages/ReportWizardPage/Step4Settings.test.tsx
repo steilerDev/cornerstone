@@ -4,9 +4,13 @@
  * Covers: the language radio group (literal, non-translated "English"/"Deutsch" labels per
  * ProfilePage precedent — NOT wrapped in t()), checked-state reflecting the reportLanguage prop,
  * onReportLanguageChange wiring, the group's accessible name (aria-labelledby the translated
- * heading), the helper text, and the two document-option toggles ported verbatim from
+ * heading), the helper text, the two document-option toggles ported verbatim from
  * Step4Options.test.tsx (attachDocuments / includeCoverLetter — disabled-with-title-hint cover
- * letter checkbox included) since Step4Settings absorbed them from the old Step4Options.
+ * letter checkbox included) since Step4Settings absorbed them from the old Step4Options, and
+ * (Story #1901) the "Enable AI assistance" toggle — rendered only when llmEnabled is true,
+ * absent entirely (not merely disabled) when llmEnabled is false, per Story #1901's acceptance
+ * criteria ("the AI toggle is either hidden or shown disabled ... it is never presented as
+ * available when it cannot work" — this component's chosen implementation is full removal).
  */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
@@ -26,6 +30,9 @@ function baseProps() {
     includeCoverLetter: false,
     onIncludeCoverLetterChange: jest.fn(),
     coverLetterDisabled: false,
+    llmEnabled: false,
+    aiEnabled: false,
+    onAiEnabledChange: jest.fn(),
     t,
   };
 }
@@ -146,6 +153,70 @@ describe('Step4Settings', () => {
       const cover = screen.getByLabelText('sourceReports.includeCoverLetter') as HTMLInputElement;
       expect(cover.disabled).toBe(false);
       expect(cover).not.toHaveAttribute('title');
+    });
+  });
+
+  // ─── AI assistance toggle (Story #1901) ─────────────────────────────────────
+
+  describe('AI assistance toggle', () => {
+    it('renders the toggle, its label, and helper text when llmEnabled is true', () => {
+      renderStep4Settings({ ...baseProps(), llmEnabled: true });
+      expect(
+        screen.getByLabelText('sourceReports.settingsStep.enableAiAssistance'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('sourceReports.settingsStep.enableAiAssistanceHelper'),
+      ).toBeInTheDocument();
+    });
+
+    it('is absent entirely (not merely disabled) when llmEnabled is false', () => {
+      renderStep4Settings({ ...baseProps(), llmEnabled: false });
+      expect(
+        screen.queryByLabelText('sourceReports.settingsStep.enableAiAssistance'),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('sourceReports.settingsStep.enableAiAssistanceHelper'),
+      ).not.toBeInTheDocument();
+    });
+
+    it("reflects the aiEnabled prop as the checkbox's checked state when llmEnabled is true", () => {
+      renderStep4Settings({ ...baseProps(), llmEnabled: true, aiEnabled: true });
+      const toggle = screen.getByLabelText(
+        'sourceReports.settingsStep.enableAiAssistance',
+      ) as HTMLInputElement;
+      expect(toggle.checked).toBe(true);
+    });
+
+    it('renders unchecked when aiEnabled is false', () => {
+      renderStep4Settings({ ...baseProps(), llmEnabled: true, aiEnabled: false });
+      const toggle = screen.getByLabelText(
+        'sourceReports.settingsStep.enableAiAssistance',
+      ) as HTMLInputElement;
+      expect(toggle.checked).toBe(false);
+    });
+
+    it('calls onAiEnabledChange with the new checked value when toggled on', () => {
+      const onAiEnabledChange = jest.fn();
+      renderStep4Settings({
+        ...baseProps(),
+        llmEnabled: true,
+        aiEnabled: false,
+        onAiEnabledChange,
+      });
+      fireEvent.click(screen.getByLabelText('sourceReports.settingsStep.enableAiAssistance'));
+      expect(onAiEnabledChange).toHaveBeenCalledWith(true);
+    });
+
+    it('calls onAiEnabledChange with false when toggled off', () => {
+      const onAiEnabledChange = jest.fn();
+      renderStep4Settings({
+        ...baseProps(),
+        llmEnabled: true,
+        aiEnabled: true,
+        onAiEnabledChange,
+      });
+      fireEvent.click(screen.getByLabelText('sourceReports.settingsStep.enableAiAssistance'));
+      expect(onAiEnabledChange).toHaveBeenCalledWith(false);
     });
   });
 });

@@ -2,12 +2,18 @@
  * Unit tests for client/src/lib/sourceReportsApi.ts
  *
  * Covers: getSourceReport's envelope unwrap ({ report }) and query-string encoding,
- * markInvoicesClaimed's unwrapped (non-enveloped) response passthrough.
+ * markInvoicesClaimed's unwrapped (non-enveloped) response passthrough, and (Story #1901)
+ * generateReportContent's POST body passthrough and unwrapped response.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import type * as SourceReportsApiModule from './sourceReportsApi.js';
 import type * as ApiClientTypes from './apiClient.js';
-import type { SourceReportResponse, MarkClaimedResponse } from '@cornerstone/shared';
+import type {
+  SourceReportResponse,
+  MarkClaimedResponse,
+  GenerateReportContentRequest,
+  GenerateReportContentResponse,
+} from '@cornerstone/shared';
 
 const mockGet = jest.fn<typeof ApiClientTypes.get>();
 const mockPost = jest.fn<typeof ApiClientTypes.post>();
@@ -123,5 +129,79 @@ describe('markInvoicesClaimed', () => {
     mockPost.mockRejectedValueOnce(err);
 
     await expect(sourceReportsApi.markInvoicesClaimed(['inv-1'])).rejects.toThrow('409 Conflict');
+  });
+});
+
+describe('generateReportContent (Story #1901)', () => {
+  const requestBody: GenerateReportContentRequest = {
+    type: 'claim',
+    sourceId: 'src-1',
+    language: 'en',
+    includedInvoiceIds: ['inv-1', 'inv-2'],
+    excludedLineIds: ['line-a'],
+  };
+
+  const responseBody: GenerateReportContentResponse = {
+    letterSubject: 'Financial Report',
+    letterBody: 'Dear Sir or Madam,',
+    descriptions: { 'inv-1': 'Foundation work', 'inv-2': 'Roofing' },
+  };
+
+  it('calls POST /source-reports/generate-content with the request body verbatim', async () => {
+    mockPost.mockResolvedValueOnce(responseBody);
+
+    await sourceReportsApi.generateReportContent(requestBody);
+
+    expect(mockPost).toHaveBeenCalledWith('/source-reports/generate-content', requestBody);
+  });
+
+  it('returns the response unwrapped (not enveloped)', async () => {
+    mockPost.mockResolvedValueOnce(responseBody);
+
+    const result = await sourceReportsApi.generateReportContent(requestBody);
+
+    expect(result).toEqual(responseBody);
+  });
+
+  it('passes a request without excludedLineIds through unchanged (optional field omitted)', async () => {
+    const { excludedLineIds: _excludedLineIds, ...bodyWithoutExclusions } = requestBody;
+    mockPost.mockResolvedValueOnce(responseBody);
+
+    await sourceReportsApi.generateReportContent(bodyWithoutExclusions);
+
+    expect(mockPost).toHaveBeenCalledWith(
+      '/source-reports/generate-content',
+      bodyWithoutExclusions,
+    );
+  });
+
+  it.each(['budget-overview', 'claim', 'proof-of-funds'] as const)(
+    'passes the "%s" report type through verbatim',
+    async (type) => {
+      mockPost.mockResolvedValueOnce(responseBody);
+      await sourceReportsApi.generateReportContent({ ...requestBody, type });
+      expect(mockPost).toHaveBeenCalledWith('/source-reports/generate-content', {
+        ...requestBody,
+        type,
+      });
+    },
+  );
+
+  it.each(['en', 'de'] as const)('passes the "%s" language through verbatim', async (language) => {
+    mockPost.mockResolvedValueOnce(responseBody);
+    await sourceReportsApi.generateReportContent({ ...requestBody, language });
+    expect(mockPost).toHaveBeenCalledWith('/source-reports/generate-content', {
+      ...requestBody,
+      language,
+    });
+  });
+
+  it('propagates rejection from the underlying post() (e.g. 400 EMPTY_SELECTION or 503 LLM_NOT_CONFIGURED)', async () => {
+    const err = new Error('503 Service Unavailable');
+    mockPost.mockRejectedValueOnce(err);
+
+    await expect(sourceReportsApi.generateReportContent(requestBody)).rejects.toThrow(
+      '503 Service Unavailable',
+    );
   });
 });

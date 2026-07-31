@@ -1,18 +1,29 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { BudgetSource, SourceReportType, HouseholdSettings } from '@cornerstone/shared';
+import type {
+  BudgetSource,
+  SourceReportType,
+  HouseholdSettings,
+  GenerateReportContentResponse,
+} from '@cornerstone/shared';
 import i18n from '../../i18n/index.js';
 import { useLocale, type ResolvedLocale } from '../../contexts/LocaleContext.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchHouseholdSettings } from '../../lib/settingsApi.js';
-import { getSourceReport, markInvoicesClaimed } from '../../lib/sourceReportsApi.js';
+import { fetchConfig } from '../../lib/configApi.js';
+import {
+  getSourceReport,
+  markInvoicesClaimed,
+  generateReportContent,
+} from '../../lib/sourceReportsApi.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { createFormatters } from '../../lib/formatters.js';
 import { applyLineExclusions } from '../../lib/reportExclusions.js';
 import {
   buildReportContent,
   applyOverrides,
+  applyAiContent,
   type ReportContent,
   type ReportContentOverrides,
 } from '../../lib/reportContent/index.js';
@@ -32,6 +43,7 @@ import { WizardStepper, type WizardStep } from '../../components/WizardStepper/i
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
+import { Spinner } from '../../components/Spinner/Spinner.js';
 import { ReportInvoiceList } from '../../components/reports/ReportInvoiceList.js';
 import { ReportPdfPreview } from '../../components/reports/ReportPdfPreview.js';
 import { ReportContentEditor } from '../../components/reports/ReportContentEditor.js';
@@ -69,6 +81,18 @@ export function ReportWizardPage() {
   // Budget sources
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
   const [sourcesStatus, setSourcesStatus] = useState<PageStatus>('loading');
+
+  // LLM configuration
+  const [llmEnabled, setLlmEnabled] = useState(false);
+
+  // AI generation state
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiContent, setAiContent] = useState<GenerateReportContentResponse | null>(null);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiElapsed, setAiElapsed] = useState(0);
+  const [aiError, setAiError] = useState<string>('');
+  const [showAiOverwriteConfirm, setShowAiOverwriteConfirm] = useState(false);
+  const pendingAiGenerationRef = useRef<(() => void) | null>(null);
 
   // Step 2 amounts
   const [step2Amounts, setStep2Amounts] = useState<Map<string, number>>(new Map());
@@ -133,14 +157,16 @@ export function ReportWizardPage() {
   useEffect(() => {
     const init = async () => {
       try {
-        const [sources, settings, status] = await Promise.all([
+        const [sources, settings, status, config] = await Promise.all([
           fetchBudgetSources(),
           fetchHouseholdSettings(),
           getPaperlessStatus(),
+          fetchConfig(),
         ]);
         setBudgetSources(sources.budgetSources);
         setHousehold(settings);
         setPaperlessStatus(status);
+        setLlmEnabled(config.llmEnabled);
         setSourcesStatus('ready');
       } catch {
         setSourcesStatus('error');
@@ -149,13 +175,14 @@ export function ReportWizardPage() {
     void init();
   }, []);
 
-  // Guard for mutations: if overrides exist, commit & show confirm modal; else apply change immediately
+  // Guard for mutations: if overrides or aiContent exist, commit & show confirm modal; else apply change immediately
   const guardedUpdate = useCallback(
     (applyChange: () => void) => {
-      const isDirty = Object.keys(overrides).length > 0;
+      const isDirty = Object.keys(overrides).length > 0 || aiContent !== null;
       if (isDirty) {
         pendingChangeRef.current = () => {
           setOverrides({});
+          setAiContent(null);
           applyChange();
         };
         setShowDiscardConfirm(true);
@@ -163,7 +190,7 @@ export function ReportWizardPage() {
         applyChange();
       }
     },
-    [overrides],
+    [overrides, aiContent],
   );
 
   // Handle use case selection
@@ -238,7 +265,7 @@ export function ReportWizardPage() {
     [reportLanguage, currency],
   );
 
-  // Baseline content (no overrides applied)
+  // Baseline content (with AI content applied, no manual overrides applied)
   const baselineContent = useMemo<ReportContent | null>(() => {
     if (!report || !useCase) return null;
 
@@ -249,7 +276,7 @@ export function ReportWizardPage() {
         .map((inv) => inv.invoiceId),
     );
 
-    return buildReportContent(
+    const derived = buildReportContent(
       effectiveReport,
       includedInvoiceIds,
       useCase,
@@ -257,6 +284,8 @@ export function ReportWizardPage() {
       reportFormatters,
       { includeCoverLetter, household },
     );
+
+    return applyAiContent(derived, aiContent);
   }, [
     report,
     useCase,
@@ -266,6 +295,7 @@ export function ReportWizardPage() {
     reportFormatters,
     includeCoverLetter,
     household,
+    aiContent,
   ]);
 
   // Effective content (with overrides applied)
@@ -441,6 +471,20 @@ export function ReportWizardPage() {
     }
   };
 
+  // AI elapsed timer effect
+  useEffect(() => {
+    if (!isGeneratingAi) {
+      setAiElapsed(0);
+      return;
+    }
+
+    const id = setInterval(() => {
+      setAiElapsed((n) => n + 1);
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, [isGeneratingAi]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -459,6 +503,61 @@ export function ReportWizardPage() {
       });
     }
   }, [currentStep]);
+
+  // Run AI generation
+  const runAiGeneration = useCallback(async () => {
+    if (!report || !useCase) return;
+
+    const effectiveReport = applyLineExclusions(report, excludedLineIds);
+    const includedInvoiceIds = Array.from(
+      new Set(
+        effectiveReport.invoices
+          .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
+          .map((inv) => inv.invoiceId),
+      ),
+    );
+
+    if (includedInvoiceIds.length === 0) {
+      setAiError(tErrors('EMPTY_SELECTION'));
+      return;
+    }
+
+    setIsGeneratingAi(true);
+    setAiError('');
+
+    try {
+      const result = await generateReportContent({
+        type: useCase,
+        sourceId: sourceId!,
+        language: reportLanguage,
+        includedInvoiceIds,
+        excludedLineIds: Array.from(excludedLineIds),
+      });
+
+      setAiContent(result);
+      setOverrides({});
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setAiError(translateApiError(err.error.code, tErrors));
+      } else {
+        setAiError(t('sourceReports.editable.aiGenerationFailed'));
+      }
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  }, [report, useCase, excludedLineIds, excludedInvoiceIds, sourceId, reportLanguage, t, tErrors]);
+
+  // Handle generate with AI button click
+  const handleGenerateWithAiClick = useCallback(() => {
+    const isDirty = Object.keys(overrides).length > 0;
+
+    if (isDirty) {
+      pendingAiGenerationRef.current = runAiGeneration;
+      setShowAiOverwriteConfirm(true);
+    } else {
+      void runAiGeneration();
+    }
+  }, [overrides, runAiGeneration]);
 
   const steps: WizardStep[] = [
     { id: 'use-case', label: t('sourceReports.stepper.useCase') },
@@ -675,6 +774,9 @@ export function ReportWizardPage() {
                 guardedUpdate(() => setIncludeCoverLetter(value));
               }}
               coverLetterDisabled={coverLetterDisabled}
+              llmEnabled={llmEnabled}
+              aiEnabled={aiEnabled}
+              onAiEnabledChange={(value) => setAiEnabled(value)}
               t={t}
             />
             <div className={styles.buttonRow}>
@@ -709,6 +811,39 @@ export function ReportWizardPage() {
             >
               {steps[4]?.label}
             </h2>
+
+            {/* AI Generation row (only when AI is enabled) */}
+            {aiEnabled && (
+              <div className={styles.aiGenerateRow}>
+                <button
+                  type="button"
+                  className={sharedStyles.btnSecondary}
+                  onClick={handleGenerateWithAiClick}
+                  disabled={isGeneratingAi}
+                >
+                  {isGeneratingAi && (
+                    <span aria-hidden="true">
+                      <Spinner size="sm" color="muted" />
+                    </span>
+                  )}
+                  {t('sourceReports.editable.generateWithAi')}
+                </button>
+
+                {isGeneratingAi && (
+                  <p className={styles.aiGeneratingCaption} aria-live="polite">
+                    {t('sourceReports.editable.generating', { seconds: aiElapsed })}
+                  </p>
+                )}
+
+                {aiError && <FormError message={aiError} />}
+
+                {aiContent && !isGeneratingAi && (
+                  <p className={styles.aiGeneratedNote}>
+                    {t('sourceReports.editable.aiGeneratedNote')}
+                  </p>
+                )}
+              </div>
+            )}
 
             <ReportContentEditor
               content={effectiveContent}
@@ -911,6 +1046,44 @@ export function ReportWizardPage() {
               ))}
             </div>
           )}
+        </Modal>
+      )}
+
+      {/* AI overwrite confirmation modal */}
+      {showAiOverwriteConfirm && (
+        <Modal
+          title={t('sourceReports.editable.aiOverwriteConfirmTitle')}
+          onClose={() => {
+            setShowAiOverwriteConfirm(false);
+            pendingAiGenerationRef.current = null;
+          }}
+          footer={
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={sharedStyles.btnPrimary}
+                onClick={() => {
+                  setShowAiOverwriteConfirm(false);
+                  pendingAiGenerationRef.current?.();
+                  pendingAiGenerationRef.current = null;
+                }}
+              >
+                {t('sourceReports.editable.aiOverwriteAndGenerate')}
+              </button>
+              <button
+                type="button"
+                className={sharedStyles.btnSecondary}
+                onClick={() => {
+                  setShowAiOverwriteConfirm(false);
+                  pendingAiGenerationRef.current = null;
+                }}
+              >
+                {t('sourceReports.editable.keepEditing')}
+              </button>
+            </div>
+          }
+        >
+          <p>{t('sourceReports.editable.aiOverwriteConfirmBody')}</p>
         </Modal>
       )}
     </PageLayout>

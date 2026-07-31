@@ -6,7 +6,7 @@
 import { inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { invoices, work_items, household_items } from '../db/schema.js';
+import { invoices, workItems, householdItems } from '../db/schema.js';
 import type { GenerateReportContentRequest } from '@cornerstone/shared';
 import type {
   GenerateReportContentLlmInput,
@@ -88,9 +88,14 @@ export async function generateReportContent(
     .map((inv) => inv.invoiceId);
 
   // Fetch invoices for notes
-  const invoicesData = db.all<{ id: string; notes: string | null }>(
-    inArray(invoices.id, invoiceIds),
-  );
+  const invoicesData =
+    invoiceIds.length > 0
+      ? db
+          .select({ id: invoices.id, notes: invoices.notes })
+          .from(invoices)
+          .where(inArray(invoices.id, invoiceIds))
+          .all()
+      : [];
   const invoicesNotesMap = new Map(invoicesData.map((inv) => [inv.id, inv.notes]));
 
   // Collect linked item IDs from non-excluded budget lines
@@ -114,7 +119,11 @@ export async function generateReportContent(
   );
   const workItemsData =
     workItemIds.length > 0
-      ? db.all<{ id: string; description: string | null }>(inArray(work_items.id, workItemIds))
+      ? db
+          .select({ id: workItems.id, description: workItems.description })
+          .from(workItems)
+          .where(inArray(workItems.id, workItemIds))
+          .all()
       : [];
   const workItemsDescMap = new Map(workItemsData.map((wi) => [wi.id, wi.description]));
 
@@ -124,9 +133,11 @@ export async function generateReportContent(
   );
   const householdItemsData =
     householdItemIds.length > 0
-      ? db.all<{ id: string; description: string | null }>(
-          inArray(household_items.id, householdItemIds),
-        )
+      ? db
+          .select({ id: householdItems.id, description: householdItems.description })
+          .from(householdItems)
+          .where(inArray(householdItems.id, householdItemIds))
+          .all()
       : [];
   const householdItemsDescMap = new Map(householdItemsData.map((hi) => [hi.id, hi.description]));
 

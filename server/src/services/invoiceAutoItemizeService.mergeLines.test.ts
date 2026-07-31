@@ -65,6 +65,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmMaxTokens: 16384,
     llmProvider: 'openai',
     autoItemizeEnabled: true,
+    llmEnabled: true,
     ...overrides,
   };
 }

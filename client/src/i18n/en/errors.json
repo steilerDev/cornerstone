@@ -45,5 +45,6 @@
   "LLM_INVALID_RESPONSE": "The extraction service returned an invalid response.",
   "LLM_UPSTREAM_ERROR": "The extraction service returned an error.",
   "REFUND_EXCEEDS_INVOICE": "Refund amount exceeds the invoice total.",
-  "INVOICES_NOT_CLAIMABLE": "One or more invoices could not be marked as claimed. They may have already been claimed or are in an invalid state."
+  "INVOICES_NOT_CLAIMABLE": "One or more invoices could not be marked as claimed. They may have already been claimed or are in an invalid state.",
+  "EMPTY_SELECTION": "Select at least one invoice."
 }
