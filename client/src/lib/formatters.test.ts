@@ -15,6 +15,7 @@ import {
   formatHours,
   formatDateTimeWithZone,
   useFormatters,
+  createFormatters,
 } from './formatters.js';
 import { LocaleProvider } from '../contexts/LocaleContext.js';
 
@@ -736,5 +737,136 @@ describe('formatDateTimeWithZone', () => {
   it('includes hour and minute in 2-digit form', () => {
     const result = formatDateTimeWithZone(fixedDate, 'en-US');
     expect(result).toMatch(/\d{1,2}:\d{2}/);
+  });
+});
+
+// ─── createFormatters (Story #1899) ────────────────────────────────────────────
+//
+// createFormatters(locale, currency) is the locale/currency-bound factory used both by
+// useFormatters() (app-wide UI, driven by LocaleContext) and directly by ReportWizardPage (the
+// per-report "reportLanguage" selection, independent of the app's ambient locale). These tests
+// confirm every one of the 11 bound closures is a byte-for-byte delegate to the corresponding raw
+// function, and that useFormatters() itself is just createFormatters() called with the resolved
+// locale/currency from context — not a parallel, potentially-diverging implementation.
+
+describe('createFormatters', () => {
+  describe('parity with the raw formatter functions (en-US / EUR)', () => {
+    const bound = createFormatters('en-US', 'EUR');
+
+    it('formatCurrency matches formatCurrency(amount, locale, currency)', () => {
+      expect(bound.formatCurrency(1234.56)).toBe(formatCurrency(1234.56, 'en-US', 'EUR'));
+    });
+
+    it('getCurrencySymbol matches getCurrencySymbol(currency, locale)', () => {
+      expect(bound.getCurrencySymbol()).toBe(getCurrencySymbol('EUR', 'en-US'));
+    });
+
+    it('formatDate matches formatDate(dateStr, locale, fallback, monthStyle)', () => {
+      expect(bound.formatDate('2026-03-15')).toBe(formatDate('2026-03-15', 'en-US'));
+      expect(bound.formatDate(null, 'N/A')).toBe(formatDate(null, 'en-US', 'N/A'));
+      expect(bound.formatDate('2026-03-15', undefined, 'long')).toBe(
+        formatDate('2026-03-15', 'en-US', undefined, 'long'),
+      );
+    });
+
+    it('formatTime matches formatTime(timestamp, locale, fallback)', () => {
+      expect(bound.formatTime('2026-03-15T14:30:00')).toBe(
+        formatTime('2026-03-15T14:30:00', 'en-US'),
+      );
+    });
+
+    it('formatDateTime matches formatDateTime(timestamp, locale, fallback)', () => {
+      expect(bound.formatDateTime('2026-03-15T14:30:00')).toBe(
+        formatDateTime('2026-03-15T14:30:00', 'en-US'),
+      );
+    });
+
+    it('formatPercent matches formatPercent(rate, locale, digits)', () => {
+      expect(bound.formatPercent(3.5)).toBe(formatPercent(3.5, 'en-US'));
+      expect(bound.formatPercent(90, 0)).toBe(formatPercent(90, 'en-US', 0));
+    });
+
+    it('formatWeekdayShort matches formatWeekdayShort(date, locale)', () => {
+      const monday = new Date(2026, 4, 25);
+      expect(bound.formatWeekdayShort(monday)).toBe(formatWeekdayShort(monday, 'en-US'));
+    });
+
+    it('formatWeekdayMonthDay matches formatWeekdayMonthDay(date, locale)', () => {
+      const date = new Date(2026, 1, 24);
+      expect(bound.formatWeekdayMonthDay(date)).toBe(formatWeekdayMonthDay(date, 'en-US'));
+    });
+
+    it('formatFileSize matches formatFileSize(bytes, locale)', () => {
+      expect(bound.formatFileSize(1572864)).toBe(formatFileSize(1572864, 'en-US'));
+    });
+
+    it('formatHours matches formatHours(hours, locale)', () => {
+      expect(bound.formatHours(7.5)).toBe(formatHours(7.5, 'en-US'));
+    });
+
+    it('formatDateTimeWithZone matches formatDateTimeWithZone(date, locale)', () => {
+      const date = new Date(2026, 1, 24, 14, 45);
+      expect(bound.formatDateTimeWithZone(date)).toBe(formatDateTimeWithZone(date, 'en-US'));
+    });
+  });
+
+  describe('parity with the raw formatter functions (de-DE / EUR)', () => {
+    const bound = createFormatters('de-DE', 'EUR');
+
+    it('formatCurrency uses German thousands/decimal separators, matching the raw function', () => {
+      expect(bound.formatCurrency(1234.56)).toBe(formatCurrency(1234.56, 'de-DE', 'EUR'));
+      expect(bound.formatCurrency(1234.56)).toContain('1.234,56');
+    });
+
+    it('formatDate resolves the German month abbreviation, matching the raw function', () => {
+      expect(bound.formatDate('2026-03-15')).toBe(formatDate('2026-03-15', 'de-DE'));
+      expect(bound.formatDate('2026-03-15').toLowerCase()).toMatch(/m[äa]r/);
+    });
+
+    it('formatPercent uses a comma decimal separator, matching the raw function', () => {
+      expect(bound.formatPercent(3.5)).toBe(formatPercent(3.5, 'de-DE'));
+      expect(bound.formatPercent(3.5)).toContain(',');
+    });
+  });
+
+  it('binds each locale/currency independently — two instances do not share state', () => {
+    const en = createFormatters('en-US', 'EUR');
+    const de = createFormatters('de-DE', 'USD');
+    expect(en.formatCurrency(100)).toContain('€');
+    expect(de.formatCurrency(100)).toContain('$');
+  });
+
+  describe('useFormatters() is a thin delegate to createFormatters() (no divergent logic)', () => {
+    function renderFormatters() {
+      return renderHook(() => useFormatters(), {
+        wrapper: ({ children }: { children: ReactNode }) =>
+          createElement(LocaleProvider, null, children),
+      });
+    }
+
+    it('produces output identical to createFormatters("en-US", "EUR") for the default (unauthenticated, no stored preference) locale/currency', () => {
+      const { result } = renderFormatters();
+      const direct = createFormatters('en-US', 'EUR');
+
+      expect(result.current.formatCurrency(1234.56)).toBe(direct.formatCurrency(1234.56));
+      expect(result.current.getCurrencySymbol()).toBe(direct.getCurrencySymbol());
+      expect(result.current.formatDate('2026-03-15')).toBe(direct.formatDate('2026-03-15'));
+      expect(result.current.formatPercent(3.5)).toBe(direct.formatPercent(3.5));
+      expect(result.current.formatHours(7.5)).toBe(direct.formatHours(7.5));
+    });
+
+    it('produces output identical to createFormatters("de-DE", "EUR") when the stored locale preference is "de"', () => {
+      localStorage.setItem('locale', 'de');
+      try {
+        const { result } = renderFormatters();
+        const direct = createFormatters('de-DE', 'EUR');
+
+        expect(result.current.formatCurrency(1234.56)).toBe(direct.formatCurrency(1234.56));
+        expect(result.current.formatDate('2026-03-15')).toBe(direct.formatDate('2026-03-15'));
+        expect(result.current.formatPercent(3.5)).toBe(direct.formatPercent(3.5));
+      } finally {
+        localStorage.removeItem('locale');
+      }
+    });
   });
 });

@@ -1107,10 +1107,15 @@
       "useCase": "Berichtsart",
       "source": "Budgetquelle",
       "invoices": "Rechnungen auswählen",
+      "settings": "Einstellungen",
       "options": "Vorschau & Export"
     },
     "stepperAriaLabel": "Schritte des Berichtsassistenten",
     "mobileStepLabel": "Schritt {{current}} von {{total}}",
+    "settingsStep": {
+      "languageHeading": "Berichtssprache",
+      "languageHelper": "Betrifft nur den exportierten Bericht – die Sprache der App bleibt unverändert."
+    },
     "useCaseLabel": "Welchen Bericht benötigen Sie?",
     "useCase": {
       "budget-overview": "Budgetübersicht",

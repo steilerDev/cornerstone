@@ -80,6 +80,7 @@ When a PR adds a mobile card list beside a desktop table, re-check rather than a
 - **Duplicate fetch logic** — `useEffect` fetch body duplicated for re-fetch after delete; extract shared fetch.
 - **Dead placeholder pages after route refactor** — PR #150 left old BudgetPage after swapping to BudgetCategoriesPage. Delete orphans.
 - **COOKIE_NAME duplication** — triplicated across `plugins/auth.ts`, `routes/auth.ts`, `routes/oidc.ts`. Extract to shared constant.
+- **`useState(contextValue)` seeding from LocaleContext/ThemeContext is stale-prone** — `useState(resolvedLocale)` only runs its initializer on first render, but `LocaleContext.syncWithServer` (fired from `App.tsx`'s `LocaleServerSync` after auth) applies the server-stored locale *asynchronously* AND clears `localStorage`, so every later hard load starts at the browser-detected locale before flipping. Any page seeding state from `resolvedLocale`/`currency`/`vatRate` at mount can capture the pre-sync value and never correct. Fix pattern: `const [override, setOverride] = useState<T | null>(null); const value = override ?? contextValue;` — default tracks context, explicit choice sticks. Found in PR #1903 (AC "defaults to my current UI locale"). Same class of bug applies to `ThemeContext.syncWithServer`.
 
 ## Chore/Maintenance PR patterns
 

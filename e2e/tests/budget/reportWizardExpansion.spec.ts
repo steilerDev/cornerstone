@@ -54,7 +54,7 @@
  * data-integrity one. Scenario 4 below is the regression guard for this fix.
  *
  * PDF generation (pdfmake + pdf-lib via dynamic `import()`) can be slow, especially on a cold
- * chunk load — every scenario that reaches Step 4 uses `test.slow()`.
+ * chunk load — every scenario that reaches step 5 (the preview) uses `test.slow()`.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -250,6 +250,8 @@ test.describe('Report wizard expansion — CSP frame-src headline (Scenario 1)',
         wizard.regularInvoiceRow(`${testPrefix} CSP Vendor`, invoice.invoiceNumber!),
       ).toBeVisible();
       await wizard.goNextFromStep3();
+      // Step 4 (Settings) has no preview — advance to step 5 to reach it (Story #1899).
+      await wizard.step4NextButton.click();
 
       // waitForPreviewReady() already runs the hardened CSP-header + zero-CSP-message proof
       // internally (see ReportWizardPage.ts's assertPreviewHardened docstring) — this scenario
@@ -428,14 +430,17 @@ test.describe('Report wizard expansion — line exclusion updates row, total, an
         wizard.itemRow(vendorName, invoice.invoiceNumber!, `${testPrefix} Line B`),
       ).toContainText('200');
 
-      // Reach step 4 once to capture a baseline preview src.
+      // Reach step 5 once (via the Settings step, which has no preview — Story #1899) to
+      // capture a baseline preview src.
       await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
       await wizard.waitForPreviewReady();
       const previousSrc = await wizard.getPreviewSrc();
 
-      // Back to step 3 — ReportInvoiceList remounts (resetting local expand state) but
-      // excludedLineIds/excludedInvoiceIds live in ReportWizardPage and persist across the
-      // step navigation.
+      // Back to step 3 (two steps: step 5 -> Settings -> invoices) — ReportInvoiceList
+      // remounts (resetting local expand state) but excludedLineIds/excludedInvoiceIds live in
+      // ReportWizardPage and persist across the step navigation.
+      await wizard.goBack();
       await wizard.goBack();
       await wizard.invoiceExpandToggle(vendorName, invoice.invoiceNumber!).click();
       await wizard
@@ -449,9 +454,10 @@ test.describe('Report wizard expansion — line exclusion updates row, total, an
       // Running total in the SelectionActionBar reflects the same 500 -> 300 drop.
       await expect(wizard.selectionCountLabel).toContainText('300');
 
-      // Advancing to step 4 again proves the PDF preview regenerated for the new exclusion
-      // state (new blob: src, hardened frame-navigation + zero-CSP proof).
+      // Advancing to step 5 again (via Settings) proves the PDF preview regenerated for the
+      // new exclusion state (new blob: src, hardened frame-navigation + zero-CSP proof).
       await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
       await wizard.waitForPreviewRegenerated(previousSrc);
     } finally {
       if (workItemAId) await deleteWorkItemViaApi(page, workItemAId);
@@ -691,6 +697,7 @@ test.describe('Report wizard expansion — claim warning count (Scenario 6)', ()
       );
 
       await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
       await wizard.waitForPreviewReady();
 
       await wizard.clickMarkClaimed();

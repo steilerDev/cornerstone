@@ -14,7 +14,7 @@
  * non-`ApiClientError` failures fall back to the page's own `sourceReports.claimFailed` /
  * `sourceReports.uploadFailed` budget-namespace keys.
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MemoryRouter } from 'react-router-dom';
@@ -28,6 +28,7 @@ import type {
   ErrorCode,
 } from '@cornerstone/shared';
 import type * as ReportPdfIndexTypes from '../../lib/reportPdf/index.js';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -77,13 +78,10 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
   useToast: () => ({ toasts: [], showToast: mockShowToast, dismissToast: jest.fn() }),
 }));
 
-jest.unstable_mockModule('../../lib/formatters.js', () => ({
-  useFormatters: () => ({
-    formatCurrency: (n: number) => `€${n.toFixed(2)}`,
-    formatDate: (d: string) => d,
-    formatPercent: (n: number) => `${n}%`,
-  }),
-}));
+// formatters.js is intentionally NOT mocked: production now calls createFormatters(...) directly
+// (not the useFormatters() hook), and the QA spec asks for the real formatter implementation to
+// run end-to-end so the "generateReportPdf receives real, locale-bound formatters" and "language
+// change resolves real German copy" tests exercise genuine behavior rather than a stub.
 
 let ReportWizardPage: React.ComponentType;
 
@@ -123,10 +121,19 @@ afterEach(() => {
 });
 
 function renderPage(initialEntries: string[] = ['/budget/reports']) {
+  // ReportWizardPage now calls useLocale() directly (for resolvedLocale/currency, used to seed
+  // reportLanguage and build reportFormatters), so it must be wrapped in a real LocaleProvider.
+  // LocaleProvider's own fetchConfig() call targets a relative '/config' URL that is invalid for
+  // the global fetch in jsdom/Node and rejects asynchronously, silently caught internally — so
+  // currency/locale stay at their synchronous defaults (EUR / resolvedLocale 'en', since jsdom's
+  // navigator.language is 'en-US') for the duration of every test (see formatters.test.ts for the
+  // same documented behavior).
   return render(
-    <MemoryRouter initialEntries={initialEntries}>
-      <ReportWizardPage />
-    </MemoryRouter>,
+    <LocaleProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <ReportWizardPage />
+      </MemoryRouter>
+    </LocaleProvider>,
   );
 }
 
@@ -228,7 +235,15 @@ async function goToStep3(user: ReturnType<typeof userEvent.setup>, useCaseIndex 
 
 async function goToStep4(user: ReturnType<typeof userEvent.setup>, useCaseIndex = 1) {
   await goToStep3(user, useCaseIndex);
-  await clickNext(user); // step 3 -> 4
+  await clickNext(user); // step 3 -> 4 (Settings: language + document options)
+}
+
+// Step 5 (Preview & Export: download/claim/upload actions + the PDF preview panel) is the step
+// that used to be step 4 before Story #1899 inserted the Settings step. Any test asserting on
+// download/claim/upload/preview/skipped-document DOM must reach step 5, not step 4.
+async function goToStep5(user: ReturnType<typeof userEvent.setup>, useCaseIndex = 1) {
+  await goToStep4(user, useCaseIndex);
+  await clickNext(user); // step 4 -> 5
 }
 
 describe('ReportWizardPage', () => {
@@ -397,7 +412,11 @@ describe('ReportWizardPage', () => {
     expect(mockCreatePreviewUrl).toHaveBeenCalledTimes(1);
   });
 
-  it("calls generateReportPdf with the page's formatters object as the 7th (final) argument", async () => {
+  it('calls generateReportPdf with a REAL, locale-bound formatters object as the 7th (final) argument', async () => {
+    // formatters.js is unmocked in this file (see the comment near the top) — ReportWizardPage
+    // builds reportFormatters via createFormatters(reportLanguage === 'de' ? 'de-DE' : 'en-US',
+    // currency), so the object passed through must be the genuine 11-formatter shape, actually
+    // bound to en-US (the default resolvedLocale in this jsdom test environment).
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
     mockGetSourceReport.mockResolvedValue(makeReport());
     mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
@@ -410,13 +429,31 @@ describe('ReportWizardPage', () => {
 
     const callArgs = mockGenerateReportPdf.mock.calls[0]!;
     expect(callArgs).toHaveLength(7);
-    // Matches the useFormatters() mock configured at the top of this file.
-    expect(callArgs[6]).toEqual(
+    const formatters = callArgs[6] as {
+      formatCurrency: (n: number) => string;
+      getCurrencySymbol: () => string;
+      formatDate: (d: string | null | undefined) => string;
+      formatPercent: (n: number) => string;
+    };
+    expect(formatters).toEqual(
       expect.objectContaining({
         formatCurrency: expect.any(Function),
+        getCurrencySymbol: expect.any(Function),
         formatDate: expect.any(Function),
+        formatTime: expect.any(Function),
+        formatDateTime: expect.any(Function),
+        formatPercent: expect.any(Function),
+        formatWeekdayShort: expect.any(Function),
+        formatWeekdayMonthDay: expect.any(Function),
+        formatFileSize: expect.any(Function),
+        formatHours: expect.any(Function),
+        formatDateTimeWithZone: expect.any(Function),
       }),
     );
+    // Exercise the real closures to confirm they're bound to en-US/EUR, not just present.
+    expect(formatters.formatCurrency(1234.56)).toContain('1,234.56');
+    expect(formatters.getCurrencySymbol()).toBe('€');
+    expect(formatters.formatDate('2026-03-15')).toContain('Mar');
   });
 
   it('does not keep re-triggering generateReportPdf once settled (no runaway regeneration loop)', async () => {
@@ -446,7 +483,7 @@ describe('ReportWizardPage', () => {
     expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1);
   });
 
-  it('disables Step4 actions after a failed regeneration invalidates the previous blob', async () => {
+  it('disables Step5 actions after a failed regeneration invalidates the previous blob', async () => {
     mockFetchBudgetSources.mockResolvedValue({
       budgetSources: [makeSource({ contactAddress: '123 Bank St' })],
     });
@@ -457,13 +494,21 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
     expect(screen.getByRole('button', { name: 'Download PDF' })).toBeEnabled();
 
+    // The cover-letter toggle now lives on the Settings step (4), not the Preview & Export step
+    // (5) that the download button is on — go back to reach it. Regeneration is triggered by the
+    // debounced effect regardless of which step is currently visible.
+    await user.click(screen.getByRole('button', { name: 'Back' }));
     const coverLetterCheckbox = screen.getByLabelText('Include cover letter');
     await user.click(coverLetterCheckbox);
 
+    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), { timeout: 2000 });
+
+    // Forward again to Preview & Export, where the failure banner and action buttons live.
+    await clickNext(user);
     await waitFor(
       () => {
         expect(screen.getAllByText('PDF generation failed').length).toBeGreaterThan(0);
@@ -526,7 +571,7 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
     await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
@@ -585,6 +630,7 @@ describe('ReportWizardPage', () => {
     await user.click(screen.getByRole('checkbox', { name: /ACME/ }));
     await clickNext(user); // step 3 -> 4
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+    await clickNext(user); // step 4 -> 5
 
     await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
     await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
@@ -609,7 +655,7 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
     await user.click(screen.getByRole('button', { name: 'Finish without marking' }));
@@ -639,7 +685,7 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
     expect(screen.queryByRole('button', { name: 'Upload to Paperless' })).not.toBeInTheDocument();
@@ -661,7 +707,7 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
     const uploadBtn = screen.getByRole('button', { name: 'Upload to Paperless' });
@@ -697,7 +743,7 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
     const uploadBtn = screen.getByRole('button', { name: 'Upload to Paperless' });
@@ -710,6 +756,139 @@ describe('ReportWizardPage', () => {
         'error',
         'The document management system could not be reached.',
       );
+    });
+  });
+
+  // ─── Story #1899: report language (Settings step) ─────────────────────────
+
+  describe('report language selection (Story #1899)', () => {
+    it('defaults the report language radio group to the current resolvedLocale (en in this jsdom test environment)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep4(user);
+
+      expect(screen.getByRole('radio', { name: 'English' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: 'Deutsch' })).not.toBeChecked();
+    });
+
+    it('the selected report language persists across Back (to step 3) / Next (back to step 4) navigation', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep4(user);
+
+      await user.click(screen.getByRole('radio', { name: 'Deutsch' }));
+      expect(screen.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
+
+      // step4 -> step3 -> step4: reportLanguage is page-level state, not local to Step4Settings,
+      // so it must survive the component being unmounted/remounted across step navigation.
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await clickNext(user);
+
+      expect(screen.getByRole('radio', { name: 'Deutsch' })).toBeChecked();
+    });
+
+    it('changing the report language re-triggers generateReportPdf with a fixed t that resolves REAL German strings (not the app-wide i18n language)', async () => {
+      // reportT = i18n.getFixedT(reportLanguage, 'budget') against the real i18n singleton (not
+      // mocked in this file) — asserting the resolved string for a known key is the only way to
+      // confirm the fixed translator is actually locked to the chosen report language, distinct
+      // from whatever language the rest of the app UI is currently rendering in.
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep4(user);
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      await user.click(screen.getByRole('radio', { name: 'Deutsch' }));
+
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), {
+        timeout: 2000,
+      });
+
+      const lastCall = mockGenerateReportPdf.mock.calls.at(-1)!;
+      const reportT = lastCall[5] as (key: string) => string;
+      expect(reportT('sourceReports.table.vendor')).toBe('Auftragnehmer');
+
+      // The wizard chrome itself (a heading rendered via the page's own useTranslation('budget')
+      // t, not reportT) stays in English — selecting a report language never calls
+      // i18n.changeLanguage() / affects the ambient app language.
+      expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    });
+  });
+
+  // ─── Story #1899: 5-step wizard structure ──────────────────────────────────
+
+  describe('5-step wizard structure (Story #1899)', () => {
+    it('renders exactly 5 items in the desktop stepper nav', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      renderPage();
+      await waitFor(() => screen.getByRole('radiogroup'));
+
+      const stepperNav = screen.getByRole('navigation', { name: 'Report wizard steps' });
+      expect(within(stepperNav).getAllByRole('listitem')).toHaveLength(5);
+    });
+
+    it('shows "Step 1 of 5" in the mobile stepper on the first step', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      renderPage();
+      await waitFor(() => screen.getByRole('radiogroup'));
+
+      expect(screen.getByText('Step 1 of 5')).toBeInTheDocument();
+    });
+
+    it('shows "Step 4 of 5" in the mobile stepper on the Settings step', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep4(user);
+
+      expect(screen.getByText('Step 4 of 5')).toBeInTheDocument();
+    });
+
+    it('shows "Step 5 of 5" in the mobile stepper on the Preview & Export step', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      expect(screen.getByText('Step 5 of 5')).toBeInTheDocument();
+    });
+
+    it('the Settings step (4) shows the language radios and toggles, but no download/claim/preview UI', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep4(user);
+
+      expect(screen.getByRole('radio', { name: 'English' })).toBeInTheDocument();
+      expect(screen.getByLabelText('Include cover letter')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Upload to Paperless' })).not.toBeInTheDocument();
+      expect(document.querySelector('iframe')).not.toBeInTheDocument();
+    });
+
+    it('the Preview & Export step (5) shows the actions/preview UI, but no language radios or document toggles', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      expect(screen.getByRole('button', { name: 'Download PDF' })).toBeInTheDocument();
+      expect(screen.queryByRole('radio', { name: 'English' })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Include cover letter')).not.toBeInTheDocument();
     });
   });
 
@@ -801,7 +980,9 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    // Generation starts as soon as the report is ready (not step-gated), but the failure banner
+    // only renders inside the Preview & Export step (5).
+    await goToStep5(user);
 
     await waitFor(() => {
       expect(screen.getAllByText('PDF generation failed').length).toBeGreaterThan(0);
@@ -825,6 +1006,10 @@ describe('ReportWizardPage', () => {
     const coverLetterCheckbox = screen.getByLabelText('Include cover letter');
     await user.click(coverLetterCheckbox);
 
+    await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), { timeout: 2000 });
+
+    // The failure banner only renders on the Preview & Export step.
+    await clickNext(user); // step 4 -> 5
     await waitFor(
       () => {
         expect(screen.getAllByText('PDF generation failed').length).toBeGreaterThan(0);
@@ -848,7 +1033,7 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
     await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
@@ -872,7 +1057,7 @@ describe('ReportWizardPage', () => {
 
       renderPage();
       const user = userEvent.setup();
-      await goToStep4(user);
+      await goToStep5(user);
       await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
@@ -898,7 +1083,7 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
     await user.click(screen.getByRole('button', { name: 'Download PDF' }));
@@ -916,8 +1101,12 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+    // step5 -> step4
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'English' })).toBeInTheDocument());
 
     // step4 -> step3
     await user.click(screen.getByRole('button', { name: 'Back' }));
@@ -956,6 +1145,7 @@ describe('ReportWizardPage', () => {
 
     await clickNext(user); // step3 -> step4
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+    await clickNext(user); // step4 -> step5
 
     await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
     await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
@@ -985,7 +1175,7 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
 
     await waitFor(() => {
       expect(
@@ -1012,7 +1202,7 @@ describe('ReportWizardPage', () => {
 
       renderPage();
       const user = userEvent.setup();
-      await goToStep4(user);
+      await goToStep5(user);
       await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
       await user.click(screen.getByRole('button', { name: 'Upload to Paperless' }));
@@ -1062,7 +1252,7 @@ describe('ReportWizardPage', () => {
 
       renderPage();
       const user = userEvent.setup();
-      await goToStep4(user);
+      await goToStep5(user);
       await waitFor(() => {
         expect(screen.getAllByText('PDF generation failed').length).toBeGreaterThan(0);
       });
@@ -1089,7 +1279,7 @@ describe('ReportWizardPage', () => {
 
     renderPage();
     const user = userEvent.setup();
-    await goToStep4(user);
+    await goToStep5(user);
     await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
     await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
@@ -1176,6 +1366,41 @@ describe('ReportWizardPage', () => {
         mockGenerateReportPdf.mock.calls[mockGenerateReportPdf.mock.calls.length - 1]![0];
       expect(secondCallReport.invoices[0]!.allocatedAmount).toBe(400);
       expect(secondCallReport.invoices[0]!.lineKind).toBe('invoice');
+    });
+
+    it('re-including a previously excluded budget line reverts excludedLineIds and regenerates with the FULL amount again', async () => {
+      // Covers onToggleLine's `else` branch (excluded === false → newSet.delete(lineId)), which
+      // the "exclude" test above never exercises since it only ever checks the box once.
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReportWithLines());
+      mockGenerateReportPdf.mockResolvedValue({ blob: new Blob(['pdf']), skippedDocuments: [] });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+
+      const expandButton = document.querySelector(
+        '[aria-controls="invoice-expand-inv-1"]',
+      ) as HTMLElement;
+      await user.click(expandButton);
+      const excludeCheckbox = screen.getAllByRole('checkbox', {
+        name: 'Exclude Foundation work from report',
+      })[0]!;
+      await user.click(excludeCheckbox); // exclude: 1000 -> 400
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(2), {
+        timeout: 2000,
+      });
+
+      await user.click(excludeCheckbox); // re-include: 400 -> 1000 again
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(3), {
+        timeout: 2000,
+      });
+
+      const thirdCallReport =
+        mockGenerateReportPdf.mock.calls[mockGenerateReportPdf.mock.calls.length - 1]![0];
+      expect(thirdCallReport.invoices[0]!.allocatedAmount).toBe(1000);
+      expect(thirdCallReport.invoices[0]!.lineKind).toBe('invoice');
     });
 
     it('excluding a line large enough to flip the sign passes a negative allocatedAmount / refund-adjustment lineKind to generateReportPdf', async () => {
@@ -1297,7 +1522,7 @@ describe('ReportWizardPage', () => {
 
       renderPage();
       const user = userEvent.setup();
-      await goToStep4(user);
+      await goToStep5(user);
       await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
 
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
@@ -1330,6 +1555,7 @@ describe('ReportWizardPage', () => {
       });
 
       await clickNext(user); // step 3 -> 4
+      await clickNext(user); // step 4 -> 5
       await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
 

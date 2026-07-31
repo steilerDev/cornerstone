@@ -25,6 +25,7 @@ metadata:
 - `--color-success-badge-bg`/`-text`: light = green-100/green-900 (#d1fae5/#065f46); dark = rgba(16,185,129,0.15)/emerald-200 (#a7f3d0) — both high contrast, same pairing as "Completed"/"Arrived" status badges
 - `--color-warning-bg` EXISTS (`#fff7ed`, dark: `rgba(251,146,60,0.1)`) — use for warning banners
 - `--spacing-xs` / `--spacing-sm` are NOT valid tokens — use `--spacing-1` through `--spacing-16`
+- `--breakpoint-sm/md/lg/xl` tokens do **NOT exist** in `tokens.css` at all (grepped, confirmed empty), despite being referenced as if real in the agent's own system-prompt instructions. The codebase's actual, consistent convention is raw pixel media queries per component (e.g. `WizardStepper.module.css` uses `max-width: 767px` for its mobile cutoff, `ReportWizardPage.module.css` uses `max-width: 860px` for its grid collapse). Don't invent `var(--breakpoint-*)` references in specs or flag their absence as a PR violation — follow the raw-pixel convention instead. See Issue #1899.
 - `--color-danger-text` = white (text ON danger bg) — NEVER use as border or text on `--color-danger-bg`; use `--color-danger-border` for border, `--color-danger-text-on-light` for red text on light bg
 - Budget bar, Gantt, and milestone tokens already exist in tokens.css — check before specifying new domain-specific colors
 

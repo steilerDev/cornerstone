@@ -169,7 +169,7 @@
   gap: var(--spacing-4);
 }
 
-.optionsCard {
+.settingsCard {
   background-color: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -177,6 +177,39 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
+}
+
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.settingsDivider {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.languageGroup {
+  display: flex;
+  gap: var(--spacing-4);
+}
+
+.languageGroup label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
 }
 
 .optionRow {

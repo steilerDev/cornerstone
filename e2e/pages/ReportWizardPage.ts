@@ -1,6 +1,16 @@
 /**
  * Page Object Model for the Bank Report Wizard page (/budget/reports) — Story #1879.
  *
+ * 5-step structure (as of Story #1899 — a "Settings" step was inserted at position 4, pushing
+ * the old step 4 (preview + actions) to position 5):
+ *   1. Report Type (`Step1UseCase.tsx`)
+ *   2. Budget Source (`Step2Source.tsx`)
+ *   3. Select Invoices (`ReportInvoiceList.tsx`)
+ *   4. Settings (`Step4Settings.tsx`) — NEW: report-language radio group + the
+ *      attach-documents/cover-letter toggles (moved here from the old step 4)
+ *   5. Preview & Export (`Step5Actions.tsx` + `ReportPdfPreview.tsx`) — unchanged content,
+ *      renamed/renumbered from the old step 4
+ *
  * The page renders:
  * - An h1 "Bank Reports" page title (PageLayout)
  * - BUDGET_TABS SubNav ("Reports" tab, 5th)
@@ -13,9 +23,10 @@
  *   - Desktop (>=768px, visible): `<nav><ol class*="stepList">` of `<li class*="stepItem">`,
  *     each containing either a `<button class*="stepButton">` (reachable step, stepNum <=
  *     maxReachedStep) or a non-interactive `<div class*="stepButtonDisabled">` (forward-locked
- *     step — NOT a button, not in the a11y/tab tree).
- *   - Mobile (<768px, visible): `<p class*="stepCount">` + `<div class*="dotIndicators"><div
- *     class*="dot">`.
+ *     step — NOT a button, not in the a11y/tab tree). Now 5 items (`stepItems.nth(3)` =
+ *     "Settings", `stepItems.nth(4)` = "Preview & Export").
+ *   - Mobile (<768px, visible): `<p class*="stepCount">` (now "Step N of 5") + `<div
+ *     class*="dotIndicators"><div class*="dot">` (now 5 dots).
  *
  *   NOTE: `WizardStepper`'s own strings (`reportWizard.stepOfTotal`,
  *   `reportWizard.stepperAriaLabel`) and every `common.button.*` call in
@@ -38,14 +49,35 @@
  *   resolve correctly), an unallocated group toggle (`[class*="unallocatedHeader"]`,
  *   `aria-expanded`), and a `SelectionActionBar` (`[class*="count"]` text, "Clear selection"
  *   button — text is ALSO a missing-prop bug, located structurally).
- * - Step 4 (`Step4Options.tsx` + `ReportPdfPreview.tsx`): `#attachDocuments` /
- *   `#includeCoverLetter` checkboxes, action buttons (Download PDF / Mark N invoices as
- *   claimed / Finish without marking / Upload to Paperless — all via correctly-resolving
- *   `sourceReports.*` keys), and `iframe[title="Report PDF preview"]` with a
- *   `[class*="pdfLoadingOverlay"]` spinner shown while `aria-busy="true"` on
- *   `[class*="pdfPreviewWrapper"]`.
+ * - Step 4 (`Step4Settings.tsx`, NEW): a `role="group"` (aria-labelledby an
+ *   `<h3 id="report-language-heading">`, accessible name "Report language") containing two
+ *   plain (NOT visually hidden) radio inputs `input[name="reportLanguage"][value="en"|"de"]`
+ *   with literal (non-translated) "English"/"Deutsch" labels, followed by the SAME
+ *   `#attachDocuments`/`#includeCoverLetter` checkboxes that used to live on the old step 4 —
+ *   same DOM ids, just relocated. This step has NO preview iframe — `ReportPdfPreview` is only
+ *   mounted on step 5, so preview state changes triggered here (including a report-language
+ *   change, which regenerates the PDF via a fixed-locale `t`/formatters pair independent of the
+ *   app's own UI language) are only OBSERVABLE once you advance to step 5 and call
+ *   `waitForPreviewReady()`/`waitForPreviewRegenerated()` there.
+ * - Step 5 (`Step5Actions.tsx` + `ReportPdfPreview.tsx`, renamed/renumbered from the old step
+ *   4): action buttons (Download PDF / Mark N invoices as claimed / Finish without marking /
+ *   Upload to Paperless — all via correctly-resolving `sourceReports.*` keys), and
+ *   `iframe[title="Report PDF preview"]` with a `[class*="pdfLoadingOverlay"]` spinner shown
+ *   while `aria-busy="true"` on `[class*="pdfPreviewWrapper"]`.
  * - Claim confirmation modal: `role="dialog"` (name "Mark Invoices as Claimed?").
- * - Claim success: `[class*="bannerSuccess"]` banner (replaces the action buttons in Step 4).
+ * - Claim success: `[class*="bannerSuccess"]` banner (replaces the action buttons in step 5).
+ *
+ * Back/Next button locators (`step2BackButton`/`step2NextButton`/`step4BackButton`/
+ * `step4NextButton`/`step5BackButton`, etc.): every step body is rendered from a single
+ * `{currentStep === N && ...}` block, so exactly ONE `[class*="buttonRow"]` div is ever present
+ * in the DOM at a time — these locators are therefore all built from the SAME page-wide
+ * `[class*="buttonRow"] [class*="btnSecondary"|"btnPrimary"]` queries (re-used/aliased across
+ * steps, e.g. `step3BackButton = step2BackButton`), which re-resolve to whichever step's
+ * buttonRow is currently mounted. Steps 2-4 have both a Back (`btnSecondary`) and Next
+ * (`btnPrimary`) button; step 5 has Back only. `.first()`/`.last()` never disambiguate Back
+ * from Next here (that's already done by the distinct `btnSecondary`/`btnPrimary` class
+ * queries) — they exist only as a defensive tie-breaker in case more than one match is ever
+ * present, and are consequently interchangeable for a single-button buttonRow (step 5).
  *
  * Story #1891 follow-up additions (`ReportInvoiceList.tsx`):
  * - Each allocated invoice row is a `<div class*="invoiceRow">` on a `1.5rem auto 1fr auto
@@ -132,9 +164,14 @@ export class ReportWizardPage {
   readonly step3BackButton: Locator;
   readonly step3NextButton: Locator;
 
-  // Step 4: Options + preview
+  // Step 4: Settings (report language + attach-documents/cover-letter options)
+  readonly reportLanguageGroup: Locator;
   readonly attachDocumentsCheckbox: Locator;
   readonly includeCoverLetterCheckbox: Locator;
+  readonly step4BackButton: Locator;
+  readonly step4NextButton: Locator;
+
+  // Step 5: Preview + actions (renamed/renumbered from the old "step 4" — Story #1899)
   readonly previewWrapper: Locator;
   readonly previewIframe: Locator;
   readonly previewLoadingOverlay: Locator;
@@ -148,7 +185,7 @@ export class ReportWizardPage {
   readonly claimSuccessBanner: Locator;
   readonly claimSuccessInvoicesLink: Locator;
   readonly skippedDocumentsNote: Locator;
-  readonly step4BackButton: Locator;
+  readonly step5BackButton: Locator;
 
   // Claim confirm modal
   readonly claimConfirmModal: Locator;
@@ -210,21 +247,22 @@ export class ReportWizardPage {
     this.step3BackButton = this.step2BackButton;
     this.step3NextButton = this.step2NextButton;
 
+    this.reportLanguageGroup = page.getByRole('group', { name: 'Report language' });
     this.attachDocumentsCheckbox = page.locator('#attachDocuments');
     this.includeCoverLetterCheckbox = page.locator('#includeCoverLetter');
+    this.step4BackButton = this.step2BackButton;
+    this.step4NextButton = this.step2NextButton;
+
     this.previewWrapper = page.locator('[class*="pdfPreviewWrapper"]');
     this.previewIframe = page.locator('iframe[title="Report PDF preview"]');
     this.previewLoadingOverlay = page.locator('[class*="pdfLoadingOverlay"]');
     this.previewErrorFallback = page.locator('[class*="pdfFallback"]');
     this.previewRetryButton = this.previewErrorFallback.getByRole('button');
     this.downloadButton = page.getByRole('button', { name: 'Download PDF' });
-    // NOTE: `Step4Options.tsx` calls `t('sourceReports.markClaimed')` WITHOUT the `{count}`
-    // interpolation param the key requires ("Mark {{count}} invoices as claimed"), so the
-    // rendered text is currently the literal unresolved placeholder, not a real number. The
-    // regex below matches both the intended ("Mark 2 invoices as claimed") and the current
-    // broken ("Mark {{count}} invoices as claimed") text so this locator keeps working for
-    // triggering the click; a dedicated test asserts the intended digit rendering separately
-    // and is expected to fail until the bug is fixed (see filed bug report).
+    // `Step5Actions.tsx` (renamed from `Step4Options.tsx` — Story #1899) correctly passes
+    // `{ count: selectedInvoiceCount }` to `t('sourceReports.markClaimed')`. The regex still
+    // matches on the surrounding text rather than an exact digit so the locator doesn't need
+    // to change if the count itself varies per scenario.
     this.markClaimedButton = page.getByRole('button', { name: /Mark .+ invoices as claimed/i });
     this.finishWithoutMarkingButton = page.getByRole('button', { name: 'Finish without marking' });
     this.uploadPaperlessButton = page.getByRole('button', { name: 'Upload to Paperless' });
@@ -232,7 +270,7 @@ export class ReportWizardPage {
     this.claimSuccessBanner = page.locator('[class*="bannerSuccess"]');
     this.claimSuccessInvoicesLink = this.claimSuccessBanner.getByRole('link');
     this.skippedDocumentsNote = page.locator('[class*="skippedNote"]');
-    this.step4BackButton = page.locator('[class*="buttonRow"] [class*="btnSecondary"]').last();
+    this.step5BackButton = page.locator('[class*="buttonRow"] [class*="btnSecondary"]').last();
 
     this.claimConfirmModal = page.getByRole('dialog', { name: 'Mark Invoices as Claimed?' });
     this.claimConfirmModalBody = this.claimConfirmModal.locator('p');
@@ -457,7 +495,20 @@ export class ReportWizardPage {
     await this.step2BackButton.click();
   }
 
-  // ─── Step 4 ──────────────────────────────────────────────────────────────
+  // ─── Step 4: Settings ────────────────────────────────────────────────────
+
+  /**
+   * The report-language radio input for a given language (`input[name="reportLanguage"]`,
+   * literal `value="en"|"de"`). Unlike the step 1/2 radios, this one is a plain, NOT
+   * visually-hidden input — no `force: true` needed to click it directly.
+   */
+  reportLanguageRadio(lang: 'en' | 'de'): Locator {
+    return this.page.locator(`input[name="reportLanguage"][value="${lang}"]`);
+  }
+
+  async selectReportLanguage(lang: 'en' | 'de'): Promise<void> {
+    await this.reportLanguageRadio(lang).click();
+  }
 
   async toggleAttachDocuments(): Promise<void> {
     await this.attachDocumentsCheckbox.click();

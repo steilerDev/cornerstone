@@ -192,6 +192,22 @@
   }
 }
 
+/* ---- Tablet Breakpoint ---- */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .stepList {
+    gap: var(--spacing-2);
+  }
+
+  .connector {
+    width: 20px;
+  }
+
+  .label {
+    font-size: var(--font-size-xs);
+  }
+}
+
 /* ---- Mobile Breakpoint ---- */
 
 @media (max-width: 767px) {

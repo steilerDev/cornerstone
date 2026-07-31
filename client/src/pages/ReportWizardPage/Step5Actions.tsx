@@ -4,12 +4,7 @@ import type { SourceReportType, PaperlessStatusResponse } from '@cornerstone/sha
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportWizardPage.module.css';
 
-interface Step4OptionsProps {
-  attachDocuments: boolean;
-  onAttachDocumentsChange: (value: boolean) => void;
-  includeCoverLetter: boolean;
-  onIncludeCoverLetterChange: (value: boolean) => void;
-  coverLetterDisabled: boolean;
+interface Step5ActionsProps {
   useCase: SourceReportType;
   paperlessStatus: PaperlessStatusResponse | null;
   isMarkingClaimed: boolean;
@@ -28,12 +23,7 @@ interface Step4OptionsProps {
   t: TFunction;
 }
 
-export function Step4Options({
-  attachDocuments,
-  onAttachDocumentsChange,
-  includeCoverLetter,
-  onIncludeCoverLetterChange,
-  coverLetterDisabled,
+export function Step5Actions({
   useCase,
   paperlessStatus,
   isMarkingClaimed,
@@ -50,51 +40,11 @@ export function Step4Options({
   hasError,
   hasBlob,
   t,
-}: Step4OptionsProps) {
+}: Step5ActionsProps) {
   const isClaim = useCase === 'claim';
-  const showCoverLetterDisabledHint = coverLetterDisabled
-    ? t('sourceReports.coverLetterDisabledReason')
-    : undefined;
 
   return (
     <div className={styles.step4Column}>
-      {/* Options panel */}
-      <div className={styles.optionsCard}>
-        <div className={styles.optionRow}>
-          <input
-            type="checkbox"
-            id="attachDocuments"
-            checked={attachDocuments}
-            onChange={(e) => onAttachDocumentsChange(e.target.checked)}
-            className={styles.optionCheckbox}
-          />
-          <label htmlFor="attachDocuments" className={styles.optionLabel}>
-            {t('sourceReports.attachDocuments')}
-          </label>
-          <div className={styles.optionHelper}>{t('sourceReports.attachDocumentsHelper')}</div>
-        </div>
-
-        <div className={styles.optionRow}>
-          <input
-            type="checkbox"
-            id="includeCoverLetter"
-            checked={includeCoverLetter}
-            onChange={(e) => onIncludeCoverLetterChange(e.target.checked)}
-            className={styles.optionCheckbox}
-            disabled={coverLetterDisabled}
-            title={showCoverLetterDisabledHint}
-          />
-          <label
-            htmlFor="includeCoverLetter"
-            className={styles.optionLabel}
-            title={showCoverLetterDisabledHint}
-          >
-            {t('sourceReports.includeCoverLetter')}
-          </label>
-          <div className={styles.optionHelper}>{t('sourceReports.includeCoverLetterHelper')}</div>
-        </div>
-      </div>
-
       {/* Actions */}
       <div className={styles.actionsContainer}>
         {claimSuccess ? (

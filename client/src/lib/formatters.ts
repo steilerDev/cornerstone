@@ -272,8 +272,6 @@ export function formatDateTimeWithZone(date: Date, locale = 'en-US'): string {
   });
 }
 
-import { useLocale } from '../contexts/LocaleContext.js';
-
 /**
  * Formatters interface for PDF builders (subset of full formatters).
  * Contains only formatCurrency and formatDate methods.
@@ -286,6 +284,102 @@ export interface Formatters {
     monthStyle?: 'short' | 'long',
   ) => string;
 }
+
+/**
+ * Create locale-aware formatting functions for a given locale and currency.
+ *
+ * Returns all 11 formatter closures bound to the specified locale string and currency.
+ * Used by both useFormatters() hook and PDF generation with fixed locales.
+ *
+ * @param locale - The locale string (e.g., 'en-US', 'de-DE').
+ * @param currency - The currency code (e.g., 'EUR').
+ * @returns An object containing all 11 formatter functions.
+ */
+export function createFormatters(
+  locale: string,
+  currency: string,
+): {
+  formatCurrency: (amount: number) => string;
+  getCurrencySymbol: () => string;
+  formatDate: (
+    dateStr: string | null | undefined,
+    fallback?: string,
+    monthStyle?: 'short' | 'long',
+  ) => string;
+  formatTime: (timestamp: string | null | undefined, fallback?: string) => string;
+  formatDateTime: (timestamp: string | null | undefined, fallback?: string) => string;
+  formatPercent: (rate: number, digits?: number) => string;
+  formatWeekdayShort: (date: Date) => string;
+  formatWeekdayMonthDay: (date: Date) => string;
+  formatFileSize: (bytes: number) => string;
+  formatHours: (hours: number) => string;
+  formatDateTimeWithZone: (date: Date) => string;
+} {
+  return {
+    /**
+     * Format a number as a currency string using the bound locale and currency.
+     */
+    formatCurrency: (amount: number) => formatCurrency(amount, locale, currency),
+
+    /**
+     * Get the currency symbol for the bound currency and locale.
+     */
+    getCurrencySymbol: () => getCurrencySymbol(currency, locale),
+
+    /**
+     * Format a date string using the bound locale.
+     */
+    formatDate: (
+      dateStr: string | null | undefined,
+      fallback?: string,
+      monthStyle?: 'short' | 'long',
+    ) => formatDate(dateStr, locale, fallback, monthStyle),
+
+    /**
+     * Format a time string using the bound locale.
+     */
+    formatTime: (timestamp: string | null | undefined, fallback?: string) =>
+      formatTime(timestamp, locale, fallback),
+
+    /**
+     * Format a datetime string using the bound locale.
+     */
+    formatDateTime: (timestamp: string | null | undefined, fallback?: string) =>
+      formatDateTime(timestamp, locale, fallback),
+
+    /**
+     * Format a percentage number using the bound locale.
+     */
+    formatPercent: (rate: number, digits?: number) => formatPercent(rate, locale, digits),
+
+    /**
+     * Format a Date as a short localized weekday label using the bound locale.
+     */
+    formatWeekdayShort: (date: Date) => formatWeekdayShort(date, locale),
+
+    /**
+     * Format a Date as a short weekday + short month + day label using the bound locale.
+     */
+    formatWeekdayMonthDay: (date: Date) => formatWeekdayMonthDay(date, locale),
+
+    /**
+     * Format a byte count as a human-readable file size string using the bound locale.
+     */
+    formatFileSize: (bytes: number) => formatFileSize(bytes, locale),
+
+    /**
+     * Format a duration in hours as a locale-aware string using the bound locale.
+     */
+    formatHours: (hours: number) => formatHours(hours, locale),
+
+    /**
+     * Format a Date as a localized date + time string including time zone using the bound locale.
+     */
+    formatDateTimeWithZone: (date: Date) => formatDateTimeWithZone(date, locale),
+  };
+}
+
+import { useLocale } from '../contexts/LocaleContext.js';
 
 /**
  * Hook that provides locale-aware formatting functions.
@@ -303,66 +397,5 @@ export function useFormatters() {
   // Map 'en' to 'en-US' and 'de' to 'de-DE'
   const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
 
-  return {
-    /**
-     * Format a number as a currency string using the user's locale and currency.
-     */
-    formatCurrency: (amount: number) => formatCurrency(amount, localeString, currency),
-
-    /**
-     * Get the currency symbol for the user's currency and locale.
-     */
-    getCurrencySymbol: () => getCurrencySymbol(currency, localeString),
-
-    /**
-     * Format a date string using the user's locale.
-     */
-    formatDate: (
-      dateStr: string | null | undefined,
-      fallback?: string,
-      monthStyle?: 'short' | 'long',
-    ) => formatDate(dateStr, localeString, fallback, monthStyle),
-
-    /**
-     * Format a time string using the user's locale.
-     */
-    formatTime: (timestamp: string | null | undefined, fallback?: string) =>
-      formatTime(timestamp, localeString, fallback),
-
-    /**
-     * Format a datetime string using the user's locale.
-     */
-    formatDateTime: (timestamp: string | null | undefined, fallback?: string) =>
-      formatDateTime(timestamp, localeString, fallback),
-
-    /**
-     * Format a percentage number using the user's locale.
-     */
-    formatPercent: (rate: number, digits?: number) => formatPercent(rate, localeString, digits),
-
-    /**
-     * Format a Date as a short localized weekday label using the user's locale.
-     */
-    formatWeekdayShort: (date: Date) => formatWeekdayShort(date, localeString),
-
-    /**
-     * Format a Date as a short weekday + short month + day label using the user's locale.
-     */
-    formatWeekdayMonthDay: (date: Date) => formatWeekdayMonthDay(date, localeString),
-
-    /**
-     * Format a byte count as a human-readable file size string using the user's locale.
-     */
-    formatFileSize: (bytes: number) => formatFileSize(bytes, localeString),
-
-    /**
-     * Format a duration in hours as a locale-aware string using the user's locale.
-     */
-    formatHours: (hours: number) => formatHours(hours, localeString),
-
-    /**
-     * Format a Date as a localized date + time string including time zone using the user's locale.
-     */
-    formatDateTimeWithZone: (date: Date) => formatDateTimeWithZone(date, localeString),
-  };
+  return createFormatters(localeString, currency);
 }

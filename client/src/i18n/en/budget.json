@@ -1107,6 +1107,7 @@
       "useCase": "Report Type",
       "source": "Budget Source",
       "invoices": "Select Invoices",
+      "settings": "Settings",
       "options": "Preview & Export"
     },
     "stepperAriaLabel": "Report wizard steps",
@@ -1137,6 +1138,10 @@
     "emptyInvoices": "No invoices found",
     "emptyInvoicesDescription": "This budget source has no invoices for this report type",
     "selectAtLeastOne": "Select at least one invoice to proceed",
+    "settingsStep": {
+      "languageHeading": "Report language",
+      "languageHelper": "Only affects the exported report — your app language stays the same."
+    },
     "attachDocuments": "Attach invoice PDFs",
     "attachDocumentsHelper": "Appends each selected invoice's source PDF as an appendix",
     "includeCoverLetter": "Include cover letter",

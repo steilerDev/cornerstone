@@ -205,3 +205,22 @@ Request changes (2 critical, 3 high, 2 medium):
 
 Round 1 CHANGES_REQUIRED (1 critical: Rail A/B double-count), round 2 APPROVED after commit 86a9770a.
 Full invariants and review heuristics in `dual-rail-aggregation.md`.
+
+## PR #1903 (2026-07-31) -- Story #1899 report-language Settings step (5-step wizard)
+
+APPROVED (2 medium, 3 low). Architecture verified sound; see `client-pdf-pipeline.md` for the
+locale-decoupling contract this established.
+
+- **M1**: `reportLanguage` seeded once via `useState(resolvedLocale)`. `LocaleContext.syncWithServer`
+  sets `resolvedLocale` *asynchronously* after auth AND deletes the `locale` localStorage key when
+  the server has a preference -- so every load starts at `detectBrowserLocale()` and flips later.
+  Any component seeding state from `resolvedLocale` at mount has this bug. **Reusable review check:
+  never `useState(resolvedLocale)` / `useState(currency)` / `useState(vatRate)` without a
+  seed-until-touched effect.** jsdom tests can't catch it (LocaleProvider's async paths never resolve).
+- **M2**: `resolvedLocale === 'de' ? 'de-DE' : 'en-US'` duplicated in `formatters.ts` and the page.
+  Needs one exported `resolvedLocaleToIntlTag()` -- silent divergence risk on a 3rd locale.
+- L: `.step4Body/.step4Layout/.step4Column` class names + `stepper.options` key left off-by-one
+  after the renumber; `createFormatters` return type written inline instead of a named interface;
+  filename AC vacuously satisfied (ISO date + raw enum, nothing locale-dependent -- flag to PO).
+- CI: Quality Gates green; E2E shard 5/16 red (known recurring flake in this wizard area -- must be
+  triaged before beta->main, not before the beta merge).
