@@ -21,6 +21,19 @@ metadata:
 - **#1888 — stage-matched attachment indicator** (Backlog, deferred from #1879).
 - **#1895 / #1896 / #1897 — claim close-out defects** from the product-architect audit of #1891's dual-rail deposit aggregation (PR #1894). All Backlog, created 2026-07-30. See §"Claim close-out defects" below.
 
+## Refinement Round 2 (stories #1898–#1901, created 2026-07-31)
+
+Source: user verification of the merged wizard; decomposed and approved via `/mini-epic` planning. No parent epic issue — standalone stories chained by blocked-by. All four board **Todo**. Chain: #1898 → #1899 → #1900 → #1901 (#1900 blocked-by both 1898+1899; #1901 blocked-by 1899+1900).
+
+- **#1898 — Report table refinements.** Usage column (distinct `budgetLines[].linkedItem` names → fallback line `description` → `—`), attachments note from `documents[].attachmentType` (count + distinct types; untyped counted plainly), appendix-number column **deleted** (numbers had no in-document reference; append order unchanged), status column **dropped for `claim` + `proof-of-funds`, kept for `budget-overview`**, and a **deposit-specific footnote** distinct from the generic `†` split footnote.
+- **#1899 — Settings step + report language.** Wizard goes to 5 steps: Report Type → Budget Source → Select Invoices → **Settings** → Preview & Export. New step 4 holds the en/de report-language picker (defaults to UI locale) plus the two relocated toggles. Report output (PDF text, dates, currency, cover letter, filename) fully renders in the selected language regardless of UI locale; wizard chrome stays in the UI locale.
+- **#1900 — Editable HTML preview.** Step 5 becomes an HTML edit surface with **on-demand PDF** (no live PDF pane). Full cover letter — sender, recipient, reference, subject, body — all editable. Wording editable, **amounts/totals read-only** (derived). Edits are overrides on a generated baseline; a steps-1–4 change regenerates the baseline and clears edits behind a confirmation.
+- **#1901 — AI generation** (Should Have). Explicit "Generate with AI" button gated by an "Enable AI assistance" toggle in step 4, only when `LLM_*` is configured. **One batched** server call → per-invoice usage descriptions + cover letter subject/body, in the selected report language. Fills the editable fields as a new baseline; regenerating warns before overwriting. Auto-itemize is the reference for plumbing + spinner/elapsed-seconds UX. Auth-required endpoint, **no persistence**.
+
+**User decisions baked in — do not re-litigate:** status-column policy per report type; "letterhead" = the full cover letter with every block editable; AI is button-triggered, batched, and language-scoped; step 5 is HTML-edit + on-demand PDF with derived amounts locked.
+
+**Deposit footnote rule (the subtle one):** an invoice whose shown amount is reduced or constituted by deposits must NOT get the generic "Amount shown reflects only the portion allocated to this source." An invoice whose only cross-source funding is a tagged/claimed deposit → deposit footnote only. A budget-line split across sources → keeps `†`. Both → both facts conveyed. Marker glyph/numbering is the dev-team-lead's call, but must not collide with the `†N` (split) / `*N` (skipped doc) namespaces.
+
 ## Claim close-out defects found auditing #1891 (2026-07-30)
 
 The architect audit of the dual-rail aggregation confirmed **budget totals conserve correctly** — every defect found is in the **claim close-out** path, not the money math. Keep that distinction when triaging: conservation and close-out are separate correctness domains here, and a green conservation check says nothing about close-out.

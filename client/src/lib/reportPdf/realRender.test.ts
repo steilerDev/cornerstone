@@ -18,6 +18,14 @@
  * invoice WITH a (successfully embedded) document, a refund-adjustment line (negative
  * allocatedAmount per the frontend fix spec item 3 sign contract), a skipped document (fetch
  * 404), and an EXCLUDED invoice that must never appear in the grand total or the generated PDF.
+ *
+ * NOTE (story #1898 fix round): overviewPdf.ts's `widths` arrays previously ended in the string
+ * literal `'2*'` (both the 6- and 7-column layouts), which pdfmake 0.3.11 does not support as a
+ * width unit (@types/pdfmake@0.3.x's `Size` type is only `number | 'auto' | '*' | <percentage
+ * string>` — see node_modules/@types/pdfmake/interfaces.d.ts) and crashed the real pdfmake
+ * renderer with `unsupported number: NaN` the first time any overview table was rendered via
+ * `pdfMake.createPdf(...).getBlob()`. This has been fixed in production code (both arrays now end
+ * in a plain `'*'`); every test below renders successfully.
  */
 import { describe, it, expect, beforeAll } from '@jest/globals';
 import i18next from 'i18next';
@@ -129,6 +137,12 @@ async function makeMixedReport(): Promise<{
     isSplit: true,
     invoiceAmount: 800,
     allocatedAmount: 300,
+    // Explicit budgetLines: the split (†) marker requires isSplit && budgetLines.length > 0
+    // (story #1898) — makeInvoice()'s default `budgetLines: []` would silently produce a split
+    // invoice with NO marker at all under the new classification rules.
+    budgetLines: [
+      { id: 'bl-split-nodoc', description: null, allocatedPortion: 300, linkedItem: null },
+    ],
   });
   const splitWithDoc = makeInvoice({
     invoiceId: 'inv-split-doc',
@@ -138,6 +152,9 @@ async function makeMixedReport(): Promise<{
     invoiceAmount: 700,
     allocatedAmount: 250,
     documents: [{ documentId: 1, archiveSerialNumber: null, title: null, attachmentType: null }],
+    budgetLines: [
+      { id: 'bl-split-doc', description: null, allocatedPortion: 250, linkedItem: null },
+    ],
   });
   const refund = makeInvoice({
     invoiceId: 'inv-refund',
@@ -344,8 +361,12 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     );
   });
 
-  describe('German overview table column widths (frontend fix spec item 15)', () => {
-    it('uses the "*"-first / "auto"-rest width pattern for the 7-column (appendix-present) table — the layout contract that keeps German label text from overflowing', async () => {
+  describe('German overview table column widths (frontend fix spec item 15; updated story #1898)', () => {
+    // [Scenario 24] The appendix column was removed entirely in story #1898 — appendixByInvoiceId
+    // no longer affects the rendered column count at all (see overviewPdf.test.ts "[Scenario 3]").
+    // This test now exercises the 6-column claim/proof-of-funds layout (no status, no appendix)
+    // rather than the old "appendix-present" 7-column case, which no longer exists.
+    it('uses the "*"-first / "auto"-rest width pattern for the 6-column claim/proof-of-funds table — the layout contract that keeps German label text from overflowing', async () => {
       // pdfmake's public Node API does not expose the LAYOUT ENGINE'S COMPUTED pixel widths for
       // 'auto' columns after createPdf()/getBlob() — there is no documented way to introspect the
       // resolved column widths of a generated PDF without re-implementing pdfmake's internal
@@ -359,8 +380,8 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { report, includedIds } = await makeMixedReport();
       const formatters = formattersFor('de-DE');
 
-      // Force the appendix column into existence (7 columns) the same way merge.ts does — via a
-      // non-empty appendixByInvoiceId map.
+      // appendixByInvoiceId is still passed (call-site/signature stability) but is provably
+      // irrelevant to the rendered width contract now — non-empty here on purpose.
       const content = buildOverviewContent(
         report,
         includedIds,
@@ -375,16 +396,300 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         (c) => typeof c === 'object' && c !== null && 'table' in c,
       ) as { table: { widths: string[] } };
 
-      expect(tableItem.table.widths).toHaveLength(7);
-      expect(tableItem.table.widths[0]).toBe('*');
-      expect(tableItem.table.widths.slice(1)).toEqual([
-        'auto',
-        'auto',
-        'auto',
-        'auto',
-        'auto',
-        'auto',
-      ]);
+      expect(tableItem.table.widths).toEqual(['*', 'auto', 'auto', 'auto', 'auto', '*']);
+    });
+
+    it('uses the "*"-first / "auto"-rest width pattern for the 7-column budget-overview table (status column included)', async () => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const { report, includedIds } = await makeMixedReport();
+      const formatters = formattersFor('de-DE');
+
+      const content = buildOverviewContent(
+        report,
+        includedIds,
+        new Map(),
+        new Map(),
+        'budget-overview',
+        tDe,
+        formatters,
+        1300,
+      );
+      const tableItem = content.find(
+        (c) => typeof c === 'object' && c !== null && 'table' in c,
+      ) as { table: { widths: string[] } };
+
+      expect(tableItem.table.widths).toEqual(['*', 'auto', 'auto', 'auto', 'auto', 'auto', '*']);
+    });
+  });
+
+  // ─── Scenarios 23 & 25: Usage column, attachment note, deposit-footnote wordings — real,
+  // unmocked i18next + formatters, both locales ────────────────────────────────────────────────
+
+  describe('Usage column, attachment note, and deposit-footnote wordings (real en+de rendering)', () => {
+    // Dedicated fixture, independent of makeMixedReport / stubFetch — these invoices exercise
+    // Usage/attachment/deposit features only and are never fed through generateReportPdf's
+    // document-fetch pipeline (attachDocuments stays false everywhere below), so no new document
+    // IDs need to be wired into stubFetch's routing.
+    function makeUsageFeatureReport(): SourceReportResponse {
+      const linkedUsage = makeInvoice({
+        invoiceId: 'inv-usage-linked',
+        vendorName: 'Linked Vendor',
+        invoiceNumber: 'U-1',
+        budgetLines: [
+          {
+            id: 'bl-linked-1',
+            description: null,
+            allocatedPortion: 100,
+            linkedItem: { type: 'work_item', id: 'wi-1', name: 'Roof Replacement' },
+          },
+          {
+            id: 'bl-linked-2',
+            description: null,
+            allocatedPortion: 50,
+            linkedItem: { type: 'work_item', id: 'wi-1', name: 'Roof Replacement' },
+          },
+        ],
+      });
+      const attachSingle = makeInvoice({
+        invoiceId: 'inv-attach-single',
+        vendorName: 'Single Attach Vendor',
+        invoiceNumber: 'U-3',
+        documents: [
+          { documentId: 101, archiveSerialNumber: null, title: null, attachmentType: 'invoice' },
+        ],
+      });
+      const attachMulti = makeInvoice({
+        invoiceId: 'inv-attach-multi',
+        vendorName: 'Multi Attach Vendor',
+        invoiceNumber: 'U-4',
+        documents: [
+          {
+            documentId: 102,
+            archiveSerialNumber: null,
+            title: null,
+            attachmentType: 'quotation',
+          },
+          { documentId: 103, archiveSerialNumber: null, title: null, attachmentType: 'invoice' },
+        ],
+      });
+      const depositConstituted = makeInvoice({
+        invoiceId: 'inv-deposit-constituted',
+        vendorName: 'Constituted Vendor',
+        invoiceNumber: 'U-5',
+        isSplit: true,
+        invoiceAmount: 250,
+        allocatedAmount: 250,
+        budgetLines: [],
+        deposits: [
+          {
+            id: 'dep-constituted',
+            amount: 250,
+            status: 'paid',
+            entryType: 'deposit',
+            dueDate: '2026-01-01',
+            paidDate: '2026-01-05',
+            claimedDate: null,
+            budgetSourceId: 'src-1', // tagged to THIS source -> "constituted" wording
+          },
+        ],
+      });
+      const depositReduced = makeInvoice({
+        invoiceId: 'inv-deposit-reduced',
+        vendorName: 'Reduced Vendor',
+        invoiceNumber: 'U-6',
+        isSplit: true,
+        invoiceAmount: 150,
+        allocatedAmount: 150,
+        budgetLines: [
+          { id: 'bl-reduced', description: null, allocatedPortion: 150, linkedItem: null },
+        ],
+        deposits: [
+          {
+            id: 'dep-reduced',
+            amount: 50,
+            status: 'pending',
+            entryType: 'deposit',
+            dueDate: '2026-02-01',
+            paidDate: null,
+            claimedDate: null,
+            budgetSourceId: null, // untagged -> "reduced" wording
+          },
+        ],
+      });
+
+      return {
+        type: 'claim',
+        source: {
+          id: 'src-1',
+          name: 'Home Loan',
+          sourceType: 'bank_loan',
+          reference: null,
+          contactAddress: null,
+        },
+        invoices: [linkedUsage, attachSingle, attachMulti, depositConstituted, depositReduced],
+        // Sum of each invoice's allocatedAmount (linkedUsage/attachSingle/attachMulti default to
+        // 100 via makeInvoice(); depositConstituted=250, depositReduced=150 explicitly above).
+        totalAmount: 100 + 100 + 100 + 250 + 150,
+        unallocatedInvoices: [],
+        generatedAt: '2026-02-15T00:00:00.000Z',
+      };
+    }
+
+    // Recursively collects every string value anywhere in the pdfmake Content[] tree (text cells,
+    // stacks, table bodies, nested columns, etc.) — deliberately structure-agnostic so it doesn't
+    // need to know pdfmake's exact node shapes.
+    function collectAllStrings(node: unknown, out: string[] = []): string[] {
+      if (typeof node === 'string') {
+        out.push(node);
+      } else if (Array.isArray(node)) {
+        for (const item of node) collectAllStrings(item, out);
+      } else if (node !== null && typeof node === 'object') {
+        for (const value of Object.values(node as Record<string, unknown>)) {
+          collectAllStrings(value, out);
+        }
+      }
+      return out;
+    }
+
+    it.each([['en', 'en-US', () => tEn] as const, ['de', 'de-DE', () => tDe] as const])(
+      '[Scenario 23] generates a real, non-empty PDF for the %s locale from the Usage/attachment/deposit fixture, with no raw i18n keys leaked anywhere in the content tree',
+      async (_label, localeStr, getT) => {
+        const { generateReportPdf } = await import('./merge.js');
+        const { buildOverviewContent } = await import('./overviewPdf.js');
+        const report = makeUsageFeatureReport();
+        const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
+        const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
+        const t = getT();
+
+        const result = await generateReportPdf(
+          report,
+          includedIds,
+          'claim',
+          { attachDocuments: false, includeCoverLetter: true },
+          household,
+          t,
+          formatters,
+        );
+        expect(result.blob).toBeInstanceOf(Blob);
+        expect(result.blob.size).toBeGreaterThan(0);
+
+        const content = buildOverviewContent(
+          report,
+          includedIds,
+          new Map(),
+          new Map(),
+          'claim',
+          t,
+          formatters,
+          700, // sum of all 5 fixture invoices' allocatedAmount
+        );
+        const allStrings = collectAllStrings(content);
+        const leakedKeys = allStrings.filter((s) => /^sourceReports\.[a-zA-Z.]+$/.test(s));
+        expect(leakedKeys).toEqual([]);
+      },
+    );
+
+    it('[Scenario 4/5 real-render cross-check] renders comma-joined distinct linked-item names for the Usage column', async () => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const report = makeUsageFeatureReport();
+      const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
+      const content = buildOverviewContent(
+        report,
+        includedIds,
+        new Map(),
+        new Map(),
+        'claim',
+        tEn,
+        formattersFor('en-US'),
+        700, // sum of all 5 fixture invoices' allocatedAmount
+      );
+      const tableItem = content.find(
+        (c) => typeof c === 'object' && c !== null && 'table' in c,
+      ) as { table: { body: unknown[][] } };
+      const linkedRow = tableItem.table.body[1] as { text?: string }[];
+      // Deduped despite the two budget lines sharing the same linkedItem name.
+      expect(linkedRow[5]!.text).toBe('Roof Replacement');
+    });
+
+    it('[Scenario 25] plural selection: real i18next chooses attachmentsNote_one for 1 doc and attachmentsNote_other for 2+, in both locales', async () => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const report = makeUsageFeatureReport();
+      const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
+
+      for (const [t, formatters, expected] of [
+        [
+          tEn,
+          formattersFor('en-US'),
+          { single: '1 attachment: Invoice', multi: '2 attachments: Quotation, Invoice' },
+        ],
+        [
+          tDe,
+          formattersFor('de-DE'),
+          { single: '1 Anhang: Rechnung', multi: '2 Anhänge: Angebot, Rechnung' },
+        ],
+      ] as const) {
+        const content = buildOverviewContent(
+          report,
+          includedIds,
+          new Map(),
+          new Map(),
+          'claim',
+          t,
+          formatters,
+          700, // sum of all 5 fixture invoices' allocatedAmount
+        );
+        const tableItem = content.find(
+          (c) => typeof c === 'object' && c !== null && 'table' in c,
+        ) as { table: { body: unknown[][] } };
+
+        // Row order matches report.invoices: [linkedUsage, attachSingle, attachMulti, ...]
+        const singleRow = tableItem.table.body[2] as { stack: { text: string }[] }[];
+        const multiRow = tableItem.table.body[3] as { stack: { text: string }[] }[];
+        expect(singleRow[5]!.stack[1]!.text).toBe(expected.single);
+        expect(multiRow[5]!.stack[1]!.text).toBe(expected.multi);
+      }
+    });
+
+    it('renders both real deposit-footnote wordings ("constituted" vs "reduced") in both locales', async () => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const report = makeUsageFeatureReport();
+      const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
+
+      for (const [t, formatters, expected] of [
+        [
+          tEn,
+          formattersFor('en-US'),
+          {
+            constituted: '‡1: Constituted Vendor (U-5) — This is a deposit.',
+            reduced:
+              '‡2: Reduced Vendor (U-6) — This position reflects deposits claimed separately.',
+          },
+        ],
+        [
+          tDe,
+          formattersFor('de-DE'),
+          {
+            constituted: '‡1: Constituted Vendor (U-5) — Dies ist eine Abschlagszahlung.',
+            reduced:
+              '‡2: Reduced Vendor (U-6) — Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.',
+          },
+        ],
+      ] as const) {
+        const content = buildOverviewContent(
+          report,
+          includedIds,
+          new Map(),
+          new Map(),
+          'claim',
+          t,
+          formatters,
+          700, // sum of all 5 fixture invoices' allocatedAmount
+        );
+        const notesStack = content[content.length - 1] as { stack: { text: string }[] };
+        const texts = notesStack.stack.map((n) => n.text);
+        expect(texts).toContain(expected.constituted);
+        expect(texts).toContain(expected.reduced);
+      }
     });
   });
 });

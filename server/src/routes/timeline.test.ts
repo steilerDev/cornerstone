@@ -139,6 +139,21 @@ describe('Timeline Routes', () => {
     app.db.insert(milestoneWorkItems).values({ milestoneId, workItemId }).run();
   }
 
+  /**
+   * Returns a YYYY-MM-DD date string `daysFromNow` days after the current real date.
+   *
+   * Used instead of hardcoded absolute calendar literals for not_started work item
+   * fixtures: not_started items get an implicit "today floor" CPM override applied
+   * by the scheduling engine (their start date cannot be in the past — see
+   * timelineService.ts), so a fixture date that is comfortably in the future never
+   * triggers that override and stays immune to calendar drift as real time advances.
+   */
+  function futureDateStr(daysFromNow: number): string {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + daysFromNow);
+    return d.toISOString().slice(0, 10);
+  }
+
   // ─── Authentication ────────────────────────────────────────────────────────
 
   describe('authentication', () => {
@@ -416,20 +431,36 @@ describe('Timeline Routes', () => {
     });
 
     it('returns projectedDate equal to the max endDate of linked work items', async () => {
+      // These fixtures are not_started work items. timelineService applies an
+      // implicit "today floor" CPM override to not_started items (their start
+      // date cannot be in the past — see timelineService.ts), so hardcoded
+      // absolute calendar literals would eventually fall into the past and this
+      // assertion would expire. Using dates comfortably in the future (relative
+      // to whenever the test actually runs) keeps the fixture permanently immune
+      // to that drift.
+      //
+      // Note: freezing the clock (jest.useFakeTimers/setSystemTime) was tried
+      // here first and rejected — it pollutes the shared module-level
+      // `lastRescheduleDate` gate in schedulingEngine.ts (used by
+      // ensureDailyReschedule), which then causes the *next* test in this file
+      // to unexpectedly trigger a real autoReschedule pass against its own
+      // database. Relative-date fixtures avoid touching the clock entirely.
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
         'password123',
       );
+      const wiAEndDate = futureDateStr(75);
+      const wiBEndDate = futureDateStr(150);
       const wiA = createTestWorkItem(userId, 'Task A', {
-        startDate: '2026-03-01',
-        endDate: '2026-04-15',
+        startDate: futureDateStr(30),
+        endDate: wiAEndDate,
       });
       const wiB = createTestWorkItem(userId, 'Task B', {
-        startDate: '2026-05-01',
-        endDate: '2026-07-30',
+        startDate: futureDateStr(90),
+        endDate: wiBEndDate,
       });
-      const msId = createTestMilestone(userId, 'Phase 1 Done', '2026-08-01');
+      const msId = createTestMilestone(userId, 'Phase 1 Done', futureDateStr(180));
       linkMilestoneToWorkItem(msId, wiA);
       linkMilestoneToWorkItem(msId, wiB);
 
@@ -443,8 +474,9 @@ describe('Timeline Routes', () => {
       const body = response.json<TimelineResponse>();
       const ms = body.milestones.find((m) => m.id === msId);
       expect(ms).toBeDefined();
-      // projectedDate = max endDate = 2026-07-30
-      expect(ms!.projectedDate).toBe('2026-07-30');
+      // projectedDate = max endDate = wiB's endDate (both fixture start dates are
+      // safely in the future, so the CPM today-floor never overrides them).
+      expect(ms!.projectedDate).toBe(wiBEndDate);
     });
 
     it('returns projectedDate: null when all linked work items have null endDate', async () => {

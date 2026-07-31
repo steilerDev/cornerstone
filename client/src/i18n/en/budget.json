@@ -1198,13 +1198,24 @@
       "status": "Status",
       "invoiceAmount": "Invoice Amount",
       "allocatedAmount": "Allocated Amount",
-      "appendix": "Appendix",
+      "usage": "Usage",
+      "attachmentType": {
+        "quotation": "Quotation",
+        "deposit": "Deposit",
+        "invoice": "Invoice"
+      },
+      "attachmentsNote_one": "{{count}} attachment: {{types}}",
+      "attachmentsNote_other": "{{count}} attachments: {{types}}",
+      "attachmentsNoteNoType_one": "{{count}} attachment",
+      "attachmentsNoteNoType_other": "{{count}} attachments",
       "subtotal": "Subtotal",
       "total": "Total",
       "refundNote": "(refund)",
       "footnoteFetchFailed": "Document could not be retrieved",
       "footnoteInvalidPdf": "Document is not a valid PDF",
-      "splitFootnote": "Amount shown reflects only the portion allocated to this source."
+      "splitFootnote": "Amount shown reflects only the portion allocated to this source.",
+      "depositReducedFootnote": "This position reflects deposits claimed separately.",
+      "depositConstitutedFootnote": "This is a deposit."
     },
     "sourceType": {
       "bank_loan": "Bank Loan",

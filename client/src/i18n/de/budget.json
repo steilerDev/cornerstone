@@ -1198,13 +1198,24 @@
       "status": "Status",
       "invoiceAmount": "Rechnungsbetrag",
       "allocatedAmount": "Zugeordneter Betrag",
-      "appendix": "Anhang",
       "subtotal": "Zwischensumme",
       "total": "Gesamt",
       "refundNote": "(Rückerstattung)",
       "footnoteFetchFailed": "Dokument konnte nicht abgerufen werden",
       "footnoteInvalidPdf": "Dokument ist keine gültige PDF-Datei",
-      "splitFootnote": "Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil."
+      "splitFootnote": "Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil.",
+      "usage": "Verwendung",
+      "attachmentType": {
+        "quotation": "Angebot",
+        "deposit": "Abschlagszahlung",
+        "invoice": "Rechnung"
+      },
+      "attachmentsNote_one": "{{count}} Anhang: {{types}}",
+      "attachmentsNote_other": "{{count}} Anhänge: {{types}}",
+      "attachmentsNoteNoType_one": "{{count}} Anhang",
+      "attachmentsNoteNoType_other": "{{count}} Anhänge",
+      "depositReducedFootnote": "Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.",
+      "depositConstitutedFootnote": "Dies ist eine Abschlagszahlung."
     },
     "sourceType": {
       "bank_loan": "Bankdarlehen",

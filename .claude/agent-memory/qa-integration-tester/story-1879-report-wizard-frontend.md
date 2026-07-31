@@ -73,15 +73,15 @@ allowance.
 and gates `isFirstGeneration` on `!previewBlob`. The very first successful generation calls
 `setPreviewBlob(result.blob)`, which is a NEW object reference from the caller's perspective in
 real usage (`generateReportPdf` always constructs a fresh `Blob`) — that state change re-fires the
-effect, `previewBlob` is now truthy so `isFirstGeneration` flips false, taking the *debounced
-regeneration* branch instead of doing nothing, producing yet another new Blob, repeating
+effect, `previewBlob` is now truthy so `isFirstGeneration` flips false, taking the _debounced
+regeneration_ branch instead of doing nothing, producing yet another new Blob, repeating
 indefinitely. Confirmed via a standalone repro script (mock `generateReportPdf` returning
 `new Blob(...)` per call, real timers): call count grew 1 → 3 (at 1s) → 7 (at 3s) — genuinely
 unbounded, not just "one extra call". This directly contradicts frontend fix spec item 2 ("kill the
 regeneration loop") and item 2's claimed single-effect fix did NOT actually remove `previewBlob`
 from the deps array. The existing test suite's own `mockGenerateReportPdf.mockResolvedValue(...)`
 pattern (reusing ONE object literal across all calls) accidentally masks this in most tests, since
-React bails out of re-rendering when `setState` receives the *same* reference twice — only the
+React bails out of re-rendering when `setState` receives the _same_ reference twice — only the
 dedicated `mockImplementation(async () => ({ blob: new Blob(...), ... }))` pattern (a fresh Blob
 per call, matching real behavior) reveals it. Wrote
 `'does not keep re-triggering generateReportPdf once settled (no runaway regeneration loop)'` in

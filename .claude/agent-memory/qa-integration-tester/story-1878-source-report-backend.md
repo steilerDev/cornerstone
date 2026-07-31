@@ -33,7 +33,7 @@ and use `doc.id` not `doc.documentId`.
 
 **Handling a real bug discovered via a "must be fully green" test-fix task**: per the
 test-failure-debugging protocol (don't weaken a correct test to fit buggy code, don't silently
-drop it either), the new scenario-17 test asserts the *correct*/spec-conformant behavior, is left
+drop it either), the new scenario-17 test asserts the _correct_/spec-conformant behavior, is left
 in the file `it.skip`'d (not deleted, not inverted to assert `null`) with a comment pointing at
 #1884, and the story's memory + a filed GitHub issue carry the paper trail. Scenario 18
 ("getDocuments throws → degrades to null") is unaffected by this bug (the catch block leaves the

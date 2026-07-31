@@ -112,6 +112,7 @@ an `<iframe>` whose target content type the headless Chromium shell can't native
 is the known case; likely also true for other browser-plugin-dependent content).**
 
 **Replacement pattern — verify the CSP contract server-side, not the browser's enforcement of it:**
+
 1. **Direct CSP header assertion** (the deterministic core): `page.request.get(route)` (shares
    the page's cookie jar/session automatically) then read
    `response.headers()['content-security-policy']`, regex out the specific directive
@@ -121,7 +122,7 @@ is the known case; likely also true for other browser-plugin-dependent content).
    asked to render the content. This is the primary, CI-reliable regression guard now.
 2. Keep a zero-CSP-console-violation assertion as defense in depth — real (non-headless-shell)
    browsers still log synchronously on a block, so this remains a meaningful second signal even
-   though it can't be the *only* signal in CI.
+   though it can't be the _only_ signal in CI.
 3. Do NOT try to fetch the iframe's `blob:` src from within the page as a third signal — see the
    "blob: fetch is connect-src-governed, not frame-src" entry immediately below for why that's a
    dead end, not just an unnecessary extra.
