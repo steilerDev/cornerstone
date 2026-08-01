@@ -6,7 +6,7 @@ Cornerstone is a web-based home building project management application designed
 
 - **Target Users**: 1-5 homeowners per instance (self-hosted)
 - **Deployment**: Single Docker container with SQLite
-- **Requirements**: See `plan/REQUIREMENTS.md` for the full requirements document
+- **Requirements**: GitHub Issues (epics and stories) are the source of truth for current requirements. `plan/REQUIREMENTS.md` is the historical founding requirements document — consult it for original intent only.
 
 ## Agent Team
 
@@ -17,10 +17,10 @@ This project uses a team of 11 specialized Claude Code agents defined in `.claud
 | `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog                                                               |
 | `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                                                                   |
 | `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility                                                        |
-| `dev-team-lead`         | Spec-writer, reviewer, and committer (Sonnet): decomposes work into implementation specs, reviews agent output, commits and monitors CI |
-| `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, launched by orchestrator with dev-team-lead specs)                     |
-| `frontend-developer`    | UI components, pages, interactions, API client (Haiku, launched by orchestrator with dev-team-lead specs)                               |
-| `translator`            | Non-English translations, glossary enforcement (Sonnet, launched by orchestrator with dev-team-lead Translator Specs)                   |
+| `dev-team-lead`         | Spec-writer, reviewer, and committer: decomposes work into implementation specs, reviews agent output, commits and monitors CI          |
+| `backend-developer`     | API endpoints, business logic, auth, database operations (launched by orchestrator with dev-team-lead specs)                            |
+| `frontend-developer`    | UI components, pages, interactions, API client (launched by orchestrator with dev-team-lead specs)                                      |
+| `translator`            | Non-English translations, glossary enforcement (launched by orchestrator with dev-team-lead Translator Specs)                           |
 | `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                                   |
 | `e2e-test-engineer`     | Playwright E2E browser tests, page objects, smoke tests, responsive testing, dependent system integration testing                       |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                                            |
@@ -60,7 +60,7 @@ Wiki pages are markdown files in `wiki/`. Sync before reading: `git submodule up
 
 ### Board & Issue Relationships
 
-The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Wont-Do. All stories must be linked as sub-issues of their parent epic, and dependency relationships must be maintained. Use native `gh project` CLI commands for board status management (`gh project item-list`, `gh project item-edit`, `gh project item-add`). GraphQL mutations are still needed for `addSubIssue` and `addBlockedBy`. Board IDs and exact commands are in the skill files and agent definitions.
+The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Wont-Do. All stories must be linked as sub-issues of their parent epic, and dependency relationships must be maintained. **Board status changes go through `bash scripts/board.sh <issue-number> <backlog|todo|in-progress|done|wont-do>`** — the script owns the opaque project/field/option IDs (the only place they live) and adds the issue to the board if it isn't on it yet. GraphQL mutations are still needed for `addSubIssue` and `addBlockedBy` (see `/epic-start`).
 
 ## Agile Workflow
 
@@ -93,6 +93,27 @@ The orchestrator uses the following skills to drive work. Each skill contains th
 
 See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases in a single session (only pauses for promotion approval). Use `/release` standalone to promote `beta` to `main` without a prior epic definition. `/mini-epic` and `/batch-develop` are the mid-size workflow for cohesive multi-item work that doesn't warrant full epic planning. `/dependabot`, `/fix-e2e`, and `/review-pr` are maintenance/support workflows invoked on demand.
 
+### Skill Task Tracking
+
+Execution skills track their steps with the harness task tools. The standard rules (referenced by each skill as "Standard task-tracking rules"):
+
+- **Create the task list up front** (one task per skill step) before executing step 1, and keep it 1:1 with the skill's step numbering.
+- **Mark progress live**: set a task `in_progress` before starting its step and `completed` immediately after finishing it — never batch updates.
+- **Recovery**: after context compaction or session resume, call `TaskList` first and continue from the earliest non-completed task instead of restarting the skill.
+- **Dynamic tasks**: work discovered mid-skill (fix loops, follow-ups) gets its own task appended at the point of discovery, so the list stays a faithful record.
+
+### Shared Mechanics Scripts
+
+Deterministic git/GitHub mechanics live in `scripts/` — skills and agents call these instead of inlining bash:
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/ci-wait.sh <pr> [beta\|main]` | Canonical CI-gate wait: mergeability precheck, check-runs polling, timeouts, rate-limit backoff |
+| `scripts/board.sh <issue> <status>` | GitHub Projects board mutations (owns the board IDs) |
+| `scripts/squash-merge.sh <pr> "<subject>" [body-file]` | Squash merge with trailer preservation and skip-ci guard |
+| `scripts/worktree-done.sh <path> [branch]` | End-of-session worktree + branch cleanup (run from the base repo) |
+| `scripts/check-trailers.sh <base> <head>` | Trailer verification for a commit range |
+
 ### Acceptance & Validation
 
 Every epic has two phases: **Development** (`/develop`) where QA and E2E write and run tests for each story and the applicable PR reviewers approve per the **PR Review Gate** below; and **Epic validation** (`/epic-close`) where E2E coverage is confirmed and UAT runs before promotion. The only human gate is `beta` → `main` — the user approves after reviewing the change inventory. Feedback goes to `/tmp/notes.md`; fixes loop autonomously until approved. This is the release/promotion feedback channel specifically — the `/batch-develop` work queue uses a separate file, `/tmp/batch-queue.md`, to avoid the two protocols colliding on one path.
@@ -106,6 +127,8 @@ Every epic has two phases: **Development** (`/develop`) where QA and E2E write a
 - **Security review conditional** — the `security-engineer` reviews PRs touching security-relevant files per the **PR Review Gate**; not every story PR requires it (see Security Review Trigger Rules)
 - **Test agents own all tests** — `qa-integration-tester` owns unit and integration tests; `e2e-test-engineer` owns Playwright E2E browser tests. Developer agents do not write tests.
 - **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and `e2e-test-engineer`.
+- **Story sizing (Spec-Lite)** — `dev-team-lead [MODE: spec]` classifies each work item S/M/L. S-sized items (single-file or trivially scoped) get a 5–10 line Spec-Lite and a single implementer plus QA instead of the full multi-agent fan-out; M/L get the full spec pipeline.
+- **Continue agents through fix loops** — fix iterations continue the previously launched agent via SendMessage (it keeps the context it built) instead of launching a fresh agent each round.
 
 ### PR Review Gate
 
@@ -139,27 +162,19 @@ Production files: any file under `server/`, `client/`, or `shared/`.
 
 All agents must clearly identify themselves:
 
-- **Commits**: `Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>` — see each agent's definition file for the exact trailer.
+- **Commits**: `Co-Authored-By: Claude <agent-name> <noreply@anthropic.com>` — the agent name only; trailers carry **no model version** (models are selected via aliases in agent frontmatter and change over time).
 - **GitHub comments**: prefix with `**[agent-name]**` (e.g., `**[backend-developer]** This endpoint...`)
 - **Orchestrator**: when committing work produced by an agent, use that agent's name in the trailer.
 
 ### Canonical Agent Trailers
 
-These are frozen per-agent labels — do not bump ad hoc; update this table first if the convention changes. All trailers are suffixed `<noreply@anthropic.com>`.
+The canonical trailer is the agent name with **no model version**:
 
-| Agent                   | `model:` | Canonical trailer                           |
-| ----------------------- | -------- | ------------------------------------------- |
-| `backend-developer`     | haiku    | `Claude backend-developer (Haiku 4.5)`      |
-| `frontend-developer`    | haiku    | `Claude frontend-developer (Haiku 4.5)`     |
-| `qa-integration-tester` | sonnet   | `Claude qa-integration-tester (Sonnet 4.5)` |
-| `e2e-test-engineer`     | sonnet   | `Claude e2e-test-engineer (Sonnet 4.5)`     |
-| `security-engineer`     | sonnet   | `Claude security-engineer (Sonnet 4.5)`     |
-| `translator`            | sonnet   | `Claude translator (Sonnet 4.5)`            |
-| `dev-team-lead`         | sonnet   | `Claude dev-team-lead (Sonnet 4.6)`         |
-| `ux-designer`           | sonnet   | `Claude ux-designer (Sonnet 4.6)`           |
-| `product-architect`     | opus     | `Claude product-architect (Opus 4.6)`       |
-| `product-owner`         | opus     | `Claude product-owner (Opus 4.6)`           |
-| `docs-writer`           | opus     | `Claude docs-writer (Opus 4.6)`             |
+```
+Co-Authored-By: Claude <agent-name> <noreply@anthropic.com>
+```
+
+e.g. `Co-Authored-By: Claude backend-developer <noreply@anthropic.com>`. Valid `<agent-name>` values are exactly the 11 agents in the Agent Team table. Models are selected via aliases (`haiku`/`sonnet`/`opus`) in each agent's frontmatter and resolve to the latest model of that tier — embedding a version in the trailer only creates drift, so don't. Legacy trailers with a parenthesized model (`Claude backend-developer (Haiku 4.5)`) exist throughout history and remain valid for verification purposes; never write new ones.
 
 ## Git & Branching
 
@@ -191,7 +206,7 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 **Agent-memory updates must be committed from session worktrees.** Never leave `.claude/agent-memory/` edits uncommitted in the base checkout — commit them as part of the session's own PR (riding along with the production-code changes), matching current practice.
 
-**Clean up worktrees when work is complete.** Once a session's work is finished — its PR is merged (or the work is deliberately abandoned) and the worktree has no uncommitted changes — remove the worktree and delete its local branch: `git worktree remove <path>` (run from the base repository), then `git branch -D <branch>` (verify the PR is merged first; squash merges make `-d` refuse even for merged work). Never remove a worktree that has uncommitted changes, an unmerged/unpushed branch, or that another active session may be using — when in doubt, leave it and note it for manual cleanup.
+**Clean up worktrees when work is complete.** Once a session's work is finished — its PR is merged (or the work is deliberately abandoned) and the worktree has no uncommitted changes — run `bash scripts/worktree-done.sh <path> [branch]` from the base repository. It refuses dirty worktrees, handles the wiki-submodule removal quirk, and deletes the local branch only when a merged PR exists (squash merges make `-d` refuse, so it uses `-D` behind that check). Never remove a worktree another active session may be using — when in doubt, leave it and note it for manual cleanup.
 
 ### Release Model
 
@@ -235,31 +250,11 @@ The only exception is the QA agent running a specific test file it just wrote (e
 
 ### CI Gate Polling (canonical pattern)
 
-`gh pr checks --watch` does not support GitHub Rulesets (only legacy branch protection). Use the polling loops below to watch the required gate checks by name.
+**Use `bash scripts/ci-wait.sh <pr-number> [beta|main]`** — the single canonical CI wait. It performs the mergeability precheck (CI may not run, or silently hang, on a conflicted PR), then polls the required gate checks (`Quality Gates` on beta PRs, plus `E2E Gates` on main PRs) with timeouts (300s / 900s, override via `CI_WAIT_TIMEOUT=<seconds>`) and rate-limit backoff.
 
-**Step 1 — Check for merge conflicts.** CI may not run (or silently hang) if the PR has conflicts. Always verify mergeability first:
+Do **not** hand-roll polling loops, and do **not** use `gh pr checks --watch` or `gh pr checks --json` — neither works with this repo's GitHub Rulesets setup (`--json` silently returns nothing). The script polls the commit check-runs API (`gh api repos/<repo>/commits/<sha>/check-runs`) instead, which is the reliable source.
 
-```bash
-state=$(gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'); if [ "$state" != "MERGEABLE" ]; then echo "PR is not mergeable (state: $state) — resolve conflicts before waiting for CI"; exit 1; fi
-```
-
-If the state is `CONFLICTING`, rebase onto the target branch, force-push, and re-check. If the state is `UNKNOWN`, wait a few seconds and retry — GitHub may still be computing mergeability.
-
-**Step 2 — Poll for required gate checks.**
-
-**Beta PRs** (require `Quality Gates` only — expected ~5 minutes):
-
-```bash
-echo "Waiting for Quality Gates..."; SECONDS=0; while true; do if [ $SECONDS -ge 300 ]; then echo "TIMEOUT: Quality Gates did not complete within 5 minutes"; exit 1; fi; bucket=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac; done
-```
-
-**Main PRs** (require `Quality Gates` + `E2E Gates` — expected ~15 minutes):
-
-```bash
-echo "Waiting for Quality Gates + E2E Gates..."; SECONDS=0; while true; do if [ $SECONDS -ge 900 ]; then echo "TIMEOUT: CI gates did not complete within 15 minutes"; exit 1; fi; qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); e2e=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "E2E Gates") | .bucket' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$e2e" = "fail" ]; then echo "CI FAILED (QG=$qg, E2E=$e2e)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$e2e" = "pass" ]; then echo "All gates passed"; break; fi; sleep 30; done
-```
-
-Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s. Timeouts prevent agents from polling indefinitely if CI hangs.
+If the script reports `CONFLICTING`, rebase onto the target branch, force-push, and re-run it. If it times out with **no check-runs at all**, suspect a `[skip ci]` directive on the head commit (see CI Skip-Directive Quirks below).
 
 ### CI Skip-Directive Quirks (two failure modes when CI stops firing)
 
@@ -271,46 +266,21 @@ GitHub Actions parses **any commit's first line** for `[skip ci]` (and equivalen
 
 Detect: head commit's first line literally contains `[skip ci]`; `gh run list --commit <sha>` is empty.
 
-**Prevention:** before squash-merging a PR whose title contains a skip directive, override the squash subject/body with `gh pr merge <N> --squash --subject "<clean subject>"` so the merged commit message is skip-directive-free. Likewise, do not include `[skip ci]` (or equivalents) verbatim in PR titles — reference them with code spans (`` `[skip ci]` ``) or rewrite as "the CI-skip directive".
+**Prevention:** `scripts/squash-merge.sh` refuses subjects containing a skip directive — always merge through it with a clean subject. Likewise, do not include `[skip ci]` (or equivalents) verbatim in PR titles — reference them with code spans (`` `[skip ci]` ``) or rewrite as "the CI-skip directive".
 
 **Recovery if it already happened:** push another commit to `beta` via a fresh tiny PR with a clean title (e.g., `chore: retrigger promotion CI`). That advances HEAD with a clean message, fires `pull_request:synchronize` on the promotion PR, and CI runs normally.
 
 ### Squash-Merge Trailer Preservation (canonical pattern)
 
-GitHub's default `--squash` merge body varies with commit count and shape — for single-commit
-branches it may reuse the sole commit's body verbatim (so a commit missing a trailer stays
-missing); for multi-commit branches it concatenates all commit bodies (which tends to preserve
-trailers but also duplicates them, once per near-identical casing variant). Never rely on the
-default. Every skill that squash-merges a PR carrying agent trailers must rebuild the merge
-commit's subject and body explicitly:
+GitHub's default `--squash` merge body varies with commit count and shape and cannot be relied on
+to preserve agent trailers. **Every squash merge goes through
+`bash scripts/squash-merge.sh <pr-number> "<subject>" [body-file]`**, which rebuilds the squash
+commit's subject and body explicitly: it collects `Co-Authored-By:` trailers from all of the PR's
+commits, normalizes label casing, deduplicates, appends them under the body, and refuses subjects
+containing a CI-skip directive.
 
-```bash
-BASE_BRANCH=beta   # or the PR's actual base
-SUBJECT="<type>(<scope>): <description>"   # clean conventional title -- must not contain a literal
-                                            # "[skip ci]" or equivalent (see CI Skip-Directive Quirks)
-TRAILERS=$(git log origin/${BASE_BRANCH}..HEAD --format="%b" \
-  | grep -iE '^co-authored-by:' \
-  | sed -E 's/^[Cc]o-[Aa]uthored-[Bb]y:/Co-Authored-By:/' \
-  | sort -u)
-BODY="$(cat <<EOF
-<1-3 bullet point summary>
-
-Fixes #<issue-number>
-
-${TRAILERS}
-EOF
-)"
-gh pr merge <pr-url> --squash --subject "$SUBJECT" --body "$BODY"
-```
-
-This normalizes the `Co-Authored-By:` label casing before deduplication, so `Co-Authored-By:` and
-`co-authored-by:` variants of the same line collapse to one. It does **not** merge a bare-model
-trailer (e.g. `Claude Sonnet 4.6` with no agent name) with a properly-named one — those are a
-distinct, pre-existing format-drift problem that Squash-Merge Trailer Preservation cannot repair
-after the fact. Going forward, `dev-team-lead [MODE: commit]` always writes the canonical
-per-agent string from the Canonical Agent Trailers table, and `scripts/check-trailers.sh` (see
-below) fails the PR before merge if a required agent's canonical name is absent — so bare-model
-trailers should not recur as the _only_ record of an agent's contribution.
+Write the body (1–3 summary bullets plus `Fixes #<issue-number>` lines) to a temp file and pass it
+as the third argument.
 
 **Note**: this only applies to squash merges carrying agent trailers. It does not apply to the
 `beta` → `main` promotion merge (`gh pr merge --merge`), which preserves individual commits (and
@@ -327,8 +297,22 @@ two places:
 2. **CI's `trailer-check` job** (automated, on every PR touching production paths) — see
    `.github/workflows/ci.yml`.
 
-Detection inside the script is case-insensitive; writing trailers is always canonical-case per the
-table above.
+Detection inside the script is case-insensitive and accepts both the current de-versioned trailer
+form (`Claude <agent> <noreply@anthropic.com>`) and the legacy parenthesized-model form
+(`Claude <agent> (Model X.Y) <noreply@anthropic.com>`) so history-spanning ranges still verify.
+Writing trailers is always the canonical de-versioned form.
+
+### Enforcement Hooks
+
+`.claude/settings.json` registers a `PreToolUse` hook on the Bash tool
+(`scripts/hooks/bash-guard.mjs`) that enforces two rules at the harness level:
+
+1. **Protected pushes are blocked** — `git push` targeting `main`/`beta`, and any push of a
+   `worktree-*` branch, is rejected before it runs.
+2. **Trailer pre-check on commit** — when staged files require agent trailers per Delegation
+   Enforcement rules 2–6, a `git commit` whose message misses a required trailer is rejected at
+   commit time (mirrors `scripts/check-trailers.sh`; commits with no Claude trailer at all are
+   treated as human-authored and skipped, matching CI).
 
 ### GitHub Rate-Limit Retry Policy
 
@@ -340,7 +324,7 @@ When `gh` or `git push` commands fail with a GitHub rate-limit error (primary AP
 - Only retry transient rate-limit failures. Permission errors, merge conflicts, and other non-transient failures must not be retried
 - Log each retry attempt with its wait duration so the user can see progress
 
-Apply the same policy when polling CI gates — if `gh pr checks` fails with a rate-limit error, the polling loop's normal sleep already absorbs short-lived throttling; for persistent rate-limit errors, extend the sleep per the backoff schedule above.
+`scripts/ci-wait.sh` implements this backoff for CI-gate polling; apply the same policy manually for other `gh` operations.
 
 ## Tech Stack
 
