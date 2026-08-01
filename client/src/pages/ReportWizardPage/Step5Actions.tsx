@@ -130,7 +130,11 @@ export function Step5Actions({
         </>
       )}
 
-      {claimError && <div className={sharedStyles.formErrorBanner}>{claimError}</div>}
+      {claimError && (
+        <div className={sharedStyles.bannerError} role="alert">
+          {claimError}
+        </div>
+      )}
     </div>
   );
 }

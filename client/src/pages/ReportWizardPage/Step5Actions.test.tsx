@@ -306,9 +306,16 @@ describe('Step5Actions — claim error banner', () => {
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
   });
 
+  it('renders the error banner with the bannerError class and role="alert" when claimError is set', () => {
+    const { container } = renderStep5({ ...baseProps(), claimError: 'Something went wrong' });
+    expect(container.querySelector('.bannerError')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong');
+  });
+
   it('renders no error banner when claimError is null', () => {
     const { container } = renderStep5({ ...baseProps(), claimError: null });
-    expect(container.querySelector('.formErrorBanner')).not.toBeInTheDocument();
+    expect(container.querySelector('.bannerError')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 
