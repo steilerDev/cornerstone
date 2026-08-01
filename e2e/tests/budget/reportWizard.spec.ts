@@ -319,10 +319,15 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
       );
       await wizard.confirmClaim();
 
-      // Success banner + link to /budget/invoices (Frontend/E2E spec — see filed bug report
-      // if this fails: current implementation hardcodes count:0 and renders no link).
+      // Success banner + link to /budget/invoices. Copy is now the invoice/deposit split form
+      // (`sourceReports.claimSuccess`) with counts sourced from the SERVER response
+      // (`response.claimedInvoiceIds`/`claimedDepositIds`), not the client-side selection —
+      // pending2 + paid both flip (2 invoices, no other-source interest), and this fixture has
+      // no deposits at all, so the deposit count is 0.
       await expect(wizard.claimSuccessBanner).toBeVisible();
-      await expect(wizard.claimSuccessBanner).toContainText('2 invoice(s) marked as claimed');
+      await expect(wizard.claimSuccessBanner).toContainText(
+        '2 invoice(s) and 0 deposit(s) marked as claimed',
+      );
       await expect(wizard.claimSuccessInvoicesLink).toBeVisible();
       await wizard.claimSuccessInvoicesLink.click();
       await expect(page).toHaveURL(new RegExp(INVOICES_ROUTE));

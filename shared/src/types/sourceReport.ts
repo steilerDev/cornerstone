@@ -91,7 +91,9 @@ export interface SourceReportResponse {
 }
 
 export interface MarkClaimedRequest {
+  sourceId: string;
   invoiceIds: string[];
+  depositIds: string[];
 }
 
 export interface MarkClaimedResponse {

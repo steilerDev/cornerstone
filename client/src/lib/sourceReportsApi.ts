@@ -16,8 +16,16 @@ export function getSourceReport(
   ).then((r) => r.report);
 }
 
-export function markInvoicesClaimed(invoiceIds: string[]): Promise<MarkClaimedResponse> {
-  return post<MarkClaimedResponse>('/source-reports/mark-claimed', { invoiceIds });
+export function markInvoicesClaimed(
+  sourceId: string,
+  invoiceIds: string[],
+  depositIds: string[],
+): Promise<MarkClaimedResponse> {
+  return post<MarkClaimedResponse>('/source-reports/mark-claimed', {
+    sourceId,
+    invoiceIds,
+    depositIds,
+  });
 }
 
 export function generateReportContent(

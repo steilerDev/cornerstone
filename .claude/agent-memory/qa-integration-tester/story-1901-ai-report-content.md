@@ -11,9 +11,11 @@ metadata:
 
 `server/src/services/reportContentGenerationService.ts` line 9 imports non-existent schema
 exports:
+
 ```ts
 import { invoices, work_items, household_items } from '../db/schema.js';
 ```
+
 The actual exports are camelCase (`workItems`, `householdItems`) — `work_items`/`household_items`
 only exist as the SQL table names passed to `sqliteTable(...)`, not as JS/TS identifiers. Confirmed
 via `npx tsc -p server/tsconfig.json --noEmit` (2 × TS2724) — not a test-harness artifact.

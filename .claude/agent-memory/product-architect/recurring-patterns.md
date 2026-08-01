@@ -1,6 +1,6 @@
 ---
 name: recurring-patterns
-description: Cross-cutting correctness traps in Cornerstone that have bitten more than once — polymorphic FK cleanup, CONFIDENCE_MARGINS units, SQLite XOR CHECK vs SET NULL, N+1 sites accepted at current scale
+description: Cross-cutting correctness traps in Cornerstone that have bitten more than once — polymorphic FK cleanup, CONFIDENCE_MARGINS units, SQLite XOR CHECK vs SET NULL, cross-layer contract drift between mocked client tests and route schemas, Fastify/ajv anyOf validation, N+1 sites accepted at current scale
 metadata:
   type: project
 ---
@@ -40,8 +40,67 @@ the sole defect. Prefer an options flag over a fork; when a fork ships anyway, f
   disguise (pre-fix #1894 test literally said "1400 … is intentionally MORE than the invoice amount").
 - Additive-only diffs (`@@ -N,3 +N,269 @@`, zero deletions) bound blast radius to new code paths but say
   nothing about the new path's correctness. Verify with `git diff origin/beta...HEAD -- <file>`.
+- Two green suites asserting **opposite** things about the same contract — see the next section.
 
-## N+1 queries accepted at current scale (<5 users)
+## Cross-layer contract smell: mocked client test vs. server schema (PR #1922, #1895)
+
+The highest-value review move on any PR that changes a request shape is to read the client test and the
+route test **for the same endpoint, side by side**. Client unit tests mock the API client, so they assert
+only what the client _intends_ to send; route tests run the real Fastify/ajv validator. When a request
+shape changes, the two can drift into flat contradiction and **both stay green**.
+
+Caught on PR #1922: the wizard deliberately began sending `invoiceIds: []` (deposit-only close-out), and
+`ReportWizardPage.test.tsx` asserted `toHaveBeenCalledWith('src-1', [], ['dep-1'])` against a **mocked**
+`markInvoicesClaimed` — while `sourceReports.test.ts` simultaneously asserted that `invoiceIds: []` returns
+**400** (the route schema still carried `minItems: 1` from the old semantics). Every layer passed CI. The
+real flow — single-invoice claim report, user excludes one line — 400'd and silently skipped the deposit
+sweep the fix existed to perform.
+
+**Review procedure when a request/response shape changes:**
+
+1. Grep both suites for the endpoint. If the client test mocks the API client, it is *not* contract coverage.
+2. Re-derive the request the client can now emit at its **extremes** (empty arrays, all-filtered, single
+   item) and check each against the route schema by hand — validators are declarative, so this is cheap.
+3. Demand at least one test that crosses the seam: a route test via `app.inject` (real ajv compilation), or
+   an E2E that drives the UI and asserts the outcome **out of band via the API**, not via the success banner.
+4. Beware E2E that stops at the modal. The scenario covering exactly this case
+   (`reportWizardExpansion.spec.ts` Scenario 6) asserted the confirm-modal copy and then called
+   `cancelClaimConfirm()` — it never submitted, so the 400 was invisible. An E2E that opens a confirmation
+   and cancels covers the copy, not the behavior.
+
+Corollary: when a constraint like "≥1 item" is written on one field but the operation's semantics have
+split into two independent sets, the constraint belongs on the **union**, not on either field. Fixed here
+with a top-level `anyOf` (see next section).
+
+## Fastify/ajv: `anyOf` for union-style body validation (PR #1922)
+
+"At least one of A or B non-empty" is expressible directly in the route schema — no custom preHandler, no
+service-only guard. Keep the field-level `type`/`items` at the top level and add a sibling `anyOf`:
+
+```ts
+properties: { invoiceIds: { type: 'array', items: { type: 'string' } },
+              depositIds: { type: 'array', items: { type: 'string' } } },
+required: ['sourceId', 'invoiceIds', 'depositIds'],
+additionalProperties: false,
+anyOf: [ { properties: { invoiceIds: { minItems: 1 } } },
+         { properties: { depositIds: { minItems: 1 } } } ],
+```
+
+Mirror the rule in the service (`if (a.length === 0 && b.length === 0) throw new ValidationError(...)`) so
+the invariant holds for direct service callers too, and document it in `API-Contract.md` under a **Request
+Validation Rules** heading.
+
+**The caveat.** Fastify defaults ajv to `removeAdditional: true`. ajv's own docs warn that
+`removeAdditional` combined with `anyOf`/`oneOf` is a footgun: a property can be stripped by a branch that
+ultimately fails. It is safe **only** because the `anyOf` subschemas declare no `additionalProperties` (and
+no `properties` beyond narrowing ones already declared at the top level) — `additionalProperties: false`
+resolves against the parent's own `properties`, so nothing is removed. If a future subschema introduces its
+own `properties`/`additionalProperties`, this breaks silently and shape-dependently.
+
+So: **always pin `anyOf` body validation with route-level tests via `app.inject`**, one per branch plus the
+all-fail case (PR #1922 has 400 both-empty / 200 deposit-only / 400 missing-field). Those compile the real
+validator; reasoning about ajv semantics in review does not. Minor noise to ignore: `required` repeated
+inside `anyOf` branches when the field is already required at top level — harmless, not worth a comment.
 
 Not bugs, but do not let them become the copied pattern:
 
@@ -97,7 +156,7 @@ against `client/src/styles/tokens.css`, and push the value into a CSS Module cla
 
 `allocatedAmount`, `allocatedPortion`, `totalAmount`, `invoiceAmount`, and everything `formatCurrency`
 consumes are **euros, rounded to 2 dp**. There is a `toCents()` helper in `sourceReportService.ts` but it is
-used only *inside* a `toCents(x)/100` round-trip — it never escapes into a field.
+used only _inside_ a `toCents(x)/100` round-trip — it never escapes into a field.
 
 PR #1916 (#1901) broke this across a new module seam: the service passed `inv.allocatedAmount` (euros) into
 `GenerateReportContentLlmInvoice.amount`, and `prompts.ts` rendered `(inv.amount / 100).toFixed(2)` — every
@@ -110,9 +169,10 @@ Same PR, second defect at the same spot: `Math.round(includedTotal)` (commented 
 rounds to the nearest whole euro. Cent-rounding is `Math.round(x * 100) / 100`.
 
 **Review rules that follow:**
+
 - Any monetary value crossing a module boundary must carry its unit in the type's JSDoc.
 - When a server path re-derives a total the client already derives, demand it mirror the client formula
-  *shape*, not just its intent — `applyLineExclusions` rounds **per invoice** then `buildReportContent` sums
+  _shape_, not just its intent — `applyLineExclusions` rounds **per invoice** then `buildReportContent` sums
   the already-rounded values with no final round. A single trailing round is a different number.
 - Grep new prompt builders for `/ 100`, `* 100`, and `toFixed(` — that is where unit assumptions hide.
 - Better still: push shared derivations into `@cornerstone/shared` so there is one implementation

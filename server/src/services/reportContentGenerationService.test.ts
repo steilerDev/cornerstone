@@ -297,6 +297,28 @@ describe('generateReportContent (Story #1901)', () => {
     return id;
   }
 
+  function insertDeposit(
+    invoiceId: string,
+    overrides: Partial<typeof schema.invoiceDeposits.$inferInsert> = {},
+  ): string {
+    const id = overrides.id ?? `dep-${++counter}`;
+    const now = ts();
+    db.insert(schema.invoiceDeposits)
+      .values({
+        invoiceId,
+        amount: 100,
+        dueDate: '2026-01-01',
+        status: 'pending',
+        entryType: 'deposit',
+        createdAt: now,
+        updatedAt: now,
+        ...overrides,
+        id,
+      })
+      .run();
+    return id;
+  }
+
   // ─── Helper: build a single invoice fully wired to a source, with a work-item budget line ──
 
   function seedSingleInvoiceReport(opts: {
@@ -691,5 +713,41 @@ describe('generateReportContent (Story #1901)', () => {
 
     expect(result.descriptions).toEqual({ [invoiceId]: 'Real description' });
     expect(result.descriptions).not.toHaveProperty('hallucinated-invoice-id');
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Bug #1918 regression: claim reports drop zero-contribution budget lines
+  // upstream in getSourceReport — this must propagate through to the LLM input,
+  // sending no budget lines (and doing no linked-item lookup) for such an invoice.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  it('#1918 regression: a quotation invoice whose only funding is a deposit tagged to this source sends NO budget lines to the LLM for that invoice, even though its line is linked to a work item', async () => {
+    const sourceId = insertSource();
+    const vendorId = insertVendor();
+    const invoiceId = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+    const { budgetId } = insertWorkItemBudget(sourceId, {
+      entityDescription: 'Should never reach the LLM input',
+    });
+    insertInvoiceBudgetLine(invoiceId, { workItemBudgetId: budgetId }, 1000);
+    // Deposit tagged to this source — sweeps the line's Rail A contribution to zero for a
+    // 'claim' report (quotation isn't in the claim slice, and the tagged deposit is excluded
+    // from Rail A by definition), so getSourceReport drops budgetLines[] for this invoice.
+    insertDeposit(invoiceId, { amount: 300, status: 'pending', budgetSourceId: sourceId });
+
+    mockProviderGenerateReportContent.mockResolvedValue(defaultLlmResult([invoiceId]));
+
+    await generateReportContent(
+      db,
+      makeConfig(),
+      baseRequest({ type: 'claim', sourceId, includedInvoiceIds: [invoiceId] }),
+    );
+
+    const input = mockProviderGenerateReportContent.mock.calls[0]![0];
+    const invoiceInput = input.invoices.find((inv) => inv.invoiceId === invoiceId);
+    expect(invoiceInput).toBeDefined();
+    expect(invoiceInput!.budgetLines).toEqual([]);
+    // The invoice's exclusion-adjusted `amount` reflects only the deposit's own Rail B
+    // contribution (300), not the invoice's raw itemized line total (1000).
+    expect(invoiceInput!.amount).toBeCloseTo(300);
   });
 });

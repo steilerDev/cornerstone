@@ -373,8 +373,16 @@ export async function getSourceReport(
   for (const [iblId, lineContrib] of railALineContributions) {
     const invoiceId = lineContrib.invoiceId;
     const details = iblDetails.get(iblId)!;
-    const lines = budgetLinesByInvoiceId.get(invoiceId) ?? [];
     const portion = toCents(lineContrib.contribution) / 100;
+
+    // For 'claim' reports, skip budget lines with zero contribution. This handles cases where
+    // quotation invoices have invoiced-but-untagged deposits (sweepable) that eliminate the
+    // invoice's bank-funded portion but leave the line structurally present.
+    if (type === 'claim' && portion === 0) {
+      continue;
+    }
+
+    const lines = budgetLinesByInvoiceId.get(invoiceId) ?? [];
     lines.push({
       id: details.id,
       description: details.description,
@@ -510,21 +518,32 @@ export async function getSourceReport(
 }
 
 /**
- * Mark a batch of invoices as claimed, updating both invoices and their deposits.
+ * Mark invoices as claimed within a source scope, with source-scoped deposit sweep.
  * All work happens in a single transaction — any error rolls everything back.
  * Returns the IDs of invoices and deposits that were actually modified.
  *
+ * Behavior:
+ * - Invoices with status pending/paid and no other-source budget line interest are flipped to claimed
+ * - Invoices with status pending/paid BUT other-source budget line interest are left unchanged (deposit-only close-out)
+ * - Quotation/already-claimed invoices are left unchanged
+ * - All sweep-eligible deposits (budgetSourceId === null || sourceId) whose status allows transition are flipped to claimed
+ *
+ * @param sourceId Budget source scope for the operation
+ * @param invoiceIds Invoices to attempt to claim (only these are checked for claimability)
+ * @param depositIds Deposits to consider for sweep (filtered to sweep-eligible server-side)
  * @throws ValidationError if invoiceIds is empty
  * @throws InvoicesNotClaimableError if any invoice is not claimable (409 with offending IDs)
  */
 export function markInvoicesClaimed(
   db: DbType,
+  sourceId: string,
   invoiceIds: string[],
+  depositIds: string[],
   diaryAutoEvents: boolean,
 ): MarkClaimedResponse {
   // 1. Validate input
-  if (invoiceIds.length === 0) {
-    throw new ValidationError('At least one invoice ID must be provided');
+  if (invoiceIds.length === 0 && depositIds.length === 0) {
+    throw new ValidationError('At least one invoice or deposit ID must be provided');
   }
 
   const claimedInvoiceIds: string[] = [];
@@ -532,25 +551,32 @@ export function markInvoicesClaimed(
 
   // 2. Transaction: validate, then write
   db.transaction((tx: typeof db) => {
-    // Fetch all requested invoices
-    const invoiceRows = tx.select().from(invoices).where(inArray(invoices.id, invoiceIds)).all();
-
-    // Fetch all deposits for those invoices
-    const depositRows = tx
+    // Step 0: Validate that sourceId exists
+    const source = tx.select().from(budgetSources).where(eq(budgetSources.id, sourceId)).get();
+    if (!source) {
+      throw new NotFoundError('Budget source not found');
+    }
+    // Step a: Fetch deposits for depositIds and filter to sweep-eligible (budgetSourceId === null || === sourceId)
+    const requestedDeposits = tx
       .select()
       .from(invoiceDeposits)
-      .where(inArray(invoiceDeposits.invoiceId, invoiceIds))
+      .where(inArray(invoiceDeposits.id, depositIds))
       .all();
 
-    const invoiceById = new Map(invoiceRows.map((inv) => [inv.id, inv]));
-    const depositsByInvoiceId = new Map<string, (typeof invoiceDeposits.$inferSelect)[]>();
-    for (const dep of depositRows) {
-      const deps = depositsByInvoiceId.get(dep.invoiceId) ?? [];
-      deps.push(dep);
-      depositsByInvoiceId.set(dep.invoiceId, deps);
-    }
+    const sweepEligibleDeposits = requestedDeposits.filter(
+      (d) => d.budgetSourceId === null || d.budgetSourceId === sourceId,
+    );
 
-    // 3. Check claimability
+    // Step b: Fetch invoices for union of invoiceIds and sweep-eligible deposits' invoiceIds
+    const invoiceIdsFromDeposits = sweepEligibleDeposits.map((d) => d.invoiceId);
+    const allInvoiceIds = Array.from(new Set([...invoiceIds, ...invoiceIdsFromDeposits]));
+
+    const invoiceRows = tx.select().from(invoices).where(inArray(invoices.id, allInvoiceIds)).all();
+
+    const invoiceById = new Map(invoiceRows.map((inv) => [inv.id, inv]));
+
+    // Step c: Claimability check over invoiceIds only
+    // An invoice is claimable iff status is {pending, paid} OR has ≥1 sweep-eligible deposit whose status allows transition to claimed
     const offendingIds: string[] = [];
 
     for (const invoiceId of invoiceIds) {
@@ -561,13 +587,16 @@ export function markInvoicesClaimed(
       }
 
       const invoiceStatus = invoice.status as string;
-      const invoiceDeps = depositsByInvoiceId.get(invoiceId) ?? [];
 
-      // Claimable: status ∈ {pending, paid} OR (status === 'claimed' && has ≥1 deposit whose ALLOWED_TRANSITIONS[status].includes('claimed'))
       const claimableDirectly = invoiceStatus === 'pending' || invoiceStatus === 'paid';
+
+      const invoiceSweepEligibleDeposits = sweepEligibleDeposits.filter(
+        (d) => d.invoiceId === invoiceId,
+      );
+
       const hasClaimableDeposits =
-        invoiceDeps.length > 0 &&
-        invoiceDeps.some((dep) => {
+        invoiceSweepEligibleDeposits.length > 0 &&
+        invoiceSweepEligibleDeposits.some((dep) => {
           const depStatus = dep.status as string;
           return (
             ALLOWED_TRANSITIONS[depStatus as keyof typeof ALLOWED_TRANSITIONS]?.includes(
@@ -576,8 +605,7 @@ export function markInvoicesClaimed(
           );
         });
 
-      const isClaimable =
-        claimableDirectly || (invoiceStatus === 'claimed' && hasClaimableDeposits);
+      const isClaimable = claimableDirectly || hasClaimableDeposits;
       if (!isClaimable) {
         offendingIds.push(invoiceId);
       }
@@ -587,12 +615,41 @@ export function markInvoicesClaimed(
       throw new InvoicesNotClaimableError(undefined, { invoiceIds: offendingIds });
     }
 
-    // 4. Write invoices
+    // Step d: Compute invoices where another budget source funds a budget line
+    const otherSourceInvoiceIds = new Set<string>();
+    if (invoiceIds.length > 0) {
+      const joinedInvoiceIds = sql.join(
+        invoiceIds.map((id) => sql`${id}`),
+        sql`, `,
+      );
+
+      type OtherSourceRow = {
+        invoice_id: string;
+      };
+
+      const otherSourceRows = tx.all<OtherSourceRow>(
+        sql`SELECT DISTINCT ibl.invoice_id
+        FROM invoice_budget_lines ibl
+        LEFT JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
+        LEFT JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
+        WHERE ibl.invoice_id IN (${joinedInvoiceIds})
+          AND COALESCE(wib.budget_source_id, hib.budget_source_id) IS NOT NULL
+          AND COALESCE(wib.budget_source_id, hib.budget_source_id) != ${sourceId}`,
+      );
+
+      for (const row of otherSourceRows) {
+        otherSourceInvoiceIds.add(row.invoice_id);
+      }
+    }
+
+    // Step e: Write invoices (flip to claimed only if status in {pending, paid} AND no other-source interest)
     for (const invoiceId of invoiceIds) {
       const invoice = invoiceById.get(invoiceId)!;
       const invoiceStatus = invoice.status as string;
 
-      if (invoiceStatus !== 'claimed') {
+      const hasOtherSourceInterest = otherSourceInvoiceIds.has(invoiceId);
+
+      if ((invoiceStatus === 'pending' || invoiceStatus === 'paid') && !hasOtherSourceInterest) {
         // Flip to claimed
         tx.update(invoices)
           .set({
@@ -616,9 +673,8 @@ export function markInvoicesClaimed(
       }
     }
 
-    // 5. Write deposits
-    const allDeposits = depositRows;
-    for (const deposit of allDeposits) {
+    // Step f: Write deposits (sweep every sweep-eligible deposit whose status allows transition to claimed)
+    for (const deposit of sweepEligibleDeposits) {
       const depStatus = deposit.status as string;
       const allowedTransitions = ALLOWED_TRANSITIONS[depStatus as keyof typeof ALLOWED_TRANSITIONS];
 
@@ -634,7 +690,7 @@ export function markInvoicesClaimed(
 
         claimedDepositIds.push(deposit.id);
 
-        // Fire diary event
+        // Fire diary event with parent invoice number
         const invoice = invoiceById.get(deposit.invoiceId)!;
         onDepositStatusChanged(
           tx,

@@ -325,7 +325,7 @@ describe('Source Report Routes', () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/source-reports/mark-claimed',
-        payload: { invoiceIds: ['inv-1'] },
+        payload: { sourceId: 'src-whatever', invoiceIds: ['inv-1'], depositIds: [] },
       });
 
       expect(response.statusCode).toBe(401);
@@ -344,14 +344,92 @@ describe('Source Report Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('returns 400 when invoiceIds is an empty array (minItems: 1)', async () => {
+    it('returns 400 when both invoiceIds and depositIds are empty arrays (anyOf minItems: 1)', async () => {
       const { cookie } = await createUserWithSession();
 
       const response = await app.inject({
         method: 'POST',
         url: '/api/source-reports/mark-claimed',
         headers: { cookie },
-        payload: { invoiceIds: [] },
+        payload: { sourceId: 'src-whatever', invoiceIds: [], depositIds: [] },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('returns 200 when invoiceIds is empty but depositIds has a valid, sweepable deposit', async () => {
+      const { cookie } = await createUserWithSession();
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+      const depId = randomUUID();
+      const now = ts();
+      app.db
+        .insert(schema.invoiceDeposits)
+        .values({
+          id: depId,
+          invoiceId: invId,
+          amount: 100,
+          dueDate: '2026-02-01',
+          status: 'pending',
+          entryType: 'deposit',
+          budgetSourceId: sourceId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/source-reports/mark-claimed',
+        headers: { cookie },
+        payload: { sourceId, invoiceIds: [], depositIds: [depId] },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<MarkClaimedResponse>();
+      expect(body.claimedInvoiceIds).toEqual([]);
+      expect(body.claimedDepositIds).toEqual([depId]);
+    });
+
+    it('returns 404 NOT_FOUND for an unknown sourceId', async () => {
+      const { cookie } = await createUserWithSession();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/source-reports/mark-claimed',
+        headers: { cookie },
+        payload: { sourceId: 'does-not-exist', invoiceIds: [invId], depositIds: [] },
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns 400 when sourceId is missing', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/source-reports/mark-claimed',
+        headers: { cookie },
+        payload: { invoiceIds: ['inv-1'], depositIds: [] },
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
+
+    it('returns 400 when depositIds is missing', async () => {
+      const { cookie } = await createUserWithSession();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/source-reports/mark-claimed',
+        headers: { cookie },
+        payload: { sourceId: 'src-whatever', invoiceIds: ['inv-1'] },
       });
 
       expect(response.statusCode).toBe(400);
@@ -359,6 +437,7 @@ describe('Source Report Routes', () => {
 
     it('returns 409 INVOICES_NOT_CLAIMABLE with offending ids when an invoice is not claimable', async () => {
       const { cookie } = await createUserWithSession();
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'quotation' });
 
@@ -366,7 +445,7 @@ describe('Source Report Routes', () => {
         method: 'POST',
         url: '/api/source-reports/mark-claimed',
         headers: { cookie },
-        payload: { invoiceIds: [invId] },
+        payload: { sourceId, invoiceIds: [invId], depositIds: [] },
       });
 
       expect(response.statusCode).toBe(409);
@@ -377,6 +456,7 @@ describe('Source Report Routes', () => {
 
     it('returns 200 with claimedInvoiceIds/claimedDepositIds for a valid batch', async () => {
       const { cookie } = await createUserWithSession();
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'pending' });
 
@@ -384,7 +464,7 @@ describe('Source Report Routes', () => {
         method: 'POST',
         url: '/api/source-reports/mark-claimed',
         headers: { cookie },
-        payload: { invoiceIds: [invId] },
+        payload: { sourceId, invoiceIds: [invId], depositIds: [] },
       });
 
       expect(response.statusCode).toBe(200);
@@ -395,6 +475,7 @@ describe('Source Report Routes', () => {
 
     it('silently strips unknown body properties (Fastify/AJV removeAdditional default) and still processes the request', async () => {
       const { cookie } = await createUserWithSession();
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'pending' });
 
@@ -402,7 +483,7 @@ describe('Source Report Routes', () => {
         method: 'POST',
         url: '/api/source-reports/mark-claimed',
         headers: { cookie },
-        payload: { invoiceIds: [invId], bogus: 'field' },
+        payload: { sourceId, invoiceIds: [invId], depositIds: [], bogus: 'field' },
       });
 
       expect(response.statusCode).toBe(200);

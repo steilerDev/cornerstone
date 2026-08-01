@@ -1156,9 +1156,11 @@
     "uploadSuccess": "Document uploaded to Paperless",
     "confirmClaimTitle": "Mark Invoices as Claimed?",
     "confirmClaimBody": "This will mark {{count}} invoice(s) as claimed ({{pendingCount}} pending). This action cannot be undone.",
-    "claimSuccess": "{{count}} invoice(s) marked as claimed",
+    "claimSuccess": "{{invoices}} invoice(s) and {{deposits}} deposit(s) marked as claimed",
+    "claimNothingClaimable": "Nothing can be marked as claimed: all selected invoices have excluded line items and there are no unclaimed deposits.",
     "finishedWithoutMarkingSuccess": "Report finished without marking invoices as claimed.",
     "claimFailed": "Marking invoices as claimed failed. Please try again.",
+    "claimFailedWithInvoices": "Could not mark as claimed: invoice(s) {{invoiceNumbers}} are not in a claimable state.",
     "uploadFailed": "Upload to Paperless failed. Please try again.",
     "viewInvoices": "View invoices",
     "errorLoadingData": "Failed to load report data",
@@ -1286,7 +1288,7 @@
       "claimedDate": "Claimed"
     },
     "unassigned": "Unassigned",
-    "confirmClaimExcludedItemsWarning": "{{count}} invoice(s) will be claimed in full even though some line items are excluded from this report."
+    "confirmClaimExcludedItemsWarning": "{{count}} invoice(s) have excluded line items and will keep their current claim status — the excluded portion stays claimable in a future report."
   },
   "common": {
     "loading": "Loading...",

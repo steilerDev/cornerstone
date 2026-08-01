@@ -13,6 +13,10 @@
 - [test-patterns-reference.md](test-patterns-reference.md) — Jest/ts-jest/Fastify/Drizzle infra patterns: sqlite sync errors, ESM mock shape, worktree jest execution, key file locations (overlaps test-infra-reference.md)
 - [environment-setup.md](environment-setup.md) — worktree/sandbox gotchas: ARM64 crashes, `@cornerstone/shared` symlink issues, definitive jest invocation pattern, schema quirks
 
+## Recent bug/story notes (2026-08)
+
+- [Bugs #1895/#1896/#1918 — claim/deposit scope fixes](bugs-1895-1896-1918-claim-deposit-scope.md) (2026-08-01) — `markInvoicesClaimed` gained `sourceId`+required `depositIds` params (cross-source claim guard, decoupled sweep, quotation+sweepable-deposit no longer 409s); `getSourceReport` drops zero-portion `budgetLines[]` on `claim` reports only; text-content query collision gotcha (banner text contains data also shown elsewhere on page).
+
 ## Recent bug/story notes (2026-07)
 
 - [Story #1901 — AI-generated report content](story-1901-ai-report-content.md) (2026-07-31) — Blocker bug #1915 (reportContentGenerationService.ts imports non-existent `work_items`/`household_items` schema exports — crashes `buildApp()` app-wide via app.ts's static import chain); wrote both server test files correctly per spec, blocked but not weakened; fixed pre-existing ReportWizardPage.test.tsx breakage from concurrent prod changes; fake-timer-leak lesson (`jest.isMockFunction(setInterval)` unreliable — always unconditional `jest.useRealTimers()` in afterEach); llmEnabled ripple across 8 server files + LocaleContext.test.tsx.

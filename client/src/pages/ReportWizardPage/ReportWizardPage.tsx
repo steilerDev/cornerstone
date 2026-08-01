@@ -145,7 +145,8 @@ export function ReportWizardPage() {
   const [isMarkingClaimed, setIsMarkingClaimed] = useState(false);
   const [claimError, setClaimError] = useState<string>('');
   const [claimSuccess, setClaimSuccess] = useState(false);
-  const [claimedCount, setClaimedCount] = useState(0);
+  const [claimedInvoiceCount, setClaimedInvoiceCount] = useState(0);
+  const [claimedDepositCount, setClaimedDepositCount] = useState(0);
   const [finishedWithoutMarking, setFinishedWithoutMarking] = useState(false);
 
   // Paperless status
@@ -424,23 +425,66 @@ export function ReportWizardPage() {
     }
   }, [generatePdfFromContent, selectedSource, useCase, t, showToast, tErrors]);
 
-  // Handle mark claimed (unchanged)
+  // Handle mark claimed
   const handleMarkClaimed = async () => {
-    if (!report) return;
+    if (!report || !sourceId) return;
 
-    const included = report.invoices
-      .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
+    // Invoice IDs that have no excluded budget lines
+    // (an invoice with any excluded line must not flip status — the excluded portion stays claimable)
+    const invoiceIds = report.invoices
+      .filter(
+        (inv) =>
+          !excludedInvoiceIds.has(inv.invoiceId) &&
+          !inv.budgetLines.some((line) => excludedLineIds.has(line.id)),
+      )
       .map((inv) => inv.invoiceId);
+
+    // All deposits with status !== 'claimed' from included invoices
+    // (intentionally includes deposits of invoices omitted from invoiceIds)
+    const depositIds = report.invoices
+      .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
+      .flatMap((inv) => inv.deposits ?? [])
+      .filter((dep) => dep.status !== 'claimed')
+      .map((dep) => dep.id);
+
+    // Guard: if both are empty, show error and close modal
+    if (invoiceIds.length === 0 && depositIds.length === 0) {
+      setClaimError(t('sourceReports.claimNothingClaimable'));
+      setShowClaimConfirm(false);
+      return;
+    }
 
     setIsMarkingClaimed(true);
     try {
-      await markInvoicesClaimed(included);
-      setClaimedCount(included.length);
+      const response = await markInvoicesClaimed(sourceId, invoiceIds, depositIds);
+      setClaimedInvoiceCount(response.claimedInvoiceIds.length);
+      setClaimedDepositCount(response.claimedDepositIds.length);
       setClaimSuccess(true);
       setShowClaimConfirm(false);
     } catch (err) {
       if (err instanceof ApiClientError && err.error.code === 'INVOICES_NOT_CLAIMABLE') {
-        setClaimError(translateApiError('INVOICES_NOT_CLAIMABLE', tErrors));
+        // Try to map invoice IDs to numbers for a more specific error message
+        const failedInvoiceIds = err.error.details?.invoiceIds as string[] | undefined;
+        if (failedInvoiceIds && failedInvoiceIds.length > 0) {
+          const invoiceNumbers = failedInvoiceIds
+            .map((id) => {
+              const inv = report.invoices.find((i) => i.invoiceId === id);
+              return inv?.invoiceNumber ?? id;
+            })
+            .filter(Boolean);
+
+          if (invoiceNumbers.length > 0) {
+            setClaimError(
+              t('sourceReports.claimFailedWithInvoices', {
+                invoiceNumbers: invoiceNumbers.join(', '),
+              }),
+            );
+          } else {
+            setClaimError(translateApiError('INVOICES_NOT_CLAIMABLE', tErrors));
+          }
+        } else {
+          setClaimError(translateApiError('INVOICES_NOT_CLAIMABLE', tErrors));
+        }
         setShowClaimConfirm(false);
         // Refetch silently
         if (useCase && sourceId) {
@@ -878,7 +922,8 @@ export function ReportWizardPage() {
               isMarkingClaimed={isMarkingClaimed}
               claimError={claimError}
               claimSuccess={claimSuccess}
-              claimedCount={claimedCount}
+              claimedInvoiceCount={claimedInvoiceCount}
+              claimedDepositCount={claimedDepositCount}
               finishedWithoutMarking={finishedWithoutMarking}
               selectedInvoiceCount={report ? report.invoices.length - excludedInvoiceIds.size : 0}
               onPreviewPdf={handlePreviewPdf}

@@ -98,29 +98,39 @@ describe('getSourceReport', () => {
 });
 
 describe('markInvoicesClaimed', () => {
-  it('calls POST /source-reports/mark-claimed with the invoiceIds body', async () => {
+  it('calls POST /source-reports/mark-claimed with the sourceId, invoiceIds and depositIds body', async () => {
     const response: MarkClaimedResponse = {
       claimedInvoiceIds: ['inv-1', 'inv-2'],
       claimedDepositIds: ['dep-1'],
     };
     mockPost.mockResolvedValueOnce(response);
 
-    const result = await sourceReportsApi.markInvoicesClaimed(['inv-1', 'inv-2']);
+    const result = await sourceReportsApi.markInvoicesClaimed(
+      'src-1',
+      ['inv-1', 'inv-2'],
+      ['dep-1'],
+    );
 
     expect(mockPost).toHaveBeenCalledWith('/source-reports/mark-claimed', {
+      sourceId: 'src-1',
       invoiceIds: ['inv-1', 'inv-2'],
+      depositIds: ['dep-1'],
     });
     // Response is NOT enveloped — returned as-is.
     expect(result).toEqual(response);
   });
 
-  it('handles an empty invoiceIds array', async () => {
+  it('handles empty invoiceIds and depositIds arrays', async () => {
     const response: MarkClaimedResponse = { claimedInvoiceIds: [], claimedDepositIds: [] };
     mockPost.mockResolvedValueOnce(response);
 
-    const result = await sourceReportsApi.markInvoicesClaimed([]);
+    const result = await sourceReportsApi.markInvoicesClaimed('src-1', [], []);
 
-    expect(mockPost).toHaveBeenCalledWith('/source-reports/mark-claimed', { invoiceIds: [] });
+    expect(mockPost).toHaveBeenCalledWith('/source-reports/mark-claimed', {
+      sourceId: 'src-1',
+      invoiceIds: [],
+      depositIds: [],
+    });
     expect(result).toEqual(response);
   });
 
@@ -128,7 +138,9 @@ describe('markInvoicesClaimed', () => {
     const err = new Error('409 Conflict');
     mockPost.mockRejectedValueOnce(err);
 
-    await expect(sourceReportsApi.markInvoicesClaimed(['inv-1'])).rejects.toThrow('409 Conflict');
+    await expect(sourceReportsApi.markInvoicesClaimed('src-1', ['inv-1'], [])).rejects.toThrow(
+      '409 Conflict',
+    );
   });
 });
 

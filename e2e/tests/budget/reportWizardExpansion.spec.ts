@@ -33,12 +33,43 @@
  *   deposit's "Allocated Source" column showing a tagged badge in the expansion panel, and an
  *   empty items sub-table (proving it really is a zero-line source for this invoice).
  * - Scenario 6: The claim-confirmation modal's warning block reports the correct count
- *   ("1 invoice(s) will be claimed in full even though...") when an included invoice has a
+ *   ("1 invoice(s) have excluded line items...") when an included invoice has a
  *   partially-excluded line set (TriState indeterminate case).
  * - Scenario 7: Regression sweep — the pre-existing `reportWizard.spec.ts` locators
  *   (`selectAllCheckbox`, `regularInvoiceRow`, `refundRow`, `invoiceRowCheckbox`,
  *   `clearSelectionButton`, `selectionCountLabel`) still resolve correctly against the new
  *   `1.5rem auto 1fr auto auto auto` grid (leading chevron column added by this story).
+ * - Scenario 8 (Issue #1918 AC9): A quotation invoice that has BOTH budget lines allocated to
+ *   the reported source AND a tagged, unclaimed deposit — the budget lines contribute 0 to a
+ *   claim report's status slice (quotation is outside {pending, paid}) so the Items sub-table
+ *   renders empty, while the tagged deposit still surfaces the invoice via Rail B and the
+ *   Deposits sub-table renders it unchanged. Distinguishes this from the pre-existing Scenario 5
+ *   (a source with literally zero budget lines for the invoice) — here the lines structurally
+ *   exist but are hidden because their contribution rounds to zero.
+ * - Scenario 9 (Issue #1895): Cross-source mark-claimed scope. An invoice's budget line is
+ *   funded entirely by source B; a separate deposit on the same invoice is tagged to source A.
+ *   Confirming source A's claim report only sweeps A's own tagged deposit — the invoice itself
+ *   stays `pending` (source B still has interest in it) — and a subsequently regenerated claim
+ *   report for A no longer offers the now-claimed deposit, while source B's claim report still
+ *   shows the invoice's full residual as claimable.
+ * - Scenario 10 (Issue #1896): A quotation invoice carrying a pending deposit tagged to the
+ *   reported source, alongside an ordinary pending invoice allocated to the same source, in one
+ *   claim batch. Confirming mark-claimed succeeds for the whole batch (deposit-only close-out
+ *   for the quotation invoice, per #1896's resolution option (a) — no 409 rollback): the ordinary
+ *   invoice flips to `claimed`, the quotation invoice's status is untouched (verified via the
+ *   API, since the wizard's own optimistic UI wouldn't distinguish the two paths). The success
+ *   banner reports counts from the SERVER response — 1 invoice (the ordinary one; the quotation
+ *   invoice is requested but never flips) and 1 deposit (the quotation invoice's tagged deposit).
+ * - Scenario 11 (architect's blocked-flow, Issue #1895/#1918 end-to-end): a single invoice whose
+ *   ONE budget line is funded by the reported source itself, but the user manually excludes that
+ *   line via the Items sub-table checkbox (not a different-source funding conflict — a deliberate
+ *   line exclusion). The same invoice carries an unclaimed deposit tagged to the reported source.
+ *   `handleMarkClaimed` drops the invoice from `invoiceIds` (excluded line) but keeps its deposit
+ *   in `depositIds` (not excluded at the invoice level) — a genuine "deposit-only close-out"
+ *   reached purely through the UI (as opposed to Scenario 9's zero-budget-line-for-this-source
+ *   shape, or #1895's cross-source-funding shape). Confirming succeeds with no error banner, a
+ *   "0 invoice(s) and 1 deposit(s) marked as claimed" success banner, and re-fetching via the API
+ *   shows the invoice status unchanged while the deposit is `claimed`.
  *
  * FIXED REGRESSION #1892 (Scenario 4): `applyLineExclusions()`
  * (`client/src/lib/reportExclusions.ts`) clamps a fully-line-excluded invoice's
@@ -715,8 +746,13 @@ test.describe('Report wizard expansion — claim warning count (Scenario 6)', ()
 
       await wizard.clickMarkClaimed();
       await expect(wizard.markClaimedWarningBlock).toBeVisible();
+      // Copy updated: excluded-line invoices now KEEP their current claim status instead of
+      // being "claimed in full" — the excluded portion stays claimable in a future report (see
+      // `sourceReports.confirmClaimExcludedItemsWarning` in `client/src/i18n/en/budget.json`).
+      // Matched on a resilient prefix so a further copy tweak downstream of "have excluded line
+      // items" doesn't need this test to change again.
       await expect(wizard.markClaimedWarningBlock).toHaveText(
-        /^1 invoice\(s\) will be claimed in full even though/,
+        /^1 invoice\(s\) have excluded line items/,
       );
 
       await wizard.cancelClaimConfirm();
@@ -801,6 +837,414 @@ test.describe('Report wizard expansion — regression sweep of pre-existing sele
       await expect(wizard.invoiceRowCheckbox(vendorName, plain.invoiceNumber!)).toBeChecked();
       await expect(refundRow.locator('input[type="checkbox"]')).toBeChecked();
       await expect(wizard.selectAllCheckbox).toBeChecked();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 8: Quotation invoice with budget lines AND a tagged unclaimed deposit (Issue #1918
+// AC9) — mirrors Scenario 5's "surfaced via Rail B, empty Items sub-table" shape, but here the
+// budget lines genuinely exist (unlike Scenario 5's zero-line source) and are hidden because
+// their claim-slice contribution rounds to zero, not because they don't exist.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard expansion — quotation invoice with a tagged unclaimed deposit (Scenario 8)', () => {
+  test('A quotation invoice with budget lines and a tagged unclaimed deposit hides its items but keeps its deposit in a claim report', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} QuoteDep Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} QuoteDep Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI QuoteDep` });
+
+      // Quotation invoice with a budget line fully allocated to `sourceId` — for a CLAIM report
+      // this line's contribution is 0 (quotation status is outside the claim slice: pending+paid
+      // only), so it must be hidden from the Items sub-table (#1918 AC1/AC3) even though it
+      // structurally exists. The invoice still surfaces via its tagged, unclaimed deposit
+      // (Rail B).
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-QUOTEDEP-001`,
+        amount: 1000,
+        date: '2026-04-11',
+        status: 'quotation',
+      });
+      await createDepositViaApi(page, invoice.id, {
+        amount: 250,
+        dueDate: '2026-04-15',
+        status: 'pending',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+
+      const vendorName = `${testPrefix} QuoteDep Vendor`;
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      // Invoice appears in the claim report purely via the tagged deposit — its allocated
+      // amount is the deposit's amount, not the (zero-contribution) budget line's €1000.
+      const row = wizard.invoiceRow(vendorName, invoice.invoiceNumber!);
+      await expect(row).toBeVisible();
+      await expect(wizard.invoiceRowAmount(vendorName, invoice.invoiceNumber!)).toContainText(
+        '250',
+      );
+
+      await wizard.invoiceExpandToggle(vendorName, invoice.invoiceNumber!).click();
+
+      // Items sub-table is empty (#1918 AC1/AC3) — the quotation invoice's budget line
+      // contributes 0 to this claim slice and is filtered out server-side, even though the line
+      // itself still exists.
+      await expect(wizard.itemsSubTable(vendorName, invoice.invoiceNumber!)).toContainText(
+        'No budget lines for this invoice',
+      );
+
+      // Deposits sub-table renders the tagged deposit unchanged (AC2: allocatedAmount and the
+      // deposits sub-table are unaffected by the item-hiding fix).
+      const depositsTable = wizard.depositsSubTable(vendorName, invoice.invoiceNumber!);
+      const depositRowLocator = depositsTable.locator('tbody tr').first();
+      await expect(depositRowLocator).toContainText('250');
+      await expect(depositRowLocator).toContainText(`${testPrefix} QuoteDep Source`);
+      await expect(depositRowLocator.locator('td').last()).not.toHaveText('—');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 9: Cross-source mark-claimed scope (Issue #1895)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard expansion — cross-source mark-claimed scope (Scenario 9)', () => {
+  test("Confirming source A's claim report only sweeps A's own tagged deposit, leaves the invoice pending for source B, and B's report still offers the full residual", async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceAId = '';
+    let sourceBId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} XSrc Vendor` });
+      sourceAId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} XSrc Source A`,
+        totalAmount: 10000,
+      });
+      sourceBId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} XSrc Source B`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI XSrc` });
+
+      // Invoice fully allocated (single budget line) to source B — source A has ZERO budget
+      // lines for this invoice, matching Issue #1895's own reproduction (INV-1 €1000 -> source B,
+      // €300 deposit tagged to source A).
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceBId, {
+        invoiceNumber: `${testPrefix}-XSRC-001`,
+        amount: 1000,
+        date: '2026-04-13',
+        status: 'pending',
+      });
+      await createDepositViaApi(page, invoice.id, {
+        amount: 300,
+        dueDate: '2026-04-20',
+        status: 'pending',
+        entryType: 'deposit',
+        budgetSourceId: sourceAId,
+      });
+
+      const vendorName = `${testPrefix} XSrc Vendor`;
+
+      // ── Source A's claim report: invoice surfaces purely via the tagged deposit (€300) ──
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceAId);
+      await wizard.goNextFromStep2();
+
+      await expect(wizard.invoiceRow(vendorName, invoice.invoiceNumber!)).toBeVisible();
+      await expect(wizard.invoiceRowAmount(vendorName, invoice.invoiceNumber!)).toContainText(
+        '300',
+      );
+
+      await wizard.invoiceExpandToggle(vendorName, invoice.invoiceNumber!).click();
+      await expect(wizard.itemsSubTable(vendorName, invoice.invoiceNumber!)).toContainText(
+        'No budget lines for this invoice',
+      );
+      const depositRowLocator = wizard
+        .depositsSubTable(vendorName, invoice.invoiceNumber!)
+        .locator('tbody tr')
+        .first();
+      await expect(depositRowLocator).toContainText('300');
+      await expect(depositRowLocator).toContainText(`${testPrefix} XSrc Source A`);
+
+      // Confirm mark-claimed for source A — succeeds (the source-scoped sweep only touches A's
+      // own tagged deposit; it must never 409 or roll back).
+      await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
+      await wizard.clickMarkClaimed();
+      await wizard.confirmClaim();
+      await expect(wizard.claimSuccessBanner).toBeVisible();
+      await expect(wizard.claimErrorBanner).not.toBeVisible();
+
+      // ── Source A's claim report, regenerated: the invoice is gone — its budget line was
+      // never A's to begin with, and its deposit is no longer pending/paid (it was just swept
+      // to claimed), so Rail A and Rail B both contribute 0 for A now. ──
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceAId);
+      await wizard.goNextFromStep2();
+      await expect(wizard.invoiceRow(vendorName, invoice.invoiceNumber!)).toHaveCount(0);
+
+      // ── Source B's claim report: the invoice's full residual (€1000 - €300 swept elsewhere =
+      // €700) is still there and still claimable — B's own money was never touched by A's
+      // confirmation (Issue #1895's core assertion). ──
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceBId);
+      await wizard.goNextFromStep2();
+
+      await expect(wizard.invoiceRow(vendorName, invoice.invoiceNumber!)).toBeVisible();
+      await expect(wizard.invoiceRowAmount(vendorName, invoice.invoiceNumber!)).toContainText(
+        '700',
+      );
+      await expect(wizard.invoiceRowCheckbox(vendorName, invoice.invoiceNumber!)).toBeChecked();
+
+      // Confirm the underlying invoice status directly — it must still be `pending` (source A's
+      // confirmation must not have flipped it, since source B still has interest in it).
+      const refetched = await page.request.get(`/api/invoices/${invoice.id}`);
+      expect(refetched.ok(), `GET invoice failed: ${refetched.status()}`).toBeTruthy();
+      const refetchedBody = (await refetched.json()) as { invoice: { status: string } };
+      expect(refetchedBody.invoice.status).toBe('pending');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceBId) await deleteBudgetSourceViaApi(page, sourceBId);
+      if (sourceAId) await deleteBudgetSourceViaApi(page, sourceAId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 10: Quotation invoice with a pending tagged deposit no longer 409s the batch
+// (Issue #1896)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard expansion — quotation invoice with a pending deposit in a mixed claim batch (Scenario 10)', () => {
+  test('A quotation invoice with a pending tagged deposit closes out deposit-only alongside a normal invoice, without 409ing the whole batch', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} MixBatch Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} MixBatch Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI MixBatch` });
+
+      // Quotation invoice with a pending deposit tagged to `sourceId` — no budget line needed,
+      // matching Issue #1896's own reproduction. Pre-fix this alone caused the whole
+      // mark-claimed batch (including the valid invoice below) to 409 and roll back.
+      const quotationInvoice = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-MIXBATCH-Q`,
+        amount: 300,
+        date: '2026-04-14',
+        status: 'quotation',
+      });
+      await createDepositViaApi(page, quotationInvoice.id, {
+        amount: 150,
+        dueDate: '2026-04-21',
+        status: 'pending',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+
+      // Ordinary pending invoice allocated to the same source — the "valid invoice" whose
+      // close-out must NOT be discarded by the quotation invoice's presence in the batch.
+      const normalInvoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-MIXBATCH-N`,
+        amount: 400,
+        date: '2026-04-14',
+        status: 'pending',
+      });
+
+      const vendorName = `${testPrefix} MixBatch Vendor`;
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      await expect(wizard.invoiceRow(vendorName, quotationInvoice.invoiceNumber!)).toBeVisible();
+      await expect(wizard.invoiceRow(vendorName, normalInvoice.invoiceNumber!)).toBeVisible();
+
+      await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
+      await wizard.clickMarkClaimed();
+      await wizard.confirmClaim();
+
+      // The batch succeeds as a whole — no error banner, no rollback (#1896's core assertion).
+      // Counts come from the SERVER response: only the ordinary invoice actually flips
+      // (claimedInvoiceIds.length === 1 — the quotation invoice is requested but its status
+      // stays outside {pending, paid} so it's never written), and the quotation invoice's own
+      // tagged deposit sweeps (claimedDepositIds.length === 1).
+      await expect(wizard.claimSuccessBanner).toBeVisible();
+      await expect(wizard.claimSuccessBanner).toContainText(
+        '1 invoice(s) and 1 deposit(s) marked as claimed',
+      );
+      await expect(wizard.claimErrorBanner).not.toBeVisible();
+
+      // Re-fetch both invoices via the API — the ordinary invoice actually flipped to claimed
+      // (the batch wasn't silently a no-op), while the quotation invoice's status is untouched
+      // (deposit-only close-out; a quotation invoice must never flip to claimed).
+      const normalResp = await page.request.get(`/api/invoices/${normalInvoice.id}`);
+      expect(normalResp.ok(), `GET normal invoice failed: ${normalResp.status()}`).toBeTruthy();
+      const normalBody = (await normalResp.json()) as { invoice: { status: string } };
+      expect(normalBody.invoice.status).toBe('claimed');
+
+      const quotationResp = await page.request.get(`/api/invoices/${quotationInvoice.id}`);
+      expect(
+        quotationResp.ok(),
+        `GET quotation invoice failed: ${quotationResp.status()}`,
+      ).toBeTruthy();
+      const quotationBody = (await quotationResp.json()) as { invoice: { status: string } };
+      expect(quotationBody.invoice.status).toBe('quotation');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 11: Deposit-only close-out reached via a manual UI line exclusion
+// (architect's blocked-flow end-to-end, Issue #1895/#1918)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard expansion — deposit-only close-out via manual line exclusion (Scenario 11)', () => {
+  test("Excluding an invoice's only budget line via the Items sub-table checkbox, while it carries an unclaimed tagged deposit, marks the deposit claimed and leaves the invoice pending", async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} DepOnly Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} DepOnly Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI DepOnly` });
+
+      // Single invoice, single budget line funded by THIS SAME source (unlike Scenario 9's
+      // zero-line-for-this-source shape) — the user will manually exclude the line via the UI,
+      // not a different-source funding conflict. Also carries an unclaimed deposit tagged to
+      // this same source.
+      const invoice = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-DEPONLY-001`,
+        amount: 500,
+        date: '2026-04-16',
+        status: 'pending',
+      });
+      const budgetId = await createWorkItemBudgetViaApi(page, workItemId, {
+        plannedAmount: 500,
+        budgetSourceId: sourceId,
+        description: `${testPrefix} DepOnly Line`,
+      });
+      await linkInvoiceToBudgetLineViaApi(page, invoice.id, {
+        workItemBudgetId: budgetId,
+        itemizedAmount: 500,
+      });
+      const deposit = await createDepositViaApi(page, invoice.id, {
+        amount: 100,
+        dueDate: '2026-04-22',
+        status: 'pending',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+
+      const vendorName = `${testPrefix} DepOnly Vendor`;
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      await expect(wizard.invoiceRow(vendorName, invoice.invoiceNumber!)).toBeVisible();
+
+      // Exclude the invoice's only budget line via the Items sub-table checkbox — this is the
+      // "deliberate manual exclusion" path (excludedLineIds), distinct from Scenario 9's
+      // structurally-zero-lines-for-this-source path.
+      await wizard.invoiceExpandToggle(vendorName, invoice.invoiceNumber!).click();
+      await wizard
+        .itemExclusionCheckbox(vendorName, invoice.invoiceNumber!, `${testPrefix} DepOnly Line`)
+        .click();
+
+      await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
+      await wizard.clickMarkClaimed();
+      await wizard.confirmClaim();
+
+      // handleMarkClaimed excludes this invoice from invoiceIds (its only line is excluded) but
+      // keeps its deposit in depositIds (only invoice-level exclusion removes a deposit from the
+      // sweep, and this invoice was never invoice-level-excluded) — a genuine deposit-only
+      // close-out reached purely through the UI. No "nothing claimable" guard fires because
+      // depositIds is non-empty.
+      await expect(wizard.claimErrorBanner).not.toBeVisible();
+      await expect(wizard.claimSuccessBanner).toBeVisible();
+      await expect(wizard.claimSuccessBanner).toContainText(
+        '0 invoice(s) and 1 deposit(s) marked as claimed',
+      );
+
+      // Re-fetch via the API: the invoice was never in invoiceIds at all, so its status is
+      // untouched; the deposit was swept and is now claimed.
+      const invoiceResp = await page.request.get(`/api/invoices/${invoice.id}`);
+      expect(invoiceResp.ok(), `GET invoice failed: ${invoiceResp.status()}`).toBeTruthy();
+      const invoiceBody = (await invoiceResp.json()) as { invoice: { status: string } };
+      expect(invoiceBody.invoice.status).toBe('pending');
+
+      const depositsResp = await page.request.get(`/api/invoices/${invoice.id}/deposits`);
+      expect(depositsResp.ok(), `GET deposits failed: ${depositsResp.status()}`).toBeTruthy();
+      const depositsBody = (await depositsResp.json()) as {
+        deposits: Array<{ id: string; status: string }>;
+      };
+      const refetchedDeposit = depositsBody.deposits.find((d) => d.id === deposit.id);
+      expect(refetchedDeposit?.status).toBe('claimed');
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);

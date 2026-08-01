@@ -1156,9 +1156,11 @@
     "uploadSuccess": "Dokument zu Paperless hochgeladen",
     "confirmClaimTitle": "Rechnungen als eingereicht markieren?",
     "confirmClaimBody": "Dadurch werden {{count}} Rechnung(en) als eingereicht markiert ({{pendingCount}} davon ausstehend). Diese Aktion kann nicht rückgängig gemacht werden.",
-    "claimSuccess": "{{count}} Rechnung(en) als eingereicht markiert",
+    "claimSuccess": "{{invoices}} Rechnung(en) und {{deposits}} Abschlagszahlung(en) als eingereicht markiert",
+    "claimNothingClaimable": "Nichts kann als eingereicht markiert werden: Alle ausgewählten Rechnungen haben ausgeschlossene Positionen, und es gibt keine nicht eingereichten Abschlagszahlungen.",
     "finishedWithoutMarkingSuccess": "Bericht abgeschlossen, ohne Rechnungen als eingereicht zu markieren.",
     "claimFailed": "Rechnungen konnten nicht als eingereicht markiert werden. Bitte versuchen Sie es erneut.",
+    "claimFailedWithInvoices": "Konnte nicht als eingereicht markiert werden: Rechnung(en) {{invoiceNumbers}} befinden sich nicht in einem einreichbaren Status.",
     "uploadFailed": "Hochladen zu Paperless fehlgeschlagen. Bitte versuchen Sie es erneut.",
     "viewInvoices": "Rechnungen anzeigen",
     "errorLoadingData": "Berichtsdaten konnten nicht geladen werden",
@@ -1286,7 +1288,7 @@
       "claimedDate": "Eingereicht"
     },
     "unassigned": "Nicht zugewiesen",
-    "confirmClaimExcludedItemsWarning": "{{count}} Rechnung(en) werden vollständig als eingereicht markiert, obwohl einige Positionen von diesem Bericht ausgeschlossen wurden."
+    "confirmClaimExcludedItemsWarning": "{{count}} Rechnung(en) haben ausgeschlossene Positionen und behalten ihren aktuellen Einreichungsstatus – der ausgeschlossene Anteil bleibt für einen zukünftigen Bericht einreichbar."
   },
   "common": {
     "loading": "Wird geladen...",

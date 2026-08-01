@@ -53,7 +53,10 @@ jest.unstable_mockModule('../../lib/configApi.js', () => ({
 
 const mockGetSourceReport =
   jest.fn<(type: string, sourceId: string) => Promise<SourceReportResponse>>();
-const mockMarkInvoicesClaimed = jest.fn<(ids: string[]) => Promise<MarkClaimedResponse>>();
+const mockMarkInvoicesClaimed =
+  jest.fn<
+    (sourceId: string, invoiceIds: string[], depositIds: string[]) => Promise<MarkClaimedResponse>
+  >();
 const mockGenerateReportContent =
   jest.fn<(body: GenerateReportContentRequest) => Promise<GenerateReportContentResponse>>();
 jest.unstable_mockModule('../../lib/sourceReportsApi.js', () => ({

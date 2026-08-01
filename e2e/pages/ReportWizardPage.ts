@@ -241,7 +241,25 @@
  * - Claim confirm modal warning block: `[role="alert"]` (`class*="warningBlock"`) rendered
  *   inside the modal ONLY when at least one included (non invoice-excluded) invoice has one
  *   or more excluded lines — text is `sourceReports.confirmClaimExcludedItemsWarning`
- *   ("{{count}} invoice(s) will be claimed in full even though...").
+ *   ("{{count}} invoice(s) have excluded line items and will keep their current claim status —
+ *   the excluded portion stays claimable in a future report."). Note this is orthogonal to
+ *   whether confirming actually submits anything: `handleMarkClaimed` excludes any invoice with
+ *   an excluded line from `invoiceIds` entirely (see the claim-scope note below), so an
+ *   all-excluded-lines-no-deposits selection shows this warning AND then hits the "nothing
+ *   claimable" guard on confirm.
+ * - Claim-scope split (Issue #1895/#1896/#1918): `handleMarkClaimed` (`ReportWizardPage.tsx`)
+ *   submits `invoiceIds` (included invoices with zero excluded lines) and `depositIds` (all
+ *   non-`claimed` deposits of included invoices, INCLUDING deposits of invoices left out of
+ *   `invoiceIds`) as separate arrays to `markInvoicesClaimed`. If both computed arrays are
+ *   empty, the client never calls the API — it shows `sourceReports.claimNothingClaimable` as
+ *   the `claimErrorBanner` and closes the confirm modal. Otherwise the SERVER decides which
+ *   invoices actually flip to `claimed` (an invoice with other-source budget-line interest is
+ *   left pending even if requested) and which deposits sweep — the success banner
+ *   (`sourceReports.claimSuccess`, `claimSuccessBanner`) reports `{{invoices}} invoice(s) and
+ *   {{deposits}} deposit(s) marked as claimed` using the SERVER's `claimedInvoiceIds`/
+ *   `claimedDepositIds` counts, not the client's request counts — the two can differ (e.g. a
+ *   quotation invoice can be requested but never flips; an invoice with other-source interest
+ *   is requested but stays pending — "deposit-only close-out").
  */
 
 import { expect, type Page, type Locator, type Download } from '@playwright/test';
@@ -421,7 +439,7 @@ export class ReportWizardPage {
     this.markClaimedButton = page.getByRole('button', { name: /Mark .+ invoices as claimed/i });
     this.finishWithoutMarkingButton = page.getByRole('button', { name: 'Finish without marking' });
     this.uploadPaperlessButton = page.getByRole('button', { name: 'Upload to Paperless' });
-    this.claimErrorBanner = page.locator('[class*="formErrorBanner"]');
+    this.claimErrorBanner = page.locator('[class*="bannerError"]');
     this.claimSuccessBanner = page.locator('[class*="bannerSuccess"]');
     this.claimSuccessInvoicesLink = this.claimSuccessBanner.getByRole('link');
     this.skippedDocumentsNote = page.locator('[class*="skippedNote"]');
@@ -476,7 +494,9 @@ export class ReportWizardPage {
     });
     this.aiGeneratingCaption = this.aiGenerateRow.locator('[class*="aiGeneratingCaption"]');
     // Scoped to `aiGenerateRow` so this never collides with the claim-flow's own
-    // `claimErrorBanner` (same `FormError` banner variant / `role="alert"`, elsewhere on step 5).
+    // `claimErrorBanner` (a plain `sharedStyles.bannerError` div with `role="alert"`, elsewhere
+    // on step 5 — distinct markup from this `FormError` banner variant, but both share the
+    // `role="alert"` semantics, hence the defensive scoping here).
     this.aiErrorBanner = this.aiGenerateRow.locator('[role="alert"]');
     this.aiGeneratedNote = this.aiGenerateRow.locator('[class*="aiGeneratedNote"]');
 

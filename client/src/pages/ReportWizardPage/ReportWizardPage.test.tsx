@@ -75,7 +75,10 @@ jest.unstable_mockModule('../../lib/configApi.js', () => ({
 
 const mockGetSourceReport =
   jest.fn<(type: string, sourceId: string) => Promise<SourceReportResponse>>();
-const mockMarkInvoicesClaimed = jest.fn<(ids: string[]) => Promise<MarkClaimedResponse>>();
+const mockMarkInvoicesClaimed =
+  jest.fn<
+    (sourceId: string, invoiceIds: string[], depositIds: string[]) => Promise<MarkClaimedResponse>
+  >();
 const mockGenerateReportContent =
   jest.fn<
     (body: {
@@ -1290,7 +1293,7 @@ describe('ReportWizardPage', () => {
   // ─── Mark Claimed (unchanged behavior per spec) ────────────────────────────────────────────────
 
   describe('Mark Claimed (unchanged behavior)', () => {
-    it('claim confirm → markInvoicesClaimed success → success banner with claimedCount', async () => {
+    it('claim confirm → markInvoicesClaimed success → success banner with claimedInvoiceCount/claimedDepositCount', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
       mockMarkInvoicesClaimed.mockResolvedValue({
@@ -1307,10 +1310,13 @@ describe('ReportWizardPage', () => {
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
       await waitFor(() => {
-        expect(mockMarkInvoicesClaimed).toHaveBeenCalledWith(['inv-1']);
+        expect(mockMarkInvoicesClaimed).toHaveBeenCalledWith('src-1', ['inv-1'], []);
       });
       await waitFor(() => {
-        expect(screen.getByText(/invoice\(s\) marked as claimed/)).toBeInTheDocument();
+        // Reworded success banner: "{{invoices}} invoice(s) and {{deposits}} deposit(s) marked as claimed"
+        expect(
+          screen.getByText('1 invoice(s) and 0 deposit(s) marked as claimed'),
+        ).toBeInTheDocument();
       });
       // Mark Claimed never touches the PDF-generation pipeline (no PDF step in this flow).
       expect(mockGenerateReportPdf).not.toHaveBeenCalled();
@@ -1364,6 +1370,300 @@ describe('ReportWizardPage', () => {
       });
       await waitFor(() => {
         expect(mockGetSourceReport).toHaveBeenCalledTimes(3);
+      });
+    });
+
+    it('409 with a matching details.invoiceIds shows the specific claimFailedWithInvoices text containing the offending invoice number', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      const twoInvoiceReport = makeReport({
+        invoices: [
+          ...makeReport().invoices,
+          {
+            invoiceId: 'inv-2',
+            vendorId: 'vend-2',
+            vendorName: 'Beta Supplies',
+            invoiceNumber: 'INV-002',
+            date: '2026-01-11',
+            status: 'pending',
+            invoiceAmount: 500,
+            allocatedAmount: 500,
+            lineKind: 'invoice',
+            isSplit: false,
+            documents: [],
+            budgetLines: [],
+            deposits: [],
+          },
+        ],
+      });
+      mockGetSourceReport.mockResolvedValue(twoInvoiceReport);
+
+      const ApiClientErrorModule = await import('../../lib/apiClient.js');
+      const conflictErr = new ApiClientErrorModule.ApiClientError(409, {
+        code: 'INVOICES_NOT_CLAIMABLE',
+        message: 'not claimable',
+        details: { invoiceIds: ['inv-2'] },
+      });
+      mockMarkInvoicesClaimed.mockRejectedValueOnce(conflictErr);
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      // INV-002 also appears as a plain table cell in the invoice list, so the full banner
+      // sentence is asserted (not a bare /INV-002/ regex) to uniquely target the error banner.
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            'Could not mark as claimed: invoice(s) INV-002 are not in a claimable state.',
+          ),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('409 with absent details falls back to the generic INVOICES_NOT_CLAIMABLE error message', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+
+      const ApiClientErrorModule = await import('../../lib/apiClient.js');
+      const conflictErr = new ApiClientErrorModule.ApiClientError(409, {
+        code: 'INVOICES_NOT_CLAIMABLE',
+        message: 'not claimable',
+        // No `details` field at all — must fall back to the generic translated message.
+      });
+      mockMarkInvoicesClaimed.mockRejectedValueOnce(conflictErr);
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            'One or more invoices could not be marked as claimed. They may have already been claimed or are in an invalid state.',
+          ),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('409 with an empty details.invoiceIds array falls back to the generic INVOICES_NOT_CLAIMABLE error message', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+
+      const ApiClientErrorModule = await import('../../lib/apiClient.js');
+      const conflictErr = new ApiClientErrorModule.ApiClientError(409, {
+        code: 'INVOICES_NOT_CLAIMABLE',
+        message: 'not claimable',
+        details: { invoiceIds: [] },
+      });
+      mockMarkInvoicesClaimed.mockRejectedValueOnce(conflictErr);
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            'One or more invoices could not be marked as claimed. They may have already been claimed or are in an invalid state.',
+          ),
+        ).toBeInTheDocument();
+      });
+    });
+
+    it('an invoice with an excluded line is omitted from invoiceIds but its non-claimed deposit is still included in depositIds', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(
+        makeReport({
+          invoices: [
+            {
+              invoiceId: 'inv-1',
+              vendorId: 'vend-1',
+              vendorName: 'ACME',
+              invoiceNumber: 'INV-001',
+              date: '2026-01-10',
+              status: 'pending',
+              invoiceAmount: 1000,
+              allocatedAmount: 1000,
+              lineKind: 'invoice',
+              isSplit: false,
+              documents: [],
+              budgetLines: [
+                {
+                  id: 'line-1',
+                  description: 'Foundation work',
+                  allocatedPortion: 600,
+                  linkedItem: null,
+                },
+              ],
+              deposits: [
+                {
+                  id: 'dep-1',
+                  amount: 200,
+                  status: 'pending',
+                  entryType: 'deposit',
+                  dueDate: '2026-01-01',
+                  paidDate: null,
+                  claimedDate: null,
+                  budgetSourceId: null,
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      mockMarkInvoicesClaimed.mockResolvedValue({
+        claimedInvoiceIds: [],
+        claimedDepositIds: ['dep-1'],
+      });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+
+      const expandButton = document.querySelector(
+        '[aria-controls="invoice-expand-inv-1"]',
+      ) as HTMLElement;
+      await user.click(expandButton);
+      await user.click(
+        screen.getAllByRole('checkbox', { name: 'Exclude Foundation work from report' })[0]!,
+      );
+
+      await clickNext(user); // step 3 -> 4
+      await clickNext(user); // step 4 -> 5
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        // The invoice has an excluded line, so it must not flip status (invoiceIds: []) — but its
+        // still-pending deposit was NOT itself excluded at the invoice level, so it stays in
+        // depositIds for the sweep.
+        expect(mockMarkInvoicesClaimed).toHaveBeenCalledWith('src-1', [], ['dep-1']);
+      });
+    });
+
+    it('all included invoices have excluded lines and there are no unclaimed deposits → both-empty guard fires, API is never called, and the claimNothingClaimable error shows', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      // Default makeReport(): 1 invoice ('inv-1'), 1 budget line ('bl-1', "Original Usage Text"),
+      // no deposits at all — excluding the only line drives both invoiceIds and depositIds to [].
+      mockGetSourceReport.mockResolvedValue(makeReport());
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+
+      const expandButton = document.querySelector(
+        '[aria-controls="invoice-expand-inv-1"]',
+      ) as HTMLElement;
+      await user.click(expandButton);
+      await user.click(
+        screen.getAllByRole('checkbox', { name: 'Exclude Original Usage Text from report' })[0]!,
+      );
+
+      await clickNext(user); // step 3 -> 4
+      await clickNext(user); // step 4 -> 5
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(
+            'Nothing can be marked as claimed: all selected invoices have excluded line items and there are no unclaimed deposits.',
+          ),
+        ).toBeInTheDocument();
+      });
+      // The modal closes as part of the guard.
+      expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument();
+      expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
+    });
+
+    it('all budget lines excluded but an unclaimed deposit remains → API is called with invoiceIds: [] and the deposit id, and the success banner reads "0 invoice(s) and 1 deposit(s)"', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(
+        makeReport({
+          invoices: [
+            {
+              invoiceId: 'inv-1',
+              vendorId: 'vend-1',
+              vendorName: 'ACME',
+              invoiceNumber: 'INV-001',
+              date: '2026-01-10',
+              status: 'pending',
+              invoiceAmount: 1000,
+              allocatedAmount: 1000,
+              lineKind: 'invoice',
+              isSplit: false,
+              documents: [],
+              budgetLines: [
+                {
+                  id: 'line-1',
+                  description: 'Foundation work',
+                  allocatedPortion: 600,
+                  linkedItem: null,
+                },
+              ],
+              deposits: [
+                {
+                  id: 'dep-1',
+                  amount: 200,
+                  status: 'pending',
+                  entryType: 'deposit',
+                  dueDate: '2026-01-01',
+                  paidDate: null,
+                  claimedDate: null,
+                  budgetSourceId: null,
+                },
+              ],
+            },
+          ],
+        }),
+      );
+      mockMarkInvoicesClaimed.mockResolvedValue({
+        claimedInvoiceIds: [],
+        claimedDepositIds: ['dep-1'],
+      });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user);
+
+      const expandButton = document.querySelector(
+        '[aria-controls="invoice-expand-inv-1"]',
+      ) as HTMLElement;
+      await user.click(expandButton);
+      await user.click(
+        screen.getAllByRole('checkbox', { name: 'Exclude Foundation work from report' })[0]!,
+      );
+
+      await clickNext(user); // step 3 -> 4
+      await clickNext(user); // step 4 -> 5
+
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+
+      await waitFor(() => {
+        expect(mockMarkInvoicesClaimed).toHaveBeenCalledWith('src-1', [], ['dep-1']);
+      });
+      await waitFor(() => {
+        expect(
+          screen.getByText('0 invoice(s) and 1 deposit(s) marked as claimed'),
+        ).toBeInTheDocument();
       });
     });
 
@@ -1550,7 +1850,9 @@ describe('ReportWizardPage', () => {
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
 
       const warning = screen.getByRole('alert');
-      expect(warning).toHaveTextContent('1 invoice(s) will be claimed in full');
+      expect(warning).toHaveTextContent(
+        '1 invoice(s) have excluded line items and will keep their current claim status',
+      );
     });
 
     it('excluding the sole invoice at the invoice level disables the step-3 Next button (cannot reach step 5)', async () => {
