@@ -542,8 +542,8 @@ export function markInvoicesClaimed(
   diaryAutoEvents: boolean,
 ): MarkClaimedResponse {
   // 1. Validate input
-  if (invoiceIds.length === 0) {
-    throw new ValidationError('At least one invoice ID must be provided');
+  if (invoiceIds.length === 0 && depositIds.length === 0) {
+    throw new ValidationError('At least one invoice or deposit ID must be provided');
   }
 
   const claimedInvoiceIds: string[] = [];
@@ -551,6 +551,11 @@ export function markInvoicesClaimed(
 
   // 2. Transaction: validate, then write
   db.transaction((tx: typeof db) => {
+    // Step 0: Validate that sourceId exists
+    const source = tx.select().from(budgetSources).where(eq(budgetSources.id, sourceId)).get();
+    if (!source) {
+      throw new NotFoundError('Budget source not found');
+    }
     // Step a: Fetch deposits for depositIds and filter to sweep-eligible (budgetSourceId === null || === sourceId)
     const requestedDeposits = tx
       .select()

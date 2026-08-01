@@ -71,3 +71,46 @@ since the wording change was already shipped in the same working tree, not somet
 
 See also: [story-1891-report-wizard-followup.md](story-1891-report-wizard-followup.md) for the
 prior round's `isSplit`/regen-loop bugs on the same file family.
+
+## Round 2 (PR #1922 fix loop, 2026-08-01): `invoiceIds: []` allowed, `claimedInvoiceCount`/`claimedDepositCount` split
+
+Follow-up production round further relaxed the mark-claimed contract:
+
+- Route schema (`sourceReports.ts`) changed from `invoiceIds: {minItems:1}` to an `anyOf` requiring
+  at least one of `invoiceIds`/`depositIds` non-empty — `invoiceIds: []` alone is now valid (200)
+  as long as `depositIds` is non-empty (deposit-only sweep, no invoice in scope at all).
+- `markInvoicesClaimed`'s `ValidationError` now only fires when **both** arrays are empty; message
+  changed to "At least one invoice or deposit ID must be provided". Added a Step 0 `sourceId`
+  existence check (`NotFoundError`/404) inside the transaction, before any reads/writes — a
+  nonexistent `sourceId` now 404s instead of silently no-op'ing (previously the function had no
+  sourceId lookup, so a garbage `sourceId` string would go straight into `otherSourceInvoiceIds`
+  SQL comparisons and never actually throw). Existing markInvoicesClaimed test scenarios all use
+  real `insertSource()` ids so none needed fixture changes for this.
+- Client (`ReportWizardPage.tsx`): `claimedCount` (single number) state split into
+  `claimedInvoiceCount`/`claimedDepositCount`, set from `response.claimedInvoiceIds.length` /
+  `response.claimedDepositIds.length`. `Step5Actions` prop signature changed to match — any test
+  constructing `Step5Actions` props directly (not just through `ReportWizardPage`) needs the two
+  new props, not the old `claimedCount`. New client-side "both computed arrays empty" guard (added
+  in round 1, still present) shows `sourceReports.claimNothingClaimable` and skips the API call
+  entirely — this guard is orthogonal to the server's own both-empty `ValidationError` and fires
+  first since the client always excludes invoices-with-excluded-lines from `invoiceIds` client-side.
+- New success banner copy: `"{{invoices}} invoice(s) and {{deposits}} deposit(s) marked as
+  claimed"` (was a single count). Any test asserting the old `/invoice\(s\) marked as claimed/`
+  loose regex now under-matches (real text has `... and N deposit(s) marked as claimed` in
+  between) — assert the full interpolated string instead of a loose substring regex.
+
+### Shared-worktree gotcha: don't run repo-wide `npm run lint:fix`/`format` blind
+
+This worktree had `e2e-test-engineer` actively committing-in-progress in parallel (new/modified
+files under `e2e/`, `.claude/agent-memory/e2e-test-engineer/`,
+`.claude/agent-memory/translator/`) at the same time QA was running its fix loop — confirmed by a
+brand-new untracked `.claude/agent-memory/e2e-test-engineer/claim-deposit-scope-1922.md` appearing
+between `git status` calls. Running `npm run lint:fix && npm run format` repo-wide (per CLAUDE.md's
+Local Validation Policy) touches every dirty file in the working tree, not just QA's own edits —
+on a worktree shared with a concurrently-running agent this risks stomping on their in-flight work
+or, worse, tempts you to `git checkout --` their files thinking it's the "known ~17-file Prettier
+drift" pattern. **Do not** blanket-revert unfamiliar modified files in this situation. Instead:
+`npx prettier --check <files-i-actually-edited>` / `npx eslint <files-i-actually-edited>` scoped
+to just the files touched in this task, and leave everything else alone. Files that are already
+Prettier-clean after the repo-wide run needed no revert (nothing to distinguish "my drift" from
+"their legitimate edit" — if it's clean, leave it).

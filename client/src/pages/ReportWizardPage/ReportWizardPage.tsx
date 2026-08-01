@@ -145,7 +145,8 @@ export function ReportWizardPage() {
   const [isMarkingClaimed, setIsMarkingClaimed] = useState(false);
   const [claimError, setClaimError] = useState<string>('');
   const [claimSuccess, setClaimSuccess] = useState(false);
-  const [claimedCount, setClaimedCount] = useState(0);
+  const [claimedInvoiceCount, setClaimedInvoiceCount] = useState(0);
+  const [claimedDepositCount, setClaimedDepositCount] = useState(0);
   const [finishedWithoutMarking, setFinishedWithoutMarking] = useState(false);
 
   // Paperless status
@@ -428,11 +429,6 @@ export function ReportWizardPage() {
   const handleMarkClaimed = async () => {
     if (!report || !sourceId) return;
 
-    // Invoices not excluded at invoice level
-    const included = report.invoices
-      .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
-      .map((inv) => inv.invoiceId);
-
     // Invoice IDs that have no excluded budget lines
     // (an invoice with any excluded line must not flip status — the excluded portion stays claimable)
     const invoiceIds = report.invoices
@@ -451,10 +447,18 @@ export function ReportWizardPage() {
       .filter((dep) => dep.status !== 'claimed')
       .map((dep) => dep.id);
 
+    // Guard: if both are empty, show error and close modal
+    if (invoiceIds.length === 0 && depositIds.length === 0) {
+      setClaimError(t('sourceReports.claimNothingClaimable'));
+      setShowClaimConfirm(false);
+      return;
+    }
+
     setIsMarkingClaimed(true);
     try {
-      await markInvoicesClaimed(sourceId, invoiceIds, depositIds);
-      setClaimedCount(included.length);
+      const response = await markInvoicesClaimed(sourceId, invoiceIds, depositIds);
+      setClaimedInvoiceCount(response.claimedInvoiceIds.length);
+      setClaimedDepositCount(response.claimedDepositIds.length);
       setClaimSuccess(true);
       setShowClaimConfirm(false);
     } catch (err) {
@@ -918,7 +922,8 @@ export function ReportWizardPage() {
               isMarkingClaimed={isMarkingClaimed}
               claimError={claimError}
               claimSuccess={claimSuccess}
-              claimedCount={claimedCount}
+              claimedInvoiceCount={claimedInvoiceCount}
+              claimedDepositCount={claimedDepositCount}
               finishedWithoutMarking={finishedWithoutMarking}
               selectedInvoiceCount={report ? report.invoices.length - excludedInvoiceIds.size : 0}
               onPreviewPdf={handlePreviewPdf}

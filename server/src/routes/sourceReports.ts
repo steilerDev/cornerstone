@@ -80,7 +80,6 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
             invoiceIds: {
               type: 'array',
               items: { type: 'string' },
-              minItems: 1,
             },
             depositIds: {
               type: 'array',
@@ -89,6 +88,16 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
           },
           required: ['sourceId', 'invoiceIds', 'depositIds'],
           additionalProperties: false,
+          anyOf: [
+            {
+              properties: { invoiceIds: { minItems: 1 } },
+              required: ['invoiceIds'],
+            },
+            {
+              properties: { depositIds: { minItems: 1 } },
+              required: ['depositIds'],
+            },
+          ],
         },
       },
     },

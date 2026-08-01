@@ -11,7 +11,8 @@ interface Step5ActionsProps {
   isMarkingClaimed: boolean;
   claimError: string | null;
   claimSuccess: boolean;
-  claimedCount: number;
+  claimedInvoiceCount: number;
+  claimedDepositCount: number;
   finishedWithoutMarking: boolean;
   selectedInvoiceCount: number;
   onPreviewPdf: () => void;
@@ -29,7 +30,8 @@ export function Step5Actions({
   isMarkingClaimed,
   claimError,
   claimSuccess,
-  claimedCount,
+  claimedInvoiceCount,
+  claimedDepositCount,
   finishedWithoutMarking,
   selectedInvoiceCount,
   onPreviewPdf,
@@ -49,7 +51,10 @@ export function Step5Actions({
           <div>
             {finishedWithoutMarking
               ? t('sourceReports.finishedWithoutMarkingSuccess')
-              : t('sourceReports.claimSuccess', { count: claimedCount })}
+              : t('sourceReports.claimSuccess', {
+                  invoices: claimedInvoiceCount,
+                  deposits: claimedDepositCount,
+                })}
           </div>
           <Link to="/budget/invoices" className={sharedStyles.bannerLink}>
             {t('sourceReports.viewInvoices')}

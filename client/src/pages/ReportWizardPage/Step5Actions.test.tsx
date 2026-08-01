@@ -31,7 +31,8 @@ function baseProps() {
     isMarkingClaimed: false,
     claimError: null as string | null,
     claimSuccess: false,
-    claimedCount: 0,
+    claimedInvoiceCount: 0,
+    claimedDepositCount: 0,
     finishedWithoutMarking: false,
     selectedInvoiceCount: 3,
     onPreviewPdf: jest.fn(),
@@ -323,13 +324,27 @@ describe('Step5Actions — claimSuccess', () => {
     expect(screen.queryByRole('button', { name: markClaimedName(3) })).not.toBeInTheDocument();
   });
 
-  it('interpolates the real claimedCount into the success banner text', () => {
-    renderStep5({ ...baseProps(), useCase: 'claim', claimSuccess: true, claimedCount: 5 });
-    expect(screen.getByText('sourceReports.claimSuccess::{"count":5}')).toBeInTheDocument();
+  it('interpolates the real claimedInvoiceCount/claimedDepositCount into the success banner text', () => {
+    renderStep5({
+      ...baseProps(),
+      useCase: 'claim',
+      claimSuccess: true,
+      claimedInvoiceCount: 5,
+      claimedDepositCount: 2,
+    });
+    expect(
+      screen.getByText('sourceReports.claimSuccess::{"invoices":5,"deposits":2}'),
+    ).toBeInTheDocument();
   });
 
   it('renders a link to /budget/invoices in the success banner', () => {
-    renderStep5({ ...baseProps(), useCase: 'claim', claimSuccess: true, claimedCount: 5 });
+    renderStep5({
+      ...baseProps(),
+      useCase: 'claim',
+      claimSuccess: true,
+      claimedInvoiceCount: 5,
+      claimedDepositCount: 2,
+    });
     const link = screen.getByRole('link', { name: 'sourceReports.viewInvoices' });
     expect(link).toHaveAttribute('href', '/budget/invoices');
   });
@@ -340,9 +355,12 @@ describe('Step5Actions — claimSuccess', () => {
       useCase: 'claim',
       claimSuccess: true,
       finishedWithoutMarking: true,
-      claimedCount: 5,
+      claimedInvoiceCount: 5,
+      claimedDepositCount: 2,
     });
     expect(screen.getByText('sourceReports.finishedWithoutMarkingSuccess')).toBeInTheDocument();
-    expect(screen.queryByText('sourceReports.claimSuccess::{"count":5}')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('sourceReports.claimSuccess::{"invoices":5,"deposits":2}'),
+    ).not.toBeInTheDocument();
   });
 });

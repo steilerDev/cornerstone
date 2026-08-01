@@ -1142,9 +1142,50 @@ describe('sourceReportService', () => {
   // ═══════════════════════════════════════════════════════════════════════
 
   describe('markInvoicesClaimed', () => {
-    it('scenario 22: empty invoiceIds throws ValidationError', () => {
+    it('scenario 22: both invoiceIds and depositIds empty throws ValidationError', () => {
       const sourceId = insertSource();
       expect(() => markInvoicesClaimed(db, sourceId, [], [], true)).toThrow(ValidationError);
+      expect(() => markInvoicesClaimed(db, sourceId, [], [], true)).toThrow(
+        'At least one invoice or deposit ID must be provided',
+      );
+    });
+
+    it('empty invoiceIds with non-empty depositIds does NOT throw — sweeps deposits without touching any invoice status', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+      const depId = insertDeposit(invId, { status: 'pending', amount: 100 });
+
+      const result = markInvoicesClaimed(db, sourceId, [], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([]);
+      expect(result.claimedDepositIds).toEqual([depId]);
+
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      // The deposit's parent invoice was never in invoiceIds, so its status is untouched.
+      expect(updatedInv.status).toBe('pending');
+
+      const updatedDep = db
+        .select()
+        .from(schema.invoiceDeposits)
+        .all()
+        .find((d) => d.id === depId)!;
+      expect(updatedDep.status).toBe('claimed');
+    });
+
+    it('nonexistent sourceId throws NotFoundError', () => {
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+      expect(() => markInvoicesClaimed(db, 'does-not-exist-source', [invId], [], true)).toThrow(
+        NotFoundError,
+      );
+      expect(() => markInvoicesClaimed(db, 'does-not-exist-source', [invId], [], true)).toThrow(
+        'Budget source not found',
+      );
     });
 
     it('scenario 23: all-pending invoices with no deposits flip to claimed and fire diary events', () => {

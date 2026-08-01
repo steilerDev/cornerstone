@@ -33,7 +33,14 @@
  *   cannot assert the PDF's actual text content in this project).
  * - Scenario 9: Upload to Paperless succeeds with edited content (mocked Paperless endpoints).
  * - Scenario 10: Mark Claimed still shows the Story #1891 excluded-lines warning correctly when
- *   content edits are also present (regression guard — the two features are independent).
+ *   content edits are also present (regression guard — the two features are independent). Under
+ *   the current invoice/deposit claim-scope split (`ReportWizardPage.tsx`'s `handleMarkClaimed`),
+ *   this scenario's fixture — one invoice with a partially-excluded line and NO deposits — has
+ *   an empty `invoiceIds` (the excluded line keeps the invoice out) AND an empty `depositIds`
+ *   (there are none), so confirming hits the client-side "nothing claimable" guard: no API call,
+ *   `sourceReports.claimNothingClaimable` shown as the error banner instead of a success banner.
+ *   The warning block itself is asserted BEFORE confirming — it renders based on excluded lines
+ *   alone, independent of whether the eventual submit is a no-op.
  * - Scenario 11: Mobile (≤767px) — cover letter fields render with visible labels, AND the
  *   invoice table's mobile-card fallback (`.mobileCardList`/`.mobileCard`/`.mobileCardRow`)
  *   renders real, editable row content in the table's place (fixed #1904 — previously the
@@ -882,7 +889,7 @@ test.describe('Report wizard editable content — Paperless upload with edits (S
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard editable content — mark-claimed warning regression (Scenario 10)', () => {
-  test('The #1891 excluded-lines claim warning still shows correctly when step-5 content has also been edited', async ({
+  test('The #1891 excluded-lines claim warning still shows correctly when step-5 content has also been edited, and confirming a nothing-claimable selection surfaces the guard error', async ({
     page,
     testPrefix,
   }) => {
@@ -940,12 +947,17 @@ test.describe('Report wizard editable content — mark-claimed warning regressio
       await wizard.clickMarkClaimed();
       await expect(wizard.markClaimedWarningBlock).toBeVisible();
       await expect(wizard.markClaimedWarningBlock).toHaveText(
-        /^1 invoice\(s\) will be claimed in full even though/,
+        /^1 invoice\(s\) have excluded line items/,
       );
       await wizard.confirmClaim();
 
-      await expect(wizard.claimSuccessBanner).toBeVisible();
-      await expect(wizard.claimSuccessBanner).toContainText('1 invoice(s) marked as claimed');
+      // Fixture has no deposits and the only invoice has an excluded line, so both invoiceIds
+      // and depositIds are empty — the client-side guard fires without an API call and the
+      // claim-success banner never renders (see docstring above / handleMarkClaimed's "both
+      // empty" branch).
+      await expect(wizard.claimErrorBanner).toBeVisible();
+      await expect(wizard.claimErrorBanner).toHaveText(/^Nothing can be marked as claimed/);
+      await expect(wizard.claimSuccessBanner).not.toBeVisible();
     } finally {
       if (workItemAId) await deleteWorkItemViaApi(page, workItemAId);
       if (workItemBId) await deleteWorkItemViaApi(page, workItemBId);

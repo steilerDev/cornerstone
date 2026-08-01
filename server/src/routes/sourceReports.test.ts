@@ -344,7 +344,7 @@ describe('Source Report Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('returns 400 when invoiceIds is an empty array (minItems: 1)', async () => {
+    it('returns 400 when both invoiceIds and depositIds are empty arrays (anyOf minItems: 1)', async () => {
       const { cookie } = await createUserWithSession();
 
       const response = await app.inject({
@@ -355,6 +355,58 @@ describe('Source Report Routes', () => {
       });
 
       expect(response.statusCode).toBe(400);
+    });
+
+    it('returns 200 when invoiceIds is empty but depositIds has a valid, sweepable deposit', async () => {
+      const { cookie } = await createUserWithSession();
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+      const depId = randomUUID();
+      const now = ts();
+      app.db
+        .insert(schema.invoiceDeposits)
+        .values({
+          id: depId,
+          invoiceId: invId,
+          amount: 100,
+          dueDate: '2026-02-01',
+          status: 'pending',
+          entryType: 'deposit',
+          budgetSourceId: sourceId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/source-reports/mark-claimed',
+        headers: { cookie },
+        payload: { sourceId, invoiceIds: [], depositIds: [depId] },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<MarkClaimedResponse>();
+      expect(body.claimedInvoiceIds).toEqual([]);
+      expect(body.claimedDepositIds).toEqual([depId]);
+    });
+
+    it('returns 404 NOT_FOUND for an unknown sourceId', async () => {
+      const { cookie } = await createUserWithSession();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/source-reports/mark-claimed',
+        headers: { cookie },
+        payload: { sourceId: 'does-not-exist', invoiceIds: [invId], depositIds: [] },
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('NOT_FOUND');
     });
 
     it('returns 400 when sourceId is missing', async () => {
