@@ -148,7 +148,7 @@ JSON schema: { "letterSubject": string, "letterBody": string, "descriptions": [ 
 
 export function buildReportContentUserPrompt(input: GenerateReportContentLlmInput): string {
   const langLabel = input.language === 'en' ? 'English' : 'German';
-  const amountFormatted = (input.totalAmount / 100).toFixed(2);
+  const amountFormatted = input.totalAmount.toFixed(2);
 
   let prompt = `Generate a professional cover letter and descriptions for a ${input.language === 'en' ? 'German construction project' : 'Konstruktionsprojekt'} financial report.
 
@@ -162,7 +162,7 @@ Invoices and budget details:
 `;
 
   for (const inv of input.invoices) {
-    const invAmount = (inv.amount / 100).toFixed(2);
+    const invAmount = inv.amount.toFixed(2);
     prompt += `\nInvoice ID: ${inv.invoiceId}
 Vendor: ${inv.vendorName}
 Invoice Number: ${inv.invoiceNumber ?? 'unknown'}

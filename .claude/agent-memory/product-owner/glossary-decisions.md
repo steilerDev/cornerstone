@@ -42,3 +42,7 @@ Optional, deliberately **not** requested: for `bank_loan` sources German lenders
 - Always verify the proposed term is **actually used consistently** in the accompanying `de/*.json` strings before approving — check the error-code string too (`errors.json`), which is easy to miss since it lives in a different namespace.
 - German casing slips through repeatedly: verbs/adjectives are **not** title-cased ("Bericht erstellen", not "Bericht Erstellen"). Found in PR #1887.
 - Related: [[pr-review-patterns]], [[bank-report-wizard]].
+
+## Pending — next glossary refinement pass
+
+- **"AI" → de "KI"** (proposed by translator during story #1901, 2026-07-31). PO agrees it warrants a glossary entry; deferred to the next refinement pass rather than added mid-story. German copy in the report wizard already uses KI consistently ("KI-Unterstützung aktivieren", "Mit KI generieren", "KI-Generierung fehlgeschlagen") — the entry should codify that existing convention, not change it.

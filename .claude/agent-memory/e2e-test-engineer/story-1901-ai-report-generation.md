@@ -41,12 +41,21 @@ in `e2e/pages/ReportWizardPage.ts`: `aiToggle`, `aiGenerateRow`, `generateWithAi
   source with `contactAddress`/`reference` — I initially forgot this on 3 of 7 mocked scenarios
   (Scenarios 5, 6, 7) and had to backfill it. If a future edit adds a scenario using
   `letterField(...)`, check the source seed includes both fields first.
-- LLM error translations are REUSED from the auto-itemize namespace (`errors.json`'s
-  `LLM_NOT_CONFIGURED`/`LLM_UNREACHABLE`/`LLM_INVALID_RESPONSE`/`LLM_UPSTREAM_ERROR` — same keys,
-  same English/German strings, e.g. "The extraction service is unavailable..." even though this
-  is a report-generation call, not extraction). Not a bug — deliberate reuse of the existing LLM
-  error vocabulary per the story's own note ("reuse the auto-itemize LLM path... do not build a
-  second LLM integration"). Use the exact existing `errors.json` strings when asserting error
+- LLM error translations are SHARED, feature-neutral keys in `errors.json`
+  (`LLM_NOT_CONFIGURED`/`LLM_UNREACHABLE`/`LLM_INVALID_RESPONSE`/`LLM_UPSTREAM_ERROR`) used by
+  BOTH auto-itemize and report-content generation. **Reworded PR #1916 (2026-08-01, PO review
+  feedback)**: the original wording said "extraction service"/"Auto-itemization is not
+  configured", which was auto-itemize-specific and misleading when the same code renders for
+  report generation. Current (feature-neutral) English strings: `LLM_NOT_CONFIGURED` = "AI
+  assistance is not configured on this server.", `LLM_UNREACHABLE` = "The AI service could not be
+  reached. Please try again.", `LLM_INVALID_RESPONSE` = "The AI service returned an unusable
+  response. Please try again.", `LLM_UPSTREAM_ERROR` = "The AI service reported an error. Please
+  try again." (German: "Der KI-Dienst …" / "KI-Unterstützung ist auf diesem Server nicht
+  konfiguriert."). Updated the 3 e2e occurrences of the old wording (2 in
+  `reportWizardAiGeneration.spec.ts` — one in the `LLM_UNREACHABLE` mock body, one in the actual
+  `toContainText` assertion — and 1 in `invoice-auto-itemize-page.spec.ts`'s mock body, which
+  doesn't assert message text so was updated for fixture realism only, not test correctness). Use
+  the CURRENT `errors.json` strings above when asserting error
   text, not a report-specific wording.
 - `aiErrorBanner` is scoped to `aiGenerateRow` (`this.aiGenerateRow.locator('[role="alert"]')`) —
   needed because the claim-flow's own error banner (`claimErrorBanner`) is a SEPARATE

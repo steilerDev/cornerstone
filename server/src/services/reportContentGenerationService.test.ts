@@ -448,16 +448,21 @@ describe('generateReportContent (Story #1901)', () => {
   // Scenario 5: includedTotal parity with the client's applyLineExclusions math
   // ═══════════════════════════════════════════════════════════════════════
 
-  it("scenario 5: totalAmount mirrors allocatedAmount minus excluded lines' allocatedPortion, rounded to the nearest cent", async () => {
+  it("scenario 5: totalAmount mirrors allocatedAmount minus excluded lines' allocatedPortion, rounded to the nearest cent, and per-invoice LLM amounts are exclusion-adjusted and cents-rounded", async () => {
     const sourceId = insertSource();
     const vendorId = insertVendor();
-    // Invoice A: 1000, two lines (600 excluded, 400 kept) -> contributes 400
+    // Invoice A: 1000, two lines (600 excluded, 400 kept) -> contributes 400. The PO flagged that
+    // invoice A used to be sent to the LLM as its raw 1000 while only contributing 400 to the
+    // total — the per-invoice `amount` sent to the LLM must reflect the same exclusion-adjusted
+    // value as the total, not the invoice's raw allocatedAmount.
     const invoiceA = insertInvoice(vendorId, { amount: 1000 });
     const { budgetId: budgetA1 } = insertWorkItemBudget(sourceId);
     const { budgetId: budgetA2 } = insertWorkItemBudget(sourceId);
     const excludedLine = insertInvoiceBudgetLine(invoiceA, { workItemBudgetId: budgetA1 }, 600);
     insertInvoiceBudgetLine(invoiceA, { workItemBudgetId: budgetA2 }, 400);
-    // Invoice B: 333.335 (kept whole, forces a rounding case) -> contributes 333.335
+    // Invoice B: 333.335, no exclusions — still forces a per-invoice AND total rounding case,
+    // since reportContentGenerationService.ts rounds every included invoice's amount to the
+    // nearest cent unconditionally (Math.round(x * 100) / 100), not just exclusion-affected ones.
     const invoiceB = insertInvoice(vendorId, { amount: 333.335 });
     const { budgetId: budgetB } = insertWorkItemBudget(sourceId);
     insertInvoiceBudgetLine(invoiceB, { workItemBudgetId: budgetB }, 333.335);
@@ -475,8 +480,15 @@ describe('generateReportContent (Story #1901)', () => {
     );
 
     const input = mockProviderGenerateReportContent.mock.calls[0]![0];
-    // 400 (invoice A after exclusion) + 333.335 (invoice B, rounded) = 733.335 -> rounds to 733
-    expect(input.totalAmount).toBe(733);
+    // 400 (invoice A after exclusion) + 333.34 (invoice B, cents-rounded) = 733.34
+    expect(input.totalAmount).toBe(733.34);
+
+    const invoiceAInput = input.invoices.find((inv) => inv.invoiceId === invoiceA)!;
+    const invoiceBInput = input.invoices.find((inv) => inv.invoiceId === invoiceB)!;
+    // Invoice A: exclusion-adjusted to 400, NOT its raw allocatedAmount of 1000.
+    expect(invoiceAInput.amount).toBe(400);
+    // Invoice B: no exclusions, but still cents-rounded from 333.335 to 333.34.
+    expect(invoiceBInput.amount).toBe(333.34);
   });
 
   // ═══════════════════════════════════════════════════════════════════════

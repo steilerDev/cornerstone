@@ -739,7 +739,7 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('Auto-itemization is not configured on this server.'),
+          screen.getByText('AI assistance is not configured on this server.'),
         ).toBeInTheDocument();
       });
     });

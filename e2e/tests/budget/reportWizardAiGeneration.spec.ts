@@ -234,7 +234,7 @@ async function mockGenerateContentUnreachable(
       body: JSON.stringify({
         error: {
           code: 'LLM_UNREACHABLE',
-          message: 'The extraction service is unavailable. Please try again later.',
+          message: 'The AI service could not be reached. Please try again.',
           details: {},
         },
       }),
@@ -612,7 +612,7 @@ test.describe('Report wizard AI generation — error path (Scenario 6)', () => {
 
       await expect(wizard.aiErrorBanner).toBeVisible();
       await expect(wizard.aiErrorBanner).toContainText(
-        'The extraction service is unavailable. Please try again later.',
+        'The AI service could not be reached. Please try again.',
       );
 
       // Existing (derived) content is unchanged.

@@ -64,7 +64,9 @@ export async function generateReportContent(
 
   // Compute includedTotal using excluded lines logic
   // (mirrors client's applyLineExclusions: sum allocatedAmount of non-excluded lines)
+  // Also track per-invoice exclusion-adjusted amounts for LLM input
   let includedTotal = 0;
+  const invoiceAmountsAdjusted = new Map<string, number>();
   for (const inv of report.invoices) {
     if (!includedInvoiceIds.includes(inv.invoiceId)) {
       continue; // Not in included set
@@ -77,10 +79,13 @@ export async function generateReportContent(
         invContribution -= line.allocatedPortion;
       }
     }
+    // Round to nearest cent (hundredth)
+    invContribution = Math.round(invContribution * 100) / 100;
+    invoiceAmountsAdjusted.set(inv.invoiceId, invContribution);
     includedTotal += invContribution;
   }
   // Round to nearest cent
-  includedTotal = Math.round(includedTotal);
+  includedTotal = Math.round(includedTotal * 100) / 100;
 
   // Fetch invoice notes and linked-item descriptions in bulk
   const invoiceIds = report.invoices
@@ -175,12 +180,13 @@ export async function generateReportContent(
     }
 
     const invoiceNotes = truncate(invoicesNotesMap.get(inv.invoiceId) ?? null, 500);
+    const invoiceAmount = invoiceAmountsAdjusted.get(inv.invoiceId) ?? inv.allocatedAmount;
     llmInvoices.push({
       invoiceId: inv.invoiceId,
       vendorName: inv.vendorName,
       invoiceNumber: inv.invoiceNumber,
       date: inv.date,
-      amount: inv.allocatedAmount, // Send allocated amount for this invoice
+      amount: invoiceAmount, // Exclusion-adjusted amount for this invoice
       notes: invoiceNotes,
       budgetLines,
     });

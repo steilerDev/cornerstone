@@ -4,15 +4,6 @@
  * Uses buildApp() + Fastify's app.inject() to test the full request-response cycle. Follows the
  * same test-seam pattern as invoiceAutoItemize.test.ts: globalThis.fetch is stubbed to intercept
  * the LLM HTTP call so no real network access is required.
- *
- * NOTE: as of writing, `server/src/services/reportContentGenerationService.ts` line 9 imports
- * non-existent schema exports `work_items`/`household_items` (the real exports are
- * `workItems`/`householdItems`) — see GitHub issue #1915. Because `app.ts` statically imports
- * `routes/sourceReports.js`, which imports the broken module, `buildApp()` itself fails to load
- * for EVERY test in this file (and, transitively, every other server-side test that calls
- * buildApp() at all). The tests below are written against the intended/correct behavior per the
- * Story #1901 acceptance criteria and the API Contract wiki page, and are expected to pass once
- * #1915 is fixed — they have NOT been weakened to route around the bug.
  */
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
