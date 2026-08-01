@@ -17,7 +17,7 @@ You are the orchestrator running a full development cycle for one or more user s
 - A **GitHub Issue number** (e.g., `#42` or `42`)
 - A **bug description** (PO will create the issue)
 - A **semicolon-separated list** of issue numbers and/or descriptions (e.g., `#42; #55`, `42; the login page crashes`, `#42; #55; the budget total is wrong`)
-- A **file path** prefixed with `@` (e.g., `@/tmp/bugs.txt`) — the file contains one item per line (issue number or description); empty lines and lines starting with `#` are ignored
+- A **file path** prefixed with `@` (e.g., `@<path-to-file>`) — the file contains one item per line (issue number or description); empty lines and lines starting with `#` are ignored. `/tmp/batch-queue.md` is reserved for `/batch-develop`'s queue and `/tmp/notes.md` for `/release` user feedback — use any other path for ad-hoc lists.
 
 If empty, ask the user to provide an issue number, description, or list before proceeding.
 
@@ -37,7 +37,7 @@ If the input was a `@`-prefixed file path, also store the **source file path** (
 
 ## Task Tracking
 
-At the start of each `/develop` invocation, create tasks to track progress. These tasks survive context compression and let you recover your place if context is lost.
+At the start of each `/develop` invocation, create tasks to track progress.
 
 **Create these tasks upfront** (using `TaskCreate`):
 
@@ -49,14 +49,11 @@ At the start of each `/develop` invocation, create tasks to track progress. Thes
 6. **Implement + Test** — Full multi-phase cycle: spec → backend → frontend → QA/E2E → review → fix loop → commit → trailer verification
 7. **Verify PR** — Confirm PR exists targeting beta
 8. **Agent reviews** — Launch product-architect, security-engineer, product-owner, ux-designer reviews
-9. **Merge** — Wait for CI, squash merge to beta
-10. **Close issues & clean up** — Close issues, move to Done, clean up branch
+9. **Fix loop** — Address blocking reviewer findings (skip if none)
+10. **Merge** — Wait for CI, squash merge to beta
+11. **Close issues & clean up** — Close issues, move to Done, clean up worktree and branch
 
-**Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped (conditional), mark it `completed` with a note in the description.
-
-**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
-
-**Dynamic task rule:** When a fix loop starts (step 6f or step 9), create a new task for each round (e.g., "Fix Loop Round 1", "Fix Loop Round 2") so iterations are tracked.
+Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
 ## Steps
 
@@ -152,18 +149,13 @@ Skip if the branch is already named correctly.
 
 ### 5. Move to In Progress
 
-Move the issue(s) to **In Progress** on the Projects board.
-
-#### Single-item mode
+Move the issue(s) to **In Progress** on the Projects board:
 
 ```bash
-ITEM_ID=$(gh project item-add 4 --owner steilerDev --url https://github.com/steilerDev/cornerstone/issues/<issue-number> --format json --jq '.id')
-gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id 296eeabe
+bash scripts/board.sh <issue-number> in-progress
 ```
 
-#### Multi-item mode
-
-Run the same `gh project item-edit` command for **each issue** in the items list.
+In multi-item mode, run the command for **each issue** in the items list.
 
 ### 6. Implement + Test (Multi-Phase)
 
@@ -181,22 +173,27 @@ Launch the **dev-team-lead** in `[MODE: spec]` with:
 
 The dev-team-lead returns a structured spec document with `## Backend Spec`, `## Frontend Spec`, `## QA Spec`, and `## E2E Spec` sections (each with a `### Compliance Checklist` subsection). Store the full spec — you will pass sections to implementation agents and the full spec to review.
 
+**Story sizing:** The dev-team-lead `[MODE: spec]` classifies each item **S / M / L** in the spec metadata:
+
+- **S** (single-file / trivially scoped) — the dev-team-lead returns a "Spec-Lite" (5–10 lines) instead of the full spec document. Skip the multi-agent fan-out: launch **one** implementer (**backend-developer** or **frontend-developer**, as appropriate) with the Spec-Lite, plus **qa-integration-tester**, then continue at step 6e.
+- **M / L** — follow the full flow (6b–6d) unchanged.
+
 #### 6b. Backend Implementation (if backend spec present)
 
-Launch **backend-developer** (Haiku) with the `## Backend Spec` section from the spec document. The prompt should include the full backend spec section verbatim.
+Launch **backend-developer** with the `## Backend Spec` section from the spec document. The prompt should include the full backend spec section verbatim.
 
 #### 6c. Frontend Implementation (if frontend spec present)
 
 Check the `Execution Order` field in the spec metadata:
 
-- **`parallel`** → Launch **frontend-developer** (Haiku) simultaneously with step 6b
+- **`parallel`** → Launch **frontend-developer** simultaneously with step 6b
 - **`sequential`** → Wait for step 6b to complete first (frontend depends on new shared types)
 
-Launch **frontend-developer** (Haiku) with the `## Frontend Spec` section from the spec document.
+Launch **frontend-developer** with the `## Frontend Spec` section from the spec document.
 
 #### 6c-ii. Translation (if Translator Spec present)
 
-If the spec document contains a `## Translator Spec` section (new i18n keys were added), launch the **translator** (Sonnet) with the `## Translator Spec` section. Skip if no Translator Spec section exists (backend-only changes, no new UI strings).
+If the spec document contains a `## Translator Spec` section (new i18n keys were added), launch the **translator** with the `## Translator Spec` section. Skip if no Translator Spec section exists (backend-only changes, no new UI strings).
 
 The translator translates new English keys into all supported non-English locales and validates glossary compliance across affected namespaces.
 
@@ -233,17 +230,17 @@ Launch the **dev-team-lead** in `[MODE: review]` with:
 
 #### 6f. Fix Loop (max 3 iterations)
 
-Track `internalFixCount` (starts at 0). For each iteration:
+Track `internalFixCount` (starts at 0). When routing a fix to an agent that already worked on this item, continue the previously launched agent via SendMessage (it retains the context it built in the earlier round) instead of launching a fresh agent; launch fresh only if that agent is no longer available. For each iteration:
 
 1. Parse the fix specs from the review verdict — each fix specifies which agent should handle it and includes a `Diagnosis` classification when test failures are involved
 2. Route fixes based on diagnosis:
-   - `CODE_BUG` → production code fix to **backend-developer** or **frontend-developer** (Haiku)
+   - `CODE_BUG` → production code fix to **backend-developer** or **frontend-developer**
    - `TEST_BUG` → test fix to **qa-integration-tester** or **e2e-test-engineer**
    - `BOTH_WRONG` → apply production code fixes **first**, then test fixes (two sequential rounds)
    - `TEST_ENVIRONMENT` → test setup fix to **qa-integration-tester** or **e2e-test-engineer**
    - Non-test issues (no diagnosis) → route as before:
-     - Backend fixes → **backend-developer** (Haiku)
-     - Frontend fixes → **frontend-developer** (Haiku)
+     - Backend fixes → **backend-developer**
+     - Frontend fixes → **frontend-developer**
      - Unit/integration test fixes → **qa-integration-tester**
      - E2E test fixes → **e2e-test-engineer**
 3. After fixes complete, re-launch **dev-team-lead** in `[MODE: review]` with updated file list
@@ -334,12 +331,14 @@ EOF
 
 ### 8. Review
 
-The dev-team-lead has already ensured CI is green. Launch agent reviews (in parallel - make sure to keep the review short if the changes are minimal):
+The dev-team-lead has already ensured CI is green. Determine the applicable reviewers:
 
-- `product-architect` — architecture compliance, test coverage, code quality
-- `security-engineer` — **conditional**: only launch if the PR touches security-relevant files (see Security Review Trigger Rules below). Skip for frontend-only, test-only, or CSS-only PRs.
+- `product-architect` — architecture compliance, test coverage, code quality (always)
+- `security-engineer` — **conditional**: only include if the PR touches security-relevant files (see Security Review Trigger Rules below). Skip for frontend-only, test-only, or CSS-only PRs.
 - `product-owner` — requirements coverage, acceptance criteria (**stories only**; skip if all items are bugs)
 - `ux-designer` — token adherence, visual consistency, accessibility (only for PRs touching `client/src/`, skip otherwise)
+
+Then invoke the Workflow tool with `{name: "pr-review", args: {pr: <n>, reviewers: [{agent: "product-architect"}, {agent: "security-engineer"}, ...]}}` — one entry per applicable reviewer. If the Workflow tool is unavailable, fall back to launching the applicable reviewer agents in parallel with the Agent tool (keep each review short if the changes are minimal).
 
 #### Security Review Trigger Rules
 
@@ -367,9 +366,9 @@ If any reviewer identifies blocking issues:
 
 1. Collect all reviewer feedback into a fix request
 2. Launch the **dev-team-lead** in `[MODE: spec]` with the reviewer feedback to produce targeted fix specs (or write the fix specs yourself if the feedback is clear enough to route directly)
-3. Route fix specs to the appropriate implementation agent(s):
-   - Backend fixes → **backend-developer** (Haiku)
-   - Frontend fixes → **frontend-developer** (Haiku)
+3. Route fix specs to the appropriate implementation agent(s). Continue the previously launched agent via SendMessage (it retains the context it built in the earlier round) instead of launching a fresh agent; launch fresh only if that agent is no longer available:
+   - Backend fixes → **backend-developer**
+   - Frontend fixes → **frontend-developer**
    - Unit/integration test fixes → **qa-integration-tester**
    - E2E test fixes → **e2e-test-engineer**
 4. After fixes, launch **dev-team-lead** in `[MODE: review]` to verify the fixes
@@ -383,7 +382,11 @@ If any reviewer identifies blocking issues:
 
 Once all reviews are clean, wait for CI to go green:
 
-After pushing, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant — wait for `Quality Gates`).
+```bash
+bash scripts/ci-wait.sh <pr-number>
+```
+
+The script handles the mergeability precheck, gate polling, timeouts, and rate-limit backoff. If it reports a merge conflict, rebase onto `beta`, force-push, and re-run it.
 
 After CI is green, present the user with:
 
@@ -403,30 +406,19 @@ In multi-item mode, present a **per-item summary table**:
 | #61   | Add export button to Gantt     | Resolved |
 ```
 
-Once CI is green and all reviewers have approved, merge to beta. Rebuild the squash body from the branch's commit trailers per CLAUDE.md's **Squash-Merge Trailer Preservation** canonical pattern:
+Once CI is green and all reviewers have approved, merge to beta. Write the body (1-3 summary bullets reused from the PR body, plus one `Fixes #<issue-number>` line per issue in multi-item mode) to a temp file, then:
 
 ```bash
-BASE_BRANCH=beta
-SUBJECT="<the same conventional title used in step 7's PR creation>"
-TRAILERS=$(git log origin/${BASE_BRANCH}..HEAD --format="%b" | grep -iE '^co-authored-by:' | sed -E 's/^[Cc]o-[Aa]uthored-[Bb]y:/Co-Authored-By:/' | sort -u)
-BODY="$(cat <<EOF
-<1-3 bullet point summary reused from the PR body>
-
-Fixes #<issue-number>   # one line per issue in multi-item mode
-
-${TRAILERS}
-EOF
-)"
-gh pr merge <pr-url> --squash --subject "$SUBJECT" --body "$BODY"
+bash scripts/squash-merge.sh <pr-number> "<the same conventional title used in step 7's PR creation>" <body-file>
 ```
+
+The script rebuilds trailers from the PR's commits (case-normalized, deduped), guards against skip-ci directives in the subject, and merges.
 
 If the user reports issues with a merged PR, take the user's feedback as new input and start a new `/develop` cycle to address it.
 
 ### 11. Close Issues & Clean Up
 
-After merge:
-
-#### Single-item mode
+After merge (in multi-item mode, run items 1–2 for **each issue** in the items list):
 
 1. Close the issue:
    ```
@@ -434,43 +426,14 @@ After merge:
    ```
 2. Move the issue to **Done** on the Projects board:
    ```bash
-   ITEM_ID=$(gh project item-add 4 --owner steilerDev --url https://github.com/steilerDev/cornerstone/issues/<issue-number> --format json --jq '.id')
-   gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id c558f50d
+   bash scripts/board.sh <issue-number> done
    ```
-3. **Remove resolved line from source file** (only when input was a `@`-prefixed file path):
-   - Remove the line from the source file that produced the resolved item (matched by original text).
-   - Preserve comments (`#`-prefixed lines) and empty lines.
-4. Clean up the worktree and branch, per CLAUDE.md's Session Isolation policy (only once the PR is merged and the worktree has no uncommitted changes):
-   ```bash
-   git status --porcelain   # must be empty before proceeding
-   CURRENT_BRANCH=$(git branch --show-current)
-   WORKTREE_PATH=$(pwd)
-   BASE_REPO=$(git worktree list --porcelain | awk '/^worktree/{print $2; exit}')
-   cd "$BASE_REPO"
-   git worktree remove "$WORKTREE_PATH"
-   git branch -D "$CURRENT_BRANCH"
-   ```
-   Use `-D` (force), not `-d` — this repo squash-merges to `beta`, so `-d`'s "fully merged" check will refuse even for genuinely merged branches. This must be the last action of the session (the working directory it started from no longer exists afterward).
-
-#### Multi-item mode
-
-1. Close **each issue** in the items list:
-   ```
-   gh issue close <issue-number>
-   ```
-2. Move **each issue** to **Done** on the Projects board (run the `gh project item-edit` command for each).
-3. **Remove resolved lines from source file** (only when input was a `@`-prefixed file path):
+3. **Remove resolved line(s) from source file** (only when input was a `@`-prefixed file path):
    - For each closed issue, remove the line from the source file that produced it (matched by original text — the issue number or description as it appeared in the file).
    - Preserve comments (`#`-prefixed lines) and empty lines that were not part of the resolved items.
    - If all non-comment, non-empty lines have been removed, leave the file with only its comments (or empty).
-4. Clean up the worktree and branch, per CLAUDE.md's Session Isolation policy (only once the PR is merged and the worktree has no uncommitted changes):
+4. Clean up the worktree and branch — run from the **base repository**, only once the PR is merged and the worktree has no uncommitted changes:
    ```bash
-   git status --porcelain   # must be empty before proceeding
-   CURRENT_BRANCH=$(git branch --show-current)
-   WORKTREE_PATH=$(pwd)
-   BASE_REPO=$(git worktree list --porcelain | awk '/^worktree/{print $2; exit}')
-   cd "$BASE_REPO"
-   git worktree remove "$WORKTREE_PATH"
-   git branch -D "$CURRENT_BRANCH"
+   bash scripts/worktree-done.sh <worktree-path> <branch>
    ```
-   Use `-D` (force), not `-d` — this repo squash-merges to `beta`, so `-d`'s "fully merged" check will refuse even for genuinely merged branches. This must be the last action of the session (the working directory it started from no longer exists afterward).
+   The script verifies the tree is clean, removes the worktree (handling the wiki-submodule refusal), and deletes the branch only when a merged PR exists. This must be the last action of the session (the working directory it started from no longer exists afterward).

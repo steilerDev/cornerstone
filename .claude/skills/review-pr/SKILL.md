@@ -60,20 +60,22 @@ If `DUPLICATE`, skip all remaining steps.
 
 ### 3. Parallel Agent Reviews
 
-Launch all applicable review agents simultaneously. Each agent posts its own `gh pr review` on the PR.
+Compute the applicable reviewers, then run them all in one review round. Each agent posts its own `gh pr review` on the PR (except dev-team-lead, see below).
 
-**Always launch (every PR):**
+**Always include (every PR):**
 
 - **product-architect** — architecture compliance, API contract adherence, schema conventions, naming conventions, dependency policy
-- **security-engineer** — **conditional**: only launch if the PR touches security-relevant files. Launch if changed files match ANY of: `server/src/routes/**`, `server/src/plugins/auth*`, `server/src/plugins/session*`, `Dockerfile`, `docker-compose.yml`, `**/package.json`, `**/package-lock.json`, or any path containing `sql`, `crypto`, `cookie`, `session`, `token`, `auth`, or `secret`. Skip for frontend-only, test-only, docs-only, or CSS-only PRs.
-- **dev-team-lead** `[MODE: review]` — code quality, TypeScript strictness, ESM conventions, consistent-type-imports, test co-location. **Does not post its own `gh pr review`** — per its defined interface it has no GitHub write access in this mode and returns `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUIRED` as plain text to the orchestrator (handled in Step 4 below).
+- **security-engineer** — conditional per the Security Review Trigger Rules in `/develop` step 8. Skip for frontend-only, test-only, docs-only, or CSS-only PRs.
+- **dev-team-lead** — code quality, TypeScript strictness, ESM conventions, consistent-type-imports, test co-location. Participates as `{agent: "dev-team-lead"}` with focus `"[MODE: review] — return VERDICT only; you have no GitHub write access in this mode"`. **Does not post its own `gh pr review`** — it returns `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUIRED` as plain text to the orchestrator (handled in Step 4 below).
 
-**Conditional launches (based on affected areas from Step 1):**
+**Conditional (based on affected areas from Step 1):**
 
 - `CLIENT` affected → **ux-designer** (token adherence, visual consistency, dark mode, responsive, accessibility) + **frontend-developer** (React patterns, hook conventions, component structure)
 - `BACKEND` affected → **backend-developer** (Fastify patterns, Drizzle conventions, service layer structure, error handling)
 - `TESTS` affected or test coverage gaps expected → **qa-integration-tester** (unit/integration test quality, coverage) + **e2e-test-engineer** (Playwright patterns, page objects, viewport coverage)
 - `DOCS` affected → **docs-writer** (Docusaurus conventions, content accuracy, cross-references)
+
+Then invoke the Workflow tool with `{name: "pr-review", args: {pr: <n>, reviewers: [{agent: "product-architect"}, {agent: "dev-team-lead"}, ...]}}` — one entry per applicable reviewer (same invocation as `/develop` step 8). If the Workflow tool is unavailable, fall back to launching the applicable reviewer agents in parallel with the Agent tool.
 
 Each agent receives:
 
@@ -109,7 +111,7 @@ Present the blocking findings to the user. **Do NOT wait for CI.**
 
 Post a consolidated `gh pr review --approve` comment on the PR summarizing the review outcome. Include dev-team-lead's findings (from its returned VERDICT text in Step 4) in this consolidated review, grouped alongside the other agents' findings.
 
-**Wait 5 seconds**, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if `MERGEABLE`.** If `CONFLICTING`, report the conflict to the user — do not attempt to resolve. Once mergeability is confirmed, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (use the beta or main variant based on the PR's target branch).
+Wait for CI: `bash scripts/ci-wait.sh <pr-number> <beta|main>` (pass `main` only when the PR targets `main`). The script handles the mergeability precheck, gate polling, timeout, and rate-limit backoff. If it reports a merge conflict, report the conflict to the user — do not attempt to resolve.
 
 If CI fails, report the specific failures to the user. **Do NOT merge.**
 
@@ -121,7 +123,7 @@ Present to the user:
 2. **Independent Behavior Change Summary** — read the diff stored from Step 1 and describe what actually changed in user-visible terms, independent of the PR description or changelog. Flag any discrepancies between what the PR claims to do and what the code actually does.
 3. **CI Status** — pass/fail for the required gate check(s) per CLAUDE.md: `Quality Gates` (required on both `beta`- and `main`-targeted PRs), plus `E2E Gates` (required only when the PR targets `main`). `Docker`, `Docker PR Release`, and `Merge E2E Reports` run but are not required gates — report them only if directly relevant, not as blocking checks. "Skipped" if review was blocked.
 4. **Overall Verdict** — `APPROVED` or `BLOCKED` with specific next steps:
-   - If approved: user can merge at their discretion (`gh pr merge --squash <pr-number>`; for a single-commit PR, consider rebuilding the body per CLAUDE.md's **Squash-Merge Trailer Preservation** pattern if the PR carries agent trailers you want preserved)
+   - If approved: user can merge at their discretion (`gh pr merge --squash <pr-number>`; if the PR carries agent trailers worth preserving, use `bash scripts/squash-merge.sh <pr-number> "<subject>"` instead)
    - If blocked: list what the contributor needs to fix, suggest re-running `/review-pr <number>` after fixes are pushed
 
 **The orchestrator never merges.** The user decides when to merge.

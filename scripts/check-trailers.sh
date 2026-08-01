@@ -15,8 +15,9 @@
 #
 # Detection is case-insensitive (format drift like "co-authored-by" vs
 # "Co-Authored-By" must still be caught as present). Writing trailers is
-# always canonical-case per CLAUDE.md's Canonical Agent Trailers table --
-# this script only reads.
+# always the canonical de-versioned form per CLAUDE.md's Canonical Agent
+# Trailers section ("Claude <agent> <noreply@anthropic.com>") -- this script
+# only reads, and also accepts legacy parenthesized-model trailers.
 
 set -euo pipefail
 
@@ -36,8 +37,11 @@ FAILED=0
 
 require() {
   local agent="$1" label="$2"
-  if ! echo "$TRAILERS" | grep -qiE "claude[[:space:]]+${agent}[[:space:]]*\("; then
-    echo "ERROR: files matching '${label}' changed but no 'Co-Authored-By: Claude ${agent} (...)' trailer found in range ${BASE_REF}..${HEAD_REF}." >&2
+  # Accepts both the canonical de-versioned form ("Claude <agent> <noreply@...>")
+  # and the legacy parenthesized-model form ("Claude <agent> (Model X.Y) <...>")
+  # so ranges spanning older history still verify.
+  if ! echo "$TRAILERS" | grep -qiE "claude[[:space:]]+${agent}[[:space:]]*[<(]"; then
+    echo "ERROR: files matching '${label}' changed but no 'Co-Authored-By: Claude ${agent} <noreply@anthropic.com>' trailer found in range ${BASE_REF}..${HEAD_REF}." >&2
     FAILED=1
   fi
 }

@@ -1,6 +1,6 @@
 # UX Designer Memory
 
-> This file is loaded into the ux-designer agent's system prompt. Keep it under 140 lines — one line per entry, detail lives in topic files.
+> This file is loaded into the ux-designer agent's system prompt. Keep it under 200 lines — one line per entry, detail lives in topic files.
 
 ## Topic files
 
@@ -8,6 +8,7 @@
 - [component-patterns.md](component-patterns.md) — section-card/page patterns, Badge conventions, SearchPicker/AreaPicker patterns, pre-existing a11y gaps not to block on
 - [photo-annotator-patterns.md](photo-annotator-patterns.md) — PhotoAnnotator toolbar/shape/dark-surface conventions + Story #1478 a11y audit
 - [cost-breakdown-patterns.md](cost-breakdown-patterns.md) — CostBreakdownTable toolbar/filter patterns (Issue #1786)
+- [sandbox-environment.md](sandbox-environment.md) — virtiofs wiki-submodule git workaround ("insufficient permission for adding an object" on `git -C wiki add`)
 - [feature-spec-history.md](feature-spec-history.md) — detailed notes from past visual specs posted to GitHub issues, by story number
 - [pr-review-findings.md](pr-review-findings.md) — past PR design-review findings, verdicts, and recurring bugs; process notes for posting GitHub reviews/comments
 - `story-4-9-invoice-linking-hi.md`, `pr-1490-measurement-freehand.md`, `annotator-a11y-audit.md` — standalone detailed reports referenced from the files above

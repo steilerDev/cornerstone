@@ -64,3 +64,37 @@ background-color: var(--color-primary);
 `npm run build` (webpack) fails in the sandbox with an AJV `addKeywords` error in
 `schema-utils` — this is a pre-existing environment issue unrelated to CSS changes.
 All other quality gates (lint, format:check, typecheck, test) pass correctly.
+
+## EPIC-12 Status (Stories 12.1 + 12.3 + 12.4 done — Layer 3 stub above is superseded)
+
+Story 12.1 (PR #121): tokens.css created with palette + semantic + shadow + spacing + radius + transition tokens.
+Story 12.3 (PR #123): ALL 24 CSS module files fully migrated — zero hardcoded hex/rgba remain.
+Story 12.4 (PR #124): Dark mode via `[data-theme="dark"]` in tokens.css + ThemeContext + ThemeToggle in sidebar.
+
+**Key semantic tokens:** `--color-bg-{primary|secondary|tertiary|inverse}`, `--color-text-{primary|secondary|muted|subtle|placeholder}`, `--color-border`, `--color-border-strong`, `--color-primary/hover/active`, `--color-danger/hover/active`, `--color-success`, `--color-overlay`, `--shadow-{sm|md|lg|xl|focus|focus-subtle}`
+
+**Component tokens:** `--color-sidebar-{bg|text|hover|active|focus-ring|separator}`, `--color-status-{not-started|in-progress|completed|blocked}-{bg|text}`, `--color-role-{admin|member}-{bg|text}`, `--color-user-{active|inactive}-{bg|text}`
+
+**Verification command:** `grep -rn '#[0-9a-fA-F]' client/src --include="*.module.css"` must return ZERO results.
+
+## Design Token Conventions (after EPIC-12 refinement, PR #126)
+
+- `--color-success-text` token exists (= white in both light+dark) — use on green success buttons
+- Edit/cancel button hover: use `--color-bg-tertiary` (NOT `--color-border`)
+- Primary buttons: default = `--color-primary` (blue-500), hover = `--color-primary-hover` (blue-600)
+- Dark Palette in Layer 1: slate scale (`--color-slate-{50..900}`), `--color-blue-300`, `--color-red-300`, emerald scale (`--color-emerald-{200|300|400}`)
+- `[data-theme="dark"]` block has ZERO raw hex values — all use `var(--color-slate-*)` etc.
+- Verify: look for hex in dark block with `grep -A200 "\[data-theme='dark'\]" tokens.css | grep '#[0-9a-fA-F]'` — must return ZERO
+
+## ThemeContext (Story 12.4, PR #124)
+
+- `client/src/contexts/ThemeContext.tsx` — ThemeProvider + useTheme hook
+- ThemePreference: `'light' | 'dark' | 'system'`; ResolvedTheme: `'light' | 'dark'`
+- Stored in `localStorage` under key `'theme'`; resolved against `window.matchMedia('(prefers-color-scheme: dark)')`
+- Sets `document.documentElement.dataset.theme` — picked up by `[data-theme="dark"]` in tokens.css
+- ThemeToggle component: `client/src/components/ThemeToggle/ThemeToggle.tsx` — cycles Light→Dark→System
+- Provider order in App.tsx: `<BrowserRouter><ThemeProvider><AuthProvider>...</AuthProvider></ThemeProvider></BrowserRouter>`
+
+## Dark Mode Form Inputs (UAT fix, fix/dark-mode-inputs)
+
+Global reset in `index.css`: `input,textarea,select,button { background-color: transparent }`. Every CSS module MUST have explicit `background-color: var(--color-bg-primary)` on those elements. `ThemeContext` sets `document.documentElement.style.colorScheme = resolvedTheme` for native widget theming.

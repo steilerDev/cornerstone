@@ -44,7 +44,7 @@ Merged PRs and closed issues are durable state. If the session crashes:
 
 ## Task Tracking
 
-Use tasks to track progress across the entire epic lifecycle. Tasks survive context compression — after any compression event, run `TaskList` to recover your place.
+Use tasks to track progress across the entire epic lifecycle.
 
 **Phase 0 — create these tasks immediately:**
 
@@ -66,11 +66,7 @@ Use tasks to track progress across the entire epic lifecycle. Tasks survive cont
 - **UAT validation** — Product-owner UAT scenarios
 - **Release** — Delegate to /release for promotion, approval, docs, and merge
 
-**Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped, mark it `completed` with a note.
-
-**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
-
-**Dynamic task rule:** When fix loops, UAT rounds, or E2E fix cycles start, create a new task for each round so iterations are tracked.
+Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
 ---
 
@@ -166,7 +162,7 @@ Execute `/develop` steps 2 through 11 for the current story, using **single-item
 - **Step 5** (Move to In Progress) — move issue to In Progress
 - **Step 6** (Implement + Test) — full multi-phase implementation cycle (spec → backend → frontend → QA/E2E → review → fix loop → commit → trailer verification)
 - **Step 7** (Verify PR) — verify or create PR targeting `beta`
-- **Step 8** (Review) — launch 4 reviewer agents in parallel
+- **Step 8** (Review) — run the applicable reviewers via the pr-review workflow (Agent-tool fallback)
 - **Step 9** (Fix Loop) — fix loop if reviewers flag blocking issues
 - **Step 10** (Merge) — wait for CI, present summary, squash merge
 - **Step 11** (Close Issues & Clean Up) — close issue, move to Done on board. **Skip step 11's worktree/branch cleanup item** — the session continues with the next story.
