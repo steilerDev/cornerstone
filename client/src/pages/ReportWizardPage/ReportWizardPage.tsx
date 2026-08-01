@@ -424,23 +424,63 @@ export function ReportWizardPage() {
     }
   }, [generatePdfFromContent, selectedSource, useCase, t, showToast, tErrors]);
 
-  // Handle mark claimed (unchanged)
+  // Handle mark claimed
   const handleMarkClaimed = async () => {
-    if (!report) return;
+    if (!report || !sourceId) return;
 
+    // Invoices not excluded at invoice level
     const included = report.invoices
       .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
       .map((inv) => inv.invoiceId);
 
+    // Invoice IDs that have no excluded budget lines
+    // (an invoice with any excluded line must not flip status — the excluded portion stays claimable)
+    const invoiceIds = report.invoices
+      .filter(
+        (inv) =>
+          !excludedInvoiceIds.has(inv.invoiceId) &&
+          !inv.budgetLines.some((line) => excludedLineIds.has(line.id)),
+      )
+      .map((inv) => inv.invoiceId);
+
+    // All deposits with status !== 'claimed' from included invoices
+    // (intentionally includes deposits of invoices omitted from invoiceIds)
+    const depositIds = report.invoices
+      .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
+      .flatMap((inv) => inv.deposits ?? [])
+      .filter((dep) => dep.status !== 'claimed')
+      .map((dep) => dep.id);
+
     setIsMarkingClaimed(true);
     try {
-      await markInvoicesClaimed(included);
+      await markInvoicesClaimed(sourceId, invoiceIds, depositIds);
       setClaimedCount(included.length);
       setClaimSuccess(true);
       setShowClaimConfirm(false);
     } catch (err) {
       if (err instanceof ApiClientError && err.error.code === 'INVOICES_NOT_CLAIMABLE') {
-        setClaimError(translateApiError('INVOICES_NOT_CLAIMABLE', tErrors));
+        // Try to map invoice IDs to numbers for a more specific error message
+        const failedInvoiceIds = err.error.details?.invoiceIds as string[] | undefined;
+        if (failedInvoiceIds && failedInvoiceIds.length > 0) {
+          const invoiceNumbers = failedInvoiceIds
+            .map((id) => {
+              const inv = report.invoices.find((i) => i.invoiceId === id);
+              return inv?.invoiceNumber ?? id;
+            })
+            .filter(Boolean);
+
+          if (invoiceNumbers.length > 0) {
+            setClaimError(
+              t('sourceReports.claimFailedWithInvoices', {
+                invoiceNumbers: invoiceNumbers.join(', '),
+              }),
+            );
+          } else {
+            setClaimError(translateApiError('INVOICES_NOT_CLAIMABLE', tErrors));
+          }
+        } else {
+          setClaimError(translateApiError('INVOICES_NOT_CLAIMABLE', tErrors));
+        }
         setShowClaimConfirm(false);
         // Refetch silently
         if (useCase && sourceId) {

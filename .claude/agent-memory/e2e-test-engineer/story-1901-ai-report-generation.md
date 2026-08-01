@@ -22,6 +22,7 @@ in `e2e/pages/ReportWizardPage.ts`: `aiToggle`, `aiGenerateRow`, `generateWithAi
 `API.sourceReportsGenerateContent` to `e2e/fixtures/testData.ts`.
 
 **Key gotchas found while writing this**:
+
 - The E2E container config (`e2e/containers/cornerstoneContainer.ts`'s `environment` object) sets
   no `LLM_*` env vars at all — `llmEnabled` is deterministically `false` against the real,
   unmocked backend. This is what makes Scenario 1 (toggle absent) a TRUE e2e test with zero

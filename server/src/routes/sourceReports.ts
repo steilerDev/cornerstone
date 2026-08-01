@@ -59,8 +59,8 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
 
   /**
    * POST /api/source-reports/mark-claimed
-   * Mark a batch of invoices as claimed.
-   * Body: { invoiceIds: string[] }
+   * Mark a batch of invoices as claimed within a budget source scope, with source-scoped deposit sweep.
+   * Body: { sourceId: string, invoiceIds: string[], depositIds: string[] }
    * Returns: { claimedInvoiceIds: string[], claimedDepositIds: string[] }
    * Auth required: Yes (both admin and member)
    */
@@ -73,13 +73,21 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
         body: {
           type: 'object',
           properties: {
+            sourceId: {
+              type: 'string',
+              minLength: 1,
+            },
             invoiceIds: {
               type: 'array',
               items: { type: 'string' },
               minItems: 1,
             },
+            depositIds: {
+              type: 'array',
+              items: { type: 'string' },
+            },
           },
-          required: ['invoiceIds'],
+          required: ['sourceId', 'invoiceIds', 'depositIds'],
           additionalProperties: false,
         },
       },
@@ -89,9 +97,15 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const { invoiceIds } = request.body;
+      const { sourceId, invoiceIds, depositIds } = request.body;
 
-      const response = markInvoicesClaimed(fastify.db, invoiceIds, fastify.config.diaryAutoEvents);
+      const response = markInvoicesClaimed(
+        fastify.db,
+        sourceId,
+        invoiceIds,
+        depositIds,
+        fastify.config.diaryAutoEvents,
+      );
 
       return reply.status(200).send(response);
     },

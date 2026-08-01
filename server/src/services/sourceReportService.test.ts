@@ -1062,21 +1062,99 @@ describe('sourceReportService', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
+  // Bug #1918: claim reports drop zero-contribution budget lines. A quotation
+  // invoice whose only funding is a deposit TAGGED to the reported source has its
+  // per-line Rail A contribution swept to zero (residual excluded because
+  // 'quotation' isn't in the claim slice; the tagged deposit is excluded from Rail A
+  // by definition) — so budgetLines[] must be dropped for 'claim' reports specifically,
+  // while allocatedAmount still reflects the deposit's own Rail B contribution and
+  // deposits[] remains fully populated (informational, never filtered by contribution).
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('getSourceReport — Story #1918 (claim reports skip zero-contribution budget lines)', () => {
+    it('AC5: quotation invoice with 2 lines allocated to this source + a pending deposit tagged to this source → claim report drops budgetLines[], allocatedAmount equals the deposit amount, deposits[] unaffected', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceId);
+      const budgetB = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 600);
+      insertInvoiceBudgetLine(invId, budgetB, 400);
+      const depId = insertDeposit(invId, {
+        amount: 300,
+        status: 'pending',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.budgetLines).toEqual([]);
+      expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(300);
+      expect(result.invoices[0]!.deposits).toHaveLength(1);
+      expect(result.invoices[0]!.deposits[0]!.id).toBe(depId);
+    });
+
+    it('AC6 carve-out: same setup but the deposit is UNTAGGED → budgetLines[] is retained with a non-zero allocatedPortion', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceId);
+      const budgetB = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 600);
+      insertInvoiceBudgetLine(invId, budgetB, 400);
+      insertDeposit(invId, { amount: 300, status: 'pending', entryType: 'deposit' }); // untagged
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.budgetLines).toHaveLength(2);
+      for (const line of result.invoices[0]!.budgetLines) {
+        expect(line.allocatedPortion).toBeGreaterThan(0);
+      }
+    });
+
+    it('AC7: the same fixture as a budget-overview report → budgetLines[] is non-empty (the zero-portion skip only applies to claim reports)', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceId);
+      const budgetB = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 600);
+      insertInvoiceBudgetLine(invId, budgetB, 400);
+      insertDeposit(invId, {
+        amount: 300,
+        status: 'pending',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+
+      const result = await getSourceReport(db, 'budget-overview', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.budgetLines.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
   // markInvoicesClaimed
   // ═══════════════════════════════════════════════════════════════════════
 
   describe('markInvoicesClaimed', () => {
     it('scenario 22: empty invoiceIds throws ValidationError', () => {
-      expect(() => markInvoicesClaimed(db, [], true)).toThrow(ValidationError);
+      const sourceId = insertSource();
+      expect(() => markInvoicesClaimed(db, sourceId, [], [], true)).toThrow(ValidationError);
     });
 
     it('scenario 23: all-pending invoices with no deposits flip to claimed and fire diary events', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const inv1 = insertInvoice(vendorId, { status: 'pending', invoiceNumber: 'INV-1' });
       const inv2 = insertInvoice(vendorId, { status: 'pending', invoiceNumber: 'INV-2' });
       const before = diaryEntryCount();
 
-      const result = markInvoicesClaimed(db, [inv1, inv2], true);
+      const result = markInvoicesClaimed(db, sourceId, [inv1, inv2], [], true);
 
       expect(result.claimedInvoiceIds.sort()).toEqual([inv1, inv2].sort());
       expect(result.claimedDepositIds).toEqual([]);
@@ -1090,13 +1168,14 @@ describe('sourceReportService', () => {
     });
 
     it('scenario 24: pending invoice + 2 pending deposits → all flip; claimedDate=today, paidDate stays null', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'pending' });
       const dep1 = insertDeposit(invId, { status: 'pending', amount: 100 });
       const dep2 = insertDeposit(invId, { status: 'pending', amount: 200 });
       const today = new Date().toLocaleDateString('en-CA');
 
-      const result = markInvoicesClaimed(db, [invId], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [dep1, dep2], true);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
       expect(result.claimedDepositIds.sort()).toEqual([dep1, dep2].sort());
@@ -1112,11 +1191,12 @@ describe('sourceReportService', () => {
     });
 
     it('scenario 25: paid invoice + paid deposit → both flip; paidDate preserved', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'paid' });
       const depId = insertDeposit(invId, { status: 'paid', amount: 100, paidDate: '2026-01-10' });
 
-      const result = markInvoicesClaimed(db, [invId], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
       expect(result.claimedDepositIds).toEqual([depId]);
@@ -1138,6 +1218,7 @@ describe('sourceReportService', () => {
     });
 
     it('scenario 26: already-claimed invoice with a pending refund → invoice untouched (no event, updatedAt unchanged), refund flips', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, {
         status: 'claimed',
@@ -1146,7 +1227,7 @@ describe('sourceReportService', () => {
       const refundId = insertDeposit(invId, { status: 'pending', entryType: 'refund', amount: 50 });
       const before = diaryEntryCount();
 
-      const result = markInvoicesClaimed(db, [invId], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [refundId], true);
 
       expect(result.claimedInvoiceIds).toEqual([]); // invoice already claimed — not re-flipped
       expect(result.claimedDepositIds).toEqual([refundId]);
@@ -1161,17 +1242,18 @@ describe('sourceReportService', () => {
       expect(diaryEntryCount()).toBe(before + 1);
     });
 
-    it('scenario 27: batch with one quotation-status invoice among valid ones → 409, ZERO rows changed (rollback verified by re-query)', () => {
+    it('scenario 27: batch with one quotation-status invoice (no deposit at all — genuinely non-claimable) among valid ones → 409, ZERO rows changed (rollback verified by re-query)', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const validInv = insertInvoice(vendorId, { status: 'pending' });
-      const badInv = insertInvoice(vendorId, { status: 'quotation' });
+      const badInv = insertInvoice(vendorId, { status: 'quotation' }); // no deposit at all
 
-      expect(() => markInvoicesClaimed(db, [validInv, badInv], true)).toThrow(
+      expect(() => markInvoicesClaimed(db, sourceId, [validInv, badInv], [], true)).toThrow(
         InvoicesNotClaimableError,
       );
 
       try {
-        markInvoicesClaimed(db, [validInv, badInv], true);
+        markInvoicesClaimed(db, sourceId, [validInv, badInv], [], true);
       } catch (e) {
         const err = e as InvoicesNotClaimableError;
         expect(err.details).toMatchObject({ invoiceIds: [badInv] });
@@ -1186,12 +1268,13 @@ describe('sourceReportService', () => {
     });
 
     it('scenario 28: batch with a non-existent invoice id → same 409 rollback behavior', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const validInv = insertInvoice(vendorId, { status: 'pending' });
 
-      expect(() => markInvoicesClaimed(db, [validInv, 'does-not-exist'], true)).toThrow(
-        InvoicesNotClaimableError,
-      );
+      expect(() =>
+        markInvoicesClaimed(db, sourceId, [validInv, 'does-not-exist'], [], true),
+      ).toThrow(InvoicesNotClaimableError);
 
       const reQueriedValid = db
         .select()
@@ -1202,26 +1285,33 @@ describe('sourceReportService', () => {
     });
 
     it('scenario 29: already-claimed invoice with nothing sweepable → 409 offending', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'claimed' }); // no deposits at all
 
-      expect(() => markInvoicesClaimed(db, [invId], true)).toThrow(InvoicesNotClaimableError);
+      expect(() => markInvoicesClaimed(db, sourceId, [invId], [], true)).toThrow(
+        InvoicesNotClaimableError,
+      );
     });
 
     it('scenario 29b: already-claimed invoice with an already-claimed deposit (nothing sweepable) → 409', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'claimed' });
-      insertDeposit(invId, { status: 'claimed', amount: 100 }); // ALLOWED_TRANSITIONS.claimed = ['paid'], no 'claimed' target
+      const depId = insertDeposit(invId, { status: 'claimed', amount: 100 }); // ALLOWED_TRANSITIONS.claimed = ['paid'], no 'claimed' target
 
-      expect(() => markInvoicesClaimed(db, [invId], true)).toThrow(InvoicesNotClaimableError);
+      expect(() => markInvoicesClaimed(db, sourceId, [invId], [depId], true)).toThrow(
+        InvoicesNotClaimableError,
+      );
     });
 
     it('scenario 30: diaryAutoEvents=false suppresses diary entries but writes still happen', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'pending' });
       const before = diaryEntryCount();
 
-      const result = markInvoicesClaimed(db, [invId], false);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [], false);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
       expect(diaryEntryCount()).toBe(before);
@@ -1235,11 +1325,12 @@ describe('sourceReportService', () => {
     });
 
     it('scenario 31: invoice with a null invoiceNumber falls back to N/A in diary events', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'pending', invoiceNumber: null });
       const depId = insertDeposit(invId, { status: 'pending', amount: 100 });
 
-      const result = markInvoicesClaimed(db, [invId], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
       expect(result.claimedDepositIds).toEqual([depId]);
@@ -1249,11 +1340,12 @@ describe('sourceReportService', () => {
     });
 
     it('scenario 32: directly-claimable invoice with an already-claimed (non-transitionable) deposit → deposit left untouched', () => {
+      const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'pending' });
       const depId = insertDeposit(invId, { status: 'claimed', amount: 100 }); // ALLOWED_TRANSITIONS.claimed = ['paid'] only
 
-      const result = markInvoicesClaimed(db, [invId], true);
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
 
       expect(result.claimedInvoiceIds).toEqual([invId]);
       expect(result.claimedDepositIds).toEqual([]); // already-claimed deposit is not re-claimed
@@ -1264,6 +1356,124 @@ describe('sourceReportService', () => {
         .all()
         .find((d) => d.id === depId)!;
       expect(updatedDep.status).toBe('claimed');
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Bugs #1895 / #1896: sourceId-scoped claim eligibility + decoupled deposit sweep
+    // ═══════════════════════════════════════════════════════════════════════
+
+    it('#1895: an invoice funded by a DIFFERENT budget source is left unclaimed, even though its own deposit tagged to THIS source is claimable — the deposit still sweeps', () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const sourceB = insertSource({ name: 'Source B' });
+      const vendorId = insertVendor();
+      const budgetB = insertWorkItemBudget(sourceB);
+      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetB, 1000);
+      const depAId = insertDeposit(invId, {
+        status: 'pending',
+        amount: 300,
+        budgetSourceId: sourceA,
+      });
+
+      const result = markInvoicesClaimed(db, sourceA, [invId], [depAId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([]);
+      expect(result.claimedDepositIds).toEqual([depAId]);
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      expect(updatedInv.status).toBe('pending');
+    });
+
+    it('same-source-only invoice flips normally: pending invoice funded solely by this source, with a deposit tagged to this source → invoice claimed, deposit swept', () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceA);
+      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 1000);
+      const depId = insertDeposit(invId, {
+        status: 'pending',
+        amount: 300,
+        budgetSourceId: sourceA,
+      });
+
+      const result = markInvoicesClaimed(db, sourceA, [invId], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([invId]);
+      expect(result.claimedDepositIds).toEqual([depId]);
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      expect(updatedInv.status).toBe('claimed');
+    });
+
+    it('#1896: a quotation invoice with a sweepable deposit tagged to this source does not throw — the deposit sweeps, the invoice stays quotation', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+      const depId = insertDeposit(invId, {
+        status: 'pending',
+        amount: 300,
+        budgetSourceId: sourceId,
+      });
+
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([]);
+      expect(result.claimedDepositIds).toEqual([depId]);
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      expect(updatedInv.status).toBe('quotation');
+    });
+
+    it('#1896: mixed batch — a valid pending invoice plus a quotation invoice with a sweepable tagged deposit → no 409; the pending one flips, the quotation one stays put', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const validInv = insertInvoice(vendorId, { status: 'pending' });
+      const quotationInv = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+      const depId = insertDeposit(quotationInv, {
+        status: 'pending',
+        amount: 300,
+        budgetSourceId: sourceId,
+      });
+
+      const result = markInvoicesClaimed(db, sourceId, [validInv, quotationInv], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([validInv]);
+      expect(result.claimedDepositIds).toEqual([depId]);
+      const updatedQuotation = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === quotationInv)!;
+      expect(updatedQuotation.status).toBe('quotation');
+    });
+
+    it('deposit sweep is decoupled from invoiceIds membership: a depositId whose parent invoice is NOT in invoiceIds still sweeps', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId1 = insertInvoice(vendorId, { status: 'pending' });
+      const invId2 = insertInvoice(vendorId, { status: 'pending' });
+      const dep2 = insertDeposit(invId2, { status: 'pending', amount: 100 }); // untagged, sweep-eligible
+
+      const result = markInvoicesClaimed(db, sourceId, [invId1], [dep2], true);
+
+      expect(result.claimedInvoiceIds).toEqual([invId1]);
+      expect(result.claimedDepositIds).toEqual([dep2]);
+      // invId2 itself was never in invoiceIds, so its own status is untouched.
+      const updatedInv2 = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId2)!;
+      expect(updatedInv2.status).toBe('pending');
     });
   });
 });

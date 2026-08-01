@@ -97,7 +97,7 @@ against `client/src/styles/tokens.css`, and push the value into a CSS Module cla
 
 `allocatedAmount`, `allocatedPortion`, `totalAmount`, `invoiceAmount`, and everything `formatCurrency`
 consumes are **euros, rounded to 2 dp**. There is a `toCents()` helper in `sourceReportService.ts` but it is
-used only *inside* a `toCents(x)/100` round-trip — it never escapes into a field.
+used only _inside_ a `toCents(x)/100` round-trip — it never escapes into a field.
 
 PR #1916 (#1901) broke this across a new module seam: the service passed `inv.allocatedAmount` (euros) into
 `GenerateReportContentLlmInvoice.amount`, and `prompts.ts` rendered `(inv.amount / 100).toFixed(2)` — every
@@ -110,9 +110,10 @@ Same PR, second defect at the same spot: `Math.round(includedTotal)` (commented 
 rounds to the nearest whole euro. Cent-rounding is `Math.round(x * 100) / 100`.
 
 **Review rules that follow:**
+
 - Any monetary value crossing a module boundary must carry its unit in the type's JSDoc.
 - When a server path re-derives a total the client already derives, demand it mirror the client formula
-  *shape*, not just its intent — `applyLineExclusions` rounds **per invoice** then `buildReportContent` sums
+  _shape_, not just its intent — `applyLineExclusions` rounds **per invoice** then `buildReportContent` sums
   the already-rounded values with no final round. A single trailing round is a different number.
 - Grep new prompt builders for `/ 100`, `* 100`, and `toFixed(` — that is where unit assumptions hide.
 - Better still: push shared derivations into `@cornerstone/shared` so there is one implementation
