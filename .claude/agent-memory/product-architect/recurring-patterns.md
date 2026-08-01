@@ -117,3 +117,11 @@ rounds to the nearest whole euro. Cent-rounding is `Math.round(x * 100) / 100`.
 - Grep new prompt builders for `/ 100`, `* 100`, and `toFixed(` — that is where unit assumptions hide.
 - Better still: push shared derivations into `@cornerstone/shared` so there is one implementation
   (recommended as M2 on #1916; not yet done).
+- When a total is exclusion-adjusted, the **per-item** figures handed to the same consumer must be adjusted
+  too. #1916 shipped an adjusted total alongside raw per-invoice amounts — an LLM handed parts that do not
+  sum to the stated whole. Check both halves whenever you see an exclusion filter.
+
+Fixed in `b70d821b` (round 2 of the #1916 review); the permanent guard is the
+`amount formatting (major units — regression guard for the ×100 division bug)` describe block in
+`server/src/services/budgetExtraction/prompts.test.ts`, which asserts rendered substrings **and** negative
+assertions against the divided form. Copy that shape for any new prompt builder.
