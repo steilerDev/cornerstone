@@ -95,3 +95,7 @@ New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + depos
 - [AI/KI terminology](ai-ki-terminology.md) — "AI" in user-facing German copy is always "KI", never "AI-…"; a future glossary entry should be "KI-Unterstützung", not "AI-Unterstützung"
 - [Progress/status label style](progress-label-style.md) — two co-existing patterns for "X-ing… (Ns)" labels; pick the closer sibling key as precedent (`autoItemize.analyzing` → "Analysiere… ({{seconds}}s)")
 - [EMPTY_SELECTION backfill](empty-selection-error-code.md) — pre-existing error code with no locale entry in either en or de; verify via server code before assuming a key is "new"
+
+## Audit Protocol History
+
+- [Audit pitfalls](audit-pitfalls.md) — incident history behind the mandatory 4-step full-coverage audit protocol: a parity-only audit missed 13 code-referenced keys (Area UI raw-key bug); loose substring greps flagged 52 false positives

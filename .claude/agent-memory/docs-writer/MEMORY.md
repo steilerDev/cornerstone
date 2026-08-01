@@ -16,6 +16,7 @@
 
 ## Sandbox Build Issues
 
+- [build-environment.md](build-environment.md) — full details and workarounds for worktree docs-build failures (jiti/babel.js, ProgressPlugin ValidationError)
 - `npm run docs:build` may fail in worktrees due to node_modules corruption (jiti/babel.js, regenerate.js)
 - Workaround: try building from the base project directory instead of the worktree
 - Clean `npm install` in worktree may not fix it -- sandbox filesystem corruption persists
