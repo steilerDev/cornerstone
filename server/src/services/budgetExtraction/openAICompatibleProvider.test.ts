@@ -18,6 +18,7 @@ import {
   createOpenAICompatibleProvider,
   validateExtractedLines,
   validateMergeResult,
+  validateGenerateReportContentResult,
 } from './openAICompatibleProvider.js';
 import {
   LlmUnreachableError,
@@ -25,6 +26,7 @@ import {
   LlmUpstreamError,
 } from '../../errors/AppError.js';
 import type { LlmConfig } from './types.js';
+import type { GenerateReportContentLlmInput } from './types.js';
 import { readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
@@ -1574,6 +1576,519 @@ describe('validateMergeResult()', () => {
       expect(() => validateMergeResult({ description: 'X', category: 42 })).toThrow(
         LlmInvalidResponseError,
       );
+    });
+  });
+});
+
+// ─── Story #1901: provider.generateReportContent() ───────────────────────────
+
+function buildReportContentInput(
+  overrides: Partial<GenerateReportContentLlmInput> = {},
+): GenerateReportContentLlmInput {
+  return {
+    language: 'en',
+    reportType: 'claim',
+    sourceName: 'Home Loan',
+    sourceType: 'bank_loan',
+    totalAmount: 100000,
+    currency: 'EUR',
+    invoices: [
+      {
+        invoiceId: 'inv-1',
+        vendorName: 'ACME Builders',
+        invoiceNumber: 'INV-001',
+        date: '2026-01-15',
+        amount: 100000,
+        notes: null,
+        budgetLines: [],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function buildReportContentContent(
+  letterSubject: string,
+  letterBody: string,
+  descriptions: Array<{ invoiceId: string; description: string }>,
+): string {
+  return JSON.stringify({ letterSubject, letterBody, descriptions });
+}
+
+describe('createOpenAICompatibleProvider — generateReportContent() happy path', () => {
+  it('calls ${baseUrl}/chat/completions (same endpoint as extract/summarizeMerge)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeOkResponse(
+        buildReportContentContent('Subject', 'Body', [
+          { invoiceId: 'inv-1', description: 'Foundation work' },
+        ]),
+      ),
+    );
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    await provider.generateReportContent(buildReportContentInput());
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/chat/completions');
+  });
+
+  it('sends the REPORT_CONTENT_SYSTEM_PROMPT as the system message', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeOkResponse(
+        buildReportContentContent('Subject', 'Body', [
+          { invoiceId: 'inv-1', description: 'Foundation work' },
+        ]),
+      ),
+    );
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    await provider.generateReportContent(buildReportContentInput());
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const systemMessage = body.messages.find((m) => m.role === 'system');
+    expect(systemMessage?.content).toContain('professional bank-report content writer');
+  });
+
+  it('sends a user message built from buildReportContentUserPrompt (language, source, invoices)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeOkResponse(
+        buildReportContentContent('Subject', 'Body', [
+          { invoiceId: 'inv-1', description: 'Foundation work' },
+        ]),
+      ),
+    );
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    await provider.generateReportContent(
+      buildReportContentInput({ language: 'de', sourceName: 'Bausparvertrag' }),
+    );
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const userMessage = body.messages.find((m) => m.role === 'user');
+    expect(userMessage?.content).toContain('Language: German');
+    expect(userMessage?.content).toContain('Bausparvertrag');
+    expect(userMessage?.content).toContain('Invoice ID: inv-1');
+  });
+
+  it('sends response_format: { type: "json_object" } (openai profile)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeOkResponse(
+        buildReportContentContent('Subject', 'Body', [
+          { invoiceId: 'inv-1', description: 'Foundation work' },
+        ]),
+      ),
+    );
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    await provider.generateReportContent(buildReportContentInput());
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { response_format: { type: string } };
+    expect(body.response_format).toEqual({ type: 'json_object' });
+  });
+
+  it('anthropic profile sends the REPORT_CONTENT_SCHEMA (not EXTRACTED_LINES_SCHEMA — bug-fix regression guard)', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeOkResponse(
+        buildReportContentContent('Subject', 'Body', [
+          { invoiceId: 'inv-1', description: 'Foundation work' },
+        ]),
+      ),
+    );
+
+    const provider = createOpenAICompatibleProvider({ ...BASE_CONFIG, provider: 'anthropic' });
+    await provider.generateReportContent(buildReportContentInput());
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as {
+      response_format: { json_schema: { name: string } };
+    };
+    expect(body.response_format.json_schema.name).toBe('report_content');
+  });
+
+  it('converts the wire-format descriptions array into a Record<invoiceId, description>', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeOkResponse(
+        buildReportContentContent('Subject', 'Body', [
+          { invoiceId: 'inv-1', description: 'Foundation work' },
+          { invoiceId: 'inv-2', description: 'Roofing' },
+        ]),
+      ),
+    );
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    const result = await provider.generateReportContent(
+      buildReportContentInput({
+        invoices: [
+          { ...buildReportContentInput().invoices[0]!, invoiceId: 'inv-1' },
+          { ...buildReportContentInput().invoices[0]!, invoiceId: 'inv-2' },
+        ],
+      }),
+    );
+
+    expect(result.descriptions).toEqual({
+      'inv-1': 'Foundation work',
+      'inv-2': 'Roofing',
+    });
+  });
+
+  it('returns letterSubject and letterBody parsed from the response', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeOkResponse(
+        buildReportContentContent('Financial Report 2026', 'Dear Sir or Madam,', [
+          { invoiceId: 'inv-1', description: 'Foundation work' },
+        ]),
+      ),
+    );
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+    const result = await provider.generateReportContent(buildReportContentInput());
+
+    expect(result.letterSubject).toBe('Financial Report 2026');
+    expect(result.letterBody).toBe('Dear Sir or Madam,');
+  });
+});
+
+describe('createOpenAICompatibleProvider — generateReportContent() failure modes', () => {
+  it('fetch rejects (network error) → throws LlmUnreachableError', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    await expect(provider.generateReportContent(buildReportContentInput())).rejects.toThrow(
+      LlmUnreachableError,
+    );
+  });
+
+  it('response status 500 → throws LlmUpstreamError', async () => {
+    fetchSpy.mockResolvedValueOnce(makeErrorResponse(500));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    await expect(provider.generateReportContent(buildReportContentInput())).rejects.toThrow(
+      LlmUpstreamError,
+    );
+  });
+
+  it('content is not valid JSON → throws LlmInvalidResponseError', async () => {
+    fetchSpy.mockResolvedValueOnce(makeOkResponse('not valid json {{{'));
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    await expect(provider.generateReportContent(buildReportContentInput())).rejects.toThrow(
+      LlmInvalidResponseError,
+    );
+  });
+
+  it("missing a requested invoice's description → throws LlmInvalidResponseError", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      makeOkResponse(buildReportContentContent('Subject', 'Body', [])),
+    );
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    await expect(provider.generateReportContent(buildReportContentInput())).rejects.toThrow(
+      LlmInvalidResponseError,
+    );
+  });
+
+  it('finish_reason: "length" → throws LlmInvalidResponseError with truncation message', async () => {
+    const truncatedResponse = {
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: '{"letterSubject":"Su' }, finish_reason: 'length' }],
+        }),
+    } as unknown as Response;
+    fetchSpy.mockResolvedValueOnce(truncatedResponse);
+
+    const provider = createOpenAICompatibleProvider(BASE_CONFIG);
+
+    let thrown: unknown;
+    try {
+      await provider.generateReportContent(buildReportContentInput());
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(LlmInvalidResponseError);
+    expect((thrown as LlmInvalidResponseError).message.toLowerCase()).toContain('max_tokens');
+  });
+});
+
+// ─── Story #1901: validateGenerateReportContentResult() ─────────────────────
+
+describe('validateGenerateReportContentResult()', () => {
+  describe('valid inputs', () => {
+    it('validates a minimal valid result', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: 'Body',
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterSubject).toBe('Subject');
+      expect(result.letterBody).toBe('Body');
+      expect(result.descriptions).toEqual({ 'inv-1': 'Desc' });
+    });
+
+    it('trims whitespace from letterSubject and letterBody', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: '  Subject  ',
+          letterBody: '  Body  ',
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterSubject).toBe('Subject');
+      expect(result.letterBody).toBe('Body');
+    });
+
+    it('trims whitespace from each description', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: 'Body',
+          descriptions: [{ invoiceId: 'inv-1', description: '  Desc  ' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.descriptions['inv-1']).toBe('Desc');
+    });
+
+    it('truncates letterSubject longer than 200 chars to exactly 200', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'S'.repeat(300),
+          letterBody: 'Body',
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterSubject).toHaveLength(200);
+      expect(result.letterSubject).toBe('S'.repeat(200));
+    });
+
+    it('truncates letterBody longer than 3000 chars to exactly 3000', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: 'B'.repeat(3500),
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterBody).toHaveLength(3000);
+      expect(result.letterBody).toBe('B'.repeat(3000));
+    });
+
+    it('truncates a description longer than 300 chars to exactly 300', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: 'Body',
+          descriptions: [{ invoiceId: 'inv-1', description: 'D'.repeat(400) }],
+        },
+        ['inv-1'],
+      );
+      expect(result.descriptions['inv-1']).toHaveLength(300);
+      expect(result.descriptions['inv-1']).toBe('D'.repeat(300));
+    });
+
+    it('converts the descriptions array into a Record keyed by invoiceId', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: 'Body',
+          descriptions: [
+            { invoiceId: 'inv-1', description: 'A' },
+            { invoiceId: 'inv-2', description: 'B' },
+          ],
+        },
+        ['inv-1', 'inv-2'],
+      );
+      expect(result.descriptions).toEqual({ 'inv-1': 'A', 'inv-2': 'B' });
+    });
+
+    it('does not throw when the descriptions array contains an ID beyond the requested set (extra-id stripping happens at the service layer, not here)', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: 'Body',
+          descriptions: [
+            { invoiceId: 'inv-1', description: 'A' },
+            { invoiceId: 'unexpected-extra-id', description: 'Hallucinated' },
+          ],
+        },
+        ['inv-1'],
+      );
+      // The validator itself does not filter extras — it only ensures all REQUESTED ids are
+      // present. Defense-in-depth stripping of unrequested ids is reportContentGenerationService's
+      // job (see reportContentGenerationService.test.ts scenario 10).
+      expect(result.descriptions).toEqual({ 'inv-1': 'A', 'unexpected-extra-id': 'Hallucinated' });
+    });
+
+    it('accepts an empty requestedInvoiceIds array (nothing required to be present)', () => {
+      const result = validateGenerateReportContentResult(
+        { letterSubject: 'Subject', letterBody: 'Body', descriptions: [] },
+        [],
+      );
+      expect(result.descriptions).toEqual({});
+    });
+  });
+
+  describe('required field validation', () => {
+    it('non-object body → throws LlmInvalidResponseError', () => {
+      expect(() => validateGenerateReportContentResult(null, [])).toThrow(LlmInvalidResponseError);
+      expect(() => validateGenerateReportContentResult(undefined, [])).toThrow(
+        LlmInvalidResponseError,
+      );
+      expect(() => validateGenerateReportContentResult('a string', [])).toThrow(
+        LlmInvalidResponseError,
+      );
+      expect(() => validateGenerateReportContentResult(42, [])).toThrow(LlmInvalidResponseError);
+    });
+
+    it('missing "letterSubject" → throws LlmInvalidResponseError', () => {
+      expect(() =>
+        validateGenerateReportContentResult({ letterBody: 'Body', descriptions: [] }, []),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('empty-string "letterSubject" → throws LlmInvalidResponseError', () => {
+      expect(() =>
+        validateGenerateReportContentResult(
+          { letterSubject: '', letterBody: 'Body', descriptions: [] },
+          [],
+        ),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('missing "letterBody" → throws LlmInvalidResponseError', () => {
+      expect(() =>
+        validateGenerateReportContentResult({ letterSubject: 'Subject', descriptions: [] }, []),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('empty-string "letterBody" → throws LlmInvalidResponseError', () => {
+      expect(() =>
+        validateGenerateReportContentResult(
+          { letterSubject: 'Subject', letterBody: '', descriptions: [] },
+          [],
+        ),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('non-array "descriptions" → throws LlmInvalidResponseError', () => {
+      expect(() =>
+        validateGenerateReportContentResult(
+          { letterSubject: 'Subject', letterBody: 'Body', descriptions: 'not an array' },
+          [],
+        ),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('a descriptions[] item that is not an object → throws LlmInvalidResponseError', () => {
+      expect(() =>
+        validateGenerateReportContentResult(
+          { letterSubject: 'Subject', letterBody: 'Body', descriptions: ['not an object'] },
+          [],
+        ),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('a descriptions[] item missing "invoiceId" → throws LlmInvalidResponseError', () => {
+      expect(() =>
+        validateGenerateReportContentResult(
+          {
+            letterSubject: 'Subject',
+            letterBody: 'Body',
+            descriptions: [{ description: 'Desc' }],
+          },
+          [],
+        ),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('a descriptions[] item with empty-string "invoiceId" → throws LlmInvalidResponseError', () => {
+      expect(() =>
+        validateGenerateReportContentResult(
+          {
+            letterSubject: 'Subject',
+            letterBody: 'Body',
+            descriptions: [{ invoiceId: '', description: 'Desc' }],
+          },
+          [],
+        ),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('a descriptions[] item missing "description" → throws LlmInvalidResponseError', () => {
+      expect(() =>
+        validateGenerateReportContentResult(
+          {
+            letterSubject: 'Subject',
+            letterBody: 'Body',
+            descriptions: [{ invoiceId: 'inv-1' }],
+          },
+          [],
+        ),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('a descriptions[] item with empty-string "description" → throws LlmInvalidResponseError', () => {
+      expect(() =>
+        validateGenerateReportContentResult(
+          {
+            letterSubject: 'Subject',
+            letterBody: 'Body',
+            descriptions: [{ invoiceId: 'inv-1', description: '' }],
+          },
+          [],
+        ),
+      ).toThrow(LlmInvalidResponseError);
+    });
+
+    it('missing a requested invoiceId in descriptions → throws LlmInvalidResponseError with missingCount detail', () => {
+      let thrown: unknown;
+      try {
+        validateGenerateReportContentResult(
+          { letterSubject: 'Subject', letterBody: 'Body', descriptions: [] },
+          ['inv-1', 'inv-2'],
+        );
+      } catch (err) {
+        thrown = err;
+      }
+      expect(thrown).toBeInstanceOf(LlmInvalidResponseError);
+      expect((thrown as LlmInvalidResponseError).details?.missingCount).toBe(2);
+    });
+
+    it('one requested invoiceId present, one missing → throws with missingCount 1', () => {
+      let thrown: unknown;
+      try {
+        validateGenerateReportContentResult(
+          {
+            letterSubject: 'Subject',
+            letterBody: 'Body',
+            descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+          },
+          ['inv-1', 'inv-2'],
+        );
+      } catch (err) {
+        thrown = err;
+      }
+      expect(thrown).toBeInstanceOf(LlmInvalidResponseError);
+      expect((thrown as LlmInvalidResponseError).details?.missingCount).toBe(1);
     });
   });
 });

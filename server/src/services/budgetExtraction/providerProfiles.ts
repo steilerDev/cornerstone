@@ -49,7 +49,7 @@ export const LLM_PROVIDERS: readonly LlmProvider[] = [
 //      union-typed nulls: `type: ['number', 'null']`)
 // Our `validateExtractedLines` already tolerates null for the optional fields,
 // so the LLM emitting `quantity: null` instead of omitting it is fine.
-const EXTRACTED_LINES_SCHEMA = {
+export const EXTRACTED_LINES_SCHEMA = {
   name: 'extracted_lines',
   strict: true,
   schema: {
@@ -88,6 +88,57 @@ const EXTRACTED_LINES_SCHEMA = {
       },
     },
     required: ['invoiceDate', 'dueDate', 'invoiceNumber', 'notes', 'lines'],
+    additionalProperties: false,
+  },
+} as const;
+
+/**
+ * JSON schema for the summarizeMerge method response.
+ * Strict mode for Anthropic compatibility.
+ */
+export const MERGE_RESULT_SCHEMA = {
+  name: 'merge_result',
+  strict: true,
+  schema: {
+    type: 'object',
+    properties: {
+      description: { type: 'string' },
+      category: { type: ['string', 'null'] },
+    },
+    required: ['description', 'category'],
+    additionalProperties: false,
+  },
+} as const;
+
+/**
+ * JSON schema for the generateReportContent method response.
+ * Strict mode for Anthropic compatibility.
+ * Note: descriptions is an array of objects with invoiceId/description keys
+ * rather than a dynamic Record<string, string> because anthropic strict mode
+ * does not support additional/computed keys. The validator converts it to Record.
+ */
+export const REPORT_CONTENT_SCHEMA = {
+  name: 'report_content',
+  strict: true,
+  schema: {
+    type: 'object',
+    properties: {
+      letterSubject: { type: 'string' },
+      letterBody: { type: 'string' },
+      descriptions: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            invoiceId: { type: 'string' },
+            description: { type: 'string' },
+          },
+          required: ['invoiceId', 'description'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['letterSubject', 'letterBody', 'descriptions'],
     additionalProperties: false,
   },
 } as const;
@@ -140,6 +191,12 @@ export interface RequestBodyInput {
    * (16384) when omitted. Operator override exposed via `LLM_MAX_TOKENS`.
    */
   maxTokens?: number;
+  /**
+   * REQUIRED: JSON schema for structured output validation.
+   * Each call site must supply its own schema matching the response type.
+   * Examples: EXTRACTED_LINES_SCHEMA, MERGE_RESULT_SCHEMA, REPORT_CONTENT_SCHEMA.
+   */
+  responseSchema: Record<string, unknown>;
 }
 
 /**
@@ -206,7 +263,7 @@ export function buildRequestBody(input: RequestBodyInput): Record<string, unknow
     case 'anthropic':
       return {
         ...base,
-        response_format: { type: 'json_schema', json_schema: EXTRACTED_LINES_SCHEMA },
+        response_format: { type: 'json_schema', json_schema: input.responseSchema },
       };
     case 'generic':
     default:

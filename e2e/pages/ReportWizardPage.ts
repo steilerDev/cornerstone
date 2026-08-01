@@ -142,6 +142,51 @@
  *   `closePdfPreviewModal()` before triggering another modal-opening action.
  * - Claim success: `[class*="bannerSuccess"]` banner (replaces the action buttons in step 5).
  *
+ * Story #1901: AI-generated usage descriptions and cover letter.
+ * - Step 4 (`Step4Settings.tsx`): a THIRD `[class*="settingsDivider"]` section, rendered ONLY
+ *   when `llmEnabled` (`GET /api/config`'s `llmEnabled` field — true iff all `LLM_*` env vars
+ *   are set server-side) is true — when false the section is entirely ABSENT from the DOM, not
+ *   merely disabled (satisfies the "never presented as available when it cannot work" AC). The
+ *   E2E containers (`e2e/containers/cornerstoneContainer.ts`) set no `LLM_*` environment
+ *   variables at all, so against the real, unmocked backend `llmEnabled` is always `false` — the
+ *   only way to reach the `true` branch in E2E is `page.route('**\/api/config', ...)`. The
+ *   checkbox itself is `#enableAiAssistance` (`aiToggle` below), unchecked by default
+ *   (`aiEnabled` state initialized to `false`), and is NOT itself a guarded mutation (toggling
+ *   it does not open the discard-confirm modal — only report-language/attach-documents/
+ *   cover-letter do).
+ * - Step 5: when `aiEnabled` is true, an `[class*="aiGenerateRow"]` block appears ABOVE
+ *   `ReportContentEditor` containing: a "Generate with AI" button (`generateWithAiButton`,
+ *   `sourceReports.editable.generateWithAi`) that disables itself
+ *   (`isGeneratingAi`) for the duration of the call; a decorative (`aria-hidden="true"`)
+ *   `Spinner` inside the button while pending; an elapsed-seconds caption
+ *   (`[class*="aiGeneratingCaption"]`, `sourceReports.editable.generating` = "Generating…
+ *   ({{seconds}}s)", `aria-live="polite"`) visible only while pending, ticking via a 1s
+ *   `setInterval`; an inline error (`[role="alert"]` `FormError`, scoped to `aiGenerateRow` so
+ *   it never collides with the claim-flow's own banner) shown only after a failed generation;
+ *   and a provenance note (`[class*="aiGeneratedNote"]`, `sourceReports.editable.aiGeneratedNote`
+ *   = "Content generated with AI — review before submitting.") shown once `aiContent` is set AND
+ *   generation has settled (`!isGeneratingAi`) — absent both before the first generation and
+ *   while a generation is in flight.
+ * - Generated content lands in the SAME baseline the derived (#1898) content occupies
+ *   (`applyAiContent`, applied before `overrides`) — NOT as an override. `EditableField`'s
+ *   `isEdited` is `key in overrides`, so freshly-generated AI text shows NO edited-dot/reset
+ *   button anywhere (`hasEditedIndicator` returns `false` for every field right after a
+ *   successful generation) even though its value differs from the plain derived baseline — it
+ *   only becomes "edited" once a human subsequently types into that field.
+ * - Regenerating: `handleGenerateWithAiClick` checks ONLY `Object.keys(overrides).length > 0`
+ *   (manual edits), NOT whether `aiContent` already exists — so regenerating a second time with
+ *   no manual edits since the first generation runs immediately, no overwrite modal. With a
+ *   manual edit present, it shows the SAME `Modal` component family as the discard-confirm modal
+ *   (`role="dialog"`, name `sourceReports.editable.aiOverwriteConfirmTitle` = "Overwrite your
+ *   edits?"): "Overwrite and Generate" (`btnPrimary`, `aiOverwriteAndGenerate`) runs the
+ *   generation immediately (clearing `overrides` as a side effect of `runAiGeneration` succeeding
+ *   — see `applyAiContent`'s docstring); "Keep Editing" (`btnSecondary`, same translation key/
+ *   button as the discard modal) closes without ever calling the generate-content endpoint.
+ * - A confirmed step 1-4 mutation via the discard-confirm modal (`guardedUpdate`) clears BOTH
+ *   `overrides` AND `aiContent` (`isDirty = overrides.length > 0 || aiContent !== null`) —
+ *   generated content does not survive a discarded/confirmed upstream change any more than a
+ *   manual edit does, and the derived (#1898/#1900) baseline reasserts itself.
+ *
  * Back/Next button locators (`step2BackButton`/`step2NextButton`/`step4BackButton`/
  * `step4NextButton`/`step5BackButton`, etc.): every step body is rendered from a single
  * `{currentStep === N && ...}` block, so exactly ONE `[class*="buttonRow"]` div is ever present
@@ -298,6 +343,21 @@ export class ReportWizardPage {
   // Story #1891: expandable rows, items/deposits sub-tables, claim warning
   readonly markClaimedWarningBlock: Locator;
 
+  // Story #1901: AI-generated usage descriptions and cover letter.
+  // Step 4 — only present in the DOM at all when `llmEnabled` is true (see class docstring).
+  readonly aiToggle: Locator;
+  // Step 5 — only present when `aiEnabled` is true.
+  readonly aiGenerateRow: Locator;
+  readonly generateWithAiButton: Locator;
+  readonly aiGeneratingCaption: Locator;
+  readonly aiErrorBanner: Locator;
+  readonly aiGeneratedNote: Locator;
+  // AI overwrite-confirm modal (distinct from the discard-confirm modal — same component,
+  // different title/copy; see class docstring).
+  readonly aiOverwriteConfirmModal: Locator;
+  readonly aiOverwriteAndGenerateButton: Locator;
+  readonly aiOverwriteKeepEditingButton: Locator;
+
   /**
    * Console messages captured since construction whose text matches
    * `/content security policy/i`. Registered in the constructor — NOT lazily on first use —
@@ -407,6 +467,24 @@ export class ReportWizardPage {
     // Warning block ([role="alert"], class*="warningBlock") shown inside the claim-confirm
     // modal only when an included invoice has excluded lines (see class docstring above).
     this.markClaimedWarningBlock = this.claimConfirmModal.locator('[role="alert"]');
+
+    // Story #1901: AI-generated usage descriptions and cover letter.
+    this.aiToggle = page.locator('#enableAiAssistance');
+    this.aiGenerateRow = page.locator('[class*="aiGenerateRow"]');
+    this.generateWithAiButton = this.aiGenerateRow.getByRole('button', {
+      name: 'Generate with AI',
+    });
+    this.aiGeneratingCaption = this.aiGenerateRow.locator('[class*="aiGeneratingCaption"]');
+    // Scoped to `aiGenerateRow` so this never collides with the claim-flow's own
+    // `claimErrorBanner` (same `FormError` banner variant / `role="alert"`, elsewhere on step 5).
+    this.aiErrorBanner = this.aiGenerateRow.locator('[role="alert"]');
+    this.aiGeneratedNote = this.aiGenerateRow.locator('[class*="aiGeneratedNote"]');
+
+    this.aiOverwriteConfirmModal = page.getByRole('dialog', { name: 'Overwrite your edits?' });
+    this.aiOverwriteAndGenerateButton =
+      this.aiOverwriteConfirmModal.locator('[class*="btnPrimary"]');
+    this.aiOverwriteKeepEditingButton =
+      this.aiOverwriteConfirmModal.locator('[class*="btnSecondary"]');
   }
 
   async goto(sourceId?: string): Promise<void> {
@@ -934,6 +1012,35 @@ export class ReportWizardPage {
   async cancelDiscard(): Promise<void> {
     await this.discardConfirmKeepEditingButton.click();
     await this.discardConfirmModal.waitFor({ state: 'hidden' });
+  }
+
+  // ─── Story #1901: AI generation ──────────────────────────────────────────────────────────
+
+  /** Toggles the Step 4 "Enable AI assistance" checkbox. Only present when `llmEnabled`. */
+  async toggleAiEnabled(): Promise<void> {
+    await this.aiToggle.click();
+  }
+
+  /**
+   * Clicks "Generate with AI" and returns immediately (does NOT wait for the call to settle) —
+   * callers that mock a delayed response use this to observe the pending state
+   * (`aiGeneratingCaption`/disabled button) before resolving the mock, and callers expecting the
+   * overwrite-confirm modal use this to trigger it without racing a generation that never starts.
+   */
+  async clickGenerateWithAi(): Promise<void> {
+    await this.generateWithAiButton.click();
+  }
+
+  /** "Overwrite and Generate" — closes the AI overwrite modal and runs the generation. */
+  async confirmAiOverwrite(): Promise<void> {
+    await this.aiOverwriteAndGenerateButton.click();
+    await this.aiOverwriteConfirmModal.waitFor({ state: 'hidden' });
+  }
+
+  /** "Keep Editing" — closes the AI overwrite modal WITHOUT ever calling generate-content. */
+  async cancelAiOverwrite(): Promise<void> {
+    await this.aiOverwriteKeepEditingButton.click();
+    await this.aiOverwriteConfirmModal.waitFor({ state: 'hidden' });
   }
 
   // ─── Step 5: actions ─────────────────────────────────────────────────────────────────────────

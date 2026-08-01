@@ -61,6 +61,7 @@ export const API = {
   backups: '/api/backups',
   sourceReports: '/api/source-reports',
   sourceReportsMarkClaimed: '/api/source-reports/mark-claimed',
+  sourceReportsGenerateContent: '/api/source-reports/generate-content',
   paperlessStatus: '/api/paperless/status',
   paperlessDocuments: '/api/paperless/documents',
 };

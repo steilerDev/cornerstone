@@ -154,8 +154,14 @@ describe('Config Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<AppConfigResponse>();
-      // Fields present per the API contract: currency + vatRate (Story #1807) + autoItemizeEnabled (Story #1546)
-      expect(Object.keys(body).sort()).toEqual(['autoItemizeEnabled', 'currency', 'vatRate']);
+      // Fields present per the API contract: currency + vatRate (Story #1807) +
+      // autoItemizeEnabled (Story #1546) + llmEnabled (Story #1901, alias)
+      expect(Object.keys(body).sort()).toEqual([
+        'autoItemizeEnabled',
+        'currency',
+        'llmEnabled',
+        'vatRate',
+      ]);
     });
 
     it('returns autoItemizeEnabled: false when LLM env vars are not set', async () => {
@@ -187,6 +193,65 @@ describe('Config Routes', () => {
         expect(response.statusCode).toBe(200);
         const body = response.json<AppConfigResponse>();
         expect(body.autoItemizeEnabled).toBe(true);
+      } finally {
+        await customApp.close();
+        delete process.env.LLM_BASE_URL;
+        delete process.env.LLM_API_KEY;
+        delete process.env.LLM_MODEL;
+      }
+    });
+
+    // ─── Story #1901: llmEnabled (alias of autoItemizeEnabled) ───────────────
+
+    it('returns llmEnabled: false when LLM env vars are not set', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/config',
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<AppConfigResponse>();
+      expect(body).toHaveProperty('llmEnabled');
+      expect(body.llmEnabled).toBe(false);
+    });
+
+    it('returns llmEnabled: true when all LLM env vars are set', async () => {
+      process.env.LLM_BASE_URL = 'https://api.openai.com/v1';
+      process.env.LLM_API_KEY = 'sk-test-key-do-not-log';
+      process.env.LLM_MODEL = 'gpt-4o';
+      const customApp = await buildApp();
+
+      try {
+        const response = await customApp.inject({
+          method: 'GET',
+          url: '/api/config',
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<AppConfigResponse>();
+        expect(body.llmEnabled).toBe(true);
+      } finally {
+        await customApp.close();
+        delete process.env.LLM_BASE_URL;
+        delete process.env.LLM_API_KEY;
+        delete process.env.LLM_MODEL;
+      }
+    });
+
+    it('llmEnabled always equals autoItemizeEnabled (alias parity)', async () => {
+      process.env.LLM_BASE_URL = 'https://api.openai.com/v1';
+      process.env.LLM_API_KEY = 'sk-test-key-do-not-log';
+      process.env.LLM_MODEL = 'gpt-4o';
+      const customApp = await buildApp();
+
+      try {
+        const response = await customApp.inject({
+          method: 'GET',
+          url: '/api/config',
+        });
+
+        const body = response.json<AppConfigResponse>();
+        expect(body.llmEnabled).toBe(body.autoItemizeEnabled);
       } finally {
         await customApp.close();
         delete process.env.LLM_BASE_URL;

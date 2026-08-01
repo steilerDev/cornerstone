@@ -43,6 +43,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmMaxTokens: 16384,
     llmProvider: 'generic',
     autoItemizeEnabled: false,
+    llmEnabled: false,
     ...overrides,
   };
 }
@@ -56,6 +57,7 @@ function makeLlmConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmMaxTokens: 16384,
     llmProvider: 'generic',
     autoItemizeEnabled: true,
+    llmEnabled: true,
     ...overrides,
   });
 }

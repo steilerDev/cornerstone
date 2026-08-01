@@ -7,6 +7,7 @@ export default async function configRoutes(fastify: FastifyInstance) {
       currency: fastify.config.currency,
       vatRate: fastify.config.vatRate,
       autoItemizeEnabled: fastify.config.autoItemizeEnabled,
+      llmEnabled: fastify.config.llmEnabled,
     };
     return reply.status(200).send(response);
   });

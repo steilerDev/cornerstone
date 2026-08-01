@@ -10,6 +10,9 @@ interface Step4SettingsProps {
   includeCoverLetter: boolean;
   onIncludeCoverLetterChange: (value: boolean) => void;
   coverLetterDisabled: boolean;
+  llmEnabled: boolean;
+  aiEnabled: boolean;
+  onAiEnabledChange: (value: boolean) => void;
   t: TFunction;
 }
 
@@ -21,6 +24,9 @@ export function Step4Settings({
   includeCoverLetter,
   onIncludeCoverLetterChange,
   coverLetterDisabled,
+  llmEnabled,
+  aiEnabled,
+  onAiEnabledChange,
   t,
 }: Step4SettingsProps) {
   const showCoverLetterDisabledHint = coverLetterDisabled
@@ -99,6 +105,27 @@ export function Step4Settings({
           <div className={styles.optionHelper}>{t('sourceReports.includeCoverLetterHelper')}</div>
         </div>
       </div>
+
+      {/* AI assistance section (only when LLM is enabled) */}
+      {llmEnabled && (
+        <div className={styles.settingsDivider}>
+          <div className={styles.optionRow}>
+            <input
+              type="checkbox"
+              id="enableAiAssistance"
+              checked={aiEnabled}
+              onChange={(e) => onAiEnabledChange(e.target.checked)}
+              className={styles.optionCheckbox}
+            />
+            <label htmlFor="enableAiAssistance" className={styles.optionLabel}>
+              {t('sourceReports.settingsStep.enableAiAssistance')}
+            </label>
+            <div className={styles.optionHelper}>
+              {t('sourceReports.settingsStep.enableAiAssistanceHelper')}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

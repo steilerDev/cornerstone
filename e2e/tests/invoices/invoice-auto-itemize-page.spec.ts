@@ -954,7 +954,7 @@ test.describe('Scenario 9 — Error state: LLM failure on dry-run', () => {
           body: JSON.stringify({
             error: {
               code: 'LLM_UNREACHABLE',
-              message: 'The extraction service is unavailable. Please try again later.',
+              message: 'The AI service could not be reached. Please try again.',
               details: {},
             },
           }),

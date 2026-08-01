@@ -433,4 +433,6 @@ export type {
   SourceReportResponse,
   MarkClaimedRequest,
   MarkClaimedResponse,
+  GenerateReportContentRequest,
+  GenerateReportContentResponse,
 } from './types/sourceReport.js';

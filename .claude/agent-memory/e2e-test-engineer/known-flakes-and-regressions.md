@@ -7,7 +7,7 @@ metadata:
 
 ## Currently open / unresolved
 
-(none — see Resolved section for the #1829 shard-3 fix)
+- **Shard 5/16 recurring on every beta PR since ~2026-07-30 (report-wizard mini-epic PRs #1894/#1902/#1903/#1909, and the earlier full-matrix run 28934922175 doesn't show it — first clearly reproduced from PR #1894 onward)**: `invoices.spec.ts:841` "Effective Amount"/"Remaining Amount" column toggle AND `dashboard.spec.ts:608` (line shifted from 566 — "Card re-enable (Scenario 7): Customize dropdown lists dismissed card and clicking re-enables it") both fail, same shard, every run, both attempt+retry for the invoices one. **Correction to the "Resolved" entry below**: PR #1883's column-preference-singleton fix (`getColumnCellText` + defensive preference-DELETE) did NOT durably fix `invoices.spec.ts:841` — it recurred identically on 4 subsequent PRs. Not related to report-wizard work (zero diff in `invoices.spec.ts`/`dashboard.spec.ts` on those branches) — pre-existing, gates `E2E Gates` (main-only) but not beta merges. See orchestrator project memory `bank-report-wizard-followups.md` for the promotion-blocker tracking; needs a real fix pass (likely via `/fix-e2e`) before the next beta→main promotion, not before any individual story PR.
 
 - `i18n/i18n.spec.ts` "German text does not overflow navigation sidebar on desktop" — pre-existing locale-init race, needs separate investigation.
 - `i18n.spec.ts` "Key page headings render in German" — intermittent ~10-20%: concurrent worker `afterEach(resetToEnglish)` races with another test's `setLanguage('de')`. Pre-existing.

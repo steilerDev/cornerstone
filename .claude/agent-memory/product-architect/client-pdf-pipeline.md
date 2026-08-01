@@ -100,7 +100,8 @@ took `t: TFunction` + `formatters?: Formatters` params and contain **no** ambien
 `budget` ns). Preserve both properties -- a single `t('common:…')` call or a raw `Intl` use inside
 `reportPdf/` would silently leak the UI locale into the exported PDF.
 
-TODO (mine): ADR-034 does not yet record this contract. Add it.
+DONE 2026-08-01: ADR-034 now records this contract (wiki master `254db1d`, "Addendum: report language is
+decoupled from the UI locale").
 
 ## Content/layout split: `client/src/lib/reportContent/` (Story #1900, PR #1909)
 
@@ -151,8 +152,14 @@ One-line statement of the rule: **visible captions of exported data follow the r
 screen-reader affordance sentences (`ariaLabel`, `resetAriaLabel`) are wholly UI language** — never splice a
 report-language noun into a UI-language sentence. This pre-decides the same question for #1901.
 
-**Forward note for #1901 (AI generation):** `ReportContentOverrides` has no provenance concept, and
-`buildReportContent` is a closed pure derivation with no injection seam. AI text dumped into `overrides`
-would show the "edited" dot on every field, offer a reset-to-non-AI-text, and be silently wiped by
-`guardedUpdate` on any step 1-4 change. Design a third layer (`baseline -> generated -> user`) or a
-`generatedText` parameter — do not let it default into the overrides map.
+### AI layer (#1901, PR #1916) — the forward note was followed
+
+`applyAiContent(content, aiContent | null)` sits **between** `buildReportContent` and `applyOverrides`, so
+the layer order is `baseline -> AI -> user overrides`. AI text is therefore not "edited", gets no reset
+affordance, and survives until `guardedUpdate` clears both. `guardedUpdate`'s dirty check was widened to
+`Object.keys(overrides).length > 0 || aiContent !== null`. Empty strings from the generator fall back to
+baseline rather than blanking a field. Keep this shape — putting AI output in `overrides` is the trap.
+
+Server side: `POST /api/source-reports/generate-content` re-fetches the report (client sends selection only),
+persists nothing, and reuses the single `budgetExtraction/` LLM gateway as a third provider method. Both
+documented in ADR-034 "Addendum: content layers".

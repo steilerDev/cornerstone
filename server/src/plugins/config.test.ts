@@ -48,6 +48,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmMaxTokens: 16384,
         llmProvider: 'generic',
         autoItemizeEnabled: false,
+        llmEnabled: false,
       });
     });
 
@@ -97,6 +98,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmMaxTokens: 16384,
         llmProvider: 'generic',
         autoItemizeEnabled: false,
+        llmEnabled: false,
       });
     });
   });
@@ -148,6 +150,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmMaxTokens: 16384,
         llmProvider: 'generic',
         autoItemizeEnabled: false,
+        llmEnabled: false,
       });
     });
 
@@ -194,6 +197,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmMaxTokens: 16384,
         llmProvider: 'generic',
         autoItemizeEnabled: false,
+        llmEnabled: false,
       });
     });
   });
@@ -943,6 +947,49 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         LLM_BASE_URL: 'https://api.anthropic.com/v1',
       });
       expect(config).toHaveProperty('llmProvider', 'anthropic');
+    });
+  });
+
+  // ─── Story #1901: llmEnabled (alias of autoItemizeEnabled) ─────────────────
+
+  describe('llmEnabled Configuration (Story #1901)', () => {
+    it('llmEnabled is false when no LLM env vars are set (matches autoItemizeEnabled)', () => {
+      const config = loadConfig({});
+      expect(config.llmEnabled).toBe(false);
+      expect(config.llmEnabled).toBe(config.autoItemizeEnabled);
+    });
+
+    it('llmEnabled is true when all three LLM env vars are set (matches autoItemizeEnabled)', () => {
+      const config = loadConfig({
+        LLM_BASE_URL: 'https://api.openai.com/v1',
+        LLM_API_KEY: 'sk-test-key',
+        LLM_MODEL: 'gpt-4o',
+      });
+      expect(config.llmEnabled).toBe(true);
+      expect(config.llmEnabled).toBe(config.autoItemizeEnabled);
+    });
+
+    it('llmEnabled is false when only some LLM env vars are set (matches autoItemizeEnabled)', () => {
+      const config = loadConfig({
+        LLM_BASE_URL: 'https://api.openai.com/v1',
+        LLM_API_KEY: 'sk-test-key',
+        // LLM_MODEL missing
+      });
+      expect(config.llmEnabled).toBe(false);
+      expect(config.llmEnabled).toBe(config.autoItemizeEnabled);
+    });
+
+    it('llmEnabled always mirrors autoItemizeEnabled across a range of partial configurations', () => {
+      const scenarios: Array<Record<string, string>> = [
+        {},
+        { LLM_BASE_URL: 'https://api.openai.com/v1' },
+        { LLM_API_KEY: 'key-only' },
+        { LLM_BASE_URL: 'https://api.openai.com/v1', LLM_API_KEY: 'sk-key', LLM_MODEL: 'gpt-4o' },
+      ];
+      for (const env of scenarios) {
+        const config = loadConfig(env);
+        expect(config.llmEnabled).toBe(config.autoItemizeEnabled);
+      }
     });
   });
 });

@@ -1,7 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import { getSourceReport, markInvoicesClaimed } from '../services/sourceReportService.js';
-import type { SourceReportType, MarkClaimedRequest } from '@cornerstone/shared';
+import { generateReportContent } from '../services/reportContentGenerationService.js';
+import type {
+  SourceReportType,
+  MarkClaimedRequest,
+  GenerateReportContentRequest,
+} from '@cornerstone/shared';
 
 export default async function sourceReportRoutes(fastify: FastifyInstance) {
   /**
@@ -89,6 +94,54 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
       const response = markInvoicesClaimed(fastify.db, invoiceIds, fastify.config.diaryAutoEvents);
 
       return reply.status(200).send(response);
+    },
+  );
+
+  /**
+   * POST /api/source-reports/generate-content
+   * Generate AI-assisted report content (cover letter + invoice descriptions).
+   * Body: { type, sourceId, language, includedInvoiceIds, excludedLineIds? }
+   * Returns: { letterSubject, letterBody, descriptions }
+   * Auth required: Yes (both admin and member)
+   * Story #1901
+   */
+  fastify.post<{
+    Body: GenerateReportContentRequest;
+  }>(
+    '/generate-content',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            type: { type: 'string', enum: ['budget-overview', 'claim', 'proof-of-funds'] },
+            sourceId: { type: 'string', minLength: 1, maxLength: 100 },
+            language: { type: 'string', enum: ['en', 'de'] },
+            includedInvoiceIds: {
+              type: 'array',
+              items: { type: 'string', minLength: 1, maxLength: 100 },
+              minItems: 1,
+              maxItems: 200,
+            },
+            excludedLineIds: {
+              type: 'array',
+              items: { type: 'string' },
+              maxItems: 500,
+            },
+          },
+          required: ['type', 'sourceId', 'language', 'includedInvoiceIds'],
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const result = await generateReportContent(fastify.db, fastify.config, request.body);
+
+      return reply.status(200).send(result);
     },
   );
 }

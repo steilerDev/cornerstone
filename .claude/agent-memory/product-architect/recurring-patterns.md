@@ -92,3 +92,36 @@ step — a stylelint error is a hard beta-PR blocker. But `stylelint` only globs
 `var(--color-refund-text)`, a token defined nowhere; the declaration is invalid-at-computed-value and the
 styling silently does nothing. When reviewing client code, grep every `var(--…)` appearing inside a `.tsx`
 against `client/src/styles/tokens.css`, and push the value into a CSS Module class instead.
+
+## Monetary units are major currency units (2 dp) everywhere in this repo — never cents
+
+`allocatedAmount`, `allocatedPortion`, `totalAmount`, `invoiceAmount`, and everything `formatCurrency`
+consumes are **euros, rounded to 2 dp**. There is a `toCents()` helper in `sourceReportService.ts` but it is
+used only *inside* a `toCents(x)/100` round-trip — it never escapes into a field.
+
+PR #1916 (#1901) broke this across a new module seam: the service passed `inv.allocatedAmount` (euros) into
+`GenerateReportContentLlmInvoice.amount`, and `prompts.ts` rendered `(inv.amount / 100).toFixed(2)` — every
+figure in an AI-written bank cover letter came out **100× too small**. Root cause: the interface field had no
+unit in its JSDoc. Coverage was 95.94% and green, because line coverage cannot catch a unit error — the only
+test that catches it asserts the **rendered string** (`Total Amount: 12345.67 EUR`), and no test called
+`buildReportContentUserPrompt` at all.
+
+Same PR, second defect at the same spot: `Math.round(includedTotal)` (commented "round to nearest cent")
+rounds to the nearest whole euro. Cent-rounding is `Math.round(x * 100) / 100`.
+
+**Review rules that follow:**
+- Any monetary value crossing a module boundary must carry its unit in the type's JSDoc.
+- When a server path re-derives a total the client already derives, demand it mirror the client formula
+  *shape*, not just its intent — `applyLineExclusions` rounds **per invoice** then `buildReportContent` sums
+  the already-rounded values with no final round. A single trailing round is a different number.
+- Grep new prompt builders for `/ 100`, `* 100`, and `toFixed(` — that is where unit assumptions hide.
+- Better still: push shared derivations into `@cornerstone/shared` so there is one implementation
+  (recommended as M2 on #1916; not yet done).
+- When a total is exclusion-adjusted, the **per-item** figures handed to the same consumer must be adjusted
+  too. #1916 shipped an adjusted total alongside raw per-invoice amounts — an LLM handed parts that do not
+  sum to the stated whole. Check both halves whenever you see an exclusion filter.
+
+Fixed in `b70d821b` (round 2 of the #1916 review); the permanent guard is the
+`amount formatting (major units — regression guard for the ×100 division bug)` describe block in
+`server/src/services/budgetExtraction/prompts.test.ts`, which asserts rendered substrings **and** negative
+assertions against the divided form. Copy that shape for any new prompt builder.

@@ -1114,7 +1114,9 @@
     "mobileStepLabel": "Schritt {{current}} von {{total}}",
     "settingsStep": {
       "languageHeading": "Berichtssprache",
-      "languageHelper": "Betrifft nur den exportierten Bericht – die Sprache der App bleibt unverändert."
+      "languageHelper": "Betrifft nur den exportierten Bericht – die Sprache der App bleibt unverändert.",
+      "enableAiAssistance": "KI-Unterstützung aktivieren",
+      "enableAiAssistanceHelper": "Lässt die KI Verwendungstexte und ein Anschreiben entwerfen, die Sie anschließend prüfen und bearbeiten können."
     },
     "useCaseLabel": "Welchen Bericht benötigen Sie?",
     "useCase": {
@@ -1207,7 +1209,14 @@
       "discardAndContinue": "Verwerfen und Fortfahren",
       "keepEditing": "Weiter bearbeiten",
       "coverLetterHeading": "Anschreiben",
-      "tableHeading": "Berichtstabelle"
+      "tableHeading": "Berichtstabelle",
+      "generateWithAi": "Mit KI generieren",
+      "generating": "Generiere… ({{seconds}}s)",
+      "aiGeneratedNote": "Inhalt mit KI generiert – vor dem Absenden prüfen.",
+      "aiGenerationFailed": "KI-Generierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "aiOverwriteConfirmTitle": "Ihre Bearbeitungen überschreiben?",
+      "aiOverwriteConfirmBody": "Die erneute Generierung mit KI überschreibt Ihre manuellen Bearbeitungen mit neu erzeugtem Text.",
+      "aiOverwriteAndGenerate": "Überschreiben und Generieren"
     },
     "table": {
       "title": {
