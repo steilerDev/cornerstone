@@ -439,7 +439,7 @@ export class ReportWizardPage {
     this.markClaimedButton = page.getByRole('button', { name: /Mark .+ invoices as claimed/i });
     this.finishWithoutMarkingButton = page.getByRole('button', { name: 'Finish without marking' });
     this.uploadPaperlessButton = page.getByRole('button', { name: 'Upload to Paperless' });
-    this.claimErrorBanner = page.locator('[class*="formErrorBanner"]');
+    this.claimErrorBanner = page.locator('[class*="bannerError"]');
     this.claimSuccessBanner = page.locator('[class*="bannerSuccess"]');
     this.claimSuccessInvoicesLink = this.claimSuccessBanner.getByRole('link');
     this.skippedDocumentsNote = page.locator('[class*="skippedNote"]');
@@ -494,7 +494,9 @@ export class ReportWizardPage {
     });
     this.aiGeneratingCaption = this.aiGenerateRow.locator('[class*="aiGeneratingCaption"]');
     // Scoped to `aiGenerateRow` so this never collides with the claim-flow's own
-    // `claimErrorBanner` (same `FormError` banner variant / `role="alert"`, elsewhere on step 5).
+    // `claimErrorBanner` (a plain `sharedStyles.bannerError` div with `role="alert"`, elsewhere
+    // on step 5 — distinct markup from this `FormError` banner variant, but both share the
+    // `role="alert"` semantics, hence the defensive scoping here).
     this.aiErrorBanner = this.aiGenerateRow.locator('[role="alert"]');
     this.aiGeneratedNote = this.aiGenerateRow.locator('[class*="aiGeneratedNote"]');
 
