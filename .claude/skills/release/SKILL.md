@@ -21,7 +21,7 @@ When invoked from `/epic-close`, the calling skill provides **epic context** (st
 
 ## Task Tracking
 
-At the start of each `/release` invocation, create tasks to track progress. These tasks survive context compression and let you recover your place if context is lost.
+At the start of each `/release` invocation, create tasks to track progress.
 
 **Create these tasks upfront** (using `TaskCreate`):
 
@@ -33,11 +33,7 @@ At the start of each `/release` invocation, create tasks to track progress. Thes
 6. **Lessons learned** — Update implementation checklist with patterns from this release
 7. **Merge & post-merge** — Merge to main, verify merge-back, close epic (if applicable)
 
-**Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped (conditional), mark it `completed` with a note in the description.
-
-**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
-
-**Dynamic task rule:** When a UAT fix round starts, create a new task for each round (e.g., "UAT Fix Round 1") so iterations are tracked.
+Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
 ## Steps
 
@@ -71,21 +67,19 @@ Group changes by type (features, fixes, chores, docs, tests) and by area (backen
 
 #### 2b. Create the PR
 
-**If epic context is provided** (invoked from `/epic-close`):
-
-Use the epic-enriched body provided by the calling skill — it includes stories completed, validation report, and UAT scenarios as a manual validation checklist.
+Use one template for both variants. Title: `release: promote epic #<epic-number> to main` when an epic issue number was provided (invoked from `/epic-close`), otherwise `release: promote beta to main`. Sections marked **(epic only)** are included only when an epic issue number was provided — omit them for standalone releases. When epic context is provided, use the epic-enriched content from the calling skill (stories completed, validation report, UAT scenarios).
 
 ```bash
-gh pr create --base main --head beta --title "release: promote epic #<epic-number> to main" --body "$(cat <<'EOF'
+gh pr create --base main --head beta --title "<title per above>" --body "$(cat <<'EOF'
 ## Release Summary
 
-<One-line summary of the epic and what this release includes>
+<One-line summary of what this release includes (and the epic, if applicable)>
 
-## Epic
+## Epic   <!-- (epic only) -->
 
 Closes #<epic-number> — <epic title>
 
-## Stories Completed
+## Stories Completed   <!-- (epic only) -->
 
 - **#<story-number>** — <story title>
 - ...
@@ -115,17 +109,17 @@ Closes #<epic-number> — <epic title>
 ### Docs / Config
 <List of changed files>
 
-## Refinement Summary
+## Refinement Summary   <!-- (epic only) -->
 <Summary from /epic-close step 4, or "None — no refinement items were needed" if skipped>
 
-## E2E Validation Summary
+## E2E Validation Summary   <!-- (epic only) -->
 <Summary from /epic-close step 5>
 
-## Security Findings Summary
+## Security Findings Summary   <!-- (epic only) -->
 <Resolved/outstanding findings from story PR reviews>
 
-## UAT Validation Checklist
-<UAT scenarios from /epic-close step 6, formatted as a manual validation checklist>
+## UAT Validation Checklist   <!-- "Manual Validation Checklist" when standalone -->
+<Epic: UAT scenarios from /epic-close step 6. Standalone: key user-facing changes the user can walk through to spot-check>
 
 - [ ] <Scenario 1: page to visit, action to take, expected result>
 - [ ] <Scenario 2: ...>
@@ -138,52 +132,7 @@ EOF
 )"
 ```
 
-**If standalone** (no epic context):
-
-```bash
-gh pr create --base main --head beta --title "release: promote beta to main" --body "$(cat <<'EOF'
-## Release Summary
-
-<One-line summary of what this release includes>
-
-## Changes
-
-### Features
-- <list from git log, grouped>
-
-### Fixes
-- <list from git log, grouped>
-
-### Chores / Refactoring
-- <list from git log, grouped>
-
-## Change Inventory
-
-### Backend (`server/`, `shared/`)
-<List of changed files grouped by area>
-
-### Frontend (`client/`)
-<List of changed files grouped by area>
-
-### E2E Tests (`e2e/`)
-<List of changed files>
-
-### Docs / Config
-<List of changed files>
-
-## Manual Validation Checklist
-<Key user-facing changes presented as a checklist the user can walk through to spot-check>
-
-- [ ] <Scenario 1: page to visit, action to take, expected result>
-- [ ] <Scenario 2: ...>
-- ...
-
-## Testing
-- **DockerHub beta image**: `docker pull steilerdev/cornerstone:beta`
-- **PR-specific image**: `docker pull steilerdev/cornerstone:pr-<pr-number>`
-EOF
-)"
-```
+Strip the `<!-- ... -->` marker comments from the final body — they are template annotations, not PR content.
 
 #### 2c. Post Detailed Validation Criteria
 
@@ -203,7 +152,13 @@ EOF
 
 ### 3. CI Gate
 
-After creating/pushing the promotion PR, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `main`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for `Quality Gates` + `E2E Gates`).
+After creating/pushing the promotion PR, wait for CI:
+
+```bash
+bash scripts/ci-wait.sh <pr-number> main
+```
+
+The script handles the mergeability precheck, gate polling (`Quality Gates` + `E2E Gates`), timeout, and rate-limit backoff. If it reports a merge conflict, rebase onto `main`, force-push, and re-run it.
 
 If any gate fails, investigate and resolve before proceeding.
 
@@ -280,9 +235,7 @@ After all fix groups are merged to `beta`:
 
 #### 4g. CI Gate
 
-After creating/pushing the new promotion PR, **wait 5 seconds** for GitHub to compute merge status, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `main`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, use the **CI Gate Polling** pattern from `CLAUDE.md` (main variant — wait for `Quality Gates` + `E2E Gates`).
-
-If any gate fails, investigate and resolve before proceeding.
+After creating/pushing the new promotion PR, re-run the CI gate exactly as in step 3.
 
 #### 4h. Loop
 
@@ -306,7 +259,7 @@ Commit documentation updates to `beta` via a PR:
 gh pr create --base beta --title "docs: update documentation for release" --body "..."
 ```
 
-Wait for CI, then squash merge. Rebuild the squash body per CLAUDE.md's **Squash-Merge Trailer Preservation** pattern (`SUBJECT="docs: update documentation for release"`, base branch `beta`) — `docs-writer`'s own trailer is the only one expected here, but the pattern still guards against GitHub dropping it on a single-commit PR.
+Wait for CI (`bash scripts/ci-wait.sh <pr-number>`), then squash merge: `bash scripts/squash-merge.sh <pr-number> "docs: update documentation for release" <body-file>` — `docs-writer`'s own trailer is the only one expected here, but the script's trailer rebuild still guards against GitHub dropping it on a single-commit PR.
 
 **Note:** Documentation runs after user approval (step 4) to ensure docs reflect the final state, including any changes from feedback rounds.
 
@@ -336,7 +289,7 @@ Update the implementation checklist with patterns learned:
    )"
    ```
 
-   Wait for the beta CI gate (**CI Gate Polling** pattern from CLAUDE.md, beta variant), then squash-merge: `gh pr merge --squash <pr-url>`. Return to the original release branch/worktree afterward.
+   Wait for the beta CI gate (`bash scripts/ci-wait.sh <pr-number>`), then squash-merge: `bash scripts/squash-merge.sh <pr-number> "chore: update implementation checklist with lessons learned"`. Return to the original release branch/worktree afterward.
 
 4. If no new patterns, skip this step entirely.
 
@@ -355,17 +308,10 @@ After user approval:
 3. **If epic context is provided**, close the epic issue and move to Done on the Projects board:
    ```bash
    gh issue close <epic-number>
-   ITEM_ID=$(gh project item-add 4 --owner steilerDev --url https://github.com/steilerDev/cornerstone/issues/<epic-number> --format json --jq '.id')
-   gh project item-edit --id "$ITEM_ID" --project-id PVT_kwHOAGtLQM4BOlve --field-id PVTSSF_lAHOAGtLQM4BOlvezg9P0yo --single-select-option-id c558f50d
+   bash scripts/board.sh <epic-number> done
    ```
-4. Clean up the worktree and branch, per CLAUDE.md's Session Isolation policy (only once the promotion PR is merged and the worktree has no uncommitted changes):
+4. Clean up the worktree and branch — run from the **base repository**, only once the promotion PR is merged and the worktree has no uncommitted changes:
    ```bash
-   git status --porcelain   # must be empty before proceeding
-   CURRENT_BRANCH=$(git branch --show-current)
-   WORKTREE_PATH=$(pwd)
-   BASE_REPO=$(git worktree list --porcelain | awk '/^worktree/{print $2; exit}')
-   cd "$BASE_REPO"
-   git worktree remove "$WORKTREE_PATH"
-   git branch -D "$CURRENT_BRANCH"
+   bash scripts/worktree-done.sh <worktree-path> <branch>
    ```
-   Use `-D`, not `-d` — squash/merge-commit history on this branch may not satisfy `-d`'s ancestry check. This must be the final action of the session.
+   The script verifies the tree is clean, removes the worktree (handling the wiki-submodule refusal), and deletes the branch only when a merged PR exists. This must be the final action of the session.

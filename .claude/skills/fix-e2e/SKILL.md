@@ -28,7 +28,7 @@ Extract the run ID from the input:
 
 ## Task Tracking
 
-At the start of each `/fix-e2e` invocation, create tasks to track progress. These tasks survive context compression and let you recover your place if context is lost.
+At the start of each `/fix-e2e` invocation, create tasks to track progress.
 
 **Create these tasks upfront** (using `TaskCreate`):
 
@@ -38,11 +38,7 @@ At the start of each `/fix-e2e` invocation, create tasks to track progress. Thes
 4. **Push and verify** — Commit, push, wait for full E2E CI to complete
 5. **Iterate or complete** — If failures remain, loop back to step 1; otherwise, done
 
-**Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped (conditional), mark it `completed` with a note.
-
-**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
-
-**Dynamic task rule:** For each fix-and-verify iteration beyond the first, create new tasks (e.g., "Iteration 2: Analyze", "Iteration 2: Fix", "Iteration 2: Verify").
+Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
 ## Steps
 
@@ -133,12 +129,12 @@ fix(e2e): <concise description of fixes>
 
 <details of what was fixed and why>
 
-Co-Authored-By: Claude e2e-test-engineer (Sonnet 4.5) <noreply@anthropic.com>
+Co-Authored-By: Claude e2e-test-engineer <noreply@anthropic.com>
 EOF
 )"
 ```
 
-Use the exact per-agent string from CLAUDE.md's **Canonical Agent Trailers** table — this commit is authored directly by this skill (not via `dev-team-lead [MODE: commit]`), so there is no automated normalization; get the casing and model string right the first time. If `backend-developer` or `frontend-developer` also contributed a fix (per step 3's classification table), include their canonical trailers too.
+Use the exact per-agent string from CLAUDE.md's **Canonical Agent Trailers** table — this commit is authored directly by this skill (not via `dev-team-lead [MODE: commit]`), so there is no automated normalization; get the casing right the first time. If `backend-developer` or `frontend-developer` also contributed a fix (per step 3's classification table), include their canonical trailers too.
 
 #### 4b. Push and create/update PR
 
@@ -164,38 +160,11 @@ EOF
 
 #### 4c. Wait for full E2E results
 
-**First**, check mergeability:
-
 ```bash
-state=$(gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable')
-if [ "$state" != "MERGEABLE" ]; then echo "PR is not mergeable (state: $state)"; exit 1; fi
+bash scripts/ci-wait.sh <pr-number> main
 ```
 
-**Then**, wait for ALL E2E shards to complete (not just Quality Gates):
-
-```bash
-echo "Waiting for Quality Gates + all E2E shards..."
-SECONDS=0
-while true; do
-  if [ $SECONDS -ge 900 ]; then echo "TIMEOUT"; exit 1; fi
-
-  qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null)
-
-  # Check if ANY E2E shard failed
-  e2e_fail=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name | startswith("E2E Tests")) | select(.bucket == "fail") | .name' 2>/dev/null | head -1)
-
-  # Check if ALL E2E shards completed
-  e2e_total=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name | startswith("E2E Tests")) | .name' 2>/dev/null | wc -l)
-  e2e_done=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name | startswith("E2E Tests")) | select(.bucket == "pass" or .bucket == "fail") | .name' 2>/dev/null | wc -l)
-
-  if [ "$qg" = "fail" ]; then echo "Quality Gates FAILED"; exit 1; fi
-  if [ -n "$e2e_fail" ]; then echo "E2E shard failed: $e2e_fail"; break; fi
-  if [ "$qg" = "pass" ] && [ "$e2e_total" -gt 0 ] && [ "$e2e_done" -eq "$e2e_total" ]; then echo "All $e2e_total E2E shards passed!"; break; fi
-
-  echo "Progress: QG=$qg, E2E=$e2e_done/$e2e_total done"
-  sleep 30
-done
-```
+Even though this PR targets `beta`, use the `main` gate variant — fixing E2E requires waiting for the full E2E suite, not just `Quality Gates`. For long runs, extend the timeout with `CI_WAIT_TIMEOUT=<seconds>`. The script also handles the mergeability precheck and rate-limit backoff.
 
 ### 5. Iterate or Complete
 
@@ -203,28 +172,11 @@ After CI completes:
 
 **If all E2E tests passed**:
 
-1. Wait for `Quality Gates` to pass (beta variant from CLAUDE.md):
-   ```bash
-   echo "Waiting for Quality Gates..."
-   SECONDS=0
-   while true; do
-     if [ $SECONDS -ge 300 ]; then echo "TIMEOUT"; exit 1; fi
-     bucket=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null)
-     case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac
-   done
-   ```
-2. Squash merge the PR, rebuilding the body per CLAUDE.md's **Squash-Merge Trailer Preservation** pattern:
+1. The `ci-wait.sh` run in step 4c already confirmed `Quality Gates` alongside the E2E shards — no separate wait is needed.
+2. Squash merge the PR — write a body summarizing the E2E fixes applied to a temp file, then:
 
    ```bash
-   BASE_BRANCH=beta
-   TRAILERS=$(git log origin/${BASE_BRANCH}..HEAD --format="%b" | grep -iE '^co-authored-by:' | sed -E 's/^[Cc]o-[Aa]uthored-[Bb]y:/Co-Authored-By:/' | sort -u)
-   BODY="$(cat <<EOF
-   <summary of E2E fixes applied>
-
-   ${TRAILERS}
-   EOF
-   )"
-   gh pr merge <PR> --squash --repo steilerDev/cornerstone --subject "<the PR title>" --body "$BODY"
+   bash scripts/squash-merge.sh <pr-number> "<the PR title>" <body-file>
    ```
 
 3. Mark all tasks completed. Report success to the user with:
@@ -237,11 +189,13 @@ After CI completes:
 1. Create new iteration tasks (e.g., "Iteration 2: Analyze", "Iteration 2: Fix", "Iteration 2: Verify")
 2. Fetch the NEW run ID from the latest PR check:
    ```bash
-   gh pr checks <PR> --repo steilerDev/cornerstone --json name,link -q '.[] | select(.name == "Quality Gates") | .link' 2>/dev/null
+   SHA=$(gh pr view <PR> --repo steilerDev/cornerstone --json headRefOid -q '.headRefOid')
+   gh run list --repo steilerDev/cornerstone --commit "$SHA" --workflow "Quality Gates" --json databaseId -q '.[0].databaseId'
    ```
 3. Go back to **Step 1** with the new run's failures
 4. Enter plan mode again to analyze remaining failures and plan the next round of fixes
-5. Repeat until all E2E tests pass
+5. When delegating repeat fix rounds, continue the previously launched agent via SendMessage (it retains the context it built in the earlier round) instead of launching a fresh agent; launch fresh only if that agent is no longer available
+6. Repeat until all E2E tests pass
 
 **Iteration cap**: If after 5 iterations E2E tests still fail, stop and report the remaining failures to the user for manual review. Include:
 

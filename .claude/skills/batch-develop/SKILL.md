@@ -8,7 +8,7 @@ description: 'Reads /tmp/batch-queue.md and runs /develop for each line sequenti
 You are the orchestrator running a sequential development pipeline. This skill accepts a list of GitHub issue numbers (as arguments) or reads `/tmp/batch-queue.md`, and invokes the `/develop` workflow for each item, one at a time. Each item gets its own branch, PR, and full development cycle.
 
 **When to use:** Processing a backlog of issues or bug descriptions listed in `/tmp/batch-queue.md`, where each item should be developed independently.
-**When NOT to use:** When items should be batched into a single PR (use `/develop @/tmp/notes.md` instead). When running a full epic lifecycle (use `/epic-run`).
+**When NOT to use:** When items should be batched into a single PR — use `/develop @<file>` with any ad-hoc list file instead; do NOT use `/tmp/notes.md` (reserved for `/release` feedback) or `/tmp/batch-queue.md` (this skill's queue). When running a full epic lifecycle (use `/epic-run`).
 
 ## Input
 
@@ -28,7 +28,7 @@ You are the orchestrator running a sequential development pipeline. This skill a
 
 ## Task Tracking
 
-Use tasks to track progress across the batch. Tasks survive context compression — after any compression event, run `TaskList` to recover your place.
+Use tasks to track progress across the batch.
 
 **Create these tasks upfront** (using `TaskCreate`):
 
@@ -43,9 +43,7 @@ Use tasks to track progress across the batch. Tasks survive context compression 
 
 - **Print summary** — Final batch results summary
 
-**Progress rule:** Before starting each item, mark its task `in_progress`. After completing (merged + closed), mark it `completed`. If an item fails, mark it `completed` with a note describing the failure.
-
-**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
+Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
 ## Steps
 
@@ -132,16 +130,12 @@ In file mode: if all items succeeded, `/tmp/batch-queue.md` will be empty (or co
 
 ### 5. Session Cleanup
 
-After the batch completes (all items processed, summary printed), clean up the worktree per CLAUDE.md's Session Isolation policy — the batch-deferred equivalent of `/develop` step 11's cleanup item:
+After the batch completes (all items processed, summary printed), clean up the worktree — the batch-deferred equivalent of `/develop` step 11's cleanup item. Run from the **base repository**:
 
 ```bash
-git status --porcelain   # must be empty before proceeding
-CURRENT_BRANCH=$(git branch --show-current)
-WORKTREE_PATH=$(pwd)
-BASE_REPO=$(git worktree list --porcelain | awk '/^worktree/{print $2; exit}')
-cd "$BASE_REPO"
-git worktree remove "$WORKTREE_PATH"
-git branch -D "$CURRENT_BRANCH"
+bash scripts/worktree-done.sh <worktree-path> <branch>
 ```
+
+The script verifies the tree is clean, removes the worktree (handling the wiki-submodule refusal), and deletes the branch only when a merged PR exists. If the worktree ended on a purely local branch with no PR of its own (e.g., a leftover `batch-dev-temp`), pass `FORCE_BRANCH_DELETE=1` to delete it anyway.
 
 **Skip this step** if any items in the batch failed and remain unresolved in the queue file, or if the worktree has uncommitted changes — leave it in place for manual follow-up in that case.

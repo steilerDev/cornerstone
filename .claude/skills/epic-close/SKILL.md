@@ -5,7 +5,7 @@ description: 'Close an epic: refinement, E2E validation, UAT, documentation, and
 
 # Epic Close — Refinement, UAT & Promotion Workflow
 
-You are the orchestrator running the closing phase for a completed epic. Follow these 8 steps in order. **Do NOT skip steps.** The orchestrator delegates all work — never write production code, tests, or architectural artifacts directly.
+You are the orchestrator running the closing phase for a completed epic. Follow these 7 steps in order. **Do NOT skip steps.** The orchestrator delegates all work — never write production code, tests, or architectural artifacts directly.
 
 **When to use:** After all user stories in an epic have been merged to `beta` and are closed. This skill handles refinement, E2E validation, UAT, documentation, and promotion to `main`.
 **When NOT to use:** Planning a new epic (use `/epic-start`). Implementing a single story or bug fix (use `/develop`).
@@ -16,7 +16,7 @@ You are the orchestrator running the closing phase for a completed epic. Follow 
 
 ## Task Tracking
 
-At the start of each `/epic-close` invocation, create tasks to track progress. These tasks survive context compression and let you recover your place if context is lost.
+At the start of each `/epic-close` invocation, create tasks to track progress.
 
 **Create these tasks upfront** (using `TaskCreate`):
 
@@ -29,11 +29,7 @@ At the start of each `/epic-close` invocation, create tasks to track progress. T
 7. **UAT validation** — Launch product-owner for UAT scenarios
 8. **Release** — Delegate to /release for promotion, approval, docs, and merge
 
-**Progress rule:** Before starting each step, mark its task `in_progress`. After completing, mark it `completed`. If a step is skipped (conditional), mark it `completed` with a note in the description.
-
-**Recovery rule:** If you lose track of progress (e.g., after context compression), run `TaskList` to see which tasks are completed and resume from the first pending task.
-
-**Dynamic task rule:** When a UAT fix round or E2E fix cycle starts, create a new task for each round (e.g., "UAT Fix Round 1", "E2E Fix Round 1") so iterations are tracked.
+Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
 ## Steps
 
@@ -86,31 +82,22 @@ If there are refinement items to address:
 1. Rename the branch: `git branch -m chore/<epic-number>-refinement`
 2. Launch the **dev-team-lead** in `[MODE: spec]` with the refinement observations to produce targeted fix specs
 3. Route fix specs to the appropriate implementation agents:
-   - Backend fixes → **backend-developer** (Haiku)
-   - Frontend fixes → **frontend-developer** (Haiku)
+   - Backend fixes → **backend-developer**
+   - Frontend fixes → **frontend-developer**
    - Unit/integration test fixes → **qa-integration-tester**
    - E2E test fixes → **e2e-test-engineer**
 4. Launch the **dev-team-lead** in `[MODE: review]` with the original refinement items + changed files
-5. If `VERDICT: CHANGES_REQUIRED`, iterate fixes (route to agents, re-review)
+5. If `VERDICT: CHANGES_REQUIRED`, iterate fixes (route to agents, re-review). Continue the previously launched agent via SendMessage (it retains the context it built in the earlier round) instead of launching a fresh agent; launch fresh only if that agent is no longer available.
 6. Launch the **dev-team-lead** in `[MODE: commit]` with contributing agents list, branch name, and no issue number (refinement)
 7. Verify PR exists. If not, create a PR targeting `beta`:
    ```
    gh pr create --base beta --title "chore: address refinement items for epic #<epic-number>" --body "..."
    ```
-8. **Wait 5 seconds** after creating the PR, then check mergeability: `gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'`. **Only continue if the result is `MERGEABLE`.** If `CONFLICTING`, rebase onto `beta`, force-push, and re-check. If `UNKNOWN`, wait a few more seconds and retry. Once mergeability is confirmed, wait for CI using the **CI Gate Polling** pattern from `CLAUDE.md` (beta variant — wait for `Quality Gates`)
-9. Squash merge, rebuilding the body per CLAUDE.md's **Squash-Merge Trailer Preservation** pattern:
+8. Wait for CI: `bash scripts/ci-wait.sh <pr-number>` (handles the mergeability precheck, gate polling, timeout, and rate-limit backoff). If it reports a merge conflict, rebase onto `beta`, force-push, and re-run it.
+9. Squash merge — write a body summarizing the refinement items addressed to a temp file, then:
 
    ```bash
-   BASE_BRANCH=beta
-   SUBJECT="chore: address refinement items for epic #<epic-number>"
-   TRAILERS=$(git log origin/${BASE_BRANCH}..HEAD --format="%b" | grep -iE '^co-authored-by:' | sed -E 's/^[Cc]o-[Aa]uthored-[Bb]y:/Co-Authored-By:/' | sort -u)
-   BODY="$(cat <<EOF
-   <summary of refinement items addressed>
-
-   ${TRAILERS}
-   EOF
-   )"
-   gh pr merge <pr-url> --squash --subject "$SUBJECT" --body "$BODY"
+   bash scripts/squash-merge.sh <pr-number> "chore: address refinement items for epic #<epic-number>" <body-file>
    ```
 
 If no refinement items exist, skip to step 5.
@@ -135,13 +122,11 @@ If the e2e-test-engineer's PR passes all E2E shards, squash merge it and proceed
 
 **If E2E shards fail**: Use `/fix-e2e <run-id>` to iteratively analyze, fix, and verify failing tests. The `/fix-e2e` skill handles the full fix cycle — root cause analysis, agent delegation, push, CI wait, and iteration — and merges its own PR when all shards pass.
 
-This approval is **required** before proceeding to UAT validation.
-
 ### 6. UAT Validation
 
 Launch the **product-owner** agent to produce UAT scenarios. The e2e-test-engineer must have already covered these scenarios in step 5. E2E pass + e2e-test-engineer report = sufficient validation. Post the UAT report as a comment on the epic issue and proceed to step 7.
 
-The UAT scenarios are included in the promotion PR (step 8) as a manual validation checklist so the user can spot-check during the promotion gate.
+The UAT scenarios are included in the promotion PR (see `/release` step 2b) as a manual validation checklist so the user can spot-check during the promotion gate.
 
 ### 7. Delegate to `/release`
 
