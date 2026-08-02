@@ -1,0 +1,30 @@
+.link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 10px;
+  margin: -10px;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .link {
+    transition:
+      background-color var(--transition-fast),
+      color var(--transition-fast);
+  }
+}
+
+.link:hover {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.link:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}

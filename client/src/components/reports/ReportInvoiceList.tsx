@@ -8,6 +8,7 @@ import { TriStateCheckbox } from '../TriStateCheckbox/TriStateCheckbox.js';
 import { SelectionActionBar } from '../SelectionActionBar/SelectionActionBar.js';
 import { Tooltip } from '../Tooltip/Tooltip.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
+import { IconLinkButton } from '../IconLinkButton/IconLinkButton.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getSourceBadgeStyleKey } from '../../lib/budgetSourceColors.js';
 import BadgeStyles from '../Badge/Badge.module.css';
@@ -132,7 +133,7 @@ export function ReportInvoiceList({
       {/* Header with select-all */}
       <div className={styles.listHeader}>
         <span aria-hidden="true" />
-        <div className={`${styles.headerCheckbox} ${styles.checkboxWithContent}`}>
+        <div className={styles.checkboxWithContent}>
           <TriStateCheckbox
             checked={selectedCount === allocatedInvoices.length && allocatedInvoices.length > 0}
             indeterminate={selectedCount > 0 && selectedCount < allocatedInvoices.length}
@@ -260,7 +261,7 @@ export function ReportInvoiceList({
                       strokeWidth="2"
                       aria-hidden="true"
                     >
-                      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 2.2" />
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                     </svg>
                     <span className={styles.srOnly}>{t('sourceReports.hasAttachment')}</span>
                   </div>
@@ -268,6 +269,32 @@ export function ReportInvoiceList({
                   <div className={styles.noDocument}>{t('sourceReports.noDocument')}</div>
                 )}
               </div>
+              {/* 7th grid column: open-invoice affordance. Sibling of .attachmentColumn,
+                  NOT inside the checkboxWithContent <label> above — see AC 2.5. */}
+              <IconLinkButton
+                to={`/budget/invoices/${invoice.invoiceId}`}
+                newTab
+                ariaLabel={t('sourceReports.openInvoiceAriaLabel', {
+                  vendor: invoice.vendorName,
+                  invoiceNumber: invoice.invoiceNumber,
+                })}
+                tooltip={t('sourceReports.openInvoiceTooltip')}
+                icon={
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    aria-hidden="true"
+                  >
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                }
+              />
             </div>
 
             {/* Expansion panel - items sub-table */}

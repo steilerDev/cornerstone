@@ -44,12 +44,14 @@
  *   `<label class*="sourceRow">` per source, `input[name="source"][value=<sourceId>]`,
  *   discretionary sources sorted last with `class*="sourceRowDisc"`.
  * - Step 3 (`ReportInvoiceList.tsx`, `client/src/components/reports/`): header
- *   `[class*="headerCheckbox"] input[type=checkbox]` (select-all — no accessible name, see
- *   note below), `<div class*="invoiceRow">` per allocated invoice with its own
- *   `input[type=checkbox]` (aria-label "Toggle invoice {vendor} #{number}" — this one DOES
- *   resolve correctly), an unallocated group toggle (`[class*="unallocatedHeader"]`,
- *   `aria-expanded`), and a `SelectionActionBar` (`[class*="count"]` text, "Clear selection"
- *   button — text is ALSO a missing-prop bug, located structurally).
+ *   `[class*="listHeader"] input[type=checkbox]` (select-all — accessible name "Select all
+ *   invoices"; **fixed by Issue #1933**, see the marker paragraph below for why this locator
+ *   no longer scopes via `[class*="headerCheckbox"]`), `<div class*="invoiceRow">` per
+ *   allocated invoice with its own `input[type=checkbox]` (aria-label "Toggle invoice
+ *   {vendor} #{number}" — this one DOES resolve correctly), an unallocated group toggle
+ *   (`[class*="unallocatedHeader"]`, `aria-expanded`), and a `SelectionActionBar`
+ *   (`[class*="count"]` text, "Clear selection" button — text is ALSO a missing-prop bug,
+ *   located structurally).
  * - Step 4 (`Step4Settings.tsx`, NEW): a `role="group"` (aria-labelledby an
  *   `<h3 id="report-language-heading">`, accessible name "Report language") containing two
  *   plain (NOT visually hidden) radio inputs `input[name="reportLanguage"][value="en"|"de"]`
@@ -290,6 +292,44 @@
  *   `claimedDepositIds` counts, not the client's request counts — the two can differ (e.g. a
  *   quotation invoice can be requested but never flips; an invoice with other-source interest
  *   is requested but stays pending — "deposit-only close-out").
+ *
+ * Issue #1933: Select Invoices step visual/affordance fixes.
+ * - `.invoiceRow`/`.listHeader` gained a 7th grid track (`1.5rem auto 1fr auto auto auto
+ *   auto`, was 6) purely to host the new open-invoice affordance below — no existing column's
+ *   content changed shape.
+ * - Open-invoice affordance: a shared `IconLinkButton` (`client/src/components/IconLinkButton/`)
+ *   rendered as the row's 7th/last grid cell, a DOM SIBLING of `.attachmentColumn` — NOT
+ *   nested inside the `<label class*="checkboxWithContent">` that wraps the row's own
+ *   checkbox, so activating it can never toggle inclusion (AC 2.5). It renders a real
+ *   `<a>` (react-router `Link`, `target="_blank" rel="noopener noreferrer"`), so
+ *   `getByRole('link', ...)` resolves it — see `openInvoiceLink()` below. There is NO mobile
+ *   card layout for this row at any viewport (the grid is unconditional — see the CSS file's
+ *   lack of an `.invoiceRow`/`.listHeader` override inside its `@media (max-width: 767px)`
+ *   block), so the affordance and its 44×44px touch target apply identically at desktop,
+ *   tablet, and mobile.
+ * - Select-all alignment fix: the header's checkbox wrapper used to compose
+ *   `${styles.headerCheckbox} ${styles.checkboxWithContent}` — `.headerCheckbox`'s own
+ *   `justify-content: center` fought `.checkboxWithContent`'s row-checkbox alignment,
+ *   pulling the select-all checkbox off the per-row checkboxes' shared left edge/vertical
+ *   axis. `.headerCheckbox` is now removed entirely (from both the TSX and the CSS module) —
+ *   the header wrapper is a bare `.checkboxWithContent` div, identical to each row's
+ *   `.checkboxWithContent` label, so both align on the same grid track. `selectAllCheckbox`
+ *   below was updated accordingly: it now scopes via the (still-present) `.listHeader`
+ *   container class instead of the removed `.headerCheckbox` class.
+ * - Attachment glyph fix: the has-documents indicator's SVG path (inside the unchanged
+ *   `.paperclip`/`.noDocument` structure/classes/aria text) was swapped from Feather's
+ *   `refresh-cw` to an actual paperclip path — no locator changes, the element remains a
+ *   non-interactive `<div>` with the same accessible text.
+ * - Deposit-dates alignment fix: `.depositDatesCell` is no longer an unconditional flex
+ *   column — at desktop/tablet it is now a plain `<td>` (baseline-aligned with its sibling
+ *   cells, spacing between date lines via `.depositDatesCell > div + div { margin-top }`
+ *   instead of `gap`); the flex-column layout is now scoped inside the SAME
+ *   `@media (max-width: 767px)` block as the mobile card list, preserving the original
+ *   layout there. No locator changes — `depositRow()` below is unaffected.
+ * - See `reportWizard.spec.ts`'s "Issue #1933" describe block for the affordance's new-tab
+ *   behavior, wizard-state preservation, mobile-viewport repeat, accessible-name contract,
+ *   and the select-all alignment regression guard — all four things unreachable from unit
+ *   tests (real new browsing context, and CSS layout/alignment, which jsdom cannot render).
  */
 
 import { expect, type Page, type Locator, type Download } from '@playwright/test';
@@ -454,7 +494,10 @@ export class ReportWizardPage {
     this.step2BackButton = page.locator('[class*="buttonRow"] [class*="btnSecondary"]').first();
     this.step2NextButton = page.locator('[class*="buttonRow"] [class*="btnPrimary"]').first();
 
-    this.selectAllCheckbox = page.locator('[class*="headerCheckbox"] input[type="checkbox"]');
+    // Issue #1933: `.headerCheckbox` was removed (it fought `.checkboxWithContent`'s
+    // alignment — see class docstring) — scope via the still-present `.listHeader`
+    // container instead.
+    this.selectAllCheckbox = page.locator('[class*="listHeader"] input[type="checkbox"]');
     this.invoiceRows = page.locator('[class*="invoiceRow"]');
     this.unallocatedGroupToggle = page.locator('[class*="unallocatedHeader"]');
     this.unallocatedRows = page.locator('[class*="unallocatedRow"]');
@@ -606,6 +649,16 @@ export class ReportWizardPage {
 
   invoiceRowCheckbox(vendorName: string, invoiceNumber: string): Locator {
     return this.invoiceRow(vendorName, invoiceNumber).locator('input[type="checkbox"]');
+  }
+
+  /**
+   * The open-invoice affordance (IconLinkButton, Issue #1933) for a given invoice row —
+   * opens /budget/invoices/:id in a new tab, structurally outside the row's checkbox <label>.
+   */
+  openInvoiceLink(vendorName: string, invoiceNumber: string): Locator {
+    return this.invoiceRow(vendorName, invoiceNumber).getByRole('link', {
+      name: new RegExp(`${vendorName}.*${invoiceNumber}`),
+    });
   }
 
   /**

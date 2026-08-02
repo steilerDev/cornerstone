@@ -1173,6 +1173,8 @@
     "refund": "Refund",
     "splitBadge": "partial {{allocated}} of {{total}}",
     "splitTooltip": "This invoice is split across multiple sources",
+    "openInvoiceAriaLabel": "Open invoice {{vendor}}, {{invoiceNumber}} in new tab",
+    "openInvoiceTooltip": "Open invoice in new tab",
     "selectedCount": "{{count}} of {{totalCount}} | Total: {{totalAmount}}",
     "resetSelection": "Reset selection",
     "subNavAriaLabel": "Budget section navigation",
