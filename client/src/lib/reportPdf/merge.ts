@@ -17,6 +17,7 @@ import {
   PAGE_MARGIN_BOTTOM,
   TABLE_BODY_FONT_SIZE,
   TABLE_HEADER_FONT_SIZE,
+  TABLE_SMALL_FONT_SIZE,
 } from './pageGeometry.js';
 
 /**
@@ -60,7 +61,7 @@ export const PDF_STYLES: Record<string, Style> = {
     fontSize: TABLE_BODY_FONT_SIZE,
   },
   small: {
-    fontSize: 9,
+    fontSize: TABLE_SMALL_FONT_SIZE,
     color: '#6b7280',
   },
 };

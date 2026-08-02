@@ -298,3 +298,24 @@ numeric widths are absolute and the table width becomes constant by construction
 Reviewer lesson: when round 1's finding is "this estimate is wrong", round 2's job is not to check the
 new estimate's arithmetic — it is to ask **what the estimate is an estimate _of_**, and whether a
 construction exists that removes the need to estimate at all.
+
+### Round 3 (CHANGES_REQUIRED, 2026-08-02) — structural cure adopted, one residual
+
+The `'*'` column was dropped as recommended and **width overflow is now structurally impossible**
+(22 pathological inputs, both shapes, all exactly 515.28pt). H1 per-cell containment closed; the
+0.89em worst-case advance closed for all realistic content. Verified by re-rendering, not by reading.
+
+Residual HIGH: `MAX_SAFE_USAGE_CHUNK_CHARS` chunks `usageText`, but `areaText` and `attachmentsNote`
+stack into the **same cell** uncapped — 691pt / 665.8pt against a 634.89pt budget, with silent drop
+confirmed by page-count saturation. The 836-char "measured ceiling" was measured with that cell
+holding usage text only.
+
+Three-round arc worth remembering: **round 1 capped nothing, round 2 capped the wrong quantity
+(average glyphs, perfect packing), round 3 capped the right quantity in the wrong scope.** Each round
+the fix moved one level closer without arriving. The reviewer move that finally worked was checking
+the *input bounds* (`maxLength` in the route schemas) rather than arguing about plausibility — that
+retired the vendor concern outright and isolated the two genuinely uncapped channels.
+
+Downgrade discipline: the glyph-advance finding went HIGH (round 2) -> MEDIUM (round 3) **because the
+structural fix changed its blast radius**, not because the numbers improved. Re-derive severity from
+the current architecture, not from the previous round's ranking.

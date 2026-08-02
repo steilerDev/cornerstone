@@ -57,7 +57,11 @@ import type {
 import type { Formatters } from '../formatters.js';
 import { formatCurrency, formatDate } from '../formatters.js';
 import { buildReportContent, applyOverrides } from '../reportContent/index.js';
-import type { ReportContentOverrides, ReportContent } from '../reportContent/index.js';
+import type {
+  ReportContentOverrides,
+  ReportContent,
+  ReportContentRow,
+} from '../reportContent/index.js';
 import enBudget from '../../i18n/en/budget.json';
 import deBudget from '../../i18n/de/budget.json';
 import { loadPdfLibs } from './loader.js';
@@ -74,7 +78,9 @@ import {
   USAGE_WIDTH_7COL,
   USAGE_WIDTH_6COL,
   MAX_SAFE_USAGE_CHUNK_CHARS,
+  MAX_SAFE_SMALL_CHUNK_CHARS,
   HEADER_ROW_HEIGHT,
+  splitIntoPageSafeChunks,
 } from './overviewPdf.js';
 
 // ─── Real i18next instance (NOT the app singleton — no localStorage/navigator dependency) ─────
@@ -794,10 +800,24 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: unknown[][] } };
 
-        const singleRow = tableItem.table.body[2] as { stack: { text: string }[] }[];
-        const multiRow = tableItem.table.body[3] as { stack: { text: string }[] }[];
-        expect(singleRow[5]!.stack[1]!.text).toBe(expected.single);
-        expect(multiRow[5]!.stack[1]!.text).toBe(expected.multi);
+        // #1929 round 4: attachmentsNote no longer stacks into the usage row's cell — it renders
+        // as its OWN continuation row, immediately after the invoice's usage row (these fixture
+        // invoices carry no budgetLines, so areaText is null and never renders a row in between).
+        // Look up by vendor name rather than a fixed row index, since row counts now vary with
+        // chunking elsewhere in the table.
+        const singleVendorIndex = tableItem.table.body.findIndex(
+          (r) => usageCellText((r[0] as { text?: unknown })?.text) === 'Single Attach Vendor',
+        );
+        const multiVendorIndex = tableItem.table.body.findIndex(
+          (r) => usageCellText((r[0] as { text?: unknown })?.text) === 'Multi Attach Vendor',
+        );
+        expect(singleVendorIndex).toBeGreaterThan(0);
+        expect(multiVendorIndex).toBeGreaterThan(0);
+
+        const singleNoteRow = tableItem.table.body[singleVendorIndex + 1] as { text?: unknown }[];
+        const multiNoteRow = tableItem.table.body[multiVendorIndex + 1] as { text?: unknown }[];
+        expect(usageCellText(singleNoteRow[singleNoteRow.length - 1]!.text)).toBe(expected.single);
+        expect(usageCellText(multiNoteRow[multiNoteRow.length - 1]!.text)).toBe(expected.multi);
       }
     });
 
@@ -1829,6 +1849,234 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         .map((row) => usageCellText((row[row.length - 1] as { text?: unknown })?.text ?? ''))
         .join('');
       expect(reconstructed).toBe(usageText);
+    });
+  });
+
+  // ─── #1929 round 4 architect review HIGH: cell-scope invariant regression ─────────────────────
+
+  describe('cell-scope invariant: usageText/areaText/attachmentsNote never share an unbounded cell (regression #1929 round 4 — "round 3 capped the right quantity in the wrong scope")', () => {
+    // Word-boundary-clean prose of an EXACT character length — same technique as the AC12 block
+    // above, duplicated locally per this file's convention of scoping fixture helpers to their
+    // own describe block. NOT derived from any AI/validator length cap.
+    function proseOfLength(exactLength: number): string {
+      const words = [
+        'Materialien',
+        'und',
+        'Arbeitsleistung',
+        'für',
+        'die',
+        'Sanierung',
+        'der',
+        'Fassade',
+        'einschließlich',
+        'Dämmung',
+        'sowie',
+        'Gerüstbau',
+        'im',
+        'Erdgeschoss',
+      ];
+      let text = '';
+      let i = 0;
+      for (;;) {
+        const word = words[i % words.length]!;
+        const candidate = text.length === 0 ? word : `${text} ${word}`;
+        if (candidate.length >= exactLength) {
+          return candidate.slice(0, exactLength);
+        }
+        text = candidate;
+        i++;
+      }
+    }
+
+    // A comma-joined 20-leaf-area aggregate — areaText is "aggregate-unbounded across N leaf
+    // areas x 200 chars each" per the architect's own framing of why it can't be treated as
+    // bounded just because any one leaf area name is short.
+    function twentyLeafAreaText(): string {
+      return Array.from(
+        { length: 20 },
+        (_, i) => `${'Obergeschoss Nordflügel Zimmer '.repeat(6).trim()} ${i}`,
+      ).join(', ');
+    }
+
+    function makeCellScopeContent(rowOverrides: Partial<ReportContentRow>): ReportContent {
+      const row: ReportContentRow = {
+        invoiceId: 'inv-cellscope',
+        vendor: 'Cell Scope Vendor',
+        invoiceNumber: 'CS-1',
+        dateText: '01/01/2026',
+        status: null,
+        statusText: null,
+        invoiceAmountText: '€100.00',
+        allocatedAmountValueText: '€100.00',
+        allocatedMarkers: '',
+        isDeposit: false,
+        isRefund: false,
+        refundNoteText: '',
+        usageText: 'x',
+        attachmentsNote: null,
+        areaText: null,
+        ...rowOverrides,
+      };
+      return {
+        isOverview: false,
+        isClaim: false,
+        tableTitle: 'Cell Scope Test Report',
+        labels: {
+          vendor: 'Vendor',
+          invoiceNumber: 'Invoice No.',
+          date: 'Date',
+          status: 'Status',
+          invoiceAmount: 'Invoice Amount',
+          allocatedAmount: 'Allocated Amount',
+          usage: 'Usage',
+          attachmentsNote: 'Attachments',
+          deposit: 'Deposit',
+          source: 'Source',
+          sourceType: 'Source Type',
+          reference: 'Reference',
+          generatedAt: 'Generated At',
+        },
+        sourceInfo: {
+          sourceName: 'Cell Scope Source',
+          sourceTypeText: 'Bank Loan',
+          referenceText: null,
+          generatedAtText: '01/01/2026',
+        },
+        coverLetter: null,
+        rows: [row],
+        summaryRows: [{ key: 'total', label: 'Total', amountText: '€100.00' }],
+        footnotes: [],
+      };
+    }
+
+    // Renders `rowOverrides` as the sole content row and returns the resolved table, split into
+    // [usageRows, areaRows, noteRows, summaryRow] by EXPECTED chunk count (derived from the same
+    // splitIntoPageSafeChunks the production code itself uses, not a re-guessed row count) — this
+    // is what lets the assertions below prove reconstruction PER FIELD, not just "some text
+    // somewhere in the tree" (which round 3's own bug would have passed, since the dropped
+    // content's row simply never rendered at all — a shorter body, not corrupted content).
+    async function renderCellScopeRow(rowOverrides: Partial<ReportContentRow>): Promise<{
+      usageRows: unknown[][];
+      areaRows: unknown[][];
+      noteRows: unknown[][];
+      totalDataRows: number;
+    }> {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const content = makeCellScopeContent(rowOverrides);
+      const row = content.rows[0]!;
+      const pdfContent = buildOverviewContent(content, new Map(), tEn);
+      await renderOverviewPdfContent(
+        pdfContent,
+        { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+        tEn,
+      );
+      const tableItem = findTableItem(pdfContent);
+
+      const usageChunkCount = splitIntoPageSafeChunks(
+        row.usageText,
+        MAX_SAFE_USAGE_CHUNK_CHARS,
+      ).length;
+      const areaChunkCount = row.areaText
+        ? splitIntoPageSafeChunks(row.areaText, MAX_SAFE_SMALL_CHUNK_CHARS).length
+        : 0;
+      const noteChunkCount = row.attachmentsNote
+        ? splitIntoPageSafeChunks(row.attachmentsNote, MAX_SAFE_SMALL_CHUNK_CHARS).length
+        : 0;
+      const totalDataRows = usageChunkCount + areaChunkCount + noteChunkCount;
+
+      // header (1) + totalDataRows + summary (1) — if this length check fails, a row was
+      // SILENTLY DROPPED (round 3's exact failure mode: the row that couldn't fit the page never
+      // rendered at all, rather than throwing or visibly truncating).
+      expect(tableItem.table.body).toHaveLength(1 + totalDataRows + 1);
+
+      const dataRows = tableItem.table.body.slice(1, 1 + totalDataRows) as unknown[][];
+      return {
+        usageRows: dataRows.slice(0, usageChunkCount),
+        areaRows: dataRows.slice(usageChunkCount, usageChunkCount + areaChunkCount),
+        noteRows: dataRows.slice(usageChunkCount + areaChunkCount),
+        totalDataRows,
+      };
+    }
+
+    function reconstructUsageColumn(rows: unknown[][]): string {
+      return rows
+        .map((r) => usageCellText((r[r.length - 1] as { text?: unknown })?.text ?? ''))
+        .join('');
+    }
+
+    it('[architect-measured case: usageText 700 + attachmentsNote 400 = 665.8pt] every character of BOTH fields is recoverable — the exact combination round 3 silently dropped', async () => {
+      const usageText = proseOfLength(700);
+      const attachmentsNote = proseOfLength(400);
+      expect(usageText.length).toBe(700);
+      expect(attachmentsNote.length).toBe(400);
+
+      const { usageRows, areaRows, noteRows } = await renderCellScopeRow({
+        usageText,
+        attachmentsNote,
+      });
+      expect(areaRows).toHaveLength(0);
+      expect(usageRows.length).toBeGreaterThan(1); // 700 > MAX_SAFE_USAGE_CHUNK_CHARS (650)
+      expect(reconstructUsageColumn(usageRows)).toBe(usageText);
+      expect(reconstructUsageColumn(noteRows)).toBe(attachmentsNote);
+    });
+
+    it('[architect-measured case: usageText 700 + 20-leaf-area areaText = 691.0pt] every character of BOTH fields is recoverable, including the aggregate-unbounded areaText', async () => {
+      const usageText = proseOfLength(700);
+      const areaText = twentyLeafAreaText();
+      expect(usageText.length).toBe(700);
+      expect(areaText.length).toBeGreaterThan(600); // genuinely long — 20 leaf areas, not a stub
+
+      const { usageRows, areaRows, noteRows } = await renderCellScopeRow({
+        usageText,
+        areaText,
+      });
+      expect(noteRows).toHaveLength(0);
+      expect(reconstructUsageColumn(usageRows)).toBe(usageText);
+      expect(reconstructUsageColumn(areaRows)).toBe(areaText);
+    });
+
+    it('[architect-measured case: attachmentsNote 2000 alone = 1119.4pt] every character is recoverable, AND the real page count reflects genuine multi-page need — the direct negation of "rows needing 9 pages rendered as 2"', async () => {
+      const attachmentsNote = proseOfLength(2000);
+      expect(attachmentsNote.length).toBe(2000);
+
+      const { usageRows, areaRows, noteRows } = await renderCellScopeRow({
+        usageText: 'x', // trivial — isolates attachmentsNote as the sole large field
+        attachmentsNote,
+      });
+      expect(areaRows).toHaveLength(0);
+      expect(usageRows).toHaveLength(1);
+      expect(noteRows.length).toBeGreaterThan(1); // 2000 >> MAX_SAFE_SMALL_CHUNK_CHARS (450)
+      expect(reconstructUsageColumn(noteRows)).toBe(attachmentsNote);
+
+      // Page-count saturation was the architect's own tell for the silent drop (a row needing 9
+      // pages rendered as 2 under round 3). 1119.4pt of attachmentsNote ALONE, at the architect's
+      // own measurement, exceeds a single page's printable height — assert the REAL rendered PDF
+      // genuinely spans multiple pages, not silently capped at a small constant.
+      const { generateReportPdf } = await import('./merge.js');
+      const content = makeCellScopeContent({ usageText: 'x', attachmentsNote });
+      const report: SourceReportResponse = {
+        type: 'claim',
+        source: {
+          id: 'src-cellscope',
+          name: 'Cell Scope Source',
+          sourceType: 'bank_loan',
+          reference: null,
+          contactAddress: null,
+        },
+        invoices: [],
+        totalAmount: 0,
+        unallocatedInvoices: [],
+        generatedAt: '2026-01-01T00:00:00.000Z',
+      };
+      const result = await generateReportPdf(
+        report,
+        new Set(),
+        content,
+        { attachDocuments: false },
+        tEn,
+      );
+      const pdfDoc = await PDFDocument.load(await result.blob.arrayBuffer());
+      expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(2);
     });
   });
 

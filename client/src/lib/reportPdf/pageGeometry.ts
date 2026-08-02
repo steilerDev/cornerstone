@@ -3,6 +3,14 @@
  * constant that #1929's round-2 fix requires to be *computed*, not hand-derived in a comment
  * (see #1929 architect review: a hand-derived bound that restates its own derivation cannot
  * catch an error in that derivation — and one shipped in round 1, see PAGE_TOP_MARGIN below).
+ *
+ * NOTE for #1932 (cover-letter overhaul, deferred here per round-3 architect review): merge.ts's
+ * `PDF_STYLES` duplicates several font-size literals this module also needs (header/subheader
+ * font sizes above, TABLE_HEADER_FONT_SIZE/TABLE_SMALL_FONT_SIZE below) — the same drift risk
+ * PAGE_TOP_MARGIN itself was fixed against. Resolving it means moving `PDF_STYLES`'s definition
+ * DOWN into this module (or a shared module this one doesn't depend on) so merge.ts imports it
+ * from here, not the other way around — this file must never import from merge.ts, since merge.ts
+ * already imports from this file and reversing that edge creates a circular import.
  */
 
 export const PAGE_WIDTH = 595.28; // A4, pt
@@ -33,6 +41,14 @@ export const TABLE_BODY_FONT_SIZE = 8;
  * history — relocated here if left unparametrized).
  */
 export const TABLE_HEADER_FONT_SIZE = 10;
+
+/**
+ * Font size, pt, for the 'small' style used by the Usage column's areaText/attachmentsNote
+ * continuation rows (#1929 round-4 architect review HIGH — see overviewPdf.ts's
+ * MAX_SAFE_SMALL_CHUNK_CHARS). Extracted from merge.ts's `PDF_STYLES.small` for the same
+ * single-source-of-truth reason as TABLE_HEADER_FONT_SIZE above.
+ */
+export const TABLE_SMALL_FONT_SIZE = 9;
 
 export const DEFAULT_LINE_HEIGHT = 1.4; // matches merge.ts's defaultStyle.lineHeight
 

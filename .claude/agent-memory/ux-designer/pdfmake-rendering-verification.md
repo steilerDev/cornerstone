@@ -82,3 +82,42 @@ pushes page-1 content down by that same amount even where there's no header to m
 dead-space gap above the salutation. Worth checking both "does the header fit" AND "does page 1
 still look intentional" whenever a `pageMargins` top value changes for a multi-content-type
 document.
+
+## Round 4 (PR #1935, head 3984fbbe): star column replaced with computed numeric width; break-all extended to Vendor + header cells
+
+Architect rejected round 3 after measuring that pdfmake **never grows a fixed-width column past
+its declared width** (`elasticWidth` read at `columnCalculator.js:52`, assigned nowhere) — so a
+`'*'` Usage column's "doesn't fit" branch was forcing the WHOLE TABLE past `printableWidth()`
+whenever other columns' content (esp. two header labels — `Auftragnehmer` 67.5pt/45pt col,
+`Rechnungsbetrag` 78.66pt/48pt col) exceeded their declared width, independent of Usage content.
+Fix: every column is now an explicit numeric width (`usableColumnWidth(n) - fixedSum` for Usage,
+no `'*'` anywhere), and `wordBreak: 'break-all'` (via the same per-token `buildUsageTextRuns`
+mechanism Usage already used) was extended to **every table header cell** and to **Vendor body
+cells** — anywhere a fixed column isn't provably safe against its own content. Also:
+`VENDOR_SAFE_TOKEN_CHARS` dropped from an average-glyph estimate to a `0.89em` (worst-case 'W')
+measurement, now just **6 chars** — meaning almost every German vendor word gets flagged; and
+`MAX_SAFE_USAGE_CHUNK_CHARS` 1200 → 700 (round 2's 1200 had ~0% real margin, verified by a real
+render overflowing at exactly 1200).
+
+Re-rendered with a **mixed fixture** (ordinary short vendor names alongside the architect's
+adversarial ones) specifically to test the "a flagged token that fits still renders unbroken"
+claim QA/dev-team-lead made — this is the right thing to verify for any `break-all`-widening PR,
+not just re-running the existing worst-case fixture, because the whole question is about the
+*common* case, not the case the fix was explicitly measured against. Result: the claim holds for
+short words (`Elektro`/`Müller`/`GmbH` renders whole on 3 lines, no character split) but **any
+single word ~14+ characters breaks mid-word with no hyphen**, and German business names hit that
+routinely (`Sanitär Rückerstattung AG` → `Rück`/`erstattung`) — not just the constructed extreme
+case (`Elektroinstallationsbetrieb` → 3-way break ending in a lone `b`). Lesson: when a fix adds
+`break-all` broadly to protect against an adversarial measurement, always re-test against
+*ordinary* content in the same domain (here: real-sounding German compound-noun business names),
+since "the mechanism is safe" and "the common case looks fine" are different claims — the second
+needs its own separate check, not just the first.
+
+Also found via the same render (not the constants' claims — direct observation): the
+`MAX_SAFE_USAGE_CHUNK_CHARS` reduction makes chunking trigger more often, and
+`splitIntoPageSafeChunks` has no minimum-trailing-chunk-size floor — hit a rendered row that was
+entirely blank except for a single stray character in the Usage column. My specific repro used a
+test-only `text.slice(0, exactLength)` helper that can truncate a word arbitrarily (so this exact
+case isn't guaranteed from real user/AI text), but the underlying gap (no floor on the last chunk)
+is real. Worth remembering for future `splitIntoPageSafeChunks`-style chunkers: always check the
+trailing-chunk-length distribution, not just that no chunk exceeds the max.

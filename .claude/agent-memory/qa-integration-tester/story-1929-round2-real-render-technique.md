@@ -232,6 +232,68 @@ structural issue the round-2 fix never addressed:
   content first, `cp` it back after) — this is more reliable than reconstructing "what round N-1
   looked like" from memory/comments when a real prior commit exists.
 
+## Round 4 (architect re-review): cell-scope invariant, not just field-length caps
+
+A FOURTH review round found round 3's own fix insufficient in a way none of rounds 1-3 tested for:
+**round 3 capped `usageText`'s length, but `areaText` and `attachmentsNote` still stacked into the
+SAME cell below it, uncapped.** The 836-char ceiling round 3 measured was measured with that cell
+holding usage text ONLY — it never bounded the cell's real combined height. Measured: `usageText`
+700 + `attachmentsNote` 400 → 665.8pt; + a 20-leaf-area `areaText` → 691.0pt; `attachmentsNote` 2000
+alone → 1119.4pt — all exceeded the ~635pt page budget and were silently dropped (rows needing 3
+and 9 pages both rendered as 2). **The architect's framing is the key lesson: "round 1 capped
+nothing, round 2 capped the wrong quantity, round 3 capped the right quantity in the wrong scope."**
+Each round fixed the specific case demonstrated, without re-examining whether the FIX's own new
+surface (a shared cell, in round 3's case) reopened the same class of bug.
+
+**Fix**: every row's Usage cell now holds AT MOST ONE bounded chunk of ONE field. The
+`stack: [usageChunk, areaText, attachmentsNote]` construction is gone entirely; `areaText` and
+`attachmentsNote` each go through their own `pushChunkedRows()` call (chunked via the existing
+`splitIntoPageSafeChunks`, using a NEW ceiling `MAX_SAFE_SMALL_CHUNK_CHARS` since they render at
+9pt `'small'` style, not 8pt `'tableCell'`), producing one continuation row per chunk. **Test
+consequence**: every test asserting the old `{ stack: [usageText, areaText, attachmentsNote] }`
+cell shape must be rewritten to expect separate rows (usage chunk rows, then areaText continuation
+row(s), then attachmentsNote continuation row(s), in that order) — and any test reading a FIXED row
+index (`body[2]`, `body[3]`) breaks doubly, since row counts now vary with how many fields chunked.
+Replace fixed indices with a vendor-name/invoiceId lookup, or derive expected row counts from
+`splitIntoPageSafeChunks(...).length` per field (matches the file's established pattern from round 3's
+vendor-lookup fix).
+
+**Also found in the same review**: round 3's own "worst-case" glyph ratio (0.89em, from `'W'`) was
+itself an underclaim — a wider scan (124 chars × 3 fonts) found `'№'` (U+2116, Numero sign) at
+1.0283em, and round 3's 700-char ceiling had only 4 characters of margin (0.57%) below its OWN
+(also since-corrected) true ceiling of 836. **Lesson: "worst case" claims need their own margin
+audit — a conservative-sounding constant with <1% headroom is barely different from an exact one,
+and font-metric drift between environments is a real risk at that margin.** Round 4: ratio 0.89→1.04,
+`MAX_SAFE_USAGE_CHUNK_CHARS` 700→650 (true ceiling re-measured at 704, so 650 sits ~7.7% below it),
+new `MAX_SAFE_SMALL_CHUNK_CHARS=450` (true ceiling 546, ~17.6% margin), all body/vendor/header/small
+safe-token-char thresholds retightened (`USAGE_SAFE_TOKEN_CHARS_7COL` 19→16, `_6COL` 26→22,
+`VENDOR_SAFE_TOKEN_CHARS` 6→5, new `SMALL_SAFE_TOKEN_CHARS_7COL=14`/`_6COL=19`, header per-column
+thresholds all -1), `HEADER_ROW_HEIGHT` 54→68 (recomputed via the same ratio fix; the REAL measured
+header row height, 45.81pt, is unaffected — `WORST_CASE_CHAR_ADVANCE_EM` only feeds word-break
+DECISIONS, never actual pdfmake rendering, so real-render measurements from round 3 stayed valid
+without re-measuring).
+
+**Genuine-regression verification pattern held up a third time**: `git log` again showed HEAD was
+exactly the prior round's committed fix (`3984fbbe`, "drop star column, derive widths from
+worst-case glyphs" — round 3 without round 4's cell-scope split), with round 4's fix sitting
+uncommitted in the working tree. Same `git show <prior-commit>:<path> > <path>` backup/swap/restore
+technique confirmed the new cell-scope tests fail against it (module-resolution error: round 3 has
+no `MAX_SAFE_SMALL_CHUNK_CHARS` export at all — a clean, unambiguous regression proof).
+
+**New test pattern for "cell-scope" invariants** (as opposed to "field-length" invariants): build a
+synthetic single-row `ReportContent` by hand (bypassing `buildReportContent`, which doesn't expose
+an override path for `areaText`) with two/three oversized fields set simultaneously, render for
+real, then reconstruct EACH field independently by slicing `table.body` into
+`[usageRows, areaRows, noteRows]` using EXPECTED chunk counts computed from
+`splitIntoPageSafeChunks(field, ceilingForThatField).length` (not a guessed row count) — this
+directly proves per-field recoverability, which a generic `collectAllStrings().toContain()` search
+would NOT have proven (round 3's silent-drop bug would have made that string search's target simply
+absent from the tree, correctly failing `.toContain()`, but a weaker "some content present"-style
+check could have missed it). Page-count saturation (the architect's own diagnostic signal) makes a
+good secondary/corroborating assertion for the most extreme single-field case, but per-field
+reconstruction is the stronger, more direct proof and doesn't require guessing a page-count lower
+bound.
+
 ## Unreachable defensive branches (branch-coverage ceiling, reconfirmed)
 
 `overviewPdf.ts`'s `splitIntoPageSafeChunks`'s trailing `if (current) chunks.push(current);` and

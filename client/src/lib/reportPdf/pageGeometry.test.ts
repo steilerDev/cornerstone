@@ -19,6 +19,7 @@ import {
   V_LINE_WIDTH,
   TABLE_BODY_FONT_SIZE,
   TABLE_HEADER_FONT_SIZE,
+  TABLE_SMALL_FONT_SIZE,
   DEFAULT_LINE_HEIGHT,
   PAGE_TOP_MARGIN,
   printableWidth,
@@ -53,6 +54,10 @@ describe('pageGeometry — page constants', () => {
 
   it('[#1929 round 3] TABLE_HEADER_FONT_SIZE is 10, extracted from merge.ts PDF_STYLES.tableHeader so overviewPdf.ts header word-break threshold is computed from the same constant merge.ts renders with', () => {
     expect(TABLE_HEADER_FONT_SIZE).toBe(10);
+  });
+
+  it('[#1929 round 4] TABLE_SMALL_FONT_SIZE is 9, extracted from merge.ts PDF_STYLES.small so overviewPdf.ts areaText/attachmentsNote continuation-row word-break threshold (SMALL_SAFE_TOKEN_CHARS_*COL) is computed from the same constant merge.ts renders with', () => {
+    expect(TABLE_SMALL_FONT_SIZE).toBe(9);
   });
 
   it('DEFAULT_LINE_HEIGHT matches merge.ts defaultStyle.lineHeight (1.4)', () => {

@@ -14,6 +14,7 @@ import {
 import {
   TABLE_BODY_FONT_SIZE,
   TABLE_HEADER_FONT_SIZE,
+  TABLE_SMALL_FONT_SIZE,
   DEFAULT_LINE_HEIGHT,
   usableColumnWidth,
 } from './pageGeometry.js';
@@ -60,41 +61,75 @@ export const USAGE_WIDTH_6COL = usableColumnWidth(6) - USAGE_FIXED_SUM_6COL; // 
 
 /**
  * Worst-case single-character advance, as a fraction of font size (em), measured directly via
- * real pdfmake renders scanning the full Latin+German charset (A-Z, a-z, umlauts/eszett, digits,
- * punctuation) at both the body (8pt regular) and header (10pt bold) table fonts (#1929 round-3
- * architect review HIGH2: the previous 0.495em AVERAGE ratio under-flagged all-caps/M-W-heavy
- * tokens by ~45% — a 32-char all-uppercase Usage token measured 538.57pt against a 515.28pt
- * page). Measured maxima: 'W' = 7.098pt at 8pt regular (0.8872em); 'W' = 8.804pt at 10pt bold
- * (0.8804em). 0.89em is used uniformly for both — safely above every character scanned, in
- * either font. Over-flagging a token as needing `wordBreak: 'break-all'` is harmless (see
- * buildUsageTextRuns); under-flagging causes the exact overflow this exists to prevent, so this
- * value is rounded UP, not to the nearest measured figure.
+ * real pdfmake renders. SCANNED: ASCII printable (0x21-0x7E, 94 chars), German umlauts/eszett
+ * (ä/ö/ü/Ä/Ö/Ü/ß), and a curated set of common typographic/currency symbols (€/£/¥/§/°/µ/dashes/
+ * quote marks/×/÷/±/fractions/№) — 124 characters total, at each of the three table fonts (8pt
+ * body, 9pt small, 10pt bold header). #1929 round-3 architect review HIGH2 found the original
+ * 0.495em AVERAGE ratio under-flagged all-caps/M-W-heavy tokens by ~45%; round-3's fix (0.89em,
+ * from 'W' = 0.8872em) was itself an UNDERCLAIM — round-4 architect review MEDIUM found '@' =
+ * 0.8979em (clears round-3's 0.89em by only 0.02pt at the 6-col threshold) and '№' (U+2116,
+ * Numero sign) = 1.0283em, the true maximum in this scan, at every font size tested. 1.04em is
+ * used uniformly across all three font sizes — safely above every character actually scanned;
+ * this is not a claim about the full Unicode range. Over-flagging a token as needing
+ * `wordBreak: 'break-all'` is harmless (see buildUsageTextRuns); under-flagging causes the exact
+ * overflow this exists to prevent, so this value is rounded UP, not to the nearest measured
+ * figure.
  */
-const WORST_CASE_CHAR_ADVANCE_EM = 0.89;
-const BODY_WORST_CASE_CHAR_WIDTH_PT = TABLE_BODY_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 7.12pt
-const HEADER_WORST_CASE_CHAR_WIDTH_PT = TABLE_HEADER_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 8.9pt
+const WORST_CASE_CHAR_ADVANCE_EM = 1.04;
+const BODY_WORST_CASE_CHAR_WIDTH_PT = TABLE_BODY_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 8.32pt
+const HEADER_WORST_CASE_CHAR_WIDTH_PT = TABLE_HEADER_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 10.4pt
+const SMALL_WORST_CASE_CHAR_WIDTH_PT = TABLE_SMALL_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 9.36pt
 
 /**
- * A single Usage cell whose text exceeds this length is split into multiple table rows (see
- * splitIntoPageSafeChunks) rather than rendered as one unbreakable row. pdfmake's dontBreakRows
- * does not paginate an over-tall row — it silently drops what doesn't fit the current page
- * (#1929 architect review, HIGH 4). Per the product-owner's precedence ruling (I1 "no character
- * is ever lost" outranks I3 "each row on one page"), a row that genuinely cannot fit one page
- * must still render completely, even if that means it spans pages.
+ * A single Usage cell whose `usageText` exceeds this length is split into multiple table rows
+ * (see splitIntoPageSafeChunks) rather than rendered as one unbreakable row. pdfmake's
+ * dontBreakRows does not paginate an over-tall row — it silently drops what doesn't fit the
+ * current page (#1929 architect review, HIGH 4). Per the product-owner's precedence ruling (I1
+ * "no character is ever lost" outranks I3 "each row on one page"), a row that genuinely cannot
+ * fit one page must still render completely, even if that means it spans pages.
  *
- * MEASURED CEILING (AC12, #1929 round-3 architect review HIGH3): the round-2 value of 1200
- * assumed near-perfect line packing at an AVERAGE glyph width and left ~0% real margin —
- * measured at exactly 1200 chars of dense content, the row already overflowed one page. This
- * value was instead measured directly against a real render of the production table shape
- * (7-column, `headerRows: 1` with word-break-protected header cells, one populated content row,
- * then a Usage-only continuation row placed where `dontBreakRows` would defer it — a fresh
- * page), using the theoretical worst case: a single unbroken run of 'W' (the widest character in
- * the font) with NO whitespace at all, so every line packs to exactly the column's worst-case
- * character count with no slack. Measured ceiling: 836 characters. This constant sits ~16%
- * below that measured ceiling (not a re-derived estimate) and comfortably above AC12's
- * 600-character zero-degradation requirement.
+ * This bounds ONLY `usageText`'s own contribution to a row's height — `areaText` and
+ * `attachmentsNote` are rendered on their OWN separate, independently-chunked continuation
+ * row(s) (see MAX_SAFE_SMALL_CHUNK_CHARS and buildOverviewContent's row-building loop), never
+ * stacked into the same cell as a usageText chunk. #1929 round-4 architect review HIGH: the
+ * round-3 design stacked areaText/attachmentsNote onto the LAST usageText chunk's row, leaving
+ * their COMBINED height unbounded — attachmentsNote has no maxLength anywhere (editor or
+ * server) and areaText is aggregate-unbounded (N leaf areas x 200 chars each); measured
+ * combinations (700-char usageText + 400-char attachmentsNote = 665.8pt; 700-char usageText +
+ * 20-leaf-area areaText = 691.0pt; 2000-char attachmentsNote alone = 1119.4pt) all exceeded the
+ * 634.89pt page budget and were silently dropped (rows requiring 3 and 9 pages both rendered as
+ * 2). Splitting each field onto its own row means every row's Usage cell now holds AT MOST ONE
+ * bounded chunk of ONE field — the quantity actually bounded is "total height of everything in
+ * a row's Usage cell", not just usageText's length.
+ *
+ * MEASURED CEILING (AC12, #1929 round-4 architect review): measured directly against a real
+ * render of the production table shape (7-column, `headerRows: 1` with word-break-protected
+ * header cells, one populated content row, then a Usage-only continuation row placed where
+ * `dontBreakRows` would defer it — a fresh page), using the theoretical worst case: a single
+ * unbroken run of '№' (U+2116, the widest character found in the WORST_CASE_CHAR_ADVANCE_EM
+ * scan) with NO whitespace at all, so every line packs to exactly the column's worst-case
+ * character count with no slack. Measured ceiling: 704 characters (round-3's measurement used
+ * 'W', not the true worst character, and got 836 — a near-miss this round's fix corrects). This
+ * constant sits ~7.7% below that measured ceiling and ~8.3% above AC12's 600-character
+ * zero-degradation requirement.
  */
-export const MAX_SAFE_USAGE_CHUNK_CHARS = 700;
+export const MAX_SAFE_USAGE_CHUNK_CHARS = 650;
+
+/**
+ * An `areaText` or `attachmentsNote` value exceeding this length is split into multiple
+ * continuation rows the same way an over-long `usageText` is (see MAX_SAFE_USAGE_CHUNK_CHARS).
+ * Rendered at 'small' style (9pt, taller line height and wider worst-case glyphs than 'tableCell'
+ * at 8pt), so it needs its OWN ceiling, not a reuse of MAX_SAFE_USAGE_CHUNK_CHARS (#1929 round-4
+ * architect review HIGH — see that constant's comment for why these two fields must never share
+ * a row with usageText, or with each other, in the first place).
+ *
+ * MEASURED CEILING: same method and production shape as MAX_SAFE_USAGE_CHUNK_CHARS, with the
+ * continuation row rendered at 'small' style and the same worst-case '№' fill. Measured ceiling:
+ * 546 characters. This constant sits ~17.6% below that — no AC mandates a specific floor for
+ * these two fields (unlike usageText's AC12), so a larger margin is used than
+ * MAX_SAFE_USAGE_CHUNK_CHARS's tighter [600, ceiling) window allows.
+ */
+export const MAX_SAFE_SMALL_CHUNK_CHARS = 450;
 
 /**
  * Splits `text` into chunks no longer than `maxChars`, breaking only at whitespace boundaries
@@ -142,9 +177,10 @@ export function splitIntoPageSafeChunks(text: string, maxChars: number): string[
  * StyleContextStack.js:160-165 confirms `wordBreak` is resolved per text-run item before falling
  * back to the style dictionary, so an ordinary run with no `wordBreak` set is unaffected).
  *
- * Deliberately conservative: uses BODY_WORST_CASE_CHAR_WIDTH_PT (0.89em, not an average — see
- * that constant's comment for the round-3 architect review finding an average ratio under-flags
- * all-caps/M-W-heavy tokens). A token just under this threshold that gets `wordBreak: 'break-all'`
+ * Deliberately conservative: uses BODY_WORST_CASE_CHAR_WIDTH_PT (1.04em, not an average — see
+ * that constant's comment for the scanned charset and the round-3/round-4 architect review
+ * findings that an average ratio, and then an insufficiently-conservative "worst case," both
+ * under-flag real tokens). A token just under this threshold that gets `wordBreak: 'break-all'`
  * anyway is harmless (it simply never needs to break, since break-all only forces a mid-character
  * split when the token doesn't fit on one line); a token just over it that doesn't get flagged
  * causes exactly the overflow this exists to prevent — so the threshold is rounded down.
@@ -170,6 +206,21 @@ export const USAGE_SAFE_TOKEN_CHARS_6COL = safeTokenChars(
  * break-all protection rather than an assumption that they always fit.
  */
 export const VENDOR_SAFE_TOKEN_CHARS = safeTokenChars(VENDOR_WIDTH, BODY_WORST_CASE_CHAR_WIDTH_PT);
+
+/**
+ * Safe-token-char threshold for the Usage column's areaText/attachmentsNote continuation rows,
+ * rendered at 'small' style (9pt) — needs its own threshold rather than reusing
+ * USAGE_SAFE_TOKEN_CHARS_*COL, which is derived from the body font's (8pt) worst-case glyph
+ * width, narrower than 'small' (#1929 round-4 architect review HIGH).
+ */
+export const SMALL_SAFE_TOKEN_CHARS_7COL = safeTokenChars(
+  USAGE_WIDTH_7COL,
+  SMALL_WORST_CASE_CHAR_WIDTH_PT,
+);
+export const SMALL_SAFE_TOKEN_CHARS_6COL = safeTokenChars(
+  USAGE_WIDTH_6COL,
+  SMALL_WORST_CASE_CHAR_WIDTH_PT,
+);
 
 /**
  * Splits `text` into inline pdfmake text runs. Whitespace-free runs at or under `safeTokenChars`
@@ -224,12 +275,17 @@ function buildHeaderCell(text: string, columnWidthPt: number, alignment?: 'right
 /**
  * Conservative worst-case height (pt) of the table's own repeating header row (`headerRows: 1`).
  * Exported for #1932 (cover-letter overhaul) to reuse rather than re-deriving its own version of
- * this — per the architect's round-3 review note. Computed, not independently re-measured per
+ * this — per the architect's round-3 review note (round-4 review: no production consumer yet,
+ * grep-verified; keep as-is since it's only ever subtracted from a height budget elsewhere, so
+ * over-estimating can't invert a safety check). Computed, not independently re-measured per
  * render: the narrowest fixed column (Vendor, 45pt) holding its longest bare header word,
  * "Auftragnehmer" (13 characters, no internal whitespace), broken across
  * `ceil(13 / safeTokenChars(VENDOR_WIDTH, header ratio))` lines at the header font's line height,
  * plus the table's own vertical cell padding (paddingTop(6) + paddingBottom(6) from
- * shared.ts's TABLE_LAYOUT — not yet parametrized in pageGeometry.ts). #1929's own
+ * shared.ts's TABLE_LAYOUT — not yet parametrized in pageGeometry.ts). The architect directly
+ * measured a real "Auftragnehmer" header row at 45.81pt (round-4 review) — this formula
+ * intentionally overestimates that (currently 68pt, after round-4's WORST_CASE_CHAR_ADVANCE_EM
+ * correction raised it from round-3's 54pt) rather than matching it exactly. #1929's own
  * MAX_SAFE_USAGE_CHUNK_CHARS does not depend on this being exact — it was pinned directly
  * against a real multi-row render instead (see that constant's comment); treat this export as a
  * documented estimate for reuse, not a load-bearing measurement.
@@ -425,11 +481,37 @@ export function buildOverviewContent(
     ];
   }
 
-  // Usage word-break threshold for this table shape (#1929 round-2 review finding: AC2 permits
+  // Word-break thresholds for this table shape (#1929 round-2 review finding: AC2 permits
   // breaking a word only when it doesn't fit its column alone — see buildUsageTextRuns).
   const usageSafeTokenChars = reportContent.isOverview
     ? USAGE_SAFE_TOKEN_CHARS_7COL
     : USAGE_SAFE_TOKEN_CHARS_6COL;
+  const smallSafeTokenChars = reportContent.isOverview
+    ? SMALL_SAFE_TOKEN_CHARS_7COL
+    : SMALL_SAFE_TOKEN_CHARS_6COL;
+
+  /**
+   * Pushes one continuation row (empty leading/amount cells) per chunk of `text`, at `style`.
+   * Used for usageText overflow, and — separately, never combined with usageText or with each
+   * other — for areaText/attachmentsNote (#1929 round-4 architect review HIGH: each field gets
+   * its own row(s) so no row's Usage cell ever holds more than one bounded chunk of one field;
+   * see MAX_SAFE_USAGE_CHUNK_CHARS's comment for what "bounded" means and how it was measured).
+   */
+  function pushChunkedRows(
+    text: string,
+    maxChunkChars: number,
+    safeTokenCharsForStyle: number,
+    style: 'tableCell' | 'small',
+  ): void {
+    for (const chunk of splitIntoPageSafeChunks(text, maxChunkChars)) {
+      const cell: Content = { text: buildUsageTextRuns(chunk, safeTokenCharsForStyle), style };
+      rows.push([
+        ...buildEmptyLeadingCells(reportContent.isOverview),
+        ...buildEmptyAmountCells(),
+        cell,
+      ]);
+    }
+  }
 
   for (const contentRow of reportContent.rows) {
     // Allocated amount with footnote markers (skip + allocated)
@@ -457,56 +539,53 @@ export function buildOverviewContent(
 
     // Usage text is split into page-safe chunks (#1929 AC2/AC4/AC12/HIGH 4): a single Usage
     // cell that is too long to safely fit one page's printable height is rendered as multiple
-    // table rows instead of one unbreakable (and potentially content-dropping) row.
+    // table rows instead of one unbreakable (and potentially content-dropping) row. The FIRST
+    // chunk shares this invoice's leading/amount-cell row; any further chunks (rare-by-
+    // construction: AC12 requires 600 chars with zero degradation, well under
+    // MAX_SAFE_USAGE_CHUNK_CHARS) get their own continuation row via pushChunkedRows — no
+    // "continued" marker, per the product-owner's explicit ruling.
     const usageChunks = splitIntoPageSafeChunks(contentRow.usageText, MAX_SAFE_USAGE_CHUNK_CHARS);
-
-    const firstUsageRuns = buildUsageTextRuns(usageChunks[0]!, usageSafeTokenChars);
-    const firstUsageStack: Content[] = [{ text: firstUsageRuns, style: 'tableCell' }];
-    if (usageChunks.length === 1) {
-      if (contentRow.areaText) {
-        firstUsageStack.push({ text: contentRow.areaText, style: 'small', margin: [0, 2, 0, 0] });
-      }
-      if (contentRow.attachmentsNote) {
-        firstUsageStack.push({
-          text: contentRow.attachmentsNote,
-          style: 'small',
-          margin: [0, 2, 0, 0],
-        });
-      }
-    }
-    const firstUsageCell: Content =
-      firstUsageStack.length > 1
-        ? { stack: firstUsageStack }
-        : { text: firstUsageRuns, style: 'tableCell' };
-
+    const firstUsageCell: Content = {
+      text: buildUsageTextRuns(usageChunks[0]!, usageSafeTokenChars),
+      style: 'tableCell',
+    };
     rows.push([
       ...buildLeadingCells(contentRow, reportContent.isOverview, contentRow.statusText ?? ''),
       ...buildAmountCells(contentRow, allocatedRuns),
       firstUsageCell,
     ]);
-
-    // Continuation rows — only when a single Usage cell exceeds MAX_SAFE_USAGE_CHUNK_CHARS
-    // (rare-by-construction: AC12 requires 600 chars with zero degradation, well under this
-    // threshold). Every other column renders empty; no marker, per the product-owner's explicit
-    // ruling ("No continuation marker required... do not build one").
     for (let i = 1; i < usageChunks.length; i++) {
-      const isLast = i === usageChunks.length - 1;
-      const chunkRuns = buildUsageTextRuns(usageChunks[i]!, usageSafeTokenChars);
-      const stack: Content[] = [{ text: chunkRuns, style: 'tableCell' }];
-      if (isLast) {
-        if (contentRow.areaText) {
-          stack.push({ text: contentRow.areaText, style: 'small', margin: [0, 2, 0, 0] });
-        }
-        if (contentRow.attachmentsNote) {
-          stack.push({ text: contentRow.attachmentsNote, style: 'small', margin: [0, 2, 0, 0] });
-        }
-      }
-      const cell: Content = stack.length > 1 ? { stack } : { text: chunkRuns, style: 'tableCell' };
+      const cell: Content = {
+        text: buildUsageTextRuns(usageChunks[i]!, usageSafeTokenChars),
+        style: 'tableCell',
+      };
       rows.push([
         ...buildEmptyLeadingCells(reportContent.isOverview),
         ...buildEmptyAmountCells(),
         cell,
       ]);
+    }
+
+    // areaText and attachmentsNote each get their OWN continuation row(s) — never stacked into
+    // the usage row's cell (#1929 round-4 architect review HIGH: attachmentsNote has no
+    // maxLength anywhere, and areaText is aggregate-unbounded across N leaf areas, so their
+    // combined height with usageText in one cell was unbounded and silently dropped rows that
+    // needed more than one page).
+    if (contentRow.areaText) {
+      pushChunkedRows(
+        contentRow.areaText,
+        MAX_SAFE_SMALL_CHUNK_CHARS,
+        smallSafeTokenChars,
+        'small',
+      );
+    }
+    if (contentRow.attachmentsNote) {
+      pushChunkedRows(
+        contentRow.attachmentsNote,
+        MAX_SAFE_SMALL_CHUNK_CHARS,
+        smallSafeTokenChars,
+        'small',
+      );
     }
   }
 

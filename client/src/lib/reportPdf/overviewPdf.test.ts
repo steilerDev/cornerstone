@@ -54,7 +54,10 @@ import {
   USAGE_SAFE_TOKEN_CHARS_7COL,
   USAGE_SAFE_TOKEN_CHARS_6COL,
   VENDOR_SAFE_TOKEN_CHARS,
+  SMALL_SAFE_TOKEN_CHARS_7COL,
+  SMALL_SAFE_TOKEN_CHARS_6COL,
   MAX_SAFE_USAGE_CHUNK_CHARS,
+  MAX_SAFE_SMALL_CHUNK_CHARS,
 } from './overviewPdf.js';
 import { tableOffsetsTotal, printableWidth } from './pageGeometry.js';
 
@@ -369,23 +372,61 @@ function runsText(runs: { text: string }[]): string {
   return runs.map((run) => run.text).join('');
 }
 
-describe('buildUsageTextRuns (#1929 round 2/3 word-break follow-up findings, scenarios 1/2/3)', () => {
-  // Pin the actual threshold constants rather than re-typing 19/26 — if pageGeometry.ts's
+describe('buildUsageTextRuns (#1929 round 2/3/4 word-break follow-up findings, scenarios 1/2/3)', () => {
+  // Pin the actual threshold constants rather than re-typing 16/22 — if pageGeometry.ts's
   // per-char estimate or the USAGE_WIDTH_*COL values ever change, this test's own expectations
-  // move with them instead of silently testing against a stale literal. The 0.89 ratio itself
+  // move with them instead of silently testing against a stale literal. The 1.04 ratio itself
   // (WORST_CASE_CHAR_ADVANCE_EM) is not exported — it's a module-private derivation constant in
-  // overviewPdf.ts — so it's pinned here as a literal, same as round 2 pinned its own 0.495.
-  it('USAGE_SAFE_TOKEN_CHARS_7COL === 19 and USAGE_SAFE_TOKEN_CHARS_6COL === 26 (floor(USAGE_WIDTH_*COL / (8 * 0.89)) — round 3s worst-case, not round 2s average, ratio)', () => {
-    expect(USAGE_SAFE_TOKEN_CHARS_7COL).toBe(19);
-    expect(USAGE_SAFE_TOKEN_CHARS_6COL).toBe(26);
-    // Relationship, not just the literals: both thresholds are Math.floor(width / (8 * 0.89)).
-    expect(USAGE_SAFE_TOKEN_CHARS_7COL).toBe(Math.floor(USAGE_WIDTH_7COL / (8 * 0.89)));
-    expect(USAGE_SAFE_TOKEN_CHARS_6COL).toBe(Math.floor(USAGE_WIDTH_6COL / (8 * 0.89)));
+  // overviewPdf.ts — so it's pinned here as a literal, same as round 3 pinned its own 0.89 (which
+  // round 4 superseded: a 124-char/3-font glyph scan found '№' (U+2116) at 1.0283em, wider than
+  // round 3's 'W'-based 0.8872em — round 3's own worst-case claim was itself an underclaim).
+  it('USAGE_SAFE_TOKEN_CHARS_7COL === 16 and USAGE_SAFE_TOKEN_CHARS_6COL === 22 (floor(USAGE_WIDTH_*COL / (8 * 1.04)) — round 4s wider glyph-scan ratio, not round 3s "W"-only one)', () => {
+    expect(USAGE_SAFE_TOKEN_CHARS_7COL).toBe(16);
+    expect(USAGE_SAFE_TOKEN_CHARS_6COL).toBe(22);
+    // Relationship, not just the literals: both thresholds are Math.floor(width / (8 * 1.04)).
+    expect(USAGE_SAFE_TOKEN_CHARS_7COL).toBe(Math.floor(USAGE_WIDTH_7COL / (8 * 1.04)));
+    expect(USAGE_SAFE_TOKEN_CHARS_6COL).toBe(Math.floor(USAGE_WIDTH_6COL / (8 * 1.04)));
   });
 
-  it('VENDOR_SAFE_TOKEN_CHARS === 6 (floor(VENDOR_WIDTH=45 / (8 * 0.89)) — the new #1929 round-3 HIGH1 export protecting free-form vendor names)', () => {
-    expect(VENDOR_SAFE_TOKEN_CHARS).toBe(6);
-    expect(VENDOR_SAFE_TOKEN_CHARS).toBe(Math.floor(45 / (8 * 0.89)));
+  it('VENDOR_SAFE_TOKEN_CHARS === 5 (floor(VENDOR_WIDTH=45 / (8 * 1.04)) — the #1929 round-3 HIGH1 export protecting free-form vendor names, tightened again in round 4)', () => {
+    expect(VENDOR_SAFE_TOKEN_CHARS).toBe(5);
+    expect(VENDOR_SAFE_TOKEN_CHARS).toBe(Math.floor(45 / (8 * 1.04)));
+  });
+
+  it('[#1929 round 4] SMALL_SAFE_TOKEN_CHARS_7COL === 14 and _6COL === 19 (floor(USAGE_WIDTH_*COL / (9 * 1.04)) — the areaText/attachmentsNote continuation-row threshold, at the 9pt "small" style, not the 8pt body font)', () => {
+    expect(SMALL_SAFE_TOKEN_CHARS_7COL).toBe(14);
+    expect(SMALL_SAFE_TOKEN_CHARS_6COL).toBe(19);
+    expect(SMALL_SAFE_TOKEN_CHARS_7COL).toBe(Math.floor(USAGE_WIDTH_7COL / (9 * 1.04)));
+    expect(SMALL_SAFE_TOKEN_CHARS_6COL).toBe(Math.floor(USAGE_WIDTH_6COL / (9 * 1.04)));
+  });
+
+  it('[#1929 round 4] MAX_SAFE_USAGE_CHUNK_CHARS === 650, sitting below the measured true ceiling (704) with margin, and comfortably above AC12s 600-char zero-degradation floor', () => {
+    // Pin the RELATIONSHIP, not just the literal: 650 must stay strictly between AC12's 600-char
+    // floor and the measured true ceiling (704, from a real '№'-only worst-case render — see
+    // MAX_SAFE_USAGE_CHUNK_CHARS's own doc comment) — round 3's 700 had only 4 characters of
+    // margin (0.57%) below its OWN true ceiling (836, later found to be under-measured with 'W'
+    // instead of the true-worst '№'). If this constant ever moves outside that window again
+    // without a fresh real-render measurement backing it, that's exactly the erosion this pins
+    // against.
+    const AC12_FLOOR = 600;
+    const MEASURED_TRUE_CEILING = 704;
+    expect(MAX_SAFE_USAGE_CHUNK_CHARS).toBe(650);
+    expect(MAX_SAFE_USAGE_CHUNK_CHARS).toBeGreaterThan(AC12_FLOOR);
+    expect(MAX_SAFE_USAGE_CHUNK_CHARS).toBeLessThan(MEASURED_TRUE_CEILING);
+    // At least ~8% margin below the measured true ceiling — round 3's ~0.57% margin is exactly
+    // what let a font-metric drift risk slip through undetected.
+    const marginFraction =
+      (MEASURED_TRUE_CEILING - MAX_SAFE_USAGE_CHUNK_CHARS) / MEASURED_TRUE_CEILING;
+    expect(marginFraction).toBeGreaterThanOrEqual(0.07);
+  });
+
+  it('[#1929 round 4] MAX_SAFE_SMALL_CHUNK_CHARS === 450, sitting below its own measured true ceiling (546) — the new areaText/attachmentsNote chunking ceiling, no AC-mandated floor unlike usageText', () => {
+    const MEASURED_TRUE_CEILING = 546;
+    expect(MAX_SAFE_SMALL_CHUNK_CHARS).toBe(450);
+    expect(MAX_SAFE_SMALL_CHUNK_CHARS).toBeLessThan(MEASURED_TRUE_CEILING);
+    const marginFraction =
+      (MEASURED_TRUE_CEILING - MAX_SAFE_SMALL_CHUNK_CHARS) / MEASURED_TRUE_CEILING;
+    expect(marginFraction).toBeGreaterThanOrEqual(0.15);
   });
 
   describe('I1: joining every returned run reconstructs the input exactly', () => {
@@ -593,7 +634,7 @@ describe('#1929 round 3 HIGH1: header-cell and vendor-body-cell word-break prote
     expect(betragRun?.wordBreak).toBeUndefined();
   });
 
-  it('[HIGH1] a normal-length header label ("Datum", "Status", "Verwendung") is never flagged when it already fits its column at the worst-case ratio', () => {
+  it('[HIGH1, round 4] "Verwendung" (Usage header, wide column) stays unflagged; "Datum" (Date header, narrow column) is now ALSO flagged under round 4s tighter worst-case ratio — over-flagging, not a bug', () => {
     const content = makeContent({ isOverview: true, labels: makeGermanLabels() });
     const result = buildOverviewContent(content, new Map(), t);
     const table = getTable(result);
@@ -603,15 +644,19 @@ describe('#1929 round 3 HIGH1: header-cell and vendor-body-cell word-break prote
     const usageHeaderCell = (table.body[0] as unknown[])[6] as {
       text: { text: string; wordBreak?: string }[];
     };
-    // 'Datum' = 5 chars, exactly AT the Date column's header threshold (floor(46/8.9) = 5) — not
-    // over it, so not flagged (the "at the threshold, not flagged" boundary already unit-tested
-    // directly against buildUsageTextRuns above; this confirms the SAME boundary through the real
-    // wiring in buildOverviewContent/buildHeaderCell).
-    expect(runsText(dateHeaderCell.text)).toBe('Datum');
-    expect(dateHeaderCell.text.every((run) => run.wordBreak === undefined)).toBe(true);
-    // 'Verwendung' = 10 chars, comfortably under the Usage header threshold (19 for 7-col).
+    // 'Verwendung' = 10 chars, comfortably under the Usage header threshold (16 for 7-col) — the
+    // Usage column is wide enough that even round 4's much tighter worst-case ratio (1.04em, up
+    // from round 3's 0.89em) doesn't flag it.
     expect(runsText(usageHeaderCell.text)).toBe('Verwendung');
     expect(usageHeaderCell.text.every((run) => run.wordBreak === undefined)).toBe(true);
+    // 'Datum' = 5 chars, over the Date column's round-4 header threshold (floor(46 / (10*1.04)) =
+    // 4) — round 3's looser 0.89em ratio put this exactly AT its (then 5-char) threshold, so it
+    // used to be the "stays unflagged" example; round 4's tighter ratio flags it too. Harmless
+    // over-flagging (see buildHeaderCell/buildUsageTextRuns doc comments) — real-render coverage
+    // in realRender.test.ts confirms short flagged header words like this don't visually
+    // mid-character-split, they just carry an unneeded flag.
+    expect(runsText(dateHeaderCell.text)).toBe('Datum');
+    expect(dateHeaderCell.text.some((run) => run.wordBreak === 'break-all')).toBe(true);
   });
 
   it('[HIGH1] a real free-form vendor body cell ("Elektroinstallationsbetrieb", 28 chars, no whitespace) is flagged for word-break — measured 92.72pt against the 45pt Vendor column', () => {
@@ -722,31 +767,40 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     });
   });
 
-  describe('Usage cell: plain text vs stack with attachment note', () => {
-    it('renders a plain { text } cell (not a stack) when attachmentsNote is null', () => {
-      const row = makeRow({ usageText: 'Kitchen work', attachmentsNote: null });
+  describe('Usage cell: always a plain { text } cell — areaText/attachmentsNote render as SEPARATE continuation rows (#1929 round 4 architect review HIGH: the round-3 stack: [usageChunk, areaText, attachmentsNote] construction left their COMBINED height in one cell unbounded and silently dropped rows needing 3+/9+ pages; each field now gets its own independently-chunked row(s), never sharing a cell with usageText or with each other)', () => {
+    it('renders a plain { text } cell with no extra rows when both areaText and attachmentsNote are null', () => {
+      const row = makeRow({ usageText: 'Kitchen work', areaText: null, attachmentsNote: null });
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[5] as { text?: unknown; stack?: unknown };
       expect(cell.stack).toBeUndefined();
-      // #1929 round 2: `.text` is always a run array now (buildUsageTextRuns) — reconstruct.
       expect(usageRunsText(cell.text)).toBe('Kitchen work');
+      // header (1) + 1 usage row + 1 summary row = 3 — no continuation rows.
+      expect(table.body).toHaveLength(3);
     });
 
-    it('renders a stack of [usageText, attachmentsNote] when attachmentsNote is present', () => {
+    it('renders the usage row PLUS one continuation row (style "small") for attachmentsNote — never stacked into the usage cell', () => {
       const row = makeRow({ usageText: 'Kitchen work', attachmentsNote: '1 attachment: Invoice' });
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as { stack: { text: unknown }[] };
-      // #1929 round 2: stack[0] (the usage text itself) is a run array; stack[1] (attachmentsNote)
-      // is still a plain string — only the former needs reconstruction.
-      expect(usageRunsText(cell.stack[0]!.text)).toBe('Kitchen work');
-      expect(cell.stack[1]!.text).toBe('1 attachment: Invoice');
+
+      const usageCell = (table.body[1] as unknown[])[5] as { text?: unknown; stack?: unknown };
+      expect(usageCell.stack).toBeUndefined();
+      expect(usageRunsText(usageCell.text)).toBe('Kitchen work');
+
+      // header (1) + usage row (1) + attachmentsNote continuation row (1) + summary row (1) = 4.
+      expect(table.body).toHaveLength(4);
+      const noteRow = table.body[2] as { text?: unknown; style?: string }[];
+      // Leading/amount cells on the continuation row are all blank.
+      expect(rowTexts(noteRow).slice(0, 5)).toEqual(['', '', '', '', '']);
+      const noteCell = noteRow[5] as { text: unknown; style?: string };
+      expect(usageRunsText(noteCell.text)).toBe('1 attachment: Invoice');
+      expect(noteCell.style).toBe('small');
     });
 
-    it('AC5.2: renders a stack with the area line (style "small") between usageText and attachmentsNote when areaText is present', () => {
+    it('AC5.2: renders the usage row, then an areaText continuation row, then an attachmentsNote continuation row — in that order, each its own row', () => {
       const row = makeRow({
         usageText: 'Kitchen work',
         areaText: 'Ground Floor',
@@ -755,20 +809,20 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as {
-        stack: { text: unknown; style?: string }[];
-      };
-      // #1929 round 2: only stack[0] (usage text) is a run array; areaText/attachmentsNote remain
-      // plain strings — reconstruct the former, leave the rest as-is.
-      expect(cell.stack.map((s) => usageRunsText(s.text))).toEqual([
-        'Kitchen work',
-        'Ground Floor',
-        '1 attachment: Invoice',
-      ]);
-      expect(cell.stack[1]!.style).toBe('small');
+
+      // header (1) + usage row + areaText row + attachmentsNote row + summary row = 5.
+      expect(table.body).toHaveLength(5);
+      const usageCell = (table.body[1] as unknown[])[5] as { text: unknown };
+      const areaCell = (table.body[2] as unknown[])[5] as { text: unknown; style?: string };
+      const noteCell = (table.body[3] as unknown[])[5] as { text: unknown; style?: string };
+      expect(usageRunsText(usageCell.text)).toBe('Kitchen work');
+      expect(usageRunsText(areaCell.text)).toBe('Ground Floor');
+      expect(areaCell.style).toBe('small');
+      expect(usageRunsText(noteCell.text)).toBe('1 attachment: Invoice');
+      expect(noteCell.style).toBe('small');
     });
 
-    it('renders a stack with only [usageText, areaText] when areaText is present but attachmentsNote is null', () => {
+    it('renders the usage row plus only an areaText continuation row when areaText is present but attachmentsNote is null', () => {
       const row = makeRow({
         usageText: 'Kitchen work',
         areaText: 'Ground Floor',
@@ -777,21 +831,10 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as { stack: { text: unknown }[] };
-      expect(cell.stack.map((s) => usageRunsText(s.text))).toEqual([
-        'Kitchen work',
-        'Ground Floor',
-      ]);
-    });
-
-    it('renders a plain { text } cell (not a stack) when both areaText and attachmentsNote are null', () => {
-      const row = makeRow({ usageText: 'Kitchen work', areaText: null, attachmentsNote: null });
-      const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
-      const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as { text?: unknown; stack?: unknown };
-      expect(cell.stack).toBeUndefined();
-      expect(usageRunsText(cell.text)).toBe('Kitchen work');
+      // header (1) + usage row + areaText row + summary row = 4.
+      expect(table.body).toHaveLength(4);
+      const areaCell = (table.body[2] as unknown[])[5] as { text: unknown };
+      expect(usageRunsText(areaCell.text)).toBe('Ground Floor');
     });
 
     it('[#1929 round 2] the plain-cell Usage text is a run array of the individual whitespace-preserving tokens (buildUsageTextRuns wiring, not a plain string)', () => {
@@ -982,7 +1025,7 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     expect(rowTexts(nextRow)[0]).toBe('Next Vendor');
   });
 
-  it('[scenario 11] areaText/attachmentsNote appear only once, attached to the LAST row of a chunked invoice — not the first, not duplicated', () => {
+  it('[scenario 11, #1929 round 4 re-shape] areaText/attachmentsNote each render as their OWN continuation row(s), AFTER every usageText chunk row — never stacked into a usage row, each appearing exactly once', () => {
     const usageText = proseOfLength(MAX_SAFE_USAGE_CHUNK_CHARS * 3);
     const row = makeRow({
       invoiceId: 'inv-1',
@@ -995,31 +1038,57 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     const result = buildOverviewContent(content, new Map(), t);
     const table = getTable(result);
 
-    const expectedChunks = splitIntoPageSafeChunks(usageText, MAX_SAFE_USAGE_CHUNK_CHARS).length;
-    expect(expectedChunks).toBeGreaterThan(1);
-    const chunkedRows = table.body.slice(1, 1 + expectedChunks) as unknown[][];
+    const expectedUsageChunks = splitIntoPageSafeChunks(
+      usageText,
+      MAX_SAFE_USAGE_CHUNK_CHARS,
+    ).length;
+    expect(expectedUsageChunks).toBeGreaterThan(1);
+    // areaText/attachmentsNote are short here (well under MAX_SAFE_SMALL_CHUNK_CHARS), so each
+    // contributes exactly one continuation row.
+    const usageRows = table.body.slice(1, 1 + expectedUsageChunks) as unknown[][];
+    const areaRow = table.body[1 + expectedUsageChunks] as { text?: unknown; style?: string }[];
+    const noteRow = table.body[1 + expectedUsageChunks + 1] as {
+      text?: unknown;
+      style?: string;
+    }[];
 
-    // Every non-last row's Usage cell is plain { text }, no stack (no area/attachments note yet).
-    for (const contRow of chunkedRows.slice(0, -1)) {
-      const usageCell = contRow[contRow.length - 1] as { text?: string; stack?: unknown };
+    // Every usageText chunk row's Usage cell is plain { text } — no stack, no area/attachments
+    // note mixed in (#1929 round 4: these never share a cell with usageText anymore).
+    for (const contRow of usageRows) {
+      const usageCell = contRow[contRow.length - 1] as { text?: unknown; stack?: unknown };
       expect(usageCell.stack).toBeUndefined();
     }
 
-    // The LAST row's Usage cell is a stack carrying [chunkText, areaText, attachmentsNote].
-    const lastRow = chunkedRows[chunkedRows.length - 1]!;
-    const lastUsageCell = lastRow[lastRow.length - 1] as {
-      stack: { text: string; style?: string }[];
-    };
-    expect(lastUsageCell.stack.map((s) => s.text)).toEqual(
-      expect.arrayContaining(['Ground Floor', '1 attachment: Invoice']),
+    // areaText's OWN row, immediately after every usageText chunk row.
+    const areaCell = areaRow[areaRow.length - 1] as { text: unknown; style?: string };
+    expect(usageRunsText(areaCell.text)).toBe('Ground Floor');
+    expect(areaCell.style).toBe('small');
+    expect(
+      rowTexts(areaRow)
+        .slice(0, areaRow.length - 1)
+        .every((txt) => txt === ''),
+    ).toBe(true);
+
+    // attachmentsNote's OWN row, immediately after areaText's row.
+    const noteCell = noteRow[noteRow.length - 1] as { text: unknown; style?: string };
+    expect(usageRunsText(noteCell.text)).toBe('1 attachment: Invoice');
+    expect(noteCell.style).toBe('small');
+    expect(
+      rowTexts(noteRow)
+        .slice(0, noteRow.length - 1)
+        .every((txt) => txt === ''),
+    ).toBe(true);
+
+    // header (1) + usageChunks + areaText row (1) + attachmentsNote row (1) + summary row (1).
+    expect(table.body).toHaveLength(1 + expectedUsageChunks + 1 + 1 + 1);
+
+    // areaText/attachmentsNote appear EXACTLY once across the WHOLE table (not just this chunked
+    // group) — no duplication, no leakage into a usage row.
+    const allUsageColumnTexts = table.body.map((r) =>
+      usageRunsText((r[r.length - 1] as { text?: unknown })?.text),
     );
-    // areaText/attachmentsNote appear EXACTLY once across the whole chunked row group.
-    const allTexts = chunkedRows.flatMap((r) => {
-      const cell = r[r.length - 1] as { text?: string; stack?: { text: string }[] };
-      return cell.stack ? cell.stack.map((s) => s.text) : [cell.text];
-    });
-    expect(allTexts.filter((txt) => txt === 'Ground Floor')).toHaveLength(1);
-    expect(allTexts.filter((txt) => txt === '1 attachment: Invoice')).toHaveLength(1);
+    expect(allUsageColumnTexts.filter((txt) => txt === 'Ground Floor')).toHaveLength(1);
+    expect(allUsageColumnTexts.filter((txt) => txt === '1 attachment: Invoice')).toHaveLength(1);
   });
 });
 
