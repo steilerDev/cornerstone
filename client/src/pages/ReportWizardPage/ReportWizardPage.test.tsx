@@ -35,7 +35,7 @@
  * clicking Retry from inside the modal re-invokes `generatePdfFromContent()` and, on success,
  * replaces the error state with the regenerated PDF iframe.
  */
-import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MemoryRouter } from 'react-router-dom';
@@ -1030,6 +1030,190 @@ describe('ReportWizardPage', () => {
       await waitFor(() => {
         expect(screen.getByText('ACME')).toBeInTheDocument();
       });
+    });
+
+    // ─── M1: report-fetch race between handleUseCaseChange and handleSourceChange ─────────────
+    //
+    // Neither fetch aborts its predecessor. An OUT-OF-ORDER resolution — an older use-case-A
+    // report fetch that settles AFTER a newer use-case-B fetch for the same source — would let
+    // the stale A response win the final `setReport`/`setReportStatus` write, reaching step 3
+    // with a report from the wrong use case even though the reset already cleared it. These two
+    // tests use manually-resolved deferred promises so the settle order is explicit and
+    // deterministic, not timing-dependent: a test where the older request happens to resolve
+    // first would prove nothing, since the bug only manifests when it resolves LAST.
+
+    type Deferred = {
+      promise: Promise<SourceReportResponse>;
+      resolve: (v: SourceReportResponse) => void;
+      reject: (e: unknown) => void;
+    };
+    function makeDeferred(): Deferred {
+      let resolve!: (v: SourceReportResponse) => void;
+      let reject!: (e: unknown) => void;
+      const promise = new Promise<SourceReportResponse>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve, reject };
+    }
+
+    it('an out-of-order resolution (older use-case-A fetch settling AFTER the newer use-case-B fetch) must not let the stale A payload win (Bug #1943 M1)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource({ id: 'src-1' })] });
+
+      const staleReportA = makeReport({
+        type: 'budget-overview',
+        invoices: [
+          {
+            invoiceId: 'inv-stale',
+            vendorId: 'vend-stale',
+            vendorName: 'STALE-A-VENDOR',
+            invoiceNumber: 'INV-A',
+            date: '2026-01-10',
+            status: 'pending',
+            invoiceAmount: 1000,
+            allocatedAmount: 1000,
+            lineKind: 'invoice',
+            isSplit: false,
+            documents: [],
+            budgetLines: [{ id: 'bl-a', description: 'A', allocatedPortion: 0, linkedItem: null }],
+            deposits: [],
+          },
+        ],
+      });
+      const freshReportB = makeReport({
+        type: 'claim',
+        invoices: [
+          {
+            invoiceId: 'inv-fresh',
+            vendorId: 'vend-fresh',
+            vendorName: 'FRESH-B-VENDOR',
+            invoiceNumber: 'INV-B',
+            date: '2026-01-10',
+            status: 'pending',
+            invoiceAmount: 2000,
+            allocatedAmount: 2000,
+            lineKind: 'invoice',
+            isSplit: false,
+            documents: [],
+            budgetLines: [{ id: 'bl-b', description: 'B', allocatedPortion: 0, linkedItem: null }],
+            deposits: [],
+          },
+        ],
+      });
+
+      let callCount = 0;
+      const deferredA = makeDeferred(); // call #2: the report fetch under 'budget-overview'
+      const deferredB = makeDeferred(); // call #4: the report fetch under 'claim'
+      mockGetSourceReport.mockImplementation((type: string) => {
+        callCount += 1;
+        if (callCount === 2) return deferredA.promise;
+        if (callCount === 4) return deferredB.promise;
+        // Calls #1 and #3 are the per-source-amounts fetches — not under test, resolve fast.
+        return Promise.resolve(makeReport({ type: type as SourceReportResponse['type'] }));
+      });
+
+      renderPage();
+      const user = userEvent.setup();
+
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[0]!); // budget-overview
+      await clickNext(user); // step 1 -> 2
+      await waitFor(() => screen.getAllByRole('radio').length > 0);
+      await user.click(screen.getAllByRole('radio')[0]!); // pick source — starts call #2 (A), left pending
+
+      await user.click(screen.getByRole('button', { name: 'Back' })); // step 2 -> 1
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[1]!); // claim — resets, bumps the token, starts call #3
+      await clickNext(user); // step 1 -> 2
+      await waitFor(() => screen.getAllByRole('radio').length > 0);
+      await user.click(screen.getAllByRole('radio')[0]!); // re-pick same source — starts call #4 (B), pending
+      await clickNext(user); // step 2 -> 3 (shows the loading skeleton — B hasn't resolved yet)
+
+      // Resolve the NEWER request (B / claim) first.
+      await act(async () => {
+        deferredB.resolve(freshReportB);
+      });
+      await waitFor(() => expect(screen.getByText('FRESH-B-VENDOR')).toBeInTheDocument());
+
+      // Now resolve the OLDER request (A / budget-overview) — it settles LAST. Pre-fix (no
+      // request token), this overwrites `report`/`reportStatus` with the stale A payload: the
+      // exact #1943 end state, step 3 reachable holding a budget-overview report while
+      // useCase === 'claim'.
+      await act(async () => {
+        deferredA.resolve(staleReportA);
+      });
+
+      // The stale A payload must never land — B's report must still be the one rendered.
+      expect(screen.getByText('FRESH-B-VENDOR')).toBeInTheDocument();
+      expect(screen.queryByText('STALE-A-VENDOR')).not.toBeInTheDocument();
+    });
+
+    it('a stale rejection (older use-case-A fetch failing AFTER the newer use-case-B fetch already succeeded) must not flip reportStatus to error (Bug #1943 M1, catch guard)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource({ id: 'src-1' })] });
+
+      const freshReportB = makeReport({
+        type: 'claim',
+        invoices: [
+          {
+            invoiceId: 'inv-fresh-2',
+            vendorId: 'vend-fresh-2',
+            vendorName: 'FRESH-B-VENDOR-2',
+            invoiceNumber: 'INV-B2',
+            date: '2026-01-10',
+            status: 'pending',
+            invoiceAmount: 2000,
+            allocatedAmount: 2000,
+            lineKind: 'invoice',
+            isSplit: false,
+            documents: [],
+            budgetLines: [
+              { id: 'bl-b2', description: 'B2', allocatedPortion: 0, linkedItem: null },
+            ],
+            deposits: [],
+          },
+        ],
+      });
+
+      let callCount = 0;
+      const deferredA = makeDeferred(); // call #2 — will REJECT
+      const deferredB = makeDeferred(); // call #4 — will resolve
+      mockGetSourceReport.mockImplementation((type: string) => {
+        callCount += 1;
+        if (callCount === 2) return deferredA.promise;
+        if (callCount === 4) return deferredB.promise;
+        return Promise.resolve(makeReport({ type: type as SourceReportResponse['type'] }));
+      });
+
+      renderPage();
+      const user = userEvent.setup();
+
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[0]!); // budget-overview
+      await clickNext(user); // step 1 -> 2
+      await waitFor(() => screen.getAllByRole('radio').length > 0);
+      await user.click(screen.getAllByRole('radio')[0]!); // pick source — starts call #2 (A), left pending
+
+      await user.click(screen.getByRole('button', { name: 'Back' })); // step 2 -> 1
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[1]!); // claim
+      await clickNext(user); // step 1 -> 2
+      await waitFor(() => screen.getAllByRole('radio').length > 0);
+      await user.click(screen.getAllByRole('radio')[0]!); // re-pick same source — starts call #4 (B), pending
+      await clickNext(user); // step 2 -> 3
+
+      await act(async () => {
+        deferredB.resolve(freshReportB);
+      });
+      await waitFor(() => expect(screen.getByText('FRESH-B-VENDOR-2')).toBeInTheDocument());
+
+      // The OLDER request (A) now rejects, AFTER the newer one already succeeded. Pre-fix, this
+      // unconditionally flips reportStatus to 'error' and blows away the just-rendered B content.
+      await act(async () => {
+        deferredA.reject(new Error('stale A failure'));
+      });
+
+      expect(screen.queryByText('Failed to load report')).not.toBeInTheDocument();
+      expect(screen.getByText('FRESH-B-VENDOR-2')).toBeInTheDocument();
     });
   });
 
