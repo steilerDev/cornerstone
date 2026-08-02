@@ -13,7 +13,8 @@
  * hardening (Story #1891). THIS file is scoped to the NEW editable-content behavior only:
  *
  * - Scenario 1: The step-5 surface is live editable inputs, not an iframe — no PDF generation
- *   happens just by arriving on step 5.
+ *   happens just by arriving on step 5. Story #1923: also doubles as the AC3.3 non-claim
+ *   regression guard for the source-info metadata block (uses `budget-overview`, not `claim`).
  * - Scenario 1b: Desktop — regression guard for #1908 (fixed): the mobile-card fallback (added
  *   for #1904) must stay hidden at desktop width. It previously lacked a base `display: none`
  *   and duplicated the table; the fix landed in `ReportContentEditor.module.css`.
@@ -63,6 +64,25 @@
  *   attach-documents/cover-letter checkboxes on the same step (previously it bypassed the
  *   guard and applied silently).
  *
+ * Story #1923 (report table cleanup): shared footnotes, inline deposit label, claim metadata
+ * suppression, total-only summary, area in the Usage cell. See `ReportWizardPage.ts`'s class
+ * docstring for the full locator reference (`sourceInfoBlock`, `depositBadge`/
+ * `mobileDepositBadge`, `usageAreaText`/`mobileUsageAreaText`, `summaryTable`/
+ * `summaryTableRows`, `footnotesBlock`/`footnoteItems`).
+ * - Scenario 16: A `claim` report omits the source-info metadata block entirely (AC3.1) — the
+ *   counterpart to Scenario 1's `budget-overview` regression guard (AC3.3).
+ * - Scenario 17: A constituted-deposit row (the row's allocation is made up entirely by a
+ *   deposit tagged to the currently reported source) shows the inline "Deposit" badge on
+ *   desktop, tablet, AND mobile, carries no `‡` marker, and the footnotes list has no entry at
+ *   all for it (AC2.1, AC2.2).
+ * - Scenario 18: Two or more split invoices share exactly ONE unnumbered `†` marker and exactly
+ *   one footnote entry, with no vendor/invoice-number prefix (AC1.1-AC1.2).
+ * - Scenario 19: Invoices spanning two or more statuses still produce exactly one summary row
+ *   (`Total`) — no per-status subtotal rows (AC4.1-AC4.2).
+ * - Scenario 20: A budget line linked to an item with an assigned area shows the item's leaf
+ *   area name as a distinct, read-only line below the Usage field on desktop, tablet, AND
+ *   mobile; an item with no area renders no area line and no empty gap (AC5.2, AC5.4, AC5.5).
+ *
  * PDF generation (pdfmake + pdf-lib via dynamic `import()`) can be slow, especially on a cold
  * chunk load — every scenario that opens the preview modal, downloads, or uploads uses
  * `test.slow()`.
@@ -71,7 +91,7 @@
 import { test, expect } from '../../fixtures/auth.js';
 import { statSync } from 'node:fs';
 import type { Page } from '@playwright/test';
-import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
+import { ReportWizardPage, type SourceReportUseCase } from '../../pages/ReportWizardPage.js';
 import { API } from '../../fixtures/testData.js';
 import {
   createVendorViaApi,
@@ -80,6 +100,8 @@ import {
   deleteBudgetSourceViaApi,
   createWorkItemViaApi,
   deleteWorkItemViaApi,
+  createAreaViaApi,
+  deleteAreaViaApi,
 } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -229,10 +251,86 @@ async function linkDocumentToInvoiceViaApi(
   expect(response.ok(), `POST document-link failed: ${response.status()}`).toBeTruthy();
 }
 
-/** Walks a fresh wizard through steps 1-4 (claim, single source) to land on step 5. */
-async function reachStep5(wizard: ReportWizardPage, sourceId: string): Promise<void> {
+/**
+ * Creates a deposit on `invoiceId`, optionally tagged to a budget source
+ * (`data.budgetSourceId`) — mirrors the established pattern in `reportWizardExpansion.spec.ts`
+ * (Story #1891/#1895/#1896). Used by Scenario 17 to construct a constituted-deposit row (Story
+ * #1923 AC2.1).
+ */
+async function createDepositViaApi(
+  page: Page,
+  invoiceId: string,
+  data: {
+    amount: number;
+    dueDate: string;
+    status?: 'pending' | 'paid' | 'claimed';
+    entryType?: 'deposit' | 'refund';
+    budgetSourceId?: string | null;
+  },
+): Promise<{ id: string }> {
+  const response = await page.request.post(`/api/invoices/${invoiceId}/deposits`, {
+    data: { status: 'pending', ...data },
+  });
+  expect(response.ok(), `POST deposit failed: ${response.status()}`).toBeTruthy();
+  const body = (await response.json()) as { deposit: { id: string } };
+  return body.deposit;
+}
+
+/**
+ * Creates an invoice whose funding is SPLIT across two distinct budget sources via two separate
+ * budget lines (one work item per source) — the server's `isSplit` flag
+ * (`sourceReportService.ts`) is true whenever an invoice's funding spans 2+ distinct budget
+ * sources across budget lines and tagged deposits, so this genuinely produces a `†`-marked row
+ * (not just a multi-line invoice within a single source, which `seedInvoiceWithTwoLines` above
+ * produces and does NOT mark). Used by Scenario 18 (Story #1923 AC1).
+ */
+async function seedSplitInvoice(
+  page: Page,
+  vendorId: string,
+  reportedSourceId: string,
+  otherSourceId: string,
+  reportedWorkItemId: string,
+  otherWorkItemId: string,
+  data: { invoiceNumber: string; date: string; status: 'pending' | 'paid' | 'claimed' },
+  reportedAmount: number,
+  otherAmount: number,
+): Promise<InvoiceApiResponse> {
+  const invoice = await createInvoiceViaApi(page, vendorId, {
+    invoiceNumber: data.invoiceNumber,
+    date: data.date,
+    status: data.status,
+    amount: reportedAmount + otherAmount,
+  });
+  const reportedBudgetId = await createWorkItemBudgetViaApi(page, reportedWorkItemId, {
+    plannedAmount: reportedAmount,
+    budgetSourceId: reportedSourceId,
+  });
+  await linkInvoiceToBudgetLineViaApi(page, invoice.id, {
+    workItemBudgetId: reportedBudgetId,
+    itemizedAmount: reportedAmount,
+  });
+  const otherBudgetId = await createWorkItemBudgetViaApi(page, otherWorkItemId, {
+    plannedAmount: otherAmount,
+    budgetSourceId: otherSourceId,
+  });
+  await linkInvoiceToBudgetLineViaApi(page, invoice.id, {
+    workItemBudgetId: otherBudgetId,
+    itemizedAmount: otherAmount,
+  });
+  return invoice;
+}
+
+/**
+ * Walks a fresh wizard through steps 1-4 (single source, `useCase` defaults to `claim`) to land
+ * on step 5.
+ */
+async function reachStep5(
+  wizard: ReportWizardPage,
+  sourceId: string,
+  useCase: SourceReportUseCase = 'claim',
+): Promise<void> {
   await wizard.goto();
-  await wizard.selectUseCase('claim');
+  await wizard.selectUseCase(useCase);
   await wizard.goNextFromStep1();
   await wizard.selectSource(sourceId);
   await wizard.goNextFromStep2();
@@ -270,7 +368,11 @@ test.describe('Report wizard editable content — live surface, no auto-generati
         status: 'pending',
       });
 
-      await reachStep5(wizard, sourceId);
+      // Story #1923 AC3.3 regression guard: `budget-overview` (a non-claim use case) is
+      // deliberately used here (rather than the file's usual `claim` default) so this scenario
+      // doubles as proof the metadata block still renders for non-claim reports — see Scenario
+      // 16 below for the claim counterpart (AC3.1: the block is entirely ABSENT for `claim`).
+      await reachStep5(wizard, sourceId, 'budget-overview');
 
       // Live editable content is visible immediately — no generation, no loading state.
       await expect(wizard.letterField('subject')).toBeVisible();
@@ -1328,3 +1430,378 @@ test.describe('Report wizard editable content — report-language guard (Scenari
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 16: Claim reports omit the metadata block (Story #1923 AC3.1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — claim reports omit the metadata block (Scenario 16)', () => {
+  test('A claim report hides the source-info metadata block entirely, while the title, table, summary, and (when present) footnotes still render (Story #1923 AC3.1, AC3.4)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} ClaimMeta Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} ClaimMeta Source`,
+        totalAmount: 10000,
+        reference: 'Ref-CLAIMMETA',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI ClaimMeta` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-CLAIMMETA-001`,
+        amount: 300,
+        date: '2026-06-05',
+        status: 'pending',
+      });
+
+      // `reachStep5` defaults to `useCase: 'claim'`.
+      await reachStep5(wizard, sourceId);
+
+      // The block is entirely absent from the DOM (not merely hidden) — `toHaveCount(0)`,
+      // not `not.toBeVisible()`, proves the `{!content.isClaim && (...)}` conditional actually
+      // omits the render, matching the ux-designer spec's "no placeholder, no ghost block" note.
+      await expect(wizard.sourceInfoBlock).toHaveCount(0);
+
+      // The rest of step 5 is unaffected: title, table, and summary still render normally.
+      await expect(wizard.contentTable).toBeVisible();
+      const vendorName = `${testPrefix} ClaimMeta Vendor`;
+      await expect(wizard.contentTableRow(vendorName, invoice.invoiceNumber!)).toBeVisible();
+      await expect(wizard.summaryTable).toBeVisible();
+      await expect(wizard.summaryTableRows).toHaveCount(1);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 17: Constituted-deposit row shows the inline Deposit badge, no ‡ marker, no footnote
+// (Story #1923 AC2.1, AC2.2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Report wizard editable content — inline deposit badge (Scenario 17)',
+  { tag: '@responsive' },
+  () => {
+    test('A row whose allocation is made up entirely by a deposit tagged to the reported source shows an inline "Deposit" badge instead of a ‡ marker, with no matching footnote entry, on desktop, tablet, and mobile', async ({
+      page,
+      testPrefix,
+    }) => {
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      // Source A holds the invoice's own budget line; source B only ever gets contribution via
+      // the tagged deposit — mirrors `reportWizardExpansion.spec.ts` Scenario 5's "zero-line
+      // source, surfaced via the tagged deposit" shape, viewed from source B's own report.
+      let sourceAId = '';
+      let sourceBId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Deposit Vendor` });
+        sourceAId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Deposit Source A`,
+          totalAmount: 10000,
+        });
+        sourceBId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Deposit Source B`,
+          totalAmount: 10000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Deposit` });
+
+        const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceAId, {
+          invoiceNumber: `${testPrefix}-DEPOSIT-001`,
+          amount: 1000,
+          date: '2026-06-08',
+          status: 'paid',
+        });
+        await createDepositViaApi(page, invoice.id, {
+          amount: 150,
+          dueDate: '2026-06-12',
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: sourceBId,
+        });
+
+        // View source B's own claim report — this invoice has zero budget lines for B, so its
+        // entire row here is the tagged deposit: isSplit (spans A + B) with an empty
+        // `budgetLines` slice for B → constituted-deposit, no † (no budget-line split for B)
+        // and no ‡ (the deposit IS tagged to B, not "reduced").
+        await reachStep5(wizard, sourceBId);
+
+        const vendorName = `${testPrefix} Deposit Vendor`;
+        const isMobile = test.info().project.name === 'mobile';
+
+        if (isMobile) {
+          await expect(wizard.mobileCardList).toBeVisible();
+          const card = wizard.mobileCard(vendorName, invoice.invoiceNumber!);
+          await expect(card).toBeVisible();
+          const badge = wizard.mobileDepositBadge(vendorName, invoice.invoiceNumber!);
+          await expect(badge).toBeVisible();
+          await expect(badge).toHaveText('Deposit');
+          const cardText = (await card.textContent()) ?? '';
+          expect(cardText).not.toContain('‡');
+        } else {
+          await expect(wizard.contentTable).toBeVisible();
+          const row = wizard.contentTableRow(vendorName, invoice.invoiceNumber!);
+          await expect(row).toBeVisible();
+          const badge = wizard.depositBadge(vendorName, invoice.invoiceNumber!);
+          await expect(badge).toBeVisible();
+          await expect(badge).toHaveText('Deposit');
+          const rowText = (await row.textContent()) ?? '';
+          expect(rowText).not.toContain('‡');
+        }
+
+        // No footnote entry at all — no split (B has zero budget lines here), no
+        // deposit-reduced (the deposit IS tagged to B, not "reduced"), and the removed
+        // `depositConstitutedFootnote` key ("This is a deposit.") never had a footnote to begin
+        // with even before this story.
+        await expect(wizard.footnotesBlock).not.toBeVisible();
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceBId) await deleteBudgetSourceViaApi(page, sourceBId);
+        if (sourceAId) await deleteBudgetSourceViaApi(page, sourceAId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 18: Two or more split invoices share ONE unnumbered † footnote (Story #1923 AC1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — shared split footnote (Scenario 18)', () => {
+  test('Two split invoices both carry an unnumbered † marker, and the footnote list has exactly one † entry with no vendor/invoice-number prefix', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let reportedSourceId = '';
+    let otherSourceId = '';
+    let reportedWorkItemId = '';
+    let otherWorkItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Split Vendor` });
+      reportedSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Split Source A`,
+        totalAmount: 10000,
+      });
+      otherSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Split Source B`,
+        totalAmount: 10000,
+      });
+      reportedWorkItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Split A` });
+      otherWorkItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Split B` });
+
+      const invoice1 = await seedSplitInvoice(
+        page,
+        vendorId,
+        reportedSourceId,
+        otherSourceId,
+        reportedWorkItemId,
+        otherWorkItemId,
+        { invoiceNumber: `${testPrefix}-SPLIT-001`, date: '2026-06-10', status: 'pending' },
+        100,
+        200,
+      );
+      const invoice2 = await seedSplitInvoice(
+        page,
+        vendorId,
+        reportedSourceId,
+        otherSourceId,
+        reportedWorkItemId,
+        otherWorkItemId,
+        { invoiceNumber: `${testPrefix}-SPLIT-002`, date: '2026-06-11', status: 'paid' },
+        150,
+        250,
+      );
+
+      await reachStep5(wizard, reportedSourceId);
+
+      const vendorName = `${testPrefix} Split Vendor`;
+      const row1 = wizard.contentTableRow(vendorName, invoice1.invoiceNumber!);
+      const row2 = wizard.contentTableRow(vendorName, invoice2.invoiceNumber!);
+      await expect(row1).toContainText('†');
+      await expect(row2).toContainText('†');
+
+      // Unnumbered — no digit ever directly follows the marker glyph.
+      const row1Text = (await row1.textContent()) ?? '';
+      const row2Text = (await row2.textContent()) ?? '';
+      expect(row1Text).not.toMatch(/†\d/);
+      expect(row2Text).not.toMatch(/†\d/);
+
+      // Exactly one shared footnote entry, no per-invoice prefix.
+      await expect(wizard.footnoteItems).toHaveCount(1);
+      const footnoteText = (await wizard.footnoteItems.first().textContent()) ?? '';
+      expect(footnoteText).toMatch(/^†:/);
+      expect(footnoteText).not.toContain(vendorName);
+      expect(footnoteText).not.toContain(invoice1.invoiceNumber!);
+      expect(footnoteText).not.toContain(invoice2.invoiceNumber!);
+      expect(footnoteText).toContain(
+        'Amount shown reflects only the portion allocated to this source.',
+      );
+    } finally {
+      if (reportedWorkItemId) await deleteWorkItemViaApi(page, reportedWorkItemId);
+      if (otherWorkItemId) await deleteWorkItemViaApi(page, otherWorkItemId);
+      if (reportedSourceId) await deleteBudgetSourceViaApi(page, reportedSourceId);
+      if (otherSourceId) await deleteBudgetSourceViaApi(page, otherSourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 19: Summary shows only the Total row, even across multiple statuses
+// (Story #1923 AC4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — total-only summary (Scenario 19)', () => {
+  test('Invoices spanning two statuses (pending + paid) still produce exactly one summary row — Total — with no per-status Subtotal rows', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Summary Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Summary Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Summary` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-SUMMARY-001`,
+        amount: 300,
+        date: '2026-06-13',
+        status: 'pending',
+      });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-SUMMARY-002`,
+        amount: 450,
+        date: '2026-06-14',
+        status: 'paid',
+      });
+
+      // `reachStep5` defaults to `useCase: 'claim'` — pending + paid is already 2+ statuses.
+      await reachStep5(wizard, sourceId);
+
+      await expect(wizard.summaryTable).toBeVisible();
+      await expect(wizard.summaryTableRows).toHaveCount(1);
+      await expect(wizard.summaryTableRows.first()).toContainText('Total');
+      // Sum of both invoices' allocated amounts (300 + 450 = 750).
+      await expect(wizard.summaryTableRows.first()).toContainText('750');
+
+      const summaryText = (await wizard.summaryTable.textContent()) ?? '';
+      expect(summaryText).not.toContain('Subtotal');
+      expect(summaryText).not.toContain('Outstanding');
+      expect(summaryText).not.toContain('Quotation');
+      expect(summaryText).not.toContain('Claimed');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 20: Area sub-line in the Usage cell (Story #1923 AC5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Report wizard editable content — area sub-line in Usage cell (Scenario 20)',
+  { tag: '@responsive' },
+  () => {
+    test('A budget line linked to an item with an assigned area renders the leaf area name as a distinct, read-only line below Usage text (desktop, tablet, mobile); an item with no area renders no area line at all', async ({
+      page,
+      testPrefix,
+    }) => {
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let areaId = '';
+      let workItemWithAreaId = '';
+      let workItemNoAreaId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Area Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Area Source`,
+          totalAmount: 10000,
+        });
+        areaId = await createAreaViaApi(page, { name: `${testPrefix} Kitchen` });
+        workItemWithAreaId = await createWorkItemViaApi(page, {
+          title: `${testPrefix} WI HasArea`,
+          areaId,
+        });
+        workItemNoAreaId = await createWorkItemViaApi(page, { title: `${testPrefix} WI NoArea` });
+
+        const invoiceWithArea = await seedAllocatedInvoice(
+          page,
+          workItemWithAreaId,
+          vendorId,
+          sourceId,
+          {
+            invoiceNumber: `${testPrefix}-AREA-001`,
+            amount: 120,
+            date: '2026-06-20',
+            status: 'pending',
+          },
+        );
+        const invoiceNoArea = await seedAllocatedInvoice(
+          page,
+          workItemNoAreaId,
+          vendorId,
+          sourceId,
+          {
+            invoiceNumber: `${testPrefix}-AREA-002`,
+            amount: 130,
+            date: '2026-06-21',
+            status: 'pending',
+          },
+        );
+
+        await reachStep5(wizard, sourceId);
+
+        const vendorName = `${testPrefix} Area Vendor`;
+        const areaName = `${testPrefix} Kitchen`;
+        const isMobile = test.info().project.name === 'mobile';
+
+        if (isMobile) {
+          const areaLine = wizard.mobileUsageAreaText(vendorName, invoiceWithArea.invoiceNumber!);
+          await expect(areaLine).toBeVisible();
+          await expect(areaLine).toHaveText(areaName);
+          await expect(
+            wizard.mobileUsageAreaText(vendorName, invoiceNoArea.invoiceNumber!),
+          ).toHaveCount(0);
+        } else {
+          const areaLine = wizard.usageAreaText(vendorName, invoiceWithArea.invoiceNumber!);
+          await expect(areaLine).toBeVisible();
+          await expect(areaLine).toHaveText(areaName);
+          await expect(wizard.usageAreaText(vendorName, invoiceNoArea.invoiceNumber!)).toHaveCount(
+            0,
+          );
+        }
+      } finally {
+        if (workItemWithAreaId) await deleteWorkItemViaApi(page, workItemWithAreaId);
+        if (workItemNoAreaId) await deleteWorkItemViaApi(page, workItemNoAreaId);
+        if (areaId) await deleteAreaViaApi(page, areaId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);

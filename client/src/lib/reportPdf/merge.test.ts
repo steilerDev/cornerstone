@@ -177,6 +177,7 @@ function makeReport(invoices: SourceReportInvoice[]): SourceReportResponse {
 function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   return {
     isOverview: false,
+    isClaim: false,
     tableTitle: 'Claim Report',
     labels: {
       vendor: 'Vendor',
@@ -187,6 +188,7 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       allocatedAmount: 'Allocated Amount',
       usage: 'Usage',
       attachmentsNote: 'Attachments Note',
+      deposit: 'Deposit',
       source: 'Source',
       sourceType: 'Source Type',
       reference: 'Reference',

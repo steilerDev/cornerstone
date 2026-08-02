@@ -5,7 +5,12 @@
 import type { TFunction } from 'i18next';
 import type { Content } from 'pdfmake/build/pdfmake';
 import type { ReportContent } from '../reportContent/index.js';
-import { TABLE_LAYOUT, REFUND_TEXT_COLOR } from './shared.js';
+import {
+  TABLE_LAYOUT,
+  REFUND_TEXT_COLOR,
+  DEPOSIT_NOTE_TEXT_COLOR,
+  DEPOSIT_NOTE_FONT_SIZE,
+} from './shared.js';
 
 export function buildOverviewContent(
   reportContent: ReportContent,
@@ -21,32 +26,34 @@ export function buildOverviewContent(
     margin: [0, 0, 0, 20],
   });
 
-  // Source info
-  const sourceInfoStack: Array<Content | null> = [
-    {
-      text: `${reportContent.labels.source}: ${reportContent.sourceInfo.sourceName}`,
-      style: 'small',
-    },
-    {
-      text: `${reportContent.labels.sourceType}: ${reportContent.sourceInfo.sourceTypeText}`,
-      style: 'small',
-    },
-    reportContent.sourceInfo.referenceText
-      ? {
-          text: `${reportContent.labels.reference}: ${reportContent.sourceInfo.referenceText}`,
-          style: 'small',
-        }
-      : null,
-    {
-      text: `${reportContent.labels.generatedAt}: ${reportContent.sourceInfo.generatedAtText}`,
-      style: 'small',
-    },
-  ];
+  // Source info (skip for claim reports)
+  if (!reportContent.isClaim) {
+    const sourceInfoStack: Array<Content | null> = [
+      {
+        text: `${reportContent.labels.source}: ${reportContent.sourceInfo.sourceName}`,
+        style: 'small',
+      },
+      {
+        text: `${reportContent.labels.sourceType}: ${reportContent.sourceInfo.sourceTypeText}`,
+        style: 'small',
+      },
+      reportContent.sourceInfo.referenceText
+        ? {
+            text: `${reportContent.labels.reference}: ${reportContent.sourceInfo.referenceText}`,
+            style: 'small',
+          }
+        : null,
+      {
+        text: `${reportContent.labels.generatedAt}: ${reportContent.sourceInfo.generatedAtText}`,
+        style: 'small',
+      },
+    ];
 
-  content.push({
-    stack: sourceInfoStack.filter(Boolean) as Content[],
-    margin: [0, 0, 0, 20],
-  });
+    content.push({
+      stack: sourceInfoStack.filter(Boolean) as Content[],
+      margin: [0, 0, 0, 20],
+    });
+  }
 
   // Build table columns
   const columns: Content[] = [
@@ -152,32 +159,41 @@ export function buildOverviewContent(
     }
     markerText += contentRow.allocatedMarkers;
 
-    const allocatedCell = `${contentRow.allocatedAmountValueText}${markerText}${contentRow.isRefund ? ' ' + contentRow.refundNoteText : ''}`;
-
-    if (contentRow.isRefund) {
-      row.push({
-        text: allocatedCell,
-        style: 'tableCell',
-        alignment: 'right',
-        color: REFUND_TEXT_COLOR,
-      });
-    } else {
-      row.push({
-        text: allocatedCell,
-        style: 'tableCell',
-        alignment: 'right',
+    // Build allocated runs: value+markers, then optional deposit badge, then optional refund note
+    const allocatedRuns: Content[] = [
+      { text: `${contentRow.allocatedAmountValueText}${markerText}` },
+    ];
+    if (contentRow.isDeposit) {
+      allocatedRuns.push({
+        text: ` (${reportContent.labels.deposit})`,
+        color: DEPOSIT_NOTE_TEXT_COLOR,
+        fontSize: DEPOSIT_NOTE_FONT_SIZE,
       });
     }
+    if (contentRow.isRefund) {
+      allocatedRuns.push({ text: ` ${contentRow.refundNoteText}` });
+    }
 
-    // Usage cell with optional attachment note
-    const usageCell: Content = contentRow.attachmentsNote
-      ? {
-          stack: [
-            { text: contentRow.usageText, style: 'tableCell' },
-            { text: contentRow.attachmentsNote, style: 'small', margin: [0, 2, 0, 0] },
-          ],
-        }
-      : { text: contentRow.usageText, style: 'tableCell' };
+    row.push({
+      text: allocatedRuns,
+      style: 'tableCell',
+      alignment: 'right',
+      color: contentRow.isRefund ? REFUND_TEXT_COLOR : undefined,
+    });
+
+    // Usage cell with optional area text and attachment note
+    const usageStack: Content[] = [{ text: contentRow.usageText, style: 'tableCell' }];
+    if (contentRow.areaText) {
+      usageStack.push({ text: contentRow.areaText, style: 'small', margin: [0, 2, 0, 0] });
+    }
+    if (contentRow.attachmentsNote) {
+      usageStack.push({ text: contentRow.attachmentsNote, style: 'small', margin: [0, 2, 0, 0] });
+    }
+
+    const usageCell: Content =
+      usageStack.length > 1
+        ? { stack: usageStack }
+        : { text: contentRow.usageText, style: 'tableCell' };
 
     row.push(usageCell);
     rows.push(row);

@@ -13,11 +13,13 @@ export interface ReportContentRow {
   statusText: string | null; // null when useCase !== 'budget-overview'
   invoiceAmountText: string;
   allocatedAmountValueText: string; // formatted currency only — no markers/refund note
-  allocatedMarkers: string; // '', '†1', '‡2', '†1‡2'
+  allocatedMarkers: string; // '', '†', '‡', '†‡' — shared/unnumbered per report
+  isDeposit: boolean; // constituted-deposit row → inline Deposit badge, no marker
   isRefund: boolean;
   refundNoteText: string; // shown only when isRefund
   usageText: string; // EDITABLE — key `row.<invoiceId>.usageText`
   attachmentsNote: string | null; // EDITABLE when non-null — key `row.<invoiceId>.attachmentsNote`; null = no docs, omitted entirely
+  areaText: string | null; // read-only leaf area names, distinct comma-joined
 }
 
 export interface ReportContentSummaryRow {
@@ -51,6 +53,7 @@ export interface ReportContentLabels {
   allocatedAmount: string;
   usage: string;
   attachmentsNote: string;
+  deposit: string; // translated in report language
   source: string;
   sourceType: string;
   reference: string;
@@ -59,6 +62,7 @@ export interface ReportContentLabels {
 
 export interface ReportContent {
   isOverview: boolean;
+  isClaim: boolean;
   tableTitle: string;
   labels: ReportContentLabels;
   sourceInfo: {

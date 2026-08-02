@@ -9,6 +9,8 @@ export interface SourceReportLinkedItem {
   type: 'work_item' | 'household_item';
   id: string;
   name: string;
+  areaId: string | null;
+  areaName: string | null;
 }
 
 /** Budget line subtraction row: allocatedPortion is subtraction-only, never independently summed. */

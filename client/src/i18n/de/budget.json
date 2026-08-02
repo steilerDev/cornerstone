@@ -1237,7 +1237,6 @@
       "status": "Status",
       "invoiceAmount": "Rechnungsbetrag",
       "allocatedAmount": "Zugeordneter Betrag",
-      "subtotal": "Zwischensumme",
       "total": "Gesamt",
       "refundNote": "(Rückerstattung)",
       "footnoteFetchFailed": "Dokument konnte nicht abgerufen werden",
@@ -1253,8 +1252,7 @@
       "attachmentsNote_other": "{{count}} Anhänge: {{types}}",
       "attachmentsNoteNoType_one": "{{count}} Anhang",
       "attachmentsNoteNoType_other": "{{count}} Anhänge",
-      "depositReducedFootnote": "Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.",
-      "depositConstitutedFootnote": "Dies ist eine Abschlagszahlung."
+      "depositReducedFootnote": "Diese Position berücksichtigt separat eingereichte Abschlagszahlungen."
     },
     "sourceType": {
       "bank_loan": "Bankdarlehen",

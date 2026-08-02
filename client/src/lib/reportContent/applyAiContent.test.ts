@@ -23,10 +23,12 @@ function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
     invoiceAmountText: '€100.00',
     allocatedAmountValueText: '€100.00',
     allocatedMarkers: '',
+    isDeposit: false,
     isRefund: false,
     refundNoteText: '',
     usageText: 'Baseline usage',
     attachmentsNote: null,
+    areaText: null,
     ...overrides,
   };
 }
@@ -41,6 +43,7 @@ function makeLabels(): ReportContent['labels'] {
     allocatedAmount: 'Allocated Amount',
     usage: 'Usage',
     attachmentsNote: 'Attachments Note',
+    deposit: 'Deposit',
     source: 'Source',
     sourceType: 'Source Type',
     reference: 'Reference',
@@ -51,6 +54,7 @@ function makeLabels(): ReportContent['labels'] {
 function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   return {
     isOverview: false,
+    isClaim: false,
     tableTitle: 'Title',
     labels: makeLabels(),
     sourceInfo: {

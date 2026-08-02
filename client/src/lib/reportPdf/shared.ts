@@ -9,6 +9,16 @@ import type { Content } from 'pdfmake/build/pdfmake';
 export const REFUND_TEXT_COLOR = '#991b1b';
 
 /**
+ * Deposit note text color for PDF tables (gray).
+ */
+export const DEPOSIT_NOTE_TEXT_COLOR = '#6b7280';
+
+/**
+ * Deposit note font size for PDF tables (points).
+ */
+export const DEPOSIT_NOTE_FONT_SIZE = 8;
+
+/**
  * Builds a page header for the PDF (title, source name, generated timestamp).
  */
 export function buildPageHeader(

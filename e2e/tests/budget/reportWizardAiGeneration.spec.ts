@@ -38,6 +38,10 @@
  * - Scenario 7: A confirmed Step 1-4 change (via the existing discard-confirm modal) clears
  *   previously-generated AI content, same as it clears manual overrides — the fields revert to
  *   the plain derived (#1898/#1900) baseline and the provenance note disappears.
+ * - Scenario 8 (Story #1923 AC5.3): the read-only area sub-line under a row's Usage field
+ *   survives AI generation — `applyAiContent.ts` only ever assigns `row.usageText`, never
+ *   `row.areaText`, so a row whose linked item has an assigned area keeps showing that area
+ *   after "Generate with AI" overwrites the usage text itself.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -51,6 +55,8 @@ import {
   deleteBudgetSourceViaApi,
   createWorkItemViaApi,
   deleteWorkItemViaApi,
+  createAreaViaApi,
+  deleteAreaViaApi,
 } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -715,6 +721,81 @@ test.describe('Report wizard AI generation — discard clears AI content (Scenar
       expect(derivedBaseline).not.toBe('');
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 8: The area sub-line survives AI generation (Story #1923 AC5.3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard AI generation — area sub-line survives generation (Scenario 8)', () => {
+  test('A row\'s read-only area sub-line is still present after "Generate with AI" overwrites the usage text, because applyAiContent only ever assigns usageText, never areaText', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    await mockLlmEnabled(page);
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let areaId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} AiArea Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} AiArea Source`,
+        totalAmount: 10000,
+        contactAddress: '1 AiArea St, Testville',
+        reference: 'Ref-AIAREA',
+      });
+      areaId = await createAreaViaApi(page, { name: `${testPrefix} Bathroom` });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI AiArea`, areaId });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-AIAREA-001`,
+        amount: 210,
+        date: '2026-07-09',
+        status: 'pending',
+      });
+
+      const counter = createCallCounter();
+      await mockGenerateContentImmediate(
+        page,
+        {
+          letterSubject: 'AI Area Subject',
+          letterBody: 'AI area cover letter body.',
+          descriptions: { [invoice.id]: 'AI-generated usage description overwriting the row' },
+        },
+        counter,
+      );
+
+      const vendorName = `${testPrefix} AiArea Vendor`;
+      await reachStep5WithAiEnabled(wizard, sourceId);
+      const usage = wizard.usageField(vendorName, invoice.invoiceNumber!);
+      const areaLine = wizard.usageAreaText(vendorName, invoice.invoiceNumber!);
+      const areaName = `${testPrefix} Bathroom`;
+
+      // Before generation: the derived baseline usage text (linked item name) alongside the
+      // area sub-line.
+      await expect(areaLine).toBeVisible();
+      await expect(areaLine).toHaveText(areaName);
+
+      await wizard.clickGenerateWithAi();
+      await expect(usage).toHaveValue('AI-generated usage description overwriting the row');
+      await expect(wizard.aiGeneratedNote).toBeVisible();
+
+      // After generation: usageText was overwritten by the AI description, but the area
+      // sub-line — a separate, non-editable field never touched by `applyAiContent` — is
+      // unchanged (AC5.3).
+      await expect(areaLine).toBeVisible();
+      await expect(areaLine).toHaveText(areaName);
+      expect(counter.count).toBe(1);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (areaId) await deleteAreaViaApi(page, areaId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }

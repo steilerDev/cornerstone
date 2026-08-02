@@ -38,6 +38,7 @@ function makeCoverLetter(
 function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   return {
     isOverview: false,
+    isClaim: false,
     tableTitle: 'Title',
     labels: {
       vendor: 'Vendor',
@@ -48,6 +49,7 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       allocatedAmount: 'Allocated Amount',
       usage: 'Usage',
       attachmentsNote: 'Attachments Note',
+      deposit: 'Deposit',
       source: 'Source',
       sourceType: 'Source Type',
       reference: 'Reference',

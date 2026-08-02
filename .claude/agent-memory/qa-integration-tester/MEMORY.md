@@ -15,6 +15,7 @@
 
 ## Recent bug/story notes (2026-08)
 
+- [Story #1923 — report table cleanup](story-1923-report-table-cleanup.md) (2026-08-02) — unnumbered shared †/‡ markers, isDeposit/isClaim/areaText fixture ripple across 8 report test files, overviewPdf allocated-cell-is-always-an-array-of-runs gotcha, worktree `node_modules/@cornerstone/shared` symlink pointing at a differently-branched base repo (false-positive `tsc` errors; trust jest).
 - [Bugs #1895/#1896/#1918 — claim/deposit scope fixes](bugs-1895-1896-1918-claim-deposit-scope.md) (2026-08-01) — `markInvoicesClaimed` gained `sourceId`+required `depositIds` params (cross-source claim guard, decoupled sweep, quotation+sweepable-deposit no longer 409s); `getSourceReport` drops zero-portion `budgetLines[]` on `claim` reports only; text-content query collision gotcha (banner text contains data also shown elsewhere on page).
 
 ## Recent bug/story notes (2026-07)
