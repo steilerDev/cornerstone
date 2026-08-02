@@ -215,3 +215,26 @@ Final state worth knowing: table width is now **exactly 515.28pt, unfalsifiable 
 - **`PDF_STYLES` relocation had been deferred *to* #1932 in the round-3 review but never entered #1932's ACs** — it now lives in #1939 §4 so it isn't lost. Watch for this pattern: "we'll handle it in issue X" is only real if it lands in X's acceptance criteria.
 - **Not filed:** the page-1 `PAGE_TOP_MARGIN = 93pt` blank gap above the cover-letter sender block — already inside #1932 AC 4.1; flagged on #1932 rather than duplicated.
 - `addBlockedBy(#1932 ← #1939)` set, plus a prominent sequencing comment on #1932 (`issuecomment-5158212341`) covering the block, the `PDF_STYLES` direction constraint (`pageGeometry.ts` must **never** import `merge.ts` — that edge already runs the other way), and the #1941/#1938 shared-ground warnings.
+
+## #1931 reviewed 2026-08-02 — PR #1944 APPROVED round 1, with two ACs deliberately unclaimed
+
+All ACs met except 3.2/3.3, which were **not marked met** and were carried to UAT instead. Verified individually on `980c51a2` (109/109 local on `prompts.test.ts` + `contentLimits.test.ts`).
+
+### The ruling worth reusing: unverifiable-AC precedent
+
+AC 3.2/3.3 assert **live model output quality** ("reads as a purpose statement", "idiomatic German, no anglicised calques"). A mocked LLM returns the fixture author's prose, so a test claiming to verify them asserts the fixture, not the model — **worse than no test**, because it shows a green check against an unverified criterion. QA correctly wrote none.
+
+**Ruling: merge is a code gate, Done is an acceptance gate — keep them apart.** Approved the PR (everything code can deliver is delivered; holding the branch gets nobody in front of a live model sooner and accumulates rebase risk), but **#1931 stays out of Done** until a human reads real EN and DE output with `LLM_*` configured. Posted Given/When/Then UAT scenarios on #1931 (fixture shape: 5+ invoices, mixed budget-line coverage, one with `notes`, both-interface-languages pass for 3.3). If UAT fails → **reopen #1931**, don't file a follow-up: they are its own unmet criteria.
+
+**Contrast with the #1909 AC 4.6 acceptance**: there a real contract-level substitute existed (CSP `frame-src` assertion once headless Playwright proved to have no PDF viewer), so a documented deviation was right. Here there is no substitute at all. **An unverifiable AC with a substitute may be waived as a documented deviation; one without a substitute goes to UAT.**
+
+### Other rulings
+
+- **"Mit KI verbessern" accepted for AC 2.3.** My AC deliberately did not prescribe the string ("an equivalent in German that uses 'KI', consistent with existing `de` copy") — wording is `ux-designer`/`translator` territory. *verbessern* (improve existing) over *überarbeiten* (rework) is right and matches the English: the whole point of renaming Generate→Enhance was that the action improves content that already exists; *überarbeiten* would reintroduce in German the overstatement removed in English.
+- **Unconditional `aria-describedby` description accepted as in-scope** though not literally in an AC: deleting the checkbox deleted its helper text, which was the only place overwrite behaviour was explained. Dirty-gating it would hide the warning from the user who most needs it.
+- **Good AC-writing pattern to repeat**: AC 4.1 asked for "exactly one definition that both sides derive from". `contentLimits.test.ts` satisfied it by building its expected substrings *by interpolating the constant*, never typing the literal — so a hardcoded number reappearing in `prompts.ts` fails the assertion instead of silently passing. Ask for derivation, not equality.
+- Non-blocking follow-ups left on the PR (not filed): user-prompt tail still says `letterBody` "summarizing the report" (old framing, weaker instruction sitting closer to the output — first suspect if UAT 3.4 fails); stale E2E locator name `generateWithAiButton` vs the "Enhance with AI" accessible name.
+
+### #1917 bookkeeping done
+
+**L3 struck from #1917's body** (comment `issuecomment-5158606180`) after verifying the ternary is gone, both branches emit the fixed literal `German construction project`, `Konstruktionsprojekt` is absent from source, and `prompts.test.ts` pins its absence. No `Bauprojekt` rename needed — no German noun remains. **Rest of #1917 open and unchanged**: M1–M4, L1 (`sourceId!` re-verified still at `ReportWizardPage.tsx:574`), L2, L5, and the **`KI` glossary entry — still #1917's, not absorbed**: PR #1944 does not touch `glossary.json` and the file still has no `KI` entry.

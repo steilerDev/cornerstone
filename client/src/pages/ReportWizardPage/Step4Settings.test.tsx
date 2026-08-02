@@ -4,13 +4,14 @@
  * Covers: the language radio group (literal, non-translated "English"/"Deutsch" labels per
  * ProfilePage precedent — NOT wrapped in t()), checked-state reflecting the reportLanguage prop,
  * onReportLanguageChange wiring, the group's accessible name (aria-labelledby the translated
- * heading), the helper text, the two document-option toggles ported verbatim from
+ * heading), the helper text, and the two document-option toggles ported verbatim from
  * Step4Options.test.tsx (attachDocuments / includeCoverLetter — disabled-with-title-hint cover
- * letter checkbox included) since Step4Settings absorbed them from the old Step4Options, and
- * (Story #1901) the "Enable AI assistance" toggle — rendered only when llmEnabled is true,
- * absent entirely (not merely disabled) when llmEnabled is false, per Story #1901's acceptance
- * criteria ("the AI toggle is either hidden or shown disabled ... it is never presented as
- * available when it cannot work" — this component's chosen implementation is full removal).
+ * letter checkbox included) since Step4Settings absorbed them from the old Step4Options.
+ *
+ * Story #1901 had added an "Enable AI assistance" toggle here (aiEnabled/llmEnabled/
+ * onAiEnabledChange props). Story #1931 removed it entirely: the double opt-in it created (toggle
+ * here, then a separate button on step 5) added a step without adding information — llmEnabled
+ * alone already gates the step-5 action. This file no longer has any AI-related props or tests.
  */
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
@@ -30,9 +31,6 @@ function baseProps() {
     includeCoverLetter: false,
     onIncludeCoverLetterChange: jest.fn(),
     coverLetterDisabled: false,
-    llmEnabled: false,
-    aiEnabled: false,
-    onAiEnabledChange: jest.fn(),
     t,
   };
 }
@@ -156,67 +154,27 @@ describe('Step4Settings', () => {
     });
   });
 
-  // ─── AI assistance toggle (Story #1901) ─────────────────────────────────────
+  // ─── No AI-assistance control anywhere on this step (Story #1931, AC 1.1/1.3) ──
 
-  describe('AI assistance toggle', () => {
-    it('renders the toggle, its label, and helper text when llmEnabled is true', () => {
-      renderStep4Settings({ ...baseProps(), llmEnabled: true });
-      expect(
-        screen.getByLabelText('sourceReports.settingsStep.enableAiAssistance'),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText('sourceReports.settingsStep.enableAiAssistanceHelper'),
-      ).toBeInTheDocument();
-    });
-
-    it('is absent entirely (not merely disabled) when llmEnabled is false', () => {
-      renderStep4Settings({ ...baseProps(), llmEnabled: false });
-      expect(
-        screen.queryByLabelText('sourceReports.settingsStep.enableAiAssistance'),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByText('sourceReports.settingsStep.enableAiAssistanceHelper'),
-      ).not.toBeInTheDocument();
-    });
-
-    it("reflects the aiEnabled prop as the checkbox's checked state when llmEnabled is true", () => {
-      renderStep4Settings({ ...baseProps(), llmEnabled: true, aiEnabled: true });
-      const toggle = screen.getByLabelText(
-        'sourceReports.settingsStep.enableAiAssistance',
-      ) as HTMLInputElement;
-      expect(toggle.checked).toBe(true);
-    });
-
-    it('renders unchecked when aiEnabled is false', () => {
-      renderStep4Settings({ ...baseProps(), llmEnabled: true, aiEnabled: false });
-      const toggle = screen.getByLabelText(
-        'sourceReports.settingsStep.enableAiAssistance',
-      ) as HTMLInputElement;
-      expect(toggle.checked).toBe(false);
-    });
-
-    it('calls onAiEnabledChange with the new checked value when toggled on', () => {
-      const onAiEnabledChange = jest.fn();
-      renderStep4Settings({
-        ...baseProps(),
-        llmEnabled: true,
-        aiEnabled: false,
-        onAiEnabledChange,
-      });
-      fireEvent.click(screen.getByLabelText('sourceReports.settingsStep.enableAiAssistance'));
-      expect(onAiEnabledChange).toHaveBeenCalledWith(true);
-    });
-
-    it('calls onAiEnabledChange with false when toggled off', () => {
-      const onAiEnabledChange = jest.fn();
+  describe('no AI-assistance control (#1931)', () => {
+    it('renders no checkbox or control referencing AI assistance, regardless of any extra props passed', () => {
+      // Pass the old prop names through even though the component no longer declares them in its
+      // type — if a stray conditional referencing them were ever reintroduced, this would catch
+      // it rendering something. The component itself takes no llmEnabled/aiEnabled prop anymore.
       renderStep4Settings({
         ...baseProps(),
         llmEnabled: true,
         aiEnabled: true,
-        onAiEnabledChange,
-      });
-      fireEvent.click(screen.getByLabelText('sourceReports.settingsStep.enableAiAssistance'));
-      expect(onAiEnabledChange).toHaveBeenCalledWith(false);
+      } as ReturnType<typeof baseProps> & Record<string, unknown>);
+      expect(screen.queryByText(/enable ai assistance/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('sourceReports.settingsStep.enableAiAssistance'),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('sourceReports.settingsStep.enableAiAssistanceHelper'),
+      ).not.toBeInTheDocument();
+      // Only the two known document-option checkboxes exist — no third (AI) checkbox.
+      expect(screen.getAllByRole('checkbox')).toHaveLength(2);
     });
   });
 });

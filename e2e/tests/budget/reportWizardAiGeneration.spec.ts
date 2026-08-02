@@ -1,30 +1,40 @@
 /**
  * E2E tests for the Bank Report Wizard's AI-generated usage descriptions and cover letter
- * (Story #1901 — `/budget/reports`). Adds an opt-in "Enable AI assistance" toggle to Step 4
- * (Settings) and a "Generate with AI" button to Step 5 (Preview & Export) that issues ONE
+ * (Story #1901, REWORKED by Issue #1931 — `/budget/reports`). Step 5 (Preview & Export) shows
+ * an "Enhance with AI" button, gated purely on `llmEnabled` (`GET /api/config`), that issues ONE
  * batched `POST /api/source-reports/generate-content` call and populates the editable content
  * baseline (`ReportWizardPage.tsx`'s `aiContent` state, applied via `applyAiContent` — see
  * `e2e/pages/ReportWizardPage.ts`'s class docstring for the full DOM/state reference).
  *
+ * **Issue #1931** deleted the Step 4 "Enable AI assistance" checkbox entirely (it was a pure
+ * double opt-in — the toggle carried no state of its own beyond revealing the Step 5 button) and
+ * renamed the button "Generate with AI" -> "Enhance with AI". A visually-hidden description
+ * (`enhanceWithAiDescription`, wired via `aria-describedby`) was added to the button so
+ * screen-reader users still get an advance explanation of the overwrite behavior that the
+ * deleted checkbox's helper text used to provide. See `reachStep5WithAiConfigured` below (renamed
+ * from `reachStep5WithAiEnabled` — there is no "enabling" step anymore) and Scenario 2/9 for the
+ * coverage of both changes.
+ *
  * `reportWizard.spec.ts` covers the base wizard flow; `reportWizardEditableContent.spec.ts`
  * covers the manual-override editing surface (Story #1900); `reportWizardExpansion.spec.ts`
- * covers expandable invoice rows (Story #1891). THIS file is scoped to the NEW AI-generation
+ * covers expandable invoice rows (Story #1891). THIS file is scoped to the AI-generation
  * behavior only:
  *
  * - Scenario 1: Against the REAL, unmocked backend — no `LLM_*` environment variables are set
  *   anywhere in the E2E container config (confirmed by reading
  *   `e2e/containers/cornerstoneContainer.ts`'s `environment` object, which has no `LLM_*` key),
- *   so `GET /api/config`'s `llmEnabled` is deterministically `false` in this environment. The
- *   Step 4 AI section is therefore entirely ABSENT from the DOM — not shown disabled.
- * - Scenario 2: With `llmEnabled` mocked `true` — the toggle is present and unchecked by
- *   default; Step 5 shows no "Generate with AI" button while the toggle is off, and shows it
- *   once the toggle is turned on.
+ *   so `GET /api/config`'s `llmEnabled` is deterministically `false` in this environment. Step 5
+ *   shows no AI row, button, spinner, note, or error slot of any kind.
+ * - Scenario 2: With `llmEnabled` mocked `true` — the "Enhance with AI" button is visible on
+ *   Step 5 immediately, with no Step 4 interaction beyond the existing language/document-options
+ *   controls, and stays visible across a Step 5 -> Step 4 -> Step 5 round trip (no toggle to
+ *   persist or lose).
  * - Scenario 3: Happy path with a DELAYED mock response — the button disables and an
  *   elapsed-seconds caption becomes visible while pending; on completion the cover letter
  *   subject/body and the invoice's usage-description field are filled with the mocked text,
  *   with NO edited-dot indicator anywhere (AI content is a baseline, not a manual override);
  *   the provenance note is absent before generation and visible after.
- * - Scenario 4: Overwrite-confirm modal — with a manual edit present, clicking "Generate with
+ * - Scenario 4: Overwrite-confirm modal — with a manual edit present, clicking "Enhance with
  *   AI" shows the modal instead of calling the endpoint; "Keep Editing" closes it with zero
  *   calls made and the manual edit intact; a subsequent "Overwrite and Generate" calls the
  *   endpoint exactly once and replaces the content (edited-dot clears, since the manual
@@ -41,7 +51,11 @@
  * - Scenario 8 (Story #1923 AC5.3): the read-only area sub-line under a row's Usage field
  *   survives AI generation — `applyAiContent.ts` only ever assigns `row.usageText`, never
  *   `row.areaText`, so a row whose linked item has an assigned area keeps showing that area
- *   after "Generate with AI" overwrites the usage text itself.
+ *   after "Enhance with AI" overwrites the usage text itself.
+ * - Scenario 9 (Issue #1931 a11y addition): the button carries `aria-describedby` pointing at a
+ *   visually-hidden sibling span with the expected overwrite-behavior text, rendered
+ *   unconditionally alongside the button (present with no manual edits yet, not only once a
+ *   field has been dirtied).
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -149,10 +163,17 @@ async function reachStep4(wizard: ReportWizardPage, sourceId: string): Promise<v
   await wizard.goNextFromStep3();
 }
 
-/** Walks a fresh wizard to Step 5 WITH AI assistance enabled on Step 4. */
-async function reachStep5WithAiEnabled(wizard: ReportWizardPage, sourceId: string): Promise<void> {
+/**
+ * Walks a fresh wizard to Step 5 with the LLM configured (`mockLlmEnabled` must already have
+ * been called by the caller before `reachStep4` navigates). Renamed from
+ * `reachStep5WithAiEnabled` (Issue #1931 removed the Step 4 opt-in checkbox entirely — there is
+ * no "enabling" step anymore, just `mockLlmEnabled` + walking forward).
+ */
+async function reachStep5WithAiConfigured(
+  wizard: ReportWizardPage,
+  sourceId: string,
+): Promise<void> {
   await reachStep4(wizard, sourceId);
-  await wizard.toggleAiEnabled();
   await wizard.step4NextButton.click();
 }
 
@@ -253,7 +274,7 @@ async function mockGenerateContentUnreachable(
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard AI generation — not configured (Scenario 1)', () => {
-  test('With no LLM_* environment variables set (the real E2E container config), the AI toggle is entirely absent from Step 4', async ({
+  test('With no LLM_* environment variables set (the real E2E container config), Step 4 has no AI-related section and Step 5 has no AI row of any kind', async ({
     page,
     testPrefix,
   }) => {
@@ -276,12 +297,13 @@ test.describe('Report wizard AI generation — not configured (Scenario 1)', () 
         status: 'pending',
       });
 
+      // Step 4 (Settings) simply has no third section anymore — nothing AI-specific to check
+      // there since Issue #1931 removed the opt-in checkbox entirely. The existing
+      // reportLanguageGroup/attachDocumentsCheckbox/includeCoverLetterCheckbox controls are
+      // covered by `reportWizard.spec.ts`; this scenario is scoped to the AI row's absence.
       await reachStep4(wizard, sourceId);
 
-      // The AI section is not merely hidden/disabled — it's not in the DOM at all.
-      await expect(wizard.aiToggle).toHaveCount(0);
-
-      // Step 5 likewise has no AI row of any kind.
+      // Step 5 has no AI row, button, spinner, note, or error slot of any kind.
       await wizard.step4NextButton.click();
       await expect(wizard.aiGenerateRow).toHaveCount(0);
       await expect(wizard.generateWithAiButton).toHaveCount(0);
@@ -294,11 +316,12 @@ test.describe('Report wizard AI generation — not configured (Scenario 1)', () 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Toggle default state + Step 5 button visibility gating
+// Scenario 2: Single opt-in — button visible on Step 5 immediately, no Step 4 interaction,
+// survives a Step 5 -> Step 4 -> Step 5 round trip (Issue #1931 double-opt-in removal)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Report wizard AI generation — toggle default state and button gating (Scenario 2)', () => {
-  test('The AI toggle is present and unchecked by default; Step 5 shows the Generate button only once the toggle is turned on', async ({
+test.describe('Report wizard AI generation — single opt-in, no Step 4 interaction required (Scenario 2)', () => {
+  test('With llmEnabled true, the "Enhance with AI" button is visible on Step 5 immediately with no Step 4 interaction, and stays visible after navigating back to Step 4 and forward again', async ({
     page,
     testPrefix,
   }) => {
@@ -322,19 +345,15 @@ test.describe('Report wizard AI generation — toggle default state and button g
         status: 'pending',
       });
 
+      // Reach Step 4 and go straight to Step 5 — no AI-related control exists to interact
+      // with on Step 4 anymore (only the existing language/document-options controls do).
       await reachStep4(wizard, sourceId);
-      await expect(wizard.aiToggle).toBeVisible();
-      await expect(wizard.aiToggle).not.toBeChecked();
-
-      // Toggle OFF (default) — no Generate button on Step 5.
       await wizard.step4NextButton.click();
-      await expect(wizard.generateWithAiButton).toHaveCount(0);
+      await expect(wizard.generateWithAiButton).toBeVisible();
 
-      // Turn the toggle ON — the button now appears.
+      // A round trip back to Step 4 and forward again still shows the button — there is no
+      // per-step toggle state to lose or persist (replaces the old toggle-persistence check).
       await wizard.step4BackButton.click();
-      await expect(wizard.aiToggle).not.toBeChecked();
-      await wizard.toggleAiEnabled();
-      await expect(wizard.aiToggle).toBeChecked();
       await wizard.step4NextButton.click();
       await expect(wizard.generateWithAiButton).toBeVisible();
     } finally {
@@ -394,7 +413,7 @@ test.describe('Report wizard AI generation — happy path (Scenario 3)', () => {
         counter,
       );
 
-      await reachStep5WithAiEnabled(wizard, sourceId);
+      await reachStep5WithAiConfigured(wizard, sourceId);
       const vendorName = `${testPrefix} Happy Vendor`;
       const subject = wizard.letterField('subject');
       const usage = wizard.usageField(vendorName, invoice.invoiceNumber!);
@@ -476,7 +495,7 @@ test.describe('Report wizard AI generation — overwrite-confirm modal (Scenario
         counter,
       );
 
-      await reachStep5WithAiEnabled(wizard, sourceId);
+      await reachStep5WithAiConfigured(wizard, sourceId);
       const subject = wizard.letterField('subject');
       await wizard.editField(subject, 'A manual edit that must be protected');
       expect(await wizard.hasEditedIndicator(subject)).toBe(true);
@@ -552,7 +571,7 @@ test.describe('Report wizard AI generation — no modal without manual edits (Sc
         counter,
       );
 
-      await reachStep5WithAiEnabled(wizard, sourceId);
+      await reachStep5WithAiConfigured(wizard, sourceId);
 
       // First generation — no manual edits exist yet, no modal.
       await wizard.clickGenerateWithAi();
@@ -609,7 +628,7 @@ test.describe('Report wizard AI generation — error path (Scenario 6)', () => {
       const counter = createCallCounter();
       await mockGenerateContentUnreachable(page, counter);
 
-      await reachStep5WithAiEnabled(wizard, sourceId);
+      await reachStep5WithAiConfigured(wizard, sourceId);
       const subject = wizard.letterField('subject');
       const baseline = await subject.inputValue();
       expect(baseline).not.toBe('');
@@ -688,7 +707,7 @@ test.describe('Report wizard AI generation — discard clears AI content (Scenar
       );
 
       const vendorName = `${testPrefix} DiscardAi Vendor`;
-      await reachStep5WithAiEnabled(wizard, sourceId);
+      await reachStep5WithAiConfigured(wizard, sourceId);
       const subject = wizard.letterField('subject');
       const derivedBaseline = await subject.inputValue();
 
@@ -732,7 +751,7 @@ test.describe('Report wizard AI generation — discard clears AI content (Scenar
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard AI generation — area sub-line survives generation (Scenario 8)', () => {
-  test('A row\'s read-only area sub-line is still present after "Generate with AI" overwrites the usage text, because applyAiContent only ever assigns usageText, never areaText', async ({
+  test('A row\'s read-only area sub-line is still present after "Enhance with AI" overwrites the usage text, because applyAiContent only ever assigns usageText, never areaText', async ({
     page,
     testPrefix,
   }) => {
@@ -773,7 +792,7 @@ test.describe('Report wizard AI generation — area sub-line survives generation
       );
 
       const vendorName = `${testPrefix} AiArea Vendor`;
-      await reachStep5WithAiEnabled(wizard, sourceId);
+      await reachStep5WithAiConfigured(wizard, sourceId);
       const usage = wizard.usageField(vendorName, invoice.invoiceNumber!);
       const areaLine = wizard.usageAreaText(vendorName, invoice.invoiceNumber!);
       const areaName = `${testPrefix} Bathroom`;
@@ -796,6 +815,56 @@ test.describe('Report wizard AI generation — area sub-line survives generation
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (areaId) await deleteAreaViaApi(page, areaId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 9: Accessible description on the "Enhance with AI" button (Issue #1931 a11y addition)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard AI generation — accessible description on the button (Scenario 9)', () => {
+  test('The "Enhance with AI" button carries aria-describedby pointing at a visually-hidden sibling span with the expected overwrite-behavior text, rendered unconditionally with no manual edits yet', async ({
+    page,
+    testPrefix,
+  }) => {
+    await mockLlmEnabled(page);
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} A11y Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} A11y Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI A11y` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-A11Y-001`,
+        amount: 175,
+        date: '2026-07-10',
+        status: 'pending',
+      });
+
+      // Reach Step 5 with the LLM configured, but WITHOUT triggering any generation or manual
+      // edit first — the description must be present unconditionally, not only once the
+      // content is dirtied.
+      await reachStep5WithAiConfigured(wizard, sourceId);
+      await expect(wizard.generateWithAiButton).toBeVisible();
+
+      const describedBy = await wizard.generateWithAiButton.getAttribute('aria-describedby');
+      expect(describedBy).toBe('enhanceWithAiDescription');
+
+      await expect(wizard.enhanceWithAiDescription).toBeAttached();
+      await expect(wizard.enhanceWithAiDescription).toHaveText(
+        "Replaces the usage descriptions and cover letter below with AI-generated content. Any edits you've made will be discarded.",
+      );
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }

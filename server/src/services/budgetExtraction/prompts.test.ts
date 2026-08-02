@@ -19,6 +19,7 @@ import {
   REPORT_CONTENT_SYSTEM_PROMPT,
   buildReportContentUserPrompt,
 } from './prompts.js';
+import { REPORT_CONTENT_LIMITS } from './contentLimits.js';
 import type { GenerateReportContentLlmInput, GenerateReportContentLlmInvoice } from './types.js';
 
 // Fixtures directory resolved from project root (process.cwd() = project root when jest runs)
@@ -593,9 +594,16 @@ describe('REPORT_CONTENT_SYSTEM_PROMPT', () => {
     expect(REPORT_CONTENT_SYSTEM_PROMPT.toLowerCase()).toMatch(/injection/);
   });
 
-  it('caps letter subject at 150 chars and letter body at 2000 chars per the prompt instructions', () => {
-    expect(REPORT_CONTENT_SYSTEM_PROMPT).toMatch(/150 char/);
-    expect(REPORT_CONTENT_SYSTEM_PROMPT).toMatch(/2000 char/);
+  it('caps letter subject, letter body, and per-invoice description per REPORT_CONTENT_LIMITS', () => {
+    expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+      `Letter subject: maximum ${REPORT_CONTENT_LIMITS.letterSubject} characters.`,
+    );
+    expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+      `Letter body: maximum ${REPORT_CONTENT_LIMITS.letterBody} characters.`,
+    );
+    expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+      `Maximum ${REPORT_CONTENT_LIMITS.description} characters per description.`,
+    );
   });
 
   it('requires every invoice ID from the input to appear in the descriptions output', () => {
@@ -604,8 +612,34 @@ describe('REPORT_CONTENT_SYSTEM_PROMPT', () => {
     );
   });
 
+  it('forbids inventing or altering amounts or dates (AC 3.5) — the letter body total is the only number the model still emits', () => {
+    // Rule 2 forbids amounts in per-invoice descriptions entirely, so this clause in rule 4 is the
+    // sole instruction protecting the letter body's total-amount restatement from fabrication.
+    expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain('Do NOT invent or alter amounts or dates.');
+  });
+
   it('instructs the LLM to output only valid JSON (no markdown)', () => {
     expect(REPORT_CONTENT_SYSTEM_PROMPT.toLowerCase()).toMatch(/return only valid json/);
+  });
+
+  // ─── #1931: purpose-focused rewrite — explain WHY, don't restate the table ───
+
+  describe('purpose-focused content rule (#1931)', () => {
+    it('instructs the LLM to explain WHY each cost was incurred (its purpose or role), not merely what it was', () => {
+      // A whole-prompt regex like /purpose|role/ would stay green even if this entire instruction
+      // were deleted, because rule 4 separately mentions "the report's purpose" — assert the
+      // distinctive full phrase from rule 2 instead.
+      expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain('explain WHY the cost was incurred');
+    });
+
+    it('explicitly forbids restating the vendor, invoice number, date, or amount — those are already table columns', () => {
+      // A whole-prompt alternation like /vendor|invoice number|date|amount/ would stay green even
+      // if this entire clause were deleted, because rule 7 (SECURITY) separately mentions "vendor
+      // names" — assert the distinctive full clause from rule 2 instead.
+      expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+        'Do NOT restate the vendor name, invoice number, date, or amount',
+      );
+    });
   });
 });
 
@@ -661,18 +695,28 @@ describe('buildReportContentUserPrompt()', () => {
   // ─── Language label rendering ────────────────────────────────────────────────
 
   describe('language label rendering', () => {
-    it('renders "Language: English" and the English project phrase for language "en"', () => {
+    // #1931: buildReportContentUserPrompt previously used an inverted ternary at the old L153
+    // that produced "German construction project" for 'en' and "Konstruktionsprojekt" for 'de' —
+    // backwards AND wrong in both branches (the phrase describes the PROJECT DOMAIN, which is
+    // always German construction regardless of output language; "Language:" is the only thing
+    // that should vary). That ternary is now removed: the domain phrase is fixed literal text for
+    // BOTH languages, and only the "Language:" label changes.
+
+    it('renders "Language: English" and the fixed German-construction-project domain phrase for language "en"', () => {
       const input = buildReportContentInput({ language: 'en' });
       const result = buildReportContentUserPrompt(input);
       expect(result).toContain('Language: English');
       expect(result).toContain('German construction project');
     });
 
-    it('renders "Language: German" and the German project phrase for language "de"', () => {
+    it('renders "Language: German" and the SAME fixed domain phrase for language "de" (not translated)', () => {
       const input = buildReportContentInput({ language: 'de' });
       const result = buildReportContentUserPrompt(input);
       expect(result).toContain('Language: German');
-      expect(result).toContain('Konstruktionsprojekt');
+      expect(result).toContain('German construction project');
+      // Regression guard: pin the absence of the old buggy branch's output so a reintroduction of
+      // the inverted ternary fails loudly instead of silently passing.
+      expect(result).not.toContain('Konstruktionsprojekt');
     });
   });
 

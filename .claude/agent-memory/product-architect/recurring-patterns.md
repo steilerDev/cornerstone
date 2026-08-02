@@ -185,3 +185,53 @@ Fixed in `b70d821b` (round 2 of the #1916 review); the permanent guard is the
 `amount formatting (major units — regression guard for the ×100 division bug)` describe block in
 `server/src/services/budgetExtraction/prompts.test.ts`, which asserts rendered substrings **and** negative
 assertions against the divided form. Copy that shape for any new prompt builder.
+
+---
+
+## "Single source of truth" refactors must sweep the wiki, not just the code (#1931 / PR #1944)
+
+When a story collapses a duplicated constant into one definition, the code-level sweep is the easy half.
+The restatement that survives is almost always **prose in `wiki/API-Contract.md`** — and it is the most
+consumer-visible one, so it is the one that must be fixed.
+
+#1931 unified the AI report-content caps into `server/src/services/budgetExtraction/contentLimits.ts`
+(`letterSubject` 150 / `letterBody` 2000 / `description` 200). The implementer found and collapsed a third
+runtime site the spec had not enumerated (the `buildReportContentUserPrompt` trailing reminder). But
+`API-Contract.md` still stated the removed 200/3000/300 tier in the response table **and** carried a Notes
+bullet describing the two-tier divergence as *deliberate design* — worse than a stale number, because it
+invites reintroduction.
+
+**Sweep checklist for any "one definition" story:**
+
+1. Runtime consumers (the obvious ones).
+2. The **LLM structured-output schema** (`providerProfiles.ts`) and the **Fastify route schema** — both are
+   plausible hiding places for a duplicated `maxLength`. Both were clean here; check anyway.
+3. `wiki/API-Contract.md` response tables **and** Notes bullets. Fix in the same PR — the submodule ref must
+   be committed on the feature branch.
+4. Tests that assert bare literals rather than interpolating the constant (right only by coincidence).
+5. Agent-memory prose in other agents' files (flag to the owner; don't edit).
+
+**Preferred wiki fix shape:** state the numbers once, then describe the *guarantee* and point at the source
+file ("both derive from `REPORT_CONTENT_LIMITS` in …"), so the page stops being an independent restatement.
+
+**Trap:** `API-Contract.md` L3806's `truncated (500/300 chars)` is *prompt-input* truncation from
+`reportContentGenerationService.ts`, numerically colliding with the old output cap and sitting a few lines
+from the wrong ones. Do not "fix" it.
+
+## Test smell: whole-prompt substring assertions with `|` alternations are toothless
+
+Guarding an untyped system prompt with `expect(prompt.toLowerCase()).toMatch(/a|b|c/)` reliably passes on
+**unrelated pre-existing text elsewhere in the same prompt**, so it does not detect the erosion it exists to
+prevent. Two live examples from #1931's new guards:
+
+- `/purpose|role/` passes on rule 4's "the report's purpose (budget overview, claim, …)" even if rule 2's
+  purpose instruction is deleted entirely.
+- `/vendor|invoice number|date|amount/` passes on rule 7's "vendor names" even if the whole
+  "Do NOT restate the vendor name, invoice number, date, or amount" clause is deleted.
+
+**Rule:** assert the distinctive full clause with `toContain`, the way `contentLimits.test.ts` does
+(`toContain(\`Maximum ${LIMITS.description} characters per description.\`)`). Composing the prompt from named
+constant blocks is over-engineering at ~15 lines — tight assertions buy the same protection far cheaper.
+Also check that **every** constraint the AC enumerates has its own guard: #1931's AC 3.5 listed five, and
+"never invent or alter amounts or dates" had none (the only `/invent/` assertion in the file targeted
+`MERGE_SYSTEM_PROMPT`) — the one instruction protecting the single number the model still emits.

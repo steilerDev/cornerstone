@@ -374,3 +374,53 @@ Findings posted: MEDIUM (pre-existing, follow-up) `ReportWizardPage.handleUseCas
 a report fetched under the *previous* use case — the tier rule is right, the wizard just holds output
 from the wrong invocation. LOW: `wiki/API-Contract.md:3625` still says "Document stage" four lines
 above the tier tables that retire that word.
+
+---
+
+## PR #1944 — #1931 "Enhance with AI" single action + purpose-focused prompt — CHANGES_REQUIRED
+
+Removed the step-4 `aiEnabled` opt-in (step 5 now gated on `llmEnabled` alone), rewrote
+`REPORT_CONTENT_SYSTEM_PROMPT` to ask *why* a cost was incurred, and unified the length caps into
+`server/src/services/budgetExtraction/contentLimits.ts`. Fixed an inverted language ternary that emitted
+"German construction project" for `en` and "Konstruktionsprojekt" for `de` (wrong in both branches) — the
+domain phrase is now fixed literal text for both, with a `not.toContain('Konstruktionsprojekt')` regression
+guard. Good instinct; copy that negative-assertion shape.
+
+**Blocked on:** `wiki/API-Contract.md` L3795–97/L3830 still documenting the removed 200/3000/300 tier as
+deliberate. See the "single source of truth" entry in [recurring-patterns.md](recurring-patterns.md) for the
+sweep checklist and the trap at L3806.
+
+**Rulings worth reusing:**
+
+1. **Server-local constants beat `@cornerstone/shared` when the constant is not on the wire.** These caps
+   govern the *model's* output; the response carries already-truncated strings and the client neither
+   validates nor re-enforces them. Promoting them would invite a UI `maxLength` that the PO explicitly
+   rejected — the step-5 fields stay user-editable after generation, and a hand-typed 400-char description
+   is legal. Extends the #1930 rule: **not "no second consumer yet" but "a client consumer would be a
+   contract change, not an extension."**
+2. **"Structurally impossible to disagree" holds only for the runtime path.** Verified clean here:
+   `providerProfiles.ts`'s `REPORT_CONTENT_SCHEMA` sends bare `{type:'string'}` with no `maxLength`, the
+   Fastify route schema bounds request fields only, `shared/src/types/sourceReport.ts` has no zod, and the
+   client editor has zero `maxLength`. Structural ends where TypeScript ends — wiki prose always needs a
+   manual sweep.
+3. **Removing a UI opt-in in front of an already-configured capability has ~zero privacy/cost delta.** The
+   consent gate is operator-level (`LLM_*` env → `config.llmEnabled`), and the same gateway already ships
+   more data via auto-itemization. What *is* lost is the visible pre-click warning: replacing a checkbox
+   helper with an `srOnly` + `aria-describedby` span leaves sighted users with no warning until the
+   overwrite-confirm modal, which only fires when `overrides` is non-empty. Asymmetry in the wrong
+   direction — prefer a visible muted helper line. (Flagged to ux-designer, not blocking.)
+4. **#1916 numeric guards survived** — `prompts.ts` L152/L166 `.toFixed(2)` are context lines, the
+   `amount formatting (major units …)` describe block is unmodified, and `reportContentGenerationService.ts`
+   is untouched. Risk direction is *lower*: rule 2 now forbids emitting amounts in descriptions, so the only
+   number left in the output is the letter-body total.
+
+Findings: HIGH wiki caps drift · MEDIUM toothless prompt alternation guards · MEDIUM no guard for AC 3.5's
+"never invent or alter amounts or dates" · LOW `prompts.test.ts` L596–598 bare `/150 char/` literals ·
+LOW srOnly-only overwrite warning · INFO stale "300 validator cap" in product-owner memory · INFO
+`reachStep5WithAiConfigured` has an implicit `mockLlmEnabled` precondition.
+
+E2E rewrite (unexecuted — Chromium download blocked in sandbox) reads correct: sr-only span is a *sibling*
+of the button so the accessible name is unaffected; `toBeAttached()` (not `toBeVisible()`) is right for
+`.srOnly` (`1px` + `clip-path: inset(50%)` makes Playwright's visibility heuristic ambiguous); expected
+literal is byte-identical to `en/budget.json`; `#enhanceWithAiDescription` and `aiGenerateRow` each have
+exactly one render site, so no strict-mode risk from the page's desktop/mobile dual DOM tree.
