@@ -238,3 +238,48 @@ AC 3.2/3.3 assert **live model output quality** ("reads as a purpose statement",
 ### #1917 bookkeeping done
 
 **L3 struck from #1917's body** (comment `issuecomment-5158606180`) after verifying the ternary is gone, both branches emit the fixed literal `German construction project`, `Konstruktionsprojekt` is absent from source, and `prompts.test.ts` pins its absence. No `Bauprojekt` rename needed — no German noun remains. **Rest of #1917 open and unchanged**: M1–M4, L1 (`sourceId!` re-verified still at `ReportWizardPage.tsx:574`), L2, L5, and the **`KI` glossary entry — still #1917's, not absorbed**: PR #1944 does not touch `glossary.json` and the file still has no `KI` entry.
+
+## #1945 review follow-ups filed 2026-08-02 — #1946 (M2) and #1947 (M3), plus #1943 amendments
+
+`product-architect` APPROVED PR #1945 (#1943) with three mediums. **M1 was fixed inside PR #1945 rather than filed** — the precedent below is the reusable part.
+
+### The M1 precedent: a finding that defeats the PR's own AC is not a follow-up
+
+M1 was an untokenized `getSourceReport` race — an in-flight fetch from the *previous* use case could win an out-of-order resolution and re-populate `report` while step 3 was reachable, reaching **exactly the #1943 end state** (claim export embedding quotation-tier docs). Filing it would have marked #1943's AC1 met while a live route to the headline defect remained open. Fixed in-PR with a monotonic `reportRequestRef` token (`ReportWizardPage.tsx` L146/229/269/274/281). **Rule: a review finding that defeats an AC of the story under review belongs in that story's PR, regardless of the reviewer's medium/low severity label** — reviewer severity answers "does this block merge", not "is the AC actually met".
+
+### #1946 (bug, **Must Have**, Todo) — in-flight AI generation survives a use-case change
+
+`runAiGeneration` resolves into `setAiContent(result)`; while generating, `aiContent` is `null`, so `guardedUpdate`'s dirty predicate is false and a use-case change applies **with no confirmation**. Post-#1931 the prompt is purpose-focused and the request carries `type: useCase`, so the landed result is narrative written for the **wrong report purpose** — the architect's point that the *mechanism* is symmetric with a source change but the *consequence* is not.
+
+- **Must Have despite the architect's "Medium"** — recorded on the issue to stop re-litigation. Medium-for-PR and MoSCoW are different scales; the architect explicitly asked for it before the cluster's `beta`→`main` promotion. Same blast radius as #1943/#1929: credibility of a bank-facing artifact.
+- **Product ruling on the discard question (option b of three)**: widen `guardedUpdate`'s dirty predicate to include `isGeneratingAi` → the confirmation runs; confirm invalidates the in-flight request via a token, cancel lets it finish. Rejected (a) silent invalidation — generation is slow (visible elapsed timer) and metered, the guard exists to protect content that isn't cheap to recreate, and an in-flight generation *is* that, just not arrived. Rejected (c) block-until-settled — freezes the wizard for up to `LLM_REQUEST_TIMEOUT_MS` and invents a trapped-behind-a-hung-request failure mode. **Never trap a user behind a network call they can't cancel.**
+- **Widen the predicate inside `guardedUpdate` itself, not per-handler** — every caller mutates an AI-request input or the baseline; one place makes the invariant structural, which is the whole lesson of #1943. Closes the symmetric source-change variant for free.
+- AC12 explicitly **forbids new E2E**: a late-resolving stale response is invisible to the assertions (architect's own analysis of scenarios 13/14). Deterministic unit test with controlled promise resolution, not a timing spec.
+
+### #1947 (tech-debt, **Should Have**, Backlog, blocked-by #1946) — `useReducer` refactor
+
+1,156 lines / 38 hooks; the "what a transition invalidates" invariant is hand-maintained across two handlers. **Filed as its own issue, NOT folded into #1912** — #1912 is a Could Have grab-bag of cosmetic nits; folding a state-machine refactor in would bury it behind a Could Have label, make #1912 un-sizable, and lose the evidence trail, which *is* the justification.
+
+- **The evidence table is the argument**: one handler produced four defects of one shape in one batch — #1943 (transition didn't invalidate state it owned), its AC8 deep-link second-order effect (the fix created the next bug), M1 (pending write re-populated cleared state), M2/#1946 (same, plus the guard couldn't see what it guards). Two of the four were *caused by the patch before them*. Put that table in any future "should we refactor" argument.
+- **Should Have, with a checkable trigger instead of a vague "soon"**: *the next change that adds transition-owned state to this component should be preceded by this refactor.* Raise at refinement if a report-wizard state story lands while it's open.
+- Architect's **L3** (`deepLinkAppliedRef` boolean → `useRef<string|null>`) folded in as a nice-to-have per coordinator — the applied id is immutable for the component's lifetime (sole `?sourceId=` producer is a cross-route `navigate()` from `BudgetSourcesPage.tsx:1318`), so a boolean is sufficient today.
+
+### #1943 body amended + audit comment (`issuecomment-5159716825`)
+
+- **AC4 reworded — original was unsatisfiable by design.** "always identical to a clean start" is violated by `attachDocuments` and `reportLanguageOverride`, which are *correctly* sticky. **A UAT tester reading it literally would have failed the story for working as designed.** Now scoped to the `getSourceReport` payload, the exclusion sets, and the tier floor, with the two preferences named as out-of-scope. **Pattern to watch: an equivalence AC must name what is excluded, or sticky user preferences will read as failures.**
+- **AC5 enumeration completed — `skippedDocuments` and `aiError` were omitted, both ruled CLEAR** (not KEEP, against the architect's "probably fine"). `skippedDocuments` is only overwritten on a *successful* generation, so a later failure re-displays the previous report's warnings against a new report — in a bank-facing flow. `aiError` can hold `EMPTY_SELECTION`, raised from exclusion sets this very reset clears, so it's guaranteed inapplicable. Both one-line, zero reachability risk.
+- **Carried as #1946 AC9/AC10, not by reopening #1943** — the PR is approved and neither is a defect in what it shipped; the gap was in the enumeration, which now lives on the issue. Said so explicitly on the comment so the addendum doesn't read as goalposts moving after approval.
+
+## #1933 ACs 2.1/2.7 corrected 2026-08-02 — AC described a layout that doesn't exist
+
+Both ACs were written against "the mobile card" for the invoice row. **There is no mobile card for the invoice row**: `.invoiceRow` is a single CSS Grid at every viewport (`ReportInvoiceList.module.css` L35–43, no media-query override). The file's only breakpoint (`@media (max-width: 767px)`, L363) swaps `.tableWrapper` for `.mobileCardList` on the **nested** budget-lines (`ReportInvoiceList.tsx` L355+) and deposits (L539+) sub-tables. Verified on disk before amending.
+
+Reworded to "every viewport" with the 44×44px target **unconditional** (strictly stronger than the original mobile-only intent, and right for a checkbox-adjacent control at any pointer type), plus an explicit "do not introduce a card layout to satisfy this". `ux-designer` had already designed against the real structure rather than the AC's premise — agreed with that call. **AC 4.3's mobile-card reference is correct and was deliberately left alone** (the deposits sub-table really does have one) — noted on the issue so nobody "fixes" it by analogy.
+
+### Recurring AC-writing failure mode — now seen twice in one day
+
+#1943 AC4 (equivalence AC that didn't name its exclusions) and #1933 AC2.1/2.7 (AC premised on a layout that doesn't exist) are the same defect: **an AC that misdescribes the thing being built gets read literally at UAT and fails a correct implementation.** Both were caught by a reviewer designing/implementing against reality rather than against my text. Mitigations to apply when writing ACs:
+
+- Before writing a viewport- or layout-conditional AC, **check the CSS for an actual breakpoint** — don't infer a responsive variant from the presence of `mobileCard` classes elsewhere in the same file.
+- For equivalence/"identical to" ACs, **name what is excluded** or sticky user preferences will read as failures.
+- When an AC is corrected on an open issue, annotate the AC inline with a date + pointer to the correction comment, and say in the comment *why*, so the original premise isn't reintroduced from memory of the old text.
