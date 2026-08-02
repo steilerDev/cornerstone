@@ -342,3 +342,35 @@ Two review lessons worth keeping:
 
 Four rounds total. Trajectory was right each time; each round bounded something real and revealed the
 next layer. Worth remembering before pushing for a five-round rewrite: the arc converged.
+
+## Story #1930 — Attachment tier rules per report type (PR #1942, APPROVED 2026-08-02)
+
+Per-invoice stage matching (invoice status slice + deposit split + `targetStatuses`) replaced by a
+pure two-arg predicate in `server/src/services/shared/attachmentTierUtils.ts`:
+tier `quotation`1 < `deposit`2 < `invoice`3; floors budget-overview 1 / claim 2 / proof-of-funds 3.
+`attachmentType: null` = tier 3 (product ruling — nulls are legacy/ambiguous, and a silently-dropped
+attachment is unrecoverable while an over-included one is deselectable).
+
+Three durable conclusions:
+
+1. **Server-local vs `@cornerstone/shared` — the relocation trigger.** #1916's drift came from *two
+   implementations*, not from server-local placement. Relocating a rule with one implementation and
+   zero client callers reduces nothing and adds build-order coupling. Sharper: for the client to need
+   this predicate, the server would have to ship *unfiltered* documents — which AC7 forbids. So
+   client-side need is a contract violation, not a future extension. Rule to reuse:
+   **move to `@cornerstone/shared` iff a client module must evaluate the rule against data the server
+   has not already filtered.**
+2. **`Record<Union, T>` object literal is the right exhaustiveness mechanism** (fails the build when
+   the union grows; `Partial<>` degrades to `undefined`, `switch` needs a `never` guard). Its residual
+   hole — an out-of-enum DB value indexing to `undefined`, and `undefined >= floor` silently excluding
+   from *every* report — is closed here by a real `CHECK` in migration `0042`, not by Drizzle's
+   compile-time `text(..., {enum})`. **Always check whether the migration has the CHECK before calling
+   a cast-fed `Record` lookup safe.**
+3. **Reports are computed on read** — no report table in `schema.ts`, PDF built client-side per
+   invocation (ADR-034). Changing report filtering has no persisted blast radius, no cache, no backfill.
+
+Findings posted: MEDIUM (pre-existing, follow-up) `ReportWizardPage.handleUseCaseChange` never clears
+`report`/`sourceId`, so changing the use case and clicking straight through step 2 reaches step 3 with
+a report fetched under the *previous* use case — the tier rule is right, the wizard just holds output
+from the wrong invocation. LOW: `wiki/API-Contract.md:3625` still says "Document stage" four lines
+above the tier tables that retire that word.

@@ -32,3 +32,25 @@ scoped so `result.invoices` has exactly 1 entry (no need to filter by invoiceId)
 AC6 regression guard (scenarios 8-15b: status-slice selection, isSplit, refund-adjustment,
 zero-drop, unallocated) untouched and confirmed still green — no evidence the change leaked
 beyond `documents[]` filtering.
+
+**Round 2 (PO review follow-up, same day)**: PO flagged that the proof-of-funds blocks of
+scenario 16 and the AC3 test were NOT change-detecting — a `claimed` no-deposit invoice hits the
+old stage-derivation's default empty-stages branch too, so both would have passed on `beta`
+unchanged. Added a genuinely discriminating fixture: `AC3 (discriminating)` — a **deposit-only**
+invoice (no `invoice_budget_line` at all) whose sole **tagged** deposit is `claimed`, with a
+`deposit`-typed document link. Under the OLD stage-derivation (`splitByDepositsExcludingTagged`
+returns no entry when there's no Rail A row for the invoice → falls into the "no split" branch →
+`stages.add('deposit')` fires purely because `railBContributions.has(invoiceId)`, independent of
+report type) → old code would have KEPT the doc. Under the tier rule, proof-of-funds floor =
+`invoice`(3) > `deposit`(2) → excluded. 81 tests total (was 80).
+
+**Isolation technique used to prove it's discriminating** (since `attachmentTierUtils.ts` doesn't
+exist on `beta`, a straight file swap fails at import resolution, not at the assertion): back up
+the current (fixed) `sourceReportService.ts` to `/tmp`, edit the working copy in place to inline
+the pre-#1930 stage-derivation logic (re-import `splitByDepositsExcludingTagged` from
+`depositAggregateUtils.js`, replace the `isDocumentIncludedForReportType` call site with the old
+`stages` Set computation copied from `git show origin/beta:...`), run *only* the new test via
+`npx jest ... -t "AC3 \(discriminating\)"`, confirm it fails with the exact wrong-inclusion
+diff, then `cp` the backup back over the working file and re-verify `git diff` is empty before
+re-running the full suite. This isolates one specific fixture's discriminating power without
+needing a parallel beta checkout or touching any other test.

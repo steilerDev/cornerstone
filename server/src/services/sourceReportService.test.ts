@@ -574,6 +574,35 @@ describe('sourceReportService', () => {
       expect(result.invoices[0]!.documents).toEqual([]);
     });
 
+    // The AC3 test above is not change-detecting: a 'claimed' no-deposit invoice hit the old
+    // stage-derivation's default (no split entry -> no railBContributions entry -> empty
+    // stages set) and would have excluded the 'deposit' doc on `beta` too. This fixture is
+    // the discriminating one: a deposit-only invoice (no invoice_budget_line at all) whose
+    // sole, tagged deposit is 'claimed' — in the OLD stage-derivation this hits the "no split
+    // entry" branch that adds the 'deposit' stage purely because `railBContributions` has an
+    // entry for the invoice, independent of the report type. That would have kept the
+    // 'deposit'-typed document in a proof-of-funds report on `beta`. Under the tier rule,
+    // proof-of-funds' floor is `invoice` (3) and `deposit` is tier 2, so the document must be
+    // excluded regardless of the deposit's own status. Verified change-detecting against the
+    // pre-#1930 filtering logic — see qa-integration-tester agent memory for the isolation
+    // technique used.
+    it('AC3 (discriminating): a claimed tagged deposit does not resurrect a deposit-typed document in a proof-of-funds report', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'claimed', amount: 500 });
+      insertDeposit(invId, {
+        amount: 500,
+        status: 'claimed',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+      insertDocumentLink(invId, 1, 'deposit');
+
+      const result = await getSourceReport(db, 'proof-of-funds', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.documents).toEqual([]);
+    });
+
     it('AC5: invoice status is irrelevant to document selection — quotation-status and paid-status invoices filter identically', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
