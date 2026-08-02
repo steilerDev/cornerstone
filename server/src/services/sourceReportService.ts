@@ -21,10 +21,10 @@ import { NotFoundError, ValidationError, InvoicesNotClaimableError } from '../er
 import { toCents } from './shared/money.js';
 import {
   computeLineContributionsExcludingTagged,
-  splitByDepositsExcludingTagged,
   sumTaggedDepositContributionsByInvoice,
   type DepositAwareRow,
 } from './shared/depositAggregateUtils.js';
+import { isDocumentIncludedForReportType } from './shared/attachmentTierUtils.js';
 import { onInvoiceStatusChanged, onDepositStatusChanged } from './diaryAutoEventService.js';
 import * as paperlessService from './paperlessService.js';
 import { ALLOWED_TRANSITIONS } from './invoiceDepositService.js';
@@ -294,10 +294,7 @@ export async function getSourceReport(
     isSplitMap.set(row.invoice_id, row.source_count > 1);
   }
 
-  // Step g: Compute deposit splits excluding tagged (for stage-determination logic)
-  const splitsByInvoiceId = splitByDepositsExcludingTagged(railARows);
-
-  // Step h: Batch fetch document links
+  // Step g: Batch fetch document links
   const allInvoiceIds = Array.from(invoiceMetadata.keys());
   const allDocumentLinks = db
     .select()
@@ -311,38 +308,11 @@ export async function getSourceReport(
   const allPaperlessDocIds = new Set<number>();
 
   for (const invoiceId of allInvoiceIds) {
-    const split = splitsByInvoiceId.get(invoiceId);
-
-    // Determine stages: if deposit-only (no split entry), include 'deposit' if any tagged deposit in slice
-    const stages = new Set<AttachmentType>();
-    if (split) {
-      if (split.invoiceStatus === 'quotation' && targetStatuses.has('quotation')) {
-        stages.add('quotation');
-      }
-      if (
-        split.residualFraction > 0 &&
-        split.invoiceStatus !== 'quotation' &&
-        targetStatuses.has(split.invoiceStatus)
-      ) {
-        stages.add('invoice');
-      }
-      for (const df of split.depositFractions) {
-        if (targetStatuses.has(df.depositStatus)) {
-          stages.add('deposit');
-        }
-      }
-    } else {
-      // Deposit-only: check if any tagged deposit in target statuses
-      if (railBContributions.has(invoiceId)) {
-        stages.add('deposit');
-      }
-    }
-
     const invoiceLinks = allDocumentLinks
       .filter(
         (link) =>
           link.entityId === invoiceId &&
-          (link.attachmentType === null || stages.has(link.attachmentType as AttachmentType)),
+          isDocumentIncludedForReportType(type, link.attachmentType as AttachmentType | null),
       )
       .map((link) => {
         allPaperlessDocIds.add(link.paperlessDocumentId);
@@ -382,7 +352,7 @@ export async function getSourceReport(
     }
   }
 
-  // Step i: Build budget lines per invoice
+  // Step h: Build budget lines per invoice
   const budgetLinesByInvoiceId = new Map<string, SourceReportBudgetLine[]>();
   for (const [iblId, lineContrib] of railALineContributions) {
     const invoiceId = lineContrib.invoiceId;
@@ -406,7 +376,7 @@ export async function getSourceReport(
     budgetLinesByInvoiceId.set(invoiceId, lines);
   }
 
-  // Step j: Fetch deposits for each invoice (unfiltered by status, but filtered by source tag)
+  // Step i: Fetch deposits for each invoice (unfiltered by status, but filtered by source tag)
   const depositsByInvoiceId = new Map<string, SourceReportDeposit[]>();
   for (const invoiceId of allInvoiceIds) {
     const deposits = db
@@ -470,7 +440,7 @@ export async function getSourceReport(
     });
   }
 
-  // Step k: Query unallocated invoices (excluding those with tagged deposits)
+  // Step j: Query unallocated invoices (excluding those with tagged deposits)
   const unallocatedInvoices: SourceReportUnallocatedInvoice[] = [];
   const unallocRows = db.all<{
     invoice_id: string;

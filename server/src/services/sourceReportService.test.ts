@@ -5,9 +5,9 @@
  *
  * Covers:
  * - getSourceReport: status-slice selection per report type, split-invoice detection,
- *   drop-on-zero / refund-adjustment classification, document stage tagging, Paperless
- *   ASN/title resolution (reachable / throws / unconfigured), unallocated invoices,
- *   totalAmount rounding.
+ *   drop-on-zero / refund-adjustment classification, attachment-tier document filtering
+ *   (Story #1930), Paperless ASN/title resolution (reachable / throws / unconfigured),
+ *   unallocated invoices, totalAmount rounding.
  * - markInvoicesClaimed: transactional batch claim of invoices + deposits, claimability
  *   rules, 409 rollback-on-any-offending, diary event side effects.
  */
@@ -498,73 +498,110 @@ describe('sourceReportService', () => {
       expect(result.unallocatedInvoices).toHaveLength(0);
     });
 
-    it('scenario 16a: quotation-status invoice tags only the quotation document stage', async () => {
-      const sourceId = insertSource();
-      const vendorId = insertVendor();
-      const budgetId = insertWorkItemBudget(sourceId);
-      const invId = insertInvoice(vendorId, { status: 'quotation', amount: 500 });
-      insertInvoiceBudgetLine(invId, budgetId, 500);
-      insertDocumentLink(invId, 1, 'quotation');
-      insertDocumentLink(invId, 2, 'invoice');
-      insertDocumentLink(invId, 3, 'deposit');
-      insertDocumentLink(invId, 4, null); // untagged always kept
+    // Story #1930: per-invoice stage matching (driven by invoice status / deposit split /
+    // targetStatuses) was replaced by a report-type tier floor that depends only on report
+    // type and the document's own attachmentType. Scenarios 16a/16b/16c/16e above asserted
+    // the removed stage-derivation internals and are replaced by the AC1/AC2/AC3/AC5
+    // scenarios below. 16d (documentId passthrough) is unaffected and kept verbatim.
 
-      const result = await getSourceReport(db, 'budget-overview', sourceId, PAPERLESS_DISABLED);
-      expect(result.invoices).toHaveLength(1);
-      const ids = result.invoices[0]!.documents.map((d) => d.attachmentType);
-      expect(ids.sort()).toEqual([null, 'quotation'].sort());
+    it('scenario 16 (AC1): tier floor determines exactly which documents survive, per report type', async () => {
+      function makeInvoiceWithAllDocTypes(status: 'paid' | 'claimed'): string {
+        const sourceId = insertSource();
+        const vendorId = insertVendor();
+        const budgetId = insertWorkItemBudget(sourceId);
+        const invId = insertInvoice(vendorId, { status, amount: 500 });
+        insertInvoiceBudgetLine(invId, budgetId, 500);
+        insertDocumentLink(invId, 1, 'quotation');
+        insertDocumentLink(invId, 2, 'deposit');
+        insertDocumentLink(invId, 3, 'invoice');
+        insertDocumentLink(invId, 4, null);
+        return sourceId;
+      }
+
+      // budget-overview: floor = quotation (1) -> quotation, deposit, invoice, null all survive.
+      {
+        const sourceId = makeInvoiceWithAllDocTypes('paid');
+        const result = await getSourceReport(db, 'budget-overview', sourceId, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        const tags = result.invoices[0]!.documents.map((d) => d.attachmentType);
+        expect(tags.sort()).toEqual([null, 'deposit', 'invoice', 'quotation'].sort());
+      }
+
+      // claim: floor = deposit (2) -> quotation excluded; deposit, invoice, null survive.
+      {
+        const sourceId = makeInvoiceWithAllDocTypes('paid');
+        const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        const tags = result.invoices[0]!.documents.map((d) => d.attachmentType);
+        expect(tags.sort()).toEqual([null, 'deposit', 'invoice'].sort());
+      }
+
+      // proof-of-funds: floor = invoice (3) -> only invoice and null survive.
+      {
+        const sourceId = makeInvoiceWithAllDocTypes('claimed');
+        const result = await getSourceReport(db, 'proof-of-funds', sourceId, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        const tags = result.invoices[0]!.documents.map((d) => d.attachmentType);
+        expect(tags.sort()).toEqual([null, 'invoice'].sort());
+      }
     });
 
-    it('scenario 16b: paid-status invoice (no deposits) tags the invoice document stage', async () => {
+    it('AC2: a quotation-typed document never appears in a claim report', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const budgetId = insertWorkItemBudget(sourceId);
+      // 'paid' is squarely inside the claim report's target slice ({pending, paid}).
       const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
       insertInvoiceBudgetLine(invId, budgetId, 500);
       insertDocumentLink(invId, 1, 'quotation');
-      insertDocumentLink(invId, 2, 'invoice');
-      insertDocumentLink(invId, 3, 'deposit');
-      insertDocumentLink(invId, 4, null);
 
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
-      const tags = result.invoices[0]!.documents.map((d) => d.attachmentType);
-      expect(tags.sort()).toEqual([null, 'invoice'].sort());
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.documents).toEqual([]);
     });
 
-    it('scenario 16c: deposit whose status is in the slice tags the deposit document stage', async () => {
+    it('AC3: a deposit-typed document with no invoice-typed document never appears in a proof-of-funds report', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const budgetId = insertWorkItemBudget(sourceId);
-      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
-      insertInvoiceBudgetLine(invId, budgetId, 1000);
-      insertDeposit(invId, { amount: 300, status: 'paid', entryType: 'deposit' });
-      insertDocumentLink(invId, 1, 'quotation');
-      insertDocumentLink(invId, 2, 'invoice');
-      insertDocumentLink(invId, 3, 'deposit');
-      insertDocumentLink(invId, 4, null);
-
-      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED); // claim = {pending,paid}
-      const tags = result.invoices[0]!.documents.map((d) => d.attachmentType);
-      // residual (pending, 700/1000) tags 'invoice'; deposit (paid, 300/1000) tags 'deposit'; untagged always kept
-      expect(tags.sort()).toEqual([null, 'deposit', 'invoice'].sort());
-    });
-
-    it('scenario 16e: deposit whose status is outside the slice does not tag the deposit stage', async () => {
-      const sourceId = insertSource();
-      const vendorId = insertVendor();
-      const budgetId = insertWorkItemBudget(sourceId);
-      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
-      insertInvoiceBudgetLine(invId, budgetId, 1000);
-      // 'claimed' is not part of the 'claim' report's target statuses ({pending, paid}).
-      insertDeposit(invId, { amount: 100, status: 'claimed', entryType: 'deposit' });
+      // 'claimed' is the proof-of-funds report's target slice.
+      const invId = insertInvoice(vendorId, { status: 'claimed', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
       insertDocumentLink(invId, 1, 'deposit');
-      insertDocumentLink(invId, 2, null);
 
-      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
-      const tags = result.invoices[0]!.documents.map((d) => d.attachmentType);
-      // Deposit stage is never activated (its only status is out-of-slice), so the
-      // 'deposit'-tagged link is filtered out — only the untagged link survives.
-      expect(tags).toEqual([null]);
+      const result = await getSourceReport(db, 'proof-of-funds', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.documents).toEqual([]);
+    });
+
+    it('AC5: invoice status is irrelevant to document selection — quotation-status and paid-status invoices filter identically', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+
+      const budgetA = insertWorkItemBudget(sourceId);
+      const invA = insertInvoice(vendorId, { status: 'quotation', amount: 300 });
+      insertInvoiceBudgetLine(invA, budgetA, 300);
+      insertDocumentLink(invA, 1, 'deposit');
+
+      const budgetB = insertWorkItemBudget(sourceId);
+      const invB = insertInvoice(vendorId, { status: 'paid', amount: 400 });
+      insertInvoiceBudgetLine(invB, budgetB, 400);
+      insertDocumentLink(invB, 2, 'deposit');
+
+      // Both statuses fall within the budget-overview slice, so both invoices are present.
+      const result = await getSourceReport(db, 'budget-overview', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(2);
+
+      const docsA = result.invoices
+        .find((i) => i.invoiceId === invA)!
+        .documents.map((d) => d.attachmentType);
+      const docsB = result.invoices
+        .find((i) => i.invoiceId === invB)!
+        .documents.map((d) => d.attachmentType);
+
+      // Identically-typed documents survive identically, regardless of invoice status.
+      expect(docsA).toEqual(['deposit']);
+      expect(docsB).toEqual(['deposit']);
     });
 
     it('scenario 16d: surviving document objects carry the real Paperless document id', async () => {
