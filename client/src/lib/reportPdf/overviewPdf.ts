@@ -361,7 +361,7 @@ export function buildOverviewContent(
     // table rows instead of one unbreakable (and potentially content-dropping) row.
     const usageChunks = splitIntoPageSafeChunks(contentRow.usageText, MAX_SAFE_USAGE_CHUNK_CHARS);
 
-    const firstUsageRuns = buildUsageTextRuns(usageChunks[0], usageSafeTokenChars);
+    const firstUsageRuns = buildUsageTextRuns(usageChunks[0]!, usageSafeTokenChars);
     const firstUsageStack: Content[] = [{ text: firstUsageRuns, style: 'tableCell' }];
     if (usageChunks.length === 1) {
       if (contentRow.areaText) {
@@ -392,7 +392,7 @@ export function buildOverviewContent(
     // ruling ("No continuation marker required... do not build one").
     for (let i = 1; i < usageChunks.length; i++) {
       const isLast = i === usageChunks.length - 1;
-      const chunkRuns = buildUsageTextRuns(usageChunks[i], usageSafeTokenChars);
+      const chunkRuns = buildUsageTextRuns(usageChunks[i]!, usageSafeTokenChars);
       const stack: Content[] = [{ text: chunkRuns, style: 'tableCell' }];
       if (isLast) {
         if (contentRow.areaText) {
