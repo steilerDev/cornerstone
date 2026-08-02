@@ -19,6 +19,13 @@
  * ./coverLetterPdf.js, ./overviewPdf.js, and ../paperlessApi.js so this file tests ONLY merge.ts's
  * own orchestration logic (document fetch/embed pipeline, appendix numbering, skip tracking) — not
  * the (separately tested) content-building functions themselves. global.fetch is stubbed per test.
+ *
+ * #1929 ROUND 2: `PAGE_TOP_MARGIN` (along with PAGE_MARGIN_X/PAGE_MARGIN_BOTTOM/
+ * TABLE_BODY_FONT_SIZE) moved out of shared.ts entirely, into pageGeometry.ts — merge.ts imports
+ * all four directly from there now (see its own import block), not from shared.js. pageGeometry.ts
+ * is NOT mocked in this file (it has no side effects worth isolating), so both merge.ts's
+ * production code and this test's own assertions resolve the same real, computed values — no
+ * "resolves before the mock" trick needed anymore, unlike round 1's shared.js import.
  */
 import { describe, it, expect, jest, beforeEach, beforeAll } from '@jest/globals';
 import type { TFunction } from 'i18next';
@@ -27,6 +34,12 @@ import type { ReportContent } from '../reportContent/index.js';
 import type * as MergeModule from './merge.js';
 import type * as CoverLetterPdfModule from './coverLetterPdf.js';
 import type * as OverviewPdfModule from './overviewPdf.js';
+import {
+  PAGE_MARGIN_X,
+  PAGE_TOP_MARGIN,
+  PAGE_MARGIN_BOTTOM,
+  TABLE_BODY_FONT_SIZE,
+} from './pageGeometry.js';
 
 const t = ((key: string) => key) as unknown as TFunction;
 
@@ -66,6 +79,9 @@ jest.unstable_mockModule('./shared.js', () => ({
   buildPageHeader: jest.fn(() => ({ text: 'HEADER' })),
   buildPageFooter: jest.fn(() => () => ({ text: 'FOOTER' })),
   TABLE_LAYOUT: {},
+  // NOTE (#1929 round 2): PAGE_TOP_MARGIN is deliberately NOT part of this mock — merge.ts no
+  // longer imports it from shared.js at all (moved to pageGeometry.ts, which this file leaves
+  // unmocked). Including a stray PAGE_TOP_MARGIN export here would be dead and misleading.
 }));
 
 // ─── Mock: ./coverLetterPdf.js / ./overviewPdf.js ──────────────────────────────
@@ -678,6 +694,7 @@ describe('generateReportPdf', () => {
 
     const def = mockCreatePdf.mock.calls[0]![0] as {
       header: (currentPage: number) => unknown;
+      pageMargins: [number, number, number, number];
     };
     expect(def.header(1)).toBeNull();
     expect(def.header(2)).not.toBeNull();
@@ -690,5 +707,84 @@ describe('generateReportPdf', () => {
       'My Source',
       'sourceReports.table.generatedAt',
     );
+
+    // [regression #1929] On current beta this is the hardcoded [40, 40, 40, 60] — the top margin
+    // equaled the LEFT margin, not a value sized to the rendered page-header footprint, so the
+    // running header clipped/overlapped the first table row on multi-page reports. Left/right/
+    // bottom margins are unchanged; only the top margin now derives from PAGE_TOP_MARGIN.
+    expect(def.pageMargins).toEqual([40, PAGE_TOP_MARGIN, 40, 60]);
+  });
+
+  describe('#1929 round 2: pageMargins/tableCell fontSize wired from pageGeometry.ts (scenarios 13-14)', () => {
+    it('[scenario 13] pageMargins equals [PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_X, PAGE_MARGIN_BOTTOM], imported from pageGeometry.js rather than re-typed literals', async () => {
+      const invoice = makeInvoice();
+      const report = makeReport([invoice]);
+
+      await generateReportPdf(
+        report,
+        new Set(['inv-1']),
+        makeContent(),
+        { attachDocuments: false },
+        t,
+      );
+
+      const def = mockCreatePdf.mock.calls[0]![0] as {
+        pageMargins: [number, number, number, number];
+      };
+      expect(def.pageMargins).toEqual([
+        PAGE_MARGIN_X,
+        PAGE_TOP_MARGIN,
+        PAGE_MARGIN_X,
+        PAGE_MARGIN_BOTTOM,
+      ]);
+      // Sanity: PAGE_MARGIN_X is still 40 and PAGE_MARGIN_BOTTOM still 60 — round 2 only changed
+      // the TOP margin's source, not the other three.
+      expect(PAGE_MARGIN_X).toBe(40);
+      expect(PAGE_MARGIN_BOTTOM).toBe(60);
+    });
+
+    it('[scenario 14] def.styles.tableCell.fontSize === TABLE_BODY_FONT_SIZE (8) — the round-2 body font floor, not a hardcoded 10', async () => {
+      const invoice = makeInvoice();
+      const report = makeReport([invoice]);
+
+      await generateReportPdf(
+        report,
+        new Set(['inv-1']),
+        makeContent(),
+        { attachDocuments: false },
+        t,
+      );
+
+      const def = mockCreatePdf.mock.calls[0]![0] as {
+        styles: { tableCell: { fontSize: number } };
+      };
+      expect(def.styles.tableCell.fontSize).toBe(TABLE_BODY_FONT_SIZE);
+      expect(def.styles.tableCell.fontSize).toBe(8);
+    });
+  });
+
+  describe('#1929 round 2: PDF_STYLES / PDF_DEFAULT_STYLE exports (scenario 15)', () => {
+    it('are exported from merge.ts and structurally match what generateReportPdf actually passes to createPdf()', async () => {
+      const { PDF_STYLES, PDF_DEFAULT_STYLE } = (await import('./merge.js')) as typeof MergeModule;
+      expect(PDF_STYLES).toBeDefined();
+      expect(PDF_DEFAULT_STYLE).toBeDefined();
+
+      const invoice = makeInvoice();
+      const report = makeReport([invoice]);
+      await generateReportPdf(
+        report,
+        new Set(['inv-1']),
+        makeContent(),
+        { attachDocuments: false },
+        t,
+      );
+
+      const def = mockCreatePdf.mock.calls[0]![0] as {
+        styles: unknown;
+        defaultStyle: unknown;
+      };
+      expect(def.styles).toEqual(PDF_STYLES);
+      expect(def.defaultStyle).toEqual(PDF_DEFAULT_STYLE);
+    });
   });
 });

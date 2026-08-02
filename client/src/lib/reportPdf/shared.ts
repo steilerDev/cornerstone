@@ -2,6 +2,7 @@
  * Shared utilities for PDF report generation.
  */
 import type { Content } from 'pdfmake/build/pdfmake';
+import { CELL_PADDING_X, V_LINE_WIDTH } from './pageGeometry.js';
 
 /**
  * Refund text color for PDF tables (dark red).
@@ -60,14 +61,19 @@ export function buildPageFooter(
 
 /**
  * pdfmake table layout for invoice tables.
+ *
+ * Note: `dontBreakRows` is NOT set here. pdfmake reads it from the `table` object
+ * (`TableProcessor.js:123`: `tableNode.table.dontBreakRows`), never from `layout` — setting it
+ * here would be inert (#1929 round-1 CRITICAL 1). It is set on the `table` node directly in
+ * overviewPdf.ts.
  */
 export const TABLE_LAYOUT = {
-  hLineWidth: () => 0.5,
-  vLineWidth: () => 0.5,
+  hLineWidth: () => V_LINE_WIDTH,
+  vLineWidth: () => V_LINE_WIDTH,
   hLineColor: '#d1d5db',
   vLineColor: '#d1d5db',
-  paddingLeft: () => 8,
-  paddingRight: () => 8,
+  paddingLeft: () => CELL_PADDING_X,
+  paddingRight: () => CELL_PADDING_X,
   paddingTop: () => 6,
   paddingBottom: () => 6,
 } as const;

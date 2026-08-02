@@ -249,3 +249,73 @@ Blockers, all in the presentation layer:
 Lesson worth repeating: 407 green tests, and the three highest-severity defects were all "the code runs
 but does nothing" — dead CSS selector, undefined token, wrong `t`. None are catchable by assertions on DOM
 presence. Read the CSS and trace which `t` each consumer receives.
+
+## PR #1935 — Bug #1929 report PDF layout (CHANGES_REQUIRED, 2026-08-02)
+
+Again posted via `gh pr comment` (self-authored PR blocks `--request-changes`).
+
+Three-defect layout fix (`dontBreakRows`, fixed column widths, `PAGE_TOP_MARGIN = 75`) with 84 green
+unit tests and 100%-ish coverage on all three touched files — and **two of the three defects were not
+actually fixed**. Every finding came from reading pdfmake's source in `node_modules/` and running real
+renders, none from reading the diff. Details in [[client-pdf-pipeline]] "Table geometry traps".
+
+- **C1** `dontBreakRows` was added to `TABLE_LAYOUT` (passed as `layout:`); pdfmake reads it from
+  `table:`. Byte-identical output. AC4 unfixed, and its unit test pinned a property nothing reads.
+- **C2** The right-edge overflow (the headline defect) still reproduces: a `'*'` column floors at its
+  longest word, so German compounds push the 7-col table to 574pt on a 515.28pt page.
+- **H3** The new width-derivation comment was off by 2.7x (claimed Usage = 185.28pt, actual 69.28pt) —
+  it omitted pdfmake's 116pt of per-column padding/border offsets. The test bound built on it
+  (`fixedSum <= 515.28`) admits a 673pt table.
+- **H4** Fixing C1 as written would have traded split rows for *silent whole-row deletion* at ~475 chars
+  of usage text.
+
+Lesson: this is the [[recurring-patterns]] "code runs but does nothing" family again, one layer down —
+a config key on the wrong object, and a derivation whose arithmetic omitted an input. When a fix is a
+set of magic numbers justified by a prose comment, **recompute the comment** before reviewing anything
+else; both wrong numbers here were in comments that existed specifically to justify the constants.
+
+### Round 2 (CHANGES_REQUIRED again, 2026-08-02)
+
+`pageGeometry.ts` landed as recommended; C1, H3(offsets), M5, M6, M7 and AC14 genuinely closed. **C2 and
+H4 were not** — and both survived for the same reason they were filed: a *character count* substituted
+for a *typographic measurement*, calibrated on an average glyph width instead of a worst case. Round 1's
+lesson ("recompute the comment") repeated at the next level of precision: the round-2 comments were
+arithmetically correct but rested on optimistic inputs (0.495em average advance, perfect line packing).
+
+- **C2** threshold `floor(130 / (8·0.495)) = 32` chars. All-caps German runs at 0.60em and `M`/`W` at
+  0.873em: a 32-char all-caps token renders a 538.57pt table on a 515.28pt page; `M`×32 → 600.5pt.
+  `BAUSTELLENEINRICHTUNGSKOSTEN` (real word, 28 chars) clears by **3.6pt**.
+- **H4** `MAX_SAFE_USAGE_CHUNK_CHARS = 1200` claimed ~40% margin; measured **684pt against a ~663pt**
+  effective budget (the repeated header row is subtracted from an unbreakable fragment's height).
+- **New HIGH**: converting 6 columns from `auto`/`*` to fixed points broke the **German header row**
+  deterministically — fixed columns never grow, so `Auftragnehmer`/`Rechnungsbetrag` paint over their
+  neighbours while every table-level width assertion still passes.
+
+Recommended cure for the whole class: **drop the `'*'` column** — pdfmake never sets `elasticWidth`, so
+numeric widths are absolute and the table width becomes constant by construction. See
+[[client-pdf-pipeline]] "Round-2 measurements".
+
+Reviewer lesson: when round 1's finding is "this estimate is wrong", round 2's job is not to check the
+new estimate's arithmetic — it is to ask **what the estimate is an estimate _of_**, and whether a
+construction exists that removes the need to estimate at all.
+
+### Round 3 (CHANGES_REQUIRED, 2026-08-02) — structural cure adopted, one residual
+
+The `'*'` column was dropped as recommended and **width overflow is now structurally impossible**
+(22 pathological inputs, both shapes, all exactly 515.28pt). H1 per-cell containment closed; the
+0.89em worst-case advance closed for all realistic content. Verified by re-rendering, not by reading.
+
+Residual HIGH: `MAX_SAFE_USAGE_CHUNK_CHARS` chunks `usageText`, but `areaText` and `attachmentsNote`
+stack into the **same cell** uncapped — 691pt / 665.8pt against a 634.89pt budget, with silent drop
+confirmed by page-count saturation. The 836-char "measured ceiling" was measured with that cell
+holding usage text only.
+
+Three-round arc worth remembering: **round 1 capped nothing, round 2 capped the wrong quantity
+(average glyphs, perfect packing), round 3 capped the right quantity in the wrong scope.** Each round
+the fix moved one level closer without arriving. The reviewer move that finally worked was checking
+the *input bounds* (`maxLength` in the route schemas) rather than arguing about plausibility — that
+retired the vendor concern outright and isolated the two genuinely uncapped channels.
+
+Downgrade discipline: the glyph-advance finding went HIGH (round 2) -> MEDIUM (round 3) **because the
+structural fix changed its blast radius**, not because the numbers improved. Re-derive severity from
+the current architecture, not from the previous round's ranking.

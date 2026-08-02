@@ -2,7 +2,7 @@
  * PDF generation and merging pipeline.
  */
 import type { TFunction } from 'i18next';
-import type { Content } from 'pdfmake/build/pdfmake';
+import type { Content, Style } from 'pdfmake/build/pdfmake';
 import type { SourceReportResponse } from '@cornerstone/shared';
 import type { ReportContent } from '../reportContent/index.js';
 import { loadPdfLibs } from './loader.js';
@@ -11,6 +11,60 @@ import { buildCoverLetterContent } from './coverLetterPdf.js';
 import { buildOverviewContent } from './overviewPdf.js';
 import type { GeneratedReport, SkippedDocument } from './types.js';
 import { getDocumentPreviewUrl } from '../paperlessApi.js';
+import {
+  PAGE_MARGIN_X,
+  PAGE_TOP_MARGIN,
+  PAGE_MARGIN_BOTTOM,
+  TABLE_BODY_FONT_SIZE,
+  TABLE_HEADER_FONT_SIZE,
+  TABLE_SMALL_FONT_SIZE,
+} from './pageGeometry.js';
+
+/**
+ * Shared pdfmake document-definition literals, extracted so tests can build a realistic
+ * `createPdf()` call without hand-copying them (#1929 AC11 — real-render assertions need the
+ * production styles, not a re-typed approximation).
+ */
+export const PDF_DEFAULT_STYLE: Style = {
+  font: 'Roboto',
+  fontSize: 11,
+  lineHeight: 1.4,
+};
+
+export const PDF_STYLES: Record<string, Style> = {
+  normal: {
+    fontSize: 11,
+  },
+  title: {
+    fontSize: 16,
+    bold: true,
+    color: '#1f2937',
+  },
+  subheader: {
+    fontSize: 12,
+    color: '#6b7280',
+    margin: [0, 4, 0, 0],
+  },
+  header: {
+    fontSize: 14,
+    bold: true,
+    color: '#111827',
+  },
+  tableHeader: {
+    bold: true,
+    fontSize: TABLE_HEADER_FONT_SIZE,
+    color: '#ffffff',
+    fillColor: '#1f2937',
+    alignment: 'left',
+  },
+  tableCell: {
+    fontSize: TABLE_BODY_FONT_SIZE,
+  },
+  small: {
+    fontSize: TABLE_SMALL_FONT_SIZE,
+    color: '#6b7280',
+  },
+};
 
 export async function generateReportPdf(
   report: SourceReportResponse,
@@ -103,7 +157,7 @@ export async function generateReportPdf(
   const pdfDoc = pdfMake.createPdf({
     content,
     pageSize: 'A4',
-    pageMargins: [40, 40, 40, 60],
+    pageMargins: [PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_X, PAGE_MARGIN_BOTTOM],
     header: (currentPage: number) => {
       if (currentPage === 1) return null; // No header on first page
       return buildPageHeader(
@@ -113,45 +167,8 @@ export async function generateReportPdf(
       );
     },
     footer: buildPageFooter(t('sourceReports.table.pageLabel')),
-    defaultStyle: {
-      font: 'Roboto',
-      fontSize: 11,
-      lineHeight: 1.4,
-    },
-    styles: {
-      normal: {
-        fontSize: 11,
-      },
-      title: {
-        fontSize: 16,
-        bold: true,
-        color: '#1f2937',
-      },
-      subheader: {
-        fontSize: 12,
-        color: '#6b7280',
-        margin: [0, 4, 0, 0],
-      },
-      header: {
-        fontSize: 14,
-        bold: true,
-        color: '#111827',
-      },
-      tableHeader: {
-        bold: true,
-        fontSize: 10,
-        color: '#ffffff',
-        fillColor: '#1f2937',
-        alignment: 'left',
-      },
-      tableCell: {
-        fontSize: 10,
-      },
-      small: {
-        fontSize: 9,
-        color: '#6b7280',
-      },
-    },
+    defaultStyle: PDF_DEFAULT_STYLE,
+    styles: PDF_STYLES,
   });
 
   // Get text blob (getBlob() is promise-based in @types/pdfmake@0.3.3)
