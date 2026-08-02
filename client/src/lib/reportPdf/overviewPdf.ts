@@ -61,19 +61,64 @@ export const USAGE_WIDTH_6COL = usableColumnWidth(6) - USAGE_FIXED_SUM_6COL; // 
 
 /**
  * Worst-case single-character advance, as a fraction of font size (em), measured directly via
- * real pdfmake renders. SCANNED: ASCII printable (0x21-0x7E, 94 chars), German umlauts/eszett
- * (ä/ö/ü/Ä/Ö/Ü/ß), and a curated set of common typographic/currency symbols (€/£/¥/§/°/µ/dashes/
- * quote marks/×/÷/±/fractions/№) — 124 characters total, at each of the three table fonts (8pt
- * body, 9pt small, 10pt bold header). #1929 round-3 architect review HIGH2 found the original
- * 0.495em AVERAGE ratio under-flagged all-caps/M-W-heavy tokens by ~45%; round-3's fix (0.89em,
- * from 'W' = 0.8872em) was itself an UNDERCLAIM — round-4 architect review MEDIUM found '@' =
- * 0.8979em (clears round-3's 0.89em by only 0.02pt at the 6-col threshold) and '№' (U+2116,
- * Numero sign) = 1.0283em, the true maximum in this scan, at every font size tested. 1.04em is
- * used uniformly across all three font sizes — safely above every character actually scanned;
- * this is not a claim about the full Unicode range. Over-flagging a token as needing
- * `wordBreak: 'break-all'` is harmless (see buildUsageTextRuns); under-flagging causes the exact
- * overflow this exists to prevent, so this value is rounded UP, not to the nearest measured
- * figure.
+ * real pdfmake renders. This constant has been rescoped twice already (see #1939) after each
+ * prior scan turned out to be narrower than its comment claimed — this revision states exactly
+ * what was scanned.
+ *
+ * SCANNED, this round (#1939, a 3,919-codepoint sweep across 29 BMP ranges — ASCII printable,
+ * Latin-1 supplement, German umlauts/eszett, Latin Extended-A/B, Cyrillic, Greek, currency
+ * symbols, general punctuation, superscripts/subscripts, number forms, and other common
+ * typographic symbols), at each of the three table fonts (8pt body, 9pt small, 10pt bold header):
+ * `Ѹ` U+0478 (Cyrillic letter Uk) is the true maximum found, at 1.1611em (8pt/9pt) / 1.1787em
+ * (10pt bold) — exceeding this constant. Runners-up: `Ҭ` U+04AC = 1.1274em/1.1455em, `Њ` U+040A =
+ * 1.0806em/1.0684em, `₨` U+20A8 (rupee sign) = 1.0576em/1.0728em, and `№` U+2116 (Numero sign,
+ * this constant's basis) = 1.0283em/1.0200em.
+ *
+ * `Ѹ` exceeding 1.04em is tolerable rather than a bug, for two reasons. (1) With no `'*'` column
+ * in this table (every column is an explicit numeric width — see USAGE_FIXED_SUM_* above), an
+ * under-flagged token can only paint outside its own cell's bounds — it can no longer widen the
+ * table itself, which is the failure this constant exists to prevent. (2) MAX_SAFE_USAGE_CHUNK_CHARS
+ * and MAX_SAFE_SMALL_CHUNK_CHARS were pinned by DIRECT MEASUREMENT against a real render, not
+ * derived algebraically from this em value — but that measurement used `№` (the widest character
+ * the pre-#1939, 124-character scan had found), not `Ѹ`: they sit 7.7% below their measured
+ * `№`-fill ceiling of 704 characters, and 17.6% below their measured `№`-fill ceiling of 546
+ * characters, respectively (denominator in both cases: that constant's own measured ceiling — see
+ * MAX_SAFE_USAGE_CHUNK_CHARS's and MAX_SAFE_SMALL_CHUNK_CHARS's comments). Those percentages are
+ * margins against `№`, not against `Ѹ` — re-rendering with a `Ѹ` fill (narrower per-line character
+ * count, since `Ѹ` is wider) has not been done, so no percentage margin against `Ѹ` is claimed
+ * here. Reason (1) covers only horizontal overflow (a token painting outside its own cell); the
+ * hazard these two ceilings actually guard against is VERTICAL — an over-tall row silently
+ * dropping content under `dontBreakRows` (an I1 violation; see MAX_SAFE_USAGE_CHUNK_CHARS's
+ * comment) — and reason (1) says nothing about that. That vertical hazard CAN be derived against
+ * `Ѹ` without a new render, because both measured ceilings are exact multiples of their own
+ * `№`-fill per-line character count: 704 = 44 lines x 16 chars/line (492.8pt) and 546 = 39 lines x
+ * 14 chars/line (491.4pt) — two independent exact multiples landing on the same ~492pt content
+ * budget means those measurements pinned a LINE budget (font-size-driven), not a glyph-driven
+ * one. Swapping in `Ѹ`'s narrower per-line count (14 chars/line at 8pt, 13 at 9pt) gives derived
+ * `Ѹ` ceilings of 44 x 14 = 616 for MAX_SAFE_USAGE_CHUNK_CHARS and 39 x 13 = 507 for
+ * MAX_SAFE_SMALL_CHUNK_CHARS. MAX_SAFE_SMALL_CHUNK_CHARS (450) is safe under this derivation
+ * (11.2% under 507); MAX_SAFE_USAGE_CHUNK_CHARS (650) is NOT — it is 34 characters (3 lines,
+ * 33.6pt) over its derived 616-character `Ѹ` ceiling. That overage is tolerated on input
+ * reachability, not on either reason above: it requires a 650-character unbroken run of archaic
+ * Church Slavonic Uk in a single Usage cell, the same non-credible-input class as `markerText`'s
+ * 250-skipped-document scenario (see the channel enumeration below). A `Ѹ`-safe value would have
+ * to sit in [600, 616], collapsing AC12's [600, ceiling) window from 8.3% to ~2.7% — a real cost
+ * for covering an input this unlikely, and why MAX_SAFE_USAGE_CHUNK_CHARS is left at 650 rather
+ * than lowered.
+ *
+ * Raising this constant to cover `Ѹ` would be a net loss, not a free improvement, though the cost
+ * is not immediate: recomputing `floor(width / (fontSize * em))` across the range shows raising to
+ * 1.05em moves neither USAGE_SAFE_TOKEN_CHARS_7COL nor VENDOR_SAFE_TOKEN_CHARS — the first of the
+ * two to move is USAGE_SAFE_TOKEN_CHARS_7COL, at em > 1.0803 (VENDOR_SAFE_TOKEN_CHARS doesn't move
+ * until em > 1.125). Actually covering `Ѹ` at 1.1787em (its 10pt-bold width, the largest of the
+ * three) costs both: USAGE_SAFE_TOKEN_CHARS_7COL drops from 16 to 14 characters, and
+ * VENDOR_SAFE_TOKEN_CHARS drops from 5 to 4 — breaking MORE ordinary German compounds (this
+ * table's actual, common content) in exchange for correctly flagging a Cyrillic letter that, per
+ * the two reasons above, was already harmless to under-flag. 1.04em is used uniformly across all
+ * three font sizes. Over-flagging a token as needing `wordBreak: 'break-all'` is harmless (see
+ * buildUsageTextRuns); under-flagging a token this constant is meant to catch causes the exact
+ * overflow this exists to prevent, so relative to its `№` basis the value is rounded UP, not to
+ * the nearest measured figure.
  */
 const WORST_CASE_CHAR_ADVANCE_EM = 1.04;
 const BODY_WORST_CASE_CHAR_WIDTH_PT = TABLE_BODY_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 8.32pt
@@ -106,12 +151,15 @@ const SMALL_WORST_CASE_CHAR_WIDTH_PT = TABLE_SMALL_FONT_SIZE * WORST_CASE_CHAR_A
  * render of the production table shape (7-column, `headerRows: 1` with word-break-protected
  * header cells, one populated content row, then a Usage-only continuation row placed where
  * `dontBreakRows` would defer it — a fresh page), using the theoretical worst case: a single
- * unbroken run of '№' (U+2116, the widest character found in the WORST_CASE_CHAR_ADVANCE_EM
- * scan) with NO whitespace at all, so every line packs to exactly the column's worst-case
+ * unbroken run of '№' (U+2116, the widest character the pre-#1939, 124-character/3-font scan had
+ * found) with NO whitespace at all, so every line packs to exactly the column's worst-case
  * character count with no slack. Measured ceiling: 704 characters (round-3's measurement used
- * 'W', not the true worst character, and got 836 — a near-miss this round's fix corrects). This
- * constant sits ~7.7% below that measured ceiling and ~8.3% above AC12's 600-character
- * zero-degradation requirement.
+ * 'W', not the widest character then known, and got 836 — a near-miss round 4's fix corrected).
+ * This constant sits ~7.7% below that measured '№'-fill ceiling (denominator: 704) and ~8.3%
+ * above AC12's 600-character zero-degradation requirement. #1939's wider 29-range/3,919-codepoint
+ * scan (see WORST_CASE_CHAR_ADVANCE_EM) later found `Ѹ` U+0478 wider still (~1.16em vs `№`'s
+ * 1.0283em) — this measurement was not redone against a `Ѹ` fill, so the 7.7% figure remains a
+ * margin against `№`, not against the true widest character now known.
  */
 export const MAX_SAFE_USAGE_CHUNK_CHARS = 650;
 
@@ -124,10 +172,13 @@ export const MAX_SAFE_USAGE_CHUNK_CHARS = 650;
  * a row with usageText, or with each other, in the first place).
  *
  * MEASURED CEILING: same method and production shape as MAX_SAFE_USAGE_CHUNK_CHARS, with the
- * continuation row rendered at 'small' style and the same worst-case '№' fill. Measured ceiling:
- * 546 characters. This constant sits ~17.6% below that — no AC mandates a specific floor for
- * these two fields (unlike usageText's AC12), so a larger margin is used than
- * MAX_SAFE_USAGE_CHUNK_CHARS's tighter [600, ceiling) window allows.
+ * continuation row rendered at 'small' style and the same pre-#1939 worst-case '№' fill (see that
+ * constant's comment for why '№', not `Ѹ`, is the character this ceiling was measured against).
+ * Measured ceiling: 546 characters. This constant sits ~17.6% below that measured '№'-fill
+ * ceiling (denominator: 546) — no AC mandates a specific floor for these two fields (unlike
+ * usageText's AC12), so a larger margin is used than MAX_SAFE_USAGE_CHUNK_CHARS's tighter [600,
+ * ceiling) window allows. As with that constant, this 17.6% is a margin against `№`; it has not
+ * been re-measured against `Ѹ`.
  */
 export const MAX_SAFE_SMALL_CHUNK_CHARS = 450;
 
@@ -273,11 +324,16 @@ function buildHeaderCell(text: string, columnWidthPt: number, alignment?: 'right
 }
 
 /**
- * Conservative worst-case height (pt) of the table's own repeating header row (`headerRows: 1`).
- * Exported for #1932 (cover-letter overhaul) to reuse rather than re-deriving its own version of
- * this — per the architect's round-3 review note (round-4 review: no production consumer yet,
- * grep-verified; keep as-is since it's only ever subtracted from a height budget elsewhere, so
- * over-estimating can't invert a safety check). Computed, not independently re-measured per
+ * Conservative UPPER-BOUND height (pt) of the table's own repeating header row (`headerRows: 1`)
+ * — a safety ceiling, not a typical or expected height. #1939: renamed from `HEADER_ROW_HEIGHT`
+ * because that name read as an estimate of the typical rendered height, when the formula
+ * actually computes the worst case if every character were the widest glyph this module scans
+ * for (see WORST_CASE_CHAR_ADVANCE_EM) — the architect's real render of this exact row measured
+ * 45.81pt, a 48% gap below this export's 68pt. Exported for #1932 (cover-letter overhaul) to
+ * reuse rather than re-deriving its own version of this (round-4 review: no production consumer
+ * yet, grep-verified; keep as-is since it's only ever subtracted from a height budget elsewhere,
+ * so over-estimating can't invert a safety check — but #1932 must treat it as a ceiling, not a
+ * typical height, or it will under-fill pages). Computed, not independently re-measured per
  * render: the narrowest fixed column (Vendor, 45pt) holding its longest bare header word,
  * "Auftragnehmer" (13 characters, no internal whitespace), broken across
  * `ceil(13 / safeTokenChars(VENDOR_WIDTH, header ratio))` lines at the header font's line height,
@@ -288,15 +344,54 @@ function buildHeaderCell(text: string, columnWidthPt: number, alignment?: 'right
  * correction raised it from round-3's 54pt) rather than matching it exactly. #1929's own
  * MAX_SAFE_USAGE_CHUNK_CHARS does not depend on this being exact — it was pinned directly
  * against a real multi-row render instead (see that constant's comment); treat this export as a
- * documented estimate for reuse, not a load-bearing measurement.
+ * documented conservative ceiling for reuse, never a load-bearing or typical-case measurement.
  */
 const HEADER_ROW_VERTICAL_PADDING_PT = 12; // shared.ts TABLE_LAYOUT paddingTop(6) + paddingBottom(6)
 const VENDOR_HEADER_WORST_CASE_LINES = Math.ceil(
   'Auftragnehmer'.length / safeTokenChars(VENDOR_WIDTH, HEADER_WORST_CASE_CHAR_WIDTH_PT),
 );
-export const HEADER_ROW_HEIGHT =
+export const HEADER_ROW_HEIGHT_MAX =
   VENDOR_HEADER_WORST_CASE_LINES * (TABLE_HEADER_FONT_SIZE * DEFAULT_LINE_HEIGHT) +
   HEADER_ROW_VERTICAL_PADDING_PT;
+
+/**
+ * Every cell-content channel this table renders (buildLeadingCells/buildAmountCells/the row-
+ * building loop below), and the bound that closes each one (#1939, product-architect round-4
+ * sweep). Documentation only — see the two exceptions called out at the end; neither is fixed
+ * here (scope guard: AC7).
+ *
+ * - `vendor`            — server `maxLength: 200` (`server/src/routes/vendors.ts` createVendorSchema,
+ *                          `name` field). Worst case (VENDOR_SAFE_TOKEN_CHARS break-all, 200 chars
+ *                          of the widest scanned glyph) measures ~393pt against this table's usage-
+ *                          row height budget — 36.7% margin.
+ * - `invoiceNumber`     — server `maxLength: 100` (`server/src/routes/invoices.ts`
+ *                          createInvoiceSchema, `invoiceNumber` field). Worst case ~158pt — 74.6%
+ *                          margin. NOT routed through buildUsageTextRuns (rendered as a plain
+ *                          `contentRow.invoiceNumber` text cell in buildLeadingCells) — see the
+ *                          exception below.
+ * - `statusText`        — enum label via `reportT` (bounded by construction: finite enum of
+ *                          translated strings, not user input).
+ * - `refundNoteText`    — fixed `reportT` string (bounded by construction, same as above).
+ * - `allocatedAmountValueText` — via `reportFormatters.formatCurrency` (bounded by construction:
+ *                          a formatted number, not user input).
+ * - `usageText` / `areaText` / `attachmentsNote` — chunked via splitIntoPageSafeChunks against
+ *                          MAX_SAFE_USAGE_CHUNK_CHARS / MAX_SAFE_SMALL_CHUNK_CHARS.
+ * - `markerText`        — UNBOUNDED. One `*N` footnote marker is appended per skipped document on
+ *                          an invoice (see the row-building loop's `skipMarkers` accumulation),
+ *                          with no chunking and no word-break, into the 75pt ALLOCATED_AMOUNT_WIDTH
+ *                          column. Break-even is ~250 skipped documents on a single invoice
+ *                          (~617pt against the page budget, 0.7% margin); over budget at ~300.
+ *                          This is a documentation item, not a fix: it needs ~250 Paperless
+ *                          documents linked to one invoice, all failing to fetch, in a 1-5-user
+ *                          self-hosted app — not a credible input, and the fix (chunking a
+ *                          footnote-marker run) would be pure ceremony against that reachability.
+ *
+ * Two channels are recorded here without a fix, same class as `markerText` above:
+ * - `invoiceNumber` (see above) does not route through buildUsageTextRuns, so a 100-character
+ *   unbroken number would paint outside its 63pt INVOICE_NUMBER_WIDTH column. Interior column,
+ *   cosmetic overflow only, capped at 100 by the server schema — recorded, not fixed.
+ * - `markerText` (see above) is the one remaining unbounded row-height contributor in this table.
+ */
 
 export function buildOverviewContent(
   reportContent: ReportContent,

@@ -79,7 +79,7 @@ import {
   USAGE_WIDTH_6COL,
   MAX_SAFE_USAGE_CHUNK_CHARS,
   MAX_SAFE_SMALL_CHUNK_CHARS,
-  HEADER_ROW_HEIGHT,
+  HEADER_ROW_HEIGHT_MAX,
   splitIntoPageSafeChunks,
 } from './overviewPdf.js';
 
@@ -1599,13 +1599,13 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     });
   });
 
-  // ─── #1929 round 3 HIGH1: HEADER_ROW_HEIGHT measurement (real render) ─────────────────────────
+  // ─── #1929 round 3 HIGH1: HEADER_ROW_HEIGHT_MAX measurement (real render) ─────────────────────────
 
-  describe('HEADER_ROW_HEIGHT: measuring the exported estimate against a real render (regression #1929 round 3)', () => {
-    it('measures the actual rendered height of the table header row (repeating headerRows:1 band) and reports it against the exported HEADER_ROW_HEIGHT estimate', async () => {
+  describe('HEADER_ROW_HEIGHT_MAX: measuring the exported estimate against a real render (regression #1929 round 3)', () => {
+    it('measures the actual rendered height of the table header row (repeating headerRows:1 band) and reports it against the exported HEADER_ROW_HEIGHT_MAX estimate', async () => {
       const { buildOverviewContent } = await import('./overviewPdf.js');
       // Worst-case: German locale (longest header labels), budget-overview shape (narrowest
-      // Vendor-adjacent columns, matching HEADER_ROW_HEIGHT's own derivation basis).
+      // Vendor-adjacent columns, matching HEADER_ROW_HEIGHT_MAX's own derivation basis).
       const { report, includedIds } = await makeMixedReport();
       const formatters = formattersFor('de-DE');
       const content = buildReportContent(report, includedIds, 'budget-overview', tDe, formatters, {
@@ -1625,25 +1625,26 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       // Every cell's first rendered line starts at the same `top` within a row — the gap between
       // the header row's first line and the immediately-following body row's first line IS the
       // header row's real rendered height (including its own vertical padding/borders), which is
-      // exactly what HEADER_ROW_HEIGHT is meant to estimate for #1932's reuse.
+      // exactly what HEADER_ROW_HEIGHT_MAX is meant to estimate for #1932's reuse.
       const headerTop = (headerRow[0] as { positions: { top: number }[] }).positions[0]!.top;
       const bodyTop = (bodyRow[0] as { positions: { top: number }[] }).positions[0]!.top;
       const measuredHeaderRowHeight = bodyTop - headerTop;
 
       // AUTHORITATIVE measurement, per the round-3 spec. Measured: this real render's header row
-      // is 45.8125pt tall against the exported HEADER_ROW_HEIGHT estimate of 54pt — an ~8.19pt
-      // OVER-estimate (54 - 45.8125 = 8.1875), not an under-estimate. Reported as a finding, not
-      // silently reconciled: HEADER_ROW_HEIGHT's own doc comment already frames it as "a
-      // documented estimate for reuse, not a load-bearing measurement" (its own basis —
-      // VENDOR_HEADER_WORST_CASE_LINES = ceil(13/5) = 3 wrapped lines for "Auftragnehmer" — assumes
-      // a 3-line wrap that this real render doesn't actually reach). Because the direction of error
-      // is CONSERVATIVE (over-reserving vertical space for #1932's reuse, not under-reserving,
-      // which is the direction that would actually truncate content), this is not asserted as a
-      // CODE_BUG requiring a production fix — the load-bearing property for a space RESERVATION is
-      // that it never under-shoots, which is what's asserted below. If a future consumer of
-      // HEADER_ROW_HEIGHT needs a TIGHT (not just safe) bound, this measured gap is the number to
+      // is 45.8125pt tall against the exported HEADER_ROW_HEIGHT_MAX ceiling of 68pt — a ~22.19pt
+      // OVER-estimate (68 - 45.8125 = 22.1875, ~48% above the measured height), not an
+      // under-estimate. Reported as a finding, not silently reconciled: HEADER_ROW_HEIGHT_MAX's own
+      // doc comment already frames it as a conservative UPPER BOUND, not a typical-case measurement
+      // (its own basis — VENDOR_HEADER_WORST_CASE_LINES = ceil(13/4) = 4 wrapped lines for
+      // "Auftragnehmer" at the worst-case char width — assumes a 4-line wrap that this real render,
+      // using actual glyph widths, doesn't actually reach). Because the direction of error is
+      // CONSERVATIVE (over-reserving vertical space for #1932's reuse, not under-reserving, which is
+      // the direction that would actually truncate content), this is not asserted as a CODE_BUG
+      // requiring a production fix — the load-bearing property for a space RESERVATION is that it
+      // never under-shoots, which is what's asserted below. If a future consumer of
+      // HEADER_ROW_HEIGHT_MAX needs a TIGHT (not just safe) bound, this measured gap is the number to
       // act on.
-      expect(measuredHeaderRowHeight).toBeLessThanOrEqual(HEADER_ROW_HEIGHT);
+      expect(measuredHeaderRowHeight).toBeLessThanOrEqual(HEADER_ROW_HEIGHT_MAX);
     });
   });
 

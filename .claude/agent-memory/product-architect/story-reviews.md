@@ -424,3 +424,43 @@ of the button so the accessible name is unaffected; `toBeAttached()` (not `toBeV
 `.srOnly` (`1px` + `clip-path: inset(50%)` makes Playwright's visibility heuristic ambiguous); expected
 literal is byte-identical to `en/budget.json`; `#enhanceWithAiDescription` and `aiGenerateRow` each have
 exactly one render site, so no strict-mode risk from the page's desktop/mobile dual DOM tree.
+
+## PR #1945 (bug #1943, Must Have) — use-case change kept the stale report — APPROVED
+
+Defect I found reviewing #1942. Fix: five clears inside `handleUseCaseChange`'s `guardedUpdate` callback
+(`report`/`reportStatus`/`sourceId`/both exclusion sets) plus a `deepLinkAppliedRef` one-shot. 72/72 unit
+tests verified locally. Client-only — no schema/API/ADR impact.
+
+Verdict APPROVED with no critical/high. Findings: MEDIUM in-flight `getSourceReport` race can re-populate
+`report` after the reset (requested before this cluster's beta->main promotion) · MEDIUM in-flight AI
+generation bypasses the discard confirmation and lands use-case-mismatched narrative · MEDIUM
+`useReducer` refactor of the 38-hook component · LOW AC5 enumeration omits `skippedDocuments` + `aiError` ·
+LOW AC4's "always identical" is violated by sticky prefs (`attachDocuments`, `reportLanguageOverride`) ·
+LOW make `deepLinkAppliedRef` hold the applied id. Details in [[recurring-patterns]].
+
+Verified as *correct* and worth not re-litigating: `reportStatus: 'loading'` **is** the `useState` initial
+value and step 3 is unmounted during the transition, so AC6 equivalence is exact; claim-flow state is
+genuinely symmetric with a source change and correctly KEPT (stale display only, never a PDF input);
+`includeCoverLetter` is unconditionally recomputed on every report load.
+
+E2E scenarios 13/14 (unexecuted — Chromium blocked in sandbox) read correct: `buttonRow` is outside
+`Step2Source`, so `step2NextButton` assertions are stable while the amounts skeleton is up; `sourceRow()`
+retries through the skeleton; `sourceReportService.test.ts:270` confirms claim reports include `pending`,
+so scenario 13's terminal `regularInvoiceRow` assertion holds. Weakness: scenario 14's assertions are both
+negative and pass on the first poll — sound only because the re-entry would fire in the same React commit.
+
+## #1939 reportPdf geometry hygiene (PR #1948, CHANGES_REQUIRED)
+
+Comment/name-only PR implementing my #1929 round-3/4 recommendations. Landed clean: `HEADER_ROW_HEIGHT` ->
+`HEADER_ROW_HEIGHT_MAX` (68 = ceil(13/floor(45/10.4)) * 14 + 12, unchanged); cell-content channel
+enumeration (verified against `vendors.ts:35` maxLength 200, `invoices.ts:25` maxLength 100, all table
+widths numeric at `overviewPdf.ts:673`); `PDF_STYLES` relocated into `pageGeometry.ts` with a type-only
+`Style` import (no cycle) and a clean `export { PDF_STYLES }` shim in `merge.ts`.
+
+Rejected on the `WORST_CASE_CHAR_ADVANCE_EM` comment — see the cross-reference-rot section in
+[recurring-patterns.md](recurring-patterns.md) for the three defects and the recompute technique.
+
+Residual, non-blocking: `PDF_DEFAULT_STYLE` stayed in `merge.ts` with hardcoded `fontSize: 11` /
+`lineHeight: 1.4`, while `pageGeometry.ts:55` has `DEFAULT_LINE_HEIGHT = 1.4 // matches merge.ts's
+defaultStyle.lineHeight` — the load-bearing half of the duplicate (feeds `headerFootprint()` ->
+`PAGE_TOP_MARGIN` and `HEADER_ROW_HEIGHT_MAX`). Moving it down closes AC8's intent fully.

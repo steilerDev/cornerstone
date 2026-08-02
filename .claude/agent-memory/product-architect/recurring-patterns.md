@@ -235,3 +235,73 @@ constant blocks is over-engineering at ~15 lines — tight assertions buy the sa
 Also check that **every** constraint the AC enumerates has its own guard: #1931's AC 3.5 listed five, and
 "never invent or alter amounts or dates" had none (the only `/invent/` assertion in the file targeted
 `MERGE_SYSTEM_PROMPT`) — the one instruction protecting the single number the model still emits.
+
+## Async writes survive state resets: `ReportWizardPage` has no request-staleness tokens
+
+Found reviewing PR #1945 (#1943). `ReportWizardPage.tsx` fires `getSourceReport` (in `handleSourceChange`)
+and `generateReportContent` (in `runAiGeneration`) with **no abort and no monotonic request token**. Clearing
+state in a handler therefore does not stop an already-in-flight fetch from re-populating exactly what was
+just cleared.
+
+Two live consequences after #1943's fix:
+
+- **Out-of-order report fetch.** `A = getSourceReport(oldUseCase, src)` in flight -> user changes use case
+  (reset clears `report`) -> user re-picks the source -> `B = getSourceReport(newUseCase, src)`. If A settles
+  after B, `setReport(A)` wins while `sourceId` is set and `maxReachedStep === 3` — the exact #1943 end state
+  (quotation-tier docs in a claim export). Different report types over the same source have different
+  server-side filtering, so A finishing last is plausible.
+- **In-flight AI generation.** `aiContent` is `null` while generating, so `guardedUpdate`'s dirty predicate is
+  false and a use-case change applies with **no discard confirmation**; the result then lands via
+  `setAiContent` and `applyAiContent` puts it on the next report. Not symmetric with a source change — the
+  request carries `type: useCase` and (post-#1931) a purpose-focused prompt, so the narrative is written for
+  the *wrong report purpose*, not merely the wrong source.
+
+**Fix shape:** `const reqRef = useRef(0)` — increment + capture at the top of every handler that starts a
+fetch, bail in `.then`/`.catch` if `reqRef.current !== captured`.
+
+**Root cause, and the thing to actually push on:** 38 `useState`/`useRef` hooks in a 1,156-line component,
+with "what a transition invalidates" hand-maintained across two handlers that must stay in sync. #1943 was
+that failure mode; its `deepLinkAppliedRef` second-order effect was the failure mode of patching it with a
+boolean ref. Recommend `useReducer` with `SELECT_USE_CASE` / `SELECT_SOURCE` / `REPORT_LOADED(requestId)`
+so the KEEP list and the staleness guard become structural instead of a code comment.
+
+**Reviewer heuristic, generalizable:** when a fix's remedy is "clear state X", always enumerate *every write
+path into X* — effects re-armed by the cleared value (the deep-link `!report` case), and pending promises
+that will write X later. The first is usually caught; the second usually isn't.
+
+## One-shot effect guards: prefer `useRef<string | null>` over `useRef<boolean>`
+
+`deepLinkAppliedRef` (#1943 AC8) is a bare boolean, safe only because `?sourceId=` has exactly one producer
+(`BudgetSourcesPage.tsx:1318`, a `navigate()` from a *different* route, so always a remount) and
+`ReportWizardPage` never calls `setSearchParams`. That fact lives nowhere but a code comment. Storing the
+*applied value* instead of a boolean costs nothing and survives a second same-route producer being added.
+
+Unremarked side benefit worth knowing: the ref also closed a latent pre-existing hazard — when a deep-link
+fetch *failed*, `report` stayed `null`, so any later `overrides`/`aiContent` change re-identified
+`guardedUpdate` -> `handleSourceChange` -> the effect's deps and silently re-fired the fetch.
+
+## Cross-reference rot in "documented bound" comments (#1939 / PR #1948)
+
+`client/src/lib/reportPdf/` encodes safety bounds nobody can re-derive from the code, so the *comments are
+the interface*. Three failure modes seen repeatedly there — check all three whenever a review touches a
+commented constant:
+
+1. **A comment that cites another comment.** `WORST_CASE_CHAR_ADVANCE_EM` said the height ceilings were
+   "pinned ... using the true widest character (see those constants' comments)"; those comments said the
+   measurement used `№` and carried different percentages on a different denominator (char count, not page
+   height). Always follow the pointer and read the target.
+2. **Superseding a measurement basis without sweeping the callers.** Naming a new widest glyph (`Ѹ` U+0478)
+   silently falsified `MAX_SAFE_USAGE_CHUNK_CHARS`'s "'№' ... the widest character found in the scan".
+   `grep` for the old basis before accepting the new one.
+3. **A cost figure that describes a change already made.** "Raising this would push the 7-col threshold from
+   19 to 16" — 19 was its value at the *previous* em (0.89); 16 is current. Recompute every quantitative
+   justification from the constant's present value, don't trust the prose.
+
+**Reviewer move that catches all three cheaply:** recompute the thresholds in `node` across a range of the
+constant, and diff against the test's asserted values (`overviewPdf.test.ts` asserts usage7=16, usage6=22,
+vendor=5, small7=14, small6=19 at em=1.04). Also verify glyph/codepoint pairs programmatically — `Ҭ` was
+labelled U+046C when it is U+04AC.
+
+**My own figures are not exempt.** Both HIGH findings in PR #1948 traced to numbers I supplied in the #1929
+round-4 review and the PO transcribed faithfully into ACs. When a later PR exists only to make my
+recommendations true, re-derive them from scratch rather than checking transcription fidelity.
