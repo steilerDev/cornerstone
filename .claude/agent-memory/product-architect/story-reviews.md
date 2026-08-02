@@ -319,3 +319,58 @@ retired the vendor concern outright and isolated the two genuinely uncapped chan
 Downgrade discipline: the glyph-advance finding went HIGH (round 2) -> MEDIUM (round 3) **because the
 structural fix changed its blast radius**, not because the numbers improved. Re-derive severity from
 the current architecture, not from the previous round's ranking.
+
+### Round 4 (APPROVED, 2026-08-02)
+
+Cell-scope fix verified by rendering: all three round-3 drop scenarios closed (665.8/691.0/1119.4pt
+-> 404/404/264pt), page counts now grow instead of saturating, width still exactly 515.28pt across
+20 cases. Caps 650/450 re-measured at a glyph 13% wider than the team used — still 13.3%/27.0% margin.
+
+Fourth channel found as asked: **`markerText`** (one `*N` per skipped document, unbounded, no chunk,
+no break-all) — break-even ~250 skipped docs on one invoice. Not blocking; noted as follow-up.
+
+Two review lessons worth keeping:
+
+1. **Severity must be re-derived from the current architecture each round, not carried forward.** The
+   glyph-advance finding went HIGH -> MEDIUM -> non-blocking across rounds 2/3/4 while the *numbers
+   got worse* (0.89 -> 1.04 claimed, 1.18 actual). What changed was blast radius: once the `'*'`
+   column died, under-flagging could only paint outside a cell. Ranking a finding by its measured
+   error rather than its consequence would have blocked a correct PR.
+2. **A comment that overclaims is its own recurring defect.** "Safely above every character scanned"
+   was wrong at 0.89 and again at 1.04. The durable fix is to make the bound *name its own scope*
+   ("widest in the Latin/German/punctuation set scanned") rather than to keep raising the number.
+
+Four rounds total. Trajectory was right each time; each round bounded something real and revealed the
+next layer. Worth remembering before pushing for a five-round rewrite: the arc converged.
+
+## Story #1930 — Attachment tier rules per report type (PR #1942, APPROVED 2026-08-02)
+
+Per-invoice stage matching (invoice status slice + deposit split + `targetStatuses`) replaced by a
+pure two-arg predicate in `server/src/services/shared/attachmentTierUtils.ts`:
+tier `quotation`1 < `deposit`2 < `invoice`3; floors budget-overview 1 / claim 2 / proof-of-funds 3.
+`attachmentType: null` = tier 3 (product ruling — nulls are legacy/ambiguous, and a silently-dropped
+attachment is unrecoverable while an over-included one is deselectable).
+
+Three durable conclusions:
+
+1. **Server-local vs `@cornerstone/shared` — the relocation trigger.** #1916's drift came from *two
+   implementations*, not from server-local placement. Relocating a rule with one implementation and
+   zero client callers reduces nothing and adds build-order coupling. Sharper: for the client to need
+   this predicate, the server would have to ship *unfiltered* documents — which AC7 forbids. So
+   client-side need is a contract violation, not a future extension. Rule to reuse:
+   **move to `@cornerstone/shared` iff a client module must evaluate the rule against data the server
+   has not already filtered.**
+2. **`Record<Union, T>` object literal is the right exhaustiveness mechanism** (fails the build when
+   the union grows; `Partial<>` degrades to `undefined`, `switch` needs a `never` guard). Its residual
+   hole — an out-of-enum DB value indexing to `undefined`, and `undefined >= floor` silently excluding
+   from *every* report — is closed here by a real `CHECK` in migration `0042`, not by Drizzle's
+   compile-time `text(..., {enum})`. **Always check whether the migration has the CHECK before calling
+   a cast-fed `Record` lookup safe.**
+3. **Reports are computed on read** — no report table in `schema.ts`, PDF built client-side per
+   invocation (ADR-034). Changing report filtering has no persisted blast radius, no cache, no backfill.
+
+Findings posted: MEDIUM (pre-existing, follow-up) `ReportWizardPage.handleUseCaseChange` never clears
+`report`/`sourceId`, so changing the use case and clicking straight through step 2 reaches step 3 with
+a report fetched under the *previous* use case — the tier rule is right, the wizard just holds output
+from the wrong invocation. LOW: `wiki/API-Contract.md:3625` still says "Document stage" four lines
+above the tier tables that retire that word.
