@@ -1,5 +1,6 @@
 /**
- * Unit tests for the AI-generation feature added to ReportWizardPage.tsx (Story #1901).
+ * Unit tests for the AI-generation feature on ReportWizardPage.tsx (originally Story #1901,
+ * revised by Story #1931).
  *
  * Split out from ReportWizardPage.test.tsx (which stays focused on the #1900 editable-content
  * baseline) to keep both files a manageable size. Uses the same mock-module setup and
@@ -7,14 +8,21 @@
  * comment for the two-DOM-tree (desktop table + mobile card list) and `desktopTable()` scoping
  * rationale, both of which apply identically here.
  *
- * Covers: the AI toggle's dependence on llmEnabled (from fetchConfig) and the wizard's own
- * aiEnabled state; the "Generate with AI" button only being offered when both are true; no
- * generation on mount; a single batched call per click with the correct request shape; the
- * fake-timer elapsed-seconds counter; generated text becoming a new BASELINE (no edited
- * indicator) rather than an override; per-field reset after a further manual edit falling back to
- * the AI baseline (not the pre-AI derived text); the overwrite-confirmation modal gating
- * regeneration only when manual overrides exist; guardedUpdate clearing aiContent on a
- * confirmed step 1-4 change; and the error path preserving existing content and allowing retry.
+ * #1931 removed the step-4 "Enable AI assistance" toggle (double opt-in defect — the toggle
+ * carried no state of its own, it only gated whether a second button existed). The step-5 action
+ * now depends purely on `llmEnabled` (from `GET /api/config`), and its accessible name changed
+ * from "Generate with AI" to "Enhance with AI". `goToStep4`/`goToStep5` below no longer take an
+ * `enableAi` parameter — there is nothing to opt into on step 4 anymore.
+ *
+ * Covers: the button's dependence on llmEnabled alone; the button only being offered when
+ * llmEnabled is true, with no step-4 interaction required; no generation on mount; a single
+ * batched call per click with the correct request shape; the fake-timer elapsed-seconds counter;
+ * generated text becoming a new BASELINE (no edited indicator) rather than an override; per-field
+ * reset after a further manual edit falling back to the AI baseline (not the pre-AI derived text);
+ * the overwrite-confirmation modal gating regeneration only when manual overrides exist;
+ * guardedUpdate clearing aiContent on a confirmed step 1-4 change; the error path preserving
+ * existing content and allowing retry; and the button's aria-describedby wiring to a visually
+ * hidden description that renders whenever the button does.
  */
 import { render, screen, waitFor, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -251,36 +259,23 @@ async function goToStep3(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
 }
 
-/** Navigate to step 4 and, unless `enableAi` is false, tick the "Enable AI assistance" toggle. */
-async function goToStep4(user: ReturnType<typeof userEvent.setup>, enableAi = true) {
+/** Navigate to step 4. There is no AI toggle to opt into anymore (#1931) — step 5's action button
+ * depends purely on llmEnabled from the mocked fetchConfig. */
+async function goToStep4(user: ReturnType<typeof userEvent.setup>) {
   await goToStep3(user);
   await clickNext(user); // step 3 -> 4
-  if (enableAi) {
-    await waitFor(() => expect(screen.getByLabelText('Enable AI assistance')).toBeInTheDocument());
-    await user.click(screen.getByLabelText('Enable AI assistance'));
-  }
 }
 
-async function goToStep5(user: ReturnType<typeof userEvent.setup>, enableAi = true) {
-  await goToStep4(user, enableAi);
+async function goToStep5(user: ReturnType<typeof userEvent.setup>) {
+  await goToStep4(user);
   await clickNext(user); // step 4 -> 5
 }
 
-describe('ReportWizardPage — AI generation (Story #1901)', () => {
-  // ─── Availability / opt-in ─────────────────────────────────────────────────
+describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', () => {
+  // ─── Availability (llmEnabled alone — no opt-in step) ──────────────────────
 
-  describe('availability and opt-in', () => {
-    it('shows the "Enable AI assistance" toggle on step 4 when llmEnabled is true', async () => {
-      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
-      mockGetSourceReport.mockResolvedValue(makeReport());
-      renderPage();
-      const user = userEvent.setup();
-      await goToStep4(user, false);
-
-      expect(screen.getByLabelText('Enable AI assistance')).toBeInTheDocument();
-    });
-
-    it('hides the "Enable AI assistance" toggle entirely when llmEnabled is false', async () => {
+  describe('availability (single llmEnabled gate, #1931)', () => {
+    it('shows no AI action, spinner, note, or error slot anywhere on step 5 when llmEnabled is false', async () => {
       mockFetchConfig.mockResolvedValue({
         currency: 'EUR',
         vatRate: 0.19,
@@ -291,29 +286,34 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
       const user = userEvent.setup();
-      await goToStep4(user, false);
+      await goToStep5(user);
 
-      expect(screen.queryByLabelText('Enable AI assistance')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Enhance with AI' })).not.toBeInTheDocument();
+      expect(screen.queryByText(/generating…/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('Content generated with AI — review before submitting.'),
+      ).not.toBeInTheDocument();
     });
 
-    it('does not offer "Generate with AI" on step 5 when the AI toggle is off', async () => {
+    it('offers "Enhance with AI" on step 5 when llmEnabled is true, with no step-4 interaction required', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, false); // AI toggle left off
+      await goToStep5(user);
 
-      expect(screen.queryByRole('button', { name: 'Generate with AI' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeInTheDocument();
     });
 
-    it('offers "Generate with AI" on step 5 when the AI toggle is on', async () => {
+    it('renders no AI-related control at all on step 4 (the old toggle is gone, #1931)', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep4(user);
 
-      expect(screen.getByRole('button', { name: 'Generate with AI' })).toBeInTheDocument();
+      expect(screen.queryByText(/enable ai assistance/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('checkbox', { name: /ai/i })).not.toBeInTheDocument();
     });
 
     it('does NOT call generateReportContent automatically just from reaching step 5', async () => {
@@ -321,9 +321,65 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
       expect(mockGenerateReportContent).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── Accessibility: aria-describedby wiring (#1931) ────────────────────────
+
+  describe('enhance-with-AI button accessibility description (#1931)', () => {
+    it('has aria-describedby pointing at an element whose text is the description', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      const button = screen.getByRole('button', { name: 'Enhance with AI' });
+      const describedById = button.getAttribute('aria-describedby');
+      expect(describedById).toBeTruthy();
+      const descriptionEl = document.getElementById(describedById!);
+      expect(descriptionEl).not.toBeNull();
+      expect(descriptionEl?.textContent).toBe(
+        "Replaces the usage descriptions and cover letter below with AI-generated content. Any edits you've made will be discarded.",
+      );
+    });
+
+    it('renders the description whenever the button renders — unconditional on dirty state, not just after an edit', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      // No manual edit has happened yet — overrides is empty — and the description is still present.
+      expect(
+        screen.getByText(
+          "Replaces the usage descriptions and cover letter below with AI-generated content. Any edits you've made will be discarded.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('is absent along with the button when llmEnabled is false', async () => {
+      mockFetchConfig.mockResolvedValue({
+        currency: 'EUR',
+        vatRate: 0.19,
+        autoItemizeEnabled: false,
+        llmEnabled: false,
+      });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      expect(
+        screen.queryByText(
+          "Replaces the usage descriptions and cover letter below with AI-generated content. Any edits you've made will be discarded.",
+        ),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -336,9 +392,9 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGenerateReportContent.mockResolvedValue(defaultAiResult());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
       const call = mockGenerateReportContent.mock.calls[0]![0];
@@ -379,10 +435,9 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       await goToStep3(user);
       await user.click(screen.getByRole('checkbox', { name: /Beta Supplies/ }));
       await clickNext(user); // step 3 -> 4
-      await user.click(screen.getByLabelText('Enable AI assistance'));
       await clickNext(user); // step 4 -> 5
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
       const call = mockGenerateReportContent.mock.calls[0]![0];
@@ -393,18 +448,18 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
   // ─── Progress feedback ──────────────────────────────────────────────────────
 
   describe('progress feedback', () => {
-    it('disables the "Generate with AI" button while a generation is pending', async () => {
+    it('disables the "Enhance with AI" button while a generation is pending', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
       mockGenerateReportContent.mockReturnValue(new Promise(() => {}));
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Generate with AI' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled();
       });
     });
 
@@ -414,13 +469,13 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGenerateReportContent.mockReturnValue(new Promise(() => {}));
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
       // Fake timers must be enabled AFTER navigation (which relies on real userEvent timing) but
       // BEFORE the click that starts the elapsed-seconds setInterval, so the interval itself is a
       // fake one that advanceTimersByTime can drive deterministically.
       jest.useFakeTimers();
-      fireEvent.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       act(() => {
         jest.advanceTimersByTime(3000);
@@ -439,9 +494,9 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGenerateReportContent.mockResolvedValue(defaultAiResult());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       await waitFor(() => {
         expect(
@@ -459,9 +514,9 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGenerateReportContent.mockResolvedValue(defaultAiResult());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
       await waitFor(() => {
         expect(
           within(desktopTable()).getByDisplayValue('AI-generated usage description'),
@@ -479,9 +534,9 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGenerateReportContent.mockResolvedValue(defaultAiResult());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
       await waitFor(() => {
         expect(
           within(desktopTable()).getByDisplayValue('AI-generated usage description'),
@@ -515,9 +570,9 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       );
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
       expect(within(desktopTable()).getByDisplayValue('Original Usage Text')).toBeInTheDocument();
@@ -527,17 +582,17 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
   // ─── Overwrite confirmation ─────────────────────────────────────────────────
 
   describe('overwrite confirmation', () => {
-    it('shows the overwrite-confirmation modal when manual overrides exist and "Generate with AI" is clicked again', async () => {
+    it('shows the overwrite-confirmation modal when manual overrides exist and "Enhance with AI" is clicked again', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Manual edit before any AI run' } });
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       expect(screen.getByText('Overwrite your edits?')).toBeInTheDocument();
       // Generation must not have started yet — it is gated behind the confirmation.
@@ -550,9 +605,9 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGenerateReportContent.mockResolvedValue(defaultAiResult());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       expect(screen.queryByText('Overwrite your edits?')).not.toBeInTheDocument();
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
@@ -564,12 +619,12 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGenerateReportContent.mockResolvedValue(defaultAiResult());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(1));
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       expect(screen.queryByText('Overwrite your edits?')).not.toBeInTheDocument();
       await waitFor(() => expect(mockGenerateReportContent).toHaveBeenCalledTimes(2));
@@ -580,11 +635,11 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Manual edit to keep' } });
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
       await waitFor(() => expect(screen.getByText('Overwrite your edits?')).toBeInTheDocument());
 
       await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
@@ -599,11 +654,11 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGetSourceReport.mockResolvedValue(makeReport());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Manual edit survives Escape' } });
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
       await waitFor(() => expect(screen.getByText('Overwrite your edits?')).toBeInTheDocument());
 
       await user.keyboard('{Escape}');
@@ -621,11 +676,11 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGenerateReportContent.mockResolvedValue(defaultAiResult());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
       const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
       fireEvent.change(usageInput, { target: { value: 'Manual edit to discard' } });
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
       await waitFor(() => expect(screen.getByText('Overwrite your edits?')).toBeInTheDocument());
 
       await user.click(screen.getByRole('button', { name: 'Overwrite and Generate' }));
@@ -648,9 +703,9 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGenerateReportContent.mockResolvedValue(defaultAiResult());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
       await waitFor(() => {
         expect(
           within(desktopTable()).getByDisplayValue('AI-generated usage description'),
@@ -688,9 +743,9 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       mockGenerateReportContent.mockRejectedValueOnce(new Error('network dropped'));
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       await waitFor(() => {
         expect(screen.getByText('AI generation failed. Please try again.')).toBeInTheDocument();
@@ -707,14 +762,14 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
         .mockResolvedValueOnce(defaultAiResult());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
       await waitFor(() => {
         expect(screen.getByText('AI generation failed. Please try again.')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       await waitFor(() => {
         expect(
@@ -736,9 +791,9 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
       );
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       await waitFor(() => {
         expect(
@@ -755,14 +810,14 @@ describe('ReportWizardPage — AI generation (Story #1901)', () => {
         .mockResolvedValueOnce(defaultAiResult());
       renderPage();
       const user = userEvent.setup();
-      await goToStep5(user, true);
+      await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
       await waitFor(() =>
         expect(screen.getByText('AI generation failed. Please try again.')).toBeInTheDocument(),
       );
 
-      await user.click(screen.getByRole('button', { name: 'Generate with AI' }));
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
 
       await waitFor(() =>
         expect(

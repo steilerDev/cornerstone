@@ -142,22 +142,29 @@
  *   `closePdfPreviewModal()` before triggering another modal-opening action.
  * - Claim success: `[class*="bannerSuccess"]` banner (replaces the action buttons in step 5).
  *
- * Story #1901: AI-generated usage descriptions and cover letter.
- * - Step 4 (`Step4Settings.tsx`): a THIRD `[class*="settingsDivider"]` section, rendered ONLY
- *   when `llmEnabled` (`GET /api/config`'s `llmEnabled` field — true iff all `LLM_*` env vars
- *   are set server-side) is true — when false the section is entirely ABSENT from the DOM, not
- *   merely disabled (satisfies the "never presented as available when it cannot work" AC). The
- *   E2E containers (`e2e/containers/cornerstoneContainer.ts`) set no `LLM_*` environment
- *   variables at all, so against the real, unmocked backend `llmEnabled` is always `false` — the
- *   only way to reach the `true` branch in E2E is `page.route('**\/api/config', ...)`. The
- *   checkbox itself is `#enableAiAssistance` (`aiToggle` below), unchecked by default
- *   (`aiEnabled` state initialized to `false`), and is NOT itself a guarded mutation (toggling
- *   it does not open the discard-confirm modal — only report-language/attach-documents/
- *   cover-letter do).
- * - Step 5: when `aiEnabled` is true, an `[class*="aiGenerateRow"]` block appears ABOVE
- *   `ReportContentEditor` containing: a "Generate with AI" button (`generateWithAiButton`,
- *   `sourceReports.editable.generateWithAi`) that disables itself
- *   (`isGeneratingAi`) for the duration of the call; a decorative (`aria-hidden="true"`)
+ * Story #1901: AI-generated usage descriptions and cover letter. REWORKED by Issue #1931 to
+ * remove the double opt-in (see below) and rename the action.
+ * - Step 4 (`Step4Settings.tsx`): as of Issue #1931 there is NO AI-related section here at
+ *   all — the step renders only its original two sections (report-language group, then
+ *   attach-documents/cover-letter checkboxes). The old "Enable AI assistance" checkbox
+ *   (`#enableAiAssistance`) and its `aiEnabled` state are gone entirely; the single gate for the
+ *   AI action now lives purely on Step 5, keyed off `llmEnabled` alone.
+ * - Step 5: when `llmEnabled` (`GET /api/config`'s `llmEnabled` field — true iff all `LLM_*` env
+ *   vars are set server-side) is true, an `[class*="aiGenerateRow"]` block appears ABOVE
+ *   `ReportContentEditor` — no prior opt-in required, no toggle to discover or miss. The E2E
+ *   containers (`e2e/containers/cornerstoneContainer.ts`) set no `LLM_*` environment variables at
+ *   all, so against the real, unmocked backend `llmEnabled` is always `false` — the only way to
+ *   reach the `true` branch in E2E is `page.route('**\/api/config', ...)`. The block contains: an
+ *   "Enhance with AI" button (`generateWithAiButton`, `sourceReports.editable.enhanceWithAi` —
+ *   renamed from "Generate with AI" by Issue #1931, since the action improves existing
+ *   deterministic content rather than generating from nothing) that disables itself
+ *   (`isGeneratingAi`) for the duration of the call and carries
+ *   `aria-describedby="enhanceWithAiDescription"` pointing at a sibling visually-hidden
+ *   `<span id="enhanceWithAiDescription" class*="srOnly">` (`enhanceWithAiDescription` below,
+ *   `sourceReports.editable.enhanceWithAiDescription`) — added because the deleted checkbox's
+ *   helper text was the only pre-click explanation of the overwrite behavior available to
+ *   screen-reader users, and it renders unconditionally alongside the button (same `llmEnabled`
+ *   gate, not contingent on any dirty/edited state); a decorative (`aria-hidden="true"`)
  *   `Spinner` inside the button while pending; an elapsed-seconds caption
  *   (`[class*="aiGeneratingCaption"]`, `sourceReports.editable.generating` = "Generating…
  *   ({{seconds}}s)", `aria-live="polite"`) visible only while pending, ticking via a 1s
@@ -394,12 +401,15 @@ export class ReportWizardPage {
   // Story #1891: expandable rows, items/deposits sub-tables, claim warning
   readonly markClaimedWarningBlock: Locator;
 
-  // Story #1901: AI-generated usage descriptions and cover letter.
-  // Step 4 — only present in the DOM at all when `llmEnabled` is true (see class docstring).
-  readonly aiToggle: Locator;
-  // Step 5 — only present when `aiEnabled` is true.
+  // Story #1901: AI-generated usage descriptions and cover letter. Issue #1931 removed the
+  // Step 4 opt-in checkbox entirely — the row below is now gated purely on `llmEnabled` (see
+  // class docstring).
+  // Step 5 — only present when `llmEnabled` is true.
   readonly aiGenerateRow: Locator;
   readonly generateWithAiButton: Locator;
+  // The visually-hidden description the button's `aria-describedby` points at (Issue #1931
+  // a11y addition — see class docstring).
+  readonly enhanceWithAiDescription: Locator;
   readonly aiGeneratingCaption: Locator;
   readonly aiErrorBanner: Locator;
   readonly aiGeneratedNote: Locator;
@@ -525,12 +535,12 @@ export class ReportWizardPage {
     // modal only when an included invoice has excluded lines (see class docstring above).
     this.markClaimedWarningBlock = this.claimConfirmModal.locator('[role="alert"]');
 
-    // Story #1901: AI-generated usage descriptions and cover letter.
-    this.aiToggle = page.locator('#enableAiAssistance');
+    // Story #1901 / Issue #1931: AI-generated usage descriptions and cover letter.
     this.aiGenerateRow = page.locator('[class*="aiGenerateRow"]');
     this.generateWithAiButton = this.aiGenerateRow.getByRole('button', {
-      name: 'Generate with AI',
+      name: 'Enhance with AI',
     });
+    this.enhanceWithAiDescription = page.locator('#enhanceWithAiDescription');
     this.aiGeneratingCaption = this.aiGenerateRow.locator('[class*="aiGeneratingCaption"]');
     // Scoped to `aiGenerateRow` so this never collides with the claim-flow's own
     // `claimErrorBanner` (a plain `sharedStyles.bannerError` div with `role="alert"`, elsewhere
@@ -1112,13 +1122,8 @@ export class ReportWizardPage {
 
   // ─── Story #1901: AI generation ──────────────────────────────────────────────────────────
 
-  /** Toggles the Step 4 "Enable AI assistance" checkbox. Only present when `llmEnabled`. */
-  async toggleAiEnabled(): Promise<void> {
-    await this.aiToggle.click();
-  }
-
   /**
-   * Clicks "Generate with AI" and returns immediately (does NOT wait for the call to settle) —
+   * Clicks "Enhance with AI" and returns immediately (does NOT wait for the call to settle) —
    * callers that mock a delayed response use this to observe the pending state
    * (`aiGeneratingCaption`/disabled button) before resolving the mock, and callers expecting the
    * overwrite-confirm modal use this to trigger it without racing a generation that never starts.

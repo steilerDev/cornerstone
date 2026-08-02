@@ -86,7 +86,6 @@ export function ReportWizardPage() {
   const [llmEnabled, setLlmEnabled] = useState(false);
 
   // AI generation state
-  const [aiEnabled, setAiEnabled] = useState(false);
   const [aiContent, setAiContent] = useState<GenerateReportContentResponse | null>(null);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [aiElapsed, setAiElapsed] = useState(0);
@@ -818,9 +817,6 @@ export function ReportWizardPage() {
                 guardedUpdate(() => setIncludeCoverLetter(value));
               }}
               coverLetterDisabled={coverLetterDisabled}
-              llmEnabled={llmEnabled}
-              aiEnabled={aiEnabled}
-              onAiEnabledChange={(value) => setAiEnabled(value)}
               t={t}
             />
             <div className={styles.buttonRow}>
@@ -856,22 +852,26 @@ export function ReportWizardPage() {
               {steps[4]?.label}
             </h2>
 
-            {/* AI Generation row (only when AI is enabled) */}
-            {aiEnabled && (
+            {/* AI Generation row (only when the LLM is configured) */}
+            {llmEnabled && (
               <div className={styles.aiGenerateRow}>
                 <button
                   type="button"
                   className={sharedStyles.btnSecondary}
                   onClick={handleGenerateWithAiClick}
                   disabled={isGeneratingAi}
+                  aria-describedby="enhanceWithAiDescription"
                 >
                   {isGeneratingAi && (
                     <span aria-hidden="true">
                       <Spinner size="sm" color="muted" />
                     </span>
                   )}
-                  {t('sourceReports.editable.generateWithAi')}
+                  {t('sourceReports.editable.enhanceWithAi')}
                 </button>
+                <span id="enhanceWithAiDescription" className={sharedStyles.srOnly}>
+                  {t('sourceReports.editable.enhanceWithAiDescription')}
+                </span>
 
                 {isGeneratingAi && (
                   <p className={styles.aiGeneratingCaption} aria-live="polite">

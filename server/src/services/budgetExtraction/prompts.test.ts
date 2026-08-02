@@ -607,6 +607,22 @@ describe('REPORT_CONTENT_SYSTEM_PROMPT', () => {
   it('instructs the LLM to output only valid JSON (no markdown)', () => {
     expect(REPORT_CONTENT_SYSTEM_PROMPT.toLowerCase()).toMatch(/return only valid json/);
   });
+
+  // ─── #1931: purpose-focused rewrite — explain WHY, don't restate the table ───
+
+  describe('purpose-focused content rule (#1931)', () => {
+    it('instructs the LLM to explain WHY each cost was incurred (its purpose or role), not merely what it was', () => {
+      const lower = REPORT_CONTENT_SYSTEM_PROMPT.toLowerCase();
+      expect(lower).toMatch(/why/);
+      expect(lower).toMatch(/purpose|role/);
+    });
+
+    it('explicitly forbids restating the vendor, invoice number, date, or amount — those are already table columns', () => {
+      const lower = REPORT_CONTENT_SYSTEM_PROMPT.toLowerCase();
+      expect(lower).toMatch(/restate/);
+      expect(lower).toMatch(/vendor|invoice number|date|amount/);
+    });
+  });
 });
 
 describe('buildReportContentUserPrompt()', () => {
@@ -661,18 +677,28 @@ describe('buildReportContentUserPrompt()', () => {
   // ─── Language label rendering ────────────────────────────────────────────────
 
   describe('language label rendering', () => {
-    it('renders "Language: English" and the English project phrase for language "en"', () => {
+    // #1931: buildReportContentUserPrompt previously used an inverted ternary at the old L153
+    // that produced "German construction project" for 'en' and "Konstruktionsprojekt" for 'de' —
+    // backwards AND wrong in both branches (the phrase describes the PROJECT DOMAIN, which is
+    // always German construction regardless of output language; "Language:" is the only thing
+    // that should vary). That ternary is now removed: the domain phrase is fixed literal text for
+    // BOTH languages, and only the "Language:" label changes.
+
+    it('renders "Language: English" and the fixed German-construction-project domain phrase for language "en"', () => {
       const input = buildReportContentInput({ language: 'en' });
       const result = buildReportContentUserPrompt(input);
       expect(result).toContain('Language: English');
       expect(result).toContain('German construction project');
     });
 
-    it('renders "Language: German" and the German project phrase for language "de"', () => {
+    it('renders "Language: German" and the SAME fixed domain phrase for language "de" (not translated)', () => {
       const input = buildReportContentInput({ language: 'de' });
       const result = buildReportContentUserPrompt(input);
       expect(result).toContain('Language: German');
-      expect(result).toContain('Konstruktionsprojekt');
+      expect(result).toContain('German construction project');
+      // Regression guard: pin the absence of the old buggy branch's output so a reintroduction of
+      // the inverted ternary fails loudly instead of silently passing.
+      expect(result).not.toContain('Konstruktionsprojekt');
     });
   });
 

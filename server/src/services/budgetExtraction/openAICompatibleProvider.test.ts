@@ -25,6 +25,7 @@ import {
   LlmInvalidResponseError,
   LlmUpstreamError,
 } from '../../errors/AppError.js';
+import { REPORT_CONTENT_LIMITS } from './contentLimits.js';
 import type { LlmConfig } from './types.js';
 import type { GenerateReportContentLlmInput } from './types.js';
 import { readFileSync } from 'node:fs';
@@ -1866,43 +1867,138 @@ describe('validateGenerateReportContentResult()', () => {
       expect(result.descriptions['inv-1']).toBe('Desc');
     });
 
-    it('truncates letterSubject longer than 200 chars to exactly 200', () => {
+    // ─── #1931: caps now derive from REPORT_CONTENT_LIMITS (150 / 2000 / 200) ────
+    // Previously the validator truncated at 200/3000/300 — a wider limit than the prompt
+    // instructed (150/2000/200), so overlong-but-under-the-old-cap output passed through
+    // unclipped. AC 4.1/4.2/4.3: exactly one definition for each cap, and the response is
+    // capped (never rejected) at that same value.
+
+    it(`truncates letterSubject longer than ${REPORT_CONTENT_LIMITS.letterSubject} chars to exactly ${REPORT_CONTENT_LIMITS.letterSubject}`, () => {
       const result = validateGenerateReportContentResult(
         {
-          letterSubject: 'S'.repeat(300),
+          letterSubject: 'S'.repeat(REPORT_CONTENT_LIMITS.letterSubject + 100),
           letterBody: 'Body',
           descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
         },
         ['inv-1'],
       );
-      expect(result.letterSubject).toHaveLength(200);
-      expect(result.letterSubject).toBe('S'.repeat(200));
+      expect(result.letterSubject).toHaveLength(REPORT_CONTENT_LIMITS.letterSubject);
+      expect(result.letterSubject).toBe('S'.repeat(REPORT_CONTENT_LIMITS.letterSubject));
     });
 
-    it('truncates letterBody longer than 3000 chars to exactly 3000', () => {
+    it('does not truncate a letterSubject one character UNDER the limit', () => {
+      const underLimit = 'S'.repeat(REPORT_CONTENT_LIMITS.letterSubject - 1);
       const result = validateGenerateReportContentResult(
         {
-          letterSubject: 'Subject',
-          letterBody: 'B'.repeat(3500),
+          letterSubject: underLimit,
+          letterBody: 'Body',
           descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
         },
         ['inv-1'],
       );
-      expect(result.letterBody).toHaveLength(3000);
-      expect(result.letterBody).toBe('B'.repeat(3000));
+      expect(result.letterSubject).toHaveLength(REPORT_CONTENT_LIMITS.letterSubject - 1);
+      expect(result.letterSubject).toBe(underLimit);
     });
 
-    it('truncates a description longer than 300 chars to exactly 300', () => {
+    it('does not truncate a letterSubject at exactly the limit (boundary)', () => {
+      const atLimit = 'S'.repeat(REPORT_CONTENT_LIMITS.letterSubject);
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: atLimit,
+          letterBody: 'Body',
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterSubject).toHaveLength(REPORT_CONTENT_LIMITS.letterSubject);
+      expect(result.letterSubject).toBe(atLimit);
+    });
+
+    it(`truncates letterBody longer than ${REPORT_CONTENT_LIMITS.letterBody} chars to exactly ${REPORT_CONTENT_LIMITS.letterBody}`, () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: 'B'.repeat(REPORT_CONTENT_LIMITS.letterBody + 500),
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterBody).toHaveLength(REPORT_CONTENT_LIMITS.letterBody);
+      expect(result.letterBody).toBe('B'.repeat(REPORT_CONTENT_LIMITS.letterBody));
+    });
+
+    it('does not truncate a letterBody one character UNDER the limit', () => {
+      const underLimit = 'B'.repeat(REPORT_CONTENT_LIMITS.letterBody - 1);
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: underLimit,
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterBody).toHaveLength(REPORT_CONTENT_LIMITS.letterBody - 1);
+      expect(result.letterBody).toBe(underLimit);
+    });
+
+    it('does not truncate a letterBody at exactly the limit (boundary)', () => {
+      const atLimit = 'B'.repeat(REPORT_CONTENT_LIMITS.letterBody);
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: atLimit,
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterBody).toHaveLength(REPORT_CONTENT_LIMITS.letterBody);
+      expect(result.letterBody).toBe(atLimit);
+    });
+
+    it(`truncates a description longer than ${REPORT_CONTENT_LIMITS.description} chars to exactly ${REPORT_CONTENT_LIMITS.description}`, () => {
       const result = validateGenerateReportContentResult(
         {
           letterSubject: 'Subject',
           letterBody: 'Body',
-          descriptions: [{ invoiceId: 'inv-1', description: 'D'.repeat(400) }],
+          descriptions: [
+            {
+              invoiceId: 'inv-1',
+              description: 'D'.repeat(REPORT_CONTENT_LIMITS.description + 100),
+            },
+          ],
         },
         ['inv-1'],
       );
-      expect(result.descriptions['inv-1']).toHaveLength(300);
-      expect(result.descriptions['inv-1']).toBe('D'.repeat(300));
+      expect(result.descriptions['inv-1']).toHaveLength(REPORT_CONTENT_LIMITS.description);
+      expect(result.descriptions['inv-1']).toBe('D'.repeat(REPORT_CONTENT_LIMITS.description));
+    });
+
+    it('does not truncate a description one character UNDER the limit', () => {
+      const underLimit = 'D'.repeat(REPORT_CONTENT_LIMITS.description - 1);
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: 'Body',
+          descriptions: [{ invoiceId: 'inv-1', description: underLimit }],
+        },
+        ['inv-1'],
+      );
+      expect(result.descriptions['inv-1']).toHaveLength(REPORT_CONTENT_LIMITS.description - 1);
+      expect(result.descriptions['inv-1']).toBe(underLimit);
+    });
+
+    it('does not truncate a description at exactly the limit (boundary)', () => {
+      const atLimit = 'D'.repeat(REPORT_CONTENT_LIMITS.description);
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: 'Body',
+          descriptions: [{ invoiceId: 'inv-1', description: atLimit }],
+        },
+        ['inv-1'],
+      );
+      expect(result.descriptions['inv-1']).toHaveLength(REPORT_CONTENT_LIMITS.description);
+      expect(result.descriptions['inv-1']).toBe(atLimit);
     });
 
     it('converts the descriptions array into a Record keyed by invoiceId', () => {

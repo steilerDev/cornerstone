@@ -13,6 +13,7 @@ import {
   REPORT_CONTENT_SYSTEM_PROMPT,
   buildReportContentUserPrompt,
 } from './prompts.js';
+import { REPORT_CONTENT_LIMITS } from './contentLimits.js';
 import {
   buildRequestBody,
   EXTRACTED_LINES_SCHEMA,
@@ -322,19 +323,25 @@ export function validateGenerateReportContentResult(
 
   const obj = body as Record<string, unknown>;
 
-  // Validate letterSubject (non-empty string, max 200 chars)
+  // Validate letterSubject (non-empty string, max REPORT_CONTENT_LIMITS.letterSubject chars)
   if (typeof obj.letterSubject !== 'string' || obj.letterSubject.trim() === '') {
     throw new LlmInvalidResponseError('LLM response missing or invalid "letterSubject"');
   }
   const trimmedSubject = obj.letterSubject.trim();
-  const letterSubject = trimmedSubject.length > 200 ? trimmedSubject.slice(0, 200) : trimmedSubject;
+  const letterSubject =
+    trimmedSubject.length > REPORT_CONTENT_LIMITS.letterSubject
+      ? trimmedSubject.slice(0, REPORT_CONTENT_LIMITS.letterSubject)
+      : trimmedSubject;
 
-  // Validate letterBody (non-empty string, max 3000 chars)
+  // Validate letterBody (non-empty string, max REPORT_CONTENT_LIMITS.letterBody chars)
   if (typeof obj.letterBody !== 'string' || obj.letterBody.trim() === '') {
     throw new LlmInvalidResponseError('LLM response missing or invalid "letterBody"');
   }
   const trimmedBody = obj.letterBody.trim();
-  const letterBody = trimmedBody.length > 3000 ? trimmedBody.slice(0, 3000) : trimmedBody;
+  const letterBody =
+    trimmedBody.length > REPORT_CONTENT_LIMITS.letterBody
+      ? trimmedBody.slice(0, REPORT_CONTENT_LIMITS.letterBody)
+      : trimmedBody;
 
   // Validate descriptions (array of {invoiceId, description})
   if (!Array.isArray(obj.descriptions)) {
@@ -364,7 +371,10 @@ export function validateGenerateReportContentResult(
 
     const invoiceId = entry.invoiceId.trim();
     const trimmedDesc = entry.description.trim();
-    const cappedDesc = trimmedDesc.length > 300 ? trimmedDesc.slice(0, 300) : trimmedDesc;
+    const cappedDesc =
+      trimmedDesc.length > REPORT_CONTENT_LIMITS.description
+        ? trimmedDesc.slice(0, REPORT_CONTENT_LIMITS.description)
+        : trimmedDesc;
     descriptions[invoiceId] = cappedDesc;
     foundInvoiceIds.add(invoiceId);
   }

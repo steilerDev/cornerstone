@@ -1140,9 +1140,7 @@
     "selectAtLeastOne": "Select at least one invoice to proceed",
     "settingsStep": {
       "languageHeading": "Report language",
-      "languageHelper": "Only affects the exported report — your app language stays the same.",
-      "enableAiAssistance": "Enable AI assistance",
-      "enableAiAssistanceHelper": "Let AI draft usage descriptions and a cover letter for you to review and edit."
+      "languageHelper": "Only affects the exported report — your app language stays the same."
     },
     "attachDocuments": "Attach invoice PDFs",
     "attachDocumentsHelper": "Appends each selected invoice's source PDF as an appendix",
@@ -1212,7 +1210,8 @@
       "keepEditing": "Keep Editing",
       "coverLetterHeading": "Cover Letter",
       "tableHeading": "Report Table",
-      "generateWithAi": "Generate with AI",
+      "enhanceWithAi": "Enhance with AI",
+      "enhanceWithAiDescription": "Replaces the usage descriptions and cover letter below with AI-generated content. Any edits you've made will be discarded.",
       "generating": "Generating… ({{seconds}}s)",
       "aiGeneratedNote": "Content generated with AI — review before submitting.",
       "aiGenerationFailed": "AI generation failed. Please try again.",
