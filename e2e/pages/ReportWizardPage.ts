@@ -217,6 +217,26 @@
  *   a row's Usage field, only when the linked item(s) resolve to an area — see the method's own
  *   docstring for why it can never be silently dropped by AI-generated usage text.
  *
+ * Issue #1932: cover letter overhaul — formatted body, editable signature block, personal
+ * sender, professional PDF layout.
+ * - Signature is now a first-class editable `EditableField` (`letterField('signature')`,
+ *   ALWAYS present, same as `subject`/`body` — never gated on a non-null value), rendered AFTER
+ *   the body. Its default is derived from the logged-in user + household, no longer implicitly
+ *   read from the sender's first line.
+ * - AC 2.6: once the signature has been explicitly edited, a subsequent SENDER edit no longer
+ *   silently recomputes/overwrites it (`applyOverrides.ts`) — an explicit signature override
+ *   always wins.
+ * - Two read-only chrome rows share a new `.readOnlyField`/`.readOnlyLabel`/`.readOnlyValue`
+ *   CSS recipe (label stacked above value, no dedicated locators — read via the letter fields'
+ *   surrounding text): the existing Date row (unchanged position, restyled) and a NEW Closing
+ *   row inserted between Body and Signature, mirroring the PDF's sender → recipient → date →
+ *   reference → subject → body → closing → signature order.
+ * - The reset button fix (§5: oversized glyph) was CSS-only (`EditableField.module.css` —
+ *   `.resetButton svg` sizing + a `:focus-visible` ring) — the `resetButton`/`editedDot`
+ *   classNames and DOM structure (`container > [label?, fieldWrapper, resetButton?]`) are
+ *   UNCHANGED, so `resetButtonFor`/`hasEditedIndicator`/`resetField` below still resolve
+ *   correctly without any locator changes.
+ *
  * Back/Next button locators (`step2BackButton`/`step2NextButton`/`step4BackButton`/
  * `step4NextButton`/`step5BackButton`, etc.): every step body is rendered from a single
  * `{currentStep === N && ...}` block, so exactly ONE `[class*="buttonRow"]` div is ever present
@@ -940,6 +960,7 @@ export class ReportWizardPage {
     reference: 'Reference',
     subject: 'Subject',
     body: 'Body',
+    signature: 'Signature',
   } as const;
 
   /**
@@ -947,7 +968,8 @@ export class ReportWizardPage {
    * scoped to `coverLetterCard` so this can never collide with an unrelated "Reference" label
    * elsewhere on the page. `recipient`/`reference` are only present in the DOM when their
    * underlying value is non-null (see class docstring) — callers must confirm the field exists
-   * for the scenario's seed data before using it.
+   * for the scenario's seed data before using it. `signature` (Issue #1932) is, like `subject`/
+   * `body`, ALWAYS present — it's a first-class editable field now, no longer derived-only.
    *
    * `{ exact: true }` is REQUIRED here (fixed — shard-2 CI regression, e.g. run 30632348922):
    * each field's `resetButton` — mounted only once that field `isEdited` — has an
