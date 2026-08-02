@@ -28,6 +28,20 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: '@babel/preset-typescript'
         update-types: ['version-update:semver-major']
+      # Hold TypeScript at v6 until ts-jest supports v7. ts-jest@29.4.x declares
+      # `peer typescript@">=4.3 <7"`, so a TS 7 bump makes `npm ci` fail with
+      # ERESOLVE and takes the whole dev-dependencies group down with it
+      # (see PR #1882). Remove once ts-jest widens its peer range.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # Hold better-sqlite3 at v12. v13 removed the `prebuild-install` dependency
+      # and its install script is now a bare `node-gyp rebuild`, so it always
+      # compiles from source. The Dockerfile's `deps` stage deliberately ships no
+      # python3/build-base and runs on the target platform, so v13 breaks the
+      # Docker build and would compile under emulation for arm64 (see PR #1889).
+      # Remove once the image is provisioned with a build toolchain.
+      - dependency-name: 'better-sqlite3'
+        update-types: ['version-update:semver-major']
 
   # GitHub Actions
   - package-ecosystem: github-actions
