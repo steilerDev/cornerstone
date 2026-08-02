@@ -25,6 +25,15 @@ export const V_LINE_WIDTH = 0.5;
  */
 export const TABLE_BODY_FONT_SIZE = 8;
 
+/**
+ * Table header-row font size, pt — extracted from merge.ts's `PDF_STYLES.tableHeader` so
+ * overviewPdf.ts's header word-break threshold (#1929 round-3 architect review HIGH1) is
+ * computed from the same constant merge.ts renders with, not a duplicated literal (the same
+ * drift risk the architect flagged for PAGE_TOP_MARGIN in round 2 — see M5 in shared.ts's git
+ * history — relocated here if left unparametrized).
+ */
+export const TABLE_HEADER_FONT_SIZE = 10;
+
 export const DEFAULT_LINE_HEIGHT = 1.4; // matches merge.ts's defaultStyle.lineHeight
 
 // --- Header footprint (AC6/AC7/AC13) ---

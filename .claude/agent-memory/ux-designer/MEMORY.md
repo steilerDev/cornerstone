@@ -12,7 +12,7 @@
 - [feature-spec-history.md](feature-spec-history.md) — detailed notes from past visual specs posted to GitHub issues, by story number
 - [pr-review-findings.md](pr-review-findings.md) — past PR design-review findings, verdicts, and recurring bugs; process notes for posting GitHub reviews/comments
 - `story-4-9-invoice-linking-hi.md`, `pr-1490-measurement-freehand.md`, `annotator-a11y-audit.md` — standalone detailed reports referenced from the files above
-- [pdfmake-rendering-verification.md](pdfmake-rendering-verification.md) — render-and-rasterize technique for `reportPdf/` reviews; confirmed `dontBreakRows` row-split bug (PR #1935 / Issue #1929)
+- [pdfmake-rendering-verification.md](pdfmake-rendering-verification.md) — render-and-rasterize technique for `reportPdf/` reviews; PR #1935/#1929 round-1 `dontBreakRows` bug, round-3 fix confirmed + APPROVED (word-break-without-hyphen and page-1-top-margin lessons)
 
 ## Quick-reference rules (apply on every spec/review)
 

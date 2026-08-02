@@ -16,6 +16,7 @@ import {
   PAGE_TOP_MARGIN,
   PAGE_MARGIN_BOTTOM,
   TABLE_BODY_FONT_SIZE,
+  TABLE_HEADER_FONT_SIZE,
 } from './pageGeometry.js';
 
 /**
@@ -50,7 +51,7 @@ export const PDF_STYLES: Record<string, Style> = {
   },
   tableHeader: {
     bold: true,
-    fontSize: 10,
+    fontSize: TABLE_HEADER_FONT_SIZE,
     color: '#ffffff',
     fillColor: '#1f2937',
     alignment: 'left',

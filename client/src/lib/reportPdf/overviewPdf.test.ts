@@ -19,13 +19,28 @@
  * #1929 ROUND 2 (QA spec scenarios 6-12): round 1's width-sum assertion
  * (`fixedSum <= PRINTABLE_WIDTH_PT`) omitted pdfmake's per-column offsets (padding + borders) and
  * was satisfied by a 673pt table on a 515.28pt page — a no-op guard (architect review, HIGH 3).
- * It's replaced below by the invariant that actually protects AC1/AC3:
- * `tableOffsetsTotal(cols) + fixedSum + USAGE_MIN_WIDTH_*COL <= printableWidth()`. Round 1's
- * `dontBreakRows` assertion is also gone from this file's "layout passthrough" section — it now
- * lives on the `table` node itself (see the dedicated test below), not on TABLE_LAYOUT (shared.ts
- * no longer carries it at all — see shared.test.ts). New coverage: splitIntoPageSafeChunks
+ * Round 1's `dontBreakRows` assertion is also gone from this file's "layout passthrough" section
+ * — it now lives on the `table` node itself (see the dedicated test below), not on TABLE_LAYOUT
+ * (shared.ts no longer carries it at all — see shared.test.ts). New coverage: splitIntoPageSafeChunks
  * (chunking algorithm), the multi-row continuation-row shape it drives, and AC14's malformed-row
  * crash fix (unconditional status cell push).
+ *
+ * #1929 ROUND 3 (architect re-review at a3b085cd, CRITICAL/HIGH1/HIGH2/HIGH3): the Usage column is
+ * no longer a `'*'` (star) column at all — it's an EXPLICIT NUMERIC width
+ * (`USAGE_WIDTH_7COL`/`_6COL`, renamed from round 2's `USAGE_MIN_WIDTH_*COL`). Since
+ * `elasticWidth` is read but never assigned anywhere in pdfmake (`columnCalculator.js:52`), a
+ * FIXED column's `_calcWidth` is unconditionally its declared width — content can never grow it,
+ * so the round-2 `<=`/`>=` inequality guards (checking the Usage floor was merely "enough room")
+ * are replaced below by an EXACT `===` identity: `tableOffsetsTotal(n) + fixedSum(n) +
+ * USAGE_WIDTH_nCOL === printableWidth()` holds algebraically, unconditionally, for both shapes.
+ * Round 3 also found round 2's 0.495em AVERAGE char-width ratio under-flagged all-caps/M-W-heavy
+ * tokens by ~45% (a 32-char all-caps Usage token measured 538.57pt against 515.28pt) — the
+ * `USAGE_SAFE_TOKEN_CHARS_*COL` thresholds are recomputed from a 0.89em WORST-CASE ratio (were
+ * 32/44, now 19/26), and the same per-token break-all protection now ALSO applies to every table
+ * header cell (German header labels like "Auftragnehmer" measured wider than their own fixed
+ * columns) and to Vendor body cells (free-form business names, e.g.
+ * "Elektroinstallationsbetrieb" measured 92.72pt against the 45pt Vendor column) via the new
+ * exported `VENDOR_SAFE_TOKEN_CHARS`.
  */
 import { describe, it, expect } from '@jest/globals';
 import type { TFunction } from 'i18next';
@@ -34,13 +49,14 @@ import {
   buildOverviewContent,
   splitIntoPageSafeChunks,
   buildUsageTextRuns,
-  USAGE_MIN_WIDTH_7COL,
-  USAGE_MIN_WIDTH_6COL,
+  USAGE_WIDTH_7COL,
+  USAGE_WIDTH_6COL,
   USAGE_SAFE_TOKEN_CHARS_7COL,
   USAGE_SAFE_TOKEN_CHARS_6COL,
+  VENDOR_SAFE_TOKEN_CHARS,
   MAX_SAFE_USAGE_CHUNK_CHARS,
 } from './overviewPdf.js';
-import { tableOffsetsTotal, usableColumnWidth, printableWidth } from './pageGeometry.js';
+import { tableOffsetsTotal, printableWidth } from './pageGeometry.js';
 
 const t = ((key: string) => key) as unknown as TFunction;
 
@@ -205,36 +221,28 @@ describe('buildOverviewContent — title and source info', () => {
 });
 
 describe('buildOverviewContent — column layout', () => {
-  it('[regression #1929 round 2, scenario 6] budget-overview header is exactly [vendor, invoiceNumber, date, status, invoiceAmount, allocatedAmount, usage]; widths are fixed-point for every column but the trailing Usage "*", and the REAL pdfmake-offset-aware budget holds (not the round-1 no-op sum check)', () => {
+  it('[regression #1929 round 3, scenario 6] budget-overview header is exactly [vendor, invoiceNumber, date, status, invoiceAmount, allocatedAmount, usage]; EVERY width (including Usage) is an explicit number — no "*" anywhere — and the algebraic identity holds exactly', () => {
     const content = makeContent({ isOverview: true });
     const result = buildOverviewContent(content, new Map(), t);
     const table = getTable(result);
 
-    // Shape/contract assertions, not exact values: on current beta this array is
-    // ['*','auto','auto','auto','auto','auto','*'] — five unbounded 'auto' columns with no upper
-    // bound is exactly what caused #1929's right-edge overflow. Pinning the invariants (not the
-    // literal numbers) means a future width nudge doesn't re-break this test.
+    // #1929 round 3 (architect CRITICAL/HIGH1): Usage is no longer '*' — pdfmake never grows a
+    // fixed column past its declared width (elasticWidth is read but assigned nowhere,
+    // columnCalculator.js:52), so declaring EVERY column numeric makes the star column's
+    // content-driven overflow branch structurally unreachable. On round-2 this array was
+    // [...,'*'] — five/six fixed columns plus one content-driven star column.
     expect(table.headerRows).toBe(1);
     expect(table.widths).toHaveLength(7);
-    expect(table.widths[6]).toBe('*'); // Usage is the sole trailing '*' column
-    expect(table.widths.slice(0, 6).every((w) => typeof w === 'number')).toBe(true);
-    expect(table.widths.some((w) => w === 'auto')).toBe(false); // no unbounded columns remain
+    expect(table.widths.every((w) => typeof w === 'number')).toBe(true);
+    expect(table.widths.some((w) => w === '*' || w === 'auto')).toBe(false);
+    expect(table.widths[6]).toBe(USAGE_WIDTH_7COL);
 
-    // The invariant that actually guards AC1/AC3 (architect review, HIGH 3): declared widths are
-    // CONTENT widths, not the space they occupy on the page — pdfmake additionally reserves
-    // tableOffsetsTotal(7) for padding+borders before distributing them. Round 1's
-    // `fixedSum <= 515.28` alone was satisfied by a 673pt-wide rendered table; this is the
-    // corrected bound. USAGE_MIN_WIDTH_7COL stands in for the (as-yet-unmeasured-here) Usage
-    // column's own declared share, since it is a '*' column with no declared width of its own —
-    // the real-render tests in realRender.test.ts confirm the ACTUAL resolved Usage width clears
-    // this floor; this test only confirms the fixed columns leave it room to.
+    // The invariant that replaced round 2's inequality guard: declared widths are CONTENT widths,
+    // not the space they occupy on the page — pdfmake additionally reserves tableOffsetsTotal(7)
+    // for padding+borders before distributing them. With every column numeric, this identity
+    // holds EXACTLY (not just "leaves enough room"), by construction, for ANY content.
     const fixedSum = (table.widths.slice(0, 6) as number[]).reduce((a, b) => a + b, 0);
-    expect(tableOffsetsTotal(7) + fixedSum + USAGE_MIN_WIDTH_7COL).toBeLessThanOrEqual(
-      printableWidth(),
-    );
-    // Sanity cross-check: usableColumnWidth(7) must itself have room for the Usage floor once the
-    // fixed columns are subtracted — same invariant, expressed via the other pageGeometry helper.
-    expect(usableColumnWidth(7) - fixedSum).toBeGreaterThanOrEqual(USAGE_MIN_WIDTH_7COL);
+    expect(tableOffsetsTotal(7) + fixedSum + USAGE_WIDTH_7COL).toBe(printableWidth());
 
     expect(rowTexts(table.body[0])).toEqual([
       'sourceReports.table.vendor',
@@ -247,24 +255,20 @@ describe('buildOverviewContent — column layout', () => {
     ]);
   });
 
-  it('[regression #1929 round 2, scenario 6] claim/proof-of-funds header has exactly 6 cells with no status column; widths are fixed-point for every column but the trailing Usage "*", and the REAL pdfmake-offset-aware budget holds', () => {
+  it('[regression #1929 round 3, scenario 6] claim/proof-of-funds header has exactly 6 cells with no status column; EVERY width (including Usage) is an explicit number, and the algebraic identity holds exactly', () => {
     const content = makeContent({ isOverview: false });
     const result = buildOverviewContent(content, new Map(), t);
     const table = getTable(result);
 
-    // Same shape/contract as the 7-column case above — on current beta this array is
-    // ['*','auto','auto','auto','auto','*'].
+    // Same shape/contract as the 7-column case above.
     expect(table.headerRows).toBe(1);
     expect(table.widths).toHaveLength(6);
-    expect(table.widths[5]).toBe('*'); // Usage is the sole trailing '*' column
-    expect(table.widths.slice(0, 5).every((w) => typeof w === 'number')).toBe(true);
-    expect(table.widths.some((w) => w === 'auto')).toBe(false);
+    expect(table.widths.every((w) => typeof w === 'number')).toBe(true);
+    expect(table.widths.some((w) => w === '*' || w === 'auto')).toBe(false);
+    expect(table.widths[5]).toBe(USAGE_WIDTH_6COL);
 
     const fixedSum = (table.widths.slice(0, 5) as number[]).reduce((a, b) => a + b, 0);
-    expect(tableOffsetsTotal(6) + fixedSum + USAGE_MIN_WIDTH_6COL).toBeLessThanOrEqual(
-      printableWidth(),
-    );
-    expect(usableColumnWidth(6) - fixedSum).toBeGreaterThanOrEqual(USAGE_MIN_WIDTH_6COL);
+    expect(tableOffsetsTotal(6) + fixedSum + USAGE_WIDTH_6COL).toBe(printableWidth());
 
     expect(rowTexts(table.body[0])).toEqual([
       'sourceReports.table.vendor',
@@ -365,16 +369,23 @@ function runsText(runs: { text: string }[]): string {
   return runs.map((run) => run.text).join('');
 }
 
-describe('buildUsageTextRuns (#1929 round 2 word-break follow-up finding, scenarios 1/2/3)', () => {
-  // Pin the actual threshold constants rather than re-typing 32/44 — if pageGeometry.ts's
-  // per-char estimate or the USAGE_MIN_WIDTH_*COL floors ever change, this test's own expectations
-  // move with them instead of silently testing against a stale literal.
-  it('USAGE_SAFE_TOKEN_CHARS_7COL === 32 and USAGE_SAFE_TOKEN_CHARS_6COL === 44 (floor(USAGE_MIN_WIDTH_*COL / (8 * 0.495)))', () => {
-    expect(USAGE_SAFE_TOKEN_CHARS_7COL).toBe(32);
-    expect(USAGE_SAFE_TOKEN_CHARS_6COL).toBe(44);
-    // Relationship, not just the literals: both floors are Math.floor(minWidth / (8 * 0.495)).
-    expect(USAGE_SAFE_TOKEN_CHARS_7COL).toBe(Math.floor(USAGE_MIN_WIDTH_7COL / (8 * 0.495)));
-    expect(USAGE_SAFE_TOKEN_CHARS_6COL).toBe(Math.floor(USAGE_MIN_WIDTH_6COL / (8 * 0.495)));
+describe('buildUsageTextRuns (#1929 round 2/3 word-break follow-up findings, scenarios 1/2/3)', () => {
+  // Pin the actual threshold constants rather than re-typing 19/26 — if pageGeometry.ts's
+  // per-char estimate or the USAGE_WIDTH_*COL values ever change, this test's own expectations
+  // move with them instead of silently testing against a stale literal. The 0.89 ratio itself
+  // (WORST_CASE_CHAR_ADVANCE_EM) is not exported — it's a module-private derivation constant in
+  // overviewPdf.ts — so it's pinned here as a literal, same as round 2 pinned its own 0.495.
+  it('USAGE_SAFE_TOKEN_CHARS_7COL === 19 and USAGE_SAFE_TOKEN_CHARS_6COL === 26 (floor(USAGE_WIDTH_*COL / (8 * 0.89)) — round 3s worst-case, not round 2s average, ratio)', () => {
+    expect(USAGE_SAFE_TOKEN_CHARS_7COL).toBe(19);
+    expect(USAGE_SAFE_TOKEN_CHARS_6COL).toBe(26);
+    // Relationship, not just the literals: both thresholds are Math.floor(width / (8 * 0.89)).
+    expect(USAGE_SAFE_TOKEN_CHARS_7COL).toBe(Math.floor(USAGE_WIDTH_7COL / (8 * 0.89)));
+    expect(USAGE_SAFE_TOKEN_CHARS_6COL).toBe(Math.floor(USAGE_WIDTH_6COL / (8 * 0.89)));
+  });
+
+  it('VENDOR_SAFE_TOKEN_CHARS === 6 (floor(VENDOR_WIDTH=45 / (8 * 0.89)) — the new #1929 round-3 HIGH1 export protecting free-form vendor names)', () => {
+    expect(VENDOR_SAFE_TOKEN_CHARS).toBe(6);
+    expect(VENDOR_SAFE_TOKEN_CHARS).toBe(Math.floor(45 / (8 * 0.89)));
   });
 
   describe('I1: joining every returned run reconstructs the input exactly', () => {
@@ -457,10 +468,13 @@ describe('buildUsageTextRuns (#1929 round 2 word-break follow-up finding, scenar
       expect(shortRuns).toEqual([{ text: 'short' }, { text: 'words' }]);
     });
 
-    it('German-locale ordinary prose (compound nouns under the 6-col threshold) stays entirely unflagged', () => {
-      // 'Wärmedämmverbundsystem' is 23 characters — under both USAGE_SAFE_TOKEN_CHARS_7COL (32)
-      // and _6COL (44), so it must NOT be flagged even though it is a long single German word.
-      const text = 'Lieferung und Montage Wärmedämmverbundsystem inklusive Putzarbeiten';
+    it('a moderate German compound noun UNDER both thresholds stays entirely unflagged in both shapes', () => {
+      // 'Putzarbeiten' is 12 characters — under both USAGE_SAFE_TOKEN_CHARS_7COL (19) and _6COL
+      // (26), so it must NOT be flagged. ('Wärmedämmverbundsystem' at 23 chars, round 2's example
+      // here, is now itself a case that MUST be flagged for the 7-col shape under round 3's
+      // tighter 19-char threshold — see the next test — so it can no longer serve as a
+      // "stays unflagged in every shape" example.)
+      const text = 'Lieferung und Montage sowie Putzarbeiten';
       const runs7 = buildUsageTextRuns(text, USAGE_SAFE_TOKEN_CHARS_7COL) as {
         text: string;
         wordBreak?: string;
@@ -474,12 +488,35 @@ describe('buildUsageTextRuns (#1929 round 2 word-break follow-up finding, scenar
       expect(runs7.every((run) => run.wordBreak === undefined)).toBe(true);
       expect(runs6.every((run) => run.wordBreak === undefined)).toBe(true);
     });
+
+    it('[#1929 round 3, H2 closed] "Wärmedämmverbundsystem" (22 chars) is now correctly flagged in the 7-col shape (22 > 19) but still unflagged in the 6-col shape (22 <= 26) — round 2s 32/44 thresholds would have missed the 7-col case entirely', () => {
+      const text = 'Lieferung und Montage Wärmedämmverbundsystem inklusive Putzarbeiten';
+      expect('Wärmedämmverbundsystem'.length).toBe(22);
+      // Would NOT have been flagged under round 2's coarser thresholds (32/44) — this is exactly
+      // the gap the architect's H2 finding identified.
+      expect('Wärmedämmverbundsystem'.length).toBeLessThan(32);
+
+      const runs7 = buildUsageTextRuns(text, USAGE_SAFE_TOKEN_CHARS_7COL) as {
+        text: string;
+        wordBreak?: string;
+      }[];
+      const runs6 = buildUsageTextRuns(text, USAGE_SAFE_TOKEN_CHARS_6COL) as {
+        text: string;
+        wordBreak?: string;
+      }[];
+      expect(runsText(runs7)).toBe(text);
+      expect(runsText(runs6)).toBe(text);
+      expect(runs7.filter((run) => run.wordBreak === 'break-all').map((run) => run.text)).toEqual([
+        'Wärmedämmverbundsystem',
+      ]);
+      expect(runs6.every((run) => run.wordBreak === undefined)).toBe(true);
+    });
   });
 
   describe('buildOverviewContent wiring: the correct safeTokenChars is selected per table shape', () => {
     it('a token that is unsafe for the 7-col floor but safe for the 6-col floor is flagged in a budget-overview report and NOT flagged in a claim report', () => {
-      // 40 chars: over USAGE_SAFE_TOKEN_CHARS_7COL (32), under USAGE_SAFE_TOKEN_CHARS_6COL (44).
-      const borderlineToken = 'a'.repeat(40);
+      // 22 chars: over USAGE_SAFE_TOKEN_CHARS_7COL (19), under/at USAGE_SAFE_TOKEN_CHARS_6COL (26).
+      const borderlineToken = 'a'.repeat(22);
       expect(borderlineToken.length).toBeGreaterThan(USAGE_SAFE_TOKEN_CHARS_7COL);
       expect(borderlineToken.length).toBeLessThanOrEqual(USAGE_SAFE_TOKEN_CHARS_6COL);
 
@@ -501,6 +538,109 @@ describe('buildUsageTextRuns (#1929 round 2 word-break follow-up finding, scenar
       };
       expect(claimCell.text.some((run) => run.wordBreak === 'break-all')).toBe(false);
     });
+  });
+});
+
+describe('#1929 round 3 HIGH1: header-cell and vendor-body-cell word-break protection', () => {
+  // Real German sourceReports.table label strings (client/src/i18n/de/budget.json) — the exact
+  // measured-overflow labels from the architect's round-3 review, not synthetic fixtures.
+  function makeGermanLabels(): ReportContent['labels'] {
+    return {
+      ...makeLabels(),
+      vendor: 'Auftragnehmer',
+      invoiceNumber: 'Rechnungsnr.',
+      date: 'Datum',
+      status: 'Status',
+      invoiceAmount: 'Rechnungsbetrag',
+      allocatedAmount: 'Zugeordneter Betrag',
+      usage: 'Verwendung',
+    };
+  }
+
+  it('[HIGH1] "Auftragnehmer" (13 chars, vendor header, 45pt column) is flagged for word-break — measured 67.50pt against the 45pt column', () => {
+    const content = makeContent({ isOverview: true, labels: makeGermanLabels() });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    const vendorHeaderCell = (table.body[0] as unknown[])[0] as {
+      text: { text: string; wordBreak?: string }[];
+    };
+    expect(runsText(vendorHeaderCell.text)).toBe('Auftragnehmer');
+    expect(vendorHeaderCell.text.some((run) => run.wordBreak === 'break-all')).toBe(true);
+  });
+
+  it('[HIGH1] "Rechnungsbetrag" (15 chars, invoiceAmount header, 48pt column) is flagged for word-break — measured 78.66pt against the 48pt column', () => {
+    const content = makeContent({ isOverview: true, labels: makeGermanLabels() });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    const invoiceAmountHeaderCell = (table.body[0] as unknown[])[4] as {
+      text: { text: string; wordBreak?: string }[];
+    };
+    expect(runsText(invoiceAmountHeaderCell.text)).toBe('Rechnungsbetrag');
+    expect(invoiceAmountHeaderCell.text.some((run) => run.wordBreak === 'break-all')).toBe(true);
+  });
+
+  it('[HIGH1] "Zugeordneter Betrag" (allocatedAmount header, 75pt column): each word\'s own token-level flag reflects the conservative worst-case estimate exactly — "Betrag" (6 chars) fits under the 8-char header threshold and is NOT flagged; "Zugeordneter" (12 chars) exceeds it and IS flagged even though its real measured width (60.42pt) fits the 75pt column on its own — over-flagging here is the designed-harmless case (see buildHeaderCell/buildUsageTextRuns doc comments), not a bug: break-all only forces a MID-CHARACTER split when a token does not fit on one line by itself, which "Zugeordneter" does. The real-render test in realRender.test.ts confirms this never visually force-breaks the word.', () => {
+    const content = makeContent({ isOverview: true, labels: makeGermanLabels() });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    const allocatedHeaderCell = (table.body[0] as unknown[])[5] as {
+      text: { text: string; wordBreak?: string }[];
+    };
+    expect(runsText(allocatedHeaderCell.text)).toBe('Zugeordneter Betrag');
+    const zugeordneterRun = allocatedHeaderCell.text.find((r) => r.text === 'Zugeordneter');
+    const betragRun = allocatedHeaderCell.text.find((r) => r.text === 'Betrag');
+    expect(zugeordneterRun?.wordBreak).toBe('break-all');
+    expect(betragRun?.wordBreak).toBeUndefined();
+  });
+
+  it('[HIGH1] a normal-length header label ("Datum", "Status", "Verwendung") is never flagged when it already fits its column at the worst-case ratio', () => {
+    const content = makeContent({ isOverview: true, labels: makeGermanLabels() });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    const dateHeaderCell = (table.body[0] as unknown[])[2] as {
+      text: { text: string; wordBreak?: string }[];
+    };
+    const usageHeaderCell = (table.body[0] as unknown[])[6] as {
+      text: { text: string; wordBreak?: string }[];
+    };
+    // 'Datum' = 5 chars, exactly AT the Date column's header threshold (floor(46/8.9) = 5) — not
+    // over it, so not flagged (the "at the threshold, not flagged" boundary already unit-tested
+    // directly against buildUsageTextRuns above; this confirms the SAME boundary through the real
+    // wiring in buildOverviewContent/buildHeaderCell).
+    expect(runsText(dateHeaderCell.text)).toBe('Datum');
+    expect(dateHeaderCell.text.every((run) => run.wordBreak === undefined)).toBe(true);
+    // 'Verwendung' = 10 chars, comfortably under the Usage header threshold (19 for 7-col).
+    expect(runsText(usageHeaderCell.text)).toBe('Verwendung');
+    expect(usageHeaderCell.text.every((run) => run.wordBreak === undefined)).toBe(true);
+  });
+
+  it('[HIGH1] a real free-form vendor body cell ("Elektroinstallationsbetrieb", 28 chars, no whitespace) is flagged for word-break — measured 92.72pt against the 45pt Vendor column', () => {
+    const row = makeRow({ vendor: 'Elektroinstallationsbetrieb' });
+    const content = makeContent({ isOverview: false, rows: [row] });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    const vendorBodyCell = (table.body[1] as unknown[])[0] as {
+      text: { text: string; wordBreak?: string }[];
+    };
+    expect(runsText(vendorBodyCell.text)).toBe('Elektroinstallationsbetrieb');
+    expect(vendorBodyCell.text).toEqual([
+      { text: 'Elektroinstallationsbetrieb', wordBreak: 'break-all' },
+    ]);
+  });
+
+  it('[HIGH1] an ordinary multi-word vendor name (each token under VENDOR_SAFE_TOKEN_CHARS) is never flagged, only whitespace-separated into its own runs', () => {
+    // 'ACME' (4) and 'Builders' (8) — 'Builders' is over VENDOR_SAFE_TOKEN_CHARS (6), so THIS
+    // fixture would actually flag 'Builders' too; use a fixture where every token is <= 6 chars to
+    // exercise the "nothing flagged" path cleanly.
+    const row = makeRow({ vendor: 'ACME AG' });
+    const content = makeContent({ isOverview: false, rows: [row] });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    const vendorBodyCell = (table.body[1] as unknown[])[0] as {
+      text: { text: string; wordBreak?: string }[];
+    };
+    expect(runsText(vendorBodyCell.text)).toBe('ACME AG');
+    expect(vendorBodyCell.text.every((run) => run.wordBreak === undefined)).toBe(true);
   });
 });
 

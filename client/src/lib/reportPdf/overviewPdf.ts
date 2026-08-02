@@ -11,36 +11,68 @@ import {
   DEPOSIT_NOTE_TEXT_COLOR,
   DEPOSIT_NOTE_FONT_SIZE,
 } from './shared.js';
-import { TABLE_BODY_FONT_SIZE } from './pageGeometry.js';
-// Note: usableColumnWidth() is not called directly in this file — the column-width constants
-// below are literals whose sum against usableColumnWidth() is verified by hand (see comments)
-// and pinned by pageGeometry.test.ts / overviewPdf.test.ts's real-render assertions. It remains
-// exported from pageGeometry.ts for those tests to import.
+import {
+  TABLE_BODY_FONT_SIZE,
+  TABLE_HEADER_FONT_SIZE,
+  DEFAULT_LINE_HEIGHT,
+  usableColumnWidth,
+} from './pageGeometry.js';
 
 // Fixed point widths (pt) for the narrow, bounded-content columns shared by both table shapes.
-// Verified against the architect's #1929 review measurements (10pt Roboto), linearly scaled to
-// TABLE_BODY_FONT_SIZE=8 (~0.5em/char), each with a safety buffer above its scaled content floor.
-// THESE NUMBERS MUST BE CONFIRMED BY qa-integration-tester's real-render _calcWidth assertions —
-// this is an estimate derived by scaling, and round 1 shipped an estimate wrong by 2.7x for a
-// different reason (offsets). If measured Usage _calcWidth comes in under the AC3 floor, trim in
-// this order: VENDOR_WIDTH, then STATUS_WIDTH, then INVOICE_NUMBER_WIDTH. Do not trim DATE_WIDTH
-// or ALLOCATED_AMOUNT_WIDTH without re-measuring their content floors at 8pt.
+// #1929 round-3 architect review measured these directly against a real render (not the
+// 0.495em/char scaling estimate that produced round 2's numbers) and confirmed CLOSED:
+// DATE_WIDTH holds "15.02.2026" (40.19pt) / "02/15/2026"; INVOICE_NUMBER_WIDTH holds
+// "2026-RE-004711" (58.86pt) / "RG-2026-00123-A" (62.70pt). Do not re-derive these from the
+// 0.495em estimate — they are pinned by measurement.
 const VENDOR_WIDTH = 45;
-const INVOICE_NUMBER_WIDTH = 63; // holds "2026-RE-004711" / "RG-2026-00123-A" scaled to 8pt (~59-63pt)
-const DATE_WIDTH = 46; // holds "15.02.2026" / "02/15/2026" scaled to 8pt (~40-43pt) + buffer
+const INVOICE_NUMBER_WIDTH = 63;
+const DATE_WIDTH = 46;
 const STATUS_WIDTH = 40; // budget-overview (7-col) only; no per-line-char AC, wraps freely
 const INVOICE_AMOUNT_WIDTH = 48;
-const ALLOCATED_AMOUNT_WIDTH = 75; // unchanged from round 1 — architect-validated: value+markers
-// (~57pt) and the " (Abschlagszahlung)" badge (72.9pt, already measured AT 8pt since
-// DEPOSIT_NOTE_FONT_SIZE was already 8 before this round) both hold at this width.
+const ALLOCATED_AMOUNT_WIDTH = 75; // value+markers (~57pt) + " (Abschlagszahlung)" badge (72.9pt)
+// both hold; "Zugeordneter Betrag" header wraps at its internal space ("Zugeordneter"=60.42pt,
+// "Betrag"=29.42pt — both < 75pt) so it never needs word-breaking either.
 
-// Usage column budget (both shapes), computed from usableColumnWidth() — NOT from summing the
-// declared array against printableWidth() alone, which omits pdfmake's per-column offsets and
-// guards nothing (#1929 architect review, HIGH 3). 7-col fixed sum = 317pt, usable = 455.28pt =>
-// Usage gets 138.28pt (~34.6 chars/line @ 0.5em/8pt, >= AC3's 30-char floor with ~15% margin).
-// 6-col fixed sum = 277pt, usable = 463.78pt => Usage gets 186.78pt (~46.7 chars/line).
-export const USAGE_MIN_WIDTH_7COL = 130; // floor asserted by tests; under the 138.28pt estimate
-export const USAGE_MIN_WIDTH_6COL = 175; // floor asserted by tests; under the 186.78pt estimate
+/**
+ * Usage column width (both shapes) — an EXPLICIT NUMERIC width computed from
+ * usableColumnWidth(), never `'*'`. #1929 round-3 architect review CRITICAL/HIGH1:
+ * `columnCalculator.js:52` reads `elasticWidth` to grow a column past its declared width, but
+ * nothing in pdfmake ever assigns it — so numeric widths are honoured unconditionally, while a
+ * `'*'` column's case-1 branch ("sum of minimum widths >= available width") forces it to its
+ * content's widest-unbreakable-word floor, pushing the WHOLE TABLE past printableWidth(). With
+ * every column numeric, that branch is structurally unreachable and the table's total rendered
+ * width is printableWidth() for ANY input — not just the content this file happens to test with.
+ * Computed (not hand-verified against a comment) so a future column-width edit can't silently
+ * invalidate the invariant: `tableOffsetsTotal(n) + fixedSum(n) + USAGE_WIDTH_*COL ===
+ * printableWidth()` holds by construction, algebraically, for both shapes.
+ */
+const USAGE_FIXED_SUM_7COL =
+  VENDOR_WIDTH +
+  INVOICE_NUMBER_WIDTH +
+  DATE_WIDTH +
+  STATUS_WIDTH +
+  INVOICE_AMOUNT_WIDTH +
+  ALLOCATED_AMOUNT_WIDTH;
+const USAGE_FIXED_SUM_6COL =
+  VENDOR_WIDTH + INVOICE_NUMBER_WIDTH + DATE_WIDTH + INVOICE_AMOUNT_WIDTH + ALLOCATED_AMOUNT_WIDTH;
+export const USAGE_WIDTH_7COL = usableColumnWidth(7) - USAGE_FIXED_SUM_7COL; // 138.28pt
+export const USAGE_WIDTH_6COL = usableColumnWidth(6) - USAGE_FIXED_SUM_6COL; // 186.78pt
+
+/**
+ * Worst-case single-character advance, as a fraction of font size (em), measured directly via
+ * real pdfmake renders scanning the full Latin+German charset (A-Z, a-z, umlauts/eszett, digits,
+ * punctuation) at both the body (8pt regular) and header (10pt bold) table fonts (#1929 round-3
+ * architect review HIGH2: the previous 0.495em AVERAGE ratio under-flagged all-caps/M-W-heavy
+ * tokens by ~45% — a 32-char all-uppercase Usage token measured 538.57pt against a 515.28pt
+ * page). Measured maxima: 'W' = 7.098pt at 8pt regular (0.8872em); 'W' = 8.804pt at 10pt bold
+ * (0.8804em). 0.89em is used uniformly for both — safely above every character scanned, in
+ * either font. Over-flagging a token as needing `wordBreak: 'break-all'` is harmless (see
+ * buildUsageTextRuns); under-flagging causes the exact overflow this exists to prevent, so this
+ * value is rounded UP, not to the nearest measured figure.
+ */
+const WORST_CASE_CHAR_ADVANCE_EM = 0.89;
+const BODY_WORST_CASE_CHAR_WIDTH_PT = TABLE_BODY_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 7.12pt
+const HEADER_WORST_CASE_CHAR_WIDTH_PT = TABLE_HEADER_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 8.9pt
 
 /**
  * A single Usage cell whose text exceeds this length is split into multiple table rows (see
@@ -50,16 +82,19 @@ export const USAGE_MIN_WIDTH_6COL = 175; // floor asserted by tests; under the 1
  * is ever lost" outranks I3 "each row on one page"), a row that genuinely cannot fit one page
  * must still render completely, even if that means it spans pages.
  *
- * MEASURED CEILING (AC12): at the current Usage column width (~34.6 chars/line, 8pt, 1.4 line
- * height => 11.2pt/line), a full fresh page's printable height holds roughly 60+ lines of Usage
- * text alone — around 2000+ characters — before a row would risk exceeding one page. This
- * constant sits well below that true ceiling (~40% margin) and well above the AC12-mandated
- * 600-character zero-degradation target (2x margin), so estimation error in the chars-per-line
- * figure cannot cause a real drop. VERIFY via a real render that a row at exactly this length
- * still renders as a single unsplit row, and record the actual measured ceiling here and on the
- * issue per AC12.
+ * MEASURED CEILING (AC12, #1929 round-3 architect review HIGH3): the round-2 value of 1200
+ * assumed near-perfect line packing at an AVERAGE glyph width and left ~0% real margin —
+ * measured at exactly 1200 chars of dense content, the row already overflowed one page. This
+ * value was instead measured directly against a real render of the production table shape
+ * (7-column, `headerRows: 1` with word-break-protected header cells, one populated content row,
+ * then a Usage-only continuation row placed where `dontBreakRows` would defer it — a fresh
+ * page), using the theoretical worst case: a single unbroken run of 'W' (the widest character in
+ * the font) with NO whitespace at all, so every line packs to exactly the column's worst-case
+ * character count with no slack. Measured ceiling: 836 characters. This constant sits ~16%
+ * below that measured ceiling (not a re-derived estimate) and comfortably above AC12's
+ * 600-character zero-degradation requirement.
  */
-export const MAX_SAFE_USAGE_CHUNK_CHARS = 1200;
+export const MAX_SAFE_USAGE_CHUNK_CHARS = 700;
 
 /**
  * Splits `text` into chunks no longer than `maxChars`, breaking only at whitespace boundaries
@@ -95,53 +130,66 @@ export function splitIntoPageSafeChunks(text: string, maxChars: number): string[
 }
 
 /**
- * Per-character width estimate for the Usage column at TABLE_BODY_FONT_SIZE, derived from the
- * architect's #1929 review measurement of 4.95pt/char at 10pt Roboto (~0.495em), scaled linearly
- * — same ratio used to derive the column-width constants above.
- */
-const USAGE_CHAR_WIDTH_ESTIMATE = TABLE_BODY_FONT_SIZE * 0.495; // ~3.96pt/char at 8pt
-
-/**
- * A whitespace-free run at or under this many characters is assumed to fit on one line within
- * the Usage column's guaranteed floor (USAGE_MIN_WIDTH_7COL / _6COL) and renders with pdfmake's
- * default (whitespace-only) wrapping. A run over this length gets `wordBreak: 'break-all'`
- * applied to it alone, so it can wrap mid-character instead of forcing the sole '*' column (and
- * the whole table) past printableWidth() (#1929 CRITICAL 2 / AC1 / AC2 round-2 review finding —
+ * A whitespace-free run at or under this many characters is guaranteed to fit on one line within
+ * the given column width, EVEN IN THE WORST CASE (every character as wide as 'W'), and renders
+ * with pdfmake's default (whitespace-only) wrapping. A run over this length gets
+ * `wordBreak: 'break-all'` applied to itself alone, so it can wrap mid-character instead of
+ * forcing a fixed-width column's content past its declared width (#1929 CRITICAL 2 / AC1 / AC2 —
  * AC2 permits breaking a word "only when it is wider than its column on its own"; pdfmake has no
  * intermediate "break long words only" mode, just 'normal' (whitespace-only) and 'break-all'
- * (every character), so it must be scoped per-run via a `text:` run array, never applied to the
- * whole Usage cell — TextBreaker.js:15-40 confirms 'break-all' tokenizes per character;
+ * (every character), so it must be scoped per-run via a `text:` run array, never applied to a
+ * whole cell — TextBreaker.js:15-40 confirms 'break-all' tokenizes per character;
  * StyleContextStack.js:160-165 confirms `wordBreak` is resolved per text-run item before falling
  * back to the style dictionary, so an ordinary run with no `wordBreak` set is unaffected).
  *
- * Deliberately conservative: floored against the column's guaranteed MINIMUM width (not the
- * roomier estimate), using a per-char width slightly above the measured average. A token just
- * under this threshold that gets `wordBreak: 'break-all'` anyway is harmless (it simply never
- * needs to break); a token just over it that doesn't get flagged causes exactly the overflow
- * this exists to prevent — so the threshold is rounded down, not to the nearest character.
+ * Deliberately conservative: uses BODY_WORST_CASE_CHAR_WIDTH_PT (0.89em, not an average — see
+ * that constant's comment for the round-3 architect review finding an average ratio under-flags
+ * all-caps/M-W-heavy tokens). A token just under this threshold that gets `wordBreak: 'break-all'`
+ * anyway is harmless (it simply never needs to break, since break-all only forces a mid-character
+ * split when the token doesn't fit on one line); a token just over it that doesn't get flagged
+ * causes exactly the overflow this exists to prevent — so the threshold is rounded down.
  */
-export const USAGE_SAFE_TOKEN_CHARS_7COL = Math.floor(
-  USAGE_MIN_WIDTH_7COL / USAGE_CHAR_WIDTH_ESTIMATE,
+function safeTokenChars(columnWidthPt: number, charWidthPt: number): number {
+  return Math.floor(columnWidthPt / charWidthPt);
+}
+
+export const USAGE_SAFE_TOKEN_CHARS_7COL = safeTokenChars(
+  USAGE_WIDTH_7COL,
+  BODY_WORST_CASE_CHAR_WIDTH_PT,
 );
-export const USAGE_SAFE_TOKEN_CHARS_6COL = Math.floor(
-  USAGE_MIN_WIDTH_6COL / USAGE_CHAR_WIDTH_ESTIMATE,
+export const USAGE_SAFE_TOKEN_CHARS_6COL = safeTokenChars(
+  USAGE_WIDTH_6COL,
+  BODY_WORST_CASE_CHAR_WIDTH_PT,
 );
 
 /**
- * Splits `text` into inline pdfmake text runs for the Usage column. Whitespace-free runs at or
- * under `safeTokenChars` are emitted verbatim (default whitespace-only wrapping); a run over
- * that length gets `wordBreak: 'break-all'` applied to itself alone, so only that oversized
- * token can break mid-character — ordinary prose around it keeps wrapping at word boundaries.
- * Concatenating every returned run's `text` reproduces `text` exactly — whitespace runs are
- * preserved verbatim and no character is ever added or dropped (#1929 I1).
+ * Vendor column's safe-token-char threshold (body font). #1929 round-3 architect review HIGH1:
+ * a real single-word German vendor name ("Elektroinstallationsbetrieb") measured 92.72pt against
+ * the 45pt Vendor column — vendor names are free-form business names (unlike the system-
+ * generated date/invoice-number/currency columns), so, like Usage, they need the same per-token
+ * break-all protection rather than an assumption that they always fit.
  */
-export function buildUsageTextRuns(text: string, safeTokenChars: number): Content[] {
+export const VENDOR_SAFE_TOKEN_CHARS = safeTokenChars(VENDOR_WIDTH, BODY_WORST_CASE_CHAR_WIDTH_PT);
+
+/**
+ * Splits `text` into inline pdfmake text runs. Whitespace-free runs at or under `safeTokenChars`
+ * are emitted verbatim (default whitespace-only wrapping); a run over that length gets
+ * `wordBreak: 'break-all'` applied to itself alone, so only that oversized token can break
+ * mid-character — ordinary prose around it keeps wrapping at word boundaries. Used for the Usage
+ * column, the Vendor column, and (via buildHeaderCell) every table header cell — anywhere a
+ * fixed-width column's content isn't guaranteed to fit a single unbreakable token (#1929 round-3
+ * architect review HIGH1: this is what "a column must at minimum accommodate its own header, or
+ * apply the same per-token break-all treatment" resolves to for header cells too). Concatenating
+ * every returned run's `text` reproduces `text` exactly — whitespace runs are preserved verbatim
+ * and no character is ever added or dropped (#1929 I1).
+ */
+export function buildUsageTextRuns(text: string, safeTokenCharsForColumn: number): Content[] {
   const tokens = text.split(/(\s+)/); // capturing group keeps whitespace as its own tokens
   const runs: Content[] = [];
   for (const token of tokens) {
     if (token.length === 0) continue;
     const isWhitespace = /^\s+$/.test(token);
-    if (!isWhitespace && token.length > safeTokenChars) {
+    if (!isWhitespace && token.length > safeTokenCharsForColumn) {
       runs.push({ text: token, wordBreak: 'break-all' });
     } else {
       runs.push({ text: token });
@@ -149,6 +197,50 @@ export function buildUsageTextRuns(text: string, safeTokenChars: number): Conten
   }
   return runs.length > 0 ? runs : [{ text: '' }];
 }
+
+/**
+ * Builds a table header cell whose text is protected against HIGH1's overflow the same way
+ * Usage/Vendor body cells are. #1929 round-3 architect review measured two German header labels
+ * as single (space-free) tokens wider than their fixed columns — "Auftragnehmer" (vendor header)
+ * at 67.50pt against a 45pt column, "Rechnungsbetrag" (invoiceAmount header) at 78.66pt against a
+ * 48pt column — and `elasticWidth` never grows a fixed column to fit them (columnCalculator.js:52
+ * is read but assigned nowhere). Widening every column to fit its own header outright was
+ * evaluated and rejected: doing so for just these two columns already consumes enough of
+ * usableColumnWidth(7) to push Usage under AC3's ~30-char floor, and AllocatedAmount's
+ * multi-word header ("Zugeordneter Betrag") already wraps safely at its own space without any
+ * column change. Applying `buildUsageTextRuns` uniformly to every header cell (both locales)
+ * instead preserves the full Usage budget and is harmless wherever a label already fits.
+ */
+function buildHeaderCell(text: string, columnWidthPt: number, alignment?: 'right'): Content {
+  const runs = buildUsageTextRuns(
+    text,
+    safeTokenChars(columnWidthPt, HEADER_WORST_CASE_CHAR_WIDTH_PT),
+  );
+  return alignment
+    ? { text: runs, style: 'tableHeader', alignment }
+    : { text: runs, style: 'tableHeader' };
+}
+
+/**
+ * Conservative worst-case height (pt) of the table's own repeating header row (`headerRows: 1`).
+ * Exported for #1932 (cover-letter overhaul) to reuse rather than re-deriving its own version of
+ * this — per the architect's round-3 review note. Computed, not independently re-measured per
+ * render: the narrowest fixed column (Vendor, 45pt) holding its longest bare header word,
+ * "Auftragnehmer" (13 characters, no internal whitespace), broken across
+ * `ceil(13 / safeTokenChars(VENDOR_WIDTH, header ratio))` lines at the header font's line height,
+ * plus the table's own vertical cell padding (paddingTop(6) + paddingBottom(6) from
+ * shared.ts's TABLE_LAYOUT — not yet parametrized in pageGeometry.ts). #1929's own
+ * MAX_SAFE_USAGE_CHUNK_CHARS does not depend on this being exact — it was pinned directly
+ * against a real multi-row render instead (see that constant's comment); treat this export as a
+ * documented estimate for reuse, not a load-bearing measurement.
+ */
+const HEADER_ROW_VERTICAL_PADDING_PT = 12; // shared.ts TABLE_LAYOUT paddingTop(6) + paddingBottom(6)
+const VENDOR_HEADER_WORST_CASE_LINES = Math.ceil(
+  'Auftragnehmer'.length / safeTokenChars(VENDOR_WIDTH, HEADER_WORST_CASE_CHAR_WIDTH_PT),
+);
+export const HEADER_ROW_HEIGHT =
+  VENDOR_HEADER_WORST_CASE_LINES * (TABLE_HEADER_FONT_SIZE * DEFAULT_LINE_HEIGHT) +
+  HEADER_ROW_VERTICAL_PADDING_PT;
 
 export function buildOverviewContent(
   reportContent: ReportContent,
@@ -193,22 +285,25 @@ export function buildOverviewContent(
     });
   }
 
-  // Build table columns
+  // Build table columns — every header cell goes through buildHeaderCell so a single-word label
+  // wider than its column (#1929 round-3 architect review HIGH1) breaks mid-character instead of
+  // overflowing; harmless for labels that already fit.
+  const usageWidth = reportContent.isOverview ? USAGE_WIDTH_7COL : USAGE_WIDTH_6COL;
   const columns: Content[] = [
-    { text: reportContent.labels.vendor, style: 'tableHeader' },
-    { text: reportContent.labels.invoiceNumber, style: 'tableHeader' },
-    { text: reportContent.labels.date, style: 'tableHeader' },
+    buildHeaderCell(reportContent.labels.vendor, VENDOR_WIDTH),
+    buildHeaderCell(reportContent.labels.invoiceNumber, INVOICE_NUMBER_WIDTH),
+    buildHeaderCell(reportContent.labels.date, DATE_WIDTH),
   ];
 
   // Add status column only if budget-overview
   if (reportContent.isOverview) {
-    columns.push({ text: reportContent.labels.status, style: 'tableHeader' });
+    columns.push(buildHeaderCell(reportContent.labels.status, STATUS_WIDTH));
   }
 
   columns.push(
-    { text: reportContent.labels.invoiceAmount, style: 'tableHeader', alignment: 'right' },
-    { text: reportContent.labels.allocatedAmount, style: 'tableHeader', alignment: 'right' },
-    { text: reportContent.labels.usage, style: 'tableHeader' },
+    buildHeaderCell(reportContent.labels.invoiceAmount, INVOICE_AMOUNT_WIDTH, 'right'),
+    buildHeaderCell(reportContent.labels.allocatedAmount, ALLOCATED_AMOUNT_WIDTH, 'right'),
+    buildHeaderCell(reportContent.labels.usage, usageWidth),
   );
 
   /**
@@ -273,7 +368,11 @@ export function buildOverviewContent(
     statusText: string,
   ): Content[] {
     const cells: Content[] = [
-      { text: contentRow.vendor, style: 'tableCell' },
+      // Vendor names are free-form business names (unlike invoiceNumber/dateText, which are
+      // system-generated and bounded) — protected with the same per-token break-all treatment
+      // as Usage (#1929 round-3 architect review HIGH1: "Elektroinstallationsbetrieb" measured
+      // 92.72pt against the 45pt Vendor column).
+      { text: buildUsageTextRuns(contentRow.vendor, VENDOR_SAFE_TOKEN_CHARS), style: 'tableCell' },
       { text: contentRow.invoiceNumber, style: 'tableCell' },
       { text: contentRow.dateText, style: 'tableCell' },
     ];
@@ -425,6 +524,11 @@ export function buildOverviewContent(
       // (as round 1 did) is inert, since layout is only consumed for border/padding/fill
       // callbacks (#1929 architect review, CRITICAL 1).
       dontBreakRows: true,
+      // Usage is an explicit NUMBER (usageWidth), never '*' — #1929 round-3 architect review
+      // CRITICAL/HIGH1: pdfmake never grows a fixed column past its declared width
+      // (elasticWidth is read but assigned nowhere), so declaring every column numeric makes
+      // the star column's content-driven overflow branch (columnCalculator.js's case-1) simply
+      // unreachable — the table's total rendered width is printableWidth() for any input.
       widths: reportContent.isOverview
         ? [
             VENDOR_WIDTH,
@@ -433,7 +537,7 @@ export function buildOverviewContent(
             STATUS_WIDTH,
             INVOICE_AMOUNT_WIDTH,
             ALLOCATED_AMOUNT_WIDTH,
-            '*',
+            usageWidth,
           ]
         : [
             VENDOR_WIDTH,
@@ -441,7 +545,7 @@ export function buildOverviewContent(
             DATE_WIDTH,
             INVOICE_AMOUNT_WIDTH,
             ALLOCATED_AMOUNT_WIDTH,
-            '*',
+            usageWidth,
           ],
       body: rows,
     },

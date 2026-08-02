@@ -50,3 +50,35 @@ and its usage text land on the same page), not just whole-document presence + pa
 Design-review implication: don't take an AC like "rows are not split across pages" as satisfied
 just because the layout code sets the documented pdfmake flag and the existing tests pass — for a
 `dontBreakRows` claim specifically, render-and-inspect before approving.
+
+## Round 3 (PR #1935, same issue): fix confirmed, root cause was the wrong object
+
+Round 2 moved `dontBreakRows` onto `table.dontBreakRows` (the object `TableProcessor.js:123`
+actually reads — round 1 had it on `layout`, which is only consumed for border/padding/fill
+callbacks, making it silently inert). Re-rendered a fresh worst-case fixture (own scratch test,
+not just re-running the PR's own suite) and independently re-ran the PR's own scenario-18 test
+(which reuses my round-1 repro fixture verbatim) — both confirm the fix holds: an over-tall row
+is deferred whole to the next page, no orphaned fragment. **Lesson for future `dontBreakRows`-style
+claims**: check which pdfmake object the flag is actually set on (`table.<flag>` vs `layout.<flag>`)
+before trusting a "moved it to the right place" claim — this is a one-line, easy-to-regress detail
+that determines whether the whole fix does anything at all.
+
+Also confirmed in round 3: pdfmake force-breaks a single word wider than its column **without any
+hyphen mark**, even in default (non-`wordBreak: 'break-all'`) mode, when there's no other way to
+fit it — e.g. a 45pt `VENDOR_WIDTH` column broke "Sanitärtechnik" into "Sanitärtech" / "nik" for an
+adversarially long, fully-spelled-out German legal-suffix vendor name. This reads as garbled/broken
+text, not a clean wrap — worth flagging even where the relevant AC (here #1929's AC2) explicitly
+permits the break, since "permitted" and "reads well" are different bars. Only shows up past a
+certain content length; the project's own canonical worst-case fixture (shorter abbreviated legal
+suffix) didn't trigger it — so this kind of narrow-column word-break risk needs its own adversarial
+fixture, not just reuse of the existing "worst case" test data.
+
+**`pageMargins`'s top margin applies to page 1 too**, even when page 1's `header` callback returns
+`null` (this project's convention for "no running header on page 1"). Bumping the top margin to
+fit a running header's footprint (round 3: 93pt, computed from the header/subheader block) also
+pushes page-1 content down by that same amount even where there's no header to make room for — for
+`overviewPdf.ts` this is invisible (just more whitespace above the title), but for
+`coverLetterPdf.ts` (a formal letter, sender block starts near the top) it reads as an odd, large
+dead-space gap above the salutation. Worth checking both "does the header fit" AND "does page 1
+still look intentional" whenever a `pageMargins` top value changes for a multi-content-type
+document.

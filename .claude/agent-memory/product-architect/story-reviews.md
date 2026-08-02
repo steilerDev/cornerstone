@@ -273,3 +273,28 @@ Lesson: this is the [[recurring-patterns]] "code runs but does nothing" family a
 a config key on the wrong object, and a derivation whose arithmetic omitted an input. When a fix is a
 set of magic numbers justified by a prose comment, **recompute the comment** before reviewing anything
 else; both wrong numbers here were in comments that existed specifically to justify the constants.
+
+### Round 2 (CHANGES_REQUIRED again, 2026-08-02)
+
+`pageGeometry.ts` landed as recommended; C1, H3(offsets), M5, M6, M7 and AC14 genuinely closed. **C2 and
+H4 were not** — and both survived for the same reason they were filed: a *character count* substituted
+for a *typographic measurement*, calibrated on an average glyph width instead of a worst case. Round 1's
+lesson ("recompute the comment") repeated at the next level of precision: the round-2 comments were
+arithmetically correct but rested on optimistic inputs (0.495em average advance, perfect line packing).
+
+- **C2** threshold `floor(130 / (8·0.495)) = 32` chars. All-caps German runs at 0.60em and `M`/`W` at
+  0.873em: a 32-char all-caps token renders a 538.57pt table on a 515.28pt page; `M`×32 → 600.5pt.
+  `BAUSTELLENEINRICHTUNGSKOSTEN` (real word, 28 chars) clears by **3.6pt**.
+- **H4** `MAX_SAFE_USAGE_CHUNK_CHARS = 1200` claimed ~40% margin; measured **684pt against a ~663pt**
+  effective budget (the repeated header row is subtracted from an unbreakable fragment's height).
+- **New HIGH**: converting 6 columns from `auto`/`*` to fixed points broke the **German header row**
+  deterministically — fixed columns never grow, so `Auftragnehmer`/`Rechnungsbetrag` paint over their
+  neighbours while every table-level width assertion still passes.
+
+Recommended cure for the whole class: **drop the `'*'` column** — pdfmake never sets `elasticWidth`, so
+numeric widths are absolute and the table width becomes constant by construction. See
+[[client-pdf-pipeline]] "Round-2 measurements".
+
+Reviewer lesson: when round 1's finding is "this estimate is wrong", round 2's job is not to check the
+new estimate's arithmetic — it is to ask **what the estimate is an estimate _of_**, and whether a
+construction exists that removes the need to estimate at all.

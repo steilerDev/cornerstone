@@ -165,6 +165,73 @@ the star column's width doesn't depend on content AT ALL once `columnCalculator.
 is avoided; the word-break fix's entire job is keeping that path from triggering, not changing how
 much space the column gets. Confirms the production constants have full headroom, no `CODE_BUG`.
 
+## Round 3 (architect re-review a3b085cd): fixed-width Usage column, worst-case glyph ratio, header/vendor protection
+
+A THIRD review round found the round-2 word-break fix's own thresholds insufficient, plus a
+structural issue the round-2 fix never addressed:
+
+- **Usage column is no longer `'*'` at all — it's an explicit NUMBER.** `columnCalculator.js:52`
+  reads `elasticWidth` to grow a column past its declared width, but nothing in pdfmake ever
+  assigns it — so a FIXED column's `_calcWidth` is unconditionally `col.width`, regardless of
+  content. Declaring every column numeric makes the star column's content-driven overflow branch
+  (`columnCalculator.js` case-1) structurally unreachable. **Consequence for tests**: `_calcWidth`
+  assertions are now trivially/structurally true for ANY content — they no longer detect a
+  content-driven overflow bug at all (that mechanism doesn't exist anymore). The meaningful
+  regression signal shifted to: (a) is the oversized token actually FLAGGED for word-break, (b) is
+  the full text recoverable verbatim (I1), not "does `_calcWidth` still fit" (it always does).
+- **Renamed exports**: `USAGE_MIN_WIDTH_*COL` → `USAGE_WIDTH_*COL` — no longer a floor to check
+  `>=`, but the EXACT declared width (`usableColumnWidth(n) - fixedSum(n)`). Assert `===`, and pin
+  the algebraic identity `tableOffsetsTotal(n) + fixedSum(n) + USAGE_WIDTH_nCOL === printableWidth()`
+  (now holds exactly, not just "leaves enough room").
+- **0.495em AVERAGE ratio → 0.89em WORST-CASE ratio** (`WORST_CASE_CHAR_ADVANCE_EM`, module-private,
+  not exported — pin the literal `0.89` in tests, same as round 2 pinned its own `0.495`). Round
+  2's own pathological-token fixture was itself insufficient — it happened to be lowercase, and
+  lowercase Latin glyphs are narrow, so round 2's 32/44-char thresholds caught it by coincidence
+  while missing all-caps/M-W-heavy/digit-heavy tokens in the SAME length range. **Lesson: a
+  fixture's incidental properties (case, glyph choice) can silently substitute for the true worst
+  case — always check what property of the fixture is actually doing the work.**
+- **New thresholds**: `USAGE_SAFE_TOKEN_CHARS_7COL` 32→19, `_6COL` 44→26 (both `floor(width /
+  (8*0.89))`); new `VENDOR_SAFE_TOKEN_CHARS=6` (`floor(45/(8*0.89))`) — Vendor body cells now ALSO
+  go through `buildUsageTextRuns` (free-form business names, e.g. "Elektroinstallationsbetrieb"
+  measured 92.72pt against the 45pt column). **This means EVERY Vendor cell's `.text` is now always
+  a run array too** (not just Usage) — any test doing `row[0].text === 'SomeVendorName'` breaks the
+  same way round 2's Usage-only `usageCellText()` fix did; reconstruct Vendor cells the same way.
+  Grep the whole file for `?.text ===` / `!.text ===` string comparisons whenever a round adds
+  `buildUsageTextRuns` protection to a new column — round 3 caught ~10 more call sites this way,
+  including ones in tests nowhere near the code the round's spec described touching.
+- **Header cells too**: every table header cell (`buildHeaderCell`) goes through the same
+  protection, both locales. Real German label measurements: "Auftragnehmer" 67.50pt vs 45pt column,
+  "Rechnungsbetrag" 78.66pt vs 48pt — both genuinely wrap to 2+ real rendered lines (`.positions.length
+  > 1`) since their REAL widths (not just the conservative estimate) exceed the column. But
+  "Zugeordneter Betrag" (two words, 60.42pt/29.42pt, both < the 75pt column) gets its first word
+  flagged (12 chars > the 8-char conservative threshold for that column) YET renders as exactly 2
+  lines (`.positions.length === 2`), never actually invoking a mid-character split — this is the
+  designed-harmless "over-flagged but doesn't need it" case, not a bug. **Lesson: a flagged run does
+  not necessarily visually wrap to multiple lines — whether it does depends on REAL glyph metrics,
+  which the conservative worst-case estimate deliberately doesn't reflect. Don't assert "every
+  flagged token must wrap" as a blanket rule; only the token whose REAL width also exceeds the
+  column will.** Confirmed empirically: of three round-3 worst-case fixtures (29-char all-caps
+  German, 30×'W', 31 digits), only the 'W' run reliably wrapped in both table shapes — the other two
+  fit on one line in the wider (6-col, 186.78pt) shape despite being correctly flagged.
+- **`MAX_SAFE_USAGE_CHUNK_CHARS`**: 1200→700 (measured true ceiling was 836 chars using a real
+  'W'-only worst-case row, not the round-2 estimate's ~2000+; round 2's own value left ~0% real
+  margin — a row at exactly 1200 chars already overflowed a page under real measurement).
+- **`HEADER_ROW_HEIGHT`** (new export, for #1932 reuse): a documented, explicitly-not-independently-
+  measured estimate (54pt, `VENDOR_HEADER_WORST_CASE_LINES(3) * 14pt line + 12pt padding`). Measured
+  via real render (gap between header row's first line `top` and the following body row's first
+  line `top`): **45.8125pt actual vs 54pt estimated — an ~8.19pt OVER-estimate**, not under. Did not
+  report as `CODE_BUG`: the error direction is conservative (over-reserves vertical space, which is
+  safe for a reservation estimate; an under-estimate would be the dangerous direction and WOULD
+  warrant a CODE_BUG). Test asserts the safe-direction inequality (`measured <= HEADER_ROW_HEIGHT`),
+  not tight equality, and records the measured gap in a comment for a future consumer that needs a
+  tighter (not just safe) bound.
+- **Genuine-regression verification got easier this round**: `git log` showed HEAD (`a3b085cd`) was
+  already the exact "round-2-thresholds" commit, and the round-3.1 worst-case-glyph fix was sitting
+  UNCOMMITTED in the working tree when this round started. Instead of hand-reverting a single
+  constant, use `git show <prior-commit>:<path> > <path>` per production file (back up current
+  content first, `cp` it back after) — this is more reliable than reconstructing "what round N-1
+  looked like" from memory/comments when a real prior commit exists.
+
 ## Unreachable defensive branches (branch-coverage ceiling, reconfirmed)
 
 `overviewPdf.ts`'s `splitIntoPageSafeChunks`'s trailing `if (current) chunks.push(current);` and
