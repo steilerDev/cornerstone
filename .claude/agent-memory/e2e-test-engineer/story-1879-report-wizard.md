@@ -257,3 +257,40 @@ naturally sequential; accessible-name; select-all alignment — all desktop-only
 project" convention, see playwright.config.ts's per-project `grep`) plus a separate
 `@responsive`-tagged "mobile repeat" describe block using the same
 `test.skip(test.info().project.name !== 'mobile', ...)` pattern as Scenario 10.
+
+## Parallel-worktree "Scenario N" numbering collision (post-merge conflict, resolved without a live browser)
+
+Two bug-fix PRs (#1933, #1943) ran in parallel worktrees, both editing
+`reportWizard.spec.ts`, both inserting a NEW `test.describe` block at the exact same point
+(right after the last existing scenario) and both independently numbering their own addition
+"Scenario 13" — a pure numbering/insertion-point collision, not a logic conflict. #1943 merged
+to `beta` first; #1933's branch then had `git rebase origin/beta` produce deeply INTERLEAVED
+line-level conflict markers (diff3 got confused because both patches touch the same context
+lines) that were not practical to resolve by editing hunks in place.
+
+**Working resolution pattern** (reusable for any future same-insertion-point collision):
+1. `git rebase --abort` immediately rather than trying to hand-splice interleaved `<<<<<<<`
+   blocks — the two patches share too much context for a clean 3-way merge.
+2. Snapshot both full versions to `/tmp`: `git show origin/beta:<file>` (the side that already
+   merged) and `git show HEAD:<file>` (this branch's own unrebased commit).
+3. Diff line counts against the pre-conflict shared ancestor to confirm the insertion point:
+   ancestor 979 lines, beta tip 1099 (+120 for #1943), own branch 1220 (+241 for #1933) — both
+   additions start at the same ancestor line, confirming a pure insertion-point collision (not a
+   real edit conflict).
+4. Copy the ALREADY-MERGED side's file over the working tree file wholesale (it's already
+   correct and shouldn't be hand-edited), then re-append this branch's own addition as a plain
+   text block extracted from the pre-rebase snapshot — renumbering scenario numbers/headers to
+   continue sequentially, and updating the top-of-file docblock scenario list to match.
+5. Verify via `diff` against the original pre-rebase addition that ONLY numbering/comment text
+   changed, never test logic — the coordinator's constraint ("don't change either side's test
+   logic") should be independently checkable, not just asserted.
+6. `npx playwright test --list` on the resolved file to confirm both PRs' tests are present
+   (by full title) and total count matches sum of both sides — this is the check available
+   when a live browser run isn't possible in-sandbox (see `sandbox-live-verification.md`).
+7. Left uncommitted (per orchestrator instruction) — the commit goes through `dev-team-lead`.
+
+Numbering convention followed: each distinct `test.describe` block = its own scenario number
+(matches how Scenario 9/10/11/12 are each their own number even when Scenario 5/6 share one
+block for two closely related tests) — so #1933's single original "Scenario 13" bullet
+(covering 2 describe blocks / 4 tests) split into Scenario 15 (3 desktop tests, one describe)
+and Scenario 16 (1 mobile-repeat test, separate describe), landing after #1943's 13/14.
