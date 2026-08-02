@@ -12,6 +12,32 @@ import {
   DEPOSIT_NOTE_FONT_SIZE,
 } from './shared.js';
 
+// A4 printable width (pt): 595.28pt page width − 40pt left − 40pt right (merge.ts
+// pageMargins). Referenced here only in this comment — see the sanity note below for how
+// the fixed column widths relate to it.
+// PRINTABLE_WIDTH_PT = 515.28
+
+// Fixed point widths (pt) for the narrow, bounded-content columns shared by both table
+// shapes. Deliberately NOT 'auto': 'auto' sizes to the widest content in the column with no
+// upper bound — five 'auto' columns silently consuming the whole printable width, leaving
+// nothing for the '*' columns, is exactly what caused #1929's right-edge overflow. Usage
+// stays the SOLE '*' column so it deterministically absorbs 100% of whatever remains after
+// these fixed widths are subtracted — a second '*' column (e.g. keeping Vendor as '*') would
+// only split the remainder unpredictably, and this pdfmake build doesn't support weighted
+// stars ('2*') to compensate (see realRender.test.ts's story #1898 note).
+const VENDOR_WIDTH = 70;
+const INVOICE_NUMBER_WIDTH = 50;
+const DATE_WIDTH = 45;
+const STATUS_WIDTH = 40; // budget-overview (7-col) only
+const INVOICE_AMOUNT_WIDTH = 50;
+const ALLOCATED_AMOUNT_WIDTH = 75; // value + footnote markers + optional deposit badge/refund
+// note all wrap onto extra lines within this fixed width instead of forcing the table wider
+
+// Sanity: both column sets must leave Usage a meaningful, non-degenerate share of the page.
+// 7-col non-usage sum = 330pt -> Usage gets 185.28pt. 6-col non-usage sum = 290pt -> Usage
+// gets 225.28pt. Both comfortably under the 515.28pt printable width and comfortably above a
+// "collapsed column" width.
+
 export function buildOverviewContent(
   reportContent: ReportContent,
   skippedDocuments: Map<string, string[]>,
@@ -209,8 +235,23 @@ export function buildOverviewContent(
     table: {
       headerRows: 1,
       widths: reportContent.isOverview
-        ? ['*', 'auto', 'auto', 'auto', 'auto', 'auto', '*']
-        : ['*', 'auto', 'auto', 'auto', 'auto', '*'],
+        ? [
+            VENDOR_WIDTH,
+            INVOICE_NUMBER_WIDTH,
+            DATE_WIDTH,
+            STATUS_WIDTH,
+            INVOICE_AMOUNT_WIDTH,
+            ALLOCATED_AMOUNT_WIDTH,
+            '*',
+          ]
+        : [
+            VENDOR_WIDTH,
+            INVOICE_NUMBER_WIDTH,
+            DATE_WIDTH,
+            INVOICE_AMOUNT_WIDTH,
+            ALLOCATED_AMOUNT_WIDTH,
+            '*',
+          ],
       body: rows,
     },
     layout: TABLE_LAYOUT,

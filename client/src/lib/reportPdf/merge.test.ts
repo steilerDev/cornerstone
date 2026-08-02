@@ -27,6 +27,12 @@ import type { ReportContent } from '../reportContent/index.js';
 import type * as MergeModule from './merge.js';
 import type * as CoverLetterPdfModule from './coverLetterPdf.js';
 import type * as OverviewPdfModule from './overviewPdf.js';
+// Real (unmocked) import: static ESM imports are linked before this file's own
+// jest.unstable_mockModule('./shared.js', ...) call below executes, so this binding resolves to
+// the REAL shared.ts export (75), not the mocked module. Used both to seed the mock's own
+// PAGE_TOP_MARGIN value below (single source of truth) and to assert against in the
+// pageMargins regression test (#1929) — not a hardcoded 40 or a re-typed literal.
+import { PAGE_TOP_MARGIN } from './shared.js';
 
 const t = ((key: string) => key) as unknown as TFunction;
 
@@ -66,6 +72,10 @@ jest.unstable_mockModule('./shared.js', () => ({
   buildPageHeader: jest.fn(() => ({ text: 'HEADER' })),
   buildPageFooter: jest.fn(() => () => ({ text: 'FOOTER' })),
   TABLE_LAYOUT: {},
+  // Mirrors the real export's value so merge.ts's `pageMargins: [40, PAGE_TOP_MARGIN, 40, 60]`
+  // computes the same pageMargins under test as in production, instead of picking up `undefined`
+  // from an incomplete mock (which would make the #1929 regression assertion below meaningless).
+  PAGE_TOP_MARGIN,
 }));
 
 // ─── Mock: ./coverLetterPdf.js / ./overviewPdf.js ──────────────────────────────
@@ -678,6 +688,7 @@ describe('generateReportPdf', () => {
 
     const def = mockCreatePdf.mock.calls[0]![0] as {
       header: (currentPage: number) => unknown;
+      pageMargins: [number, number, number, number];
     };
     expect(def.header(1)).toBeNull();
     expect(def.header(2)).not.toBeNull();
@@ -690,5 +701,11 @@ describe('generateReportPdf', () => {
       'My Source',
       'sourceReports.table.generatedAt',
     );
+
+    // [regression #1929] On current beta this is the hardcoded [40, 40, 40, 60] — the top margin
+    // equaled the LEFT margin, not a value sized to the rendered page-header footprint, so the
+    // running header clipped/overlapped the first table row on multi-page reports. Left/right/
+    // bottom margins are unchanged; only the top margin now derives from PAGE_TOP_MARGIN.
+    expect(def.pageMargins).toEqual([40, PAGE_TOP_MARGIN, 40, 60]);
   });
 });

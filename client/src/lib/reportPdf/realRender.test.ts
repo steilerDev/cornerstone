@@ -385,49 +385,75 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     });
   });
 
-  describe('German overview table column widths (frontend fix spec item 15; updated story #1898)', () => {
-    it('uses the "*"-first / "auto"-rest width pattern for the 6-column claim/proof-of-funds table — the layout contract that keeps German label text from overflowing', async () => {
-      // pdfmake's public Node API does not expose the LAYOUT ENGINE'S COMPUTED pixel widths for
-      // 'auto' columns after createPdf()/getBlob() — there is no documented way to introspect the
-      // resolved column widths of a generated PDF without re-implementing pdfmake's internal
-      // table layout algorithm. This is flagged rather than silently skipped: true pixel-level
-      // verification that German labels never exceed the printable width (A4 width 595.28pt -
-      // 40pt left margin - 40pt right margin = 515.28pt) is NOT accessible via the public API in
-      // this environment. What IS directly verifiable is the declared width contract that drives
-      // that layout — overviewPdf.ts's own table.widths array, exercised here through the real,
-      // unmocked buildOverviewContent with real German translations — which is checked below.
-      const { buildOverviewContent } = await import('./overviewPdf.js');
-      const { report, includedIds } = await makeMixedReport();
-      const formatters = formattersFor('de-DE');
-      const content = buildReportContent(report, includedIds, 'claim', tDe, formatters, {
-        includeCoverLetter: false,
-        household: null,
-      });
+  describe('overview table column widths hold the fixed-point/single-trailing-star contract in both locales (frontend fix spec item 15; updated story #1898; regression #1929)', () => {
+    // pdfmake's public Node API does not expose the LAYOUT ENGINE'S COMPUTED pixel widths for
+    // 'auto' columns after createPdf()/getBlob() — there is no documented way to introspect the
+    // resolved column widths of a generated PDF without re-implementing pdfmake's internal table
+    // layout algorithm. This is flagged rather than silently skipped: true pixel-level
+    // verification that label text never exceeds the printable width (A4 width 595.28pt - 40pt
+    // left margin - 40pt right margin = 515.28pt) is NOT accessible via the public API in this
+    // environment. What IS directly verifiable is the declared width contract that drives that
+    // layout — overviewPdf.ts's own table.widths array, exercised here through the real,
+    // unmocked buildOverviewContent with real translations — which is checked below.
+    //
+    // These assertions pin the INVARIANTS (no 'auto', exactly one trailing '*', fixed columns sum
+    // under the printable width) rather than the exact numbers, so a future width nudge doesn't
+    // re-break this test — see overviewPdf.test.ts for the unit-level equivalent. On current beta
+    // both arrays are ['*','auto','auto','auto','auto',...,'*'] — five/six unbounded 'auto'
+    // columns, which is exactly what caused #1929's right-edge overflow.
+    const PRINTABLE_WIDTH_PT = 515.28;
 
-      const pdfContent = buildOverviewContent(content, new Map(), tDe);
-      const tableItem = pdfContent.find(
-        (c) => typeof c === 'object' && c !== null && 'table' in c,
-      ) as { table: { widths: string[] } };
+    function assertWidthContract(widths: (string | number)[], expectedLength: number): void {
+      expect(widths).toHaveLength(expectedLength);
+      expect(widths[expectedLength - 1]).toBe('*'); // Usage is the sole trailing '*' column
+      const fixedWidths = widths.slice(0, expectedLength - 1);
+      expect(fixedWidths.every((w) => typeof w === 'number')).toBe(true);
+      expect(widths.some((w) => w === 'auto')).toBe(false);
+      const fixedSum = (fixedWidths as number[]).reduce((a, b) => a + b, 0);
+      expect(fixedSum).toBeLessThanOrEqual(PRINTABLE_WIDTH_PT);
+    }
 
-      expect(tableItem.table.widths).toEqual(['*', 'auto', 'auto', 'auto', 'auto', '*']);
-    });
+    it.each([['de', 'de-DE', () => tDe] as const, ['en', 'en-US', () => tEn] as const])(
+      'holds for the 6-column claim/proof-of-funds table in the %s locale',
+      async (_label, localeStr, getT) => {
+        const { buildOverviewContent } = await import('./overviewPdf.js');
+        const { report, includedIds } = await makeMixedReport();
+        const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
+        const t = getT();
+        const content = buildReportContent(report, includedIds, 'claim', t, formatters, {
+          includeCoverLetter: false,
+          household: null,
+        });
 
-    it('uses the "*"-first / "auto"-rest width pattern for the 7-column budget-overview table (status column included)', async () => {
-      const { buildOverviewContent } = await import('./overviewPdf.js');
-      const { report, includedIds } = await makeMixedReport();
-      const formatters = formattersFor('de-DE');
-      const content = buildReportContent(report, includedIds, 'budget-overview', tDe, formatters, {
-        includeCoverLetter: false,
-        household: null,
-      });
+        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const tableItem = pdfContent.find(
+          (c) => typeof c === 'object' && c !== null && 'table' in c,
+        ) as { table: { widths: (string | number)[] } };
 
-      const pdfContent = buildOverviewContent(content, new Map(), tDe);
-      const tableItem = pdfContent.find(
-        (c) => typeof c === 'object' && c !== null && 'table' in c,
-      ) as { table: { widths: string[] } };
+        assertWidthContract(tableItem.table.widths, 6);
+      },
+    );
 
-      expect(tableItem.table.widths).toEqual(['*', 'auto', 'auto', 'auto', 'auto', 'auto', '*']);
-    });
+    it.each([['de', 'de-DE', () => tDe] as const, ['en', 'en-US', () => tEn] as const])(
+      'holds for the 7-column budget-overview table (status column included) in the %s locale',
+      async (_label, localeStr, getT) => {
+        const { buildOverviewContent } = await import('./overviewPdf.js');
+        const { report, includedIds } = await makeMixedReport();
+        const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
+        const t = getT();
+        const content = buildReportContent(report, includedIds, 'budget-overview', t, formatters, {
+          includeCoverLetter: false,
+          household: null,
+        });
+
+        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const tableItem = pdfContent.find(
+          (c) => typeof c === 'object' && c !== null && 'table' in c,
+        ) as { table: { widths: (string | number)[] } };
+
+        assertWidthContract(tableItem.table.widths, 7);
+      },
+    );
   });
 
   // ─── Usage column, attachment note, deposit-footnote wordings — real, unmocked i18next +
@@ -860,6 +886,112 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       expect(allStrings).toContain('ONLY THIS ROW IS EDITED');
       // The untouched row's own baseline usage text survives unchanged.
       expect(allStrings).toContain(otherRowBaselineUsage);
+    });
+  });
+
+  // ─── Regression #1929: multi-page render with long usage-description overrides ────────────────
+
+  describe('multi-page render with long usage-description overrides (regression #1929)', () => {
+    function collectAllStrings(node: unknown, out: string[] = []): string[] {
+      if (typeof node === 'string') {
+        out.push(node);
+      } else if (Array.isArray(node)) {
+        for (const item of node) collectAllStrings(item, out);
+      } else if (node !== null && typeof node === 'object') {
+        for (const value of Object.values(node as Record<string, unknown>)) {
+          collectAllStrings(value, out);
+        }
+      }
+      return out;
+    }
+
+    it('renders a real, valid, 3+ page PDF with long overridden usage descriptions, with no data loss and no pdfmake crash', async () => {
+      const { generateReportPdf } = await import('./merge.js');
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+
+      // 15 invoices is enough to force pagination on its own; combined with a handful of long
+      // usage overrides below (which each wrap across many lines given TABLE_LAYOUT.dontBreakRows
+      // keeps every row intact) this reliably spans 3+ pages.
+      const invoices: SourceReportInvoice[] = Array.from({ length: 15 }, (_, i) =>
+        makeInvoice({
+          invoiceId: `inv-long-${i}`,
+          vendorId: `vend-long-${i}`,
+          vendorName: `Vendor ${i}`,
+          invoiceNumber: `INV-${1000 + i}`,
+          invoiceAmount: 100 + i,
+          allocatedAmount: 100 + i,
+        }),
+      );
+      const report: SourceReportResponse = {
+        type: 'claim',
+        source: {
+          id: 'src-1',
+          name: 'Home Loan',
+          sourceType: 'bank_loan',
+          reference: null,
+          contactAddress: null,
+        },
+        invoices,
+        totalAmount: invoices.reduce((sum, inv) => sum + inv.allocatedAmount, 0),
+        unallocatedInvoices: [],
+        generatedAt: '2026-02-15T00:00:00.000Z',
+      };
+      const includedIds = new Set(invoices.map((inv) => inv.invoiceId));
+      const formatters = formattersFor('en-US');
+      const baseline = buildReportContent(report, includedIds, 'claim', tEn, formatters, {
+        includeCoverLetter: false,
+        household: null,
+      });
+
+      // A user could type any length of usage description in the editable report wizard — this
+      // fixture string's length is a plain literal chosen to force wrapping across several lines,
+      // NOT derived from any AI/validator length cap. (Issue #1931, developed in this same batch,
+      // changes those caps; neither issue's tests may lean on the other's constants.)
+      const longUsageText =
+        'Materials and labor for the exterior renovation, including brick veneer, mortar mix, ' +
+        'flashing, weatherproof membrane, and scaffolding rental for the extended installation ' +
+        'period covering the north and west facades of the property, plus weekend crew overtime ' +
+        'and equipment cleanup.';
+      expect(longUsageText.length).toBeGreaterThanOrEqual(275);
+
+      const overriddenIds = ['inv-long-0', 'inv-long-5', 'inv-long-10', 'inv-long-14'];
+      const overrides: ReportContentOverrides = Object.fromEntries(
+        overriddenIds.map((id) => [`row.${id}.usageText`, longUsageText]),
+      );
+      const effective = applyOverrides(baseline, overrides);
+
+      const result = await generateReportPdf(
+        report,
+        includedIds,
+        effective,
+        { attachDocuments: false },
+        tEn,
+      );
+      expect(result.blob).toBeInstanceOf(Blob);
+      expect(result.blob.size).toBeGreaterThan(0);
+
+      // Loads as a genuinely valid, multi-page PDF — proves pagination actually occurred and the
+      // real pdfmake render did not crash/truncate under the long-content, multi-row load.
+      const pdfBytes = await result.blob.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(pdfBytes);
+      expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(3);
+
+      // Content-tree level: the full, untruncated long usage string is present verbatim for every
+      // overridden row — no silent truncation or data loss.
+      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const allStrings = collectAllStrings(pdfContent);
+      const occurrences = allStrings.filter((s) => s === longUsageText).length;
+      expect(occurrences).toBe(overriddenIds.length);
+
+      // NOTE: true pixel-level clipping/overlap verification (confirming rows never visually
+      // overlap the running header/footer or spill past the printable width) is not accessible
+      // via pdfmake's public Node API in this environment — see the "overview table column
+      // widths" describe block above for the same limitation. This test, together with the
+      // width/margin regression tests in shared.test.ts, overviewPdf.test.ts, and merge.test.ts,
+      // is the closest available regression coverage for AC1/AC2/AC6/AC7 at the
+      // configuration/data level: a real multi-page render succeeds (no pdfmake crash), the page
+      // count proves pagination actually occurred under long, wrapping content, and the full
+      // untruncated long-usage string survives verbatim at the content-tree level.
     });
   });
 });

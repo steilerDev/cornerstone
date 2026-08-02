@@ -6,7 +6,7 @@ import type { Content } from 'pdfmake/build/pdfmake';
 import type { SourceReportResponse } from '@cornerstone/shared';
 import type { ReportContent } from '../reportContent/index.js';
 import { loadPdfLibs } from './loader.js';
-import { buildPageHeader, buildPageFooter } from './shared.js';
+import { buildPageHeader, buildPageFooter, PAGE_TOP_MARGIN } from './shared.js';
 import { buildCoverLetterContent } from './coverLetterPdf.js';
 import { buildOverviewContent } from './overviewPdf.js';
 import type { GeneratedReport, SkippedDocument } from './types.js';
@@ -103,7 +103,7 @@ export async function generateReportPdf(
   const pdfDoc = pdfMake.createPdf({
     content,
     pageSize: 'A4',
-    pageMargins: [40, 40, 40, 60],
+    pageMargins: [40, PAGE_TOP_MARGIN, 40, 60],
     header: (currentPage: number) => {
       if (currentPage === 1) return null; // No header on first page
       return buildPageHeader(

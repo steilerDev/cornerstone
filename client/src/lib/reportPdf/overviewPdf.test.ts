@@ -102,12 +102,21 @@ function rowTexts(row: unknown): (string | undefined)[] {
   });
 }
 
-function getTable(content: unknown[]): { headerRows: number; widths: string[]; body: unknown[][] } {
+function getTable(content: unknown[]): {
+  headerRows: number;
+  widths: (string | number)[];
+  body: unknown[][];
+} {
   const tableItem = content.find((c) => typeof c === 'object' && c !== null && 'table' in c) as {
-    table: { headerRows: number; widths: string[]; body: unknown[][] };
+    table: { headerRows: number; widths: (string | number)[]; body: unknown[][] };
   };
   return tableItem.table;
 }
+
+// A4 printable width (pt): 595.28pt page width − 40pt left − 40pt right (merge.ts pageMargins).
+// See overviewPdf.ts's own module-header comment for the derivation of the fixed column widths
+// that must sum to less than this.
+const PRINTABLE_WIDTH_PT = 515.28;
 
 describe('buildOverviewContent — title and source info', () => {
   it('renders the title from reportContent.tableTitle and source info from reportContent.sourceInfo', () => {
@@ -165,12 +174,23 @@ describe('buildOverviewContent — title and source info', () => {
 });
 
 describe('buildOverviewContent — column layout', () => {
-  it('budget-overview header is exactly [vendor, invoiceNumber, date, status, invoiceAmount, allocatedAmount, usage], widths ["*","auto","auto","auto","auto","auto","*"]', () => {
+  it('[regression #1929] budget-overview header is exactly [vendor, invoiceNumber, date, status, invoiceAmount, allocatedAmount, usage]; widths are fixed-point for every column but the trailing Usage "*", and the fixed columns sum under the printable width', () => {
     const content = makeContent({ isOverview: true });
     const result = buildOverviewContent(content, new Map(), t);
     const table = getTable(result);
 
-    expect(table.widths).toEqual(['*', 'auto', 'auto', 'auto', 'auto', 'auto', '*']);
+    // Shape/contract assertions, not exact values: on current beta this array is
+    // ['*','auto','auto','auto','auto','auto','*'] — five unbounded 'auto' columns with no upper
+    // bound is exactly what caused #1929's right-edge overflow. Pinning the invariants (not the
+    // literal numbers) means a future width nudge doesn't re-break this test.
+    expect(table.headerRows).toBe(1);
+    expect(table.widths).toHaveLength(7);
+    expect(table.widths[6]).toBe('*'); // Usage is the sole trailing '*' column
+    expect(table.widths.slice(0, 6).every((w) => typeof w === 'number')).toBe(true);
+    expect(table.widths.some((w) => w === 'auto')).toBe(false); // no unbounded columns remain
+    const fixedSum = (table.widths.slice(0, 6) as number[]).reduce((a, b) => a + b, 0);
+    expect(fixedSum).toBeLessThanOrEqual(PRINTABLE_WIDTH_PT);
+
     expect(rowTexts(table.body[0])).toEqual([
       'sourceReports.table.vendor',
       'sourceReports.table.invoiceNumber',
@@ -182,12 +202,21 @@ describe('buildOverviewContent — column layout', () => {
     ]);
   });
 
-  it('claim/proof-of-funds header has exactly 6 cells with no status column, widths ["*","auto","auto","auto","auto","*"]', () => {
+  it('[regression #1929] claim/proof-of-funds header has exactly 6 cells with no status column; widths are fixed-point for every column but the trailing Usage "*", and the fixed columns sum under the printable width', () => {
     const content = makeContent({ isOverview: false });
     const result = buildOverviewContent(content, new Map(), t);
     const table = getTable(result);
 
-    expect(table.widths).toEqual(['*', 'auto', 'auto', 'auto', 'auto', '*']);
+    // Same shape/contract as the 7-column case above — on current beta this array is
+    // ['*','auto','auto','auto','auto','*'].
+    expect(table.headerRows).toBe(1);
+    expect(table.widths).toHaveLength(6);
+    expect(table.widths[5]).toBe('*'); // Usage is the sole trailing '*' column
+    expect(table.widths.slice(0, 5).every((w) => typeof w === 'number')).toBe(true);
+    expect(table.widths.some((w) => w === 'auto')).toBe(false);
+    const fixedSum = (table.widths.slice(0, 5) as number[]).reduce((a, b) => a + b, 0);
+    expect(fixedSum).toBeLessThanOrEqual(PRINTABLE_WIDTH_PT);
+
     expect(rowTexts(table.body[0])).toEqual([
       'sourceReports.table.vendor',
       'sourceReports.table.invoiceNumber',

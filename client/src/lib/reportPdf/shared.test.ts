@@ -12,7 +12,13 @@
  * have been removed accordingly — they no longer exist to import or test.
  */
 import { describe, it, expect } from '@jest/globals';
-import { REFUND_TEXT_COLOR, buildPageHeader, buildPageFooter, TABLE_LAYOUT } from './shared.js';
+import {
+  REFUND_TEXT_COLOR,
+  buildPageHeader,
+  buildPageFooter,
+  TABLE_LAYOUT,
+  PAGE_TOP_MARGIN,
+} from './shared.js';
 
 describe('reportPdf/shared', () => {
   describe('REFUND_TEXT_COLOR', () => {
@@ -81,6 +87,24 @@ describe('reportPdf/shared', () => {
       expect(TABLE_LAYOUT.paddingRight()).toBe(8);
       expect(TABLE_LAYOUT.paddingTop()).toBe(6);
       expect(TABLE_LAYOUT.paddingBottom()).toBe(6);
+    });
+
+    it('[regression #1929] sets dontBreakRows so a table row (e.g. a wrapped long usage cell) never splits across a page boundary', () => {
+      // On current beta this flag is absent (undefined, falsy to pdfmake) — a tall row could be
+      // sliced mid-cell across two pages, which is one of the three layout defects #1929 reports.
+      expect(TABLE_LAYOUT.dontBreakRows).toBe(true);
+    });
+  });
+
+  describe('PAGE_TOP_MARGIN (regression #1929: header clipping/overlap on multi-page reports)', () => {
+    it('is exported as a number large enough to fit the rendered page-header footprint documented in shared.ts, with a sane upper bound', () => {
+      // On current beta this export does not exist at all (merge.ts hardcoded 40pt as the top
+      // margin instead). The value must be >= the documented 60.4pt header footprint (header line
+      // + subheader margin/line + buildPageHeader's own bottom margin, per merge.ts's `styles`)
+      // plus a visible gap, and comfortably below a runaway/typo-sized value.
+      expect(typeof PAGE_TOP_MARGIN).toBe('number');
+      expect(PAGE_TOP_MARGIN).toBeGreaterThanOrEqual(60.4);
+      expect(PAGE_TOP_MARGIN).toBeLessThan(150);
     });
   });
 });
