@@ -40,9 +40,20 @@ import type {
   GenerateReportContentResponse,
 } from '@cornerstone/shared';
 import type * as ReportPdfIndexTypes from '../../lib/reportPdf/index.js';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
+
+// #1932: ReportWizardPage now calls useAuth() directly (threading `user.displayName` into
+// buildReportContent's sender — AC 3.1). Mocked identically to the sibling ReportWizardPage.test.tsx
+// (see its header comment) so this file's renders don't throw "useAuth must be used within an
+// AuthProvider".
+const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: mockUseAuth,
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
 
 const mockFetchBudgetSources = jest.fn<() => Promise<{ budgetSources: BudgetSource[] }>>();
 jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
@@ -116,6 +127,14 @@ beforeEach(async () => {
     llmEnabled: true,
   });
   mockFetchHouseholdSettings.mockResolvedValue({ householdName: null, householdAddress: null });
+  mockUseAuth.mockReturnValue({
+    user: null,
+    oidcEnabled: false,
+    isLoading: false,
+    error: null,
+    refreshAuth: jest.fn(async () => {}),
+    logout: jest.fn(async () => {}),
+  });
   mockGetPaperlessStatus.mockResolvedValue({
     configured: false,
     reachable: false,

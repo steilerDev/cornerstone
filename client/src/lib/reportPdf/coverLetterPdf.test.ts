@@ -31,6 +31,7 @@ function makeCoverLetter(
     subject: 'Subject text',
     body: 'Body text',
     signature: 'The Smiths',
+    closing: 'Sincerely,',
     ...overrides,
   };
 }
@@ -200,11 +201,30 @@ describe('buildCoverLetterContent — subject and body (always rendered, already
   });
 });
 
-describe('buildCoverLetterContent — signature', () => {
-  it('renders the signature with margin [0, 40, 0, 0] when non-empty', () => {
-    const content = makeContent({ coverLetter: makeCoverLetter({ signature: 'The Smiths' }) });
+describe('buildCoverLetterContent — signature block (closing + signature, AC 2.4)', () => {
+  // Tranche B (letter layout) removed the `if (coverLetter.signature)` guard: the closing and
+  // signature nodes are now ALWAYS both emitted, at fixed margins ([0,0,0,54] then [0,0,0,0]),
+  // regardless of whether `signature` is empty — pdfmake reserves the same line height for an
+  // empty text node as a non-empty one, so the signature space stays reserved even when the field
+  // has been cleared (verified empirically per the UX spec; see the production file's comment).
+
+  it('renders the closing text (margin [0, 0, 0, 54]) immediately followed by the signature text (margin [0, 0, 0, 0]) when signature is non-empty', () => {
+    const content = makeContent({
+      coverLetter: makeCoverLetter({ closing: 'Sincerely,', signature: 'The Smiths' }),
+    });
     const result = buildCoverLetterContent(content, t);
-    const signature = result.find(
+
+    const closingIndex = result.findIndex(
+      (c) =>
+        typeof c === 'object' &&
+        c !== null &&
+        'text' in c &&
+        c.text === 'Sincerely,' &&
+        'margin' in c &&
+        Array.isArray((c as { margin: number[] }).margin) &&
+        (c as { margin: number[] }).margin.join(',') === '0,0,0,54',
+    );
+    const signatureIndex = result.findIndex(
       (c) =>
         typeof c === 'object' &&
         c !== null &&
@@ -212,23 +232,41 @@ describe('buildCoverLetterContent — signature', () => {
         c.text === 'The Smiths' &&
         'margin' in c &&
         Array.isArray((c as { margin: number[] }).margin) &&
-        (c as { margin: number[] }).margin[1] === 40,
+        (c as { margin: number[] }).margin.join(',') === '0,0,0,0',
     );
-    expect(signature).toBeDefined();
+
+    expect(closingIndex).toBeGreaterThan(-1);
+    expect(signatureIndex).toBeGreaterThan(-1);
+    expect(signatureIndex).toBe(closingIndex + 1);
   });
 
-  it('omits the signature block entirely when signature is an empty string', () => {
-    const content = makeContent({ coverLetter: makeCoverLetter({ signature: '' }) });
+  it('AC 2.4: still renders BOTH the closing and signature nodes when signature is an empty string — the block is never omitted', () => {
+    // This replaces a prior test asserting the block was omitted when signature was empty. That
+    // premise no longer holds: under AC 2.4 the closing+signature block is unconditional. A test
+    // that merely stopped finding a margin[1]===40 node (removed entirely in this rewrite) would
+    // pass today for the WRONG reason — it wouldn't be proving omission, since nothing produces
+    // that margin shape anymore regardless of signature's value.
+    const content = makeContent({
+      coverLetter: makeCoverLetter({ closing: 'Sincerely,', signature: '' }),
+    });
     const result = buildCoverLetterContent(content, t);
-    const signature = result.find(
+
+    const closingItem = result.find(
+      (c) => typeof c === 'object' && c !== null && 'text' in c && c.text === 'Sincerely,',
+    );
+    const signatureItem = result.find(
       (c) =>
         typeof c === 'object' &&
         c !== null &&
+        'text' in c &&
+        c.text === '' &&
         'margin' in c &&
         Array.isArray((c as { margin: number[] }).margin) &&
-        (c as { margin: number[] }).margin[1] === 40,
+        (c as { margin: number[] }).margin.join(',') === '0,0,0,0',
     );
-    expect(signature).toBeUndefined();
+
+    expect(closingItem).toBeDefined();
+    expect(signatureItem).toBeDefined();
   });
 });
 

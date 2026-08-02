@@ -641,6 +641,28 @@ describe('REPORT_CONTENT_SYSTEM_PROMPT', () => {
       );
     });
   });
+
+  // ─── #1932 AC 1.6 / 7.4: plain-text letter body — no markdown/rich-text leakage ─────────
+  //
+  // Tranche A of #1932 is plain text with preserved line breaks; the ONE genuinely new behaviour
+  // in that section is this prompt constraint (AC 1.6 is "the load-bearing criterion"). The
+  // pre-existing 'Do NOT invent or alter amounts or dates.' assertion above (rule 4) is the
+  // regression guard proving this change APPENDED two sentences to rule 4 rather than rewriting
+  // it — it must keep passing unmodified, and it does (verified by running this file unchanged).
+
+  describe('plain-text letter-body formatting rule (#1932 AC 1.6)', () => {
+    it('forbids markdown, bullet points, numbered lists, HTML tags, and bold/italic markers in the letter body', () => {
+      expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+        'Write in plain prose only: no markdown, no bullet points, no numbered lists, no HTML tags, and no bold/italic markers',
+      );
+    });
+
+    it('requires paragraphs to be separated by a single blank line only, with no other structural formatting', () => {
+      expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+        'Separate paragraphs with a single blank line only',
+      );
+    });
+  });
 });
 
 describe('buildReportContentUserPrompt()', () => {

@@ -1189,14 +1189,17 @@
         "budget-overview": "Please find attached the budget overview for our project totaling {{total}}.",
         "claim": "We are submitting a claim for invoices totaling {{total}}.",
         "proof-of-funds": "Please find attached proof of funds totaling {{total}}."
-      }
+      },
+      "closing": "Sincerely,"
     },
     "editable": {
       "senderLabel": "Sender",
       "recipientLabel": "Recipient",
       "referenceLabel": "Reference",
+      "signatureLabel": "Signature",
       "subjectLabel": "Subject",
       "bodyLabel": "Body",
+      "closingLabel": "Closing",
       "attachmentsNoteLabel": "Attachments Note",
       "usageTextAriaLabel": "Usage text for {{vendor}}, {{invoiceNumber}}",
       "attachmentsNoteAriaLabel": "Attachments note for {{vendor}}, {{invoiceNumber}}",

@@ -1189,14 +1189,17 @@
         "budget-overview": "Anbei erhalten Sie die Budgetübersicht unseres Bauprojekts mit einer Gesamtsumme von {{total}}.",
         "claim": "Hiermit reichen wir Rechnungen in Höhe von insgesamt {{total}} zur Erstattung ein.",
         "proof-of-funds": "Anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
-      }
+      },
+      "closing": "Mit freundlichen Grüßen,"
     },
     "editable": {
       "senderLabel": "Absender",
       "recipientLabel": "Empfänger",
       "referenceLabel": "Referenz",
+      "signatureLabel": "Unterschrift",
       "subjectLabel": "Betreff",
       "bodyLabel": "Brieftext",
+      "closingLabel": "Grußformel",
       "attachmentsNoteLabel": "Anhangshinweis",
       "usageTextAriaLabel": "Verwendungstext für {{vendor}}, {{invoiceNumber}}",
       "attachmentsNoteAriaLabel": "Anhangshinweis für {{vendor}}, {{invoiceNumber}}",

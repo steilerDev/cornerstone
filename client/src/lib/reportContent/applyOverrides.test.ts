@@ -70,6 +70,7 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       subject: 'Baseline Subject',
       body: 'Baseline Body',
       signature: 'The Smiths',
+      closing: 'Baseline Closing',
     },
     rows: [makeRow()],
     summaryRows: [{ key: 'total', label: 'Total', amountText: '€100.00' }],
@@ -160,6 +161,23 @@ describe('applyOverrides — cover letter overrides', () => {
     expect(result.coverLetter!.subject).toBe(content.coverLetter!.subject);
   });
 
+  it('#1932 AC 1.1: a multi-paragraph body override with interior leading/trailing whitespace and a double-blank-line gap survives the round trip byte-for-byte — no collapsing, trimming, or normalisation', () => {
+    const content = makeContent();
+    // "Interior" whitespace deliberately includes: leading spaces on a line, trailing spaces on a
+    // line, and a THREE-newline gap (a true double-blank-line, not just a single blank line) —
+    // exactly the shape a naive `.trim()` or whitespace-collapsing pass on the override store
+    // would alter.
+    const body =
+      '  Leading spaces on this line.\nTrailing spaces on this line.  \n\n\nThird paragraph after a double-blank-line gap.';
+    const result = applyOverrides(content, { 'coverLetter.body': body });
+    expect(result.coverLetter!.body).toBe(body);
+    // Explicit, byte-level proof the whitespace survived (not just object equality above): the
+    // leading/trailing spaces and the doubled blank-line gap are all still present verbatim.
+    expect(result.coverLetter!.body.startsWith('  Leading spaces')).toBe(true);
+    expect(result.coverLetter!.body).toContain('this line.  \n');
+    expect(result.coverLetter!.body).toContain('\n\n\nThird paragraph');
+  });
+
   it('applies multiple cover-letter overrides from a single call together', () => {
     const content = makeContent();
     const result = applyOverrides(content, {
@@ -181,6 +199,76 @@ describe('applyOverrides — cover letter overrides', () => {
       'coverLetter.subject': 'Should not apply either',
     });
     expect(result.coverLetter).toBeNull();
+  });
+});
+
+describe('applyOverrides — AC 2.6: explicit signature override wins over sender-triggered recompute', () => {
+  it('an explicitly-overridden signature is NOT clobbered when the same call also overrides sender', () => {
+    // This is the core #1932 behaviour change: before AC 2.6, ANY overridden sender
+    // unconditionally recomputed signature from its first line, even when signature had already
+    // been explicitly set by the user — silently discarding their edit. Simulates the real usage
+    // pattern: the app's persisted `overrides` map already has 'coverLetter.signature' present
+    // (from an earlier signature edit); the user now also edits sender, adding
+    // 'coverLetter.sender' to that SAME map on the next render.
+    const content = makeContent();
+    const overridesAfterSignatureEdit = { 'coverLetter.signature': 'Custom Signature' };
+    const afterSignatureEdit = applyOverrides(content, overridesAfterSignatureEdit);
+    expect(afterSignatureEdit.coverLetter!.signature).toBe('Custom Signature');
+
+    const overridesAfterSenderEditToo = {
+      ...overridesAfterSignatureEdit,
+      'coverLetter.sender': 'Jane Doe\n99 New St',
+    };
+    const result = applyOverrides(content, overridesAfterSenderEditToo);
+
+    expect(result.coverLetter!.sender).toBe('Jane Doe\n99 New St');
+    // The explicit signature override wins — it must NOT have been recomputed to 'Jane Doe'.
+    expect(result.coverLetter!.signature).toBe('Custom Signature');
+  });
+
+  it('overriding only signature (sender untouched) sets signature to exactly the override value', () => {
+    const content = makeContent();
+    const result = applyOverrides(content, { 'coverLetter.signature': 'Only Signature Edited' });
+    expect(result.coverLetter!.signature).toBe('Only Signature Edited');
+    expect(result.coverLetter!.sender).toBe(content.coverLetter!.sender);
+  });
+
+  it('removing the signature override key and re-applying restores the sender-derived default', () => {
+    const content = makeContent();
+    const withBothOverridden = applyOverrides(content, {
+      'coverLetter.sender': 'Jane Doe\n99 New St',
+      'coverLetter.signature': 'Custom Signature',
+    });
+    expect(withBothOverridden.coverLetter!.signature).toBe('Custom Signature');
+
+    // User resets the signature field: its key is removed from the overrides map, but sender's
+    // override is still present (unrelated field, untouched).
+    const withSignatureRemoved = applyOverrides(content, {
+      'coverLetter.sender': 'Jane Doe\n99 New St',
+    });
+    expect(withSignatureRemoved.coverLetter!.signature).toBe('Jane Doe');
+    expect(withSignatureRemoved.coverLetter!.sender).toBe('Jane Doe\n99 New St');
+  });
+
+  it('when both sender and signature keys are present in the same overrides object, signature wins regardless of key insertion order', () => {
+    const content = makeContent();
+
+    const signatureFirst = {
+      'coverLetter.signature': 'Wins Either Way',
+      'coverLetter.sender': 'A\nB',
+    };
+    const senderFirst = {
+      'coverLetter.sender': 'A\nB',
+      'coverLetter.signature': 'Wins Either Way',
+    };
+
+    const resultA = applyOverrides(content, signatureFirst);
+    const resultB = applyOverrides(content, senderFirst);
+
+    expect(resultA.coverLetter!.signature).toBe('Wins Either Way');
+    expect(resultB.coverLetter!.signature).toBe('Wins Either Way');
+    expect(resultA.coverLetter!.sender).toBe('A\nB');
+    expect(resultB.coverLetter!.sender).toBe('A\nB');
   });
 });
 

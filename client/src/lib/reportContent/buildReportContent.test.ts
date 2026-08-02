@@ -125,6 +125,12 @@ const household: HouseholdSettings = {
   householdAddress: '123 Main St',
 };
 
+// #1932 AC 3.1: the sender is [user.displayName, householdAddress] — the household NAME is never
+// used, even where the pre-#1932 `household` fixture above still carries one (kept as-is so
+// unrelated recipient/dateLine/reference/subject/body tests below, which never assert on sender,
+// don't need to change).
+const user: { displayName: string } = { displayName: 'Jane Doe' };
+
 describe('buildReportContent — top-level fields', () => {
   it('sets isOverview true for budget-overview and false for claim/proof-of-funds', () => {
     const report = makeReport([]);
@@ -699,44 +705,54 @@ describe('buildReportContent — cover letter', () => {
     expect(content.coverLetter).toBeNull();
   });
 
-  it('is non-null when includeCoverLetter is true, even with household null (sender = "")', () => {
+  it('AC 3.2: is non-null when includeCoverLetter is true, even with user AND household both absent/null (sender = "", no crash)', () => {
     const report = makeReport([]);
     const content = buildReportContent(report, new Set(), 'claim', t, formatters, {
       includeCoverLetter: true,
       household: null,
+      user: null,
     });
     expect(content.coverLetter).not.toBeNull();
     expect(content.coverLetter!.sender).toBe('');
     expect(content.coverLetter!.signature).toBe('');
   });
 
-  it('joins householdName and householdAddress with \\n for sender', () => {
+  it('AC 3.1: sender joins user.displayName and householdAddress with \\n — the household NAME is never included, even though it is present on the object', () => {
     const report = makeReport([]);
+    // `household` carries BOTH householdName ('The Smiths') and householdAddress ('123 Main St');
+    // if the household name were still leaking into the sender (the pre-#1932 behaviour), this
+    // would fail with 'Jane Doe\nThe Smiths\n123 Main St' or similar instead.
     const content = buildReportContent(report, new Set(), 'claim', t, formatters, {
       includeCoverLetter: true,
       household,
+      user,
     });
-    expect(content.coverLetter!.sender).toBe('The Smiths\n123 Main St');
+    expect(content.coverLetter!.sender).toBe('Jane Doe\n123 Main St');
   });
 
-  it('omits the address line from sender when only householdName is present', () => {
+  it('AC 3.2: sender is just the user displayName when the household has no address (householdName alone is never used, even when present)', () => {
     const nameOnly: HouseholdSettings = { householdName: 'The Smiths', householdAddress: null };
     const report = makeReport([]);
     const content = buildReportContent(report, new Set(), 'claim', t, formatters, {
       includeCoverLetter: true,
       household: nameOnly,
+      user,
     });
-    expect(content.coverLetter!.sender).toBe('The Smiths');
+    expect(content.coverLetter!.sender).toBe('Jane Doe');
   });
 
-  it('omits the name line from sender when only householdAddress is present', () => {
+  it('AC 3.2: sender is just the household address when user is null, with no leading blank line', () => {
     const addressOnly: HouseholdSettings = { householdName: null, householdAddress: '123 Main St' };
     const report = makeReport([]);
     const content = buildReportContent(report, new Set(), 'claim', t, formatters, {
       includeCoverLetter: true,
       household: addressOnly,
+      user: null,
     });
     expect(content.coverLetter!.sender).toBe('123 Main St');
+    // No leading blank line/newline: the address is the ONLY line, not the second line of a pair
+    // where the first (user) line was left empty.
+    expect(content.coverLetter!.sender.startsWith('\n')).toBe(false);
   });
 
   it('recipient is null when source.contactAddress is null', () => {
@@ -822,9 +838,49 @@ describe('buildReportContent — cover letter', () => {
     const report = makeReport([]);
     const content = buildReportContent(report, new Set(), 'claim', t, formatters, {
       includeCoverLetter: true,
-      household: { householdName: '  The Smiths  ', householdAddress: '123 Main St' },
+      user: { displayName: '  Jane Doe  ' },
+      household,
     });
-    expect(content.coverLetter!.signature).toBe('The Smiths');
+    expect(content.coverLetter!.signature).toBe('Jane Doe');
+  });
+
+  it('AC 2.2: signature equals user.displayName exactly (the sender-derived default, not a placeholder)', () => {
+    const report = makeReport([]);
+    const content = buildReportContent(report, new Set(), 'claim', t, formatters, {
+      includeCoverLetter: true,
+      household,
+      user,
+    });
+    expect(content.coverLetter!.signature).toBe(user.displayName);
+  });
+
+  describe('closing (AC 2.5)', () => {
+    it('resolves via reportT("sourceReports.coverLetter.closing") regardless of which report-language t-fixture is used', () => {
+      // This file's tracked `t` fixtures are language-agnostic key-echoers (see the header
+      // comment) — a real i18next instance's en/de resolution is exercised end-to-end in
+      // realRender.test.ts. What this asserts here: `closing` is ALWAYS produced by calling
+      // reportT with the fixed key (never a hardcoded English string, never read from `t`/the
+      // editor's interface language) — true for both an "English-configured" and a
+      // "German-configured" reportT fixture, since both echo the same key verbatim.
+      const report = makeReport([]);
+      const tEn = t;
+      const tDe = ((key: string, opts?: Record<string, unknown>) =>
+        opts ? `${key}::${JSON.stringify(opts)}` : key) as unknown as TFunction;
+
+      const contentEn = buildReportContent(report, new Set(), 'claim', tEn, formatters, {
+        includeCoverLetter: true,
+        household,
+        user,
+      });
+      const contentDe = buildReportContent(report, new Set(), 'claim', tDe, formatters, {
+        includeCoverLetter: true,
+        household,
+        user,
+      });
+
+      expect(contentEn.coverLetter!.closing).toBe('sourceReports.coverLetter.closing');
+      expect(contentDe.coverLetter!.closing).toBe('sourceReports.coverLetter.closing');
+    });
   });
 });
 

@@ -156,6 +156,66 @@ async function renderOverviewPdfContent(
   await pdfDoc.getBlob();
 }
 
+// #1932 (AC 1.2/7.2): renders a cover-letter Content[] tree (no table/header/footer involved,
+// unlike renderOverviewPdfContent above) through the same real, unmocked pdfmake pipeline. Same
+// by-reference mutation contract: `pdfContent` is passed BY REFERENCE and pdfmake mutates each
+// node in place during `getBlob()` — callers keep their own reference and read `.positions` off
+// it afterwards. See `linesRenderedFor()` below for why `.positions.length` (not `._inlines`,
+// which drains to `[]` by the time layout finishes — verified empirically before writing this)
+// is the correct post-render signal for "how many visual lines did this text node resolve to".
+async function renderCoverLetterPdfContent(pdfContent: Content[]): Promise<void> {
+  const { pdfMake } = await loadPdfLibs();
+  const pdfDoc = pdfMake.createPdf({
+    content: pdfContent,
+    pageSize: 'A4',
+    pageMargins: [PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_X, PAGE_MARGIN_BOTTOM],
+    defaultStyle: PDF_DEFAULT_STYLE,
+    styles: PDF_STYLES,
+  });
+  await pdfDoc.getBlob();
+}
+
+// Finds the cover-letter BODY text node specifically (as opposed to sender/subject/etc.) by its
+// distinctive baseline/override content, so callers don't have to hand-roll the same `.find()`
+// predicate at every call site.
+function findBodyItem(pdfContent: Content[], bodySubstring: string): Record<string, unknown> {
+  const item = pdfContent.find(
+    (c) =>
+      typeof c === 'object' &&
+      c !== null &&
+      'text' in c &&
+      typeof (c as { text: unknown }).text === 'string' &&
+      (c as { text: string }).text.includes(bodySubstring),
+  );
+  if (!item) {
+    throw new Error(`Expected a body text node containing "${bodySubstring}"`);
+  }
+  // `Content` is a union that includes plain `string` as a member, which doesn't structurally
+  // overlap with `Record<string, unknown>` — go through `unknown` first (same pattern already
+  // used for `._calcWidth`/`.positions` reads elsewhere in this file).
+  return item as unknown as Record<string, unknown>;
+}
+
+// Reads the pdfmake-resolved rendered-line COUNT off a text node, AFTER a real render pushed one
+// entry per visual line into `.positions` (LayoutBuilder.js: `node.positions.push(positions)`
+// runs once per call to `buildNextLine()`, i.e. once per rendered line — including an otherwise-
+// empty line produced by a blank-line `\n\n` gap, per TextBreaker.js's `lineEnd: true` handling of
+// a required break). `._inlines` looks like the natural place to read this from (DocMeasure.js
+// sets it during measurement) but LayoutBuilder.js drains it via `.shift()` as each inline is laid
+// into a line, so by the time `getBlob()` resolves it is always `[]` — empirically confirmed with
+// a throwaway probe before writing this helper (not committed). `.positions` is what actually
+// survives post-render with the right cardinality.
+function linesRenderedFor(bodyItem: Record<string, unknown>): number {
+  const positions = bodyItem['positions'];
+  if (!Array.isArray(positions)) {
+    throw new Error(
+      'body text node has no .positions array — was renderCoverLetterPdfContent() awaited on ' +
+        'this exact pdfContent reference before reading it?',
+    );
+  }
+  return positions.length;
+}
+
 interface RenderedTable {
   widths: unknown[];
   body: unknown[][];
@@ -1013,6 +1073,139 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       expect(allStrings).toContain('Jane Doe\n99 New Address');
       expect(allStrings).toContain('Jane Doe'); // the (distinct) signature line
       expect(allStrings).not.toContain(baseline.coverLetter!.sender);
+    });
+
+    // ─── #1932 AC 2.6 real-render pin: explicit signature survives a same-call sender edit ──────
+    //
+    // The unit-level coverage of this behaviour lives in applyOverrides.test.ts (confirmed
+    // thorough there). This closes it end-to-end: the SAME override map, with BOTH keys present,
+    // must reach the actually-built cover-letter Content[] tree with the explicit signature intact
+    // — not merely survive applyOverrides() as a plain object, which the unit test already proves.
+    it.each([
+      [
+        'signature-key-first',
+        {
+          'coverLetter.signature': 'Explicit Signature',
+          'coverLetter.sender': 'Jane Doe\n99 New Address',
+        },
+      ] as const,
+      [
+        'sender-key-first',
+        {
+          'coverLetter.sender': 'Jane Doe\n99 New Address',
+          'coverLetter.signature': 'Explicit Signature',
+        },
+      ] as const,
+    ])(
+      'AC 2.6: an explicit signature override reaches the real rendered content even when the same overrides map also overrides sender (%s)',
+      async (_label, overrides) => {
+        const { buildCoverLetterContent } = await import('./coverLetterPdf.js');
+        const { report, includedIds } = await makeMixedReport();
+        const formatters = formattersFor('en-US');
+        const baseline = buildReportContent(report, includedIds, 'claim', tEn, formatters, {
+          includeCoverLetter: true,
+          household,
+        });
+        const effective = applyOverrides(baseline, overrides as ReportContentOverrides);
+        // The explicit override wins regardless of key insertion order in the overrides object.
+        expect(effective.coverLetter!.signature).toBe('Explicit Signature');
+
+        const pdfContent = buildCoverLetterContent(effective, tEn);
+        const allStrings = collectAllStrings(pdfContent);
+        // The sender edit DID take effect (this isn't passing because the whole override map was
+        // ignored) — the multi-line sender leaf is present verbatim.
+        expect(allStrings).toContain('Jane Doe\n99 New Address');
+        // The correct, explicitly-overridden signature is present as its own leaf.
+        expect(allStrings).toContain('Explicit Signature');
+        // The buggy pre-AC-2.6 behaviour would have recomputed signature to the sender's first
+        // line ('Jane Doe') as its OWN SEPARATE leaf (distinct from the multi-line sender string
+        // checked above, which legitimately contains 'Jane Doe' as a substring but never as an
+        // exact standalone leaf). `toContain` on an array is exact-element equality, not substring
+        // match, so this correctly distinguishes "signature recomputed to 'Jane Doe'" (bug) from
+        // "sender contains the substring 'Jane Doe'" (expected, harmless).
+        expect(allStrings).not.toContain('Jane Doe');
+      },
+    );
+
+    // ─── #1932 AC 1.2/7.2: multi-paragraph line-break/blank-line survival, real pdfmake layout ──
+    //
+    // Load-bearing per the PO: "asserting node.text === 'a\nb' proves nothing about the rendered
+    // page." This reads pdfmake's RESOLVED layout back off a real render (not the pre-render
+    // Content[] string) — guarding against a future change reflowing the body into per-token
+    // inline runs (the #1929 wordBreak technique used elsewhere in reportPdf/), which would
+    // silently destroy \n handling if ever applied here.
+    it('AC 1.2/7.2: a multi-paragraph body with an internal blank line renders as one visual line per explicit line/blank-line, in order, at uniform line height', async () => {
+      const { buildCoverLetterContent } = await import('./coverLetterPdf.js');
+      const { report, includedIds } = await makeMixedReport();
+      const formatters = formattersFor('en-US');
+      const baseline = buildReportContent(report, includedIds, 'claim', tEn, formatters, {
+        includeCoverLetter: true,
+        household,
+      });
+      // Deliberately short lines (well under the ~515pt printable width at 11pt) so word-wrap
+      // never adds an extra visual line beyond the explicit \n boundaries — the only thing under
+      // test is whether explicit line/blank-line structure survives, not wrapping behaviour.
+      const body =
+        'First paragraph, line one.\nFirst paragraph, line two.\n\nSecond paragraph, one line.';
+      const overrides: ReportContentOverrides = { 'coverLetter.body': body };
+      const effective = applyOverrides(baseline, overrides);
+
+      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const bodyItem = findBodyItem(pdfContent, 'First paragraph, line one.');
+
+      await renderCoverLetterPdfContent(pdfContent);
+
+      // 4 explicit segments: "line one.", "line two.", "" (the blank line), "one line." — each
+      // must resolve to exactly one rendered visual line (none of them wraps).
+      expect(linesRenderedFor(bodyItem)).toBe(4);
+
+      const positions = bodyItem['positions'] as { top: number }[];
+      const gaps = positions.slice(1).map((p, i) => p.top - positions[i]!.top);
+      // All 3 gaps (line1->line2, line2->blank, blank->line3) are the SAME line-height increment
+      // — the blank line contributes exactly one ordinary line's worth of vertical space, neither
+      // collapsed to zero (which would make the blank->line3 gap ~0) nor doubled (which would
+      // make either surrounding gap ~2x the others).
+      for (const gap of gaps) {
+        expect(gap).toBeCloseTo(gaps[0]!, 1);
+      }
+      expect(gaps[0]!).toBeGreaterThan(0);
+    });
+
+    // ─── #1932 AC 1.3: markup-looking characters reach the real render literally, unparsed ─────
+    it('AC 1.3: a body containing markdown/HTML-looking characters renders through the real pdfmake pipeline with those characters literal and unchanged', async () => {
+      const { buildCoverLetterContent } = await import('./coverLetterPdf.js');
+      const { report, includedIds } = await makeMixedReport();
+      const formatters = formattersFor('en-US');
+      const baseline = buildReportContent(report, includedIds, 'claim', tEn, formatters, {
+        includeCoverLetter: true,
+        household,
+      });
+      const body = '**bold** - dash #hash <b>tag</b>';
+      const overrides: ReportContentOverrides = { 'coverLetter.body': body };
+      const effective = applyOverrides(baseline, overrides);
+
+      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const bodyItem = findBodyItem(pdfContent, 'bold');
+      // Never parsed pre-render: the exact literal string, markup characters included verbatim.
+      expect(bodyItem['text']).toBe(body);
+
+      // Real, unmocked pdfmake render must not throw on (or specially interpret) any of these
+      // characters, and the SAME text node's `.text` property is untouched by the real layout
+      // pass — pdfmake only ever ADDS derived measurement/position properties to a text node, it
+      // never rewrites `.text` itself, so this is a genuine "survived a real render" assertion,
+      // not a restatement of the pre-render check above.
+      await renderCoverLetterPdfContent(pdfContent);
+      expect(bodyItem['text']).toBe(body);
+      expect(linesRenderedFor(bodyItem)).toBeGreaterThan(0);
+
+      // Confirm literally via the whole-tree string collector too: the exact literal string is
+      // one of the tree's leaf strings (not merely a substring of something else), proving no
+      // markdown/rich-text transformation (stripped asterisks, an actual <b> tag boundary, etc.)
+      // split or rewrote it anywhere in the rendered content tree.
+      const allStrings = collectAllStrings(pdfContent);
+      expect(allStrings).toContain(body);
+      expect(allStrings.some((s) => s.includes('**bold**'))).toBe(true);
+      expect(allStrings.some((s) => s.includes('<b>tag</b>'))).toBe(true);
     });
 
     it("an un-overridden field never picks up another field's override text (isolation, real render)", async () => {

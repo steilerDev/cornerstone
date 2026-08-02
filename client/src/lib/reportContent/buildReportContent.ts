@@ -114,11 +114,16 @@ export function buildReportContent(
   useCase: SourceReportType,
   reportT: TFunction,
   reportFormatters?: Formatters,
-  options?: { includeCoverLetter: boolean; household: HouseholdSettings | null },
+  options?: {
+    includeCoverLetter: boolean;
+    household: HouseholdSettings | null;
+    user?: { displayName: string } | null;
+  },
 ): ReportContent {
   const isOverview = useCase === 'budget-overview';
   const includeCoverLetter = options?.includeCoverLetter ?? false;
   const household = options?.household ?? null;
+  const user = options?.user ?? null;
 
   // Build title
   const tableTitle = reportT(`sourceReports.table.title.${useCase}`);
@@ -255,7 +260,7 @@ export function buildReportContent(
     const dateLine = reportFormatters ? reportFormatters.formatDate(todayStr) : todayStr;
 
     const senderLines = [];
-    if (household?.householdName) senderLines.push(household.householdName);
+    if (user?.displayName) senderLines.push(user.displayName);
     if (household?.householdAddress) senderLines.push(household.householdAddress);
     const sender = senderLines.join('\n');
 
@@ -263,6 +268,7 @@ export function buildReportContent(
     const bodyKey = `sourceReports.coverLetter.body.${useCase}`;
     const body = reportT(bodyKey, { total: totalAmountText });
     const signature = sender.split('\n')[0]?.trim() ?? '';
+    const closing = reportT('sourceReports.coverLetter.closing');
 
     coverLetter = {
       sender,
@@ -272,6 +278,7 @@ export function buildReportContent(
       subject,
       body,
       signature,
+      closing,
     };
   }
 

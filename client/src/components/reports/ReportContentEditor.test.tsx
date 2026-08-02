@@ -166,6 +166,7 @@ function fullContent(): ReportContent {
       subject: 'Subject baseline',
       body: 'Body baseline',
       signature: 'Sender baseline',
+      closing: 'Sincerely,',
     },
     rows: [makeRow({ invoiceId: 'inv-1', attachmentsNote: 'Note baseline' })],
   });
@@ -187,6 +188,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'Subject text',
         body: 'Body text',
         signature: 'The Smiths',
+        closing: 'Sincerely,',
       },
     });
     renderEditor({ content });
@@ -210,6 +212,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: '',
+        closing: 'Sincerely,',
       },
     });
     const { rerender } = renderEditor({ content: withRecipient });
@@ -224,6 +227,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: '',
+        closing: 'Sincerely,',
       },
     });
     rerender(
@@ -256,6 +260,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: '',
+        closing: 'Sincerely,',
       },
     });
     renderEditor({ content });
@@ -273,6 +278,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'Baseline subject',
         body: 'Baseline body',
         signature: 'Baseline sender',
+        closing: 'Sincerely,',
       },
     });
     const { onFieldChange } = renderEditor({ content });
@@ -291,6 +297,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: 'Overridden sender',
+        closing: 'Sincerely,',
       },
     });
     const { onFieldReset } = renderEditor({
@@ -302,6 +309,107 @@ describe('ReportContentEditor — cover letter card', () => {
     });
     fireEvent.click(resetButtons[0]!);
     expect(onFieldReset).toHaveBeenCalledWith('coverLetter.sender');
+  });
+
+  // ─── #1932 AC 2.1/2.3: signature is a first-class editable EditableField ────────────────────
+
+  it('renders the signature EditableField unconditionally — present even when signature is an empty string, matching sender', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: '',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'S',
+        body: 'B',
+        signature: '',
+        closing: 'Sincerely,',
+      },
+    });
+    renderEditor({ content });
+    expect(screen.getByLabelText('sourceReports.editable.signatureLabel')).toBeInTheDocument();
+  });
+
+  it('calls onFieldChange with the coverLetter.signature key when the signature field changes', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'Baseline sender',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'S',
+        body: 'B',
+        signature: 'Baseline signature',
+        closing: 'Sincerely,',
+      },
+    });
+    const { onFieldChange } = renderEditor({ content });
+    const signatureField = screen.getByLabelText('sourceReports.editable.signatureLabel');
+    fireEvent.change(signatureField, { target: { value: 'New Signature' } });
+    expect(onFieldChange).toHaveBeenCalledWith('coverLetter.signature', 'New Signature');
+  });
+
+  it('marks the signature field as edited (edited-dot present) only when its own override key exists', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'Baseline sender',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'S',
+        body: 'B',
+        signature: 'Overridden Signature',
+        closing: 'Sincerely,',
+      },
+    });
+    const { container } = renderEditor({
+      content,
+      overrides: { 'coverLetter.signature': 'Overridden Signature' },
+    });
+    expect(container.querySelector('.editedDot')).toBeInTheDocument();
+  });
+
+  it('does not mark the signature field as edited when no override key exists for it (e.g. only sender was overridden)', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'Overridden sender',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'S',
+        body: 'B',
+        signature: 'Sender-derived signature',
+        closing: 'Sincerely,',
+      },
+    });
+    renderEditor({
+      content,
+      overrides: { 'coverLetter.sender': 'Overridden sender' },
+    });
+    // Only the sender field's reset button/edited-dot should exist — not a second one for
+    // signature, since 'coverLetter.signature' is not itself a key in overrides.
+    expect(screen.getAllByRole('button', { name: /resetFieldAriaLabel/ })).toHaveLength(1);
+  });
+
+  it('calls onFieldReset with coverLetter.signature when the signature reset button is clicked (edited state)', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'Baseline sender',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'S',
+        body: 'B',
+        signature: 'Overridden Signature',
+        closing: 'Sincerely,',
+      },
+    });
+    const { onFieldReset } = renderEditor({
+      content,
+      overrides: { 'coverLetter.signature': 'Overridden Signature' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /resetFieldAriaLabel/ }));
+    expect(onFieldReset).toHaveBeenCalledWith('coverLetter.signature');
   });
 });
 
@@ -450,6 +558,7 @@ describe('ReportContentEditor — reset button accessible names (no raw field-id
         'coverLetter.reference': content.coverLetter!.reference as string,
         'coverLetter.subject': content.coverLetter!.subject,
         'coverLetter.body': content.coverLetter!.body,
+        'coverLetter.signature': content.coverLetter!.signature,
       },
     });
 
@@ -459,6 +568,7 @@ describe('ReportContentEditor — reset button accessible names (no raw field-id
       'referenceLabel',
       'subjectLabel',
       'bodyLabel',
+      'signatureLabel',
     ]) {
       expect(
         screen.getByRole('button', {

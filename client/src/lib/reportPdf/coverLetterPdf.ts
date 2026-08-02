@@ -14,61 +14,61 @@ export function buildCoverLetterContent(reportContent: ReportContent, t: TFuncti
     return content;
   }
 
-  // Sender block
+  // Sender block — small return-address caption, tightly grouped with the recipient block below.
   if (coverLetter.sender) {
     content.push({
       text: coverLetter.sender,
-      style: 'normal',
-      margin: [0, 0, 0, 20],
+      style: 'small',
+      margin: [0, 0, 0, 4],
     });
   }
 
-  // Recipient block
+  // Recipient block — full postal address; generous gap marks the end of the address zone.
   if (coverLetter.recipient) {
     content.push({
       text: coverLetter.recipient,
       style: 'normal',
-      margin: [0, 0, 0, 20],
+      margin: [0, 0, 0, 32],
     });
   }
 
-  // Date
+  // Date — right-aligned, conventional business-letter placement.
   content.push({
     text: coverLetter.dateLine,
+    style: 'normal',
+    alignment: 'right',
     margin: [0, 0, 0, 20],
   });
 
-  // Reference line
+  // Reference line — tightly grouped with the subject directly below.
   if (coverLetter.reference) {
     content.push({
       text: `${t('sourceReports.coverLetter.reference')}: ${coverLetter.reference}`,
       style: 'small',
-      margin: [0, 0, 0, 20],
+      margin: [0, 0, 0, 4],
     });
   }
 
-  // Subject line
+  // Subject line — bold/larger so it reads as a subject, not a sixth identical paragraph.
   content.push({
     text: `${t('sourceReports.coverLetter.subjectLabel')}: ${coverLetter.subject}`,
-    style: 'normal',
-    margin: [0, 0, 0, 20],
+    style: 'letterSubject',
+    margin: [0, 0, 0, 16],
   });
 
-  // Body text
+  // Body text — literal blank-line rendering, no paragraph-spacing model (see spec §B).
   content.push({
     text: coverLetter.body,
     style: 'normal',
-    margin: [0, 0, 0, 20],
+    margin: [0, 0, 0, 32],
   });
 
-  // Signature
-  if (coverLetter.signature) {
-    content.push({
-      text: coverLetter.signature,
-      style: 'normal',
-      margin: [0, 40, 0, 0],
-    });
-  }
+  // Signature block — closing + reserved blank space + name are ALWAYS emitted together (AC 2.4),
+  // never gated behind `if (coverLetter.signature)`: pdfmake reserves the same line height for an
+  // empty text node as a non-empty one, so the block's footprint stays constant regardless of
+  // whether the user has cleared the signature field (verified empirically — see the UX spec §C).
+  content.push({ text: coverLetter.closing, style: 'normal', margin: [0, 0, 0, 54] });
+  content.push({ text: coverLetter.signature, style: 'normal', margin: [0, 0, 0, 0] });
 
   // Page break before overview
   content.push({ text: '', pageBreak: 'after' });
