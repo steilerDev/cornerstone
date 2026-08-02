@@ -41,11 +41,36 @@ base was on `fix/1895-1918-claim-deposit-scope` while this worktree was on `feat
 symlinked `dist/index.d.ts` produces convincing but FALSE-POSITIVE type errors (e.g. "Property 'areaId'
 does not exist on type 'SourceReportLinkedItem'") for types the current branch's `shared/src` genuinely
 already has. **Jest itself did not reproduce these errors and all tests passed with correct runtime
-values** — client project's jest config has `moduleNameMapper: '^@cornerstone/shared$' ->
-'<rootDir>/shared/src/index.ts'` (worktree source, always fresh); the **server** project has no such
-mapper, yet still passed cleanly in this instance too (mechanism unclear — possibly ts-jest's per-file
-LanguageService/tsconfig override behaves differently from a whole-program `tsc -p` invocation for
-project-referenced packages). Bottom line: **trust the jest run's pass/fail signal over a raw `tsc -p`
-sanity check in a worktree** — if `tsc` disagrees with jest, verify whether `node_modules/@cornerstone/shared`
-is a symlink to a differently-branched base repo before treating the tsc error as real. Do not "fix" this by
-rebuilding the base repo's shared/dist (don't touch the base checkout from a worktree session).
+values** for the files I'd already fixed — client project's jest config has `moduleNameMapper:
+'^@cornerstone/shared$' -> '<rootDir>/shared/src/index.ts'` (worktree source, always fresh); the
+**server** project has no such mapper, yet still passed cleanly too (mechanism unclear).
+
+**Definitive fix applied this round** (repoint the worktree's own node_modules symlink instead of
+relying on jest's leniency, so raw `tsc -p` becomes trustworthy again for this session):
+```bash
+rm node_modules/@cornerstone/shared
+ln -s /absolute/path/to/THIS/worktree/shared node_modules/@cornerstone/shared
+cd shared && npx tsc && cd ..   # rebuild worktree-local shared/dist
+```
+After this, `npx tsc --noEmit -p client/tsconfig.json` and `-p server/tsconfig.json` both went from
+~15-30 false-positive errors to 0, and stayed 0 after all real fixes. **Use this fix proactively at the
+start of any session that needs a real `tsc -p` sanity sweep** (e.g. when a coordinator reports a CI
+typecheck failure) rather than trusting jest's silence alone — jest's leniency masks real errors too
+easily to be the sole signal when hunting for "any other fixture drift somewhere in the tree" (this is
+exactly how the ReportInvoiceList.test.tsx / realRender.test.ts CI failures escaped my first local pass).
+Do NOT touch the base checkout itself — this only repoints the worktree's own node_modules entry.
+
+**Real bug this fix uncovered** (CI Quality Gates failure on PR #1924, reported by coordinator):
+`ReportInvoiceList.test.tsx` (~L727/733) and `realRender.test.ts` (~L447/453) built `SourceReportLinkedItem`
+literals missing `areaId`/`areaName` — straightforward fixture-drift fixes (add the two null fields).
+But `realRender.test.ts` also had a **second, deeper bug**: a real-i18n end-to-end test
+(`renders both real deposit-footnote wordings ("constituted" vs "reduced")...`) still asserted the
+OLD numbered/vendor-prefixed constituted-deposit footnote text (`'‡1: Constituted Vendor (U-5) — This
+is a deposit.'`), which the AC2.1/AC2.2 change removed entirely (constituted deposits now render as an
+inline `isDeposit` badge/run, not a footnote). Rewrote the test to assert real translated text for both:
+the inline deposit-label run (array-of-runs allocated cell, second run text ` (Deposit)`/`
+(Abschlagszahlung)`) AND the still-existing shared/unnumbered reduced-deposit footnote — plus explicit
+negative assertions that the old "This is a deposit."/"Dies ist eine Abschlagszahlung." footnote text
+no longer appears anywhere. Lesson: a `grep`-based sweep for the type-shape drift (missing fields) is
+necessary but not sufficient — real-render/integration tests asserting exact translated STRINGS for a
+feature whose wording changed need their own pass, since `tsc` won't catch stale string assertions.

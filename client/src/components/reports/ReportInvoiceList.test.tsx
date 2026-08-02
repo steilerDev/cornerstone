@@ -724,13 +724,25 @@ describe('ReportInvoiceList', () => {
       id: 'line-2',
       description: 'Roofing',
       allocatedPortion: 200,
-      linkedItem: { type: 'work_item' as const, id: 'wi-1', name: 'Roof Replacement' },
+      linkedItem: {
+        type: 'work_item' as const,
+        id: 'wi-1',
+        name: 'Roof Replacement',
+        areaId: null,
+        areaName: null,
+      },
     };
     const householdItemLine = {
       id: 'line-3',
       description: 'Cabinet',
       allocatedPortion: 100,
-      linkedItem: { type: 'household_item' as const, id: 'hi-1', name: 'Kitchen Cabinet' },
+      linkedItem: {
+        type: 'household_item' as const,
+        id: 'hi-1',
+        name: 'Kitchen Cabinet',
+        areaId: null,
+        areaName: null,
+      },
     };
     const deposit = {
       id: 'dep-1',

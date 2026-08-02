@@ -444,13 +444,25 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
             id: 'bl-linked-1',
             description: null,
             allocatedPortion: 100,
-            linkedItem: { type: 'work_item', id: 'wi-1', name: 'Roof Replacement' },
+            linkedItem: {
+              type: 'work_item',
+              id: 'wi-1',
+              name: 'Roof Replacement',
+              areaId: null,
+              areaName: null,
+            },
           },
           {
             id: 'bl-linked-2',
             description: null,
             allocatedPortion: 50,
-            linkedItem: { type: 'work_item', id: 'wi-1', name: 'Roof Replacement' },
+            linkedItem: {
+              type: 'work_item',
+              id: 'wi-1',
+              name: 'Roof Replacement',
+              areaId: null,
+              areaName: null,
+            },
           },
         ],
       });
@@ -638,7 +650,11 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       }
     });
 
-    it('renders both real deposit-footnote wordings ("constituted" vs "reduced") in both locales', async () => {
+    // Story #1923: the "constituted" deposit case no longer produces a footnote at all — it
+    // renders as an inline, unnumbered Deposit label in the allocated cell (a second run, real
+    // i18next `sourceReports.table.attachmentType.deposit` text). Only the "reduced" case still
+    // produces a footnote, now shared/unnumbered (marker `‡`, no vendor/invoice-number prefix).
+    it('renders the real, unnumbered "constituted" Deposit inline label and the real, shared, unnumbered "reduced" footnote in both locales', async () => {
       const { buildOverviewContent } = await import('./overviewPdf.js');
       const report = makeUsageFeatureReport();
       const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
@@ -648,18 +664,17 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           tEn,
           formattersFor('en-US'),
           {
-            constituted: '‡1: Constituted Vendor (U-5) — This is a deposit.',
-            reduced:
-              '‡2: Reduced Vendor (U-6) — This position reflects deposits claimed separately.',
+            depositLabel: ' (Deposit)',
+            reducedFootnote: '‡: This position reflects deposits claimed separately.',
           },
         ],
         [
           tDe,
           formattersFor('de-DE'),
           {
-            constituted: '‡1: Constituted Vendor (U-5) — Dies ist eine Abschlagszahlung.',
-            reduced:
-              '‡2: Reduced Vendor (U-6) — Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.',
+            depositLabel: ' (Abschlagszahlung)',
+            reducedFootnote:
+              '‡: Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.',
           },
         ],
       ] as const) {
@@ -667,11 +682,34 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           includeCoverLetter: false,
           household: null,
         });
+
+        // Sanity: the constituted-deposit row carries isDeposit=true and no ‡ marker; the
+        // reduced-deposit row carries the ‡ marker and isDeposit=false.
+        const constitutedRow = content.rows.find((r) => r.invoiceId === 'inv-deposit-constituted')!;
+        expect(constitutedRow.isDeposit).toBe(true);
+        expect(constitutedRow.allocatedMarkers).not.toContain('‡');
+        const reducedRow = content.rows.find((r) => r.invoiceId === 'inv-deposit-reduced')!;
+        expect(reducedRow.isDeposit).toBe(false);
+        expect(reducedRow.allocatedMarkers).toContain('‡');
+
         const pdfContent = buildOverviewContent(content, new Map(), t);
+        const tableItem = pdfContent.find(
+          (c) => typeof c === 'object' && c !== null && 'table' in c,
+        ) as { table: { body: unknown[][] } };
+        const constitutedRowCells = tableItem.table.body.find(
+          (row) => (row[0] as { text?: string })?.text === 'Constituted Vendor',
+        ) as { text: string | { text: string }[] }[];
+        const allocatedCell = constitutedRowCells[4] as { text: { text: string }[] };
+        expect(Array.isArray(allocatedCell.text)).toBe(true);
+        expect(allocatedCell.text[1]!.text).toBe(expected.depositLabel);
+
         const notesStack = pdfContent[pdfContent.length - 1] as { stack: { text: string }[] };
         const texts = notesStack.stack.map((n) => n.text);
-        expect(texts).toContain(expected.constituted);
-        expect(texts).toContain(expected.reduced);
+        expect(texts).toContain(expected.reducedFootnote);
+        // No "constituted" wording (footnote form) survives anywhere — it moved to the inline
+        // label above, and the deposit-constituted footnote key/string no longer exists at all.
+        expect(texts.some((text) => text.includes('This is a deposit'))).toBe(false);
+        expect(texts.some((text) => text.includes('Dies ist eine Abschlagszahlung'))).toBe(false);
       }
     });
   });
