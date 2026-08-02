@@ -68,6 +68,58 @@ test in the PR and the template to copy for any new external-format pipeline.
 - `content` objects come back **mutated** after render (pdfmake annotates `_minWidth`,
   `_maxWidth`, `positions`, `__height`). Handy for asserting real layout geometry.
 
+## Table geometry traps (verified empirically on 0.3.11 during the #1929 / PR #1935 review)
+
+Four independent traps, each of which produced a wrong "fix" that passed its own unit tests. Any
+change to `overviewPdf.ts` widths, `TABLE_LAYOUT`, or `pageMargins` must be validated by
+**rendering and reading back resolved geometry**, never by asserting the declared config.
+
+1. **`dontBreakRows` lives on `table`, not `layout`.** `TableProcessor.js:123` reads
+   `tableNode.table.dontBreakRows`. The `layout` object is packed into `node._layout`
+   (`DocMeasure.js:469`) and only feeds the border/padding/fill callbacks — nothing reads
+   `_layout.dontBreakRows`. Put it in `layout` and you get a **byte-identical PDF** (modulo
+   `/CreationDate` + `/ID`); a unit test asserting `TABLE_LAYOUT.dontBreakRows === true` passes and
+   proves nothing.
+2. **Declared widths are CONTENT widths.** pdfmake subtracts `_offsets.total` from the available
+   width *before* distributing them. `offsetsTotal = cols * (paddingLeft + paddingRight +
+   vLineWidth) + vLineWidth`. With `TABLE_LAYOUT`'s `8/8/0.5` that is **116.0pt for 7 columns,
+   99.5pt for 6** out of the 515.28pt A4 printable width. Budget columns against
+   `515.28 - offsetsTotal(cols)`, not 515.28. Getting this wrong made a comment claim Usage got
+   185.28pt when it actually got **69.28pt**.
+3. **A `'*'` column never shrinks below its longest unbreakable word.**
+   `columnCalculator.js:66-75` — when `minW >= availableWidth` the star is set to `starMaxMin` and
+   *the table overflows the page*. So no static assertion on the `widths` array can prove "no
+   horizontal overflow": German compounds (`Wärmedämmverbundsystem` ~128pt @10pt Roboto) push a
+   69.28pt star to 128pt and the table to 574pt on a 515.28pt page.
+4. **`dontBreakRows` + a row taller than the printable height = silent data loss.** pdfmake does
+   not paginate an over-tall unbreakable row; it **drops** it. Measured 7-col with a 69.28pt Usage
+   column: 450 chars renders, 500 chars renders the header row only, and the text-show-op count
+   stays flat no matter how much longer the text gets. Always pair `dontBreakRows` with a width
+   wide enough that realistic max content stays inside `pageHeight - topMargin - bottomMargin`
+   (706.89pt at A4/75/60), and regression-test the boundary.
+
+**`_calcWidth` is the verification lever.** `createPdf(def)` mutates `table.widths` entries in
+place into objects; after `await getBlob()` each carries `_calcWidth` (the resolved pt width).
+Real coverage is therefore just: build content -> render -> assert
+`offsetsTotal + sum(_calcWidth) <= 515.28` and `_calcWidth[usageIdx] >= floor`, with a
+German-locale compound-noun case. The comment in `realRender.test.ts` claiming pdfmake's public
+Node API cannot expose computed widths is **wrong** — it can, it is just a private field, so pin
+the version. Same trick measures text: `pdfkit` + the Roboto TTF out of `vfs_fonts` gives
+`doc.widthOfString(s)` for exact fit checks (avg lowercase prose char ~4.68pt @10pt Roboto).
+
+**Page geometry is scattered across three files** (`PAGE_TOP_MARGIN` in `shared.ts`, L/R/B inline
+in `merge.ts`, printable-width prose comment in `overviewPdf.ts`, paddings in `TABLE_LAYOUT`).
+Recommended in the PR #1935 review: one `pageGeometry` module exporting `PAGE_WIDTH/HEIGHT`,
+`PAGE_MARGIN_*`, `CELL_PADDING_X`, `V_LINE_WIDTH`, `printableWidth()`, `printableHeight()`,
+`tableOffsetsTotal(cols)`, `usableColumnWidth(cols)`. `tokens.css` is explicitly NOT the answer —
+the pdfmake layer is its own pt coordinate system outside the design system.
+
+**`PAGE_TOP_MARGIN` (75) is derived from a single-line-header assumption.** `buildPageHeader`
+gives the title/source stack the left half of a 2-column split = 257.64pt; `sourceInfo.sourceName`
+is unbounded user data and wraps past ~45 chars (realistic German bank names measure 341-442pt),
+adding 16.8pt to the 60.4pt footprint and re-breaking the header band. Derive the footprint from
+the same constants `merge.ts`'s `styles` uses, or clamp the subheader with `noWrap`.
+
 ## Dependencies
 
 `pdfmake@0.3.11`, `pdf-lib@1.17.1`, `@types/pdfmake@0.3.3` -- all exact-pinned in

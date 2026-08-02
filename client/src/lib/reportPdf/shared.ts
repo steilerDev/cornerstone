@@ -2,6 +2,7 @@
  * Shared utilities for PDF report generation.
  */
 import type { Content } from 'pdfmake/build/pdfmake';
+import { CELL_PADDING_X, V_LINE_WIDTH } from './pageGeometry.js';
 
 /**
  * Refund text color for PDF tables (dark red).
@@ -60,36 +61,19 @@ export function buildPageFooter(
 
 /**
  * pdfmake table layout for invoice tables.
+ *
+ * Note: `dontBreakRows` is NOT set here. pdfmake reads it from the `table` object
+ * (`TableProcessor.js:123`: `tableNode.table.dontBreakRows`), never from `layout` — setting it
+ * here would be inert (#1929 round-1 CRITICAL 1). It is set on the `table` node directly in
+ * overviewPdf.ts.
  */
 export const TABLE_LAYOUT = {
-  hLineWidth: () => 0.5,
-  vLineWidth: () => 0.5,
+  hLineWidth: () => V_LINE_WIDTH,
+  vLineWidth: () => V_LINE_WIDTH,
   hLineColor: '#d1d5db',
   vLineColor: '#d1d5db',
-  paddingLeft: () => 8,
-  paddingRight: () => 8,
+  paddingLeft: () => CELL_PADDING_X,
+  paddingRight: () => CELL_PADDING_X,
   paddingTop: () => 6,
   paddingBottom: () => 6,
-  dontBreakRows: true,
 } as const;
-
-/**
- * Top page margin (points) for the report PDF — sized to fit buildPageHeader's rendered
- * content in full, with a visible gap before the first body element on pages after the
- * first (see #1929: the previous hardcoded 40pt top margin was smaller than the header's
- * own rendered height, so the running header clipped its generated-at text and overlapped
- * the first table row on multi-page reports).
- *
- * Header footprint at the pdfmake `styles` defined in merge.ts (defaultStyle.lineHeight: 1.4):
- *   header line (14pt * 1.4)             = 19.6pt
- *   subheader style margin-top           =  4.0pt
- *   subheader line (12pt * 1.4)          = 16.8pt
- *   buildPageHeader's own outer margin   = 20.0pt  ([0, 0, 0, 20] bottom)
- *   ---------------------------------------------
- *   total header footprint               = 60.4pt
- *
- * PAGE_TOP_MARGIN leaves ~15pt of visible separation above that footprint. If the header/
- * subheader font sizes, line height, or margins in merge.ts's `styles` object ever change,
- * recompute this value — see shared.test.ts and merge.test.ts for the tests that pin it.
- */
-export const PAGE_TOP_MARGIN = 75;

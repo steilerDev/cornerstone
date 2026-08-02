@@ -15,11 +15,32 @@
  * Row-level data derivation (usage text, attachment notes, split/deposit markers, footnote text)
  * has all moved to buildReportContent.ts (see buildReportContent.test.ts) — this file only lays
  * out the already-derived ReportContent fields into pdfmake Content[].
+ *
+ * #1929 ROUND 2 (QA spec scenarios 6-12): round 1's width-sum assertion
+ * (`fixedSum <= PRINTABLE_WIDTH_PT`) omitted pdfmake's per-column offsets (padding + borders) and
+ * was satisfied by a 673pt table on a 515.28pt page — a no-op guard (architect review, HIGH 3).
+ * It's replaced below by the invariant that actually protects AC1/AC3:
+ * `tableOffsetsTotal(cols) + fixedSum + USAGE_MIN_WIDTH_*COL <= printableWidth()`. Round 1's
+ * `dontBreakRows` assertion is also gone from this file's "layout passthrough" section — it now
+ * lives on the `table` node itself (see the dedicated test below), not on TABLE_LAYOUT (shared.ts
+ * no longer carries it at all — see shared.test.ts). New coverage: splitIntoPageSafeChunks
+ * (chunking algorithm), the multi-row continuation-row shape it drives, and AC14's malformed-row
+ * crash fix (unconditional status cell push).
  */
 import { describe, it, expect } from '@jest/globals';
 import type { TFunction } from 'i18next';
 import type { ReportContent, ReportContentRow } from '../reportContent/index.js';
-import { buildOverviewContent } from './overviewPdf.js';
+import {
+  buildOverviewContent,
+  splitIntoPageSafeChunks,
+  buildUsageTextRuns,
+  USAGE_MIN_WIDTH_7COL,
+  USAGE_MIN_WIDTH_6COL,
+  USAGE_SAFE_TOKEN_CHARS_7COL,
+  USAGE_SAFE_TOKEN_CHARS_6COL,
+  MAX_SAFE_USAGE_CHUNK_CHARS,
+} from './overviewPdf.js';
+import { tableOffsetsTotal, usableColumnWidth, printableWidth } from './pageGeometry.js';
 
 const t = ((key: string) => key) as unknown as TFunction;
 
@@ -102,6 +123,21 @@ function rowTexts(row: unknown): (string | undefined)[] {
   });
 }
 
+// #1929 round 2 (word-break follow-up finding): a Usage cell's `.text` is now ALWAYS an array of
+// pdfmake text runs (`buildUsageTextRuns()`) — never a plain string, even for ordinary short text
+// with no oversized token — because the runs array is how a single whitespace-free token can carry
+// its own `wordBreak: 'break-all'` without affecting the rest of the cell. Reconstruct before
+// comparing to a plain-string expectation. (`rowTexts()` above already does this generically for
+// whole rows; this is the same logic scoped to a single already-extracted `.text` value, needed
+// when a Usage cell is nested inside a `stack` alongside areaText/attachmentsNote, which are NOT
+// run arrays and must not be run through this reconstruction.)
+function usageRunsText(text: unknown): string {
+  if (Array.isArray(text)) {
+    return (text as { text: string }[]).map((run) => run.text).join('');
+  }
+  return text as string;
+}
+
 function getTable(content: unknown[]): {
   headerRows: number;
   widths: (string | number)[];
@@ -112,11 +148,6 @@ function getTable(content: unknown[]): {
   };
   return tableItem.table;
 }
-
-// A4 printable width (pt): 595.28pt page width − 40pt left − 40pt right (merge.ts pageMargins).
-// See overviewPdf.ts's own module-header comment for the derivation of the fixed column widths
-// that must sum to less than this.
-const PRINTABLE_WIDTH_PT = 515.28;
 
 describe('buildOverviewContent — title and source info', () => {
   it('renders the title from reportContent.tableTitle and source info from reportContent.sourceInfo', () => {
@@ -174,7 +205,7 @@ describe('buildOverviewContent — title and source info', () => {
 });
 
 describe('buildOverviewContent — column layout', () => {
-  it('[regression #1929] budget-overview header is exactly [vendor, invoiceNumber, date, status, invoiceAmount, allocatedAmount, usage]; widths are fixed-point for every column but the trailing Usage "*", and the fixed columns sum under the printable width', () => {
+  it('[regression #1929 round 2, scenario 6] budget-overview header is exactly [vendor, invoiceNumber, date, status, invoiceAmount, allocatedAmount, usage]; widths are fixed-point for every column but the trailing Usage "*", and the REAL pdfmake-offset-aware budget holds (not the round-1 no-op sum check)', () => {
     const content = makeContent({ isOverview: true });
     const result = buildOverviewContent(content, new Map(), t);
     const table = getTable(result);
@@ -188,8 +219,22 @@ describe('buildOverviewContent — column layout', () => {
     expect(table.widths[6]).toBe('*'); // Usage is the sole trailing '*' column
     expect(table.widths.slice(0, 6).every((w) => typeof w === 'number')).toBe(true);
     expect(table.widths.some((w) => w === 'auto')).toBe(false); // no unbounded columns remain
+
+    // The invariant that actually guards AC1/AC3 (architect review, HIGH 3): declared widths are
+    // CONTENT widths, not the space they occupy on the page — pdfmake additionally reserves
+    // tableOffsetsTotal(7) for padding+borders before distributing them. Round 1's
+    // `fixedSum <= 515.28` alone was satisfied by a 673pt-wide rendered table; this is the
+    // corrected bound. USAGE_MIN_WIDTH_7COL stands in for the (as-yet-unmeasured-here) Usage
+    // column's own declared share, since it is a '*' column with no declared width of its own —
+    // the real-render tests in realRender.test.ts confirm the ACTUAL resolved Usage width clears
+    // this floor; this test only confirms the fixed columns leave it room to.
     const fixedSum = (table.widths.slice(0, 6) as number[]).reduce((a, b) => a + b, 0);
-    expect(fixedSum).toBeLessThanOrEqual(PRINTABLE_WIDTH_PT);
+    expect(tableOffsetsTotal(7) + fixedSum + USAGE_MIN_WIDTH_7COL).toBeLessThanOrEqual(
+      printableWidth(),
+    );
+    // Sanity cross-check: usableColumnWidth(7) must itself have room for the Usage floor once the
+    // fixed columns are subtracted — same invariant, expressed via the other pageGeometry helper.
+    expect(usableColumnWidth(7) - fixedSum).toBeGreaterThanOrEqual(USAGE_MIN_WIDTH_7COL);
 
     expect(rowTexts(table.body[0])).toEqual([
       'sourceReports.table.vendor',
@@ -202,7 +247,7 @@ describe('buildOverviewContent — column layout', () => {
     ]);
   });
 
-  it('[regression #1929] claim/proof-of-funds header has exactly 6 cells with no status column; widths are fixed-point for every column but the trailing Usage "*", and the fixed columns sum under the printable width', () => {
+  it('[regression #1929 round 2, scenario 6] claim/proof-of-funds header has exactly 6 cells with no status column; widths are fixed-point for every column but the trailing Usage "*", and the REAL pdfmake-offset-aware budget holds', () => {
     const content = makeContent({ isOverview: false });
     const result = buildOverviewContent(content, new Map(), t);
     const table = getTable(result);
@@ -214,8 +259,12 @@ describe('buildOverviewContent — column layout', () => {
     expect(table.widths[5]).toBe('*'); // Usage is the sole trailing '*' column
     expect(table.widths.slice(0, 5).every((w) => typeof w === 'number')).toBe(true);
     expect(table.widths.some((w) => w === 'auto')).toBe(false);
+
     const fixedSum = (table.widths.slice(0, 5) as number[]).reduce((a, b) => a + b, 0);
-    expect(fixedSum).toBeLessThanOrEqual(PRINTABLE_WIDTH_PT);
+    expect(tableOffsetsTotal(6) + fixedSum + USAGE_MIN_WIDTH_6COL).toBeLessThanOrEqual(
+      printableWidth(),
+    );
+    expect(usableColumnWidth(6) - fixedSum).toBeGreaterThanOrEqual(USAGE_MIN_WIDTH_6COL);
 
     expect(rowTexts(table.body[0])).toEqual([
       'sourceReports.table.vendor',
@@ -233,6 +282,225 @@ describe('buildOverviewContent — column layout', () => {
     const table = getTable(result);
     expect(rowTexts(table.body[0])).not.toContain('sourceReports.table.appendix');
     expect((table.body[1] as unknown[]).length).toBe(6);
+  });
+
+  it('[regression #1929 round 2 / CRITICAL 1, scenario 7] the table NODE itself carries dontBreakRows: true — the only place pdfmake actually reads it (TableProcessor.js:123: tableNode.table.dontBreakRows), not the round-1 (inert) TABLE_LAYOUT placement', () => {
+    const content = makeContent({ isOverview: true });
+    const result = buildOverviewContent(content, new Map(), t);
+    const tableItem = result.find((c) => typeof c === 'object' && c !== null && 'table' in c) as {
+      table: { dontBreakRows?: boolean };
+    };
+    expect(tableItem.table.dontBreakRows).toBe(true);
+  });
+});
+
+describe('splitIntoPageSafeChunks (scenario 8)', () => {
+  it('(a) input <= maxChars returns [input] unchanged', () => {
+    expect(splitIntoPageSafeChunks('short text', 100)).toEqual(['short text']);
+    // Exact-length boundary too.
+    const exact = 'x'.repeat(50);
+    expect(splitIntoPageSafeChunks(exact, 50)).toEqual([exact]);
+  });
+
+  it('(b) input with clean word boundaries splits into <= maxChars chunks that rejoin (chunks.join("")) to the exact original', () => {
+    const text = Array.from({ length: 40 }, (_, i) => `word${i}`).join(' ');
+    const maxChars = 30;
+    const chunks = splitIntoPageSafeChunks(text, maxChars);
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const chunk of chunks) {
+      expect(chunk.length).toBeLessThanOrEqual(maxChars);
+    }
+    expect(chunks.join('')).toBe(text);
+  });
+
+  it('(c) a single whitespace-free token longer than maxChars hard-splits into maxChars-sized pieces that still rejoin exactly', () => {
+    const longToken = 'a'.repeat(97); // no whitespace anywhere
+    const maxChars = 20;
+    const chunks = splitIntoPageSafeChunks(longToken, maxChars);
+    expect(chunks.length).toBe(Math.ceil(97 / 20));
+    for (const chunk of chunks.slice(0, -1)) {
+      expect(chunk.length).toBe(maxChars);
+    }
+    expect(chunks.join('')).toBe(longToken);
+  });
+
+  it('(c) a long unbreakable token embedded among normal words still rejoins exactly and every chunk stays <= maxChars', () => {
+    const text = `start ${'b'.repeat(55)} end`;
+    const maxChars = 20;
+    const chunks = splitIntoPageSafeChunks(text, maxChars);
+    for (const chunk of chunks) {
+      expect(chunk.length).toBeLessThanOrEqual(maxChars);
+    }
+    expect(chunks.join('')).toBe(text);
+  });
+
+  it('(d) empty string returns [""]', () => {
+    expect(splitIntoPageSafeChunks('', 100)).toEqual(['']);
+  });
+
+  it('never drops a character for a variety of lengths relative to maxChars (I1 spot-check)', () => {
+    const maxChars = 47;
+    for (const len of [
+      0,
+      1,
+      maxChars - 1,
+      maxChars,
+      maxChars + 1,
+      maxChars * 3,
+      maxChars * 3 + 5,
+    ]) {
+      const text = Array.from({ length: len }, (_, i) => String(i % 10)).join('');
+      // Reintroduce occasional spaces so the fixture isn't purely a single unbreakable token.
+      const spaced = text.replace(/(.{5})/g, '$1 ').trimEnd();
+      expect(splitIntoPageSafeChunks(spaced, maxChars).join('')).toBe(spaced);
+    }
+  });
+});
+
+// Reconstructs the text buildUsageTextRuns would render, by concatenating each run's own `.text`
+// in order — the same technique used by rowTexts()/usageRunsText() elsewhere in this file. Used
+// throughout this describe block to assert I1 (no character, including whitespace, is ever
+// dropped or added) independent of exactly how the tokens got split into runs.
+function runsText(runs: { text: string }[]): string {
+  return runs.map((run) => run.text).join('');
+}
+
+describe('buildUsageTextRuns (#1929 round 2 word-break follow-up finding, scenarios 1/2/3)', () => {
+  // Pin the actual threshold constants rather than re-typing 32/44 — if pageGeometry.ts's
+  // per-char estimate or the USAGE_MIN_WIDTH_*COL floors ever change, this test's own expectations
+  // move with them instead of silently testing against a stale literal.
+  it('USAGE_SAFE_TOKEN_CHARS_7COL === 32 and USAGE_SAFE_TOKEN_CHARS_6COL === 44 (floor(USAGE_MIN_WIDTH_*COL / (8 * 0.495)))', () => {
+    expect(USAGE_SAFE_TOKEN_CHARS_7COL).toBe(32);
+    expect(USAGE_SAFE_TOKEN_CHARS_6COL).toBe(44);
+    // Relationship, not just the literals: both floors are Math.floor(minWidth / (8 * 0.495)).
+    expect(USAGE_SAFE_TOKEN_CHARS_7COL).toBe(Math.floor(USAGE_MIN_WIDTH_7COL / (8 * 0.495)));
+    expect(USAGE_SAFE_TOKEN_CHARS_6COL).toBe(Math.floor(USAGE_MIN_WIDTH_6COL / (8 * 0.495)));
+  });
+
+  describe('I1: joining every returned run reconstructs the input exactly', () => {
+    it('empty string returns a single empty-text run', () => {
+      const runs = buildUsageTextRuns('', USAGE_SAFE_TOKEN_CHARS_7COL);
+      expect(runs).toEqual([{ text: '' }]);
+      expect(runsText(runs as { text: string }[])).toBe('');
+    });
+
+    it('whitespace-only input reconstructs exactly (whitespace runs are preserved verbatim)', () => {
+      const text = '   \t  ';
+      const runs = buildUsageTextRuns(text, USAGE_SAFE_TOKEN_CHARS_7COL);
+      expect(runsText(runs as { text: string }[])).toBe(text);
+    });
+
+    it('a token exactly AT the threshold reconstructs exactly and is NOT flagged for word-break', () => {
+      const token = 'a'.repeat(USAGE_SAFE_TOKEN_CHARS_7COL);
+      const runs = buildUsageTextRuns(token, USAGE_SAFE_TOKEN_CHARS_7COL) as {
+        text: string;
+        wordBreak?: string;
+      }[];
+      expect(runsText(runs)).toBe(token);
+      expect(runs.some((run) => run.wordBreak === 'break-all')).toBe(false);
+    });
+
+    it('a token just ONE character OVER the threshold reconstructs exactly and IS flagged for word-break', () => {
+      const token = 'a'.repeat(USAGE_SAFE_TOKEN_CHARS_7COL + 1);
+      const runs = buildUsageTextRuns(token, USAGE_SAFE_TOKEN_CHARS_7COL) as {
+        text: string;
+        wordBreak?: string;
+      }[];
+      expect(runsText(runs)).toBe(token);
+      expect(runs).toEqual([{ text: token, wordBreak: 'break-all' }]);
+    });
+
+    it('a very long single unbroken token (well over the threshold) reconstructs exactly as one flagged run', () => {
+      const token = 'x'.repeat(500);
+      const runs = buildUsageTextRuns(token, USAGE_SAFE_TOKEN_CHARS_7COL) as {
+        text: string;
+        wordBreak?: string;
+      }[];
+      expect(runsText(runs)).toBe(token);
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.wordBreak).toBe('break-all');
+    });
+
+    it('long tokens mixed into ordinary prose reconstruct exactly, with only the long tokens flagged', () => {
+      const longToken = 'y'.repeat(60); // well over the 32/44 thresholds
+      const text = `Materials and ${longToken} for the exterior renovation`;
+      const runs = buildUsageTextRuns(text, USAGE_SAFE_TOKEN_CHARS_7COL) as {
+        text: string;
+        wordBreak?: string;
+      }[];
+      expect(runsText(runs)).toBe(text);
+      const flagged = runs.filter((run) => run.wordBreak === 'break-all');
+      expect(flagged).toEqual([{ text: longToken, wordBreak: 'break-all' }]);
+    });
+  });
+
+  describe('I4: ordinary prose never gets a cell-wide (or per-word) break-all — only the oversized token does', () => {
+    it('no run for an ordinary short-word sentence carries wordBreak at all', () => {
+      const text =
+        'Materials and labor for the exterior renovation, including brick veneer and mortar mix.';
+      const runs = buildUsageTextRuns(text, USAGE_SAFE_TOKEN_CHARS_7COL) as {
+        text: string;
+        wordBreak?: string;
+      }[];
+      expect(runsText(runs)).toBe(text);
+      expect(runs.every((run) => run.wordBreak === undefined)).toBe(true);
+    });
+
+    it('every token strictly under the threshold is emitted verbatim with no wordBreak, even directly adjacent to a flagged long token', () => {
+      const longToken = 'z'.repeat(70);
+      const text = `short ${longToken} words`;
+      const runs = buildUsageTextRuns(text, USAGE_SAFE_TOKEN_CHARS_7COL) as {
+        text: string;
+        wordBreak?: string;
+      }[];
+      const shortRuns = runs.filter((run) => !/^\s*$/.test(run.text) && run.text !== longToken);
+      expect(shortRuns).toEqual([{ text: 'short' }, { text: 'words' }]);
+    });
+
+    it('German-locale ordinary prose (compound nouns under the 6-col threshold) stays entirely unflagged', () => {
+      // 'Wärmedämmverbundsystem' is 23 characters — under both USAGE_SAFE_TOKEN_CHARS_7COL (32)
+      // and _6COL (44), so it must NOT be flagged even though it is a long single German word.
+      const text = 'Lieferung und Montage Wärmedämmverbundsystem inklusive Putzarbeiten';
+      const runs7 = buildUsageTextRuns(text, USAGE_SAFE_TOKEN_CHARS_7COL) as {
+        text: string;
+        wordBreak?: string;
+      }[];
+      const runs6 = buildUsageTextRuns(text, USAGE_SAFE_TOKEN_CHARS_6COL) as {
+        text: string;
+        wordBreak?: string;
+      }[];
+      expect(runsText(runs7)).toBe(text);
+      expect(runsText(runs6)).toBe(text);
+      expect(runs7.every((run) => run.wordBreak === undefined)).toBe(true);
+      expect(runs6.every((run) => run.wordBreak === undefined)).toBe(true);
+    });
+  });
+
+  describe('buildOverviewContent wiring: the correct safeTokenChars is selected per table shape', () => {
+    it('a token that is unsafe for the 7-col floor but safe for the 6-col floor is flagged in a budget-overview report and NOT flagged in a claim report', () => {
+      // 40 chars: over USAGE_SAFE_TOKEN_CHARS_7COL (32), under USAGE_SAFE_TOKEN_CHARS_6COL (44).
+      const borderlineToken = 'a'.repeat(40);
+      expect(borderlineToken.length).toBeGreaterThan(USAGE_SAFE_TOKEN_CHARS_7COL);
+      expect(borderlineToken.length).toBeLessThanOrEqual(USAGE_SAFE_TOKEN_CHARS_6COL);
+
+      const row = makeRow({ usageText: borderlineToken });
+
+      const overviewContent = makeContent({ isOverview: true, rows: [row] });
+      const overviewResult = buildOverviewContent(overviewContent, new Map(), t);
+      const overviewTable = getTable(overviewResult);
+      const overviewCell = (overviewTable.body[1] as unknown[])[6] as {
+        text: { text: string; wordBreak?: string }[];
+      };
+      expect(overviewCell.text.some((run) => run.wordBreak === 'break-all')).toBe(true);
+
+      const claimContent = makeContent({ isOverview: false, rows: [row] });
+      const claimResult = buildOverviewContent(claimContent, new Map(), t);
+      const claimTable = getTable(claimResult);
+      const claimCell = (claimTable.body[1] as unknown[])[5] as {
+        text: { text: string; wordBreak?: string }[];
+      };
+      expect(claimCell.text.some((run) => run.wordBreak === 'break-all')).toBe(false);
+    });
   });
 });
 
@@ -320,9 +588,10 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as { text?: string; stack?: unknown };
+      const cell = (table.body[1] as unknown[])[5] as { text?: unknown; stack?: unknown };
       expect(cell.stack).toBeUndefined();
-      expect(cell.text).toBe('Kitchen work');
+      // #1929 round 2: `.text` is always a run array now (buildUsageTextRuns) — reconstruct.
+      expect(usageRunsText(cell.text)).toBe('Kitchen work');
     });
 
     it('renders a stack of [usageText, attachmentsNote] when attachmentsNote is present', () => {
@@ -330,8 +599,10 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as { stack: { text: string }[] };
-      expect(cell.stack[0]!.text).toBe('Kitchen work');
+      const cell = (table.body[1] as unknown[])[5] as { stack: { text: unknown }[] };
+      // #1929 round 2: stack[0] (the usage text itself) is a run array; stack[1] (attachmentsNote)
+      // is still a plain string — only the former needs reconstruction.
+      expect(usageRunsText(cell.stack[0]!.text)).toBe('Kitchen work');
       expect(cell.stack[1]!.text).toBe('1 attachment: Invoice');
     });
 
@@ -345,9 +616,11 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[5] as {
-        stack: { text: string; style?: string }[];
+        stack: { text: unknown; style?: string }[];
       };
-      expect(cell.stack.map((s) => s.text)).toEqual([
+      // #1929 round 2: only stack[0] (usage text) is a run array; areaText/attachmentsNote remain
+      // plain strings — reconstruct the former, leave the rest as-is.
+      expect(cell.stack.map((s) => usageRunsText(s.text))).toEqual([
         'Kitchen work',
         'Ground Floor',
         '1 attachment: Invoice',
@@ -364,8 +637,11 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as { stack: { text: string }[] };
-      expect(cell.stack.map((s) => s.text)).toEqual(['Kitchen work', 'Ground Floor']);
+      const cell = (table.body[1] as unknown[])[5] as { stack: { text: unknown }[] };
+      expect(cell.stack.map((s) => usageRunsText(s.text))).toEqual([
+        'Kitchen work',
+        'Ground Floor',
+      ]);
     });
 
     it('renders a plain { text } cell (not a stack) when both areaText and attachmentsNote are null', () => {
@@ -373,9 +649,19 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as { text?: string; stack?: unknown };
+      const cell = (table.body[1] as unknown[])[5] as { text?: unknown; stack?: unknown };
       expect(cell.stack).toBeUndefined();
-      expect(cell.text).toBe('Kitchen work');
+      expect(usageRunsText(cell.text)).toBe('Kitchen work');
+    });
+
+    it('[#1929 round 2] the plain-cell Usage text is a run array of the individual whitespace-preserving tokens (buildUsageTextRuns wiring, not a plain string)', () => {
+      const row = makeRow({ usageText: 'Kitchen work', attachmentsNote: null });
+      const content = makeContent({ rows: [row] });
+      const result = buildOverviewContent(content, new Map(), t);
+      const table = getTable(result);
+      const cell = (table.body[1] as unknown[])[5] as { text: { text: string }[] };
+      expect(Array.isArray(cell.text)).toBe(true);
+      expect(cell.text.map((run) => run.text)).toEqual(['Kitchen', ' ', 'work']);
     });
   });
 
@@ -455,6 +741,180 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       expect(cell.text).toHaveLength(1);
       expect(cell.text[0]!.text).toBe('€300.00');
     });
+  });
+});
+
+// Builds word-boundary-clean prose of a specific character length (repeating a short filler word
+// list). Deliberately a plain arithmetic construction, NOT derived from any AI/validator length
+// cap (#1929 AC12) — every describe block below that uses it says so explicitly at the call site.
+function proseOfLength(exactLength: number): string {
+  const words = ['usage', 'text', 'for', 'the', 'renovation', 'and', 'related', 'materials'];
+  let text = '';
+  let i = 0;
+  for (;;) {
+    const word = words[i % words.length]!;
+    const candidate = text.length === 0 ? word : `${text} ${word}`;
+    if (candidate.length >= exactLength) {
+      return candidate.slice(0, exactLength);
+    }
+    text = candidate;
+    i++;
+  }
+}
+
+describe('buildOverviewContent — Usage chunking into continuation rows (scenarios 9-11)', () => {
+  it('[scenario 9] usageText at exactly MAX_SAFE_USAGE_CHUNK_CHARS produces exactly one row for that invoice (no continuation rows)', () => {
+    const usageText = proseOfLength(MAX_SAFE_USAGE_CHUNK_CHARS);
+    expect(usageText.length).toBe(MAX_SAFE_USAGE_CHUNK_CHARS);
+    const row = makeRow({ invoiceId: 'inv-1', vendor: 'Only Row', usageText });
+    const content = makeContent({ rows: [row] });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    // header (1) + exactly 1 row for this invoice + 1 summary row = 3
+    expect(table.body).toHaveLength(3);
+    expect(rowTexts(table.body[1])[0]).toBe('Only Row');
+  });
+
+  it('[scenario 9] usageText below MAX_SAFE_USAGE_CHUNK_CHARS also produces exactly one row', () => {
+    const usageText = proseOfLength(MAX_SAFE_USAGE_CHUNK_CHARS - 1);
+    const row = makeRow({ invoiceId: 'inv-1', vendor: 'Only Row', usageText });
+    const content = makeContent({ rows: [row] });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    expect(table.body).toHaveLength(3);
+  });
+
+  it('[scenario 10] usageText at 5x the threshold produces multiple rows; extra rows have empty leading/amount cells and non-empty Usage cells; concatenated Usage text reproduces the original exactly', () => {
+    const usageText = proseOfLength(MAX_SAFE_USAGE_CHUNK_CHARS * 5);
+    const rowA = makeRow({
+      invoiceId: 'inv-long',
+      vendor: 'Long Vendor',
+      invoiceNumber: 'LONG-1',
+      dateText: 'date(2026-03-01)',
+      statusText: 'sources.lines.invoiceStatus.pending',
+      invoiceAmountText: '€999.00',
+      allocatedAmountValueText: '€999.00',
+      usageText,
+    });
+    const rowB = makeRow({ invoiceId: 'inv-next', vendor: 'Next Vendor', usageText: 'short' });
+    const content = makeContent({ isOverview: true, rows: [rowA, rowB] });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+
+    // Derive the expected chunk count from splitIntoPageSafeChunks itself (unit-tested separately
+    // above) rather than a naive Math.ceil(len/maxChars) — the algorithm greedily fills each chunk
+    // up to the last clean word boundary <= maxChars, so it can produce one or two MORE chunks
+    // than the arithmetic minimum. This test's job is to verify buildOverviewContent WIRES that
+    // chunking output into the right row shapes, not to re-derive the chunking algorithm's output.
+    const expectedChunks = splitIntoPageSafeChunks(usageText, MAX_SAFE_USAGE_CHUNK_CHARS).length;
+    expect(expectedChunks).toBeGreaterThan(1);
+
+    // header (1) + expectedChunks rows for inv-long + 1 row for inv-next + 1 summary row.
+    expect(table.body).toHaveLength(1 + expectedChunks + 1 + 1);
+
+    const longRows = table.body.slice(1, 1 + expectedChunks) as Record<string, unknown>[][];
+    // First row carries the real leading/amount data.
+    expect(rowTexts(longRows[0]!)).toEqual([
+      'Long Vendor',
+      'LONG-1',
+      'date(2026-03-01)',
+      'sources.lines.invoiceStatus.pending',
+      '€999.00',
+      '€999.00',
+      expect.any(String),
+    ]);
+    // Every subsequent (continuation) row: leading + amount cells are all blank, Usage cell is
+    // non-empty text.
+    for (const contRow of longRows.slice(1)) {
+      const texts = rowTexts(contRow);
+      expect(texts.slice(0, 6)).toEqual(['', '', '', '', '', '']);
+      expect(texts[6]).toBeTruthy();
+    }
+
+    // I1: concatenating every chunk row's Usage text, in table order, reproduces the ORIGINAL
+    // usageText exactly — no character (including inter-chunk whitespace) is dropped.
+    const reconstructed = longRows.map((r) => rowTexts(r)[6]).join('');
+    expect(reconstructed).toBe(usageText);
+
+    // The next invoice's own (unrelated) row must still be present and unaffected, immediately
+    // after the chunked invoice's rows.
+    const nextRow = table.body[1 + expectedChunks] as Record<string, unknown>[];
+    expect(rowTexts(nextRow)[0]).toBe('Next Vendor');
+  });
+
+  it('[scenario 11] areaText/attachmentsNote appear only once, attached to the LAST row of a chunked invoice — not the first, not duplicated', () => {
+    const usageText = proseOfLength(MAX_SAFE_USAGE_CHUNK_CHARS * 3);
+    const row = makeRow({
+      invoiceId: 'inv-1',
+      vendor: 'Chunked Vendor',
+      usageText,
+      areaText: 'Ground Floor',
+      attachmentsNote: '1 attachment: Invoice',
+    });
+    const content = makeContent({ rows: [row] });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+
+    const expectedChunks = splitIntoPageSafeChunks(usageText, MAX_SAFE_USAGE_CHUNK_CHARS).length;
+    expect(expectedChunks).toBeGreaterThan(1);
+    const chunkedRows = table.body.slice(1, 1 + expectedChunks) as unknown[][];
+
+    // Every non-last row's Usage cell is plain { text }, no stack (no area/attachments note yet).
+    for (const contRow of chunkedRows.slice(0, -1)) {
+      const usageCell = contRow[contRow.length - 1] as { text?: string; stack?: unknown };
+      expect(usageCell.stack).toBeUndefined();
+    }
+
+    // The LAST row's Usage cell is a stack carrying [chunkText, areaText, attachmentsNote].
+    const lastRow = chunkedRows[chunkedRows.length - 1]!;
+    const lastUsageCell = lastRow[lastRow.length - 1] as {
+      stack: { text: string; style?: string }[];
+    };
+    expect(lastUsageCell.stack.map((s) => s.text)).toEqual(
+      expect.arrayContaining(['Ground Floor', '1 attachment: Invoice']),
+    );
+    // areaText/attachmentsNote appear EXACTLY once across the whole chunked row group.
+    const allTexts = chunkedRows.flatMap((r) => {
+      const cell = r[r.length - 1] as { text?: string; stack?: { text: string }[] };
+      return cell.stack ? cell.stack.map((s) => s.text) : [cell.text];
+    });
+    expect(allTexts.filter((txt) => txt === 'Ground Floor')).toHaveLength(1);
+    expect(allTexts.filter((txt) => txt === '1 attachment: Invoice')).toHaveLength(1);
+  });
+});
+
+describe('buildOverviewContent — AC14: falsy statusText never produces a malformed row (scenario 12)', () => {
+  it('an overview row with statusText: "" still produces a 7-cell row with an empty-text status cell, and does not throw', () => {
+    const row = makeRow({ statusText: '' });
+    const content = makeContent({ isOverview: true, rows: [row] });
+    expect(() => buildOverviewContent(content, new Map(), t)).not.toThrow();
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    expect((table.body[1] as unknown[]).length).toBe(7);
+    expect((table.body[1] as { text?: string }[])[3]).toEqual({ text: '', style: 'tableCell' });
+  });
+
+  it('an overview row with statusText: null still produces a 7-cell row with an empty-text status cell, and does not throw', () => {
+    const row = makeRow({ statusText: null });
+    const content = makeContent({ isOverview: true, rows: [row] });
+    expect(() => buildOverviewContent(content, new Map(), t)).not.toThrow();
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    expect((table.body[1] as unknown[]).length).toBe(7);
+    expect((table.body[1] as { text?: string }[])[3]).toEqual({ text: '', style: 'tableCell' });
+  });
+
+  it('a truthy statusText still renders normally alongside falsy ones in the same report (no cross-row regression)', () => {
+    const rows = [
+      makeRow({ invoiceId: 'inv-1', vendor: 'A', statusText: '' }),
+      makeRow({ invoiceId: 'inv-2', vendor: 'B', statusText: 'sources.lines.invoiceStatus.paid' }),
+    ];
+    const content = makeContent({ isOverview: true, rows });
+    const result = buildOverviewContent(content, new Map(), t);
+    const table = getTable(result);
+    expect((table.body[1] as unknown[]).length).toBe(7);
+    expect((table.body[2] as unknown[]).length).toBe(7);
+    expect(rowTexts(table.body[2])[3]).toBe('sources.lines.invoiceStatus.paid');
   });
 });
 

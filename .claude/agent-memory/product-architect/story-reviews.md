@@ -249,3 +249,27 @@ Blockers, all in the presentation layer:
 Lesson worth repeating: 407 green tests, and the three highest-severity defects were all "the code runs
 but does nothing" — dead CSS selector, undefined token, wrong `t`. None are catchable by assertions on DOM
 presence. Read the CSS and trace which `t` each consumer receives.
+
+## PR #1935 — Bug #1929 report PDF layout (CHANGES_REQUIRED, 2026-08-02)
+
+Again posted via `gh pr comment` (self-authored PR blocks `--request-changes`).
+
+Three-defect layout fix (`dontBreakRows`, fixed column widths, `PAGE_TOP_MARGIN = 75`) with 84 green
+unit tests and 100%-ish coverage on all three touched files — and **two of the three defects were not
+actually fixed**. Every finding came from reading pdfmake's source in `node_modules/` and running real
+renders, none from reading the diff. Details in [[client-pdf-pipeline]] "Table geometry traps".
+
+- **C1** `dontBreakRows` was added to `TABLE_LAYOUT` (passed as `layout:`); pdfmake reads it from
+  `table:`. Byte-identical output. AC4 unfixed, and its unit test pinned a property nothing reads.
+- **C2** The right-edge overflow (the headline defect) still reproduces: a `'*'` column floors at its
+  longest word, so German compounds push the 7-col table to 574pt on a 515.28pt page.
+- **H3** The new width-derivation comment was off by 2.7x (claimed Usage = 185.28pt, actual 69.28pt) —
+  it omitted pdfmake's 116pt of per-column padding/border offsets. The test bound built on it
+  (`fixedSum <= 515.28`) admits a 673pt table.
+- **H4** Fixing C1 as written would have traded split rows for *silent whole-row deletion* at ~475 chars
+  of usage text.
+
+Lesson: this is the [[recurring-patterns]] "code runs but does nothing" family again, one layer down —
+a config key on the wrong object, and a derivation whose arithmetic omitted an input. When a fix is a
+set of magic numbers justified by a prose comment, **recompute the comment** before reviewing anything
+else; both wrong numbers here were in comments that existed specifically to justify the constants.

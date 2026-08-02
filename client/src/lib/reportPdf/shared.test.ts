@@ -10,15 +10,20 @@
  * coverLetterPdf.test.ts / overviewPdf.test.ts / merge.test.ts) instead of importing module-level
  * formatting helpers from this file. The describe blocks that used to cover those three exports
  * have been removed accordingly — they no longer exist to import or test.
+ *
+ * #1929 ROUND 2: `dontBreakRows` and `PAGE_TOP_MARGIN` no longer live in this file at all.
+ *  - `dontBreakRows` moved to the `table` node in overviewPdf.ts — TABLE_LAYOUT never carried the
+ *    real fix (round 1's assertion here pinned a property pdfmake never reads; see
+ *    overviewPdf.test.ts's "table.dontBreakRows" test and TABLE_LAYOUT's own doc comment for why).
+ *  - `PAGE_TOP_MARGIN` moved to pageGeometry.ts, now a COMPUTED value (see pageGeometry.test.ts).
+ * The describe blocks that used to cover those two here have been removed accordingly. Padding
+ * assertions below now import their expected value from pageGeometry.ts (CELL_PADDING_X/
+ * V_LINE_WIDTH) instead of a re-typed literal, so a future geometry constant change can't silently
+ * desync this test from TABLE_LAYOUT's actual (also-imported) values.
  */
 import { describe, it, expect } from '@jest/globals';
-import {
-  REFUND_TEXT_COLOR,
-  buildPageHeader,
-  buildPageFooter,
-  TABLE_LAYOUT,
-  PAGE_TOP_MARGIN,
-} from './shared.js';
+import { REFUND_TEXT_COLOR, buildPageHeader, buildPageFooter, TABLE_LAYOUT } from './shared.js';
+import { CELL_PADDING_X, V_LINE_WIDTH } from './pageGeometry.js';
 
 describe('reportPdf/shared', () => {
   describe('REFUND_TEXT_COLOR', () => {
@@ -78,33 +83,28 @@ describe('reportPdf/shared', () => {
   });
 
   describe('TABLE_LAYOUT', () => {
-    it('defines line widths, colors, and padding functions for pdfmake tables', () => {
-      expect(TABLE_LAYOUT.hLineWidth()).toBe(0.5);
-      expect(TABLE_LAYOUT.vLineWidth()).toBe(0.5);
+    it('defines line widths, colors, and padding functions for pdfmake tables, sourced from pageGeometry.ts (round 2: padding halved 8 -> 4 to reclaim Usage-column budget)', () => {
+      expect(TABLE_LAYOUT.hLineWidth()).toBe(V_LINE_WIDTH);
+      expect(TABLE_LAYOUT.vLineWidth()).toBe(V_LINE_WIDTH);
       expect(TABLE_LAYOUT.hLineColor).toBe('#d1d5db');
       expect(TABLE_LAYOUT.vLineColor).toBe('#d1d5db');
-      expect(TABLE_LAYOUT.paddingLeft()).toBe(8);
-      expect(TABLE_LAYOUT.paddingRight()).toBe(8);
+      expect(TABLE_LAYOUT.paddingLeft()).toBe(CELL_PADDING_X);
+      expect(TABLE_LAYOUT.paddingRight()).toBe(CELL_PADDING_X);
       expect(TABLE_LAYOUT.paddingTop()).toBe(6);
       expect(TABLE_LAYOUT.paddingBottom()).toBe(6);
+      // Pin the literal too, so this test still catches a regression even if a future change to
+      // pageGeometry.ts's constants also (wrongly) drags TABLE_LAYOUT down with it.
+      expect(TABLE_LAYOUT.paddingLeft()).toBe(4);
     });
 
-    it('[regression #1929] sets dontBreakRows so a table row (e.g. a wrapped long usage cell) never splits across a page boundary', () => {
-      // On current beta this flag is absent (undefined, falsy to pdfmake) — a tall row could be
-      // sliced mid-cell across two pages, which is one of the three layout defects #1929 reports.
-      expect(TABLE_LAYOUT.dontBreakRows).toBe(true);
-    });
-  });
-
-  describe('PAGE_TOP_MARGIN (regression #1929: header clipping/overlap on multi-page reports)', () => {
-    it('is exported as a number large enough to fit the rendered page-header footprint documented in shared.ts, with a sane upper bound', () => {
-      // On current beta this export does not exist at all (merge.ts hardcoded 40pt as the top
-      // margin instead). The value must be >= the documented 60.4pt header footprint (header line
-      // + subheader margin/line + buildPageHeader's own bottom margin, per merge.ts's `styles`)
-      // plus a visible gap, and comfortably below a runaway/typo-sized value.
-      expect(typeof PAGE_TOP_MARGIN).toBe('number');
-      expect(PAGE_TOP_MARGIN).toBeGreaterThanOrEqual(60.4);
-      expect(PAGE_TOP_MARGIN).toBeLessThan(150);
+    it('[regression #1929 round 2 / CRITICAL 1] never carries dontBreakRows — pdfmake reads that flag from the table node (TableProcessor.js:123: tableNode.table.dontBreakRows), never from the layout object passed as `layout:`', () => {
+      // Round 1 set `dontBreakRows: true` HERE, on TABLE_LAYOUT (passed to pdfmake as `layout:`).
+      // Confirmed inert by the architect's byte-identical-output test against a real render: since
+      // `layout` is only ever consumed for border/padding/fill callbacks (hLineWidth, paddingLeft,
+      // ...), nothing in pdfmake ever reads `_layout.dontBreakRows`. The real fix places the flag
+      // on the `table` object directly in overviewPdf.ts (see its own regression test, which reads
+      // the table node itself — the only place pdfmake actually honors it).
+      expect(TABLE_LAYOUT).not.toHaveProperty('dontBreakRows');
     });
   });
 });
