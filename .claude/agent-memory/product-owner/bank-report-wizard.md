@@ -343,3 +343,31 @@ All four carried ACs stand verbatim — #1925 is the date **caption** in the let
 - **`PDF_STYLES` is defined in `pageGeometry.ts`** and re-exported from `merge.ts` (existing `from './merge.js'` imports keep working) — new letter styles go in `pageGeometry.ts`, which must **never** import from `merge.ts`.
 - **`HEADER_ROW_HEIGHT_MAX`** is a ceiling (68pt vs 45.81pt measured), not an estimate. The cover letter ends with a hard `pageBreak: 'after'` so it never shares a page with the table — if #1932's implementation reaches for the constant at all, the layout approach has drifted.
 - #1932 should not touch `overviewPdf.ts`; #1937 owns that file's German-header work.
+
+## #1932 reviewed — PR #1951 APPROVED round 1 (2026-08-02)
+
+All 40 ACs met on `c17d9d44` + the locally-committed E2E follow-up `d60a98b3`. Provisional local runs: 149/149 (applyOverrides + coverLetterPdf + prompts), 63/63 (realRender), stylelint exit 0.
+
+### Rulings worth reusing
+
+- **AC 1.2 — a line-count-plus-spacing proof satisfies a "real render" AC.** `.positions.length` read off a node after `getBlob()`, plus uniform non-zero inter-line gaps, is *sufficient* proof that typed line/blank-line structure survived — no per-line text reconstruction needed — **when the body is a single text node whose `.text` is separately asserted byte-identical**. It genuinely discriminates: a collapsed blank line gives 3 not 4, and a per-token inline-run reflow (the #1929 `wordBreak` technique) destroys `\n` and fails. `._inlines` is the wrong signal — LayoutBuilder drains it to `[]` via `.shift()`; `.positions` is what survives with the right cardinality.
+- **"Updated, not deleted" is satisfied by "kept intact and still correct."** `realRender.test.ts:1057` (sender-override recomputes signature) was left untouched and still passes — it now describes the *fallback* branch. My AC's real concern was deletion of the pin. Downgraded the un-reworded title to informational; the adjacent AC 2.6 test is the actual guard against restoring the unconditional recompute.
+- **Chrome-vs-content adjacency in different languages is correct, not broken.** `closingLabel` ("Grußformel", interface `t()`) sitting directly above `closing` ("Sincerely,", `reportT`) is #1909's rule applied consistently — same relationship "Betreff" already has with English subject text. Stacking them **vertically** is what makes it read as caption-and-artifact rather than one broken sentence. This is also the whole basis of Option B below.
+- **#1925 Option B (restyle caption as chrome) beat Option A (`reportT` the caption)** because Option A would have fixed AC 6.1 by breaking AC 6.2 — every sibling caption in that panel is interface-language, so translating only one makes it the single inconsistent caption.
+- **Duplicate closure transfers ownership; it does not require every AC independently green.** Closed #1925 (board Wont-Do) with one AC only partially met, moving that residual to a MUST FIX on the PR where it would actually be acted on. Keeping it open would track the same work twice.
+
+### My own AC-transcription error — second instance of this failure mode
+
+**#1925 has SIX ACs; my #1932 §6 carried four** and I wrote "all four carried ACs stand verbatim." Dropped its AC3 (PDF date stays bare/label-free) and AC5 (unit pins both sides). Both had to be checked at review time, and AC5 turned out **partial** — the PDF side is pinned by exact equality, the editor side pins only pre-existing behaviour, not the colon-free caption that *is* the fix. **Rule: when folding issue B into issue A, count B's ACs and map every one explicitly — a dropped AC surfaces as an unverified claim at close time.** Companion to the #1933 AC 2.1/2.7 entry (ACs that misdescribe reality); this is ACs that silently go missing.
+
+### Findings filed as MUST FIX on #1951 (non-blocking)
+
+1. **German `closing` carries a comma** — `"Mit freundlichen Grüßen,"`. DIN 5008: **no comma** after the Grußformel; English `"Sincerely,"` correctly takes one. One-char `de`-only fix. Recurring class: translator mirroring English punctuation into a locale with a different convention.
+2. **New Closing read-only row has zero unit coverage** — deleting the JSX leaves every test green, so AC 4.2's preview-mirroring is unpinned.
+3. **#1925 AC5 editor-side pin missing** — nothing asserts the date caption renders colon-free.
+
+Also flagged: stray untracked `client/src/lib/reportPdf/__scratch_ux1951.test.ts` (ux-designer's scratch render test, claimed deleted, wasn't; not gitignored → `git add -A` would sweep it in), and re-run `ci-wait.sh` after pushing `d60a98b3` since the green on `c17d9d44` predates the E2E suite change.
+
+### AC 7.3 ordering ruled correct
+
+E2E belongs in the PR that closes the story, not a follow-up issue — deferring lets the story merge with a documented AC unmet. Scenarios 21–24 pair viewport with theme (desktop+light, mobile+dark) rather than a full 2×2; accepted as the existing convention in that spec file. **#1932 stays out of Done until UAT** — the user rejected the prior output by looking at a generated PDF, so acceptance is a human reading a real exported cover letter in EN and DE (same merge-gate-vs-Done-gate split as #1931).

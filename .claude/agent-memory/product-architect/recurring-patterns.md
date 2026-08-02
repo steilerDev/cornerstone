@@ -305,3 +305,38 @@ labelled U+046C when it is U+04AC.
 **My own figures are not exempt.** Both HIGH findings in PR #1948 traced to numbers I supplied in the #1929
 round-4 review and the PO transcribed faithfully into ACs. When a later PR exists only to make my
 recommendations true, re-derive them from scratch rather than checking transcription fidelity.
+
+## E2E: the report wizard's cover letter auto-enables only for sources with contact/reference (#1932 / PR #1951)
+
+`ReportWizardPage.tsx` sets `setIncludeCoverLetter(Boolean(r.source.contactAddress || r.source.reference))`
+on report fetch, and `reachStep5()` in `e2e/tests/budget/reportWizardEditableContent.spec.ts` never clicks
+`includeCoverLetterCheckbox`. `createBudgetSourceViaApi` defaults **only** `sourceType`/`status`.
+
+So a scenario seeding `{name, totalAmount}` alone gets `content.coverLetter === null`, no
+`[class*="coverLetterCard"]`, and every `wizard.letterField(...)` locator resolves to **zero elements**.
+The failure is asymmetric and easy to miss in review:
+
+- `await expect(resetButtonFor(field)).not.toBeVisible()` **passes vacuously** on 0 elements;
+- `editField(field, v)` (→ `field.fill()`) then times out.
+
+**Reviewer move:** for any E2E scenario touching `letterField`/`coverLetterCard`, grep its
+`createBudgetSourceViaApi` seed for `contactAddress`/`reference` before anything else. All pre-existing
+letter scenarios seed both. Same class as the "vacuously-passing negative assertion" smell already listed
+above — a `.not.toBeVisible()` that can pass because the element never existed proves nothing.
+
+## pdfmake: `.positions` is the post-render line count; `._inlines` drains to `[]` (#1932)
+
+For "did this text node really render N visual lines" assertions in `realRender.test.ts`:
+
+- `LayoutBuilder.js` L1183 `node.positions.push(this.writer.addLine(line))` runs **once per rendered line**
+  inside `processLine`'s loop, with `node` bound to the text node; `decorateNode()` L1279 inits
+  `node.positions = []`. So `positions.length` === visual line count, and `positions[i].top` gives spacing.
+- `._inlines` looks like the natural source (DocMeasure sets it) but LayoutBuilder consumes it as a queue
+  (see the `unshift` on the reflow path, L1174) — it is `[]` by the time `getBlob()` resolves.
+- An **empty** text node reserves a full line height (~18pt at 11pt/1.4) — it is not collapsed. This is why
+  the cover letter's signature block can be emitted unconditionally with no NBSP workaround, and also why
+  the `{ text: '', pageBreak: 'after' }` sentinel costs a real line.
+
+Caveat when reviewing such a proof: line-count + uniform-gap catches collapse/doubling/per-token reflow,
+but **not** content rewrites that preserve line count. Insist on `expect(node['text']).toBe(input)`
+alongside the count.

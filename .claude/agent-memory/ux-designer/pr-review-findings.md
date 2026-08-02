@@ -5,6 +5,12 @@ metadata:
   type: project
 ---
 
+## PR #1951 — Cover letter overhaul layout (Issue #1932, my own spec, comment `5160362068`) — APPROVED
+
+Real render (`generateReportPdf` → `pdftoppm`, scratch test deleted after) confirmed the full letter hierarchy (small sender/tight-grouped recipient/right-aligned date/tight reference+bold subject/paragraph-spaced body/closing+reserved-signature-space) reads correctly, matching the spec's margin table exactly (`coverLetterPdf.ts` margins are byte-identical to spec: 4/32/20/4/16/32/54/0). Empty-signature case confirmed empirically to reserve the identical footprint — informational-only note that it has no visual "sign here" anchor, not blocking. `PAGE_TOP_MARGIN` (93pt) confirmed untouched by grepping the diff; the real render shows it reads as a plausible letter top-margin, not a glitch.
+
+Could not get a pixel render for the React/CSS side (items 3-5 of the ask: step-5 preview closing row, chrome/content caption split, reset-button proportions) — Playwright's browser download is blocked by this sandbox's network policy and no system Chromium is installable. Substituted a static-HTML CSS harness (real `.module.css`/`tokens.css` file contents, hand-written markup matching the exact JSX tree) verified by direct CSS-rule/box-model comparison: confirmed `.readOnlyLabel` is byte-for-byte identical to `EditableField`'s own `<label>` rule (font-size/weight/color, all same token refs) — the mechanism the Option B "chrome reads as chrome" bet actually depends on; confirmed the reset-button fix is correct via flex box-model math (`.container`'s default `align-items: stretch` was why the button + its 100%-sized svg glyph stretched full-width before; `align-self: flex-start` + fixed `--font-size-lg` svg + pre-existing `min-width/height: 44px` now yields a compact intrinsic ~44×44 button). This is real verification for deterministic box-model claims but was disclosed explicitly as not equivalent to an actual render for subjective spacing/contrast judgment calls. See [pdfmake-rendering-verification.md](pdfmake-rendering-verification.md) for the PDF-side technique and the MEMORY.md quick-reference entry for the CSS-harness fallback technique.
+
 ## PR #792 — Budget Sources Bar Chart
 
 - `color-mix()` in inline `style` prop bypasses the token system — allocate a named token instead

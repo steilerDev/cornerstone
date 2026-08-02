@@ -1867,8 +1867,15 @@ test.describe('Report wizard editable content — cover letter overhaul, desktop
 
       await reachStep5(wizard, sourceId);
 
+      // Positive existence check FIRST — a `hasEditedIndicator()` boolean-false check below
+      // would otherwise pass just as vacuously against a field that never mounted (its
+      // `.count() > 0` check returns `false` for zero matches without throwing) as the
+      // `.not.toBeVisible()` calls flagged elsewhere in this file's Scenario 24 fix.
+      await expect(wizard.coverLetterCard).toBeVisible();
       const signature = wizard.letterField('signature');
       const body = wizard.letterField('body');
+      await expect(signature).toBeVisible();
+      await expect(body).toBeVisible();
 
       expect(await wizard.hasEditedIndicator(signature)).toBe(false);
       expect(await wizard.hasEditedIndicator(body)).toBe(false);
@@ -2019,8 +2026,15 @@ test.describe('Report wizard editable content — signature survives a later sen
 
       await reachStep5(wizard, sourceId);
 
+      // Positive existence check FIRST, before any edit/fill — see Scenario 21's own note on
+      // why this matters even though `fill()` itself would also fail against a 0-element
+      // locator (this makes the failure mode explicit and immediate rather than a generic
+      // actionability timeout).
+      await expect(wizard.coverLetterCard).toBeVisible();
       const signature = wizard.letterField('signature');
       const sender = wizard.letterField('sender');
+      await expect(signature).toBeVisible();
+      await expect(sender).toBeVisible();
 
       // Edit the signature FIRST — an explicit override.
       const explicitSignature = `${testPrefix} Explicitly Signed`;
@@ -2074,6 +2088,14 @@ test.describe('Report wizard editable content — signature field reset (Scenari
       sourceId = await createBudgetSourceViaApi(page, {
         name: `${testPrefix} ResetSig Source`,
         totalAmount: 10000,
+        // The cover letter only mounts when the source has a contactAddress or reference
+        // (`ReportWizardPage.tsx` L279's `setIncludeCoverLetter` auto-enable check) — without
+        // one of these, `content.coverLetter` is null, `letterField('signature')` resolves to
+        // ZERO elements, and every assertion below (including the `.not.toBeVisible()` ones)
+        // would pass vacuously against a locator matching nothing rather than proving anything
+        // about reset behavior. Matches the seed shape used by Scenarios 21-23.
+        contactAddress: '1 ResetSig St, Testville',
+        reference: 'Ref-RESETSIG',
       });
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI ResetSig` });
       await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
@@ -2085,12 +2107,19 @@ test.describe('Report wizard editable content — signature field reset (Scenari
 
       await reachStep5(wizard, sourceId);
 
+      // Positive existence check FIRST: proves the cover letter card (and therefore the
+      // signature field) actually mounted, before relying on any `.not.toBeVisible()`
+      // assertion below — a locator matching zero elements would otherwise pass those
+      // trivially without proving the scenario is looking at the right page state at all.
+      await expect(wizard.coverLetterCard).toBeVisible();
       const signature = wizard.letterField('signature');
+      await expect(signature).toBeVisible();
       const baseline = await signature.inputValue();
 
       // No reset affordance before any edit — the button is conditionally MOUNTED, not merely
       // hidden (see `resetButtonFor`'s own docstring), so `.not.toBeVisible()` here also proves
-      // it isn't present at all.
+      // it isn't present at all (now safe: `signature`'s own existence was already confirmed
+      // above).
       await expect(wizard.resetButtonFor(signature)).not.toBeVisible();
 
       await wizard.editField(signature, 'A completely different signature');

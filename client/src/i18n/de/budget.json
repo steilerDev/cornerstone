@@ -1190,7 +1190,7 @@
         "claim": "Hiermit reichen wir Rechnungen in Höhe von insgesamt {{total}} zur Erstattung ein.",
         "proof-of-funds": "Anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
       },
-      "closing": "Mit freundlichen Grüßen,"
+      "closing": "Mit freundlichen Grüßen"
     },
     "editable": {
       "senderLabel": "Absender",

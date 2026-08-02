@@ -464,3 +464,32 @@ Residual, non-blocking: `PDF_DEFAULT_STYLE` stayed in `merge.ts` with hardcoded 
 `lineHeight: 1.4`, while `pageGeometry.ts:55` has `DEFAULT_LINE_HEIGHT = 1.4 // matches merge.ts's
 defaultStyle.lineHeight` — the load-bearing half of the duplicate (feeds `headerFootprint()` ->
 `PAGE_TOP_MARGIN` and `HEADER_ROW_HEIGHT_MAX`). Moving it down closes AC8's intent fully.
+
+## PR #1951 — #1932 cover letter overhaul (CHANGES_REQUIRED, 2026-08-02)
+
+Blocking: E2E Scenario 24 seeds a source with no `contactAddress`/`reference`, so the cover letter never
+enables and every `letterField` locator is empty — see the cover-letter-auto-enable section in
+[recurring-patterns.md](recurring-patterns.md).
+
+Verified clean and worth not re-litigating: `pageGeometry.ts` still has no `merge.ts` import;
+`HEADER_ROW_HEIGHT_MAX` is untouched by `coverLetterPdf.ts` (the #1932 drift signal did not fire);
+`pageBreak: 'after'` genuinely guarantees the table starts on a fresh page (`merge.ts` L114-119 pushes
+letter then overview into one flat array). `ReportContentCoverLetter` is **client-only** — `shared/` and
+`server/` never mention `coverLetter`, so a client-only typecheck really was sufficient for the new
+required `closing` field.
+
+Non-blocking, recorded as the intended end state:
+- `letterSubject` reuses `SUBHEADER_FONT_SIZE`, which `headerFootprint()` consumes (`pageGeometry.ts:144`)
+  — false sharing of two semantically unrelated 12pt values. Alias it if it recurs.
+- `pageGeometry.ts` now holds its first `PDF_STYLES` entry with no geometry consumer. Trigger for splitting
+  out `pdfStyles.ts` (direction `pageGeometry <- pdfStyles <- merge`): the second such entry.
+- `buildReportContent`'s `options.user` is `user?:` while its sibling `household` is required-nullable —
+  no design reason; end state is `user: Pick<UserResponse,'displayName'> | null`. Deferred: ~47
+  option-passing call sites.
+- AC 1.5 ("no `dangerouslySetInnerHTML`, no markup parsing") is review-enforced only. `react/no-danger`
+  is a zero-diff enable — `dangerouslySetInnerHTML` appears nowhere in `client/src`. **Mine to do.**
+- AC 1.6's plain-prose guarantee is prompt-level only; the response validator truncates length but does
+  not strip markup, so a drifting model still puts `**` in a bank PDF.
+- `wiki/API-Contract.md` `POST /api/source-reports/generate-content` needs a `letterBody` plain-prose
+  bullet + a note that `closing`/`dateLine`/`signature` are client-derived and deliberately not in the
+  response shape.

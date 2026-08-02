@@ -1152,12 +1152,20 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
 
       const pdfContent = buildCoverLetterContent(effective, tEn);
       const bodyItem = findBodyItem(pdfContent, 'First paragraph, line one.');
+      // Residual gap the architect flagged: line-count + spacing alone don't rule out a rewrite
+      // that alters the TEXT while preserving both (e.g. a per-token reflow that reassembles the
+      // same number of lines from different words). Pin the exact source text too — same pattern
+      // as the sibling AC 1.3 test below.
+      expect(bodyItem['text']).toBe(body);
 
       await renderCoverLetterPdfContent(pdfContent);
 
       // 4 explicit segments: "line one.", "line two.", "" (the blank line), "one line." — each
       // must resolve to exactly one rendered visual line (none of them wraps).
       expect(linesRenderedFor(bodyItem)).toBe(4);
+      // The real render must not have rewritten `.text` either (pdfmake only ever ADDS derived
+      // measurement/position properties to a text node, per the AC 1.3 test's own comment).
+      expect(bodyItem['text']).toBe(body);
 
       const positions = bodyItem['positions'] as { top: number }[];
       const gaps = positions.slice(1).map((p, i) => p.top - positions[i]!.top);
