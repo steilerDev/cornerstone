@@ -126,6 +126,25 @@ export function ReportWizardPage() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const pendingChangeRef = useRef<(() => void) | null>(null);
 
+  // #1943: the ?sourceId= deep link auto-selects a source AT MOST ONCE per page load. Without
+  // this guard, clearing `report` as part of a use-case change re-satisfies this effect's
+  // `!report` condition and silently re-fires handleSourceChange with the ORIGINAL query-string
+  // source id — re-selecting a source and pushing maxReachedStep back to 3, undoing the very
+  // reset handleUseCaseChange performs (see #1943 AC8). The ref persists for the component's
+  // full lifetime and is never reset: sourceIdFromQuery is derived from the URL's search params
+  // once and this page never calls setSearchParams, so the deep-link source id is immutable for
+  // as long as this component instance is mounted.
+  const deepLinkAppliedRef = useRef(false);
+
+  // #1943 (M1): tokens the report-fetch race between handleUseCaseChange and handleSourceChange.
+  // Neither fetch aborts its predecessor, so an out-of-order resolution — a use-case-A fetch
+  // that settles AFTER a later use-case-B fetch for the same source — would let the stale A
+  // report win the `setReport`/`setReportStatus` write, reaching step 3 with a report from the
+  // wrong use case even though the reset above already cleared it. Bumping this token wherever
+  // a fetch starts and checking it in every callback before writing state discards any response
+  // that isn't from the most recently started fetch, in either the success or error path.
+  const reportRequestRef = useRef(0);
+
   // PDF preview modal
   const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
   const [activeAction, setActiveAction] = useState<'preview' | 'download' | 'paperless' | null>(
@@ -202,6 +221,18 @@ export function ReportWizardPage() {
         setStep2Amounts(new Map());
         setStep2Loading(true);
 
+        // #1943: a use-case change invalidates any report fetched under the previous use
+        // case (and the source-gated Step 2 Next control, which only checks `sourceId`).
+        // Clear both so the wizard can't carry a stale report into a later step.
+        // #1943 (M1): also bump the request token so an in-flight fetch from the previous
+        // use case can never win the race against a report fetched after this reset.
+        reportRequestRef.current += 1;
+        setReport(null);
+        setReportStatus('loading');
+        setSourceId(null);
+        setExcludedInvoiceIds(new Set());
+        setExcludedLineIds(new Set());
+
         // Fetch amounts for all sources in parallel
         Promise.all(
           budgetSources.map((source) =>
@@ -232,15 +263,22 @@ export function ReportWizardPage() {
         setMaxReachedStep(3);
         setReportStatus('loading');
 
+        // #1943 (M1): bump the token before starting this fetch so it can only ever be the
+        // authoritative response for its own request generation — any earlier fetch (whether
+        // started under this use case or a previous one) is discarded below on resolution.
+        const requestId = ++reportRequestRef.current;
+
         if (useCase) {
           getSourceReport(useCase, sid)
             .then((r) => {
+              if (reportRequestRef.current !== requestId) return;
               setReport(r);
               // Auto-enable cover letter based on source
               setIncludeCoverLetter(Boolean(r.source.contactAddress || r.source.reference));
               setReportStatus('ready');
             })
             .catch((err) => {
+              if (reportRequestRef.current !== requestId) return;
               console.error(err);
               setReportStatus('error');
             });
@@ -252,7 +290,8 @@ export function ReportWizardPage() {
 
   // Handle ?sourceId= query parameter deep link
   useEffect(() => {
-    if (useCase && sourceIdFromQuery && !report) {
+    if (useCase && sourceIdFromQuery && !report && !deepLinkAppliedRef.current) {
+      deepLinkAppliedRef.current = true;
       handleSourceChange(sourceIdFromQuery);
     }
   }, [useCase, sourceIdFromQuery, report, handleSourceChange]);
