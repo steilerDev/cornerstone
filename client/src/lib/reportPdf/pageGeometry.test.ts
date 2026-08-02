@@ -52,11 +52,11 @@ describe('pageGeometry — page constants', () => {
     expect(TABLE_BODY_FONT_SIZE).toBe(8);
   });
 
-  it('[#1929 round 3] TABLE_HEADER_FONT_SIZE is 10, extracted from merge.ts PDF_STYLES.tableHeader so overviewPdf.ts header word-break threshold is computed from the same constant merge.ts renders with', () => {
+  it('[#1929 round 3] TABLE_HEADER_FONT_SIZE is 10, consumed by PDF_STYLES.tableHeader below (#1939 relocated PDF_STYLES into this module) so overviewPdf.ts header word-break threshold is computed from the same constant PDF_STYLES renders with', () => {
     expect(TABLE_HEADER_FONT_SIZE).toBe(10);
   });
 
-  it('[#1929 round 4] TABLE_SMALL_FONT_SIZE is 9, extracted from merge.ts PDF_STYLES.small so overviewPdf.ts areaText/attachmentsNote continuation-row word-break threshold (SMALL_SAFE_TOKEN_CHARS_*COL) is computed from the same constant merge.ts renders with', () => {
+  it('[#1929 round 4] TABLE_SMALL_FONT_SIZE is 9, consumed by PDF_STYLES.small below (#1939 relocated PDF_STYLES into this module) so overviewPdf.ts areaText/attachmentsNote continuation-row word-break threshold (SMALL_SAFE_TOKEN_CHARS_*COL) is computed from the same constant PDF_STYLES renders with', () => {
     expect(TABLE_SMALL_FONT_SIZE).toBe(9);
   });
 

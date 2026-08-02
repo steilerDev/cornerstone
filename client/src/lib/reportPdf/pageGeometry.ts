@@ -4,14 +4,16 @@
  * (see #1929 architect review: a hand-derived bound that restates its own derivation cannot
  * catch an error in that derivation — and one shipped in round 1, see PAGE_TOP_MARGIN below).
  *
- * NOTE for #1932 (cover-letter overhaul, deferred here per round-3 architect review): merge.ts's
- * `PDF_STYLES` duplicates several font-size literals this module also needs (header/subheader
- * font sizes above, TABLE_HEADER_FONT_SIZE/TABLE_SMALL_FONT_SIZE below) — the same drift risk
- * PAGE_TOP_MARGIN itself was fixed against. Resolving it means moving `PDF_STYLES`'s definition
- * DOWN into this module (or a shared module this one doesn't depend on) so merge.ts imports it
- * from here, not the other way around — this file must never import from merge.ts, since merge.ts
- * already imports from this file and reversing that edge creates a circular import.
+ * DIRECTIONAL RULE (#1939, resolving the note #1929 round-3 left here): `PDF_STYLES` is defined
+ * in THIS module (below) rather than in merge.ts, precisely so the font-size literals it needs
+ * (header/subheader sizes above, TABLE_HEADER_FONT_SIZE/TABLE_BODY_FONT_SIZE/
+ * TABLE_SMALL_FONT_SIZE below) are the same constants this module's own geometry math consumes —
+ * one definition, not two drifting copies (the same risk PAGE_TOP_MARGIN was fixed against).
+ * merge.ts imports `PDF_STYLES` from here and re-exports it for its own consumers. This module
+ * must never import from merge.ts — merge.ts already imports geometry from this file, and
+ * reversing that edge would create a circular import.
  */
+import type { Style } from 'pdfmake/build/pdfmake';
 
 export const PAGE_WIDTH = 595.28; // A4, pt
 export const PAGE_HEIGHT = 841.89; // A4, pt
@@ -34,18 +36,18 @@ export const V_LINE_WIDTH = 0.5;
 export const TABLE_BODY_FONT_SIZE = 8;
 
 /**
- * Table header-row font size, pt — extracted from merge.ts's `PDF_STYLES.tableHeader` so
- * overviewPdf.ts's header word-break threshold (#1929 round-3 architect review HIGH1) is
- * computed from the same constant merge.ts renders with, not a duplicated literal (the same
- * drift risk the architect flagged for PAGE_TOP_MARGIN in round 2 — see M5 in shared.ts's git
- * history — relocated here if left unparametrized).
+ * Table header-row font size, pt — consumed by `PDF_STYLES.tableHeader` below (#1939 relocated
+ * `PDF_STYLES` into this module, see the file header comment) and by overviewPdf.ts's header
+ * word-break threshold (#1929 round-3 architect review HIGH1), so both read the same constant
+ * instead of a duplicated literal (the same drift risk the architect flagged for PAGE_TOP_MARGIN
+ * in round 2 — see M5 in shared.ts's git history).
  */
 export const TABLE_HEADER_FONT_SIZE = 10;
 
 /**
  * Font size, pt, for the 'small' style used by the Usage column's areaText/attachmentsNote
  * continuation rows (#1929 round-4 architect review HIGH — see overviewPdf.ts's
- * MAX_SAFE_SMALL_CHUNK_CHARS). Extracted from merge.ts's `PDF_STYLES.small` for the same
+ * MAX_SAFE_SMALL_CHUNK_CHARS). Consumed by `PDF_STYLES.small` below for the same
  * single-source-of-truth reason as TABLE_HEADER_FONT_SIZE above.
  */
 export const TABLE_SMALL_FONT_SIZE = 9;
@@ -53,11 +55,56 @@ export const TABLE_SMALL_FONT_SIZE = 9;
 export const DEFAULT_LINE_HEIGHT = 1.4; // matches merge.ts's defaultStyle.lineHeight
 
 // --- Header footprint (AC6/AC7/AC13) ---
-const HEADER_FONT_SIZE = 14; // merge.ts styles.header
-const SUBHEADER_FONT_SIZE = 12; // merge.ts styles.subheader
-const SUBHEADER_MARGIN_TOP = 4; // merge.ts styles.subheader margin
+const HEADER_FONT_SIZE = 14; // PDF_STYLES.header, below
+const SUBHEADER_FONT_SIZE = 12; // PDF_STYLES.subheader, below
+const SUBHEADER_MARGIN_TOP = 4; // PDF_STYLES.subheader margin, below
 const HEADER_BLOCK_BOTTOM_MARGIN = 20; // buildPageHeader's own margin: [0,0,0,20]
 const HEADER_TOP_GAP = 15; // visible separation kept above the computed footprint
+
+/**
+ * Shared pdfmake document-definition style dictionary. Relocated here from merge.ts (#1939, AC8/
+ * AC9) so its font-size literals (`tableHeader`, `tableCell`, `small`, `header`, `subheader`) are
+ * drawn from the SAME constants this module's own header-footprint and table-geometry math
+ * consumes, rather than a second copy of the same numbers — see the module header comment above.
+ * merge.ts imports and re-exports this for its own consumers (its `createPdf()` call and its
+ * tests). Typed explicitly as `Record<string, Style>` / `Style` (from `pdfmake/build/pdfmake`)
+ * because an untyped object literal here would widen `alignment: 'left'` to `string` outside
+ * `createPdf()`'s contextual typing — preserve this typing if this is edited further.
+ */
+export const PDF_STYLES: Record<string, Style> = {
+  normal: {
+    fontSize: 11,
+  },
+  title: {
+    fontSize: 16,
+    bold: true,
+    color: '#1f2937',
+  },
+  subheader: {
+    fontSize: SUBHEADER_FONT_SIZE,
+    color: '#6b7280',
+    margin: [0, SUBHEADER_MARGIN_TOP, 0, 0],
+  },
+  header: {
+    fontSize: HEADER_FONT_SIZE,
+    bold: true,
+    color: '#111827',
+  },
+  tableHeader: {
+    bold: true,
+    fontSize: TABLE_HEADER_FONT_SIZE,
+    color: '#ffffff',
+    fillColor: '#1f2937',
+    alignment: 'left',
+  },
+  tableCell: {
+    fontSize: TABLE_BODY_FONT_SIZE,
+  },
+  small: {
+    fontSize: TABLE_SMALL_FONT_SIZE,
+    color: '#6b7280',
+  },
+};
 
 export function printableWidth(): number {
   return PAGE_WIDTH - 2 * PAGE_MARGIN_X; // 515.28
@@ -95,8 +142,8 @@ export function headerFootprint(): number {
 
 /**
  * Top page margin, pt — computed, not hand-picked, so a future change to the header/subheader
- * styles in merge.ts automatically keeps this margin correct (#1929 architect review Q2: a bound
- * that only restates its own derivation can't catch an error in it).
+ * font sizes in PDF_STYLES above automatically keeps this margin correct (#1929 architect review
+ * Q2: a bound that only restates its own derivation can't catch an error in it).
  */
 export const PAGE_TOP_MARGIN = Math.ceil(headerFootprint() + HEADER_TOP_GAP); // 93
 

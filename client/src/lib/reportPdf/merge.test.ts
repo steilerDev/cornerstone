@@ -764,7 +764,7 @@ describe('generateReportPdf', () => {
   });
 
   describe('#1929 round 2: PDF_STYLES / PDF_DEFAULT_STYLE exports (scenario 15)', () => {
-    it('are exported from merge.ts and structurally match what generateReportPdf actually passes to createPdf()', async () => {
+    it('are exported from merge.ts (PDF_STYLES re-exported from pageGeometry.ts, #1939; PDF_DEFAULT_STYLE defined here) and structurally match what generateReportPdf actually passes to createPdf()', async () => {
       const { PDF_STYLES, PDF_DEFAULT_STYLE } = (await import('./merge.js')) as typeof MergeModule;
       expect(PDF_STYLES).toBeDefined();
       expect(PDF_DEFAULT_STYLE).toBeDefined();

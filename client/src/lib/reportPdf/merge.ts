@@ -11,14 +11,7 @@ import { buildCoverLetterContent } from './coverLetterPdf.js';
 import { buildOverviewContent } from './overviewPdf.js';
 import type { GeneratedReport, SkippedDocument } from './types.js';
 import { getDocumentPreviewUrl } from '../paperlessApi.js';
-import {
-  PAGE_MARGIN_X,
-  PAGE_TOP_MARGIN,
-  PAGE_MARGIN_BOTTOM,
-  TABLE_BODY_FONT_SIZE,
-  TABLE_HEADER_FONT_SIZE,
-  TABLE_SMALL_FONT_SIZE,
-} from './pageGeometry.js';
+import { PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_BOTTOM, PDF_STYLES } from './pageGeometry.js';
 
 /**
  * Shared pdfmake document-definition literals, extracted so tests can build a realistic
@@ -31,40 +24,12 @@ export const PDF_DEFAULT_STYLE: Style = {
   lineHeight: 1.4,
 };
 
-export const PDF_STYLES: Record<string, Style> = {
-  normal: {
-    fontSize: 11,
-  },
-  title: {
-    fontSize: 16,
-    bold: true,
-    color: '#1f2937',
-  },
-  subheader: {
-    fontSize: 12,
-    color: '#6b7280',
-    margin: [0, 4, 0, 0],
-  },
-  header: {
-    fontSize: 14,
-    bold: true,
-    color: '#111827',
-  },
-  tableHeader: {
-    bold: true,
-    fontSize: TABLE_HEADER_FONT_SIZE,
-    color: '#ffffff',
-    fillColor: '#1f2937',
-    alignment: 'left',
-  },
-  tableCell: {
-    fontSize: TABLE_BODY_FONT_SIZE,
-  },
-  small: {
-    fontSize: TABLE_SMALL_FONT_SIZE,
-    color: '#6b7280',
-  },
-};
+// `PDF_STYLES` is defined in pageGeometry.ts (#1939) — it needs the same font-size constants
+// pageGeometry.ts's own header-footprint/table-geometry math depends on, so it lives where
+// those constants are the source of truth rather than duplicating them here. Re-exported so
+// existing consumers of `merge.ts`'s `PDF_STYLES` (this file's own createPdf() call below, and
+// merge.test.ts) are unaffected by the relocation.
+export { PDF_STYLES };
 
 export async function generateReportPdf(
   report: SourceReportResponse,
