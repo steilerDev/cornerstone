@@ -95,10 +95,12 @@ function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
     invoiceAmountText: '€100.00',
     allocatedAmountValueText: '€100.00',
     allocatedMarkers: '',
+    isDeposit: false,
     isRefund: false,
     refundNoteText: '',
     usageText: 'Baseline usage',
     attachmentsNote: null,
+    areaText: null,
     ...overrides,
   };
 }
@@ -106,6 +108,7 @@ function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
 function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   return {
     isOverview: false,
+    isClaim: false,
     tableTitle: 'Title',
     labels: LABELS,
     sourceInfo: {
@@ -648,20 +651,17 @@ describe('ReportContentEditor — table rows', () => {
 });
 
 describe('ReportContentEditor — summary rows and footnotes', () => {
-  it('renders each summaryRow as a plain (non-editable) row with label and amount', () => {
+  it('AC4: renders a single Total-only summaryRow as a plain (non-editable) row with label and amount', () => {
     const content = makeContent({
-      // Distinct amount strings from the default row's own €100.00 to avoid ambiguous matches
+      // Distinct amount string from the default row's own €100.00 to avoid ambiguous matches
       // against the table body (which also renders the fixture row's amount cells).
-      summaryRows: [
-        { key: 'subtotal-paid', label: 'Paid Subtotal', amountText: '€150.00' },
-        { key: 'total', label: 'Total', amountText: '€550.00' },
-      ],
+      summaryRows: [{ key: 'total', label: 'Total', amountText: '€550.00' }],
     });
     renderEditor({ content });
-    expect(screen.getByText('Paid Subtotal')).toBeInTheDocument();
-    expect(screen.getByText('€150.00')).toBeInTheDocument();
     expect(screen.getByText('Total')).toBeInTheDocument();
     expect(screen.getByText('€550.00')).toBeInTheDocument();
+    // No subtotal-labeled row survives alongside it.
+    expect(screen.queryByText(/Subtotal/)).not.toBeInTheDocument();
   });
 
   it('renders no summary table when summaryRows is empty', () => {
@@ -670,23 +670,113 @@ describe('ReportContentEditor — summary rows and footnotes', () => {
     expect(container.querySelector('table + table')).not.toBeInTheDocument();
   });
 
-  it('renders each footnote with its marker and text, read-only', () => {
+  it('renders each footnote with its unnumbered/shared marker and text, read-only', () => {
     const content = makeContent({
       footnotes: [
-        { id: 'split-1', marker: '†1', text: 'ACME (A-1) — split footnote' },
-        { id: 'deposit-1', marker: '‡1', text: 'Beta (B-2) — deposit footnote' },
+        { id: 'split', marker: '†', text: 'Amount shown reflects only the portion allocated.' },
+        {
+          id: 'deposit-reduced',
+          marker: '‡',
+          text: 'This position reflects deposits claimed separately.',
+        },
       ],
     });
     renderEditor({ content });
-    expect(screen.getByText('†1:')).toBeInTheDocument();
-    expect(screen.getByText(/ACME \(A-1\) — split footnote/)).toBeInTheDocument();
-    expect(screen.getByText('‡1:')).toBeInTheDocument();
+    expect(screen.getByText('†:')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Amount shown reflects only the portion allocated\./),
+    ).toBeInTheDocument();
+    expect(screen.getByText('‡:')).toBeInTheDocument();
   });
 
   it('renders no footnotes block when footnotes is empty', () => {
     const content = makeContent({ footnotes: [] });
     renderEditor({ content });
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+});
+
+describe('ReportContentEditor — isClaim (AC3: claim reports omit the source info metadata block)', () => {
+  it('AC3.1: omits the sourceInfoBlock entirely when content.isClaim is true', () => {
+    const content = makeContent({ isClaim: true });
+    renderEditor({ content });
+    expect(screen.queryByText(`${LABELS.source}: Home Loan`)).not.toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(`^${LABELS.sourceType}:`))).not.toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(`^${LABELS.generatedAt}:`))).not.toBeInTheDocument();
+  });
+
+  it('renders the sourceInfoBlock when content.isClaim is false (budget-overview/proof-of-funds)', () => {
+    const content = makeContent({ isClaim: false });
+    renderEditor({ content });
+    expect(screen.getByText(`${LABELS.source}: Home Loan`)).toBeInTheDocument();
+  });
+});
+
+describe('ReportContentEditor — isDeposit (AC2.1: inline Deposit badge, no marker)', () => {
+  it('renders a Deposit badge in the desktop allocated cell and no ‡ marker for an isDeposit row', () => {
+    const rows = [
+      makeRow({
+        invoiceId: 'inv-1',
+        isDeposit: true,
+        allocatedMarkers: '',
+        allocatedAmountValueText: '€300.00',
+      }),
+    ];
+    const { container } = renderEditor({ content: makeContent({ rows }) });
+    const table = getDesktopTable(container);
+    expect(
+      within(table).getByText('sourceReports.table.attachmentType.deposit'),
+    ).toBeInTheDocument();
+    expect(within(table).queryByText(/‡/)).not.toBeInTheDocument();
+  });
+
+  it('renders the same Deposit badge in the mobile card allocated row', () => {
+    const rows = [makeRow({ invoiceId: 'inv-1', isDeposit: true })];
+    const { container } = renderEditor({ content: makeContent({ rows }) });
+    const card = within(getMobileList(container));
+    expect(card.getByText('sourceReports.table.attachmentType.deposit')).toBeInTheDocument();
+  });
+
+  it('renders no Deposit badge for a non-deposit row', () => {
+    const rows = [makeRow({ invoiceId: 'inv-1', isDeposit: false })];
+    const { container } = renderEditor({ content: makeContent({ rows }) });
+    expect(
+      screen.queryByText('sourceReports.table.attachmentType.deposit'),
+    ).not.toBeInTheDocument();
+    void container;
+  });
+});
+
+describe('ReportContentEditor — areaText (AC5.2/5.3: distinct element below the usage field)', () => {
+  it('renders areaText as a distinct element below the desktop Usage EditableField, not inside its value', () => {
+    const rows = [
+      makeRow({ invoiceId: 'inv-1', usageText: 'Kitchen work', areaText: 'Ground Floor' }),
+    ];
+    const { container } = renderEditor({ content: makeContent({ rows }) });
+    const table = getDesktopTable(container);
+    const usageInput = within(table).getByDisplayValue('Kitchen work');
+    // The area text is not baked into the editable input's value.
+    expect(usageInput).not.toHaveValue('Kitchen work / Ground Floor');
+    const areaEl = within(table).getByText('Ground Floor');
+    expect(areaEl.className).toContain(styles.usageAreaText);
+    expect(areaEl.tagName).toBe('DIV');
+  });
+
+  it('renders areaText as a <span> in the mobile card usage row', () => {
+    const rows = [
+      makeRow({ invoiceId: 'inv-1', usageText: 'Kitchen work', areaText: 'Ground Floor' }),
+    ];
+    const { container } = renderEditor({ content: makeContent({ rows }) });
+    const card = within(getMobileList(container));
+    const areaEl = card.getByText('Ground Floor');
+    expect(areaEl.className).toContain(styles.usageAreaText);
+    expect(areaEl.tagName).toBe('SPAN');
+  });
+
+  it('renders no area element (desktop or mobile) when areaText is null', () => {
+    const rows = [makeRow({ invoiceId: 'inv-1', areaText: null })];
+    const { container } = renderEditor({ content: makeContent({ rows }) });
+    expect(container.querySelectorAll(`.${styles.usageAreaText}`)).toHaveLength(0);
   });
 });
 

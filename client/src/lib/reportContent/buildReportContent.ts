@@ -27,6 +27,24 @@ function uniqueInOrder<T>(items: T[]): T[] {
 }
 
 /**
+ * Helper: get area text from invoice budget lines.
+ * Returns distinct linked item areaName values, first-seen order, comma-joined, or null when empty.
+ */
+function getAreaText(invoice: {
+  budgetLines: Array<{ linkedItem: { areaName: string | null } | null }>;
+}): string | null {
+  const areaNames = invoice.budgetLines
+    .map((line) => line.linkedItem?.areaName)
+    .filter((name) => name !== null && name !== undefined) as string[];
+
+  if (areaNames.length === 0) {
+    return null;
+  }
+
+  return uniqueInOrder(areaNames).join(', ');
+}
+
+/**
  * Helper: get usage text from invoice budget lines.
  * Returns distinct linked item names if any line has linkedItem; else distinct descriptions; else '—'.
  */
@@ -120,39 +138,32 @@ export function buildReportContent(
     generatedAtText,
   };
 
-  // Track footnotes for split/deposit (skip footnotes handled at generation time)
-  const splitFootnotesByInvoiceId = new Map<string, number>();
-  const depositFootnotesByInvoiceId = new Map<
-    string,
-    { num: number; wording: 'reduced' | 'constituted' }
-  >();
-  let splitFootnoteNum = 1;
-  let depositFootnoteNum = 1;
+  // Track invoices for split/deposit markers
+  const splitInvoiceIds = new Set<string>();
+  const depositReducedInvoiceIds = new Set<string>();
+  const depositConstitutedInvoiceIds = new Set<string>();
 
   for (const invoice of report.invoices) {
-    if (!includedInvoiceIds.has(invoice.invoiceId) || !invoice.isSplit) {
+    if (!includedInvoiceIds.has(invoice.invoiceId)) {
       continue;
     }
-    if (invoice.budgetLines.length > 0) {
-      splitFootnotesByInvoiceId.set(invoice.invoiceId, splitFootnoteNum++);
+
+    if (invoice.isSplit && invoice.budgetLines.length > 0) {
+      splitInvoiceIds.add(invoice.invoiceId);
     }
-    if (invoice.deposits.length > 0) {
+
+    if (invoice.isSplit && invoice.deposits.length > 0) {
       const taggedDeposit = invoice.deposits.some((d) => d.budgetSourceId === report.source.id);
-      depositFootnotesByInvoiceId.set(invoice.invoiceId, {
-        num: depositFootnoteNum++,
-        wording: taggedDeposit ? 'constituted' : 'reduced',
-      });
+      if (taggedDeposit) {
+        depositConstitutedInvoiceIds.add(invoice.invoiceId);
+      } else {
+        depositReducedInvoiceIds.add(invoice.invoiceId);
+      }
     }
   }
 
   // Build table rows
   const rows: ReportContentRow[] = [];
-  const statusCounts: Record<InvoiceStatus, number> = {
-    pending: 0,
-    paid: 0,
-    claimed: 0,
-    quotation: 0,
-  };
 
   for (const invoice of report.invoices) {
     if (!includedInvoiceIds.has(invoice.invoiceId)) {
@@ -160,7 +171,6 @@ export function buildReportContent(
     }
 
     const status = invoice.status as InvoiceStatus;
-    statusCounts[status]++;
 
     const invoiceAmountText = reportFormatters
       ? reportFormatters.formatCurrency(invoice.invoiceAmount)
@@ -172,20 +182,20 @@ export function buildReportContent(
 
     const statusText = isOverview ? reportT(`sources.lines.invoiceStatus.${status}`) : null;
 
-    // Compute allocated markers (split + deposit only; skip markers added at generation time)
-    const splitMarker = splitFootnotesByInvoiceId.get(invoice.invoiceId);
-    const depositMarker = depositFootnotesByInvoiceId.get(invoice.invoiceId);
+    // Compute allocated markers († for split, ‡ for reduced; no markers for constituted deposits)
     let allocatedMarkers = '';
-    if (splitMarker) {
-      allocatedMarkers += `†${splitMarker}`;
+    if (splitInvoiceIds.has(invoice.invoiceId)) {
+      allocatedMarkers += '†';
     }
-    if (depositMarker) {
-      allocatedMarkers += `‡${depositMarker.num}`;
+    if (depositReducedInvoiceIds.has(invoice.invoiceId)) {
+      allocatedMarkers += '‡';
     }
 
+    const isDeposit = depositConstitutedInvoiceIds.has(invoice.invoiceId);
     const refundNoteText = reportT('sourceReports.table.refundNote');
     const usageText = getUsageText(invoice);
     const attachmentsNote = getAttachmentNote(invoice, reportT);
+    const areaText = getAreaText(invoice);
 
     rows.push({
       invoiceId: invoice.invoiceId,
@@ -197,39 +207,18 @@ export function buildReportContent(
       invoiceAmountText,
       allocatedAmountValueText,
       allocatedMarkers,
+      isDeposit,
       isRefund: invoice.lineKind === 'refund-adjustment',
       refundNoteText,
       usageText,
       attachmentsNote,
+      areaText,
     });
   }
 
-  // Build summary rows (subtotal per status + total)
+  // Build summary rows (single total row only)
   const summaryRows: ReportContentSummaryRow[] = [];
-  const statusLabels: Record<InvoiceStatus, string> = {
-    pending: 'sources.lines.invoiceStatus.pending',
-    paid: 'sources.lines.invoiceStatus.paid',
-    claimed: 'sources.lines.invoiceStatus.claimed',
-    quotation: 'sources.lines.invoiceStatus.quotation',
-  };
 
-  for (const [status] of Object.entries(statusCounts)) {
-    const count = statusCounts[status as InvoiceStatus];
-    if (count > 0) {
-      const invoicesWithStatus = report.invoices.filter(
-        (inv) => inv.status === status && includedInvoiceIds.has(inv.invoiceId),
-      );
-      const subtotal = invoicesWithStatus.reduce((sum, inv) => sum + inv.allocatedAmount, 0);
-
-      const amountText = reportFormatters ? reportFormatters.formatCurrency(subtotal) : '—';
-      const label = `${reportT(statusLabels[status as InvoiceStatus])} ${reportT('sourceReports.table.subtotal')}`;
-      const key = `subtotal-${status}`;
-
-      summaryRows.push({ key, label, amountText });
-    }
-  }
-
-  // Add total row
   const includedTotal = report.invoices
     .filter((inv) => includedInvoiceIds.has(inv.invoiceId))
     .reduce((sum, inv) => sum + inv.allocatedAmount, 0);
@@ -241,36 +230,22 @@ export function buildReportContent(
     amountText: totalAmountText,
   });
 
-  // Build footnotes (split + deposit blocks; skip footnotes added at generation time)
+  // Build footnotes (at most 2 shared entries: split + deposit-reduced)
   const footnotes: ReportContentFootnote[] = [];
 
-  // Split block
-  for (const [invoiceId, splitNum] of splitFootnotesByInvoiceId) {
-    const invoice = report.invoices.find((inv) => inv.invoiceId === invoiceId);
-    const vendorName = invoice?.vendorName ?? '—';
-    const invoiceNumber = invoice?.invoiceNumber ?? '—';
-
+  if (splitInvoiceIds.size > 0) {
     footnotes.push({
-      id: `split-${splitNum}`,
-      marker: `†${splitNum}`,
-      text: `${vendorName} (${invoiceNumber}) — ${reportT('sourceReports.table.splitFootnote')}`,
+      id: 'split',
+      marker: '†',
+      text: reportT('sourceReports.table.splitFootnote'),
     });
   }
 
-  // Deposit block
-  for (const [invoiceId, depositMarker] of depositFootnotesByInvoiceId) {
-    const invoice = report.invoices.find((inv) => inv.invoiceId === invoiceId);
-    const vendorName = invoice?.vendorName ?? '—';
-    const invoiceNumber = invoice?.invoiceNumber ?? '—';
-    const wordingKey =
-      depositMarker.wording === 'constituted'
-        ? 'depositConstitutedFootnote'
-        : 'depositReducedFootnote';
-
+  if (depositReducedInvoiceIds.size > 0) {
     footnotes.push({
-      id: `deposit-${depositMarker.num}`,
-      marker: `‡${depositMarker.num}`,
-      text: `${vendorName} (${invoiceNumber}) — ${reportT(`sourceReports.table.${wordingKey}`)}`,
+      id: 'deposit-reduced',
+      marker: '‡',
+      text: reportT('sourceReports.table.depositReducedFootnote'),
     });
   }
 
@@ -300,8 +275,11 @@ export function buildReportContent(
     };
   }
 
+  const isClaim = useCase === 'claim';
+
   return {
     isOverview,
+    isClaim,
     tableTitle,
     labels: {
       vendor: reportT('sourceReports.table.vendor'),

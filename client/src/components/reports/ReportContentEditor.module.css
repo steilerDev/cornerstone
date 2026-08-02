@@ -154,6 +154,28 @@
   color: var(--color-status-quotation-text);
 }
 
+/* Deposit badge and area text */
+.depositBadge {
+  composes: attachmentDeposit from '../Badge/Badge.module.css';
+}
+
+.depositLabel {
+  margin-left: var(--spacing-2);
+}
+
+.mobileCardAllocated {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.usageAreaText {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-1);
+}
+
 /* Summary Table */
 .summaryTable {
   width: 100%;
@@ -167,6 +189,10 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.summaryTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
 .summaryLabel {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
@@ -175,6 +201,7 @@
 .summaryAmount {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
+  font-size: var(--font-size-base);
 }
 
 /* Footnotes */

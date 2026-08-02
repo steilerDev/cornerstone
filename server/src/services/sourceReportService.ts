@@ -90,6 +90,8 @@ export async function getSourceReport(
     work_item_title: string | null;
     household_item_id: string | null;
     household_item_name: string | null;
+    area_id: string | null;
+    area_name: string | null;
   };
 
   const railARows = db.all<RailARow>(
@@ -112,7 +114,9 @@ export async function getSourceReport(
       wib.work_item_id    AS work_item_id,
       wi.title            AS work_item_title,
       hib.household_item_id AS household_item_id,
-      hi.name             AS household_item_name
+      hi.name             AS household_item_name,
+      COALESCE(awi.id, ahi.id)     AS area_id,
+      COALESCE(awi.name, ahi.name) AS area_name
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     INNER JOIN vendors v ON v.id = i.vendor_id
@@ -121,6 +125,8 @@ export async function getSourceReport(
     LEFT JOIN work_items wi ON wi.id = wib.work_item_id
     LEFT JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
     LEFT JOIN household_items hi ON hi.id = hib.household_item_id
+    LEFT JOIN areas awi ON awi.id = wi.area_id
+    LEFT JOIN areas ahi ON ahi.id = hi.area_id
     WHERE (
       (ibl.work_item_budget_id IS NOT NULL AND EXISTS (
         SELECT 1 FROM work_item_budgets wib2
@@ -150,12 +156,20 @@ export async function getSourceReport(
     if (!iblDetails.has(row.ibl_id)) {
       let linkedItem: SourceReportLinkedItem | null = null;
       if (row.work_item_id && row.work_item_title) {
-        linkedItem = { type: 'work_item', id: row.work_item_id, name: row.work_item_title };
+        linkedItem = {
+          type: 'work_item',
+          id: row.work_item_id,
+          name: row.work_item_title,
+          areaId: row.area_id,
+          areaName: row.area_name,
+        };
       } else if (row.household_item_id && row.household_item_name) {
         linkedItem = {
           type: 'household_item',
           id: row.household_item_id,
           name: row.household_item_name,
+          areaId: row.area_id,
+          areaName: row.area_name,
         };
       }
       iblDetails.set(row.ibl_id, {

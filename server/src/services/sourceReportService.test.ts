@@ -219,6 +219,24 @@ describe('sourceReportService', () => {
     return db.select().from(schema.diaryEntries).all().length;
   }
 
+  /** Insert an area (Story #1923 AC5), returns its id. Migration seeds no default areas. */
+  function insertArea(name: string, parentId: string | null = null): string {
+    const id = `area-${++counter}`;
+    const now = ts();
+    db.insert(schema.areas)
+      .values({
+        id,
+        name,
+        parentId,
+        color: null,
+        sortOrder: counter,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════
   // getSourceReport
   // ═══════════════════════════════════════════════════════════════════════
@@ -817,7 +835,13 @@ describe('sourceReportService', () => {
       const line = result.invoices[0]!.budgetLines[0]!;
       expect(line.id).toBe(iblId);
       expect(line.allocatedPortion).toBeCloseTo(500);
-      expect(line.linkedItem).toEqual({ type: 'work_item', id: wiId, name: 'Foundation Work' });
+      expect(line.linkedItem).toEqual({
+        type: 'work_item',
+        id: wiId,
+        name: 'Foundation Work',
+        areaId: null,
+        areaName: null,
+      });
     });
 
     it('budgetLines[] linkedItem resolves a household item budget line', async () => {
@@ -864,6 +888,8 @@ describe('sourceReportService', () => {
         type: 'household_item',
         id: hiId,
         name: 'Kitchen Cabinet',
+        areaId: null,
+        areaName: null,
       });
     });
 
@@ -1058,6 +1084,204 @@ describe('sourceReportService', () => {
       // 1000 * 0.6 = 600. Rail B: deposit status 'paid' IS in the claim slice → +400.
       // Combined = 600 + 400 = 1000 — exactly the invoice amount, not 1400.
       expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(1000);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Story #1923 AC5: budgetLines[].linkedItem gains areaId/areaName, populated via a
+  // LEFT JOIN areas on work_items.area_id / household_items.area_id.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('getSourceReport — Story #1923 AC5 (linkedItem areaId/areaName)', () => {
+    it('AC5.1: a work-item-linked budget line whose work item has an area → linkedItem.areaId/areaName populated', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const areaId = insertArea('Kitchen');
+      const wiId = `wi-area-${++counter}`;
+      const now = ts();
+      db.insert(schema.workItems)
+        .values({
+          id: wiId,
+          title: 'Cabinetry',
+          status: 'not_started',
+          areaId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `wib-area-${counter}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: wiId,
+          budgetSourceId: sourceId,
+          plannedAmount: 0,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toEqual({
+        type: 'work_item',
+        id: wiId,
+        name: 'Cabinetry',
+        areaId,
+        areaName: 'Kitchen',
+      });
+    });
+
+    it('AC5.1: a household-item-linked budget line whose household item has an area → linkedItem.areaId/areaName populated', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const areaId = insertArea('Living Room');
+      const hiId = `hi-area-${++counter}`;
+      const now = ts();
+      db.insert(schema.householdItems)
+        .values({
+          id: hiId,
+          name: 'Sofa',
+          categoryId: 'hic-furniture',
+          areaId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `hib-area-${counter}`;
+      db.insert(schema.householdItemBudgets)
+        .values({
+          id: budgetId,
+          householdItemId: hiId,
+          budgetSourceId: sourceId,
+          plannedAmount: 0,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 250 });
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invId,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 250,
+          createdAt: ts(),
+          updatedAt: ts(),
+        })
+        .run();
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toEqual({
+        type: 'household_item',
+        id: hiId,
+        name: 'Sofa',
+        areaId,
+        areaName: 'Living Room',
+      });
+    });
+
+    it('AC5.4: linkedItem.areaId/areaName are null (not undefined/"") when the linked work item has no area assigned', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId); // areaId defaults to null (insertWorkItemBudget doesn't set it)
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      const linkedItem = result.invoices[0]!.budgetLines[0]!.linkedItem!;
+      expect(linkedItem.areaId).toBeNull();
+      expect(linkedItem.areaName).toBeNull();
+      expect(linkedItem.areaId).not.toBeUndefined();
+      expect(linkedItem.areaName).not.toBeUndefined();
+    });
+
+    it('AC5.5: only the leaf (own) area name is returned for a child area with a parent — no parent-path expansion', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const parentAreaId = insertArea('Ground Floor');
+      const childAreaId = insertArea('Ensuite', parentAreaId);
+      const wiId = `wi-child-area-${++counter}`;
+      const now = ts();
+      db.insert(schema.workItems)
+        .values({
+          id: wiId,
+          title: 'Tiling',
+          status: 'not_started',
+          areaId: childAreaId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `wib-child-area-${counter}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: wiId,
+          budgetSourceId: sourceId,
+          plannedAmount: 0,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      const linkedItem = result.invoices[0]!.budgetLines[0]!.linkedItem!;
+      expect(linkedItem.areaId).toBe(childAreaId);
+      expect(linkedItem.areaName).toBe('Ensuite');
+      expect(linkedItem.areaName).not.toContain('Ground Floor');
+      expect(linkedItem.areaName).not.toContain('/');
+    });
+
+    it('linkedItem stays null (unaffected by the areaId/areaName join) when the work item id resolves but its title is empty (defensive coalesce)', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const areaId = insertArea('Attic');
+      const wiId = `wi-empty-title-${++counter}`;
+      const now = ts();
+      // A work item with an empty-string title and an assigned area: the service's
+      // `row.work_item_id && row.work_item_title` guard treats the falsy empty title as
+      // "unresolved", so linkedItem must stay null — the area join must not leak through when
+      // the item itself doesn't resolve.
+      db.insert(schema.workItems)
+        .values({
+          id: wiId,
+          title: '',
+          status: 'not_started',
+          areaId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `wib-empty-title-${counter}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: wiId,
+          budgetSourceId: sourceId,
+          plannedAmount: 0,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices[0]!.budgetLines).toHaveLength(1);
+      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toBeNull();
     });
   });
 

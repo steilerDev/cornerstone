@@ -62,6 +62,19 @@ function makeBudgetLine(overrides: Partial<SourceReportBudgetLine> = {}): Source
   };
 }
 
+function makeLinkedItem(
+  overrides: Partial<SourceReportBudgetLine['linkedItem']> = {},
+): NonNullable<SourceReportBudgetLine['linkedItem']> {
+  return {
+    type: 'work_item',
+    id: 'wi-1',
+    name: 'Kitchen',
+    areaId: null,
+    areaName: null,
+    ...overrides,
+  };
+}
+
 function makeDeposit(overrides: Partial<SourceReportDeposit> = {}): SourceReportDeposit {
   return {
     id: 'dep-1',
@@ -236,9 +249,9 @@ describe('buildReportContent — rows', () => {
     it('dedupes and comma-joins distinct linked-item names in first-occurrence order', () => {
       const invoice = makeInvoice({
         budgetLines: [
-          makeBudgetLine({ linkedItem: { type: 'work_item', id: 'wi-1', name: 'Kitchen' } }),
-          makeBudgetLine({ linkedItem: { type: 'work_item', id: 'wi-2', name: 'Bathroom' } }),
-          makeBudgetLine({ linkedItem: { type: 'work_item', id: 'wi-1', name: 'Kitchen' } }),
+          makeBudgetLine({ linkedItem: makeLinkedItem({ id: 'wi-1', name: 'Kitchen' }) }),
+          makeBudgetLine({ linkedItem: makeLinkedItem({ id: 'wi-2', name: 'Bathroom' }) }),
+          makeBudgetLine({ linkedItem: makeLinkedItem({ id: 'wi-1', name: 'Kitchen' }) }),
         ],
       });
       const report = makeReport([invoice]);
@@ -323,8 +336,8 @@ describe('buildReportContent — rows', () => {
     });
   });
 
-  describe('allocatedMarkers (split † / deposit ‡)', () => {
-    it('adds † only when isSplit and budgetLines.length > 0, no deposits', () => {
+  describe('allocatedMarkers (split † / deposit ‡, unnumbered/shared per story #1923) + isDeposit', () => {
+    it('adds unnumbered † only when isSplit and budgetLines.length > 0, no deposits', () => {
       const invoice = makeInvoice({
         isSplit: true,
         budgetLines: [makeBudgetLine()],
@@ -332,32 +345,58 @@ describe('buildReportContent — rows', () => {
       });
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.allocatedMarkers).toBe('†1');
+      expect(content.rows[0]!.allocatedMarkers).toBe('†');
+      expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
-    it('adds ‡ only when isSplit and deposits.length > 0, no budget lines', () => {
+    it('adds unnumbered ‡ only when isSplit and the deposit is untagged (reduced), no budget lines', () => {
+      const invoice = makeInvoice({
+        isSplit: true,
+        budgetLines: [],
+        deposits: [makeDeposit({ budgetSourceId: null })],
+      });
+      const report = makeReport([invoice], { id: 'src-1' });
+      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+      expect(content.rows[0]!.allocatedMarkers).toBe('‡');
+      expect(content.rows[0]!.isDeposit).toBe(false);
+    });
+
+    it('AC2.1: adds NO marker and sets isDeposit=true when the deposit is tagged to this report source (constituted)', () => {
       const invoice = makeInvoice({
         isSplit: true,
         budgetLines: [],
         deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
       });
-      const report = makeReport([invoice]);
+      const report = makeReport([invoice], { id: 'src-1' });
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.allocatedMarkers).toBe('‡1');
+      expect(content.rows[0]!.allocatedMarkers).toBe('');
+      expect(content.rows[0]!.isDeposit).toBe(true);
     });
 
-    it('adds both † and ‡ when both budget lines and deposits are present', () => {
+    it('AC2.4: adds both † and ‡ (order †‡) when split budget lines and a reduced (untagged) deposit are both present', () => {
+      const invoice = makeInvoice({
+        isSplit: true,
+        budgetLines: [makeBudgetLine()],
+        deposits: [makeDeposit({ budgetSourceId: null })],
+      });
+      const report = makeReport([invoice], { id: 'src-1' });
+      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+      expect(content.rows[0]!.allocatedMarkers).toBe('†‡');
+    });
+
+    it('adds only † (no ‡, isDeposit=true) when split budget lines are combined with a constituted (tagged) deposit', () => {
       const invoice = makeInvoice({
         isSplit: true,
         budgetLines: [makeBudgetLine()],
         deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
       });
-      const report = makeReport([invoice]);
+      const report = makeReport([invoice], { id: 'src-1' });
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.allocatedMarkers).toBe('†1‡1');
+      expect(content.rows[0]!.allocatedMarkers).toBe('†');
+      expect(content.rows[0]!.isDeposit).toBe(true);
     });
 
-    it('adds neither marker when isSplit is false, regardless of budgetLines/deposits content', () => {
+    it('adds neither marker nor isDeposit when isSplit is false, regardless of budgetLines/deposits content', () => {
       const invoice = makeInvoice({
         isSplit: false,
         budgetLines: [makeBudgetLine()],
@@ -366,6 +405,7 @@ describe('buildReportContent — rows', () => {
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.allocatedMarkers).toBe('');
+      expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
     it('adds neither marker when isSplit is true but budgetLines and deposits are both empty', () => {
@@ -373,6 +413,7 @@ describe('buildReportContent — rows', () => {
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.allocatedMarkers).toBe('');
+      expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
     it('never assigns markers to an excluded invoice, even when isSplit with lines/deposits', () => {
@@ -384,34 +425,63 @@ describe('buildReportContent — rows', () => {
       const included = makeInvoice({ invoiceId: 'inv-1' });
       const report = makeReport([invoice, included]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      // Only the included row is present; footnotes must not have been numbered for the excluded one.
+      // Only the included row is present; footnotes must not have been generated for the excluded one.
       expect(content.rows).toHaveLength(1);
       expect(content.footnotes).toEqual([]);
     });
   });
 });
 
-describe('buildReportContent — footnotes', () => {
-  it('produces a split footnote with vendor/invoice-number attribution using the dedicated splitFootnote key', () => {
-    const invoice = makeInvoice({
-      invoiceId: 'inv-split',
+describe('buildReportContent — footnotes (AC1/AC2: shared, unnumbered, at most 2 entries, no vendor prefix)', () => {
+  it('AC1.2: produces exactly one shared split footnote (no vendor/invoice-number prefix) when three included invoices are split', () => {
+    const inv1 = makeInvoice({
+      invoiceId: 'inv-1',
       vendorName: 'Gamma Corp',
       invoiceNumber: 'G-9',
       isSplit: true,
       budgetLines: [makeBudgetLine()],
     });
-    const report = makeReport([invoice]);
-    const content = buildReportContent(report, new Set(['inv-split']), 'claim', t, formatters);
+    const inv2 = makeInvoice({
+      invoiceId: 'inv-2',
+      vendorName: 'Delta Corp',
+      invoiceNumber: 'D-1',
+      isSplit: true,
+      budgetLines: [makeBudgetLine()],
+    });
+    const inv3 = makeInvoice({
+      invoiceId: 'inv-3',
+      vendorName: 'Epsilon Corp',
+      invoiceNumber: 'E-2',
+      isSplit: true,
+      budgetLines: [makeBudgetLine()],
+    });
+    const report = makeReport([inv1, inv2, inv3]);
+    const content = buildReportContent(
+      report,
+      new Set(['inv-1', 'inv-2', 'inv-3']),
+      'claim',
+      t,
+      formatters,
+    );
     expect(content.footnotes).toEqual([
       {
-        id: 'split-1',
-        marker: '†1',
-        text: 'Gamma Corp (G-9) — sourceReports.table.splitFootnote',
+        id: 'split',
+        marker: '†',
+        text: 'sourceReports.table.splitFootnote',
       },
     ]);
+    // Every split row carries the marker — no per-invoice numbering distinguishes them.
+    expect(content.rows.every((r) => r.allocatedMarkers === '†')).toBe(true);
   });
 
-  it('produces a "constituted" deposit footnote when the deposit is tagged to this source', () => {
+  it('AC1.3: produces no † marker and no split footnote anywhere when no included invoice is split', () => {
+    const report = makeReport([makeInvoice({ isSplit: false })]);
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.footnotes).toEqual([]);
+    expect(content.rows[0]!.allocatedMarkers).toBe('');
+  });
+
+  it('AC2.2: produces NO footnote entry for a constituted (tagged) deposit — the row gets isDeposit instead', () => {
     const invoice = makeInvoice({
       isSplit: true,
       budgetLines: [],
@@ -419,10 +489,11 @@ describe('buildReportContent — footnotes', () => {
     });
     const report = makeReport([invoice], { id: 'src-1' });
     const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-    expect(content.footnotes[0]!.text).toContain('sourceReports.table.depositConstitutedFootnote');
+    expect(content.footnotes).toEqual([]);
+    expect(content.rows[0]!.isDeposit).toBe(true);
   });
 
-  it('produces a "reduced" deposit footnote when the deposit is untagged (or tagged elsewhere)', () => {
+  it('AC2.3: produces exactly one shared, unnumbered ‡ footnote when one or more invoices have a reduced (untagged) deposit', () => {
     const invoice = makeInvoice({
       isSplit: true,
       budgetLines: [],
@@ -430,75 +501,185 @@ describe('buildReportContent — footnotes', () => {
     });
     const report = makeReport([invoice], { id: 'src-1' });
     const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-    expect(content.footnotes[0]!.text).toContain('sourceReports.table.depositReducedFootnote');
+    expect(content.footnotes).toEqual([
+      {
+        id: 'deposit-reduced',
+        marker: '‡',
+        text: 'sourceReports.table.depositReducedFootnote',
+      },
+    ]);
   });
 
-  it('orders footnotes split-block-first, then deposit-block, independent numbering per block', () => {
-    const splitOnly = makeInvoice({
-      invoiceId: 'inv-split',
-      vendorName: 'Split Vendor',
-      invoiceNumber: 'S-1',
-      isSplit: true,
-      budgetLines: [makeBudgetLine()],
-    });
-    const depositOnly = makeInvoice({
-      invoiceId: 'inv-deposit',
-      vendorName: 'Deposit Vendor',
-      invoiceNumber: 'D-1',
+  it('AC2.3: multiple invoices with reduced deposits still produce exactly one shared ‡ entry', () => {
+    const inv1 = makeInvoice({
+      invoiceId: 'inv-1',
       isSplit: true,
       budgetLines: [],
-      deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
+      deposits: [makeDeposit({ id: 'dep-1', budgetSourceId: null })],
     });
-    const report = makeReport([splitOnly, depositOnly], { id: 'src-1' });
-    const content = buildReportContent(
-      report,
-      new Set(['inv-split', 'inv-deposit']),
-      'claim',
-      t,
-      formatters,
-    );
-    expect(content.footnotes.map((f) => f.id)).toEqual(['split-1', 'deposit-1']);
+    const inv2 = makeInvoice({
+      invoiceId: 'inv-2',
+      isSplit: true,
+      budgetLines: [],
+      deposits: [makeDeposit({ id: 'dep-2', budgetSourceId: null })],
+    });
+    const report = makeReport([inv1, inv2], { id: 'src-1' });
+    const content = buildReportContent(report, new Set(['inv-1', 'inv-2']), 'claim', t, formatters);
+    const reducedFootnotes = content.footnotes.filter((f) => f.id === 'deposit-reduced');
+    expect(reducedFootnotes).toHaveLength(1);
   });
 
-  it('produces no footnotes when no invoice is split', () => {
+  it('AC2.4: both split and reduced-deposit invoices present → markers "†‡" on the combined row, footnotes ordered [split, deposit-reduced]', () => {
+    const combined = makeInvoice({
+      invoiceId: 'inv-1',
+      isSplit: true,
+      budgetLines: [makeBudgetLine()],
+      deposits: [makeDeposit({ budgetSourceId: null })],
+    });
+    const report = makeReport([combined], { id: 'src-1' });
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.rows[0]!.allocatedMarkers).toBe('†‡');
+    expect(content.footnotes.map((f) => f.id)).toEqual(['split', 'deposit-reduced']);
+    expect(content.footnotes).toHaveLength(2);
+  });
+
+  it('produces no footnotes when no invoice is split or has a reduced deposit', () => {
     const report = makeReport([makeInvoice()]);
     const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
     expect(content.footnotes).toEqual([]);
   });
 });
 
-describe('buildReportContent — summaryRows', () => {
-  it('adds one subtotal row per distinct status among included invoices, in pending/paid/claimed/quotation order', () => {
+describe('buildReportContent — summaryRows (AC4: total-only summary)', () => {
+  it('AC4.1/4.2: produces exactly one summary row (key "total"), even when included invoices span 2+ distinct statuses', () => {
     const pending = makeInvoice({ invoiceId: 'inv-1', status: 'pending', allocatedAmount: 100 });
     const paid = makeInvoice({ invoiceId: 'inv-2', status: 'paid', allocatedAmount: 200 });
-    const report = makeReport([pending, paid]);
-    const content = buildReportContent(report, new Set(['inv-1', 'inv-2']), 'claim', t, formatters);
-    const subtotalKeys = content.summaryRows
-      .filter((r) => r.key.startsWith('subtotal-'))
-      .map((r) => r.key);
-    expect(subtotalKeys).toEqual(['subtotal-pending', 'subtotal-paid']);
-    expect(content.summaryRows[0]!.amountText).toBe('€100.00');
-    expect(content.summaryRows[1]!.amountText).toBe('€200.00');
+    const quotation = makeInvoice({
+      invoiceId: 'inv-3',
+      status: 'quotation',
+      allocatedAmount: 50,
+    });
+    const report = makeReport([pending, paid, quotation]);
+    const content = buildReportContent(
+      report,
+      new Set(['inv-1', 'inv-2', 'inv-3']),
+      'budget-overview',
+      t,
+      formatters,
+    );
+    expect(content.summaryRows).toHaveLength(1);
+    expect(content.summaryRows[0]!.key).toBe('total');
+    // No subtotal-* rows of any kind survive.
+    expect(content.summaryRows.some((r) => r.key.startsWith('subtotal'))).toBe(false);
   });
 
-  it('does not add a subtotal row for a status with zero included invoices', () => {
+  it('AC4.1: produces exactly one summary row even when only a single status is present', () => {
     const pending = makeInvoice({ invoiceId: 'inv-1', status: 'pending', allocatedAmount: 100 });
     const report = makeReport([pending]);
     const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-    const subtotalKeys = content.summaryRows.filter((r) => r.key.startsWith('subtotal-'));
-    expect(subtotalKeys).toHaveLength(1);
+    expect(content.summaryRows).toHaveLength(1);
   });
 
-  it('always appends a final "total" row with the sum of included invoices\' allocatedAmount', () => {
+  it("AC4.3: the total row's amount is the sum of allocatedAmount over included invoices — unchanged math", () => {
     const invoice1 = makeInvoice({ invoiceId: 'inv-1', allocatedAmount: 100 });
     const invoice2 = makeInvoice({ invoiceId: 'inv-2', allocatedAmount: 250 });
     const excluded = makeInvoice({ invoiceId: 'inv-3', allocatedAmount: 9999 });
     const report = makeReport([invoice1, invoice2, excluded]);
     const content = buildReportContent(report, new Set(['inv-1', 'inv-2']), 'claim', t, formatters);
-    const total = content.summaryRows.at(-1)!;
+    const total = content.summaryRows[0]!;
     expect(total.key).toBe('total');
     expect(total.label).toBe('sourceReports.table.total');
     expect(total.amountText).toBe('€350.00');
+  });
+});
+
+describe('buildReportContent — isClaim (AC3)', () => {
+  it('is true only for the claim useCase, false for budget-overview and proof-of-funds', () => {
+    const report = makeReport([]);
+    expect(buildReportContent(report, new Set(), 'claim', t).isClaim).toBe(true);
+    expect(buildReportContent(report, new Set(), 'budget-overview', t).isClaim).toBe(false);
+    expect(buildReportContent(report, new Set(), 'proof-of-funds', t).isClaim).toBe(false);
+  });
+});
+
+describe('buildReportContent — areaText (AC5.2–5.5)', () => {
+  it('AC5.2: renders a single leaf area name when one budget line resolves a linked item with an area', () => {
+    const invoice = makeInvoice({
+      budgetLines: [
+        makeBudgetLine({
+          linkedItem: makeLinkedItem({ areaId: 'area-1', areaName: 'Kitchen' }),
+        }),
+      ],
+    });
+    const report = makeReport([invoice]);
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.rows[0]!.areaText).toBe('Kitchen');
+  });
+
+  it('AC5.2: dedupes and comma-joins distinct area names in first-occurrence order across multiple budget lines', () => {
+    const invoice = makeInvoice({
+      budgetLines: [
+        makeBudgetLine({
+          id: 'bl-1',
+          linkedItem: makeLinkedItem({ id: 'wi-1', areaId: 'area-1', areaName: 'Kitchen' }),
+        }),
+        makeBudgetLine({
+          id: 'bl-2',
+          linkedItem: makeLinkedItem({ id: 'wi-2', areaId: 'area-2', areaName: 'Bathroom' }),
+        }),
+        makeBudgetLine({
+          id: 'bl-3',
+          linkedItem: makeLinkedItem({ id: 'wi-1', areaId: 'area-1', areaName: 'Kitchen' }),
+        }),
+      ],
+    });
+    const report = makeReport([invoice]);
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.rows[0]!.areaText).toBe('Kitchen, Bathroom');
+  });
+
+  it('AC5.4: is null when budgetLines is empty (no linkedItem at all)', () => {
+    const invoice = makeInvoice({ budgetLines: [] });
+    const report = makeReport([invoice]);
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.rows[0]!.areaText).toBeNull();
+  });
+
+  it('AC5.4: is null when the linked item has no area assigned (areaName null)', () => {
+    const invoice = makeInvoice({
+      budgetLines: [
+        makeBudgetLine({ linkedItem: makeLinkedItem({ areaId: null, areaName: null }) }),
+      ],
+    });
+    const report = makeReport([invoice]);
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.rows[0]!.areaText).toBeNull();
+  });
+
+  it('AC5.4: is null when budget lines have no linkedItem (description-only fallback)', () => {
+    const invoice = makeInvoice({
+      budgetLines: [makeBudgetLine({ linkedItem: null, description: 'Materials' })],
+    });
+    const report = makeReport([invoice]);
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.rows[0]!.areaText).toBeNull();
+  });
+
+  it('AC5.5: renders only the leaf (own) area name, never a parent-path expansion — the row consumes areaName verbatim', () => {
+    // The child's bare name only — buildReportContent does not expand the hierarchy; it trusts
+    // sourceReportService to have already resolved the leaf-only areaName (see
+    // sourceReportService.test.ts "child area with parent" coverage for the server-side guarantee).
+    const invoice = makeInvoice({
+      budgetLines: [
+        makeBudgetLine({
+          linkedItem: makeLinkedItem({ areaId: 'area-child', areaName: 'Ensuite' }),
+        }),
+      ],
+    });
+    const report = makeReport([invoice]);
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.rows[0]!.areaText).toBe('Ensuite');
+    expect(content.rows[0]!.areaText).not.toContain('/');
   });
 });
 

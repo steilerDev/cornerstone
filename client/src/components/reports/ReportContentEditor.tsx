@@ -133,22 +133,24 @@ export function ReportContentEditor({
       )}
 
       {/* Source Info Block */}
-      <div className={styles.sourceInfoBlock}>
-        <p>
-          {content.labels.source}: {content.sourceInfo.sourceName}
-        </p>
-        <p>
-          {content.labels.sourceType}: {content.sourceInfo.sourceTypeText}
-        </p>
-        {content.sourceInfo.referenceText && (
+      {!content.isClaim && (
+        <div className={styles.sourceInfoBlock}>
           <p>
-            {content.labels.reference}: {content.sourceInfo.referenceText}
+            {content.labels.source}: {content.sourceInfo.sourceName}
           </p>
-        )}
-        <p>
-          {content.labels.generatedAt}: {content.sourceInfo.generatedAtText}
-        </p>
-      </div>
+          <p>
+            {content.labels.sourceType}: {content.sourceInfo.sourceTypeText}
+          </p>
+          {content.sourceInfo.referenceText && (
+            <p>
+              {content.labels.reference}: {content.sourceInfo.referenceText}
+            </p>
+          )}
+          <p>
+            {content.labels.generatedAt}: {content.sourceInfo.generatedAtText}
+          </p>
+        </div>
+      )}
 
       {/* Report Table */}
       <h3 className={styles.tableHeading}>{t('sourceReports.editable.tableHeading')}</h3>
@@ -194,6 +196,18 @@ export function ReportContentEditor({
                   {row.allocatedAmountValueText}
                   {row.allocatedMarkers}
                   {row.isRefund && ` ${row.refundNoteText}`}
+                  {row.isDeposit && (
+                    <Badge
+                      className={styles.depositLabel}
+                      variants={{
+                        deposit: {
+                          label: t('sourceReports.table.attachmentType.deposit'),
+                          className: styles.depositBadge,
+                        },
+                      }}
+                      value="deposit"
+                    />
+                  )}
                 </td>
                 <td>
                   <EditableField
@@ -213,6 +227,7 @@ export function ReportContentEditor({
                     isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
                     onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
                   />
+                  {row.areaText && <div className={styles.usageAreaText}>{row.areaText}</div>}
                 </td>
                 {row.attachmentsNote !== null && (
                   <td>
@@ -281,12 +296,25 @@ export function ReportContentEditor({
             </div>
             <div className={styles.mobileCardRow}>
               <span className={styles.mobileCardCaption}>{content.labels.allocatedAmount}</span>
-              <span
-                className={`${styles.mobileCardValue} ${row.isRefund ? styles.refundAmount : ''}`}
-              >
-                {row.allocatedAmountValueText}
-                {row.allocatedMarkers}
-                {row.isRefund && ` ${row.refundNoteText}`}
+              <span className={styles.mobileCardAllocated}>
+                <span
+                  className={`${styles.mobileCardValue} ${row.isRefund ? styles.refundAmount : ''}`}
+                >
+                  {row.allocatedAmountValueText}
+                  {row.allocatedMarkers}
+                  {row.isRefund && ` ${row.refundNoteText}`}
+                </span>
+                {row.isDeposit && (
+                  <Badge
+                    variants={{
+                      deposit: {
+                        label: t('sourceReports.table.attachmentType.deposit'),
+                        className: styles.depositBadge,
+                      },
+                    }}
+                    value="deposit"
+                  />
+                )}
               </span>
             </div>
             <div className={styles.mobileCardRow}>
@@ -306,6 +334,7 @@ export function ReportContentEditor({
                 isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
                 onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
               />
+              {row.areaText && <span className={styles.usageAreaText}>{row.areaText}</span>}
             </div>
             {row.attachmentsNote !== null && (
               <div className={styles.mobileCardRow}>

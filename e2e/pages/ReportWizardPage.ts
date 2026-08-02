@@ -187,6 +187,29 @@
  *   generated content does not survive a discarded/confirmed upstream change any more than a
  *   manual edit does, and the derived (#1898/#1900) baseline reasserts itself.
  *
+ * Story #1923: report table cleanup — shared footnotes, inline deposit label, claim metadata
+ * suppression, total-only summary, area in Usage.
+ * - `sourceInfoBlock` (declared above) is now conditionally rendered — `{!content.isClaim && (
+ *   ...)}` — and ABSENT from the DOM entirely for `claim` reports (AC3.1), not merely hidden.
+ *   `budget-overview`/`proof-of-funds` reports are unaffected (still render it).
+ * - `allocatedMarkers` (the `†`/`‡` text appended after the Allocated Amount, still plain text —
+ *   no dedicated locator, read via the row/card's own text) is now SHARED/unnumbered per report
+ *   — at most one `†` (any split row) and one `‡` (any deposit-reduced row) — never `†1`/`†2`/
+ *   per-invoice numbering. `footnotesBlock`/`footnoteItems` (declared above) mirror this: at
+ *   most 2 `<li>` entries total, each `{marker}: {text}` with NO `Vendor (Invoice No.) — `
+ *   prefix (dropped — the note is no longer invoice-specific).
+ * - A constituted-deposit row (the allocation is made up entirely by a deposit tagged to the
+ *   reported source) carries NO marker at all — instead an inline `Badge` (`depositBadge`/
+ *   `mobileDepositBadge` below) reading "Deposit"/"Abschlagszahlung". There is correspondingly
+ *   no "This is a deposit." footnote anymore (`depositConstitutedFootnote` key removed).
+ * - `summaryTable`/`summaryTableRows` (declared above) now contains exactly ONE row — `Total`/
+ *   `Gesamt` — regardless of how many distinct invoice statuses are included; the old
+ *   per-status `Outstanding`/`Paid`/`Quotation`/`Claimed Subtotal` rows are gone
+ *   (`sourceReports.table.subtotal` key removed).
+ * - `usageAreaText`/`mobileUsageAreaText` below: a read-only leaf-area sub-line rendered under
+ *   a row's Usage field, only when the linked item(s) resolve to an area — see the method's own
+ *   docstring for why it can never be silently dropped by AI-generated usage text.
+ *
  * Back/Next button locators (`step2BackButton`/`step2NextButton`/`step4BackButton`/
  * `step4NextButton`/`step5BackButton`, etc.): every step body is rendered from a single
  * `{currentStep === N && ...}` block, so exactly ONE `[class*="buttonRow"]` div is ever present
@@ -349,6 +372,16 @@ export class ReportWizardPage {
   // follow-up bug).
   readonly mobileCardList: Locator;
 
+  // Story #1923: report table cleanup — total-only summary table (`.summaryTable`, a sibling
+  // `<table>` OUTSIDE `.tableWrapper` — see `contentTable`'s own docstring for why that scoping
+  // avoids a substring collision) and the shared footnotes block (`.footnotes`, now at most 2
+  // `<li>` entries — one per marker (`†`/`‡`) — never one per invoice; see `depositBadge`'s
+  // docstring below for the constituted-deposit case, which carries NO marker at all).
+  readonly summaryTable: Locator;
+  readonly summaryTableRows: Locator;
+  readonly footnotesBlock: Locator;
+  readonly footnoteItems: Locator;
+
   // Claim confirm modal
   readonly claimConfirmModal: Locator;
   readonly claimConfirmModalBody: Locator;
@@ -474,6 +507,12 @@ export class ReportWizardPage {
     this.sourceInfoBlock = page.locator('[class*="sourceInfoBlock"]');
     this.contentTable = page.locator('[class*="tableWrapper"] table');
     this.mobileCardList = page.locator('[class*="mobileCardList"]');
+
+    // Story #1923.
+    this.summaryTable = page.locator('[class*="summaryTable"]');
+    this.summaryTableRows = this.summaryTable.locator('tbody tr');
+    this.footnotesBlock = page.locator('[class*="footnotes"]');
+    this.footnoteItems = this.footnotesBlock.locator('li');
 
     this.claimConfirmModal = page.getByRole('dialog', { name: 'Mark Invoices as Claimed?' });
     this.claimConfirmModalBody = this.claimConfirmModal.locator('p');
@@ -985,6 +1024,43 @@ export class ReportWizardPage {
    */
   mobileUsageField(vendorName: string, invoiceNumber: string): Locator {
     return this.mobileCard(vendorName, invoiceNumber).getByLabel('Usage', { exact: true });
+  }
+
+  // ─── Story #1923: report table cleanup ───────────────────────────────────────────────────
+
+  /**
+   * The inline "Deposit" `Badge` (`[class*="depositBadge"]`, composed from the shared
+   * `.attachmentDeposit` variant) rendered in a desktop content-table row's Allocated Amount
+   * cell when `row.isDeposit` — a constituted-deposit row (AC2.1), i.e. the row's allocation is
+   * made up entirely by a deposit tagged to the CURRENTLY reported source. Carries NO `†`/`‡`
+   * marker of its own. Scoped to the row so it never collides with `mobileDepositBadge`'s copy
+   * (both trees share the `depositBadge` class and are always in the DOM simultaneously, per
+   * the class docstring's dual-DOM-tree convention).
+   */
+  depositBadge(vendorName: string, invoiceNumber: string): Locator {
+    return this.contentTableRow(vendorName, invoiceNumber).locator('[class*="depositBadge"]');
+  }
+
+  /** The same inline "Deposit" badge within a mobile card's Allocated Amount value (AC6.2). */
+  mobileDepositBadge(vendorName: string, invoiceNumber: string): Locator {
+    return this.mobileCard(vendorName, invoiceNumber).locator('[class*="depositBadge"]');
+  }
+
+  /**
+   * The read-only, non-editable leaf-area sub-line (`[class*="usageAreaText"]`) rendered below
+   * a desktop row's `usageText` field when `row.areaText` is non-null (AC5.2) — distinct
+   * comma-joined leaf area names, never concatenated into the editable `usageText` string
+   * itself (AC5.3), so it survives both manual edits and AI-generated usage text overwriting
+   * `usageText` (`applyAiContent.ts` only ever assigns `row.usageText`, never `row.areaText`).
+   * Absent entirely (not an empty element) when the row has no area (AC5.4).
+   */
+  usageAreaText(vendorName: string, invoiceNumber: string): Locator {
+    return this.contentTableRow(vendorName, invoiceNumber).locator('[class*="usageAreaText"]');
+  }
+
+  /** The same area sub-line within a mobile card's Usage field (AC6.2). */
+  mobileUsageAreaText(vendorName: string, invoiceNumber: string): Locator {
+    return this.mobileCard(vendorName, invoiceNumber).locator('[class*="usageAreaText"]');
   }
 
   /** Fills an `EditableField` (input or textarea) with `value`, firing its `onChange`. */

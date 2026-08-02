@@ -38,6 +38,7 @@ function makeCoverLetter(
 function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   return {
     isOverview: false,
+    isClaim: false,
     tableTitle: 'Title',
     labels: {
       vendor: 'Vendor',

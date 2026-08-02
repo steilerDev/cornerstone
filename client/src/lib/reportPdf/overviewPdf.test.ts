@@ -34,10 +34,12 @@ function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
     invoiceAmountText: '€1000.00',
     allocatedAmountValueText: '€1000.00',
     allocatedMarkers: '',
+    isDeposit: false,
     isRefund: false,
     refundNoteText: 'sourceReports.table.refundNote',
     usageText: '—',
     attachmentsNote: null,
+    areaText: null,
     ...overrides,
   };
 }
@@ -67,6 +69,7 @@ function makeLabels(): ReportContent['labels'] {
 function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   return {
     isOverview: false,
+    isClaim: false,
     tableTitle: 'sourceReports.table.title.claim',
     labels: makeLabels(),
     sourceInfo: {
@@ -84,9 +87,18 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
 }
 
 // Flattens a pdfmake `table.body` row into plain text strings for easy assertions. Cells that are
-// `stack`s (the Usage column when an attachment note is present) yield `undefined`.
+// `stack`s (the Usage column when an attachment note or area text is present) yield `undefined`.
+// The allocated-amount cell's `text` is always an array of runs (story #1923: the isDeposit inline
+// label is a distinct, separately-styled run) — concatenate those runs' own `.text` values so
+// existing plain-string assertions keep working; dedicated tests inspect the raw run array instead
+// where the per-run styling itself is under test.
 function rowTexts(row: unknown): (string | undefined)[] {
-  return (row as { text?: string }[]).map((cell) => cell.text);
+  return (row as { text?: string | { text: string }[] }[]).map((cell) => {
+    if (Array.isArray(cell.text)) {
+      return cell.text.map((run) => run.text).join('');
+    }
+    return cell.text;
+  });
 }
 
 function getTable(content: unknown[]): { headerRows: number; widths: string[]; body: unknown[][] } {
@@ -132,6 +144,22 @@ describe('buildOverviewContent — title and source info', () => {
     const result = buildOverviewContent(content, new Map(), t);
     const infoStack = result[1] as { stack: { text: string }[] };
     expect(infoStack.stack.find((s) => s.text.includes('REF-99'))).toBeDefined();
+  });
+
+  it('AC3.2: omits the sourceInfoStack entirely when isClaim is true — the table follows the title directly', () => {
+    const content = makeContent({ isClaim: true, rows: [] });
+    const result = buildOverviewContent(content, new Map(), t);
+    expect(result).toHaveLength(2); // title + table only, no stack in between
+    const second = result[1] as unknown as Record<string, unknown>;
+    expect(second.table).toBeDefined();
+    expect(second.stack).toBeUndefined();
+  });
+
+  it('renders the sourceInfoStack when isClaim is false (budget-overview/proof-of-funds), unchanged', () => {
+    const content = makeContent({ isClaim: false, rows: [] });
+    const result = buildOverviewContent(content, new Map(), t);
+    const second = result[1] as unknown as Record<string, unknown>;
+    expect(second.stack).toBeDefined();
   });
 });
 
@@ -276,6 +304,49 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       expect(cell.stack[0]!.text).toBe('Kitchen work');
       expect(cell.stack[1]!.text).toBe('1 attachment: Invoice');
     });
+
+    it('AC5.2: renders a stack with the area line (style "small") between usageText and attachmentsNote when areaText is present', () => {
+      const row = makeRow({
+        usageText: 'Kitchen work',
+        areaText: 'Ground Floor',
+        attachmentsNote: '1 attachment: Invoice',
+      });
+      const content = makeContent({ rows: [row] });
+      const result = buildOverviewContent(content, new Map(), t);
+      const table = getTable(result);
+      const cell = (table.body[1] as unknown[])[5] as {
+        stack: { text: string; style?: string }[];
+      };
+      expect(cell.stack.map((s) => s.text)).toEqual([
+        'Kitchen work',
+        'Ground Floor',
+        '1 attachment: Invoice',
+      ]);
+      expect(cell.stack[1]!.style).toBe('small');
+    });
+
+    it('renders a stack with only [usageText, areaText] when areaText is present but attachmentsNote is null', () => {
+      const row = makeRow({
+        usageText: 'Kitchen work',
+        areaText: 'Ground Floor',
+        attachmentsNote: null,
+      });
+      const content = makeContent({ rows: [row] });
+      const result = buildOverviewContent(content, new Map(), t);
+      const table = getTable(result);
+      const cell = (table.body[1] as unknown[])[5] as { stack: { text: string }[] };
+      expect(cell.stack.map((s) => s.text)).toEqual(['Kitchen work', 'Ground Floor']);
+    });
+
+    it('renders a plain { text } cell (not a stack) when both areaText and attachmentsNote are null', () => {
+      const row = makeRow({ usageText: 'Kitchen work', areaText: null, attachmentsNote: null });
+      const content = makeContent({ rows: [row] });
+      const result = buildOverviewContent(content, new Map(), t);
+      const table = getTable(result);
+      const cell = (table.body[1] as unknown[])[5] as { text?: string; stack?: unknown };
+      expect(cell.stack).toBeUndefined();
+      expect(cell.text).toBe('Kitchen work');
+    });
   });
 
   describe('allocated cell composition (skip markers + allocatedMarkers + refund note)', () => {
@@ -287,25 +358,25 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       expect(rowTexts(table.body[1])[4]).toBe('€400.00');
     });
 
-    it('appends the pre-computed split/deposit markers verbatim (already formatted by buildReportContent)', () => {
-      const row = makeRow({ allocatedAmountValueText: '€400.00', allocatedMarkers: '†1‡1' });
+    it('appends the pre-computed, unnumbered/shared split+deposit markers verbatim (already formatted by buildReportContent)', () => {
+      const row = makeRow({ allocatedAmountValueText: '€400.00', allocatedMarkers: '†‡' });
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      expect(rowTexts(table.body[1])[4]).toBe('€400.00†1‡1');
+      expect(rowTexts(table.body[1])[4]).toBe('€400.00†‡');
     });
 
     it('prepends skip-footnote markers (*N) BEFORE the allocatedMarkers, numbered from skippedDocuments', () => {
       const row = makeRow({
         invoiceId: 'inv-1',
         allocatedAmountValueText: '€400.00',
-        allocatedMarkers: '†1',
+        allocatedMarkers: '†',
       });
       const content = makeContent({ rows: [row] });
       const skipped = new Map<string, string[]>([['inv-1', ['footnoteFetchFailed']]]);
       const result = buildOverviewContent(content, skipped, t);
       const table = getTable(result);
-      expect(rowTexts(table.body[1])[4]).toBe('€400.00*1†1');
+      expect(rowTexts(table.body[1])[4]).toBe('€400.00*1†');
     });
 
     it('numbers multiple skip reasons on the same invoice sequentially', () => {
@@ -317,6 +388,42 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const result = buildOverviewContent(content, skipped, t);
       const table = getTable(result);
       expect(rowTexts(table.body[1])[4]).toBe('€400.00*1*2');
+    });
+  });
+
+  describe('allocated cell: isDeposit inline label (AC2.1)', () => {
+    it('renders the allocated cell text as an array of runs when isDeposit is true', () => {
+      const row = makeRow({ allocatedAmountValueText: '€300.00', isDeposit: true });
+      const content = makeContent({ rows: [row] });
+      const result = buildOverviewContent(content, new Map(), t);
+      const table = getTable(result);
+      const cell = (table.body[1] as unknown[])[4] as { text: unknown };
+      expect(Array.isArray(cell.text)).toBe(true);
+    });
+
+    it('the second run carries the deposit label, color #6b7280 and fontSize 8', () => {
+      const row = makeRow({ allocatedAmountValueText: '€300.00', isDeposit: true });
+      const content = makeContent({ rows: [row] });
+      const result = buildOverviewContent(content, new Map(), t);
+      const table = getTable(result);
+      const cell = (table.body[1] as unknown[])[4] as {
+        text: { text: string; color?: string; fontSize?: number }[];
+      };
+      expect(cell.text[0]!.text).toBe('€300.00');
+      const depositRun = cell.text[1]!;
+      expect(depositRun.color).toBe('#6b7280');
+      expect(depositRun.fontSize).toBe(8);
+      expect(depositRun.text).toContain('sourceReports.table.attachmentType.deposit');
+    });
+
+    it('renders exactly one run (no deposit run appended) when isDeposit is false', () => {
+      const row = makeRow({ allocatedAmountValueText: '€300.00', isDeposit: false });
+      const content = makeContent({ rows: [row] });
+      const result = buildOverviewContent(content, new Map(), t);
+      const table = getTable(result);
+      const cell = (table.body[1] as unknown[])[4] as { text: { text: string }[] };
+      expect(cell.text).toHaveLength(1);
+      expect(cell.text[0]!.text).toBe('€300.00');
     });
   });
 });
