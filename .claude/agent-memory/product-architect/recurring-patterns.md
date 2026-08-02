@@ -279,3 +279,29 @@ that will write X later. The first is usually caught; the second usually isn't.
 Unremarked side benefit worth knowing: the ref also closed a latent pre-existing hazard — when a deep-link
 fetch *failed*, `report` stayed `null`, so any later `overrides`/`aiContent` change re-identified
 `guardedUpdate` -> `handleSourceChange` -> the effect's deps and silently re-fired the fetch.
+
+## Cross-reference rot in "documented bound" comments (#1939 / PR #1948)
+
+`client/src/lib/reportPdf/` encodes safety bounds nobody can re-derive from the code, so the *comments are
+the interface*. Three failure modes seen repeatedly there — check all three whenever a review touches a
+commented constant:
+
+1. **A comment that cites another comment.** `WORST_CASE_CHAR_ADVANCE_EM` said the height ceilings were
+   "pinned ... using the true widest character (see those constants' comments)"; those comments said the
+   measurement used `№` and carried different percentages on a different denominator (char count, not page
+   height). Always follow the pointer and read the target.
+2. **Superseding a measurement basis without sweeping the callers.** Naming a new widest glyph (`Ѹ` U+0478)
+   silently falsified `MAX_SAFE_USAGE_CHUNK_CHARS`'s "'№' ... the widest character found in the scan".
+   `grep` for the old basis before accepting the new one.
+3. **A cost figure that describes a change already made.** "Raising this would push the 7-col threshold from
+   19 to 16" — 19 was its value at the *previous* em (0.89); 16 is current. Recompute every quantitative
+   justification from the constant's present value, don't trust the prose.
+
+**Reviewer move that catches all three cheaply:** recompute the thresholds in `node` across a range of the
+constant, and diff against the test's asserted values (`overviewPdf.test.ts` asserts usage7=16, usage6=22,
+vendor=5, small7=14, small6=19 at em=1.04). Also verify glyph/codepoint pairs programmatically — `Ҭ` was
+labelled U+046C when it is U+04AC.
+
+**My own figures are not exempt.** Both HIGH findings in PR #1948 traced to numbers I supplied in the #1929
+round-4 review and the PO transcribed faithfully into ACs. When a later PR exists only to make my
+recommendations true, re-derive them from scratch rather than checking transcription fidelity.

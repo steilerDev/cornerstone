@@ -448,3 +448,19 @@ E2E scenarios 13/14 (unexecuted — Chromium blocked in sandbox) read correct: `
 retries through the skeleton; `sourceReportService.test.ts:270` confirms claim reports include `pending`,
 so scenario 13's terminal `regularInvoiceRow` assertion holds. Weakness: scenario 14's assertions are both
 negative and pass on the first poll — sound only because the re-entry would fire in the same React commit.
+
+## #1939 reportPdf geometry hygiene (PR #1948, CHANGES_REQUIRED)
+
+Comment/name-only PR implementing my #1929 round-3/4 recommendations. Landed clean: `HEADER_ROW_HEIGHT` ->
+`HEADER_ROW_HEIGHT_MAX` (68 = ceil(13/floor(45/10.4)) * 14 + 12, unchanged); cell-content channel
+enumeration (verified against `vendors.ts:35` maxLength 200, `invoices.ts:25` maxLength 100, all table
+widths numeric at `overviewPdf.ts:673`); `PDF_STYLES` relocated into `pageGeometry.ts` with a type-only
+`Style` import (no cycle) and a clean `export { PDF_STYLES }` shim in `merge.ts`.
+
+Rejected on the `WORST_CASE_CHAR_ADVANCE_EM` comment — see the cross-reference-rot section in
+[recurring-patterns.md](recurring-patterns.md) for the three defects and the recompute technique.
+
+Residual, non-blocking: `PDF_DEFAULT_STYLE` stayed in `merge.ts` with hardcoded `fontSize: 11` /
+`lineHeight: 1.4`, while `pageGeometry.ts:55` has `DEFAULT_LINE_HEIGHT = 1.4 // matches merge.ts's
+defaultStyle.lineHeight` — the load-bearing half of the duplicate (feeds `headerFootprint()` ->
+`PAGE_TOP_MARGIN` and `HEADER_ROW_HEIGHT_MAX`). Moving it down closes AC8's intent fully.
