@@ -77,11 +77,11 @@ export function ReportContentEditor({
               />
             )}
 
-            <div className={styles.dateLineField}>
-              <span className={styles.dateLineLabel}>
-                {t('sourceReports.coverLetter.dateLabel')}:
+            <div className={styles.readOnlyField}>
+              <span className={styles.readOnlyLabel}>
+                {t('sourceReports.coverLetter.dateLabel')}
               </span>
-              <span className={styles.dateLineValue}>{content.coverLetter.dateLine}</span>
+              <span className={styles.readOnlyValue}>{content.coverLetter.dateLine}</span>
             </div>
 
             {content.coverLetter.reference && (
@@ -126,7 +126,28 @@ export function ReportContentEditor({
               onChange={(value) => onFieldChange(overrideKey.coverLetter.body, value)}
               isEdited={isFieldEdited(overrideKey.coverLetter.body)}
               onReset={() => onFieldReset(overrideKey.coverLetter.body)}
-              rows={6}
+              rows={10}
+            />
+
+            <div className={styles.readOnlyField}>
+              <span className={styles.readOnlyLabel}>
+                {t('sourceReports.editable.closingLabel')}
+              </span>
+              <span className={styles.readOnlyValue}>{content.coverLetter.closing}</span>
+            </div>
+
+            <EditableField
+              as="input"
+              label={t('sourceReports.editable.signatureLabel')}
+              ariaLabel={t('sourceReports.editable.signatureLabel')}
+              editedSuffix={t('sourceReports.editable.editedSuffix')}
+              resetAriaLabel={t('sourceReports.editable.resetFieldAriaLabel', {
+                field: t('sourceReports.editable.signatureLabel'),
+              })}
+              value={content.coverLetter.signature}
+              onChange={(value) => onFieldChange(overrideKey.coverLetter.signature, value)}
+              isEdited={isFieldEdited(overrideKey.coverLetter.signature)}
+              onReset={() => onFieldReset(overrideKey.coverLetter.signature)}
             />
           </div>
         </div>

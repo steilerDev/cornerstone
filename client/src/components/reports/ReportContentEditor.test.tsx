@@ -166,6 +166,7 @@ function fullContent(): ReportContent {
       subject: 'Subject baseline',
       body: 'Body baseline',
       signature: 'Sender baseline',
+      closing: 'Sincerely,',
     },
     rows: [makeRow({ invoiceId: 'inv-1', attachmentsNote: 'Note baseline' })],
   });
@@ -187,6 +188,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'Subject text',
         body: 'Body text',
         signature: 'The Smiths',
+        closing: 'Sincerely,',
       },
     });
     renderEditor({ content });
@@ -200,6 +202,90 @@ describe('ReportContentEditor — cover letter card', () => {
     expect(screen.queryByLabelText(/dateLabel/)).not.toBeInTheDocument();
   });
 
+  // ─── PR #1951 MUST FIX 1: the Closing row had zero unit coverage ────────────────────────────
+  //
+  // Deleting the Closing row's JSX (ReportContentEditor.tsx L132-137) left every existing test
+  // green — no test asserted the row's label, its value, or its position. `recipient`/`reference`
+  // are both null here so `.letterFields` has a deterministic, fully-known child list (sender,
+  // date, subject, body, closing, signature — no conditional rows to account for), letting the
+  // "between body and signature" claim be checked by DOM position rather than assumed.
+  it('renders the read-only Closing row (label + value) as a direct child of .letterFields, positioned between the body field and the signature field', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'Sender text',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'Subject text',
+        body: 'Body text',
+        signature: 'Signature text',
+        closing: 'Sincerely yours,',
+      },
+    });
+    const { container } = renderEditor({ content });
+
+    // The label AND the value both render.
+    expect(screen.getByText('sourceReports.editable.closingLabel')).toBeInTheDocument();
+    expect(screen.getByText('Sincerely yours,')).toBeInTheDocument();
+
+    // Position: a direct child of .letterFields, strictly between the body EditableField and the
+    // signature EditableField. Located by content rather than hardcoded index math, so this fails
+    // for the right reason (the row is gone, or moved) rather than merely re-asserting a position
+    // number nobody chose deliberately.
+    const letterFields = container.querySelector('.letterFields');
+    expect(letterFields).not.toBeNull();
+    const children = Array.from(letterFields!.children);
+    const bodyIndex = children.findIndex((c) =>
+      c.textContent?.includes('sourceReports.editable.bodyLabel'),
+    );
+    const closingIndex = children.findIndex((c) =>
+      c.textContent?.includes('sourceReports.editable.closingLabel'),
+    );
+    const signatureIndex = children.findIndex((c) =>
+      c.textContent?.includes('sourceReports.editable.signatureLabel'),
+    );
+    expect(bodyIndex).toBeGreaterThan(-1);
+    expect(closingIndex).toBe(bodyIndex + 1);
+    expect(signatureIndex).toBe(closingIndex + 1);
+  });
+
+  // ─── PR #1951 MUST FIX 2: #1925 AC5 — read-only captions render without a trailing colon ────
+  //
+  // #1925's §6 fold-in dropped AC3 and AC5 when it was carried into this issue. AC5's requirement
+  // — the caption renders without a trailing colon — is the fix #1925 asked for, and until now
+  // nothing pinned it: the PDF side is checked by exact equality elsewhere, but the editor side
+  // had no assertion that would break if a trailing ':' were reintroduced (e.g. copying the
+  // sourceInfoBlock's own `{label}: {value}` pattern a few lines below onto these rows). Both
+  // read-only rows share the same `.readOnlyField`/`.readOnlyLabel` recipe (dateLine, closing), so
+  // both are covered here. `getByText` does an exact (whitespace-normalized) match against a
+  // single text node — if the JSX ever appended a literal ':' after the label, the rendered text
+  // would become 'sourceReports.coverLetter.dateLabel:' and this exact query would stop matching.
+  it("#1925 AC5: the date row's and closing row's read-only captions render without a trailing colon", () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'Sender text',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'Subject text',
+        body: 'Body text',
+        signature: 'Signature text',
+        closing: 'Sincerely yours,',
+      },
+    });
+    renderEditor({ content });
+
+    const dateLabel = screen.getByText('sourceReports.coverLetter.dateLabel');
+    const closingLabel = screen.getByText('sourceReports.editable.closingLabel');
+    expect(dateLabel.textContent).not.toMatch(/:$/);
+    expect(closingLabel.textContent).not.toMatch(/:$/);
+    // Belt-and-braces: the exact-match queries above already fail on a trailing colon (a
+    // regression would render 'sourceReports.coverLetter.dateLabel:', a different string), but
+    // spell out the negative directly too, since that's the literal thing AC5 forbids.
+    expect(dateLabel.textContent).not.toContain(':');
+    expect(closingLabel.textContent).not.toContain(':');
+  });
+
   it('renders the recipient EditableField only when recipient is non-null', () => {
     const withRecipient = makeContent({
       coverLetter: {
@@ -210,6 +296,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: '',
+        closing: 'Sincerely,',
       },
     });
     const { rerender } = renderEditor({ content: withRecipient });
@@ -224,6 +311,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: '',
+        closing: 'Sincerely,',
       },
     });
     rerender(
@@ -256,6 +344,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: '',
+        closing: 'Sincerely,',
       },
     });
     renderEditor({ content });
@@ -273,6 +362,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'Baseline subject',
         body: 'Baseline body',
         signature: 'Baseline sender',
+        closing: 'Sincerely,',
       },
     });
     const { onFieldChange } = renderEditor({ content });
@@ -291,6 +381,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: 'Overridden sender',
+        closing: 'Sincerely,',
       },
     });
     const { onFieldReset } = renderEditor({
@@ -302,6 +393,107 @@ describe('ReportContentEditor — cover letter card', () => {
     });
     fireEvent.click(resetButtons[0]!);
     expect(onFieldReset).toHaveBeenCalledWith('coverLetter.sender');
+  });
+
+  // ─── #1932 AC 2.1/2.3: signature is a first-class editable EditableField ────────────────────
+
+  it('renders the signature EditableField unconditionally — present even when signature is an empty string, matching sender', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: '',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'S',
+        body: 'B',
+        signature: '',
+        closing: 'Sincerely,',
+      },
+    });
+    renderEditor({ content });
+    expect(screen.getByLabelText('sourceReports.editable.signatureLabel')).toBeInTheDocument();
+  });
+
+  it('calls onFieldChange with the coverLetter.signature key when the signature field changes', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'Baseline sender',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'S',
+        body: 'B',
+        signature: 'Baseline signature',
+        closing: 'Sincerely,',
+      },
+    });
+    const { onFieldChange } = renderEditor({ content });
+    const signatureField = screen.getByLabelText('sourceReports.editable.signatureLabel');
+    fireEvent.change(signatureField, { target: { value: 'New Signature' } });
+    expect(onFieldChange).toHaveBeenCalledWith('coverLetter.signature', 'New Signature');
+  });
+
+  it('marks the signature field as edited (edited-dot present) only when its own override key exists', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'Baseline sender',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'S',
+        body: 'B',
+        signature: 'Overridden Signature',
+        closing: 'Sincerely,',
+      },
+    });
+    const { container } = renderEditor({
+      content,
+      overrides: { 'coverLetter.signature': 'Overridden Signature' },
+    });
+    expect(container.querySelector('.editedDot')).toBeInTheDocument();
+  });
+
+  it('does not mark the signature field as edited when no override key exists for it (e.g. only sender was overridden)', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'Overridden sender',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'S',
+        body: 'B',
+        signature: 'Sender-derived signature',
+        closing: 'Sincerely,',
+      },
+    });
+    renderEditor({
+      content,
+      overrides: { 'coverLetter.sender': 'Overridden sender' },
+    });
+    // Only the sender field's reset button/edited-dot should exist — not a second one for
+    // signature, since 'coverLetter.signature' is not itself a key in overrides.
+    expect(screen.getAllByRole('button', { name: /resetFieldAriaLabel/ })).toHaveLength(1);
+  });
+
+  it('calls onFieldReset with coverLetter.signature when the signature reset button is clicked (edited state)', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'Baseline sender',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'S',
+        body: 'B',
+        signature: 'Overridden Signature',
+        closing: 'Sincerely,',
+      },
+    });
+    const { onFieldReset } = renderEditor({
+      content,
+      overrides: { 'coverLetter.signature': 'Overridden Signature' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /resetFieldAriaLabel/ }));
+    expect(onFieldReset).toHaveBeenCalledWith('coverLetter.signature');
   });
 });
 
@@ -450,6 +642,7 @@ describe('ReportContentEditor — reset button accessible names (no raw field-id
         'coverLetter.reference': content.coverLetter!.reference as string,
         'coverLetter.subject': content.coverLetter!.subject,
         'coverLetter.body': content.coverLetter!.body,
+        'coverLetter.signature': content.coverLetter!.signature,
       },
     });
 
@@ -459,6 +652,7 @@ describe('ReportContentEditor — reset button accessible names (no raw field-id
       'referenceLabel',
       'subjectLabel',
       'bodyLabel',
+      'signatureLabel',
     ]) {
       expect(
         screen.getByRole('button', {

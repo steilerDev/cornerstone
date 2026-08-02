@@ -104,6 +104,11 @@ export const PDF_STYLES: Record<string, Style> = {
     fontSize: TABLE_SMALL_FONT_SIZE,
     color: '#6b7280',
   },
+  letterSubject: {
+    fontSize: SUBHEADER_FONT_SIZE, // 12pt — reuse the existing constant, don't add a new literal
+    bold: true,
+    color: '#111827', // matches PDF_STYLES.header's color — same "this is important" dark tone
+  },
 };
 
 export function printableWidth(): number {

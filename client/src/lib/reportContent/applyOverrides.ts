@@ -1,9 +1,10 @@
 /**
  * Apply user overrides to baseline ReportContent.
  * Pure function: returns a new ReportContent without mutating the input.
- * Recognized override keys: coverLetter.{sender,recipient,reference,subject,body}, row.<id>.{usageText,attachmentsNote}
+ * Recognized override keys: coverLetter.{sender,recipient,reference,subject,body,signature}, row.<id>.{usageText,attachmentsNote}
  * Unknown keys are silently ignored.
- * When sender is overridden, signature is recomputed automatically.
+ * When sender is overridden, signature is recomputed from it UNLESS signature has itself been
+ * explicitly overridden — an explicit signature override always wins (AC 2.6).
  */
 
 import type { ReportContent, ReportContentOverrides } from './types.js';
@@ -63,8 +64,14 @@ export function applyOverrides(
       }
     }
 
-    // Recompute signature if sender changed
-    if (senderChanged) {
+    // AC 2.6: an explicit signature override always wins; only fall back to deriving it from
+    // the (possibly-overridden) sender when the user has never touched signature directly.
+    if (overrideKey.coverLetter.signature in overrides) {
+      const signatureOverride = overrides[overrideKey.coverLetter.signature];
+      if (signatureOverride !== undefined) {
+        result.coverLetter.signature = signatureOverride;
+      }
+    } else if (senderChanged) {
       result.coverLetter.signature = result.coverLetter.sender.split('\n')[0]?.trim() ?? '';
     }
   }

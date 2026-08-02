@@ -208,6 +208,20 @@ Final state worth knowing: table width is now **exactly 515.28pt, unfalsifiable 
 - **#1940 — continuation rows read as broken** (`enhancement`, Could Have, Backlog). The deferred "Could Have" from the #1929 ruling, now *observed*: `splitIntoPageSafeChunks` has no minimum trailing-chunk floor, so a row can carry a **single stray character** with all other columns blank. Only above the chunk ceilings, i.e. beyond AC12's guaranteed 600-char range; no data loss (I1 holds).
 - **#1941 — editable override fields have no length limit** (`enhancement`, Could Have, Backlog). Zero `maxLength` in `client/src/components/reports/` or `EditableField/`; `attachmentsNote` is a client-side override that never round-trips, `areaText` is aggregate-unbounded (N × 200). **No longer a correctness risk** — round 4 bounded the renderer at cell scope. Input-side gap only.
 
+### #1950 — guard test for the derived `Ѹ` ceiling (filed 2026-08-02 from PR #1948 round-3 review)
+
+`tech-debt`, **Could Have**, Backlog, **blocked-by #1939**. Filed off the architect's PR #1948 approval comment ([5160266124](https://github.com/steilerDev/cornerstone/pull/1948#issuecomment-5160266124) §2), which **reframed its own earlier ask**: the deliverable is *not* re-running the 3,919-codepoint sweep, it's a **guard test that recomputes** the derived ceiling from `USAGE_WIDTH_7COL` / `TABLE_BODY_FONT_SIZE` / `TABLE_SMALL_FONT_SIZE` / `DEFAULT_LINE_HEIGHT`. Sweep left out as an explicit **non-goal**, not an optional AC — an "optional" AC isn't binary and makes the issue unfalsifiable.
+
+The risk being guarded: `MAX_SAFE_USAGE_CHUNK_CHARS` (650) is **34 chars / 3 lines / 33.6pt over** its *derived* `Ѹ` ceiling of 616 (`44 lines × 14 chars`). Accepted on **input reachability** (needs 650 unbroken chars of archaic Church Slavonic Uk in one Usage cell), and because a `Ѹ`-safe value must sit in `[600, 616]`, collapsing AC12's margin over its 600-char floor from 8.3% to ~2.7%. `MAX_SAFE_SMALL_CHUNK_CHARS` (450) is genuinely safe (11.2% under 507). **Not a request to change 650** — the architect is comfortable with the risk.
+
+Three durable rulings, all written into the issue rather than left implicit:
+
+- **Comment and issue both, never one instead of the other.** The rationale stays in the code comment (AC 2.1 forbids moving/shortening/replacing it; AC 2.3 pins 650/450/1.04 and every width byte-identical) because *"anyone changing 650 or a column width reads that comment, not an issue tracker. Moving it out recreates the provenance loss that produced #1939."* The issue owns the **guard**; the comment owns the **rationale**.
+- **Bounded-quantified vs unbounded-estimated is the line for "does this deserve a tracked owner."** `markerText` is unbounded with an estimated break-even → documentation only (folded into #1939). This is a bounded constant *provably* 34 chars past a derived ceiling → *"a quantified exceedance is a standing accepted risk with a number on it."* I would have collapsed these two; don't.
+- **A derived bound with no test is a comment waiting to go stale.** Verified live: `overviewPdf.test.ts` pins `MEASURED_TRUE_CEILING` as re-typed `704`/`546` literals referencing **no geometry constant**, so widening the Usage column leaves them green while the real ceiling moves. Generalise: when a review accepts a *derived* number, ask what fails if its inputs change.
+
+AC 1.3 fails in **both** directions (growth widens a reviewed risk; shrinkage makes the comment's figure wrong). AC 1.6 keeps the measured 44/39-line budgets as the sole pinned literals, labelled as real-render measurements. The architect's two "informational, do not re-round" cosmetics (`~2.6%`→`~2.7%`, the self-asserted-infallibility sentence) were **already fixed at head `a6871975`** — checked before deciding, nothing folded in.
+
 ### Merge/scope decisions in this triage
 
 - **`markerText` (unbounded, ~250-skipped-doc break-even) and `invoiceNumber` (unbroken, capped at 100) were folded into #1939 as a documentation-only AC**, not filed separately. Their value is entirely "the next person reading this file knows the enumeration"— the same category as the comment-scoping work, and a standalone Could Have would never be picked up. AC7 + a scope guard forbid actually implementing a bound for them.
@@ -283,3 +297,77 @@ Reworded to "every viewport" with the 44×44px target **unconditional** (strictl
 - Before writing a viewport- or layout-conditional AC, **check the CSS for an actual breakpoint** — don't infer a responsive variant from the presence of `mobileCard` classes elsewhere in the same file.
 - For equivalence/"identical to" ACs, **name what is excluded** or sticky user preferences will read as failures.
 - When an AC is corrected on an open issue, annotate the AC inline with a date + pointer to the correction comment, and say in the comment *why*, so the original premise isn't reintroduced from memory of the old text.
+
+## #1932 user scope ruling 2026-08-02 — plain text with line breaks, not markdown
+
+Comments: `issuecomment-5160251632` (decision), `issuecomment-5160258752` (AC change log).
+
+**User, verbatim: "no full wysiwyg necessary - just a simple text body with line breaks".** So: plain text, no markdown, no rich-text editor, **no new client dependency**. Bold phrases and bulleted lists are **out of scope** even though #1932's Problem section cites them as motivation. The issue's "Needs a design decision before implementation" note is struck — this is no longer an architect/UX call. `ux-designer` still owns letter layout (AC 4.4).
+
+### Premise correction — the stated defect was largely false
+
+**pdfmake already honours `\n`.** `node_modules/pdfmake/js/TextBreaker.js` L30–34 and L53–58 treat `\n`/`\r\n` as a *required* line end, so a single text node renders embedded newlines as line breaks. The sender block has depended on this all along (`senderLines.join('\n')` in one node, pinned in `coverLetterPdf.test.ts` L80–90). The body's line-break round trip **already works and is merely unpinned**.
+
+Consequence: #1932 section 1 collapsed from a feature build to **regression guards + one new requirement**. Worth keeping the guard anyway — the per-token inline-run technique used elsewhere in `reportPdf/` for pdfmake's all-or-nothing `wordBreak` would silently destroy `\n` handling if ever applied to the body. That is a working-but-unpinned behaviour with a plausible silent breaker, which is exactly what a test is for.
+
+**Lesson: verify a "does not survive rendering" claim against the renderer's source before writing ACs around fixing it.** Cheap (one grep in `node_modules`), and it flipped this section's size.
+
+### The plain-text ruling *created* one requirement rather than removing it
+
+**AC 1.6 is now load-bearing.** `server/src/services/budgetExtraction/prompts.ts` L~142 ("Letter body") says nothing about output format. An LLM asked for a business letter readily emits `**emphasis**` and `- bullets`; under plain-text rendering those print as literal asterisks in the PDF a bank reads. Same defect class as the #1916 prompt-input findings — **when a formatting model is simplified, re-check what the LLM prompt assumes about it.**
+
+### Vacuous ACs: strike with a stated replacement, never delete
+
+- **1.4** (formatting discoverability) → STRUCK, replaced inline by a negative (must not advertise formatting support) + a concrete ask (`rows={6}` textarea must show multi-paragraph structure without scrolling).
+- **1.5** (XSS-safe formatted rendering) → VACUOUS BY CONSTRUCTION, retained as a negative constraint: no `dangerouslySetInnerHTML`, no HTML parsing, no markup interpretation on the body path. Flagged as blocking if violated — it is precisely the AC a future "let's just add marked" PR breaks.
+- **1.3** inverted: markup-looking characters must render **literally**; no markdown/rich-text dep added to `client/package.json`.
+
+Deleting a vacuous AC reads as an oversight and invites re-litigation; striking it with the replacement stated inline does not.
+
+### Non-formatting defects are genuinely independent — with one intra-issue coupling I had to add
+
+Sections 2 (signature), 3 (sender), 4 (layout), 5 (reset-X CSS) do **not** depend on the formatting model. Two caveats found on disk:
+
+- **§2 ↔ §3 are coupled to each other**, in code today: `applyOverrides.ts` L66–68 recomputes `signature` from an overridden sender (`sender.split('\n')[0]`), `types.ts` L44 documents `signature` as `DERIVED`, and `realRender.test.ts` L997 pins the recompute. Making signature first-class means a sender edit must stop overwriting an explicit signature, and that test must be **updated, not deleted**. Filed as new **AC 2.6** — would otherwise have been a review-time surprise.
+- **Paragraph *spacing* moved §1 → §4.** With no markup carrying paragraph semantics, whether a blank line stays a full empty line or becomes typographic spacing is a layout call. AC 4.1 amended to own it.
+- §5 (reset-X) is pure shared-component CSS and is fully severable — could be split out if #1932 ever needs shrinking.
+
+### #1925 fold-in unaffected
+
+All four carried ACs stand verbatim — #1925 is the date **caption** in the letter head plus caption chrome styling, neither of which touches the body model. Added a note above section 6 saying so, so the ruling isn't read as having disturbed the fold-in.
+
+### #1939 → #1932 handoff (blocked-by is a single edge)
+
+`#1932 blockedBy` = **only #1939** (verified via GraphQL `blockedBy(first:10)`). PR **#1948** open, no review posted yet. Clear the edge as soon as #1948 merges; nothing else gates #1932. Post-#1939 facts recorded in #1932's Notes for the implementer:
+
+- **`PDF_STYLES` is defined in `pageGeometry.ts`** and re-exported from `merge.ts` (existing `from './merge.js'` imports keep working) — new letter styles go in `pageGeometry.ts`, which must **never** import from `merge.ts`.
+- **`HEADER_ROW_HEIGHT_MAX`** is a ceiling (68pt vs 45.81pt measured), not an estimate. The cover letter ends with a hard `pageBreak: 'after'` so it never shares a page with the table — if #1932's implementation reaches for the constant at all, the layout approach has drifted.
+- #1932 should not touch `overviewPdf.ts`; #1937 owns that file's German-header work.
+
+## #1932 reviewed — PR #1951 APPROVED round 1 (2026-08-02)
+
+All 40 ACs met on `c17d9d44` + the locally-committed E2E follow-up `d60a98b3`. Provisional local runs: 149/149 (applyOverrides + coverLetterPdf + prompts), 63/63 (realRender), stylelint exit 0.
+
+### Rulings worth reusing
+
+- **AC 1.2 — a line-count-plus-spacing proof satisfies a "real render" AC.** `.positions.length` read off a node after `getBlob()`, plus uniform non-zero inter-line gaps, is *sufficient* proof that typed line/blank-line structure survived — no per-line text reconstruction needed — **when the body is a single text node whose `.text` is separately asserted byte-identical**. It genuinely discriminates: a collapsed blank line gives 3 not 4, and a per-token inline-run reflow (the #1929 `wordBreak` technique) destroys `\n` and fails. `._inlines` is the wrong signal — LayoutBuilder drains it to `[]` via `.shift()`; `.positions` is what survives with the right cardinality.
+- **"Updated, not deleted" is satisfied by "kept intact and still correct."** `realRender.test.ts:1057` (sender-override recomputes signature) was left untouched and still passes — it now describes the *fallback* branch. My AC's real concern was deletion of the pin. Downgraded the un-reworded title to informational; the adjacent AC 2.6 test is the actual guard against restoring the unconditional recompute.
+- **Chrome-vs-content adjacency in different languages is correct, not broken.** `closingLabel` ("Grußformel", interface `t()`) sitting directly above `closing` ("Sincerely,", `reportT`) is #1909's rule applied consistently — same relationship "Betreff" already has with English subject text. Stacking them **vertically** is what makes it read as caption-and-artifact rather than one broken sentence. This is also the whole basis of Option B below.
+- **#1925 Option B (restyle caption as chrome) beat Option A (`reportT` the caption)** because Option A would have fixed AC 6.1 by breaking AC 6.2 — every sibling caption in that panel is interface-language, so translating only one makes it the single inconsistent caption.
+- **Duplicate closure transfers ownership; it does not require every AC independently green.** Closed #1925 (board Wont-Do) with one AC only partially met, moving that residual to a MUST FIX on the PR where it would actually be acted on. Keeping it open would track the same work twice.
+
+### My own AC-transcription error — second instance of this failure mode
+
+**#1925 has SIX ACs; my #1932 §6 carried four** and I wrote "all four carried ACs stand verbatim." Dropped its AC3 (PDF date stays bare/label-free) and AC5 (unit pins both sides). Both had to be checked at review time, and AC5 turned out **partial** — the PDF side is pinned by exact equality, the editor side pins only pre-existing behaviour, not the colon-free caption that *is* the fix. **Rule: when folding issue B into issue A, count B's ACs and map every one explicitly — a dropped AC surfaces as an unverified claim at close time.** Companion to the #1933 AC 2.1/2.7 entry (ACs that misdescribe reality); this is ACs that silently go missing.
+
+### Findings filed as MUST FIX on #1951 (non-blocking)
+
+1. **German `closing` carries a comma** — `"Mit freundlichen Grüßen,"`. DIN 5008: **no comma** after the Grußformel; English `"Sincerely,"` correctly takes one. One-char `de`-only fix. Recurring class: translator mirroring English punctuation into a locale with a different convention.
+2. **New Closing read-only row has zero unit coverage** — deleting the JSX leaves every test green, so AC 4.2's preview-mirroring is unpinned.
+3. **#1925 AC5 editor-side pin missing** — nothing asserts the date caption renders colon-free.
+
+Also flagged: stray untracked `client/src/lib/reportPdf/__scratch_ux1951.test.ts` (ux-designer's scratch render test, claimed deleted, wasn't; not gitignored → `git add -A` would sweep it in), and re-run `ci-wait.sh` after pushing `d60a98b3` since the green on `c17d9d44` predates the E2E suite change.
+
+### AC 7.3 ordering ruled correct
+
+E2E belongs in the PR that closes the story, not a follow-up issue — deferring lets the story merge with a documented AC unmet. Scenarios 21–24 pair viewport with theme (desktop+light, mobile+dark) rather than a full 2×2; accepted as the existing convention in that spec file. **#1932 stays out of Done until UAT** — the user rejected the prior output by looking at a generated PDF, so acceptance is a human reading a real exported cover letter in EN and DE (same merge-gate-vs-Done-gate split as #1931).

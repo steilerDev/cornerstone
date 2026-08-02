@@ -51,9 +51,20 @@ import type {
   ErrorCode,
 } from '@cornerstone/shared';
 import type * as ReportPdfIndexTypes from '../../lib/reportPdf/index.js';
+import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
+
+// #1932: ReportWizardPage now calls useAuth() directly (threading `user.displayName` into
+// buildReportContent's sender — AC 3.1). Mocked following VendorsPage.test.tsx's pattern (see its
+// L14-23) rather than wrapping with the real AuthProvider, so every test gets a synchronous,
+// already-resolved user without an extra fetch/mount-effect round trip.
+const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: mockUseAuth,
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
 
 const mockFetchBudgetSources = jest.fn<() => Promise<{ budgetSources: BudgetSource[] }>>();
 jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
@@ -145,6 +156,17 @@ beforeEach(async () => {
     llmEnabled: false,
   });
   mockFetchHouseholdSettings.mockResolvedValue({ householdName: null, householdAddress: null });
+  // Default: no logged-in user, matching the pre-#1932 household-only fixture above (sender []
+  // stays empty unless a test explicitly opts in). Individual tests override with a real
+  // displayName to exercise AC 3.1 (see 'threads the mocked user displayName...' below).
+  mockUseAuth.mockReturnValue({
+    user: null,
+    oidcEnabled: false,
+    isLoading: false,
+    error: null,
+    refreshAuth: jest.fn(async () => {}),
+    logout: jest.fn(async () => {}),
+  });
   mockGetPaperlessStatus.mockResolvedValue({
     configured: false,
     reachable: false,
@@ -822,6 +844,48 @@ describe('ReportWizardPage', () => {
       await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
       const effectiveContent = mockGenerateReportPdf.mock.calls[0]![2];
       expect(effectiveContent.rows[0]!.allocatedAmountValueText).toContain('1,000');
+    });
+  });
+
+  // ─── #1932 AC 3.1: the logged-in user's identity reaches the cover-letter sender ──────────────
+  describe('cover-letter sender threads the authenticated user (Story #1932)', () => {
+    it('threads the mocked user displayName (and the household address) into the step-5 cover-letter sender field', async () => {
+      mockFetchBudgetSources.mockResolvedValue({
+        budgetSources: [makeSource({ contactAddress: '123 Bank St' })],
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockFetchHouseholdSettings.mockResolvedValue({
+        householdName: 'The Smiths',
+        householdAddress: '456 Home Ave',
+      });
+      mockUseAuth.mockReturnValue({
+        user: {
+          id: 'user-1',
+          email: 'jane@example.com',
+          displayName: 'Jane Doe',
+          role: 'member',
+          authProvider: 'local',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          deactivatedAt: null,
+        },
+        oidcEnabled: false,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn(async () => {}),
+        logout: jest.fn(async () => {}),
+      });
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep4(user);
+      await user.click(screen.getByLabelText('Include cover letter'));
+      await clickNext(user); // step 4 -> step 5
+
+      const senderField = screen.getByLabelText('Sender') as HTMLTextAreaElement;
+      // The household NAME ('The Smiths') must never appear — only the user's displayName and
+      // the household address (AC 3.1).
+      expect(senderField.value).toBe('Jane Doe\n456 Home Ave');
     });
   });
 

@@ -10,6 +10,7 @@ export const overrideKey = {
     reference: 'coverLetter.reference',
     subject: 'coverLetter.subject',
     body: 'coverLetter.body',
+    signature: 'coverLetter.signature',
   },
   row: (invoiceId: string) => ({
     usageText: `row.${invoiceId}.usageText`,

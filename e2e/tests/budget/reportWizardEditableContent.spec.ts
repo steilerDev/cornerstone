@@ -83,9 +83,36 @@
  *   area name as a distinct, read-only line below the Usage field on desktop, tablet, AND
  *   mobile; an item with no area renders no area line and no empty gap (AC5.2, AC5.4, AC5.5).
  *
+ * Issue #1932 (cover letter overhaul): formatted body, editable signature block, personal
+ * sender, professional PDF layout. See `ReportWizardPage.ts`'s own "Issue #1932" docstring
+ * paragraph for the full DOM/behavior reference (`letterField('signature')`, the new Closing
+ * read-only row, AC 2.6's sender/signature interaction, and the CSS-only §5 reset-button fix).
+ * - Scenario 21: Desktop, light mode — editing the signature and a genuinely multi-paragraph
+ *   body (two paragraphs separated by a blank line) both survive an on-demand PDF
+ *   preview/export round trip (AC 7.3's load-bearing multi-paragraph case — a single-line body
+ *   would not exercise AC 1.1/1.2 at all).
+ * - Scenario 22: Mobile viewport + dark mode — the identical signature/body edit flow, proving
+ *   the same `EditableField` instances behave identically once dark mode (`data-theme`
+ *   attribute, the established convention elsewhere in this directory, e.g.
+ *   `budget-categories.spec.ts`) is layered on top of the mobile viewport already in effect for
+ *   this project (tagged `@responsive`, gated to the `mobile` project only — same convention as
+ *   Scenario 11/12).
+ * - Scenario 23: AC 2.6 — editing the signature FIRST, then the sender, must NOT silently
+ *   recompute/overwrite the explicit signature override from the new sender text. This is the
+ *   regression guard for the #1932 headline fix (`applyOverrides.ts`).
+ * - Scenario 24: Resetting an edited signature field reverts it to the generated baseline and
+ *   the reset affordance disappears — also a live regression guard that the CSS-only §5
+ *   reset-button fix (glyph sizing only, unchanged `resetButton` className/DOM structure) never
+ *   broke the existing `resetButtonFor`/`hasEditedIndicator` POM locators.
+ *
  * PDF generation (pdfmake + pdf-lib via dynamic `import()`) can be slow, especially on a cold
  * chunk load — every scenario that opens the preview modal, downloads, or uploads uses
- * `test.slow()`.
+ * `test.slow()`. As established in Scenario 8's own note, this project has no PDF-text-extraction
+ * library in its E2E dependencies — Scenarios 21-23 assert the edited values via the live editor
+ * fields (the same effective `ReportContent` object that feeds PDF generation) plus a successful,
+ * CSP-hardened preview-modal open as the E2E-reachable proxy for "generation didn't choke on
+ * this combination of overrides"; asserting the literal strings inside the PDF bytes is
+ * `realRender.test.ts`'s job (AC 7.2, owned by `qa-integration-tester`).
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -1805,3 +1832,313 @@ test.describe(
     });
   },
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 21: Cover letter overhaul — signature + multi-paragraph body, desktop light mode
+// (Issue #1932, AC 7.3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — cover letter overhaul, desktop light mode (Scenario 21)', () => {
+  test('Editing the signature and a multi-paragraph body on step 5, then opening the PDF preview, reflects both edits (AC 7.3)', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Letter Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Letter Source`,
+        totalAmount: 10000,
+        contactAddress: '1 Letter St, Testville',
+        reference: 'Ref-LETTER',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Letter` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LETTER-001`,
+        amount: 400,
+        date: '2026-06-22',
+        status: 'pending',
+      });
+
+      await reachStep5(wizard, sourceId);
+
+      // Positive existence check FIRST — a `hasEditedIndicator()` boolean-false check below
+      // would otherwise pass just as vacuously against a field that never mounted (its
+      // `.count() > 0` check returns `false` for zero matches without throwing) as the
+      // `.not.toBeVisible()` calls flagged elsewhere in this file's Scenario 24 fix.
+      await expect(wizard.coverLetterCard).toBeVisible();
+      const signature = wizard.letterField('signature');
+      const body = wizard.letterField('body');
+      await expect(signature).toBeVisible();
+      await expect(body).toBeVisible();
+
+      expect(await wizard.hasEditedIndicator(signature)).toBe(false);
+      expect(await wizard.hasEditedIndicator(body)).toBe(false);
+
+      const editedSignature = `${testPrefix} A. Homeowner`;
+      // AC 1.1/1.2: a genuinely multi-paragraph body — TWO paragraphs separated by a blank
+      // line — is the load-bearing case; a single-line body would not exercise the line-break
+      // round trip at all.
+      const multiParagraphBody =
+        `First paragraph describing the claim in detail for ${testPrefix}.\n\n` +
+        `Second paragraph with further context, on its own paragraph after a blank line.`;
+
+      await wizard.editField(signature, editedSignature);
+      await wizard.editField(body, multiParagraphBody);
+
+      await expect(signature).toHaveValue(editedSignature);
+      await expect(body).toHaveValue(multiParagraphBody);
+      expect(await wizard.hasEditedIndicator(signature)).toBe(true);
+      expect(await wizard.hasEditedIndicator(body)).toBe(true);
+
+      // AC 7.3: exporting/previewing with both edits in place succeeds. Reuses the
+      // established hardened content-check (CSP header + zero CSP-violation console
+      // messages) — the same technique Scenario 6 relies on to prove edited overrides reach
+      // generation without choking.
+      await wizard.openPdfPreviewModal();
+      await expect(wizard.pdfPreviewModalErrorBanner).not.toBeVisible();
+      await wizard.closePdfPreviewModal();
+
+      // Both edits are still reflected in the editor after the round trip through generation.
+      await expect(signature).toHaveValue(editedSignature);
+      await expect(body).toHaveValue(multiParagraphBody);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 22: Cover letter overhaul — mobile viewport + dark mode (Issue #1932, AC 7.3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Report wizard editable content — cover letter overhaul, mobile dark mode (Scenario 22)',
+  { tag: '@responsive' },
+  () => {
+    test('Editing the signature and a multi-paragraph body on step 5 behaves identically at mobile viewport in dark mode (AC 7.3)', async ({
+      page,
+      testPrefix,
+    }) => {
+      test.skip(test.info().project.name !== 'mobile', 'Mobile-only viewport/theme check');
+      test.slow();
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} DarkLetter Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} DarkLetter Source`,
+          totalAmount: 10000,
+          contactAddress: '1 DarkLetter St, Testville',
+          reference: 'Ref-DARKLETTER',
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI DarkLetter` });
+        await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-DARKLETTER-001`,
+          amount: 410,
+          date: '2026-06-23',
+          status: 'pending',
+        });
+
+        await reachStep5(wizard, sourceId);
+
+        // Established `data-theme` dark-mode convention elsewhere in this directory (e.g.
+        // budget-categories.spec.ts's "Dark mode rendering" scenario) rather than spinning up a
+        // second browser context — this test is already gated to the `mobile` project's iPhone
+        // 13 viewport above, so setting the theme attribute on the SAME page combines both axes.
+        // The cover letter card has no mobile-specific CSS of its own (see Scenario 11), so this
+        // proves the SAME EditableField instances behave identically with both applied together.
+        await page.evaluate(() => {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        });
+
+        await expect(wizard.coverLetterCard).toBeVisible();
+        const signature = wizard.letterField('signature');
+        const body = wizard.letterField('body');
+        await expect(signature).toBeVisible();
+        await expect(body).toBeVisible();
+
+        const editedSignature = `${testPrefix} Dark Signature`;
+        const multiParagraphBody =
+          `Dark-mode first paragraph for ${testPrefix}.\n\n` +
+          `Dark-mode second paragraph after a blank line.`;
+
+        await wizard.editField(signature, editedSignature);
+        await wizard.editField(body, multiParagraphBody);
+
+        await expect(signature).toHaveValue(editedSignature);
+        await expect(body).toHaveValue(multiParagraphBody);
+        expect(await wizard.hasEditedIndicator(signature)).toBe(true);
+        expect(await wizard.hasEditedIndicator(body)).toBe(true);
+
+        await wizard.openPdfPreviewModal();
+        await expect(wizard.pdfPreviewModalErrorBanner).not.toBeVisible();
+        await wizard.closePdfPreviewModal();
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 23: AC 2.6 — an explicit signature edit survives a later sender edit (Issue #1932)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — signature survives a later sender edit (Scenario 23, AC 2.6)', () => {
+  test('Editing the signature first, then the sender, keeps the explicit signature instead of silently recomputing it from the new sender', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Ac26 Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Ac26 Source`,
+        totalAmount: 10000,
+        contactAddress: '1 Ac26 St, Testville',
+        reference: 'Ref-AC26',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Ac26` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-AC26-001`,
+        amount: 420,
+        date: '2026-06-24',
+        status: 'pending',
+      });
+
+      await reachStep5(wizard, sourceId);
+
+      // Positive existence check FIRST, before any edit/fill — see Scenario 21's own note on
+      // why this matters even though `fill()` itself would also fail against a 0-element
+      // locator (this makes the failure mode explicit and immediate rather than a generic
+      // actionability timeout).
+      await expect(wizard.coverLetterCard).toBeVisible();
+      const signature = wizard.letterField('signature');
+      const sender = wizard.letterField('sender');
+      await expect(signature).toBeVisible();
+      await expect(sender).toBeVisible();
+
+      // Edit the signature FIRST — an explicit override.
+      const explicitSignature = `${testPrefix} Explicitly Signed`;
+      await wizard.editField(signature, explicitSignature);
+      await expect(signature).toHaveValue(explicitSignature);
+      expect(await wizard.hasEditedIndicator(signature)).toBe(true);
+
+      // THEN edit the sender — the pre-#1932 bug recomputed signature from the new sender's
+      // first line here (`applyOverrides.ts` L66-68), silently discarding the explicit edit
+      // made above.
+      const editedSender = `${testPrefix} A Completely Different Sender\nNew Address`;
+      await wizard.editField(sender, editedSender);
+      await expect(sender).toHaveValue(editedSender);
+
+      // AC 2.6: the explicit signature override always wins — it must NOT have been silently
+      // recomputed from the new sender.
+      await expect(signature).toHaveValue(explicitSignature);
+      expect(await wizard.hasEditedIndicator(signature)).toBe(true);
+
+      // Confirm the same holds through the exported/previewed content — the effective
+      // `ReportContent` object driving this field is the same one PDF generation consumes.
+      await wizard.openPdfPreviewModal();
+      await expect(wizard.pdfPreviewModalErrorBanner).not.toBeVisible();
+      await wizard.closePdfPreviewModal();
+      await expect(signature).toHaveValue(explicitSignature);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 24: Reset interaction on the new signature field (Issue #1932 — regression guard
+// that the CSS-only §5 reset-button fix never broke the existing reset locators)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — signature field reset (Scenario 24)', () => {
+  test('Resetting an edited signature field reverts it to the generated baseline and the reset affordance disappears', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} ResetSig Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} ResetSig Source`,
+        totalAmount: 10000,
+        // The cover letter only mounts when the source has a contactAddress or reference
+        // (`ReportWizardPage.tsx` L279's `setIncludeCoverLetter` auto-enable check) — without
+        // one of these, `content.coverLetter` is null, `letterField('signature')` resolves to
+        // ZERO elements, and every assertion below (including the `.not.toBeVisible()` ones)
+        // would pass vacuously against a locator matching nothing rather than proving anything
+        // about reset behavior. Matches the seed shape used by Scenarios 21-23.
+        contactAddress: '1 ResetSig St, Testville',
+        reference: 'Ref-RESETSIG',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI ResetSig` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-RESETSIG-001`,
+        amount: 430,
+        date: '2026-06-25',
+        status: 'pending',
+      });
+
+      await reachStep5(wizard, sourceId);
+
+      // Positive existence check FIRST: proves the cover letter card (and therefore the
+      // signature field) actually mounted, before relying on any `.not.toBeVisible()`
+      // assertion below — a locator matching zero elements would otherwise pass those
+      // trivially without proving the scenario is looking at the right page state at all.
+      await expect(wizard.coverLetterCard).toBeVisible();
+      const signature = wizard.letterField('signature');
+      await expect(signature).toBeVisible();
+      const baseline = await signature.inputValue();
+
+      // No reset affordance before any edit — the button is conditionally MOUNTED, not merely
+      // hidden (see `resetButtonFor`'s own docstring), so `.not.toBeVisible()` here also proves
+      // it isn't present at all (now safe: `signature`'s own existence was already confirmed
+      // above).
+      await expect(wizard.resetButtonFor(signature)).not.toBeVisible();
+
+      await wizard.editField(signature, 'A completely different signature');
+      await expect(signature).toHaveValue('A completely different signature');
+      expect(await wizard.hasEditedIndicator(signature)).toBe(true);
+      // Regression guard: the reset button still resolves via the SAME
+      // `[class*="resetButton"]` locator after the §5 CSS-only glyph-sizing fix (unchanged
+      // className/DOM — see `ReportWizardPage.ts`'s "Issue #1932" docstring paragraph).
+      await expect(wizard.resetButtonFor(signature)).toBeVisible();
+
+      await wizard.resetField(signature);
+      await expect(signature).toHaveValue(baseline);
+      expect(await wizard.hasEditedIndicator(signature)).toBe(false);
+      // The reset affordance itself disappears once the field is no longer edited.
+      await expect(wizard.resetButtonFor(signature)).not.toBeVisible();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});

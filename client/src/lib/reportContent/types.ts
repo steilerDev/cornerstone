@@ -35,13 +35,14 @@ export interface ReportContentFootnote {
 }
 
 export interface ReportContentCoverLetter {
-  sender: string; // EDITABLE multiline; baseline [householdName, householdAddress].filter(Boolean).join('\n'); '' when both absent (block still renders)
+  sender: string; // EDITABLE multiline; baseline [user.displayName, householdAddress].filter(Boolean).join('\n'); '' when both absent (block still renders)
   recipient: string | null; // EDITABLE when non-null; baseline contactAddress; null → omitted
   dateLine: string; // READ-ONLY
   reference: string | null; // EDITABLE when non-null; null → omitted; distinct from sourceInfo.referenceText
   subject: string; // EDITABLE; baseline reportT(subject.<useCase>)
   body: string; // EDITABLE; baseline reportT(body.<useCase>, {total}) interpolated ONCE at build
-  signature: string; // DERIVED: sender.split('\n')[0]?.trim() ?? ''; recomputed by applyOverrides when sender overridden; PDF renders only when non-empty
+  signature: string; // EDITABLE (first-class); baseline derived from sender's first line (the user's display name, per AC 3.1); NOT recomputed from sender once explicitly overridden — see applyOverrides.ts
+  closing: string; // READ-ONLY; reportT('sourceReports.coverLetter.closing'); part of the letter artifact, never rendered through the editor's interface t (artifact-content-vs-edit-affordance rule, #1909/#1924)
 }
 
 export interface ReportContentLabels {

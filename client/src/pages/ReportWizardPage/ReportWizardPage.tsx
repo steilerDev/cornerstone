@@ -8,6 +8,7 @@ import type {
   GenerateReportContentResponse,
 } from '@cornerstone/shared';
 import i18n from '../../i18n/index.js';
+import { useAuth } from '../../contexts/AuthContext.js';
 import { useLocale, type ResolvedLocale } from '../../contexts/LocaleContext.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchHouseholdSettings } from '../../lib/settingsApi.js';
@@ -61,6 +62,7 @@ export function ReportWizardPage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { showToast } = useToast();
+  const { user } = useAuth();
   const { resolvedLocale, currency } = useLocale();
   const [searchParams] = useSearchParams();
 
@@ -321,7 +323,7 @@ export function ReportWizardPage() {
       useCase,
       reportT,
       reportFormatters,
-      { includeCoverLetter, household },
+      { includeCoverLetter, household, user },
     );
 
     return applyAiContent(derived, aiContent);
@@ -334,6 +336,7 @@ export function ReportWizardPage() {
     reportFormatters,
     includeCoverLetter,
     household,
+    user,
     aiContent,
   ]);
 

@@ -282,6 +282,7 @@ describe('generateReportPdf', () => {
           subject: 'Subj',
           body: 'Body',
           signature: 'S',
+          closing: 'Sincerely,',
         },
       });
 

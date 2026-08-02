@@ -113,6 +113,36 @@ case (`Elektroinstallationsbetrieb` → 3-way break ending in a lone `b`). Lesso
 since "the mechanism is safe" and "the common case looks fine" are different claims — the second
 needs its own separate check, not just the first.
 
+## Empty-string text node DOES reserve a full line height (verified for #1932)
+
+Needed to know whether `{ text: '', margin: [...] }` collapses to zero height or reserves the
+same line-box as a non-empty node, for #1932's AC 2.4 (a signature block's blank space must be
+reserved even when the signature name is cleared to `''`). Rendered a real 3-node doc (`"LINE A"`,
+`""`, `"LINE C"`) at `fontSize: 11, lineHeight: 1.4` via `loadPdfLibs()` + `pdfMake.createPdf(...).getBlob()`
+(same real pipeline as `realRender.test.ts`), then read `.positions[0].top` off each node
+(pdfmake mutates the content array in place — same technique `realRender.test.ts` uses for
+`_calcWidth`/`.positions`, see its own file-header comment). Result: `40` → `58.05` (+18.05pt) →
+`76.09` (+18.05pt) — **identical increment for the empty node as for a non-empty one**, and a
+single-space node produces the exact same numbers. Conclusion: **never worry about an empty pdfmake
+text node collapsing to zero height** — no non-breaking-space workaround is needed to reserve a
+blank line's footprint; just emit the node unconditionally. Also useful data point: at this
+project's default body style (11pt/1.4 line-height), one rendered line is **~18pt**, not the naive
+`11*1.4=15.4pt` — pdfmake's line-height math includes font ascent/descent metrics beyond the raw
+multiplier, so don't hand-compute expected line height from `fontSize*lineHeight` alone when a
+margin value needs to be "N line-heights" — render and measure instead (same lesson as the
+character-width estimates above).
+
+## #1932 resolution of the round-3 "93pt dead space above the cover-letter sender block" note (above)
+
+Spec'd this as **accepted, intentional letter-top-margin** rather than something to fix: 93pt
+(~3.3cm) sits within the normal range for a business letter's top margin (~2.5–4.5cm), *provided*
+the sender block itself carries no additional top margin of its own (confirmed: sender's margin
+is `[0,0,0,4]`, bottom-only, matching this file's existing single-direction-margin convention).
+Did not touch `PAGE_TOP_MARGIN` or any page-geometry constant — the issue's own guardrail says
+reaching for `HEADER_ROW_HEIGHT_MAX`-adjacent constants here is a sign of drift, and a *global*
+pdfmake `pageMargins` value can't be conditionally shrunk for page 1 alone without breaking the
+running-header alignment pdfmake shares across every page.
+
 Also found via the same render (not the constants' claims — direct observation): the
 `MAX_SAFE_USAGE_CHUNK_CHARS` reduction makes chunking trigger more often, and
 `splitIntoPageSafeChunks` has no minimum-trailing-chunk-size floor — hit a rendered row that was

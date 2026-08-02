@@ -17,15 +17,22 @@ describe('overrideKey.coverLetter — fixed literal keys', () => {
       reference: 'coverLetter.reference',
       subject: 'coverLetter.subject',
       body: 'coverLetter.body',
+      signature: 'coverLetter.signature',
     });
   });
 
-  it('sender/recipient/reference/subject/body are each independently addressable string constants', () => {
+  it('sender/recipient/reference/subject/body/signature are each independently addressable string constants', () => {
     expect(overrideKey.coverLetter.sender).toBe('coverLetter.sender');
     expect(overrideKey.coverLetter.recipient).toBe('coverLetter.recipient');
     expect(overrideKey.coverLetter.reference).toBe('coverLetter.reference');
     expect(overrideKey.coverLetter.subject).toBe('coverLetter.subject');
     expect(overrideKey.coverLetter.body).toBe('coverLetter.body');
+    expect(overrideKey.coverLetter.signature).toBe('coverLetter.signature');
+  });
+
+  it('#1932: signature is a first-class editable key, distinct from sender (AC 2.6 depends on this)', () => {
+    expect(overrideKey.coverLetter.signature).toBe('coverLetter.signature');
+    expect(overrideKey.coverLetter.signature).not.toBe(overrideKey.coverLetter.sender);
   });
 
   it('returns the same literal value on every access (no per-call randomness/mutation)', () => {

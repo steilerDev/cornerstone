@@ -71,6 +71,7 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       subject: 'Baseline Subject',
       body: 'Baseline Body',
       signature: 'The Smiths',
+      closing: 'Sincerely,',
     },
     rows: [makeRow()],
     summaryRows: [{ key: 'total', label: 'Total', amountText: '€100.00' }],
