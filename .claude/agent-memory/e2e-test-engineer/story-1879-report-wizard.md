@@ -213,3 +213,47 @@ session rather than assuming). No live Playwright run — browser binary downloa
 network policy in this sandbox (`cdn.playwright.dev`/`playwright.download.prss.microsoft.com`
 both 403 "blocked by network policy: domain ... — no matching allow rule"), consistent with
 `sandbox-live-verification.md`'s finding. CI's full E2E matrix is the real verification gate.
+
+## Issue #1933 — Select Invoices step: open-invoice affordance, select-all alignment fix
+
+`.headerCheckbox` CSS class was REMOVED entirely (both TSX and CSS module) as part of the
+select-all alignment fix — the header's checkbox wrapper is now a bare `.checkboxWithContent`
+div, identical to each row's own `.checkboxWithContent` label. This broke the pre-existing
+`selectAllCheckbox` POM locator (`[class*="headerCheckbox"] input[type="checkbox"]"`, which no
+longer matches anything) — fixed to scope via the still-present `.listHeader` container class
+instead (`[class*="listHeader"] input[type="checkbox"]`). **If a future story removes/renames
+`.listHeader` too, `selectAllCheckbox` needs a matching update** — it's the only thing
+disambiguating the header checkbox from every row's own `.checkboxWithContent` checkbox (both
+literally share the same class name by design now).
+
+New 7th grid column: a shared `IconLinkButton` (`client/src/components/IconLinkButton/`, a new
+shared component — react-router `Link` styled as an icon button, `newTab` prop bakes in
+`target="_blank" rel="noopener noreferrer"`, requires a non-bare `ariaLabel` prop) opens
+`/budget/invoices/:id` in a new tab from each invoice row. It's a DOM sibling of
+`.attachmentColumn`, deliberately NOT nested inside the row's `<label class="checkboxWithContent">`
+— so activating it structurally cannot toggle the row's own inclusion checkbox. Added
+`ReportWizardPage.openInvoiceLink(vendorName, invoiceNumber)` — `getByRole('link', { name:
+/vendor.*invoiceNumber/ })` scoped to `invoiceRow()`, following the same
+vendor-name+invoice-number disambiguation convention as `invoiceRowCheckbox()`. New-tab proof
+pattern: `Promise.all([page.context().waitForEvent('page'), link.click()])` — this event firing
+is the only headless-safe proof of a genuine new browsing context (vs. an in-tab SPA nav); don't
+try to assert anything about OS-level tabs.
+
+No mobile card layout exists for the invoice row at any viewport — `.invoiceRow`/`.listHeader`'s
+grid-template-columns has no `@media` override anywhere in the CSS module, confirmed by grep. A
+"mobile card" AC wording for this component is a product-owner documentation error, not a
+missing implementation — don't go looking for one.
+
+Alignment regression-guard pattern (AC 3.1, genuinely unreachable from unit tests — no layout
+engine in jsdom): compare `boundingBox().x` of `selectAllCheckbox` vs. a row's
+`invoiceRowCheckbox()`, asserting they match within 1px. `TriStateCheckbox` renders a real
+(non-visually-hidden, fixed-size) native `<input type="checkbox">`, so `boundingBox()` returns a
+meaningful, non-null rect for it.
+
+New tests added: `reportWizard.spec.ts` "Report wizard — open-invoice affordance (Issue #1933)"
+(new-tab + wizard-state-preserved combined into one test since the prompt's AC 2.2/2.5 flow is
+naturally sequential; accessible-name; select-all alignment — all desktop-only by omission of
+`@responsive`, matching the file's established "untagged tests only run on the `desktop`
+project" convention, see playwright.config.ts's per-project `grep`) plus a separate
+`@responsive`-tagged "mobile repeat" describe block using the same
+`test.skip(test.info().project.name !== 'mobile', ...)` pattern as Scenario 10.

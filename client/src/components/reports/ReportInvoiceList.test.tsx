@@ -33,7 +33,11 @@
 import { screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, jest, beforeAll } from '@jest/globals';
 import type { TFunction } from 'i18next';
-import type { SourceReportResponse, SourceReportInvoice } from '@cornerstone/shared';
+import type {
+  SourceReportResponse,
+  SourceReportInvoice,
+  SourceReportDeposit,
+} from '@cornerstone/shared';
 import { renderWithRouter } from '../../test/testUtils.js';
 import type { ReportInvoiceList as ReportInvoiceListType } from './ReportInvoiceList.js';
 
@@ -575,6 +579,70 @@ describe('ReportInvoiceList', () => {
       );
       expect(screen.getByText(/sourceReports\.splitBadge/)).toBeInTheDocument();
       expect(screen.getByText('sourceReports.noDocument')).toBeInTheDocument();
+    });
+
+    it('renders the paperclip glyph path, not the old refresh-cw glyph path (Issue #1933 AC 1.1)', () => {
+      // Regression guard for the actual defect: the indicator previously rendered Feather's
+      // refresh-cw icon (signature path segment "M21.5 2v6h-6") under the same .paperclip
+      // wrapper/aria-text contract, which is why the earlier tests in this block (asserting only
+      // on the srOnly text) passed both before and after the glyph fix. This test inspects the
+      // actual <path> data and fails against the pre-fix refresh-cw glyph.
+      const report = makeReport([
+        makeInvoice({
+          invoiceId: 'inv-1',
+          documents: [
+            { documentId: 1, archiveSerialNumber: null, title: null, attachmentType: null },
+          ],
+        }),
+      ]);
+      const { container } = renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const paperclip = container.querySelector('.paperclip');
+      expect(paperclip).not.toBeNull();
+      const path = paperclip!.querySelector('svg path');
+      expect(path).not.toBeNull();
+      const d = path!.getAttribute('d') ?? '';
+      expect(d).not.toContain('M21.5 2v6h-6'); // old refresh-cw signature segment
+      expect(d).toContain('M21.44 11.05'); // new paperclip glyph's opening segment
+    });
+
+    it('the paperclip indicator is not focusable and exposes no interactive role/handler (AC 1.2 guard against re-adding interactivity)', () => {
+      const report = makeReport([
+        makeInvoice({
+          invoiceId: 'inv-1',
+          documents: [
+            { documentId: 1, archiveSerialNumber: null, title: null, attachmentType: null },
+          ],
+        }),
+      ]);
+      const { container } = renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const paperclip = container.querySelector('.paperclip');
+      expect(paperclip).not.toBeNull();
+      expect(paperclip!.tagName).toBe('DIV');
+      expect(paperclip).not.toHaveAttribute('tabindex');
+      expect(paperclip).not.toHaveAttribute('role');
+      expect(paperclip).not.toHaveAttribute('onclick');
+      expect(screen.queryByRole('button', { name: /hasAttachment/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /hasAttachment/ })).not.toBeInTheDocument();
     });
   });
 
@@ -1317,6 +1385,209 @@ describe('ReportInvoiceList', () => {
       const rowCheckboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
       expect(rowCheckboxes[1]!.checked).toBe(true);
       expect(rowCheckboxes[1]!.indeterminate).toBe(false);
+    });
+  });
+
+  // ─── Issue #1933: open-invoice affordance, header checkbox alignment, deposit dates ───
+
+  describe('open-invoice affordance', () => {
+    it('renders an accessible link per allocated invoice row, with an aria-label containing both the vendor name and invoice number (not a bare "open") (AC 2.4)', () => {
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', vendorName: 'ACME Builders', invoiceNumber: 'INV-001' }),
+        makeInvoice({ invoiceId: 'inv-2', vendorName: 'Beta Corp', invoiceNumber: 'INV-002' }),
+      ]);
+      renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const links = screen.getAllByRole('link', { name: /sourceReports\.openInvoiceAriaLabel/ });
+      expect(links).toHaveLength(2);
+      expect(links[0]!.getAttribute('aria-label')).toContain('"vendor":"ACME Builders"');
+      expect(links[0]!.getAttribute('aria-label')).toContain('"invoiceNumber":"INV-001"');
+      expect(links[0]).toHaveAttribute('href', '/budget/invoices/inv-1');
+      expect(links[1]!.getAttribute('aria-label')).toContain('"vendor":"Beta Corp"');
+      expect(links[1]!.getAttribute('aria-label')).toContain('"invoiceNumber":"INV-002"');
+      expect(links[1]).toHaveAttribute('href', '/budget/invoices/inv-2');
+    });
+
+    it("places the open-invoice link OUTSIDE the row's checkboxWithContent <label>, while it remains present elsewhere within the same invoiceRow (AC 2.5 structural guard)", () => {
+      // This is the test that fails if someone later moves the affordance back inside the label:
+      // TriStateCheckbox renders its own internal <label>, and the row wraps it AGAIN in
+      // <label className={styles.checkboxWithContent}> — anything inside that outer label has its
+      // clicks forwarded to the checkbox. The fix is structural: the affordance must live outside
+      // that label, as a DOM sibling of .attachmentColumn.
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
+      const { container } = renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const row = container.querySelector('.invoiceRow');
+      expect(row).not.toBeNull();
+      const label = row!.querySelector('.checkboxWithContent');
+      expect(label).not.toBeNull();
+      const link = screen.getByRole('link', { name: /sourceReports\.openInvoiceAriaLabel/ });
+
+      expect(label!.contains(link)).toBe(false);
+      expect(row!.contains(link)).toBe(true);
+    });
+
+    it('clicking the open-invoice link never calls onToggle — opening an invoice never toggles inclusion (AC 2.5 behavioural guard)', () => {
+      const onToggle = jest.fn();
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
+      renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={onToggle}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const link = screen.getByRole('link', { name: /sourceReports\.openInvoiceAriaLabel/ });
+      fireEvent.click(link);
+      expect(onToggle).not.toHaveBeenCalled();
+    });
+
+    it('opens in a new tab with the safe rel attribute set (AC 2.6)', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
+      renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const link = screen.getByRole('link', { name: /sourceReports\.openInvoiceAriaLabel/ });
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+  });
+
+  describe('header checkbox alignment (Issue #1933 AC 3.1)', () => {
+    it('the header checkbox wrapper no longer references a headerCheckbox-named class', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1' })]);
+      const { container } = renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      const headerWrapper = container.querySelector('.listHeader .checkboxWithContent');
+      expect(headerWrapper).not.toBeNull();
+      expect(headerWrapper!.className).not.toMatch(/headerCheckbox/);
+    });
+  });
+
+  describe('deposit dates alignment (Issue #1933)', () => {
+    // LIMITATION: jsdom has no layout engine, so this suite cannot assert real pixel/baseline
+    // alignment — `vertical-align` is not observable here. These tests verify content correctness
+    // only (the right number of date lines render for each date-presence combination, and nothing
+    // throws). The actual alignment guarantee is the CSS fix (`vertical-align: top` on `.table td`,
+    // and dropping `display: flex` from `.depositDatesCell` on desktop) plus an E2E bounding-box
+    // check — neither of which a jsdom unit test can verify.
+
+    const depositBase: SourceReportDeposit = {
+      id: 'dep-1',
+      amount: 50,
+      status: 'pending',
+      entryType: 'deposit',
+      dueDate: '2026-02-01',
+      paidDate: null,
+      claimedDate: null,
+      budgetSourceId: null,
+    };
+
+    function renderWithDeposit(deposit: SourceReportDeposit) {
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLines: [], deposits: [deposit] }),
+      ]);
+      return renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+    }
+
+    function expandAndGetDesktopDatesCell(container: HTMLElement): HTMLElement {
+      const expandBtn = container.querySelector('[aria-controls="invoice-expand-inv-1"]');
+      expect(expandBtn).not.toBeNull();
+      fireEvent.click(expandBtn!);
+      const cells = container.querySelectorAll('.depositDatesCell');
+      // Both the desktop <td> and the mobile <div> render simultaneously (visibility is CSS
+      // media-query driven, not conditional mounting) — the desktop table is first in DOM order.
+      expect(cells.length).toBe(2);
+      return cells[0] as HTMLElement;
+    }
+
+    it('renders exactly one date line for a due-date-only deposit', () => {
+      const { container } = renderWithDeposit({ ...depositBase });
+      const cell = expandAndGetDesktopDatesCell(container);
+      expect(cell.querySelectorAll('div')).toHaveLength(1);
+      expect(cell.textContent).toContain('sourceReports.expand.dueDate');
+      expect(cell.textContent).not.toContain('sourceReports.expand.paidDate');
+      expect(cell.textContent).not.toContain('sourceReports.expand.claimedDate');
+    });
+
+    it('renders exactly two date lines for a due+paid deposit', () => {
+      const { container } = renderWithDeposit({ ...depositBase, paidDate: '2026-02-10' });
+      const cell = expandAndGetDesktopDatesCell(container);
+      expect(cell.querySelectorAll('div')).toHaveLength(2);
+      expect(cell.textContent).toContain('sourceReports.expand.dueDate');
+      expect(cell.textContent).toContain('sourceReports.expand.paidDate');
+      expect(cell.textContent).not.toContain('sourceReports.expand.claimedDate');
+    });
+
+    it('renders exactly two date lines for a due+claimed deposit', () => {
+      const { container } = renderWithDeposit({ ...depositBase, claimedDate: '2026-02-15' });
+      const cell = expandAndGetDesktopDatesCell(container);
+      expect(cell.querySelectorAll('div')).toHaveLength(2);
+      expect(cell.textContent).toContain('sourceReports.expand.dueDate');
+      expect(cell.textContent).toContain('sourceReports.expand.claimedDate');
+      expect(cell.textContent).not.toContain('sourceReports.expand.paidDate');
+    });
+
+    it('renders exactly three date lines for a due+paid+claimed deposit', () => {
+      const { container } = renderWithDeposit({
+        ...depositBase,
+        paidDate: '2026-02-10',
+        claimedDate: '2026-02-15',
+      });
+      const cell = expandAndGetDesktopDatesCell(container);
+      expect(cell.querySelectorAll('div')).toHaveLength(3);
+      expect(cell.textContent).toContain('sourceReports.expand.dueDate');
+      expect(cell.textContent).toContain('sourceReports.expand.paidDate');
+      expect(cell.textContent).toContain('sourceReports.expand.claimedDate');
     });
   });
 });

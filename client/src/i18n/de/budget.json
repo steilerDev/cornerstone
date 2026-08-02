@@ -1173,6 +1173,8 @@
     "refund": "Rückerstattung",
     "splitBadge": "anteilig {{allocated}} von {{total}}",
     "splitTooltip": "Diese Rechnung ist auf mehrere Quellen aufgeteilt",
+    "openInvoiceAriaLabel": "Rechnung {{vendor}}, {{invoiceNumber}} in neuem Tab öffnen",
+    "openInvoiceTooltip": "Rechnung in neuem Tab öffnen",
     "selectedCount": "{{count}} von {{totalCount}} | Gesamt: {{totalAmount}}",
     "resetSelection": "Auswahl zurücksetzen",
     "subNavAriaLabel": "Budget-Abschnittsnavigation",

@@ -20,6 +20,13 @@
  *   field's value — no PDF generation needed) while the wizard's own chrome (heading, stepper
  *   labels, field LABELS, Back/Next buttons) stays English throughout, and the on-demand
  *   download still succeeds.
+ * - Scenario 13: Issue #1933 — the Select Invoices step's open-invoice affordance opens
+ *   `/budget/invoices/:id` in a genuinely new browsing context (`context.waitForEvent('page')`)
+ *   while leaving the wizard tab's step/source/exclusions untouched (desktop + mobile), its
+ *   accessible name identifies the invoice (not a bare "Open"), and the select-all checkbox
+ *   shares the per-row checkboxes' left edge (alignment regression guard). These are things
+ *   unit tests cannot reach: a real new tab, and CSS layout alignment (no layout engine in
+ *   jsdom).
  *
  * NOTE ON CURRENT IMPLEMENTATION STATE: as of this story, `ReportWizardPage.tsx` calls
  * `setBudgetSources(sources)` with the raw `fetchBudgetSources()` response
@@ -977,3 +984,237 @@ test.describe('Report wizard — German report language from English UI (Scenari
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 13: Open-invoice affordance (Issue #1933)
+// ─────────────────────────────────────────────────────────────────────────────
+// Untagged tests in this file run on the 'desktop' project only (tablet/mobile only run
+// @responsive-tagged tests — see playwright.config.ts) — the two tests below that require
+// desktop specifically therefore need no explicit skip; only the mobile-viewport repeat is
+// tagged @responsive with a project-name skip, matching Scenario 10's convention.
+
+test.describe('Report wizard — open-invoice affordance (Issue #1933)', () => {
+  test('Opens the invoice in a new tab and leaves the wizard tab untouched (AC 2.2, 2.5)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} OpenLink Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} OpenLink Source`,
+        totalAmount: 20000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI OpenLink` });
+      const invoiceA = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-OPEN-001`,
+        amount: 300,
+        date: '2026-06-01',
+        status: 'pending',
+      });
+      const invoiceB = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-OPEN-002`,
+        amount: 400,
+        date: '2026-06-02',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} OpenLink Vendor`, invoiceA.invoiceNumber!),
+      ).toBeVisible();
+
+      // Toggle a DIFFERENT invoice's exclusion BEFORE opening the link — this is the part
+      // that actually protects the user's work (AC 2.2: same step, same source, same
+      // exclusions after the affordance is used).
+      await wizard.toggleInvoiceExclusion(`${testPrefix} OpenLink Vendor`, invoiceB.invoiceNumber!);
+      await expect(
+        wizard.invoiceRowCheckbox(`${testPrefix} OpenLink Vendor`, invoiceB.invoiceNumber!),
+      ).not.toBeChecked();
+
+      // `context.waitForEvent('page')` firing is the proof of a genuine new browsing context
+      // (AC 2.2) rather than an in-tab SPA navigation — not observable any other way headlessly.
+      const [newPage] = await Promise.all([
+        page.context().waitForEvent('page'),
+        wizard.openInvoiceLink(`${testPrefix} OpenLink Vendor`, invoiceA.invoiceNumber!).click(),
+      ]);
+      await newPage.waitForLoadState();
+      expect(newPage.url()).toContain('/budget/invoices/');
+      await newPage.close();
+
+      // AC 2.5: opening invoiceA never toggles ITS OWN inclusion state.
+      await expect(
+        wizard.invoiceRowCheckbox(`${testPrefix} OpenLink Vendor`, invoiceA.invoiceNumber!),
+      ).toBeChecked();
+
+      // AC 2.2: the original wizard tab is still on step 3, same source, and invoiceB's
+      // exclusion toggled above is unchanged.
+      await expect(wizard.step3NextButton).toBeVisible();
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} OpenLink Vendor`, invoiceA.invoiceNumber!),
+      ).toBeVisible();
+      await expect(
+        wizard.invoiceRowCheckbox(`${testPrefix} OpenLink Vendor`, invoiceB.invoiceNumber!),
+      ).not.toBeChecked();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+
+  test('Accessible name identifies the vendor and invoice number, not a bare "Open" (AC 2.4)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} A11yLink Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} A11yLink Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI A11yLink` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-A11Y-001`,
+        amount: 250,
+        date: '2026-06-03',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      const link = wizard.openInvoiceLink(`${testPrefix} A11yLink Vendor`, invoice.invoiceNumber!);
+      await expect(link).toBeVisible();
+      const accessibleName = (await link.getAttribute('aria-label')) ?? '';
+      expect(accessibleName).toContain(`${testPrefix} A11yLink Vendor`);
+      expect(accessibleName).toContain(invoice.invoiceNumber!);
+      expect(accessibleName.trim().toLowerCase()).not.toBe('open');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+
+  test('Select-all checkbox shares the row checkboxes left edge (AC 3.1, 3.3)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} AlignLink Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} AlignLink Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI AlignLink` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-ALIGN-001`,
+        amount: 150,
+        date: '2026-06-04',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      const rowCheckbox = wizard.invoiceRowCheckbox(
+        `${testPrefix} AlignLink Vendor`,
+        invoice.invoiceNumber!,
+      );
+      await expect(wizard.selectAllCheckbox).toBeVisible();
+      await expect(rowCheckbox).toBeVisible();
+
+      const headerBox = await wizard.selectAllCheckbox.boundingBox();
+      const rowBox = await rowCheckbox.boundingBox();
+      expect(headerBox).not.toBeNull();
+      expect(rowBox).not.toBeNull();
+      // A deterministic proxy for "shares the same vertical axis" (AC 3.1) — the actual
+      // CSS layout math isn't observable from a unit test (no layout engine in jsdom).
+      expect(Math.abs(headerBox!.x - rowBox!.x)).toBeLessThanOrEqual(1);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+test.describe(
+  'Report wizard — open-invoice affordance mobile repeat (Issue #1933)',
+  { tag: '@responsive' },
+  () => {
+    test('Opens the invoice in a new tab at mobile viewport (AC 2.7)', async ({
+      page,
+      testPrefix,
+    }) => {
+      test.skip(test.info().project.name !== 'mobile', 'Mobile-only viewport repeat');
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} MobileLink Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} MobileLink Source`,
+          totalAmount: 10000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI MobileLink` });
+        const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-MOB-001`,
+          amount: 200,
+          date: '2026-06-05',
+          status: 'pending',
+        });
+
+        await wizard.goto();
+        await wizard.selectUseCase('claim');
+        await wizard.goNextFromStep1();
+        await wizard.selectSource(sourceId);
+        await wizard.goNextFromStep2();
+
+        await expect(
+          wizard.regularInvoiceRow(`${testPrefix} MobileLink Vendor`, invoice.invoiceNumber!),
+        ).toBeVisible();
+
+        const [newPage] = await Promise.all([
+          page.context().waitForEvent('page'),
+          wizard.openInvoiceLink(`${testPrefix} MobileLink Vendor`, invoice.invoiceNumber!).click(),
+        ]);
+        await newPage.waitForLoadState();
+        expect(newPage.url()).toContain('/budget/invoices/');
+        await newPage.close();
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
