@@ -126,6 +126,16 @@ export function ReportWizardPage() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const pendingChangeRef = useRef<(() => void) | null>(null);
 
+  // #1943: the ?sourceId= deep link auto-selects a source AT MOST ONCE per page load. Without
+  // this guard, clearing `report` as part of a use-case change re-satisfies this effect's
+  // `!report` condition and silently re-fires handleSourceChange with the ORIGINAL query-string
+  // source id — re-selecting a source and pushing maxReachedStep back to 3, undoing the very
+  // reset handleUseCaseChange performs (see #1943 AC8). The ref persists for the component's
+  // full lifetime and is never reset: sourceIdFromQuery is derived from the URL's search params
+  // once and this page never calls setSearchParams, so the deep-link source id is immutable for
+  // as long as this component instance is mounted.
+  const deepLinkAppliedRef = useRef(false);
+
   // PDF preview modal
   const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
   const [activeAction, setActiveAction] = useState<'preview' | 'download' | 'paperless' | null>(
@@ -202,6 +212,15 @@ export function ReportWizardPage() {
         setStep2Amounts(new Map());
         setStep2Loading(true);
 
+        // #1943: a use-case change invalidates any report fetched under the previous use
+        // case (and the source-gated Step 2 Next control, which only checks `sourceId`).
+        // Clear both so the wizard can't carry a stale report into a later step.
+        setReport(null);
+        setReportStatus('loading');
+        setSourceId(null);
+        setExcludedInvoiceIds(new Set());
+        setExcludedLineIds(new Set());
+
         // Fetch amounts for all sources in parallel
         Promise.all(
           budgetSources.map((source) =>
@@ -252,7 +271,8 @@ export function ReportWizardPage() {
 
   // Handle ?sourceId= query parameter deep link
   useEffect(() => {
-    if (useCase && sourceIdFromQuery && !report) {
+    if (useCase && sourceIdFromQuery && !report && !deepLinkAppliedRef.current) {
+      deepLinkAppliedRef.current = true;
       handleSourceChange(sourceIdFromQuery);
     }
   }, [useCase, sourceIdFromQuery, report, handleSourceChange]);

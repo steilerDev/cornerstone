@@ -20,6 +20,17 @@
  *   field's value — no PDF generation needed) while the wizard's own chrome (heading, stepper
  *   labels, field LABELS, Back/Next buttons) stays English throughout, and the on-demand
  *   download still succeeds.
+ * - Scenario 13: Issue #1943 — changing the use case after a source has already been selected
+ *   clears `report`/`sourceId`/the exclusion sets (`handleUseCaseChange`'s reset), re-locking
+ *   step 2's Next button until a source is re-selected under the NEW use case — the wizard-level
+ *   regression guard for the stale-report bug (a claim report could otherwise embed
+ *   quotation-tier documents carried over from a prior `budget-overview` selection; see #1930's
+ *   document-tier filtering, verified separately by #1930/#1942's own suite, not re-verified
+ *   here).
+ * - Scenario 14: Issue #1943 (AC8) — the `?sourceId=` deep-link auto-select effect is a
+ *   ONE-SHOT (`deepLinkAppliedRef`): clearing `report` as part of a use-case change must not
+ *   re-satisfy the effect's `!report` condition and silently re-select the original
+ *   query-string source under the new use case.
  *
  * NOTE ON CURRENT IMPLEMENTATION STATE: as of this story, `ReportWizardPage.tsx` calls
  * `setBudgetSources(sources)` with the raw `fetchBudgetSources()` response
@@ -974,6 +985,115 @@ test.describe('Report wizard — German report language from English UI (Scenari
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 13/14: Issue #1943 — use-case change discards a stale report
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — use-case change discards stale report (Issue #1943)', () => {
+  test('Full reproduction: changing use case after selecting a source re-locks step 2 until a source is re-selected under the new use case', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} UseCase Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} UseCase Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI UseCase` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-UC-001`,
+        amount: 400,
+        date: '2026-04-01',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('budget-overview');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+
+      // Report fetched under 'budget-overview' — step 2 Next satisfied.
+      await expect(wizard.step2NextButton).toBeEnabled();
+
+      // Back to step 1 with NO unsaved edits/AI content — guardedUpdate runs immediately, no
+      // discard-confirm modal expected.
+      await wizard.goBack();
+      await expect(wizard.useCaseRadioGroup).toBeVisible();
+
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+
+      // Direct browser-level regression guard (#1943 AC1/AC2): pre-fix, `sourceId` and `report`
+      // survived the use-case change, so the source stayed checked and step 2's Next button
+      // (gated only on `!sourceId`) stayed enabled — two clicks reached step 3 holding a report
+      // fetched under 'budget-overview' while `useCase === 'claim'`.
+      await expect(wizard.sourceRow(sourceId)).not.toBeChecked();
+      await expect(wizard.step2NextButton).toBeDisabled();
+
+      // Re-select the source under the NEW use case — proves the wizard recovers cleanly, and
+      // that the report is freshly re-fetched under 'claim' rather than left stale or empty.
+      await wizard.selectSource(sourceId);
+      await expect(wizard.step2NextButton).toBeEnabled();
+      await wizard.goNextFromStep2();
+
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} UseCase Vendor`, invoice.invoiceNumber!),
+      ).toBeVisible();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+
+  test('Deep-link non-reentry: a use-case change after a ?sourceId= deep link does not silently re-select the original source (AC8)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let sourceId = '';
+
+    try {
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} DeepLink Source`,
+        totalAmount: 8000,
+      });
+
+      await wizard.goto(sourceId);
+      await expect(wizard.useCaseRadioGroup).toBeVisible();
+
+      await wizard.selectUseCase('budget-overview');
+      await wizard.goNextFromStep1();
+
+      // Deep link auto-selects the source once a use case is picked.
+      await expect(wizard.sourceRow(sourceId)).toBeChecked();
+
+      await wizard.goBack();
+      await expect(wizard.useCaseRadioGroup).toBeVisible();
+
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+
+      // If the deep-link effect re-fired (re-armed by `report` being cleared to `null`), it
+      // would silently re-select `sourceIdFromQuery` under the new use case and this would be
+      // checked/enabled again — the `deepLinkAppliedRef` one-shot guard must prevent that.
+      await expect(wizard.sourceRow(sourceId)).not.toBeChecked();
+      await expect(wizard.step2NextButton).toBeDisabled();
+    } finally {
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
     }
   });
 });

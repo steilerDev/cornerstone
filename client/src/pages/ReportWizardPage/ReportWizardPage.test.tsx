@@ -825,6 +825,214 @@ describe('ReportWizardPage', () => {
     });
   });
 
+  // ─── Bug #1943: use-case change must reset the previously fetched report ──────────────────────
+  //
+  // Pre-fix, `handleUseCaseChange`'s guarded callback never cleared `report`, `reportStatus`, or
+  // `sourceId`. Since step 2's Next button is gated only on `disabled={!sourceId}`, a user could
+  // pick a use case, pick a source, go back to step 1, pick a DIFFERENT use case, and click
+  // straight through to step 3 holding a report fetched under the PREVIOUS use case (post-#1930,
+  // that can mean quotation-tier documents embedded in an exported claim PDF). The fix clears
+  // `report`/`reportStatus`/`sourceId`/`excludedInvoiceIds`/`excludedLineIds` inside the guarded
+  // callback, plus a `deepLinkAppliedRef` so clearing `report` doesn't re-satisfy the ?sourceId=
+  // deep-link effect's `!report` condition and silently re-select the old source.
+  describe('use-case change resets stale report (Bug #1943)', () => {
+    it('changing the use case after selecting a source clears sourceId and blocks step 2 Next again (AC1/AC2/AC9 core repro)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({
+        budgetSources: [makeSource({ id: 'src-1' }), makeSource({ id: 'src-2', name: 'Savings' })],
+      });
+      mockGetSourceReport.mockImplementation((type: string) =>
+        Promise.resolve(makeReport({ type: type as SourceReportResponse['type'] })),
+      );
+      renderPage();
+      const user = userEvent.setup();
+
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[0]!); // budget-overview
+      await clickNext(user); // step 1 -> 2
+      await waitFor(() => screen.getAllByRole('radio').length > 0);
+      await user.click(screen.getAllByRole('radio')[0]!); // pick the first source
+      await waitFor(() => {
+        const primaryButtons = screen
+          .getAllByRole('button')
+          .filter((b) => b.className.includes('btnPrimary'));
+        expect(primaryButtons[primaryButtons.length - 1]).not.toBeDisabled();
+      });
+
+      // Back to step 1. No overrides/aiContent exist, so picking a different use case is NOT
+      // dirty — the discard modal must not appear; this is the direct (non-guarded-dialog) route.
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[1]!); // claim
+      expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
+
+      await clickNext(user); // step 1 -> 2 again
+      await waitFor(() => screen.getAllByRole('radio').length > 0);
+
+      // Pre-fix: sourceId (and the report fetched under 'budget-overview') survived the use-case
+      // change, so this button stayed enabled and two more clicks reached step 3 holding a stale
+      // report. Post-fix: sourceId was cleared, so Next is disabled and no source is checked.
+      const primaryButtons = screen
+        .getAllByRole('button')
+        .filter((b) => b.className.includes('btnPrimary'));
+      expect(primaryButtons[primaryButtons.length - 1]).toBeDisabled();
+      const sourceRadios = screen.getAllByRole('radio') as HTMLInputElement[];
+      expect(sourceRadios.some((r) => r.checked)).toBe(false);
+    });
+
+    it('confirming the discard modal on a use-case change also clears sourceId/report (AC7, confirm direction)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user); // useCase index 1 ('claim'), source selected, report loaded
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+
+      await user.click(screen.getByRole('button', { name: 'Report Type' })); // jump to step 1
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[0]!); // pick a different use case
+      expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+
+      await clickNext(user); // step 1 -> 2
+      await waitFor(() => screen.getAllByRole('radio').length > 0);
+
+      const sourceRadios = screen.getAllByRole('radio') as HTMLInputElement[];
+      expect(sourceRadios.some((r) => r.checked)).toBe(false);
+      const primaryButtons = screen
+        .getAllByRole('button')
+        .filter((b) => b.className.includes('btnPrimary'));
+      expect(primaryButtons[primaryButtons.length - 1]).toBeDisabled();
+    });
+
+    it('cancelling ("Keep Editing") a use-case change leaves the use case, source, and override edit untouched (AC7, cancel direction)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user); // useCase index 1 ('claim'), source selected, report loaded
+
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Edited Usage Text' } });
+
+      await user.click(screen.getByRole('button', { name: 'Report Type' })); // jump to step 1
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[0]!); // attempt a different use case
+      expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
+      expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
+
+      // The pending use-case change never applied: the original ('claim', index 1) radio is still
+      // checked.
+      const useCaseRadios = screen.getAllByRole('radio') as HTMLInputElement[];
+      expect(useCaseRadios[1]!.checked).toBe(true);
+
+      // The original source selection and report survive too — step 2's Next is still enabled and
+      // the source is still checked, with no re-fetch required.
+      await clickNext(user); // step 1 -> 2
+      await waitFor(() => screen.getAllByRole('radio').length > 0);
+      const sourceRadios = screen.getAllByRole('radio') as HTMLInputElement[];
+      expect(sourceRadios.some((r) => r.checked)).toBe(true);
+      const primaryButtons = screen
+        .getAllByRole('button')
+        .filter((b) => b.className.includes('btnPrimary'));
+      expect(primaryButtons[primaryButtons.length - 1]).not.toBeDisabled();
+
+      // And the override edit survives, undisturbed by any discarded baseline.
+      await clickNext(user); // step 2 -> 3
+      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await clickNext(user); // step 3 -> 4
+      await clickNext(user); // step 4 -> 5
+      expect(within(desktopTable()).getByDisplayValue('Edited Usage Text')).toBeInTheDocument();
+    });
+
+    it('a use-case change does not let the ?sourceId= deep-link effect re-select the old source (AC8)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({
+        budgetSources: [makeSource({ id: 'src-1' })],
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage(['/budget/reports?sourceId=src-1']);
+      const user = userEvent.setup();
+
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[0]!); // budget-overview
+      await clickNext(user); // step 1 -> 2
+
+      await waitFor(() => {
+        expect(mockGetSourceReport).toHaveBeenCalledWith('budget-overview', 'src-1');
+      });
+      await waitFor(() => {
+        const sourceRadios = screen.getAllByRole('radio') as HTMLInputElement[];
+        expect(sourceRadios.some((r) => r.checked && r.value === 'src-1')).toBe(true);
+      });
+
+      // Back to step 1, pick a different use case. Note: the per-source-amounts fetch legitimately
+      // calls getSourceReport('claim', 'src-1') as part of the use-case-change reset (the same
+      // parallel fetch the core-repro test above observes) — that call alone does not prove the
+      // deep-link guard held, so assert on the resulting UI state instead of call counts.
+      await user.click(screen.getByRole('button', { name: 'Back' }));
+      await waitFor(() => screen.getByRole('radiogroup'));
+      mockGetSourceReport.mockClear();
+      await user.click(screen.getAllByRole('radio')[1]!); // claim
+
+      await clickNext(user); // step 1 -> 2 again
+      await waitFor(() => screen.getAllByRole('radio').length > 0);
+
+      // Without the deepLinkAppliedRef guard, clearing `report` as part of the use-case-change
+      // reset re-satisfies the deep-link effect's `!report` condition and it silently re-fires
+      // handleSourceChange('src-1') — re-checking the radio and re-enabling Next behind the
+      // scenes. With the guard, the source stays cleared.
+      const sourceRadios = screen.getAllByRole('radio') as HTMLInputElement[];
+      expect(sourceRadios.some((r) => r.checked)).toBe(false);
+      const primaryButtons = screen
+        .getAllByRole('button')
+        .filter((b) => b.className.includes('btnPrimary'));
+      expect(primaryButtons[primaryButtons.length - 1]).toBeDisabled();
+    });
+
+    it('the step-3 loading/error/retry affordance behaves the same after a use-case change as on a first-time fetch (AC6)', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      let callCount = 0;
+      mockGetSourceReport.mockImplementation(() => {
+        callCount += 1;
+        // Call sequence: #1 use-case-A amounts, #2 use-case-A report (goToStep3), #3 use-case-B
+        // amounts, #4 use-case-B report (re-picking the source under the new use case) — reject
+        // exactly that one, then let a retry (#5) succeed.
+        if (callCount === 4) return Promise.reject(new Error('boom'));
+        return Promise.resolve(makeReport());
+      });
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep3(user, 1); // use case A ('claim'), full pass to a loaded step 3
+
+      await user.click(screen.getByRole('button', { name: 'Back' })); // step 3 -> 2
+      await user.click(screen.getByRole('button', { name: 'Back' })); // step 2 -> 1
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[2]!); // use case B ('proof-of-funds')
+      await clickNext(user); // step 1 -> 2
+      await waitFor(() => screen.getAllByRole('radio').length > 0);
+      await user.click(screen.getAllByRole('radio')[0]!); // re-pick the (only) source
+      await clickNext(user); // step 2 -> 3
+
+      // Same affordance as a first-time failed fetch: an error banner, no indefinite skeleton, and
+      // a working retry — not a dead end.
+      await waitFor(() => {
+        expect(screen.getByText('Failed to load report')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('ACME')).not.toBeInTheDocument();
+      const retryBtn = screen
+        .getAllByRole('button')
+        .find((b) => b.className.includes('btnSecondary'));
+      await user.click(retryBtn!);
+      await waitFor(() => {
+        expect(screen.getByText('ACME')).toBeInTheDocument();
+      });
+    });
+  });
+
   // ─── Story #1900: on-demand generation — Preview PDF ───────────────────────────────────────────
 
   describe('on-demand generation: Preview PDF (Story #1900)', () => {
