@@ -34,14 +34,6 @@ updates:
       # (see PR #1882). Remove once ts-jest widens its peer range.
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
-      # Hold better-sqlite3 at v12. v13 removed the `prebuild-install` dependency
-      # and its install script is now a bare `node-gyp rebuild`, so it always
-      # compiles from source. The Dockerfile's `deps` stage deliberately ships no
-      # python3/build-base and runs on the target platform, so v13 breaks the
-      # Docker build and would compile under emulation for arm64 (see PR #1889).
-      # Remove once the image is provisioned with a build toolchain.
-      - dependency-name: 'better-sqlite3'
-        update-types: ['version-update:semver-major']
 
   # GitHub Actions
   - package-ecosystem: github-actions
