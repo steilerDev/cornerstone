@@ -19,6 +19,7 @@ import {
   REPORT_CONTENT_SYSTEM_PROMPT,
   buildReportContentUserPrompt,
 } from './prompts.js';
+import { REPORT_CONTENT_LIMITS } from './contentLimits.js';
 import type { GenerateReportContentLlmInput, GenerateReportContentLlmInvoice } from './types.js';
 
 // Fixtures directory resolved from project root (process.cwd() = project root when jest runs)
@@ -593,15 +594,28 @@ describe('REPORT_CONTENT_SYSTEM_PROMPT', () => {
     expect(REPORT_CONTENT_SYSTEM_PROMPT.toLowerCase()).toMatch(/injection/);
   });
 
-  it('caps letter subject at 150 chars and letter body at 2000 chars per the prompt instructions', () => {
-    expect(REPORT_CONTENT_SYSTEM_PROMPT).toMatch(/150 char/);
-    expect(REPORT_CONTENT_SYSTEM_PROMPT).toMatch(/2000 char/);
+  it('caps letter subject, letter body, and per-invoice description per REPORT_CONTENT_LIMITS', () => {
+    expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+      `Letter subject: maximum ${REPORT_CONTENT_LIMITS.letterSubject} characters.`,
+    );
+    expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+      `Letter body: maximum ${REPORT_CONTENT_LIMITS.letterBody} characters.`,
+    );
+    expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+      `Maximum ${REPORT_CONTENT_LIMITS.description} characters per description.`,
+    );
   });
 
   it('requires every invoice ID from the input to appear in the descriptions output', () => {
     expect(REPORT_CONTENT_SYSTEM_PROMPT.toLowerCase()).toMatch(
       /every invoice id from the input must appear/,
     );
+  });
+
+  it('forbids inventing or altering amounts or dates (AC 3.5) — the letter body total is the only number the model still emits', () => {
+    // Rule 2 forbids amounts in per-invoice descriptions entirely, so this clause in rule 4 is the
+    // sole instruction protecting the letter body's total-amount restatement from fabrication.
+    expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain('Do NOT invent or alter amounts or dates.');
   });
 
   it('instructs the LLM to output only valid JSON (no markdown)', () => {
@@ -612,15 +626,19 @@ describe('REPORT_CONTENT_SYSTEM_PROMPT', () => {
 
   describe('purpose-focused content rule (#1931)', () => {
     it('instructs the LLM to explain WHY each cost was incurred (its purpose or role), not merely what it was', () => {
-      const lower = REPORT_CONTENT_SYSTEM_PROMPT.toLowerCase();
-      expect(lower).toMatch(/why/);
-      expect(lower).toMatch(/purpose|role/);
+      // A whole-prompt regex like /purpose|role/ would stay green even if this entire instruction
+      // were deleted, because rule 4 separately mentions "the report's purpose" — assert the
+      // distinctive full phrase from rule 2 instead.
+      expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain('explain WHY the cost was incurred');
     });
 
     it('explicitly forbids restating the vendor, invoice number, date, or amount — those are already table columns', () => {
-      const lower = REPORT_CONTENT_SYSTEM_PROMPT.toLowerCase();
-      expect(lower).toMatch(/restate/);
-      expect(lower).toMatch(/vendor|invoice number|date|amount/);
+      // A whole-prompt alternation like /vendor|invoice number|date|amount/ would stay green even
+      // if this entire clause were deleted, because rule 7 (SECURITY) separately mentions "vendor
+      // names" — assert the distinctive full clause from rule 2 instead.
+      expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+        'Do NOT restate the vendor name, invoice number, date, or amount',
+      );
     });
   });
 });
