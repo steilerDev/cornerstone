@@ -290,6 +290,7 @@ export function buildReportContent(
       allocatedAmount: reportT('sourceReports.table.allocatedAmount'),
       usage: reportT('sourceReports.table.usage'),
       attachmentsNote: reportT('sourceReports.editable.attachmentsNoteLabel'),
+      deposit: reportT('sourceReports.table.attachmentType.deposit'),
       source: reportT('sourceReports.table.source'),
       sourceType: reportT('sourceReports.table.sourceType'),
       reference: reportT('sourceReports.table.reference'),

@@ -59,6 +59,7 @@ function makeLabels(): ReportContent['labels'] {
     allocatedAmount: 'sourceReports.table.allocatedAmount',
     usage: 'sourceReports.table.usage',
     attachmentsNote: 'sourceReports.editable.attachmentsNoteLabel',
+    deposit: 'sourceReports.table.attachmentType.deposit',
     source: 'sourceReports.table.source',
     sourceType: 'sourceReports.table.sourceType',
     reference: 'sourceReports.table.reference',
@@ -401,7 +402,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       expect(Array.isArray(cell.text)).toBe(true);
     });
 
-    it('the second run carries the deposit label, color #6b7280 and fontSize 8', () => {
+    it('the second run carries the deposit label, gray color and small fontSize', () => {
       const row = makeRow({ allocatedAmountValueText: '€300.00', isDeposit: true });
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);

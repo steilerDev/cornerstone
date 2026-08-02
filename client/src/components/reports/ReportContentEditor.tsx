@@ -201,7 +201,7 @@ export function ReportContentEditor({
                       className={styles.depositLabel}
                       variants={{
                         deposit: {
-                          label: t('sourceReports.table.attachmentType.deposit'),
+                          label: content.labels.deposit,
                           className: styles.depositBadge,
                         },
                       }}
@@ -308,7 +308,7 @@ export function ReportContentEditor({
                   <Badge
                     variants={{
                       deposit: {
-                        label: t('sourceReports.table.attachmentType.deposit'),
+                        label: content.labels.deposit,
                         className: styles.depositBadge,
                       },
                     }}

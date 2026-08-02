@@ -74,3 +74,33 @@ negative assertions that the old "This is a deposit."/"Dies ist eine Abschlagsza
 no longer appears anywhere. Lesson: a `grep`-based sweep for the type-shape drift (missing fields) is
 necessary but not sufficient — real-render/integration tests asserting exact translated STRINGS for a
 feature whose wording changed need their own pass, since `tsc` won't catch stale string assertions.
+
+**Round 3** (coordinator follow-up on PR #1924): the Deposit badge label moved further — out of
+per-consumer `t()` calls entirely and into the shared content model as `ReportContentLabels.deposit`
+(built once in `buildReportContent.ts` via `reportT`; `ReportContentEditor.tsx` and `overviewPdf.ts`
+both just read `content.labels.deposit` / `reportContent.labels.deposit` now — `overviewPdf.ts` also
+switched to named color/fontSize constants `DEPOSIT_NOTE_TEXT_COLOR`/`DEPOSIT_NOTE_FONT_SIZE` from
+`reportPdf/shared.ts` instead of inline magic values). By the time this request landed, an external
+process (not me) had already patched most existing fixtures' `labels`/`makeLabels()` objects to include
+`deposit: 'REPORT_DEPOSIT_LABEL'`-style values — but NOT the 4 files I'd fixed in round 2
+(`applyAiContent.test.ts`, `applyOverrides.test.ts`, `coverLetterPdf.test.ts`, `merge.test.ts`), which
+still lacked the `deposit` key on their `ReportContentLabels` fixtures and failed `tsc` (`TS2741:
+Property 'deposit' is missing`) once I re-swept. **Lesson: when a shared type gains a new required
+field mid-story, re-run the `tsc -p client/tsconfig.json` sweep after EVERY round, even on files you
+"already fixed" in a prior round for a different reason** — the type can grow again between rounds
+without any signal other than a fresh typecheck.
+
+For the mixed-language regression itself: added to `realRender.test.ts`'s existing
+`describe('production i18n singleton — getFixedT resolves a language independent of the ambient one')`
+block (established pattern for "UI locale stays X while report language resolves Y" — uses the REAL
+app i18n singleton via `(await import('../../i18n/index.js')).default` + `i18n.getFixedT(lang, 'budget')`,
+not the file's separate isolated `i18next.createInstance()` used everywhere else in that file). Gotcha:
+helper functions declared with `function` inside a nested `describe(...)` callback (e.g.
+`makeUsageFeatureReport()` inside the `'Usage column...'` block) are scoped to that closure only —
+NOT visible from a sibling top-level `describe` block later in the same file. Had to inline a minimal
+one-invoice fixture using the file's top-level `makeInvoice()` helper instead of reaching into the
+nested one. Final test: builds `content` via `reportT = i18n.getFixedT('de', 'budget')` while asserting
+`i18n.language` stays `'en'` throughout (both before and after — proves `getFixedT` never calls
+`changeLanguage()`), asserts `content.labels.deposit === 'Abschlagszahlung'` (exact real string, not
+`.toContain`), contrasts with `getFixedT('en', ...)` → `'Deposit'`, and pins the same value through to
+the rendered PDF's inline deposit run.

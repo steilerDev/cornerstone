@@ -53,6 +53,7 @@ export interface ReportContentLabels {
   allocatedAmount: string;
   usage: string;
   attachmentsNote: string;
+  deposit: string; // translated in report language
   source: string;
   sourceType: string;
   reference: string;

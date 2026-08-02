@@ -43,6 +43,7 @@ function makeLabels(): ReportContent['labels'] {
     allocatedAmount: 'Allocated Amount',
     usage: 'Usage',
     attachmentsNote: 'Attachments Note',
+    deposit: 'Deposit',
     source: 'Source',
     sourceType: 'Source Type',
     reference: 'Reference',

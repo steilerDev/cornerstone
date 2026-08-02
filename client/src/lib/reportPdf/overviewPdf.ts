@@ -5,7 +5,12 @@
 import type { TFunction } from 'i18next';
 import type { Content } from 'pdfmake/build/pdfmake';
 import type { ReportContent } from '../reportContent/index.js';
-import { TABLE_LAYOUT, REFUND_TEXT_COLOR } from './shared.js';
+import {
+  TABLE_LAYOUT,
+  REFUND_TEXT_COLOR,
+  DEPOSIT_NOTE_TEXT_COLOR,
+  DEPOSIT_NOTE_FONT_SIZE,
+} from './shared.js';
 
 export function buildOverviewContent(
   reportContent: ReportContent,
@@ -160,9 +165,9 @@ export function buildOverviewContent(
     ];
     if (contentRow.isDeposit) {
       allocatedRuns.push({
-        text: ` (${t('sourceReports.table.attachmentType.deposit')})`,
-        color: '#6b7280',
-        fontSize: 8,
+        text: ` (${reportContent.labels.deposit})`,
+        color: DEPOSIT_NOTE_TEXT_COLOR,
+        fontSize: DEPOSIT_NOTE_FONT_SIZE,
       });
     }
     if (contentRow.isRefund) {

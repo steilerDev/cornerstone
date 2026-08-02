@@ -78,6 +78,7 @@ const LABELS: ReportContentLabels = {
   allocatedAmount: 'REPORT_ALLOCATED_AMOUNT_LABEL',
   usage: 'REPORT_USAGE_LABEL',
   attachmentsNote: 'REPORT_ATTACHMENTS_NOTE_LABEL',
+  deposit: 'REPORT_DEPOSIT_LABEL',
   source: 'REPORT_SOURCE_LABEL',
   sourceType: 'REPORT_SOURCE_TYPE_LABEL',
   reference: 'REPORT_REFERENCE_LABEL',
@@ -724,9 +725,7 @@ describe('ReportContentEditor — isDeposit (AC2.1: inline Deposit badge, no mar
     ];
     const { container } = renderEditor({ content: makeContent({ rows }) });
     const table = getDesktopTable(container);
-    expect(
-      within(table).getByText('sourceReports.table.attachmentType.deposit'),
-    ).toBeInTheDocument();
+    expect(within(table).getByText('REPORT_DEPOSIT_LABEL')).toBeInTheDocument();
     expect(within(table).queryByText(/‡/)).not.toBeInTheDocument();
   });
 
@@ -734,15 +733,13 @@ describe('ReportContentEditor — isDeposit (AC2.1: inline Deposit badge, no mar
     const rows = [makeRow({ invoiceId: 'inv-1', isDeposit: true })];
     const { container } = renderEditor({ content: makeContent({ rows }) });
     const card = within(getMobileList(container));
-    expect(card.getByText('sourceReports.table.attachmentType.deposit')).toBeInTheDocument();
+    expect(card.getByText('REPORT_DEPOSIT_LABEL')).toBeInTheDocument();
   });
 
   it('renders no Deposit badge for a non-deposit row', () => {
     const rows = [makeRow({ invoiceId: 'inv-1', isDeposit: false })];
     const { container } = renderEditor({ content: makeContent({ rows }) });
-    expect(
-      screen.queryByText('sourceReports.table.attachmentType.deposit'),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText('REPORT_DEPOSIT_LABEL')).not.toBeInTheDocument();
     void container;
   });
 });

@@ -892,4 +892,103 @@ describe('production i18n singleton — getFixedT resolves a language independen
     const fixedEn = i18n.getFixedT('en', 'budget');
     expect(fixedEn('sourceReports.table.vendor')).toBe('Vendor');
   });
+
+  // Story #1923 follow-up: the Deposit badge label moved into the shared content model
+  // (`ReportContentLabels.deposit`, built in buildReportContent.ts via the report-language
+  // `reportT`) so that ReportContentEditor.tsx and overviewPdf.ts both consume `labels.deposit`
+  // instead of independently calling a t() of their own. This pins that "report content never
+  // uses UI t" rule for this specific field: with the UI/ambient locale left at its default
+  // ('en', per the assertion above) and the REPORT language explicitly chosen as German — exactly
+  // ReportWizardPage's real `i18n.getFixedT(reportLanguage, 'budget')` construction, not the
+  // isolated test-only i18next instance used elsewhere in this file — `content.labels.deposit`
+  // must resolve the real German copy, and that same value must be what the PDF pipeline renders.
+  it('content.labels.deposit resolves via the report-language reportT (real "Abschlagszahlung"), independent of the UI locale staying English', async () => {
+    const i18n = (await import('../../i18n/index.js')).default;
+    expect(i18n.language).toBe('en'); // UI/ambient locale — untouched throughout this test
+
+    const reportTDe = i18n.getFixedT('de', 'budget');
+    // Minimal self-contained report: one invoice whose entire allocation is a deposit tagged to
+    // this source (the "constituted" case, AC2.1) — the only shape that triggers isDeposit=true.
+    const constitutedDepositInvoice = makeInvoice({
+      invoiceId: 'inv-deposit-constituted',
+      vendorName: 'Constituted Vendor',
+      invoiceNumber: 'U-5',
+      isSplit: true,
+      invoiceAmount: 250,
+      allocatedAmount: 250,
+      budgetLines: [],
+      deposits: [
+        {
+          id: 'dep-constituted',
+          amount: 250,
+          status: 'paid',
+          entryType: 'deposit',
+          dueDate: '2026-01-01',
+          paidDate: '2026-01-05',
+          claimedDate: null,
+          budgetSourceId: 'src-1', // tagged to THIS source -> "constituted" wording
+        },
+      ],
+    });
+    const report: SourceReportResponse = {
+      type: 'claim',
+      source: {
+        id: 'src-1',
+        name: 'Home Loan',
+        sourceType: 'bank_loan',
+        reference: null,
+        contactAddress: null,
+      },
+      invoices: [constitutedDepositInvoice],
+      totalAmount: 250,
+      unallocatedInvoices: [],
+      generatedAt: '2026-02-15T00:00:00.000Z',
+    };
+    const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
+
+    const contentDe = buildReportContent(
+      report,
+      includedIds,
+      'claim',
+      reportTDe,
+      formattersFor('de-DE'),
+      {
+        includeCoverLetter: false,
+        household: null,
+      },
+    );
+    expect(contentDe.labels.deposit).toBe('Abschlagszahlung');
+    expect(i18n.language).toBe('en'); // still untouched — getFixedT never called changeLanguage()
+
+    // Contrast: choosing English as the report language (independent of any UI concept) resolves
+    // the English copy — proving the field tracks whichever reportT was passed in, not a fixed
+    // value and not the UI locale.
+    const reportTEn = i18n.getFixedT('en', 'budget');
+    const contentEn = buildReportContent(
+      report,
+      includedIds,
+      'claim',
+      reportTEn,
+      formattersFor('en-US'),
+      {
+        includeCoverLetter: false,
+        household: null,
+      },
+    );
+    expect(contentEn.labels.deposit).toBe('Deposit');
+
+    // Pipeline pin: the rendered PDF's inline deposit run for the constituted-deposit row carries
+    // the same real German label sourced from content.labels.deposit — overviewPdf.ts never
+    // re-derives it from its own `t` parameter.
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+    const pdfContent = buildOverviewContent(contentDe, new Map(), reportTDe);
+    const tableItem = pdfContent.find(
+      (c) => typeof c === 'object' && c !== null && 'table' in c,
+    ) as { table: { body: unknown[][] } };
+    const constitutedRowCells = tableItem.table.body.find(
+      (row) => (row[0] as { text?: string })?.text === 'Constituted Vendor',
+    ) as { text: string | { text: string }[] }[];
+    const allocatedCell = constitutedRowCells[4] as { text: { text: string }[] };
+    expect(allocatedCell.text[1]!.text).toBe(' (Abschlagszahlung)');
+  });
 });

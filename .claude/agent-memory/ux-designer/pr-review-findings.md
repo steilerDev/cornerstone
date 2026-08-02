@@ -11,6 +11,10 @@ metadata:
 - Legend dot `8px` = `var(--spacing-2)` — always swap raw px dot sizes to nearest spacing token
 - `--color-border-strong` as text `color` for a separator — use `--color-text-muted` instead
 
+## PR #1924 — Report table cleanup (#1923) (APPROVED via `gh pr comment`)
+
+Clean match to spec: `.depositBadge` composed `attachmentDeposit` verbatim, mobile Badge correctly omitted `.depositLabel` (relies on `.mobileCardAllocated` flex-gap instead), `.usageAreaText` rendered as separate div/span never concatenated into the editable value, summary border-removal + `.summaryAmount`-only size bump both matched exactly, PDF deposit-suffix run and usage-stack area line matched fontSize/color/ordering. No findings. Verdict was posted as a `gh pr comment` with an explicit "Verdict: APPROVED" line.
+
 ## PR #1490 — Measurement & Freehand Tools (APPROVED/comment)
 
 See `pr-1490-measurement-freehand.md`. Medium: `labelAttrs { display:'none' }` dead code in render.ts — refinement item.
