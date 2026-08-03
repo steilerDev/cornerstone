@@ -389,3 +389,32 @@ in flight. That is the whole proof. Two corollaries worth asserting in review:
 Ordering claims: a client queue genuinely fixes server-side out-of-order application only if the next
 write is not _dispatched_ until the previous response is back (i.e. `await` wraps the HTTP call, not just
 the local state update). Check that, or the fix only narrows the window.
+
+## Capability retained in code, disabled at the producer, documented by comment (PR #1959)
+
+Three instances in one PR, all the same shape — **a type permits a state the producer can never emit, and the
+constraint is enforced by a comment instead of by the type**:
+
+- `ReportContent.footnotes` is now unconditionally `[]`, yet 4 consumers still branch on / copy it. The E2E
+  page object had to add a prose warning ("never assert a positive count on these").
+- `applyOverrides` still honours `row.<id>.attachmentsNote` with **no producer left** (editor field removed;
+  overrides are ephemeral wizard state — no server persistence, nothing in migrations 0001-0044; and
+  `applyAiContent` only writes `usageText` + cover-letter fields).
+- Column-visibility toggles labelled `Show/hide columns` that affect the preview but **not** the exported PDF.
+
+Rule: **delete rather than comment.** A write path with no reader and no producer is how the #1929
+round-3/round-4 confusion started — the code said one thing and the comment said another. When triaging a
+"keep it as a capability?" question, check for a *producer* first: no producer => dead, remove it.
+
+## Verify the AC record when a PR reverses a recently-shipped story (PR #1959)
+
+#1959 reversed #1923's AC1.1/1.2/2.3/2.4 **one day** after #1923 shipped (2.13.0-beta.38, 2026-08-02), while
+#1923 stayed CLOSED with those ACs marked delivered — so the record asserted two contradictory behaviours were
+both correct on `beta`, and the pending promotion PR would have summarized reversed ACs as delivered.
+
+Tell: the reversing issue had **zero comments**, no `**[product-owner]**` header, no numbered ACs (its body was
+a PR-style summary), and no ux-designer visual spec — whereas the story it reversed had all four. **A
+requirements reversal authored as a polish issue is the signature.** Cheap fix: PO supersession comment on the
+old issue + PO ratification on the new one. Check this whenever a PR deletes user-visible report/document
+content — and check whether the replacement text preserves *meaning* (`(abzgl. Abschlag)` lost the footnote's
+"claimed separately", which is compliance-relevant in a bank-facing document).

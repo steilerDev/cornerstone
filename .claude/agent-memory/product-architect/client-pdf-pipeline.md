@@ -215,3 +215,49 @@ baseline rather than blanking a field. Keep this shape — putting AI output in 
 Server side: `POST /api/source-reports/generate-content` re-fetches the report (client sends selection only),
 persists nothing, and reuses the single `budgetExtraction/` LLM gateway as a third provider method. Both
 documented in ADR-034 "Addendum: content layers".
+
+### PR #1959 review — the Usage-cell height bound, third scope revision
+
+**The recurring defect** (#1929 r3 -> r4 -> #1959 r1) is always the same: `table.dontBreakRows: true` makes
+pdfmake measure an over-tall row and then `PageElementWriter` **silently discards** the overflow. No throw,
+no visible truncation. Symptom: page count **saturates** (~2) and can go **non-monotonic** (3 -> 2 as content
+grows) while rendered line count rises linearly.
+
+**The rule that fixes it durably: bound the height of what a cell RENDERS, never of a source field.**
+Any per-field bound is coupled to a layout decision and detaches silently the moment the layout changes —
+which is exactly how r4's per-field continuation rows became #1959's unbounded inline run.
+`packUsageCellRows(segments, MAX_SAFE_USAGE_CHUNK_CHARS)` is the right shape because the bound now lives
+where the cell's content **stream** is assembled, so a new segment is bounded automatically.
+
+**Two detection recipes that actually caught it** (both threshold-free, both worth reusing for any generated
+document): page count must be **monotonic** in content size, and **channel-independent** — the same text
+costs the same paper whichever field carries it.
+
+**The generic-assertion / hand-enumerated-input asymmetry** (the reason it recurred, now the top open item):
+the per-row budget assertion counts characters generically over all runs, so a new channel *would* be
+counted — but the test inputs are hand-listed (`usageText`/`areaText`/`attachmentsNote`), so a new
+`ReportContentRow` string field defaults empty and every assertion passes **vacuously**. Fix is key-driven
+saturation (`Object.entries(row)` -> saturate every string field), not another hand-written case.
+Verified empirically during review: losslessness + per-row budget hold over 3k fuzzed inputs (0 failures);
+a hypothetical **second** grey/meta segment trips the existing `splitUsageCell` "at most one grey run per row"
+throw in ~49% of inputs, so *that* channel class is already guarded.
+
+**Geometry constraint (blocks a feature):** `USAGE_WIDTH_7COL/_6COL` derive from `usableColumnWidth(n)`, and
+`MAX_SAFE_USAGE_CHUNK_CHARS = 650` was **measured against the 7-column shape**. So making column visibility
+affect the PDF widens the Usage column and **invalidates the measured ceiling** — "just plumb the toggles
+through" is a re-measurement story, not a UI change. #1959's toggles are preview-only local `useState`.
+
+**`packUsageCellRows` hangs on `maxChars <= 0`** (own `remaining <= 0 -> flush() no-op -> continue` loop).
+New to the packer — `splitIntoPageSafeChunks` fails loudly instead (`RangeError`). Unreachable while the
+budget is a constant; matters if it ever becomes computed.
+
+### ADR-034 debt (owed, NOT yet written — carry this forward)
+
+1. Add the `dontBreakRows` lesson + the "bound the rendered cell, not a field" rule + both detection recipes.
+2. **Minimum-bar rule #1 is wrong**: `table._minWidth <= 515.28` fails on correct code (`_minWidth` is the
+   widest unbreakable *word*, not the laid-out width). Correct check: `max(horizontalRatio) <= 1`.
+   B2's narrative is fine; the generalized rule was mis-transcribed.
+3. Module table drifted twice: add `pageGeometry.ts` (#1939) and `index.ts`; drop "PDF-local formatters" from
+   `shared.ts` (deleted in review round 2) and move "table layout constants" to `pageGeometry.ts`.
+4. Override-key list (line 148): drop `attachmentsNote` — unreachable since #1959.
+5. Record the fixed 6-or-7 column-count constraint above.
