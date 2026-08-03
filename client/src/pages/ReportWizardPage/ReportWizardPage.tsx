@@ -646,7 +646,9 @@ export function ReportWizardPage() {
         setAiError(t('sourceReports.editable.aiGenerationFailed'));
       }
     } finally {
-      setIsGeneratingAi(false);
+      if (aiGenerationTokenRef.current === token) {
+        setIsGeneratingAi(false);
+      }
     }
   }, [report, useCase, excludedLineIds, excludedInvoiceIds, sourceId, reportLanguage, t, tErrors]);
 
@@ -1014,7 +1016,11 @@ export function ReportWizardPage() {
       {/* Discard edits confirmation modal */}
       {showDiscardConfirm && (
         <Modal
-          title={t('sourceReports.editable.discardConfirmTitle')}
+          title={
+            isGeneratingAi && Object.keys(overrides).length === 0 && aiContent === null
+              ? t('sourceReports.editable.discardConfirmTitleGenerating')
+              : t('sourceReports.editable.discardConfirmTitle')
+          }
           onClose={() => {
             setShowDiscardConfirm(false);
             pendingChangeRef.current = null;

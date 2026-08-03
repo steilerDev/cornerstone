@@ -868,7 +868,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
       await user.click(screen.getByLabelText('Attach invoice PDFs'));
 
-      expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
+      expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument();
     });
 
     // AC2: confirming discard increments the token so the in-flight result is
@@ -893,7 +893,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       // Navigate to step 4 and trigger the discard modal.
       await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
       await user.click(screen.getByLabelText('Attach invoice PDFs'));
-      await waitFor(() => expect(screen.getByText('Discard your edits?')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
 
       // Confirm: token incremented, isGeneratingAi set false immediately.
       await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
@@ -941,9 +941,9 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       // Trigger modal, then cancel.
       await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
       await user.click(screen.getByLabelText('Attach invoice PDFs'));
-      await waitFor(() => expect(screen.getByText('Discard your edits?')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
       await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
-      expect(screen.queryByText('Discard your edits?')).not.toBeInTheDocument();
+      expect(screen.queryByText('Cancel AI generation?')).not.toBeInTheDocument();
 
       // Navigate back to step 5 — generation still in-flight.
       await clickNext(user); // 4 -> 5
@@ -1029,7 +1029,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
 
       await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
       await user.click(screen.getByLabelText('Attach invoice PDFs'));
-      await waitFor(() => expect(screen.getByText('Discard your edits?')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
 
       expect(
         screen.getByText('An AI generation is in progress. Changing this will cancel it.'),
@@ -1097,7 +1097,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(1));
       await user.click(screen.getAllByRole('radio')[1]!); // src-2
 
-      expect(screen.getByText('Discard your edits?')).toBeInTheDocument();
+      expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument();
     });
 
     // AC9: handleUseCaseChange carries a setAiError('') call in its guarded
@@ -1205,6 +1205,68 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
 
       // Stale skipped-document note must be gone.
       expect(screen.queryByText(/Document could not be retrieved/)).not.toBeInTheDocument();
+    });
+
+    // H1: a discarded generation's finally block must NOT clear the spinner that
+    // belongs to a second, still-in-flight generation started after the discard.
+    it('H1 — discarded generation\'s finally does not clear spinner of new generation', async () => {
+      let resolveA!: (value: GenerateReportContentResponse) => void;
+      const controlledA = new Promise<GenerateReportContentResponse>((res) => {
+        resolveA = res;
+      });
+      let resolveB!: (value: GenerateReportContentResponse) => void;
+      const controlledB = new Promise<GenerateReportContentResponse>((res) => {
+        resolveB = res;
+      });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockReturnValueOnce(controlledA).mockReturnValueOnce(controlledB);
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      // Start generation A.
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+      );
+
+      // Navigate to step 4 and trigger the discard modal (title is the generating variant).
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByLabelText('Attach invoice PDFs'));
+      await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
+
+      // Confirm discard — token bumped, isGeneratingAi cleared.
+      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+
+      // Navigate back to step 5 and start generation B.
+      await clickNext(user); // 4 -> 5
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+      );
+
+      // Resolve A — its token is stale so the finally block must NOT clear
+      // isGeneratingAi (which now belongs to B).
+      await act(async () => {
+        resolveA(defaultAiResult());
+      });
+
+      // B is still in-flight: button must still be disabled.
+      expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled();
+
+      // Resolve B — this generation is live, so its result applies.
+      await act(async () => {
+        resolveB(defaultAiResult());
+      });
+
+      // Button re-enables and AI content appears.
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).not.toBeDisabled(),
+      );
+      expect(
+        within(desktopTable()).getByDisplayValue('AI-generated usage description'),
+      ).toBeInTheDocument();
     });
   });
 });
