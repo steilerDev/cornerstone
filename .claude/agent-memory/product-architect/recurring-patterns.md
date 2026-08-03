@@ -404,7 +404,60 @@ constraint is enforced by a comment instead of by the type**:
 
 Rule: **delete rather than comment.** A write path with no reader and no producer is how the #1929
 round-3/round-4 confusion started — the code said one thing and the comment said another. When triaging a
-"keep it as a capability?" question, check for a *producer* first: no producer => dead, remove it.
+"keep it as a capability?" question, check for a _producer_ first: no producer => dead, remove it.
+
+## Staleness tokens: the `finally` block is the hole (#1946 / PR #1977)
+
+A monotonic-token guard (`if (ref.current !== token) return;` in `.then`/`.catch`) does **not** protect a
+`finally` block — `return` inside `try` still runs `finally`. So `finally { setIsLoading(false) }` lets an
+_abandoned_ request clear a flag that a _newer_ request now owns.
+
+PR #1977 shipped exactly this in `runAiGeneration`: discard-confirm bumps the token and clears
+`isGeneratingAi`; the user starts a second generation; the first one resolves ~seconds later, bails at the
+token check, and its `finally` stops the second one's spinner, re-enables the trigger button, **and drops
+`isGeneratingAi` out of `guardedUpdate`'s dirty predicate — reintroducing the very bug the PR fixed**, one
+discard later. Note the `finally` was safe _before_ the token existed (the button gated concurrency), so this
+is a defect introduced by widening the lifecycle without widening the flag's ownership check.
+
+**Review rules for any staleness-token PR:**
+
+1. Read the whole `try/catch/finally`, not just the two guard lines. Every side effect in `finally` needs the
+   same `ref.current === token` condition.
+2. Ask "can a _second_ request now overlap the first?" A token bump usually re-enables a trigger that
+   concurrency was previously gated on. Demand a test that starts request B while A is still pending and
+   asserts A's arrival changes **nothing** — the new-describe blocks in these PRs test only A-alone.
+3. Anything derived from the flag (elapsed-seconds timers, disabled states, and especially **dirty
+   predicates**) inherits the bug. Enumerate the flag's readers: `grep -n <flag>` and check each.
+4. `reportRequestRef` in the same file is the clean template precisely because it has no `finally`.
+
+Related: the conditional `if (isGeneratingAi)` inside a `pendingChangeRef` closure reads the value captured
+at guard time, not at confirm time. Idempotent invalidation (always bump, always clear) removes the
+stale-closure reasoning for free — prefer it.
+
+**Resolved in round 2** (`83afc72f`): `finally { if (aiGenerationTokenRef.current === token) setIsGeneratingAi(false) }`,
+plus a two-controlled-promise test (start A, discard, start B, resolve A → assert still-disabled, resolve B →
+assert content). Rule 2's "demand a test that starts B while A is pending" is what produced that test — keep asking.
+
+## Discard/confirm dialogs: conditionalize the title, not just the body
+
+Same PR: the body got an accurate in-flight variant, the title stayed `"Discard your edits?"` in the case
+where no edits exist — and the AC5 test asserted that title, pinning the inaccuracy. When an AC says "copy
+must not claim edits exist that do not", the title is copy and it is the most prominent line. Check every
+string in the modal, and check the test isn't locking in the wrong one.
+
+Round-2 fix pattern worth reusing: select the title with the **byte-identical predicate expression** already
+used for the body, not a re-derived equivalent — a copied-and-tweaked predicate is exactly how the two drift
+apart again.
+
+### A conditional modal title breaks E2E page-object dialog locators
+
+Playwright POMs address dialogs by accessible name (`page.getByRole('dialog', { name: 'Discard your edits?' })`,
+`e2e/pages/ReportWizardPage.ts`), so making a title conditional silently narrows that locator to one branch.
+In PR #1977 nothing broke — the only E2E usage opens the modal *after* generation resolved, so the old title
+still renders — but the POM docstring now documents the title as unconditional, and the next test that opens
+the modal mid-generation will fail to find the dialog. **Whenever a PR conditionalizes any modal/heading string,
+grep `e2e/pages/` for the literal** and flag the locator + docstring as an e2e-test-engineer follow-up. Same
+family as the cross-reference-rot entry: a POM docstring is a contract surface, not a comment.
 
 ## Verify the AC record when a PR reverses a recently-shipped story (PR #1959)
 
@@ -416,5 +469,5 @@ Tell: the reversing issue had **zero comments**, no `**[product-owner]**` header
 a PR-style summary), and no ux-designer visual spec — whereas the story it reversed had all four. **A
 requirements reversal authored as a polish issue is the signature.** Cheap fix: PO supersession comment on the
 old issue + PO ratification on the new one. Check this whenever a PR deletes user-visible report/document
-content — and check whether the replacement text preserves *meaning* (`(abzgl. Abschlag)` lost the footnote's
+content — and check whether the replacement text preserves _meaning_ (`(abzgl. Abschlag)` lost the footnote's
 "claimed separately", which is compliance-relevant in a bank-facing document).
