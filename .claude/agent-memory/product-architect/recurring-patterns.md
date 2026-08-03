@@ -406,6 +406,23 @@ Rule: **delete rather than comment.** A write path with no reader and no produce
 round-3/round-4 confusion started — the code said one thing and the comment said another. When triaging a
 "keep it as a capability?" question, check for a _producer_ first: no producer => dead, remove it.
 
+## Reinstating a removed producer breaks the negative guards left behind (#1965 / PR #1979)
+
+The exact inverse of the pattern above, and it bites one story later. #1959 removed the `content.footnotes`
+producer and left **negative-only guards plus a prose directive**: `ReportWizardPage.ts` said "NOTHING
+populates `content.footnotes` … Never assert a positive count on these", and Scenario 18 asserted
+`footnotesBlock/footnoteItems` count 0 + the sentence absent from `main`. #1965 restored the producer with a
+3-line push in `buildReportContent.ts` — and silently turned a green 3-viewport E2E scenario red.
+
+**Review rule for any "reinstate / re-enable X" PR:** `grep` the whole repo (especially `e2e/pages/*` and
+spec-file header docstrings) for assertions and _directives_ that pin X's absence. A PR that adds a producer
+without inverting those is incomplete, and because `E2E Gates` is `main`-only it merges green into `beta` and
+surfaces only at promotion (see [[merge-gate-vs-done-gate]] / the beta-merges-past-red-E2E trap).
+
+Corollary: a stale POM docstring is worse than a stale code comment — it is an instruction later agents obey.
+Inverting the E2E assertion usually also discharges the story's "count occurrences in the rendered DOM" AC, so
+it is the same edit, not extra work.
+
 ## Staleness tokens: the `finally` block is the hole (#1946 / PR #1977)
 
 A monotonic-token guard (`if (ref.current !== token) return;` in `.then`/`.catch`) does **not** protect a
@@ -453,7 +470,7 @@ apart again.
 
 Playwright POMs address dialogs by accessible name (`page.getByRole('dialog', { name: 'Discard your edits?' })`,
 `e2e/pages/ReportWizardPage.ts`), so making a title conditional silently narrows that locator to one branch.
-In PR #1977 nothing broke — the only E2E usage opens the modal *after* generation resolved, so the old title
+In PR #1977 nothing broke — the only E2E usage opens the modal _after_ generation resolved, so the old title
 still renders — but the POM docstring now documents the title as unconditional, and the next test that opens
 the modal mid-generation will fail to find the dialog. **Whenever a PR conditionalizes any modal/heading string,
 grep `e2e/pages/` for the literal** and flag the locator + docstring as an e2e-test-engineer follow-up. Same
@@ -471,3 +488,26 @@ requirements reversal authored as a polish issue is the signature.** Cheap fix: 
 old issue + PO ratification on the new one. Check this whenever a PR deletes user-visible report/document
 content — and check whether the replacement text preserves _meaning_ (`(abzgl. Abschlag)` lost the footnote's
 "claimed separately", which is compliance-relevant in a bank-facing document).
+
+## Enumerated multi-site doc fixes come back half-done (PR #1979 r2)
+
+When a review finding names N sites for the same stale claim, expect the fix commit to update the *nearest*
+ones and miss the rest. #1979's HIGH 2 named four sites for "nothing populates `content.footnotes`"; the fix
+updated the field-declaration comment and the spec header (both adjacent to the changed assertions) and left
+the two class-docstring paragraphs — which contained the strongest form ("they can never be populated by the
+current code path, and any test asserting a footnote `<li>` is asserting a superseded design").
+
+Two habits that follow:
+
+- **Re-grep the literal on re-review**, never trust the fix commit's diff to cover the enumeration. One
+  `grep -n -i footnote e2e/pages/ReportWizardPage.ts` found both misses instantly.
+- **Check the test *name*, not just the body.** #1979 inverted Scenario 18's assertions to `toHaveCount(1)`
+  but left the Playwright title reading "and no footnote list anywhere on the page". A title that states the
+  inverse of its body is worse than a stale comment: it renders that way in every CI report and is the first
+  artifact a future reader uses to conclude the *body* drifted. Same for the `// Scenario NN:` block header.
+
+Why this is worth blocking on (I did, r2): the POM class docstring is the contract the spec header points at
+("See `ReportWizardPage.ts`'s class docstring for the full locator reference"), so a directive there plus a
+lying test title is a complete instruction set for deleting the coverage the PR exists to add — and with
+`E2E Gates` main-only, that deletion lands on `beta` silently. It is the same mechanism that produced #1965:
+#1959 removed a producer and left comments asserting the removal was permanent.

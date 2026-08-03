@@ -284,3 +284,29 @@ Regression to guard when adding a flag type: emitting one entry per flagged row.
    `shared.ts` (deleted in review round 2) and move "table layout constants" to `pageGeometry.ts`.
 4. Override-key list (line 148): drop `attachmentsNote` — unreachable since #1959.
 5. Record the fixed 6-or-7 column-count constraint above.
+
+## ADR-034 legend model, corrected in PR #1979 (wiki `03ed804`)
+
+The ADR-034 debt owed since #1959 is now paid. Two structurally different note kinds share the block below
+the overview table and must never share a numbering scheme:
+
+| Kind | Marker | Cardinality | Built by |
+| --- | --- | --- | --- |
+| Skipped-document note | `*N`, numbered, referenced by the owning row | one per skipped document | `overviewPdf.ts` at generation time (not in `ReportContent`) |
+| Legend entry (`content.footnotes[]`) | repeated inline word label — `partial`, `less deposit` | **at most one per flag type per document** | `buildReportContent.ts` |
+
+B4's old generalized rule ("every footnote is referenced from the row that owns it") applied only to the
+numbered kind and was reworded. Invariants now recorded in the ADR's legend addendum:
+
+- `footnotes[].marker` is `sourceReports.table.{split,depositReduced}InlineLabel` — the *same* keys as
+  `labels.{splitNote,depositReducedNote}` and as the inline label the row cell prints. Row↔legend joins by
+  **repetition of that literal**, not by id/index/number. NBSP in `less deposit` / `abzgl. Abschlag` is
+  load-bearing; `expect(footnotes[0].marker).toBe(content.labels.splitNote)` is the assertion that pins it.
+- Gated on `splitInvoiceIds.size > 0` / `depositReducedInvoiceIds.size > 0` (`Set<string>` accumulated in the
+  `includedInvoiceIds`-filtered row loop), so `footnotes.length` is bounded by flag count (2), never row count.
+- Adding a flag type = new `Set` + `size > 0` push in `buildReportContent.ts`, new boolean on
+  `ReportContentRow`, new inline label in `overviewPdf.ts`. Assert exact `footnotes.length` (not `>= 1`) on a
+  fixture where several rows share a flag.
+- Preview/export parity trap: once markers became *words*, `ReportContentEditor`'s
+  `<span>{marker}:</span>{text}` ran them together while the PDF used `${marker}: ${text}`. Fixed in #1979 —
+  any change to either surface must keep the separator identical.
