@@ -914,14 +914,14 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           household: null,
         });
 
-        // Sanity: the constituted-deposit row carries isDeposit=true and no ‡ marker; the
-        // reduced-deposit row carries the ‡ marker and isDeposit=false.
+        // Sanity: the constituted-deposit row carries isDeposit=true; the
+        // reduced-deposit row carries isDepositReduced=true and isDeposit=false.
         const constitutedRow = content.rows.find((r) => r.invoiceId === 'inv-deposit-constituted')!;
         expect(constitutedRow.isDeposit).toBe(true);
-        expect(constitutedRow.allocatedMarkers).not.toContain('‡');
+        expect(constitutedRow.isDepositReduced).toBe(false);
         const reducedRow = content.rows.find((r) => r.invoiceId === 'inv-deposit-reduced')!;
         expect(reducedRow.isDeposit).toBe(false);
-        expect(reducedRow.allocatedMarkers).toContain('‡');
+        expect(reducedRow.isDepositReduced).toBe(true);
 
         const pdfContent = buildOverviewContent(content, new Map(), t);
         const tableItem = pdfContent.find(

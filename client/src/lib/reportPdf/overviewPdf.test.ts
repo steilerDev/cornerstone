@@ -73,7 +73,8 @@ function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
     statusText: null,
     invoiceAmountText: '€1000.00',
     allocatedAmountValueText: '€1000.00',
-    allocatedMarkers: '',
+    isSplit: false,
+    isDepositReduced: false,
     isDeposit: false,
     isRefund: false,
     refundNoteText: 'sourceReports.table.refundNote',
@@ -100,6 +101,8 @@ function makeLabels(): ReportContent['labels'] {
     usage: 'sourceReports.table.usage',
     attachmentsNote: 'sourceReports.editable.attachmentsNoteLabel',
     deposit: 'sourceReports.table.attachmentType.deposit',
+    splitNote: 'sourceReports.table.splitInlineLabel',
+    depositReducedNote: 'sourceReports.table.depositReducedInlineLabel',
     source: 'sourceReports.table.source',
     sourceType: 'sourceReports.table.sourceType',
     reference: 'sourceReports.table.reference',
@@ -767,8 +770,8 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     });
   });
 
-  describe('Usage cell: always a plain { text } cell — areaText/attachmentsNote render as SEPARATE continuation rows (#1929 round 4 architect review HIGH: the round-3 stack: [usageChunk, areaText, attachmentsNote] construction left their COMBINED height in one cell unbounded and silently dropped rows needing 3+/9+ pages; each field now gets its own independently-chunked row(s), never sharing a cell with usageText or with each other)', () => {
-    it('renders a plain { text } cell with no extra rows when both areaText and attachmentsNote are null', () => {
+  describe('Usage cell: plain text vs inline grey meta text', () => {
+    it('renders a plain { text } cell (not a stack) when both areaText and attachmentsNote are null', () => {
       const row = makeRow({ usageText: 'Kitchen work', areaText: null, attachmentsNote: null });
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
@@ -780,27 +783,23 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       expect(table.body).toHaveLength(3);
     });
 
-    it('renders the usage row PLUS one continuation row (style "small") for attachmentsNote — never stacked into the usage cell', () => {
+    it('renders a text array with a grey newline run when attachmentsNote is present', () => {
       const row = makeRow({ usageText: 'Kitchen work', attachmentsNote: '1 attachment: Invoice' });
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-
-      const usageCell = (table.body[1] as unknown[])[5] as { text?: unknown; stack?: unknown };
-      expect(usageCell.stack).toBeUndefined();
-      expect(usageRunsText(usageCell.text)).toBe('Kitchen work');
-
-      // header (1) + usage row (1) + attachmentsNote continuation row (1) + summary row (1) = 4.
-      expect(table.body).toHaveLength(4);
-      const noteRow = table.body[2] as { text?: unknown; style?: string }[];
-      // Leading/amount cells on the continuation row are all blank.
-      expect(rowTexts(noteRow).slice(0, 5)).toEqual(['', '', '', '', '']);
-      const noteCell = noteRow[5] as { text: unknown; style?: string };
-      expect(usageRunsText(noteCell.text)).toBe('1 attachment: Invoice');
-      expect(noteCell.style).toBe('small');
+      const cell = (table.body[1] as unknown[])[5] as {
+        text: { text: string; color?: string }[];
+        stack?: unknown;
+      };
+      expect(cell.stack).toBeUndefined();
+      expect(Array.isArray(cell.text)).toBe(true);
+      expect(cell.text[0]!.text).toBe('Kitchen work');
+      expect(cell.text[1]!.text).toContain('1 attachment: Invoice');
+      expect(cell.text[1]!.color).toBe('#6b7280');
     });
 
-    it('AC5.2: renders the usage row, then an areaText continuation row, then an attachmentsNote continuation row — in that order, each its own row', () => {
+    it('AC5.2: renders areaText and attachmentsNote joined in the grey meta run when both are present', () => {
       const row = makeRow({
         usageText: 'Kitchen work',
         areaText: 'Ground Floor',
@@ -809,20 +808,16 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-
-      // header (1) + usage row + areaText row + attachmentsNote row + summary row = 5.
-      expect(table.body).toHaveLength(5);
-      const usageCell = (table.body[1] as unknown[])[5] as { text: unknown };
-      const areaCell = (table.body[2] as unknown[])[5] as { text: unknown; style?: string };
-      const noteCell = (table.body[3] as unknown[])[5] as { text: unknown; style?: string };
-      expect(usageRunsText(usageCell.text)).toBe('Kitchen work');
-      expect(usageRunsText(areaCell.text)).toBe('Ground Floor');
-      expect(areaCell.style).toBe('small');
-      expect(usageRunsText(noteCell.text)).toBe('1 attachment: Invoice');
-      expect(noteCell.style).toBe('small');
+      const cell = (table.body[1] as unknown[])[5] as {
+        text: { text: string; color?: string }[];
+      };
+      expect(cell.text[0]!.text).toBe('Kitchen work');
+      expect(cell.text[1]!.text).toContain('Ground Floor');
+      expect(cell.text[1]!.text).toContain('1 attachment: Invoice');
+      expect(cell.text[1]!.color).toBe('#6b7280');
     });
 
-    it('renders the usage row plus only an areaText continuation row when areaText is present but attachmentsNote is null', () => {
+    it('renders areaText alone in the grey meta run when attachmentsNote is null', () => {
       const row = makeRow({
         usageText: 'Kitchen work',
         areaText: 'Ground Floor',
@@ -831,10 +826,14 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      // header (1) + usage row + areaText row + summary row = 4.
-      expect(table.body).toHaveLength(4);
-      const areaCell = (table.body[2] as unknown[])[5] as { text: unknown };
-      expect(usageRunsText(areaCell.text)).toBe('Ground Floor');
+      const cell = (table.body[1] as unknown[])[5] as {
+        text: { text: string; color?: string }[];
+        stack?: unknown;
+      };
+      expect(cell.stack).toBeUndefined();
+      expect(cell.text[0]!.text).toBe('Kitchen work');
+      expect(cell.text[1]!.text).toContain('Ground Floor');
+      expect(cell.text[1]!.color).toBe('#6b7280');
     });
 
     it('[#1929 round 2] the plain-cell Usage text is a run array of the individual whitespace-preserving tokens (buildUsageTextRuns wiring, not a plain string)', () => {
@@ -848,34 +847,40 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     });
   });
 
-  describe('allocated cell composition (skip markers + allocatedMarkers + refund note)', () => {
+  describe('allocated cell composition (skip markers + inline labels + refund note)', () => {
     it('renders allocatedAmountValueText plain when there are no markers and not a refund', () => {
-      const row = makeRow({ allocatedAmountValueText: '€400.00', allocatedMarkers: '' });
+      const row = makeRow({ allocatedAmountValueText: '€400.00' });
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
       expect(rowTexts(table.body[1])[4]).toBe('€400.00');
     });
 
-    it('appends the pre-computed, unnumbered/shared split+deposit markers verbatim (already formatted by buildReportContent)', () => {
-      const row = makeRow({ allocatedAmountValueText: '€400.00', allocatedMarkers: '†‡' });
+    it('appends inline isSplit label when isSplit=true', () => {
+      const row = makeRow({ allocatedAmountValueText: '€400.00', isSplit: true });
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      expect(rowTexts(table.body[1])[4]).toBe('€400.00†‡');
+      expect(rowTexts(table.body[1])[4]).toContain('€400.00');
+      expect(rowTexts(table.body[1])[4]).toContain('sourceReports.table.splitInlineLabel');
     });
 
-    it('prepends skip-footnote markers (*N) BEFORE the allocatedMarkers, numbered from skippedDocuments', () => {
-      const row = makeRow({
-        invoiceId: 'inv-1',
-        allocatedAmountValueText: '€400.00',
-        allocatedMarkers: '†',
-      });
+    it('appends inline isDepositReduced label when isDepositReduced=true', () => {
+      const row = makeRow({ allocatedAmountValueText: '€400.00', isDepositReduced: true });
+      const content = makeContent({ rows: [row] });
+      const result = buildOverviewContent(content, new Map(), t);
+      const table = getTable(result);
+      expect(rowTexts(table.body[1])[4]).toContain('€400.00');
+      expect(rowTexts(table.body[1])[4]).toContain('sourceReports.table.depositReducedInlineLabel');
+    });
+
+    it('prepends skip-footnote markers (*N) before the allocated value, numbered from skippedDocuments', () => {
+      const row = makeRow({ invoiceId: 'inv-1', allocatedAmountValueText: '€400.00' });
       const content = makeContent({ rows: [row] });
       const skipped = new Map<string, string[]>([['inv-1', ['footnoteFetchFailed']]]);
       const result = buildOverviewContent(content, skipped, t);
       const table = getTable(result);
-      expect(rowTexts(table.body[1])[4]).toBe('€400.00*1†');
+      expect(rowTexts(table.body[1])[4]).toBe('€400.00*1');
     });
 
     it('numbers multiple skip reasons on the same invoice sequentially', () => {

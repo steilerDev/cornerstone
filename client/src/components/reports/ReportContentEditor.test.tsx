@@ -79,6 +79,8 @@ const LABELS: ReportContentLabels = {
   usage: 'REPORT_USAGE_LABEL',
   attachmentsNote: 'REPORT_ATTACHMENTS_NOTE_LABEL',
   deposit: 'REPORT_DEPOSIT_LABEL',
+  splitNote: 'REPORT_SPLIT_NOTE_LABEL',
+  depositReducedNote: 'REPORT_DEPOSIT_REDUCED_NOTE_LABEL',
   source: 'REPORT_SOURCE_LABEL',
   sourceType: 'REPORT_SOURCE_TYPE_LABEL',
   reference: 'REPORT_REFERENCE_LABEL',
@@ -95,7 +97,8 @@ function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
     statusText: null,
     invoiceAmountText: '€100.00',
     allocatedAmountValueText: '€100.00',
-    allocatedMarkers: '',
+    isSplit: false,
+    isDepositReduced: false,
     isDeposit: false,
     isRefund: false,
     refundNoteText: '',
@@ -704,18 +707,17 @@ describe('ReportContentEditor — table rows', () => {
     expect(within(table).queryByDisplayValue('€555.00')).not.toBeInTheDocument();
   });
 
-  it('composes the allocated cell as valueText + markers + refund note when isRefund', () => {
+  it('composes the allocated cell as valueText + refund note when isRefund', () => {
     const rows = [
       makeRow({
         allocatedAmountValueText: '€-200.00',
-        allocatedMarkers: '†1',
         isRefund: true,
         refundNoteText: '(refund)',
       }),
     ];
     const { container } = renderEditor({ content: makeContent({ rows }) });
     const table = getDesktopTable(container);
-    expect(within(table).getByText('€-200.00†1 (refund)')).toBeInTheDocument();
+    expect(within(table).getByText('€-200.00 (refund)')).toBeInTheDocument();
   });
 
   it('applies the refundAmount CSS class (not an inline style) to both amount cells when isRefund', () => {
@@ -913,7 +915,6 @@ describe('ReportContentEditor — isDeposit (AC2.1: inline Deposit badge, no mar
       makeRow({
         invoiceId: 'inv-1',
         isDeposit: true,
-        allocatedMarkers: '',
         allocatedAmountValueText: '€300.00',
       }),
     ];
@@ -1054,18 +1055,17 @@ describe(
       expect(card.queryByLabelText(LABELS.attachmentsNote)).not.toBeInTheDocument();
     });
 
-    it('composes the mobile card allocated amount as valueText + markers + refund note when isRefund, matching the desktop cell', () => {
+    it('composes the mobile card allocated amount as valueText + refund note when isRefund, matching the desktop cell', () => {
       const rows = [
         makeRow({
           allocatedAmountValueText: '€-200.00',
-          allocatedMarkers: '†1',
           isRefund: true,
           refundNoteText: '(refund)',
         }),
       ];
       const { container } = renderEditor({ content: makeContent({ rows }) });
       const card = within(getMobileList(container));
-      expect(card.getByText('€-200.00†1 (refund)')).toBeInTheDocument();
+      expect(card.getByText('€-200.00 (refund)')).toBeInTheDocument();
     });
 
     it('wires the mobile card usage/attachmentsNote EditableFields to the same onFieldChange keys as the desktop table', () => {

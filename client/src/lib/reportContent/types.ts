@@ -13,8 +13,9 @@ export interface ReportContentRow {
   statusText: string | null; // null when useCase !== 'budget-overview'
   invoiceAmountText: string;
   allocatedAmountValueText: string; // formatted currency only — no markers/refund note
-  allocatedMarkers: string; // '', '†', '‡', '†‡' — shared/unnumbered per report
-  isDeposit: boolean; // constituted-deposit row → inline Deposit badge, no marker
+  isSplit: boolean; // split invoice with budget lines → inline "partial" label
+  isDepositReduced: boolean; // split invoice reduced by untagged deposits → inline label
+  isDeposit: boolean; // constituted-deposit row → inline Deposit badge
   isRefund: boolean;
   refundNoteText: string; // shown only when isRefund
   usageText: string; // EDITABLE — key `row.<invoiceId>.usageText`
@@ -55,6 +56,8 @@ export interface ReportContentLabels {
   usage: string;
   attachmentsNote: string;
   deposit: string; // translated in report language
+  splitNote: string; // short inline label for split rows
+  depositReducedNote: string; // short inline label for deposit-reduced rows
   source: string;
   sourceType: string;
   reference: string;

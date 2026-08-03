@@ -1215,6 +1215,7 @@
       "keepEditing": "Keep Editing",
       "coverLetterHeading": "Cover Letter",
       "tableHeading": "Report Table",
+      "columnVisibilityLabel": "Show/hide columns",
       "enhanceWithAi": "Enhance with AI",
       "enhanceWithAiDescription": "Replaces the usage descriptions and cover letter below with AI-generated content. Any edits you've made will be discarded.",
       "generating": "Generating… ({{seconds}}s)",
@@ -1256,7 +1257,9 @@
       "footnoteFetchFailed": "Document could not be retrieved",
       "footnoteInvalidPdf": "Document is not a valid PDF",
       "splitFootnote": "Amount shown reflects only the portion allocated to this source.",
-      "depositReducedFootnote": "This position reflects deposits claimed separately."
+      "depositReducedFootnote": "This position reflects deposits claimed separately.",
+      "splitInlineLabel": "partial",
+      "depositReducedInlineLabel": "less deposit"
     },
     "sourceType": {
       "bank_loan": "Bank Loan",

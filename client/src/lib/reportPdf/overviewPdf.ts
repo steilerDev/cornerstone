@@ -581,49 +581,36 @@ export function buildOverviewContent(
   const usageSafeTokenChars = reportContent.isOverview
     ? USAGE_SAFE_TOKEN_CHARS_7COL
     : USAGE_SAFE_TOKEN_CHARS_6COL;
-  const smallSafeTokenChars = reportContent.isOverview
-    ? SMALL_SAFE_TOKEN_CHARS_7COL
-    : SMALL_SAFE_TOKEN_CHARS_6COL;
-
-  /**
-   * Pushes one continuation row (empty leading/amount cells) per chunk of `text`, at `style`.
-   * Used for usageText overflow, and — separately, never combined with usageText or with each
-   * other — for areaText/attachmentsNote (#1929 round-4 architect review HIGH: each field gets
-   * its own row(s) so no row's Usage cell ever holds more than one bounded chunk of one field;
-   * see MAX_SAFE_USAGE_CHUNK_CHARS's comment for what "bounded" means and how it was measured).
-   */
-  function pushChunkedRows(
-    text: string,
-    maxChunkChars: number,
-    safeTokenCharsForStyle: number,
-    style: 'tableCell' | 'small',
-  ): void {
-    for (const chunk of splitIntoPageSafeChunks(text, maxChunkChars)) {
-      const cell: Content = { text: buildUsageTextRuns(chunk, safeTokenCharsForStyle), style };
-      rows.push([
-        ...buildEmptyLeadingCells(reportContent.isOverview),
-        ...buildEmptyAmountCells(),
-        cell,
-      ]);
-    }
-  }
 
   for (const contentRow of reportContent.rows) {
-    // Allocated amount with footnote markers (skip + allocated)
+    // Allocated amount with skip markers and inline labels
     const skipMarkers = skipFootnotesByInvoiceId.get(contentRow.invoiceId) ?? [];
-    let markerText = '';
+    let skipMarkerText = '';
     for (const noteNum of skipMarkers) {
-      markerText += `*${noteNum}`;
+      skipMarkerText += `*${noteNum}`;
     }
-    markerText += contentRow.allocatedMarkers;
 
-    // Build allocated runs: value+markers, then optional deposit badge, then optional refund note
+    // Build allocated runs: value+skip markers, then optional inline labels, then optional refund note
     const allocatedRuns: Content[] = [
-      { text: `${contentRow.allocatedAmountValueText}${markerText}` },
+      { text: `${contentRow.allocatedAmountValueText}${skipMarkerText}` },
     ];
     if (contentRow.isDeposit) {
       allocatedRuns.push({
         text: ` (${reportContent.labels.deposit})`,
+        color: DEPOSIT_NOTE_TEXT_COLOR,
+        fontSize: DEPOSIT_NOTE_FONT_SIZE,
+      });
+    }
+    if (contentRow.isSplit) {
+      allocatedRuns.push({
+        text: ` (${reportContent.labels.splitNote})`,
+        color: DEPOSIT_NOTE_TEXT_COLOR,
+        fontSize: DEPOSIT_NOTE_FONT_SIZE,
+      });
+    }
+    if (contentRow.isDepositReduced) {
+      allocatedRuns.push({
+        text: ` (${reportContent.labels.depositReducedNote})`,
         color: DEPOSIT_NOTE_TEXT_COLOR,
         fontSize: DEPOSIT_NOTE_FONT_SIZE,
       });
@@ -637,13 +624,18 @@ export function buildOverviewContent(
     // table rows instead of one unbreakable (and potentially content-dropping) row. The FIRST
     // chunk shares this invoice's leading/amount-cell row; any further chunks (rare-by-
     // construction: AC12 requires 600 chars with zero degradation, well under
-    // MAX_SAFE_USAGE_CHUNK_CHARS) get their own continuation row via pushChunkedRows — no
-    // "continued" marker, per the product-owner's explicit ruling.
+    // MAX_SAFE_USAGE_CHUNK_CHARS) get their own continuation row — no "continued" marker,
+    // per the product-owner's explicit ruling.
     const usageChunks = splitIntoPageSafeChunks(contentRow.usageText, MAX_SAFE_USAGE_CHUNK_CHARS);
-    const firstUsageCell: Content = {
-      text: buildUsageTextRuns(usageChunks[0]!, usageSafeTokenChars),
-      style: 'tableCell',
-    };
+    // Area and attachmentsNote appear inline in grey after the first usage chunk
+    const metaPieces: string[] = [];
+    if (contentRow.areaText) metaPieces.push(contentRow.areaText);
+    if (contentRow.attachmentsNote) metaPieces.push(contentRow.attachmentsNote);
+    const firstUsageRuns = buildUsageTextRuns(usageChunks[0]!, usageSafeTokenChars);
+    if (metaPieces.length > 0) {
+      firstUsageRuns.push({ text: '\n' + metaPieces.join(' · '), color: DEPOSIT_NOTE_TEXT_COLOR });
+    }
+    const firstUsageCell: Content = { text: firstUsageRuns, style: 'tableCell' };
     rows.push([
       ...buildLeadingCells(contentRow, reportContent.isOverview, contentRow.statusText ?? ''),
       ...buildAmountCells(contentRow, allocatedRuns),
@@ -659,28 +651,6 @@ export function buildOverviewContent(
         ...buildEmptyAmountCells(),
         cell,
       ]);
-    }
-
-    // areaText and attachmentsNote each get their OWN continuation row(s) — never stacked into
-    // the usage row's cell (#1929 round-4 architect review HIGH: attachmentsNote has no
-    // maxLength anywhere, and areaText is aggregate-unbounded across N leaf areas, so their
-    // combined height with usageText in one cell was unbounded and silently dropped rows that
-    // needed more than one page).
-    if (contentRow.areaText) {
-      pushChunkedRows(
-        contentRow.areaText,
-        MAX_SAFE_SMALL_CHUNK_CHARS,
-        smallSafeTokenChars,
-        'small',
-      );
-    }
-    if (contentRow.attachmentsNote) {
-      pushChunkedRows(
-        contentRow.attachmentsNote,
-        MAX_SAFE_SMALL_CHUNK_CHARS,
-        smallSafeTokenChars,
-        'small',
-      );
     }
   }
 
@@ -727,7 +697,7 @@ export function buildOverviewContent(
     margin: [0, 0, 0, 20],
   });
 
-  // Add footnotes (skip block + split/deposit from reportContent.footnotes)
+  // Add footnotes (skip block only; split/deposit annotations are now rendered inline)
   const footnotes: Content[] = [];
 
   // Skip block (generation-time data)
