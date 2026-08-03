@@ -94,6 +94,13 @@ expect(countAfter).toBe(countBefore); // unchanged (not toBe(DEFAULT_CATEGORIES.
 
 ## Shared State Tests: Serial Mode
 
+> **Superseded for per-user _preference_ rows (Issue #1957).** Serial mode only orders a file
+> against itself, so it cannot protect `locale` / `dashboard.hiddenCards` / `table.*.columns`
+> from writes by another file in another worker. Those specs now use a dedicated user via
+> `e2e/fixtures/isolatedUser.ts` — see [isolated-user-fixture.md](isolated-user-fixture.md).
+> Serial mode is still the right tool for shared-admin _identity_ mutations (display name,
+> password, role) as listed below.
+
 Tests that modify the shared admin user (display name, password, role) cannot use `testPrefix`
 since there's only one admin user. Use `test.describe.configure({ mode: 'serial' })` inside the describe block:
 

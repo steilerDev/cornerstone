@@ -16,27 +16,37 @@
  * Scoped to desktop only: language switching involves a form that can be unreliable
  * on WebKit tablet — and language correctness is not viewport-specific.
  *
- * Serial mode (file scope): every test here mutates the SAME row —
- * user_preferences(locale) of the shared TEST_ADMIN user. Under `fullyParallel: true`
- * two of these tests run concurrently in different workers, so one test's
- * `setLanguage()`/`resetToEnglish()` PATCH lands inside another's assertions. That is
- * not merely "stale data": LocaleContext.syncWithServer treats the server value as
- * authoritative, so it applies the other test's locale AND deletes the victim's
- * 'locale' localStorage key, permanently flipping the victim's UI language mid-test.
- * Observed in CI run 30790367863 shard 4, where "Key page headings render in German"
- * asserted 'Projekt' successfully at 06:35:35.49 and then found an English sidebar
- * ('Main navigation', 'Schedule') at 06:35:36.11 — the window in which the
- * concurrently running "Language can be switched back to English from German"
- * (06:35:34.41–35.88, worker 1) PATCHed locale='en'.
- * There is only one admin user, so `testPrefix` cannot isolate this; serial mode is
- * the established remedy for shared-admin-mutating specs (cf. change-password.spec.ts,
- * edit-user.spec.ts). It must be file-scoped, not describe-scoped: the interference
- * observed above crossed describe boundaries.
+ * Preference isolation (Issue #1957): every test here mutates the `locale`
+ * preference row of whichever user it is authenticated as. That used to be the one
+ * shared TEST_ADMIN user, which under `fullyParallel: true` made this file both a
+ * victim and a cause of cross-file corruption — LocaleContext.syncWithServer treats
+ * the server value as authoritative, so a concurrent PATCH from another worker
+ * applies its locale AND deletes the victim's 'locale' localStorage key, flipping
+ * the victim's UI language mid-test. Observed in CI run 30790367863 shard 4, where
+ * "Key page headings render in German" asserted 'Projekt' successfully at
+ * 06:35:35.49 and then found an English sidebar ('Main navigation', 'Schedule') at
+ * 06:35:36.11 — the window in which the concurrently running "Language can be
+ * switched back to English from German" (06:35:34.41–35.88, worker 1) PATCHed
+ * locale='en'. `dashboard.spec.ts` was the mirror-image victim: its top-level
+ * `beforeEach` PATCHed locale='en' on the same shared row.
+ *
+ * The isolation mechanism is now `isolatedUserPerWorker` (see
+ * e2e/fixtures/isolatedUser.ts): every test runs as a dedicated user, so the row
+ * `setLanguage()` writes is unreachable by any other test in the suite. Serial mode
+ * is KEPT, but only as defence in depth: it no longer provides isolation (it never
+ * could across files), it just avoids running two slow German cold-start tests
+ * concurrently on a 2-vCPU CI runner. `resetToEnglish()` in afterEach is also kept
+ * and is still load-bearing — a worker's dedicated user is shared by that worker's
+ * sequentially-executed tests, so locale state must not carry over between them.
  */
 
 import type { Page } from '@playwright/test';
-import { test, expect } from '../../fixtures/auth.js';
+import { test, expect } from '../../fixtures/isolatedUser.js';
 import { ROUTES } from '../../fixtures/testData.js';
+
+test.use({
+  isolatedUserPerWorker: { emailPrefix: 'i18n-switch', displayName: 'E2E i18n User' },
+});
 
 test.describe.configure({ mode: 'serial' });
 

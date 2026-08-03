@@ -21,7 +21,7 @@
  * 8.  Diary detail page has no print button
  */
 
-import { test, expect } from '../../fixtures/auth.js';
+import { test, expect } from '../../fixtures/isolatedUser.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
 import { DiaryEntryCreatePage } from '../../pages/DiaryEntryCreatePage.js';
@@ -82,6 +82,16 @@ test.describe('Back button navigates to /diary (Scenario 2)', { tag: '@responsiv
 // Scenario 3: Dashboard "Recent Diary" card is visible
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Dashboard Recent Diary card (Scenario 3)', { tag: '@responsive' }, () => {
+  // This test resets `dashboard.hiddenCards` so the Recent Diary card is guaranteed
+  // to render. On the shared admin that reset collided with dashboard.spec.ts, which
+  // resets the same key for its own tests and asserts card visibility against it
+  // (Issue #1957). Run it as a dedicated user instead, so the row is unreachable by
+  // any other test. Per-test rather than per-worker because a worker-scoped option
+  // cannot be set inside a describe, and only 2 of this file's 8 tests need it.
+  // Nothing here is admin-gated: the test only reads the dashboard with
+  // `/api/diary-entries` mocked.
+  test.use({ isolatedUserPerTest: { emailPrefix: 'diary-dash', displayName: 'E2E Diary User' } });
+
   test('Dashboard page shows a "Recent Diary" card', { tag: '@smoke' }, async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
 
@@ -102,7 +112,10 @@ test.describe('Dashboard Recent Diary card (Scenario 3)', { tag: '@responsive' }
     });
 
     try {
-      // Reset hidden cards to ensure "Recent Diary" is visible
+      // Reset hidden cards on this test's dedicated user to ensure "Recent Diary" is
+      // visible. A freshly created user has no preference rows at all, so this is
+      // belt-and-braces rather than load-bearing — but it keeps the precondition
+      // explicit and would still hold if a dismiss step were added here later.
       await page.request.patch('/api/users/me/preferences', {
         data: { key: 'dashboard.hiddenCards', value: '[]' },
       });
@@ -322,6 +335,9 @@ test.describe('Create navigates to detail page (Scenario 6)', { tag: '@responsiv
 // Scenario 7: Dashboard diary card "View All" navigates to /diary
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Recent Diary "View All" link (Scenario 7)', { tag: '@responsive' }, () => {
+  // Same `dashboard.hiddenCards` collision as Scenario 3 — see the comment there.
+  test.use({ isolatedUserPerTest: { emailPrefix: 'diary-dash', displayName: 'E2E Diary User' } });
+
   test('Clicking "View All" in the Recent Diary card navigates to /diary', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
 
@@ -360,7 +376,7 @@ test.describe('Recent Diary "View All" link (Scenario 7)', { tag: '@responsive' 
     });
 
     try {
-      // Reset hidden cards
+      // Reset hidden cards on this test's dedicated user (see Scenario 3's note)
       await page.request.patch('/api/users/me/preferences', {
         data: { key: 'dashboard.hiddenCards', value: '[]' },
       });
