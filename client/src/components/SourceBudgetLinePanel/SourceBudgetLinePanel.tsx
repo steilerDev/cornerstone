@@ -581,7 +581,9 @@ export function SourceBudgetLinePanel({
                         <span className={styles.lineStatus}>{invoiceStatusLabel}</span>
 
                         <span className={styles.linePlannedAmount}>
-                          {formatCurrency(line.plannedAmount)}
+                          {formatCurrency(
+                            line.invoiceCount > 0 ? line.actualCost : line.plannedAmount,
+                          )}
                         </span>
                       </li>
                     );
@@ -614,7 +616,9 @@ export function SourceBudgetLinePanel({
                         <span className={styles.lineStatus}>{invoiceStatusLabel}</span>
 
                         <span className={styles.linePlannedAmount}>
-                          {formatCurrency(line.plannedAmount)}
+                          {formatCurrency(
+                            line.invoiceCount > 0 ? line.actualCost : line.plannedAmount,
+                          )}
                         </span>
                       </li>
                     );
