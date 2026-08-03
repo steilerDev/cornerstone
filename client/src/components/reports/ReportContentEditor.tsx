@@ -3,7 +3,7 @@
  * Handles field changes and resets via callbacks; no state management.
  */
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { TFunction } from 'i18next';
 import type { InvoiceStatus } from '@cornerstone/shared';
 import type { ReportContent, ReportContentOverrides } from '../../lib/reportContent/index.js';
@@ -41,7 +41,12 @@ export function ReportContentEditor({
   // Helper: check if a field has been overridden
   const isFieldEdited = (key: string): boolean => key in overrides;
 
-  // Column visibility state
+  // Column visibility state. PREVIEW-ONLY: `hiddenColumns` is local to this component and is not
+  // exposed as a prop or callback — the generated PDF always contains every column. The hint
+  // rendered beside the toggles says so, because the control otherwise reads as "choose the
+  // report's columns" (every other control in this editor does change the PDF). Wiring these
+  // through to the PDF is a filed follow-up.
+  const columnHintId = useId();
   const [hiddenColumns, setHiddenColumns] = useState<Set<ColumnKey>>(new Set());
   const toggleColumn = (col: ColumnKey) => {
     setHiddenColumns((prev) => {
@@ -192,29 +197,35 @@ export function ReportContentEditor({
       {/* Report Table */}
       <div className={styles.tableHeadingRow}>
         <h3 className={styles.tableHeading}>{t('sourceReports.editable.tableHeading')}</h3>
-        <div
-          className={styles.columnToggles}
-          role="group"
-          aria-label={t('sourceReports.editable.columnVisibilityLabel')}
-        >
-          {(
-            [
-              ['vendor', content.labels.vendor],
-              ['invoiceNumber', content.labels.invoiceNumber],
-              ['date', content.labels.date],
-              ...(content.isOverview
-                ? [['status', content.labels.status] as [ColumnKey, string]]
-                : []),
-              ['invoiceAmount', content.labels.invoiceAmount],
-              ['allocatedAmount', content.labels.allocatedAmount],
-              ['usage', content.labels.usage],
-            ] as [ColumnKey, string][]
-          ).map(([col, label]) => (
-            <label key={col} className={styles.columnToggle}>
-              <input type="checkbox" checked={show(col)} onChange={() => toggleColumn(col)} />
-              {label}
-            </label>
-          ))}
+        <div className={styles.columnToggleGroup}>
+          <p id={columnHintId} className={styles.columnToggleHint}>
+            {t('sourceReports.editable.columnVisibilityHint')}
+          </p>
+          <div
+            className={styles.columnToggles}
+            role="group"
+            aria-label={t('sourceReports.editable.columnVisibilityLabel')}
+            aria-describedby={columnHintId}
+          >
+            {(
+              [
+                ['vendor', content.labels.vendor],
+                ['invoiceNumber', content.labels.invoiceNumber],
+                ['date', content.labels.date],
+                ...(content.isOverview
+                  ? [['status', content.labels.status] as [ColumnKey, string]]
+                  : []),
+                ['invoiceAmount', content.labels.invoiceAmount],
+                ['allocatedAmount', content.labels.allocatedAmount],
+                ['usage', content.labels.usage],
+              ] as [ColumnKey, string][]
+            ).map(([col, label]) => (
+              <label key={col} className={styles.columnToggle}>
+                <input type="checkbox" checked={show(col)} onChange={() => toggleColumn(col)} />
+                {label}
+              </label>
+            ))}
+          </div>
         </div>
       </div>
       <div className={styles.tableWrapper}>

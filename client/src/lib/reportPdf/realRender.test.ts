@@ -959,7 +959,21 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           formattersFor('en-US'),
           {
             depositLabel: ' (Deposit)',
-            depositReducedLabel: ' (less deposit)',
+            // NON-BREAKING SPACE, written as an escape ON PURPOSE. `depositReducedInlineLabel` is
+            // the only inline label in either locale with an internal space, and at 8pt in the
+            // narrow allocated-amount column it wrapped at that space — putting the opening and
+            // closing bracket on different lines ("€4,000.00 (less" / "deposit)") in a document
+            // sent to a bank. Both locales now use U+00A0, which has the same glyph advance, so no
+            // width or geometry constant moved.
+            //
+            // Do NOT "fix" a mismatch here by retyping a plain space: the literal NBSP and a
+            // literal ' ' are visually identical, so a diff looks clean while the wrap silently
+            // returns — and the unit suite stays GREEN, because the locale file and this
+            // expectation would agree with each other again. The escape is what makes the
+            // difference reviewable. See also the locale-level invariant in
+            // client/src/i18n/i18n.parity.test.ts, which fails if any inline label regains a
+            // breaking space.
+            depositReducedLabel: ' (less\u00A0deposit)',
             splitLabel: ' (partial)',
             // The footnote WORDINGS that must no longer appear anywhere in the tree.
             goneFootnotes: [
@@ -973,7 +987,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           formattersFor('de-DE'),
           {
             depositLabel: ' (Abschlagszahlung)',
-            depositReducedLabel: ' (abzgl. Abschlag)',
+            // NON-BREAKING SPACE — see the en block above for why this is an escape, not a literal.
+            // DE wrapped as "(Teilbetrag) (abzgl." / "Abschlag)" before the fix.
+            depositReducedLabel: ' (abzgl.\u00A0Abschlag)',
             splitLabel: ' (Teilbetrag)',
             goneFootnotes: [
               'Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.',

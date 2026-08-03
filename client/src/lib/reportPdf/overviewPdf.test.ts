@@ -355,6 +355,34 @@ describe('splitIntoPageSafeChunks (scenario 8)', () => {
     expect(splitIntoPageSafeChunks(exact, 50)).toEqual([exact]);
   });
 
+  // #1959 fix round. A non-positive budget used to HANG rather than fail: the hard-split path does
+  // `token.slice(0, maxChars)`, and `slice(0, 0)` is `''`, so `rest` never shrinks and the loop
+  // spins forever (a probe hit 100,000 iterations before being killed). A clamp was rejected in
+  // favour of throwing, because a silently clamped budget is a bound nobody can see. These tests
+  // also serve as termination proofs: if the guard regressed to a clamp-or-spin, they would time
+  // out rather than fail fast.
+  it.each([0, -1, -650])(
+    'throws on a non-positive maxChars (%i) instead of looping forever, and names the offending value',
+    (maxChars) => {
+      expect(() => splitIntoPageSafeChunks('some text that exceeds any budget', maxChars)).toThrow(
+        `splitIntoPageSafeChunks: maxChars must be positive, got ${maxChars}`,
+      );
+    },
+  );
+
+  it('rejects a non-positive maxChars even when the text would short-circuit as already-fitting', () => {
+    // `text.length <= maxChars` returns early, so an unguarded implementation would accept a
+    // nonsense budget for short input and only blow up later on long input — the guard must come
+    // first so the contract is the same for every input.
+    expect(() => splitIntoPageSafeChunks('', 0)).toThrow(/maxChars must be positive/);
+    expect(() => splitIntoPageSafeChunks('x', -5)).toThrow(/maxChars must be positive/);
+  });
+
+  it('accepts the smallest legal budget (1) and still terminates, one character per chunk', () => {
+    // Boundary on the legal side of the guard: 1 is the tightest budget that can make progress.
+    expect(splitIntoPageSafeChunks('abc', 1)).toEqual(['a', 'b', 'c']);
+  });
+
   it('(b) input with clean word boundaries splits into <= maxChars chunks that rejoin (chunks.join("")) to the exact original', () => {
     const text = Array.from({ length: 40 }, (_, i) => `word${i}`).join(' ');
     const maxChars = 30;
@@ -446,6 +474,21 @@ describe('packUsageCellRows (#1959 fix round: one page-safe budget for the whole
   function metaRowIndexes(rows: UsageCellSegment[][]): number[] {
     return rows.flatMap((row, i) => (row.some((s) => s.meta) ? [i] : []));
   }
+
+  // #1959 fix round: same non-positive-budget contract as splitIntoPageSafeChunks (which this
+  // delegates to for hard splits, and which would otherwise spin). Throws rather than clamps.
+  it.each([0, -1, -650])(
+    'throws on a non-positive maxChars (%i) rather than looping or clamping, and names the offending value',
+    (maxChars) => {
+      expect(() =>
+        packUsageCellRows([{ text: 'prose' }, { text: '\nmeta', meta: true }], maxChars),
+      ).toThrow(`packUsageCellRows: maxChars must be positive, got ${maxChars}`);
+    },
+  );
+
+  it('rejects a non-positive maxChars even for an empty stream, which would otherwise short-circuit', () => {
+    expect(() => packUsageCellRows([], 0)).toThrow(/maxChars must be positive/);
+  });
 
   it('returns a single row, segments unchanged, when the whole stream fits the budget (the dominant case must not grow rows)', () => {
     const segments: UsageCellSegment[] = [

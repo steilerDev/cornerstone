@@ -1,6 +1,6 @@
 ---
 name: pr-1959-inline-meta-content-loss
-description: PR #1959 (report PDF UX) reintroduced and then fixed the #1929 round-4 PDF content-loss regression; records the packUsageCellRows bound, the measured page-count saturation table, the it.failing tripwire technique AND the trap that nearly disarmed it (a helper that bakes in the buggy assumption), and the run-index gotcha for grey meta runs
+description: PR #1959 (report PDF UX) reintroduced and then fixed the #1929 round-4 PDF content-loss regression; records the packUsageCellRows bound, the page-count saturation table, the it.failing tripwire trap (a helper baking in the buggy assumption), the NBSP-must-be-escaped-in-test-expectations rule, literal-vs-invariant test layering, and the non-positive-budget hang
 metadata:
   type: project
 ---
@@ -91,6 +91,68 @@ dropping equally.
 Related: tree-level assertions **cannot see this bug class at all** — the dropped text is present in
 the pdfmake content tree while the reader receives a truncated PDF. Where the claim is about what the
 reader receives, assert against rendered output (page count).
+
+## NBSP in inline PDF labels — and why a test expectation must escape it
+
+`ux-designer` found `depositReducedInlineLabel` was the only inline label in either locale with an
+internal space, so at 8pt in the 75pt allocated-amount column it wrapped at that space and split the
+brackets across lines (`€4,000.00 (less` / `deposit)` EN; `(Teilbetrag) (abzgl.` / `Abschlag)` DE) —
+in a document sent to a bank. Both locales now use U+00A0; same glyph advance, so no width or
+geometry constant moved.
+
+**In test expectations, write `\u00A0` as an escape, never paste the literal.** A literal NBSP and a
+literal `' '` are visually identical, so a failure reads as a flake, and the "obvious fix" — retyping
+a plain space — silently restores the wrap **with the unit suite green**, because the locale file and
+the expectation would agree with each other again. The escape is the only thing that makes the diff
+reviewable. (The repo convention of literal non-ASCII with zero `\uXXXX` escapes is about
+`client/src/i18n/**` *JSON*; it does not extend to test expectations, where visibility wins.)
+
+I violated this while writing the guard against it: the invariant test's own
+`c !== '<literal NBSP>'` filter went in with a literal NBSP instead of `'\u00A0'`. It passed, and was invisible.
+**Always scan a file's codepoints after writing NBSP-related assertions** —
+`node -e '[...fs.readFileSync(f,"utf8")].filter(c=>c.codePointAt(0)===0xA0)'`.
+
+### Literal vs invariant: keep both, at different levels
+
+Asked whether to replace the brittle literal with "contains no U+0020", the answer was both, because
+they catch disjoint things:
+
+- The **literal** in `realRender.test.ts` pins WIRING — that the deposit-reduced label of the *report*
+  language reaches the allocated-amount cell. It catches a cross-key/cross-locale mix-up (rendering
+  `splitNote` where `depositReducedNote` belongs). A "contains no space" check passes happily while
+  the wrong label renders.
+- The **invariant** in `client/src/i18n/i18n.parity.test.ts` pins TYPOGRAPHY, survives copy edits
+  (verified: rewording to `net of<NBSP>deposit` still passes), and covers every locale and every
+  future label automatically — the real regression surface.
+
+Scope it carefully: only keys that exist *solely* as bracketed inline labels
+(`splitInlineLabel`, `depositReducedInlineLabel`) get the hard no-U+0020 rule.
+`attachmentType.deposit` is **shared** — `buildReportContent.ts` also comma-joins it into flowing
+attachments-note prose, where NBSP would be over-reach — so it gets the weaker "is a single word"
+guard, which still fires if a translator makes it multi-word. The invariant rejects U+202F (narrow
+NBSP) too, deliberately: it is non-breaking but has a *narrower advance*, and "same advance, no
+geometry moved" is what made the fix safe to land unmeasured.
+
+## Non-positive chunk budgets hang rather than throw (now guarded)
+
+`splitIntoPageSafeChunks` with `maxChars <= 0` used to **spin forever**, not fail: the hard-split path
+does `token.slice(0, maxChars)`, and `slice(0, 0)` is `''`, so `rest` never shrinks (probe: 100,000
+iterations, `rest` unchanged). `packUsageCellRows` has the same shape — I confirmed it independently
+by replaying its loop bounded, and a mutation probe removing its guard **hung the jest runner**, which
+is itself the proof. Both now throw. When probing a guard whose absence is non-termination, replay the
+loop with a spin counter instead of running the suite, or the probe eats the timeout.
+
+Two subtle guard tests earned their place under mutation: an off-by-one (`<= 1`) is caught only by
+asserting the smallest *legal* budget (1) still works, and moving the guard after the
+`text.length <= maxChars` short-circuit is caught only by testing a non-positive budget with input
+short enough to short-circuit.
+
+## Mutation-probing JSON: target the path, not the string
+
+`s.replace('"deposit": "Deposit"', ...)` hit a *different* `deposit` key in another scope of the same
+file, so the probe reported a false negative on the guard. Mutate through
+`JSON.parse` → set the exact dotted path → `JSON.stringify`, and print the resulting value to confirm
+the mutation landed where intended.
 
 ## Gotcha: the grey meta run is never at a fixed run index
 

@@ -176,8 +176,17 @@ export const MAX_SAFE_USAGE_CHUNK_CHARS = 650;
  * except when a single whitespace-free run itself exceeds maxChars, in which case it is
  * hard-split so the algorithm always makes forward progress. Joining the returned chunks with
  * '' reconstructs `text` exactly — no character, including whitespace, is ever dropped (#1929 I1).
+ *
+ * Throws on a non-positive `maxChars`. Without the guard the hard-split loop spins forever
+ * (`token.slice(0, 0)` is `''` and `token.slice(0)` is `token`, so it never makes progress) — it
+ * does NOT fail loudly on its own. Unreachable today (every caller passes a module constant), but
+ * that stops being true the moment a budget is derived from column visibility, so it fails fast
+ * rather than clamping: a silently clamped budget is a bound nobody can see.
  */
 export function splitIntoPageSafeChunks(text: string, maxChars: number): string[] {
+  if (maxChars <= 0) {
+    throw new Error(`splitIntoPageSafeChunks: maxChars must be positive, got ${maxChars}`);
+  }
   if (text.length <= maxChars) return [text];
 
   const tokens = text.split(/(\s+)/); // capturing group keeps whitespace as its own tokens
@@ -240,11 +249,22 @@ export interface UsageCellSegment {
  * Lossless (#1929 I1): concatenating every returned segment's `text`, in order, reconstructs the
  * input stream exactly — no character, including whitespace, is added or dropped. Empty segments
  * are preserved so an empty `usageText` still renders its own (empty) leading run.
+ *
+ * Throws on a non-positive `maxChars`, which is not a survivable budget: with no room for even one
+ * character the packing loop cannot make progress (`remaining <= 0` flushes a row that is already
+ * empty, then retries the same state forever) — note this hangs in the packer's OWN loop, before it
+ * ever delegates to splitIntoPageSafeChunks, so both functions need their own guard. Unreachable
+ * while the budget is a module constant, but MAX_SAFE_USAGE_CHUNK_CHARS was measured against the
+ * 7-column geometry, so any future per-shape or column-visibility-derived budget must fail loudly
+ * here rather than be clamped into a bound nobody can see.
  */
 export function packUsageCellRows(
   segments: UsageCellSegment[],
   maxChars: number,
 ): UsageCellSegment[][] {
+  if (maxChars <= 0) {
+    throw new Error(`packUsageCellRows: maxChars must be positive, got ${maxChars}`);
+  }
   const rows: UsageCellSegment[][] = [];
   let current: UsageCellSegment[] = [];
   let used = 0;

@@ -27,4 +27,9 @@ the exact helper line QA must update — do not "fix" the helper to make the fli
 (3) expect sibling tests in the same block to fail too, for the same reason (they assert the broken
 model at content-tree level, which is why they passed while the rendered PDF lost content).
 
-Related: [[../MEMORY.md]] "Refinement Workflow — QA Test Coordination".
+**Outcome on #1959 (closing the loop):** reporting the exact blocking helper line was the right call
+— QA re-derived the row count from the production packer itself, then converted the tripwire to a
+normal guard. Reporting "cannot flip, here is the line" got it resolved in one round; editing the
+helper myself would have put a developer edit in a QA-owned file for no gain.
+
+Related: [[../MEMORY.md]] "Refinement Workflow — QA Test Coordination", [[i18n-invisible-chars]].
