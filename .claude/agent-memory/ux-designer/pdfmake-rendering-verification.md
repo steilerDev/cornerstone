@@ -9,8 +9,8 @@ metadata:
 
 `client/src/lib/reportPdf/{shared,overviewPdf,merge,coverLetterPdf}.ts` produce a pdfmake
 document (no CSS, no React, no design tokens — this whole area is out of scope for the usual
-token/dark-mode/responsive checklist). The only meaningful design review here is on the *printed
-artifact*. Character-width estimates from nominal font metrics are unreliable (I estimated the
+token/dark-mode/responsive checklist). The only meaningful design review here is on the _printed
+artifact_. Character-width estimates from nominal font metrics are unreliable (I estimated the
 deposit-badge run `" (Abschlagszahlung)"` would clip in a 75pt column at fontSize 8 — it didn't;
 real Roboto metrics are narrower than my estimate). Always render a real PDF and rasterize it
 instead of reasoning from font-metric arithmetic:
@@ -26,7 +26,7 @@ instead of reasoning from font-metric arithmetic:
    way to actually verify AC-language like "no column collapses," "no clipping," "no orphaned
    cells" instead of trusting the code comments' own arithmetic.
 4. Delete the scratch test file(s) before finishing — never leave them committed; confirm `git
-   status --porcelain` is empty. `ReportContent`/`ReportContentRow` shapes: see
+status --porcelain` is empty. `ReportContent`/`ReportContentRow` shapes: see
    `client/src/lib/reportContent/types.ts` (`refundNoteText` is `string`, not nullable — use `''`).
 
 ## Confirmed bug: `TABLE_LAYOUT.dontBreakRows: true` does not prevent row-splitting (PR #1935)
@@ -103,13 +103,13 @@ Re-rendered with a **mixed fixture** (ordinary short vendor names alongside the 
 adversarial ones) specifically to test the "a flagged token that fits still renders unbroken"
 claim QA/dev-team-lead made — this is the right thing to verify for any `break-all`-widening PR,
 not just re-running the existing worst-case fixture, because the whole question is about the
-*common* case, not the case the fix was explicitly measured against. Result: the claim holds for
+_common_ case, not the case the fix was explicitly measured against. Result: the claim holds for
 short words (`Elektro`/`Müller`/`GmbH` renders whole on 3 lines, no character split) but **any
 single word ~14+ characters breaks mid-word with no hyphen**, and German business names hit that
 routinely (`Sanitär Rückerstattung AG` → `Rück`/`erstattung`) — not just the constructed extreme
 case (`Elektroinstallationsbetrieb` → 3-way break ending in a lone `b`). Lesson: when a fix adds
 `break-all` broadly to protect against an adversarial measurement, always re-test against
-*ordinary* content in the same domain (here: real-sounding German compound-noun business names),
+_ordinary_ content in the same domain (here: real-sounding German compound-noun business names),
 since "the mechanism is safe" and "the common case looks fine" are different claims — the second
 needs its own separate check, not just the first.
 
@@ -135,11 +135,11 @@ character-width estimates above).
 ## #1932 resolution of the round-3 "93pt dead space above the cover-letter sender block" note (above)
 
 Spec'd this as **accepted, intentional letter-top-margin** rather than something to fix: 93pt
-(~3.3cm) sits within the normal range for a business letter's top margin (~2.5–4.5cm), *provided*
+(~3.3cm) sits within the normal range for a business letter's top margin (~2.5–4.5cm), _provided_
 the sender block itself carries no additional top margin of its own (confirmed: sender's margin
 is `[0,0,0,4]`, bottom-only, matching this file's existing single-direction-margin convention).
 Did not touch `PAGE_TOP_MARGIN` or any page-geometry constant — the issue's own guardrail says
-reaching for `HEADER_ROW_HEIGHT_MAX`-adjacent constants here is a sign of drift, and a *global*
+reaching for `HEADER_ROW_HEIGHT_MAX`-adjacent constants here is a sign of drift, and a _global_
 pdfmake `pageMargins` value can't be conditionally shrunk for page 1 alone without breaking the
 running-header alignment pdfmake shares across every page.
 

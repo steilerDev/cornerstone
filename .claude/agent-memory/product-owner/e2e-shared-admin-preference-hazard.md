@@ -22,7 +22,7 @@ collision class independent of the `locale` key that motivated the issue —
 `e2e/tests/diary/diary-uat-fixes.spec.ts` PATCHes `dashboard.hiddenCards='[]'` directly on the
 shared admin, the same key `dashboard.spec.ts`'s own top-level `beforeEach` resets on the same
 shared admin for its ~26 non-isolated tests. `dashboard.spec.ts`'s Scenario 6/7 isolated-user fix
-(PR #1956) only protects those two scenarios from the rest of *its own file* — it does nothing
+(PR #1956) only protects those two scenarios from the rest of _its own file_ — it does nothing
 against `diary-uat-fixes.spec.ts`. That's why #1957's ACs are written as an audit + per-spec
 resolution (dedicated user where the test doesn't need admin, explicit documented exception where
 it does — `createLocalUserViaApi` defaults to `role: 'member'`) rather than "convert
@@ -31,7 +31,7 @@ it does — `createLocalUserViaApi` defaults to `role: 'member'`) rather than "c
 `change-password.spec.ts`. `user_preferences.user_id` is `ON DELETE CASCADE` so cleanup is just
 `deleteUserViaApi()` in a `finally`.
 
-**Not the same bug as #1955**: #1955 is a *production* debounce/re-sync race in
+**Not the same bug as #1955**: #1955 is a _production_ debounce/re-sync race in
 `useColumnPreferences`/`usePreferences` (client-side). #1957 is purely an E2E test-isolation gap
 (shared admin + parallel writes). #1920 is the E2E-side workaround for #1955's symptom in
 `invoices.spec.ts` (awaits the PATCH) — it does not fix #1955 and does not overlap with #1957.

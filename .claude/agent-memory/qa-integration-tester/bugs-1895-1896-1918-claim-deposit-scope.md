@@ -30,7 +30,7 @@ Fixed on branch `fix/1895-1918-claim-deposit-scope` (2026-08-01). Three related 
   slice {pending,paid}; the tagged deposit itself is excluded from Rail A by definition — only
   Rail B counts it, contributing to `allocatedAmount` but not to any specific line). An
   **untagged** deposit in the same shape is the AC6 carve-out: it still shows up in Rail A's
-  `depositFractions` (since only *tagged* deposits are excluded from Rail A), so the lines get
+  `depositFractions` (since only _tagged_ deposits are excluded from Rail A), so the lines get
   non-zero pro-rated portions and are NOT dropped. For `budget-overview` reports the skip never
   applies (AC7) since `quotation` is in that report type's target-status slice, so the residual
   term itself is non-zero.
@@ -95,7 +95,7 @@ Follow-up production round further relaxed the mark-claimed contract:
   entirely — this guard is orthogonal to the server's own both-empty `ValidationError` and fires
   first since the client always excludes invoices-with-excluded-lines from `invoiceIds` client-side.
 - New success banner copy: `"{{invoices}} invoice(s) and {{deposits}} deposit(s) marked as
-  claimed"` (was a single count). Any test asserting the old `/invoice\(s\) marked as claimed/`
+claimed"` (was a single count). Any test asserting the old `/invoice\(s\) marked as claimed/`
   loose regex now under-matches (real text has `... and N deposit(s) marked as claimed` in
   between) — assert the full interpolated string instead of a loose substring regex.
 

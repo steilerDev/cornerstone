@@ -12,23 +12,29 @@ load effect + a serialized single-writer save queue (`drainSaves`).
 ## Harness shape that actually reproduces an echo race
 
 **Put the echo on the write's `resolve`, not on the call.** `usePreferences.upsert` does
-`await upsertPreference(...)` *then* `setPreferences(...)`, so the store only publishes the payload
+`await upsertPreference(...)` _then_ `setPreferences(...)`, so the store only publishes the payload
 when the request settles. A harness that reassigns the fake store at call time is subtly wrong and
 destroys the test's discriminating power: with the queue fix in place, the corrective second write
 is issued synchronously in the drain loop right after the first settles, so a call-time echo
-overwrites the stale payload *before* the test's `rerender()` and the assertion then passes even
+overwrites the stale payload _before_ the test's `rerender()` and the assertion then passes even
 with the authority guard deleted.
 
 ```ts
 mockUpsert.mockImplementation((key, value) => {
   const d = createDeferred();
-  void d.promise.then(() => { prefsState = [makePreference(key, value)]; }, () => {});
-  return d.promise;              // hold; test calls writes[n].resolve() / .reject()
+  void d.promise.then(
+    () => {
+      prefsState = [makePreference(key, value)];
+    },
+    () => {},
+  );
+  return d.promise; // hold; test calls writes[n].resolve() / .reject()
 });
 mockUsePreferences.mockImplementation(() => makeUsePreferencesResult(prefsState));
 ```
 
 Other essentials:
+
 - `usePreferences` is mocked, so no React state backs `prefsState` — nothing re-renders on its own.
   The test must call `rerender()` (from `renderHook`) to stand in for the re-render the real
   optimistic `setPreferences` causes. **That `rerender()` is the bug trigger.**
@@ -43,19 +49,19 @@ Other essentials:
 
 ## Mutation probes beat reasoning about non-vacuity
 
-Red-verification via `git stash push <prod file>` proves the tests catch the *original* bug. It does
+Red-verification via `git stash push <prod file>` proves the tests catch the _original_ bug. It does
 **not** prove each test guards a distinct part of the fix. Cheap way to prove that: back up the
 fixed file, `perl -0pi -e 's/<condition>/<wrong variant>/'`, run, restore from backup, verify md5.
 For #1955 (4 probes, each caught by exactly the intended test):
 
-| Mutation | Tests that fail |
-| --- | --- |
-| authority guard neutered (`false`), queue kept | the three >500ms-gap state tests |
-| guard → `isLoaded` ("hydrate once on mount" trap) | pre-edit-store-update + pageKey-change tests |
-| guard → bare boolean (`current !== null`) | pageKey-change test only |
-| `savePreferences(updated,…)` → `savePreferences(visibleColumns,…)` | fast-coalesce payload test (+5 more) |
+| Mutation                                                           | Tests that fail                              |
+| ------------------------------------------------------------------ | -------------------------------------------- |
+| authority guard neutered (`false`), queue kept                     | the three >500ms-gap state tests             |
+| guard → `isLoaded` ("hydrate once on mount" trap)                  | pre-edit-store-update + pageKey-change tests |
+| guard → bare boolean (`current !== null`)                          | pageKey-change test only                     |
+| `savePreferences(updated,…)` → `savePreferences(visibleColumns,…)` | fast-coalesce payload test (+5 more)         |
 
-The last one is why asserting the *payload* (not just the call count) on the rapid-toggle path
+The last one is why asserting the _payload_ (not just the call count) on the rapid-toggle path
 matters: the pre-existing count-only test survives that mutation.
 
 ## Gotcha: never run repo-wide `npm run format` here
