@@ -45,10 +45,14 @@ export const TABLE_BODY_FONT_SIZE = 8;
 export const TABLE_HEADER_FONT_SIZE = 10;
 
 /**
- * Font size, pt, for the 'small' style used by the Usage column's areaText/attachmentsNote
- * continuation rows (#1929 round-4 architect review HIGH — see overviewPdf.ts's
- * MAX_SAFE_SMALL_CHUNK_CHARS). Consumed by `PDF_STYLES.small` below for the same
- * single-source-of-truth reason as TABLE_HEADER_FONT_SIZE above.
+ * Font size, pt, for the 'small' style. Consumed by `PDF_STYLES.small` below for the same
+ * single-source-of-truth reason as TABLE_HEADER_FONT_SIZE above. Its live consumers are the
+ * report's secondary text: source-info/footnote blocks (overviewPdf.ts), the cover letter's
+ * date/reference lines (coverLetterPdf.ts), and the running page header/footer (shared.ts).
+ *
+ * NOT the Usage column: #1929 round 4 briefly rendered areaText/attachmentsNote continuation rows
+ * at this size, but #1959 moved that content inline into the Usage cell at TABLE_BODY_FONT_SIZE
+ * (8pt), and the fix round bounded it with the usage budget. Nothing in the Usage column is 9pt.
  */
 export const TABLE_SMALL_FONT_SIZE = 9;
 

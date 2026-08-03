@@ -56,12 +56,23 @@ export function buildCoverLetterContent(reportContent: ReportContent, t: TFuncti
     margin: [0, 0, 0, 16],
   });
 
-  // Body text — literal blank-line rendering, no paragraph-spacing model (see spec §B).
-  content.push({
-    text: coverLetter.body,
-    style: 'normal',
-    margin: [0, 0, 0, 32],
-  });
+  // Body text — split on double newlines so AI-generated paragraphs render with spacing
+  const paragraphs = coverLetter.body.split(/\n\n+/).filter(Boolean);
+  if (paragraphs.length <= 1) {
+    content.push({
+      text: coverLetter.body,
+      style: 'normal',
+      margin: [0, 0, 0, 32],
+    });
+  } else {
+    for (let i = 0; i < paragraphs.length; i++) {
+      content.push({
+        text: paragraphs[i]!,
+        style: 'normal',
+        margin: [0, 0, 0, i === paragraphs.length - 1 ? 32 : 8],
+      });
+    }
+  }
 
   // Signature block — closing + reserved blank space + name are ALWAYS emitted together (AC 2.4),
   // never gated behind `if (coverLetter.signature)`: pdfmake reserves the same line height for an

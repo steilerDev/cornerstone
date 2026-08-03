@@ -27,6 +27,7 @@ import {
   tableOffsetsTotal,
   usableColumnWidth,
   headerFootprint,
+  PDF_STYLES,
 } from './pageGeometry.js';
 
 describe('pageGeometry — page constants', () => {
@@ -56,8 +57,14 @@ describe('pageGeometry — page constants', () => {
     expect(TABLE_HEADER_FONT_SIZE).toBe(10);
   });
 
-  it('[#1929 round 4] TABLE_SMALL_FONT_SIZE is 9, consumed by PDF_STYLES.small below (#1939 relocated PDF_STYLES into this module) so overviewPdf.ts areaText/attachmentsNote continuation-row word-break threshold (SMALL_SAFE_TOKEN_CHARS_*COL) is computed from the same constant PDF_STYLES renders with', () => {
+  it('TABLE_SMALL_FONT_SIZE is 9 and is the size PDF_STYLES.small actually renders with (#1939 relocated PDF_STYLES into this module, so the constant and the style it feeds cannot drift apart)', () => {
     expect(TABLE_SMALL_FONT_SIZE).toBe(9);
+    // The single-source-of-truth relationship, not just the literal: the rendered style reads
+    // this constant. #1959's fix round removed the Usage-column 9pt consumers this test used to
+    // reference (areaText/attachmentsNote continuation rows) — the remaining consumers are the
+    // report's secondary text blocks, which still render through PDF_STYLES.small.
+    expect(PDF_STYLES['small']).toBeDefined();
+    expect(PDF_STYLES['small']!.fontSize).toBe(TABLE_SMALL_FONT_SIZE);
   });
 
   it('DEFAULT_LINE_HEIGHT matches merge.ts defaultStyle.lineHeight (1.4)', () => {

@@ -97,6 +97,11 @@ New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + depos
 - [Progress/status label style](progress-label-style.md) — two co-existing patterns for "X-ing… (Ns)" labels; pick the closer sibling key as precedent (`autoItemize.analyzing` → "Analysiere… ({{seconds}}s)")
 - [EMPTY_SELECTION backfill](empty-selection-error-code.md) — pre-existing error code with no locale entry in either en or de; verify via server code before assuming a key is "new"
 
+## PDF Inline-Label Constraints (#1917/#1959)
+
+- [NBSP for inline labels](nbsp-inline-labels.md) — multi-word inline PDF labels need U+00A0, not a regular space, or pdfmake wraps mid-bracket; includes the ad-hoc real-render/pdftoppm verification recipe
+- [Abschlag glossary short-form](abschlag-glossary-shortform.md) — PO-approved `Abschlag` short form recorded IN glossary.json (75pt column has no room for any qualifier); `split`'s 3 German forms deliberately un-pinned
+
 ## Audit Protocol History
 
 - [Audit pitfalls](audit-pitfalls.md) — incident history behind the mandatory 4-step full-coverage audit protocol: a parity-only audit missed 13 code-referenced keys (Area UI raw-key bug); loose substring greps flagged 52 false positives
@@ -106,8 +111,9 @@ New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + depos
 `sourceReports.editable.signatureLabel` → "Unterschrift"; `sourceReports.coverLetter.closing` → "Mit freundlichen Grüßen,"; `sourceReports.editable.closingLabel` → "Grußformel". Confirmed: neither "signature" nor "closing salutation" belongs in the glossary (grep across `glossary.json` for signature/closing/Gruß terms found nothing, and these are generic letter-writing vocabulary, not Cornerstone domain terms) — did not add.
 
 **Chrome-vs-content split, worked example**: `coverLetter.closing` and `editable.closingLabel` sit right next to each other in the UI but are translated by two different rules, and getting this backwards is the easy mistake:
-- `coverLetter.closing` = the letter's actual salutation text, rendered via `reportT()` into the PDF in the *report's* language → full letter-register translation ("Mit freundlichen Grüßen,").
-- `editable.closingLabel` = the read-only caption *above* that value in the step-5 editor, rendered via `t()` in the *interface's* language → UI chrome, translated like its sibling captions (`senderLabel`→"Absender", `subjectLabel`→"Betreff"), using the precise German business-letter term for "closing salutation" ("Grußformel", paired with "Anrede" for the opening salutation) rather than a literal "Schließen"/"Closing"-style calque.
+
+- `coverLetter.closing` = the letter's actual salutation text, rendered via `reportT()` into the PDF in the _report's_ language → full letter-register translation ("Mit freundlichen Grüßen,").
+- `editable.closingLabel` = the read-only caption _above_ that value in the step-5 editor, rendered via `t()` in the _interface's_ language → UI chrome, translated like its sibling captions (`senderLabel`→"Absender", `subjectLabel`→"Betreff"), using the precise German business-letter term for "closing salutation" ("Grußformel", paired with "Anrede" for the opening salutation) rather than a literal "Schließen"/"Closing"-style calque.
 - Rule of thumb: check the **call site**, not the JSON namespace path — both keys live under `sourceReports.*` but `t()` vs `reportT()` at the usage site is what actually decides chrome vs. content, per the established artifact-content-vs-edit-affordance convention from #1909/#1924.
 
 **Concurrent-worktree gotcha**: at spec time `closingLabel` didn't exist in `en/budget.json` yet (frontend-developer added it mid-session, confirmed via `git diff client/src/i18n/en/budget.json` showing the line appear between my two check-ins). When a spec says "check whether the en key already landed," re-check immediately before finalizing rather than trusting an earlier read — in a shared worktree the answer can flip within the same task.

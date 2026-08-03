@@ -13,12 +13,17 @@ export interface ReportContentRow {
   statusText: string | null; // null when useCase !== 'budget-overview'
   invoiceAmountText: string;
   allocatedAmountValueText: string; // formatted currency only — no markers/refund note
-  allocatedMarkers: string; // '', '†', '‡', '†‡' — shared/unnumbered per report
-  isDeposit: boolean; // constituted-deposit row → inline Deposit badge, no marker
+  isSplit: boolean; // split invoice with budget lines → inline "partial" label
+  isDepositReduced: boolean; // split invoice reduced by untagged deposits → inline label
+  isDeposit: boolean; // constituted-deposit row → inline Deposit badge
   isRefund: boolean;
   refundNoteText: string; // shown only when isRefund
   usageText: string; // EDITABLE — key `row.<invoiceId>.usageText`
-  attachmentsNote: string | null; // EDITABLE when non-null — key `row.<invoiceId>.attachmentsNote`; null = no docs, omitted entirely
+  // READ-ONLY since #1959 moved it inline, with areaText, into the Usage cell's grey meta suffix:
+  // the editor renders both as static text and exposes no input for either. applyOverrides still
+  // honours `row.<invoiceId>.attachmentsNote`, but nothing can produce that key any more — it is
+  // unreachable from the UI. null = no docs, omitted entirely.
+  attachmentsNote: string | null;
   areaText: string | null; // read-only leaf area names, distinct comma-joined
 }
 
@@ -55,6 +60,8 @@ export interface ReportContentLabels {
   usage: string;
   attachmentsNote: string;
   deposit: string; // translated in report language
+  splitNote: string; // short inline label for split rows
+  depositReducedNote: string; // short inline label for deposit-reduced rows
   source: string;
   sourceType: string;
   reference: string;

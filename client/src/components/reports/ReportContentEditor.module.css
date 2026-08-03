@@ -67,12 +67,51 @@
   gap: var(--spacing-1);
 }
 
-/* Table Heading */
+/* Table Heading + Column Toggles */
+.tableHeadingRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
+
 .tableHeading {
   margin: 0 0 var(--spacing-3) 0;
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
+  flex-shrink: 0;
+}
+
+.columnToggleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  margin-bottom: var(--spacing-3);
+}
+
+/* Preview-only disclaimer for the column toggles — these do not affect the generated PDF. */
+.columnToggleHint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.columnToggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.columnToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 /* Table Wrapper (Desktop) */
@@ -170,10 +209,15 @@
   flex-wrap: wrap;
 }
 
-.usageAreaText {
-  font-size: var(--font-size-xs);
+.usageMetaText {
   color: var(--color-text-muted);
   margin-top: var(--spacing-1);
+}
+
+.inlineNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-left: var(--spacing-1);
 }
 
 /* Summary Table */

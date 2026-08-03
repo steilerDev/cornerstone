@@ -3,6 +3,7 @@
  * Handles field changes and resets via callbacks; no state management.
  */
 
+import { useId, useState } from 'react';
 import type { TFunction } from 'i18next';
 import type { InvoiceStatus } from '@cornerstone/shared';
 import type { ReportContent, ReportContentOverrides } from '../../lib/reportContent/index.js';
@@ -27,6 +28,9 @@ const STATUS_BADGE_CLASSNAME: Record<InvoiceStatus, string> = {
   quotation: styles.statusQuotation!,
 };
 
+type ColumnKey =
+  'vendor' | 'invoiceNumber' | 'date' | 'status' | 'invoiceAmount' | 'allocatedAmount' | 'usage';
+
 export function ReportContentEditor({
   content,
   overrides,
@@ -36,6 +40,23 @@ export function ReportContentEditor({
 }: ReportContentEditorProps) {
   // Helper: check if a field has been overridden
   const isFieldEdited = (key: string): boolean => key in overrides;
+
+  // Column visibility state. PREVIEW-ONLY: `hiddenColumns` is local to this component and is not
+  // exposed as a prop or callback — the generated PDF always contains every column. The hint
+  // rendered beside the toggles says so, because the control otherwise reads as "choose the
+  // report's columns" (every other control in this editor does change the PDF). Wiring these
+  // through to the PDF is a filed follow-up.
+  const columnHintId = useId();
+  const [hiddenColumns, setHiddenColumns] = useState<Set<ColumnKey>>(new Set());
+  const toggleColumn = (col: ColumnKey) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(col)) next.delete(col);
+      else next.add(col);
+      return next;
+    });
+  };
+  const show = (col: ColumnKey) => !hiddenColumns.has(col);
 
   return (
     <div className={styles.container}>
@@ -174,30 +195,63 @@ export function ReportContentEditor({
       )}
 
       {/* Report Table */}
-      <h3 className={styles.tableHeading}>{t('sourceReports.editable.tableHeading')}</h3>
+      <div className={styles.tableHeadingRow}>
+        <h3 className={styles.tableHeading}>{t('sourceReports.editable.tableHeading')}</h3>
+        <div className={styles.columnToggleGroup}>
+          <p id={columnHintId} className={styles.columnToggleHint}>
+            {t('sourceReports.editable.columnVisibilityHint')}
+          </p>
+          <div
+            className={styles.columnToggles}
+            role="group"
+            aria-label={t('sourceReports.editable.columnVisibilityLabel')}
+            aria-describedby={columnHintId}
+          >
+            {(
+              [
+                ['vendor', content.labels.vendor],
+                ['invoiceNumber', content.labels.invoiceNumber],
+                ['date', content.labels.date],
+                ...(content.isOverview
+                  ? [['status', content.labels.status] as [ColumnKey, string]]
+                  : []),
+                ['invoiceAmount', content.labels.invoiceAmount],
+                ['allocatedAmount', content.labels.allocatedAmount],
+                ['usage', content.labels.usage],
+              ] as [ColumnKey, string][]
+            ).map(([col, label]) => (
+              <label key={col} className={styles.columnToggle}>
+                <input type="checkbox" checked={show(col)} onChange={() => toggleColumn(col)} />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
       <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>{content.labels.vendor}</th>
-              <th>{content.labels.invoiceNumber}</th>
-              <th>{content.labels.date}</th>
-              {content.isOverview && <th>{content.labels.status}</th>}
-              <th className={styles.rightAlign}>{content.labels.invoiceAmount}</th>
-              <th className={styles.rightAlign}>{content.labels.allocatedAmount}</th>
-              <th>{content.labels.usage}</th>
-              {content.rows.some((r) => r.attachmentsNote !== null) && (
-                <th>{content.labels.attachmentsNote}</th>
+              {show('vendor') && <th>{content.labels.vendor}</th>}
+              {show('invoiceNumber') && <th>{content.labels.invoiceNumber}</th>}
+              {show('date') && <th>{content.labels.date}</th>}
+              {content.isOverview && show('status') && <th>{content.labels.status}</th>}
+              {show('invoiceAmount') && (
+                <th className={styles.rightAlign}>{content.labels.invoiceAmount}</th>
               )}
+              {show('allocatedAmount') && (
+                <th className={styles.rightAlign}>{content.labels.allocatedAmount}</th>
+              )}
+              {show('usage') && <th>{content.labels.usage}</th>}
             </tr>
           </thead>
           <tbody>
             {content.rows.map((row) => (
               <tr key={row.invoiceId}>
-                <td>{row.vendor}</td>
-                <td>{row.invoiceNumber}</td>
-                <td>{row.dateText}</td>
-                {content.isOverview && row.status && row.statusText != null && (
+                {show('vendor') && <td>{row.vendor}</td>}
+                {show('invoiceNumber') && <td>{row.invoiceNumber}</td>}
+                {show('date') && <td>{row.dateText}</td>}
+                {content.isOverview && show('status') && row.status && row.statusText != null && (
                   <td>
                     <Badge
                       value={row.status}
@@ -210,65 +264,65 @@ export function ReportContentEditor({
                     />
                   </td>
                 )}
-                <td className={`${styles.rightAlign} ${row.isRefund ? styles.refundAmount : ''}`}>
-                  {row.invoiceAmountText}
-                </td>
-                <td className={`${styles.rightAlign} ${row.isRefund ? styles.refundAmount : ''}`}>
-                  {row.allocatedAmountValueText}
-                  {row.allocatedMarkers}
-                  {row.isRefund && ` ${row.refundNoteText}`}
-                  {row.isDeposit && (
-                    <Badge
-                      className={styles.depositLabel}
-                      variants={{
-                        deposit: {
-                          label: content.labels.deposit,
-                          className: styles.depositBadge,
-                        },
-                      }}
-                      value="deposit"
-                    />
-                  )}
-                </td>
-                <td>
-                  <EditableField
-                    as="input"
-                    ariaLabel={t('sourceReports.editable.usageTextAriaLabel', {
-                      vendor: row.vendor,
-                      invoiceNumber: row.invoiceNumber,
-                    })}
-                    editedSuffix={t('sourceReports.editable.editedSuffix')}
-                    resetAriaLabel={t('sourceReports.editable.resetFieldAriaLabel', {
-                      field: t('sourceReports.table.usage'),
-                    })}
-                    value={row.usageText}
-                    onChange={(value) =>
-                      onFieldChange(overrideKey.row(row.invoiceId).usageText, value)
-                    }
-                    isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
-                    onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
-                  />
-                  {row.areaText && <div className={styles.usageAreaText}>{row.areaText}</div>}
-                </td>
-                {row.attachmentsNote !== null && (
+                {content.isOverview &&
+                  show('status') &&
+                  (!row.status || row.statusText == null) && <td />}
+                {show('invoiceAmount') && (
+                  <td className={`${styles.rightAlign} ${row.isRefund ? styles.refundAmount : ''}`}>
+                    {row.invoiceAmountText}
+                  </td>
+                )}
+                {show('allocatedAmount') && (
+                  <td className={`${styles.rightAlign} ${row.isRefund ? styles.refundAmount : ''}`}>
+                    {row.allocatedAmountValueText}
+                    {row.isRefund && ` ${row.refundNoteText}`}
+                    {row.isDeposit && (
+                      <Badge
+                        className={styles.depositLabel}
+                        variants={{
+                          deposit: {
+                            label: content.labels.deposit,
+                            className: styles.depositBadge,
+                          },
+                        }}
+                        value="deposit"
+                      />
+                    )}
+                    {row.isSplit && (
+                      <span className={styles.inlineNote}> ({content.labels.splitNote})</span>
+                    )}
+                    {row.isDepositReduced && (
+                      <span className={styles.inlineNote}>
+                        {' '}
+                        ({content.labels.depositReducedNote})
+                      </span>
+                    )}
+                  </td>
+                )}
+                {show('usage') && (
                   <td>
                     <EditableField
                       as="input"
-                      ariaLabel={t('sourceReports.editable.attachmentsNoteAriaLabel', {
+                      ariaLabel={t('sourceReports.editable.usageTextAriaLabel', {
                         vendor: row.vendor,
                         invoiceNumber: row.invoiceNumber,
                       })}
                       editedSuffix={t('sourceReports.editable.editedSuffix')}
                       resetAriaLabel={t('sourceReports.editable.resetFieldAriaLabel', {
-                        field: t('sourceReports.editable.attachmentsNoteLabel'),
+                        field: t('sourceReports.table.usage'),
                       })}
-                      value={row.attachmentsNote}
+                      value={row.usageText}
                       onChange={(value) =>
-                        onFieldChange(overrideKey.row(row.invoiceId).attachmentsNote, value)
+                        onFieldChange(overrideKey.row(row.invoiceId).usageText, value)
                       }
-                      isEdited={isFieldEdited(overrideKey.row(row.invoiceId).attachmentsNote)}
-                      onReset={() => onFieldReset(overrideKey.row(row.invoiceId).attachmentsNote)}
+                      isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
+                      onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
                     />
+                    {(row.areaText || row.attachmentsNote) && (
+                      <div className={styles.usageMetaText}>
+                        {[row.areaText, row.attachmentsNote].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
                   </td>
                 )}
               </tr>
@@ -281,19 +335,25 @@ export function ReportContentEditor({
       <div className={styles.mobileCardList}>
         {content.rows.map((row) => (
           <div key={row.invoiceId} className={styles.mobileCard}>
-            <div className={styles.mobileCardRow}>
-              <span className={styles.mobileCardCaption}>{content.labels.vendor}</span>
-              <span className={styles.mobileCardValue}>{row.vendor}</span>
-            </div>
-            <div className={styles.mobileCardRow}>
-              <span className={styles.mobileCardCaption}>{content.labels.invoiceNumber}</span>
-              <span className={styles.mobileCardValue}>{row.invoiceNumber}</span>
-            </div>
-            <div className={styles.mobileCardRow}>
-              <span className={styles.mobileCardCaption}>{content.labels.date}</span>
-              <span className={styles.mobileCardValue}>{row.dateText}</span>
-            </div>
-            {content.isOverview && row.status && row.statusText != null && (
+            {show('vendor') && (
+              <div className={styles.mobileCardRow}>
+                <span className={styles.mobileCardCaption}>{content.labels.vendor}</span>
+                <span className={styles.mobileCardValue}>{row.vendor}</span>
+              </div>
+            )}
+            {show('invoiceNumber') && (
+              <div className={styles.mobileCardRow}>
+                <span className={styles.mobileCardCaption}>{content.labels.invoiceNumber}</span>
+                <span className={styles.mobileCardValue}>{row.invoiceNumber}</span>
+              </div>
+            )}
+            {show('date') && (
+              <div className={styles.mobileCardRow}>
+                <span className={styles.mobileCardCaption}>{content.labels.date}</span>
+                <span className={styles.mobileCardValue}>{row.dateText}</span>
+              </div>
+            )}
+            {content.isOverview && show('status') && row.status && row.statusText != null && (
               <div className={styles.mobileCardRow}>
                 <span className={styles.mobileCardCaption}>{content.labels.status}</span>
                 <Badge
@@ -307,76 +367,71 @@ export function ReportContentEditor({
                 />
               </div>
             )}
-            <div className={styles.mobileCardRow}>
-              <span className={styles.mobileCardCaption}>{content.labels.invoiceAmount}</span>
-              <span
-                className={`${styles.mobileCardValue} ${row.isRefund ? styles.refundAmount : ''}`}
-              >
-                {row.invoiceAmountText}
-              </span>
-            </div>
-            <div className={styles.mobileCardRow}>
-              <span className={styles.mobileCardCaption}>{content.labels.allocatedAmount}</span>
-              <span className={styles.mobileCardAllocated}>
+            {show('invoiceAmount') && (
+              <div className={styles.mobileCardRow}>
+                <span className={styles.mobileCardCaption}>{content.labels.invoiceAmount}</span>
                 <span
                   className={`${styles.mobileCardValue} ${row.isRefund ? styles.refundAmount : ''}`}
                 >
-                  {row.allocatedAmountValueText}
-                  {row.allocatedMarkers}
-                  {row.isRefund && ` ${row.refundNoteText}`}
+                  {row.invoiceAmountText}
                 </span>
-                {row.isDeposit && (
-                  <Badge
-                    variants={{
-                      deposit: {
-                        label: content.labels.deposit,
-                        className: styles.depositBadge,
-                      },
-                    }}
-                    value="deposit"
-                  />
-                )}
-              </span>
-            </div>
-            <div className={styles.mobileCardRow}>
-              <EditableField
-                as="input"
-                label={content.labels.usage}
-                ariaLabel={t('sourceReports.editable.usageTextAriaLabel', {
-                  vendor: row.vendor,
-                  invoiceNumber: row.invoiceNumber,
-                })}
-                editedSuffix={t('sourceReports.editable.editedSuffix')}
-                resetAriaLabel={t('sourceReports.editable.resetFieldAriaLabel', {
-                  field: t('sourceReports.table.usage'),
-                })}
-                value={row.usageText}
-                onChange={(value) => onFieldChange(overrideKey.row(row.invoiceId).usageText, value)}
-                isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
-                onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
-              />
-              {row.areaText && <span className={styles.usageAreaText}>{row.areaText}</span>}
-            </div>
-            {row.attachmentsNote !== null && (
+              </div>
+            )}
+            {show('allocatedAmount') && (
+              <div className={styles.mobileCardRow}>
+                <span className={styles.mobileCardCaption}>{content.labels.allocatedAmount}</span>
+                <span className={styles.mobileCardAllocated}>
+                  <span
+                    className={`${styles.mobileCardValue} ${row.isRefund ? styles.refundAmount : ''}`}
+                  >
+                    {row.allocatedAmountValueText}
+                    {row.isRefund && ` ${row.refundNoteText}`}
+                  </span>
+                  {row.isDeposit && (
+                    <Badge
+                      variants={{
+                        deposit: {
+                          label: content.labels.deposit,
+                          className: styles.depositBadge,
+                        },
+                      }}
+                      value="deposit"
+                    />
+                  )}
+                  {row.isSplit && (
+                    <span className={styles.inlineNote}>({content.labels.splitNote})</span>
+                  )}
+                  {row.isDepositReduced && (
+                    <span className={styles.inlineNote}>({content.labels.depositReducedNote})</span>
+                  )}
+                </span>
+              </div>
+            )}
+            {show('usage') && (
               <div className={styles.mobileCardRow}>
                 <EditableField
                   as="input"
-                  label={content.labels.attachmentsNote}
-                  ariaLabel={t('sourceReports.editable.attachmentsNoteAriaLabel', {
+                  label={content.labels.usage}
+                  ariaLabel={t('sourceReports.editable.usageTextAriaLabel', {
                     vendor: row.vendor,
                     invoiceNumber: row.invoiceNumber,
                   })}
                   editedSuffix={t('sourceReports.editable.editedSuffix')}
                   resetAriaLabel={t('sourceReports.editable.resetFieldAriaLabel', {
-                    field: t('sourceReports.editable.attachmentsNoteLabel'),
+                    field: t('sourceReports.table.usage'),
                   })}
-                  value={row.attachmentsNote}
+                  value={row.usageText}
                   onChange={(value) =>
-                    onFieldChange(overrideKey.row(row.invoiceId).attachmentsNote, value)
+                    onFieldChange(overrideKey.row(row.invoiceId).usageText, value)
                   }
-                  isEdited={isFieldEdited(overrideKey.row(row.invoiceId).attachmentsNote)}
-                  onReset={() => onFieldReset(overrideKey.row(row.invoiceId).attachmentsNote)}
+                  isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
+                  onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
                 />
+                {(row.areaText || row.attachmentsNote) && (
+                  <span className={styles.usageMetaText}>
+                    {[row.areaText, row.attachmentsNote].filter(Boolean).join(' · ')}
+                  </span>
+                )}
               </div>
             )}
           </div>

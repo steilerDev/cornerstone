@@ -19,7 +19,11 @@
  *   for #1904) must stay hidden at desktop width. It previously lacked a base `display: none`
  *   and duplicated the table; the fix landed in `ReportContentEditor.module.css`.
  * - Scenario 2: Editing a field shows its edited-dot indicator on THAT field only — not on
- *   sibling fields, not on the same field for a different invoice row.
+ *   sibling fields, not on the same field for a different invoice row. Since Issue #1959 the
+ *   table row's only editable field is `usageText` (the `attachmentsNote` `EditableField`/column
+ *   is gone — the note is read-only meta text now), so the sibling-field axis is exercised
+ *   against the cover letter's `subject`/`body`, and the removed field's absence is asserted
+ *   here as "exactly one textbox per row".
  * - Scenario 3: The per-field reset button reverts the value to its generated baseline and
  *   clears the edited-dot.
  * - Scenario 4: A guarded step 1-4 mutation while dirty shows the discard-confirm modal; "Keep
@@ -64,24 +68,33 @@
  *   attach-documents/cover-letter checkboxes on the same step (previously it bypassed the
  *   guard and applied silently).
  *
- * Story #1923 (report table cleanup): shared footnotes, inline deposit label, claim metadata
- * suppression, total-only summary, area in the Usage cell. See `ReportWizardPage.ts`'s class
- * docstring for the full locator reference (`sourceInfoBlock`, `depositBadge`/
- * `mobileDepositBadge`, `usageAreaText`/`mobileUsageAreaText`, `summaryTable`/
- * `summaryTableRows`, `footnotesBlock`/`footnoteItems`).
+ * Story #1923 (report table cleanup): inline deposit label, claim metadata suppression,
+ * total-only summary, area in the Usage cell. Issue #1959 then REPLACED this story's `†`/`‡`
+ * markers + footnote list with inline `(partial)`/`(less deposit)` labels in the Allocated Amount
+ * cell, and merged the area sub-line and the (previously editable, separately-columned)
+ * attachments note into ONE read-only grey meta line in the Usage cell. See `ReportWizardPage.ts`'s
+ * class docstring for the full locator reference (`sourceInfoBlock`, `depositBadge`/
+ * `mobileDepositBadge`, `inlineNote`/`mobileInlineNote`, `usageMetaText`/`mobileUsageMetaText`,
+ * `summaryTable`/`summaryTableRows`, and `footnotesBlock`/`footnoteItems` — retained as
+ * negative-only guards now that nothing populates `content.footnotes`).
  * - Scenario 16: A `claim` report omits the source-info metadata block entirely (AC3.1) — the
  *   counterpart to Scenario 1's `budget-overview` regression guard (AC3.3).
  * - Scenario 17: A constituted-deposit row (the row's allocation is made up entirely by a
  *   deposit tagged to the currently reported source) shows the inline "Deposit" badge on
- *   desktop, tablet, AND mobile, carries no `‡` marker, and the footnotes list has no entry at
- *   all for it (AC2.1, AC2.2).
- * - Scenario 18: Two or more split invoices share exactly ONE unnumbered `†` marker and exactly
- *   one footnote entry, with no vendor/invoice-number prefix (AC1.1-AC1.2).
+ *   desktop, tablet, AND mobile, carries NO inline `(partial)`/`(less deposit)` note (nor either
+ *   legacy `†`/`‡` glyph), and there is no footnotes block at all (AC2.1, AC2.2).
+ * - Scenario 18: Every split invoice carries its OWN inline `(partial)` label in its Allocated
+ *   Amount cell (Issue #1959, superseding AC1.1-AC1.2's shared unnumbered `†` marker), and the
+ *   footnote list — including the long-form "Amount shown reflects only the portion allocated to
+ *   this source." sentence — is gone from the page entirely.
  * - Scenario 19: Invoices spanning two or more statuses still produce exactly one summary row
  *   (`Total`) — no per-status subtotal rows (AC4.1-AC4.2).
  * - Scenario 20: A budget line linked to an item with an assigned area shows the item's leaf
- *   area name as a distinct, read-only line below the Usage field on desktop, tablet, AND
- *   mobile; an item with no area renders no area line and no empty gap (AC5.2, AC5.4, AC5.5).
+ *   area name as read-only grey meta text inside the Usage cell on desktop, tablet, AND mobile —
+ *   joined by " · " with the attachments note when the invoice also has a linked document (Issue
+ *   #1959), never as a separate editable Attachments Note column, and never folded into the
+ *   editable usage text (AC5.2, AC5.3); an invoice with neither renders no meta text and no
+ *   empty gap (AC5.4, AC5.5).
  *
  * Issue #1932 (cover letter overhaul): formatted body, editable signature block, personal
  * sender, professional PDF layout. See `ReportWizardPage.ts`'s own "Issue #1932" docstring
@@ -521,31 +534,44 @@ test.describe('Report wizard editable content — edited-dot placement (Scenario
 
       const vendorName = `${testPrefix} Dot Vendor`;
       const usageA = wizard.usageField(vendorName, invoiceA.invoiceNumber!);
-      const attachmentsNoteA = wizard.attachmentsNoteField(vendorName, invoiceA.invoiceNumber!);
       const usageB = wizard.usageField(vendorName, invoiceB.invoiceNumber!);
       const subject = wizard.letterField('subject');
+      const body = wizard.letterField('body');
+
+      // Invoice A's linked document (seeded above) used to give its row a SECOND editable field
+      // (the `Attachments note for …` `EditableField`) — Issue #1959 removed that column and
+      // turned the note into read-only grey meta text inside the Usage cell. Asserted as a
+      // positive/negative pair so this can't pass vacuously against a row that simply has no
+      // linked document: the note text IS rendered, and the row has exactly ONE textbox (Usage).
+      await expect(wizard.usageMetaText(vendorName, invoiceA.invoiceNumber!)).toHaveText(
+        '1 attachment: Invoice',
+      );
+      await expect(
+        wizard.contentTableRow(vendorName, invoiceA.invoiceNumber!).getByRole('textbox'),
+      ).toHaveCount(1);
 
       // Baseline: nothing edited anywhere.
       expect(await wizard.hasEditedIndicator(usageA)).toBe(false);
-      expect(await wizard.hasEditedIndicator(attachmentsNoteA)).toBe(false);
       expect(await wizard.hasEditedIndicator(usageB)).toBe(false);
       expect(await wizard.hasEditedIndicator(subject)).toBe(false);
+      expect(await wizard.hasEditedIndicator(body)).toBe(false);
 
       // Edit invoice A's usage field only.
       await wizard.editField(usageA, 'Custom usage note A');
       expect(await wizard.hasEditedIndicator(usageA)).toBe(true);
-      // Sibling field on the SAME row: unaffected.
-      expect(await wizard.hasEditedIndicator(attachmentsNoteA)).toBe(false);
       // Same field TYPE on a DIFFERENT row: unaffected.
       expect(await wizard.hasEditedIndicator(usageB)).toBe(false);
-      // A cover-letter field: unaffected.
+      // Cover-letter fields: unaffected.
       expect(await wizard.hasEditedIndicator(subject)).toBe(false);
+      expect(await wizard.hasEditedIndicator(body)).toBe(false);
 
-      // Editing the second field on the same row shows its own dot too, without disturbing
-      // the first.
-      await wizard.editField(attachmentsNoteA, 'Custom attachment note A');
+      // Editing a SIBLING field (now the cover letter's subject — the table row has only one
+      // editable field left) shows its own dot too, without disturbing the first, and still
+      // without leaking onto its own sibling (`body`) or the other row.
+      await wizard.editField(subject, 'Custom subject line');
       expect(await wizard.hasEditedIndicator(usageA)).toBe(true);
-      expect(await wizard.hasEditedIndicator(attachmentsNoteA)).toBe(true);
+      expect(await wizard.hasEditedIndicator(subject)).toBe(true);
+      expect(await wizard.hasEditedIndicator(body)).toBe(false);
       expect(await wizard.hasEditedIndicator(usageB)).toBe(false);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
@@ -1463,7 +1489,7 @@ test.describe('Report wizard editable content — report-language guard (Scenari
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard editable content — claim reports omit the metadata block (Scenario 16)', () => {
-  test('A claim report hides the source-info metadata block entirely, while the title, table, summary, and (when present) footnotes still render (Story #1923 AC3.1, AC3.4)', async ({
+  test('A claim report hides the source-info metadata block entirely, while the title, table, and summary still render (Story #1923 AC3.1, AC3.4)', async ({
     page,
     testPrefix,
   }) => {
@@ -1510,15 +1536,15 @@ test.describe('Report wizard editable content — claim reports omit the metadat
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 17: Constituted-deposit row shows the inline Deposit badge, no ‡ marker, no footnote
-// (Story #1923 AC2.1, AC2.2)
+// Scenario 17: Constituted-deposit row shows the inline Deposit badge and no deposit-reduced
+// note (Story #1923 AC2.1, AC2.2; note shape updated by Issue #1959)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
   'Report wizard editable content — inline deposit badge (Scenario 17)',
   { tag: '@responsive' },
   () => {
-    test('A row whose allocation is made up entirely by a deposit tagged to the reported source shows an inline "Deposit" badge instead of a ‡ marker, with no matching footnote entry, on desktop, tablet, and mobile', async ({
+    test('A row whose allocation is made up entirely by a deposit tagged to the reported source shows an inline "Deposit" badge and no "(less deposit)" note, with no footnote entry, on desktop, tablet, and mobile', async ({
       page,
       testPrefix,
     }) => {
@@ -1559,8 +1585,10 @@ test.describe(
 
         // View source B's own claim report — this invoice has zero budget lines for B, so its
         // entire row here is the tagged deposit: isSplit (spans A + B) with an empty
-        // `budgetLines` slice for B → constituted-deposit, no † (no budget-line split for B)
-        // and no ‡ (the deposit IS tagged to B, not "reduced").
+        // `budgetLines` slice for B → constituted-deposit, so `isSplit` is false (no
+        // budget-line split for B) and `isDepositReduced` is false (the deposit IS tagged to B,
+        // not "reduced") → NEITHER inline note (Issue #1959 replaced the old †/‡ markers with
+        // the `(partial)`/`(less deposit)` labels asserted against here).
         await reachStep5(wizard, sourceBId);
 
         const vendorName = `${testPrefix} Deposit Vendor`;
@@ -1573,7 +1601,11 @@ test.describe(
           const badge = wizard.mobileDepositBadge(vendorName, invoice.invoiceNumber!);
           await expect(badge).toBeVisible();
           await expect(badge).toHaveText('Deposit');
+          // The badge is the row's ONLY allocated-amount annotation: no `(partial)`/`(less
+          // deposit)` inline note (Issue #1959), and — belt and braces — neither legacy glyph.
+          await expect(wizard.mobileInlineNote(vendorName, invoice.invoiceNumber!)).toHaveCount(0);
           const cardText = (await card.textContent()) ?? '';
+          expect(cardText).not.toContain('†');
           expect(cardText).not.toContain('‡');
         } else {
           await expect(wizard.contentTable).toBeVisible();
@@ -1582,15 +1614,18 @@ test.describe(
           const badge = wizard.depositBadge(vendorName, invoice.invoiceNumber!);
           await expect(badge).toBeVisible();
           await expect(badge).toHaveText('Deposit');
+          await expect(wizard.inlineNote(vendorName, invoice.invoiceNumber!)).toHaveCount(0);
           const rowText = (await row.textContent()) ?? '';
+          expect(rowText).not.toContain('†');
           expect(rowText).not.toContain('‡');
         }
 
         // No footnote entry at all — no split (B has zero budget lines here), no
-        // deposit-reduced (the deposit IS tagged to B, not "reduced"), and the removed
+        // deposit-reduced (the deposit IS tagged to B, not "reduced"), the removed
         // `depositConstitutedFootnote` key ("This is a deposit.") never had a footnote to begin
-        // with even before this story.
-        await expect(wizard.footnotesBlock).not.toBeVisible();
+        // with even before Story #1923, and as of Issue #1959 nothing populates
+        // `content.footnotes` at all any more.
+        await expect(wizard.footnotesBlock).toHaveCount(0);
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
         if (sourceBId) await deleteBudgetSourceViaApi(page, sourceBId);
@@ -1602,11 +1637,12 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 18: Two or more split invoices share ONE unnumbered † footnote (Story #1923 AC1)
+// Scenario 18: Every split invoice carries its own inline "(partial)" label and there is no
+// footnote list at all (Story #1923 AC1, superseded by Issue #1959)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Report wizard editable content — shared split footnote (Scenario 18)', () => {
-  test('Two split invoices both carry an unnumbered † marker, and the footnote list has exactly one † entry with no vendor/invoice-number prefix', async ({
+test.describe('Report wizard editable content — inline split label (Scenario 18)', () => {
+  test('Two split invoices each show a grey inline "(partial)" note in their Allocated Amount cell, with no †/‡ marker and no footnote list anywhere on the page', async ({
     page,
     testPrefix,
   }) => {
@@ -1658,25 +1694,41 @@ test.describe('Report wizard editable content — shared split footnote (Scenari
       const vendorName = `${testPrefix} Split Vendor`;
       const row1 = wizard.contentTableRow(vendorName, invoice1.invoiceNumber!);
       const row2 = wizard.contentTableRow(vendorName, invoice2.invoiceNumber!);
-      await expect(row1).toContainText('†');
-      await expect(row2).toContainText('†');
 
-      // Unnumbered — no digit ever directly follows the marker glyph.
+      // Issue #1959 replaced the shared, unnumbered `†` marker + its footnote entry with a grey
+      // inline label appended to each split row's Allocated Amount cell. Positive first: exactly
+      // one such note per split row, reading `(partial)` — the row is genuinely split (its own
+      // €100.00 / €150.00 portion of a €300.00 / €400.00 invoice), so this cannot pass on a
+      // mis-seeded, non-split page.
+      const note1 = wizard.inlineNote(vendorName, invoice1.invoiceNumber!);
+      const note2 = wizard.inlineNote(vendorName, invoice2.invoiceNumber!);
+      await expect(note1).toHaveCount(1);
+      await expect(note2).toHaveCount(1);
+      await expect(note1).toHaveText('(partial)');
+      await expect(note2).toHaveText('(partial)');
+      // The label lives in the amount cell, not appended to the editable usage text.
+      await expect(row1).toContainText('€100.00 (partial)');
+      await expect(row2).toContainText('€150.00 (partial)');
+
+      // Negatives, each paired with the positives above: neither footnote glyph survives
+      // anywhere in the row (numbered or not), and the footnote list has no producer left — the
+      // block is absent from the DOM entirely rather than merely empty.
       const row1Text = (await row1.textContent()) ?? '';
       const row2Text = (await row2.textContent()) ?? '';
-      expect(row1Text).not.toMatch(/†\d/);
-      expect(row2Text).not.toMatch(/†\d/);
+      expect(row1Text).not.toContain('†');
+      expect(row2Text).not.toContain('†');
+      expect(row1Text).not.toContain('‡');
+      expect(row2Text).not.toContain('‡');
+      await expect(wizard.footnotesBlock).toHaveCount(0);
+      await expect(wizard.footnoteItems).toHaveCount(0);
 
-      // Exactly one shared footnote entry, no per-invoice prefix.
-      await expect(wizard.footnoteItems).toHaveCount(1);
-      const footnoteText = (await wizard.footnoteItems.first().textContent()) ?? '';
-      expect(footnoteText).toMatch(/^†:/);
-      expect(footnoteText).not.toContain(vendorName);
-      expect(footnoteText).not.toContain(invoice1.invoiceNumber!);
-      expect(footnoteText).not.toContain(invoice2.invoiceNumber!);
-      expect(footnoteText).toContain(
+      // The long-form footnote sentence the marker used to point at is gone from the page too
+      // (it now only exists as the short inline label asserted above).
+      const pageText = (await page.locator('main').textContent()) ?? '';
+      expect(pageText).not.toContain(
         'Amount shown reflects only the portion allocated to this source.',
       );
+      expect(pageText).toContain('(partial)');
     } finally {
       if (reportedWorkItemId) await deleteWorkItemViaApi(page, reportedWorkItemId);
       if (otherWorkItemId) await deleteWorkItemViaApi(page, otherWorkItemId);
@@ -1745,14 +1797,15 @@ test.describe('Report wizard editable content — total-only summary (Scenario 1
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 20: Area sub-line in the Usage cell (Story #1923 AC5)
+// Scenario 20: Area + attachments meta line in the Usage cell (Story #1923 AC5, reshaped by
+// Issue #1959 — one combined grey read-only meta line, no separate Attachments Note column)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
-  'Report wizard editable content — area sub-line in Usage cell (Scenario 20)',
+  'Report wizard editable content — area/attachments meta line in Usage cell (Scenario 20)',
   { tag: '@responsive' },
   () => {
-    test('A budget line linked to an item with an assigned area renders the leaf area name as a distinct, read-only line below Usage text (desktop, tablet, mobile); an item with no area renders no area line at all', async ({
+    test('A budget line linked to an item with an assigned area renders the leaf area name as read-only grey meta text inside the Usage cell, joined with the attachments note by " · " when the invoice also has a linked document, and never as a separate editable Attachments Note column (desktop, tablet, mobile); an item with neither renders no meta text at all', async ({
       page,
       testPrefix,
     }) => {
@@ -1800,6 +1853,22 @@ test.describe(
             status: 'pending',
           },
         );
+        // Third row: same area-bearing work item, but this invoice ALSO has a linked document,
+        // so its meta line must carry BOTH halves joined by " · " (Issue #1959 folded the old
+        // separate, editable Attachments Note column into this same line).
+        const invoiceWithBoth = await seedAllocatedInvoice(
+          page,
+          workItemWithAreaId,
+          vendorId,
+          sourceId,
+          {
+            invoiceNumber: `${testPrefix}-AREA-003`,
+            amount: 140,
+            date: '2026-06-22',
+            status: 'pending',
+          },
+        );
+        await linkDocumentToInvoiceViaApi(page, invoiceWithBoth.id, 555020);
 
         await reachStep5(wizard, sourceId);
 
@@ -1807,20 +1876,58 @@ test.describe(
         const areaName = `${testPrefix} Kitchen`;
         const isMobile = test.info().project.name === 'mobile';
 
-        if (isMobile) {
-          const areaLine = wizard.mobileUsageAreaText(vendorName, invoiceWithArea.invoiceNumber!);
-          await expect(areaLine).toBeVisible();
-          await expect(areaLine).toHaveText(areaName);
-          await expect(
-            wizard.mobileUsageAreaText(vendorName, invoiceNoArea.invoiceNumber!),
-          ).toHaveCount(0);
-        } else {
-          const areaLine = wizard.usageAreaText(vendorName, invoiceWithArea.invoiceNumber!);
-          await expect(areaLine).toBeVisible();
-          await expect(areaLine).toHaveText(areaName);
-          await expect(wizard.usageAreaText(vendorName, invoiceNoArea.invoiceNumber!)).toHaveCount(
-            0,
-          );
+        // Only the container/locator flavour differs per viewport — the desktop meta line is a
+        // `<div>` in the Usage `<td>`, the mobile one a `<span>` in the Usage card row; both are
+        // `[class*="usageMetaText"]` and both are read-only, so the assertions themselves are
+        // identical for all three projects.
+        const metaOf = (invoiceNumber: string) =>
+          isMobile
+            ? wizard.mobileUsageMetaText(vendorName, invoiceNumber)
+            : wizard.usageMetaText(vendorName, invoiceNumber);
+        const containerOf = (invoiceNumber: string) =>
+          isMobile
+            ? wizard.mobileCard(vendorName, invoiceNumber)
+            : wizard.contentTableRow(vendorName, invoiceNumber);
+        const usageOf = (invoiceNumber: string) =>
+          isMobile
+            ? wizard.mobileUsageField(vendorName, invoiceNumber)
+            : wizard.usageField(vendorName, invoiceNumber);
+
+        // Area only → the leaf area name alone, as read-only meta text.
+        const areaOnlyMeta = metaOf(invoiceWithArea.invoiceNumber!);
+        await expect(areaOnlyMeta).toBeVisible();
+        await expect(areaOnlyMeta).toHaveText(areaName);
+
+        // Area + linked document → both halves, in that order, joined by " · ".
+        const bothMeta = metaOf(invoiceWithBoth.invoiceNumber!);
+        await expect(bothMeta).toBeVisible();
+        await expect(bothMeta).toHaveText(`${areaName} · 1 attachment: Invoice`);
+
+        // Neither → no meta element at all (not an empty one, no reserved gap).
+        await expect(metaOf(invoiceNoArea.invoiceNumber!)).toHaveCount(0);
+
+        // The meta text is READ-ONLY: even the row that has an attachments note exposes exactly
+        // ONE textbox (its Usage field) — the `Attachments note for …` `EditableField` is gone.
+        // Paired with the positive above, which proves the note is genuinely present, so this
+        // cannot pass just because the row has no attachment.
+        await expect(containerOf(invoiceWithBoth.invoiceNumber!).getByRole('textbox')).toHaveCount(
+          1,
+        );
+
+        // Neither half of the meta line is folded into the EDITABLE usage text (AC5.3) — that
+        // separation is what lets it survive manual edits and AI generation (Scenario 8 in
+        // `reportWizardAiGeneration.spec.ts`).
+        const usageValue = await usageOf(invoiceWithBoth.invoiceNumber!).inputValue();
+        expect(usageValue).not.toBe('');
+        expect(usageValue).not.toContain(areaName);
+        expect(usageValue).not.toContain('attachment');
+
+        // ...and there is no Attachments Note column header left on the desktop table (the
+        // mobile cards have no header row at all, so this half is desktop/tablet only).
+        if (!isMobile) {
+          const headerRow = wizard.contentTable.locator('thead tr');
+          await expect(headerRow).toContainText('Usage');
+          await expect(headerRow).not.toContainText(/attachment/i);
         }
       } finally {
         if (workItemWithAreaId) await deleteWorkItemViaApi(page, workItemWithAreaId);

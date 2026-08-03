@@ -187,15 +187,8 @@ export function buildReportContent(
 
     const statusText = isOverview ? reportT(`sources.lines.invoiceStatus.${status}`) : null;
 
-    // Compute allocated markers († for split, ‡ for reduced; no markers for constituted deposits)
-    let allocatedMarkers = '';
-    if (splitInvoiceIds.has(invoice.invoiceId)) {
-      allocatedMarkers += '†';
-    }
-    if (depositReducedInvoiceIds.has(invoice.invoiceId)) {
-      allocatedMarkers += '‡';
-    }
-
+    const isSplit = splitInvoiceIds.has(invoice.invoiceId);
+    const isDepositReduced = depositReducedInvoiceIds.has(invoice.invoiceId);
     const isDeposit = depositConstitutedInvoiceIds.has(invoice.invoiceId);
     const refundNoteText = reportT('sourceReports.table.refundNote');
     const usageText = getUsageText(invoice);
@@ -211,7 +204,8 @@ export function buildReportContent(
       statusText,
       invoiceAmountText,
       allocatedAmountValueText,
-      allocatedMarkers,
+      isSplit,
+      isDepositReduced,
       isDeposit,
       isRefund: invoice.lineKind === 'refund-adjustment',
       refundNoteText,
@@ -235,24 +229,7 @@ export function buildReportContent(
     amountText: totalAmountText,
   });
 
-  // Build footnotes (at most 2 shared entries: split + deposit-reduced)
   const footnotes: ReportContentFootnote[] = [];
-
-  if (splitInvoiceIds.size > 0) {
-    footnotes.push({
-      id: 'split',
-      marker: '†',
-      text: reportT('sourceReports.table.splitFootnote'),
-    });
-  }
-
-  if (depositReducedInvoiceIds.size > 0) {
-    footnotes.push({
-      id: 'deposit-reduced',
-      marker: '‡',
-      text: reportT('sourceReports.table.depositReducedFootnote'),
-    });
-  }
 
   // Build cover letter (if enabled)
   let coverLetter: ReportContentCoverLetter | null = null;
@@ -298,6 +275,8 @@ export function buildReportContent(
       usage: reportT('sourceReports.table.usage'),
       attachmentsNote: reportT('sourceReports.editable.attachmentsNoteLabel'),
       deposit: reportT('sourceReports.table.attachmentType.deposit'),
+      splitNote: reportT('sourceReports.table.splitInlineLabel'),
+      depositReducedNote: reportT('sourceReports.table.depositReducedInlineLabel'),
       source: reportT('sourceReports.table.source'),
       sourceType: reportT('sourceReports.table.sourceType'),
       reference: reportT('sourceReports.table.reference'),

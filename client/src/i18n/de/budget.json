@@ -1215,6 +1215,8 @@
       "keepEditing": "Weiter bearbeiten",
       "coverLetterHeading": "Anschreiben",
       "tableHeading": "Berichtstabelle",
+      "columnVisibilityLabel": "Spalten ein-/ausblenden",
+      "columnVisibilityHint": "Nur Vorschau – das erzeugte PDF enthält immer alle Spalten",
       "enhanceWithAi": "Mit KI verbessern",
       "enhanceWithAiDescription": "Ersetzt die unten stehenden Verwendungstexte und das Anschreiben durch KI-generierte Inhalte. Vorgenommene Bearbeitungen gehen dabei verloren.",
       "generating": "Generiere… ({{seconds}}s)",
@@ -1256,7 +1258,9 @@
       "attachmentsNote_other": "{{count}} Anhänge: {{types}}",
       "attachmentsNoteNoType_one": "{{count}} Anhang",
       "attachmentsNoteNoType_other": "{{count}} Anhänge",
-      "depositReducedFootnote": "Diese Position berücksichtigt separat eingereichte Abschlagszahlungen."
+      "depositReducedFootnote": "Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.",
+      "splitInlineLabel": "Teilbetrag",
+      "depositReducedInlineLabel": "abzgl. Abschlag"
     },
     "sourceType": {
       "bank_loan": "Bankdarlehen",

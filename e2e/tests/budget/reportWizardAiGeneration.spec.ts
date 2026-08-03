@@ -48,10 +48,12 @@
  * - Scenario 7: A confirmed Step 1-4 change (via the existing discard-confirm modal) clears
  *   previously-generated AI content, same as it clears manual overrides — the fields revert to
  *   the plain derived (#1898/#1900) baseline and the provenance note disappears.
- * - Scenario 8 (Story #1923 AC5.3): the read-only area sub-line under a row's Usage field
- *   survives AI generation — `applyAiContent.ts` only ever assigns `row.usageText`, never
- *   `row.areaText`, so a row whose linked item has an assigned area keeps showing that area
- *   after "Enhance with AI" overwrites the usage text itself.
+ * - Scenario 8 (Story #1923 AC5.3): the read-only area meta text in a row's Usage cell survives
+ *   AI generation — `applyAiContent.ts` only ever assigns `row.usageText`, never `row.areaText`,
+ *   so a row whose linked item has an assigned area keeps showing that area after "Enhance with
+ *   AI" overwrites the usage text itself. Issue #1959 moved that text from its own
+ *   `.usageAreaText` sub-line into the combined `.usageMetaText` line (area + attachments note)
+ *   inside the same cell; the survival property it asserts is unchanged.
  * - Scenario 9 (Issue #1931 a11y addition): the button carries `aria-describedby` pointing at a
  *   visually-hidden sibling span with the expected overwrite-behavior text, rendered
  *   unconditionally alongside the button (present with no manual edits yet, not only once a
@@ -747,11 +749,11 @@ test.describe('Report wizard AI generation — discard clears AI content (Scenar
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8: The area sub-line survives AI generation (Story #1923 AC5.3)
+// Scenario 8: The area meta text survives AI generation (Story #1923 AC5.3)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Report wizard AI generation — area sub-line survives generation (Scenario 8)', () => {
-  test('A row\'s read-only area sub-line is still present after "Enhance with AI" overwrites the usage text, because applyAiContent only ever assigns usageText, never areaText', async ({
+test.describe('Report wizard AI generation — area meta text survives generation (Scenario 8)', () => {
+  test('A row\'s read-only area meta text is still present after "Enhance with AI" overwrites the usage text, because applyAiContent only ever assigns usageText, never areaText', async ({
     page,
     testPrefix,
   }) => {
@@ -794,11 +796,15 @@ test.describe('Report wizard AI generation — area sub-line survives generation
       const vendorName = `${testPrefix} AiArea Vendor`;
       await reachStep5WithAiConfigured(wizard, sourceId);
       const usage = wizard.usageField(vendorName, invoice.invoiceNumber!);
-      const areaLine = wizard.usageAreaText(vendorName, invoice.invoiceNumber!);
+      // Issue #1959: the area now renders in the row's combined read-only meta line
+      // (`.usageMetaText`, area + attachments note) inside the Usage cell rather than its own
+      // `.usageAreaText` sub-row. This invoice has no linked document, so the meta line is the
+      // area name alone.
+      const areaLine = wizard.usageMetaText(vendorName, invoice.invoiceNumber!);
       const areaName = `${testPrefix} Bathroom`;
 
       // Before generation: the derived baseline usage text (linked item name) alongside the
-      // area sub-line.
+      // area meta text.
       await expect(areaLine).toBeVisible();
       await expect(areaLine).toHaveText(areaName);
 
@@ -806,11 +812,13 @@ test.describe('Report wizard AI generation — area sub-line survives generation
       await expect(usage).toHaveValue('AI-generated usage description overwriting the row');
       await expect(wizard.aiGeneratedNote).toBeVisible();
 
-      // After generation: usageText was overwritten by the AI description, but the area
-      // sub-line — a separate, non-editable field never touched by `applyAiContent` — is
-      // unchanged (AC5.3).
+      // After generation: usageText was overwritten by the AI description, but the area meta
+      // text — read-only, never touched by `applyAiContent` — is unchanged (AC5.3). The AI text
+      // itself does not mention the area, so the assertion above cannot be satisfied by the
+      // overwritten usage value bleeding into the meta line.
       await expect(areaLine).toBeVisible();
       await expect(areaLine).toHaveText(areaName);
+      expect(await usage.inputValue()).not.toContain(areaName);
       expect(counter.count).toBe(1);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);

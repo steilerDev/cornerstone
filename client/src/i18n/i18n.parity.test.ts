@@ -221,3 +221,92 @@ describe('i18n duplicate JSON key guard', () => {
     }
   }
 });
+
+// ─── #1959: inline PDF labels must not be able to wrap mid-label ───────────
+//
+// `overviewPdf.ts` renders three labels as a bracketed inline suffix on the report's
+// allocated-amount cell — `(${label})` at 8pt in a 75pt-wide column. If such a label contains an
+// ordinary space, pdfmake wraps at it and splits the brackets across two lines: `ux-designer`
+// measured a real render producing `€4,000.00 (less` / `deposit)` in EN and `(Teilbetrag) (abzgl.` /
+// `Abschlag)` in DE, in a document sent to a bank. The fix was U+00A0 (same glyph advance, so no
+// width or geometry constant moved).
+//
+// WHY THIS LIVES HERE, and not only as a literal in realRender.test.ts. Both exist, deliberately,
+// because they catch different things:
+//   - The literal in realRender.test.ts pins WIRING — that the deposit-reduced label of the REPORT
+//     language reaches the allocated-amount cell. It is what catches a cross-key or cross-locale
+//     mix-up (rendering `splitNote` where `depositReducedNote` belongs). A "contains no space"
+//     assertion there would happily pass while the wrong label rendered.
+//   - This test pins the TYPOGRAPHIC INVARIANT, and it is the one that survives copy edits: reword
+//     the labels freely and it still holds. It also covers every locale and every future label
+//     automatically, which is the real regression surface — the next translator to add a
+//     two-word inline label, or anyone who "fixes" an NBSP mismatch by retyping a plain space
+//     (the two are visually identical), fails here.
+describe('#1959 inline PDF label typography', () => {
+  const budget = NAMESPACES.find((ns) => ns.name === 'budget')!;
+  // Iterate the namespace entry's own locale keys so a newly added locale is covered without
+  // touching this test (the registry above is the single source of truth for which locales exist).
+  const localeBundles = Object.entries(budget).filter(([k]) => k !== 'name') as [
+    string,
+    Record<string, unknown>,
+  ][];
+
+  /** Reads a dot-delimited string leaf out of a locale bundle, failing loudly if it is absent. */
+  function label(bundle: Record<string, unknown>, dottedPath: string): string {
+    let node: unknown = bundle;
+    for (const segment of dottedPath.split('.')) {
+      if (node === null || typeof node !== 'object') {
+        throw new Error(`${dottedPath} — segment "${segment}" has no parent object`);
+      }
+      node = (node as Record<string, unknown>)[segment];
+    }
+    if (typeof node !== 'string') {
+      throw new Error(`${dottedPath} is missing or not a string (got ${typeof node})`);
+    }
+    return node;
+  }
+
+  it('covers every registered locale (guards against this suite silently testing only one)', () => {
+    expect(localeBundles.map(([locale]) => locale).sort()).toEqual(['de', 'en']);
+  });
+
+  // These two keys exist for no purpose other than the bracketed inline suffix, so the constraint
+  // is unconditional for them.
+  for (const key of ['splitInlineLabel', 'depositReducedInlineLabel']) {
+    for (const [locale, bundle] of localeBundles) {
+      it(`${locale}: sourceReports.table.${key} contains no breaking space (U+0020) — it would split the brackets across lines`, () => {
+        const value = label(bundle, `sourceReports.table.${key}`);
+        // Positive anchor first: a non-empty label, so the absence assertion below cannot pass on
+        // an empty or missing string.
+        expect(value.length).toBeGreaterThan(0);
+        expect(value).not.toContain(' ');
+        // Any whitespace this label does contain must be exactly U+00A0. Asserted on the whole
+        // string rather than only U+0020, so a "fix" swapping in some other whitespace is caught:
+        // a tab or U+2009 thin space would still break the line, and even U+202F (narrow NBSP,
+        // which does not break) is rejected deliberately — it has a NARROWER glyph advance than
+        // U+00A0, and "same advance, so no width or geometry constant moved" is precisely what
+        // made this fix safe to land without re-measuring the column budgets.
+        // '\u00A0' as an escape, not a literal — this file is the one telling everyone else
+        // that an invisible NBSP is the hazard, so it must not smuggle one into its own
+        // source. (It did, on first writing. Caught by scanning this file's own codepoints.)
+        const breaking = [...value].filter((c) => /\s/u.test(c) && c !== '\u00A0');
+        expect(breaking).toEqual([]);
+      });
+    }
+  }
+
+  // `attachmentType.deposit` is the third label rendered bracketed inline — but unlike the two
+  // above it is SHARED: buildReportContent.ts also comma-joins it into the flowing attachments-note
+  // prose ("2 attachments: Quotation, Invoice"), where a non-breaking space would be over-reach.
+  // So it is held to the weaker invariant that actually matters: it is a single word today, hence
+  // has nothing to wrap at. If this ever fails, that is a decision point, not a typo — the new
+  // multi-word value needs the same U+00A0 treatment as depositReducedInlineLabel, because it
+  // renders in the same narrow bracketed slot.
+  for (const [locale, bundle] of localeBundles) {
+    it(`${locale}: sourceReports.table.attachmentType.deposit is a single word, so the bracketed inline form cannot wrap`, () => {
+      const value = label(bundle, 'sourceReports.table.attachmentType.deposit');
+      expect(value.length).toBeGreaterThan(0);
+      expect(value).not.toMatch(/\s/u);
+    });
+  }
+});

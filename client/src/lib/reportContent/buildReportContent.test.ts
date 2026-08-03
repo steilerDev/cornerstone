@@ -342,8 +342,8 @@ describe('buildReportContent — rows', () => {
     });
   });
 
-  describe('allocatedMarkers (split † / deposit ‡, unnumbered/shared per story #1923) + isDeposit', () => {
-    it('adds unnumbered † only when isSplit and budgetLines.length > 0, no deposits', () => {
+  describe('isSplit / isDepositReduced / isDeposit flags', () => {
+    it('sets isSplit=true when isSplit and budgetLines.length > 0, no deposits', () => {
       const invoice = makeInvoice({
         isSplit: true,
         budgetLines: [makeBudgetLine()],
@@ -351,11 +351,12 @@ describe('buildReportContent — rows', () => {
       });
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.allocatedMarkers).toBe('†');
+      expect(content.rows[0]!.isSplit).toBe(true);
+      expect(content.rows[0]!.isDepositReduced).toBe(false);
       expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
-    it('adds unnumbered ‡ only when isSplit and the deposit is untagged (reduced), no budget lines', () => {
+    it('sets isDepositReduced=true when isSplit and the deposit is untagged (reduced), no budget lines', () => {
       const invoice = makeInvoice({
         isSplit: true,
         budgetLines: [],
@@ -363,11 +364,12 @@ describe('buildReportContent — rows', () => {
       });
       const report = makeReport([invoice], { id: 'src-1' });
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.allocatedMarkers).toBe('‡');
+      expect(content.rows[0]!.isSplit).toBe(false);
+      expect(content.rows[0]!.isDepositReduced).toBe(true);
       expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
-    it('AC2.1: adds NO marker and sets isDeposit=true when the deposit is tagged to this report source (constituted)', () => {
+    it('AC2.1: sets isDeposit=true (not isSplit/isDepositReduced) when the deposit is tagged to this report source (constituted)', () => {
       const invoice = makeInvoice({
         isSplit: true,
         budgetLines: [],
@@ -375,11 +377,12 @@ describe('buildReportContent — rows', () => {
       });
       const report = makeReport([invoice], { id: 'src-1' });
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.allocatedMarkers).toBe('');
+      expect(content.rows[0]!.isSplit).toBe(false);
+      expect(content.rows[0]!.isDepositReduced).toBe(false);
       expect(content.rows[0]!.isDeposit).toBe(true);
     });
 
-    it('AC2.4: adds both † and ‡ (order †‡) when split budget lines and a reduced (untagged) deposit are both present', () => {
+    it('AC2.4: sets both isSplit and isDepositReduced when split budget lines and a reduced deposit are both present', () => {
       const invoice = makeInvoice({
         isSplit: true,
         budgetLines: [makeBudgetLine()],
@@ -387,10 +390,11 @@ describe('buildReportContent — rows', () => {
       });
       const report = makeReport([invoice], { id: 'src-1' });
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.allocatedMarkers).toBe('†‡');
+      expect(content.rows[0]!.isSplit).toBe(true);
+      expect(content.rows[0]!.isDepositReduced).toBe(true);
     });
 
-    it('adds only † (no ‡, isDeposit=true) when split budget lines are combined with a constituted (tagged) deposit', () => {
+    it('sets isSplit=true and isDeposit=true when split budget lines combined with a constituted (tagged) deposit', () => {
       const invoice = makeInvoice({
         isSplit: true,
         budgetLines: [makeBudgetLine()],
@@ -398,11 +402,12 @@ describe('buildReportContent — rows', () => {
       });
       const report = makeReport([invoice], { id: 'src-1' });
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.allocatedMarkers).toBe('†');
+      expect(content.rows[0]!.isSplit).toBe(true);
+      expect(content.rows[0]!.isDepositReduced).toBe(false);
       expect(content.rows[0]!.isDeposit).toBe(true);
     });
 
-    it('adds neither marker nor isDeposit when isSplit is false, regardless of budgetLines/deposits content', () => {
+    it('all flags are false when isSplit is false, regardless of budgetLines/deposits content', () => {
       const invoice = makeInvoice({
         isSplit: false,
         budgetLines: [makeBudgetLine()],
@@ -410,19 +415,21 @@ describe('buildReportContent — rows', () => {
       });
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.allocatedMarkers).toBe('');
+      expect(content.rows[0]!.isSplit).toBe(false);
+      expect(content.rows[0]!.isDepositReduced).toBe(false);
       expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
-    it('adds neither marker when isSplit is true but budgetLines and deposits are both empty', () => {
+    it('all flags are false when isSplit is true but budgetLines and deposits are both empty', () => {
       const invoice = makeInvoice({ isSplit: true, budgetLines: [], deposits: [] });
       const report = makeReport([invoice]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.allocatedMarkers).toBe('');
+      expect(content.rows[0]!.isSplit).toBe(false);
+      expect(content.rows[0]!.isDepositReduced).toBe(false);
       expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
-    it('never assigns markers to an excluded invoice, even when isSplit with lines/deposits', () => {
+    it('never sets flags on an excluded invoice, even when isSplit with lines/deposits', () => {
       const invoice = makeInvoice({
         invoiceId: 'inv-excluded',
         isSplit: true,
@@ -431,63 +438,38 @@ describe('buildReportContent — rows', () => {
       const included = makeInvoice({ invoiceId: 'inv-1' });
       const report = makeReport([invoice, included]);
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      // Only the included row is present; footnotes must not have been generated for the excluded one.
       expect(content.rows).toHaveLength(1);
       expect(content.footnotes).toEqual([]);
     });
   });
 });
 
-describe('buildReportContent — footnotes (AC1/AC2: shared, unnumbered, at most 2 entries, no vendor prefix)', () => {
-  it('AC1.2: produces exactly one shared split footnote (no vendor/invoice-number prefix) when three included invoices are split', () => {
+describe('buildReportContent — footnotes (always empty; split/deposit annotations are inline)', () => {
+  it('produces no footnotes when invoices are split with budget lines', () => {
     const inv1 = makeInvoice({
       invoiceId: 'inv-1',
-      vendorName: 'Gamma Corp',
-      invoiceNumber: 'G-9',
       isSplit: true,
       budgetLines: [makeBudgetLine()],
     });
     const inv2 = makeInvoice({
       invoiceId: 'inv-2',
-      vendorName: 'Delta Corp',
-      invoiceNumber: 'D-1',
       isSplit: true,
       budgetLines: [makeBudgetLine()],
     });
-    const inv3 = makeInvoice({
-      invoiceId: 'inv-3',
-      vendorName: 'Epsilon Corp',
-      invoiceNumber: 'E-2',
-      isSplit: true,
-      budgetLines: [makeBudgetLine()],
-    });
-    const report = makeReport([inv1, inv2, inv3]);
-    const content = buildReportContent(
-      report,
-      new Set(['inv-1', 'inv-2', 'inv-3']),
-      'claim',
-      t,
-      formatters,
-    );
-    expect(content.footnotes).toEqual([
-      {
-        id: 'split',
-        marker: '†',
-        text: 'sourceReports.table.splitFootnote',
-      },
-    ]);
-    // Every split row carries the marker — no per-invoice numbering distinguishes them.
-    expect(content.rows.every((r) => r.allocatedMarkers === '†')).toBe(true);
+    const report = makeReport([inv1, inv2]);
+    const content = buildReportContent(report, new Set(['inv-1', 'inv-2']), 'claim', t, formatters);
+    expect(content.footnotes).toEqual([]);
+    expect(content.rows.every((r) => r.isSplit)).toBe(true);
   });
 
-  it('AC1.3: produces no † marker and no split footnote anywhere when no included invoice is split', () => {
+  it('produces no footnotes when all invoices are unsplit', () => {
     const report = makeReport([makeInvoice({ isSplit: false })]);
     const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
     expect(content.footnotes).toEqual([]);
-    expect(content.rows[0]!.allocatedMarkers).toBe('');
+    expect(content.rows[0]!.isSplit).toBe(false);
   });
 
-  it('AC2.2: produces NO footnote entry for a constituted (tagged) deposit — the row gets isDeposit instead', () => {
+  it('produces no footnotes for constituted (tagged) deposit — the row gets isDeposit instead', () => {
     const invoice = makeInvoice({
       isSplit: true,
       budgetLines: [],
@@ -499,7 +481,7 @@ describe('buildReportContent — footnotes (AC1/AC2: shared, unnumbered, at most
     expect(content.rows[0]!.isDeposit).toBe(true);
   });
 
-  it('AC2.3: produces exactly one shared, unnumbered ‡ footnote when one or more invoices have a reduced (untagged) deposit', () => {
+  it('produces no footnotes when invoices have reduced (untagged) deposits — isDepositReduced is set instead', () => {
     const invoice = makeInvoice({
       isSplit: true,
       budgetLines: [],
@@ -507,35 +489,11 @@ describe('buildReportContent — footnotes (AC1/AC2: shared, unnumbered, at most
     });
     const report = makeReport([invoice], { id: 'src-1' });
     const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-    expect(content.footnotes).toEqual([
-      {
-        id: 'deposit-reduced',
-        marker: '‡',
-        text: 'sourceReports.table.depositReducedFootnote',
-      },
-    ]);
+    expect(content.footnotes).toEqual([]);
+    expect(content.rows[0]!.isDepositReduced).toBe(true);
   });
 
-  it('AC2.3: multiple invoices with reduced deposits still produce exactly one shared ‡ entry', () => {
-    const inv1 = makeInvoice({
-      invoiceId: 'inv-1',
-      isSplit: true,
-      budgetLines: [],
-      deposits: [makeDeposit({ id: 'dep-1', budgetSourceId: null })],
-    });
-    const inv2 = makeInvoice({
-      invoiceId: 'inv-2',
-      isSplit: true,
-      budgetLines: [],
-      deposits: [makeDeposit({ id: 'dep-2', budgetSourceId: null })],
-    });
-    const report = makeReport([inv1, inv2], { id: 'src-1' });
-    const content = buildReportContent(report, new Set(['inv-1', 'inv-2']), 'claim', t, formatters);
-    const reducedFootnotes = content.footnotes.filter((f) => f.id === 'deposit-reduced');
-    expect(reducedFootnotes).toHaveLength(1);
-  });
-
-  it('AC2.4: both split and reduced-deposit invoices present → markers "†‡" on the combined row, footnotes ordered [split, deposit-reduced]', () => {
+  it('produces no footnotes when an invoice has both split lines and a reduced deposit', () => {
     const combined = makeInvoice({
       invoiceId: 'inv-1',
       isSplit: true,
@@ -544,9 +502,9 @@ describe('buildReportContent — footnotes (AC1/AC2: shared, unnumbered, at most
     });
     const report = makeReport([combined], { id: 'src-1' });
     const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-    expect(content.rows[0]!.allocatedMarkers).toBe('†‡');
-    expect(content.footnotes.map((f) => f.id)).toEqual(['split', 'deposit-reduced']);
-    expect(content.footnotes).toHaveLength(2);
+    expect(content.footnotes).toEqual([]);
+    expect(content.rows[0]!.isSplit).toBe(true);
+    expect(content.rows[0]!.isDepositReduced).toBe(true);
   });
 
   it('produces no footnotes when no invoice is split or has a reduced deposit', () => {
