@@ -231,6 +231,22 @@ export function buildReportContent(
 
   const footnotes: ReportContentFootnote[] = [];
 
+  // Legend footnotes: one sentence per flag, deduplicated by set membership (AC 1.1–1.5)
+  if (splitInvoiceIds.size > 0) {
+    footnotes.push({
+      id: 'split',
+      marker: reportT('sourceReports.table.splitInlineLabel'),
+      text: reportT('sourceReports.table.splitFootnote'),
+    });
+  }
+  if (depositReducedInvoiceIds.size > 0) {
+    footnotes.push({
+      id: 'depositReduced',
+      marker: reportT('sourceReports.table.depositReducedInlineLabel'),
+      text: reportT('sourceReports.table.depositReducedFootnote'),
+    });
+  }
+
   // Build cover letter (if enabled)
   let coverLetter: ReportContentCoverLetter | null = null;
   if (includeCoverLetter) {
