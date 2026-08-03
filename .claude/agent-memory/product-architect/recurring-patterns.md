@@ -511,3 +511,17 @@ Why this is worth blocking on (I did, r2): the POM class docstring is the contra
 lying test title is a complete instruction set for deleting the coverage the PR exists to add — and with
 `E2E Gates` main-only, that deletion lands on `beta` silently. It is the same mechanism that produced #1965:
 #1959 removed a producer and left comments asserting the removal was permanent.
+
+**r3 (approved):** all three sites were fixed correctly, with the right shape — the absolute claims were
+*time-scoped* ("had no producer **at this point**, but see #1965 below") rather than deleted, so the docstring
+still records the #1923 -> #1959 -> #1965 history instead of only the current state. That is the pattern to ask
+for on chronologically-layered docstrings: append a new dated/issue-tagged paragraph and soften the old
+absolutes, don't rewrite history.
+
+The one thing that went wrong in r3 is worth remembering as its own trap: **the new paragraph was inserted
+mid-section**, between #1959's lead bullet and its continuation. #1959's "Instead, a split row appends…"
+sentence (whose "Instead" refers back to "markers are GONE") plus its two remaining bullets (`row.areaText`
+meta line, column-visibility group) now render under the `Issue #1965:` heading. Every fact stays true; only
+the attribution misleads. When a fix has to reference the *middle* of an existing section, put the new
+paragraph after the section ends and cross-link, rather than splicing at the reference point. I called this
+medium/non-blocking — a comment-attribution defect with no wrong directive doesn't justify another CI cycle.

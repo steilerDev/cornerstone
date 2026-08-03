@@ -518,3 +518,25 @@ Open follow-ups I own or should file:
 - Pre-hydration toggle window (F4): editing before the mount fetch resolves discards stored prefs for the
   session. Practically unreachable; `usePreferences.isLoading` is available if it ever matters.
 - `isLoaded` is dead API surface — returned by the hook, not destructured by `DataTable.tsx:171-172`.
+
+## PR #1979 — reinstate partial / deposit-reduced legend (#1965) — APPROVED at r3
+
+Three rounds. r1/r2 were CHANGES_REQUIRED on documentation, not code: #1959 had deleted the footnote
+producer and left comments asserting the removal was permanent ("can never be populated by the current
+code path", "any test asserting a footnote `<li>` is asserting a superseded design"), plus a Playwright
+test title stating the inverse of its own body. r2's fix covered two of four enumerated sites; r3
+(`6053ac4f`) covered the rest.
+
+What I verified at r3, beyond the three sites: the POM's "block is absent from the DOM entirely when no
+split/deposit-reduced rows appear" claim against its producer (`ReportContentEditor.tsx:456` gates on
+`content.footnotes.length > 0 &&` — accurate, not merely hidden), and that the M1 parity guard
+(`getByText('partial:').closest('li')` + `toHaveTextContent`) actually detects the defect class the two
+independent `getByText` assertions structurally cannot (inter-node spacing). Guarding only the split
+`<li>` is sufficient — both markers come from one JSX template at `ReportContentEditor.tsx:461`.
+
+`gh pr review --approve` fails on this repo (author is `steilerDev`, same account as the token) — posted
+via `gh pr comment` with an explicit `VERDICT: APPROVED` line, as usual.
+
+Non-blocking finding left open: the `Issue #1965:` docstring paragraph is spliced into the middle of the
+#1959 section, orphaning three #1959 bullets under the wrong heading. See recurring-patterns r3 note.
+Fix on the next touch of `e2e/pages/ReportWizardPage.ts`.
