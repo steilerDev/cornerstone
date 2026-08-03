@@ -845,4 +845,428 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
       );
     });
   });
+
+  // ─── In-flight staleness guard (#1946) ─────────────────────────────────────
+
+  describe('in-flight staleness guard (#1946)', () => {
+    // AC1: guardedUpdate's widened predicate fires when isGeneratingAi is true,
+    // even though overrides and aiContent are both absent.
+    it('AC1 — shows discard modal while generation is in-flight with no overrides or aiContent', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockReturnValueOnce(new Promise(() => {}));
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+      );
+
+      // Navigate to step 4 and trigger a guarded setting change.
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByLabelText('Attach invoice PDFs'));
+
+      expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument();
+    });
+
+    // AC2: confirming discard increments the token so the in-flight result is
+    // silently discarded when it eventually arrives.
+    it('AC2 — confirming discard invalidates in-flight result', async () => {
+      let resolveAiGeneration!: (value: GenerateReportContentResponse) => void;
+      const controlledPromise = new Promise<GenerateReportContentResponse>((res) => {
+        resolveAiGeneration = res;
+      });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockReturnValueOnce(controlledPromise);
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+      );
+
+      // Navigate to step 4 and trigger the discard modal.
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByLabelText('Attach invoice PDFs'));
+      await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
+
+      // Confirm: token incremented, isGeneratingAi set false immediately.
+      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+
+      // Navigate back to step 5.
+      await clickNext(user); // 4 -> 5
+
+      // Resolve the now-invalidated promise — token mismatch silently discards it.
+      await act(async () => {
+        resolveAiGeneration(defaultAiResult());
+      });
+
+      // AI result must NOT appear.
+      expect(
+        within(desktopTable()).queryByDisplayValue('AI-generated usage description'),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText('Content generated with AI — review before submitting.'),
+      ).not.toBeInTheDocument();
+      // Spinner must be gone (isGeneratingAi was set false by the discard confirm).
+      expect(screen.queryByText(/Generating…/)).not.toBeInTheDocument();
+      // Original baseline is shown.
+      expect(within(desktopTable()).getByDisplayValue('Original Usage Text')).toBeInTheDocument();
+    });
+
+    // AC3: cancelling the discard leaves the token unchanged so the in-flight
+    // result lands normally when the promise resolves.
+    it('AC3 — cancelling discard lets in-flight generation complete normally', async () => {
+      let resolveAiGeneration!: (value: GenerateReportContentResponse) => void;
+      const controlledPromise = new Promise<GenerateReportContentResponse>((res) => {
+        resolveAiGeneration = res;
+      });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockReturnValueOnce(controlledPromise);
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+      );
+
+      // Trigger modal, then cancel.
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByLabelText('Attach invoice PDFs'));
+      await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
+      await user.click(screen.getByRole('button', { name: 'Keep Editing' }));
+      expect(screen.queryByText('Cancel AI generation?')).not.toBeInTheDocument();
+
+      // Navigate back to step 5 — generation still in-flight.
+      await clickNext(user); // 4 -> 5
+
+      // Resolve the still-live promise — token unchanged so result applies.
+      await act(async () => {
+        resolveAiGeneration(defaultAiResult());
+      });
+
+      await waitFor(() => {
+        expect(
+          within(desktopTable()).getByDisplayValue('AI-generated usage description'),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.getByText('Content generated with AI — review before submitting.'),
+      ).toBeInTheDocument();
+    });
+
+    // AC4: when the user has typed overrides AND a generation is in-flight,
+    // confirming discard invalidates both — the resolved result does not
+    // silently re-populate aiContent or restore the discarded override.
+    it('AC4 — confirmed discard invalidates both overrides and in-flight result', async () => {
+      let resolveAiGeneration!: (value: GenerateReportContentResponse) => void;
+      const controlledPromise = new Promise<GenerateReportContentResponse>((res) => {
+        resolveAiGeneration = res;
+      });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockReturnValueOnce(controlledPromise);
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+      );
+
+      // Create a manual override while generation is in-flight.
+      const usageInput = within(desktopTable()).getByDisplayValue('Original Usage Text');
+      fireEvent.change(usageInput, { target: { value: 'Manual edit before discard' } });
+
+      // Trigger the discard modal and confirm.
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByLabelText('Attach invoice PDFs'));
+      await waitFor(() => expect(screen.getByText('Discard your edits?')).toBeInTheDocument());
+      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+
+      // Navigate back to step 5.
+      await clickNext(user); // 4 -> 5
+
+      // Resolve the invalidated promise.
+      await act(async () => {
+        resolveAiGeneration(defaultAiResult());
+      });
+
+      // Neither the manual edit nor the AI result must appear.
+      expect(
+        within(desktopTable()).queryByDisplayValue('Manual edit before discard'),
+      ).not.toBeInTheDocument();
+      expect(
+        within(desktopTable()).queryByDisplayValue('AI-generated usage description'),
+      ).not.toBeInTheDocument();
+      // Original baseline is restored.
+      expect(within(desktopTable()).getByDisplayValue('Original Usage Text')).toBeInTheDocument();
+    });
+
+    // AC5a: the modal body uses the "generating" copy when only an in-flight
+    // generation exists — no overrides, no aiContent.
+    it('AC5a — modal body shows generating copy when in-flight with no overrides or aiContent', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockReturnValueOnce(new Promise(() => {}));
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByLabelText('Attach invoice PDFs'));
+      await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
+
+      expect(
+        screen.getByText('An AI generation is in progress. Changing this will cancel it.'),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(
+          'Changing this will regenerate the report content and your edits will be lost.',
+        ),
+      ).not.toBeInTheDocument();
+    });
+
+    // AC5b: once a generation completes (aiContent is set, isGeneratingAi is
+    // false), the modal body falls back to the existing edits copy.
+    it('AC5b — modal body shows edits copy when aiContent is set and generation is complete', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockResolvedValue(defaultAiResult());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() => {
+        expect(
+          within(desktopTable()).getByDisplayValue('AI-generated usage description'),
+        ).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByLabelText('Attach invoice PDFs'));
+      await waitFor(() => expect(screen.getByText('Discard your edits?')).toBeInTheDocument());
+
+      expect(
+        screen.getByText(
+          'Changing this will regenerate the report content and your edits will be lost.',
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText('An AI generation is in progress. Changing this will cancel it.'),
+      ).not.toBeInTheDocument();
+    });
+
+    // AC6: the fix lives in guardedUpdate, so every guarded transition — not
+    // just use-case changes — is protected. Verify with a source change (step 2).
+    it('AC6 — source change also shows discard modal while generation is in-flight', async () => {
+      const source2 = makeSource({ id: 'src-2', name: 'Equity Fund' });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource(), source2] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockReturnValueOnce(new Promise(() => {}));
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+      );
+
+      // Navigate back to step 2.
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 4 -> 3
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 3 -> 2
+
+      // Click the second source radio — handleSourceChange -> guardedUpdate -> modal.
+      await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(1));
+      await user.click(screen.getAllByRole('radio')[1]!); // src-2
+
+      expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument();
+    });
+
+    // AC9: handleUseCaseChange carries a setAiError('') call in its guarded
+    // callback. Verify it clears a stale error left from a prior failed generation.
+    it('AC9 — handleUseCaseChange clears aiError from a prior failed generation', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockRejectedValueOnce(new Error('server error'));
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByText('AI generation failed. Please try again.')).toBeInTheDocument(),
+      );
+
+      // Navigate back to step 1 via four Back clicks.
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 4 -> 3
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 3 -> 2
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 2 -> 1
+
+      // Select "budget-overview" (first radio) — triggers handleUseCaseChange,
+      // which runs setAiError('') inside its guarded callback (isDirty is false
+      // since the error path left isGeneratingAi=false, overrides={}, aiContent=null).
+      await waitFor(() => screen.getByRole('radiogroup'));
+      await user.click(screen.getAllByRole('radio')[0]!); // budget-overview
+
+      // Re-navigate to step 5 under the new use case.
+      await clickNext(user); // 1 -> 2
+      await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(0));
+      await user.click(screen.getAllByRole('radio')[0]!); // src-1
+      await waitFor(() => {
+        const primaryButtons = screen
+          .getAllByRole('button')
+          .filter((b) => b.className.includes('btnPrimary'));
+        expect(primaryButtons[primaryButtons.length - 1]).not.toBeDisabled();
+      });
+      await clickNext(user); // 2 -> 3
+      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await clickNext(user); // 3 -> 4
+      await clickNext(user); // 4 -> 5
+
+      // The stale error banner must be gone.
+      expect(screen.queryByText('AI generation failed. Please try again.')).not.toBeInTheDocument();
+    });
+
+    // AC10: handleSourceChange clears skippedDocuments so a stale "document
+    // could not be fetched" note from a previous source's PDF run does not
+    // bleed into the next source's step 5 view.
+    it('AC10 — handleSourceChange clears skippedDocuments', async () => {
+      const source2 = makeSource({ id: 'src-2', name: 'Equity Fund' });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource(), source2] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      // First PDF generation returns a skipped document; subsequent calls return none
+      // (the default set in beforeEach — mockResolvedValue — kicks in after this Once).
+      mockGenerateReportPdf.mockResolvedValueOnce({
+        blob: new Blob(['pdf']),
+        skippedDocuments: [
+          {
+            invoiceId: 'inv-1',
+            documentId: 'doc-1',
+            reason: 'footnoteFetchFailed' as const,
+            vendorName: 'ACME',
+            invoiceNumber: 'INV-001',
+          },
+        ],
+      });
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      // Click "Preview PDF" to populate skippedDocuments state.
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+      await waitFor(() => expect(screen.getByText('PDF Preview')).toBeInTheDocument());
+
+      // Close the preview modal.
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByText('PDF Preview')).not.toBeInTheDocument());
+
+      // Skipped-document note must be visible on step 5 before the source change.
+      expect(screen.getByText(/Document could not be retrieved/)).toBeInTheDocument();
+
+      // Navigate back to step 2 via three Back clicks.
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 4 -> 3
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 3 -> 2
+
+      // Change to source 2 — handleSourceChange -> setSkippedDocuments([]).
+      await waitFor(() => expect(screen.getAllByRole('radio').length).toBeGreaterThan(1));
+      await user.click(screen.getAllByRole('radio')[1]!); // src-2
+
+      // Navigate to step 5 under src-2.
+      await waitFor(() => {
+        const primaryButtons = screen
+          .getAllByRole('button')
+          .filter((b) => b.className.includes('btnPrimary'));
+        expect(primaryButtons[primaryButtons.length - 1]).not.toBeDisabled();
+      });
+      await clickNext(user); // 2 -> 3
+      await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
+      await clickNext(user); // 3 -> 4
+      await clickNext(user); // 4 -> 5
+
+      // Stale skipped-document note must be gone.
+      expect(screen.queryByText(/Document could not be retrieved/)).not.toBeInTheDocument();
+    });
+
+    // H1: a discarded generation's finally block must NOT clear the spinner that
+    // belongs to a second, still-in-flight generation started after the discard.
+    it('H1 — discarded generation\'s finally does not clear spinner of new generation', async () => {
+      let resolveA!: (value: GenerateReportContentResponse) => void;
+      const controlledA = new Promise<GenerateReportContentResponse>((res) => {
+        resolveA = res;
+      });
+      let resolveB!: (value: GenerateReportContentResponse) => void;
+      const controlledB = new Promise<GenerateReportContentResponse>((res) => {
+        resolveB = res;
+      });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      mockGenerateReportContent.mockReturnValueOnce(controlledA).mockReturnValueOnce(controlledB);
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      // Start generation A.
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+      );
+
+      // Navigate to step 4 and trigger the discard modal (title is the generating variant).
+      await user.click(screen.getByRole('button', { name: 'Back' })); // 5 -> 4
+      await user.click(screen.getByLabelText('Attach invoice PDFs'));
+      await waitFor(() => expect(screen.getByText('Cancel AI generation?')).toBeInTheDocument());
+
+      // Confirm discard — token bumped, isGeneratingAi cleared.
+      await user.click(screen.getByRole('button', { name: 'Discard and Continue' }));
+
+      // Navigate back to step 5 and start generation B.
+      await clickNext(user); // 4 -> 5
+      await user.click(screen.getByRole('button', { name: 'Enhance with AI' }));
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled(),
+      );
+
+      // Resolve A — its token is stale so the finally block must NOT clear
+      // isGeneratingAi (which now belongs to B).
+      await act(async () => {
+        resolveA(defaultAiResult());
+      });
+
+      // B is still in-flight: button must still be disabled.
+      expect(screen.getByRole('button', { name: 'Enhance with AI' })).toBeDisabled();
+
+      // Resolve B — this generation is live, so its result applies.
+      await act(async () => {
+        resolveB(defaultAiResult());
+      });
+
+      // Button re-enables and AI content appears.
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Enhance with AI' })).not.toBeDisabled(),
+      );
+      expect(
+        within(desktopTable()).getByDisplayValue('AI-generated usage description'),
+      ).toBeInTheDocument();
+    });
+  });
 });

@@ -146,6 +146,7 @@ export function ReportWizardPage() {
   // a fetch starts and checking it in every callback before writing state discards any response
   // that isn't from the most recently started fetch, in either the success or error path.
   const reportRequestRef = useRef(0);
+  const aiGenerationTokenRef = useRef(0);
 
   // PDF preview modal
   const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
@@ -196,14 +197,20 @@ export function ReportWizardPage() {
     void init();
   }, []);
 
-  // Guard for mutations: if overrides or aiContent exist, commit & show confirm modal; else apply change immediately
+  // Guard for mutations: if overrides, aiContent, or an in-flight generation exist, show confirm modal; else apply change immediately
   const guardedUpdate = useCallback(
     (applyChange: () => void) => {
-      const isDirty = Object.keys(overrides).length > 0 || aiContent !== null;
+      const hasEdits = Object.keys(overrides).length > 0 || aiContent !== null;
+      const isDirty = hasEdits || isGeneratingAi;
       if (isDirty) {
         pendingChangeRef.current = () => {
           setOverrides({});
           setAiContent(null);
+          if (isGeneratingAi) {
+            aiGenerationTokenRef.current += 1;
+            setIsGeneratingAi(false);
+            setAiError('');
+          }
           applyChange();
         };
         setShowDiscardConfirm(true);
@@ -211,7 +218,7 @@ export function ReportWizardPage() {
         applyChange();
       }
     },
-    [overrides, aiContent],
+    [overrides, aiContent, isGeneratingAi],
   );
 
   // Handle use case selection
@@ -234,6 +241,8 @@ export function ReportWizardPage() {
         setSourceId(null);
         setExcludedInvoiceIds(new Set());
         setExcludedLineIds(new Set());
+        setSkippedDocuments([]);
+        setAiError('');
 
         // Fetch amounts for all sources in parallel
         Promise.all(
@@ -262,6 +271,7 @@ export function ReportWizardPage() {
         setSourceId(sid);
         setExcludedInvoiceIds(new Set());
         setExcludedLineIds(new Set());
+        setSkippedDocuments([]);
         setMaxReachedStep(3);
         setReportStatus('loading');
 
@@ -607,6 +617,8 @@ export function ReportWizardPage() {
       return;
     }
 
+    // #1946: Capture token BEFORE setting isGeneratingAi
+    const token = ++aiGenerationTokenRef.current;
     setIsGeneratingAi(true);
     setAiError('');
 
@@ -619,16 +631,24 @@ export function ReportWizardPage() {
         excludedLineIds: Array.from(excludedLineIds),
       });
 
+      // Token mismatch: user discarded this generation while in flight
+      if (aiGenerationTokenRef.current !== token) return;
+
       setAiContent(result);
       setOverrides({});
     } catch (err) {
+      // Token mismatch: do not surface error for discarded generation
+      if (aiGenerationTokenRef.current !== token) return;
+
       if (err instanceof ApiClientError) {
         setAiError(translateApiError(err.error.code, tErrors));
       } else {
         setAiError(t('sourceReports.editable.aiGenerationFailed'));
       }
     } finally {
-      setIsGeneratingAi(false);
+      if (aiGenerationTokenRef.current === token) {
+        setIsGeneratingAi(false);
+      }
     }
   }, [report, useCase, excludedLineIds, excludedInvoiceIds, sourceId, reportLanguage, t, tErrors]);
 
@@ -996,7 +1016,11 @@ export function ReportWizardPage() {
       {/* Discard edits confirmation modal */}
       {showDiscardConfirm && (
         <Modal
-          title={t('sourceReports.editable.discardConfirmTitle')}
+          title={
+            isGeneratingAi && Object.keys(overrides).length === 0 && aiContent === null
+              ? t('sourceReports.editable.discardConfirmTitleGenerating')
+              : t('sourceReports.editable.discardConfirmTitle')
+          }
           onClose={() => {
             setShowDiscardConfirm(false);
             pendingChangeRef.current = null;
@@ -1027,7 +1051,11 @@ export function ReportWizardPage() {
             </div>
           }
         >
-          <p>{t('sourceReports.editable.discardConfirmBody')}</p>
+          <p>
+            {isGeneratingAi && Object.keys(overrides).length === 0 && aiContent === null
+              ? t('sourceReports.editable.discardConfirmBodyGenerating')
+              : t('sourceReports.editable.discardConfirmBody')}
+          </p>
         </Modal>
       )}
 
