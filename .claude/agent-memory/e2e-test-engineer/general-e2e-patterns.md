@@ -153,6 +153,33 @@ technique that touches network/fetch is a safe workaround — check which specif
 (`connect-src` vs `frame-src` vs `script-src`, etc.) governs the technique you're about to add,
 since they're independently configured and a fix for one doesn't imply permission under another.**
 
+## Never assert a suite-global DB precondition — scope list assertions to your own data (#1957, 2026-08-02)
+
+An assertion like "the `?areaId=__none__` list is empty" is really "no area-less household item
+exists anywhere in the shared DB" — and 48 of the suite's 62 `createHouseholdItemViaApi()` calls,
+across 12 spec files, pass no areaId. Under `fullyParallel: true` such a test passes only while
+no such spec shares its shard — pure shard luck, and it breaks the moment shard boundaries move
+(which any `test.use()` addition anywhere in the suite does; see
+[isolated-user-fixture.md](isolated-user-fixture.md)). It reads as a mysterious, unrelated
+failure.
+
+**Pattern:** AND the filter under test with a search scoped to the test's own entity names —
+e.g. `?areaId=__none__&q=<testPrefix + scenario token>` on any DataTable page (`useTableState`
+hydrates `q` from the URL, and the list services AND it with the other filters). This keeps the
+empty-state expectations valid, because `q` counts towards DataTable's `hasActiveFilters`
+(→ "No items match the current filters" + Clear Filters button). URL-driven, so it works on
+mobile where filter popovers are CSS-hidden.
+
+**Always pair it with a positive control**, or the fix creates a vacuous assertion: navigate
+with `q` alone first and assert the seeded item IS listed. Otherwise an empty result is
+indistinguishable from "the search matched nothing" and the test passes even if the filter
+under test does nothing. Worked example: Scenario 4 of
+`e2e/tests/household-items/no-area-filter.spec.ts`.
+
+Sibling assertions in the same family are fine when they are per-entity rather than global —
+`area-filter.spec.ts` Scenario 6 filters by a freshly created area ID it owns, so no other spec
+can put an item in it. Check which shape an assertion has before "fixing" it.
+
 ## Key file locations
 
 - Test fixtures: `e2e/fixtures/auth.ts` (testPrefix, authenticatedPage)

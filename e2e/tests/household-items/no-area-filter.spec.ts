@@ -15,7 +15,9 @@
  * 1.  Sentinel renders at top of popover (desktop/tablet; mobile skip)
  * 2.  ?areaId=__none__ shows only unassigned items
  * 3.  ?areaId=__none__,<areaId> shows union of unassigned + named area items
- * 4.  Empty state when no unassigned items exist and ?areaId=__none__ applied
+ * 4.  Empty state when none of this test's own items are unassigned and
+ *     ?areaId=__none__ applied — see the note on Scenario 4 below for why the
+ *     assertion is scoped with `&q=` instead of assuming a suite-global state.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -183,15 +185,41 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Empty state when no unassigned items and ?areaId=__none__ applied
+// Scenario 4: Empty state when none of this test's items are unassigned and
+// ?areaId=__none__ applied
+//
+// This assertion must NOT be phrased as "no unassigned household item exists
+// anywhere", which is what it used to do: `?areaId=__none__` alone lists every
+// area-less item in the shared DB, and 48 of the suite's 62
+// `createHouseholdItemViaApi()` calls — spread over 12 spec files — pass no areaId
+// (area-filter.spec.ts:185, :318 and :377 each hold one for the length of a long
+// scenario). Under `fullyParallel: true` a single foreign area-less item makes the
+// empty state unreachable, so the test only ever passed while no such spec happened
+// to share its shard — it broke the moment #1957's worker-hash change moved this
+// file from shard 15 into shard 14, whose other members are area-filter.spec.ts,
+// household-items-list.spec.ts, household-item-create/-detail/-edit.spec.ts.
+//
+// The sibling `e2e/tests/work-items/no-area-filter.spec.ts:223` already solves this
+// the same way and has been green in shards 7/12/16 while co-resident with five
+// area-less work-item creators — this file was simply never given the same
+// treatment.
+//
+// Fix: AND the sentinel filter with a `q=` search for this scenario's own name
+// token (`useTableState` hydrates `q` from the URL and householdItemService ANDs
+// it with the areaId condition), so only items this test created can satisfy the
+// list. `q` also counts towards DataTable's `hasActiveFilters`, so the filtered
+// empty-state message and Clear Filters button are still the correct expectations.
+// A positive control runs first: the same `q` without the sentinel must list the
+// area-assigned item, which rules out the empty state passing vacuously because
+// the search matched nothing at all.
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe(
-  '?areaId=__none__ shows filtered empty state when no unassigned household items exist (Scenario 4)',
+  '?areaId=__none__ shows filtered empty state when no matching household item is unassigned (Scenario 4)',
   { tag: '@responsive' },
   () => {
     test.describe.configure({ timeout: 90_000 });
 
-    test('Empty state with Clear Filters button when all items are area-assigned', async ({
+    test('Empty state with Clear Filters button when the only matching item is area-assigned', async ({
       page,
       testPrefix,
     }) => {
@@ -199,16 +227,43 @@ test.describe(
       const areaIds: string[] = [];
       const itemIds: string[] = [];
 
-      const areaName = `${testPrefix} HI NoArea Sc4 Area`;
-      const itemAssignedName = `${testPrefix} HI NoArea Sc4 Assigned`;
+      // Search token that scopes every assertion below to this test's own data.
+      // Unique per worker+project via testPrefix, and no other test uses this
+      // scenario suffix.
+      const scopeToken = `${testPrefix} HI NoArea Sc4`;
+      const areaName = `${scopeToken} Area`;
+      const itemAssignedName = `${scopeToken} Assigned`;
 
       try {
         const areaId = await createAreaViaApi(page, { name: areaName });
         areaIds.push(areaId);
         itemIds.push(await createHouseholdItemViaApi(page, { name: itemAssignedName, areaId }));
 
-        await page.goto(`${HOUSEHOLD_ITEMS_ROUTE}?areaId=__none__`);
+        // Positive control: the search token alone must find the area-assigned item.
+        // Without this, an empty result below would be indistinguishable from "the
+        // search matched nothing", and the empty-state assertion would pass even if
+        // the sentinel filter did nothing.
+        await page.goto(`${HOUSEHOLD_ITEMS_ROUTE}?q=${encodeURIComponent(scopeToken)}`);
         await listPage.heading.waitFor({ state: 'visible' });
+        await listPage.waitForLoaded();
+        await expect(async () => {
+          const names = await listPage.getItemNames();
+          expect(names).toContain(itemAssignedName);
+        }).toPass({ timeout: 30_000 });
+
+        // Now add the sentinel: the one matching item has an area, so the filtered
+        // result must be empty regardless of what other specs are doing concurrently.
+        await page.goto(
+          `${HOUSEHOLD_ITEMS_ROUTE}?areaId=__none__&q=${encodeURIComponent(scopeToken)}`,
+        );
+        await listPage.heading.waitFor({ state: 'visible' });
+
+        // Both filters must survive the SPA's URL round-trip (handleStateChange
+        // rewrites the query string from table state), otherwise the empty state
+        // below could be caused by a different filter set than the one under test.
+        const url = new URL(page.url());
+        expect(url.searchParams.get('areaId')).toBe('__none__');
+        expect(url.searchParams.get('q')).toBe(scopeToken);
 
         // Wait for the filter empty state
         await expect(async () => {

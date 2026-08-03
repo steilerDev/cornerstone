@@ -46,10 +46,14 @@
  *    for all ~34 tests) + `dashboard.hiddenCards` written by the app itself when
  *    Scenario 6/7 click a card's dismiss/re-enable button.
  *    Admin-gated? No. The dashboard, `/project/work-items`, `/budget/invoices`,
- *    `/diary/new` and the Add/Customize dropdowns have no role checks (server:
- *    `requireRole('admin')` guards only `/api/users` mutations and
- *    `/api/backups/*`; client: only the Settings sub-nav "User Management" and
- *    "Backups" tabs and work-item note edit/delete are role-gated).
+ *    `/diary/new` and the Add/Customize dropdowns have no role checks. The complete
+ *    role-gating inventory in the app: server — `requireRole('admin')` on
+ *    `/api/users` mutations and `/api/backups/*`, plus work-item note
+ *    update/delete, which pass `request.user.role === 'admin'` into `noteService`
+ *    as an ownership override (`server/src/routes/notes.ts`); client — the Settings
+ *    sub-nav "User Management" and "Backups" tabs, and work-item note edit/delete
+ *    on other users' notes. Nothing else in `client/src` or `server/src` branches
+ *    on role.
  *    Resolution (AC2): `isolatedUserPerWorker` at file scope.
  *
  * 2. e2e/tests/i18n/i18n.spec.ts
@@ -133,14 +137,33 @@
  *   (Playwright rejects it: "Cannot use({...}) in a describe group, because it
  *   forces a new worker").
  *
+ * !! EXPECT AN UNRELATED SHARD TO GO RED WHEN YOU OPT A FILE IN !!
+ * Adding `test.use()` for either option changes the affected tests' `_workerHash`.
+ * `createTestGroups` (node_modules/playwright/lib/runner/index.js) buckets tests by
+ * worker hash FIRST and emits groups in bucket insertion order; `filterForShard`
+ * then slices that list by cumulative test count. So opting one file in
+ * redistributes shard MEMBERSHIP across the whole suite — not just this file's —
+ * even when the total test count is unchanged. Any latent cross-file shared-state
+ * assumption in a newly co-located pair surfaces as a failure that looks unrelated
+ * to your change. #1957 hit exactly this: `no-area-filter.spec.ts` moved from shard
+ * 15 to shard 14 next to `area-filter.spec.ts` and its suite-global "no area-less
+ * household item exists" precondition broke. Diagnose before blaming the change
+ * itself, by diffing shard membership between base and head:
+ *   git archive <base-sha> e2e | tar -x -C /tmp/base && ln -s <repo>/node_modules /tmp/base/node_modules
+ *   (cd /tmp/base && npx playwright test --list --shard=N/16)   # vs the same in the worktree
+ * Do NOT respond by pinning or reordering shards (#1957's Notes rule that out) —
+ * fix the test that assumes suite-global state.
+ *
  * Users are created via `POST /api/users` (admin-only) and removed in fixture
  * teardown via `DELETE /api/users/:id`. Note that DELETE is a SOFT delete
  * (`deactivateUser` + `destroyUserSessions`): the preference row survives, but the
  * account can never be logged into again and its e-mail is never reused, so
- * nothing can read or write that row afterwards. Keep the created-user count
- * modest regardless — `/settings/users` renders 100 rows per page and
- * `edit-user.spec.ts`/`deactivate-user.spec.ts` find their user by scanning the
- * rendered page.
+ * nothing can read or write that row afterwards. Accumulation is bounded per
+ * SHARD, not per run — each shard is its own CI job with its own container and DB
+ * (`containers/setup.ts` runs in globalSetup) — so `/settings/users`' 100-row page
+ * is never in reach. The reason to prefer per-worker is the login rate limit
+ * (`POST /api/auth/login`: 20 requests / 15 min, keyed on `request.ip`, one bucket
+ * per shard), not user-table size.
  */
 
 import type { APIRequestContext, PlaywrightWorkerArgs } from '@playwright/test';
@@ -148,8 +171,10 @@ import { test as authTest } from './auth.js';
 import { API } from './testData.js';
 
 /**
- * Must mirror `use.storageState` in playwright.config.ts. Used as the fallback for
- * tests in a file that imports this `test` object without opting into isolation.
+ * Shared-admin storage state written by `auth.setup.ts`; mirrors `use.storageState`
+ * in playwright.config.ts. Used here to authenticate the admin API context that
+ * provisions and deactivates dedicated users. (Non-opted-in tests get their state
+ * from `testInfo.project.use.storageState`, not from this constant.)
  */
 export const ADMIN_STORAGE_STATE = 'test-results/.auth/admin.json';
 
@@ -341,21 +366,36 @@ export const test = authTest.extend<
   },
 
   // ── Point the built-in context/page fixtures at that session ──────────────
+  //
+  // The `testInfo.project.use.storageState` fallback is load-bearing, not
+  // defensive: playwright.config.ts sets `storageState` per project, and once the
+  // option is overridden here the config value is no longer consulted — without it,
+  // non-opted-in tests in an importing file would lose admin auth entirely.
+  // Deliberately resolves to `undefined` rather than forcing ADMIN_STORAGE_STATE if
+  // a project ever sets no storageState, so a future unauthenticated project keeps
+  // its intended state.
   storageState: async ({ isolatedUserSession }, use, testInfo) => {
-    await use(
-      isolatedUserSession?.storageState ?? testInfo.project.use.storageState ?? ADMIN_STORAGE_STATE,
-    );
+    await use(isolatedUserSession?.storageState ?? testInfo.project.use.storageState);
   },
 
   // ── Fail loudly if the override above ever stops taking effect ────────────
   //
   // The whole point of this module is that `page` belongs to the dedicated user.
-  // If that silently regressed (a Playwright change to how the `storageState`
-  // option feeds `_combinedContextOptions`, or a spec passing an explicit
-  // storageState to `browser.newContext()`), the specs would quietly go back to
+  // If that silently regressed (e.g. a Playwright change to how the `storageState`
+  // option feeds `_combinedContextOptions`), the specs would quietly go back to
   // mutating the shared admin and the collisions this fixture prevents would
   // return unnoticed — every test would still pass. One cheap request per test
   // turns that into an immediate, explicit failure.
+  //
+  // Two limits, both deliberate:
+  //   (a) It validates the `page` fixture only. A context a test builds itself via
+  //       `browser.newContext()` is outside its reach — such a context inherits
+  //       this override unless it passes an explicit `storageState` (as
+  //       invoices.spec.ts's Dark mode describe does, which is why that
+  //       non-converted describe is unaffected).
+  //   (b) It is `auto` and depends on `page`, so every test in an importing file
+  //       gets a browser context — including one a `beforeEach` immediately
+  //       `test.skip()`s, since fixtures resolve before hooks run.
   isolatedUserGuard: [
     async ({ page, isolatedUserSession }, use) => {
       if (isolatedUserSession) {
