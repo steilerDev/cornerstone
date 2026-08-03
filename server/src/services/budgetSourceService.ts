@@ -6,6 +6,7 @@ import {
   budgetSources,
   workItemBudgets,
   householdItemBudgets,
+  invoiceBudgetLines,
   users,
   workItems,
   householdItems,
@@ -108,16 +109,22 @@ function toBudgetSource(
 
 /**
  * Compute the used amount for a budget source.
- * Sums planned_amount from both work_item_budgets and household_item_budgets where budget_source_id matches.
+ * For invoiced lines uses the actual itemized amount; for non-invoiced lines uses planned_amount.
  * Returns 0 if no budget lines reference this source.
  */
 function computeUsedAmount(db: DbType, sourceId: string): number {
   const result = db.get<{ total: number }>(
-    sql`SELECT COALESCE(SUM(planned_amount), 0) AS total
+    sql`SELECT COALESCE(SUM(effective_amount), 0) AS total
     FROM (
-      SELECT planned_amount FROM ${workItemBudgets} WHERE budget_source_id = ${sourceId}
+      SELECT COALESCE(ibl.itemized_amount, wib.planned_amount) AS effective_amount
+      FROM ${workItemBudgets} wib
+      LEFT JOIN ${invoiceBudgetLines} ibl ON ibl.work_item_budget_id = wib.id
+      WHERE wib.budget_source_id = ${sourceId}
       UNION ALL
-      SELECT planned_amount FROM ${householdItemBudgets} WHERE budget_source_id = ${sourceId}
+      SELECT COALESCE(ibl.itemized_amount, hib.planned_amount) AS effective_amount
+      FROM ${householdItemBudgets} hib
+      LEFT JOIN ${invoiceBudgetLines} ibl ON ibl.household_item_budget_id = hib.id
+      WHERE hib.budget_source_id = ${sourceId}
     )`,
   );
   return result?.total ?? 0;
