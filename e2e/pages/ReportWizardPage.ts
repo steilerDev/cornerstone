@@ -205,8 +205,8 @@
  *   `budget-overview`/`proof-of-funds` reports are unaffected (still render it).
  * - The `†` (split) / `‡` (deposit-reduced) markers this story made shared/unnumbered were
  *   REPLACED WHOLESALE by inline labels in Issue #1959 — see that paragraph below. Neither glyph
- *   appears anywhere in the UI or the PDF any more, and `footnotesBlock`/`footnoteItems`
- *   (declared above) consequently have no producer left.
+ *   appears anywhere in the UI or the PDF any more. `footnotesBlock`/`footnoteItems` had no
+ *   producer at this point, but see Issue #1965 below — that changed.
  * - A constituted-deposit row (the allocation is made up entirely by a deposit tagged to the
  *   reported source) carries NO marker/label at all — instead an inline `Badge` (`depositBadge`/
  *   `mobileDepositBadge` below) reading "Deposit"/"Abschlagszahlung". There is correspondingly
@@ -220,11 +220,18 @@
  *   `mobileUsageMetaText()` below (Issue #1959).
  *
  * Issue #1959: report PDF/UI polish — inline meta, inline split/deposit labels, column toggles.
- * - `†`/`‡` markers and the footnote LIST are GONE. `buildReportContent.ts` no longer pushes any
- *   `ReportContentFootnote` at all (`ReportContentRow.allocatedMarkers` was replaced by
- *   `isSplit`/`isDepositReduced` booleans), so `footnotesBlock`/`footnoteItems` are retained
- *   below purely as negative guards — they can never be populated by the current code path, and
- *   any test asserting a marker glyph or footnote `<li>` is asserting a superseded design.
+ * - `†`/`‡` markers and the footnote LIST are GONE at this point. `buildReportContent.ts` no
+ *   longer pushes any `ReportContentFootnote` (`ReportContentRow.allocatedMarkers` was replaced by
+ *   `isSplit`/`isDepositReduced` booleans). `footnotesBlock`/`footnoteItems` were retained as
+ *   negative guards only — until Issue #1965 reinstated the legend (see below).
+ *
+ * Issue #1965: report PDF legend — `buildReportContent.ts` now pushes legend entries for rows
+ *   where `isSplit` or `isDepositReduced` is true, so `footnotesBlock`/`footnoteItems` ARE now
+ *   populated in split/deposit-reduced scenarios. `footnotesBlock` contains the legend block (or
+ *   is absent from the DOM entirely when no split/deposit-reduced rows appear); `footnoteItems`
+ *   are the `<li>` elements inside it, one per deduplicated flag type (so two split invoices
+ *   produce exactly one `<li>` entry, not two). Tests asserting `toHaveCount(1)` on these
+ *   locators reflect the current design and are correct.
  *   Instead, a split row appends a grey inline `<span class*="inlineNote">` reading `(partial)`
  *   (de: `(Teilbetrag)`, `sourceReports.table.splitInlineLabel`) INSIDE the Allocated Amount
  *   cell, and a deposit-reduced row one reading `(less deposit)` (de: `(abzgl. Abschlag)`,

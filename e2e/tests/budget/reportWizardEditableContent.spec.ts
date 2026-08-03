@@ -1641,12 +1641,12 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 18: Every split invoice carries its own inline "(partial)" label and there is no
-// footnote list at all (Story #1923 AC1, superseded by Issue #1959)
+// Scenario 18: Split invoices carry an inline "(partial)" label AND produce one deduplicated
+// legend entry in the footnotes block (Issue #1965)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard editable content — inline split label (Scenario 18)', () => {
-  test('Two split invoices each show a grey inline "(partial)" note in their Allocated Amount cell, with no †/‡ marker and no footnote list anywhere on the page', async ({
+  test('Two split invoices each show a grey inline "(partial)" note in their Allocated Amount cell, and produce exactly one deduplicated legend entry in the footnotes block', async ({
     page,
     testPrefix,
   }) => {
