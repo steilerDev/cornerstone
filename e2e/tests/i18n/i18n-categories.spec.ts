@@ -9,7 +9,11 @@
  * Test strategy:
  * - Each test creates a dedicated local user so that PATCH /api/users/me/preferences
  *   never mutates the shared TEST_ADMIN user, eliminating locale-state leakage across
- *   parallel workers.
+ *   parallel workers. (This file is listed in the preference-write audit in
+ *   e2e/fixtures/isolatedUser.ts, Issue #1957, as already-isolated. The hand-rolled
+ *   helper below predates that fixture and is equivalent to
+ *   `test.use({ isolatedUserPerTest: ... })`; it is left as-is because it also needs
+ *   to write localStorage on the scoped page before the first navigation.)
  * - A fresh browser context (no storageState) is created per test, logged in as the
  *   dedicated user, and closed in a finally block.
  * - Scoped to desktop only — language state changes involve localStorage + API

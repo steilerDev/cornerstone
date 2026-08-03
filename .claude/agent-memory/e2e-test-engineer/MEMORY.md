@@ -6,7 +6,8 @@
 
 - [general-e2e-patterns.md](general-e2e-patterns.md) — cross-cutting waits/timing, viewport timeouts, strict-mode anti-patterns, DataTable migration fallout, Gantt touch, breadcrumbs, print, dashboard cards, headless-shell PDF-iframe limitation → CSP header+console verification pattern (blob-fetch leg removed, connect-src pitfall), key file locations.
 - [e2e-pom-patterns.md](e2e-pom-patterns.md) — Page Object Model conventions and stable-locator strategies.
-- [e2e-parallel-isolation.md](e2e-parallel-isolation.md) — `testPrefix` fixture, parallel-safe data isolation, serial-mode tests.
+- [e2e-parallel-isolation.md](e2e-parallel-isolation.md) — `testPrefix` fixture, parallel-safe data isolation, serial-mode tests (serial is **superseded** for preference rows — see next line).
+- [isolated-user-fixture.md](isolated-user-fixture.md) — `e2e/fixtures/isolatedUser.ts` dedicated-user opt-in for preference-mutating specs (#1957); **`test.use()` reshuffles shard membership suite-wide → unrelated shards go red**; login rate limit 20/15min, soft user delete, worker-scoped-option-in-describe ban, `--list` as the only local validation.
 - [known-flakes-and-regressions.md](known-flakes-and-regressions.md) — triaged log of flaky tests, pre-existing CI failures, and production regressions caught by E2E. **Check this before re-triaging a failure.**
 - [flake-patterns.md](flake-patterns.md) — flake-avoidance patterns moved from the implementation checklist: Konva canvas coordinates, `test.slow()` timeout negation, locale timing after reload, shard redistribution, stale cache-warmup CI. Check when writing timing-sensitive tests or adding spec files.
 - [auto-itemize-and-invoices-e2e.md](auto-itemize-and-invoices-e2e.md) — AutoItemizePage, PaperlessInvoiceReviewPage, invoice budget lines, Paperless mocking, vendor reassignment.

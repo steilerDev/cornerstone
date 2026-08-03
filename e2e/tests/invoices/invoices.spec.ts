@@ -19,7 +19,7 @@
  * - Dark mode
  */
 
-import { test, expect } from '../../fixtures/auth.js';
+import { test, expect } from '../../fixtures/isolatedUser.js';
 import type { Page } from '@playwright/test';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
@@ -838,6 +838,19 @@ test.describe('Dark mode', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' }, () => {
+  // This is the only test in the suite that asserts against `table.invoices.columns`,
+  // a per-user singleton preference that `useColumnPreferences` writes (debounced) for
+  // every visitor of the invoices table. On the shared admin, any concurrently running
+  // test that renders that table could move the column set under this test's feet, and
+  // this test's own DELETEs could equally disturb others (Issue #1957). Run it as a
+  // dedicated user so the row belongs to nobody else. Per-test rather than per-worker
+  // because a worker-scoped option cannot be set inside a describe. Nothing here is
+  // admin-gated: the invoices list/detail pages and vendor/invoice/work-item/
+  // budget-source creation have no role checks.
+  test.use({
+    isolatedUserPerTest: { emailPrefix: 'inv-columns', displayName: 'E2E Invoices User' },
+  });
+
   test('Toggling "Effective Amount" shows a deposit/refund-aware value distinct from "Remaining Amount"', async ({
     page,
     testPrefix,
@@ -908,9 +921,10 @@ test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' },
       // Effective Amount = 1000 − 150 (paid refund) = 850
 
       // Reset the "table.invoices.columns" preference before asserting the
-      // hidden-by-default baseline — a prior run's debounced save (or this test's
-      // own retry) can otherwise leave "Effective Amount"/"Remaining Amount"
-      // already-visible for this account before we even start.
+      // hidden-by-default baseline. Since this test now runs as a freshly created
+      // dedicated user (see test.use above), the row cannot pre-exist — not even on a
+      // retry, which provisions a new user. Kept as an explicit precondition so the
+      // baseline assertion below cannot silently depend on account history.
       await page.request.delete('/api/users/me/preferences/table.invoices.columns');
 
       await invoicesPage.goto();
@@ -964,10 +978,10 @@ test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' },
     } finally {
       // Column visibility/order is a per-user server-side SINGLETON preference
       // (`table.invoices.columns`, see useColumnPreferences), not a per-test entity.
-      // Reset it so this test's "enable Remaining/Effective Amount" toggles never
-      // leak into a retry of this same test (the debounced save can persist after a
-      // failed assertion) or into any other invoices test running afterward against
-      // the same account. DELETE 404s if no preference was ever saved — fine either way.
+      // The dedicated user is deactivated in fixture teardown, so these toggles can no
+      // longer leak anywhere; the reset is kept so the intent survives if this describe
+      // is ever switched back to a shared account.
+      // DELETE 404s if no preference was ever saved — fine either way.
       await page.request.delete('/api/users/me/preferences/table.invoices.columns');
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
