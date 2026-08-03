@@ -17,8 +17,10 @@
  * 11. No horizontal scroll on current viewport
  */
 
+import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { DashboardPage, DASHBOARD_ROUTE, CARD_TITLES } from '../../pages/DashboardPage.js';
+import { createLocalUserViaApi, deleteUserViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Global setup: reset dashboard preferences before every test to prevent
@@ -479,20 +481,81 @@ test.describe('Quick Actions card (Scenario 5)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Isolated-user helper for Scenario 6 & 7 (card dismiss / re-enable)
+//
+// Root cause of the intermittent "Dismissed card stays hidden after page reload"
+// failure (PR #1935, shard 6): `dashboard.hiddenCards` is a single preference row
+// keyed by userId. Every test in this file authenticates as the one shared admin
+// user (test-results/.auth/admin.json), and playwright.config.ts runs with
+// `fullyParallel: true`, so unrelated tests/describe-blocks in this same file
+// (each of which runs the top-level `beforeEach` that PATCHes
+// `dashboard.hiddenCards` back to "[]" on that same shared admin user) can be
+// scheduled onto a different worker and land their reset in the narrow window
+// between this test's own dismiss-PATCH and its post-reload GET — wiping out the
+// very state under test. The previous `mode: 'serial'` guard only serialized
+// Scenario 6's own two tests against each other; it could not stop the other
+// ~30 tests in this file from touching the same shared-admin preference row
+// concurrently, since they have no knowledge of Scenario 6's serial group.
+//
+// The write/read path itself (upsertPreference -> synchronous better-sqlite3
+// write -> 200 response -> dismissCard() awaits that response -> reload -> GET)
+// is correctly ordered and durable — there is no persistence bug in production
+// code here (see `dismissCard()` in DashboardPage.ts and
+// `preferencesService.upsertPreference()`, both of which resolve/commit before
+// the next step runs). This was a test-isolation gap, not a product bug.
+//
+// Fix: give each dismiss/re-enable test its own dedicated user + browser
+// context, mirroring the established pattern in
+// e2e/tests/i18n/i18n-categories.spec.ts and e2e/tests/profile/change-password.spec.ts.
+// A dedicated user's `dashboard.hiddenCards` row can never be touched by any
+// other concurrently running test, so the persistence contract can be verified
+// without racing the rest of the suite. `ON DELETE CASCADE` on
+// user_preferences.user_id means deleting the user also removes its
+// preferences — no separate reset/cleanup PATCH is needed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DASHBOARD_ISOLATED_USER_PASSWORD = 'e2e-dashboard-pw-123!';
+
+async function loginAsIsolatedDashboardUser(
+  browser: Browser,
+  adminPage: Page,
+  testPrefix: string,
+): Promise<{ context: BrowserContext; page: Page; userId: string }> {
+  const email = `dash-${testPrefix}-${Date.now()}@e2e-test.local`;
+  const user = await createLocalUserViaApi(adminPage, {
+    email,
+    displayName: 'E2E Dashboard User',
+    password: DASHBOARD_ISOLATED_USER_PASSWORD,
+  });
+
+  const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+  const scopedPage = await context.newPage();
+  await scopedPage.request.post('/api/auth/login', {
+    data: { email, password: DASHBOARD_ISOLATED_USER_PASSWORD },
+  });
+  // Force English regardless of the CI browser's default locale — every assertion
+  // in these scenarios matches English card titles (e.g. "Quick Actions").
+  await scopedPage.request.patch('/api/users/me/preferences', {
+    data: { key: 'locale', value: 'en' },
+  });
+
+  return { context, page: scopedPage, userId: user.id };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Card dismiss — clicking dismiss hides card; reload keeps it hidden
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Card dismiss (Scenario 6)', () => {
-  // Serial mode: the first test dismisses Quick Actions and leaves server-side state dirty
-  // until beforeEach of the second test resets it. Running in parallel risks another worker
-  // resetting preferences between the dismiss PATCH and the reload assertion in the second
-  // test, causing the card to reappear after reload.
-  test.describe.configure({ mode: 'serial' });
+  test('Dismissing a card hides it from the dashboard', async ({ page, browser, testPrefix }) => {
+    const {
+      context,
+      page: scopedPage,
+      userId,
+    } = await loginAsIsolatedDashboardUser(browser, page, testPrefix);
+    const dashboardPage = new DashboardPage(scopedPage);
 
-  test('Dismissing a card hides it from the dashboard', async ({ page }) => {
-    const dashboardPage = new DashboardPage(page);
-
-    await interceptDashboardApis(page);
+    await interceptDashboardApis(scopedPage);
 
     try {
       await dashboardPage.goto();
@@ -509,18 +572,23 @@ test.describe('Card dismiss (Scenario 6)', () => {
       const afterDismiss = dashboardPage.card('Quick Actions');
       await expect(afterDismiss).toHaveCount(0);
     } finally {
-      await uninterceptDashboardApis(page);
+      await uninterceptDashboardApis(scopedPage);
+      await context.close();
+      await deleteUserViaApi(page, userId);
     }
   });
 
-  test('Dismissed card stays hidden after page reload', async ({ page }) => {
-    const dashboardPage = new DashboardPage(page);
+  test('Dismissed card stays hidden after page reload', async ({ page, browser, testPrefix }) => {
+    const {
+      context,
+      page: scopedPage,
+      userId,
+    } = await loginAsIsolatedDashboardUser(browser, page, testPrefix);
+    const dashboardPage = new DashboardPage(scopedPage);
 
-    await interceptDashboardApis(page);
+    await interceptDashboardApis(scopedPage);
 
     try {
-      // The prior test dismisses Quick Actions and beforeEach resets hiddenCards to [].
-      // Navigate to the dashboard and wait for cards to load before asserting card visibility.
       await dashboardPage.goto();
       await dashboardPage.waitForCardsLoaded();
 
@@ -533,7 +601,7 @@ test.describe('Card dismiss (Scenario 6)', () => {
 
       // Reload the page. Use navigationTimeout (10s) for the heading waitFor since the SPA
       // must fully initialize after a hard reload before the Dashboard heading appears.
-      await page.reload();
+      await scopedPage.reload();
       await dashboardPage.heading.waitFor({ state: 'visible', timeout: 10000 });
 
       // On page load, two contexts fetch preferences independently:
@@ -543,17 +611,14 @@ test.describe('Card dismiss (Scenario 6)', () => {
       //
       // waitForLoadState('networkidle') ensures all pending network requests (including both
       // preference fetches) have completed and React has finished re-rendering before we assert.
-      await page.waitForLoadState('networkidle', { timeout: 15000 });
+      await scopedPage.waitForLoadState('networkidle', { timeout: 15000 });
 
       // The Quick Actions card must be absent — usePreferences applied hiddenCards: ["quick-actions"]
       await expect(dashboardPage.card('Quick Actions')).toHaveCount(0);
-
-      // Clean up: re-enable the card via preferences API to not affect other tests
-      await page.request.patch('/api/users/me/preferences', {
-        data: { key: 'dashboard.hiddenCards', value: '[]' },
-      });
     } finally {
-      await uninterceptDashboardApis(page);
+      await uninterceptDashboardApis(scopedPage);
+      await context.close();
+      await deleteUserViaApi(page, userId);
     }
   });
 });
@@ -563,17 +628,21 @@ test.describe('Card dismiss (Scenario 6)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Card re-enable (Scenario 7)', () => {
-  test('Customize button appears when a card is dismissed', async ({ page }) => {
-    const dashboardPage = new DashboardPage(page);
+  test('Customize button appears when a card is dismissed', async ({
+    page,
+    browser,
+    testPrefix,
+  }) => {
+    const {
+      context,
+      page: scopedPage,
+      userId,
+    } = await loginAsIsolatedDashboardUser(browser, page, testPrefix);
+    const dashboardPage = new DashboardPage(scopedPage);
 
-    await interceptDashboardApis(page);
+    await interceptDashboardApis(scopedPage);
 
     try {
-      // Ensure a clean slate: clear hidden cards immediately before navigation to avoid
-      // state pollution from parallel workers sharing the same user preferences.
-      await page.request.patch('/api/users/me/preferences', {
-        data: { key: 'dashboard.hiddenCards', value: '[]' },
-      });
       await dashboardPage.goto();
       await dashboardPage.waitForCardsLoaded();
 
@@ -595,20 +664,26 @@ test.describe('Card re-enable (Scenario 7)', () => {
 
       // Customize button should now appear
       await expect(dashboardPage.customizeButton).toBeVisible();
-
-      // Clean up
-      await page.request.patch('/api/users/me/preferences', {
-        data: { key: 'dashboard.hiddenCards', value: '[]' },
-      });
     } finally {
-      await uninterceptDashboardApis(page);
+      await uninterceptDashboardApis(scopedPage);
+      await context.close();
+      await deleteUserViaApi(page, userId);
     }
   });
 
-  test('Customize dropdown lists dismissed card and clicking re-enables it', async ({ page }) => {
-    const dashboardPage = new DashboardPage(page);
+  test('Customize dropdown lists dismissed card and clicking re-enables it', async ({
+    page,
+    browser,
+    testPrefix,
+  }) => {
+    const {
+      context,
+      page: scopedPage,
+      userId,
+    } = await loginAsIsolatedDashboardUser(browser, page, testPrefix);
+    const dashboardPage = new DashboardPage(scopedPage);
 
-    await interceptDashboardApis(page);
+    await interceptDashboardApis(scopedPage);
 
     try {
       await dashboardPage.goto();
@@ -637,7 +712,9 @@ test.describe('Card re-enable (Scenario 7)', () => {
       // The button is removed from the DOM entirely when all cards are visible.
       await expect(dashboardPage.customizeButton).not.toBeVisible();
     } finally {
-      await uninterceptDashboardApis(page);
+      await uninterceptDashboardApis(scopedPage);
+      await context.close();
+      await deleteUserViaApi(page, userId);
     }
   });
 });

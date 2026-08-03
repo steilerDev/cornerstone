@@ -350,6 +350,19 @@ export class InvoicesPage {
    * Enables a hidden-by-default DataTable column via the column settings gear icon
    * (Issue #1876 "Effective Amount" column). No-ops if already visible.
    * Desktop-only — the gear button is hidden on viewports ≤767px.
+   *
+   * Toggling a column triggers a debounced (500ms) PATCH to persist
+   * `table.invoices.columns`, followed by an optimistic re-sync effect in
+   * useColumnPreferences that re-applies the saved value and re-renders the
+   * header row. If a second enableColumn() call's toggle-click lands while the
+   * first one's debounced save is still in flight, the two saves' responses can
+   * resolve out of order — the later-resolving one's re-sync wins and can
+   * transiently (or, if it's the first toggle's stale single-column payload,
+   * durably) overwrite the newer visibility state. Awaiting the PATCH here,
+   * the same way DashboardPage.dismissCard() does for this endpoint, makes
+   * each toggle's persistence+re-sync cycle fully settle before the next
+   * enableColumn() call (or any header read) can start, closing that race at
+   * the source instead of retrying the read against it.
    */
   async enableColumn(columnLabel: string): Promise<void> {
     await this.columnSettingsButton.waitFor({ state: 'visible' });
@@ -358,7 +371,18 @@ export class InvoicesPage {
     await checkbox.waitFor({ state: 'visible' });
     const checked = await checkbox.isChecked();
     if (!checked) {
+      // Register the preferences PATCH listener BEFORE clicking — the debounced
+      // save fires ~500ms later, so registering after the click would still be
+      // safe here, but doing it first matches the established convention (see
+      // DashboardPage.dismissCard()) and avoids any risk of missing the response.
+      const preferencesSaved = this.page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/users/me/preferences') &&
+          resp.request().method() === 'PATCH' &&
+          resp.status() === 200,
+      );
       await checkbox.click();
+      await preferencesSaved;
     }
     // Close the popover so it doesn't obscure the table.
     await this.page.keyboard.press('Escape');
@@ -373,21 +397,26 @@ export class InvoicesPage {
    * since sortable headers append a " ↑"/" ↓" sort-direction suffix), so this stays
    * correct regardless of column order or how many columns are visible.
    *
-   * The header scan is wrapped in `toPass()`: right after toggling a hidden-by-default
-   * column on, the column-preferences persistence effect (debounced save + optimistic
-   * re-sync in useColumnPreferences) can cause a transient extra re-render of the
-   * header row. A single unretried read can land in that gap; retrying self-heals
-   * without weakening what's actually asserted (the column must still be found).
+   * The match is case-insensitive because `.tableHeader` applies
+   * `text-transform: uppercase` (DataTable.module.css) — `innerText()` reflects the
+   * browser's RENDERED text, so it returns "REMAINING AMOUNT", not the DOM's
+   * "Remaining Amount". A case-sensitive comparison against the mixed-case label
+   * therefore never matches, deterministically, regardless of timing — confirmed via
+   * a CI trace showing every header-scan attempt across the full retry window
+   * returning the same uppercase value. This is not a race: `toPass()` is kept only
+   * as a defensive backstop for genuine transient re-renders, not because the
+   * original miss was ever transient.
    */
   async getColumnCellText(rowMatchText: string, columnLabel: string): Promise<string> {
     const headers = this.tableContainer.locator('thead th');
+    const normalizedLabel = columnLabel.toUpperCase();
     let columnIndex = -1;
     await expect(async () => {
       const headerCount = await headers.count();
       columnIndex = -1;
       for (let i = 0; i < headerCount; i++) {
-        const text = (await headers.nth(i).innerText()).trim();
-        if (text === columnLabel || text.startsWith(`${columnLabel} `)) {
+        const text = (await headers.nth(i).innerText()).trim().toUpperCase();
+        if (text === normalizedLabel || text.startsWith(`${normalizedLabel} `)) {
           columnIndex = i;
           break;
         }
