@@ -1211,6 +1211,7 @@
       "previewModalTitle": "PDF Preview",
       "discardConfirmTitle": "Discard your edits?",
       "discardConfirmBody": "Changing this will regenerate the report content and your edits will be lost.",
+      "discardConfirmBodyGenerating": "An AI generation is in progress. Changing this will cancel it.",
       "discardAndContinue": "Discard and Continue",
       "keepEditing": "Keep Editing",
       "coverLetterHeading": "Cover Letter",
