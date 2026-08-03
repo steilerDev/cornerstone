@@ -938,20 +938,27 @@ describe('ReportContentEditor — summary rows and footnotes', () => {
   it('renders each footnote with its unnumbered/shared marker and text, read-only', () => {
     const content = makeContent({
       footnotes: [
-        { id: 'split', marker: '†', text: 'Amount shown reflects only the portion allocated.' },
         {
-          id: 'deposit-reduced',
-          marker: '‡',
+          id: 'split',
+          marker: 'partial',
+          text: 'Amount shown reflects only the portion allocated to this source.',
+        },
+        {
+          id: 'depositReduced',
+          marker: 'less deposit',
           text: 'This position reflects deposits claimed separately.',
         },
       ],
     });
     renderEditor({ content });
-    expect(screen.getByText('†:')).toBeInTheDocument();
+    expect(screen.getByText('partial:')).toBeInTheDocument();
     expect(
-      screen.getByText(/Amount shown reflects only the portion allocated\./),
+      screen.getByText(/Amount shown reflects only the portion allocated to this source\./),
     ).toBeInTheDocument();
-    expect(screen.getByText('‡:')).toBeInTheDocument();
+    // getByText with a string fails when marker has NBSP: the lib normalizes element text
+    // (NBSP→space) but does NOT normalize the matcher, so ==='less deposit:' always mismatches.
+    // Regex is tested against the already-normalized text, so \s matches the collapsed space.
+    expect(screen.getByText(/^less\sdeposit:$/)).toBeInTheDocument();
   });
 
   it('renders no footnotes block when footnotes is empty', () => {

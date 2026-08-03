@@ -978,6 +978,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
             // The footnote WORDINGS that must no longer appear anywhere in the tree.
             goneFootnotes: ['This is a deposit'],
             depositFootnoteText: 'This position reflects deposits claimed separately.',
+            splitFootnoteText: 'Amount shown reflects only the portion allocated to this source.',
           },
         ],
         [
@@ -992,6 +993,8 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
             goneFootnotes: ['Dies ist eine Abschlagszahlung'],
             depositFootnoteText:
               'Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.',
+            splitFootnoteText:
+              'Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil.',
           },
         ],
       ] as const) {
@@ -1012,8 +1015,12 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         expect(content.footnotes).toHaveLength(2);
         expect(content.footnotes[0]!.id).toBe('split');
         expect(content.footnotes[1]!.id).toBe('depositReduced');
-        expect(content.footnotes[0]!.marker).not.toContain('†');
-        expect(content.footnotes[1]!.marker).not.toContain('‡');
+        // Markers match the inline labels (AC 2.3) — shared token between legend and row cell
+        expect(content.footnotes[0]!.marker).toBe(content.labels.splitNote);
+        expect(content.footnotes[1]!.marker).toBe(content.labels.depositReducedNote);
+        // Text values resolve from real i18n bundles, not echoed keys (real render, not mock t)
+        expect(content.footnotes[0]!.text).toBe(expected.splitFootnoteText);
+        expect(content.footnotes[1]!.text).toBe(expected.depositFootnoteText);
 
         const pdfContent = buildOverviewContent(content, new Map(), t);
         const tableItem = pdfContent.find(
@@ -1054,6 +1061,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         // #1965: the deposit-reduced legend sentence IS present in the rendered content.
         const depositFootnoteText = expected.depositFootnoteText;
         expect(allStrings.some((s) => s.includes(depositFootnoteText))).toBe(true);
+        // #1965 AC 3.1: split legend sentence also present in the rendered content tree
+        const splitFootnoteText = expected.splitFootnoteText;
+        expect(allStrings.some((s) => s.includes(splitFootnoteText))).toBe(true);
       }
     });
 
