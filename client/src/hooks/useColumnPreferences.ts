@@ -44,9 +44,20 @@ export function useColumnPreferences<T>(
   // Once the user edits columns, this hook is the single source of truth for that
   // key and must ignore preference-store echoes (including its own save's echo,
   // which `usePreferences.upsert` emits optimistically as a fresh array reference).
+  //
+  // Premise this depends on: `usePreferences` keeps `preferences` in private `useState`
+  // per call site, with no shared context, so the only writers to this instance's store
+  // are its own mount fetch and its own echo. If it ever becomes a shared context/store,
+  // this guard would silently swallow legitimate external writes with no test failing,
+  // and needs revisiting.
   const localAuthorityKeyRef = useRef<string | null>(null);
 
   // Latest not-yet-sent payload, and whether a write is currently in flight.
+  // Note both refs rely on *replace* semantics for StrictMode safety: `savePreferences`
+  // runs inside a `setState` updater and so is genuinely double-invoked in dev, but
+  // replacing the pending payload (and `clearTimeout` + `setTimeout` netting one timer)
+  // makes that idempotent. Switching to append-style — e.g. pushing onto a queue array
+  // instead of replacing — would break that, silently and in dev only.
   const pendingSaveRef = useRef<{ visible: string[]; order: string[] } | null>(null);
   const isSavingRef = useRef(false);
 
