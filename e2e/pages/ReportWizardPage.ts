@@ -469,11 +469,14 @@ export class ReportWizardPage {
   // avoids a substring collision).
   readonly summaryTable: Locator;
   readonly summaryTableRows: Locator;
-  // The footnotes block (`.footnotes` / its `<li>` entries). As of Issue #1959 NOTHING populates
-  // `content.footnotes` any more (the `†`/`‡` split + deposit-reduced entries became inline
-  // labels — see `inlineNote()`), so the block is never rendered. Kept purely as a NEGATIVE
-  // guard: a scenario asserting `toHaveCount(0)` / `not.toBeVisible()` here is asserting that
-  // the superseded footnote mechanism has not come back. Never assert a positive count on these.
+  // The footnotes block (`.footnotes` / its `<li>` entries). Issue #1959 replaced the `†`/`‡`
+  // split + deposit-reduced glyphs with inline labels (see `inlineNote()`), but Issue #1965
+  // restored legend population: `buildReportContent.ts` now pushes ONE deduplicated sentence per
+  // active flag (`isSplit` → "Amount shown reflects only the portion allocated to this source.",
+  // `isDepositReduced` → the corresponding deposit-reduced sentence) whenever any row in the
+  // report carries that flag. Scenarios with split or deposit-reduced rows must assert a positive
+  // count; scenarios with neither (e.g., constituted-deposit-only rows — Scenario 17) correctly
+  // assert `toHaveCount(0)`.
   readonly footnotesBlock: Locator;
   readonly footnoteItems: Locator;
 

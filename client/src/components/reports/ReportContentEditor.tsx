@@ -458,8 +458,7 @@ export function ReportContentEditor({
           <ul>
             {content.footnotes.map((note) => (
               <li key={note.id}>
-                <span className={styles.footnoteMarker}>{note.marker}:</span>
-                {note.text}
+                <span className={styles.footnoteMarker}>{note.marker}:</span> {note.text}
               </li>
             ))}
           </ul>
