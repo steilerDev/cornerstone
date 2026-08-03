@@ -916,6 +916,13 @@ test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' },
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
 
+      // Positive control before the two not.toBeVisible() checks below: prove the table
+      // itself actually rendered (via a known always-visible column) first. Otherwise
+      // `getByRole('columnheader', {name}).not.toBeVisible()` against a zero-element
+      // locator passes vacuously — indistinguishable from "the column exists but is
+      // hidden" if the table never rendered at all.
+      await expect(page.getByRole('columnheader', { name: 'Invoice #' })).toBeVisible();
+
       // Before enabling: neither hidden-by-default column header is rendered
       await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).not.toBeVisible();
       await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).not.toBeVisible();
@@ -927,10 +934,31 @@ test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' },
       await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).toBeVisible();
       await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).toBeVisible();
 
+      // Read this test's own row deterministically instead of assuming it's on page 1:
+      // the invoice is created with a fixed 2026-01-01 date, and with 25 invoices/page
+      // and every worker creating invoices concurrently, an older-dated invoice can
+      // easily be pushed past page 1 by the time this runs. `search()` does a full
+      // page.goto() to a filtered URL, which re-mounts the table and re-fetches column
+      // preferences from the server — since `table.invoices.columns` is a server-
+      // persisted preference (not client/session-only state), it should survive that
+      // navigation. Re-assert rather than assume: confirm both columns are still
+      // visible on the freshly-mounted, filtered page before reading cells off it.
+      await invoicesPage.search(invoiceNumber);
+      await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).toBeVisible();
+
       const remainingText = await invoicesPage.getColumnCellText(invoiceNumber, 'Remaining Amount');
       const effectiveText = await invoicesPage.getColumnCellText(invoiceNumber, 'Effective Amount');
 
+      // Remaining Amount = 1000 (invoice total) − 300 (itemized budget line) = 700, per
+      // remainingAmount = invoice.amount − Σ budgetLines[].itemizedAmount
+      // (invoiceBudgetLineService.ts) — confirmed against current code, unrelated to
+      // deposits/refunds.
       expect(remainingText).toContain('700');
+      // Effective Amount = 1000 (invoice total) − 150 (received refund) = 850, per
+      // computeFinalPaymentAmount() (depositAggregateUtils.ts): invoiceAmount minus
+      // deposit-type entries minus refund-type entries whose status is 'paid'/'claimed'
+      // — confirmed against current code (post the #1922 claim/deposit-scope split).
       expect(effectiveText).toContain('850');
       expect(effectiveText).not.toBe(remainingText);
     } finally {
