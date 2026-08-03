@@ -58,7 +58,7 @@ sweep the fix existed to perform.
 
 **Review procedure when a request/response shape changes:**
 
-1. Grep both suites for the endpoint. If the client test mocks the API client, it is *not* contract coverage.
+1. Grep both suites for the endpoint. If the client test mocks the API client, it is _not_ contract coverage.
 2. Re-derive the request the client can now emit at its **extremes** (empty arrays, all-filtered, single
    item) and check each against the route schema by hand — validators are declarative, so this is cheap.
 3. Demand at least one test that crosses the seam: a route test via `app.inject` (real ajv compilation), or
@@ -198,7 +198,7 @@ consumer-visible one, so it is the one that must be fixed.
 (`letterSubject` 150 / `letterBody` 2000 / `description` 200). The implementer found and collapsed a third
 runtime site the spec had not enumerated (the `buildReportContentUserPrompt` trailing reminder). But
 `API-Contract.md` still stated the removed 200/3000/300 tier in the response table **and** carried a Notes
-bullet describing the two-tier divergence as *deliberate design* — worse than a stale number, because it
+bullet describing the two-tier divergence as _deliberate design_ — worse than a stale number, because it
 invites reintroduction.
 
 **Sweep checklist for any "one definition" story:**
@@ -211,10 +211,10 @@ invites reintroduction.
 4. Tests that assert bare literals rather than interpolating the constant (right only by coincidence).
 5. Agent-memory prose in other agents' files (flag to the owner; don't edit).
 
-**Preferred wiki fix shape:** state the numbers once, then describe the *guarantee* and point at the source
+**Preferred wiki fix shape:** state the numbers once, then describe the _guarantee_ and point at the source
 file ("both derive from `REPORT_CONTENT_LIMITS` in …"), so the page stops being an independent restatement.
 
-**Trap:** `API-Contract.md` L3806's `truncated (500/300 chars)` is *prompt-input* truncation from
+**Trap:** `API-Contract.md` L3806's `truncated (500/300 chars)` is _prompt-input_ truncation from
 `reportContentGenerationService.ts`, numerically colliding with the old output cap and sitting a few lines
 from the wrong ones. Do not "fix" it.
 
@@ -233,8 +233,7 @@ prevent. Two live examples from #1931's new guards:
 (`toContain(\`Maximum ${LIMITS.description} characters per description.\`)`). Composing the prompt from named
 constant blocks is over-engineering at ~15 lines — tight assertions buy the same protection far cheaper.
 Also check that **every** constraint the AC enumerates has its own guard: #1931's AC 3.5 listed five, and
-"never invent or alter amounts or dates" had none (the only `/invent/` assertion in the file targeted
-`MERGE_SYSTEM_PROMPT`) — the one instruction protecting the single number the model still emits.
+"never invent or alter amounts or dates" had none (the only `/invent/`assertion in the file targeted`MERGE_SYSTEM_PROMPT`) — the one instruction protecting the single number the model still emits.
 
 ## Async writes survive state resets: `ReportWizardPage` has no request-staleness tokens
 
@@ -254,7 +253,7 @@ Two live consequences after #1943's fix:
   false and a use-case change applies with **no discard confirmation**; the result then lands via
   `setAiContent` and `applyAiContent` puts it on the next report. Not symmetric with a source change — the
   request carries `type: useCase` and (post-#1931) a purpose-focused prompt, so the narrative is written for
-  the *wrong report purpose*, not merely the wrong source.
+  the _wrong report purpose_, not merely the wrong source.
 
 **Fix shape:** `const reqRef = useRef(0)` — increment + capture at the top of every handler that starts a
 fetch, bail in `.then`/`.catch` if `reqRef.current !== captured`.
@@ -265,25 +264,25 @@ that failure mode; its `deepLinkAppliedRef` second-order effect was the failure 
 boolean ref. Recommend `useReducer` with `SELECT_USE_CASE` / `SELECT_SOURCE` / `REPORT_LOADED(requestId)`
 so the KEEP list and the staleness guard become structural instead of a code comment.
 
-**Reviewer heuristic, generalizable:** when a fix's remedy is "clear state X", always enumerate *every write
-path into X* — effects re-armed by the cleared value (the deep-link `!report` case), and pending promises
+**Reviewer heuristic, generalizable:** when a fix's remedy is "clear state X", always enumerate _every write
+path into X_ — effects re-armed by the cleared value (the deep-link `!report` case), and pending promises
 that will write X later. The first is usually caught; the second usually isn't.
 
 ## One-shot effect guards: prefer `useRef<string | null>` over `useRef<boolean>`
 
 `deepLinkAppliedRef` (#1943 AC8) is a bare boolean, safe only because `?sourceId=` has exactly one producer
-(`BudgetSourcesPage.tsx:1318`, a `navigate()` from a *different* route, so always a remount) and
+(`BudgetSourcesPage.tsx:1318`, a `navigate()` from a _different_ route, so always a remount) and
 `ReportWizardPage` never calls `setSearchParams`. That fact lives nowhere but a code comment. Storing the
-*applied value* instead of a boolean costs nothing and survives a second same-route producer being added.
+_applied value_ instead of a boolean costs nothing and survives a second same-route producer being added.
 
 Unremarked side benefit worth knowing: the ref also closed a latent pre-existing hazard — when a deep-link
-fetch *failed*, `report` stayed `null`, so any later `overrides`/`aiContent` change re-identified
+fetch _failed_, `report` stayed `null`, so any later `overrides`/`aiContent` change re-identified
 `guardedUpdate` -> `handleSourceChange` -> the effect's deps and silently re-fired the fetch.
 
 ## Cross-reference rot in "documented bound" comments (#1939 / PR #1948)
 
-`client/src/lib/reportPdf/` encodes safety bounds nobody can re-derive from the code, so the *comments are
-the interface*. Three failure modes seen repeatedly there — check all three whenever a review touches a
+`client/src/lib/reportPdf/` encodes safety bounds nobody can re-derive from the code, so the _comments are
+the interface_. Three failure modes seen repeatedly there — check all three whenever a review touches a
 commented constant:
 
 1. **A comment that cites another comment.** `WORST_CASE_CHAR_ADVANCE_EM` said the height ceilings were
@@ -294,7 +293,7 @@ commented constant:
    silently falsified `MAX_SAFE_USAGE_CHUNK_CHARS`'s "'№' ... the widest character found in the scan".
    `grep` for the old basis before accepting the new one.
 3. **A cost figure that describes a change already made.** "Raising this would push the 7-col threshold from
-   19 to 16" — 19 was its value at the *previous* em (0.89); 16 is current. Recompute every quantitative
+   19 to 16" — 19 was its value at the _previous_ em (0.89); 16 is current. Recompute every quantitative
    justification from the constant's present value, don't trust the prose.
 
 **Reviewer move that catches all three cheaply:** recompute the thresholds in `node` across a range of the
@@ -340,3 +339,53 @@ For "did this text node really render N visual lines" assertions in `realRender.
 Caveat when reviewing such a proof: line-count + uniform-gap catches collapse/doubling/per-token reflow,
 but **not** content rewrites that preserve line count. Insist on `expect(node['text']).toBe(input)`
 alongside the count.
+
+## usePreferences has no shared store — and several fixes silently depend on that (#1955, PR #1960)
+
+`usePreferences()` (`client/src/hooks/usePreferences.ts:20`) holds `preferences` in a **private
+`useState` per call site** — no context, no shared cache. Every consumer issues its own
+`GET /api/users/me/preferences` on mount, and `upsert`'s optimistic `setPreferences` (`:67`/`:71`)
+allocates a **fresh array** each time, which re-triggers any effect with `[preferences]` in its deps.
+That echo is the mechanism behind #1955.
+
+Current writers, all disjoint — verify before trusting any "no other writer" claim:
+
+| key                       | writer                        | path                                             |
+| ------------------------- | ----------------------------- | ------------------------------------------------ |
+| `table.<pageKey>.columns` | `useColumnPreferences.ts:115` | via `usePreferences.upsert`                      |
+| `theme`                   | `ThemeContext.tsx:101,133`    | **direct** `upsertPreference`, bypasses the hook |
+| `locale`                  | `LocaleContext.tsx:105,137`   | **direct** `upsertPreference`, bypasses the hook |
+| `dashboard.hiddenCards`   | `DashboardPage.tsx:404,418`   | its own separate `usePreferences()` instance     |
+
+`remove`/`refresh` are exposed but consumed by **no** component; `deletePreference` is only wrapped at
+`preferencesApi.ts:28`. So there is no "reset all preferences" path either.
+
+**The trap:** PR #1960's `localAuthorityKeyRef` guard (ignore all store echoes for a key after the first
+local edit) is only safe _because_ the store is per-instance. Introducing a `PreferencesContext` — an
+attractive refactor, since it would drop the duplicate GETs — would make external writes and `refresh()`
+silently invisible to `useColumnPreferences`, **with no test failing**. If you ever design that store,
+revisit the guard first. Same shape as the forked-function drift entry above: correctness resting on an
+architectural accident nobody wrote down.
+
+Also relevant when reviewing this hook: all six `pageKey`s are string literals used exactly once
+(`vendors`/`users`/`householdItems`/`invoices`/`workItems`/`milestones`), so `preferenceKey` is constant
+per mounted instance and two instances can never contend on one key. That collapses most key-switch and
+cross-instance edge cases — but it is a fact about the six call sites, not an enforced invariant.
+
+## Reviewing a client-side serialized write queue (PR #1960)
+
+The invariant to check in an `isSaving` flag + `while (pending)` drain loop is **where the suspension
+points are**, not the flag logic. If (a) `await` resumption → `while` re-check and (b) loop exit →
+`finally { flag = false }` are each synchronous with no intervening `await`, then there is no window
+where the flag is set but newly-queued work goes unobserved, and none where it is clear while a write is
+in flight. That is the whole proof. Two corollaries worth asserting in review:
+
+- **Debounce + queue does not storm.** The timer still needs a quiet period before any drain fires, and
+  a _replace_-semantics pending slot coalesces bursts, so the ceiling is one write per round-trip. Under
+  a slow network such a queue sends strictly **fewer** requests than independent per-timer sends.
+- **`void asyncFn()` where `asyncFn` catches internally removes an unhandled-rejection path** that a bare
+  `void promise` had. Ask for a `process.on('unhandledRejection')` assertion rather than reasoning about it.
+
+Ordering claims: a client queue genuinely fixes server-side out-of-order application only if the next
+write is not _dispatched_ until the previous response is back (i.e. `await` wraps the HTTP call, not just
+the local state update). Check that, or the fix only narrows the window.
