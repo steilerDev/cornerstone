@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ColumnDef } from '../components/DataTable/DataTable.js';
+import { useToast } from '../components/Toast/ToastContext.js';
 import { usePreferences } from './usePreferences.js';
 
 export interface UseColumnPreferencesResult {
   visibleColumns: Set<string>;
   columnOrder: string[];
-  isLoaded: boolean;
   toggleColumn: (key: string) => void;
   moveColumn: (from: number, to: number) => void;
   resetToDefaults: () => void;
@@ -28,6 +29,8 @@ export function useColumnPreferences<T>(
 ): UseColumnPreferencesResult {
   const preferenceKey = `table.${pageKey}.columns`;
   const { preferences, upsert } = usePreferences();
+  const { t } = useTranslation('common');
+  const { showToast } = useToast();
 
   const defaultColumnOrder = columns.map((col) => col.key);
   const defaultVisibleColumns = new Set(
@@ -37,7 +40,6 @@ export function useColumnPreferences<T>(
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(defaultVisibleColumns);
   const [columnOrder, setColumnOrder] = useState<string[]>(defaultColumnOrder);
 
-  const [isLoaded, setIsLoaded] = useState(false);
   const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Which preference key this hook instance has taken local ownership of.
@@ -99,9 +101,6 @@ export function useColumnPreferences<T>(
         // If JSON parse fails, use defaults
       }
     }
-    /* eslint-disable @eslint-react/set-state-in-effect -- loading and initializing column state from stored preferences */
-    setIsLoaded(true);
-    /* eslint-enable @eslint-react/set-state-in-effect */
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- defaultColumnOrder is derived from columns each render; the load effect runs on preferences change only
   }, [preferences, preferenceKey]);
 
@@ -125,14 +124,13 @@ export function useColumnPreferences<T>(
         try {
           await upsert(preferenceKey, JSON.stringify(payload));
         } catch {
-          // Write failed: drop it, matching the previous `void upsert(...)` behaviour.
-          // `usePreferences` surfaces the error; retry is out of scope.
+          showToast('error', t('dataTable.columnSettings.saveError'));
         }
       }
     } finally {
       isSavingRef.current = false;
     }
-  }, [preferenceKey, upsert]);
+  }, [preferenceKey, upsert, showToast, t]);
 
   const savePreferences = useCallback(
     (newVisible: Set<string>, newOrder: string[]) => {
@@ -192,7 +190,6 @@ export function useColumnPreferences<T>(
   return {
     visibleColumns,
     columnOrder,
-    isLoaded,
     toggleColumn,
     moveColumn,
     resetToDefaults,
