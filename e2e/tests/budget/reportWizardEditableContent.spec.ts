@@ -75,8 +75,9 @@
  * attachments note into ONE read-only grey meta line in the Usage cell. See `ReportWizardPage.ts`'s
  * class docstring for the full locator reference (`sourceInfoBlock`, `depositBadge`/
  * `mobileDepositBadge`, `inlineNote`/`mobileInlineNote`, `usageMetaText`/`mobileUsageMetaText`,
- * `summaryTable`/`summaryTableRows`, and `footnotesBlock`/`footnoteItems` — retained as
- * negative-only guards now that nothing populates `content.footnotes`).
+ * `summaryTable`/`summaryTableRows`, and `footnotesBlock`/`footnoteItems` — zero for
+ * constituted-deposit-only scenarios (Scenario 17), one deduplicated entry for split/
+ * deposit-reduced scenarios (Issue #1965)).
  * - Scenario 16: A `claim` report omits the source-info metadata block entirely (AC3.1) — the
  *   counterpart to Scenario 1's `budget-overview` regression guard (AC3.3).
  * - Scenario 17: A constituted-deposit row (the row's allocation is made up entirely by a
@@ -84,9 +85,10 @@
  *   desktop, tablet, AND mobile, carries NO inline `(partial)`/`(less deposit)` note (nor either
  *   legacy `†`/`‡` glyph), and there is no footnotes block at all (AC2.1, AC2.2).
  * - Scenario 18: Every split invoice carries its OWN inline `(partial)` label in its Allocated
- *   Amount cell (Issue #1959, superseding AC1.1-AC1.2's shared unnumbered `†` marker), and the
- *   footnote list — including the long-form "Amount shown reflects only the portion allocated to
- *   this source." sentence — is gone from the page entirely.
+ *   Amount cell (Issue #1959, superseding AC1.1-AC1.2's shared unnumbered `†` marker). The
+ *   footnote list now contains exactly ONE deduplicated legend sentence ("Amount shown reflects
+ *   only the portion allocated to this source.") pushed by `buildReportContent.ts` because
+ *   `splitInvoiceIds.size > 0` (Issue #1965).
  * - Scenario 19: Invoices spanning two or more statuses still produce exactly one summary row
  *   (`Total`) — no per-status subtotal rows (AC4.1-AC4.2).
  * - Scenario 20: A budget line linked to an item with an assigned area shows the item's leaf
@@ -1620,11 +1622,13 @@ test.describe(
           expect(rowText).not.toContain('‡');
         }
 
-        // No footnote entry at all — no split (B has zero budget lines here), no
-        // deposit-reduced (the deposit IS tagged to B, not "reduced"), the removed
-        // `depositConstitutedFootnote` key ("This is a deposit.") never had a footnote to begin
-        // with even before Story #1923, and as of Issue #1959 nothing populates
-        // `content.footnotes` at all any more.
+        // No footnote entry: this is a constituted-deposit row — the allocation is made up
+        // entirely by a deposit tagged to source B, so `isSplit` is false (only source B has
+        // budget lines; the invoice is not split across sources), and `isDepositReduced` is also
+        // false (the deposit constitutes the row, it does not reduce a gross amount).
+        // `buildReportContent.ts` only pushes legend entries when `splitInvoiceIds.size > 0` or
+        // `depositReducedInvoiceIds.size > 0` — neither condition holds here, so
+        // `content.footnotes` stays empty and the block is absent from the DOM (Issue #1965).
         await expect(wizard.footnotesBlock).toHaveCount(0);
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
@@ -1637,12 +1641,12 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 18: Every split invoice carries its own inline "(partial)" label and there is no
-// footnote list at all (Story #1923 AC1, superseded by Issue #1959)
+// Scenario 18: Split invoices carry an inline "(partial)" label AND produce one deduplicated
+// legend entry in the footnotes block (Issue #1965)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard editable content — inline split label (Scenario 18)', () => {
-  test('Two split invoices each show a grey inline "(partial)" note in their Allocated Amount cell, with no †/‡ marker and no footnote list anywhere on the page', async ({
+  test('Two split invoices each show a grey inline "(partial)" note in their Allocated Amount cell, and produce exactly one deduplicated legend entry in the footnotes block', async ({
     page,
     testPrefix,
   }) => {
@@ -1710,22 +1714,25 @@ test.describe('Report wizard editable content — inline split label (Scenario 1
       await expect(row1).toContainText('€100.00 (partial)');
       await expect(row2).toContainText('€150.00 (partial)');
 
-      // Negatives, each paired with the positives above: neither footnote glyph survives
-      // anywhere in the row (numbered or not), and the footnote list has no producer left — the
-      // block is absent from the DOM entirely rather than merely empty.
+      // Negatives, each paired with the positives above: neither legacy footnote glyph survives
+      // anywhere in the row (numbered or not).
       const row1Text = (await row1.textContent()) ?? '';
       const row2Text = (await row2.textContent()) ?? '';
       expect(row1Text).not.toContain('†');
       expect(row2Text).not.toContain('†');
       expect(row1Text).not.toContain('‡');
       expect(row2Text).not.toContain('‡');
-      await expect(wizard.footnotesBlock).toHaveCount(0);
-      await expect(wizard.footnoteItems).toHaveCount(0);
 
-      // The long-form footnote sentence the marker used to point at is gone from the page too
-      // (it now only exists as the short inline label asserted above).
+      // Issue #1965: `buildReportContent.ts` now pushes ONE deduplicated legend entry to
+      // `content.footnotes` whenever `splitInvoiceIds.size > 0`. Both invoices in this fixture
+      // are split, so the block must be present with exactly 1 item — deduped even though two
+      // rows triggered it.
+      await expect(wizard.footnotesBlock).toHaveCount(1);
+      await expect(wizard.footnoteItems).toHaveCount(1);
+
+      // The long-form legend sentence must be present in the footnote list.
       const pageText = (await page.locator('main').textContent()) ?? '';
-      expect(pageText).not.toContain(
+      expect(pageText).toContain(
         'Amount shown reflects only the portion allocated to this source.',
       );
       expect(pageText).toContain('(partial)');

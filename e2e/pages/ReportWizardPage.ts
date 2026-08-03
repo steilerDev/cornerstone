@@ -205,8 +205,8 @@
  *   `budget-overview`/`proof-of-funds` reports are unaffected (still render it).
  * - The `†` (split) / `‡` (deposit-reduced) markers this story made shared/unnumbered were
  *   REPLACED WHOLESALE by inline labels in Issue #1959 — see that paragraph below. Neither glyph
- *   appears anywhere in the UI or the PDF any more, and `footnotesBlock`/`footnoteItems`
- *   (declared above) consequently have no producer left.
+ *   appears anywhere in the UI or the PDF any more. `footnotesBlock`/`footnoteItems` had no
+ *   producer at this point, but see Issue #1965 below — that changed.
  * - A constituted-deposit row (the allocation is made up entirely by a deposit tagged to the
  *   reported source) carries NO marker/label at all — instead an inline `Badge` (`depositBadge`/
  *   `mobileDepositBadge` below) reading "Deposit"/"Abschlagszahlung". There is correspondingly
@@ -220,11 +220,18 @@
  *   `mobileUsageMetaText()` below (Issue #1959).
  *
  * Issue #1959: report PDF/UI polish — inline meta, inline split/deposit labels, column toggles.
- * - `†`/`‡` markers and the footnote LIST are GONE. `buildReportContent.ts` no longer pushes any
- *   `ReportContentFootnote` at all (`ReportContentRow.allocatedMarkers` was replaced by
- *   `isSplit`/`isDepositReduced` booleans), so `footnotesBlock`/`footnoteItems` are retained
- *   below purely as negative guards — they can never be populated by the current code path, and
- *   any test asserting a marker glyph or footnote `<li>` is asserting a superseded design.
+ * - `†`/`‡` markers and the footnote LIST are GONE at this point. `buildReportContent.ts` no
+ *   longer pushes any `ReportContentFootnote` (`ReportContentRow.allocatedMarkers` was replaced by
+ *   `isSplit`/`isDepositReduced` booleans). `footnotesBlock`/`footnoteItems` were retained as
+ *   negative guards only — until Issue #1965 reinstated the legend (see below).
+ *
+ * Issue #1965: report PDF legend — `buildReportContent.ts` now pushes legend entries for rows
+ *   where `isSplit` or `isDepositReduced` is true, so `footnotesBlock`/`footnoteItems` ARE now
+ *   populated in split/deposit-reduced scenarios. `footnotesBlock` contains the legend block (or
+ *   is absent from the DOM entirely when no split/deposit-reduced rows appear); `footnoteItems`
+ *   are the `<li>` elements inside it, one per deduplicated flag type (so two split invoices
+ *   produce exactly one `<li>` entry, not two). Tests asserting `toHaveCount(1)` on these
+ *   locators reflect the current design and are correct.
  *   Instead, a split row appends a grey inline `<span class*="inlineNote">` reading `(partial)`
  *   (de: `(Teilbetrag)`, `sourceReports.table.splitInlineLabel`) INSIDE the Allocated Amount
  *   cell, and a deposit-reduced row one reading `(less deposit)` (de: `(abzgl. Abschlag)`,
@@ -469,11 +476,14 @@ export class ReportWizardPage {
   // avoids a substring collision).
   readonly summaryTable: Locator;
   readonly summaryTableRows: Locator;
-  // The footnotes block (`.footnotes` / its `<li>` entries). As of Issue #1959 NOTHING populates
-  // `content.footnotes` any more (the `†`/`‡` split + deposit-reduced entries became inline
-  // labels — see `inlineNote()`), so the block is never rendered. Kept purely as a NEGATIVE
-  // guard: a scenario asserting `toHaveCount(0)` / `not.toBeVisible()` here is asserting that
-  // the superseded footnote mechanism has not come back. Never assert a positive count on these.
+  // The footnotes block (`.footnotes` / its `<li>` entries). Issue #1959 replaced the `†`/`‡`
+  // split + deposit-reduced glyphs with inline labels (see `inlineNote()`), but Issue #1965
+  // restored legend population: `buildReportContent.ts` now pushes ONE deduplicated sentence per
+  // active flag (`isSplit` → "Amount shown reflects only the portion allocated to this source.",
+  // `isDepositReduced` → the corresponding deposit-reduced sentence) whenever any row in the
+  // report carries that flag. Scenarios with split or deposit-reduced rows must assert a positive
+  // count; scenarios with neither (e.g., constituted-deposit-only rows — Scenario 17) correctly
+  // assert `toHaveCount(0)`.
   readonly footnotesBlock: Locator;
   readonly footnoteItems: Locator;
 

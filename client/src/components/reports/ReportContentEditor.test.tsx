@@ -938,20 +938,37 @@ describe('ReportContentEditor — summary rows and footnotes', () => {
   it('renders each footnote with its unnumbered/shared marker and text, read-only', () => {
     const content = makeContent({
       footnotes: [
-        { id: 'split', marker: '†', text: 'Amount shown reflects only the portion allocated.' },
         {
-          id: 'deposit-reduced',
-          marker: '‡',
+          id: 'split',
+          marker: 'partial',
+          text: 'Amount shown reflects only the portion allocated to this source.',
+        },
+        {
+          id: 'depositReduced',
+          marker: 'less deposit',
           text: 'This position reflects deposits claimed separately.',
         },
       ],
     });
     renderEditor({ content });
-    expect(screen.getByText('†:')).toBeInTheDocument();
+    expect(screen.getByText('partial:')).toBeInTheDocument();
     expect(
-      screen.getByText(/Amount shown reflects only the portion allocated\./),
+      screen.getByText(/Amount shown reflects only the portion allocated to this source\./),
     ).toBeInTheDocument();
-    expect(screen.getByText('‡:')).toBeInTheDocument();
+    // getByText with a string fails when marker has NBSP: the lib normalizes element text
+    // (NBSP→space) but does NOT normalize the matcher, so ==='less deposit:' always mismatches.
+    // Regex is tested against the already-normalized text, so \s matches the collapsed space.
+    expect(screen.getByText(/^less\sdeposit:$/)).toBeInTheDocument();
+    // Whitespace-parity guard (#1965): the <li>'s combined text must be "partial: Amount shown…" —
+    // marker, a single space, then the note text. jest-dom's toHaveTextContent normalises whitespace
+    // (including NBSP→space) in the element's textContent before comparing, so this catches a
+    // missing space (or extra space) between the <span> and the text node without being fragile to
+    // NBSP, while the independent getByText checks above cannot detect inter-node spacing defects.
+    // Locate via the already-proven marker <span> and walk up to the enclosing <li>.
+    const splitLi = screen.getByText('partial:').closest('li') as HTMLElement;
+    expect(splitLi).toHaveTextContent(
+      'partial: Amount shown reflects only the portion allocated to this source.',
+    );
   });
 
   it('renders no footnotes block when footnotes is empty', () => {
