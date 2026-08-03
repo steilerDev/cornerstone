@@ -397,22 +397,26 @@ export class InvoicesPage {
    * since sortable headers append a " ↑"/" ↓" sort-direction suffix), so this stays
    * correct regardless of column order or how many columns are visible.
    *
-   * The header scan is wrapped in `toPass()` as a defensive backstop: enableColumn()
-   * now awaits its own debounced-save+re-sync cycle before returning (see its
-   * docstring), which closes the main race at the source, but a single unretried
-   * read straight after any React state update is still fragile in principle.
-   * Retrying self-heals without weakening what's actually asserted (the column
-   * must still be found).
+   * The match is case-insensitive because `.tableHeader` applies
+   * `text-transform: uppercase` (DataTable.module.css) — `innerText()` reflects the
+   * browser's RENDERED text, so it returns "REMAINING AMOUNT", not the DOM's
+   * "Remaining Amount". A case-sensitive comparison against the mixed-case label
+   * therefore never matches, deterministically, regardless of timing — confirmed via
+   * a CI trace showing every header-scan attempt across the full retry window
+   * returning the same uppercase value. This is not a race: `toPass()` is kept only
+   * as a defensive backstop for genuine transient re-renders, not because the
+   * original miss was ever transient.
    */
   async getColumnCellText(rowMatchText: string, columnLabel: string): Promise<string> {
     const headers = this.tableContainer.locator('thead th');
+    const normalizedLabel = columnLabel.toUpperCase();
     let columnIndex = -1;
     await expect(async () => {
       const headerCount = await headers.count();
       columnIndex = -1;
       for (let i = 0; i < headerCount; i++) {
-        const text = (await headers.nth(i).innerText()).trim();
-        if (text === columnLabel || text.startsWith(`${columnLabel} `)) {
+        const text = (await headers.nth(i).innerText()).trim().toUpperCase();
+        if (text === normalizedLabel || text.startsWith(`${normalizedLabel} `)) {
           columnIndex = i;
           break;
         }
