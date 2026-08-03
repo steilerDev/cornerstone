@@ -51,6 +51,8 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       usage: 'Usage',
       attachmentsNote: 'Attachments Note',
       deposit: 'Deposit',
+      splitNote: 'partial',
+      depositReducedNote: 'less deposit',
       source: 'Source',
       sourceType: 'Source Type',
       reference: 'Reference',

@@ -78,10 +78,9 @@ import {
   USAGE_WIDTH_7COL,
   USAGE_WIDTH_6COL,
   MAX_SAFE_USAGE_CHUNK_CHARS,
-  MAX_SAFE_SMALL_CHUNK_CHARS,
   HEADER_ROW_HEIGHT_MAX,
-  splitIntoPageSafeChunks,
 } from './overviewPdf.js';
+import type { UsageCellSegment } from './overviewPdf.js';
 
 // ─── Real i18next instance (NOT the app singleton — no localStorage/navigator dependency) ─────
 
@@ -131,11 +130,14 @@ beforeAll(async () => {
 // Crucially, `pdfContent` is passed BY REFERENCE and mutated in place by pdfmake during
 // `getBlob()` — callers keep their own reference to `pdfContent` and read `._calcWidth`/
 // `.positions` off it afterwards.
+// Returns the rendered Blob so callers that need the REAL page count (see the cell-scope
+// invariant block) can load it with pdf-lib without rendering the same tree twice; callers that
+// only need the by-reference layout mutations can ignore the return value.
 async function renderOverviewPdfContent(
   pdfContent: Content[],
   header: { tableTitle: string; sourceName: string },
   t: TFunction,
-): Promise<void> {
+): Promise<Blob> {
   const { pdfMake } = await loadPdfLibs();
   const pdfDoc = pdfMake.createPdf({
     content: pdfContent,
@@ -153,7 +155,7 @@ async function renderOverviewPdfContent(
     defaultStyle: PDF_DEFAULT_STYLE,
     styles: PDF_STYLES,
   });
-  await pdfDoc.getBlob();
+  return pdfDoc.getBlob();
 }
 
 // #1932 (AC 1.2/7.2): renders a cover-letter Content[] tree (no table/header/footer involved,
@@ -277,6 +279,73 @@ function usageCellText(text: unknown): string {
     return (text as { text: string }[]).map((run) => run.text).join('');
   }
   return text as string;
+}
+
+// #1959: `areaText`/`attachmentsNote` are no longer separate continuation rows — they are appended
+// to the SAME Usage cell as the usage prose, as a trailing grey run prefixed with '\n'. Its index
+// within the run array depends on the token count of the usage prose before it (see
+// buildUsageTextRuns), so it must be located by its own grey color, never by a fixed position.
+//
+// #1959 fix round: `packUsageCellRows` packs the cell's WHOLE content stream (prose + grey suffix)
+// against one page-safe budget, so a long suffix now spans SEVERAL rows — one grey run per row,
+// always the last run of its own cell. Reconstructing the suffix therefore means concatenating the
+// grey run of EVERY row in the group, not reading a single cell (see `readCellGroup` below); a
+// helper that only looked at row 0 was what let the old page-count tripwire fail for the wrong
+// reason instead of flipping.
+const META_GREY = '#6b7280';
+
+function splitUsageCell(cell: unknown): {
+  usageText: string;
+  /** Grey suffix exactly as rendered, INCLUDING any leading '\n' — for faithful concatenation. */
+  metaRaw: string | null;
+  /** Grey suffix with the presentational leading '\n' stripped — for single-cell assertions. */
+  metaText: string | null;
+} {
+  const runs = (cell as { text: unknown }).text;
+  if (!Array.isArray(runs)) {
+    return { usageText: runs as string, metaRaw: null, metaText: null };
+  }
+  const typed = runs as { text: string; color?: string }[];
+  const greyIndexes = typed
+    .map((run, i) => (run.color === META_GREY ? i : -1))
+    .filter((i) => i !== -1);
+  // Production emits at most one grey segment per packed row, and always last in the stream — both
+  // properties are relied on when reading these cells back, so assert them rather than assume.
+  if (greyIndexes.length > 1) {
+    throw new Error(`Expected at most ONE grey meta run per Usage cell, got ${greyIndexes.length}`);
+  }
+  const metaIndex = greyIndexes[0];
+  if (metaIndex === undefined) {
+    return { usageText: typed.map((r) => r.text).join(''), metaRaw: null, metaText: null };
+  }
+  if (metaIndex !== typed.length - 1) {
+    throw new Error(`Grey meta run at index ${metaIndex} of ${typed.length} — expected it last`);
+  }
+  const metaRaw = typed[metaIndex]!.text;
+  return {
+    usageText: typed
+      .slice(0, metaIndex)
+      .map((r) => r.text)
+      .join(''),
+    metaRaw,
+    metaText: metaRaw.replace(/^\n/, ''),
+  };
+}
+
+// Locates the single table row whose Vendor cell reads exactly `vendorName`, and returns its Usage
+// cell split into usage prose vs. trailing grey meta text.
+function usageCellForVendor(
+  body: unknown[][],
+  vendorName: string,
+): { usageText: string; metaText: string | null } {
+  const matches = body.filter(
+    (row) => usageCellText((row[0] as { text?: unknown })?.text) === vendorName,
+  );
+  if (matches.length !== 1) {
+    throw new Error(`Expected exactly 1 row for vendor "${vendorName}", found ${matches.length}`);
+  }
+  const row = matches[0]!;
+  return splitUsageCell(row[row.length - 1]);
 }
 
 // ─── Real fixture: one valid embeddable PDF, fetched for the "split with doc" invoice ─────────
@@ -860,32 +929,26 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: unknown[][] } };
 
-        // #1929 round 4: attachmentsNote no longer stacks into the usage row's cell — it renders
-        // as its OWN continuation row, immediately after the invoice's usage row (these fixture
-        // invoices carry no budgetLines, so areaText is null and never renders a row in between).
-        // Look up by vendor name rather than a fixed row index, since row counts now vary with
-        // chunking elsewhere in the table.
-        const singleVendorIndex = tableItem.table.body.findIndex(
-          (r) => usageCellText((r[0] as { text?: unknown })?.text) === 'Single Attach Vendor',
-        );
-        const multiVendorIndex = tableItem.table.body.findIndex(
-          (r) => usageCellText((r[0] as { text?: unknown })?.text) === 'Multi Attach Vendor',
-        );
-        expect(singleVendorIndex).toBeGreaterThan(0);
-        expect(multiVendorIndex).toBeGreaterThan(0);
-
-        const singleNoteRow = tableItem.table.body[singleVendorIndex + 1] as { text?: unknown }[];
-        const multiNoteRow = tableItem.table.body[multiVendorIndex + 1] as { text?: unknown }[];
-        expect(usageCellText(singleNoteRow[singleNoteRow.length - 1]!.text)).toBe(expected.single);
-        expect(usageCellText(multiNoteRow[multiNoteRow.length - 1]!.text)).toBe(expected.multi);
+        // #1959: attachmentsNote no longer gets a continuation row of its own — it is the trailing
+        // grey run of the invoice's OWN Usage cell. These fixture invoices carry no budgetLines, so
+        // areaText is null and the meta run holds the attachment note alone (no ' · ' separator).
+        const single = usageCellForVendor(tableItem.table.body, 'Single Attach Vendor');
+        const multi = usageCellForVendor(tableItem.table.body, 'Multi Attach Vendor');
+        expect(single.metaText).toBe(expected.single);
+        expect(multi.metaText).toBe(expected.multi);
+        // The note is genuinely a SEPARATE grey run, not concatenated into the usage prose — so a
+        // regression that inlined it as plain text would fail here rather than pass silently.
+        expect(single.usageText).not.toContain(expected.single);
+        expect(multi.usageText).not.toContain(expected.multi);
       }
     });
 
-    // Story #1923: the "constituted" deposit case no longer produces a footnote at all — it
-    // renders as an inline, unnumbered Deposit label in the allocated cell (a second run, real
-    // i18next `sourceReports.table.attachmentType.deposit` text). Only the "reduced" case still
-    // produces a footnote, now shared/unnumbered (marker `‡`, no vendor/invoice-number prefix).
-    it('renders the real, unnumbered "constituted" Deposit inline label and the real, shared, unnumbered "reduced" footnote in both locales', async () => {
+    // Story #1923 made the "constituted" deposit case an inline, unnumbered Deposit label in the
+    // allocated cell instead of a footnote. #1959 does the same for the remaining two annotations:
+    // the split (`†`) and deposit-reduced (`‡`) FOOTNOTES are gone entirely — buildReportContent
+    // now emits `footnotes: []` and the two cases render as inline grey labels appended to the same
+    // allocated cell, from the real i18next `splitInlineLabel`/`depositReducedInlineLabel` keys.
+    it('#1959: renders the real inline Deposit / split / deposit-reduced labels in the allocated cell — and emits NO † or ‡ footnote anywhere — in both locales', async () => {
       const { buildOverviewContent } = await import('./overviewPdf.js');
       const report = makeUsageFeatureReport();
       const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
@@ -896,7 +959,13 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           formattersFor('en-US'),
           {
             depositLabel: ' (Deposit)',
-            reducedFootnote: '‡: This position reflects deposits claimed separately.',
+            depositReducedLabel: ' (less deposit)',
+            splitLabel: ' (partial)',
+            // The footnote WORDINGS that must no longer appear anywhere in the tree.
+            goneFootnotes: [
+              'This position reflects deposits claimed separately.',
+              'This is a deposit',
+            ],
           },
         ],
         [
@@ -904,8 +973,12 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           formattersFor('de-DE'),
           {
             depositLabel: ' (Abschlagszahlung)',
-            reducedFootnote:
-              '‡: Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.',
+            depositReducedLabel: ' (abzgl. Abschlag)',
+            splitLabel: ' (Teilbetrag)',
+            goneFootnotes: [
+              'Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.',
+              'Dies ist eine Abschlagszahlung',
+            ],
           },
         ],
       ] as const) {
@@ -922,27 +995,79 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         const reducedRow = content.rows.find((r) => r.invoiceId === 'inv-deposit-reduced')!;
         expect(reducedRow.isDeposit).toBe(false);
         expect(reducedRow.isDepositReduced).toBe(true);
+        // #1959: the footnote array is empty — the annotations no longer live there at all.
+        expect(content.footnotes).toEqual([]);
 
         const pdfContent = buildOverviewContent(content, new Map(), t);
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: unknown[][] } };
-        // #1929 round 3: Vendor cell `.text` is now always a run array (buildUsageTextRuns applied
-        // to Vendor, HIGH1) — reconstruct before comparing.
-        const constitutedRowCells = tableItem.table.body.find(
-          (row) => usageCellText((row[0] as { text?: unknown })?.text) === 'Constituted Vendor',
-        ) as { text: unknown | { text: string }[] }[];
-        const allocatedCell = constitutedRowCells[4] as { text: { text: string }[] };
-        expect(Array.isArray(allocatedCell.text)).toBe(true);
-        expect(allocatedCell.text[1]!.text).toBe(expected.depositLabel);
 
-        const notesStack = pdfContent[pdfContent.length - 1] as { stack: { text: string }[] };
-        const texts = notesStack.stack.map((n) => n.text);
-        expect(texts).toContain(expected.reducedFootnote);
-        // No "constituted" wording (footnote form) survives anywhere — it moved to the inline
-        // label above, and the deposit-constituted footnote key/string no longer exists at all.
-        expect(texts.some((text) => text.includes('This is a deposit'))).toBe(false);
-        expect(texts.some((text) => text.includes('Dies ist eine Abschlagszahlung'))).toBe(false);
+        // Helper: the allocated cell's runs for the row whose Vendor cell matches. #1929 round 3:
+        // Vendor cell `.text` is always a run array (buildUsageTextRuns applied to Vendor, HIGH1).
+        const allocatedRunsFor = (vendor: string): { text: string }[] => {
+          const cells = tableItem.table.body.find(
+            (row) => usageCellText((row[0] as { text?: unknown })?.text) === vendor,
+          ) as { text: unknown }[];
+          const cell = cells[4] as { text: { text: string }[] };
+          expect(Array.isArray(cell.text)).toBe(true);
+          return cell.text;
+        };
+
+        // Constituted deposit → inline Deposit label as the run right after the amount.
+        expect(allocatedRunsFor('Constituted Vendor')[1]!.text).toBe(expected.depositLabel);
+
+        // #1959: deposit-reduced → inline grey label in the SAME cell (was the `‡` footnote).
+        const reducedRuns = allocatedRunsFor('Reduced Vendor');
+        expect(reducedRuns.map((r) => r.text)).toContain(expected.depositReducedLabel);
+        expect(reducedRuns[0]!.text).not.toContain('‡');
+
+        // #1959: no `†`/`‡` marker and none of the removed footnote wordings survive ANYWHERE in
+        // the rendered content tree (table cells, footnote stack, headers — the whole thing).
+        const allStrings = collectAllStrings(pdfContent);
+        // Positive control first: the inline labels ARE in this same collected set, proving the
+        // collector actually sees the annotation text before we assert the markers' absence.
+        expect(allStrings.some((s) => s.includes(expected.depositLabel.trim()))).toBe(true);
+        expect(allStrings.some((s) => s.includes(expected.depositReducedLabel.trim()))).toBe(true);
+        expect(allStrings.some((s) => s.includes('†'))).toBe(false);
+        expect(allStrings.some((s) => s.includes('‡'))).toBe(false);
+        for (const gone of expected.goneFootnotes) {
+          expect(allStrings.some((s) => s.includes(gone))).toBe(false);
+        }
+      }
+    });
+
+    it('#1959: a split invoice renders the inline split label in its allocated cell instead of a † marker (both locales)', async () => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const { report, includedIds } = await makeMixedReport();
+
+      for (const [t, formatters, splitLabel] of [
+        [tEn, formattersFor('en-US'), ' (partial)'],
+        [tDe, formattersFor('de-DE'), ' (Teilbetrag)'],
+      ] as const) {
+        const content = buildReportContent(report, includedIds, 'claim', t, formatters, {
+          includeCoverLetter: false,
+          household: null,
+        });
+        const splitRows = content.rows.filter((r) => r.isSplit);
+        expect(splitRows.length).toBeGreaterThan(0); // the fixture really does contain split rows
+
+        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const tableItem = pdfContent.find(
+          (c) => typeof c === 'object' && c !== null && 'table' in c,
+        ) as { table: { body: unknown[][] } };
+
+        for (const splitRow of splitRows) {
+          const cells = tableItem.table.body.find(
+            (row) =>
+              usageCellText((row[0] as { text?: unknown })?.text) === splitRow.vendor &&
+              usageCellText((row[1] as { text?: unknown })?.text) === splitRow.invoiceNumber,
+          ) as { text: unknown }[];
+          const runs = (cells[4] as { text: { text: string }[] }).text;
+          expect(runs.map((r) => r.text)).toContain(splitLabel);
+        }
+
+        expect(collectAllStrings(pdfContent).some((s) => s.includes('†'))).toBe(false);
       }
     });
   });
@@ -1134,7 +1259,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     // Content[] string) — guarding against a future change reflowing the body into per-token
     // inline runs (the #1929 wordBreak technique used elsewhere in reportPdf/), which would
     // silently destroy \n handling if ever applied here.
-    it('AC 1.2/7.2: a multi-paragraph body with an internal blank line renders as one visual line per explicit line/blank-line, in order, at uniform line height', async () => {
+    it('#1959 (supersedes AC 1.2/7.2 single-block shape): a body with a blank line becomes TWO separate paragraph blocks, in order, each keeping its own internal single-newline breaks', async () => {
       const { buildCoverLetterContent } = await import('./coverLetterPdf.js');
       const { report, includedIds } = await makeMixedReport();
       const formatters = formattersFor('en-US');
@@ -1144,39 +1269,88 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       });
       // Deliberately short lines (well under the ~515pt printable width at 11pt) so word-wrap
       // never adds an extra visual line beyond the explicit \n boundaries — the only thing under
-      // test is whether explicit line/blank-line structure survives, not wrapping behaviour.
-      const body =
-        'First paragraph, line one.\nFirst paragraph, line two.\n\nSecond paragraph, one line.';
+      // test is whether explicit line/paragraph structure survives, not wrapping behaviour.
+      const para1 = 'First paragraph, line one.\nFirst paragraph, line two.';
+      const para2 = 'Second paragraph, one line.';
+      const body = `${para1}\n\n${para2}`;
       const overrides: ReportContentOverrides = { 'coverLetter.body': body };
       const effective = applyOverrides(baseline, overrides);
 
       const pdfContent = buildCoverLetterContent(effective, tEn);
-      const bodyItem = findBodyItem(pdfContent, 'First paragraph, line one.');
-      // Residual gap the architect flagged: line-count + spacing alone don't rule out a rewrite
-      // that alters the TEXT while preserving both (e.g. a per-token reflow that reassembles the
-      // same number of lines from different words). Pin the exact source text too — same pattern
-      // as the sibling AC 1.3 test below.
-      expect(bodyItem['text']).toBe(body);
+
+      // #1959: the double newline is a PARAGRAPH boundary — the body is emitted as two sibling
+      // blocks, never one node whose text still contains '\n\n'.
+      const item1 = findBodyItem(pdfContent, 'First paragraph, line one.');
+      const item2 = findBodyItem(pdfContent, 'Second paragraph, one line.');
+      expect(item1).not.toBe(item2);
+      // Exact text per block pins the split boundary: a wrong split (or a per-token reflow that
+      // preserved line counts but altered the words) fails here.
+      expect(item1['text']).toBe(para1);
+      expect(item2['text']).toBe(para2);
+      // No surviving node still carries the raw '\n\n' — that is the bug this change fixed.
+      expect(collectAllStrings(pdfContent).some((s) => s.includes('\n\n'))).toBe(false);
+      // Document order: paragraph 1 precedes paragraph 2 in the content array.
+      expect(pdfContent.indexOf(item1 as unknown as Content)).toBeLessThan(
+        pdfContent.indexOf(item2 as unknown as Content),
+      );
+      // Inter-paragraph spacing: the first (non-final) paragraph carries the 8pt trailing margin,
+      // the last carries 32pt — this is what makes the paragraph break visible on the page.
+      expect(item1['margin']).toEqual([0, 0, 0, 8]);
+      expect(item2['margin']).toEqual([0, 0, 0, 32]);
 
       await renderCoverLetterPdfContent(pdfContent);
 
-      // 4 explicit segments: "line one.", "line two.", "" (the blank line), "one line." — each
-      // must resolve to exactly one rendered visual line (none of them wraps).
-      expect(linesRenderedFor(bodyItem)).toBe(4);
+      // Real resolved layout: para1's own single newline still produces 2 visual lines; para2
+      // produces 1. The blank line is now spacing between blocks, NOT a rendered empty line — so
+      // the old single-node "4 lines" count is exactly what must no longer happen.
+      expect(linesRenderedFor(item1)).toBe(2);
+      expect(linesRenderedFor(item2)).toBe(1);
       // The real render must not have rewritten `.text` either (pdfmake only ever ADDS derived
       // measurement/position properties to a text node, per the AC 1.3 test's own comment).
-      expect(bodyItem['text']).toBe(body);
+      expect(item1['text']).toBe(para1);
+      expect(item2['text']).toBe(para2);
 
-      const positions = bodyItem['positions'] as { top: number }[];
-      const gaps = positions.slice(1).map((p, i) => p.top - positions[i]!.top);
-      // All 3 gaps (line1->line2, line2->blank, blank->line3) are the SAME line-height increment
-      // — the blank line contributes exactly one ordinary line's worth of vertical space, neither
-      // collapsed to zero (which would make the blank->line3 gap ~0) nor doubled (which would
-      // make either surrounding gap ~2x the others).
-      for (const gap of gaps) {
-        expect(gap).toBeCloseTo(gaps[0]!, 1);
-      }
-      expect(gaps[0]!).toBeGreaterThan(0);
+      // Within para1, its two lines sit exactly one line-height apart...
+      const p1 = item1['positions'] as { top: number }[];
+      const intraGap = p1[1]!.top - p1[0]!.top;
+      expect(intraGap).toBeGreaterThan(0);
+      // ...and the gap ACROSS the paragraph boundary is strictly larger than that, by the 8pt
+      // margin — the assertion that actually proves the paragraph break is visible rather than
+      // merely structural.
+      const p2 = item2['positions'] as { top: number }[];
+      const interGap = p2[0]!.top - p1[1]!.top;
+      expect(interGap).toBeGreaterThan(intraGap);
+      expect(interGap - intraGap).toBeCloseTo(8, 0);
+    });
+
+    it('#1959: a single-paragraph body (no blank line) still renders as exactly ONE block with the 32pt trailing margin', async () => {
+      const { buildCoverLetterContent } = await import('./coverLetterPdf.js');
+      const { report, includedIds } = await makeMixedReport();
+      const formatters = formattersFor('en-US');
+      const baseline = buildReportContent(report, includedIds, 'claim', tEn, formatters, {
+        includeCoverLetter: true,
+        household,
+      });
+      // Two lines, ONE paragraph — a single newline must NOT be treated as a paragraph boundary.
+      const body = 'Only paragraph, line one.\nOnly paragraph, line two.';
+      const effective = applyOverrides(baseline, { 'coverLetter.body': body });
+
+      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const matching = pdfContent.filter(
+        (c) =>
+          typeof c === 'object' &&
+          c !== null &&
+          typeof (c as { text?: unknown }).text === 'string' &&
+          (c as { text: string }).text.includes('Only paragraph'),
+      );
+      expect(matching).toHaveLength(1);
+      const item = matching[0] as unknown as Record<string, unknown>;
+      expect(item['text']).toBe(body);
+      expect(item['margin']).toEqual([0, 0, 0, 32]);
+
+      await renderCoverLetterPdfContent(pdfContent);
+      // The single newline still yields two visual lines inside the one block.
+      expect(linesRenderedFor(item)).toBe(2);
     });
 
     // ─── #1932 AC 1.3: markup-looking characters reach the real render literally, unparsed ─────
@@ -2110,7 +2284,8 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         statusText: null,
         invoiceAmountText: '€100.00',
         allocatedAmountValueText: '€100.00',
-        allocatedMarkers: '',
+        isSplit: false,
+        isDepositReduced: false,
         isDeposit: false,
         isRefund: false,
         refundNoteText: '',
@@ -2133,6 +2308,8 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           usage: 'Usage',
           attachmentsNote: 'Attachments',
           deposit: 'Deposit',
+          splitNote: 'partial',
+          depositReducedNote: 'less deposit',
           source: 'Source',
           sourceType: 'Source Type',
           reference: 'Reference',
@@ -2151,104 +2328,147 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       };
     }
 
-    // Renders `rowOverrides` as the sole content row and returns the resolved table, split into
-    // [usageRows, areaRows, noteRows, summaryRow] by EXPECTED chunk count (derived from the same
-    // splitIntoPageSafeChunks the production code itself uses, not a re-guessed row count) — this
-    // is what lets the assertions below prove reconstruction PER FIELD, not just "some text
-    // somewhere in the tree" (which round 3's own bug would have passed, since the dropped
-    // content's row simply never rendered at all — a shorter body, not corrupted content).
+    // The Usage-cell content stream production builds for a row, mirrored here so the expected row
+    // count can be derived from `packUsageCellRows` — the SAME packer production uses — instead of
+    // from `usageText` alone.
+    //
+    // Why this matters (fix-round regression): the previous version of this helper derived the
+    // expected row count from `splitIntoPageSafeChunks(usageText)`, i.e. it hard-coded the very
+    // assumption the bug lived in — "the grey meta suffix never adds rows". Any correct fix MUST
+    // add rows (16,000 characters of suffix cannot fit one page-safe row), so the helper threw on
+    // its own row-count assertion before the test reached its page-count assertion. The
+    // `it.failing` tripwire below then stayed green for the wrong reason. Deriving from the packer
+    // keeps the helper honest about row COUNT while the per-test assertions below prove the
+    // page-safety bound and losslessness against the INPUT, not against the packer.
+    function cellSegmentsFor(row: ReportContentRow): UsageCellSegment[] {
+      const metaPieces: string[] = [];
+      if (row.areaText) metaPieces.push(row.areaText);
+      if (row.attachmentsNote) metaPieces.push(row.attachmentsNote);
+      const segments: UsageCellSegment[] = [{ text: row.usageText }];
+      if (metaPieces.length > 0) {
+        segments.push({ text: `\n${metaPieces.join(' · ')}`, meta: true });
+      }
+      return segments;
+    }
+
+    // Renders `rowOverrides` as the sole content row through the real, unmocked pdfmake pipeline
+    // and returns everything needed to prove content survival PER CHANNEL.
     async function renderCellScopeRow(rowOverrides: Partial<ReportContentRow>): Promise<{
-      usageRows: unknown[][];
-      areaRows: unknown[][];
-      noteRows: unknown[][];
-      totalDataRows: number;
+      /** Every data row of the group: the first (with leading/amount cells) plus continuations. */
+      dataRows: unknown[][];
+      /** Usage prose reconstructed across ALL rows, excluding every grey suffix piece. */
+      usageText: string;
+      /** Grey suffix reconstructed across ALL rows, leading '\n' stripped. Null when absent. */
+      metaText: string | null;
+      /** Indexes (within dataRows) of the rows carrying a grey suffix piece. */
+      metaRowIndexes: number[];
+      /** Per-row rendered character count of the Usage cell — the packed page-safety budget. */
+      perRowCharCounts: number[];
+      /** Real page count of the rendered PDF. */
+      pageCount: number;
     }> {
-      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const { buildOverviewContent, packUsageCellRows } = await import('./overviewPdf.js');
       const content = makeCellScopeContent(rowOverrides);
       const row = content.rows[0]!;
       const pdfContent = buildOverviewContent(content, new Map(), tEn);
-      await renderOverviewPdfContent(
+      const blob = await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
         tEn,
       );
       const tableItem = findTableItem(pdfContent);
 
-      const usageChunkCount = splitIntoPageSafeChunks(
-        row.usageText,
+      const packedRowCount = packUsageCellRows(
+        cellSegmentsFor(row),
         MAX_SAFE_USAGE_CHUNK_CHARS,
       ).length;
-      const areaChunkCount = row.areaText
-        ? splitIntoPageSafeChunks(row.areaText, MAX_SAFE_SMALL_CHUNK_CHARS).length
-        : 0;
-      const noteChunkCount = row.attachmentsNote
-        ? splitIntoPageSafeChunks(row.attachmentsNote, MAX_SAFE_SMALL_CHUNK_CHARS).length
-        : 0;
-      const totalDataRows = usageChunkCount + areaChunkCount + noteChunkCount;
 
-      // header (1) + totalDataRows + summary (1) — if this length check fails, a row was
+      // header (1) + packedRowCount + summary (1) — if this length check fails, a row was
       // SILENTLY DROPPED (round 3's exact failure mode: the row that couldn't fit the page never
       // rendered at all, rather than throwing or visibly truncating).
-      expect(tableItem.table.body).toHaveLength(1 + totalDataRows + 1);
+      expect(tableItem.table.body).toHaveLength(1 + packedRowCount + 1);
 
-      const dataRows = tableItem.table.body.slice(1, 1 + totalDataRows) as unknown[][];
+      const dataRows = tableItem.table.body.slice(1, 1 + packedRowCount) as unknown[][];
+      const parts = dataRows.map((r) => splitUsageCell(r[r.length - 1]));
+      const metaRaw = parts.map((p) => p.metaRaw ?? '').join('');
+      const pdfDoc = await PDFDocument.load(await blob.arrayBuffer());
       return {
-        usageRows: dataRows.slice(0, usageChunkCount),
-        areaRows: dataRows.slice(usageChunkCount, usageChunkCount + areaChunkCount),
-        noteRows: dataRows.slice(usageChunkCount + areaChunkCount),
-        totalDataRows,
+        dataRows,
+        usageText: parts.map((p) => p.usageText).join(''),
+        metaText: parts.some((p) => p.metaRaw !== null) ? metaRaw.replace(/^\n/, '') : null,
+        metaRowIndexes: parts.flatMap((p, i) => (p.metaRaw !== null ? [i] : [])),
+        perRowCharCounts: parts.map((p) => p.usageText.length + (p.metaRaw?.length ?? 0)),
+        pageCount: pdfDoc.getPageCount(),
       };
     }
 
-    function reconstructUsageColumn(rows: unknown[][]): string {
-      return rows
-        .map((r) => usageCellText((r[r.length - 1] as { text?: unknown })?.text ?? ''))
-        .join('');
+    // The invariant that actually makes every emitted row page-safe under `dontBreakRows: true`:
+    // NO row's Usage cell may exceed the one packed character budget. Asserted against the
+    // constant, not against the packer's own output, so a packer regression cannot satisfy it.
+    function expectEveryRowWithinPageSafeBudget(perRowCharCounts: number[]): void {
+      expect(perRowCharCounts.length).toBeGreaterThan(0);
+      for (const count of perRowCharCounts) {
+        expect(count).toBeLessThanOrEqual(MAX_SAFE_USAGE_CHUNK_CHARS);
+      }
     }
 
-    it('[architect-measured case: usageText 700 + attachmentsNote 400 = 665.8pt] every character of BOTH fields is recoverable — the exact combination round 3 silently dropped', async () => {
-      const usageText = proseOfLength(700);
+    it('[architect-measured case: usageText 700 + attachmentsNote 400] every character of BOTH channels is recoverable, every row stays within the page-safe budget, and the suffix lands on the LAST row', async () => {
+      const usage = proseOfLength(700);
       const attachmentsNote = proseOfLength(400);
-      expect(usageText.length).toBe(700);
+      expect(usage.length).toBe(700);
       expect(attachmentsNote.length).toBe(400);
 
-      const { usageRows, areaRows, noteRows } = await renderCellScopeRow({
-        usageText,
-        attachmentsNote,
-      });
-      expect(areaRows).toHaveLength(0);
-      expect(usageRows.length).toBeGreaterThan(1); // 700 > MAX_SAFE_USAGE_CHUNK_CHARS (650)
-      expect(reconstructUsageColumn(usageRows)).toBe(usageText);
-      expect(reconstructUsageColumn(noteRows)).toBe(attachmentsNote);
+      const { dataRows, usageText, metaText, metaRowIndexes, perRowCharCounts } =
+        await renderCellScopeRow({ usageText: usage, attachmentsNote });
+
+      // 700 + 401 = 1101 characters cannot fit one 650-char page-safe row, so the fix MUST add a
+      // row here — the pre-fix code emitted the suffix on row 0 regardless of the combined size.
+      expect(dataRows.length).toBeGreaterThan(1);
+      // I1 losslessness, asserted against the INPUTS (not against the packer).
+      expect(usageText).toBe(usage);
+      expect(metaText).toBe(attachmentsNote); // no areaText, so no ' · ' separator
+      expectEveryRowWithinPageSafeBudget(perRowCharCounts);
+      // #1959 fix-round placement rule: the suffix trails the prose, so its last piece sits on the
+      // LAST row of the group — never mid-prose with more usage text below it.
+      expect(Math.max(...metaRowIndexes)).toBe(dataRows.length - 1);
     });
 
-    it('[architect-measured case: usageText 700 + 20-leaf-area areaText = 691.0pt] every character of BOTH fields is recoverable, including the aggregate-unbounded areaText', async () => {
-      const usageText = proseOfLength(700);
+    it('[architect-measured case: usageText 700 + 20-leaf-area areaText] every character of BOTH channels is recoverable across the several rows the aggregate-unbounded areaText now spans', async () => {
+      const usage = proseOfLength(700);
       const areaText = twentyLeafAreaText();
-      expect(usageText.length).toBe(700);
+      expect(usage.length).toBe(700);
       expect(areaText.length).toBeGreaterThan(600); // genuinely long — 20 leaf areas, not a stub
 
-      const { usageRows, areaRows, noteRows } = await renderCellScopeRow({
-        usageText,
-        areaText,
-      });
-      expect(noteRows).toHaveLength(0);
-      expect(reconstructUsageColumn(usageRows)).toBe(usageText);
-      expect(reconstructUsageColumn(areaRows)).toBe(areaText);
+      const { dataRows, usageText, metaText, metaRowIndexes, perRowCharCounts } =
+        await renderCellScopeRow({ usageText: usage, areaText });
+
+      expect(usageText).toBe(usage);
+      expect(metaText).toBe(areaText);
+      expectEveryRowWithinPageSafeBudget(perRowCharCounts);
+      // This areaText alone is ~5.8x a page-safe row, so the suffix genuinely spans SEVERAL rows —
+      // the case the pre-fix code crammed into one unbreakable row and then lost.
+      expect(metaRowIndexes.length).toBeGreaterThan(1);
+      expect(Math.max(...metaRowIndexes)).toBe(dataRows.length - 1);
     });
 
     it('[architect-measured case: attachmentsNote 2000 alone = 1119.4pt] every character is recoverable, AND the real page count reflects genuine multi-page need — the direct negation of "rows needing 9 pages rendered as 2"', async () => {
       const attachmentsNote = proseOfLength(2000);
       expect(attachmentsNote.length).toBe(2000);
 
-      const { usageRows, areaRows, noteRows } = await renderCellScopeRow({
-        usageText: 'x', // trivial — isolates attachmentsNote as the sole large field
-        attachmentsNote,
-      });
-      expect(areaRows).toHaveLength(0);
-      expect(usageRows).toHaveLength(1);
-      expect(noteRows.length).toBeGreaterThan(1); // 2000 >> MAX_SAFE_SMALL_CHUNK_CHARS (450)
-      expect(reconstructUsageColumn(noteRows)).toBe(attachmentsNote);
+      const { dataRows, usageText, metaText, metaRowIndexes, perRowCharCounts } =
+        await renderCellScopeRow({
+          usageText: 'x', // trivial — isolates attachmentsNote as the sole large field
+          attachmentsNote,
+        });
+      // A trivial usageText contributes nothing, so the row count is driven entirely by the
+      // suffix: 2001 characters over a 650-char budget genuinely needs several rows. The pre-fix
+      // code emitted ONE row here and pdfmake discarded most of it.
+      expect(dataRows.length).toBeGreaterThan(1);
+      expect(usageText).toBe('x');
+      // Every character of the 2000-char note is recoverable across those rows.
+      expect(metaText).toBe(attachmentsNote);
+      expectEveryRowWithinPageSafeBudget(perRowCharCounts);
+      expect(Math.max(...metaRowIndexes)).toBe(dataRows.length - 1);
 
       // Page-count saturation was the architect's own tell for the silent drop (a row needing 9
       // pages rendered as 2 under round 3). 1119.4pt of attachmentsNote ALONE, at the architect's
@@ -2280,6 +2500,92 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const pdfDoc = await PDFDocument.load(await result.blob.arrayBuffer());
       expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(2);
     });
+
+    // ─── #1959: page-count saturation regression guard (was the OPEN DEFECT tripwire) ───────────
+    //
+    // The three tests below are a matched set, and must be read together. They assert against
+    // RENDERED OUTPUT (real page counts), deliberately, because the sibling tests above inspect the
+    // pdfmake content tree — and the content tree is exactly where the dropped text still LOOKED
+    // present while the reader received a truncated PDF. Tree-level assertions cannot see this
+    // class of bug at all; only page count can.
+    //
+    // History. #1929 round 4 bounded every row's Usage-cell height by giving
+    // `areaText`/`attachmentsNote` continuation rows of their own. #1959 moved them inline into the
+    // usage cell as a single UNCHUNKED grey run, which re-opened round 4's failure mode: since
+    // `dontBreakRows: true` does not paginate an over-tall row (it silently drops whatever does not
+    // fit — #1929 architect review HIGH 4), and neither field has a maxLength anywhere (editor or
+    // server) while `areaText` is aggregate-unbounded across N leaf areas, ordinary user data could
+    // silently lose pages. MEASURED before the fix, real unmocked renders, 6-column shape:
+    //
+    //   usageText (chunked):  2000ch -> 6 rows / 2 pages    attachmentsNote (inline, pre-fix):
+    //                         4000ch -> 9 rows / 3 pages      2000ch -> 3 rows / 3 pages
+    //                         8000ch -> 15 rows / 5 pages     4000ch -> 3 rows / 2 pages  <- FEWER
+    //                        16000ch -> 27 rows / 9 pages     8000ch -> 3 rows / 2 pages     pages
+    //                                                        16000ch -> 3 rows / 2 pages  <- for
+    //                                                                        MORE content
+    //
+    // `packUsageCellRows` now packs the cell's WHOLE content stream against one budget, so the
+    // suffix channel tracks the usage channel: 16000ch -> 25 suffix rows / 9 pages. The guard below
+    // was an `it.failing` tripwire while the defect was open; production is fixed, so it is a
+    // normal test again. If it ever needs `.failing` back, that is a regression, not a maintenance
+    // step — fix production instead.
+
+    // Positive control: proves the page-count measurement itself is sound, by showing that content
+    // which was never affected (usageText) drives a strictly growing page count over the same size
+    // range. Without this, a saturating page count could be blamed on the measurement.
+    it('control: page count grows strictly with content in the usage channel, proving the page-count measurement is sound', async () => {
+      const counts: number[] = [];
+      for (const length of [2000, 8000, 16000]) {
+        const { pageCount, dataRows } = await renderCellScopeRow({
+          usageText: proseOfLength(length),
+        });
+        expect(dataRows.length).toBeGreaterThan(1);
+        counts.push(pageCount);
+      }
+      // Strictly increasing: 2000 -> 8000 -> 16000 characters each need materially more paper.
+      expect(counts[1]!).toBeGreaterThan(counts[0]!);
+      expect(counts[2]!).toBeGreaterThan(counts[1]!);
+      // And the largest case genuinely needs many pages, not just "more than one".
+      expect(counts[2]!).toBeGreaterThanOrEqual(8);
+    }, 180000);
+
+    it('an unbounded inline attachmentsNote must not saturate the page count — 16,000 characters needs the same ~9 pages it needs as chunked usageText (regression guard for the #1959 silent drop)', async () => {
+      const attachmentsNote = proseOfLength(16000);
+      const { pageCount, dataRows, metaText } = await renderCellScopeRow({
+        usageText: 'x',
+        attachmentsNote,
+      });
+      // The suffix is now packed across many rows rather than crammed into one unbreakable row.
+      expect(dataRows.length).toBeGreaterThan(1);
+      // ...and not one character was traded away for that pagination.
+      expect(metaText).toBe(attachmentsNote);
+      // The same 16,000 characters need 9 pages in the usage channel (see the control above).
+      // Anything close to 2 means pdfmake measured the text and then discarded most of it.
+      expect(pageCount).toBeGreaterThanOrEqual(8);
+    }, 180000);
+
+    // The sharpest formulation of the invariant, and the one that needs no calibrated threshold:
+    // the SAME text must cost the SAME paper regardless of which channel carries it. Pre-fix this
+    // failed spectacularly (9 pages vs 2 at 16,000 characters); it is also immune to future layout
+    // tuning, since both sides move together.
+    it.each([2000, 8000, 16000])(
+      'page count is channel-independent: %i characters costs the same number of pages via attachmentsNote as via usageText',
+      async (length) => {
+        const text = proseOfLength(length);
+        const viaUsage = await renderCellScopeRow({ usageText: text });
+        const viaNote = await renderCellScopeRow({ usageText: 'x', attachmentsNote: text });
+
+        // Both channels round-trip their content losslessly first — otherwise "same page count"
+        // could be satisfied by both channels dropping the same amount.
+        expect(viaUsage.usageText).toBe(text);
+        expect(viaNote.metaText).toBe(text);
+        // The paper cost matches. (Row counts differ by at most one: the suffix carries a leading
+        // '\n' and shares row 0 with the placeholder 'x'.)
+        expect(viaNote.pageCount).toBe(viaUsage.pageCount);
+        expect(Math.abs(viaNote.dataRows.length - viaUsage.dataRows.length)).toBeLessThanOrEqual(1);
+      },
+      300000,
+    );
   });
 
   // ─── #1929 round 2: AC13 header-band smoke test (scenario 20) ─────────────────────────────────

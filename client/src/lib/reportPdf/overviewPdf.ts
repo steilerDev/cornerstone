@@ -14,7 +14,6 @@ import {
 import {
   TABLE_BODY_FONT_SIZE,
   TABLE_HEADER_FONT_SIZE,
-  TABLE_SMALL_FONT_SIZE,
   DEFAULT_LINE_HEIGHT,
   usableColumnWidth,
 } from './pageGeometry.js';
@@ -78,26 +77,26 @@ export const USAGE_WIDTH_6COL = usableColumnWidth(6) - USAGE_FIXED_SUM_6COL; // 
  * in this table (every column is an explicit numeric width — see USAGE_FIXED_SUM_* above), an
  * under-flagged token can only paint outside its own cell's bounds — it can no longer widen the
  * table itself, which is the failure this constant exists to prevent. (2) MAX_SAFE_USAGE_CHUNK_CHARS
- * and MAX_SAFE_SMALL_CHUNK_CHARS were pinned by DIRECT MEASUREMENT against a real render, not
+ * was pinned by DIRECT MEASUREMENT against a real render, not
  * derived algebraically from this em value — but that measurement used `№` (the widest character
- * the pre-#1939, 124-character scan had found), not `Ѹ`: they sit 7.7% below their measured
- * `№`-fill ceiling of 704 characters, and 17.6% below their measured `№`-fill ceiling of 546
- * characters, respectively (denominator in both cases: that constant's own measured ceiling — see
- * MAX_SAFE_USAGE_CHUNK_CHARS's and MAX_SAFE_SMALL_CHUNK_CHARS's comments). Those percentages are
- * margins against `№`, not against `Ѹ` — re-rendering with a `Ѹ` fill (narrower per-line character
+ * the pre-#1939, 124-character scan had found), not `Ѹ`: it sits 7.7% below its measured
+ * `№`-fill ceiling of 704 characters
+ * (denominator: that constant's own measured ceiling — see
+ * MAX_SAFE_USAGE_CHUNK_CHARS's comment). That percentage is a
+ * margin against `№`, not against `Ѹ` — re-rendering with a `Ѹ` fill (narrower per-line character
  * count, since `Ѹ` is wider) has not been done, so no percentage margin against `Ѹ` is claimed
  * here. Reason (1) covers only horizontal overflow (a token painting outside its own cell); the
- * hazard these two ceilings actually guard against is VERTICAL — an over-tall row silently
+ * hazard this ceiling actually guards against is VERTICAL — an over-tall row silently
  * dropping content under `dontBreakRows` (an I1 violation; see MAX_SAFE_USAGE_CHUNK_CHARS's
  * comment) — and reason (1) says nothing about that. That vertical hazard CAN be derived against
- * `Ѹ` without a new render, because both measured ceilings are exact multiples of their own
- * `№`-fill per-line character count: 704 = 44 lines x 16 chars/line (492.8pt) and 546 = 39 lines x
- * 14 chars/line (491.4pt) — two independent exact multiples landing on the same ~492pt content
- * budget means those measurements pinned a LINE budget (font-size-driven), not a glyph-driven
- * one. Swapping in `Ѹ`'s narrower per-line count (14 chars/line at 8pt, 13 at 9pt) gives derived
- * `Ѹ` ceilings of 44 x 14 = 616 for MAX_SAFE_USAGE_CHUNK_CHARS and 39 x 13 = 507 for
- * MAX_SAFE_SMALL_CHUNK_CHARS. MAX_SAFE_SMALL_CHUNK_CHARS (450) is safe under this derivation
- * (11.2% under 507); MAX_SAFE_USAGE_CHUNK_CHARS (650) is NOT — it is 34 characters (3 lines,
+ * `Ѹ` without a new render, because the measured ceiling is an exact multiple of its own
+ * `№`-fill per-line character count: 704 = 44 lines x 16 chars/line (492.8pt). (#1929 round 4's
+ * since-removed 9pt companion ceiling measured 546 = 39 lines x 14 chars/line (491.4pt) — two
+ * independent exact multiples landing on the same ~492pt content
+ * budget, which is what showed these measurements pinned a LINE budget (font-size-driven), not a
+ * glyph-driven one.) Swapping in `Ѹ`'s narrower per-line count (14 chars/line at 8pt) gives a derived
+ * `Ѹ` ceiling of 44 x 14 = 616 for MAX_SAFE_USAGE_CHUNK_CHARS.
+ * MAX_SAFE_USAGE_CHUNK_CHARS (650) does NOT clear it — it is 34 characters (3 lines,
  * 33.6pt) over its derived 616-character `Ѹ` ceiling. That overage is tolerated on input
  * reachability, not on either reason above: it requires a 650-character unbroken run of archaic
  * Church Slavonic Uk in a single Usage cell, the same non-credible-input class as `markerText`'s
@@ -123,7 +122,6 @@ export const USAGE_WIDTH_6COL = usableColumnWidth(6) - USAGE_FIXED_SUM_6COL; // 
 const WORST_CASE_CHAR_ADVANCE_EM = 1.04;
 const BODY_WORST_CASE_CHAR_WIDTH_PT = TABLE_BODY_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 8.32pt
 const HEADER_WORST_CASE_CHAR_WIDTH_PT = TABLE_HEADER_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 10.4pt
-const SMALL_WORST_CASE_CHAR_WIDTH_PT = TABLE_SMALL_FONT_SIZE * WORST_CASE_CHAR_ADVANCE_EM; // 9.36pt
 
 /**
  * A single Usage cell whose `usageText` exceeds this length is split into multiple table rows
@@ -133,19 +131,29 @@ const SMALL_WORST_CASE_CHAR_WIDTH_PT = TABLE_SMALL_FONT_SIZE * WORST_CASE_CHAR_A
  * "no character is ever lost" outranks I3 "each row on one page"), a row that genuinely cannot
  * fit one page must still render completely, even if that means it spans pages.
  *
- * This bounds ONLY `usageText`'s own contribution to a row's height — `areaText` and
- * `attachmentsNote` are rendered on their OWN separate, independently-chunked continuation
- * row(s) (see MAX_SAFE_SMALL_CHUNK_CHARS and buildOverviewContent's row-building loop), never
- * stacked into the same cell as a usageText chunk. #1929 round-4 architect review HIGH: the
- * round-3 design stacked areaText/attachmentsNote onto the LAST usageText chunk's row, leaving
- * their COMBINED height unbounded — attachmentsNote has no maxLength anywhere (editor or
+ * SCOPE: this bounds the Usage cell's ENTIRE content stream — `usageText` plus the grey
+ * `areaText`/`attachmentsNote` suffix that #1959 renders inline in the same cell — not
+ * `usageText` alone. The quantity that has to be bounded is "total height of everything in a
+ * row's Usage cell"; see packUsageCellRows, which packs that whole stream against this constant.
+ * Both parts render at the same font ('tableCell', 8pt — the suffix only overrides `color`), so
+ * ONE character budget governs the whole cell. (#1929 round 4's separate 9pt ceiling for the
+ * suffix's own continuation rows was removed with those rows: a 9pt budget is simply the wrong
+ * bound for 8pt content, so it must not be reinstated as-is if a 9pt cell style ever returns.)
+ *
+ * Getting this scope wrong has now cost two rounds, in both directions. #1929 round 3 stacked
+ * areaText/attachmentsNote onto the LAST usageText chunk's row while bounding only usageText,
+ * leaving their COMBINED height unbounded — attachmentsNote has no maxLength anywhere (editor or
  * server) and areaText is aggregate-unbounded (N leaf areas x 200 chars each); measured
  * combinations (700-char usageText + 400-char attachmentsNote = 665.8pt; 700-char usageText +
  * 20-leaf-area areaText = 691.0pt; 2000-char attachmentsNote alone = 1119.4pt) all exceeded the
  * 634.89pt page budget and were silently dropped (rows requiring 3 and 9 pages both rendered as
- * 2). Splitting each field onto its own row means every row's Usage cell now holds AT MOST ONE
- * bounded chunk of ONE field — the quantity actually bounded is "total height of everything in
- * a row's Usage cell", not just usageText's length.
+ * 2). Round 4 fixed that by giving each field independently-chunked continuation rows of its
+ * OWN. #1959 then moved both fields back inline as a single unchunked grey run — reinstating
+ * round 3's defect verbatim (measured on that build: 16,000 characters of attachmentsNote
+ * rendered as 2 pages, the same 16,000 as chunked usageText needs 9; page count SATURATED at 2
+ * and even went 3 -> 2 as content grew, while rendered line count kept growing linearly).
+ * The bound now follows the rendered cell rather than a single field, so it cannot be detached
+ * from #1959's inline design by a future layout change the way round 4's per-field rows were.
  *
  * MEASURED CEILING (AC12, #1929 round-4 architect review): measured directly against a real
  * render of the production table shape (7-column, `headerRows: 1` with word-break-protected
@@ -162,25 +170,6 @@ const SMALL_WORST_CASE_CHAR_WIDTH_PT = TABLE_SMALL_FONT_SIZE * WORST_CASE_CHAR_A
  * margin against `№`, not against the true widest character now known.
  */
 export const MAX_SAFE_USAGE_CHUNK_CHARS = 650;
-
-/**
- * An `areaText` or `attachmentsNote` value exceeding this length is split into multiple
- * continuation rows the same way an over-long `usageText` is (see MAX_SAFE_USAGE_CHUNK_CHARS).
- * Rendered at 'small' style (9pt, taller line height and wider worst-case glyphs than 'tableCell'
- * at 8pt), so it needs its OWN ceiling, not a reuse of MAX_SAFE_USAGE_CHUNK_CHARS (#1929 round-4
- * architect review HIGH — see that constant's comment for why these two fields must never share
- * a row with usageText, or with each other, in the first place).
- *
- * MEASURED CEILING: same method and production shape as MAX_SAFE_USAGE_CHUNK_CHARS, with the
- * continuation row rendered at 'small' style and the same pre-#1939 worst-case '№' fill (see that
- * constant's comment for why '№', not `Ѹ`, is the character this ceiling was measured against).
- * Measured ceiling: 546 characters. This constant sits ~17.6% below that measured '№'-fill
- * ceiling (denominator: 546) — no AC mandates a specific floor for these two fields (unlike
- * usageText's AC12), so a larger margin is used than MAX_SAFE_USAGE_CHUNK_CHARS's tighter [600,
- * ceiling) window allows. As with that constant, this 17.6% is a margin against `№`; it has not
- * been re-measured against `Ѹ`.
- */
-export const MAX_SAFE_SMALL_CHUNK_CHARS = 450;
 
 /**
  * Splits `text` into chunks no longer than `maxChars`, breaking only at whitespace boundaries
@@ -213,6 +202,103 @@ export function splitIntoPageSafeChunks(text: string, maxChars: number): string[
   }
   if (current) chunks.push(current);
   return chunks;
+}
+
+/**
+ * One styled piece of a Usage cell's content stream. `meta: true` marks the grey
+ * areaText/attachmentsNote suffix (#1959's inline meta design); everything else renders in the
+ * body colour. Both render at the SAME font ('tableCell', 8pt) — the suffix only overrides
+ * `color` — which is why ONE character budget (MAX_SAFE_USAGE_CHUNK_CHARS) governs the whole
+ * stream, rather than a separate ceiling per styled piece.
+ */
+export interface UsageCellSegment {
+  text: string;
+  meta?: boolean;
+}
+
+/**
+ * Packs a Usage cell's FULL content stream (usage prose, then the grey meta suffix) into per-row
+ * segment groups, each holding at most `maxChars` characters — the bound that makes every emitted
+ * row's Usage cell page-safe under `dontBreakRows: true`.
+ *
+ * This is the round-4 bound reinstated at the right scope. #1929 round 4 bounded the same quantity
+ * by giving `areaText`/`attachmentsNote` continuation rows of their OWN; #1959 moved them inline
+ * into the usage cell as a grey suffix, which restored the unbounded-cell failure mode round 4
+ * fixed (pdfmake measures an over-tall row, then `PageElementWriter` silently DROPS whatever does
+ * not fit — page count saturates at 2 while rendered line count keeps growing). The bound must
+ * therefore apply to what the cell actually renders, which is now usage + area + attachments
+ * TOGETHER, not to `usageText` alone.
+ *
+ * Packing is greedy, so #1959's visual intent is preserved exactly wherever it can be: whenever
+ * the whole cell fits one page-safe row (the overwhelmingly common case), the output is a single
+ * row whose runs are the usage prose followed by the `\n`-prefixed grey suffix — byte-identical to
+ * the pre-fix output. The suffix only lands on a continuation row when the combined content
+ * genuinely cannot fit one row, and it is always emitted LAST in the stream, so it stays the
+ * trailing grey run of the last row it appears on (never split across two rows of one group more
+ * than the budget forces, and never more than ONE grey run per cell).
+ *
+ * Lossless (#1929 I1): concatenating every returned segment's `text`, in order, reconstructs the
+ * input stream exactly — no character, including whitespace, is added or dropped. Empty segments
+ * are preserved so an empty `usageText` still renders its own (empty) leading run.
+ */
+export function packUsageCellRows(
+  segments: UsageCellSegment[],
+  maxChars: number,
+): UsageCellSegment[][] {
+  const rows: UsageCellSegment[][] = [];
+  let current: UsageCellSegment[] = [];
+  let used = 0;
+
+  const flush = (): void => {
+    if (current.length > 0) {
+      rows.push(current);
+      current = [];
+      used = 0;
+    }
+  };
+
+  for (const segment of segments) {
+    if (segment.text.length === 0) {
+      // Consumes no budget; kept so an empty usageText still contributes its own run.
+      current.push({ ...segment });
+      continue;
+    }
+    let rest = segment.text;
+    while (rest.length > 0) {
+      const remaining = maxChars - used;
+      if (remaining <= 0) {
+        flush();
+        continue;
+      }
+      if (rest.length <= remaining) {
+        current.push({ ...segment, text: rest });
+        used += rest.length;
+        break;
+      }
+      if (used > 0 && rest.length <= maxChars) {
+        // Doesn't fit this row's leftover space, but fits a row of its own: start a fresh row
+        // rather than splitting it into a sliver. This keeps the grey meta suffix ONE contiguous
+        // run whenever it fits a page-safe row at all.
+        flush();
+        continue;
+      }
+      if (used > 0) {
+        // Genuinely larger than a whole row — fill this row's leftover space, then carry on.
+        const [head, ...tail] = splitIntoPageSafeChunks(rest, remaining);
+        current.push({ ...segment, text: head! });
+        rest = tail.join('');
+        flush();
+        continue;
+      }
+      const [head, ...tail] = splitIntoPageSafeChunks(rest, maxChars);
+      current.push({ ...segment, text: head! });
+      rest = tail.join('');
+      flush();
+    }
+  }
+  flush();
+
+  return rows.length > 0 ? rows : [[{ text: '' }]];
 }
 
 /**
@@ -257,21 +343,6 @@ export const USAGE_SAFE_TOKEN_CHARS_6COL = safeTokenChars(
  * break-all protection rather than an assumption that they always fit.
  */
 export const VENDOR_SAFE_TOKEN_CHARS = safeTokenChars(VENDOR_WIDTH, BODY_WORST_CASE_CHAR_WIDTH_PT);
-
-/**
- * Safe-token-char threshold for the Usage column's areaText/attachmentsNote continuation rows,
- * rendered at 'small' style (9pt) — needs its own threshold rather than reusing
- * USAGE_SAFE_TOKEN_CHARS_*COL, which is derived from the body font's (8pt) worst-case glyph
- * width, narrower than 'small' (#1929 round-4 architect review HIGH).
- */
-export const SMALL_SAFE_TOKEN_CHARS_7COL = safeTokenChars(
-  USAGE_WIDTH_7COL,
-  SMALL_WORST_CASE_CHAR_WIDTH_PT,
-);
-export const SMALL_SAFE_TOKEN_CHARS_6COL = safeTokenChars(
-  USAGE_WIDTH_6COL,
-  SMALL_WORST_CASE_CHAR_WIDTH_PT,
-);
 
 /**
  * Splits `text` into inline pdfmake text runs. Whitespace-free runs at or under `safeTokenChars`
@@ -374,8 +445,13 @@ export const HEADER_ROW_HEIGHT_MAX =
  * - `refundNoteText`    — fixed `reportT` string (bounded by construction, same as above).
  * - `allocatedAmountValueText` — via `reportFormatters.formatCurrency` (bounded by construction:
  *                          a formatted number, not user input).
- * - `usageText` / `areaText` / `attachmentsNote` — chunked via splitIntoPageSafeChunks against
- *                          MAX_SAFE_USAGE_CHUNK_CHARS / MAX_SAFE_SMALL_CHUNK_CHARS.
+ * - `usageText` / `areaText` / `attachmentsNote` — all three share ONE Usage cell (#1959 renders
+ *                          areaText/attachmentsNote as an inline grey suffix), and that cell's
+ *                          whole content stream is packed into page-safe rows by
+ *                          packUsageCellRows against MAX_SAFE_USAGE_CHUNK_CHARS. VERTICAL height
+ *                          is therefore bounded for all three together. The grey suffix is not
+ *                          routed through buildUsageTextRuns, so HORIZONTALLY it is in the same
+ *                          recorded-not-fixed class as `invoiceNumber` below.
  * - `markerText`        — UNBOUNDED. One `*N` footnote marker is appended per skipped document on
  *                          an invoice (see the row-building loop's `skipMarkers` accumulation),
  *                          with no chunking and no word-break, into the 75pt ALLOCATED_AMOUNT_WIDTH
@@ -386,10 +462,17 @@ export const HEADER_ROW_HEIGHT_MAX =
  *                          self-hosted app — not a credible input, and the fix (chunking a
  *                          footnote-marker run) would be pure ceremony against that reachability.
  *
- * Two channels are recorded here without a fix, same class as `markerText` above:
+ * Three channels are recorded here without a fix, same class as `markerText` above:
  * - `invoiceNumber` (see above) does not route through buildUsageTextRuns, so a 100-character
  *   unbroken number would paint outside its 63pt INVOICE_NUMBER_WIDTH column. Interior column,
  *   cosmetic overflow only, capped at 100 by the server schema — recorded, not fixed.
+ * - the inline grey `areaText`/`attachmentsNote` suffix (see above) is emitted as ONE run rather
+ *   than per-token runs, so an unbroken token in a leaf-area name or note wider than the Usage
+ *   column paints outside that cell. Horizontal and cosmetic only (every column is an explicit
+ *   numeric width, so no token can widen the table itself — see WORST_CASE_CHAR_ADVANCE_EM reason
+ *   (1)); the VERTICAL channel, which is the one that loses content, is closed. Emitting per-token
+ *   runs here would also put more than one grey run in a cell, which readers of these cells
+ *   currently treat as an invariant violation — recorded, not fixed.
  * - `markerText` (see above) is the one remaining unbounded row-height contributor in this table.
  */
 
@@ -582,6 +665,32 @@ export function buildOverviewContent(
     ? USAGE_SAFE_TOKEN_CHARS_7COL
     : USAGE_SAFE_TOKEN_CHARS_6COL;
 
+  /**
+   * Renders one packed row's worth of Usage-cell segments (see packUsageCellRows) into a cell.
+   *
+   * Body segments go through `buildUsageTextRuns` for per-token break-all protection; the grey
+   * meta suffix is emitted as ONE run, so a cell never holds more than a single grey run and that
+   * run is always last (both properties are relied on when reading these cells back). The meta
+   * suffix is NOT token-protected: it is 8pt body-font text in a fixed-width column, so an
+   * over-wide unbroken token there paints outside its own cell — cosmetic horizontal overflow only,
+   * the same recorded-not-fixed class as `invoiceNumber` (see the channel enumeration above).
+   */
+  function buildUsageCell(segments: UsageCellSegment[]): Content {
+    const runs: Content[] = [];
+    segments.forEach((segment, index) => {
+      if (!segment.meta) {
+        runs.push(...buildUsageTextRuns(segment.text, usageSafeTokenChars));
+        return;
+      }
+      // The '\n' separates the suffix from the usage prose it follows. When the suffix STARTS a
+      // cell (it was pushed onto a continuation row of its own), that newline would render an
+      // empty first line instead, so it is dropped — a presentational separator, not content.
+      const text = index === 0 ? segment.text.replace(/^\n/, '') : segment.text;
+      runs.push({ text, color: DEPOSIT_NOTE_TEXT_COLOR });
+    });
+    return { text: runs, style: 'tableCell' };
+  }
+
   for (const contentRow of reportContent.rows) {
     // Allocated amount with skip markers and inline labels
     const skipMarkers = skipFootnotesByInvoiceId.get(contentRow.invoiceId) ?? [];
@@ -619,37 +728,38 @@ export function buildOverviewContent(
       allocatedRuns.push({ text: ` ${contentRow.refundNoteText}` });
     }
 
-    // Usage text is split into page-safe chunks (#1929 AC2/AC4/AC12/HIGH 4): a single Usage
-    // cell that is too long to safely fit one page's printable height is rendered as multiple
-    // table rows instead of one unbreakable (and potentially content-dropping) row. The FIRST
-    // chunk shares this invoice's leading/amount-cell row; any further chunks (rare-by-
-    // construction: AC12 requires 600 chars with zero degradation, well under
-    // MAX_SAFE_USAGE_CHUNK_CHARS) get their own continuation row — no "continued" marker,
-    // per the product-owner's explicit ruling.
-    const usageChunks = splitIntoPageSafeChunks(contentRow.usageText, MAX_SAFE_USAGE_CHUNK_CHARS);
-    // Area and attachmentsNote appear inline in grey after the first usage chunk
+    // Area and attachmentsNote render inline as one trailing grey suffix on the Usage cell
+    // (#1959), '\n'-prefixed and joined by ' · '.
     const metaPieces: string[] = [];
     if (contentRow.areaText) metaPieces.push(contentRow.areaText);
     if (contentRow.attachmentsNote) metaPieces.push(contentRow.attachmentsNote);
-    const firstUsageRuns = buildUsageTextRuns(usageChunks[0]!, usageSafeTokenChars);
+
+    // The Usage cell's ENTIRE content stream — usage prose plus that grey suffix — is packed into
+    // page-safe rows against ONE budget. Bounding `usageText` alone is not enough: the suffix is
+    // rendered in the same cell, at the same font, and neither `attachmentsNote` (no maxLength
+    // anywhere) nor `areaText` (aggregate-unbounded across N leaf areas) is bounded by input, so
+    // an unbounded suffix makes the row over-tall and `dontBreakRows: true` silently DROPS the
+    // overflow instead of paginating it (#1929 architect review HIGH 4 / I1). Wherever the whole
+    // cell fits one row — the common case — this emits exactly one row, unchanged from #1959.
+    // The first packed row shares this invoice's leading/amount cells; any further row is a
+    // Usage-only continuation row with no "continued" marker, per the product-owner's ruling
+    // (#1929 AC2/AC4/AC12).
+    const cellSegments: UsageCellSegment[] = [{ text: contentRow.usageText }];
     if (metaPieces.length > 0) {
-      firstUsageRuns.push({ text: '\n' + metaPieces.join(' · '), color: DEPOSIT_NOTE_TEXT_COLOR });
+      cellSegments.push({ text: `\n${metaPieces.join(' · ')}`, meta: true });
     }
-    const firstUsageCell: Content = { text: firstUsageRuns, style: 'tableCell' };
+    const packedCellRows = packUsageCellRows(cellSegments, MAX_SAFE_USAGE_CHUNK_CHARS);
+
     rows.push([
       ...buildLeadingCells(contentRow, reportContent.isOverview, contentRow.statusText ?? ''),
       ...buildAmountCells(contentRow, allocatedRuns),
-      firstUsageCell,
+      buildUsageCell(packedCellRows[0]!),
     ]);
-    for (let i = 1; i < usageChunks.length; i++) {
-      const cell: Content = {
-        text: buildUsageTextRuns(usageChunks[i]!, usageSafeTokenChars),
-        style: 'tableCell',
-      };
+    for (let i = 1; i < packedCellRows.length; i++) {
       rows.push([
         ...buildEmptyLeadingCells(reportContent.isOverview),
         ...buildEmptyAmountCells(),
-        cell,
+        buildUsageCell(packedCellRows[i]!),
       ]);
     }
   }

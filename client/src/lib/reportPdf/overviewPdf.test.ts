@@ -45,19 +45,18 @@
 import { describe, it, expect } from '@jest/globals';
 import type { TFunction } from 'i18next';
 import type { ReportContent, ReportContentRow } from '../reportContent/index.js';
+import type { UsageCellSegment } from './overviewPdf.js';
 import {
   buildOverviewContent,
   splitIntoPageSafeChunks,
+  packUsageCellRows,
   buildUsageTextRuns,
   USAGE_WIDTH_7COL,
   USAGE_WIDTH_6COL,
   USAGE_SAFE_TOKEN_CHARS_7COL,
   USAGE_SAFE_TOKEN_CHARS_6COL,
   VENDOR_SAFE_TOKEN_CHARS,
-  SMALL_SAFE_TOKEN_CHARS_7COL,
-  SMALL_SAFE_TOKEN_CHARS_6COL,
   MAX_SAFE_USAGE_CHUNK_CHARS,
-  MAX_SAFE_SMALL_CHUNK_CHARS,
 } from './overviewPdf.js';
 import { tableOffsetsTotal, printableWidth } from './pageGeometry.js';
 
@@ -158,6 +157,50 @@ function usageRunsText(text: unknown): string {
     return (text as { text: string }[]).map((run) => run.text).join('');
   }
   return text as string;
+}
+
+// #1959: `areaText`/`attachmentsNote` are no longer separate stack sub-rows or separate
+// continuation rows — they are appended to the SAME Usage cell as the first `usageText` chunk, as
+// one trailing grey run prefixed with '\n' (see buildOverviewContent's `metaPieces`). Because
+// `buildUsageTextRuns()` tokenizes usageText into one run PER WHITESPACE-DELIMITED TOKEN, the
+// grey meta run is NEVER at a fixed index like `text[1]` — its position depends on the token count
+// of the usage text before it. Split the cell into "the usageText runs" and "the trailing grey
+// meta run (if any)" by the run's own grey color, so assertions address the two by identity rather
+// than by a positional guess that silently drifts with the fixture's word count.
+const GREY = '#6b7280';
+
+function splitUsageCell(cell: unknown): {
+  usageText: string;
+  metaRun: { text: string; color?: string } | null;
+} {
+  const runs = (cell as { text: { text: string; color?: string }[] }).text;
+  if (!Array.isArray(runs)) {
+    throw new Error('Usage cell .text is not a run array — buildUsageTextRuns wiring changed?');
+  }
+  const greyIndexes = runs.map((run, i) => (run.color === GREY ? i : -1)).filter((i) => i !== -1);
+  if (greyIndexes.length > 1) {
+    throw new Error(
+      `Expected at most ONE grey meta run in a Usage cell, found ${greyIndexes.length}`,
+    );
+  }
+  const metaIndex = greyIndexes[0];
+  if (metaIndex === undefined) {
+    return { usageText: runs.map((r) => r.text).join(''), metaRun: null };
+  }
+  // The grey meta run must be the LAST run in the cell — it is a suffix, never interleaved into
+  // the usage prose.
+  if (metaIndex !== runs.length - 1) {
+    throw new Error(
+      `Grey meta run is at index ${metaIndex} of ${runs.length} runs — expected it last`,
+    );
+  }
+  return {
+    usageText: runs
+      .slice(0, metaIndex)
+      .map((r) => r.text)
+      .join(''),
+    metaRun: runs[metaIndex]!,
+  };
 }
 
 function getTable(content: unknown[]): {
@@ -375,6 +418,175 @@ function runsText(runs: { text: string }[]): string {
   return runs.map((run) => run.text).join('');
 }
 
+// ─── packUsageCellRows (#1959 fix round) ──────────────────────────────────────────────────────
+//
+// The bound that makes `dontBreakRows: true` safe now applies to the Usage cell's WHOLE content
+// stream (usage prose + the grey areaText/attachmentsNote suffix), because both render in the same
+// cell at the same 8pt font. Bounding `usageText` alone is what let #1959 silently drop pages: the
+// suffix is unbounded by input (`attachmentsNote` has no maxLength anywhere; `areaText` is
+// aggregate-unbounded across N leaf areas), so an over-tall row was measured and then discarded.
+//
+// These are the packer's own unit tests. Every assertion below is expressed against the INPUT and
+// the declared budget, never against the packer's own output, so a packing regression cannot
+// satisfy them by moving in step.
+describe('packUsageCellRows (#1959 fix round: one page-safe budget for the whole Usage cell)', () => {
+  const BUDGET = 20; // small, so the packing rules are legible in the assertions
+
+  function flatten(rows: UsageCellSegment[][]): UsageCellSegment[] {
+    return rows.flat();
+  }
+  function totalText(rows: UsageCellSegment[][]): string {
+    return flatten(rows)
+      .map((s) => s.text)
+      .join('');
+  }
+  function rowLengths(rows: UsageCellSegment[][]): number[] {
+    return rows.map((row) => row.reduce((sum, s) => sum + s.text.length, 0));
+  }
+  function metaRowIndexes(rows: UsageCellSegment[][]): number[] {
+    return rows.flatMap((row, i) => (row.some((s) => s.meta) ? [i] : []));
+  }
+
+  it('returns a single row, segments unchanged, when the whole stream fits the budget (the dominant case must not grow rows)', () => {
+    const segments: UsageCellSegment[] = [
+      { text: 'Kitchen' },
+      { text: '\nGround Floor', meta: true },
+    ];
+    const rows = packUsageCellRows(segments, BUDGET);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual(segments);
+  });
+
+  it('never exceeds the budget on any row, for a stream far larger than one row', () => {
+    const rows = packUsageCellRows(
+      [{ text: 'aaa bbb ccc ddd eee fff ggg hhh iii jjj' }, { text: '\nkkk lll mmm', meta: true }],
+      BUDGET,
+    );
+    expect(rows.length).toBeGreaterThan(1);
+    for (const length of rowLengths(rows)) {
+      expect(length).toBeLessThanOrEqual(BUDGET);
+    }
+  });
+
+  it('is lossless: concatenating every returned segment reproduces the input stream exactly, whitespace included', () => {
+    const prose = 'Materialien und Arbeitsleistung für die Sanierung der Fassade';
+    const meta = '\nErdgeschoss · 2 Anhänge: Angebot, Rechnung';
+    const rows = packUsageCellRows([{ text: prose }, { text: meta, meta: true }], BUDGET);
+    expect(totalText(rows)).toBe(prose + meta);
+  });
+
+  it("preserves each segment's own `meta` flag through splitting — prose pieces never become grey and suffix pieces never become body text", () => {
+    const prose = 'aaa bbb ccc ddd eee fff ggg hhh';
+    const meta = '\niii jjj kkk lll mmm nnn';
+    const rows = packUsageCellRows([{ text: prose }, { text: meta, meta: true }], BUDGET);
+    const flat = flatten(rows);
+    expect(
+      flat
+        .filter((s) => !s.meta)
+        .map((s) => s.text)
+        .join(''),
+    ).toBe(prose);
+    expect(
+      flat
+        .filter((s) => s.meta)
+        .map((s) => s.text)
+        .join(''),
+    ).toBe(meta);
+  });
+
+  it('places the suffix LAST: its final piece always lands on the last row, and no row before the suffix starts carries it', () => {
+    const rows = packUsageCellRows(
+      [{ text: 'aaa bbb ccc ddd eee fff ggg hhh iii' }, { text: '\njjj kkk', meta: true }],
+      BUDGET,
+    );
+    const metaRows = metaRowIndexes(rows);
+    expect(metaRows.length).toBeGreaterThan(0);
+    expect(Math.max(...metaRows)).toBe(rows.length - 1);
+    // Contiguous: once the suffix starts it never yields back to prose rows.
+    expect(metaRows).toEqual(
+      Array.from({ length: metaRows.length }, (_, i) => Math.min(...metaRows) + i),
+    );
+  });
+
+  it('starts a fresh row rather than splitting a suffix that does not fit the leftover but does fit a whole row — keeping the grey run contiguous', () => {
+    // Prose 12 chars leaves 8 of a 20-char budget; the 11-char suffix fits a whole row but not the
+    // leftover, so it must move down intact rather than be sliced across two rows.
+    const rows = packUsageCellRows(
+      [{ text: 'aaaa bbb ccc' }, { text: '\ndddd eeee', meta: true }],
+      BUDGET,
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.every((s) => !s.meta)).toBe(true);
+    expect(rows[1]).toEqual([{ text: '\ndddd eeee', meta: true }]);
+  });
+
+  it('splits a suffix genuinely larger than a whole row across as many rows as the budget requires', () => {
+    const meta = `\n${'x'.repeat(BUDGET * 3)}`;
+    const rows = packUsageCellRows([{ text: 'a' }, { text: meta, meta: true }], BUDGET);
+    expect(metaRowIndexes(rows).length).toBeGreaterThan(1);
+    expect(totalText(rows)).toBe('a' + meta);
+    for (const length of rowLengths(rows)) {
+      expect(length).toBeLessThanOrEqual(BUDGET);
+    }
+  });
+
+  it('flushes cleanly when the prose fills a row EXACTLY, putting the suffix on the next row rather than a zero-space row', () => {
+    // 'aaaa bbbb cccc ddddd' is exactly BUDGET (20) characters, so the row is full with zero
+    // leftover when the suffix arrives — the `remaining <= 0` boundary. A regression here would
+    // either emit an empty row or loop.
+    const prose = 'aaaa bbbb cccc ddddd';
+    expect(prose.length).toBe(BUDGET);
+    const rows = packUsageCellRows([{ text: prose }, { text: '\nEG', meta: true }], BUDGET);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toEqual([{ text: prose }]);
+    expect(rows[1]).toEqual([{ text: '\nEG', meta: true }]);
+    expect(totalText(rows)).toBe(prose + '\nEG');
+    for (const length of rowLengths(rows)) {
+      expect(length).toBeGreaterThan(0);
+      expect(length).toBeLessThanOrEqual(BUDGET);
+    }
+  });
+
+  it('keeps an empty usageText as its own (empty) leading segment, so the cell still renders a body run', () => {
+    const rows = packUsageCellRows([{ text: '' }, { text: '\nGround Floor', meta: true }], BUDGET);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]![0]).toEqual({ text: '' });
+    expect(rows[0]![1]!.meta).toBe(true);
+  });
+
+  it('returns one empty row for an entirely empty stream, never an empty array (callers index row 0 unconditionally)', () => {
+    expect(packUsageCellRows([], BUDGET)).toEqual([[{ text: '' }]]);
+  });
+
+  it('handles a prose-only stream identically to plain chunking, with no grey segment invented', () => {
+    const prose = 'aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk';
+    const rows = packUsageCellRows([{ text: prose }], BUDGET);
+    expect(totalText(rows)).toBe(prose);
+    expect(flatten(rows).some((s) => s.meta)).toBe(false);
+    expect(rows.map((r) => r[0]!.text)).toEqual(splitIntoPageSafeChunks(prose, BUDGET));
+  });
+
+  it('hard-splits a single whitespace-free token longer than the budget rather than looping forever', () => {
+    const token = 'z'.repeat(BUDGET * 2 + 5);
+    const rows = packUsageCellRows([{ text: token }], BUDGET);
+    expect(totalText(rows)).toBe(token);
+    for (const length of rowLengths(rows)) {
+      expect(length).toBeLessThanOrEqual(BUDGET);
+    }
+  });
+
+  it('at the production budget, a realistic short cell is still exactly one row (guards against a regression that paginates ordinary reports)', () => {
+    const rows = packUsageCellRows(
+      [
+        { text: 'Rohbauarbeiten Erdgeschoss inklusive Bodenplatte' },
+        { text: '\nErdgeschoss · 1 Anhang: Rechnung', meta: true },
+      ],
+      MAX_SAFE_USAGE_CHUNK_CHARS,
+    );
+    expect(rows).toHaveLength(1);
+  });
+});
+
 describe('buildUsageTextRuns (#1929 round 2/3/4 word-break follow-up findings, scenarios 1/2/3)', () => {
   // Pin the actual threshold constants rather than re-typing 16/22 — if pageGeometry.ts's
   // per-char estimate or the USAGE_WIDTH_*COL values ever change, this test's own expectations
@@ -396,13 +608,6 @@ describe('buildUsageTextRuns (#1929 round 2/3/4 word-break follow-up findings, s
     expect(VENDOR_SAFE_TOKEN_CHARS).toBe(Math.floor(45 / (8 * 1.04)));
   });
 
-  it('[#1929 round 4] SMALL_SAFE_TOKEN_CHARS_7COL === 14 and _6COL === 19 (floor(USAGE_WIDTH_*COL / (9 * 1.04)) — the areaText/attachmentsNote continuation-row threshold, at the 9pt "small" style, not the 8pt body font)', () => {
-    expect(SMALL_SAFE_TOKEN_CHARS_7COL).toBe(14);
-    expect(SMALL_SAFE_TOKEN_CHARS_6COL).toBe(19);
-    expect(SMALL_SAFE_TOKEN_CHARS_7COL).toBe(Math.floor(USAGE_WIDTH_7COL / (9 * 1.04)));
-    expect(SMALL_SAFE_TOKEN_CHARS_6COL).toBe(Math.floor(USAGE_WIDTH_6COL / (9 * 1.04)));
-  });
-
   it('[#1929 round 4] MAX_SAFE_USAGE_CHUNK_CHARS === 650, sitting below the measured true ceiling (704) with margin, and comfortably above AC12s 600-char zero-degradation floor', () => {
     // Pin the RELATIONSHIP, not just the literal: 650 must stay strictly between AC12's 600-char
     // floor and the measured true ceiling (704, from a real '№'-only worst-case render — see
@@ -421,15 +626,6 @@ describe('buildUsageTextRuns (#1929 round 2/3/4 word-break follow-up findings, s
     const marginFraction =
       (MEASURED_TRUE_CEILING - MAX_SAFE_USAGE_CHUNK_CHARS) / MEASURED_TRUE_CEILING;
     expect(marginFraction).toBeGreaterThanOrEqual(0.07);
-  });
-
-  it('[#1929 round 4] MAX_SAFE_SMALL_CHUNK_CHARS === 450, sitting below its own measured true ceiling (546) — the new areaText/attachmentsNote chunking ceiling, no AC-mandated floor unlike usageText', () => {
-    const MEASURED_TRUE_CEILING = 546;
-    expect(MAX_SAFE_SMALL_CHUNK_CHARS).toBe(450);
-    expect(MAX_SAFE_SMALL_CHUNK_CHARS).toBeLessThan(MEASURED_TRUE_CEILING);
-    const marginFraction =
-      (MEASURED_TRUE_CEILING - MAX_SAFE_SMALL_CHUNK_CHARS) / MEASURED_TRUE_CEILING;
-    expect(marginFraction).toBeGreaterThanOrEqual(0.15);
   });
 
   describe('I1: joining every returned run reconstructs the input exactly', () => {
@@ -771,35 +967,40 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
   });
 
   describe('Usage cell: plain text vs inline grey meta text', () => {
-    it('renders a plain { text } cell (not a stack) when both areaText and attachmentsNote are null', () => {
+    it('renders a plain { text } cell (not a stack) with NO grey meta run when both areaText and attachmentsNote are null', () => {
       const row = makeRow({ usageText: 'Kitchen work', areaText: null, attachmentsNote: null });
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[5] as { text?: unknown; stack?: unknown };
       expect(cell.stack).toBeUndefined();
-      expect(usageRunsText(cell.text)).toBe('Kitchen work');
+      const { usageText, metaRun } = splitUsageCell(cell);
+      expect(usageText).toBe('Kitchen work');
+      expect(metaRun).toBeNull();
       // header (1) + 1 usage row + 1 summary row = 3 — no continuation rows.
       expect(table.body).toHaveLength(3);
     });
 
-    it('renders a text array with a grey newline run when attachmentsNote is present', () => {
+    it('#1959: appends attachmentsNote as a trailing grey newline-prefixed run INSIDE the usage cell (not a stack sub-row, not a separate row)', () => {
       const row = makeRow({ usageText: 'Kitchen work', attachmentsNote: '1 attachment: Invoice' });
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as {
-        text: { text: string; color?: string }[];
-        stack?: unknown;
-      };
+      const cell = (table.body[1] as unknown[])[5] as { text: unknown; stack?: unknown };
       expect(cell.stack).toBeUndefined();
-      expect(Array.isArray(cell.text)).toBe(true);
-      expect(cell.text[0]!.text).toBe('Kitchen work');
-      expect(cell.text[1]!.text).toContain('1 attachment: Invoice');
-      expect(cell.text[1]!.color).toBe('#6b7280');
+      const { usageText, metaRun } = splitUsageCell(cell);
+      // The usage prose itself is untouched — the note is NOT folded into it.
+      expect(usageText).toBe('Kitchen work');
+      expect(usageText).not.toContain('1 attachment: Invoice');
+      // ...and the note IS present, as the grey suffix run, newline-separated from the prose.
+      expect(metaRun).not.toBeNull();
+      expect(metaRun!.text).toBe('\n1 attachment: Invoice');
+      expect(metaRun!.color).toBe(GREY);
+      // The whole thing stays in ONE row — no continuation row is emitted for the note.
+      expect(table.body).toHaveLength(3);
     });
 
-    it('AC5.2: renders areaText and attachmentsNote joined in the grey meta run when both are present', () => {
+    it('#1959 AC5.2: joins areaText and attachmentsNote with " · " in a single trailing grey run, area first', () => {
       const row = makeRow({
         usageText: 'Kitchen work',
         areaText: 'Ground Floor',
@@ -808,16 +1009,17 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as {
-        text: { text: string; color?: string }[];
-      };
-      expect(cell.text[0]!.text).toBe('Kitchen work');
-      expect(cell.text[1]!.text).toContain('Ground Floor');
-      expect(cell.text[1]!.text).toContain('1 attachment: Invoice');
-      expect(cell.text[1]!.color).toBe('#6b7280');
+      const cell = (table.body[1] as unknown[])[5] as { text: unknown };
+      const { usageText, metaRun } = splitUsageCell(cell);
+      expect(usageText).toBe('Kitchen work');
+      // Exact string pins the order (area before note), the separator, and the newline prefix —
+      // any of those changing is a visible regression in the rendered PDF.
+      expect(metaRun).not.toBeNull();
+      expect(metaRun!.text).toBe('\nGround Floor · 1 attachment: Invoice');
+      expect(metaRun!.color).toBe(GREY);
     });
 
-    it('renders areaText alone in the grey meta run when attachmentsNote is null', () => {
+    it('#1959: renders areaText alone in the trailing grey run when attachmentsNote is null (no separator, no empty piece)', () => {
       const row = makeRow({
         usageText: 'Kitchen work',
         areaText: 'Ground Floor',
@@ -826,14 +1028,15 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       const content = makeContent({ rows: [row] });
       const result = buildOverviewContent(content, new Map(), t);
       const table = getTable(result);
-      const cell = (table.body[1] as unknown[])[5] as {
-        text: { text: string; color?: string }[];
-        stack?: unknown;
-      };
+      const cell = (table.body[1] as unknown[])[5] as { text: unknown; stack?: unknown };
       expect(cell.stack).toBeUndefined();
-      expect(cell.text[0]!.text).toBe('Kitchen work');
-      expect(cell.text[1]!.text).toContain('Ground Floor');
-      expect(cell.text[1]!.color).toBe('#6b7280');
+      const { usageText, metaRun } = splitUsageCell(cell);
+      expect(usageText).toBe('Kitchen work');
+      expect(metaRun).not.toBeNull();
+      expect(metaRun!.text).toBe('\nGround Floor');
+      // No dangling separator from the absent attachmentsNote.
+      expect(metaRun!.text).not.toContain('·');
+      expect(metaRun!.color).toBe(GREY);
     });
 
     it('[#1929 round 2] the plain-cell Usage text is a run array of the individual whitespace-preserving tokens (buildUsageTextRuns wiring, not a plain string)', () => {
@@ -1030,7 +1233,7 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     expect(rowTexts(nextRow)[0]).toBe('Next Vendor');
   });
 
-  it('[scenario 11, #1929 round 4 re-shape] areaText/attachmentsNote each render as their OWN continuation row(s), AFTER every usageText chunk row — never stacked into a usage row, each appearing exactly once', () => {
+  it('[scenario 11, #1959 fix round] areaText/attachmentsNote render as ONE inline grey suffix on the LAST usageText row — never mid-prose, never repeated, appearing exactly once', () => {
     const usageText = proseOfLength(MAX_SAFE_USAGE_CHUNK_CHARS * 3);
     const row = makeRow({
       invoiceId: 'inv-1',
@@ -1043,57 +1246,108 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     const result = buildOverviewContent(content, new Map(), t);
     const table = getTable(result);
 
-    const expectedUsageChunks = splitIntoPageSafeChunks(
-      usageText,
+    // Row count is driven by `packUsageCellRows` over the WHOLE cell stream (prose + suffix), not
+    // by the prose alone — see that function's own unit tests for the packing rules themselves.
+    const expectedRows = packUsageCellRows(
+      [{ text: usageText }, { text: '\nGround Floor · 1 attachment: Invoice', meta: true }],
       MAX_SAFE_USAGE_CHUNK_CHARS,
     ).length;
-    expect(expectedUsageChunks).toBeGreaterThan(1);
-    // areaText/attachmentsNote are short here (well under MAX_SAFE_SMALL_CHUNK_CHARS), so each
-    // contributes exactly one continuation row.
-    const usageRows = table.body.slice(1, 1 + expectedUsageChunks) as unknown[][];
-    const areaRow = table.body[1 + expectedUsageChunks] as { text?: unknown; style?: string }[];
-    const noteRow = table.body[1 + expectedUsageChunks + 1] as {
-      text?: unknown;
-      style?: string;
-    }[];
+    expect(expectedRows).toBeGreaterThan(1);
+    // header (1) + packed rows + summary row (1).
+    expect(table.body).toHaveLength(1 + expectedRows + 1);
 
-    // Every usageText chunk row's Usage cell is plain { text } — no stack, no area/attachments
-    // note mixed in (#1929 round 4: these never share a cell with usageText anymore).
-    for (const contRow of usageRows) {
-      const usageCell = contRow[contRow.length - 1] as { text?: unknown; stack?: unknown };
-      expect(usageCell.stack).toBeUndefined();
+    const usageRows = table.body.slice(1, 1 + expectedRows) as unknown[][];
+
+    // PLACEMENT (changed deliberately in the fix round): the suffix trails the prose, so it sits on
+    // the LAST row — not row 0. Pinning it to row 0 rendered grey meta text mid-prose with more
+    // usage text below it, and forced the prose's own chunk boundary to shrink to make room.
+    const lastRow = usageRows[usageRows.length - 1]!;
+    const lastCell = lastRow[lastRow.length - 1] as { text: unknown; stack?: unknown };
+    expect(lastCell.stack).toBeUndefined();
+    const last = splitUsageCell(lastCell);
+    expect(last.metaRun).not.toBeNull();
+    expect(last.metaRun!.text).toBe('\nGround Floor · 1 attachment: Invoice');
+    expect(last.metaRun!.color).toBe(GREY);
+
+    // Every EARLIER row is pure prose — the suffix is neither duplicated nor emitted early.
+    for (const earlierRow of usageRows.slice(0, -1)) {
+      const cell = earlierRow[earlierRow.length - 1] as { text: unknown; stack?: unknown };
+      expect(cell.stack).toBeUndefined();
+      expect(splitUsageCell(cell).metaRun).toBeNull();
     }
 
-    // areaText's OWN row, immediately after every usageText chunk row.
-    const areaCell = areaRow[areaRow.length - 1] as { text: unknown; style?: string };
-    expect(usageRunsText(areaCell.text)).toBe('Ground Floor');
-    expect(areaCell.style).toBe('small');
-    expect(
-      rowTexts(areaRow)
-        .slice(0, areaRow.length - 1)
-        .every((txt) => txt === ''),
-    ).toBe(true);
+    // I1 (no character is ever lost): concatenating only the usageText PORTION of every row's cell
+    // — i.e. excluding the grey meta suffix — reproduces the original usageText exactly. This is
+    // what proves the inline suffix didn't displace or truncate any prose.
+    const reconstructed = usageRows.map((r) => splitUsageCell(r[r.length - 1]).usageText).join('');
+    expect(reconstructed).toBe(usageText);
 
-    // attachmentsNote's OWN row, immediately after areaText's row.
-    const noteCell = noteRow[noteRow.length - 1] as { text: unknown; style?: string };
-    expect(usageRunsText(noteCell.text)).toBe('1 attachment: Invoice');
-    expect(noteCell.style).toBe('small');
-    expect(
-      rowTexts(noteRow)
-        .slice(0, noteRow.length - 1)
-        .every((txt) => txt === ''),
-    ).toBe(true);
+    // Every row's Usage cell stays within the ONE page-safe budget — the bound that makes
+    // `dontBreakRows: true` safe. Asserted against the constant, not the packer's own output.
+    for (const usageRow of usageRows) {
+      const { usageText: prose, metaRun } = splitUsageCell(usageRow[usageRow.length - 1]);
+      expect(prose.length + (metaRun?.text.length ?? 0)).toBeLessThanOrEqual(
+        MAX_SAFE_USAGE_CHUNK_CHARS,
+      );
+    }
 
-    // header (1) + usageChunks + areaText row (1) + attachmentsNote row (1) + summary row (1).
-    expect(table.body).toHaveLength(1 + expectedUsageChunks + 1 + 1 + 1);
+    // areaText/attachmentsNote text appears EXACTLY once across the WHOLE table — no duplication
+    // onto other rows, no leakage into the summary row.
+    const wholeUsageColumn = table.body
+      .map((r) => usageRunsText((r[r.length - 1] as { text?: unknown })?.text))
+      .join(' ');
+    expect(wholeUsageColumn.split('Ground Floor')).toHaveLength(2);
+    expect(wholeUsageColumn.split('1 attachment: Invoice')).toHaveLength(2);
+  });
 
-    // areaText/attachmentsNote appear EXACTLY once across the WHOLE table (not just this chunked
-    // group) — no duplication, no leakage into a usage row.
-    const allUsageColumnTexts = table.body.map((r) =>
-      usageRunsText((r[r.length - 1] as { text?: unknown })?.text),
-    );
-    expect(allUsageColumnTexts.filter((txt) => txt === 'Ground Floor')).toHaveLength(1);
-    expect(allUsageColumnTexts.filter((txt) => txt === '1 attachment: Invoice')).toHaveLength(1);
+  it('[#1959 fix round] when the suffix gets a row of ITS OWN, its leading newline is dropped — the separator must not render as a blank first line in that cell', () => {
+    // 645 chars of prose fits one 650-char row with only 5 to spare, so the 37-char suffix cannot
+    // share it but does fit a row of its own: it becomes the FIRST (and only) run of the next
+    // row's cell. There the '\n' has nothing to separate it from and would render an empty line.
+    const usageText = proseOfLength(645);
+    const row = makeRow({
+      invoiceId: 'inv-1',
+      usageText,
+      areaText: 'Ground Floor',
+      attachmentsNote: '1 attachment: Invoice',
+    });
+    const table = getTable(buildOverviewContent(makeContent({ rows: [row] }), new Map(), t));
+
+    // header (1) + prose row + suffix-only row + summary (1).
+    expect(table.body).toHaveLength(4);
+
+    const proseRow = splitUsageCell((table.body[1] as unknown[])[5]);
+    expect(proseRow.usageText).toBe(usageText);
+    expect(proseRow.metaRun).toBeNull();
+
+    const suffixRow = splitUsageCell((table.body[2] as unknown[])[5]);
+    // Body portion is the empty run buildUsageTextRuns emits for an absent prose segment.
+    expect(suffixRow.usageText).toBe('');
+    expect(suffixRow.metaRun).not.toBeNull();
+    // NO leading newline — this is the whole point of the assertion.
+    expect(suffixRow.metaRun!.text).toBe('Ground Floor · 1 attachment: Invoice');
+    expect(suffixRow.metaRun!.text.startsWith('\n')).toBe(false);
+    expect(suffixRow.metaRun!.color).toBe(GREY);
+  });
+
+  it('[#1959 fix round] a short usage cell whose prose + suffix fit ONE page-safe row still emits exactly one row, suffix inline and last — the dominant case, unchanged by packing', () => {
+    const row = makeRow({
+      invoiceId: 'inv-1',
+      usageText: 'Kitchen work',
+      areaText: 'Ground Floor',
+      attachmentsNote: '1 attachment: Invoice',
+    });
+    const content = makeContent({ rows: [row] });
+    const table = getTable(buildOverviewContent(content, new Map(), t));
+
+    // header (1) + exactly ONE data row + summary (1) — packing must not add rows when the whole
+    // cell already fits, or every ordinary report would grow spurious continuation rows.
+    expect(table.body).toHaveLength(3);
+    const { usageText, metaRun } = splitUsageCell((table.body[1] as unknown[])[5]);
+    expect(usageText).toBe('Kitchen work');
+    expect(metaRun).not.toBeNull();
+    expect(metaRun!.text).toBe('\nGround Floor · 1 attachment: Invoice');
+    expect(metaRun!.color).toBe(GREY);
   });
 });
 

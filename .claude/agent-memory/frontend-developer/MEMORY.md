@@ -98,6 +98,7 @@ removing it will fail typecheck. Keep the export and note it as QA-deferred.
 - `budget-invoices.md` — open for budget/invoice/subsidy pages: BudgetSubNav, budget line APIs, invoice CRUD patterns, pipeline dashboard cards
 - `gantt-calendar.md` — open for Timeline/Gantt/Calendar/Milestone work: SVG architecture, drag hook (React 19 refs rule), arrow hover, lane allocation, constraints section, related E2E POM layout
 - `api-routing.md` — open when calling APIs or navigating: UserResponse/PaginatedResponse shapes, auth routes, dependency direction-swap semantics, navigation origin state
+- `qa-tripwire-tests.md` — open when a task says a fix will flip an `it.failing` guard: why the flip signal can be swallowed by a shared helper, and what to do instead
 - `testing-mocks.md` — open when your change will break existing tests: ESM mock patterns, mock-block update checklist, Toast/context mocks, DefinePlugin globals in Jest
 - `git-tooling.md` — open on webpack config changes or git/CI trouble: worktree remotes, object corruption/permission recovery, npm audit policy, Prettier/CI format gap
 - `photo-metadata-sidepanel.md` — photo metadata side panel notes (open for photo UI work)

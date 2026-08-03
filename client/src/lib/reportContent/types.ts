@@ -19,7 +19,11 @@ export interface ReportContentRow {
   isRefund: boolean;
   refundNoteText: string; // shown only when isRefund
   usageText: string; // EDITABLE — key `row.<invoiceId>.usageText`
-  attachmentsNote: string | null; // EDITABLE when non-null — key `row.<invoiceId>.attachmentsNote`; null = no docs, omitted entirely
+  // READ-ONLY since #1959 moved it inline, with areaText, into the Usage cell's grey meta suffix:
+  // the editor renders both as static text and exposes no input for either. applyOverrides still
+  // honours `row.<invoiceId>.attachmentsNote`, but nothing can produce that key any more — it is
+  // unreachable from the UI. null = no docs, omitted entirely.
+  attachmentsNote: string | null;
   areaText: string | null; // read-only leaf area names, distinct comma-joined
 }
 

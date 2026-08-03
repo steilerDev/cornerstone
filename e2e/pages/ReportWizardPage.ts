@@ -78,9 +78,11 @@
  *     wrapper avoids the shared "table" class-substring collision) with one row per invoice:
  *     read-only vendor/invoiceNumber/date/status-badge/amounts cells, plus a dense (unlabelled)
  *     `usageText` `EditableField` (accessible name `Usage text for {{vendor}},
- *     {{invoiceNumber}}` — `sourceReports.editable.usageTextAriaLabel`) and, only when
- *     `row.attachmentsNote !== null`, an `attachmentsNote` `EditableField` (`Attachments note
- *     for {{vendor}}, {{invoiceNumber}}`). Each `EditableField` shows a `[class*="editedDot"]`
+ *     {{invoiceNumber}}` — `sourceReports.editable.usageTextAriaLabel`). As of Issue #1959 the
+ *     `usageText` field is the row's ONLY editable field: the separate `attachmentsNote`
+ *     `EditableField`/column is gone (see the Issue #1959 paragraph below), so a row contains
+ *     exactly one `textbox` — a useful crisp guard against that column creeping back. Each
+ *     `EditableField` shows a `[class*="editedDot"]`
  *     indicator (a DOM SIBLING of the input within `[class*="fieldWrapper"]`, conditionally
  *     MOUNTED not just opacity-toggled — see `hasEditedIndicator`) and a `[class*="resetButton"]`
  *     (a DOM SIBLING of `fieldWrapper` itself, one level further up — see `resetField`) only
@@ -92,13 +94,13 @@
  *     Invoice Number, Date, Status, Invoice Amount, Allocated Amount) no longer use `<label>`
  *     elements — they render as a `[class*="mobileCardCaption"]` span (the caption) followed by
  *     a `[class*="mobileCardValue"]` span (the value); there is nothing to `getByLabel()` for
- *     these. The EDITABLE rows (`usageText`/`attachmentsNote` `EditableField`s), conversely,
- *     now DO get a real, visible `label` prop (unlike the desktop table's dense/unlabelled
+ *     these. The EDITABLE row (`usageText`, the only one left as of Issue #1959), conversely,
+ *     now DOES get a real, visible `label` prop (unlike the desktop table's dense/unlabelled
  *     copy) — see `mobileUsageField()`'s docstring for why that changes its accessible-name
  *     lookup strategy. Both the desktop `<table>` and the mobile card list are ALWAYS in the
  *     DOM simultaneously (CSS `display:none` toggles per viewport, same convention as the
- *     `WizardStepper` desktop/mobile trees above) — `usageField()`/`attachmentsNoteField()`
- *     stay correctly scoped to `contentTable` and therefore never collide with the mobile
+ *     `WizardStepper` desktop/mobile trees above) — `usageField()`
+ *     stays correctly scoped to `contentTable` and therefore never collides with the mobile
  *     copy, but any NEW mobile-specific locator (`mobileCard()`/`mobileUsageField()` below)
  *     must likewise stay scoped to `mobileCardList`, or it will strict-mode-collide with the
  *     desktop table's copy. **Follow-up bug (#1908)**: `.mobileCardList`
@@ -201,23 +203,46 @@
  * - `sourceInfoBlock` (declared above) is now conditionally rendered — `{!content.isClaim && (
  *   ...)}` — and ABSENT from the DOM entirely for `claim` reports (AC3.1), not merely hidden.
  *   `budget-overview`/`proof-of-funds` reports are unaffected (still render it).
- * - `allocatedMarkers` (the `†`/`‡` text appended after the Allocated Amount, still plain text —
- *   no dedicated locator, read via the row/card's own text) is now SHARED/unnumbered per report
- *   — at most one `†` (any split row) and one `‡` (any deposit-reduced row) — never `†1`/`†2`/
- *   per-invoice numbering. `footnotesBlock`/`footnoteItems` (declared above) mirror this: at
- *   most 2 `<li>` entries total, each `{marker}: {text}` with NO `Vendor (Invoice No.) — `
- *   prefix (dropped — the note is no longer invoice-specific).
+ * - The `†` (split) / `‡` (deposit-reduced) markers this story made shared/unnumbered were
+ *   REPLACED WHOLESALE by inline labels in Issue #1959 — see that paragraph below. Neither glyph
+ *   appears anywhere in the UI or the PDF any more, and `footnotesBlock`/`footnoteItems`
+ *   (declared above) consequently have no producer left.
  * - A constituted-deposit row (the allocation is made up entirely by a deposit tagged to the
- *   reported source) carries NO marker at all — instead an inline `Badge` (`depositBadge`/
+ *   reported source) carries NO marker/label at all — instead an inline `Badge` (`depositBadge`/
  *   `mobileDepositBadge` below) reading "Deposit"/"Abschlagszahlung". There is correspondingly
  *   no "This is a deposit." footnote anymore (`depositConstitutedFootnote` key removed).
  * - `summaryTable`/`summaryTableRows` (declared above) now contains exactly ONE row — `Total`/
  *   `Gesamt` — regardless of how many distinct invoice statuses are included; the old
  *   per-status `Outstanding`/`Paid`/`Quotation`/`Claimed Subtotal` rows are gone
  *   (`sourceReports.table.subtotal` key removed).
- * - `usageAreaText`/`mobileUsageAreaText` below: a read-only leaf-area sub-line rendered under
- *   a row's Usage field, only when the linked item(s) resolve to an area — see the method's own
- *   docstring for why it can never be silently dropped by AI-generated usage text.
+ * - The read-only leaf-area text this story put under a row's Usage field still exists, but it
+ *   is now merged into the combined meta line covered by `usageMetaText()`/
+ *   `mobileUsageMetaText()` below (Issue #1959).
+ *
+ * Issue #1959: report PDF/UI polish — inline meta, inline split/deposit labels, column toggles.
+ * - `†`/`‡` markers and the footnote LIST are GONE. `buildReportContent.ts` no longer pushes any
+ *   `ReportContentFootnote` at all (`ReportContentRow.allocatedMarkers` was replaced by
+ *   `isSplit`/`isDepositReduced` booleans), so `footnotesBlock`/`footnoteItems` are retained
+ *   below purely as negative guards — they can never be populated by the current code path, and
+ *   any test asserting a marker glyph or footnote `<li>` is asserting a superseded design.
+ *   Instead, a split row appends a grey inline `<span class*="inlineNote">` reading `(partial)`
+ *   (de: `(Teilbetrag)`, `sourceReports.table.splitInlineLabel`) INSIDE the Allocated Amount
+ *   cell, and a deposit-reduced row one reading `(less deposit)` (de: `(abzgl. Abschlag)`,
+ *   `depositReducedInlineLabel`) — same cell, same pattern as the existing inline Deposit badge.
+ *   See `inlineNote()`/`mobileInlineNote()` below; the desktop copy carries a leading space
+ *   inside the span (` (partial)`), which `toHaveText`'s whitespace normalization absorbs.
+ * - `row.areaText` and `row.attachmentsNote` are no longer a sub-row and a separate table
+ *   column: both now render as ONE grey read-only meta line inside the Usage cell,
+ *   `[areaText, attachmentsNote].filter(Boolean).join(' · ')` — see `usageMetaText()`/
+ *   `mobileUsageMetaText()` below. The `attachmentsNote` `EditableField` is gone entirely (it is
+ *   read-only text now, no `Attachments note for …` textbox, no `Attachments Note` `<th>`), and
+ *   `overrideKey.row(id).attachmentsNote` is no longer reachable from the UI.
+ * - A `role="group"` (`sourceReports.editable.columnVisibilityLabel` = "Show/hide columns")
+ *   of per-column checkboxes sits next to the table heading, one per column label, all checked
+ *   by default; unchecking one drops that `<th>`/`<td>` from BOTH the desktop table and the
+ *   mobile cards. Local `useState` only — nothing persisted, so it resets on every remount.
+ *   Not currently covered by any locator/scenario here (coverage gap, deliberately not added on
+ *   the #1959 critical path since a new test case reshuffles E2E shard membership).
  *
  * Issue #1932: cover letter overhaul — formatted body, editable signature block, personal
  * sender, professional PDF layout.
@@ -441,11 +466,14 @@ export class ReportWizardPage {
 
   // Story #1923: report table cleanup — total-only summary table (`.summaryTable`, a sibling
   // `<table>` OUTSIDE `.tableWrapper` — see `contentTable`'s own docstring for why that scoping
-  // avoids a substring collision) and the shared footnotes block (`.footnotes`, now at most 2
-  // `<li>` entries — one per marker (`†`/`‡`) — never one per invoice; see `depositBadge`'s
-  // docstring below for the constituted-deposit case, which carries NO marker at all).
+  // avoids a substring collision).
   readonly summaryTable: Locator;
   readonly summaryTableRows: Locator;
+  // The footnotes block (`.footnotes` / its `<li>` entries). As of Issue #1959 NOTHING populates
+  // `content.footnotes` any more (the `†`/`‡` split + deposit-reduced entries became inline
+  // labels — see `inlineNote()`), so the block is never rendered. Kept purely as a NEGATIVE
+  // guard: a scenario asserting `toHaveCount(0)` / `not.toBeVisible()` here is asserting that
+  // the superseded footnote mechanism has not come back. Never assert a positive count on these.
   readonly footnotesBlock: Locator;
   readonly footnoteItems: Locator;
 
@@ -1068,17 +1096,6 @@ export class ReportWizardPage {
   }
 
   /**
-   * The `attachmentsNote` `EditableField` for a table row — only present when
-   * `row.attachmentsNote !== null` (i.e. the invoice has linked documents). Same
-   * substring-name-matching note as `usageField`.
-   */
-  attachmentsNoteField(vendorName: string, invoiceNumber: string): Locator {
-    return this.contentTableRow(vendorName, invoiceNumber).getByRole('textbox', {
-      name: `Attachments note for ${vendorName}, ${invoiceNumber}`,
-    });
-  }
-
-  /**
    * A single mobile-card row within `mobileCardList` (fixed #1904) — a DIRECT CHILD
    * (`>` combinator) so this never also matches a nested `[class*="mobileCardRow"]`
    * label/value pair, which shares the "mobileCard" class substring. Matched by vendor name
@@ -1117,8 +1134,10 @@ export class ReportWizardPage {
    * The inline "Deposit" `Badge` (`[class*="depositBadge"]`, composed from the shared
    * `.attachmentDeposit` variant) rendered in a desktop content-table row's Allocated Amount
    * cell when `row.isDeposit` — a constituted-deposit row (AC2.1), i.e. the row's allocation is
-   * made up entirely by a deposit tagged to the CURRENTLY reported source. Carries NO `†`/`‡`
-   * marker of its own. Scoped to the row so it never collides with `mobileDepositBadge`'s copy
+   * made up entirely by a deposit tagged to the CURRENTLY reported source. Carries no inline
+   * note of its own (see `inlineNote()` — neither `(partial)` nor `(less deposit)`, and, before
+   * Issue #1959 replaced them, neither `†` nor `‡`).
+   * Scoped to the row so it never collides with `mobileDepositBadge`'s copy
    * (both trees share the `depositBadge` class and are always in the DOM simultaneously, per
    * the class docstring's dual-DOM-tree convention).
    */
@@ -1132,20 +1151,47 @@ export class ReportWizardPage {
   }
 
   /**
-   * The read-only, non-editable leaf-area sub-line (`[class*="usageAreaText"]`) rendered below
-   * a desktop row's `usageText` field when `row.areaText` is non-null (AC5.2) — distinct
-   * comma-joined leaf area names, never concatenated into the editable `usageText` string
-   * itself (AC5.3), so it survives both manual edits and AI-generated usage text overwriting
-   * `usageText` (`applyAiContent.ts` only ever assigns `row.usageText`, never `row.areaText`).
-   * Absent entirely (not an empty element) when the row has no area (AC5.4).
+   * The read-only, non-editable grey meta line (`[class*="usageMetaText"]`) rendered inside a
+   * desktop row's Usage CELL, directly below its `usageText` field. As of Issue #1959 this is
+   * the single home for BOTH `row.areaText` (comma-joined leaf area names, AC5.2) and
+   * `row.attachmentsNote` (e.g. "1 attachment: Invoice") — rendered as
+   * `[areaText, attachmentsNote].filter(Boolean).join(' · ')`, so a row with both shows
+   * `Kitchen · 1 attachment: Invoice`. It replaces BOTH the old `.usageAreaText` sub-line and
+   * the old separate, editable `Attachments Note` column (removed — see the Issue #1959
+   * paragraph in the class docstring).
+   *
+   * Neither half is ever concatenated into the editable `usageText` string itself (AC5.3), so
+   * the meta line survives manual edits AND AI-generated usage text (`applyAiContent.ts` only
+   * ever assigns `row.usageText`, never `row.areaText`/`row.attachmentsNote`). Absent entirely
+   * (not an empty element) when the row has neither an area nor a linked document (AC5.4).
    */
-  usageAreaText(vendorName: string, invoiceNumber: string): Locator {
-    return this.contentTableRow(vendorName, invoiceNumber).locator('[class*="usageAreaText"]');
+  usageMetaText(vendorName: string, invoiceNumber: string): Locator {
+    return this.contentTableRow(vendorName, invoiceNumber).locator('[class*="usageMetaText"]');
   }
 
-  /** The same area sub-line within a mobile card's Usage field (AC6.2). */
-  mobileUsageAreaText(vendorName: string, invoiceNumber: string): Locator {
-    return this.mobileCard(vendorName, invoiceNumber).locator('[class*="usageAreaText"]');
+  /** The same meta line within a mobile card's Usage row (AC6.2) — a `<span>`, not a `<div>`. */
+  mobileUsageMetaText(vendorName: string, invoiceNumber: string): Locator {
+    return this.mobileCard(vendorName, invoiceNumber).locator('[class*="usageMetaText"]');
+  }
+
+  /**
+   * The grey inline note(s) (`[class*="inlineNote"]`) appended INSIDE a desktop row's Allocated
+   * Amount cell by Issue #1959, which replaced the `†`/`‡` footnote markers: `(partial)` when
+   * `row.isSplit` (the amount shown is only this source's portion) and `(less deposit)` when
+   * `row.isDepositReduced` (separately-claimed deposits already netted off). A constituted-
+   * deposit row (`row.isDeposit`) gets NEITHER — it gets the inline `depositBadge` instead — so
+   * asserting `toHaveCount(0)` here is a meaningful negative for that case.
+   *
+   * Scoped to the row, so it never collides with `mobileInlineNote`'s copy (both DOM trees are
+   * always present simultaneously — see the class docstring's dual-DOM-tree convention).
+   */
+  inlineNote(vendorName: string, invoiceNumber: string): Locator {
+    return this.contentTableRow(vendorName, invoiceNumber).locator('[class*="inlineNote"]');
+  }
+
+  /** The same inline note(s) within a mobile card's Allocated Amount value. */
+  mobileInlineNote(vendorName: string, invoiceNumber: string): Locator {
+    return this.mobileCard(vendorName, invoiceNumber).locator('[class*="inlineNote"]');
   }
 
   /** Fills an `EditableField` (input or textarea) with `value`, firing its `onChange`. */
