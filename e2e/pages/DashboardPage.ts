@@ -171,9 +171,22 @@ export class DashboardPage {
     await this.openCustomizeDropdown();
     const menuItem = this.customizeDropdown.getByRole('menuitem', { name: `Show ${title}` });
     await menuItem.waitFor({ state: 'visible' });
+    // Register the preferences PATCH listener BEFORE clicking, matching dismissCard()'s
+    // convention — DashboardPage.tsx's handleReEnableCard() awaits this PATCH before updating
+    // local state, so the card reappearing already implies the round-trip settled, but this
+    // keeps the two mirror-image methods consistent for any caller that chains further
+    // preference-dependent actions (e.g. a reload) immediately after re-enabling.
+    const patchPromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/users/me/preferences') &&
+        resp.request().method() === 'PATCH' &&
+        resp.status() === 200,
+    );
     await menuItem.click();
     // Wait for card to be back in DOM
     await this.card(title).waitFor({ state: 'visible' });
+    // Wait for preferences to be persisted on the server before any follow-up action.
+    await patchPromise;
   }
 
   /**
