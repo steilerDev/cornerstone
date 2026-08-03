@@ -71,6 +71,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     diaryAutoEvents: false,
     diaryDraftRetentionDays: 30,
     currency: 'EUR',
+    vatRate: 0.19,
     backupDir: '/backups',
     backupEnabled: false,
     llmBaseUrl: 'http://llm.test.local',
@@ -80,6 +81,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmMaxTokens: 16384,
     llmProvider: 'openai',
     autoItemizeEnabled: true,
+    llmEnabled: true,
     ...overrides,
   };
 }

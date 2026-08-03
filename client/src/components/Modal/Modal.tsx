@@ -12,6 +12,14 @@ export interface ModalProps {
   className?: string;
 }
 
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((el) => !el.hasAttribute('disabled'));
+}
+
 export function Modal({ title, onClose, children, footer, className }: ModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -32,12 +40,33 @@ export function Modal({ title, onClose, children, footer, className }: ModalProp
   // Focus management: focus first focusable element on mount
   useEffect(() => {
     if (contentRef.current) {
-      const focusableElements = contentRef.current.querySelectorAll(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      const firstFocusable = focusableElements[0] as HTMLElement;
+      const [firstFocusable] = getFocusableElements(contentRef.current);
       firstFocusable?.focus();
     }
+  }, []);
+
+  // Focus trap: cycle Tab/Shift+Tab within the modal content
+  useEffect(() => {
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab' || !contentRef.current) return;
+
+      const focusable = getFocusableElements(contentRef.current);
+      if (focusable.length === 0) return;
+
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleTabKey);
+    return () => document.removeEventListener('keydown', handleTabKey);
   }, []);
 
   return createPortal(

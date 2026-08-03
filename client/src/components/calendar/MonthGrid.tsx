@@ -157,7 +157,7 @@ export function MonthGrid({
                     day.isToday ? styles.today : '',
                   ].join(' ')}
                   role="gridcell"
-                  aria-label={formatDateForAria(day.dateStr)}
+                  aria-label={formatDateForAria(day.dateStr, localeString)}
                 >
                   {/* Date number */}
                   <div className={styles.dateNumber}>{day.dayOfMonth}</div>

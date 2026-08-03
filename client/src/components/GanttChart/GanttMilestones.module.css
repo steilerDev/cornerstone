@@ -15,7 +15,7 @@
 .diamond:hover,
 .diamond:focus-visible {
   /* filter uses the --milestone-hover-glow CSS var set inline per diamond */
-  filter: drop-shadow(0 0 5px var(--milestone-hover-glow, rgba(59, 130, 246, 0.25)));
+  filter: drop-shadow(0 0 5px var(--milestone-hover-glow, var(--color-milestone-hover-glow)));
 }
 
 .diamond:focus-visible {

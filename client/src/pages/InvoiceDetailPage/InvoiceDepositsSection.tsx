@@ -1,7 +1,16 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { InvoiceDeposit, InvoiceDepositStatus, InvoiceStatus } from '@cornerstone/shared';
+import type {
+  BudgetSource,
+  InvoiceDeposit,
+  InvoiceDepositStatus,
+  InvoiceDepositEntryType,
+  InvoiceStatus,
+  InvoiceBudgetLineDetailResponse,
+} from '@cornerstone/shared';
 import { createDeposit, updateDeposit, deleteDeposit } from '../../lib/invoiceDepositsApi.js';
+import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
+import { fetchInvoiceBudgetLines } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -28,6 +37,8 @@ interface DepositFormState {
   paidDate: string;
   claimedDate: string;
   description: string;
+  entryType: InvoiceDepositEntryType;
+  budgetSourceId: string | null;
 }
 
 type ModalMode = 'add' | 'edit' | 'delete' | null;
@@ -47,6 +58,8 @@ const getEmptyForm = (): DepositFormState => {
     paidDate: today,
     claimedDate: today,
     description: '',
+    entryType: 'deposit',
+    budgetSourceId: null,
   };
 };
 
@@ -68,6 +81,12 @@ export function InvoiceDepositsSection({
   const [mutatingDepositId, setMutatingDepositId] = useState<string | null>(null);
   const [stateConfirmDeposit, setStateConfirmDeposit] = useState<StateConfirmState | null>(null);
 
+  // Budget sources
+  const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
+
+  // Budget lines (for auto-default logic)
+  const [budgetLines, setBudgetLines] = useState<InvoiceBudgetLineDetailResponse[]>([]);
+
   // Form state
   const [depositForm, setDepositForm] = useState<DepositFormState>(() => getEmptyForm());
   const [formError, setFormError] = useState<string>('');
@@ -81,6 +100,25 @@ export function InvoiceDepositsSection({
 
   // Focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Fetch budget sources and budget lines
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [sourcesResult, budgetLinesResult] = await Promise.all([
+          fetchBudgetSources(),
+          fetchInvoiceBudgetLines(invoiceId),
+        ]);
+        setBudgetSources(sourcesResult.budgetSources);
+        setBudgetLines(budgetLinesResult.budgetLines);
+      } catch {
+        // Silently fail - sources and budget lines are optional for this feature
+        setBudgetSources([]);
+        setBudgetLines([]);
+      }
+    };
+    void loadData();
+  }, [invoiceId]);
 
   const showRevertError = (msg: string) => {
     if (revertErrorTimerRef.current) clearTimeout(revertErrorTimerRef.current);
@@ -110,9 +148,54 @@ export function InvoiceDepositsSection({
     },
   };
 
+  // Compute source map and stats from budget lines (for auto-default and hint display)
+  const sourceStats = (() => {
+    const sourceMap = new Map<string | null, number>();
+    for (const line of budgetLines) {
+      const sourceId = line.budgetSourceId ?? null;
+      sourceMap.set(sourceId, (sourceMap.get(sourceId) ?? 0) + line.itemizedAmount);
+    }
+
+    // Count distinct sources (null and actual IDs)
+    const sourceIds = Array.from(sourceMap.keys()).filter((id) => id !== null);
+    const hasNullSource = sourceMap.has(null);
+    const distinctSources = sourceIds.length + (hasNullSource ? 1 : 0);
+
+    // Find the largest source (only among real, non-null sources)
+    let largestSourceId: string | null = null;
+    let maxAmount = -1;
+    for (const sourceId of sourceIds) {
+      const amount = sourceMap.get(sourceId) ?? 0;
+      if (amount > maxAmount) {
+        maxAmount = amount;
+        largestSourceId = sourceId;
+      }
+    }
+
+    return {
+      sourceMap,
+      distinctSources,
+      sourceIds,
+      hasNullSource,
+      largestSourceId,
+    };
+  })();
+
   const openAddModal = () => {
     setSelectedDeposit(null);
-    setDepositForm(getEmptyForm());
+
+    let defaultSourceId: string | null = null;
+    if (sourceStats.sourceIds.length === 1) {
+      // Exactly one real source (not null): default to that source
+      defaultSourceId = sourceStats.sourceIds[0]!;
+    } else if (sourceStats.sourceIds.length > 1) {
+      // Multiple real sources: default to the source with the largest sum
+      defaultSourceId = sourceStats.largestSourceId;
+    }
+    // If sourceIds.length === 0 (all unassigned), keep defaultSourceId as null
+
+    const emptyForm = getEmptyForm();
+    setDepositForm({ ...emptyForm, budgetSourceId: defaultSourceId });
     setFormError('');
     setModalMode('add');
   };
@@ -126,6 +209,8 @@ export function InvoiceDepositsSection({
       paidDate: deposit.paidDate ? deposit.paidDate.slice(0, 10) : '',
       claimedDate: deposit.claimedDate ? deposit.claimedDate.slice(0, 10) : '',
       description: deposit.description ?? '',
+      entryType: deposit.entryType,
+      budgetSourceId: deposit.budgetSourceId ?? null,
     });
     setFormError('');
     setModalMode('edit');
@@ -187,7 +272,9 @@ export function InvoiceDepositsSection({
           amount,
           dueDate: depositForm.dueDate,
           status: depositForm.status as InvoiceDepositStatus,
+          entryType: depositForm.entryType,
           description: depositForm.description.trim() || null,
+          budgetSourceId: depositForm.budgetSourceId ?? null,
           ...(depositForm.status !== 'pending' ? { paidDate: depositForm.paidDate || null } : {}),
           ...(depositForm.status === 'claimed'
             ? { claimedDate: depositForm.claimedDate || null }
@@ -200,6 +287,7 @@ export function InvoiceDepositsSection({
           dueDate: depositForm.dueDate,
           status: depositForm.status as InvoiceDepositStatus,
           description: depositForm.description.trim() || null,
+          budgetSourceId: depositForm.budgetSourceId ?? null,
           ...(depositForm.status !== 'pending' ? { paidDate: depositForm.paidDate || null } : {}),
           ...(depositForm.status === 'claimed'
             ? { claimedDate: depositForm.claimedDate || null }
@@ -218,6 +306,14 @@ export function InvoiceDepositsSection({
             (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
           setFormError(
             t('budget:invoiceDetail.deposits.errors.exceedsTotal', {
+              availableHeadroom: formatCurrency(availableHeadroom),
+            }),
+          );
+        } else if (code === 'REFUND_EXCEEDS_INVOICE') {
+          const availableHeadroom =
+            (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
+          setFormError(
+            t('budget:invoiceDetail.deposits.errors.refundExceedsTotal', {
               availableHeadroom: formatCurrency(availableHeadroom),
             }),
           );
@@ -467,6 +563,9 @@ export function InvoiceDepositsSection({
           onClose={closeModal}
           error={formError}
           isMutating={isMutating}
+          budgetSources={budgetSources}
+          budgetLineSourceCount={sourceStats.sourceIds.length}
+          largestBudgetSourceId={sourceStats.largestSourceId}
           t={t}
         />
       )}
@@ -545,6 +644,13 @@ function DepositRow({
     },
   };
 
+  const entryTypeVariants: BadgeVariantMap = {
+    refund: {
+      label: t('budget:invoiceDetail.deposits.entryTypeLabels.refund')!,
+      className: styles.refund!,
+    },
+  };
+
   // Build menu items based on deposit status
   const menuItems: OverflowMenuItem[] = [];
 
@@ -607,7 +713,14 @@ function DepositRow({
       className={`${styles.tableRow} ${mutatingDepositId === deposit.id ? styles.tableRowMutating : ''}`}
     >
       <td>{formatDate(deposit.dueDate)}</td>
-      <td>{formatCurrency(deposit.amount)}</td>
+      <td>
+        <div className={styles.amountCell}>
+          {deposit.entryType === 'refund' && <Badge variants={entryTypeVariants} value="refund" />}
+          <span className={deposit.entryType === 'refund' ? styles.amountNegative : undefined}>
+            {formatCurrency(deposit.entryType === 'refund' ? -deposit.amount : deposit.amount)}
+          </span>
+        </div>
+      </td>
       <td>
         <Badge variants={statusVariants} value={deposit.status} />
       </td>
@@ -621,7 +734,9 @@ function DepositRow({
           <OverflowMenu
             items={menuItems}
             triggerAriaLabel={t('budget:invoiceDetail.deposits.menu.ariaLabel', {
-              description: deposit.description ?? 'deposit',
+              description:
+                deposit.description ??
+                t(`budget:invoiceDetail.deposits.entryTypeLabels.${deposit.entryType}`),
             })}
             placement="bottom-end"
             usePortal
@@ -659,6 +774,13 @@ function DepositCard({
     claimed: {
       label: t('invoiceDetail.statusLabels.claimed')!,
       className: styles.statusClaimed!,
+    },
+  };
+
+  const entryTypeVariants: BadgeVariantMap = {
+    refund: {
+      label: t('budget:invoiceDetail.deposits.entryTypeLabels.refund')!,
+      className: styles.refund!,
     },
   };
 
@@ -722,7 +844,12 @@ function DepositCard({
   return (
     <div className={styles.mobileCard}>
       <div className={styles.cardTopRow}>
-        <div className={styles.cardAmount}>{formatCurrency(deposit.amount)}</div>
+        <div className={styles.cardAmount}>
+          {deposit.entryType === 'refund' && <Badge variants={entryTypeVariants} value="refund" />}
+          <span className={deposit.entryType === 'refund' ? styles.amountNegative : undefined}>
+            {formatCurrency(deposit.entryType === 'refund' ? -deposit.amount : deposit.amount)}
+          </span>
+        </div>
         <Badge variants={statusVariants} value={deposit.status} />
       </div>
 
@@ -755,7 +882,9 @@ function DepositCard({
         <OverflowMenu
           items={menuItems}
           triggerAriaLabel={t('budget:invoiceDetail.deposits.menu.ariaLabel', {
-            description: deposit.description ?? 'deposit',
+            description:
+              deposit.description ??
+              t(`budget:invoiceDetail.deposits.entryTypeLabels.${deposit.entryType}`),
           })}
           placement="top-end"
           usePortal
@@ -777,6 +906,9 @@ interface AddEditDepositModalProps {
   onClose: () => void;
   error: string;
   isMutating: boolean;
+  budgetSources: BudgetSource[];
+  budgetLineSourceCount: number; // Number of distinct sources in invoice's budget lines (for hint display)
+  largestBudgetSourceId: string | null; // The source with the largest sum (for hint display)
   t: (key: string, opts?: Record<string, unknown>) => string;
 }
 
@@ -788,6 +920,9 @@ function AddEditDepositModal({
   onClose,
   error,
   isMutating,
+  budgetSources,
+  budgetLineSourceCount,
+  largestBudgetSourceId,
   t,
 }: AddEditDepositModalProps) {
   const isEdit = mode === 'edit';
@@ -833,6 +968,80 @@ function AddEditDepositModal({
       <form id="deposit-form" onSubmit={onSubmit} noValidate>
         {error && <FormError message={error} />}
 
+        {/* Entry type selector */}
+        <div className={styles.formField}>
+          <span className={styles.label}>{t('budget:invoiceDetail.deposits.form.entryType')}</span>
+          <div
+            className={styles.entryTypeSelector}
+            role="group"
+            aria-label={t('budget:invoiceDetail.deposits.form.entryTypeLabel')}
+          >
+            <label>
+              <input
+                type="radio"
+                name="entryType"
+                value="deposit"
+                checked={form.entryType === 'deposit'}
+                onChange={(e) =>
+                  onFormChange({ ...form, entryType: e.target.value as InvoiceDepositEntryType })
+                }
+                disabled={isMutating || isEdit}
+              />
+              {t('budget:invoiceDetail.deposits.entryTypeLabels.deposit')}
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="entryType"
+                value="refund"
+                checked={form.entryType === 'refund'}
+                onChange={(e) =>
+                  onFormChange({ ...form, entryType: e.target.value as InvoiceDepositEntryType })
+                }
+                disabled={isMutating || isEdit}
+              />
+              {t('budget:invoiceDetail.deposits.entryTypeLabels.refund')}
+            </label>
+          </div>
+        </div>
+
+        {/* Budget source picker */}
+        <div className={styles.formField}>
+          <label htmlFor="deposit-budgetSource" className={styles.label}>
+            {t('budget:invoiceDetail.deposits.form.budgetSource')}
+          </label>
+          <select
+            id="deposit-budgetSource"
+            value={form.budgetSourceId || ''}
+            onChange={(e) =>
+              onFormChange({
+                ...form,
+                budgetSourceId: e.target.value ? e.target.value : null,
+              })
+            }
+            className={sharedStyles.select}
+            disabled={isMutating}
+          >
+            <option value="">{t('budget:invoiceDetail.deposits.form.budgetSourceNone')}</option>
+            {budgetSources.map((source) => (
+              <option key={source.id} value={source.id}>
+                {source.name}
+              </option>
+            ))}
+          </select>
+          <div className={styles.charCounter}>
+            {budgetLineSourceCount === 0
+              ? t('budget:invoiceDetail.deposits.form.budgetSourceHintNone')
+              : budgetLineSourceCount === 1
+                ? t('budget:invoiceDetail.deposits.form.budgetSourceHintSingle', {
+                    name: budgetSources.find((s) => s.id === form.budgetSourceId)?.name || '—',
+                  })
+                : t('budget:invoiceDetail.deposits.form.budgetSourceHintLargest', {
+                    name: budgetSources.find((s) => s.id === largestBudgetSourceId)?.name || '—',
+                  })}
+          </div>
+        </div>
+
         {/* Row 1: amount + due date */}
         <div className={styles.formRow}>
           <div className={styles.formField}>
@@ -855,6 +1064,11 @@ function AddEditDepositModal({
               disabled={isMutating}
               onWheel={(e) => e.currentTarget.blur()}
             />
+            {form.entryType === 'refund' && (
+              <div className={styles.charCounter}>
+                {t('budget:invoiceDetail.deposits.form.refundAmountHint')}
+              </div>
+            )}
           </div>
 
           <div className={styles.formField}>

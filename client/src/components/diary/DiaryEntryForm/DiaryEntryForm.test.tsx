@@ -1,11 +1,22 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DiaryEntryFormProps } from './DiaryEntryForm.js';
 import type React from 'react';
+import type { ReactElement } from 'react';
+import { LocaleProvider } from '../../../contexts/LocaleContext.js';
+
+/**
+ * Custom render function that wraps the component with LocaleProvider —
+ * DiaryEntryForm uses useFormatters() (via useLocale()), which throws
+ * outside a LocaleProvider. See DateRangePicker.test.tsx for the reference pattern.
+ */
+function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
+}
 
 // DiaryEntryForm has no API deps — import directly after declaring module scope
 let DiaryEntryForm: React.ComponentType<DiaryEntryFormProps>;
@@ -33,6 +44,11 @@ describe('DiaryEntryForm', () => {
       const mod = await import('./DiaryEntryForm.js');
       DiaryEntryForm = mod.DiaryEntryForm;
     }
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
   });
 
   // ─── Common fields ──────────────────────────────────────────────────────────
@@ -711,6 +727,22 @@ describe('DiaryEntryForm', () => {
       );
       const statusEl = screen.getByRole('status');
       expect(statusEl.textContent).toContain('8.50 h');
+    });
+
+    it('shows duration "8,50 h" (comma decimal) under de-DE locale', () => {
+      localStorage.setItem('locale', 'de');
+      render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'daily_log',
+            dailyLogWorkStart: '08:00',
+            dailyLogWorkEnd: '16:30',
+          })}
+        />,
+      );
+      const statusEl = screen.getByRole('status');
+      expect(statusEl.textContent).toContain('8,50 h');
+      expect(statusEl.textContent).not.toContain('8.50 h');
     });
 
     it('does not show duration when only start time given', () => {

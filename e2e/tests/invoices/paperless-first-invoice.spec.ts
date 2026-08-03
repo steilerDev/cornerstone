@@ -32,6 +32,10 @@
  *   16. @smoke "Create New Budget Line" closes picker and shows inline BudgetLineForm on card (Story #1764)
  *   17. Fill inline form and save creates budget line + invoice (Story #1764)
  *   18. Inline form validation: invalid amount shows inlineDraftInvalid error (Story #1764)
+ *   19. Regression test for bug #1833: retry after a commit failure
+ *       (ITEMIZED_SUM_EXCEEDS_INVOICE, mocked response — see Scenario 19 comment
+ *       for why the commit endpoint itself must be mocked here) does not create
+ *       a duplicate WI budget line. The WI-budgets POST is real, unmocked.
  *
  * Mocking strategy:
  *   - GET /api/paperless/status → configured+reachable (mocked)
@@ -1636,6 +1640,243 @@ test.describe('Scenario 18 — Inline form validation: invalid amount shows erro
         `Expected no auto-itemize/commit POST — got ${commitCallCount} call(s)`,
       ).toBe(0);
     } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 19 — Regression test for bug #1833: retrying "Create Invoice &
+// Itemize" after a commit failure does not create a duplicate WI budget line
+// (new-invoice / PaperlessInvoiceReviewPage flow).
+//
+// Before the fix, `materializeInlineDrafts` created the WI budget line via a
+// separate POST before the atomic /api/invoices/auto-itemize/commit call. If
+// commit then failed, the fact that the WI budget line had already been
+// created was never written back into page state — so a retry re-ran
+// materialization from scratch and created a SECOND WI budget line.
+//
+// NOTE: `/api/invoices/auto-itemize/commit` (the new-invoice endpoint) checks
+// `fastify.config.paperlessEnabled` FIRST and throws 503 PAPERLESS_NOT_CONFIGURED
+// before any amount validation runs (server/src/routes/invoiceAutoItemize.ts) —
+// the E2E app container has no Paperless env configured, so this endpoint can
+// never be reached for real here (every other Scenario in this file mocks it
+// too, via `mockCommit`). This test mocks the commit endpoint's RESPONSE
+// (first call → 400 ITEMIZED_SUM_EXCEEDS_INVOICE, second call → success), but
+// keeps the WI-budget-line creation REAL — that POST is the actual regression
+// surface for bug #1833, and it has no paperlessEnabled gate (confirmed by
+// Scenario 4 in auto-itemize-inline-create.spec.ts, which hits the real
+// existing-invoice commit endpoint successfully in this same environment).
+// The success response points at a real invoice pre-created via API so
+// post-save navigation to the invoice detail route resolves for real.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 19 — Retry after commit failure does not duplicate WI budget line (Bug #1833)', () => {
+  test('Queued inline draft: retrying Save after an ITEMIZED_SUM_EXCEEDS_INVOICE failure reuses the already-created WI budget line', async ({
+    page,
+    testPrefix,
+  }) => {
+    const vw = page.viewportSize()?.width ?? 1440;
+    if (vw < 600) {
+      test.skip(true, 'Functional test — desktop/tablet only (≥600px)');
+      return;
+    }
+
+    test.setTimeout(60_000);
+
+    let vendorId = '';
+    let workItemId = '';
+    let preCreatedInvoiceId = '';
+
+    // Track every POST to the WI-budgets endpoint across BOTH save attempts —
+    // this is the actual regression surface (real endpoint, not mocked).
+    let wiCreateCallCount = 0;
+    let capturedWiBudgetId: string;
+
+    // Track every commit request payload so we can assert the SAME
+    // assignedBudgetLineId is reused across both attempts (no duplicate).
+    const capturedCommitPayloads: Array<{
+      lines?: Array<{ assignmentMode?: string; assignedBudgetLineId?: string }>;
+    }> = [];
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} PF-S19 Vendor`);
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} PF-S19 WI` });
+
+      // Pre-create a REAL invoice so the second (mocked-success) commit
+      // response can point navigation at an invoice detail page that actually
+      // resolves against the real server (GET /api/invoices/:id, budget-lines,
+      // document-links all hit the real backend — no additional mocking needed).
+      const preCreatedInvoiceResp = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
+        data: { status: 'pending', amount: 1580, date: '2026-01-15' },
+      });
+      expect(
+        preCreatedInvoiceResp.ok(),
+        `POST pre-created invoice failed: ${preCreatedInvoiceResp.status()}`,
+      ).toBeTruthy();
+      const preCreatedInvoiceBody = (await preCreatedInvoiceResp.json()) as {
+        invoice: { id: string };
+      };
+      preCreatedInvoiceId = preCreatedInvoiceBody.invoice.id;
+
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
+      await mockDocumentDetail(page, MOCK_DOC_1.id);
+      // Single line: totalAmount=900, includesVat=false → effective gross = 1071.
+      await mockPreview(page, {
+        suggestedVendorId: null,
+        lines: [MOCK_EXTRACTED_LINES[0]],
+      });
+
+      // Mock the commit endpoint's RESPONSE only — call 1 fails with a genuine
+      // ITEMIZED_SUM_EXCEEDS_INVOICE shape, call 2 succeeds. The WI-budgets
+      // POST (materializeInlineDrafts) is NOT mocked — it always hits the real
+      // server, both times, and is what the regression assertions below check.
+      let commitCallCount = 0;
+      await page.route('**/api/invoices/auto-itemize/commit', async (route: Route) => {
+        commitCallCount++;
+        const body = route.request().postDataJSON() as {
+          lines?: Array<{ assignmentMode?: string; assignedBudgetLineId?: string }>;
+        };
+        capturedCommitPayloads.push(body);
+
+        if (commitCallCount === 1) {
+          await route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              error: {
+                code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
+                message: 'The sum of itemized amounts exceeds the invoice total.',
+                details: {},
+              },
+            }),
+          });
+          return;
+        }
+
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({ invoice: { id: preCreatedInvoiceId } }),
+        });
+      });
+
+      page.on('request', (req) => {
+        if (
+          req.url().includes('/api/work-items/') &&
+          req.url().includes('/budgets') &&
+          req.method() === 'POST'
+        ) {
+          wiCreateCallCount++;
+        }
+      });
+
+      const reviewPage = await navigateToReviewPage(page);
+
+      // ── Queue create-new on the single extracted line ──────────────────────
+      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S19 WI`);
+      await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
+
+      // ── Set vendor so vendor validation passes ──────────────────────────────
+      await reviewPage.setVendor(`${testPrefix} PF-S19 Vendor`);
+
+      // ── First confirm: materialize succeeds (real WI budget POST), mocked commit fails ──
+      const firstWiCreatePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/work-items/') &&
+          resp.url().includes('/budgets') &&
+          resp.request().method() === 'POST' &&
+          resp.ok(),
+      );
+      const firstCommitPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/invoices/auto-itemize/commit') &&
+          resp.request().method() === 'POST',
+        { timeout: 30000 },
+      );
+
+      await reviewPage.confirmButton.click();
+      const [firstWiCreateResp, firstCommitResp] = await Promise.all([
+        firstWiCreatePromise,
+        firstCommitPromise,
+      ]);
+
+      const firstWiBudgetBody = (await firstWiCreateResp.json()) as { budget: { id: string } };
+      capturedWiBudgetId = firstWiBudgetBody.budget.id;
+
+      // ── Assert: the (mocked) server rejected the commit with the expected error ──
+      expect(
+        firstCommitResp.status(),
+        `Expected first commit to fail with 400 ITEMIZED_SUM_EXCEEDS_INVOICE, got ${firstCommitResp.status()}`,
+      ).toBe(400);
+      const firstCommitBody = (await firstCommitResp.json()) as { error?: { code?: string } };
+      expect(firstCommitBody.error?.code).toBe('ITEMIZED_SUM_EXCEEDS_INVOICE');
+
+      // ── Assert: page-level error banner visible, no navigation ──────────────
+      await expect(reviewPage.pageErrorBanner).toBeVisible();
+      expect(page.url()).toContain('/budget/invoices/new/paperless');
+
+      // ── Assert: exactly one WI-budgets POST fired so far ─────────────────────
+      expect(
+        wiCreateCallCount,
+        `Expected exactly 1 WI-budgets POST after the first (failed) Save, got ${wiCreateCallCount}`,
+      ).toBe(1);
+
+      // ── Assert: even the FIRST commit payload already reused the materialized line ──
+      // (materialize always runs before commit, so this is true regardless of
+      // commit's outcome — proves setLines synced state before the outer call.)
+      expect(capturedCommitPayloads[0]?.lines?.[0]?.assignmentMode).toBe('assign-existing');
+      expect(capturedCommitPayloads[0]?.lines?.[0]?.assignedBudgetLineId).toBe(capturedWiBudgetId);
+
+      // ── Second confirm: mocked commit now succeeds WITHOUT a second WI-budgets POST ──
+      const secondCommitPromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/invoices/auto-itemize/commit') &&
+          resp.request().method() === 'POST',
+        { timeout: 30000 },
+      );
+
+      await reviewPage.confirmButton.click();
+      const secondCommitResp = await secondCommitPromise;
+
+      if (!secondCommitResp.ok()) {
+        const bodyText = await secondCommitResp.text().catch(() => '<no body>');
+        throw new Error(`Retry commit returned ${secondCommitResp.status()}: ${bodyText}`);
+      }
+      const secondCommitBody = (await secondCommitResp.json()) as { invoice: { id: string } };
+      expect(secondCommitBody.invoice.id).toBe(preCreatedInvoiceId);
+
+      // ── Assert: navigated to the pre-created invoice's detail page ───────────
+      await page.waitForURL(`**/budget/invoices/${preCreatedInvoiceId}`);
+
+      // ── Regression guard: WI-budgets POST count did NOT increase on retry ─────
+      expect(
+        wiCreateCallCount,
+        `Expected WI-budgets POST count to remain 1 after the retry (no duplicate create), got ${wiCreateCallCount}`,
+      ).toBe(1);
+
+      // ── Regression guard: the retried commit reused the SAME budget line id ───
+      expect(capturedCommitPayloads).toHaveLength(2);
+      expect(capturedCommitPayloads[1]?.lines?.[0]?.assignmentMode).toBe('assign-existing');
+      expect(capturedCommitPayloads[1]?.lines?.[0]?.assignedBudgetLineId).toBe(capturedWiBudgetId);
+
+      // ── Verify via API: exactly 1 budget line exists under the work item ─────
+      const listResp = await page.request.get(`${API.workItems}/${workItemId}/budgets`);
+      expect(listResp.ok(), `GET /api/work-items/${workItemId}/budgets failed`).toBeTruthy();
+      const listBody = (await listResp.json()) as { budgets: Array<{ id: string }> };
+      expect(
+        listBody.budgets.length,
+        `Expected exactly 1 budget line under WI ${workItemId} after retry, got ${listBody.budgets.length}`,
+      ).toBe(1);
+    } finally {
+      if (preCreatedInvoiceId && vendorId) {
+        await page.request.delete(`${API.vendors}/${vendorId}/invoices/${preCreatedInvoiceId}`);
+      }
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
     }

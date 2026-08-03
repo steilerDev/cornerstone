@@ -38,7 +38,7 @@ Create tasks upfront with `TaskCreate` so progress survives context compression:
 6. **File adoption follow-ups** — one batched issue per package
 7. **Final report**
 
-**Progress rule:** Mark each task `in_progress` before starting and `completed` immediately after. If you lose track after a compression, run `TaskList` and resume from the first pending task.
+Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
 ## Steps
 
@@ -72,8 +72,12 @@ If both lists are empty, skip to step 7 and report "Nothing to do."
 For each PR, fetch check state:
 
 ```bash
-gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket
+SHA=$(gh pr view <PR> --repo steilerDev/cornerstone --json headRefOid -q '.headRefOid')
+gh api "repos/steilerDev/cornerstone/commits/$SHA/check-runs" --paginate \
+  -q '.check_runs[] | select(.name == "Quality Gates") | "\(.status) \(.conclusion)"'
 ```
+
+(Do not use `gh pr checks --json` — it silently returns nothing with this repo's Rulesets setup.)
 
 Also fetch mergeability:
 
@@ -83,11 +87,11 @@ gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'
 
 Bucket each PR into:
 
-- `READY` — `Quality Gates` bucket is `pass` and `mergeable=MERGEABLE`
-- `FAILING` — any required check bucket is `fail`
-- `PENDING` — checks still running or `mergeable=UNKNOWN`
+- `READY` — `Quality Gates` is `completed success` and `mergeable=MERGEABLE`
+- `FAILING` — `Quality Gates` is `completed` with a non-success conclusion
+- `PENDING` — check still running (or absent) or `mergeable=UNKNOWN`
 
-For `PENDING` PRs, wait once using the **beta CI gate polling pattern from CLAUDE.md** (5-minute timeout). Re-classify after polling. If still `PENDING` after timeout, treat as `FAILING` and proceed to step 5.
+For `PENDING` PRs, wait once with `bash scripts/ci-wait.sh <pr-number>`. Re-classify after it returns. If still `PENDING` after its timeout, treat as `FAILING` and proceed to step 5.
 
 #### 2b. Correlate alerts with PRs
 
@@ -150,11 +154,13 @@ For each `READY` PR with no `BREAKING` or `BLOCKING` findings from step 3:
    if [ "$state" != "MERGEABLE" ]; then echo "PR is not mergeable (state: $state) — surfacing to user"; continue; fi
    ```
 
-3. Squash-merge:
+3. Squash-merge — write a short body (e.g., "Remediates Dependabot bump — see PR description.") to a temp file, then:
 
    ```bash
-   gh pr merge <PR> --repo steilerDev/cornerstone --squash
+   bash scripts/squash-merge.sh <pr-number> "<original PR title>" <body-file>
    ```
+
+   The script rebuilds any agent trailers from the PR's commits — there will be none for PRs merged as-is with no agent fix commits (that's fine); only PRs that went through step 5's fix loop have agent trailers to preserve.
 
 4. Mark the PR's task `completed` and record it for the final report. Continue to the next PR.
 
@@ -173,13 +179,15 @@ gh pr checkout <PR> --repo steilerDev/cornerstone
 #### 5b. Fetch failed check logs
 
 ```bash
-RUN_ID=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,link -q '.[] | select(.bucket == "fail") | .link' | head -1 | grep -oE '[0-9]+$')
+SHA=$(gh pr view <PR> --repo steilerDev/cornerstone --json headRefOid -q '.headRefOid')
+RUN_ID=$(gh run list --repo steilerDev/cornerstone --commit "$SHA" --workflow "Quality Gates" \
+  --json databaseId,conclusion -q '.[] | select(.conclusion == "failure") | .databaseId' | head -1)
 gh run view "$RUN_ID" --repo steilerDev/cornerstone --log-failed
 ```
 
 #### 5c. Classify the failure and delegate
 
-Map the failure to one of these categories and delegate to the appropriate agent. Multiple categories can apply — launch independent fixes in parallel.
+Map the failure to one of these categories and delegate to the appropriate agent. Multiple categories can apply — launch independent fixes in parallel. On repeat iterations (looping back from 5e), continue the previously launched agent via SendMessage (it retains the context it built in the earlier round) instead of launching a fresh agent; launch fresh only if that agent is no longer available.
 
 | Failure pattern                                                                                       | Agent                                                                           | Brief                                                                                                                            |
 | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -194,21 +202,17 @@ Each agent receives:
 - PR number and URL
 - The full failed-check excerpt
 - The `BREAKING` findings from step 3 (if any)
-- Explicit instruction to commit on the current branch (the Dependabot branch) and NOT to push — the orchestrator pushes after committing.
+- Explicit instruction to only edit files — per CLAUDE.md's flat delegation model, implementation agents never run `git commit` or `git push` themselves. Staging, committing, and pushing are handled exclusively by `dev-team-lead [MODE: commit]` in step 5d.
 
 #### 5d. Commit & push
 
-Use `dev-team-lead [MODE: commit]` to stage, write the conventional commit message with all contributing agent trailers, and push. Per CLAUDE.md trailer-verification rules, every production-file change must carry the correct `Co-Authored-By` trailer.
+Launch `dev-team-lead [MODE: commit]` to stage the changes, write the conventional commit message with all contributing agent trailers, and push — this is the sole commit/push action for this PR; do not run a separate `git push`. Per CLAUDE.md trailer-verification rules, every production-file change must carry the correct `Co-Authored-By` trailer.
 
-```bash
-git push
-```
-
-(No `-u` — the branch already tracks the Dependabot remote ref.)
+This PR already exists (it _is_ the Dependabot PR) — explicitly instruct dev-team-lead to **skip PR creation** in its `[MODE: commit]` protocol (there is no new PR to open) and to push without `-u` (the branch already tracks the Dependabot remote ref).
 
 #### 5e. Wait for CI
 
-Re-poll using the **beta CI gate polling pattern from CLAUDE.md**.
+Re-poll with `bash scripts/ci-wait.sh <pr-number>`.
 
 - Pass → route the PR to step 4 (merge).
 - Fail → loop back to 5b for another iteration (max 3).
@@ -291,7 +295,7 @@ EOF
 )"
 ```
 
-Wait for the beta CI gate (pattern from CLAUDE.md). On pass → squash-merge. On fail → run one fix iteration via the same pattern as step 5; cap at 3 iterations total before surfacing to user.
+Wait for the beta CI gate: `bash scripts/ci-wait.sh <pr-number>`. On pass → squash-merge with `bash scripts/squash-merge.sh <pr-number> "fix(deps): remediate <GHSA-ID> in <package>" <body-file>`. On fail → run one fix iteration via the same pattern as step 5; cap at 3 iterations total before surfacing to user.
 
 After each alert (merged, blocked, or recommended for dismissal): return to the original worktree branch with `git checkout <original-branch>`.
 

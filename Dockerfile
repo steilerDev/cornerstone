@@ -54,9 +54,10 @@ RUN npm run build -w shared && npm run build -w client && npm run build -w serve
 # ---------------------------------------------------------------------------
 # Stage 2: Production dependencies (target arch)
 # ---------------------------------------------------------------------------
-# Runs on target platform so prebuild-install downloads the correct
-# architecture's prebuilt binary for better-sqlite3. No build tools needed —
-# the prebuild is fetched from GitHub Releases, not compiled.
+# Runs on the target platform so better-sqlite3 resolves the correct
+# architecture's prebuilt binary. No build tools needed — since v13 the
+# prebuilds ship inside the npm tarball itself (prebuilds/linuxmusl-{x64,arm64}.node
+# for Alpine), so nothing is downloaded and nothing is compiled.
 FROM dhi.io/node:24-alpine3.23-dev AS deps
 
 WORKDIR /app
@@ -68,10 +69,23 @@ COPY server/package.json server/
 COPY client/package.json client/
 COPY docs/package.json docs/
 
-# Install production dependencies only. better-sqlite3's postinstall
-# (prebuild-install) downloads the matching prebuilt .node binary for the
-# target platform — no compilation, no build-base/python3 needed.
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
+# Install production dependencies only.
+#
+# --ignore-scripts: better-sqlite3 is the ONLY production dependency with an
+# install script (every other `hasInstallScript` package in the lockfile is
+# dev-only and excluded by --omit=dev). Its package.json declares no install
+# script at all — npm *synthesizes* `node-gyp rebuild` because a binding.gyp is
+# present. That build is a no-op when a prebuild exists (binding.gyp resolves
+# `prebuild_exists` via `node lib/binding.js` and sets target type 'none'), but
+# node-gyp still needs python3 just to evaluate gyp. Skipping scripts keeps this
+# image toolchain-free; better-sqlite3 resolves prebuilds/<platform>-<arch>.node
+# at require() time, so no install-time step is needed.
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts
+
+# Fail the build loudly if better-sqlite3 has no prebuilt binary for this
+# target. Without this, a missing prebuild would surface as a runtime crash in
+# the production image instead of a build failure here.
+RUN node -e "const p=require('/app/node_modules/better-sqlite3/lib/binding.js').getPrebuildPath(); if(!p){console.error('FATAL: no better-sqlite3 prebuild for '+process.platform+'-'+process.arch);process.exit(1)} console.log('better-sqlite3 prebuild: '+p)"
 
 # Ensure workspace node_modules directories exist even when npm hoists all
 # production dependencies to the root node_modules/. Without this, the

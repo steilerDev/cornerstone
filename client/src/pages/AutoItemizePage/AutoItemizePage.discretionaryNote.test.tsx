@@ -273,6 +273,8 @@ function makeBudgetSource(id: string, isDiscretionary: boolean): BudgetSource {
     status: 'active',
     isDiscretionary,
     notes: null,
+    reference: null,
+    contactAddress: null,
     createdBy: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',

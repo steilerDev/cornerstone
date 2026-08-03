@@ -257,7 +257,6 @@
     "backButton": "← Back to Household Items",
     "toSchedule": "To Schedule",
     "edit": "Edit",
-    "delete": "Delete",
     "details": {
       "title": "Details",
       "description": "Description",
@@ -337,6 +336,7 @@
       "plannedAmountLabel": "Planned Amount",
       "actualCostLabel": "Actual Cost",
       "paybackLabel": "Payback"
-    }
+    },
+    "closeErrorMessage": "Close error message"
   }
 }

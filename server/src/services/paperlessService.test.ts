@@ -1065,3 +1065,89 @@ describe('Error codes and status codes', () => {
     }
   });
 });
+
+// ─── uploadDocument() ──────────────────────────────────────────────────────────
+
+describe('uploadDocument()', () => {
+  const INPUT = {
+    buffer: Buffer.from('%PDF-1.4 fake pdf bytes'),
+    filename: 'invoice.pdf',
+    title: 'Invoice from Builder Co',
+  };
+
+  function lastFetchBody(): FormData {
+    const lastCall = mockFetch.mock.calls[mockFetch.mock.calls.length - 1]!;
+    return lastCall[1]!.body as FormData;
+  }
+
+  it('scenario 31: resolvable filter tag → tags field included in the multipart body, returns taskId', async () => {
+    // 1. resolveFilterTagId's tag lookup
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+    // 2. the upload itself — post_document returns the task UUID as a raw JSON string
+    mockFetch.mockResolvedValueOnce(mockJsonResponse('11111111-2222-3333-4444-555555555555'));
+
+    const result = await paperlessService.uploadDocument(BASE_URL, TOKEN, {
+      ...INPUT,
+      filterTagName: 'invoice',
+    });
+
+    expect(result).toEqual({ taskId: '11111111-2222-3333-4444-555555555555' });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    const body = lastFetchBody();
+    expect(body.has('tags')).toBe(true);
+    expect(body.get('tags')).toBe(String(RAW_TAG_1.id));
+    expect(body.get('title')).toBe(INPUT.title);
+
+    const [uploadUrl, uploadInit] = mockFetch.mock.calls[1]!;
+    expect(String(uploadUrl)).toBe(`${BASE_URL}/api/documents/post_document/`);
+    expect(uploadInit!.method).toBe('POST');
+    expect((uploadInit!.headers as Record<string, string>)['Authorization']).toBe(`Token ${TOKEN}`);
+  });
+
+  it('scenario 32: unresolvable filter tag → no tags field, upload still succeeds', async () => {
+    // 1. resolveFilterTagId's tag lookup returns no matching tag
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+    // 2. the upload itself proceeds untagged
+    mockFetch.mockResolvedValueOnce(mockJsonResponse('task-untagged-id'));
+
+    const result = await paperlessService.uploadDocument(BASE_URL, TOKEN, {
+      ...INPUT,
+      filterTagName: 'does-not-exist',
+    });
+
+    expect(result).toEqual({ taskId: 'task-untagged-id' });
+    const body = lastFetchBody();
+    expect(body.has('tags')).toBe(false);
+  });
+
+  it('no filterTagName provided → skips tag resolution entirely (single fetch call, no tags field)', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse('task-no-tag'));
+
+    const result = await paperlessService.uploadDocument(BASE_URL, TOKEN, INPUT);
+
+    expect(result).toEqual({ taskId: 'task-no-tag' });
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const body = lastFetchBody();
+    expect(body.has('tags')).toBe(false);
+    expect(body.get('title')).toBe(INPUT.title);
+  });
+
+  it('scenario 33: network failure during upload → PAPERLESS_UNREACHABLE 502', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+
+    await expect(paperlessService.uploadDocument(BASE_URL, TOKEN, INPUT)).rejects.toMatchObject({
+      code: 'PAPERLESS_UNREACHABLE',
+      statusCode: 502,
+    });
+  });
+
+  it('scenario 34: non-2xx response from Paperless → PAPERLESS_ERROR 502', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ detail: 'Bad Request' }, 400));
+
+    await expect(paperlessService.uploadDocument(BASE_URL, TOKEN, INPUT)).rejects.toMatchObject({
+      code: 'PAPERLESS_ERROR',
+      statusCode: 502,
+    });
+  });
+});

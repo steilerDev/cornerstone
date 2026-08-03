@@ -710,7 +710,7 @@ export function VendorDetailPage() {
               </div>
 
               {/* Mobile card list */}
-              <ul className={styles.invoiceCardList} aria-label="Invoices">
+              <ul className={styles.invoiceCardList} aria-label={t('vendorDetail.invoices')}>
                 {invoices.map((invoice) => (
                   <li key={invoice.id} className={styles.invoiceCard}>
                     <div className={styles.invoiceCardRow}>

@@ -10,6 +10,8 @@ You are the orchestrator running a lightweight planning-and-execution workflow f
 **When to use:** A user provides a spec describing a cohesive set of changes — a small feature area, a refactoring effort, a group of related improvements — that should be split into a few independent work items and developed sequentially. Think: 2–6 stories/bugs that share a common theme but each deserve their own PR.
 **When NOT to use:** Large epics requiring architecture planning, schema changes, or ADRs (use `/epic-start` + `/epic-run`). A single bug or story (use `/develop`). Items that should share a single PR (use `/develop` with multi-item input).
 
+**Session isolation:** Analysis and issue creation happen in the current session worktree — this skill makes no branch or worktree changes of its own; `/batch-develop` (step 7) manages per-item branches itself.
+
 ## Input
 
 `$ARGUMENTS` contains one of the following:
@@ -19,6 +21,22 @@ You are the orchestrator running a lightweight planning-and-execution workflow f
 - **GitHub Issue number** (e.g., `#100` or `100`) — the issue body contains the spec
 
 If empty, ask the user to provide a spec before proceeding.
+
+## Task Tracking
+
+At the start of each `/mini-epic` invocation, create tasks to track progress.
+
+**Create these tasks upfront** (using `TaskCreate`):
+
+1. **Ingest spec** — Parse arguments and confirm the spec with the user
+2. **Enter planning mode** — Switch to planning mode for analysis and discussion
+3. **Analyze & decompose** — Read the codebase, produce work items and dependency graph
+4. **Challenge & clarify** — Present questions, alternatives, and implications
+5. **User confirmation** — Iterate until the user explicitly confirms the decomposition
+6. **Exit planning mode & create issues** — Product-owner creates GitHub Issues for each work item
+7. **Hand off to batch develop** — Print the queue and invoke /batch-develop
+
+Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
 ## Steps
 

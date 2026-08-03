@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import type React from 'react';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -141,14 +141,14 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
     formatDate: fmtDate,
     formatTime: fmtTime,
     formatDateTime: fmtDateTime,
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    formatPercent: (n: number, digits = 2) => `${n.toFixed(digits)}%`,
     computeActualDuration: () => null,
     useFormatters: () => ({
       formatCurrency: fmtCurrency,
       formatDate: fmtDate,
       formatTime: fmtTime,
       formatDateTime: fmtDateTime,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
+      formatPercent: (n: number, digits = 2) => `${n.toFixed(digits)}%`,
     }),
   };
 });
@@ -176,6 +176,8 @@ describe('BudgetSourcesPage', () => {
     interestRate: 3.5,
     terms: '30-year fixed',
     notes: 'Primary financing',
+    reference: null,
+    contactAddress: null,
     status: 'active',
     isDiscretionary: false,
     createdBy: null,
@@ -200,6 +202,8 @@ describe('BudgetSourcesPage', () => {
     interestRate: null,
     terms: null,
     notes: null,
+    reference: null,
+    contactAddress: null,
     status: 'active',
     isDiscretionary: false,
     createdBy: null,
@@ -747,6 +751,71 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
+    it('submits reference and contactAddress when filled in (Story #1877)', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
+      mockCreateBudgetSource.mockResolvedValueOnce({
+        ...sampleSource1,
+        id: 'src-new',
+        name: 'Contact Fields Loan',
+        reference: 'Account #12345',
+        contactAddress: '123 Bank St',
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add source/i }));
+
+      await user.type(screen.getByLabelText(/^name/i), 'Contact Fields Loan');
+      fireEvent.change(screen.getByLabelText(/total amount/i), { target: { value: '10000' } });
+      await user.type(screen.getByLabelText('Reference'), 'Account #12345');
+      await user.type(screen.getByLabelText('Contact Address'), '123 Bank St');
+
+      await user.click(screen.getByRole('button', { name: /create source/i }));
+
+      await waitFor(() => {
+        expect(mockCreateBudgetSource).toHaveBeenCalledWith(
+          expect.objectContaining({
+            reference: 'Account #12345',
+            contactAddress: '123 Bank St',
+          }),
+        );
+      });
+    });
+
+    it('submits reference and contactAddress as null when left empty (Story #1877)', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
+      mockCreateBudgetSource.mockResolvedValueOnce({
+        ...sampleSource1,
+        id: 'src-new',
+        name: 'No Contact Fields',
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add source/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add source/i }));
+
+      await user.type(screen.getByLabelText(/^name/i), 'No Contact Fields');
+      fireEvent.change(screen.getByLabelText(/total amount/i), { target: { value: '10000' } });
+
+      await user.click(screen.getByRole('button', { name: /create source/i }));
+
+      await waitFor(() => {
+        expect(mockCreateBudgetSource).toHaveBeenCalledWith(
+          expect.objectContaining({ reference: null, contactAddress: null }),
+        );
+      });
+    });
+
     it('hides create form after successful creation', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
 
@@ -992,6 +1061,82 @@ describe('BudgetSourcesPage', () => {
         expect(
           screen.getByText(/budget source "updated home loan" updated successfully/i),
         ).toBeInTheDocument();
+      });
+    });
+
+    it('pre-fills Reference and Contact Address fields from the source, and updates them (Story #1877)', async () => {
+      const sourceWithContact = {
+        ...sampleSource1,
+        reference: 'Old Ref',
+        contactAddress: 'Old Addr',
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sourceWithContact] });
+
+      mockUpdateBudgetSource.mockResolvedValueOnce({
+        ...sourceWithContact,
+        reference: 'New Ref',
+        contactAddress: 'New Addr',
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit home loan/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit home loan/i }));
+
+      const referenceInput = screen.getByDisplayValue('Old Ref');
+      const contactAddressInput = screen.getByDisplayValue('Old Addr');
+
+      await user.clear(referenceInput);
+      await user.type(referenceInput, 'New Ref');
+      await user.clear(contactAddressInput);
+      await user.type(contactAddressInput, 'New Addr');
+
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+      await waitFor(() => {
+        expect(mockUpdateBudgetSource).toHaveBeenCalledWith(
+          'src-1',
+          expect.objectContaining({ reference: 'New Ref', contactAddress: 'New Addr' }),
+        );
+      });
+    });
+
+    it('clears Reference and Contact Address to null when emptied on save (Story #1877)', async () => {
+      const sourceWithContact = {
+        ...sampleSource1,
+        reference: 'Old Ref',
+        contactAddress: 'Old Addr',
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sourceWithContact] });
+      mockUpdateBudgetSource.mockResolvedValueOnce({
+        ...sourceWithContact,
+        reference: null,
+        contactAddress: null,
+      });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit home loan/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit home loan/i }));
+
+      await user.clear(screen.getByDisplayValue('Old Ref'));
+      await user.clear(screen.getByDisplayValue('Old Addr'));
+
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+      await waitFor(() => {
+        expect(mockUpdateBudgetSource).toHaveBeenCalledWith(
+          'src-1',
+          expect.objectContaining({ reference: null, contactAddress: null }),
+        );
       });
     });
 
@@ -1450,6 +1595,8 @@ describe('BudgetSourcesPage', () => {
       interestRate: null,
       terms: null,
       notes: null,
+      reference: null,
+      contactAddress: null,
       status: 'active',
       isDiscretionary: true,
       createdBy: null,
@@ -2155,6 +2302,36 @@ describe('BudgetSourcesPage', () => {
       expect(secondaryEl).toBeTruthy();
       expect(secondaryEl?.className).toMatch(/summarySecondaryNegative/);
     });
+
+    // ── segment hover tooltip percent text (Issue #1813) ───────────────────────
+    // formatPercent(value, 1) is used for the tooltip "X% of total" text.
+
+    it('segment hover tooltip shows a percent-of-total value formatted via formatPercent', async () => {
+      const activeSource: BudgetSource = {
+        ...sampleSource1,
+        totalAmount: 200000,
+        claimedAmount: 20000, // 20000 / 200000 = 10%
+        paidAmount: 20000,
+        projectedMinAmount: 20000,
+        projectedMaxAmount: 20000,
+      };
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [activeSource] });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+
+      const claimedSegment = container.querySelector('[class*="segment"]');
+      expect(claimedSegment).not.toBeNull();
+      fireEvent.mouseEnter(claimedSegment!);
+
+      // 10.0% of total, formatted with 1 digit via formatPercent(value, 1)
+      await waitFor(() => {
+        expect(screen.getByText(/10\.0%\s+of total/i)).toBeInTheDocument();
+      });
+    });
   });
 
   // ─── source actions layout (Issues #1335 + #1336) ────────────────────────────
@@ -2169,8 +2346,8 @@ describe('BudgetSourcesPage', () => {
       const actionsDiv = container.querySelector('[class*="sourceActions"]');
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
-      // Order: Show lines → docs toggle (paperclip) → Edit → Delete
-      expect(buttons.length).toBe(4);
+      // Order: Show lines → docs toggle (paperclip) → Edit → Delete → Generate report (#1879)
+      expect(buttons.length).toBe(5);
       expect(buttons[0]).toHaveAttribute(
         'aria-label',
         expect.stringMatching(/expand budget lines for home loan/i),
@@ -2179,6 +2356,7 @@ describe('BudgetSourcesPage', () => {
       expect(buttons[1]).toHaveAttribute('aria-controls', expect.stringContaining('source-docs-'));
       expect(buttons[2]).toHaveAccessibleName(/edit home loan/i);
       expect(buttons[3]).toHaveAccessibleName(/delete home loan/i);
+      expect(buttons[4]).toHaveAccessibleName('Generate report for Home Loan');
     });
 
     it('discretionary source shows Show lines and Edit in sourceActions but not Delete', async () => {
@@ -2196,8 +2374,9 @@ describe('BudgetSourcesPage', () => {
       const actionsDiv = container.querySelector('[class*="sourceActions"]');
       expect(actionsDiv).not.toBeNull();
       const buttons = Array.from(actionsDiv!.querySelectorAll('button'));
-      // Discretionary sources have no Delete: Show lines → docs toggle (paperclip) → Edit
-      expect(buttons.length).toBe(3);
+      // Discretionary sources have no Delete: Show lines → docs toggle (paperclip) → Edit →
+      // Generate report (#1879)
+      expect(buttons.length).toBe(4);
       expect(buttons[0]).toHaveAttribute(
         'aria-label',
         expect.stringMatching(/expand budget lines for contingency reserve/i),
@@ -2205,6 +2384,7 @@ describe('BudgetSourcesPage', () => {
       // The docs toggle sits between Show lines and Edit
       expect(buttons[1]).toHaveAttribute('aria-controls', expect.stringContaining('source-docs-'));
       expect(buttons[2]).toHaveAccessibleName(/edit contingency reserve/i);
+      expect(buttons[3]).toHaveAccessibleName('Generate report for Contingency Reserve');
       expect(
         screen.queryByRole('button', { name: /delete contingency reserve/i }),
       ).not.toBeInTheDocument();
@@ -2433,6 +2613,84 @@ describe('BudgetSourcesPage', () => {
       await waitFor(() =>
         expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
       );
+    });
+  });
+
+  // ─── OverflowMenu: Generate report (#1879) ─────────────────────────────────
+
+  describe('OverflowMenu — Generate report', () => {
+    function LocationDisplay() {
+      const location = useLocation();
+      return <div data-testid="location">{location.pathname + location.search}</div>;
+    }
+
+    function renderPageWithLocation() {
+      return render(
+        <LocaleProvider>
+          <MemoryRouter initialEntries={['/budget/sources']}>
+            <BudgetSourcesPage />
+            <LocationDisplay />
+          </MemoryRouter>
+        </LocaleProvider>,
+      );
+    }
+
+    it('renders a "Generate report" item in the source row OverflowMenu', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      renderPage();
+
+      await waitFor(() => expect(screen.getByText('Home Loan')).toBeInTheDocument());
+
+      const trigger = screen.getByRole('button', {
+        name: 'Generate report for Home Loan',
+      });
+      fireEvent.click(trigger);
+
+      expect(screen.getByRole('menuitem', { name: 'Generate Report' })).toBeInTheDocument();
+    });
+
+    it('navigates to /budget/reports?sourceId=<id> when "Generate report" is clicked', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      renderPageWithLocation();
+
+      await waitFor(() => expect(screen.getByText('Home Loan')).toBeInTheDocument());
+
+      const trigger = screen.getByRole('button', {
+        name: 'Generate report for Home Loan',
+      });
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Generate Report' }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent(
+          `/budget/reports?sourceId=${sampleSource1.id}`,
+        );
+      });
+    });
+
+    it('renders one "Generate report" trigger per source row, each scoped to its own source', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [sampleSource1, sampleSource2],
+      });
+      renderPageWithLocation();
+
+      await waitFor(() => expect(screen.getByText('Savings Account')).toBeInTheDocument());
+
+      expect(
+        screen.getByRole('button', { name: 'Generate report for Home Loan' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Generate report for Savings Account' }),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Generate report for Savings Account' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Generate Report' }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent(
+          `/budget/reports?sourceId=${sampleSource2.id}`,
+        );
+      });
     });
   });
 });

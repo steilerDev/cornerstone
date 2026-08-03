@@ -17,6 +17,23 @@ updates:
       prod-dependencies:
         dependency-type: production
     open-pull-requests-limit: 10
+    # Hold @babel/* at v7 until the coordinated Babel 8 migration lands (issue #1823).
+    # Babel 8 breaks the webpack client build (@babel/preset-typescript@8 stops
+    # stripping TS types); a piecemeal 3-package bump cannot produce a coherent v8
+    # graph. Remove these ignore rules once #1823 completes the full migration.
+    ignore:
+      - dependency-name: '@babel/core'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@babel/preset-react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@babel/preset-typescript'
+        update-types: ['version-update:semver-major']
+      # Hold TypeScript at v6 until ts-jest supports v7. ts-jest@29.4.x declares
+      # `peer typescript@">=4.3 <7"`, so a TS 7 bump makes `npm ci` fail with
+      # ERESOLVE and takes the whole dev-dependencies group down with it
+      # (see PR #1882). Remove once ts-jest widens its peer range.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
 
   # GitHub Actions
   - package-ecosystem: github-actions

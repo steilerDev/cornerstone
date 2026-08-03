@@ -35,6 +35,8 @@ describe('budgetSourcesApi', () => {
     interestRate: 3.5,
     terms: '30-year fixed',
     notes: 'Primary financing',
+    reference: null,
+    contactAddress: null,
     status: 'active',
     createdBy: null,
     createdAt: '2026-01-01T00:00:00.000Z',
@@ -102,6 +104,8 @@ describe('budgetSourcesApi', () => {
             interestRate: null,
             terms: null,
             notes: null,
+            reference: null,
+            contactAddress: null,
             status: 'active',
             createdBy: null,
             createdAt: '2026-01-02T00:00:00.000Z',
@@ -234,6 +238,8 @@ describe('budgetSourcesApi', () => {
         interestRate: 3.5,
         terms: '30-year fixed',
         notes: 'Primary financing',
+        reference: null,
+        contactAddress: null,
         status: 'active',
       });
 
@@ -256,6 +262,8 @@ describe('budgetSourcesApi', () => {
         interestRate: 5.0,
         terms: '5-year revolving',
         notes: 'From Bank XYZ',
+        reference: null,
+        contactAddress: null,
         status: 'active' as const,
       };
 

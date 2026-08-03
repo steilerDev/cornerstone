@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { users } from '../db/schema.js';
-import { UnauthorizedError } from '../errors/AppError.js';
+import { UnauthorizedError, NotFoundError } from '../errors/AppError.js';
 import * as davTokenService from '../services/davTokenService.js';
 
 /**
@@ -191,24 +191,14 @@ export default async function davTokenRoutes(fastify: FastifyInstance) {
 
     const status = davTokenService.getTokenStatus(fastify.db, request.user.id);
     if (!status.hasToken) {
-      return reply.status(404).send({
-        error: {
-          code: 'DAV_TOKEN_NOT_FOUND',
-          message: 'No DAV token configured',
-        },
-      });
+      throw new NotFoundError('No DAV token configured');
     }
 
     // Fetch the user to get email and current token
     const user = fastify.db.select().from(users).where(eq(users.id, request.user!.id)).get();
 
     if (!user || !user.davToken) {
-      return reply.status(404).send({
-        error: {
-          code: 'DAV_TOKEN_NOT_FOUND',
-          message: 'No DAV token configured',
-        },
-      });
+      throw new NotFoundError('No DAV token configured');
     }
 
     // Derive hostname, port, and SSL from EXTERNAL_URL or request

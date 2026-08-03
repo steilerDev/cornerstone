@@ -17,6 +17,8 @@
  * - Discretionary Funding source — system source presence, no delete, type locked, zero amount edit
  * - Projected and Paid amount fields visible on source rows
  * - Documents toggle (Story #1744) — toggle visible, expand/collapse, not-configured state
+ * - Reference & Contact address fields (Story #1877) — create with both fields, edit persists,
+ *   reload retains values, fields are independently optional
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -47,6 +49,10 @@ interface BudgetSourceApiResponse {
   availableAmount: number;
   interestRate: number | null;
   terms: string | null;
+  /** Story #1877 */
+  reference: string | null;
+  /** Story #1877 */
+  contactAddress: string | null;
   notes: string | null;
   status: string;
 }
@@ -463,6 +469,134 @@ test.describe('Edit source', { tag: '@responsive' }, () => {
 
       // Cancel
       await sourcesPage.cancelEdit(sourceName);
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reference & Contact address fields (Story #1877)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Reference & Contact address fields', { tag: '@responsive' }, () => {
+  test('Create source with Reference and Contact address — persists after reload', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Contact Fields Source`;
+    const reference = `${testPrefix} Loan #12345`;
+    const contactAddress = `${testPrefix} 123 Main St, Springfield`;
+    let createdId: string | null = null;
+
+    try {
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+      await sourcesPage.openCreateForm();
+
+      await sourcesPage.createSource({
+        name: sourceName,
+        totalAmount: 90000,
+        terms: '15-year fixed',
+        reference,
+        contactAddress,
+      });
+
+      await expect(sourcesPage.createFormHeading).not.toBeVisible();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const resp = await page.request.get(API.budgetSources);
+      const body = (await resp.json()) as { budgetSources: BudgetSourceApiResponse[] };
+      const found = body.budgetSources.find((s) => s.name === sourceName);
+      expect(found, 'Created source must exist via API').toBeTruthy();
+      createdId = found!.id;
+      expect(found!.reference).toBe(reference);
+      expect(found!.contactAddress).toBe(contactAddress);
+
+      // Reload the page and open the edit form — fields must be pre-filled from the server
+      await page.reload();
+      await sourcesPage.waitForSourcesLoaded();
+      await sourcesPage.startEdit(sourceName);
+
+      const editForm = sourcesPage.getEditForm(sourceName);
+      await expect(editForm.locator(`#edit-reference-${createdId}`)).toHaveValue(reference);
+      await expect(editForm.locator(`#edit-contactAddress-${createdId}`)).toHaveValue(
+        contactAddress,
+      );
+
+      await sourcesPage.cancelEdit(sourceName);
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Edit source — update Reference and Contact address — persists', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} Edit Contact Fields Source`;
+    const updatedReference = `${testPrefix} Loan #99999`;
+    const updatedContactAddress = `${testPrefix} 456 Oak Ave, Shelbyville`;
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createSourceViaApi(page, { name: sourceName, totalAmount: 60000 });
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+      await sourcesPage.startEdit(sourceName);
+
+      const referenceInput = sourcesPage.getEditReferenceInput(createdId);
+      const contactAddressInput = sourcesPage.getEditContactAddressInput(createdId);
+      // Newly created sources have no reference/contactAddress — fields start empty
+      await expect(referenceInput).toHaveValue('');
+      await expect(contactAddressInput).toHaveValue('');
+
+      await referenceInput.fill(updatedReference);
+      await contactAddressInput.fill(updatedContactAddress);
+
+      await sourcesPage.saveEdit(sourceName);
+
+      const successText = await sourcesPage.getSuccessBannerText();
+      expect(successText).toContain(sourceName);
+
+      const resp = await page.request.get(API.budgetSources);
+      const body = (await resp.json()) as { budgetSources: BudgetSourceApiResponse[] };
+      const updated = body.budgetSources.find((s) => s.id === createdId);
+      expect(updated?.reference).toBe(updatedReference);
+      expect(updated?.contactAddress).toBe(updatedContactAddress);
+    } finally {
+      if (createdId) await deleteSourceViaApi(page, createdId);
+    }
+  });
+
+  test('Reference and Contact address are optional — source creates fine without them', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sourcesPage = new BudgetSourcesPage(page);
+    const sourceName = `${testPrefix} No Contact Fields Source`;
+    let createdId: string | null = null;
+
+    try {
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+      await sourcesPage.openCreateForm();
+
+      // Neither reference nor contactAddress is filled
+      await sourcesPage.createSource({ name: sourceName, totalAmount: 25000 });
+
+      await expect(sourcesPage.createFormHeading).not.toBeVisible();
+      await sourcesPage.waitForSourcesLoaded();
+
+      const resp = await page.request.get(API.budgetSources);
+      const body = (await resp.json()) as { budgetSources: BudgetSourceApiResponse[] };
+      const found = body.budgetSources.find((s) => s.name === sourceName);
+      expect(found, 'Created source must exist via API').toBeTruthy();
+      createdId = found!.id;
+      expect(found!.reference).toBeNull();
+      expect(found!.contactAddress).toBeNull();
     } finally {
       if (createdId) await deleteSourceViaApi(page, createdId);
     }

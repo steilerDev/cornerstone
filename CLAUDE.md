@@ -6,7 +6,7 @@ Cornerstone is a web-based home building project management application designed
 
 - **Target Users**: 1-5 homeowners per instance (self-hosted)
 - **Deployment**: Single Docker container with SQLite
-- **Requirements**: See `plan/REQUIREMENTS.md` for the full requirements document
+- **Requirements**: GitHub Issues (epics and stories) are the source of truth for current requirements. `plan/REQUIREMENTS.md` is the historical founding requirements document — consult it for original intent only.
 
 ## Agent Team
 
@@ -17,10 +17,10 @@ This project uses a team of 11 specialized Claude Code agents defined in `.claud
 | `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog                                                               |
 | `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                                                                   |
 | `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility                                                        |
-| `dev-team-lead`         | Spec-writer, reviewer, and committer (Sonnet): decomposes work into implementation specs, reviews agent output, commits and monitors CI |
-| `backend-developer`     | API endpoints, business logic, auth, database operations (Haiku, launched by orchestrator with dev-team-lead specs)                     |
-| `frontend-developer`    | UI components, pages, interactions, API client (Haiku, launched by orchestrator with dev-team-lead specs)                               |
-| `translator`            | Non-English translations, glossary enforcement (Sonnet, launched by orchestrator with dev-team-lead Translator Specs)                   |
+| `dev-team-lead`         | Spec-writer, reviewer, and committer: decomposes work into implementation specs, reviews agent output, commits and monitors CI          |
+| `backend-developer`     | API endpoints, business logic, auth, database operations (launched by orchestrator with dev-team-lead specs)                            |
+| `frontend-developer`    | UI components, pages, interactions, API client (launched by orchestrator with dev-team-lead specs)                                      |
+| `translator`            | Non-English translations, glossary enforcement (launched by orchestrator with dev-team-lead Translator Specs)                           |
 | `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                                   |
 | `e2e-test-engineer`     | Playwright E2E browser tests, page objects, smoke tests, responsive testing, dependent system integration testing                       |
 | `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                                            |
@@ -38,15 +38,15 @@ This project uses a team of 11 specialized Claude Code agents defined in `.claud
 
 The GitHub Wiki is checked out as a git submodule at `wiki/` in the project root. All architecture documentation lives as markdown files in this submodule. The GitHub Projects board is the single source of truth for backlog management.
 
-### GitHub Wiki Pages (managed by product-architect and security-engineer)
+### GitHub Wiki Pages (owned by product-architect, except Security Audit and Style Guide)
 
 - **Architecture** — system design, tech stack, conventions
 - **API Contract** — REST API endpoint specifications
 - **Schema** — database schema documentation
 - **ADR Index** — links to all architectural decision records
 - **ADR-NNN-Title** — individual ADR pages
-- **Security Audit** — security findings and remediation status
-- **Style Guide** — design system, tokens, color palette, typography, component patterns, dark mode
+- **Security Audit** — security findings and remediation status (owned by `security-engineer`)
+- **Style Guide** — design system, tokens, color palette, typography, component patterns, dark mode (owned by `ux-designer`)
 
 ### Wiki Submodule
 
@@ -60,7 +60,7 @@ Wiki pages are markdown files in `wiki/`. Sync before reading: `git submodule up
 
 ### Board & Issue Relationships
 
-The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Wont-Do. All stories must be linked as sub-issues of their parent epic, and dependency relationships must be maintained. Use native `gh project` CLI commands for board status management (`gh project item-list`, `gh project item-edit`, `gh project item-add`). GraphQL mutations are still needed for `addSubIssue` and `addBlockedBy`. Board IDs and exact commands are in the skill files and agent definitions.
+The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Wont-Do. All stories must be linked as sub-issues of their parent epic, and dependency relationships must be maintained. **Board status changes go through `bash scripts/board.sh <issue-number> <backlog|todo|in-progress|done|wont-do>`** — the script owns the opaque project/field/option IDs (the only place they live) and adds the issue to the board if it isn't on it yet. GraphQL mutations are still needed for `addSubIssue` and `addBlockedBy` (see `/epic-start`).
 
 ## Agile Workflow
 
@@ -78,19 +78,45 @@ The GitHub Projects board uses 5 statuses: Backlog, Todo, In Progress, Done, Won
 
 The orchestrator uses the following skills to drive work. Each skill contains the full operational checklist with exact commands and agent coordination.
 
-| Skill         | Purpose                                                                    | Input                                                           |
-| ------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `/epic-start` | Planning: PO creates stories, architect designs schema/API/ADRs            | Epic description or issue number                                |
-| `/develop`    | Full dev cycle for one or more stories/bug fixes, bundled into a single PR | Issue number, description, semicolon-separated list, or `@file` |
-| `/epic-close` | Refinement, E2E validation, UAT, then delegates to `/release`              | Epic issue number                                               |
-| `/release`    | Promote `beta` to `main`: sync, PR, CI, approval loop, docs, merge         | Optional epic issue number (standalone if omitted)              |
-| `/epic-run`   | Autonomous end-to-end epic: plan, develop all stories, close               | Epic description or issue number                                |
+| Skill            | Purpose                                                                                                                                                                 | Input                                                           |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `/epic-start`    | Planning: PO creates stories, architect designs schema/API/ADRs                                                                                                         | Epic description or issue number                                |
+| `/develop`       | Full dev cycle for one or more stories/bug fixes, bundled into a single PR                                                                                              | Issue number, description, semicolon-separated list, or `@file` |
+| `/epic-close`    | Refinement, E2E validation, UAT, then delegates to `/release`                                                                                                           | Epic issue number                                               |
+| `/release`       | Promote `beta` to `main`: sync, PR, CI, approval loop, docs, merge                                                                                                      | Optional epic issue number (standalone if omitted)              |
+| `/epic-run`      | Autonomous end-to-end epic: plan, develop all stories, close                                                                                                            | Epic description or issue number                                |
+| `/batch-develop` | Sequential development from a list/file: **each item gets its own branch and PR** (not bundled — contrast with `/develop`'s multi-item mode, which bundles into one PR) | Issue number list, or falls back to `/tmp/batch-queue.md`       |
+| `/mini-epic`     | Analyze a spec, decompose into 2–6 work items, challenge assumptions with the user, hand off to `/batch-develop`                                                        | Inline spec, `@file`, or issue number                           |
+| `/dependabot`    | Process every open Dependabot PR and security alert: changelog review, merge, fix, remediate orphans, file adoption follow-ups                                          | None (always processes the full queue)                          |
+| `/fix-e2e`       | Iteratively analyze and fix failing E2E tests from a CI run until all shards pass                                                                                       | GitHub Actions run URL or ID                                    |
+| `/review-pr`     | Comprehensive full-team review of a PR not created by `/develop` (external contributions, Dependabot, re-reviews)                                                       | PR number                                                       |
 
-See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases in a single session (only pauses for promotion approval). Use `/release` standalone to promote `beta` to `main` without a prior epic definition.
+See the skill files (`.claude/skills/`) for the full operational checklists. The typical lifecycle is: `/epic-start` (once per epic) → `/develop` (once per story, or batched for multiple small items) → `/epic-close` (once per epic after all stories merged). Alternatively, `/epic-run` chains all three phases in a single session (only pauses for promotion approval). Use `/release` standalone to promote `beta` to `main` without a prior epic definition. `/mini-epic` and `/batch-develop` are the mid-size workflow for cohesive multi-item work that doesn't warrant full epic planning. `/dependabot`, `/fix-e2e`, and `/review-pr` are maintenance/support workflows invoked on demand.
+
+### Skill Task Tracking
+
+Execution skills track their steps with the harness task tools. The standard rules (referenced by each skill as "Standard task-tracking rules"):
+
+- **Create the task list up front** (one task per skill step) before executing step 1, and keep it 1:1 with the skill's step numbering.
+- **Mark progress live**: set a task `in_progress` before starting its step and `completed` immediately after finishing it — never batch updates.
+- **Recovery**: after context compaction or session resume, call `TaskList` first and continue from the earliest non-completed task instead of restarting the skill.
+- **Dynamic tasks**: work discovered mid-skill (fix loops, follow-ups) gets its own task appended at the point of discovery, so the list stays a faithful record.
+
+### Shared Mechanics Scripts
+
+Deterministic git/GitHub mechanics live in `scripts/` — skills and agents call these instead of inlining bash:
+
+| Script | Purpose |
+| --- | --- |
+| `scripts/ci-wait.sh <pr> [beta\|main]` | Canonical CI-gate wait: mergeability precheck, check-runs polling, timeouts, rate-limit backoff |
+| `scripts/board.sh <issue> <status>` | GitHub Projects board mutations (owns the board IDs) |
+| `scripts/squash-merge.sh <pr> "<subject>" [body-file]` | Squash merge with trailer preservation and skip-ci guard |
+| `scripts/worktree-done.sh <path> [branch]` | End-of-session worktree + branch cleanup (run from the base repo) |
+| `scripts/check-trailers.sh <base> <head>` | Trailer verification for a commit range |
 
 ### Acceptance & Validation
 
-Every epic has two phases: **Development** (`/develop`) where QA + E2E + security review each story PR; and **Epic validation** (`/epic-close`) where E2E coverage is confirmed and UAT runs before promotion. The only human gate is `beta` → `main` — the user approves after reviewing the change inventory. Feedback goes to `/tmp/notes.md`; fixes loop autonomously until approved.
+Every epic has two phases: **Development** (`/develop`) where QA and E2E write and run tests for each story and the applicable PR reviewers approve per the **PR Review Gate** below; and **Epic validation** (`/epic-close`) where E2E coverage is confirmed and UAT runs before promotion. The only human gate is `beta` → `main` — the user approves after reviewing the change inventory. Feedback goes to `/tmp/notes.md`; fixes loop autonomously until approved. This is the release/promotion feedback channel specifically — the `/batch-develop` work queue uses a separate file, `/tmp/batch-queue.md`, to avoid the two protocols colliding on one path.
 
 ### Key Rules
 
@@ -98,9 +124,22 @@ Every epic has two phases: **Development** (`/develop`) where QA + E2E + securit
 - **Automated before manual** — all automated tests must be green before the user validates
 - **Iterate until right** — failed validation triggers a fix-and-revalidate loop (user writes feedback to `/tmp/notes.md`, system fixes autonomously and re-presents)
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
-- **Security review required** — the `security-engineer` must review every story PR
+- **Security review conditional** — the `security-engineer` reviews PRs touching security-relevant files per the **PR Review Gate**; not every story PR requires it (see Security Review Trigger Rules)
 - **Test agents own all tests** — `qa-integration-tester` owns unit and integration tests; `e2e-test-engineer` owns Playwright E2E browser tests. Developer agents do not write tests.
 - **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and `e2e-test-engineer`.
+- **Story sizing (Spec-Lite)** — `dev-team-lead [MODE: spec]` classifies each work item S/M/L. S-sized items (single-file or trivially scoped) get a 5–10 line Spec-Lite and a single implementer plus QA instead of the full multi-agent fan-out; M/L get the full spec pipeline.
+- **Continue agents through fix loops** — fix iterations continue the previously launched agent via SendMessage (it keeps the context it built) instead of launching a fresh agent each round.
+
+### PR Review Gate
+
+Every story/bug PR is reviewed by the applicable subset of:
+
+- `product-architect` — always (architecture compliance, test coverage, code quality). Skipped only when product-architect is the PR's own author.
+- `security-engineer` — conditional: only when the PR touches security-relevant files (auth, API routes with data access, Dockerfile, dependency manifests). See Security Review Trigger Rules in `.claude/skills/develop/SKILL.md`. Skipped for frontend-only, test-only, or CSS-only PRs.
+- `product-owner` — user-story PRs only (requirements coverage, acceptance criteria). Skipped for bug-only PRs.
+- `ux-designer` — only for PRs touching `client/src/` (token adherence, visual consistency, dark mode, accessibility).
+
+All requested reviewers must approve (or post only medium/low findings, per each reviewer's verdict matrix) before merge.
 
 ### Delegation Enforcement
 
@@ -109,12 +148,13 @@ The orchestrator launches all implementation agents directly using specs produce
 The orchestrator runs a **trailer verification** after every commit:
 
 1. Commit trailers must include appropriate co-authors for production file changes
-2. Files under `server/` or `shared/` → must have `backend-developer` trailer
-3. Files under `client/` (except `client/src/i18n/de/` and `client/src/i18n/glossary.json`) → must have `frontend-developer` trailer
+2. Files under `server/` or `shared/`, excluding `*.test.ts`/`*.test.tsx` → must have `backend-developer` trailer
+3. Files under `client/` (except `client/src/i18n/de/`, `client/src/i18n/glossary.json`, and `*.test.ts`/`*.test.tsx`) → must have `frontend-developer` trailer
 4. Files under `client/src/i18n/de/` or `client/src/i18n/glossary.json` → must have `translator` trailer
 5. Files under `e2e/` → must have `e2e-test-engineer` trailer
+6. Files matching `*.test.ts` or `*.test.tsx` outside `e2e/` (co-located unit/integration tests) → must have `qa-integration-tester` trailer
 
-Commits that change production files without the appropriate Haiku co-author trailers are rejected and re-committed with corrected trailers.
+Commits that change production files without the appropriate co-author trailers (see the Canonical Agent Trailers table below) are rejected and re-committed with corrected trailers.
 
 Production files: any file under `server/`, `client/`, or `shared/`.
 
@@ -122,9 +162,19 @@ Production files: any file under `server/`, `client/`, or `shared/`.
 
 All agents must clearly identify themselves:
 
-- **Commits**: `Co-Authored-By: Claude <agent-name> (<model>) <noreply@anthropic.com>` — see each agent's definition file for the exact trailer.
+- **Commits**: `Co-Authored-By: Claude <agent-name> <noreply@anthropic.com>` — the agent name only; trailers carry **no model version** (models are selected via aliases in agent frontmatter and change over time).
 - **GitHub comments**: prefix with `**[agent-name]**` (e.g., `**[backend-developer]** This endpoint...`)
 - **Orchestrator**: when committing work produced by an agent, use that agent's name in the trailer.
+
+### Canonical Agent Trailers
+
+The canonical trailer is the agent name with **no model version**:
+
+```
+Co-Authored-By: Claude <agent-name> <noreply@anthropic.com>
+```
+
+e.g. `Co-Authored-By: Claude backend-developer <noreply@anthropic.com>`. Valid `<agent-name>` values are exactly the 11 agents in the Agent Team table. Models are selected via aliases (`haiku`/`sonnet`/`opus`) in each agent's frontmatter and resolve to the latest model of that tier — embedding a version in the trailer only creates drift, so don't. Legacy trailers with a parenthesized model (`Claude backend-developer (Haiku 4.5)`) exist throughout history and remain valid for verification purposes; never write new ones.
 
 ## Git & Branching
 
@@ -154,7 +204,9 @@ All commits follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 **NEVER `cd` to the base project directory to modify files.** All file edits, git operations, and commands must be performed from within the git worktree assigned at session start. The base project directory may have other sessions' uncommitted changes. This applies to subagents too — all file reads, writes, and exploration must use the worktree path.
 
-**Do NOT remove worktrees.** Deleting local worktrees breaks inside the sandbox. Agents must never run `git worktree remove`, `git worktree prune`, or otherwise delete a worktree (or use a tool's worktree-removal/cleanup option). Leave worktrees in place when work is done — the repository owner cleans them up manually.
+**Agent-memory updates must be committed from session worktrees.** Never leave `.claude/agent-memory/` edits uncommitted in the base checkout — commit them as part of the session's own PR (riding along with the production-code changes), matching current practice.
+
+**Clean up worktrees when work is complete.** Once a session's work is finished — its PR is merged (or the work is deliberately abandoned) and the worktree has no uncommitted changes — run `bash scripts/worktree-done.sh <path> [branch]` from the base repository. It refuses dirty worktrees, handles the wiki-submodule removal quirk, and deletes the local branch only when a merged PR exists (squash merges make `-d` refuse, so it uses `-D` behind that check). Never remove a worktree another active session may be using — when in doubt, leave it and note it for manual cleanup.
 
 ### Release Model
 
@@ -198,31 +250,11 @@ The only exception is the QA agent running a specific test file it just wrote (e
 
 ### CI Gate Polling (canonical pattern)
 
-`gh pr checks --watch` does not support GitHub Rulesets (only legacy branch protection). Use the polling loops below to watch the required gate checks by name.
+**Use `bash scripts/ci-wait.sh <pr-number> [beta|main]`** — the single canonical CI wait. It performs the mergeability precheck (CI may not run, or silently hang, on a conflicted PR), then polls the required gate checks (`Quality Gates` on beta PRs, plus `E2E Gates` on main PRs) with timeouts (300s / 900s, override via `CI_WAIT_TIMEOUT=<seconds>`) and rate-limit backoff.
 
-**Step 1 — Check for merge conflicts.** CI may not run (or silently hang) if the PR has conflicts. Always verify mergeability first:
+Do **not** hand-roll polling loops, and do **not** use `gh pr checks --watch` or `gh pr checks --json` — neither works with this repo's GitHub Rulesets setup (`--json` silently returns nothing). The script polls the commit check-runs API (`gh api repos/<repo>/commits/<sha>/check-runs`) instead, which is the reliable source.
 
-```bash
-state=$(gh pr view <PR> --repo steilerDev/cornerstone --json mergeable -q '.mergeable'); if [ "$state" != "MERGEABLE" ]; then echo "PR is not mergeable (state: $state) — resolve conflicts before waiting for CI"; exit 1; fi
-```
-
-If the state is `CONFLICTING`, rebase onto the target branch, force-push, and re-check. If the state is `UNKNOWN`, wait a few seconds and retry — GitHub may still be computing mergeability.
-
-**Step 2 — Poll for required gate checks.**
-
-**Beta PRs** (require `Quality Gates` only — expected ~5 minutes):
-
-```bash
-echo "Waiting for Quality Gates..."; SECONDS=0; while true; do if [ $SECONDS -ge 300 ]; then echo "TIMEOUT: Quality Gates did not complete within 5 minutes"; exit 1; fi; bucket=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); case "$bucket" in pass) echo "Quality Gates passed"; break ;; fail) echo "Quality Gates FAILED"; exit 1 ;; *) sleep 30 ;; esac; done
-```
-
-**Main PRs** (require `Quality Gates` + `E2E Gates` — expected ~15 minutes):
-
-```bash
-echo "Waiting for Quality Gates + E2E Gates..."; SECONDS=0; while true; do if [ $SECONDS -ge 900 ]; then echo "TIMEOUT: CI gates did not complete within 15 minutes"; exit 1; fi; qg=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "Quality Gates") | .bucket' 2>/dev/null); e2e=$(gh pr checks <PR> --repo steilerDev/cornerstone --json name,bucket -q '.[] | select(.name == "E2E Gates") | .bucket' 2>/dev/null); if [ "$qg" = "fail" ] || [ "$e2e" = "fail" ]; then echo "CI FAILED (QG=$qg, E2E=$e2e)"; exit 1; fi; if [ "$qg" = "pass" ] && [ "$e2e" = "pass" ]; then echo "All gates passed"; break; fi; sleep 30; done
-```
-
-Replace `<PR>` with the PR number. The polling loop handles the "checks not yet reported" edge case — an empty bucket means we retry after 30s. Timeouts prevent agents from polling indefinitely if CI hangs.
+If the script reports `CONFLICTING`, rebase onto the target branch, force-push, and re-run it. If it times out with **no check-runs at all**, suspect a `[skip ci]` directive on the head commit (see CI Skip-Directive Quirks below).
 
 ### CI Skip-Directive Quirks (two failure modes when CI stops firing)
 
@@ -234,9 +266,53 @@ GitHub Actions parses **any commit's first line** for `[skip ci]` (and equivalen
 
 Detect: head commit's first line literally contains `[skip ci]`; `gh run list --commit <sha>` is empty.
 
-**Prevention:** before squash-merging a PR whose title contains a skip directive, override the squash subject/body with `gh pr merge <N> --squash --subject "<clean subject>"` so the merged commit message is skip-directive-free. Likewise, do not include `[skip ci]` (or equivalents) verbatim in PR titles — reference them with code spans (`` `[skip ci]` ``) or rewrite as "the CI-skip directive".
+**Prevention:** `scripts/squash-merge.sh` refuses subjects containing a skip directive — always merge through it with a clean subject. Likewise, do not include `[skip ci]` (or equivalents) verbatim in PR titles — reference them with code spans (`` `[skip ci]` ``) or rewrite as "the CI-skip directive".
 
 **Recovery if it already happened:** push another commit to `beta` via a fresh tiny PR with a clean title (e.g., `chore: retrigger promotion CI`). That advances HEAD with a clean message, fires `pull_request:synchronize` on the promotion PR, and CI runs normally.
+
+### Squash-Merge Trailer Preservation (canonical pattern)
+
+GitHub's default `--squash` merge body varies with commit count and shape and cannot be relied on
+to preserve agent trailers. **Every squash merge goes through
+`bash scripts/squash-merge.sh <pr-number> "<subject>" [body-file]`**, which rebuilds the squash
+commit's subject and body explicitly: it collects `Co-Authored-By:` trailers from all of the PR's
+commits, normalizes label casing, deduplicates, appends them under the body, and refuses subjects
+containing a CI-skip directive.
+
+Write the body (1–3 summary bullets plus `Fixes #<issue-number>` lines) to a temp file and pass it
+as the third argument.
+
+**Note**: this only applies to squash merges carrying agent trailers. It does not apply to the
+`beta` → `main` promotion merge (`gh pr merge --merge`), which preserves individual commits (and
+their trailers) natively by design — see the Release Model table above.
+
+### Trailer Verification Script
+
+`scripts/check-trailers.sh <base-ref> <head-ref>` is the single source of truth for "does this
+commit range carry the trailers CLAUDE.md's Delegation Enforcement rules require." It is used in
+two places:
+
+1. **`/develop` step 6h / step 9** (orchestrator, before merging) — run it directly instead of
+   hand-checking with grep.
+2. **CI's `trailer-check` job** (automated, on every PR touching production paths) — see
+   `.github/workflows/ci.yml`.
+
+Detection inside the script is case-insensitive and accepts both the current de-versioned trailer
+form (`Claude <agent> <noreply@anthropic.com>`) and the legacy parenthesized-model form
+(`Claude <agent> (Model X.Y) <noreply@anthropic.com>`) so history-spanning ranges still verify.
+Writing trailers is always the canonical de-versioned form.
+
+### Enforcement Hooks
+
+`.claude/settings.json` registers a `PreToolUse` hook on the Bash tool
+(`scripts/hooks/bash-guard.mjs`) that enforces two rules at the harness level:
+
+1. **Protected pushes are blocked** — `git push` targeting `main`/`beta`, and any push of a
+   `worktree-*` branch, is rejected before it runs.
+2. **Trailer pre-check on commit** — when staged files require agent trailers per Delegation
+   Enforcement rules 2–6, a `git commit` whose message misses a required trailer is rejected at
+   commit time (mirrors `scripts/check-trailers.sh`; commits with no Claude trailer at all are
+   treated as human-authored and skipped, matching CI).
 
 ### GitHub Rate-Limit Retry Policy
 
@@ -248,7 +324,7 @@ When `gh` or `git push` commands fail with a GitHub rate-limit error (primary AP
 - Only retry transient rate-limit failures. Permission errors, merge conflicts, and other non-transient failures must not be retried
 - Log each retry attempt with its wait duration so the user can see progress
 
-Apply the same policy when polling CI gates — if `gh pr checks` fails with a rate-limit error, the polling loop's normal sleep already absorbs short-lived throttling; for persistent rate-limit errors, extend the sleep per the backoff schedule above.
+`scripts/ci-wait.sh` implements this backoff for CI-gate polling; apply the same policy manually for other `gh` operations.
 
 ## Tech Stack
 
@@ -370,7 +446,7 @@ Before creating a new UI component, check if an existing shared component can be
 3. **Every new component must be built as a reusable shared component** — no one-off implementations. If a UI pattern doesn't fit an existing shared component, create a new shared component in `client/src/components/` that can be reused by future features
 4. New shared components require UX designer visual spec approval
 5. All CSS values must use design tokens from `tokens.css` — no hardcoded colors, spacing, radii, or font sizes
-6. Stylelint enforces token usage automatically
+6. Stylelint enforces token usage automatically (via `npm run lint` locally and the CI `static-analysis` job's `Stylelint` step; covers `client/src/**/*.css` and `client/src/**/*.module.css`, not `docs/`)
 
 ### Internationalization & Translation
 
@@ -380,7 +456,7 @@ The application supports multiple locales (English and German) via `i18next` and
 - **Translator owns non-English locales**: `translator` agent translates new keys and enforces glossary compliance.
 - **Glossary**: `client/src/i18n/glossary.json` — domain-specific terms only (Work Item, Invoice, etc.). Translator proposes new terms; product-owner approves. To add a locale: update `glossary.json` `_meta.locales`, create `client/src/i18n/{locale}/` namespace files, register in `client/src/i18n/index.ts`.
 - **Backend**: API error responses use `ErrorCode` enum values; frontend translates via `translateApiError()`. `CURRENCY` env var (default: `EUR`) exposed via `GET /api/config`.
-- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
+- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent`, `formatWeekdayShort`, `formatFileSize`, and `formatHours` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
 - **Testing**: QA verifies keys exist in both locales. E2E verifies locale detection and switching.
 - **Specs**: Dev-team-lead specs must include translation namespace, English keys to add, and a Translator Spec section.
 
@@ -405,7 +481,7 @@ The application supports multiple locales (English and German) via `i18next` and
 Coverage is enforced through three mechanisms:
 
 - **CI**: 6 Jest shards upload a `coverage-report` artifact (retained 30 days) — inspect via the CI run for per-file percentages.
-- **Test file parity**: dev-team-lead `[MODE: review]` rejects production files without a corresponding test file (`VERDICT: CHANGES_REQUIRED` → routed to `qa-integration-tester`).
+- **Test file parity**: dev-team-lead `[MODE: review]` rejects production files without a corresponding test file (`VERDICT: CHANGES_REQUIRED` → routed to `qa-integration-tester`) — type-only files, pure re-export barrels, and configuration are exempt (see `.claude/checklists/implementation-checklist.md`).
 - **Local**: QA runs `npx jest path/to/file.test.ts --coverage --coverageReporters=text --maxWorkers=1` before committing; 95%+ required.
 
 ### Test Failure Debugging Protocol
@@ -456,38 +532,39 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 
 ### Environment Variables
 
-| Variable                     | Default                    | Description                                                                                                   |
-| ---------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `PORT`                       | `3000`                     | Server port                                                                                                   |
-| `HOST`                       | `0.0.0.0`                  | Server bind address                                                                                           |
-| `DATABASE_URL`               | `/app/data/cornerstone.db` | SQLite database path                                                                                          |
-| `LOG_LEVEL`                  | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                                                 |
-| `NODE_ENV`                   | `production`               | Environment                                                                                                   |
-| `SESSION_DURATION`           | `604800`                   | Session duration in seconds (default: 7 days)                                                                 |
-| `SECURE_COOKIES`             | `true`                     | Enable HTTPS-only cookie flag                                                                                 |
-| `TRUST_PROXY`                | `false`                    | Trust X-Forwarded-\* headers from a reverse proxy                                                             |
-| `OIDC_ISSUER`                | (none)                     | OpenID Connect issuer URL                                                                                     |
-| `OIDC_CLIENT_ID`             | (none)                     | OIDC application client ID                                                                                    |
-| `OIDC_CLIENT_SECRET`         | (none)                     | OIDC application client secret                                                                                |
-| `EXTERNAL_URL`               | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups                         |
-| `PHOTO_MAX_FILE_SIZE_MB`     | `20`                       | Maximum photo upload size in MB                                                                               |
-| `PHOTO_STORAGE_PATH`         | `{DB_DIR}/photos`          | Directory for photo storage                                                                                   |
-| `DIARY_AUTO_EVENTS`          | `true`                     | Enable automatic diary event creation                                                                         |
-| `CURRENCY`                   | `EUR`                      | ISO 4217 currency code for formatting (exposed via `GET /api/config`)                                         |
-| `PAPERLESS_URL`              | (none)                     | Paperless-ngx instance base URL                                                                               |
-| `PAPERLESS_API_TOKEN`        | (none)                     | Paperless-ngx API authentication token                                                                        |
-| `PAPERLESS_EXTERNAL_URL`     | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)                           |
-| `PAPERLESS_FILTER_TAG`       | (none)                     | Tag name for automatic document pre-filtering                                                                 |
-| `BACKUP_DIR`                 | `/backups`                 | Backup destination directory (must be outside app data directory)                                             |
-| `BACKUP_CADENCE`             | (none)                     | Cron expression for automatic backups (e.g., `0 2 * * *` for daily at 2 AM)                                   |
-| `BACKUP_RETENTION`           | (none)                     | Maximum number of backup archives to retain (oldest deleted when exceeded)                                    |
-| `DIARY_DRAFT_RETENTION_DAYS` | `30`                       | Days a draft diary entry can sit untouched before the daily orphan cleanup deletes it (set to `0` to disable) |
-| `LLM_BASE_URL`               | (none)                     | Base URL for OpenAI-compatible LLM API (e.g., `https://api.openai.com/v1`)                                    |
-| `LLM_API_KEY`                | (none)                     | API key for LLM provider authentication                                                                       |
-| `LLM_MODEL`                  | (none)                     | LLM model identifier (e.g., `gpt-4-turbo`, `claude-3-opus-20240229`)                                          |
-| `LLM_REQUEST_TIMEOUT_MS`     | `30000`                    | Timeout in milliseconds for LLM requests (must be positive integer)                                           |
-| `LLM_MAX_TOKENS`             | `16384`                    | Maximum output tokens per LLM call. Increase if extractions truncate (see `finishReason: "length"`)           |
-| `LLM_PROVIDER`               | auto-detect                | Optional: `openai`, `anthropic`, `gemini`, `ollama`, or `generic`. Auto-detected from `LLM_BASE_URL` if unset |
+| Variable                     | Default                    | Description                                                                                                        |
+| ---------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `PORT`                       | `3000`                     | Server port                                                                                                        |
+| `HOST`                       | `0.0.0.0`                  | Server bind address                                                                                                |
+| `DATABASE_URL`               | `/app/data/cornerstone.db` | SQLite database path                                                                                               |
+| `LOG_LEVEL`                  | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                                                      |
+| `NODE_ENV`                   | `production`               | Environment                                                                                                        |
+| `SESSION_DURATION`           | `604800`                   | Session duration in seconds (default: 7 days)                                                                      |
+| `SECURE_COOKIES`             | `true`                     | Enable HTTPS-only cookie flag                                                                                      |
+| `TRUST_PROXY`                | `false`                    | Trust X-Forwarded-\* headers from a reverse proxy                                                                  |
+| `OIDC_ISSUER`                | (none)                     | OpenID Connect issuer URL                                                                                          |
+| `OIDC_CLIENT_ID`             | (none)                     | OIDC application client ID                                                                                         |
+| `OIDC_CLIENT_SECRET`         | (none)                     | OIDC application client secret                                                                                     |
+| `EXTERNAL_URL`               | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups                              |
+| `PHOTO_MAX_FILE_SIZE_MB`     | `20`                       | Maximum photo upload size in MB                                                                                    |
+| `PHOTO_STORAGE_PATH`         | `{DB_DIR}/photos`          | Directory for photo storage                                                                                        |
+| `DIARY_AUTO_EVENTS`          | `true`                     | Enable automatic diary event creation                                                                              |
+| `CURRENCY`                   | `EUR`                      | ISO 4217 currency code for formatting (exposed via `GET /api/config`)                                              |
+| `VAT_RATE`                   | `0.19`                     | VAT/sales-tax rate as a fraction (e.g. `0.19` = 19%) for budget-line gross-up math (exposed via `GET /api/config`) |
+| `PAPERLESS_URL`              | (none)                     | Paperless-ngx instance base URL                                                                                    |
+| `PAPERLESS_API_TOKEN`        | (none)                     | Paperless-ngx API authentication token                                                                             |
+| `PAPERLESS_EXTERNAL_URL`     | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)                                |
+| `PAPERLESS_FILTER_TAG`       | (none)                     | Tag name for automatic document pre-filtering                                                                      |
+| `BACKUP_DIR`                 | `/backups`                 | Backup destination directory (must be outside app data directory)                                                  |
+| `BACKUP_CADENCE`             | (none)                     | Cron expression for automatic backups (e.g., `0 2 * * *` for daily at 2 AM)                                        |
+| `BACKUP_RETENTION`           | (none)                     | Maximum number of backup archives to retain (oldest deleted when exceeded)                                         |
+| `DIARY_DRAFT_RETENTION_DAYS` | `30`                       | Days a draft diary entry can sit untouched before the daily orphan cleanup deletes it (set to `0` to disable)      |
+| `LLM_BASE_URL`               | (none)                     | Base URL for OpenAI-compatible LLM API (e.g., `https://api.openai.com/v1`)                                         |
+| `LLM_API_KEY`                | (none)                     | API key for LLM provider authentication                                                                            |
+| `LLM_MODEL`                  | (none)                     | LLM model identifier (e.g., `gpt-4-turbo`, `claude-3-opus-20240229`)                                               |
+| `LLM_REQUEST_TIMEOUT_MS`     | `30000`                    | Timeout in milliseconds for LLM requests (must be positive integer)                                                |
+| `LLM_MAX_TOKENS`             | `16384`                    | Maximum output tokens per LLM call. Increase if extractions truncate (see `finishReason: "length"`)                |
+| `LLM_PROVIDER`               | auto-detect                | Optional: `openai`, `anthropic`, `gemini`, `ollama`, or `generic`. Auto-detected from `LLM_BASE_URL` if unset      |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 

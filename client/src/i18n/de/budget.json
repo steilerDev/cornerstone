@@ -69,10 +69,14 @@
         "ariaLabel": "Budgetquelle: {{name}}",
         "unassigned": "Nicht zugewiesen"
       },
-      "autoOriginBadge": {
-        "label": "Auto-erstellt",
-        "ariaLabel": "Diese Budgetposition wurde automatisch per Aufschlüsselung erstellt"
-      }
+      "perspectiveAriaLabel": "Kostenperspektive",
+      "perspective": {
+        "min": "Min",
+        "avg": "Ø",
+        "max": "Max"
+      },
+      "expandSubsidyAdjustments": "Förderprogramm-Anpassungen aufklappen",
+      "expandAvailableFunds": "Verfügbare Mittelquellen aufklappen"
     }
   },
   "sources": {
@@ -92,12 +96,16 @@
       "totalAmount": "Gesamtbetrag (€)",
       "interestRate": "Zinssatz (%)",
       "terms": "Bedingungen",
+      "reference": "Referenz",
+      "contactAddress": "Kontaktadresse",
       "notes": "Notizen",
       "required": "*",
       "placeholders": {
         "name": "z. B. Hauptbankkredite",
         "interestRate": "z. B. 3,50",
         "terms": "z. B. 30-jähriger fester Satz, monatliche Zahlungen",
+        "reference": "z. B. Darlehen Nr. 12345",
+        "contactAddress": "z. B. Musterstraße 1, 12345 Musterstadt",
         "notes": "Optionale Notizen"
       }
     },
@@ -236,7 +244,9 @@
     },
     "summary": {
       "remainingLabel": "Verbleibend"
-    }
+    },
+    "generateReport": "Bericht erstellen",
+    "generateReportMenuAriaLabel": "Bericht für {{name}} erstellen"
   },
   "vendors": {
     "title": "Auftragnehmer",
@@ -438,7 +448,10 @@
       "invoiceCreateError": "Rechnung konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
       "invoiceUpdateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
       "invoiceDeleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
-    }
+    },
+    "confirmDelete": "Löschen bestätigen",
+    "cancelDelete": "Löschen abbrechen",
+    "unlinkFromInvoice": "Von Rechnung trennen"
   },
   "invoiceDetail": {
     "loading": "Rechnung wird geladen...",
@@ -642,10 +655,23 @@
         "descriptionPlaceholder": "Optionale Beschreibung",
         "charCounter": "{{count}} / 500",
         "saving": "Wird gespeichert...",
-        "required": "*"
+        "required": "*",
+        "entryType": "Eintragsart",
+        "entryTypeLabel": "Eintragsart",
+        "refundAmountHint": "Rückerstattungsbeträge werden als positive Zahl eingegeben.",
+        "budgetSource": "Budgetquelle",
+        "budgetSourceNone": "Keine (anteilig)",
+        "budgetSourceHintSingle": "Standardmäßig auf {{name}} gesetzt – die einzige Budgetquelle dieser Rechnung.",
+        "budgetSourceHintLargest": "Standardmäßig auf {{name}} gesetzt, die Quelle mit dem größten zugeordneten Anteil dieser Rechnung.",
+        "budgetSourceHintNone": "Diese Rechnung hat keine Budgetpositionen – wählen Sie eine Quelle aus, oder lassen Sie das Feld leer, um diese Abschlagszahlung anteilig zu belassen."
+      },
+      "entryTypeLabels": {
+        "deposit": "Abschlagszahlung",
+        "refund": "Rückerstattung"
       },
       "errors": {
         "exceedsTotal": "Betrag der Abschlagszahlung überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{availableHeadroom}}",
+        "refundExceedsTotal": "Rückerstattungsbetrag überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{availableHeadroom}}",
         "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
         "invalidDate": "Ungültiges Datum für den ausgewählten Status",
         "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -710,6 +736,23 @@
       "fixed": "Festbetrag (€)"
     },
     "oversubscribed": "Überzeichnet",
+    "linkSection": {
+      "emptyState": "Keine Förderprogramme verknüpft",
+      "selectAriaLabel": "Förderprogramm zum Verknüpfen auswählen",
+      "selectPlaceholder": "Förderprogramm auswählen...",
+      "addButton": "Förderprogramm Hinzufügen",
+      "linking": "Wird verknüpft...",
+      "unlinkAriaLabel": "Förderprogramm {{name}} trennen",
+      "reductionPercentage": "{{value}}% Reduktion",
+      "reductionFixed": "{{amount}} Reduktion"
+    },
+    "editForm": {
+      "placeholders": {
+        "description": "Optionale Beschreibung",
+        "eligibility": "Optionale Zulassungskriterien",
+        "notes": "Optionale Notizen"
+      }
+    },
     "statusLabels": {
       "eligible": "Berechtigt",
       "applied": "Eingereicht",
@@ -789,7 +832,36 @@
     "moveCrossTableHint": "Das Verschieben zu einem Haushaltsartikel überträgt diese Budgetposition in das Haushaltsartikelbudget.",
     "moveCrossTableHintReverse": "Das Verschieben zu einem Arbeitspaket überträgt diese Budgetposition in das Arbeitspaketbudget.",
     "itemizedAmountLabel": "Aufgeschlüsselter Betrag ({{currencySymbol}}) *",
-    "moveCrossTableNoInvoiceError": "Tabellenübergreifende Verschiebungen erfordern eine Rechnungsverknüpfung. Entfernen Sie entweder die Verschiebung oder verknüpfen Sie diese Budgetposition zuerst mit einer Rechnung."
+    "moveCrossTableNoInvoiceError": "Tabellenübergreifende Verschiebungen erfordern eine Rechnungsverknüpfung. Entfernen Sie entweder die Verschiebung oder verknüpfen Sie diese Budgetposition zuerst mit einer Rechnung.",
+    "addBudgetLineAriaLabel": "Budgetposition hinzufügen"
+  },
+  "invoiceLinkModal": {
+    "title": "Mit Rechnung verknüpfen",
+    "cancel": "Abbrechen",
+    "linkButton": "Mit Rechnung verknüpfen",
+    "linking": "Wird verknüpft...",
+    "invoiceLabel": "Rechnung",
+    "loading": "Rechnungen werden geladen...",
+    "emptyState": "Keine Rechnungen verfügbar",
+    "searchPlaceholder": "Nach Rechnungsnummer oder Beschreibung suchen...",
+    "noMatches": "Keine Rechnungen entsprechen Ihrer Suche",
+    "amountLabel": "Aufgeschlüsselter Betrag",
+    "overAvailable": "{{amount}} über verfügbar",
+    "willRemain": "{{amount}} verbleiben",
+    "availableOnInvoice": "{{amount}} auf dieser Rechnung verfügbar",
+    "overAllocated": "Überzuteilt um {{amount}}",
+    "invoiceFallbackLabel": "Rechnung {{id}}",
+    "successToast": "Budgetposition erfolgreich mit Rechnung verknüpft",
+    "errors": {
+      "loadFailed": "Rechnungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "selectInvoice": "Bitte wählen Sie eine Rechnung aus",
+      "invalidAmount": "Bitte geben Sie einen gültigen Betrag ein",
+      "exceedsBalance": "Betrag übersteigt den verfügbaren Saldo ({{amount}} verfügbar)",
+      "alreadyLinked": "Diese Budgetposition ist bereits mit einer Rechnung verknüpft",
+      "exceedsInvoiceTotal": "Der aufgeschlüsselte Betrag übersteigt den Rechnungsgesamtbetrag",
+      "linkFailed": "Budgetposition konnte nicht verknüpft werden",
+      "unexpected": "Ein unerwarteter Fehler ist aufgetreten"
+    }
   },
   "health": {
     "overBudget": "Über Budget",
@@ -847,7 +919,8 @@
       "dueDate": "Fälligkeitsdatum",
       "status": "Status",
       "notes": "Notizen",
-      "remainingAmount": "Verbleibender Betrag"
+      "remainingAmount": "Verbleibender Betrag",
+      "effectiveAmount": "Effektivbetrag"
     },
     "form": {
       "vendor": "Auftragnehmer",
@@ -1026,6 +1099,202 @@
     "mergeErrorBadge": "Zusammenführen fehlgeschlagen",
     "mergeRetryButton": "Erneut versuchen",
     "mergeUndoButton": "Ursprüngliche Positionen wiederherstellen"
+  },
+  "sourceReports": {
+    "title": "Bankberichte",
+    "subtitle": "Finanzberichte für Budgetquellen erstellen",
+    "stepper": {
+      "useCase": "Berichtsart",
+      "source": "Budgetquelle",
+      "invoices": "Rechnungen auswählen",
+      "settings": "Einstellungen",
+      "options": "Vorschau & Export"
+    },
+    "stepperAriaLabel": "Schritte des Berichtsassistenten",
+    "mobileStepLabel": "Schritt {{current}} von {{total}}",
+    "settingsStep": {
+      "languageHeading": "Berichtssprache",
+      "languageHelper": "Betrifft nur den exportierten Bericht – die Sprache der App bleibt unverändert."
+    },
+    "useCaseLabel": "Welchen Bericht benötigen Sie?",
+    "useCase": {
+      "budget-overview": "Budgetübersicht",
+      "claim": "Einreichung",
+      "proof-of-funds": "Verwendungsnachweis"
+    },
+    "useCaseHelper": {
+      "budget-overview": "Eine Zusammenfassung aller Rechnungen und ihrer Zuordnungen",
+      "claim": "Dokumentiert als bezahlt oder eingereicht markierte Rechnungen",
+      "proof-of-funds": "Zeigt nur eingereichte Rechnungen an"
+    },
+    "sourceLabel": "Wählen Sie eine Budgetquelle aus",
+    "amountLabel": {
+      "overview": "Gesamtbetrag",
+      "claim": "Ausstehender Betrag",
+      "proofOfFunds": "Eingereichter Betrag"
+    },
+    "discretionary": "Diskretionär",
+    "selectAllInvoices": "Alle Rechnungen auswählen",
+    "toggleInvoice": "Rechnung {{vendor}} #{{number}} umschalten",
+    "invoicesHeading": "Einzubeziehende Rechnungen auswählen",
+    "unallocatedGroupTitle": "Nicht zugeordnete Rechnungen ({{count}})",
+    "unallocatedExplained": "Diese Rechnungen sind dieser Budgetquelle nicht zugeordnet",
+    "emptyInvoices": "Keine Rechnungen gefunden",
+    "emptyInvoicesDescription": "Diese Budgetquelle hat keine Rechnungen für diesen Berichtstyp",
+    "selectAtLeastOne": "Wählen Sie mindestens eine Rechnung aus, um fortzufahren",
+    "attachDocuments": "Rechnungs-PDFs anhängen",
+    "attachDocumentsHelper": "Fügt das Quell-PDF jeder ausgewählten Rechnung als Anhang hinzu",
+    "includeCoverLetter": "Anschreiben einfügen",
+    "includeCoverLetterHelper": "Fügt dem Bericht ein formelles Anschreiben hinzu",
+    "coverLetterDisabledReason": "Diese Quelle hat weder eine Kontaktadresse noch eine Referenz – ein Anschreiben ist nicht verfügbar",
+    "download": "PDF herunterladen",
+    "markClaimed": "{{count}} Rechnungen als eingereicht markieren",
+    "finishWithoutMarking": "Abschließen ohne Markierung",
+    "uploadPaperless": "Zu Paperless hochladen",
+    "uploadSuccess": "Dokument zu Paperless hochgeladen",
+    "confirmClaimTitle": "Rechnungen als eingereicht markieren?",
+    "confirmClaimBody": "Dadurch werden {{count}} Rechnung(en) als eingereicht markiert ({{pendingCount}} davon ausstehend). Diese Aktion kann nicht rückgängig gemacht werden.",
+    "claimSuccess": "{{invoices}} Rechnung(en) und {{deposits}} Abschlagszahlung(en) als eingereicht markiert",
+    "claimNothingClaimable": "Nichts kann als eingereicht markiert werden: Alle ausgewählten Rechnungen haben ausgeschlossene Positionen, und es gibt keine nicht eingereichten Abschlagszahlungen.",
+    "finishedWithoutMarkingSuccess": "Bericht abgeschlossen, ohne Rechnungen als eingereicht zu markieren.",
+    "claimFailed": "Rechnungen konnten nicht als eingereicht markiert werden. Bitte versuchen Sie es erneut.",
+    "claimFailedWithInvoices": "Konnte nicht als eingereicht markiert werden: Rechnung(en) {{invoiceNumbers}} befinden sich nicht in einem einreichbaren Status.",
+    "uploadFailed": "Hochladen zu Paperless fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "viewInvoices": "Rechnungen anzeigen",
+    "errorLoadingData": "Berichtsdaten konnten nicht geladen werden",
+    "errorLoadingReport": "Bericht konnte nicht geladen werden",
+    "previewGenerationFailed": "PDF-Erstellung fehlgeschlagen",
+    "downloadFailed": "Die PDF-Datei für den Download konnte nicht erstellt werden.",
+    "loadingPreview": "Vorschau wird erstellt…",
+    "previewRegenerating": "Vorschau wird aktualisiert…",
+    "pdfPreviewTitle": "Berichts-PDF-Vorschau",
+    "hasAttachment": "Dokument angehängt",
+    "noDocument": "Kein Dokument",
+    "refund": "Rückerstattung",
+    "splitBadge": "anteilig {{allocated}} von {{total}}",
+    "splitTooltip": "Diese Rechnung ist auf mehrere Quellen aufgeteilt",
+    "openInvoiceAriaLabel": "Rechnung {{vendor}}, {{invoiceNumber}} in neuem Tab öffnen",
+    "openInvoiceTooltip": "Rechnung in neuem Tab öffnen",
+    "selectedCount": "{{count}} von {{totalCount}} | Gesamt: {{totalAmount}}",
+    "resetSelection": "Auswahl zurücksetzen",
+    "subNavAriaLabel": "Budget-Abschnittsnavigation",
+    "coverLetter": {
+      "subjectLabel": "Betreff",
+      "dateLabel": "Datum",
+      "reference": "Referenz",
+      "subject": {
+        "budget-overview": "Budgetübersicht unseres Bauprojekts",
+        "claim": "Einreichungsunterlagen",
+        "proof-of-funds": "Verwendungsnachweis"
+      },
+      "body": {
+        "budget-overview": "Anbei erhalten Sie die Budgetübersicht unseres Bauprojekts mit einer Gesamtsumme von {{total}}.",
+        "claim": "Hiermit reichen wir Rechnungen in Höhe von insgesamt {{total}} zur Erstattung ein.",
+        "proof-of-funds": "Anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
+      },
+      "closing": "Mit freundlichen Grüßen"
+    },
+    "editable": {
+      "senderLabel": "Absender",
+      "recipientLabel": "Empfänger",
+      "referenceLabel": "Referenz",
+      "signatureLabel": "Unterschrift",
+      "subjectLabel": "Betreff",
+      "bodyLabel": "Brieftext",
+      "closingLabel": "Grußformel",
+      "attachmentsNoteLabel": "Anhangshinweis",
+      "usageTextAriaLabel": "Verwendungstext für {{vendor}}, {{invoiceNumber}}",
+      "attachmentsNoteAriaLabel": "Anhangshinweis für {{vendor}}, {{invoiceNumber}}",
+      "editedSuffix": " (bearbeitet)",
+      "resetFieldAriaLabel": "{{field}} auf generierten Text zurücksetzen",
+      "previewPdf": "PDF-Vorschau anzeigen",
+      "previewModalTitle": "PDF-Vorschau",
+      "discardConfirmTitle": "Ihre Bearbeitungen verwerfen?",
+      "discardConfirmBody": "Dadurch wird der Berichtsinhalt neu generiert und Ihre Bearbeitungen gehen verloren.",
+      "discardAndContinue": "Verwerfen und Fortfahren",
+      "keepEditing": "Weiter bearbeiten",
+      "coverLetterHeading": "Anschreiben",
+      "tableHeading": "Berichtstabelle",
+      "columnVisibilityLabel": "Spalten ein-/ausblenden",
+      "columnVisibilityHint": "Nur Vorschau – das erzeugte PDF enthält immer alle Spalten",
+      "enhanceWithAi": "Mit KI verbessern",
+      "enhanceWithAiDescription": "Ersetzt die unten stehenden Verwendungstexte und das Anschreiben durch KI-generierte Inhalte. Vorgenommene Bearbeitungen gehen dabei verloren.",
+      "generating": "Generiere… ({{seconds}}s)",
+      "aiGeneratedNote": "Inhalt mit KI generiert – vor dem Absenden prüfen.",
+      "aiGenerationFailed": "KI-Generierung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+      "aiOverwriteConfirmTitle": "Ihre Bearbeitungen überschreiben?",
+      "aiOverwriteConfirmBody": "Die erneute Generierung mit KI überschreibt Ihre manuellen Bearbeitungen mit neu erzeugtem Text.",
+      "aiOverwriteAndGenerate": "Überschreiben und Generieren"
+    },
+    "table": {
+      "title": {
+        "budget-overview": "Budgetübersicht",
+        "claim": "Einreichungsbericht",
+        "proof-of-funds": "Verwendungsnachweis"
+      },
+      "source": "Budgetquelle",
+      "sourceType": "Quellentyp",
+      "reference": "Referenz",
+      "generatedAt": "Erstellt am",
+      "pageLabel": "Seite",
+      "vendor": "Auftragnehmer",
+      "invoiceNumber": "Rechnungsnr.",
+      "date": "Datum",
+      "status": "Status",
+      "invoiceAmount": "Rechnungsbetrag",
+      "allocatedAmount": "Zugeordneter Betrag",
+      "total": "Gesamt",
+      "refundNote": "(Rückerstattung)",
+      "footnoteFetchFailed": "Dokument konnte nicht abgerufen werden",
+      "footnoteInvalidPdf": "Dokument ist keine gültige PDF-Datei",
+      "splitFootnote": "Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil.",
+      "usage": "Verwendung",
+      "attachmentType": {
+        "quotation": "Angebot",
+        "deposit": "Abschlagszahlung",
+        "invoice": "Rechnung"
+      },
+      "attachmentsNote_one": "{{count}} Anhang: {{types}}",
+      "attachmentsNote_other": "{{count}} Anhänge: {{types}}",
+      "attachmentsNoteNoType_one": "{{count}} Anhang",
+      "attachmentsNoteNoType_other": "{{count}} Anhänge",
+      "depositReducedFootnote": "Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.",
+      "splitInlineLabel": "Teilbetrag",
+      "depositReducedInlineLabel": "abzgl. Abschlag"
+    },
+    "sourceType": {
+      "bank_loan": "Bankdarlehen",
+      "credit_line": "Kreditlinie",
+      "savings": "Ersparnisse",
+      "other": "Sonstiges",
+      "discretionary": "Diskretionär"
+    },
+    "expand": {
+      "expandInvoice": "Rechnungsdetails einblenden",
+      "collapseInvoice": "Rechnungsdetails ausblenden",
+      "itemsHeading": "Budgetpositionen",
+      "depositsHeading": "Abschlagszahlungen & Rückerstattungen",
+      "itemsEmpty": "Keine Budgetpositionen für diese Rechnung",
+      "depositsEmpty": "Keine Abschlagszahlungen oder Rückerstattungen für diese Rechnung",
+      "excludeItemAriaLabel": "{{name}} vom Bericht ausschließen",
+      "unnamedLine": "(Unbenannte Budgetposition)",
+      "linkedColumnHeader": "Verknüpft mit",
+      "itemColumnHeader": "Position",
+      "allocatedColumnHeader": "Zugeordnet",
+      "includeColumnHeader": "Einbeziehen",
+      "amountColumnHeader": "Betrag",
+      "statusColumnHeader": "Status",
+      "datesColumnHeader": "Termine",
+      "entryTypeColumnHeader": "Eintragsart",
+      "allocatedSourceColumnHeader": "Zugeordnete Quelle",
+      "entryTypeDeposit": "Abschlagszahlung",
+      "entryTypeRefund": "Rückerstattung",
+      "dueDate": "Fällig",
+      "paidDate": "Bezahlt",
+      "claimedDate": "Eingereicht"
+    },
+    "unassigned": "Nicht zugewiesen",
+    "confirmClaimExcludedItemsWarning": "{{count}} Rechnung(en) haben ausgeschlossene Positionen und behalten ihren aktuellen Einreichungsstatus – der ausgeschlossene Anteil bleibt für einen zukünftigen Bericht einreichbar."
   },
   "common": {
     "loading": "Wird geladen...",

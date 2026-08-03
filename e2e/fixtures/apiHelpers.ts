@@ -41,7 +41,14 @@ export async function deleteWorkItemViaApi(page: Page, id: string): Promise<void
 
 export async function createBudgetSourceViaApi(
   page: Page,
-  data: { name: string; sourceType?: string; totalAmount: number; status?: string },
+  data: {
+    name: string;
+    sourceType?: string;
+    totalAmount: number;
+    status?: string;
+    reference?: string | null;
+    contactAddress?: string | null;
+  },
 ): Promise<string> {
   const response = await page.request.post(API.budgetSources, {
     data: { sourceType: 'savings', status: 'active', ...data },

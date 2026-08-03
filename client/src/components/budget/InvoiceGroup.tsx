@@ -151,7 +151,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
                       className={styles.unlinkBtn}
                       onClick={() => onUnlink(line.id, line.invoiceLink!.invoiceBudgetLineId)}
                       disabled={isUnlinking[line.invoiceLink.invoiceBudgetLineId] || false}
-                      aria-label="Unlink from invoice"
+                      aria-label={t('vendorDetail.unlinkFromInvoice')}
                     >
                       {isUnlinking[line.invoiceLink.invoiceBudgetLineId]
                         ? 'Unlinking...'

@@ -906,6 +906,35 @@ describe('formatDateForAria', () => {
     expect(result).toContain('March 5,');
     expect(result).not.toContain('March 05,');
   });
+
+  // ─── locale parameter (Issue #1813) ────────────────────────────────────────
+
+  describe('locale parameter', () => {
+    it('renders German weekday and month names for de-DE', () => {
+      // 2026-02-24 is a Tuesday
+      const result = formatDateForAria('2026-02-24', 'de-DE');
+      expect(result).toContain('Dienstag');
+      expect(result).toContain('Februar');
+      expect(result).toContain('24');
+      expect(result).toContain('2026');
+    });
+
+    it('renders German weekday/month names for a May date (en/de diverge)', () => {
+      // 2026-05-24 is a Sunday
+      const result = formatDateForAria('2026-05-24', 'de-DE');
+      expect(result).toContain('Sonntag');
+      expect(result).toContain('Mai');
+      expect(result).not.toContain('May');
+    });
+
+    it('default locale (omitted) is unchanged from existing en-US behavior', () => {
+      expect(formatDateForAria('2024-03-11')).toBe('Monday, March 11, 2024');
+    });
+
+    it('explicit en-US locale behaves identically to the default', () => {
+      expect(formatDateForAria('2024-03-11', 'en-US')).toBe(formatDateForAria('2024-03-11'));
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

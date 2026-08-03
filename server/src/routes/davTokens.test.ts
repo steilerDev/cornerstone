@@ -209,8 +209,9 @@ describe('DAV Token Routes', () => {
       });
 
       expect(response.statusCode).toBe(404);
-      const body = response.json<{ error: { code: string } }>();
-      expect(body.error.code).toBe('DAV_TOKEN_NOT_FOUND');
+      const body = response.json<{ error: { code: string; message: string } }>();
+      expect(body.error.code).toBe('NOT_FOUND');
+      expect(body.error.message).toBe('No DAV token configured');
     });
 
     it('returns .mobileconfig XML with correct Content-Type when token exists', async () => {

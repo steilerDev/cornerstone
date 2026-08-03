@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useClickOutside } from '../../hooks/useClickOutside.js';
 import type { ColumnDef } from './DataTable.js';
 import styles from './DataTable.module.css';
 
@@ -37,19 +38,11 @@ export function DataTableColumnSettings<T>({
   const [dragOverState, setDragOverState] = useState<DragOverState | null>(null);
 
   // Close on outside click
+  useClickOutside([popoverRef, triggerRef], () => setIsOpen(false), isOpen);
+
+  // Close on Escape key
   useEffect(() => {
     if (!isOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(event.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -57,11 +50,9 @@ export function DataTableColumnSettings<T>({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
   }, [isOpen]);

@@ -1,6 +1,17 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import type { ReactElement } from 'react';
 import type * as DocumentCardModule from './DocumentCard.js';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
+
+/**
+ * Custom render function that wraps the component with LocaleProvider —
+ * DocumentCard uses useFormatters() (via useLocale()), which throws outside
+ * a LocaleProvider. See DateRangePicker.test.tsx for the reference pattern.
+ */
+function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
+}
 
 const mockGetDocumentThumbnailUrl = jest.fn<(id: number) => string>();
 const mockGetDocumentPreviewUrl = jest.fn<(id: number) => string>();
@@ -21,6 +32,11 @@ beforeEach(async () => {
   mockGetDocumentThumbnailUrl.mockReset();
   mockGetDocumentThumbnailUrl.mockImplementation((id) => `/api/paperless/documents/${id}/thumb`);
   mockGetDocumentPreviewUrl.mockImplementation((id) => `/api/paperless/documents/${id}/preview`);
+  localStorage.clear();
+});
+
+afterEach(() => {
+  localStorage.clear();
 });
 
 const makeDoc = (overrides = {}) => ({
@@ -289,5 +305,80 @@ describe('DocumentCard', () => {
     // Trigger the image error event to exercise the onError handler (line coverage)
     fireEvent.error(img);
     expect(img.style.display).toBe('none');
+  });
+
+  // ─── UTC-midnight-shift regression (Issue #1813, Scenario 10) ──────────────
+  // formatDate() parses YYYY-MM-DD components directly (local midnight) instead
+  // of letting `new Date('2026-02-24')` parse as UTC midnight, which could
+  // render the wrong calendar day for users behind UTC in the evening.
+
+  it('renders "Feb 24, 2026" (not Feb 23 or Feb 25) for created="2026-02-24"', () => {
+    render(
+      <DocumentCard
+        document={makeDoc({ created: '2026-02-24' })}
+        isSelected={false}
+        onSelect={jest.fn()}
+      />,
+    );
+    expect(screen.getByText('Feb 24, 2026')).toBeInTheDocument();
+    expect(screen.queryByText('Feb 23, 2026')).not.toBeInTheDocument();
+    expect(screen.queryByText('Feb 25, 2026')).not.toBeInTheDocument();
+  });
+
+  // ─── de-DE locale (Issue #1813) ─────────────────────────────────────────────
+
+  describe('de-DE locale', () => {
+    it('renders the created date in German short-month format', () => {
+      localStorage.setItem('locale', 'de');
+      render(
+        <DocumentCard
+          document={makeDoc({ created: '2026-02-24' })}
+          isSelected={false}
+          onSelect={jest.fn()}
+        />,
+      );
+      // German short month for February is "Feb." — assert day/year present and
+      // the en-US "Feb 24, 2026" form is NOT what's rendered.
+      expect(screen.queryByText('Feb 24, 2026')).not.toBeInTheDocument();
+      expect(screen.getByText(/24/)).toBeInTheDocument();
+    });
+
+    it('renders a German month abbreviation that diverges from English (May → Mai)', () => {
+      localStorage.setItem('locale', 'de');
+      render(
+        <DocumentCard
+          document={makeDoc({ created: '2026-05-24' })}
+          isSelected={false}
+          onSelect={jest.fn()}
+        />,
+      );
+      expect(screen.getByText(/Mai/)).toBeInTheDocument();
+    });
+
+    it('includes the German-formatted date in the aria-label', () => {
+      localStorage.setItem('locale', 'de');
+      render(
+        <DocumentCard
+          document={makeDoc({ created: '2026-05-24' })}
+          isSelected={false}
+          onSelect={jest.fn()}
+        />,
+      );
+      const card = screen.getByRole('button', { name: /Mai/ });
+      expect(card).toBeInTheDocument();
+    });
+
+    it('does not render undefined/NaN when created is null under de-DE locale', () => {
+      localStorage.setItem('locale', 'de');
+      render(
+        <DocumentCard
+          document={makeDoc({ created: null })}
+          isSelected={false}
+          onSelect={jest.fn()}
+        />,
+      );
+      expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/\bNaN\b/)).not.toBeInTheDocument();
+    });
   });
 });

@@ -6,6 +6,7 @@ import { invoiceDeposits, invoices, users } from '../db/schema.js';
 import type {
   InvoiceDeposit,
   InvoiceDepositStatus,
+  InvoiceDepositEntryType,
   CreateDepositRequest,
   UpdateDepositRequest,
   UserSummary,
@@ -14,10 +15,12 @@ import {
   NotFoundError,
   ValidationError,
   DepositsExceedInvoiceTotalError,
+  RefundExceedsInvoiceError,
   InvalidDepositStatusTransitionError,
   InvalidDepositDateForStatusError,
 } from '../errors/AppError.js';
 import { onDepositStatusChanged } from './diaryAutoEventService.js';
+import { exceedsAmount } from './shared/money.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -58,8 +61,8 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
 /**
  * Allowed status transitions for deposits.
  */
-const ALLOWED_TRANSITIONS: Record<InvoiceDepositStatus, InvoiceDepositStatus[]> = {
-  pending: ['paid'],
+export const ALLOWED_TRANSITIONS: Record<InvoiceDepositStatus, InvoiceDepositStatus[]> = {
+  pending: ['paid', 'claimed'],
   paid: ['claimed', 'pending'],
   claimed: ['paid'],
 };
@@ -81,6 +84,8 @@ function toInvoiceDeposit(db: DbType, row: typeof invoiceDeposits.$inferSelect):
     claimedDate: row.claimedDate,
     description: row.description,
     status: row.status as InvoiceDepositStatus,
+    entryType: row.entryType as InvoiceDepositEntryType,
+    budgetSourceId: row.budgetSourceId,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -170,6 +175,9 @@ export function createDeposit(
     throw new ValidationError('Description must be 500 characters or less');
   }
 
+  // Determine entry type (default 'deposit')
+  const entryType: InvoiceDepositEntryType = data.entryType ?? 'deposit';
+
   // Determine target status (default 'pending')
   const targetStatus: InvoiceDepositStatus = data.status ?? 'pending';
 
@@ -230,27 +238,41 @@ export function createDeposit(
 
   // Perform atomic read-check-write in transaction
   const row = db.transaction((tx) => {
-    // Check sum invariant: existing deposits + new amount <= invoice total
+    // Check sum invariant: existing entries of same type + new amount <= invoice total
     const existingSum = tx
       .select({ sum: sql<number>`COALESCE(SUM(${invoiceDeposits.amount}), 0)` })
       .from(invoiceDeposits)
-      .where(eq(invoiceDeposits.invoiceId, invoiceId))
+      .where(
+        and(eq(invoiceDeposits.invoiceId, invoiceId), eq(invoiceDeposits.entryType, entryType)),
+      )
       .get();
 
     const currentSum = existingSum?.sum ?? 0;
     const proposedTotal = currentSum + data.amount;
 
-    if (proposedTotal > invoice.amount) {
+    if (exceedsAmount(proposedTotal, invoice.amount)) {
       const availableHeadroom = Math.max(0, invoice.amount - currentSum);
-      throw new DepositsExceedInvoiceTotalError(
-        'Sum of deposit amounts would exceed the invoice total',
-        {
-          invoiceTotal: invoice.amount,
-          currentDepositSum: currentSum,
-          requestedAmount: data.amount,
-          availableHeadroom,
-        },
-      );
+      if (entryType === 'refund') {
+        throw new RefundExceedsInvoiceError(
+          'Sum of refund amounts would exceed the invoice total',
+          {
+            invoiceTotal: invoice.amount,
+            currentRefundSum: currentSum,
+            requestedAmount: data.amount,
+            availableHeadroom,
+          },
+        );
+      } else {
+        throw new DepositsExceedInvoiceTotalError(
+          'Sum of deposit amounts would exceed the invoice total',
+          {
+            invoiceTotal: invoice.amount,
+            currentDepositSum: currentSum,
+            requestedAmount: data.amount,
+            availableHeadroom,
+          },
+        );
+      }
     }
 
     // Insert the deposit
@@ -264,6 +286,8 @@ export function createDeposit(
         claimedDate,
         description: data.description ?? null,
         status: targetStatus,
+        entryType,
+        budgetSourceId: data.budgetSourceId ?? null,
         createdBy: userId,
         createdAt: now,
         updatedAt: now,
@@ -335,6 +359,11 @@ export function updateDeposit(
     updates.description = data.description ?? null;
   }
 
+  // Update budgetSourceId if provided
+  if (data.budgetSourceId !== undefined) {
+    updates.budgetSourceId = data.budgetSourceId ?? null;
+  }
+
   // Handle status transition if provided
   if (data.status !== undefined) {
     const newStatus = data.status;
@@ -357,6 +386,10 @@ export function updateDeposit(
         // pending → paid: auto-set paid_date = today unless paidDate supplied
         effectiveNewPaidDate = data.paidDate ?? today();
         effectiveNewClaimedDate = null;
+      } else if (oldStatus === 'pending' && newStatus === 'claimed') {
+        // pending → claimed: auto-set both paid_date and claimed_date = today unless supplied
+        effectiveNewPaidDate = data.paidDate ?? today();
+        effectiveNewClaimedDate = data.claimedDate ?? today();
       } else if (oldStatus === 'paid' && newStatus === 'claimed') {
         // paid → claimed: auto-set claimed_date = today unless claimedDate supplied
         effectiveNewClaimedDate = data.claimedDate ?? today();
@@ -412,30 +445,47 @@ export function updateDeposit(
 
   // Perform atomic read-check-write in transaction
   const row = db.transaction((tx) => {
-    // Check sum invariant if amount is being updated (self-exclude)
+    // Check sum invariant if amount is being updated (self-exclude, scoped to same entry type)
     if (data.amount !== undefined) {
       const otherSum = tx
         .select({ sum: sql<number>`COALESCE(SUM(${invoiceDeposits.amount}), 0)` })
         .from(invoiceDeposits)
         .where(
-          and(eq(invoiceDeposits.invoiceId, invoiceId), sql`${invoiceDeposits.id} != ${depositId}`),
+          and(
+            eq(invoiceDeposits.invoiceId, invoiceId),
+            eq(invoiceDeposits.entryType, existing.entryType as InvoiceDepositEntryType),
+            sql`${invoiceDeposits.id} != ${depositId}`,
+          ),
         )
         .get();
 
       const otherTotal = otherSum?.sum ?? 0;
       const proposedTotal = otherTotal + data.amount!;
 
-      if (proposedTotal > invoice.amount) {
+      if (exceedsAmount(proposedTotal, invoice.amount)) {
         const availableHeadroom = Math.max(0, invoice.amount - otherTotal);
-        throw new DepositsExceedInvoiceTotalError(
-          'Sum of deposit amounts would exceed the invoice total',
-          {
-            invoiceTotal: invoice.amount,
-            currentDepositSum: otherTotal,
-            requestedAmount: data.amount!,
-            availableHeadroom,
-          },
-        );
+        const existingEntryType = existing.entryType as InvoiceDepositEntryType;
+        if (existingEntryType === 'refund') {
+          throw new RefundExceedsInvoiceError(
+            'Sum of refund amounts would exceed the invoice total',
+            {
+              invoiceTotal: invoice.amount,
+              currentRefundSum: otherTotal,
+              requestedAmount: data.amount!,
+              availableHeadroom,
+            },
+          );
+        } else {
+          throw new DepositsExceedInvoiceTotalError(
+            'Sum of deposit amounts would exceed the invoice total',
+            {
+              invoiceTotal: invoice.amount,
+              currentDepositSum: otherTotal,
+              requestedAmount: data.amount!,
+              availableHeadroom,
+            },
+          );
+        }
       }
     }
 

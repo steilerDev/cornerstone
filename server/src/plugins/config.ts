@@ -26,6 +26,8 @@ export interface AppConfig {
   diaryAutoEvents: boolean;
   diaryDraftRetentionDays: number; // 0 = cleanup disabled
   currency: string;
+  /** VAT/sales-tax rate as a fraction (e.g. 0.19 = 19%), configured via VAT_RATE env var. Default: 0.19. */
+  vatRate: number;
   backupDir: string;
   backupCadence?: string;
   backupRetention?: number;
@@ -48,6 +50,8 @@ export interface AppConfig {
    */
   llmProvider: 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'generic';
   autoItemizeEnabled: boolean;
+  /** Alias of autoItemizeEnabled — clearer name for LLM capabilities. Story #1901. */
+  llmEnabled: boolean;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -237,6 +241,16 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
   const currency = currencyRaw;
 
+  // VAT_RATE — VAT/sales-tax rate as a fraction (0.19 = 19%), default matches
+  // the historical hardcoded German rate.
+  const vatRateStr = getValue('VAT_RATE') ?? '0.19';
+  const vatRate = parseFloat(vatRateStr);
+  if (isNaN(vatRate) || vatRate < 0 || vatRate > 1) {
+    errors.push(
+      `VAT_RATE must be a number between 0 and 1 (e.g. 0.19 for 19%), got: ${vatRateStr}`,
+    );
+  }
+
   // Backup configuration (all optional)
   const backupDir = getValue('BACKUP_DIR') ?? '/backups';
   const backupCadence = getValue('BACKUP_CADENCE');
@@ -362,6 +376,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     diaryAutoEvents,
     diaryDraftRetentionDays,
     currency,
+    vatRate,
     backupDir,
     backupCadence,
     backupRetention,
@@ -373,6 +388,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     llmMaxTokens,
     llmProvider,
     autoItemizeEnabled,
+    llmEnabled: autoItemizeEnabled, // Alias for clearer naming
   };
 }
 
@@ -403,6 +419,7 @@ export default fp(
         diaryAutoEvents: config.diaryAutoEvents,
         diaryDraftRetentionDays: config.diaryDraftRetentionDays,
         currency: config.currency,
+        vatRate: config.vatRate,
         backupEnabled: config.backupEnabled,
         backupDir: config.backupDir,
         autoItemizeEnabled: config.autoItemizeEnabled,

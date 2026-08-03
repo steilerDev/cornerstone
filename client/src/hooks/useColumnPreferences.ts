@@ -40,8 +40,37 @@ export function useColumnPreferences<T>(
   const [isLoaded, setIsLoaded] = useState(false);
   const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load preferences on mount
+  // Which preference key this hook instance has taken local ownership of.
+  // Once the user edits columns, this hook is the single source of truth for that
+  // key and must ignore preference-store echoes (including its own save's echo,
+  // which `usePreferences.upsert` emits optimistically as a fresh array reference).
+  //
+  // Premise this depends on: `usePreferences` keeps `preferences` in private `useState`
+  // per call site, with no shared context, so the only writers to this instance's store
+  // are its own mount fetch and its own echo. If it ever becomes a shared context/store,
+  // this guard would silently swallow legitimate external writes with no test failing,
+  // and needs revisiting.
+  const localAuthorityKeyRef = useRef<string | null>(null);
+
+  // Latest not-yet-sent payload, and whether a write is currently in flight.
+  // Note both refs rely on *replace* semantics for StrictMode safety: `savePreferences`
+  // runs inside a `setState` updater and so is genuinely double-invoked in dev, but
+  // replacing the pending payload (and `clearTimeout` + `setTimeout` netting one timer)
+  // makes that idempotent. Switching to append-style — e.g. pushing onto a queue array
+  // instead of replacing — would break that, silently and in dev only.
+  const pendingSaveRef = useRef<{ visible: string[]; order: string[] } | null>(null);
+  const isSavingRef = useRef(false);
+
+  // Load preferences on mount, and whenever the store changes before the first local edit
   useEffect(() => {
+    if (localAuthorityKeyRef.current === preferenceKey) {
+      // Local state is authoritative for this key; do not re-apply stored payloads.
+      // Note this is deliberately NOT "hydrate once on mount": `usePreferences` starts
+      // at `preferences: []` with `isLoading: false`, so mount-only hydration would lock
+      // in the defaults and never apply the async fetch result.
+      return;
+    }
+
     const pref = preferences.find((p) => p.key === preferenceKey);
     if (pref) {
       try {
@@ -76,26 +105,52 @@ export function useColumnPreferences<T>(
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- defaultColumnOrder is derived from columns each render; the load effect runs on preferences change only
   }, [preferences, preferenceKey]);
 
+  // Drains the pending payload, keeping at most ONE write in flight for this key.
+  // Serialization is what makes the persisted value deterministic: a later write is only
+  // issued after the earlier one's response, so the server cannot apply them out of order
+  // and the newest payload is always the last write to land.
+  const drainSaves = useCallback(async () => {
+    if (isSavingRef.current) {
+      // An in-flight write will pick up the pending payload when it settles.
+      return;
+    }
+    isSavingRef.current = true;
+    try {
+      // Loop rather than a single send: a debounce timer that fires while a write is in
+      // flight returns early above, and no further toggle is guaranteed to re-arm it, so
+      // the drain must re-check for pending work after each write settles.
+      while (pendingSaveRef.current) {
+        const payload = pendingSaveRef.current;
+        pendingSaveRef.current = null;
+        try {
+          await upsert(preferenceKey, JSON.stringify(payload));
+        } catch {
+          // Write failed: drop it, matching the previous `void upsert(...)` behaviour.
+          // `usePreferences` surfaces the error; retry is out of scope.
+        }
+      }
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [preferenceKey, upsert]);
+
   const savePreferences = useCallback(
     (newVisible: Set<string>, newOrder: string[]) => {
+      // Latest payload always wins, replacing any not-yet-sent payload.
+      pendingSaveRef.current = { visible: Array.from(newVisible), order: newOrder };
       if (saveDebounceRef.current) {
         clearTimeout(saveDebounceRef.current);
       }
       saveDebounceRef.current = setTimeout(() => {
-        void upsert(
-          preferenceKey,
-          JSON.stringify({
-            visible: Array.from(newVisible),
-            order: newOrder,
-          }),
-        );
+        void drainSaves();
       }, 500);
     },
-    [preferenceKey, upsert],
+    [drainSaves],
   );
 
   const toggleColumn = useCallback(
     (key: string) => {
+      localAuthorityKeyRef.current = preferenceKey;
       setVisibleColumns((prev) => {
         const updated = new Set(prev);
         if (updated.has(key)) {
@@ -107,11 +162,12 @@ export function useColumnPreferences<T>(
         return updated;
       });
     },
-    [columnOrder, savePreferences],
+    [columnOrder, preferenceKey, savePreferences],
   );
 
   const moveColumn = useCallback(
     (from: number, to: number) => {
+      localAuthorityKeyRef.current = preferenceKey;
       setColumnOrder((prev) => {
         const updated = [...prev];
         const [item] = updated.splice(from, 1);
@@ -120,17 +176,18 @@ export function useColumnPreferences<T>(
         return updated;
       });
     },
-    [visibleColumns, savePreferences],
+    [visibleColumns, preferenceKey, savePreferences],
   );
 
   const resetToDefaults = useCallback(() => {
+    localAuthorityKeyRef.current = preferenceKey;
     const defaults = new Set(
       columns.filter((col) => col.defaultVisible !== false).map((col) => col.key),
     );
     setVisibleColumns(defaults);
     setColumnOrder(defaultColumnOrder);
     savePreferences(defaults, defaultColumnOrder);
-  }, [columns, defaultColumnOrder, savePreferences]);
+  }, [columns, defaultColumnOrder, preferenceKey, savePreferences]);
 
   return {
     visibleColumns,

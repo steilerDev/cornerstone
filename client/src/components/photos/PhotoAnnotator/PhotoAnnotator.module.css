@@ -40,7 +40,7 @@
   padding: var(--spacing-1) var(--spacing-2);
   outline: none;
   min-width: 80px;
-  z-index: 1000;
+  z-index: var(--z-modal);
 }
 
 .inlineInput:focus {
@@ -67,11 +67,6 @@
   min-height: 44px;
 }
 
-.resetButton {
-  composes: btnSecondary from '../../../styles/shared.module.css';
-  min-height: 44px;
-}
-
 /* Shared iconButton sub-pattern (dark surface — used by PhotoViewer info bar buttons) */
 .iconButton {
   display: flex;
@@ -89,11 +84,11 @@
 
 .iconButton:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 2px var(--color-photo-focus-ring);
 }
 
 .iconButtonActive {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--color-photo-active-bg);
 }
 
 .srOnly {
@@ -103,21 +98,9 @@
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border-width: 0;
-}
-
-/* Modal buttons (for reset confirmation) */
-.modalActions {
-  display: flex;
-  gap: var(--spacing-3);
-  justify-content: flex-end;
-  margin-top: var(--spacing-4);
-}
-
-.confirmButton {
-  composes: btnPrimary from '../../../styles/shared.module.css';
 }
 
 .liveRegion {
@@ -127,7 +110,7 @@
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border-width: 0;
 }

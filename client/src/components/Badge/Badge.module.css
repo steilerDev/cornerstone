@@ -233,6 +233,82 @@
   border: 1px solid var(--color-danger-border);
 }
 
+/* Success badge (e.g., "Enabled", "Last run succeeded") */
+.success {
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+  border: 1px solid var(--color-success-border);
+}
+
+/* Budget health indicator variants */
+.budgetHealthOnBudget {
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+}
+
+.budgetHealthAtRisk {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
+}
+
+.budgetHealthOverBudget {
+  background-color: var(--color-danger-bg-strong);
+  color: var(--color-danger-text-on-light);
+}
+
+/* Schedule health variants (milestones, critical path) */
+.scheduleOnTrack {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text-on-light);
+}
+
+.scheduleWarning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-text-secondary);
+}
+
+.scheduleAtRisk {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text-on-light);
+}
+
+/* Subsidy pipeline status variants */
+.subsidyEligible {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-status-not-started-text);
+}
+
+.subsidyApplied {
+  background-color: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
+}
+
+.subsidyApproved {
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+}
+
+.subsidyRejected {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text-on-light);
+}
+
+/* Document Attachment Type variants */
+.attachmentQuotation {
+  background-color: var(--color-attachment-quotation-bg);
+  color: var(--color-attachment-quotation-text);
+}
+
+.attachmentDeposit {
+  background-color: var(--color-attachment-deposit-bg);
+  color: var(--color-attachment-deposit-text);
+}
+
+.attachmentInvoice {
+  background-color: var(--color-attachment-invoice-bg);
+  color: var(--color-attachment-invoice-text);
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {

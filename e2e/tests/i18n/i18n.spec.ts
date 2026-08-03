@@ -15,11 +15,40 @@
  *
  * Scoped to desktop only: language switching involves a form that can be unreliable
  * on WebKit tablet — and language correctness is not viewport-specific.
+ *
+ * Preference isolation (Issue #1957): every test here mutates the `locale`
+ * preference row of whichever user it is authenticated as. That used to be the one
+ * shared TEST_ADMIN user, which under `fullyParallel: true` made this file both a
+ * victim and a cause of cross-file corruption — LocaleContext.syncWithServer treats
+ * the server value as authoritative, so a concurrent PATCH from another worker
+ * applies its locale AND deletes the victim's 'locale' localStorage key, flipping
+ * the victim's UI language mid-test. Observed in CI run 30790367863 shard 4, where
+ * "Key page headings render in German" asserted 'Projekt' successfully at
+ * 06:35:35.49 and then found an English sidebar ('Main navigation', 'Schedule') at
+ * 06:35:36.11 — the window in which the concurrently running "Language can be
+ * switched back to English from German" (06:35:34.41–35.88, worker 1) PATCHed
+ * locale='en'. `dashboard.spec.ts` was the mirror-image victim: its top-level
+ * `beforeEach` PATCHed locale='en' on the same shared row.
+ *
+ * The isolation mechanism is now `isolatedUserPerWorker` (see
+ * e2e/fixtures/isolatedUser.ts): every test runs as a dedicated user, so the row
+ * `setLanguage()` writes is unreachable by any other test in the suite. Serial mode
+ * is KEPT, but only as defence in depth: it no longer provides isolation (it never
+ * could across files), it just avoids running two slow German cold-start tests
+ * concurrently on a 2-vCPU CI runner. `resetToEnglish()` in afterEach is also kept
+ * and is still load-bearing — a worker's dedicated user is shared by that worker's
+ * sequentially-executed tests, so locale state must not carry over between them.
  */
 
 import type { Page } from '@playwright/test';
-import { test, expect } from '../../fixtures/auth.js';
+import { test, expect } from '../../fixtures/isolatedUser.js';
 import { ROUTES } from '../../fixtures/testData.js';
+
+test.use({
+  isolatedUserPerWorker: { emailPrefix: 'i18n-switch', displayName: 'E2E i18n User' },
+});
+
+test.describe.configure({ mode: 'serial' });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -121,7 +150,7 @@ test.describe('i18n: Language Switching', () => {
 
     // Then: The page is in German (localStorage sets locale before first render)
     // Navigation sidebar links use German translation keys
-    const nav = page.getByRole('navigation', { name: 'Main navigation' });
+    const nav = page.getByRole('navigation', { name: /Main navigation|Hauptnavigation/ });
     await expect(nav.getByRole('link', { name: 'Projekt', exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Budget', exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Zeitplan', exact: true })).toBeVisible();
@@ -303,34 +332,44 @@ test.describe('i18n: Language Persistence via API', () => {
   });
 
   test('DELETE preference resets to system locale', async ({ page }) => {
-    // Given: Language is set to German
-    await setLanguage(page, 'de');
+    // Given: German is the *server* preference. Deliberately NOT via setLanguage(),
+    // which also writes localStorage — and a non-'system' localStorage value is
+    // precisely what LocaleContext.syncWithServer migrates back to the server when it
+    // finds no server preference, silently re-creating the row this test deletes.
+    // That is the confirmed cause of this test's CI failures (run 30790367863 shard 4):
+    // the app issued its own PATCH /api/users/me/preferences 13 ms after the test's
+    // DELETE (18 ms on the retry), restoring locale='de' before the assertion ran.
+    await page.request.patch('/api/users/me/preferences', {
+      data: { key: 'locale', value: 'de' },
+    });
 
-    // When: Preference is deleted via API
+    // Loading a page now drives syncWithServer down its "server has a preference"
+    // branch, which applies 'de' AND removes the 'locale' localStorage key — no arbitrary
+    // wait needed, because those two happen in the same synchronous block, so a rendered
+    // German heading cannot precede the removal.
+    await page.goto(ROUTES.profile);
+    await expect(page.getByRole('heading', { level: 1, name: 'Profil' })).toBeVisible();
+
+    // Assert that precondition instead of inferring it. The heading only proves the
+    // server branch ran if the German render was driven by that branch; were the auth
+    // storage state (test-results/.auth/admin.json) ever to carry locale='de', the page
+    // would render German from localStorage before listPreferences() resolves, the
+    // assertion above would pass early, and the removal might not have happened yet —
+    // silently reopening the migration window this test exists to close. Polling (at the
+    // project-default timeout) tolerates the removal landing a tick after the render
+    // without reintroducing a fixed wait, and fails loudly here rather than resurfacing
+    // as an unexplained locale flake later.
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('locale'))).toBeNull();
+
+    // When: Preference is deleted via API. With localStorage empty, readStoredPreference()
+    // returns 'system' and syncWithServer's migration branch is a guarded no-op, so no
+    // in-flight sync can re-create the row.
     const deleteResponse = await page.request.delete('/api/users/me/preferences/locale');
     expect(deleteResponse.status()).toBe(204);
 
-    // And: Clear localStorage too
-    await page.evaluate(() => localStorage.removeItem('locale'));
-
-    // Then: App falls back to system locale (English in CI)
-    // page.goto() triggers a client-side (React Router) navigation so LocaleContext
-    // state (still 'de' in memory) persists.  page.reload() forces a full page load
-    // which re-initialises LocaleContext: localStorage is empty → server has no
-    // preference → fallback to system locale (English in CI).
-    //
-    // waitForResponse is NOT used here because it creates a timing race: both the
-    // goto() navigation and React's post-load async mounting can trigger a preferences
-    // GET, meaning the promise can resolve prematurely (capturing the goto's fetch
-    // instead of the reload's fetch). Instead, we navigate, reload, then wait for
-    // network idle — ensuring all async preferences fetches AND React locale state
-    // updates have settled before asserting the heading text.
-    await page.goto(ROUTES.profile);
+    // Then: A full reload re-initialises LocaleContext with no localStorage key and no
+    // server preference → 'system' → the CI browser locale, English.
     await page.reload();
-    await page.waitForLoadState('networkidle');
-    // After no locale preference, system default (English) applies
-    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible({
-      timeout: 15000,
-    });
+    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
   });
 });

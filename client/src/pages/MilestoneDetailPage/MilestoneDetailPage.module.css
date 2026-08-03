@@ -94,7 +94,7 @@
 
 .pageTitle {
   font-size: 2rem;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
 }
@@ -116,7 +116,7 @@
 
 .notFound h2 {
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin-bottom: 0.5rem;
 }
@@ -133,7 +133,7 @@
   color: var(--color-primary-text);
   border-radius: 0.5rem;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   transition: background-color 0.2s;
 }
 
@@ -177,7 +177,7 @@
 
 .milestoneTitle {
   font-size: 1.75rem;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
 }
@@ -187,7 +187,7 @@
   padding: 0.25rem 0.75rem;
   border-radius: 0.25rem;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
   letter-spacing: 0.025em;
 }
@@ -209,7 +209,7 @@
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -233,7 +233,7 @@
 
 .fieldLabel {
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.025em;
@@ -352,7 +352,7 @@
   border: 1px solid var(--color-border-strong);
   border-top: none;
   border-radius: 0 0 0.5rem 0.5rem;
-  z-index: 10;
+  z-index: var(--z-dropdown);
   box-shadow: var(--shadow-md);
 }
 
@@ -391,7 +391,7 @@
   padding: 0.125rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   background-color: var(--color-primary);
   color: var(--color-primary-text);
   flex-shrink: 0;
@@ -402,7 +402,7 @@
   padding: 0.125rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.7rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   background-color: var(--color-success);
   color: var(--color-success-text);
   flex-shrink: 0;
@@ -430,7 +430,7 @@
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -450,7 +450,7 @@
 
 .editTitle {
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0 0 1.5rem 0;
 }
@@ -464,7 +464,7 @@
 
 .label {
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
 }
 
@@ -526,7 +526,7 @@
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -547,7 +547,7 @@
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -568,7 +568,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 1000;
+  z-index: var(--z-modal);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -596,7 +596,7 @@
 
 .modalTitle {
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0 0 0.75rem 0;
 }
@@ -621,7 +621,7 @@
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -642,7 +642,7 @@
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -663,7 +663,7 @@
   border-radius: 0.5rem;
   padding: 0.625rem 1.25rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -684,7 +684,7 @@
   padding: 0.125rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   background-color: var(--color-danger-bg-subtle);
   color: var(--color-danger);
 }
@@ -695,7 +695,7 @@
   padding: 0.125rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   background-color: var(--color-success-bg);
   color: var(--color-success);
 }

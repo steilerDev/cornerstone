@@ -60,7 +60,7 @@
   .timeline,
   .entry,
   article {
-    page-break-inside: avoid;
+    break-inside: avoid;
     background-color: white;
     border: none;
     box-shadow: none;
@@ -68,7 +68,7 @@
 
   /* Diary entry styling */
   .card {
-    page-break-inside: avoid;
+    break-inside: avoid;
     margin-bottom: 2rem;
     padding: 0;
     border: none;
@@ -76,9 +76,9 @@
 
   .header {
     display: block !important;
-    page-break-after: avoid;
+    break-after: avoid;
     margin-bottom: 1rem;
-    border-bottom: 2px solid #000;
+    border-bottom: 2px solid var(--color-black);
     padding-bottom: 1rem;
   }
 
@@ -90,7 +90,7 @@
 
   .meta {
     font-size: 0.85rem;
-    color: #333;
+    color: var(--color-gray-700);
     margin: 0;
   }
 
@@ -98,7 +98,7 @@
     font-size: 1rem;
     line-height: 1.6;
     margin: 1rem 0;
-    color: #000;
+    color: var(--color-black);
   }
 
   /* Hide photos in print (optional - set to block to include) */
@@ -110,7 +110,7 @@
   /* Preserve links as text */
   a {
     text-decoration: none;
-    color: #000;
+    color: var(--color-black);
   }
 
   a::after {
@@ -126,7 +126,7 @@
   /* Hide metadata visualization */
   .metadataSection {
     display: block !important;
-    page-break-inside: avoid;
+    break-inside: avoid;
     background-color: white;
     border: none;
     padding: 0;
@@ -135,10 +135,10 @@
   /* Signature display */
   .signatureSection {
     display: block !important;
-    page-break-inside: avoid;
+    break-inside: avoid;
     margin: 2rem 0 0 0;
     padding-top: 1rem;
-    border-top: 1px solid #ccc;
+    border-top: 1px solid var(--color-gray-300);
   }
 
   /* Timestamps */
@@ -201,33 +201,43 @@
     margin: 1.5cm 1cm;
 
     /* Explicitly empty all 10 margin boxes to suppress browser-injected header/footer */
+
     @top-left-corner {
       content: '';
     }
+
     @top-left {
       content: '';
     }
+
     @top-center {
       content: '';
     }
+
     @top-right {
       content: '';
     }
+
     @top-right-corner {
       content: '';
     }
+
     @bottom-left-corner {
       content: '';
     }
+
     @bottom-left {
       content: '';
     }
+
     @bottom-center {
       content: '';
     }
+
     @bottom-right {
       content: '';
     }
+
     @bottom-right-corner {
       content: '';
     }

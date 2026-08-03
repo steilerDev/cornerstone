@@ -22,6 +22,10 @@ export interface CreateBudgetSourceData {
   totalAmount: number | string;
   interestRate?: number | string;
   terms?: string;
+  /** Story #1877: loan/contract reference number (e.g. "Loan #12345"). Optional, max 200 chars. */
+  reference?: string;
+  /** Story #1877: source contact postal address. Optional, max 500 chars. */
+  contactAddress?: string;
   notes?: string;
 }
 
@@ -48,6 +52,10 @@ export class BudgetSourcesPage {
   readonly createTotalAmountInput: Locator;
   readonly createInterestRateInput: Locator;
   readonly createTermsInput: Locator;
+  /** Story #1877: Reference field — <input id="sourceReference">, between Terms and Contact address. */
+  readonly createReferenceInput: Locator;
+  /** Story #1877: Contact address field — <textarea id="sourceContactAddress">, between Reference and Notes. */
+  readonly createContactAddressInput: Locator;
   readonly createNotesInput: Locator;
   readonly createSubmitButton: Locator;
   readonly createCancelButton: Locator;
@@ -95,6 +103,8 @@ export class BudgetSourcesPage {
     this.createTotalAmountInput = page.locator('#sourceTotalAmount');
     this.createInterestRateInput = page.locator('#sourceInterestRate');
     this.createTermsInput = page.locator('#sourceTerms');
+    this.createReferenceInput = page.locator('#sourceReference');
+    this.createContactAddressInput = page.locator('#sourceContactAddress');
     this.createNotesInput = page.locator('#sourceNotes');
     this.createSubmitButton = page.getByRole('button', { name: /Create Source|Creating\.\.\./ });
     // The Cancel button inside the create form — scope it to the form heading's ancestor
@@ -161,6 +171,12 @@ export class BudgetSourcesPage {
     }
     if (data.terms !== undefined) {
       await this.createTermsInput.fill(data.terms);
+    }
+    if (data.reference !== undefined) {
+      await this.createReferenceInput.fill(data.reference);
+    }
+    if (data.contactAddress !== undefined) {
+      await this.createContactAddressInput.fill(data.contactAddress);
     }
     if (data.notes !== undefined) {
       await this.createNotesInput.fill(data.notes);
@@ -345,6 +361,22 @@ export class BudgetSourcesPage {
    */
   getEditTypeSelect(sourceId: string): Locator {
     return this.page.locator(`#edit-type-${sourceId}`);
+  }
+
+  /**
+   * Get the inline edit Reference input for the source currently being edited (by source id).
+   * Story #1877: <input id="edit-reference-{sourceId}">.
+   */
+  getEditReferenceInput(sourceId: string): Locator {
+    return this.page.locator(`#edit-reference-${sourceId}`);
+  }
+
+  /**
+   * Get the inline edit Contact address textarea for the source currently being edited (by source id).
+   * Story #1877: <textarea id="edit-contactAddress-{sourceId}"> (camelCase id — NOT edit-contact-address).
+   */
+  getEditContactAddressInput(sourceId: string): Locator {
+    return this.page.locator(`#edit-contactAddress-${sourceId}`);
   }
 
   /**

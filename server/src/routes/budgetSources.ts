@@ -22,6 +22,8 @@ const createBudgetSourceSchema = {
       interestRate: { type: ['number', 'null'], minimum: 0, maximum: 100 },
       terms: { type: ['string', 'null'] },
       notes: { type: ['string', 'null'] },
+      reference: { type: ['string', 'null'], maxLength: 200 },
+      contactAddress: { type: ['string', 'null'], maxLength: 500 },
       status: {
         type: 'string',
         enum: ['active', 'exhausted', 'closed'],
@@ -49,6 +51,8 @@ const updateBudgetSourceSchema = {
       interestRate: { type: ['number', 'null'], minimum: 0, maximum: 100 },
       terms: { type: ['string', 'null'] },
       notes: { type: ['string', 'null'] },
+      reference: { type: ['string', 'null'], maxLength: 200 },
+      contactAddress: { type: ['string', 'null'], maxLength: 500 },
       status: {
         type: 'string',
         enum: ['active', 'exhausted', 'closed'],

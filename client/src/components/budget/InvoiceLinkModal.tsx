@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Invoice } from '@cornerstone/shared';
 import { fetchAllInvoices } from '../../lib/invoicesApi.js';
 import {
@@ -33,6 +34,7 @@ export function InvoiceLinkModal({
   onSuccess,
   onClose,
 }: InvoiceLinkModalProps) {
+  const { t } = useTranslation('budget');
   const { formatCurrency, formatDate: _formatDate } = useFormatters();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
@@ -69,7 +71,7 @@ export function InvoiceLinkModal({
         }
       } catch {
         setError({
-          message: 'Failed to load invoices. Please try again.',
+          message: t('invoiceLinkModal.errors.loadFailed'),
         });
       } finally {
         setIsLoading(false);
@@ -77,7 +79,7 @@ export function InvoiceLinkModal({
     };
 
     loadInvoices();
-  }, [vendorId]);
+  }, [vendorId, t]);
 
   // Load remaining amount when invoice is selected
   const loadRemainingAmount = async (invoiceId: string) => {
@@ -145,20 +147,22 @@ export function InvoiceLinkModal({
     setError(null);
 
     if (!selectedInvoiceId) {
-      setError({ field: 'invoice', message: 'Please select an invoice' });
+      setError({ field: 'invoice', message: t('invoiceLinkModal.errors.selectInvoice') });
       return;
     }
 
     const amount = parseFloat(itemizedAmount);
     if (isNaN(amount) || amount <= 0) {
-      setError({ field: 'amount', message: 'Please enter a valid amount' });
+      setError({ field: 'amount', message: t('invoiceLinkModal.errors.invalidAmount') });
       return;
     }
 
     if (amount > remainingAmount) {
       setError({
         field: 'amount',
-        message: `Amount exceeds available balance (${formatCurrency(remainingAmount)} available)`,
+        message: t('invoiceLinkModal.errors.exceedsBalance', {
+          amount: formatCurrency(remainingAmount),
+        }),
       });
       return;
     }
@@ -175,7 +179,7 @@ export function InvoiceLinkModal({
 
       await createInvoiceBudgetLine(selectedInvoiceId, requestBody);
 
-      showToast('success', 'Budget line linked to invoice successfully');
+      showToast('success', t('invoiceLinkModal.successToast'));
 
       onSuccess();
     } catch (err) {
@@ -183,18 +187,18 @@ export function InvoiceLinkModal({
         if (err.message.includes('BUDGET_LINE_ALREADY_LINKED')) {
           setError({
             field: 'invoice',
-            message: 'This budget line is already linked to an invoice',
+            message: t('invoiceLinkModal.errors.alreadyLinked'),
           });
         } else if (err.message.includes('ITEMIZED_SUM_EXCEEDS_INVOICE')) {
           setError({
             field: 'amount',
-            message: 'The itemized amount exceeds the invoice total',
+            message: t('invoiceLinkModal.errors.exceedsInvoiceTotal'),
           });
         } else {
-          setError({ message: err.message || 'Failed to link budget line' });
+          setError({ message: err.message || t('invoiceLinkModal.errors.linkFailed') });
         }
       } else {
-        setError({ message: 'An unexpected error occurred' });
+        setError({ message: t('invoiceLinkModal.errors.unexpected') });
       }
     } finally {
       setIsSaving(false);
@@ -209,14 +213,16 @@ export function InvoiceLinkModal({
         className={`${styles.amountIndicator} ${amountAvailable < 0 ? styles.amountIndicatorWarning : ''}`}
       >
         {amountAvailable < 0
-          ? `${formatCurrency(Math.abs(amountAvailable))} over available`
-          : `${formatCurrency(amountAvailable)} will remain`}
+          ? t('invoiceLinkModal.overAvailable', {
+              amount: formatCurrency(Math.abs(amountAvailable)),
+            })
+          : t('invoiceLinkModal.willRemain', { amount: formatCurrency(amountAvailable) })}
       </div>
     ) : null;
 
   return (
     <Modal
-      title="Link to Invoice"
+      title={t('invoiceLinkModal.title')}
       onClose={onClose}
       footer={
         <div className={styles.actions}>
@@ -226,7 +232,7 @@ export function InvoiceLinkModal({
             onClick={onClose}
             disabled={isSaving}
           >
-            Cancel
+            {t('invoiceLinkModal.cancel')}
           </button>
           <button
             type="submit"
@@ -234,7 +240,7 @@ export function InvoiceLinkModal({
             className={styles.submitButton}
             disabled={isSaving || invoices.length === 0}
           >
-            {isSaving ? 'Linking...' : 'Link to Invoice'}
+            {isSaving ? t('invoiceLinkModal.linking') : t('invoiceLinkModal.linkButton')}
           </button>
         </div>
       }
@@ -247,12 +253,12 @@ export function InvoiceLinkModal({
         {/* Invoice Search & Select */}
         <div className={styles.formGroup}>
           <label htmlFor="invoice-search" className={styles.label}>
-            Invoice
+            {t('invoiceLinkModal.invoiceLabel')}
           </label>
           {isLoading ? (
-            <div className={styles.loading}>Loading invoices...</div>
+            <div className={styles.loading}>{t('invoiceLinkModal.loading')}</div>
           ) : invoices.length === 0 ? (
-            <div className={styles.emptyState}>No invoices available</div>
+            <div className={styles.emptyState}>{t('invoiceLinkModal.emptyState')}</div>
           ) : (
             <>
               <div className={styles.searchWrapper} ref={dropdownRef}>
@@ -260,7 +266,7 @@ export function InvoiceLinkModal({
                   id="invoice-search"
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Search by invoice number or description..."
+                  placeholder={t('invoiceLinkModal.searchPlaceholder')}
                   value={
                     selectedInvoice && !searchInput
                       ? `#${selectedInvoice.invoiceNumber || selectedInvoice.id.slice(0, 8)}${selectedInvoice.vendorName ? ` — ${selectedInvoice.vendorName}` : ''}`
@@ -283,7 +289,9 @@ export function InvoiceLinkModal({
                         <span className={styles.dropdownItemNumber}>
                           {inv.invoiceNumber
                             ? `#${inv.invoiceNumber}`
-                            : `Invoice ${inv.id.slice(0, 8)}`}
+                            : t('invoiceLinkModal.invoiceFallbackLabel', {
+                                id: inv.id.slice(0, 8),
+                              })}
                         </span>
                         <span className={styles.dropdownItemAmount}>
                           {formatCurrency(inv.amount)}
@@ -299,7 +307,7 @@ export function InvoiceLinkModal({
                   </div>
                 )}
                 {showDropdown && searchInput && filteredInvoices.length === 0 && (
-                  <div className={styles.dropdownEmpty}>No invoices match your search</div>
+                  <div className={styles.dropdownEmpty}>{t('invoiceLinkModal.noMatches')}</div>
                 )}
               </div>
               {error?.field === 'invoice' && <FormError message={error.message} variant="field" />}
@@ -308,8 +316,12 @@ export function InvoiceLinkModal({
                   className={`${styles.remainingAmountInfo} ${remainingAmount < 0 ? styles.remainingAmountWarning : ''}`}
                 >
                   {remainingAmount >= 0
-                    ? `${formatCurrency(remainingAmount)} available on this invoice`
-                    : `Over-allocated by ${formatCurrency(Math.abs(remainingAmount))}`}
+                    ? t('invoiceLinkModal.availableOnInvoice', {
+                        amount: formatCurrency(remainingAmount),
+                      })
+                    : t('invoiceLinkModal.overAllocated', {
+                        amount: formatCurrency(Math.abs(remainingAmount)),
+                      })}
                 </div>
               )}
             </>
@@ -319,7 +331,7 @@ export function InvoiceLinkModal({
         {/* Amount Input */}
         <div className={styles.formGroup}>
           <label htmlFor="amount-input" className={styles.label}>
-            Itemized Amount
+            {t('invoiceLinkModal.amountLabel')}
           </label>
           {selectedInvoice && (
             <div className={styles.amountInputWrapper}>

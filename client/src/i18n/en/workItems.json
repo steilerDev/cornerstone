@@ -247,7 +247,9 @@
         "start": "start",
         "before": "before",
         "can": "can",
-        "must": "must"
+        "must": "must",
+        "predecessorVerbAriaLabel": "Predecessor verb",
+        "successorVerbAriaLabel": "Successor verb"
       },
       "requiredMilestones": "Required Milestones",
       "requiredMilestonesDesc": "Milestones that must be completed before this work item can start.",

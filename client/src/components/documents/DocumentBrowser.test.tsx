@@ -19,6 +19,18 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getDocumentPreviewUrl: (id: number) => `/api/paperless/documents/${id}/preview`,
 }));
 
+// Mock LocaleContext — DocumentBrowser (or a descendant it renders) uses useLocale().
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Deferred type import — must appear AFTER jest.unstable_mockModule calls to ensure mock
 // registration happens before module resolution. See usePaperless.test.tsx for the same pattern.
 import type * as DocumentBrowserModule from './DocumentBrowser.js';

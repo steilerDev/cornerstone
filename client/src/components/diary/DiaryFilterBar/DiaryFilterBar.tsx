@@ -126,7 +126,7 @@ export function DiaryFilterBar({
         type="button"
         className={mobileToggleClass}
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        aria-label="Toggle filters"
+        aria-label={t('filterBar.toggleFiltersAriaLabel')}
         aria-expanded={isMobileOpen}
       >
         🔍 Filters {filterCount > 0 && <span className={styles.badge}>{filterCount}</span>}
@@ -137,7 +137,11 @@ export function DiaryFilterBar({
         {/* Filter mode chips */}
         <div className={styles.filterGroup}>
           <label className={styles.label}>{t('filterBar.filterMode')}</label>
-          <div className={styles.modeChips} role="group" aria-label="Filter by entry mode">
+          <div
+            className={styles.modeChips}
+            role="group"
+            aria-label={t('filterBar.modeGroupAriaLabel')}
+          >
             <button
               type="button"
               className={`${styles.modeChip} ${filterMode === 'all' ? styles.modeChipActive : ''}`}
@@ -204,7 +208,7 @@ export function DiaryFilterBar({
                 onSearchChange('');
               }
             }}
-            aria-label="Search diary entries"
+            aria-label={t('filterBar.searchAriaLabel')}
             data-testid="diary-search-input"
           />
         </div>
@@ -241,7 +245,11 @@ export function DiaryFilterBar({
         {/* Entry type filter chips */}
         <div className={styles.filterGroup}>
           <label className={styles.label}>{t('filterBar.entryTypesLabel')}</label>
-          <div className={styles.typeChips} role="group" aria-label="Filter by entry type">
+          <div
+            className={styles.typeChips}
+            role="group"
+            aria-label={t('filterBar.typeGroupAriaLabel')}
+          >
             {displayedTypes.map((type) => (
               <button
                 key={type}

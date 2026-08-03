@@ -150,7 +150,7 @@
   color: var(--color-primary-text);
 }
 
-.modeBtn:hover:not(:disabled):not(.modeBtnActive) {
+.modeBtn:hover:not(:disabled, .modeBtnActive) {
   background: var(--color-bg-tertiary);
 }
 

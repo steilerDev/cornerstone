@@ -696,7 +696,6 @@ export function InvoiceBudgetLinesSection({
                           picker.handleSelectItem(item.id, 'work_item', item.title);
                         }}
                         excludeIds={[]}
-                        placeholder="Search work items..."
                         showItemsOnFocus
                       />
                     </div>
@@ -718,7 +717,6 @@ export function InvoiceBudgetLinesSection({
                           picker.handleSelectItem(item.id, 'household_item', item.name);
                         }}
                         excludeIds={[]}
-                        placeholder="Search household items..."
                         showItemsOnFocus
                       />
                     </div>

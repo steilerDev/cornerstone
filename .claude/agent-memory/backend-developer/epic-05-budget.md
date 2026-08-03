@@ -40,3 +40,27 @@
 ```typescript
 await app.register(budgetCategoryRoutes, { prefix: '/api/budget-categories' });
 ```
+
+## Standalone Invoice API Pattern (cross-vendor)
+
+Added in standalone invoice feature (branch `feat/standalone-invoice-api`):
+
+- `Invoice.vendorName: string` is now a required field — `toInvoice()` resolves it from vendors table
+- `Invoice.workItemBudget: WorkItemBudgetSummary | null` — enriched budget line details (added by PR #202)
+- `listAllInvoices(db, query)` in `invoiceService.ts`:
+  - Paginated cross-vendor listing using `innerJoin(vendors, eq(invoices.vendorId, vendors.id))`
+  - Global status summary (unfiltered) via separate `GROUP BY invoices.status` query
+  - Supports filtering: `status`, `vendorId`, `q` (LIKE on invoiceNumber with escaping)
+  - Supports sorting by: `date` (default), `amount`, `status`, `vendor_name`, `due_date`
+  - Returns `{ invoices, pagination: PaginationMeta, summary: InvoiceStatusBreakdown }`
+  - **CRITICAL**: `listAllInvoices()` has an inline `.map()` (not using `toInvoice()`) — any new `Invoice` fields must be added to BOTH `toInvoice()` AND the inline map
+- `getInvoiceById(db, id)` — cross-vendor single lookup, throws `NotFoundError` if missing
+- Route file: `server/src/routes/standaloneInvoices.ts` — registered at `/api/invoices`
+- New shared types exported: `InvoiceStatusSummary`, `InvoiceStatusBreakdown`, `InvoiceListPaginatedResponse`, `InvoiceDetailResponse`, `WorkItemBudgetSummary`
+
+## InvoiceSummary Type Disambiguation
+
+Two different "InvoiceSummary" concepts:
+
+- `InvoiceSummary` from `workItemBudget.ts` (re-exported in `index.ts`) — per-invoice row embedded in `WorkItemBudgetLine.invoices[]`
+- `InvoiceStatusBreakdown` from `invoice.ts` — status-grouped count/total aggregates (was previously named `InvoiceSummary` before rename in feat branch)

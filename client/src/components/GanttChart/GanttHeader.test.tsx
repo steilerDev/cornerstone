@@ -7,6 +7,7 @@
 import { jest, describe, it, expect, beforeAll } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import type { GanttHeader as GanttHeaderType } from './GanttHeader.js';
+import type * as LocaleContextTypes from '../../contexts/LocaleContext.js';
 import type { HeaderCell } from './ganttUtils.js';
 import { COLUMN_WIDTHS } from './ganttUtils.js';
 
@@ -14,14 +15,17 @@ import { COLUMN_WIDTHS } from './ganttUtils.js';
 
 // ─── Mock: LocaleContext — GanttHeader uses useLocale() directly ──────────────
 
+const mockUseLocale = jest.fn<typeof LocaleContextTypes.useLocale>(() => ({
+  locale: 'en' as const,
+  resolvedLocale: 'en' as const,
+  currency: 'EUR',
+  vatRate: 0.19,
+  setLocale: jest.fn(),
+  syncWithServer: jest.fn(async () => Promise.resolve()),
+}));
+
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
-  useLocale: jest.fn(() => ({
-    locale: 'en' as const,
-    resolvedLocale: 'en' as const,
-    currency: 'EUR',
-    setLocale: jest.fn(),
-    syncWithServer: jest.fn(),
-  })),
+  useLocale: mockUseLocale,
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -382,5 +386,63 @@ describe('GanttHeader', () => {
     );
     const cellDivs = container.querySelectorAll('.headerCell');
     expect(cellDivs).toHaveLength(12);
+  });
+
+  // ── de-DE locale (Issue #1813) — aria-label regression + locale ────────────
+
+  describe('de-DE locale', () => {
+    afterEach(() => {
+      // Restore the default 'en' mock implementation set at module load time
+      // so subsequent tests (and other describe blocks) are unaffected.
+      mockUseLocale.mockReturnValue({
+        locale: 'en' as const,
+        resolvedLocale: 'en' as const,
+        currency: 'EUR',
+        vatRate: 0.19,
+        setLocale: jest.fn(),
+        syncWithServer: jest.fn(async () => Promise.resolve()),
+      });
+    });
+
+    it('day zoom cell aria-label uses German weekday/month names when resolvedLocale is "de"', () => {
+      mockUseLocale.mockReturnValue({
+        locale: 'de' as const,
+        resolvedLocale: 'de' as const,
+        currency: 'EUR',
+        vatRate: 0.19,
+        setLocale: jest.fn(),
+        syncWithServer: jest.fn(async () => Promise.resolve()),
+      });
+
+      // 2026-05-24 is a Sunday — May diverges between en ("May") and de ("Mai")
+      const cellDate = new Date(2026, 4, 24, 12);
+      const cells = [
+        makeCell({ label: '24', sublabel: 'So', x: 0, width: COLUMN_WIDTHS.day, date: cellDate }),
+      ];
+      const { container } = render(
+        <GanttHeader cells={cells} zoom="day" totalWidth={40} todayX={null} todayColor="#ef4444" />,
+      );
+      const cell = container.querySelector('.headerCell') as HTMLElement;
+      const ariaLabel = cell.getAttribute('aria-label');
+      expect(ariaLabel).toContain('Mai');
+      expect(ariaLabel).not.toContain('May');
+    });
+
+    it('day zoom cell aria-label still renders correctly for "en" locale (no regression)', () => {
+      // Explicitly re-affirm the default 'en' mock still produces the original format
+      // post-refactor (formatWeekdayMonthDay replacing the inline toLocaleDateString call).
+      const cellDate = new Date(2024, 5, 10, 12); // June 10, 2024 Monday
+      const cells = [
+        makeCell({ label: '10', sublabel: 'Mon', x: 0, width: COLUMN_WIDTHS.day, date: cellDate }),
+      ];
+      const { container } = render(
+        <GanttHeader cells={cells} zoom="day" totalWidth={40} todayX={null} todayColor="#ef4444" />,
+      );
+      const cell = container.querySelector('.headerCell') as HTMLElement;
+      const ariaLabel = cell.getAttribute('aria-label');
+      expect(ariaLabel).toContain('Mon');
+      expect(ariaLabel).toContain('Jun');
+      expect(ariaLabel).toContain('10');
+    });
   });
 });

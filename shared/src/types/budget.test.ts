@@ -154,6 +154,39 @@ describe('effectiveLineAmount', () => {
 });
 
 // ---------------------------------------------------------------------------
+// effectivePlannedAmount / effectiveLineAmount — configurable vatRate
+// parameter (Story #1807)
+// ---------------------------------------------------------------------------
+
+describe('effectivePlannedAmount — configurable vatRate parameter (#1807)', () => {
+  it('Scenario 11: no 2nd arg (regression) → still grosses up by the historical 0.19 rate (100 → 119)', () => {
+    expect(effectivePlannedAmount({ plannedAmount: 100, includesVat: false })).toBe(119);
+  });
+
+  it('Scenario 12: explicit vatRate=0.20 → grosses up by 0.20 (100 → 120)', () => {
+    expect(effectivePlannedAmount({ plannedAmount: 100, includesVat: false }, 0.2)).toBe(120);
+  });
+
+  it('Scenario 13: includesVat=true bypasses the rate entirely, regardless of vatRate arg', () => {
+    expect(effectivePlannedAmount({ plannedAmount: 100, includesVat: true }, 0.2)).toBe(100);
+  });
+});
+
+describe('effectiveLineAmount — configurable vatRate parameter (#1807)', () => {
+  it('Scenario 14: no 2nd arg (regression) → still grosses up by the historical 0.19 rate (100 → 119)', () => {
+    expect(effectiveLineAmount({ amount: 100, includesVat: false })).toBe(119);
+  });
+
+  it('Scenario 15: explicit vatRate=0.20 → grosses up by 0.20 (100 → 120)', () => {
+    expect(effectiveLineAmount({ amount: 100, includesVat: false }, 0.2)).toBe(120);
+  });
+
+  it('Scenario 16: explicit vatRate=0 (zero boundary) → amount is unchanged (100 → 100)', () => {
+    expect(effectiveLineAmount({ amount: 100, includesVat: false }, 0)).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // ConfidenceLevel type
 // ---------------------------------------------------------------------------
 

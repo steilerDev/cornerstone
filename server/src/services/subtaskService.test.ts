@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -669,6 +669,61 @@ describe('Subtask Service', () => {
       expect(() => {
         subtaskService.reorderSubtasks(db, workItemId, data);
       }).toThrow('All subtask IDs must be provided for reorder');
+    });
+
+    it('rolls back all sortOrder updates if a write mid-sequence throws (#1809)', () => {
+      // Given: A work item with 3 subtasks at known sortOrder values
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItemId = createTestWorkItem(userId, 'Test Work Item');
+      const subtask0Id = createTestSubtask(workItemId, 'First', 0);
+      const subtask1Id = createTestSubtask(workItemId, 'Second', 1);
+      const subtask2Id = createTestSubtask(workItemId, 'Third', 2);
+
+      const originalOrders = new Map(
+        [subtask0Id, subtask1Id, subtask2Id].map((id) => [
+          id,
+          db
+            .select({ sortOrder: schema.workItemSubtasks.sortOrder })
+            .from(schema.workItemSubtasks)
+            .where(eq(schema.workItemSubtasks.id, id))
+            .get()!.sortOrder,
+        ]),
+      );
+
+      // When: The 2nd db.update() call (2nd subtask's sortOrder write) throws mid-transaction —
+      // simulating a crash after the 1st write would have already autocommitted without a
+      // wrapping transaction.
+      const originalUpdate = db.update.bind(db);
+      let calls = 0;
+      const spy = jest
+        .spyOn(db, 'update')
+        .mockImplementation((...args: Parameters<typeof db.update>) => {
+          calls++;
+          if (calls === 2) {
+            throw new Error('Simulated crash mid-transaction');
+          }
+          return originalUpdate(...args);
+        });
+
+      const data: ReorderSubtasksRequest = {
+        subtaskIds: [subtask2Id, subtask1Id, subtask0Id],
+      };
+      expect(() => {
+        subtaskService.reorderSubtasks(db, workItemId, data);
+      }).toThrow('Simulated crash mid-transaction');
+
+      spy.mockRestore();
+
+      // Then: ALL subtasks' sortOrder values are unchanged — including the first one, whose
+      // write would have succeeded (and stuck) without the transaction wrap.
+      for (const [id, original] of originalOrders) {
+        const current = db
+          .select({ sortOrder: schema.workItemSubtasks.sortOrder })
+          .from(schema.workItemSubtasks)
+          .where(eq(schema.workItemSubtasks.id, id))
+          .get();
+        expect(current!.sortOrder).toBe(original);
+      }
     });
   });
 });

@@ -944,6 +944,58 @@ describe('BudgetOverviewPage', () => {
     });
   });
 
+  // ─── Regression #1816/#1848: breakdown refetch loop ────────────────────────
+  //
+  // `useDebouncedCallback` used to return a brand-new `{ trigger, cancel }` object
+  // on every render, even though `trigger`/`cancel` were themselves referentially
+  // stable. The debounce-refetch effect here depends on the whole
+  // `scheduleFetchBreakdown` object (deps: [deselectedSourceIds, paymentStatus,
+  // isLoading, scheduleFetchBreakdown]), so every render — including the render
+  // caused by the effect's own `setIsBreakdownRefetching` calls — made that
+  // dependency "change", re-firing the effect. That produced an unbounded
+  // false/true/false/... ping-pong: each fetch resolving triggered a render with a
+  // new `scheduleFetchBreakdown` identity, which re-ran the effect, which set
+  // `isBreakdownRefetching` back to `true` and scheduled another fetch, forever.
+  // Symptom: the breakdown never stopped "refetching" and its
+  // `pointer-events: none` overlay class stayed applied, blocking interaction. The
+  // fix wraps the hook's return value in `useMemo` so it settles once nothing
+  // relevant has changed.
+  describe('Regression #1816/#1848: breakdown refetch loop', () => {
+    it('the breakdown refetch settles and does not keep re-triggering itself after the initial load', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      mockFetchBudgetBreakdown.mockResolvedValue(emptyBreakdown);
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [] });
+
+      renderPage();
+
+      // Wait for the page to finish loading (initial overview + breakdown fetch).
+      await waitFor(() => {
+        expect(screen.queryByText(/loading budget overview/i)).not.toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(mockFetchBudgetBreakdown.mock.calls.length).toBeGreaterThan(0);
+      });
+
+      // Give the 50ms debounce-triggered post-load refetch time to fire and settle.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      });
+
+      const callsAfterSettle = mockFetchBudgetBreakdown.mock.calls.length;
+
+      // Wait several more debounce windows with no external state change at all.
+      // Pre-fix, this window would keep growing the call count indefinitely.
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      });
+
+      expect(mockFetchBudgetBreakdown.mock.calls.length).toBe(callsAfterSettle);
+
+      // The refetching overlay (pointer-events: none via CSS) must not be stuck on.
+      expect(document.querySelector('.breakdownRefetching')).toBeNull();
+    });
+  });
+
   // ─── URL state: paymentStatus param (Scenarios 20-25, Issue #1786) ─────────
 
   describe('URL state: ?paymentStatus param (Scenarios 20-25, Issue #1786)', () => {

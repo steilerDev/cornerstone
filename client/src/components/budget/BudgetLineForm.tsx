@@ -8,8 +8,11 @@ import type {
   // TODO: BudgetLineAssignRequest exported by backend-developer in shared types
   BudgetLineAssignRequest,
 } from '@cornerstone/shared';
+import { effectiveLineAmount } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
+import { useFormatters } from '../../lib/formatters.js';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import { FormError } from '../FormError/index.js';
 import { ParentPicker } from '../ParentPicker/index.js';
 import styles from './BudgetLineForm.module.css';
@@ -80,6 +83,8 @@ export function BudgetLineForm({
 }: BudgetLineFormProps) {
   const { t } = useTranslation('budget');
   const { t: tSettings } = useTranslation('settings');
+  const { formatCurrency, getCurrencySymbol } = useFormatters();
+  const { vatRate } = useLocale();
   const prefix = idPrefix ?? '';
 
   // Parent picker state
@@ -159,8 +164,8 @@ export function BudgetLineForm({
   const price = parseFloat(form.unitPrice);
   const computedTotal =
     form.quantity && form.unitPrice && !isNaN(qty) && !isNaN(price)
-      ? (Math.round(qty * price * (form.includesVat ? 1 : 1.19) * 100) / 100).toFixed(2)
-      : '0.00';
+      ? effectiveLineAmount({ amount: qty * price, includesVat: form.includesVat }, vatRate)
+      : 0;
 
   return (
     <div className={styles.container}>
@@ -209,7 +214,7 @@ export function BudgetLineForm({
           <>
             <div className={styles.field}>
               <label className={styles.label} htmlFor={`${prefix}budget-planned-amount`}>
-                {t('budgetLineForm.plannedAmountLabel', { currencySymbol: '€' })}
+                {t('budgetLineForm.plannedAmountLabel', { currencySymbol: getCurrencySymbol() })}
               </label>
               <input
                 type="number"
@@ -235,11 +240,13 @@ export function BudgetLineForm({
                     onChange={(e) => onFormChange({ includesVat: e.target.checked })}
                     disabled={isSaving}
                   />
-                  {t('budgetLineForm.includesVatLabel', { vatRate: '19' })}
+                  {t('budgetLineForm.includesVatLabel', {
+                    vatRate: String(Math.round(vatRate * 100)),
+                  })}
                 </label>
                 {!form.includesVat && (
                   <div className={styles.vatNote}>
-                    {t('budgetLineForm.vatNote', { vatRate: '19' })}
+                    {t('budgetLineForm.vatNote', { vatRate: String(Math.round(vatRate * 100)) })}
                   </div>
                 )}
               </div>
@@ -303,7 +310,7 @@ export function BudgetLineForm({
 
               <div className={styles.computedTotal}>
                 <label className={styles.label}>{t('budgetLineForm.totalLabel')}</label>
-                <div className={styles.computedValue}>€{computedTotal}</div>
+                <div className={styles.computedValue}>{formatCurrency(computedTotal)}</div>
               </div>
             </div>
 
@@ -316,11 +323,13 @@ export function BudgetLineForm({
                     onChange={(e) => onFormChange({ includesVat: e.target.checked })}
                     disabled={isSaving}
                   />
-                  {t('budgetLineForm.includesVatLabel', { vatRate: '19' })}
+                  {t('budgetLineForm.includesVatLabel', {
+                    vatRate: String(Math.round(vatRate * 100)),
+                  })}
                 </label>
                 {!form.includesVat && (
                   <div className={styles.vatNote}>
-                    {t('budgetLineForm.vatNote', { vatRate: '19' })}
+                    {t('budgetLineForm.vatNote', { vatRate: String(Math.round(vatRate * 100)) })}
                   </div>
                 )}
               </div>
@@ -423,7 +432,7 @@ export function BudgetLineForm({
         {itemizedAmount !== undefined && onItemizedAmountChange !== undefined && (
           <div className={`${styles.field} ${styles.itemizedAmountField}`}>
             <label className={styles.label} htmlFor={`${prefix}budget-itemized-amount`}>
-              {t('budgetLineForm.itemizedAmountLabel', { currencySymbol: '€' })}
+              {t('budgetLineForm.itemizedAmountLabel', { currencySymbol: getCurrencySymbol() })}
               <span className={styles.requiredStar}>*</span>
             </label>
             <input

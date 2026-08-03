@@ -10,7 +10,7 @@ interface SourceUtilizationCardProps {
 
 export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
   const { t } = useTranslation('dashboard');
-  const { formatCurrency } = useFormatters();
+  const { formatCurrency, formatPercent } = useFormatters();
 
   const SOURCE_TYPE_LABELS: Record<BudgetSourceType, string> = {
     bank_loan: t('cards.sourceUtilization.sourceTypes.bank_loan')!,
@@ -65,10 +65,10 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
 
             <span className={styles.srOnly}>
               {t('cards.sourceUtilization.utilized', {
-                percent:
-                  source.totalAmount > 0
-                    ? ((source.usedAmount / source.totalAmount) * 100).toFixed(0)
-                    : '0',
+                percent: formatPercent(
+                  source.totalAmount > 0 ? (source.usedAmount / source.totalAmount) * 100 : 0,
+                  0,
+                ),
               })}
             </span>
 

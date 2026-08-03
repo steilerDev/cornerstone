@@ -11,19 +11,22 @@
   },
   "dependencies": {
     "@cornerstone/shared": "*",
-    "@floating-ui/react": "0.27.19",
-    "i18next": "26.3.3",
+    "@floating-ui/react": "0.27.20",
+    "i18next": "26.3.6",
     "konva": "10.3.0",
-    "react": "19.2.7",
-    "react-dom": "19.2.7",
-    "react-i18next": "17.0.8",
+    "pdf-lib": "1.17.1",
+    "pdfmake": "0.3.11",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-i18next": "17.0.11",
     "react-konva": "19.2.5",
-    "react-router-dom": "7.18.0"
+    "react-router-dom": "7.18.1"
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
     "@babel/preset-react": "7.29.7",
     "@babel/preset-typescript": "7.29.7",
+    "@types/pdfmake": "0.3.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "babel-loader": "10.1.1",
@@ -33,8 +36,8 @@
     "html-webpack-plugin": "5.6.7",
     "mini-css-extract-plugin": "2.10.2",
     "style-loader": "4.0.0",
-    "webpack": "5.108.1",
+    "webpack": "5.108.4",
     "webpack-cli": "7.1.0",
-    "webpack-dev-server": "5.2.5"
+    "webpack-dev-server": "5.2.6"
   }
 }

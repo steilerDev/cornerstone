@@ -2,6 +2,7 @@
   "NOT_FOUND": "Die angeforderte Ressource wurde nicht gefunden.",
   "ROUTE_NOT_FOUND": "Der angeforderte Endpunkt existiert nicht.",
   "VALIDATION_ERROR": "Die übermittelten Daten sind ungültig. Bitte Eingabe prüfen.",
+  "PAYLOAD_TOO_LARGE": "Die übermittelten Daten sind zu groß. Bitte Größe reduzieren und erneut versuchen.",
   "UNAUTHORIZED": "Sie müssen angemeldet sein, um diese Aktion durchzuführen.",
   "FORBIDDEN": "Sie haben keine Berechtigung für diese Aktion.",
   "CONFLICT": "Ein Konflikt ist aufgetreten. Die Ressource existiert möglicherweise bereits.",
@@ -39,8 +40,11 @@
   "BACKUP_IN_PROGRESS": "Eine Sicherungs- oder Wiederherstellungsoperation läuft bereits.",
   "BACKUP_NOT_FOUND": "Das angeforderte Sicherungsarchiv wurde nicht gefunden.",
   "RESTORE_FAILED": "Die Wiederherstellung ist fehlgeschlagen. Der Server befindet sich möglicherweise in einem inkonsistenten Zustand.",
-  "LLM_NOT_CONFIGURED": "Automatische Positionsextraktion ist auf diesem Server nicht konfiguriert.",
-  "LLM_UNREACHABLE": "Der Extraktionsdienst ist nicht erreichbar. Bitte versuchen Sie es später erneut.",
-  "LLM_INVALID_RESPONSE": "Der Extraktionsdienst hat eine ungültige Antwort zurückgegeben.",
-  "LLM_UPSTREAM_ERROR": "Der Extraktionsdienst hat einen Fehler zurückgegeben."
+  "LLM_NOT_CONFIGURED": "KI-Unterstützung ist auf diesem Server nicht konfiguriert.",
+  "LLM_UNREACHABLE": "Der KI-Dienst konnte nicht erreicht werden. Bitte versuchen Sie es erneut.",
+  "LLM_INVALID_RESPONSE": "Der KI-Dienst hat eine unbrauchbare Antwort zurückgegeben. Bitte versuchen Sie es erneut.",
+  "LLM_UPSTREAM_ERROR": "Der KI-Dienst hat einen Fehler gemeldet. Bitte versuchen Sie es erneut.",
+  "REFUND_EXCEEDS_INVOICE": "Der Rückerstattungsbetrag übersteigt den Rechnungsbetrag.",
+  "INVOICES_NOT_CLAIMABLE": "Eine oder mehrere Rechnungen konnten nicht als eingereicht markiert werden. Sie wurden möglicherweise bereits eingereicht oder befinden sich in einem ungültigen Status.",
+  "EMPTY_SELECTION": "Wählen Sie mindestens eine Rechnung aus."
 }

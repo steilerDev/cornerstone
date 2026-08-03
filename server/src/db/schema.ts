@@ -340,6 +340,8 @@ export const budgetSources = sqliteTable('budget_sources', {
   interestRate: real('interest_rate'),
   terms: text('terms'),
   notes: text('notes'),
+  reference: text('reference'),
+  contactAddress: text('contact_address'),
   status: text('status', { enum: ['active', 'exhausted', 'closed'] })
     .notNull()
     .default('active'),
@@ -463,6 +465,7 @@ export const invoiceBudgetLines = sqliteTable(
 
 /**
  * Invoice deposits table - tracks staged partial payments within a parent invoice.
+ * EPIC-16 Story #1876: added entry_type to distinguish deposits from refunds.
  * Cascade-deletes with the parent invoice.
  */
 export const invoiceDeposits = sqliteTable(
@@ -480,12 +483,19 @@ export const invoiceDeposits = sqliteTable(
     status: text('status', { enum: ['pending', 'paid', 'claimed'] })
       .notNull()
       .default('pending'),
+    entryType: text('entry_type', { enum: ['deposit', 'refund'] })
+      .notNull()
+      .default('deposit'),
+    budgetSourceId: text('budget_source_id').references(() => budgetSources.id, {
+      onDelete: 'set null',
+    }),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
   (table) => ({
     invoiceIdIdx: index('idx_invoice_deposits_invoice_id').on(table.invoiceId),
+    budgetSourceIdIdx: index('idx_invoice_deposits_budget_source_id').on(table.budgetSourceId),
   }),
 );
 
@@ -641,6 +651,7 @@ export const documentLinks = sqliteTable(
     }).notNull(),
     entityId: text('entity_id').notNull(),
     paperlessDocumentId: integer('paperless_document_id').notNull(),
+    attachmentType: text('attachment_type', { enum: ['quotation', 'deposit', 'invoice'] }),
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: text('created_at').notNull(),
   },
@@ -847,6 +858,17 @@ export const userPreferences = sqliteTable(
     userIdIdx: index('idx_user_preferences_user_id').on(table.userId),
   }),
 );
+
+/**
+ * App-wide settings table - stores application-level configuration (not per-user).
+ * Used for household metadata and other global preferences.
+ * EPIC-09: Story #1877 - Household name & address for Bank Report Wizard.
+ */
+export const appSettings = sqliteTable('app_settings', {
+  key: text('key').primaryKey(),
+  value: text('value'),
+  updatedAt: text('updated_at').notNull(),
+});
 
 /**
  * Household item subsidies junction table - M:N relationship between household items and subsidy programs.

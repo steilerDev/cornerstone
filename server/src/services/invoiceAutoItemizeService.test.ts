@@ -161,6 +161,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     diaryAutoEvents: false,
     diaryDraftRetentionDays: 30,
     currency: 'EUR',
+    vatRate: 0.19,
     backupDir: '/backups',
     backupEnabled: false,
     llmBaseUrl: 'http://llm.test.local',
@@ -170,6 +171,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmMaxTokens: 16384,
     llmProvider: 'openai',
     autoItemizeEnabled: true,
+    llmEnabled: true,
     ...overrides,
   };
 }
@@ -1135,6 +1137,65 @@ describe('invoiceAutoItemizeService', () => {
             lines: [
               { description: 'Line A', totalAmount: 300, confidence: 0.9 },
               { description: 'Line B', totalAmount: 250, confidence: 0.8 }, // 550 > 500
+            ],
+          },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
+    });
+
+    it('commits successfully when Σ lines sums to exactly invoice.amount despite floating-point summation noise (issue #1806)', async () => {
+      // 332.85 + 333.04 + 334.11 === 1000.0000000000001 in raw IEEE-754 arithmetic —
+      // a bare `sum > total` guard would wrongly reject this exact, valid sum.
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      const result = (await autoItemize(
+        db,
+        config,
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            { description: 'Line A', totalAmount: 332.85, confidence: 0.9 },
+            { description: 'Line B', totalAmount: 333.04, confidence: 0.9 },
+            { description: 'Line C', totalAmount: 334.11, confidence: 0.9 },
+          ],
+        },
+        PAPERLESS_AUTH,
+      )) as { remainingAmount: number };
+
+      // remainingAmount = invoice.amount - totalItemized is an unrounded display value
+      // (out of scope for this fix), so it may retain sub-cent float noise — it must be
+      // essentially zero, not meaningfully negative, and the commit must not have thrown.
+      expect(result.remainingAmount).toBeCloseTo(0);
+    });
+
+    it('still throws ItemizedSumExceedsInvoiceError when Σ lines genuinely exceeds invoice.amount by one cent', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+      const config = makeConfig();
+
+      await expect(
+        autoItemize(
+          db,
+          config,
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [
+              { description: 'Line A', totalAmount: 332.85, confidence: 0.9 },
+              { description: 'Line B', totalAmount: 333.04, confidence: 0.9 },
+              { description: 'Line C', totalAmount: 334.12, confidence: 0.9 }, // mathematically 1000.01
             ],
           },
           PAPERLESS_AUTH,
@@ -2632,6 +2693,30 @@ describe('invoiceAutoItemizeService', () => {
       expect(result.invoice).toBeDefined();
       expect(result.budgetLines).toBeDefined();
       expect(result.remainingAmount).toBe(500); // 1000 - 400 - 100
+    });
+
+    // Story #1877: the document_links row inserted at step 5 must always be tagged
+    // attachmentType='invoice' — this is the invoice's own source document, hardcoded
+    // rather than exposed as a picker option in this flow.
+    it('always inserts the document_links row with attachmentType="invoice"', async () => {
+      const vendorId = insertVendor(db, 'Attachment Type Vendor');
+      const config = makeConfig();
+
+      await commitAutoItemizeCreate(db, config, 'user-1', {
+        paperlessDocumentId: 123,
+        vendorId,
+        invoice: { amount: 200, date: '2026-03-01' },
+        lines: [{ description: 'Item', totalAmount: 200, confidence: 0.9 }] as any,
+      });
+
+      const link = db
+        .select()
+        .from(schema.documentLinks)
+        .all()
+        .find((l) => l.paperlessDocumentId === 123);
+
+      expect(link).toBeDefined();
+      expect(link!.attachmentType).toBe('invoice');
     });
 
     it('throws NotFoundError (vendor not found) when vendorId does not exist', async () => {

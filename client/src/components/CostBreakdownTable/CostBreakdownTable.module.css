@@ -63,7 +63,7 @@
   outline: none;
   box-shadow: var(--shadow-focus);
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raised);
 }
 
 .perspectiveSegmentActive {
@@ -290,10 +290,6 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.rowSourceDetail .colName {
-  border-left: 3px solid var(--color-primary-bg-hover);
-}
-
 .nameIndented {
   padding-left: var(--spacing-8);
 }
@@ -486,7 +482,7 @@
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }
@@ -521,7 +517,7 @@
   .colName {
     position: sticky;
     left: 0;
-    z-index: 1;
+    z-index: var(--z-raised);
   }
 
   /* Sticky column backgrounds must match their row level */
@@ -638,7 +634,6 @@
   .rowLevel2,
   .rowLevel3 {
     break-inside: avoid;
-    page-break-inside: avoid;
   }
 
   .nameLink {
@@ -657,7 +652,7 @@
     border-top: 3pt solid var(--color-border-strong);
     border-bottom: none;
     background-color: var(--color-bg-secondary) !important;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
   }
 
   /* ========= OUTER (area) BOX — medium gray ========= */
@@ -753,10 +748,6 @@
   border-left: 3px solid var(--color-border);
 }
 
-.nameIndented {
-  padding-left: var(--spacing-8);
-}
-
 /* Toggle source detail row */
 .rowSourceDetailToggle {
   cursor: pointer;
@@ -801,7 +792,7 @@
   outline: none;
   box-shadow: var(--shadow-focus);
   position: relative;
-  z-index: 1;
+  z-index: var(--z-raised);
 }
 
 /* Available Funds filter caption */

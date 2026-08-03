@@ -15,7 +15,10 @@ import { autoItemize } from '../../lib/invoiceAutoItemizeApi.js';
 import { getPaperlessDocument, getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
 import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
-import { materializeInlineDrafts } from '../../lib/autoItemizeDraftUtils.js';
+import {
+  materializeInlineDrafts,
+  mergeMaterializedLines,
+} from '../../lib/autoItemizeDraftUtils.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -274,11 +277,13 @@ export function AutoItemizePage() {
       );
 
       if (!materialized.ok) {
+        setLines((prev) => mergeMaterializedLines(prev, materialized.lines));
         setPageError(materialized.error);
         setPageStatus('ready');
         return;
       }
 
+      setLines((prev) => mergeMaterializedLines(prev, materialized.lines));
       const workingLines = materialized.lines;
 
       // Build invoicePatch only if metadata changed
@@ -360,6 +365,7 @@ export function AutoItemizePage() {
     invoice,
     document,
     navigate,
+    setLines,
     t,
     tErrors,
   ]);

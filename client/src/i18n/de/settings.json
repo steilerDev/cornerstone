@@ -103,11 +103,25 @@
   "manage": {
     "pageTitle": "Verwalten",
     "tabs": {
+      "household": "Haushalt",
       "areas": "Bereiche",
       "trades": "Gewerke",
       "orientations": "Ausrichtungen",
       "budgetCategories": "Budgetkategorien",
       "householdItemCategories": "Haushaltsartikel-Kategorien"
+    },
+    "household": {
+      "title": "Haushaltsinformationen",
+      "description": "Wird als Absendername und -adresse auf Berichts-Anschreiben verwendet.",
+      "nameLabel": "Haushaltsname",
+      "namePlaceholder": "z. B. Familie Schmidt",
+      "addressLabel": "Haushaltsadresse",
+      "addressPlaceholder": "z. B. Musterstraße 1, 12345 Musterstadt",
+      "save": "Änderungen speichern",
+      "saving": "Wird gespeichert...",
+      "saveSuccess": "Haushaltsinformationen erfolgreich aktualisiert",
+      "saveFailed": "Haushaltsinformationen konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      "loadError": "Haushaltsinformationen konnten nicht geladen werden. Bitte versuchen Sie es erneut."
     },
     "areas": {
       "loading": "Bereiche werden geladen...",
@@ -332,7 +346,8 @@
     "noTokenInfo": "Noch kein Token generiert.",
     "loading": "DAV-Zugang wird geladen...",
     "generating": "Wird generiert...",
-    "revoking": "Wird widerrufen..."
+    "revoking": "Wird widerrufen...",
+    "hideTokenDisplay": "Token-Anzeige ausblenden"
   },
   "trades": {
     "plumbing": "Sanitär",
@@ -415,7 +430,22 @@
     },
     "restartingMessage": "Der Server wird neu gestartet. Bitte warten Sie einen Moment und laden Sie dann die Seite neu.",
     "createError": "Sicherung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-    "loadError": "Sicherungen konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+    "loadError": "Sicherungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "scheduler": {
+      "heading": "Automatischer Sicherungsplan",
+      "loading": "Planungsstatus wird geladen …",
+      "statusLabel": "Automatische Sicherungen",
+      "enabled": "Aktiviert",
+      "disabled": "Deaktiviert",
+      "disabledHint": "Setzen Sie die Umgebungsvariable BACKUP_CADENCE, um automatische Sicherungen zu aktivieren.",
+      "lastRunLabel": "Letzter geplanter Lauf",
+      "lastRunSuccess": "Erfolgreich",
+      "lastRunFailure": "Fehlgeschlagen",
+      "noRunsYet": "Es wurden noch keine automatischen Sicherungen ausgeführt",
+      "nextRunLabel": "Nächster geplanter Lauf",
+      "thenLabel": "dann",
+      "loadError": "Planungsstatus konnte nicht geladen werden. Bitte versuchen Sie es erneut."
+    }
   },
   "vendors": {
     "contacts": {

@@ -598,10 +598,8 @@ test.describe('Automatic mode API parameter (Scenario 9)', () => {
 test.describe('Manual mode API parameter (Scenario 10)', () => {
   test('Selecting "Manual" mode sends only manual entry types to the API', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
-    const requests: URL[] = [];
 
     await page.route('**/api/diary-entries*', async (route) => {
-      requests.push(new URL(route.request().url()));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -615,17 +613,27 @@ test.describe('Manual mode API parameter (Scenario 10)', () => {
       await diaryPage.openFiltersIfCollapsed();
 
       // Default is now "Manual" — switch to "All" first so we can test clicking Manual.
-      // Use waitForLoaded() after the click instead of waitForResponse: it waits for
-      // the full load cycle (isLoading→false, empty-state visible), guaranteeing the
-      // All-click API response was received and captured in requests[].
+      //
+      // NOTE (bug #1829): this mock always returns an empty page, so
+      // diaryPage.waitForLoaded() (which races timeline/empty-state/error-banner
+      // visibility) can resolve INSTANTLY here — the empty state is already visible
+      // from the initial load and never changes. It is not a reliable signal that
+      // the "All" click's own network round-trip has completed. Explicitly wait for
+      // that specific response before moving on, so a late-arriving "All" response
+      // can never be mistaken for the "Manual" click's response below (the race that
+      // previously caused an intermittently empty captured-requests list).
+      const allResponsePromise = page.waitForResponse(
+        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
+      );
       const allChip = page.getByTestId('mode-filter-all');
       await allChip.waitFor({ state: 'visible' });
       await allChip.click();
+      await allResponsePromise;
       await diaryPage.waitForLoaded();
 
-      // Reset captured requests from the "All" switch
-      requests.length = 0;
-
+      // Register the listener BEFORE clicking Manual, and read the request straight
+      // off the resolved Response object — avoids any race with a shared mutable
+      // array that a stale in-flight response could otherwise still race against.
       const responsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
       );
@@ -633,11 +641,10 @@ test.describe('Manual mode API parameter (Scenario 10)', () => {
       const manualChip = page.getByTestId('mode-filter-manual');
       await manualChip.waitFor({ state: 'visible' });
       await manualChip.click();
-      await responsePromise;
+      const manualResponse = await responsePromise;
 
-      const lastRequest = requests[requests.length - 1];
-      expect(lastRequest).toBeDefined();
-      const typeParam = lastRequest?.searchParams.get('type');
+      const lastRequest = new URL(manualResponse.url());
+      const typeParam = lastRequest.searchParams.get('type');
 
       // type parameter must be present and contain at least one manual type
       expect(typeParam).toBeTruthy();

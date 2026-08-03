@@ -476,6 +476,65 @@ describe('Invoice Budget Line Service', () => {
       }).toThrow(ItemizedSumExceedsInvoiceError);
     });
 
+    it('accepts itemization that sums to exactly the invoice total despite floating-point summation noise (issue #1806)', () => {
+      // 332.85 + 333.04 + 334.11 === 1000.0000000000001 in raw IEEE-754 arithmetic —
+      // a bare `sum > total` guard would wrongly reject this exact, valid sum.
+      const vendorId = createTestVendor('Vendor Float Boundary');
+      const invoiceId = createTestInvoice(vendorId, { amount: 1000 });
+      const wi1 = createTestWorkItem('Task Float A');
+      const wi2 = createTestWorkItem('Task Float B');
+      const wi3 = createTestWorkItem('Task Float C');
+      const wib1 = createTestWorkItemBudget(wi1);
+      const wib2 = createTestWorkItemBudget(wi2);
+      const wib3 = createTestWorkItemBudget(wi3);
+
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib1,
+        itemizedAmount: 332.85,
+      });
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib2,
+        itemizedAmount: 333.04,
+      });
+      const result = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib3,
+        itemizedAmount: 334.11,
+      });
+
+      expect(result.budgetLine.itemizedAmount).toBe(334.11);
+      // remainingAmount = invoice.amount - itemizedTotal is an unrounded display value
+      // (out of scope for this fix, per issue #1806's scope correction) so it may retain
+      // sub-cent float noise; it must be essentially zero, not meaningfully negative.
+      expect(result.remainingAmount).toBeCloseTo(0);
+    });
+
+    it('still rejects a itemization sum that genuinely exceeds the invoice total by one cent', () => {
+      const vendorId = createTestVendor('Vendor Float OneCent');
+      const invoiceId = createTestInvoice(vendorId, { amount: 1000 });
+      const wi1 = createTestWorkItem('Task Float D');
+      const wi2 = createTestWorkItem('Task Float E');
+      const wi3 = createTestWorkItem('Task Float F');
+      const wib1 = createTestWorkItemBudget(wi1);
+      const wib2 = createTestWorkItemBudget(wi2);
+      const wib3 = createTestWorkItemBudget(wi3);
+
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib1,
+        itemizedAmount: 332.85,
+      });
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib2,
+        itemizedAmount: 333.04,
+      });
+
+      expect(() => {
+        invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+          workItemBudgetId: wib3,
+          itemizedAmount: 334.12, // mathematically 1000.01 — genuinely one cent over
+        });
+      }).toThrow(ItemizedSumExceedsInvoiceError);
+    });
+
     it('creates a work item budget line successfully and returns detail + remainingAmount', () => {
       const vendorId = createTestVendor('Vendor Success');
       const invoiceId = createTestInvoice(vendorId, { amount: 1000 });
@@ -684,6 +743,74 @@ describe('Invoice Budget Line Service', () => {
       expect(() => {
         invoiceBudgetLineService.updateInvoiceBudgetLine(db, invoiceId, result2.budgetLine.id, {
           itemizedAmount: 250,
+        });
+      }).toThrow(ItemizedSumExceedsInvoiceError);
+    });
+
+    it('accepts an update whose sum equals exactly the invoice total despite floating-point summation noise (issue #1806)', () => {
+      // otherTotal (332.85 + 333.04) + 334.11 === 1000.0000000000001 in raw IEEE-754
+      // arithmetic — a bare `sum > total` guard would wrongly reject this exact sum.
+      const vendorId = createTestVendor('Vendor Update Float Boundary');
+      const invoiceId = createTestInvoice(vendorId, { amount: 1000 });
+      const wi1 = createTestWorkItem('Task Update Float A');
+      const wi2 = createTestWorkItem('Task Update Float B');
+      const wi3 = createTestWorkItem('Task Update Float C');
+      const wib1 = createTestWorkItemBudget(wi1);
+      const wib2 = createTestWorkItemBudget(wi2);
+      const wib3 = createTestWorkItemBudget(wi3);
+
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib1,
+        itemizedAmount: 332.85,
+      });
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib2,
+        itemizedAmount: 333.04,
+      });
+      const result3 = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib3,
+        itemizedAmount: 100,
+      });
+
+      const updateResult = invoiceBudgetLineService.updateInvoiceBudgetLine(
+        db,
+        invoiceId,
+        result3.budgetLine.id,
+        { itemizedAmount: 334.11 },
+      );
+
+      expect(updateResult.budgetLine.itemizedAmount).toBe(334.11);
+      // See note above: remainingAmount is an unrounded display value, out of scope
+      // for this fix — assert it is essentially zero, not meaningfully negative.
+      expect(updateResult.remainingAmount).toBeCloseTo(0);
+    });
+
+    it('still rejects an update whose sum genuinely exceeds the invoice total by one cent', () => {
+      const vendorId = createTestVendor('Vendor Update Float OneCent');
+      const invoiceId = createTestInvoice(vendorId, { amount: 1000 });
+      const wi1 = createTestWorkItem('Task Update Float D');
+      const wi2 = createTestWorkItem('Task Update Float E');
+      const wi3 = createTestWorkItem('Task Update Float F');
+      const wib1 = createTestWorkItemBudget(wi1);
+      const wib2 = createTestWorkItemBudget(wi2);
+      const wib3 = createTestWorkItemBudget(wi3);
+
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib1,
+        itemizedAmount: 332.85,
+      });
+      invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib2,
+        itemizedAmount: 333.04,
+      });
+      const result3 = invoiceBudgetLineService.createInvoiceBudgetLine(db, invoiceId, {
+        workItemBudgetId: wib3,
+        itemizedAmount: 100,
+      });
+
+      expect(() => {
+        invoiceBudgetLineService.updateInvoiceBudgetLine(db, invoiceId, result3.budgetLine.id, {
+          itemizedAmount: 334.12, // mathematically 1000.01 — genuinely one cent over
         });
       }).toThrow(ItemizedSumExceedsInvoiceError);
     });

@@ -24,7 +24,15 @@
     "Area": { "de": { "singular": "Bereich", "plural": "Bereiche" } },
     "Trade": { "de": { "singular": "Gewerk", "plural": "Gewerke" } },
     "Unassigned": { "de": { "singular": "Nicht zugewiesen" } },
-    "Deposit": { "de": { "singular": "Abschlagszahlung", "plural": "Abschlagszahlungen" } },
+    "Deposit": {
+      "de": {
+        "singular": "Abschlagszahlung",
+        "plural": "Abschlagszahlungen",
+        "shortForm": "Abschlag",
+        "shortFormNote": "product-owner-approved (#1917) short-form variant of 'Abschlagszahlung', permitted ONLY under a measured space constraint — do not use elsewhere. Origin: the report PDF's 'abzgl. Abschlag' inline label lives in a 75pt table column. 'Abschlagszahlung' alone already measures 72.85pt, so no qualifier of any length fits alongside it — not 'abzgl.', not 'ohne', not './.'. There is no third option: keeping the full term forces dropping the qualifier, which collapses this label into the separate constituted-deposit label '(Abschlagszahlung)' (#1923 AC2.1) — a different fact ('this row IS a deposit' vs. 'this amount is reduced because deposits were claimed separately'). A future compliance sweep must NOT revert this to 'Abschlagszahlung' without re-measuring the 75pt column budget first; doing so silently breaks the PDF (label wraps mid-bracket, #1959)."
+      }
+    },
+    "Refund": { "de": { "singular": "Rückerstattung", "plural": "Rückerstattungen" } },
     "Final payment": { "de": { "singular": "Schlusszahlung" } },
     "Draft": { "de": { "singular": "Entwurf", "plural": "Entwürfe" } },
     "Annotation": { "de": { "singular": "Annotation", "plural": "Annotationen" } },

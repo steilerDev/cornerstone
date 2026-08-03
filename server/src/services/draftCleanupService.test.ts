@@ -71,6 +71,7 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   diaryAutoEvents: false,
   diaryDraftRetentionDays: 30,
   currency: 'EUR',
+  vatRate: 0.19,
   backupEnabled: false,
   backupDir: '/tmp/test-backups',
   backupCadence: undefined,
@@ -82,6 +83,7 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   llmMaxTokens: 16384,
   llmProvider: 'generic',
   autoItemizeEnabled: false,
+  llmEnabled: false,
   ...overrides,
 });
 

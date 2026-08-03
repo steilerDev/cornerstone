@@ -41,6 +41,7 @@ import workItemSubsidyRoutes from './routes/workItemSubsidies.js';
 import workItemSubsidyPaybackRoutes from './routes/workItemSubsidyPayback.js';
 import workItemBudgetRoutes from './routes/workItemBudgets.js';
 import budgetOverviewRoutes from './routes/budgetOverview.js';
+import sourceReportRoutes from './routes/sourceReports.js';
 import milestoneRoutes from './routes/milestones.js';
 import workItemMilestoneRoutes from './routes/workItemMilestones.js';
 import scheduleRoutes from './routes/schedule.js';
@@ -49,6 +50,7 @@ import paperlessRoutes from './routes/paperless.js';
 import documentLinksRoutes from './routes/documentLinks.js';
 import photoRoutes from './routes/photos.js';
 import preferencesRoutes from './routes/preferences.js';
+import settingsRoutes from './routes/settings.js';
 import householdItemCategoryRoutes from './routes/householdItemCategories.js';
 import householdItemRoutes from './routes/householdItems.js';
 import diaryRoutes from './routes/diary.js';
@@ -206,6 +208,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Budget overview (aggregation dashboard endpoint)
   await app.register(budgetOverviewRoutes, { prefix: '/api/budget' });
 
+  // Source report routes (EPIC-20: Creditor Reporting)
+  await app.register(sourceReportRoutes, { prefix: '/api/source-reports' });
+
   // Milestone routes (EPIC-06: Timeline, Gantt Chart & Dependency Management)
   await app.register(milestoneRoutes, { prefix: '/api/milestones' });
 
@@ -231,6 +236,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // User preferences routes (EPIC-09 Story #470: User Preferences Infrastructure)
   await app.register(preferencesRoutes, { prefix: '/api/users/me/preferences' });
+
+  // Application settings routes (Story #1877: Household metadata settings)
+  await app.register(settingsRoutes, { prefix: '/api/settings' });
 
   // Household item category routes (EPIC-09: Story #509 - Unified Tags & Categories Management)
   await app.register(householdItemCategoryRoutes, { prefix: '/api/household-item-categories' });

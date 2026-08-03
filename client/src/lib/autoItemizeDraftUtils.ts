@@ -21,6 +21,26 @@ interface MaterializeOk {
 interface MaterializeErr {
   ok: false;
   error: string;
+  /**
+   * Partially-materialized lines up to (but not including) the line that
+   * failed. Callers MUST write this back into page state (`setLines`) so a
+   * retry does not re-create budget lines that were already committed to the
+   * server during this attempt.
+   */
+  lines: LineWithInclude[];
+}
+
+/**
+ * Merge materialized (included-only) lines back into the full array by rowId,
+ * preserving the included/excluded state of excluded rows. Used to restore state
+ * after partial materialization on error, or after successful materialization.
+ */
+export function mergeMaterializedLines(
+  allLines: LineWithInclude[],
+  materializedIncluded: LineWithInclude[],
+): LineWithInclude[] {
+  const byRowId = new Map(materializedIncluded.map((l) => [l.rowId, l]));
+  return allLines.map((l) => byRowId.get(l.rowId) ?? l);
 }
 
 /**
@@ -63,7 +83,7 @@ export async function materializeInlineDrafts(
     }
 
     if (!isFinite(netBase) || netBase < 0) {
-      return { ok: false, error: t('autoItemize.inlineDraftInvalid') };
+      return { ok: false, error: t('autoItemize.inlineDraftInvalid'), lines: result };
     }
 
     // Financial fields from live line; metadata-only fields from draft form.
@@ -104,7 +124,7 @@ export async function materializeInlineDrafts(
         err instanceof ApiClientError
           ? translateApiError(err.error.code, tErrors)
           : t('autoItemize.inlineDraftCreateFailed');
-      return { ok: false, error: errorMsg };
+      return { ok: false, error: errorMsg, lines: result };
     }
   }
 

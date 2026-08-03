@@ -172,7 +172,7 @@
 
 .pageTitle {
   font-size: 2rem;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
   word-break: break-word;
@@ -464,6 +464,10 @@
   margin-bottom: var(--spacing-4);
 }
 
+.errorBannerSpacingTop {
+  margin-top: var(--spacing-2);
+}
+
 /* ============================================================
  * Buttons
  * ============================================================ */
@@ -635,26 +639,6 @@
   background-color: var(--color-overlay);
 }
 
-.modalContent {
-  position: relative;
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-2xl);
-  padding: var(--spacing-6);
-  max-width: 28rem;
-  width: calc(100% - var(--spacing-8));
-  margin: var(--spacing-4);
-  max-height: calc(100vh - var(--spacing-8));
-  overflow-y: auto;
-}
-
-.modalTitle {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-4) 0;
-}
-
 .modalText {
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
@@ -665,13 +649,6 @@
   font-size: var(--font-size-sm);
   color: var(--color-danger);
   margin: 0 0 var(--spacing-6) 0;
-}
-
-.modalActions {
-  display: flex;
-  gap: var(--spacing-3);
-  justify-content: flex-end;
-  margin-top: var(--spacing-6);
 }
 
 /* ============================================================
@@ -965,25 +942,11 @@
   margin: 0;
 }
 
-.section {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-}
-
-.sectionTitle {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0 0 1rem 0;
-}
-
 .addButton {
   padding: 0.625rem 1rem;
   border-radius: 0.375rem;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: var(--transition-button);
   border: none;
@@ -998,24 +961,6 @@
 .addButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.propertyGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.property {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.propertyLabel {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
 }
 
 /* Subsidy section */
@@ -1656,7 +1601,7 @@
   border: 1px solid var(--color-border-strong);
   border-top: none;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  z-index: 10;
+  z-index: var(--z-dropdown);
   box-shadow: var(--shadow-md);
 }
 

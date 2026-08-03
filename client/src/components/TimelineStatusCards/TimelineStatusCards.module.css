@@ -42,27 +42,6 @@
   color: var(--color-text-primary);
 }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--spacing-1) var(--spacing-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.badgeGreen {
-  background-color: var(--color-success-bg);
-  color: var(--color-success-text-on-light);
-}
-
-.badgeRed {
-  background-color: var(--color-danger-bg);
-  color: var(--color-danger-text-on-light);
-}
-
 .emptyState {
   margin: 0;
   font-size: var(--font-size-sm);
@@ -83,12 +62,6 @@
 .link:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
-}
-
-/* Badge variant for health indicator with dynamic background color */
-.badgeYellow {
-  background-color: var(--color-warning-bg);
-  color: var(--color-text-secondary);
 }
 
 /* Legend for donut chart */

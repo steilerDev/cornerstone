@@ -1,7 +1,11 @@
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { CONFIDENCE_MARGINS, type ConfidenceLevel } from '@cornerstone/shared';
+import {
+  CONFIDENCE_MARGINS,
+  type ConfidenceLevel,
+  effectivePlannedAmount,
+} from '@cornerstone/shared';
 import type {
   BudgetBreakdown,
   BreakdownArea,
@@ -86,6 +90,7 @@ export function getBudgetBreakdown(
     budgetCategoryId: string | null;
     budgetSourceId: string | null;
     origin: string;
+    includesVat: number | null;
   }>(
     sql`SELECT
       wi.id                  AS workItemId,
@@ -97,7 +102,8 @@ export function getBudgetBreakdown(
       wib.confidence         AS confidence,
       wib.budget_category_id AS budgetCategoryId,
       wib.budget_source_id   AS budgetSourceId,
-      wib.origin             AS origin
+      wib.origin             AS origin,
+      wib.includes_vat       AS includesVat
     FROM work_items wi
     INNER JOIN work_item_budgets wib ON wib.work_item_id = wi.id
     ORDER BY wi.area_id ASC, wi.title ASC`,
@@ -115,6 +121,7 @@ export function getBudgetBreakdown(
     deposit_id: string | null;
     deposit_amount: number | null;
     deposit_status: string | null;
+    deposit_entry_type: string | null;
   }>(
     sql`SELECT
       ibl.work_item_budget_id  AS budgetLineId,
@@ -125,7 +132,8 @@ export function getBudgetBreakdown(
       i.status                 AS invoice_status,
       id.id                    AS deposit_id,
       id.amount                AS deposit_amount,
-      id.status                AS deposit_status
+      id.status                AS deposit_status,
+      id.entry_type            AS deposit_entry_type
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits id ON id.invoice_id = i.id
@@ -175,6 +183,7 @@ export function getBudgetBreakdown(
     budgetCategoryId: string | null;
     budgetSourceId: string | null;
     origin: string;
+    includesVat: number | null;
   }>(
     sql`SELECT
       hi.id                     AS householdItemId,
@@ -186,7 +195,8 @@ export function getBudgetBreakdown(
       hib.confidence            AS confidence,
       hib.budget_category_id    AS budgetCategoryId,
       hib.budget_source_id      AS budgetSourceId,
-      hib.origin                AS origin
+      hib.origin                AS origin,
+      hib.includes_vat          AS includesVat
     FROM household_items hi
     INNER JOIN household_item_budgets hib ON hib.household_item_id = hi.id
     ORDER BY hi.area_id ASC, hi.name ASC`,
@@ -204,6 +214,7 @@ export function getBudgetBreakdown(
     deposit_id: string | null;
     deposit_amount: number | null;
     deposit_status: string | null;
+    deposit_entry_type: string | null;
   }>(
     sql`SELECT
       ibl.household_item_budget_id AS budgetLineId,
@@ -214,7 +225,8 @@ export function getBudgetBreakdown(
       i.status                     AS invoice_status,
       id.id                        AS deposit_id,
       id.amount                    AS deposit_amount,
-      id.status                    AS deposit_status
+      id.status                    AS deposit_status,
+      id.entry_type                AS deposit_entry_type
     FROM invoice_budget_lines ibl
     INNER JOIN invoices i ON i.id = ibl.invoice_id
     LEFT JOIN invoice_deposits id ON id.invoice_id = i.id
@@ -405,6 +417,11 @@ export function getBudgetBreakdown(
       return maxTotalPayback;
     }
   }
+
+  // VAT helper: convert stored net amount to effective amount if VAT not included
+  // SQLite returns 0/1 for boolean, so includesVat === 0 means false (VAT should be applied)
+  const effective = (l: { plannedAmount: number; includesVat: number | null }): number =>
+    effectivePlannedAmount({ plannedAmount: l.plannedAmount, includesVat: l.includesVat !== 0 });
 
   // ── Helper: Compute costDisplay for an entity ──────────────────────────────
   function computeCostDisplay(
@@ -665,7 +682,7 @@ export function getBudgetBreakdown(
     const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
-      row.plannedAmount,
+      effective(row),
       row.confidence,
       actualCost,
       wiLineInvoiceMap.has(row.budgetLineId),
@@ -692,7 +709,7 @@ export function getBudgetBreakdown(
     item.actualCostPaid += actualCostPaid;
     item.actualCostPending += actualCostPending;
     const { min: rawMin, max: rawMax } = computeLineProjected(
-      row.plannedAmount,
+      effective(row),
       row.confidence,
       actualCost,
       wiLineInvoiceMap.has(row.budgetLineId),
@@ -705,9 +722,11 @@ export function getBudgetBreakdown(
   // Build budget category and source maps for work items
   const wiBudgetLineCategoryMap = new Map<string, string | null>();
   const wiBudgetLineSourceMap = new Map<string, string | null>();
+  const wiBudgetLineIncludesVatMap = new Map<string, number | null>();
   for (const row of filteredWiLineRows) {
     wiBudgetLineCategoryMap.set(row.budgetLineId, row.budgetCategoryId);
     wiBudgetLineSourceMap.set(row.budgetLineId, row.budgetSourceId ?? null);
+    wiBudgetLineIncludesVatMap.set(row.budgetLineId, row.includesVat);
   }
 
   // Apply subsidy payback and cost display
@@ -716,7 +735,10 @@ export function getBudgetBreakdown(
       item.workItemId,
       item.budgetLines.map((bl) => ({
         id: bl.id,
-        plannedAmount: bl.plannedAmount,
+        plannedAmount: effective({
+          plannedAmount: bl.plannedAmount,
+          includesVat: wiBudgetLineIncludesVatMap.get(bl.id) ?? null,
+        }),
         confidence: bl.confidence,
         budgetCategoryId: wiBudgetLineCategoryMap.get(bl.id) ?? null,
       })),
@@ -727,7 +749,10 @@ export function getBudgetBreakdown(
       item.workItemId,
       item.budgetLines.map((bl) => ({
         id: bl.id,
-        plannedAmount: bl.plannedAmount,
+        plannedAmount: effective({
+          plannedAmount: bl.plannedAmount,
+          includesVat: wiBudgetLineIncludesVatMap.get(bl.id) ?? null,
+        }),
         confidence: bl.confidence,
         budgetCategoryId: wiBudgetLineCategoryMap.get(bl.id) ?? null,
       })),
@@ -844,7 +869,7 @@ export function getBudgetBreakdown(
     const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
-      row.plannedAmount,
+      effective(row),
       row.confidence,
       actualCost,
       hiLineInvoiceMap.has(row.budgetLineId),
@@ -871,7 +896,7 @@ export function getBudgetBreakdown(
     item.actualCostPaid += actualCostPaid;
     item.actualCostPending += actualCostPending;
     const { min: rawMin, max: rawMax } = computeLineProjected(
-      row.plannedAmount,
+      effective(row),
       row.confidence,
       actualCost,
       hiLineInvoiceMap.has(row.budgetLineId),
@@ -884,9 +909,11 @@ export function getBudgetBreakdown(
   // Build budget category and source maps for household items
   const hiBudgetLineCategoryMap = new Map<string, string | null>();
   const hiBudgetLineSourceMap = new Map<string, string | null>();
+  const hiBudgetLineIncludesVatMap = new Map<string, number | null>();
   for (const row of filteredHiLineRows) {
     hiBudgetLineCategoryMap.set(row.budgetLineId, row.budgetCategoryId);
     hiBudgetLineSourceMap.set(row.budgetLineId, row.budgetSourceId ?? null);
+    hiBudgetLineIncludesVatMap.set(row.budgetLineId, row.includesVat);
   }
 
   // Apply subsidy payback and cost display
@@ -895,7 +922,10 @@ export function getBudgetBreakdown(
       item.householdItemId,
       item.budgetLines.map((bl) => ({
         id: bl.id,
-        plannedAmount: bl.plannedAmount,
+        plannedAmount: effective({
+          plannedAmount: bl.plannedAmount,
+          includesVat: hiBudgetLineIncludesVatMap.get(bl.id) ?? null,
+        }),
         confidence: bl.confidence,
         budgetCategoryId: hiBudgetLineCategoryMap.get(bl.id) ?? null,
       })),
@@ -906,7 +936,10 @@ export function getBudgetBreakdown(
       item.householdItemId,
       item.budgetLines.map((bl) => ({
         id: bl.id,
-        plannedAmount: bl.plannedAmount,
+        plannedAmount: effective({
+          plannedAmount: bl.plannedAmount,
+          includesVat: hiBudgetLineIncludesVatMap.get(bl.id) ?? null,
+        }),
         confidence: bl.confidence,
         budgetCategoryId: hiBudgetLineCategoryMap.get(bl.id) ?? null,
       })),
@@ -997,7 +1030,7 @@ export function getBudgetBreakdown(
     }
     arr.push({
       id: row.budgetLineId,
-      plannedAmount: row.plannedAmount,
+      plannedAmount: effective(row),
       confidence: row.confidence,
       budgetCategoryId: row.budgetCategoryId,
     });
@@ -1011,7 +1044,7 @@ export function getBudgetBreakdown(
     }
     arr.push({
       id: row.budgetLineId,
-      plannedAmount: row.plannedAmount,
+      plannedAmount: effective(row),
       confidence: row.confidence,
       budgetCategoryId: row.budgetCategoryId,
     });
@@ -1131,7 +1164,7 @@ export function getBudgetBreakdown(
     const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
-      row.plannedAmount,
+      effective(row),
       row.confidence,
       actualCost,
       wiLineInvoiceMap.has(row.budgetLineId),
@@ -1170,7 +1203,7 @@ export function getBudgetBreakdown(
     const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
-      row.plannedAmount,
+      effective(row),
       row.confidence,
       actualCost,
       hiLineInvoiceMap.has(row.budgetLineId),
@@ -1213,7 +1246,7 @@ export function getBudgetBreakdown(
     const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
-      row.plannedAmount,
+      effective(row),
       row.confidence,
       actualCost,
       wiLineInvoiceMap.has(row.budgetLineId),
@@ -1233,7 +1266,7 @@ export function getBudgetBreakdown(
     const actualCostPending = invoiceData?.actualCostPending ?? 0;
     const isQuotation = invoiceData?.isQuotation ?? false;
     const { min, max } = computeLineProjected(
-      row.plannedAmount,
+      effective(row),
       row.confidence,
       actualCost,
       hiLineInvoiceMap.has(row.budgetLineId),
@@ -1296,7 +1329,10 @@ export function getBudgetBreakdown(
       item.budgetLines.map((bl) => ({
         id: bl.id,
         budgetSourceId: bl.budgetSourceId,
-        plannedAmount: bl.plannedAmount,
+        plannedAmount: effective({
+          plannedAmount: bl.plannedAmount,
+          includesVat: wiBudgetLineIncludesVatMap.get(bl.id) ?? null,
+        }),
         confidence: bl.confidence,
         actualCost: bl.actualCost,
         hasInvoice: bl.hasInvoice,
@@ -1313,7 +1349,10 @@ export function getBudgetBreakdown(
       item.budgetLines.map((bl) => ({
         id: bl.id,
         budgetSourceId: bl.budgetSourceId,
-        plannedAmount: bl.plannedAmount,
+        plannedAmount: effective({
+          plannedAmount: bl.plannedAmount,
+          includesVat: hiBudgetLineIncludesVatMap.get(bl.id) ?? null,
+        }),
         confidence: bl.confidence,
         actualCost: bl.actualCost,
         hasInvoice: bl.hasInvoice,

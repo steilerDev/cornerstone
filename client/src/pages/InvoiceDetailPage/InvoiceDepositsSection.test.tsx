@@ -4,8 +4,14 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import type * as InvoiceDepositsApiTypes from '../../lib/invoiceDepositsApi.js';
+import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
+import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as InvoiceDepositsSectionTypes from './InvoiceDepositsSection.js';
-import type { InvoiceDeposit } from '@cornerstone/shared';
+import type {
+  InvoiceDeposit,
+  BudgetSource,
+  InvoiceBudgetLineDetailResponse,
+} from '@cornerstone/shared';
 
 // ─── Module-scope mock functions ───────────────────────────────────────────────
 
@@ -21,6 +27,21 @@ jest.unstable_mockModule('../../lib/invoiceDepositsApi.js', () => ({
   createDeposit: mockCreateDeposit,
   updateDeposit: mockUpdateDeposit,
   deleteDeposit: mockDeleteDeposit,
+}));
+
+// ─── Mock: budgetSourcesApi (Story #1891 — deposit budget-source picker) ──────
+
+const mockFetchBudgetSources = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSources>();
+jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
+  fetchBudgetSources: mockFetchBudgetSources,
+}));
+
+// ─── Mock: invoiceBudgetLinesApi (Story #1891 — auto-default source logic) ────
+
+const mockFetchInvoiceBudgetLines =
+  jest.fn<typeof InvoiceBudgetLinesApiTypes.fetchInvoiceBudgetLines>();
+jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
+  fetchInvoiceBudgetLines: mockFetchInvoiceBudgetLines,
 }));
 
 // ─── Mock: apiClient (provides ApiClientError class) ──────────────────────────
@@ -168,9 +189,40 @@ function makeDeposit(id: string, overrides: Partial<InvoiceDeposit> = {}): Invoi
     claimedDate: null,
     description: null,
     status: 'pending',
+    entryType: 'deposit',
+    budgetSourceId: null,
     createdBy: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function makeBudgetSource(id: string, overrides: Partial<BudgetSource> = {}): BudgetSource {
+  return {
+    id,
+    name: `Source ${id}`,
+    sourceType: 'bank_loan',
+    totalAmount: 100000,
+    usedAmount: 0,
+    availableAmount: 100000,
+    claimedAmount: 0,
+    unclaimedAmount: 0,
+    paidAmount: 0,
+    actualAvailableAmount: 100000,
+    projectedAmount: 0,
+    projectedMinAmount: 0,
+    projectedMaxAmount: 0,
+    interestRate: null,
+    terms: null,
+    notes: null,
+    reference: null,
+    contactAddress: null,
+    status: 'active',
+    isDiscretionary: false,
+    createdBy: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
   };
 }
@@ -202,10 +254,46 @@ function renderSection(
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
+function makeInvoiceBudgetLine(
+  id: string,
+  overrides: Partial<InvoiceBudgetLineDetailResponse> = {},
+): InvoiceBudgetLineDetailResponse {
+  return {
+    id,
+    invoiceId: INVOICE_ID,
+    workItemBudgetId: 'wib-1',
+    householdItemBudgetId: null,
+    itemizedAmount: 100,
+    budgetLineDescription: null,
+    plannedAmount: 100,
+    confidence: 'own_estimate',
+    categoryId: null,
+    categoryName: null,
+    categoryColor: null,
+    categoryTranslationKey: null,
+    parentItemId: null,
+    parentItemTitle: null,
+    parentItemType: 'work_item',
+    parentItemArea: null,
+    quantity: null,
+    unit: null,
+    unitPrice: null,
+    includesVat: false,
+    vendorId: null,
+    budgetSourceId: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
 beforeEach(async () => {
   const mod = await import('./InvoiceDepositsSection.js');
   InvoiceDepositsSection = mod.InvoiceDepositsSection;
   jest.clearAllMocks();
+  // Default: no budget sources / budget lines configured. Individual picker tests override this.
+  mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+  mockFetchInvoiceBudgetLines.mockResolvedValue({ budgetLines: [], remainingAmount: 0 });
 });
 
 afterEach(() => {
@@ -1276,6 +1364,743 @@ describe('InvoiceDepositsSection', () => {
           'translated:INVALID_DEPOSIT_STATUS_TRANSITION',
         );
       });
+    });
+  });
+
+  // ─── Story #1876: entry type / refunds ─────────────────────────────────────
+
+  describe('Story #1876: entry type radio group (add modal)', () => {
+    it('defaults to "Deposit" checked when opening the Add modal', () => {
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+
+      const depositRadio = screen.getByRole('radio', { name: /deposit/i }) as HTMLInputElement;
+      const refundRadio = screen.getByRole('radio', { name: /refund/i }) as HTMLInputElement;
+      expect(depositRadio.checked).toBe(true);
+      expect(refundRadio.checked).toBe(false);
+    });
+
+    it('both radios are enabled in Add mode', () => {
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+
+      const depositRadio = screen.getByRole('radio', { name: /deposit/i });
+      const refundRadio = screen.getByRole('radio', { name: /refund/i });
+      expect(depositRadio).not.toBeDisabled();
+      expect(refundRadio).not.toBeDisabled();
+    });
+
+    it('selecting "Refund" shows the refund amount hint', () => {
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+
+      // Hint not shown while "Deposit" is selected
+      expect(screen.queryByText(/positive number/i)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('radio', { name: /refund/i }));
+
+      expect(screen.getByText(/positive number/i)).toBeInTheDocument();
+    });
+
+    it('selecting "Deposit" after "Refund" hides the hint again', () => {
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+
+      fireEvent.click(screen.getByRole('radio', { name: /refund/i }));
+      expect(screen.getByText(/positive number/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('radio', { name: /deposit/i }));
+      expect(screen.queryByText(/positive number/i)).not.toBeInTheDocument();
+    });
+
+    it('form submit sends entryType: "refund" in the create payload when Refund is selected', async () => {
+      mockCreateDeposit.mockResolvedValueOnce({
+        deposit: makeDeposit('new-dep', { entryType: 'refund' }),
+      } as Awaited<ReturnType<typeof mockCreateDeposit>>);
+
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+      fireEvent.click(screen.getByRole('radio', { name: /refund/i }));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '150' } });
+      fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => {
+        expect(mockCreateDeposit).toHaveBeenCalledWith(
+          INVOICE_ID,
+          expect.objectContaining({ entryType: 'refund' }),
+        );
+      });
+    });
+
+    it('form submit sends entryType: "deposit" in the create payload by default', async () => {
+      mockCreateDeposit.mockResolvedValueOnce({
+        deposit: makeDeposit('new-dep'),
+      } as Awaited<ReturnType<typeof mockCreateDeposit>>);
+
+      renderSection([]);
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '150' } });
+      fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => {
+        expect(mockCreateDeposit).toHaveBeenCalledWith(
+          INVOICE_ID,
+          expect.objectContaining({ entryType: 'deposit' }),
+        );
+      });
+    });
+  });
+
+  describe('Story #1876: entry type radio group (edit modal — immutability)', () => {
+    it('shows both radios in the Edit modal but disabled, with the current entryType checked', async () => {
+      const deposit = makeDeposit('dep-1', { entryType: 'refund' });
+      renderSection([deposit]);
+
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(menuBtn);
+      const editBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
+      fireEvent.click(editBtn);
+
+      await waitFor(() => {
+        const depositRadio = screen.getByRole('radio', { name: /deposit/i }) as HTMLInputElement;
+        const refundRadio = screen.getByRole('radio', { name: /refund/i }) as HTMLInputElement;
+        expect(depositRadio).toBeDisabled();
+        expect(refundRadio).toBeDisabled();
+        expect(refundRadio.checked).toBe(true);
+        expect(depositRadio.checked).toBe(false);
+      });
+    });
+
+    it('edit submit does NOT include entryType in the update payload', async () => {
+      const deposit = makeDeposit('dep-1', { amount: 500, entryType: 'refund' });
+      mockUpdateDeposit.mockResolvedValueOnce({
+        deposit: { ...deposit, amount: 600 },
+      } as Awaited<ReturnType<typeof mockUpdateDeposit>>);
+
+      renderSection([deposit]);
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(menuBtn);
+      const editBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('edit'))!;
+      fireEvent.click(editBtn);
+
+      await waitFor(() => screen.getByLabelText(/amount/i));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '600' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => {
+        expect(mockUpdateDeposit).toHaveBeenCalled();
+      });
+      const payload = mockUpdateDeposit.mock.calls[0]![2];
+      expect(payload).not.toHaveProperty('entryType');
+    });
+  });
+
+  describe('Story #1876: REFUND_EXCEEDS_INVOICE error', () => {
+    it('renders the refund-specific headroom message', async () => {
+      mockCreateDeposit.mockRejectedValueOnce(
+        new MockApiClientError(400, {
+          code: 'REFUND_EXCEEDS_INVOICE',
+          message: 'Refund exceeds invoice total',
+          details: { availableHeadroom: 1000 },
+        }),
+      );
+
+      renderSection([], { invoiceTotal: 10000 });
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+      fireEvent.click(screen.getByRole('radio', { name: /refund/i }));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '2000' } });
+      fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => {
+        const error = screen.getByTestId('form-error');
+        expect(error).toBeInTheDocument();
+        // formatCurrency mock renders as "$1000.00"
+        expect(error.textContent).toContain('$1000.00');
+      });
+    });
+
+    it('does NOT reuse the DEPOSITS_EXCEED_INVOICE_TOTAL message for REFUND_EXCEEDS_INVOICE', async () => {
+      mockCreateDeposit.mockRejectedValueOnce(
+        new MockApiClientError(400, {
+          code: 'REFUND_EXCEEDS_INVOICE',
+          details: { availableHeadroom: 500 },
+        }),
+      );
+
+      renderSection([], { invoiceTotal: 5000 });
+      fireEvent.click(screen.getByTestId('empty-state-action'));
+      fireEvent.click(screen.getByRole('radio', { name: /refund/i }));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '1000' } });
+      fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+      const form = screen.getByRole('dialog').querySelector('form')!;
+      await act(async () => {
+        fireEvent.submit(form);
+      });
+
+      await waitFor(() => {
+        const error = screen.getByTestId('form-error');
+        // The generic translateApiError fallback would render "translated:REFUND_EXCEEDS_INVOICE";
+        // the specific branch must NOT fall through to that generic path.
+        expect(error.textContent).not.toContain('translated:REFUND_EXCEEDS_INVOICE');
+      });
+    });
+  });
+
+  describe('Story #1876: refund row rendering (table)', () => {
+    it('renders a red "Refund" badge and the negative formatted amount for a refund deposit', () => {
+      const deposits = [makeDeposit('dep-1', { amount: 400, entryType: 'refund' })];
+      renderSection(deposits);
+
+      expect(screen.getAllByTestId('badge-refund').length).toBeGreaterThan(0);
+      // formatCurrency mock: `$${n.toFixed(2)}` — negative amount renders with a minus sign
+      expect(screen.getAllByText('$-400.00').length).toBeGreaterThan(0);
+    });
+
+    it('does NOT render a "Refund" badge for a regular deposit', () => {
+      const deposits = [makeDeposit('dep-1', { amount: 400, entryType: 'deposit' })];
+      renderSection(deposits);
+
+      expect(screen.queryByTestId('badge-refund')).not.toBeInTheDocument();
+      expect(screen.getAllByText('$400.00').length).toBeGreaterThan(0);
+    });
+
+    it('the status badge is unaffected by entryType (refund row still shows its own status badge)', () => {
+      const deposits = [
+        makeDeposit('dep-1', {
+          amount: 400,
+          entryType: 'refund',
+          status: 'paid',
+          paidDate: '2026-03-10',
+        }),
+      ];
+      renderSection(deposits);
+
+      expect(screen.getAllByTestId('badge-refund').length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId('badge-paid').length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Story #1876: refund row rendering (mobile card)', () => {
+    it('renders a red "Refund" badge and the negative formatted amount inside the card amount area', () => {
+      // The mobile card list is always rendered alongside the table (CSS controls
+      // visibility per viewport); assert on the card-specific DOM structure.
+      const deposits = [makeDeposit('dep-1', { amount: 250, entryType: 'refund' })];
+      renderSection(deposits);
+
+      const cardList = document.querySelector('[role="list"]');
+      expect(cardList).toBeInTheDocument();
+      const cardAmount = cardList!.querySelector('[class*="cardAmount"]');
+      expect(cardAmount).toBeInTheDocument();
+      expect(cardAmount!.textContent).toContain('$-250.00');
+    });
+  });
+
+  describe('Story #1876: OverflowMenu aria-label entry-type fallback', () => {
+    it('table row: announces the entry type label when the refund deposit has no description', () => {
+      const deposits = [makeDeposit('dep-1', { entryType: 'refund', description: null })];
+      renderSection(deposits);
+
+      // OverflowMenu's triggerAriaLabel is passed through; find the button with
+      // an aria-label mentioning "Refund" (the entryTypeLabels.refund fallback).
+      const buttons = screen.getAllByRole('button');
+      const matched = buttons.some((b) => b.getAttribute('aria-label')?.includes('Refund'));
+      expect(matched).toBe(true);
+    });
+
+    it('table row: uses the description when present, not the entry type fallback', () => {
+      const deposits = [
+        makeDeposit('dep-1', { entryType: 'refund', description: 'Overpayment correction' }),
+      ];
+      renderSection(deposits);
+
+      const buttons = screen.getAllByRole('button');
+      const matched = buttons.some((b) =>
+        b.getAttribute('aria-label')?.includes('Overpayment correction'),
+      );
+      expect(matched).toBe(true);
+    });
+
+    it('deposit row: announces "Deposit" (not "Refund") when a description-less deposit has no description', () => {
+      const deposits = [makeDeposit('dep-1', { entryType: 'deposit', description: null })];
+      renderSection(deposits);
+
+      const buttons = screen.getAllByRole('button');
+      const matched = buttons.some((b) => b.getAttribute('aria-label')?.includes('Deposit'));
+      expect(matched).toBe(true);
+    });
+  });
+
+  // ─── Story #1891: budget-source picker + auto-default logic ────────────────
+
+  describe('budget-source picker (Story #1891)', () => {
+    async function flushBudgetDataLoad() {
+      // Both fetchBudgetSources and fetchInvoiceBudgetLines resolve on the microtask queue;
+      // waiting only for "has been called" can race ahead of the state updates that follow
+      // (setBudgetSources/setBudgetLines), which openAddModal's auto-default logic reads
+      // synchronously at click time. Flush pending microtasks/effects inside act() so the
+      // component has fully settled before any test opens the Add modal.
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    }
+
+    function openAddModalAfterLoad() {
+      const addBtn = screen
+        .getAllByRole('button')
+        .find(
+          (b) =>
+            b.getAttribute('aria-label')?.includes('deposit') ?? b.textContent?.includes('deposit'),
+        )!;
+      fireEvent.click(addBtn);
+    }
+
+    it('fetches budget sources and budget lines on mount', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeBudgetSource('src-1')] });
+      mockFetchInvoiceBudgetLines.mockResolvedValue({ budgetLines: [], remainingAmount: 1000 });
+
+      renderSection([]);
+
+      await waitFor(() => {
+        expect(mockFetchBudgetSources).toHaveBeenCalledTimes(1);
+        expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledWith(INVOICE_ID);
+      });
+    });
+
+    it('populates the picker <select> with every fetched budget source, plus a "None" option', async () => {
+      mockFetchBudgetSources.mockResolvedValue({
+        budgetSources: [
+          makeBudgetSource('src-1', { name: 'Bank Loan' }),
+          makeBudgetSource('src-2', { name: 'Savings' }),
+        ],
+      });
+      renderSection([]);
+      await flushBudgetDataLoad();
+
+      openAddModalAfterLoad();
+
+      const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+      const optionLabels = Array.from(select.options).map((o) => o.textContent);
+      expect(optionLabels).toEqual(['None (pro-rated)', 'Bank Loan', 'Savings']);
+    });
+
+    describe('default case 1: zero sources (no budget lines) → null default + HintNone', () => {
+      it('defaults budgetSourceId to null and shows the "no budget lines" hint', async () => {
+        mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeBudgetSource('src-1')] });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({ budgetLines: [], remainingAmount: 1000 });
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('');
+        expect(
+          screen.getByText(
+            'This invoice has no budget lines — pick a source, or leave blank to keep this deposit pro-rated.',
+          ),
+        ).toBeInTheDocument();
+      });
+
+      it('all-unassigned budget lines (no real source on any line) also default to null (treated as zero real sources)', async () => {
+        mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeBudgetSource('src-1')] });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: null, itemizedAmount: 500 }),
+          ],
+          remainingAmount: 500,
+        });
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('');
+      });
+    });
+
+    describe('default case 2: exactly one real source → defaults to it + HintSingle{name}', () => {
+      it("defaults budgetSourceId to the invoice's single budget-line source", async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [makeBudgetSource('src-1', { name: 'Bank Loan' })],
+        });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: 'src-1', itemizedAmount: 700 }),
+          ],
+          remainingAmount: 300,
+        });
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('src-1');
+        expect(
+          screen.getByText("Defaulted to Bank Loan — this invoice's only budget source."),
+        ).toBeInTheDocument();
+      });
+
+      it('a single real source PLUS an unassigned (null) line still counts as exactly one real source', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [makeBudgetSource('src-1', { name: 'Bank Loan' })],
+        });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: 'src-1', itemizedAmount: 500 }),
+            makeInvoiceBudgetLine('ibl-2', { budgetSourceId: null, itemizedAmount: 200 }),
+          ],
+          remainingAmount: 300,
+        });
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('src-1');
+      });
+    });
+
+    describe('default case 3: multiple real sources → defaults to the largest-sum one + HintLargest{name}', () => {
+      it('defaults budgetSourceId to the source with the largest summed itemizedAmount', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [
+            makeBudgetSource('src-1', { name: 'Bank Loan' }),
+            makeBudgetSource('src-2', { name: 'Savings' }),
+          ],
+        });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: 'src-1', itemizedAmount: 300 }),
+            makeInvoiceBudgetLine('ibl-2', { budgetSourceId: 'src-2', itemizedAmount: 700 }),
+          ],
+          remainingAmount: 0,
+        });
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('src-2'); // 700 > 300
+        expect(
+          screen.getByText("Defaulted to Savings, this invoice's largest allocated source."),
+        ).toBeInTheDocument();
+      });
+
+      it('sums MULTIPLE lines under the same source before comparing (largest-SUM, not largest single line)', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [
+            makeBudgetSource('src-1', { name: 'Bank Loan' }),
+            makeBudgetSource('src-2', { name: 'Savings' }),
+          ],
+        });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            // src-1: two small lines summing to 600
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: 'src-1', itemizedAmount: 300 }),
+            makeInvoiceBudgetLine('ibl-2', { budgetSourceId: 'src-1', itemizedAmount: 300 }),
+            // src-2: one line of 500 (individually larger than either src-1 line, but the SUM
+            // for src-1 (600) exceeds src-2's single line (500))
+            makeInvoiceBudgetLine('ibl-3', { budgetSourceId: 'src-2', itemizedAmount: 500 }),
+          ],
+          remainingAmount: 0,
+        });
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('src-1'); // 600 > 500
+      });
+    });
+
+    describe('mixed real+unassigned sources where the UNASSIGNED sum is largest (Story #1891 follow-up fix)', () => {
+      it('single real source + a larger unassigned sum: still defaults to the real source and shows HintSingle with its real name (never "—")', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [makeBudgetSource('src-1', { name: 'Bank Loan' })],
+        });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: 'src-1', itemizedAmount: 200 }),
+            // Unassigned line sum (800) is larger than the real source's sum (200), but
+            // unassigned lines must never compete for — or win — the "largest" default.
+            makeInvoiceBudgetLine('ibl-2', { budgetSourceId: null, itemizedAmount: 800 }),
+          ],
+          remainingAmount: 0,
+        });
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('src-1');
+        expect(
+          screen.getByText("Defaulted to Bank Loan — this invoice's only budget source."),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('—')).not.toBeInTheDocument();
+      });
+
+      it('multiple real sources + a much larger unassigned sum: defaults to the largest REAL source and shows HintLargest with its real name (never "—")', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [
+            makeBudgetSource('src-1', { name: 'Bank Loan' }),
+            makeBudgetSource('src-2', { name: 'Savings' }),
+          ],
+        });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: 'src-1', itemizedAmount: 200 }),
+            makeInvoiceBudgetLine('ibl-2', { budgetSourceId: 'src-2', itemizedAmount: 300 }),
+            // Unassigned sum (1000) dwarfs both real sources but must be excluded entirely
+            // from the "largest source" comparison.
+            makeInvoiceBudgetLine('ibl-3', { budgetSourceId: null, itemizedAmount: 1000 }),
+          ],
+          remainingAmount: 0,
+        });
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('src-2'); // 300 > 200 among REAL sources only
+        expect(
+          screen.getByText("Defaulted to Savings, this invoice's largest allocated source."),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('—')).not.toBeInTheDocument();
+      });
+    });
+
+    describe('all-unassigned budget lines → HintNone + null default', () => {
+      it('every budget line is unassigned (no real source anywhere on the invoice): defaults budgetSourceId to null and shows the HintNone text', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [makeBudgetSource('src-1', { name: 'Bank Loan' })],
+        });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: null, itemizedAmount: 400 }),
+            makeInvoiceBudgetLine('ibl-2', { budgetSourceId: null, itemizedAmount: 600 }),
+          ],
+          remainingAmount: 0,
+        });
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('');
+        expect(
+          screen.getByText(
+            'This invoice has no budget lines — pick a source, or leave blank to keep this deposit pro-rated.',
+          ),
+        ).toBeInTheDocument();
+      });
+    });
+
+    describe('edit mode: populates from the existing deposit, not the auto-default', () => {
+      it('openEditModal sets budgetSourceId from the deposit being edited, ignoring the auto-default logic entirely', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [
+            makeBudgetSource('src-1', { name: 'Bank Loan' }),
+            makeBudgetSource('src-2', { name: 'Savings' }),
+          ],
+        });
+        // The auto-default would pick src-2 (largest sum) if this were an ADD — but this is
+        // an EDIT of a deposit that's tagged to src-1, which must win instead.
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: 'src-2', itemizedAmount: 900 }),
+          ],
+          remainingAmount: 100,
+        });
+
+        const deposits = [makeDeposit('dep-1', { budgetSourceId: 'src-1' })];
+        renderSection(deposits);
+        await flushBudgetDataLoad();
+
+        // Open the edit modal via the row's overflow menu.
+        const menuTriggers = screen.getAllByRole('button', { name: /Deposit actions/i });
+        fireEvent.click(menuTriggers[0]!);
+        const editItem = screen.getByText(/^Edit$/);
+        fireEvent.click(editItem);
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('src-1');
+      });
+
+      it('the picker remains editable (not disabled) while editing a claimed deposit', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [makeBudgetSource('src-1', { name: 'Bank Loan' })],
+        });
+        const deposits = [
+          makeDeposit('dep-1', {
+            status: 'claimed',
+            paidDate: '2026-01-10',
+            claimedDate: '2026-01-15',
+            budgetSourceId: null,
+          }),
+        ];
+        renderSection(deposits);
+        await flushBudgetDataLoad();
+
+        const menuTriggers = screen.getAllByRole('button', { name: /Deposit actions/i });
+        fireEvent.click(menuTriggers[0]!);
+        const editItem = screen.getByText(/^Edit$/);
+        fireEvent.click(editItem);
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select).not.toBeDisabled();
+
+        fireEvent.change(select, { target: { value: 'src-1' } });
+        expect(select.value).toBe('src-1');
+      });
+    });
+
+    describe('clearing back to null', () => {
+      it('selecting the "None" option sets budgetSourceId back to null', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [makeBudgetSource('src-1', { name: 'Bank Loan' })],
+        });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: 'src-1', itemizedAmount: 500 }),
+          ],
+          remainingAmount: 0,
+        });
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        expect(select.value).toBe('src-1'); // auto-defaulted
+
+        fireEvent.change(select, { target: { value: '' } });
+        expect(select.value).toBe('');
+      });
+
+      it('submitting with a cleared (null) budgetSourceId sends budgetSourceId: null to createDeposit', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [makeBudgetSource('src-1', { name: 'Bank Loan' })],
+        });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: 'src-1', itemizedAmount: 500 }),
+          ],
+          remainingAmount: 0,
+        });
+        mockCreateDeposit.mockResolvedValueOnce({
+          deposit: makeDeposit('new-dep'),
+        } as Awaited<ReturnType<typeof mockCreateDeposit>>);
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+        openAddModalAfterLoad();
+
+        const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+        fireEvent.change(select, { target: { value: '' } });
+
+        fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '300' } });
+        fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+        const form = screen.getByRole('dialog').querySelector('form')!;
+        await act(async () => {
+          fireEvent.submit(form);
+        });
+
+        await waitFor(() => {
+          expect(mockCreateDeposit).toHaveBeenCalledWith(
+            INVOICE_ID,
+            expect.objectContaining({ budgetSourceId: null }),
+          );
+        });
+      });
+
+      it('submitting with the auto-defaulted budgetSourceId still set sends the real source id to createDeposit', async () => {
+        mockFetchBudgetSources.mockResolvedValue({
+          budgetSources: [makeBudgetSource('src-1', { name: 'Bank Loan' })],
+        });
+        mockFetchInvoiceBudgetLines.mockResolvedValue({
+          budgetLines: [
+            makeInvoiceBudgetLine('ibl-1', { budgetSourceId: 'src-1', itemizedAmount: 500 }),
+          ],
+          remainingAmount: 0,
+        });
+        mockCreateDeposit.mockResolvedValueOnce({
+          deposit: makeDeposit('new-dep'),
+        } as Awaited<ReturnType<typeof mockCreateDeposit>>);
+
+        renderSection([]);
+        await flushBudgetDataLoad();
+        openAddModalAfterLoad();
+
+        fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '300' } });
+        fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+        const form = screen.getByRole('dialog').querySelector('form')!;
+        await act(async () => {
+          fireEvent.submit(form);
+        });
+
+        await waitFor(() => {
+          expect(mockCreateDeposit).toHaveBeenCalledWith(
+            INVOICE_ID,
+            expect.objectContaining({ budgetSourceId: 'src-1' }),
+          );
+        });
+      });
+    });
+
+    it('a network failure fetching budget sources/lines silently falls back to empty (no crash, no error banner)', async () => {
+      mockFetchBudgetSources.mockRejectedValue(new Error('network down'));
+      mockFetchInvoiceBudgetLines.mockRejectedValue(new Error('network down'));
+
+      expect(() => renderSection([])).not.toThrow();
+
+      await flushBudgetDataLoad();
+      openAddModalAfterLoad();
+
+      const select = screen.getByLabelText('Budget source') as HTMLSelectElement;
+      expect(select.value).toBe('');
+      expect(select.options).toHaveLength(1); // just "None"
     });
   });
 });

@@ -1,4 +1,4 @@
-import { get, getBaseUrl } from './apiClient.js';
+import { get, getBaseUrl, ApiClientError } from './apiClient.js';
 import type {
   PaperlessStatusResponse,
   PaperlessDocumentListResponse,
@@ -6,6 +6,9 @@ import type {
   PaperlessTagListResponse,
   PaperlessDocumentListQuery,
   PaperlessCorrespondentListResponse,
+  PaperlessUploadResponse,
+  ApiError,
+  ApiErrorResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -69,4 +72,38 @@ export function getDocumentThumbnailUrl(id: number): string {
  */
 export function getDocumentPreviewUrl(id: number): string {
   return `${getBaseUrl()}/paperless/documents/${id}/preview`;
+}
+
+/**
+ * Uploads a document to Paperless-ngx.
+ * @throws {ApiClientError} On 4xx/5xx responses
+ */
+export async function uploadPaperlessDocument(
+  document: Blob,
+  title: string,
+): Promise<PaperlessUploadResponse> {
+  const formData = new FormData();
+  formData.set('document', document);
+  formData.set('title', title);
+
+  const response = await fetch(`${getBaseUrl()}/paperless/documents`, {
+    method: 'POST',
+    body: formData,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    let apiError: ApiError = { code: 'INTERNAL_ERROR', message: 'Upload failed' };
+    try {
+      const json = (await response.json()) as ApiErrorResponse;
+      if (json.error) {
+        apiError = json.error;
+      }
+    } catch {
+      // JSON parse error; use default
+    }
+    throw new ApiClientError(response.status, apiError);
+  }
+
+  return response.json() as Promise<PaperlessUploadResponse>;
 }

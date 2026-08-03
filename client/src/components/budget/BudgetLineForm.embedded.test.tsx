@@ -33,20 +33,73 @@ jest.unstable_mockModule('react-i18next', () => ({
   Trans: ({ children }: { children: unknown }) => children,
 }));
 
+// BudgetLineForm now calls useLocale()/useFormatters() unconditionally (#1807).
+// jest.unstable_mockModule may not intercept in this sandbox (documented CI-vs-local
+// gap — see agent memory). Values here match the historical hardcoded defaults
+// (EUR / 19%) so existing assertions in this file keep passing either way.
+jest.unstable_mockModule('../../lib/formatters.js', () => {
+  const fmtCurrency = (n: number) => '€' + n.toFixed(2);
+  return {
+    formatCurrency: fmtCurrency,
+    getCurrencySymbol: () => '€',
+    useFormatters: () => ({
+      formatCurrency: fmtCurrency,
+      getCurrencySymbol: () => '€',
+    }),
+  };
+});
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: unknown }) => children,
+}));
+
+jest.unstable_mockModule('../../lib/configApi.js', () => ({
+  fetchConfig: jest.fn(() =>
+    Promise.resolve({ currency: 'EUR', vatRate: 0.19, autoItemizeEnabled: false }),
+  ),
+}));
+
+jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
+  listPreferences: jest.fn(() => Promise.resolve([])),
+  upsertPreference: jest.fn(() => Promise.resolve()),
+}));
+
 // ─── Static imports (after mocks) ─────────────────────────────────────────────
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import type { BudgetLineFormProps } from './BudgetLineForm.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import type * as BudgetLineFormModule from './BudgetLineForm.js';
+import type * as LocaleContextModule from '../../contexts/LocaleContext.js';
 
 // ─── Dynamic import ────────────────────────────────────────────────────────────
 
 let BudgetLineForm: (typeof BudgetLineFormModule)['BudgetLineForm'];
+let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
+
+// `render` is shadowed here so every existing `render(React.createElement(BudgetLineForm, ...))`
+// call site automatically wraps in the real LocaleProvider — a fallback for when
+// jest.unstable_mockModule doesn't intercept locally (see mocks above).
+function render(ui: React.ReactElement) {
+  return rtlRender(React.createElement(LocaleProvider, null, ui));
+}
 
 beforeEach(async () => {
-  ({ BudgetLineForm } = (await import('./BudgetLineForm.js')) as typeof BudgetLineFormModule);
+  const [formMod, localeMod] = await Promise.all([
+    import('./BudgetLineForm.js'),
+    import('../../contexts/LocaleContext.js'),
+  ]);
+  BudgetLineForm = (formMod as typeof BudgetLineFormModule).BudgetLineForm;
+  LocaleProvider = (localeMod as typeof LocaleContextModule).LocaleProvider;
 });
 
 // ─── Fixtures ──────────────────────────────────────────────────────────────────

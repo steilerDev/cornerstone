@@ -19,11 +19,24 @@
  * - Dark mode
  */
 
-import { test, expect } from '../../fixtures/auth.js';
+import { test, expect } from '../../fixtures/isolatedUser.js';
 import type { Page } from '@playwright/test';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { API } from '../../fixtures/testData.js';
+import {
+  createWorkItemViaApi,
+  deleteWorkItemViaApi,
+  createBudgetSourceViaApi,
+  deleteBudgetSourceViaApi,
+} from '../../fixtures/apiHelpers.js';
+
+// Issue #1876: "Effective Amount" column — hidden by default (defaultVisible: false),
+// toggled via the DataTable column settings gear, same as "Remaining Amount". Bound to
+// invoice.finalPaymentAmount (deposit/refund-aware), which is a DIFFERENT figure from
+// "Remaining Amount" (itemization-based: amount − Σ budgetLines[].itemizedAmount).
+// Note: this file already has its own "Scenario 7" (row click navigation, above) —
+// this addition is labeled by Issue number to avoid colliding with that numbering.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers
@@ -397,8 +410,13 @@ test.describe('Invoice row click navigation (Scenario 7)', { tag: '@responsive' 
         date: '2026-01-10',
       });
 
-      await invoicesPage.goto();
-      await invoicesPage.waitForLoaded();
+      // Search by this test's own unique invoice number rather than an unfiltered
+      // goto(). With 8 parallel workers all creating invoices concurrently, the
+      // default date-desc sort can easily push this test's row past page 1 (25/page)
+      // before its own invoice gets there, making the row unclickable/not-found. The
+      // server-side search matches invoiceNumber, so this scopes the table to (at
+      // most) this test's own row regardless of how many other invoices exist.
+      await invoicesPage.search(`${testPrefix}-ROW-001`);
 
       // Click the invoice number link — on both desktop table and mobile cards.
       // DataTable renders both the table AND the mobile cards simultaneously and uses
@@ -811,6 +829,163 @@ test.describe('Dark mode', () => {
       }
     } finally {
       if (vendorId) await deleteVendorViaApi(p, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// "Effective Amount" column (Issue #1876)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('"Effective Amount" column (Issue #1876)', { tag: '@responsive' }, () => {
+  // This is the only test in the suite that asserts against `table.invoices.columns`,
+  // a per-user singleton preference that `useColumnPreferences` writes (debounced) for
+  // every visitor of the invoices table. On the shared admin, any concurrently running
+  // test that renders that table could move the column set under this test's feet, and
+  // this test's own DELETEs could equally disturb others (Issue #1957). Run it as a
+  // dedicated user so the row belongs to nobody else. Per-test rather than per-worker
+  // because a worker-scoped option cannot be set inside a describe. Nothing here is
+  // admin-gated: the invoices list/detail pages and vendor/invoice/work-item/
+  // budget-source creation have no role checks.
+  test.use({
+    isolatedUserPerTest: { emailPrefix: 'inv-columns', displayName: 'E2E Invoices User' },
+  });
+
+  test('Toggling "Effective Amount" shows a deposit/refund-aware value distinct from "Remaining Amount"', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Column settings gear is desktop-only (hidden ≤767px) — skip on mobile/tablet.
+    const viewportWidth = page.viewportSize()?.width ?? 1440;
+    if (viewportWidth < 1024) {
+      test.skip(true, 'Column settings — desktop viewport only');
+      return;
+    }
+
+    const invoicesPage = new InvoicesPage(page);
+    const vendorName = `${testPrefix} EffAmt Vendor`;
+    const invoiceNumber = `${testPrefix}-EFFAMT`;
+    let vendorId = '';
+    let workItemId = '';
+    let budgetSourceId = '';
+
+    try {
+      const vendor = await createVendorViaApi(page, vendorName);
+      vendorId = vendor.id;
+
+      // Invoice total = 1000
+      const invoice = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber,
+        amount: 1000,
+        date: '2026-01-01',
+      });
+
+      // Itemize part of the invoice via a budget line — this drives "Remaining Amount"
+      // (calculateRemaining = amount − Σ budgetLines[].itemizedAmount), which is
+      // UNRELATED to deposits/refunds.
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} EffAmt WI` });
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} EffAmt Source`,
+        totalAmount: 5000,
+      });
+      const budgetResp = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
+        data: {
+          plannedAmount: 300,
+          budgetSourceId,
+          confidence: 'own_estimate',
+          description: `${testPrefix} EffAmt line`,
+        },
+      });
+      expect(budgetResp.ok(), `POST work item budget failed: ${budgetResp.status()}`).toBeTruthy();
+      const budgetBody = (await budgetResp.json()) as { budget: { id: string } };
+      const linkResp = await page.request.post(`/api/invoices/${invoice.id}/budget-lines`, {
+        data: { workItemBudgetId: budgetBody.budget.id, itemizedAmount: 300 },
+      });
+      expect(linkResp.ok(), `POST invoice budget-line failed: ${linkResp.status()}`).toBeTruthy();
+      // Remaining Amount = 1000 − 300 = 700
+
+      // Add a refund and mark it paid — this drives "Effective Amount"
+      // (finalPaymentAmount = amount − deposits − received refunds), independent of
+      // itemization.
+      const depositResp = await page.request.post(`/api/invoices/${invoice.id}/deposits`, {
+        data: { entryType: 'refund', amount: 150, dueDate: '2026-02-01', status: 'pending' },
+      });
+      expect(depositResp.ok(), `POST deposit failed: ${depositResp.status()}`).toBeTruthy();
+      const depositBody = (await depositResp.json()) as { deposit: { id: string } };
+      const today = new Date().toISOString().slice(0, 10);
+      const paidResp = await page.request.patch(
+        `/api/invoices/${invoice.id}/deposits/${depositBody.deposit.id}`,
+        { data: { status: 'paid', paidDate: today } },
+      );
+      expect(paidResp.ok(), `PATCH deposit pending→paid failed: ${paidResp.status()}`).toBeTruthy();
+      // Effective Amount = 1000 − 150 (paid refund) = 850
+
+      // Reset the "table.invoices.columns" preference before asserting the
+      // hidden-by-default baseline. Since this test now runs as a freshly created
+      // dedicated user (see test.use above), the row cannot pre-exist — not even on a
+      // retry, which provisions a new user. Kept as an explicit precondition so the
+      // baseline assertion below cannot silently depend on account history.
+      await page.request.delete('/api/users/me/preferences/table.invoices.columns');
+
+      await invoicesPage.goto();
+      await invoicesPage.waitForLoaded();
+
+      // Positive control before the two not.toBeVisible() checks below: prove the table
+      // itself actually rendered (via a known always-visible column) first. Otherwise
+      // `getByRole('columnheader', {name}).not.toBeVisible()` against a zero-element
+      // locator passes vacuously — indistinguishable from "the column exists but is
+      // hidden" if the table never rendered at all.
+      await expect(page.getByRole('columnheader', { name: 'Invoice #' })).toBeVisible();
+
+      // Before enabling: neither hidden-by-default column header is rendered
+      await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).not.toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).not.toBeVisible();
+
+      // Both "Remaining Amount" and "Effective Amount" are hidden by default
+      // (defaultVisible: false) — enable both so we can compare their values.
+      await invoicesPage.enableColumn('Remaining Amount');
+      await invoicesPage.enableColumn('Effective Amount');
+      await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).toBeVisible();
+
+      // Read this test's own row deterministically instead of assuming it's on page 1:
+      // the invoice is created with a fixed 2026-01-01 date, and with 25 invoices/page
+      // and every worker creating invoices concurrently, an older-dated invoice can
+      // easily be pushed past page 1 by the time this runs. `search()` does a full
+      // page.goto() to a filtered URL, which re-mounts the table and re-fetches column
+      // preferences from the server — since `table.invoices.columns` is a server-
+      // persisted preference (not client/session-only state), it should survive that
+      // navigation. Re-assert rather than assume: confirm both columns are still
+      // visible on the freshly-mounted, filtered page before reading cells off it.
+      await invoicesPage.search(invoiceNumber);
+      await expect(page.getByRole('columnheader', { name: 'Effective Amount' })).toBeVisible();
+      await expect(page.getByRole('columnheader', { name: 'Remaining Amount' })).toBeVisible();
+
+      const remainingText = await invoicesPage.getColumnCellText(invoiceNumber, 'Remaining Amount');
+      const effectiveText = await invoicesPage.getColumnCellText(invoiceNumber, 'Effective Amount');
+
+      // Remaining Amount = 1000 (invoice total) − 300 (itemized budget line) = 700, per
+      // remainingAmount = invoice.amount − Σ budgetLines[].itemizedAmount
+      // (invoiceBudgetLineService.ts) — confirmed against current code, unrelated to
+      // deposits/refunds.
+      expect(remainingText).toContain('700');
+      // Effective Amount = 1000 (invoice total) − 150 (received refund) = 850, per
+      // computeFinalPaymentAmount() (depositAggregateUtils.ts): invoiceAmount minus
+      // deposit-type entries minus refund-type entries whose status is 'paid'/'claimed'
+      // — confirmed against current code (post the #1922 claim/deposit-scope split).
+      expect(effectiveText).toContain('850');
+      expect(effectiveText).not.toBe(remainingText);
+    } finally {
+      // Column visibility/order is a per-user server-side SINGLETON preference
+      // (`table.invoices.columns`, see useColumnPreferences), not a per-test entity.
+      // The dedicated user is deactivated in fixture teardown, so these toggles can no
+      // longer leak anywhere; the reset is kept so the intent survives if this describe
+      // is ever switched back to a shared account.
+      // DELETE 404s if no preference was ever saved — fine either way.
+      await page.request.delete('/api/users/me/preferences/table.invoices.columns');
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
     }
   });
 });

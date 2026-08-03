@@ -7,7 +7,7 @@
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   border: 1px solid var(--color-border-strong);
   border-radius: 0.375rem;
   cursor: pointer;

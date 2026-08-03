@@ -24,7 +24,9 @@ export function SelectionActionBar({
 }: SelectionActionBarProps) {
   return (
     <div className={`${styles.bar} ${className ?? ''}`}>
-      <span className={styles.count}>{countLabel}</span>
+      <span className={styles.count} aria-live="polite" aria-atomic="true">
+        {countLabel}
+      </span>
       <div className={styles.actions}>
         <button type="button" className={sharedStyles.btnSecondaryCompact} onClick={onClear}>
           {clearLabel}

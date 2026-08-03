@@ -29,6 +29,7 @@ import type {
   DocumentLinkWithMetadata,
   DocumentLinkEntityType,
   PaperlessDocument,
+  AttachmentType,
 } from '@cornerstone/shared';
 import * as paperlessService from './paperlessService.js';
 
@@ -55,6 +56,7 @@ function toDocumentLink(
     entityType: row.entityType as DocumentLinkEntityType,
     entityId: row.entityId,
     paperlessDocumentId: row.paperlessDocumentId,
+    attachmentType: (row.attachmentType as AttachmentType | null) ?? null,
     createdBy: user ? { id: user.id, displayName: user.displayName } : null,
     createdAt: row.createdAt,
   };
@@ -74,6 +76,10 @@ function resolveCreatedBy(db: DbType, createdBy: string | null): typeof users.$i
  * Validates that the entity exists at the application layer (no FK constraint
  * on entity_id since it references different tables depending on entity_type).
  *
+ * AttachmentType is meaningful only for entityType='invoice'; it is silently
+ * normalized to null for all other entity types (application-layer enforcement
+ * since the database CHECK allows null).
+ *
  * @throws NotFoundError if the referenced entity does not exist
  * @throws AppError(VALIDATION_ERROR) if entity type is not yet implemented
  * @throws AppError(DUPLICATE_DOCUMENT_LINK) if this exact link already exists
@@ -84,6 +90,7 @@ export function createLink(
   entityId: string,
   paperlessDocumentId: number,
   userId: string,
+  attachmentType: AttachmentType | null = null,
 ): DocumentLink {
   // Validate entity exists (application-layer FK enforcement)
   if (entityType === 'work_item') {
@@ -120,6 +127,9 @@ export function createLink(
   const userExists = resolveCreatedBy(db, userId) !== null;
   const createdBy = userExists ? userId : null;
 
+  // Normalize attachmentType: only meaningful for invoice entity type
+  const resolvedAttachmentType = entityType === 'invoice' ? attachmentType : null;
+
   try {
     db.insert(documentLinks)
       .values({
@@ -127,6 +137,7 @@ export function createLink(
         entityType,
         entityId,
         paperlessDocumentId,
+        attachmentType: resolvedAttachmentType,
         createdBy,
         createdAt,
       })
@@ -244,4 +255,27 @@ export function getAllLinkedDocumentIds(db: DbType): number[] {
     .from(documentLinks)
     .all();
   return rows.map((r) => r.paperlessDocumentId);
+}
+
+/**
+ * Update (or clear) the attachment type tag on a document link.
+ * Non-invoice links are normalized to null regardless of the requested value —
+ * attachment typing is only meaningful for entityType='invoice'.
+ *
+ * @throws NotFoundError if the link does not exist
+ */
+export function updateAttachmentType(
+  db: DbType,
+  id: string,
+  attachmentType: AttachmentType | null,
+): DocumentLink {
+  const existing = db.select().from(documentLinks).where(eq(documentLinks.id, id)).get();
+  if (!existing) {
+    throw new NotFoundError('Document link not found');
+  }
+  const resolved = existing.entityType === 'invoice' ? attachmentType : null;
+  db.update(documentLinks).set({ attachmentType: resolved }).where(eq(documentLinks.id, id)).run();
+  const row = db.select().from(documentLinks).where(eq(documentLinks.id, id)).get()!;
+  const user = resolveCreatedBy(db, row.createdBy);
+  return toDocumentLink(row, user);
 }

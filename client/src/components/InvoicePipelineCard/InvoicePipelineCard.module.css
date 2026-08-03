@@ -19,7 +19,7 @@
 
 .itemOverdue {
   border-color: var(--color-warning);
-  background-color: rgba(251, 146, 60, 0.08);
+  background-color: var(--color-warning-bg);
 }
 
 .vendorName {
@@ -58,7 +58,7 @@
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  background-color: rgba(251, 146, 60, 0.15);
+  background-color: var(--color-warning-badge-bg);
   color: var(--color-warning);
   white-space: nowrap;
   flex-shrink: 0;

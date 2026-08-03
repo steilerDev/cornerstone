@@ -135,6 +135,7 @@ export type {
   InvoiceStatus,
   InvoiceDeposit,
   InvoiceDepositStatus,
+  InvoiceDepositEntryType,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   CreateDepositRequest,
@@ -289,10 +290,12 @@ export type {
 export type {
   PaperlessCorrespondent,
   PaperlessCorrespondentListResponse,
+  PaperlessUploadResponse,
 } from './types/paperless.js';
 
 // Documents (Paperless-ngx Integration)
 export type {
+  AttachmentType,
   DocumentLinkEntityType,
   PaperlessTag,
   PaperlessDocument,
@@ -306,6 +309,7 @@ export type {
   DocumentLink,
   DocumentLinkWithMetadata,
   CreateDocumentLinkRequest,
+  UpdateDocumentLinkRequest,
   DocumentLinkResponse,
   DocumentLinkListResponse,
   AllLinkedDocumentIdsResponse,
@@ -404,4 +408,31 @@ export type {
   BackupResponse,
   BackupListResponse,
   RestoreInitiatedResponse,
+  BackupSchedulerLastRun,
+  BackupSchedulerStatus,
+  BackupSchedulerStatusResponse,
 } from './types/backup.js';
+
+// App Settings
+export type {
+  HouseholdSettings,
+  UpdateHouseholdSettingsRequest,
+  HouseholdSettingsResponse,
+} from './types/settings.js';
+
+// Source Reports
+export type {
+  SourceReportType,
+  SourceReportDocument,
+  SourceReportLinkedItem,
+  SourceReportBudgetLine,
+  SourceReportDeposit,
+  SourceReportInvoice,
+  SourceReportUnallocatedInvoice,
+  SourceReportSourceSummary,
+  SourceReportResponse,
+  MarkClaimedRequest,
+  MarkClaimedResponse,
+  GenerateReportContentRequest,
+  GenerateReportContentResponse,
+} from './types/sourceReport.js';

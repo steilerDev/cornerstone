@@ -105,7 +105,7 @@ export function PhotoCard({ photo, onClick, onDelete, onEdit, editable = true }:
               }}
               className={styles.deleteButton}
               aria-label={`Delete photo: ${photo.caption || photo.originalFilename}`}
-              title="Delete photo (or press Delete key)"
+              title={t('deleteWithShortcutHint')}
             >
               ×
             </button>

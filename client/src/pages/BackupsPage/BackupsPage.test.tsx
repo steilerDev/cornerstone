@@ -15,10 +15,12 @@ import type { ReactNode } from 'react';
 import type * as BackupsApiTypes from '../../lib/backupsApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import badgeStyles from '../../components/Badge/Badge.module.css';
 import type {
   BackupListResponse,
   BackupResponse,
   RestoreInitiatedResponse,
+  BackupSchedulerStatusResponse,
 } from '@cornerstone/shared';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
@@ -34,15 +36,22 @@ const mockListBackups = jest.fn<typeof BackupsApiTypes.listBackups>();
 const mockCreateBackup = jest.fn<typeof BackupsApiTypes.createBackup>();
 const mockDeleteBackup = jest.fn<typeof BackupsApiTypes.deleteBackup>();
 const mockRestoreBackup = jest.fn<typeof BackupsApiTypes.restoreBackup>();
+const mockGetSchedulerStatus = jest.fn<typeof BackupsApiTypes.getSchedulerStatus>();
 
 jest.unstable_mockModule('../../lib/backupsApi.js', () => ({
   listBackups: mockListBackups,
   createBackup: mockCreateBackup,
   deleteBackup: mockDeleteBackup,
   restoreBackup: mockRestoreBackup,
+  getSchedulerStatus: mockGetSchedulerStatus,
 }));
 
-// Mock formatters to provide stable date formatting in tests
+// Mock formatters to provide stable date formatting in tests.
+// `mockFormattersLocale` is a mutable closure variable so individual tests can
+// switch locale (e.g. de-DE) without needing a real LocaleProvider — the mock
+// factory below reads it lazily on every call.
+let mockFormattersLocale = 'en-US';
+
 jest.unstable_mockModule('../../lib/formatters.js', () => {
   const fmtDate = (d: string | null | undefined, fallback = '—') => {
     if (!d) return fallback;
@@ -53,12 +62,26 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       day: 'numeric',
     });
   };
+  // Faithful re-implementation of the real formatFileSize (formatters.ts) —
+  // locale-aware via the mutable mockFormattersLocale variable so tests can
+  // exercise de-DE comma-decimal formatting without a real LocaleProvider.
+  const fmtFileSize = (bytes: number) => {
+    const oneDecimal = (value: number) =>
+      new Intl.NumberFormat(mockFormattersLocale, {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }).format(value);
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${oneDecimal(bytes / 1024)} KB`;
+    return `${oneDecimal(bytes / (1024 * 1024))} MB`;
+  };
   return {
     formatDate: fmtDate,
     formatCurrency: (n: number) => `€${n.toFixed(2)}`,
     formatTime: (ts: string | null | undefined) => ts ?? '—',
     formatDateTime: (ts: string | null | undefined) => ts ?? '—',
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    formatFileSize: fmtFileSize,
     computeActualDuration: () => null,
     useFormatters: () => ({
       formatDate: fmtDate,
@@ -66,6 +89,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       formatTime: (ts: string | null | undefined) => ts ?? '—',
       formatDateTime: (ts: string | null | undefined) => ts ?? '—',
       formatPercent: (n: number) => `${n.toFixed(2)}%`,
+      formatFileSize: fmtFileSize,
     }),
   };
 });
@@ -104,6 +128,16 @@ describe('BackupsPage', () => {
     mockDeleteBackup.mockReset();
     mockRestoreBackup.mockReset();
     mockUseAuth.mockReset();
+    mockGetSchedulerStatus.mockReset();
+    mockFormattersLocale = 'en-US';
+    // Default: disabled scheduler, resolved successfully. Individual tests in
+    // the "Scheduler status section" describe below override this per-case.
+    // Without a default, unrelated tests would see an unhandled scheduler
+    // fetch and render an unexpected error banner, breaking assertions like
+    // `screen.getByRole('alert')` that expect exactly one alert.
+    mockGetSchedulerStatus.mockResolvedValue({
+      scheduler: { enabled: false, lastRun: null, nextRuns: [] },
+    });
 
     // Default: admin user so all settings tabs are visible
     mockUseAuth.mockReturnValue({
@@ -256,6 +290,51 @@ describe('BackupsPage', () => {
         const deleteButtons = screen.getAllByRole('button', { name: /delete/i });
         expect(restoreButtons).toHaveLength(2);
         expect(deleteButtons).toHaveLength(2);
+      });
+    });
+
+    it('renders backup file sizes formatted via formatFileSize (KB, en-US dot decimal)', async () => {
+      mockListBackups.mockResolvedValueOnce({
+        backups: [backup1],
+      } as BackupListResponse);
+
+      renderPage();
+
+      // backup1.sizeBytes = 102400 → 100.0 KB
+      await waitFor(() => {
+        expect(screen.getByText('100.0 KB')).toBeInTheDocument();
+      });
+    });
+
+    it('renders backup file sizes with a comma decimal separator under de-DE locale', async () => {
+      mockFormattersLocale = 'de-DE';
+      mockListBackups.mockResolvedValueOnce({
+        backups: [backup1],
+      } as BackupListResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('100,0 KB')).toBeInTheDocument();
+      });
+      expect(screen.queryByText('100.0 KB')).not.toBeInTheDocument();
+    });
+
+    it('renders a 1.5 MB-scale backup as "1,5 MB" under de-DE locale', async () => {
+      mockFormattersLocale = 'de-DE';
+      const largeBackup = {
+        filename: 'cornerstone-backup-2026-04-01T020000Z.tar.gz',
+        createdAt: '2026-04-01T02:00:00.000Z',
+        sizeBytes: 1572864, // 1.5 MB
+      };
+      mockListBackups.mockResolvedValueOnce({
+        backups: [largeBackup],
+      } as BackupListResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('1,5 MB')).toBeInTheDocument();
       });
     });
   });
@@ -540,6 +619,208 @@ describe('BackupsPage', () => {
       await waitFor(() => {
         expect(screen.getByText(/server is restarting/i)).toBeInTheDocument();
       });
+    });
+  });
+
+  // ─── Scheduler status section ────────────────────────────────────────────
+
+  describe('Scheduler status section', () => {
+    it('shows a skeleton while the scheduler status is loading', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      // Never resolves — scheduler status stays in loading state
+      mockGetSchedulerStatus.mockReturnValueOnce(new Promise(() => {}));
+
+      renderPage();
+
+      // Wait for the page-level backups list to finish loading first
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create backup/i })).toBeInTheDocument();
+      });
+
+      // The scheduler section renders its own heading and a loading skeleton
+      expect(
+        screen.getByRole('heading', { name: /automatic backup schedule/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: /loading scheduler status/i })).toBeInTheDocument();
+    });
+
+    it('renders the disabled badge and hint when the scheduler is disabled', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: { enabled: false, lastRun: null, nextRuns: [] },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Disabled')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Set the BACKUP_CADENCE environment variable/i)).toBeInTheDocument();
+
+      // Badge className regression guard — the rendered Badge must use the
+      // real CSS module class (badgeStyles.info), not a hardcoded literal.
+      const disabledBadge = screen.getByText('Disabled');
+      expect(disabledBadge.className).toContain(badgeStyles.info);
+    });
+
+    it('renders enabled badge, a successful lastRun, and both next run times (primary + "then" secondary)', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: {
+          enabled: true,
+          lastRun: { timestamp: '2026-03-22T02:00:00.000Z', success: true },
+          nextRuns: ['2026-03-23T02:00:00.000Z', '2026-03-24T02:00:00.000Z'],
+        },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Enabled')).toBeInTheDocument();
+      });
+
+      // Last run: success badge + formatted timestamp (identity-mocked formatDateTime)
+      expect(screen.getByText('Succeeded')).toBeInTheDocument();
+      expect(screen.getByText('2026-03-22T02:00:00.000Z')).toBeInTheDocument();
+
+      // Next runs: primary next run time is shown standalone...
+      expect(screen.getByText('2026-03-23T02:00:00.000Z')).toBeInTheDocument();
+      // ...and the secondary next run appears alongside a "then" label
+      expect(screen.getByText(/then/i)).toBeInTheDocument();
+      expect(screen.getByText(/2026-03-24T02:00:00\.000Z/)).toBeInTheDocument();
+
+      // Badge className regression guard
+      const enabledBadge = screen.getByText('Enabled');
+      expect(enabledBadge.className).toContain(badgeStyles.success);
+      const successBadge = screen.getByText('Succeeded');
+      expect(successBadge.className).toContain(badgeStyles.success);
+    });
+
+    it('renders the "no runs yet" message when the scheduler is enabled but has never run', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: {
+          enabled: true,
+          lastRun: null,
+          nextRuns: ['2026-03-23T02:00:00.000Z'],
+        },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/No automatic backups have run yet/i)).toBeInTheDocument();
+      });
+
+      // Only one next run configured — no "then" secondary text
+      expect(screen.queryByText(/then/i)).not.toBeInTheDocument();
+    });
+
+    it('renders the failure badge for a failed lastRun', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: {
+          enabled: true,
+          lastRun: { timestamp: '2026-03-22T02:00:00.000Z', success: false },
+          nextRuns: ['2026-03-23T02:00:00.000Z'],
+        },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed')).toBeInTheDocument();
+      });
+
+      // Badge className regression guard
+      const failedBadge = screen.getByText('Failed');
+      expect(failedBadge.className).toContain(badgeStyles.error);
+    });
+
+    it('shows an error banner when the scheduler status fails to load with a non-503 error', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Something went wrong' }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+    });
+
+    it('shows the generic scheduler load error translation when a non-ApiClientError is thrown', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockRejectedValueOnce(new Error('network dropped'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+
+      expect(
+        screen.getByText(/Failed to load scheduler status\. Please try again\./i),
+      ).toBeInTheDocument();
+    });
+
+    it('silently swallows a 503 BACKUP_NOT_CONFIGURED scheduler error (no banner shown)', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockRejectedValueOnce(makeNotConfiguredError());
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /create backup/i })).toBeInTheDocument();
+      });
+
+      // No alert banner and no lingering skeleton in the scheduler section
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('status', { name: /loading scheduler status/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('does not render the scheduler status section when backups are not configured at the page level', async () => {
+      mockListBackups.mockRejectedValueOnce(makeNotConfiguredError());
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: { enabled: false, lastRun: null, nextRuns: [] },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+
+      expect(
+        screen.queryByRole('heading', { name: /automatic backup schedule/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('renders scheduler badges using the real Badge.module.css classes (not hardcoded literals)', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockResolvedValueOnce({
+        scheduler: {
+          enabled: true,
+          lastRun: { timestamp: '2026-03-22T02:00:00.000Z', success: true },
+          nextRuns: ['2026-03-23T02:00:00.000Z'],
+        },
+      } as BackupSchedulerStatusResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Enabled')).toBeInTheDocument();
+      });
+
+      expect(badgeStyles.success).toBeTruthy();
+      expect(screen.getByText('Enabled').className).toContain(badgeStyles.success);
+      expect(screen.getByText('Succeeded').className).toContain(badgeStyles.success);
     });
   });
 });

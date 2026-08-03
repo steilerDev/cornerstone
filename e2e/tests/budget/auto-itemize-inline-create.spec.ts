@@ -17,6 +17,9 @@
  *              POST ever fires.
  *   3. Discard inline: queue create-new → click Discard → inline form hidden + Assign button
  *              returns → no create API call.
+ *   4. Regression test for bug #1833: retry Save after a REAL commit failure
+ *              (ITEMIZED_SUM_EXCEEDS_INVOICE) reuses the already-created WI budget
+ *              line instead of creating a duplicate.
  *
  * Mocking strategy:
  *   - GET /api/config: intercepted to inject autoItemizeEnabled: true.
@@ -553,6 +556,154 @@ test('Scenario 3: clicking Discard on the inline form removes the badge and rest
       wiCreateCallCount,
       `Expected POST /api/work-items/${workItemId}/budgets to NOT be called after Discard, got ${wiCreateCallCount} call(s)`,
     ).toBe(0);
+  } finally {
+    if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
+    if (vendorId) await deleteVendorViaApi(page, vendorId);
+    if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 4 — Regression test for bug #1833: retrying Save after a REAL commit
+// failure does not create a duplicate WI budget line.
+//
+// Before the fix, `materializeInlineDrafts` created the WI budget line via a
+// separate POST before the atomic auto-itemize commit call. If the commit then
+// failed, the fact that the WI budget line had already been created was never
+// written back into page state — so a Save retry re-ran materialization from
+// scratch and created a SECOND WI budget line.
+//
+// This test triggers a genuine server-side 400 (ITEMIZED_SUM_EXCEEDS_INVOICE) by
+// setting the invoice amount below the queued line's total, then fixes the
+// invoice amount and retries. No commit/preview mocking of the failure — the
+// commit call always continues to the real server (see mockDryRun).
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('Scenario 4: retrying Save after a real commit failure reuses the already-created WI budget line, not a duplicate (Bug #1833)', async ({
+  page,
+  testPrefix,
+}) => {
+  const vw = page.viewportSize()?.width ?? 1440;
+  if (vw < 600) {
+    test.skip(true, 'Functional test — desktop/tablet only (≥600px)');
+    return;
+  }
+
+  test.setTimeout(60_000);
+
+  const autoItemizePage = new AutoItemizePage(page);
+  let vendorId = '';
+  let invoiceId = '';
+  let workItemId = '';
+
+  // Track every POST to the WI-budgets endpoint across BOTH save attempts.
+  let wiCreateCallCount = 0;
+
+  try {
+    vendorId = await createVendorViaApi(page, `${testPrefix} AIQ-S4 Vendor`);
+    // Invoice amount (100) is deliberately LESS than TEST_LINE.totalAmount (200,
+    // VAT-inclusive) so the real server-side Σ-guard rejects the first commit
+    // attempt with ITEMIZED_SUM_EXCEEDS_INVOICE (400) — a genuine validation
+    // error, not a mocked one.
+    invoiceId = await createInvoiceViaApi(page, vendorId, {
+      amount: 100,
+      date: '2026-06-01',
+      invoiceNumber: `${testPrefix}-AIQ-S4`,
+    });
+    workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AIQ-S4 WI` });
+
+    const docId = 130004;
+    await linkDocumentToInvoiceViaApi(page, invoiceId, docId);
+    await mockConfigEnabled(page);
+    await mockDryRun(page, invoiceId); // commit path (dryRun:false) continues to the real server
+    await mockPaperlessDocument(page, docId);
+
+    page.on('request', (req) => {
+      if (req.url().includes(`/api/work-items/${workItemId}/budgets`) && req.method() === 'POST') {
+        wiCreateCallCount++;
+      }
+    });
+
+    await navigateAndWaitForDryRun(page, autoItemizePage, invoiceId, docId);
+
+    // ── Queue the create-new operation ────────────────────────────────────────
+    await queueCreateNew(page, autoItemizePage, `${testPrefix} AIQ-S4 WI`);
+    await expect(autoItemizePage.getCreatingNewBadge(0)).toBeVisible();
+
+    // ── First Save: materialize succeeds (real WI budget POST), commit fails ──
+    const firstWiCreatePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/api/work-items/${workItemId}/budgets`) &&
+        resp.request().method() === 'POST' &&
+        resp.ok(),
+    );
+    const firstCommitPromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/api/invoices/${invoiceId}/auto-itemize`) &&
+        resp.request().method() === 'POST' &&
+        !(resp.request().postDataJSON() as { dryRun?: boolean })?.dryRun,
+      { timeout: 30000 },
+    );
+
+    await autoItemizePage.saveButton.click();
+    const [, firstCommitResp] = await Promise.all([firstWiCreatePromise, firstCommitPromise]);
+
+    // ── Assert: the real server genuinely rejected the commit ────────────────
+    expect(
+      firstCommitResp.status(),
+      `Expected first commit to fail with 400 ITEMIZED_SUM_EXCEEDS_INVOICE, got ${firstCommitResp.status()}`,
+    ).toBe(400);
+    const firstCommitBody = (await firstCommitResp.json()) as { error?: { code?: string } };
+    expect(firstCommitBody.error?.code).toBe('ITEMIZED_SUM_EXCEEDS_INVOICE');
+
+    // ── Assert: error banner visible, page did NOT navigate ──────────────────
+    await expect(autoItemizePage.errorBanner).toBeVisible();
+    expect(page.url()).toContain('auto-itemize');
+
+    // ── Assert: exactly one WI-budgets POST fired so far ─────────────────────
+    expect(
+      wiCreateCallCount,
+      `Expected exactly 1 WI-budgets POST after the first (failed) Save, got ${wiCreateCallCount}`,
+    ).toBe(1);
+
+    // ── Fix the failure: raise the invoice amount above the line total (200) ──
+    await autoItemizePage.totalAmountInput.fill('250');
+
+    // ── Second Save: commit should now succeed WITHOUT a second WI-budgets POST ──
+    const secondCommitPromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes(`/api/invoices/${invoiceId}/auto-itemize`) &&
+        resp.request().method() === 'POST' &&
+        !(resp.request().postDataJSON() as { dryRun?: boolean })?.dryRun,
+      { timeout: 30000 },
+    );
+
+    await autoItemizePage.saveButton.click();
+    const secondCommitResp = await secondCommitPromise;
+
+    if (!secondCommitResp.ok()) {
+      const bodyText = await secondCommitResp.text().catch(() => '<no body>');
+      throw new Error(`Retry commit returned ${secondCommitResp.status()}: ${bodyText}`);
+    }
+
+    // ── Assert: navigated to invoice detail ───────────────────────────────────
+    await expect(page).toHaveURL(/\/budget\/invoices\/[^/]+$/);
+    expect(page.url()).not.toContain('auto-itemize');
+
+    // ── Regression guard: WI-budgets POST count did NOT increase on retry ─────
+    expect(
+      wiCreateCallCount,
+      `Expected WI-budgets POST count to remain 1 after the retry (no duplicate create), got ${wiCreateCallCount}`,
+    ).toBe(1);
+
+    // ── Verify via API: exactly 1 budget line exists under the work item ─────
+    const listResp = await page.request.get(`${API.workItems}/${workItemId}/budgets`);
+    expect(listResp.ok(), `GET /api/work-items/${workItemId}/budgets failed`).toBeTruthy();
+    const listBody = (await listResp.json()) as { budgets: Array<{ id: string }> };
+    expect(
+      listBody.budgets.length,
+      `Expected exactly 1 budget line under WI ${workItemId} after retry, got ${listBody.budgets.length}`,
+    ).toBe(1);
   } finally {
     if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
     if (vendorId) await deleteVendorViaApi(page, vendorId);

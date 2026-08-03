@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { useLocale } from '../../contexts/LocaleContext.js';
+import { formatWeekdayMonthDay } from '../../lib/formatters.js';
 import type { HeaderCell, ZoomLevel } from './ganttUtils.js';
 import styles from './GanttHeader.module.css';
 
@@ -45,11 +46,7 @@ export const GanttHeader = memo(function GanttHeader({
               key={cell.date.toISOString()}
               className={`${styles.headerCell} ${cell.isToday ? styles.headerCellToday : ''}`}
               style={{ left: cell.x, width: cell.width }}
-              aria-label={cell.date.toLocaleDateString(localeString, {
-                weekday: 'short',
-                month: 'short',
-                day: 'numeric',
-              })}
+              aria-label={formatWeekdayMonthDay(cell.date, localeString)}
             >
               <span className={styles.headerCellSublabel}>{cell.sublabel}</span>
               <span className={styles.headerCellLabel}>{cell.label}</span>

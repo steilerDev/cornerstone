@@ -36,15 +36,23 @@ export type {
   ExtractionResult,
   BudgetExtractionProvider,
   LlmProvider,
+  GenerateReportContentLlmInvoiceLine,
+  GenerateReportContentLlmInvoice,
+  GenerateReportContentLlmInput,
+  GenerateReportContentLlmResult,
 } from './types.js';
 export {
   validateExtractedLines,
+  validateGenerateReportContentResult,
   createOpenAICompatibleProvider,
 } from './openAICompatibleProvider.js';
 export {
   detectProvider,
   parseProviderEnv,
   buildRequestBody,
+  EXTRACTED_LINES_SCHEMA,
+  MERGE_RESULT_SCHEMA,
+  REPORT_CONTENT_SCHEMA,
   LLM_PROVIDERS,
 } from './providerProfiles.js';
 export { computeDueDateFallback } from './dueDateFallback.js';

@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineMilestone } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
+import { Badge, type BadgeVariantMap } from '../Badge/Badge.js';
+import badgeStyles from '../Badge/Badge.module.css';
 import styles from './TimelineStatusCards.module.css';
 
 interface UpcomingMilestonesCardProps {
@@ -18,6 +21,20 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
     .sort((a, b) => a.targetDate.localeCompare(b.targetDate))
     .slice(0, 5);
 
+  const healthVariants = useMemo(
+    (): BadgeVariantMap => ({
+      onTrack: {
+        label: t('cards.upcomingMilestones.onTrack'),
+        className: badgeStyles.scheduleOnTrack!,
+      },
+      delayed: {
+        label: t('cards.upcomingMilestones.delayed'),
+        className: badgeStyles.scheduleAtRisk!,
+      },
+    }),
+    [t],
+  );
+
   if (upcoming.length === 0) {
     return (
       <p data-testid="milestone-empty" className={styles.emptyState}>
@@ -33,9 +50,6 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
           // Determine health: "On Track" if projectedDate <= targetDate or no projectedDate
           const isOnTrack =
             !milestone.projectedDate || milestone.projectedDate <= milestone.targetDate;
-          const healthText = isOnTrack
-            ? t('cards.upcomingMilestones.onTrack')
-            : t('cards.upcomingMilestones.delayed');
 
           return (
             <li key={milestone.id} data-testid="milestone-row" className={styles.listItem}>
@@ -46,12 +60,11 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
                 <span style={{ color: 'var(--color-text-muted)' }}>
                   {formatDate(milestone.targetDate)}
                 </span>
-                <span
-                  data-testid="milestone-health"
-                  className={`${styles.badge} ${isOnTrack ? styles.badgeGreen : styles.badgeRed}`}
-                >
-                  {healthText}
-                </span>
+                <Badge
+                  testId="milestone-health"
+                  variants={healthVariants}
+                  value={isOnTrack ? 'onTrack' : 'delayed'}
+                />
               </div>
             </li>
           );

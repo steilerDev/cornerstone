@@ -25,6 +25,7 @@ export const ROUTES = {
   settingsVendors: '/settings/vendors',
   budgetSources: '/budget/sources',
   budgetSubsidies: '/budget/subsidies',
+  budgetReports: '/budget/reports',
   manage: '/settings/manage',
   timeline: '/schedule',
   householdItems: '/project/household-items',
@@ -58,4 +59,9 @@ export const API = {
   diaryEntries: '/api/diary-entries',
   diaryExport: '/api/diary-entries/export',
   backups: '/api/backups',
+  sourceReports: '/api/source-reports',
+  sourceReportsMarkClaimed: '/api/source-reports/mark-claimed',
+  sourceReportsGenerateContent: '/api/source-reports/generate-content',
+  paperlessStatus: '/api/paperless/status',
+  paperlessDocuments: '/api/paperless/documents',
 };

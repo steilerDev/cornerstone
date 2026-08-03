@@ -68,7 +68,15 @@
       "sourceBadge": {
         "ariaLabel": "Budget source: {{name}}",
         "unassigned": "Unassigned"
-      }
+      },
+      "perspectiveAriaLabel": "Cost perspective",
+      "perspective": {
+        "min": "Min",
+        "avg": "Avg",
+        "max": "Max"
+      },
+      "expandSubsidyAdjustments": "Expand subsidy adjustments",
+      "expandAvailableFunds": "Expand available funds sources"
     }
   },
   "sources": {
@@ -88,12 +96,16 @@
       "totalAmount": "Total Amount ($)",
       "interestRate": "Interest Rate (%)",
       "terms": "Terms",
+      "reference": "Reference",
+      "contactAddress": "Contact Address",
       "notes": "Notes",
       "required": "*",
       "placeholders": {
         "name": "e.g., Primary Bank Loan",
         "interestRate": "e.g., 3.50",
         "terms": "e.g., 30-year fixed, monthly payments",
+        "reference": "e.g., Loan #12345",
+        "contactAddress": "e.g., 123 Main St, City, State ZIP",
         "notes": "Optional notes"
       }
     },
@@ -232,7 +244,9 @@
       "expandAriaLabel": "Show documents for {{name}}",
       "collapseAriaLabel": "Hide documents for {{name}}",
       "panelAriaLabel": "Documents for {{name}}"
-    }
+    },
+    "generateReport": "Generate Report",
+    "generateReportMenuAriaLabel": "Generate report for {{name}}"
   },
   "vendors": {
     "title": "Vendors",
@@ -434,7 +448,10 @@
       "invoiceCreateError": "Failed to create invoice. Please try again.",
       "invoiceUpdateError": "Failed to update invoice. Please try again.",
       "invoiceDeleteError": "Failed to delete invoice. Please try again."
-    }
+    },
+    "confirmDelete": "Confirm delete",
+    "cancelDelete": "Cancel delete",
+    "unlinkFromInvoice": "Unlink from invoice"
   },
   "invoices": {
     "title": "Budget",
@@ -482,7 +499,8 @@
       "dueDate": "Due Date",
       "status": "Status",
       "notes": "Notes",
-      "remainingAmount": "Remaining Amount"
+      "remainingAmount": "Remaining Amount",
+      "effectiveAmount": "Effective Amount"
     },
     "form": {
       "vendor": "Vendor",
@@ -757,10 +775,23 @@
         "descriptionPlaceholder": "Optional description",
         "charCounter": "{{count}} / 500",
         "saving": "Saving...",
-        "required": "*"
+        "required": "*",
+        "entryType": "Entry type",
+        "entryTypeLabel": "Entry type",
+        "refundAmountHint": "Refund amounts are entered as a positive number.",
+        "budgetSource": "Budget source",
+        "budgetSourceNone": "None (pro-rated)",
+        "budgetSourceHintSingle": "Defaulted to {{name}} — this invoice's only budget source.",
+        "budgetSourceHintLargest": "Defaulted to {{name}}, this invoice's largest allocated source.",
+        "budgetSourceHintNone": "This invoice has no budget lines — pick a source, or leave blank to keep this deposit pro-rated."
+      },
+      "entryTypeLabels": {
+        "deposit": "Deposit",
+        "refund": "Refund"
       },
       "errors": {
         "exceedsTotal": "Deposit amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
+        "refundExceedsTotal": "Refund amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
         "invalidTransition": "Cannot transition from {{from}} to {{to}}",
         "invalidDate": "Invalid date for the selected status",
         "loadError": "Failed to load deposits. Please try again.",
@@ -825,6 +856,23 @@
       "fixed": "Fixed Amount (€)"
     },
     "oversubscribed": "Oversubscribed",
+    "linkSection": {
+      "emptyState": "No subsidies linked",
+      "selectAriaLabel": "Select subsidy program to link",
+      "selectPlaceholder": "Select subsidy program...",
+      "addButton": "Add Subsidy",
+      "linking": "Linking...",
+      "unlinkAriaLabel": "Unlink subsidy {{name}}",
+      "reductionPercentage": "{{value}}% reduction",
+      "reductionFixed": "{{amount}} reduction"
+    },
+    "editForm": {
+      "placeholders": {
+        "description": "Optional description",
+        "eligibility": "Optional eligibility criteria",
+        "notes": "Optional notes"
+      }
+    },
     "statusLabels": {
       "eligible": "Eligible",
       "applied": "Applied",
@@ -904,7 +952,36 @@
     "moveCrossTableHint": "Moving to a household item will transfer this budget line to the household item budget.",
     "moveCrossTableHintReverse": "Moving to a work item will transfer this budget line to the work item budget.",
     "itemizedAmountLabel": "Itemized Amount ({{currencySymbol}}) *",
-    "moveCrossTableNoInvoiceError": "Cross-table moves require an invoice link. Either remove the move or link this budget line to an invoice first."
+    "moveCrossTableNoInvoiceError": "Cross-table moves require an invoice link. Either remove the move or link this budget line to an invoice first.",
+    "addBudgetLineAriaLabel": "Add budget line"
+  },
+  "invoiceLinkModal": {
+    "title": "Link to Invoice",
+    "cancel": "Cancel",
+    "linkButton": "Link to Invoice",
+    "linking": "Linking...",
+    "invoiceLabel": "Invoice",
+    "loading": "Loading invoices...",
+    "emptyState": "No invoices available",
+    "searchPlaceholder": "Search by invoice number or description...",
+    "noMatches": "No invoices match your search",
+    "amountLabel": "Itemized Amount",
+    "overAvailable": "{{amount}} over available",
+    "willRemain": "{{amount}} will remain",
+    "availableOnInvoice": "{{amount}} available on this invoice",
+    "overAllocated": "Over-allocated by {{amount}}",
+    "invoiceFallbackLabel": "Invoice {{id}}",
+    "successToast": "Budget line linked to invoice successfully",
+    "errors": {
+      "loadFailed": "Failed to load invoices. Please try again.",
+      "selectInvoice": "Please select an invoice",
+      "invalidAmount": "Please enter a valid amount",
+      "exceedsBalance": "Amount exceeds available balance ({{amount}} available)",
+      "alreadyLinked": "This budget line is already linked to an invoice",
+      "exceedsInvoiceTotal": "The itemized amount exceeds the invoice total",
+      "linkFailed": "Failed to link budget line",
+      "unexpected": "An unexpected error occurred"
+    }
   },
   "health": {
     "overBudget": "Over Budget",
@@ -1022,6 +1099,202 @@
     "mergeErrorBadge": "Merge failed",
     "mergeRetryButton": "Retry",
     "mergeUndoButton": "Restore original lines"
+  },
+  "sourceReports": {
+    "title": "Bank Reports",
+    "subtitle": "Generate financial reports for budget sources",
+    "stepper": {
+      "useCase": "Report Type",
+      "source": "Budget Source",
+      "invoices": "Select Invoices",
+      "settings": "Settings",
+      "options": "Preview & Export"
+    },
+    "stepperAriaLabel": "Report wizard steps",
+    "mobileStepLabel": "Step {{current}} of {{total}}",
+    "useCaseLabel": "Which report do you need?",
+    "useCase": {
+      "budget-overview": "Budget Overview",
+      "claim": "Claim",
+      "proof-of-funds": "Proof of Funds"
+    },
+    "useCaseHelper": {
+      "budget-overview": "A summary of all invoices and their allocations",
+      "claim": "Document invoices marked as paid or claimed",
+      "proof-of-funds": "Show only claimed invoices"
+    },
+    "sourceLabel": "Select a budget source",
+    "amountLabel": {
+      "overview": "Total Amount",
+      "claim": "Pending Amount",
+      "proofOfFunds": "Claimed Amount"
+    },
+    "discretionary": "Discretionary",
+    "selectAllInvoices": "Select all invoices",
+    "toggleInvoice": "Toggle invoice {{vendor}} #{{number}}",
+    "invoicesHeading": "Select Invoices to Include",
+    "unallocatedGroupTitle": "Unallocated Invoices ({{count}})",
+    "unallocatedExplained": "These invoices have no allocation for this source",
+    "emptyInvoices": "No invoices found",
+    "emptyInvoicesDescription": "This budget source has no invoices for this report type",
+    "selectAtLeastOne": "Select at least one invoice to proceed",
+    "settingsStep": {
+      "languageHeading": "Report language",
+      "languageHelper": "Only affects the exported report — your app language stays the same."
+    },
+    "attachDocuments": "Attach invoice PDFs",
+    "attachDocumentsHelper": "Appends each selected invoice's source PDF as an appendix",
+    "includeCoverLetter": "Include cover letter",
+    "includeCoverLetterHelper": "Adds a formal letter to the report",
+    "coverLetterDisabledReason": "This source has no contact address or reference number—cover letter is not available",
+    "download": "Download PDF",
+    "markClaimed": "Mark {{count}} invoices as claimed",
+    "finishWithoutMarking": "Finish without marking",
+    "uploadPaperless": "Upload to Paperless",
+    "uploadSuccess": "Document uploaded to Paperless",
+    "confirmClaimTitle": "Mark Invoices as Claimed?",
+    "confirmClaimBody": "This will mark {{count}} invoice(s) as claimed ({{pendingCount}} pending). This action cannot be undone.",
+    "claimSuccess": "{{invoices}} invoice(s) and {{deposits}} deposit(s) marked as claimed",
+    "claimNothingClaimable": "Nothing can be marked as claimed: all selected invoices have excluded line items and there are no unclaimed deposits.",
+    "finishedWithoutMarkingSuccess": "Report finished without marking invoices as claimed.",
+    "claimFailed": "Marking invoices as claimed failed. Please try again.",
+    "claimFailedWithInvoices": "Could not mark as claimed: invoice(s) {{invoiceNumbers}} are not in a claimable state.",
+    "uploadFailed": "Upload to Paperless failed. Please try again.",
+    "viewInvoices": "View invoices",
+    "errorLoadingData": "Failed to load report data",
+    "errorLoadingReport": "Failed to load report",
+    "previewGenerationFailed": "PDF generation failed",
+    "downloadFailed": "Failed to generate the PDF for download.",
+    "loadingPreview": "Generating preview…",
+    "previewRegenerating": "Regenerating preview…",
+    "pdfPreviewTitle": "Report PDF preview",
+    "hasAttachment": "Document attached",
+    "noDocument": "No document",
+    "refund": "Refund",
+    "splitBadge": "partial {{allocated}} of {{total}}",
+    "splitTooltip": "This invoice is split across multiple sources",
+    "openInvoiceAriaLabel": "Open invoice {{vendor}}, {{invoiceNumber}} in new tab",
+    "openInvoiceTooltip": "Open invoice in new tab",
+    "selectedCount": "{{count}} of {{totalCount}} | Total: {{totalAmount}}",
+    "resetSelection": "Reset selection",
+    "subNavAriaLabel": "Budget section navigation",
+    "coverLetter": {
+      "subjectLabel": "Subject",
+      "dateLabel": "Date",
+      "reference": "Reference",
+      "subject": {
+        "budget-overview": "Project Budget Overview",
+        "claim": "Claim Documentation",
+        "proof-of-funds": "Proof of Funds"
+      },
+      "body": {
+        "budget-overview": "Please find attached the budget overview for our project totaling {{total}}.",
+        "claim": "We are submitting a claim for invoices totaling {{total}}.",
+        "proof-of-funds": "Please find attached proof of funds totaling {{total}}."
+      },
+      "closing": "Sincerely,"
+    },
+    "editable": {
+      "senderLabel": "Sender",
+      "recipientLabel": "Recipient",
+      "referenceLabel": "Reference",
+      "signatureLabel": "Signature",
+      "subjectLabel": "Subject",
+      "bodyLabel": "Body",
+      "closingLabel": "Closing",
+      "attachmentsNoteLabel": "Attachments Note",
+      "usageTextAriaLabel": "Usage text for {{vendor}}, {{invoiceNumber}}",
+      "attachmentsNoteAriaLabel": "Attachments note for {{vendor}}, {{invoiceNumber}}",
+      "editedSuffix": " (edited)",
+      "resetFieldAriaLabel": "Reset {{field}} to generated text",
+      "previewPdf": "Preview PDF",
+      "previewModalTitle": "PDF Preview",
+      "discardConfirmTitle": "Discard your edits?",
+      "discardConfirmBody": "Changing this will regenerate the report content and your edits will be lost.",
+      "discardAndContinue": "Discard and Continue",
+      "keepEditing": "Keep Editing",
+      "coverLetterHeading": "Cover Letter",
+      "tableHeading": "Report Table",
+      "columnVisibilityLabel": "Show/hide columns",
+      "columnVisibilityHint": "Preview only — the generated PDF always includes every column",
+      "enhanceWithAi": "Enhance with AI",
+      "enhanceWithAiDescription": "Replaces the usage descriptions and cover letter below with AI-generated content. Any edits you've made will be discarded.",
+      "generating": "Generating… ({{seconds}}s)",
+      "aiGeneratedNote": "Content generated with AI — review before submitting.",
+      "aiGenerationFailed": "AI generation failed. Please try again.",
+      "aiOverwriteConfirmTitle": "Overwrite your edits?",
+      "aiOverwriteConfirmBody": "Regenerating with AI will replace your manual edits with newly generated text.",
+      "aiOverwriteAndGenerate": "Overwrite and Generate"
+    },
+    "table": {
+      "title": {
+        "budget-overview": "Budget Overview",
+        "claim": "Claim Report",
+        "proof-of-funds": "Proof of Funds"
+      },
+      "source": "Source",
+      "sourceType": "Source Type",
+      "reference": "Reference",
+      "generatedAt": "Generated",
+      "pageLabel": "Page",
+      "vendor": "Vendor",
+      "invoiceNumber": "Invoice No.",
+      "date": "Date",
+      "status": "Status",
+      "invoiceAmount": "Invoice Amount",
+      "allocatedAmount": "Allocated Amount",
+      "usage": "Usage",
+      "attachmentType": {
+        "quotation": "Quotation",
+        "deposit": "Deposit",
+        "invoice": "Invoice"
+      },
+      "attachmentsNote_one": "{{count}} attachment: {{types}}",
+      "attachmentsNote_other": "{{count}} attachments: {{types}}",
+      "attachmentsNoteNoType_one": "{{count}} attachment",
+      "attachmentsNoteNoType_other": "{{count}} attachments",
+      "total": "Total",
+      "refundNote": "(refund)",
+      "footnoteFetchFailed": "Document could not be retrieved",
+      "footnoteInvalidPdf": "Document is not a valid PDF",
+      "splitFootnote": "Amount shown reflects only the portion allocated to this source.",
+      "depositReducedFootnote": "This position reflects deposits claimed separately.",
+      "splitInlineLabel": "partial",
+      "depositReducedInlineLabel": "less deposit"
+    },
+    "sourceType": {
+      "bank_loan": "Bank Loan",
+      "credit_line": "Credit Line",
+      "savings": "Savings",
+      "other": "Other",
+      "discretionary": "Discretionary"
+    },
+    "expand": {
+      "expandInvoice": "Expand invoice details",
+      "collapseInvoice": "Collapse invoice details",
+      "itemsHeading": "Budget Lines",
+      "depositsHeading": "Deposits & Refunds",
+      "itemsEmpty": "No budget lines for this invoice",
+      "depositsEmpty": "No deposits or refunds for this invoice",
+      "excludeItemAriaLabel": "Exclude {{name}} from report",
+      "unnamedLine": "(Unnamed budget line)",
+      "linkedColumnHeader": "Linked to",
+      "itemColumnHeader": "Item",
+      "allocatedColumnHeader": "Allocated",
+      "includeColumnHeader": "Include",
+      "amountColumnHeader": "Amount",
+      "statusColumnHeader": "Status",
+      "datesColumnHeader": "Dates",
+      "entryTypeColumnHeader": "Entry Type",
+      "allocatedSourceColumnHeader": "Allocated Source",
+      "entryTypeDeposit": "Deposit",
+      "entryTypeRefund": "Refund",
+      "dueDate": "Due",
+      "paidDate": "Paid",
+      "claimedDate": "Claimed"
+    },
+    "unassigned": "Unassigned",
+    "confirmClaimExcludedItemsWarning": "{{count}} invoice(s) have excluded line items and will keep their current claim status — the excluded portion stays claimable in a future report."
   },
   "common": {
     "loading": "Loading...",

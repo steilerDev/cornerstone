@@ -23,21 +23,21 @@
 
 .summaryLabel {
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
   flex-shrink: 0;
 }
 
 .budgetValue {
   font-size: 0.9375rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
   text-align: right;
 }
 
 .budgetValueHighlighted {
   font-size: 1.125rem;
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-success-text-on-light);
   text-align: right;
 }
@@ -45,14 +45,14 @@
 .budgetValueMuted {
   font-size: 0.9375rem;
   color: var(--color-text-muted);
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
   text-decoration: line-through;
   text-align: right;
 }
 
 .budgetValuePayback {
   font-size: 0.9375rem;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   color: var(--color-success-text-on-light);
   text-align: right;
 }

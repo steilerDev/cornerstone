@@ -414,7 +414,7 @@ export function DateRangePicker({
                     onClick={() => handleDayClick(day.dateStr)}
                     onMouseEnter={() => handleDayMouseEnter(day.dateStr)}
                     onMouseLeave={handleDayMouseLeave}
-                    aria-label={formatDateForAria(day.dateStr)}
+                    aria-label={formatDateForAria(day.dateStr, locale)}
                     aria-pressed={isSelected}
                     tabIndex={isFocused ? 0 : -1}
                   >

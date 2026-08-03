@@ -213,6 +213,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
     invoiceId: string;
     amount: number;
     status: 'pending' | 'paid' | 'claimed';
+    entryType?: 'deposit' | 'refund';
   }): string {
     const depositId = `dep-test-${idCounter++}`;
     const now = new Date().toISOString();
@@ -226,6 +227,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         claimedDate: opts.status === 'claimed' ? '2026-02-15' : null,
         description: null,
         status: opts.status,
+        entryType: opts.entryType ?? 'deposit',
         createdBy: 'user-test-001',
         createdAt: now,
         updatedAt: now,
@@ -687,6 +689,64 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
 
       expect(result.householdItems.totals.actualCostPaid).toBe(0);
       expect(result.householdItems.totals.actualCostPending).toBe(350);
+    });
+  });
+
+  // ── Story #1876: refund entries net out actualCostPaid on WI and HI lines ───
+
+  describe('Story #1876 — refund entries net out actualCostPaid', () => {
+    it('WI budget line: a claimed refund reduces actualCostPaid (deposit_entry_type SQL wiring)', () => {
+      // invoice=1000 pending, deposit 600 claimed, refund 200 claimed
+      // actualCostPaid = 600 - 200 = 400; actualCostPending = 1000 - 400 = 600
+      const { invoiceId } = insertWorkItemWithInvoice({
+        plannedAmount: 1000,
+        invoiceAmount: 1000,
+        invoiceStatus: 'pending',
+      });
+      insertDeposit({ invoiceId: invoiceId!, amount: 600, status: 'claimed' });
+      insertDeposit({
+        invoiceId: invoiceId!,
+        amount: 200,
+        status: 'claimed',
+        entryType: 'refund',
+      });
+
+      const result = getBudgetBreakdown(db);
+      const line = result.workItems.areas[0]!.items[0]!.budgetLines[0]!;
+      expect(line.actualCost).toBe(1000); // unaffected by refunds
+      expect(line.actualCostPaid).toBeCloseTo(400, 5);
+      expect(line.actualCostPending).toBeCloseTo(600, 5);
+    });
+
+    it('HI budget line: a paid refund reduces actualCostPaid (deposit_entry_type SQL wiring)', () => {
+      // invoice=500 pending, deposit 400 paid, refund 150 paid
+      // actualCostPaid = 400 - 150 = 250
+      const { invoiceId } = insertHouseholdItemWithInvoice({
+        plannedAmount: 500,
+        invoiceAmount: 500,
+        invoiceStatus: 'pending',
+      });
+      insertDeposit({ invoiceId: invoiceId!, amount: 400, status: 'paid' });
+      insertDeposit({ invoiceId: invoiceId!, amount: 150, status: 'paid', entryType: 'refund' });
+
+      const result = getBudgetBreakdown(db);
+      const line = result.householdItems.areas[0]!.items[0]!.budgetLines[0]!;
+      expect(line.actualCost).toBe(500);
+      expect(line.actualCostPaid).toBeCloseTo(250, 5);
+    });
+
+    it('regression: zero refunds — WI actualCostPaid/Pending unchanged from Scenario 5', () => {
+      const { invoiceId } = insertWorkItemWithInvoice({
+        plannedAmount: 1000,
+        invoiceAmount: 1000,
+        invoiceStatus: 'pending',
+      });
+      insertDeposit({ invoiceId: invoiceId!, amount: 300, status: 'paid' });
+
+      const result = getBudgetBreakdown(db);
+      const line = result.workItems.areas[0]!.items[0]!.budgetLines[0]!;
+      expect(line.actualCostPaid).toBeCloseTo(300, 5);
+      expect(line.actualCostPending).toBeCloseTo(700, 5);
     });
   });
 });

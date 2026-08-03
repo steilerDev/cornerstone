@@ -1,212 +1,41 @@
 # UX Designer Memory
 
-> This file is loaded into the ux-designer agent's system prompt. Keep it under 200 lines.
+> This file is loaded into the ux-designer agent's system prompt. Keep it under 200 lines — one line per entry, detail lives in topic files.
 
-## Story #1736 — Invoice Vendor Change (spec posted)
+## Topic files
 
-- Vendor picker in invoice edit modal: `SearchPicker<Vendor>` with `showItemsOnFocus`, `initialTitle={editForm.vendorName}`, `id="edit-vendor"` for label association
-- `searchFn`: `fetchVendors({ q: query, pageSize: 50 })` returning `res.vendors`
-- `InvoiceFormState` extension: add `vendorId: string` + `vendorName: string`; `openEditModal` pre-fills both from `invoice.vendorId` / `invoice.vendorName`
-- Field position: NEW full-width `.field` between "Invoice Number/Amount" row and "Invoice Date/Due Date" row
-- Vendor field is **required** — label gets `.required` asterisk; `FormError variant="field"` below picker for empty-submit validation
-- API 404 on vendor change: surface via existing `editError` banner path, key `invoiceDetail.messages.vendorNotFound`
-- `SearchPicker.selectedDisplay` min-height is `2.5rem` (40px) — 4px below 44px touch target; flag as refinement item across all SearchPicker usages, not blocking for this story
-- Established vendor SearchPicker reference: `DiaryEntryForm` daily_log branch (lines 354–373)
+- [token-reference.md](token-reference.md) — design token layers, verified token values, recurring token-substitution mistakes (hardcoded values that should be `var(--...)`)
+- [component-patterns.md](component-patterns.md) — section-card/page patterns, Badge conventions, SearchPicker/AreaPicker patterns, pre-existing a11y gaps not to block on
+- [photo-annotator-patterns.md](photo-annotator-patterns.md) — PhotoAnnotator toolbar/shape/dark-surface conventions + Story #1478 a11y audit
+- [cost-breakdown-patterns.md](cost-breakdown-patterns.md) — CostBreakdownTable toolbar/filter patterns (Issue #1786)
+- [sandbox-environment.md](sandbox-environment.md) — virtiofs wiki-submodule git workaround ("insufficient permission for adding an object" on `git -C wiki add`)
+- [feature-spec-history.md](feature-spec-history.md) — detailed notes from past visual specs posted to GitHub issues, by story number
+- [pr-review-findings.md](pr-review-findings.md) — past PR design-review findings, verdicts, and recurring bugs; process notes for posting GitHub reviews/comments
+- `story-4-9-invoice-linking-hi.md`, `pr-1490-measurement-freehand.md`, `annotator-a11y-audit.md` — standalone detailed reports referenced from the files above
+- [pdfmake-rendering-verification.md](pdfmake-rendering-verification.md) — render-and-rasterize technique for `reportPdf/` reviews; PR #1935/#1929 rounds 1-4, both APPROVED (word-break-without-hyphen, page-1-top-margin, "test the common case not just the adversarial one" lessons)
 
-## Design System
+## Quick-reference rules (apply on every spec/review)
 
-- Token source: `client/src/styles/tokens.css` (3-layer: palette -> semantic -> dark mode)
-- Shared classes: `client/src/styles/shared.module.css` (buttons, etc.)
-- Style Guide wiki: `wiki/Style-Guide.md`
-- Always reference Layer 2 semantic tokens (e.g. `var(--color-bg-primary)`) in CSS Modules
-- Never use hardcoded hex values or Layer 1 palette tokens in `.module.css` files
-
-## PhotoAnnotator Patterns (client/src/components/photos/PhotoAnnotator/)
-
-- Tool palette: `role="toolbar"` wrapper; each button `.toolButton` / `.toolButtonActive`; `min-width/height: 44px`; `aria-pressed`; inline SVG icons (24×24, `stroke="currentColor"`); HighlightIcon uses `fill="currentColor"` (established precedent)
-- Annotator dark-surface rgba values: `rgba(0,0,0,0.6)`, `rgba(255,255,255,0.4)` etc. in PhotoAnnotator.module.css are intentional photo-overlay hardcodes (pre-existing pattern); do NOT flag as token violations
-- Font-size radiogroup: `role="radiogroup"` + `role="radio"` + `aria-checked`; buttons use `.fontSizeButton`/`.fontSizeButtonActive`; hover inside `prefers-reduced-motion` block (consistent with toolButton + strokeButton pattern)
-- Inline text input (Story #1476): `.inlineTextInput` positioned absolute over canvas; focus managed via `requestAnimationFrame`; `aria-label` via `t('editText'|'editCallout')`; `z-index: 1000` is pre-existing (should be `var(--z-modal)`, refinement item); inline style should NOT duplicate CSS module's `min-width`/`z-index`
-- TextIcon uses SVG `<text>` element (not stroked path) — inconsistent with stroke icon family; flag for polish pass
-- Annotation colors in `ANNOTATION_COLORS` are intentionally hardcoded hex (not tokens) — marks must be theme-invariant; document this in any spec touching that file
-- Draft shape visual: `stroke-dasharray: 6 4`, `opacity: 0.8`, `pointer-events: none` — use for ALL new shape types
-- Arrow committed: `<line>` + `<marker>` with `fill="context-stroke"` so one defs entry covers all colors; arrowhead on commit only (not during draft)
-- Ellipse selection handles: 4 cardinal points (N/S/E/W) not 8; Arrow/Line: 2 endpoint handles
-- `context-stroke` SVG2 fill on marker = no dark mode override needed for arrowhead
-- Mobile: `.toolGroup` gets `width:100%` + bottom border at `<640px` via existing media query — no new CSS needed for new buttons
-- Fit-to-container scaling (fix #1705): `fitScale = min(containerW/intrinsicW, containerH/intrinsicH, 1.0)`; Stage gets `width={intrinsicW*fitScale}` `height={intrinsicH*fitScale}` `scaleX/Y={fitScale}`; KonvaImage keeps `width={intrinsicW}` `height={intrinsicH}`; cap at 1.0 prevents upscaling small photos
-- `touch-action: none` on `.canvasArea` and `.svgOverlay` only — correctly scoped to canvas area; does NOT affect scroll outside the annotator
-- `sizeDropdownSelect:focus-visible` uses `outline: 2px solid var(--color-focus-ring)` (inconsistent with `box-shadow: var(--shadow-focus)` convention) — pre-existing refinement item
-
-## Story #1478 — Photo Annotator A11y Audit
-
-See `annotator-a11y-audit.md` for full findings. Key items:
-
-- Active button border must use `var(--color-primary-active)` + `border-width: 2px` (contrast 6.67:1 vs 2.25:1 with `--color-primary`)
-- ToolPalette must use `min-height: 56px` not `height: 56px` (prevents font-size group from clipping)
-- Color swatches need `padding: 10px; box-sizing: content-box` for 44px touch target
-- 7 of 9 shape types missing live-region announcements — see i18n keys `shapeAddedRectangle` etc.
-- Remove Escape handler from PhotoAnnotator; PhotoViewer owns annotator lifecycle
-- `.inlineTextInput color: white` → `color: var(--color-text-inverse)`
-
-## PR #792 Review Findings — Budget Sources Bar Chart
-
-- `color-mix()` in inline `style` prop bypasses token system — allocate a named token instead
-- Legend dot `8px` = `var(--spacing-2)` — always swap raw px dot sizes to nearest spacing token
-- `role="status"` already implies `aria-live="polite"` — do not add both; use `role="status" aria-atomic="true"`
-- `--color-border-strong` as text `color` for separator — use `--color-text-muted` instead
-
-## WorkItemDetailPage Patterns
-
-- Section card: `background: var(--color-bg-primary); border: 1px solid var(--color-border); border-radius: 0.5rem; padding: 1.5rem`
-- Currency: `new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })` — German locale
-
-## Shell Quoting — gh CLI
-
-- When posting long GitHub comments with special chars (backticks, CSS var() calls), write to `/tmp/spec.md` and use `--body-file /tmp/spec.md`
-
-## Token Verification
-
-- `--color-success-text-on-light` dark mode = `#6ee7b7` (emerald-300) — contrast ~5.2:1 on dark success bg — passes WCAG AA
-- Budget bar, Gantt, and milestone tokens in tokens.css — check before specifying new domain-specific colors
-
-## GanttTooltip Patterns
-
-- Inverse surface: `--color-bg-inverse` / `--color-text-inverse`; needs component-level dark override because inverse surface itself flips
-- `var(--color-blue-200)` on dark inverse surface is justified (no semantic "link on dark inverse" alias)
-
-## GH PR Review Note
-
-- Cannot `--request-changes` on own PRs — use `--comment` instead; note in review body
-
-## Document Browser / Linking Patterns (Stories 8.3–8.7)
-
-- Grid: 3-col desktop / 2-col tablet / 1-col mobile; 2-col in modal embed
-- Tag chips: `role="group"` + `role="checkbox"` + `aria-checked`; `--color-primary-bg` active state
-- Card border: 1px NOT 2px; `aria-pressed` for toggle, `aria-expanded` for disclosure
-- Picker modal: `min(860px, calc(100vw - 2rem))` max-width override on `.modalContent`
-- `0.625rem` (10px) has no font-size token — nearest `var(--font-size-xs)` = 12px
-
-## Token Scale Gaps (spec writing)
-
-- `0.625rem` (10px) — no font-size token; nearest `var(--font-size-xs)` = 12px
-- `2.5rem` (40px) — no font-size token; nearest `var(--font-size-4xl)` = 32px
-- `1.75rem` (28px) — no token; between `--font-size-2xl` (24px) and `--font-size-3xl` (30px)
-
-## Common Token Mistakes (recurring across PRs)
-
-- `0.875rem` → `var(--font-size-sm)`; `0.75rem` → `var(--font-size-xs)`; `0.375rem` → `var(--radius-md)`
-- Layer 1 palette token in dark mode override → use semantic `var(--color-primary)` instead
-- `transition: opacity 0.15s ease` → `var(--transition-normal)`
-- `--color-bg-tertiary` where spec calls `--color-bg-secondary` (tertiary = code blocks/inset)
-- `var(--color-text-secondary)` where spec calls `--color-text-muted` (secondary is darker)
-- `outline: 2px solid var(--color-primary)` on focus-visible → ALWAYS use `box-shadow: var(--shadow-focus)`
-- `secondaryButton:hover` with `var(--color-border)` background → should be `var(--color-bg-hover)`
-- `z-index: 1000` → `var(--z-modal)`; `z-index: 10` → `var(--z-dropdown)`
-- Tablet breakpoint upper bound: `1023px` not `1024px` to avoid overlap with desktop
-- Action menu `aria-label="Actions menu"` too generic — must include item name
-- Sortable `<th>` needs keyboard support + `aria-sort` attribute on active column
-- All buttons duplicated from shared.module.css → use `composes:` instead
-
-## HI / Invoice Patterns (Stories 4.3–4.10)
-
-- `--spacing-xs` / `--spacing-sm` are NOT valid tokens — use `--spacing-1` through `--spacing-16`
-- `--color-warning-bg` EXISTS in tokens.css (`#fff7ed`, dark: `rgba(251,146,60,0.1)`) — use it for warning banners
-- HI Detail: section cards use `border: 1px solid var(--color-border)` NOT `box-shadow: var(--shadow-sm)`
-- RECURRING BUG: `outline: 2px solid var(--color-primary)` on focus-visible — flagged PRs #402, #414
-
-## PR #1490 — Measurement & Freehand Tools (APPROVED/comment)
-
-See `pr-1490-measurement-freehand.md`. Medium: `labelAttrs { display:'none' }` dead code in render.ts — refinement item.
-
-## Story 4.9 — Invoice Linking for HI Budget Lines (Issue #413)
-
-See `story-4-9-invoice-linking-hi.md`. Entity type toggle (`role="group"` + `role="radio"`), "Linked To" column hidden at tablet.
-
-## Story #1553 — Full Edit for Budget Lines (PR #1554 reviewed)
-
-- `BudgetLineForm` parent-picker extends to edit path (not just unassigned): show collapsed "Linked item" row with "Change" button when `currentParentId` is set
-- Entity type pill: WI = `--color-status-in-progress-*`; HI = `--color-hi-status-scheduled-*`; `--radius-full`
-- Cross-table move hint: `role="status" aria-atomic="true"` (do NOT add `aria-live` separately)
-- `--color-warning-bg` / `--color-warning` / `--color-warning-text-on-light` — all exist and have dark mode overrides
-- Modal width: `min(540px, calc(100vw - 2rem))` for full-edit modal
-- RECURRING A11Y BUG: `aria-controls` with conditional rendering — if the button and its target are in mutually exclusive branches, `aria-controls` referent never exists in DOM simultaneously. Fix: keep both in DOM, toggle with `hidden` prop, update `aria-expanded` dynamically.
-- `parentPickerTab` and `modeBtn` in BudgetLineForm.module.css missing `:focus-visible` (pre-existing gap, WCAG 2.4.7 Medium)
-- New i18n keys (namespace `budget`): `linkedItemLegend`, `changeParentButton`, `cancelChangeParentButton`, `moveButton`, `movingButton`, `moveCrossTableHint`, `moveCrossTableHintReverse`
-
-## Story #1551 — Discretionary Funding + Auto-origin badge
-
-- AutoItemizePage already has a per-line "Funding Source" `<select>` that pre-fills to discretionary — recommended informational note above `.lineList`, not a column
-- Note style: `--color-primary-bg` bg, `--color-border` border, `3px solid --color-primary` left border, `--radius-md`, `--spacing-3 --spacing-4` padding — purely semantic tokens, dark mode handled automatically
-- New `.autoOrigin` Badge variant: `--color-primary-bg` bg, `--color-primary-badge-text` text, `1px solid --color-primary` border — blue-tinted, distinct from `.info` (gray)
-- `.info` badge already used for "Auto-created" assignment badge in AutoItemizePage; `.autoOrigin` is a separate semantic (data origin vs. assignment label)
-- `BreakdownBudgetLine` shared type must expose `origin: 'manual' | 'auto'` — backend/shared coordination required
-- `getSourceBadgeStyleKey(null)` returns `'sourceUnassigned'` (italic gray), `getSourceColorIndex(null)` returns `0`
-
-## DiaryEntryForm Patterns (Story #1672)
-
-- `daily_log` metadata section: `.metadataSection` with `background: var(--color-bg-secondary)`, `border: 1px solid var(--color-border)`, `border-radius: var(--radius-md)`, `padding: var(--spacing-4)`
-- `.formRow` uses `grid-template-columns: repeat(auto-fit, minmax(200px, 1fr))` — do NOT use this for time pickers; use explicit `.formRowTwoCol` (`1fr 1fr`) so columns never wrap on tablet
-- Vendor selector: use `SearchPicker` with `showItemsOnFocus`; `fetchVendors({ q: query, pageSize: 20 })` as `searchFn`; `id` prop flows to inner `<input>` for label association
-- Time inputs: native `<input type="time" step="60">` reusing `.input` class; cross-field validation error goes BELOW the `.formRowTwoCol`, not inside either column; single `validationErrors.dailyLogWorkTime` key for both inputs
-- Duration display: `role="status" aria-atomic="true"` (do NOT add redundant `aria-live`); conditionally rendered in DOM (not hidden); `font-weight: var(--font-weight-semibold)` on value
-- `DiaryMetadataSummary` daily_log branch: vendor, start, end, duration all render as plain `.item` spans; no new CSS; duration computed client-side (not stored in metadata)
-- `DailyLogMetadata` type needs: `vendorId?: string | null`, `vendorName?: string | null` (server-side denormalized), `workStart?: string | null`, `workEnd?: string | null`
-- Check for i18n key collision: `form.vendor` already exists for delivery entry type — use `form.dailyLogVendor` if label differs
-
-## Story #1679 — Paperless-first Invoice Creation (spec posted)
-
-- Picker modal: `max-width: min(900px, calc(100vw - 2rem))`, `height: min(700px, calc(100vh - 4rem))`, flex column; mobile: full-screen with `border-radius: 0`
-- Correspondent filter: `SearchPicker` with `showItemsOnFocus`, `max-width: 220px` at desktop, full-width at mobile — lives in wrapper component, NOT inside `DocumentBrowser`
-- `DocumentBrowser` new props: `defaultHideLinked?: boolean`, `onOpenInPaperless?: fn`, `paperlessUrl?: string | null`
-- Hide-linked toggle: change from `{linkedDocumentIds.length > 0 && ...}` to `{linkedDocumentIds !== undefined && ...}` for always-visible when prop provided
-- "Open in Paperless" per-card: `<a>` anchor, `target="_blank" rel="noopener noreferrer"`; `opacity: 0` on card, `opacity: 1` on `.card:hover`/`:focus-within`; always opaque on mobile; wrapped in `@media (prefers-reduced-motion: no-preference)` for transition
-- LLM vendor suggestion: reuse existing `SuggestionBadge` (NOT a new Badge variant) — same pattern as invoiceNumber/date/notes suggestions in AutoItemizePage
-- Vendor field required error: `SearchPicker` + `aria-invalid="true"` + `FormError variant="field"` below picker
-- New wrapper component: `InvoicePaperlessPickerModal` at `client/src/components/invoices/` (justified — invoice-creation-specific chrome + reusable)
-- "Open in Paperless" URL pattern: `{paperlessUrl}/documents/{document.id}/details` (matches DocumentDetailPanel existing pattern)
-
-## PR #1681 — Paperless Invoice Picker (CHANGES_REQUIRED)
-
-- `--color-danger-text` = white (text ON danger bg) — NEVER use as border or text on `--color-danger-bg`; use `--color-danger-border` for border and `--color-danger-text-on-light` for red text on light bg
-- RECURRING BUG: when a page is refactored from a source page, CSS class migration is often incomplete — always grep all `styles.*` references in TSX against defined classes in the module to catch missing definitions
-- Inline `style={{ backgroundColor: 'var(--token)' }}` bypasses stylelint; use `data-level` attribute + CSS attribute selectors instead
-- GH PR review `--comment` via `--body-file` still fails silently; use `gh api repos/.../issues/{N}/comments` instead (issues API works for PR comments)
-- z-index: `z-index: 1` on absolute overlays inside card should be `var(--z-dropdown)` — prevents stacking collision with other card overlays (e.g. unlink button from #1680)
-
-## Story #1723 — AreaPicker Hierarchy Display (spec posted to issue)
-
-- **Drop em-dash indentation; use ancestor-path secondary line as the sole hierarchy signal** — indentation is a workaround for absent context; once `.resultSecondary` shows the ancestor path, em-dashes are clutter. `renderItem` returns bare `node.area.name`.
-- Secondary line reuses `.resultSecondary` from `SearchPicker.module.css` — same class OrientationPicker uses for description. No new CSS class or token needed.
-- `AreaResponse` has NO `ancestors` field — path must be computed client-side via `parentId` traversal. Add `getAncestorPath(areas, parentId)` helper to `areaTreeUtils.ts`.
-- Add `title={ancestorPath}` to `.resultSecondary` span (truncation disclosure + AT full text).
-- Selected/collapsed state shows bare area name only — no ancestor path in the chip (correct tradeoff for 320px sidepanel width).
-- Top-level areas (no parentId) render `null` from `renderSecondary` → single-line row layout (no empty secondary span).
-- WCAG AA contrast verified: `--color-text-muted` on `--color-bg-primary`: 4.6:1 light, 5.0:1 dark, 4.5:1 hover (boundary). All pass.
-- `PhotoMetadataSidepanel` uses a raw `SearchPicker<AreaResponse>` (no indentation, no ancestors) — must be switched to `AreaPicker` for AC-1 consistency. This is the core bug driving the story.
-
-## FormError / SearchPicker A11y Gap (pre-existing, tracked)
-
-- `FormError variant="field"` renders `<div>` with NO `role="alert"` — only `variant="banner"` gets it
-- `SearchPicker` has no `aria-invalid` prop — cannot signal validation state to screen readers
-- Both are pre-existing gaps, consistent across `InvoiceLinkModal`, `PaperlessInvoiceReviewPage`, `InvoiceDetailPage`
-- When reviewing PRs using `variant="field"` without `role="alert"`, do NOT request changes — it is the established pattern; flag as pre-existing and recommend a shared-component refinement item
-
-## Story #1545 — Unassigned IBL + One-Shot Parent Assignment (PR #1548)
-
-- `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic`
-- IBL table `tdLinkedItem` cell: `display:flex; align-items:center; gap:var(--spacing-2)` wrapper
-- Parent picker section in BudgetLineForm: inset panel with `--color-bg-tertiary` bg + `--color-border` border + `--radius-md`
-- Modal width for edit with picker visible: `min(640px, calc(100vw - 2rem))`
-- Focus auto-advance: use `requestAnimationFrame` (not `setTimeout`) for React 19 concurrent rendering
-- RECURRING BUG: `BadgeVariantMap` entries need BOTH `label` (translated) AND `className` (CSS module class); PR #1548 missed `className: badgeStyles.iblUnassigned` — style rule was dead on arrival
-
-## CostBreakdownTable Patterns (Issue #1786)
-
-See [cost-breakdown-patterns.md](cost-breakdown-patterns.md). Key rules:
-
-- Inline toolbar selects: `composes: select from shared.module.css` but override `width: auto; min-height: 44px`
-- Active filter visual: `border-color: var(--color-primary)` only — do NOT change label color
-- `.controlBar` flex row replaces direct PerspectiveToggle placement; `flex-wrap: wrap` for mobile
-- Print: hide `.controlBar` alongside `.perspectiveToggle`
-- Native `<select>` option-change is announced by AT natively — no live region needed for the select itself
+- Every visual value must be `var(--token-name)` from `tokens.css` — no hardcoded hex/px/z-index. See [token-reference.md](token-reference.md) for the recurring-mistake list before flagging or writing CSS.
+- Dark mode: colors must route through semantic (Layer 2) tokens that already flip under `[data-theme="dark"]`; never reference Layer 1 palette tokens directly in a dark-mode override.
+- Focus rings: always `box-shadow: var(--shadow-focus)`, never `outline: 2px solid var(--color-primary)` (recurring bug across many PRs).
+- `role="status"` already implies `aria-live="polite"` — never add both attributes.
+- `BadgeVariantMap` entries need both `label` and `className` — a missing `className` makes the variant's style dead on arrival.
+- New component reuse audit: check `Badge`, `SearchPicker`, `Modal`, `Skeleton`, `EmptyState`, `FormError` before proposing anything new; see [component-patterns.md](component-patterns.md) for established section-card/badge/picker conventions.
+- Cannot `gh pr review --request-changes` **or** `--approve` on your own PRs (GraphQL rejects both, not just request-changes) — post a `gh pr comment` instead, with an explicit "Verdict: APPROVED/CHANGES_REQUIRED" line in the body. This block is keyed to the underlying `gh` auth identity, not the PR's displayed `author.login` — a PR showing a human GitHub username (e.g. the repo owner) as author still hit "Can not approve your own pull request" (PR #1903), so don't skip the self-review check just because `gh pr view --json author` shows a person's name. If a specific invocation is blocked by the sandbox's permission system, treat that as a real denial: report it to the orchestrator and let the human-configured policy decide — do not engineer alternative invocations to route around a block.
+- No segmented-control component exists in the app — for a "choose one of N" form field that isn't a `<select>`, reuse the plain `<input type="radio">` + `role="group"` pattern from `AutoItemizePage.module.css` `.modeSelector` (the only radio group in the codebase) rather than inventing a segmented/button-group look. See Issue #1876 in [feature-spec-history.md](feature-spec-history.md).
+- For a "this is a negative/refund/adjustment row" signal, don't rely on red text color alone — pair it with a `Badge` carrying a real text label (reuse `--color-status-blocked-bg`/`-text`, the existing red badge pair — there's no separate `--color-danger-badge-*` family) plus `formatCurrency(-amount)`'s literal minus sign. Don't recolor a _computed remainder_ (e.g. "remaining amount") red just because refunds reduce it — that falsely implies an error state; only the actual refund row gets the negative treatment.
+- `Intl.NumberFormat` enables thousands-grouping by default; `toFixed()`/manual string-building never did. When a PR swaps a `toFixed()` call for a locale formatter, script-verify the _old vs new_ output isn't just per-locale-correct but also identical for large values (≥1000) — grouping separators are an easy-to-miss 3rd English-output regression beyond whatever the PR explicitly discloses. See PR #1845 in [pr-review-findings.md](pr-review-findings.md).
+- `formatDateForAria`-style aria-labels that interpolate localized weekday/month into a hardcoded English sentence order (`"{weekday}, {month} {day}, {year}"`) render grammatically odd in German (`"Dienstag, Februar 24, 2026"` vs correct `"Dienstag, 24. Februar 2026"`) — this is an accepted, deferred, non-blocking gap across the app, not a new bug to flag each time.
+- When a PR claims a Badge/shared-component consolidation is "zero visual delta," build a before/after table (padding/font-size/weight) per migrated component — the shared base class is usually extracted from only a subset of sources, so other migrated components can silently inherit a different size than they had. See PR #1848 in [pr-review-findings.md](pr-review-findings.md).
+- For `client/src/lib/reportPdf/` PRs (pdfmake document generation, no CSS/components/dark-mode in scope): don't judge column widths/wrapping/page-break behavior from font-metric arithmetic — render the real pipeline to a throwaway `/tmp/*.pdf` via a scratch Jest test and rasterize with `pdftoppm` for visual inspection, then delete the scratch file. See [pdfmake-rendering-verification.md](pdfmake-rendering-verification.md) for the exact technique and a confirmed `dontBreakRows` row-split bug found this way.
+- pdfmake: an empty-string text node (`{ text: '' }`) reserves the SAME line-height as a non-empty node — never worry it'll collapse to zero, no nbsp workaround needed for an "always reserve this line's space" AC. Also: at 11pt/1.4 line-height, a real rendered line is ~18pt, not the naive `fontSize*lineHeight=15.4pt` — render-and-measure, don't hand-compute. See [pdfmake-rendering-verification.md](pdfmake-rendering-verification.md), Issue #1932.
+- When an AC complains a UI panel's caption/label "mixes languages" with its value, check whether the real bug is inline concatenation (`"Label: value"` on one line) before translating the caption into the value's language — if sibling captions in the same panel are all interface-language chrome, translating just one caption breaks panel consistency instead of fixing it. Fix by visually separating caption from value (label-above-value, matching the panel's existing label recipe) instead. See Issue #1932 in [feature-spec-history.md](feature-spec-history.md).
+- **Playwright browser download is blocked in this sandbox** (`cdn.playwright.dev`/`playwright.download.prss.microsoft.com` both 403 by default-deny network policy), and there is no installable system Chromium (`chromium-browser` here is a snap-transitional stub, `apt-get install chromium` no-ops). For CSS-only component review (no pdfmake involved) when no pixel render is available: build a static HTML harness using the *actual* `.module.css` file contents verbatim (literal, unhashed class names — safe because you write matching literal-class markup yourself, sidestepping the webpack-hashing problem) plus real `tokens.css`, with hand-written markup mirroring the exact JSX tree, then verify by direct CSS-rule/box-model comparison (e.g. "is this property byte-for-byte identical to that sibling's rule", "does `align-self` override the flex container's default stretch") rather than a screenshot. This is real, defensible verification for deterministic box-model questions (button stretch/sizing) but not a substitute for an actual render on subjective spacing/contrast calls — say so explicitly in the review rather than presenting it as equivalent. See PR #1951 in [pr-review-findings.md](pr-review-findings.md).
+- **`:global(.foo)` in a `.module.css` file only matches a DOM element whose class is the literal unhashed string `"foo"`.** If a component applies another module's class via plain `className={otherModuleStyles.foo}` (not `composes:`), that class resolves to a hashed string (`foo_a1b2c` per `webpack.config.cjs`'s `localIdentName`) in real builds — `:global(.foo)` selectors written to "layer styles on top of" that class never match, silently killing the entire rule block. This is invisible in Jest: `jest.config.ts` maps `.module.css` → `identity-obj-proxy`, which resolves classes to their literal key name, so `:global(.foo)` _does_ match in tests. The correct cross-module extension technique is `composes: foo from '../other/Other.module.css';` inside a locally-scoped class, then apply _that_ local class — this actually merges the real hashed class list onto the element. Check for this specific pattern (`:global(...)` selectors targeting another module's class name, applied via plain className not `composes`) whenever a new component's CSS "doesn't seem to apply" or a spec's described states (hover/focus/at-rest tint/indicator dots) go missing — see PR #1909 in [pr-review-findings.md](pr-review-findings.md).
+- A component that renders its own internal `<label><input/></label>` (e.g. `TriStateCheckbox`), when wrapped in an *outer* `<label>` alongside other row content, forwards clicks anywhere in that outer box to the checkbox. Never place a new interactive affordance inside that label — give it a sibling grid cell instead (structural guarantee beats `stopPropagation`). See Issue #1933 in [feature-spec-history.md](feature-spec-history.md).
+- `display: flex; flex-direction: column` on a `<td>` desyncs it from sibling cells' baseline alignment (synthesized flex-baseline ≠ real text baseline), independent of font-size. Fix with `vertical-align: top` on the shared `td` rule plus dropping flex from the desktop cell (replace `gap` with `margin-top` on non-first children); where the same class is reused as a mobile `<div>`, keep flex+gap there under the mobile media query. See Issue #1933 in [feature-spec-history.md](feature-spec-history.md).
+- `.expandButton`-style `padding:10px; margin:-10px` (small visible box, 44px hit target via negative margin into existing gutter) is this codebase's house technique for a real touch target on a small row icon — prefer it over a literally-44px visible box.
+- **Multi-word inline labels split mid-phrase in narrow fixed-width PDF cells** — a width measurement of an appended annotation *in isolation* proves nothing; it always shares the line with the value it annotates, so measure the combination, and check whether the string can break internally at all. Verified fix: U+00A0 for the internal space (width bit-identical, no geometry change). Single-word labels wrap cleanly as a unit; only the two-word one broke, in BOTH locales. See PR #1959 in [pr-review-findings.md](pr-review-findings.md).
+- **A new control in a report/export editor may not reach the export pipeline** — grep its state symbol outside the component before assuming it does (PR #1959: column-visibility checkboxes changed only the on-screen preview, never the PDF). For column show/hide specifically, `DataTable/DataTableColumnSettings.tsx` already exists — check it before accepting a bespoke checkbox row.
+- When a component previews an exported artifact, compare each style against the *exporter's* constants, not only against design tokens — PR #1959 shipped two grey annotations at two sizes, only one matching the PDF.

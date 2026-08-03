@@ -1,5 +1,41 @@
 {
   "worktree": {
     "baseRef": "head"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(git worktree list:*)",
+      "Bash(git submodule status:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh api repos/steilerDev/cornerstone/*)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint:*)",
+      "Bash(bash scripts/ci-wait.sh:*)",
+      "Bash(bash scripts/board.sh:*)",
+      "Bash(bash scripts/check-trailers.sh:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/bash-guard.mjs\""
+          }
+        ]
+      }
+    ]
   }
 }

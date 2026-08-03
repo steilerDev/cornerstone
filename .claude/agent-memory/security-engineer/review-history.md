@@ -4,6 +4,20 @@ Detailed security findings and controls verified per PR. Summary table in MEMORY
 
 ---
 
+## PR #1837 — Fix #1806: float-sum epsilon in invoice guards (2026-07-07)
+
+**Status**: APPROVED (no blocking findings)
+
+**Scope**: New `server/src/services/shared/money.ts` (`toCents`/`exceedsAmount` pure functions); 6 call sites in `invoiceAutoItemizeService.ts`, `invoiceBudgetLineService.ts` (x3), `invoiceDepositService.ts` (x2) switched from bare `sum > total` to `exceedsAmount(sum, total)` (cent-rounded comparison). Plus tests only.
+
+**Key finding — bounded, non-cumulative epsilon**: `exceedsAmount` rounds both sides to nearest whole cent (`Math.round(x*100)`) before comparing, tolerating up to <€0.005 of hidden overage per check. Verified this **cannot compound**: every guard site recomputes the full sum fresh from live DB rows/aggregate on each call (not from a previously-rounded running total) — checked `invoiceBudgetLineService.ts` (`.reduce()` over freshly-queried rows in `createInvoiceBudgetLine`/`updateInvoiceBudgetLine`/`editAndMoveBudgetLine`) and `invoiceDepositService.ts` (`currentSum`/`otherSum` from live `tx` SUM aggregate, lines 235/418). Max permanent overage on any invoice stays fixed at <€0.005 regardless of how many lines/deposits are created or edited — not a repeatable-drift vulnerability.
+
+**Bypass check**: `grep` confirmed no bare `> invoice.amount` / `> effectiveInvoiceAmount` comparisons remain anywhere in `server/src/services/*.ts` — all 6 sites converted consistently; "genuinely one cent over" tests still assert rejection.
+
+**NON-BLOCKING / informational (pre-existing, not introduced by this PR)**: None of the `itemizedAmount`/`amount` route schemas (`invoiceBudgetLines.ts`, `invoiceDeposits.ts`, `invoiceAutoItemize.ts`, `invoices.ts`) declare `multipleOf: 0.01` — API accepts arbitrary-precision floats, which is the root source of the float noise this PR works around. Repo-wide gap (grepped, zero `multipleOf` usages anywhere in `server/src/routes/`), not specific to this PR. Suggest as a future defense-in-depth story.
+
+---
+
 ## PR #316 — Retrospective Improvements: dep pinning, shared CSS, formatDate, invoiceService (2026-02-27)
 
 **Status**: COMMENTED (1 low finding, does not block merge)

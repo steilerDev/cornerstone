@@ -66,6 +66,20 @@ jest.unstable_mockModule('../../hooks/useDocumentLinks.js', () => ({
   useAllLinkedDocumentIds: mockUseAllLinkedDocumentIds,
 }));
 
+// ─── Mock: LocaleContext — the embedded DocumentBrowser renders DocumentCard, which uses
+// useLocale() for currency/date formatting. ────────────────────────────────────────────
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: jest.fn(() => ({
+    locale: 'en' as const,
+    resolvedLocale: 'en' as const,
+    currency: 'EUR',
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  })),
+  LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // ─── Deferred type imports (after all jest.unstable_mockModule calls) ──────────
 
 import React from 'react';

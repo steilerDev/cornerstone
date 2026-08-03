@@ -1,168 +1,77 @@
 # Product Architect Memory
 
+## Topic Files
+
+- [Recurring patterns & traps](recurring-patterns.md) — polymorphic FK cleanup, XOR CHECK vs SET NULL, forked-function drift, test smells, cross-layer contract drift, ajv `anyOf`, N+1 sites, async writes surviving state resets, cross-reference rot in documented-bound comments (#1939), usePreferences per-instance store + serialized-write-queue review (#1955), capability-retained-but-producer-removed (#1959), AC reversal by a polish issue (#1959)
+- [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
+- [Source-report split inference](source-report-split-inference.md) — budgetLines[]/deposits[] are this-source-scoped, so †/‡ classification is a proxy; proposed `splitKind`; pdfmake `'2*'` width trap
+- [Story reviews](story-reviews.md) — per-story and per-PR review log
+- [Client PDF pipeline](client-pdf-pipeline.md) — ADR-034 report PDF generation, reportContent content/layout split (#1900), `dontBreakRows` silent-drop rule + **owed ADR-034 corrections** (#1959)
+- [Diary drafts pattern](diary-drafts-pattern.md) — ADR-022 draft lifecycle via status column on parent table
+- [EPIC-03 refinement](epic03-refinement.md) — 40 consolidated refinement items
+- [EPIC-04 household items](epic04-household-items.md) · [EPIC-05 budget](epic05-budget.md) · [EPIC-17 i18n](epic17-i18n.md) · [EPIC-18 areas & trades](epic18-areas-trades.md)
+
 ## Tech Stack (Accepted)
 
-- Server: Fastify 5.x (ADR-001), Client: React 19 + React Router 7 (ADR-002)
-- DB: SQLite via better-sqlite3 + Drizzle ORM (ADR-003), Bundler: Webpack 5.x (ADR-004)
-- Tests: Jest 30.x + Playwright (ADR-005), Styling: CSS Modules (ADR-006)
-- Structure: npm workspaces monorepo (ADR-007), TypeScript ~5.9, Node.js 24 LTS
+- Fastify 5.x (ADR-001) · React 19 + React Router 7 (ADR-002) · SQLite/better-sqlite3 + Drizzle (ADR-003)
+- Webpack 5.x (ADR-004) · Jest 30.x + Playwright (ADR-005) · CSS Modules (ADR-006) · npm workspaces (ADR-007)
+- TypeScript ~6.0, Node.js 24 LTS. Canonical table lives in CLAUDE.md — trust it over this file.
 
 ## Project Layout
 
-- `shared/` -> `client/` -> `server/` (build order)
-- All plugins use `fastify-plugin` (fp), registration: config -> errorHandler -> compress -> cookie -> db -> auth -> routes -> static
+- Build order `shared/` -> `client/` -> `server/`
+- All plugins use `fastify-plugin` (fp). Registration: config -> errorHandler -> compress -> cookie -> db -> auth -> routes -> static
+- Root: package.json, tsconfig.base.json, eslint.config.js, .prettierrc, jest.config.ts
+- Server: `src/db/schema.ts`, migrations in `src/db/migrations/`. Client: `webpack.config.cjs` (proxies /api to :3000)
 
-## Key Patterns
+## Key Conventions
 
-- All API endpoints under `/api/` prefix, error shape: `{ error: { code, message, details? } }`
-- Offset pagination: page (1-indexed), pageSize (default 25, max 100)
-- Areas/trades/users NOT paginated (small collections)
-- Junction tables use composite PKs (no surrogate id) -- EXCEPT invoice_budget_lines which uses surrogate UUID (carries itemized_amount, needs individual CRUD)
-
-## Naming Conventions
-
-- DB: snake_case | TS vars: camelCase | TS types: PascalCase | Files: camelCase.ts (React: PascalCase.tsx) | API: kebab-case | Env: UPPER_SNAKE_CASE
-
-## Migrations (18 total)
-
-- 0001-0009: Auth, work items, budget, milestones, deps, actual dates, document_links
-- 0010: household_items + 5 supporting tables (EPIC-04)
-- 0011: household_item_budget_id FK + index on invoices (EPIC-04)
-- 0012: household_item_deps + delivery date columns
-- 0013-0016: HI dep cleanup, status rename, delivery date redesign, HI categories
-- 0017: invoice_budget_lines junction table (EPIC-15, ADR-018)
-- 0018: areas + trades, vendor trade_id, WI area_id + assigned_vendor_id, HI area_id, drop tags (EPIC-18, ADR-028)
-
-## ADRs (ADR-001 through ADR-028)
-
-- ADR-001-009: Tech stack + error handling
-- ADR-010: Auth (sessions + OIDC + scrypt)
-- ADR-011: E2E (Playwright + Testcontainers)
-- ADR-012: Pagination conventions
-- ADR-013: Gantt chart (custom SVG)
-- ADR-014: Scheduling engine (server-side CPM)
-- ADR-015: Paperless-ngx integration (proxy + polymorphic links)
-- ADR-016: Household items (separate entity with parallel structure)
-- ADR-018: Invoice-budget-line junction table (M:N with XOR CHECK, ON DELETE CASCADE)
-- ADR-022: Diary drafts via status column on diary_entries (issue #1426). See [[diary-drafts-pattern]]
-- ADR-028: Areas & Trades (structured dimensions replacing tags)
-
-## EPIC Status
-
-- EPIC-01 Auth: Complete (promoted to main)
-- EPIC-03 Work Items: Complete (promoted to main)
-- EPIC-05 Budget: Complete (promoted to main, v1.9.0)
-- EPIC-06 Timeline/Gantt: Complete (promoted to main, v1.10.0)
-- EPIC-08 Documents: Complete (promoted to main, v1.11.0)
-- EPIC-04 Household Items: Complete (promoted to main, v1.12.0)
-- EPIC-15 Budget-Line Invoice Linking: Complete (promoted to main, v1.14.0)
-- EPIC-18 Areas & Trades: In progress (ADR-028, Schema, API Contract designed)
+- All endpoints under `/api/`; error shape `{ error: { code, message, details? } }`
+- Offset pagination: `page` (1-indexed), `pageSize` (default 25, max 100). Small collections (areas, trades, users) NOT paginated
+- Junction tables use composite PKs — EXCEPT `invoice_budget_lines` (surrogate UUID: carries `itemized_amount`, needs individual CRUD)
+- Naming: DB snake_case | TS vars camelCase | TS types PascalCase | files camelCase.ts (React PascalCase.tsx) | API kebab-case | env UPPER_SNAKE_CASE
 
 ## GitHub Wiki
 
-- Wiki is git submodule at `wiki/`. Sync: `git submodule update --init wiki && git -C wiki pull origin master`
-- ADR-001 through ADR-028, Architecture, Schema, API-Contract, Home, ADR-Index, Style-Guide, Security-Audit
-- **Always push wiki before creating PR** -- submodule ref must be committed in feature branch
+- Git submodule at `wiki/`. Sync: `git submodule update --init wiki && git -C wiki pull origin master`
+- Submodule is normally in **detached HEAD** at origin/master — push with `git push origin HEAD:master`
+- Pages: Architecture, Schema, API-Contract, Home, ADR-Index, ADR-NNN-*, Style-Guide (ux-designer), Security-Audit (security-engineer)
+- **Always push wiki before creating the PR** — the submodule ref must be committed on the feature branch. If you push wiki content outside the branch, flag that the PR's ref needs bumping.
 
 ### Wiki Update Discipline (CRITICAL)
 
-The wiki MUST be updated as part of story implementation, not caught at review time.
+Update the wiki as part of story implementation, never as a review catch:
+new endpoint -> API-Contract.md · new/changed table or column -> Schema.md · decision -> ADR-NNN-*.md + ADR-Index.md.
+On any wiki/implementation divergence, fix the wiki and append a **Deviation Log** row (each page has one at the bottom).
 
-- New endpoint -> API-Contract.md
-- New/changed table/column -> Schema.md
-- Architectural decision -> ADR-NNN-\*.md + ADR-Index.md
+## ADRs
 
-## EPIC-04 Household Items (Latest Work)
+ADR-001..034. Notable: 010 auth (sessions + OIDC + scrypt) · 011 E2E (Playwright + Testcontainers) · 012 pagination ·
+013 Gantt (custom SVG) · 014 scheduling (server-side CPM) · 015 Paperless-ngx (proxy + polymorphic links) ·
+016 household items · 018 invoice_budget_lines (M:N, XOR CHECK, ON DELETE CASCADE) · 022 diary drafts ·
+028 areas & trades · 034 client-side report PDF. Wiki ADR-Index is authoritative.
 
-See `epic04-household-items.md` for full details.
+## Migrations
 
-- 6 new tables, 21 API endpoints (includes reverse WI->HI GET), ADR-016
-- Reuses shared tags, vendors, budget_categories, budget_sources, subsidy_programs
-- document_links already supports household_item entity_type
-- Budget overview must aggregate both work_item_budgets and household_item_budgets
-
-## Known Wiki Documentation Gaps
-
-- Migration 0007 (work_item_milestone_deps) not documented in Schema.md
-- Wiki sandbox worktrees have persistent permission issues with `.git/objects/pack/`
-- API-Contract.md household items POST says 404 for vendor/tag not found, but work items says 400 — implementation uses 400 (consistent with work items). Wiki needs harmonization.
-- **PR #402**: `GET /api/work-items/:workItemId/household-items` -- RESOLVED, added to API-Contract.md wiki
-
-## Sandbox Limitations (not real project issues)
-
-- esbuild SIGILL on emulated aarch64; Docker build fails due to TLS firewall
-- 4GB RAM: Jest OOM mitigated with --maxWorkers=2, --max-old-space-size=2048
-
-## N+1 Queries (Accepted at Current Scale)
-
-- `getAllMilestones`: per-row countLinkedWorkItems + getCreatedByUser (acceptable <50 milestones)
-
-## PR Review Notes
-
-- Cannot `gh pr review --approve` own PRs -- use `--comment` instead
-- Root `typecheck` script builds shared first
-
-## Config Files
-
-- Root: package.json, tsconfig.base.json, eslint.config.js, .prettierrc, jest.config.ts
-- Server: schema in src/db/schema.ts, migrations in src/db/migrations/
-- Client: webpack.config.cjs (proxies /api to localhost:3000)
+Sequential SQL in `server/src/db/migrations/`, currently through **0044** (deposit `budget_source_id`).
+Read the directory rather than trusting a list here. Known gap: migration 0007 (`work_item_milestone_deps`)
+is still undocumented in Schema.md.
 
 ## CI/CD (ADR-008)
 
 - GitHub Actions + semantic-release + Docker Hub + Docker Scout + Dependabot
-- Feature PR -> beta (squash merge); beta -> main (merge commit)
+- Feature PR -> `beta` (squash merge); `beta` -> `main` (merge commit)
+- Beta PRs gate on `Quality Gates` only; `main` also requires `E2E Gates`
 
-## Topic Files
+## PR Review Notes
 
-- `story-reviews.md` -- detailed review notes per story
-- `epic03-refinement.md` -- 40 consolidated refinement items from EPIC-03
-- `epic05-budget.md` -- EPIC-05 budget management details
-- `epic04-household-items.md` -- EPIC-04 household items architecture
-- `epic18-areas-trades.md` -- EPIC-18 areas & trades structured dimensions
-- `diary-drafts-pattern.md` -- ADR-022 draft entity lifecycle pattern (status column on parent table, applicable beyond diary)
+- Cannot `gh pr review --approve` your own PR — use `gh pr comment` instead
+- Root `typecheck` script builds `shared` first
+- Verdicts: `--request-changes` for critical/high only; `--approve` with findings noted for medium/low
 
-## EPIC-04 Review Summary (see story-reviews.md for details)
+## Sandbox Limitations (not real project issues)
 
-- PR #399 (4.4): Request Changes -- missing quantity field
-- PR #401 (4.6): Request Changes -- confidence margin display bug (fractions not percentages)
-- PR #402 (4.7): Comment -- 1 medium (wiki gap, resolved)
-- PR #414 (4.9): Request Changes -- missing invoice delete guard, wiki gaps
-- PR #416 (4.10): Request Changes -- orphaned deps on WI/milestone delete, deleted 1060-line test file, wiki not updated
-
-### Recurring Pattern: Polymorphic FK Cleanup
-
-When using polymorphic FKs (no DB-level constraint), ALL services that delete the referenced entity must manually clean up. Applies to `document_links` and `household_item_deps`.
-
-### Recurring Pattern: CONFIDENCE_MARGINS
-
-Values are fractions (0.2, 0.1, 0.05, 0), NOT percentages. Frontend must multiply by 100 for display.
-
-## PR #460 Review (2026-03-04)
-
-Fix for inline status selector. Auto-sets actualDeliveryDate when status → 'arrived' and date is null.
-
-**Finding**: API Contract wiki was not updated to document the auto-set behavior. Backend/frontend/tests are correct; wiki doc gap identified and flagged.
-
-## PR #612 Review (2026-03-08) -- EPIC-15 Story 15.1
-
-Invoice-budget-line junction table (migration 0017). Request changes:
-
-- CRITICAL: Broken test assertions -- `MutuallyExclusiveBudgetLinkError` tests retained but validation removed from service. CI red.
-- HIGH: Wiki Schema.md says ON DELETE SET NULL for budget FKs, but migration/Drizzle/ADR-018 use ON DELETE CASCADE.
-- MEDIUM: InvoiceBudgetLineSummary shared type diverges from wiki API Contract shape. Defer reconciliation to Story 15.2.
-
-### Key Lesson: XOR CHECK + ON DELETE SET NULL Incompatibility (Bug #611)
-
-SQLite enforces CHECK constraints during FK SET NULL actions. If a table has `CHECK((a IS NOT NULL AND b IS NULL) OR ...)` and `ON DELETE SET NULL` on column `a`, deleting the referenced row triggers SET NULL which violates the XOR CHECK. Fix: use ON DELETE CASCADE instead.
-
-## PR #1150 Review (2026-03-22) -- EPIC-19 Backup & Restore
-
-Request changes (2 critical, 3 high, 2 medium):
-
-- CRITICAL: Wiki not updated (API-Contract.md, Architecture.md) -- zero wiki changes in PR
-- CRITICAL: CLAUDE.md env var table missing BACKUP_DIR, BACKUP_CADENCE, BACKUP_RETENTION
-- HIGH: stopScheduler() never called on app close -- needs onClose hook
-- HIGH: Module-level mutable state (operationInProgress, cronTask) -- testing concern
-- MEDIUM: process.exit(0) bypasses Fastify graceful shutdown
-- MEDIUM: createError state set but never rendered in UI (bug #1164)
+- esbuild SIGILL on emulated aarch64; Docker build fails behind the TLS firewall
+- 4GB RAM: Jest OOM mitigated with `--maxWorkers=2 --max-old-space-size=2048`
+- Stale worktrees under `.claude/worktrees/` cause jest-haste-map duplicate-package failures.
+  Work around with `npx jest <file> --modulePathIgnorePatterns='/.claude/worktrees/'`

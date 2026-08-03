@@ -3,6 +3,7 @@ import type {
   BackupListResponse,
   BackupResponse,
   RestoreInitiatedResponse,
+  BackupSchedulerStatusResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -32,4 +33,11 @@ export function deleteBackup(filename: string): Promise<void> {
  */
 export function restoreBackup(filename: string): Promise<RestoreInitiatedResponse> {
   return post<RestoreInitiatedResponse>(`/backups/${encodeURIComponent(filename)}/restore`);
+}
+
+/**
+ * Get the automatic backup scheduler's current status.
+ */
+export function getSchedulerStatus(): Promise<BackupSchedulerStatusResponse> {
+  return get<BackupSchedulerStatusResponse>('/backups/scheduler-status');
 }

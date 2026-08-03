@@ -20,6 +20,10 @@
  *   3. State confirm modal shows "Confirm" button text (not raw key)
  *   4. Portal: last deposit row kebab menu bounding box fully within viewport
  *
+ * Refund entries (Issue #1876) — responsive + dark-mode rendering:
+ *   5. Mobile: refund card shows red "Refund" badge and negative amount in cardAmount
+ *   6. Dark mode: refund badge and negative amount are legible
+ *
  * Setup mirrors invoice-deposits.spec.ts.
  */
 
@@ -59,7 +63,12 @@ async function createInvoiceViaApi(
 async function createDepositViaApi(
   page: Page,
   invoiceId: string,
-  data: { amount: number; dueDate: string; description?: string },
+  data: {
+    amount: number;
+    dueDate: string;
+    description?: string;
+    entryType?: 'deposit' | 'refund';
+  },
 ): Promise<{ id: string }> {
   const response = await page.request.post(`/api/invoices/${invoiceId}/deposits`, {
     data: { status: 'pending', ...data },
@@ -338,6 +347,116 @@ test.describe('Deposit OverflowMenu portal — not clipped (#1423)', () => {
       await expect(menu).not.toBeVisible();
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 5 (#1876): Mobile — refund card shows the "Refund" badge and negative
+// amount inside cardAmount
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Refund entry — mobile card layout (Scenario 5, #1876)',
+  { tag: '@responsive' },
+  () => {
+    test('Mobile: refund card shows red "Refund" badge and negative amount in cardAmount', async ({
+      page,
+      testPrefix,
+    }) => {
+      // Mobile-only: the desktop/tablet table-row equivalent is covered by
+      // invoice-deposits.spec.ts Scenario 9. This test asserts the mobile CARD markup
+      // specifically ([class*="cardAmount"], [class*="mobileCard"]).
+      const viewportWidth = page.viewportSize()?.width ?? 1440;
+      if (viewportWidth > 767) {
+        test.skip(true, 'Refund card layout — mobile viewport only');
+        return;
+      }
+
+      const detailPage = new InvoiceDetailPage(page);
+      let vendorId = '';
+
+      try {
+        vendorId = await createVendorViaApi(page, `${testPrefix} Refund Mobile Vendor`);
+        const invoiceId = await createInvoiceViaApi(page, vendorId, {
+          amount: 800,
+          date: '2026-06-01',
+        });
+
+        await createDepositViaApi(page, invoiceId, {
+          entryType: 'refund',
+          amount: 150,
+          dueDate: '2026-07-20',
+          description: `${testPrefix} mobile refund`,
+        });
+
+        await detailPage.goto(invoiceId);
+        await expect(detailPage.heading).toBeVisible();
+
+        // Mobile card is visible
+        const mobileCard = detailPage.depositsSection.locator('[class*="mobileCard"]').first();
+        await expect(mobileCard).toBeVisible();
+
+        // Refund badge + negative amount are both inside the card's cardAmount block
+        const cardAmount = mobileCard.locator('[class*="cardAmount"]');
+        await expect(cardAmount).toBeVisible();
+        await expect(cardAmount).toContainText('Refund');
+        await expect(cardAmount.locator('[class*="amountNegative"]')).toContainText('150');
+        const negativeText =
+          (await cardAmount.locator('[class*="amountNegative"]').textContent()) ?? '';
+        expect(negativeText.trim().startsWith('-')).toBe(true);
+      } finally {
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 6 (#1876): Dark mode — refund badge and negative amount are legible
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Refund entry — dark mode (Scenario 6, #1876)', () => {
+  test('Dark mode: refund badge and negative amount render visibly', async ({
+    browser,
+    page: p,
+  }) => {
+    const vendorName = `DM-Refund-${Date.now()} Vendor`;
+    let vendorId = '';
+
+    try {
+      vendorId = await createVendorViaApi(p, vendorName);
+      const invoiceId = await createInvoiceViaApi(p, vendorId, {
+        amount: 600,
+        date: '2026-06-01',
+      });
+
+      await createDepositViaApi(p, invoiceId, {
+        entryType: 'refund',
+        amount: 120,
+        dueDate: '2026-07-01',
+      });
+
+      const context = await browser.newContext({
+        colorScheme: 'dark',
+        storageState: 'test-results/.auth/admin.json',
+      });
+      const darkPage = await context.newPage();
+      const detailPage = new InvoiceDetailPage(darkPage);
+
+      try {
+        await detailPage.goto(invoiceId);
+        await expect(detailPage.heading).toBeVisible();
+
+        await expect(detailPage.refundBadge.first()).toBeVisible();
+        await expect(detailPage.refundBadge.first()).toContainText('Refund');
+        await expect(detailPage.refundAmountNegative.first()).toBeVisible();
+        await expect(detailPage.refundAmountNegative.first()).toContainText('120');
+      } finally {
+        await context.close();
+      }
+    } finally {
+      if (vendorId) await deleteVendorViaApi(p, vendorId);
     }
   });
 });

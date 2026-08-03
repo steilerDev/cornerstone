@@ -23,7 +23,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <Logo size={32} className={styles.logo} />
         <span className={styles.logoText}>{t('appName')}</span>
       </Link>
-      <nav className={styles.nav} aria-label="Main navigation">
+      <nav className={styles.nav} aria-label={t('aria.mainNavigation')}>
         <NavLink
           to="/project"
           className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}

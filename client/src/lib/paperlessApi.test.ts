@@ -236,4 +236,125 @@ describe('paperlessApi', () => {
       expect(result.correspondents).toHaveLength(0);
     });
   });
+
+  describe('uploadPaperlessDocument', () => {
+    let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+
+    beforeEach(() => {
+      mockFetch = jest.fn<typeof globalThis.fetch>();
+      globalThis.fetch = mockFetch;
+      mockGetBaseUrl.mockReturnValue('/api');
+    });
+
+    it('POSTs multipart FormData with document and title fields to /paperless/documents', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ taskId: 'task-abc' }),
+      } as Response);
+
+      const blob = new Blob(['pdf-bytes'], { type: 'application/pdf' });
+      await paperlessApi.uploadPaperlessDocument(blob, 'Claim Report');
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [url, init] = mockFetch.mock.calls[0]!;
+      expect(url).toBe('/api/paperless/documents');
+      expect((init as RequestInit).method).toBe('POST');
+      expect((init as RequestInit).credentials).toBe('include');
+
+      const formData = (init as RequestInit).body as FormData;
+      expect(formData).toBeInstanceOf(FormData);
+      expect(formData.get('document')).toBeInstanceOf(Blob);
+      expect(formData.get('title')).toBe('Claim Report');
+    });
+
+    it('resolves with the parsed PaperlessUploadResponse on success (201)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ taskId: 'task-xyz' }),
+      } as Response);
+
+      const result = await paperlessApi.uploadPaperlessDocument(new Blob(['x']), 'title');
+
+      expect(result).toEqual({ taskId: 'task-xyz' });
+    });
+
+    it.each([
+      [400, 'VALIDATION_ERROR'],
+      [401, 'UNAUTHORIZED'],
+      [413, 'PAYLOAD_TOO_LARGE'],
+      [502, 'PAPERLESS_UNREACHABLE'],
+      [502, 'PAPERLESS_ERROR'],
+      [503, 'PAPERLESS_NOT_CONFIGURED'],
+    ])(
+      'throws ApiClientError(%i, %s) on a non-ok response with a structured error body',
+      async (status, code) => {
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status,
+          json: async () => ({ error: { code, message: 'failed' } }),
+        } as Response);
+
+        try {
+          await paperlessApi.uploadPaperlessDocument(new Blob(['x']), 'title');
+          throw new Error('expected rejection');
+        } catch (err) {
+          expect(err).toBeInstanceOf(Error);
+          const apiErr = err as { statusCode: number; error: { code: string } };
+          expect(apiErr.statusCode).toBe(status);
+          expect(apiErr.error.code).toBe(code);
+        }
+      },
+    );
+
+    it('falls back to a generic INTERNAL_ERROR when the error response body is not valid JSON', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new SyntaxError('Unexpected token');
+        },
+      } as unknown as Response);
+
+      try {
+        await paperlessApi.uploadPaperlessDocument(new Blob(['x']), 'title');
+        throw new Error('expected rejection');
+      } catch (err) {
+        const apiErr = err as { statusCode: number; error: { code: string } };
+        expect(apiErr.statusCode).toBe(500);
+        expect(apiErr.error.code).toBe('INTERNAL_ERROR');
+      }
+    });
+
+    it('falls back to a generic INTERNAL_ERROR when the error response body has no error field', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        json: async () => ({}),
+      } as Response);
+
+      try {
+        await paperlessApi.uploadPaperlessDocument(new Blob(['x']), 'title');
+        throw new Error('expected rejection');
+      } catch (err) {
+        const apiErr = err as { statusCode: number; error: { code: string } };
+        expect(apiErr.statusCode).toBe(502);
+        expect(apiErr.error.code).toBe('INTERNAL_ERROR');
+      }
+    });
+
+    it('uses getBaseUrl() for the upload URL', async () => {
+      mockGetBaseUrl.mockReturnValue('https://example.com/api');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => ({ taskId: 't1' }),
+      } as Response);
+
+      await paperlessApi.uploadPaperlessDocument(new Blob(['x']), 'title');
+
+      expect(mockFetch.mock.calls[0]![0]).toBe('https://example.com/api/paperless/documents');
+    });
+  });
 });

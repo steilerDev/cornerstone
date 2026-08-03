@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { PaperlessDocumentSearchResult } from '@cornerstone/shared';
 import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './DocumentDetailPanel.module.css';
 
 interface DocumentDetailPanelProps {
@@ -19,6 +20,7 @@ export function DocumentDetailPanel({
   variant = 'standalone',
 }: DocumentDetailPanelProps) {
   const { t } = useTranslation('documents');
+  const { formatDate } = useFormatters();
   const thumbUrl = getDocumentThumbnailUrl(document.id);
   const paperlessDocUrl = paperlessBaseUrl
     ? `${paperlessBaseUrl}/documents/${document.id}/details`
@@ -58,11 +60,7 @@ export function DocumentDetailPanel({
               <>
                 <dt className={styles.metaLabel}>{t('documentDetail.created')}</dt>
                 <dd className={styles.metaValue}>
-                  {new Date(document.created).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
+                  {formatDate(document.created, undefined, 'long')}
                 </dd>
               </>
             )}

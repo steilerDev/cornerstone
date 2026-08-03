@@ -136,6 +136,8 @@ function makeBudgetSource(
     interestRate: null,
     terms: null,
     notes: null,
+    reference: null,
+    contactAddress: null,
     status: 'active',
     createdBy: null,
     createdAt: '2026-01-01T00:00:00.000Z',

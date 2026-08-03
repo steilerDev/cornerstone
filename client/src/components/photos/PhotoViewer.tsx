@@ -188,7 +188,7 @@ export function PhotoViewer({
             type="button"
             onClick={onClose}
             className={styles.closeButton}
-            aria-label="Close photo viewer"
+            aria-label={t('closeViewer')}
             data-testid="photo-viewer-close"
             style={{ display: isAnnotating ? 'none' : undefined }}
           >
@@ -219,7 +219,7 @@ export function PhotoViewer({
                 type="button"
                 onClick={handlePrevious}
                 className={`${styles.navButton} ${styles.navButtonLeft}`}
-                aria-label="Previous photo"
+                aria-label={t('previousPhoto')}
                 data-testid="photo-viewer-prev"
               >
                 ‹
@@ -228,7 +228,7 @@ export function PhotoViewer({
                 type="button"
                 onClick={handleNext}
                 className={`${styles.navButton} ${styles.navButtonRight}`}
-                aria-label="Next photo"
+                aria-label={t('nextPhoto')}
                 data-testid="photo-viewer-next"
               >
                 ›

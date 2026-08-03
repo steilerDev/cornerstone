@@ -21,7 +21,9 @@
     "confirm": "Bestätigen",
     "back": "Zurück",
     "search": "Suchen",
-    "clearFilters": "Filter zurücksetzen"
+    "clearFilters": "Filter zurücksetzen",
+    "next": "Weiter",
+    "retry": "Erneut versuchen"
   },
   "optional": "(optional)",
   "aria": {
@@ -37,7 +39,8 @@
     "selectTrade": "Gewerk auswählen",
     "selectOrientation": "Ausrichtung auswählen",
     "selectAssignment": "Benutzer oder Auftragnehmer auswählen",
-    "unassigned": "Nicht zugewiesen"
+    "unassigned": "Nicht zugewiesen",
+    "mainNavigation": "Hauptnavigation"
   },
   "loading": "Wird geladen...",
   "searching": "Suche läuft...",
@@ -107,7 +110,8 @@
       "overview": "Übersicht",
       "invoices": "Rechnungen",
       "sources": "Geldquellen",
-      "subsidies": "Zuschüsse"
+      "subsidies": "Zuschüsse",
+      "reports": "Berichte"
     },
     "settings": {
       "profile": "Profil",

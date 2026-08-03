@@ -8,9 +8,16 @@
  * 4. Create backup — requires BACKUP_DIR configured; covered via API mock
  * 5. Delete backup confirmation modal — cancel closes without deleting; delete removes row
  * 6. Restore confirmation modal shows warning text; cancel closes modal
+ * 7. Scheduler status section (Issue #1804):
+ *    7a. Real (unmocked) environment shows Disabled state with hint (no BACKUP_CADENCE configured)
+ *    7b. Mocked enabled + successful last run + two next runs
+ *    7c. Mocked enabled + failed last run shows Failed badge
+ *    7d. Mocked enabled + lastRun null shows "no runs yet" message
+ *    7e. Mocked network failure shows the generic scheduler load-error banner
+ *    7f. Not-configured (503) state — scheduler section is entirely absent
  *
  * Environment note: BACKUP_DIR defaults to /backups, so the testcontainer always
- * has backups enabled. Scenarios 3–6 use page.route() to mock /api/backups responses.
+ * has backups enabled. Scenarios 3–7 use page.route() to mock /api/backups responses.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -157,6 +164,10 @@ test.describe('Backups page — not-configured state', () => {
 
     // And: No backup table is visible
     await expect(backupsPage.backupTable).not.toBeVisible();
+
+    // And: The scheduler status section is entirely absent (Issue #1804 — the
+    // not-configured branch returns early and never renders the section)
+    await expect(backupsPage.schedulerSection).not.toBeVisible();
   });
 });
 
@@ -367,6 +378,119 @@ test.describe('Backups page — configured state (mocked)', () => {
     // And: Both backups are still listed (no restore was triggered)
     const rows = await backupsPage.getBackupRows();
     expect(rows).toHaveLength(2);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 7: Automatic backup scheduler status section (Issue #1804)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Backups page — scheduler status section', () => {
+  // ─── 7a: Real (unmocked) default environment ──────────────────────────────
+
+  test('Scheduler section shows Disabled state by default (no BACKUP_CADENCE configured)', async ({
+    page,
+  }) => {
+    // No mock — exercises the real GET /api/backups/scheduler-status endpoint against
+    // the testcontainer, which never has BACKUP_CADENCE set.
+    const backupsPage = new BackupsPage(page);
+
+    await backupsPage.goto();
+    await backupsPage.waitForSchedulerLoaded();
+
+    await expect(backupsPage.schedulerHeading).toBeVisible();
+    await expect(backupsPage.schedulerStatusValue).toContainText('Disabled');
+    await expect(backupsPage.schedulerDisabledHint).toBeVisible();
+
+    // The last-run/next-run rows only render when enabled — must not be present
+    await expect(backupsPage.schedulerLastRunValue).not.toBeVisible();
+    await expect(backupsPage.schedulerNextRunValue).not.toBeVisible();
+  });
+
+  // ─── 7b: Mocked enabled state with successful last run and two next runs ──
+
+  test('Scheduler section shows Enabled state with successful last run and both next runs', async ({
+    page,
+  }) => {
+    const backupsPage = new BackupsPage(page);
+    await backupsPage.mockSchedulerStatus(200, {
+      enabled: true,
+      lastRun: { timestamp: '2026-03-22T10:00:00.000Z', success: true },
+      nextRuns: ['2026-03-23T02:00:00.000Z', '2026-03-24T02:00:00.000Z'],
+    });
+
+    await backupsPage.goto();
+    await backupsPage.waitForSchedulerLoaded();
+
+    await expect(backupsPage.schedulerStatusValue).toContainText('Enabled');
+    await expect(backupsPage.schedulerDisabledHint).not.toBeVisible();
+
+    // Last run row: succeeded badge + formatted timestamp (assert the year rather than
+    // the full locale-formatted string, which depends on the runner's ICU data/timezone)
+    await expect(backupsPage.schedulerLastRunValue).toContainText('Succeeded');
+    await expect(backupsPage.schedulerLastRunValue).toContainText('2026');
+
+    // Next run row: primary time rendered plus the "then" secondary time
+    await expect(backupsPage.schedulerNextRunValue).toContainText('2026');
+    await expect(backupsPage.schedulerNextRunValue).toContainText('then');
+  });
+
+  // ─── 7c: Mocked failed last run ────────────────────────────────────────────
+
+  test('Scheduler section shows Failed badge when the last scheduled run failed', async ({
+    page,
+  }) => {
+    const backupsPage = new BackupsPage(page);
+    await backupsPage.mockSchedulerStatus(200, {
+      enabled: true,
+      lastRun: { timestamp: '2026-03-22T10:00:00.000Z', success: false },
+      nextRuns: ['2026-03-23T02:00:00.000Z'],
+    });
+
+    await backupsPage.goto();
+    await backupsPage.waitForSchedulerLoaded();
+
+    await expect(backupsPage.schedulerLastRunValue).toContainText('Failed');
+  });
+
+  // ─── 7d: Mocked enabled with lastRun null ─────────────────────────────────
+
+  test('Scheduler section shows "no runs yet" message when the scheduler has never run', async ({
+    page,
+  }) => {
+    const backupsPage = new BackupsPage(page);
+    await backupsPage.mockSchedulerStatus(200, {
+      enabled: true,
+      lastRun: null,
+      nextRuns: ['2026-03-23T02:00:00.000Z'],
+    });
+
+    await backupsPage.goto();
+    await backupsPage.waitForSchedulerLoaded();
+
+    await expect(backupsPage.schedulerNoRunsYetText).toBeVisible();
+    // The next run row still renders normally
+    await expect(backupsPage.schedulerNextRunValue).toContainText('2026');
+  });
+
+  // ─── 7e: Network failure shows the generic load-error banner ─────────────
+
+  test('Scheduler section shows load-error banner when the status request fails', async ({
+    page,
+  }) => {
+    // Note: BackupsPage.tsx only falls back to the generic `backups.scheduler.loadError`
+    // translation for non-ApiClientError failures (e.g. a genuine network failure). An
+    // HTTP error response (4xx/5xx) with a JSON error body is parsed into an ApiClientError
+    // and its own `error.message` is shown verbatim instead. route.abort() simulates the
+    // network-failure path so the generic loadError string is what actually renders.
+    const backupsPage = new BackupsPage(page);
+    await page.route('**/api/backups/scheduler-status', (route) => route.abort('failed'));
+
+    await backupsPage.goto();
+    await backupsPage.waitForSchedulerLoaded();
+
+    await expect(backupsPage.schedulerErrorBanner).toBeVisible();
+    await expect(backupsPage.schedulerErrorBanner).toContainText('Failed to load scheduler status');
   });
 });
 

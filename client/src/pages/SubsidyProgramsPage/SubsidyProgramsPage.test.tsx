@@ -1262,6 +1262,65 @@ describe('SubsidyProgramsPage', () => {
     });
   });
 
+  // ─── Edit-form placeholders distinct from create-form placeholders (Issue #1812) ──
+  // Regression guard: the edit form intentionally uses its own `subsidies.editForm.
+  // placeholders.*` keys (shorter text) rather than reusing `subsidies.form.
+  // placeholders.*` (longer text used by the create form), to keep visible text
+  // unchanged from before the i18n sweep. If these keys were ever accidentally
+  // unified, this test would catch the placeholder text changing.
+
+  describe('editForm placeholders distinct from create form placeholders', () => {
+    it('create form shows the longer form.placeholders text for description/eligibility/notes', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add program/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /add program/i }));
+
+      expect(
+        screen.getByPlaceholderText('Optional description of this program'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText('Optional eligibility criteria or requirements'),
+      ).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Optional additional notes')).toBeInTheDocument();
+    });
+
+    it('edit form shows its own shorter editForm.placeholders text for description/eligibility/notes', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
+      const user = userEvent.setup();
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /edit energy rebate/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /edit energy rebate/i }));
+
+      const form = screen.getByRole('form', { name: /edit energy rebate/i });
+      expect(within(form).getByPlaceholderText('Optional description')).toBeInTheDocument();
+      expect(
+        within(form).getByPlaceholderText('Optional eligibility criteria'),
+      ).toBeInTheDocument();
+      expect(within(form).getByPlaceholderText('Optional notes')).toBeInTheDocument();
+
+      // Guard: the edit form must NOT show the longer create-form placeholder text.
+      expect(
+        screen.queryByPlaceholderText('Optional description of this program'),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByPlaceholderText('Optional eligibility criteria or requirements'),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByPlaceholderText('Optional additional notes')).not.toBeInTheDocument();
+    });
+  });
+
   // ─── Delete modal ──────────────────────────────────────────────────────────
 
   describe('delete modal', () => {
@@ -1294,7 +1353,12 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
       const dialog = screen.getByRole('dialog');
-      expect(within(dialog).getByText('Energy Rebate')).toBeInTheDocument();
+      // The program name is now interpolated into a single translated sentence
+      // (t('subsidies.modal.deleteConfirm', { name })) rather than wrapped in its
+      // own <strong> text node, so assert on the full rendered sentence.
+      expect(
+        within(dialog).getByText('Are you sure you want to delete the program "Energy Rebate"?'),
+      ).toBeInTheDocument();
     });
 
     it('shows "Delete Program" confirm button in modal', async () => {

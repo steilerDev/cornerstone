@@ -176,7 +176,7 @@ export function DependencySentenceBuilder({
           value={predecessorVerb}
           onChange={(e) => setPredecessorVerb(e.target.value as DependencyVerb)}
           disabled={disabled}
-          aria-label="Predecessor verb"
+          aria-label={t('detail.constraints.dependencyBuilder.predecessorVerbAriaLabel')}
         >
           <option value="finish">{t('detail.constraints.dependencyBuilder.finish')}</option>
           <option value="start">{t('detail.constraints.dependencyBuilder.start')}</option>
@@ -208,7 +208,7 @@ export function DependencySentenceBuilder({
           value={successorVerb}
           onChange={(e) => setSuccessorVerb(e.target.value as DependencyVerb)}
           disabled={disabled}
-          aria-label="Successor verb"
+          aria-label={t('detail.constraints.dependencyBuilder.successorVerbAriaLabel')}
         >
           <option value="start">{t('detail.constraints.dependencyBuilder.start')}</option>
           <option value="finish">{t('detail.constraints.dependencyBuilder.finish')}</option>

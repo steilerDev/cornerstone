@@ -126,7 +126,7 @@
   flex-shrink: 0;
 }
 
-.dayButton:hover:not(.daySelected):not(.dayDisabled) {
+.dayButton:hover:not(.daySelected, .dayDisabled) {
   background: var(--color-bg-hover);
 }
 

@@ -178,7 +178,7 @@ export default function DiaryEntryDetailPage() {
           type="button"
           className={styles.backButton}
           onClick={() => navigate('/diary')}
-          aria-label="Go back to diary"
+          aria-label={t('detailPage.backLinkAriaLabel')}
         >
           {t('detailPage.backLink')}
         </button>

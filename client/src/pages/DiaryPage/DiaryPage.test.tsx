@@ -294,6 +294,47 @@ describe('DiaryPage', () => {
     });
   });
 
+  // ─── useDebounce migration (#1816): page param not reset on mount ─────────
+  // Regression test for the `isFirstSearchSync` guard around the debounced
+  // search-sync effect. Without it, mounting with both `q` and `page` in the
+  // URL would fire the search-sync effect on mount (since useDebounce returns
+  // its initial value synchronously) and reset `page` back to '1', discarding
+  // the user's pagination position on page load/refresh.
+
+  it('does not reset the page URL param to 1 on initial mount when the URL has both q and page', async () => {
+    // NOTE: mounting with a `page` URL param already produces two fetches by
+    // design, unrelated to this guard: `currentPage` state initializes to 1,
+    // then a separate effect syncs it from the `page` URL param once `urlPage`
+    // is read, triggering a second fetch. That's pre-existing behavior. What
+    // this test guards against is a THIRD, spurious fetch/URL-rewrite from the
+    // debounced-search-sync effect resetting `page` back to '1' on mount
+    // (since useDebounce returns its initial value synchronously, that effect
+    // would otherwise treat the initial `q` value as a "change").
+    mockListDiaryEntries.mockResolvedValue({
+      items: [makeSummary('de-1')],
+      pagination: { page: 3, pageSize: 25, totalPages: 5, totalItems: 120 },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/diary?q=foo&page=3']}>
+        <DiaryPage />
+      </MemoryRouter>,
+    );
+
+    // Final rendered state must reflect page 3, not a reset to page 1.
+    await waitFor(() => {
+      expect(screen.getByText('Page 3 of 5')).toBeInTheDocument();
+    });
+
+    // The last API call must have requested page 3 with the search query intact
+    // — if the isFirstSearchSync guard were missing, the debounced-search-sync
+    // effect would have rewritten the URL's `page` param back to '1' on mount,
+    // and this final call/render would show page 1 instead.
+    const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
+    expect(lastCall?.[0]?.page).toBe(3);
+    expect(lastCall?.[0]?.q).toBe('foo');
+  });
+
   // ─── Filter mode changes call API ──────────────────────────────────────────
 
   // ─── New Entry button ─────────────────────────────────────────────────────

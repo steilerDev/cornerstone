@@ -14,6 +14,7 @@ import { NotFoundError, UnauthorizedError } from '../errors/AppError.js';
 import * as documentLinkService from '../services/documentLinkService.js';
 import type {
   CreateDocumentLinkRequest,
+  UpdateDocumentLinkRequest,
   DocumentLinkEntityType,
   AllLinkedDocumentIdsResponse,
 } from '@cornerstone/shared';
@@ -31,6 +32,26 @@ const createLinkSchema = {
       },
       entityId: { type: 'string', minLength: 1, maxLength: 36 },
       paperlessDocumentId: { type: 'integer', minimum: 1 },
+      attachmentType: { type: ['string', 'null'], enum: ['quotation', 'deposit', 'invoice', null] },
+    },
+    additionalProperties: false,
+  },
+};
+
+const updateLinkSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' },
+    },
+    additionalProperties: false,
+  },
+  body: {
+    type: 'object',
+    required: ['attachmentType'],
+    properties: {
+      attachmentType: { type: ['string', 'null'], enum: ['quotation', 'deposit', 'invoice', null] },
     },
     additionalProperties: false,
   },
@@ -81,13 +102,14 @@ export default async function documentLinksRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const { entityType, entityId, paperlessDocumentId } = request.body;
+      const { entityType, entityId, paperlessDocumentId, attachmentType } = request.body;
       const link = documentLinkService.createLink(
         fastify.db,
         entityType,
         entityId,
         paperlessDocumentId,
         request.user.id,
+        attachmentType ?? null,
       );
       return reply.status(201).send({ documentLink: link });
     },
@@ -136,6 +158,31 @@ export default async function documentLinksRoutes(fastify: FastifyInstance) {
     const ids = documentLinkService.getAllLinkedDocumentIds(fastify.db);
     return reply.status(200).send({ paperlessDocumentIds: ids });
   });
+
+  /**
+   * PATCH /api/document-links/:id
+   *
+   * Tag, retag, or untag (null) a document link's attachment type.
+   * Non-invoice links ignore the request value and store null.
+   *
+   * Auth required: Yes
+   */
+  fastify.patch<{ Params: { id: string }; Body: UpdateDocumentLinkRequest }>(
+    '/:id',
+    { schema: updateLinkSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const link = documentLinkService.updateAttachmentType(
+        fastify.db,
+        request.params.id,
+        request.body.attachmentType,
+      );
+      return reply.status(200).send({ documentLink: link });
+    },
+  );
 
   /**
    * DELETE /api/document-links/:id

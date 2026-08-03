@@ -19,6 +19,7 @@ import type {
   BackupResponse,
   BackupListResponse,
   RestoreInitiatedResponse,
+  BackupSchedulerStatusResponse,
 } from '@cornerstone/shared';
 
 // JSON schemas
@@ -87,6 +88,32 @@ const restoreBackupSchema = {
   },
 };
 
+const schedulerStatusSchema = {
+  response: {
+    200: {
+      type: 'object',
+      required: ['scheduler'],
+      properties: {
+        scheduler: {
+          type: 'object',
+          required: ['enabled', 'lastRun', 'nextRuns'],
+          properties: {
+            enabled: { type: 'boolean' },
+            lastRun: {
+              type: ['object', 'null'],
+              properties: {
+                timestamp: { type: 'string' },
+                success: { type: 'boolean' },
+              },
+            },
+            nextRuns: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+    },
+  },
+};
+
 export default async function backupRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/backups
@@ -139,6 +166,33 @@ export default async function backupRoutes(fastify: FastifyInstance) {
 
       const backups = await backupService.listBackups(fastify.config.backupDir);
       return reply.status(200).send({ backups });
+    },
+  );
+
+  /**
+   * GET /api/backups/scheduler-status
+   *
+   * Returns the automatic backup scheduler's status: whether it is enabled,
+   * the outcome of its most recent run, and its next scheduled run times.
+   * Admin only.
+   */
+  fastify.get<{ Reply: BackupSchedulerStatusResponse }>(
+    '/scheduler-status',
+    {
+      schema: schedulerStatusSchema,
+      preHandler: requireRole('admin'),
+    },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      if (!fastify.config.backupEnabled) {
+        throw new BackupNotConfiguredError();
+      }
+
+      const scheduler = backupService.getSchedulerStatus();
+      return reply.status(200).send({ scheduler });
     },
   );
 

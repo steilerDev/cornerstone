@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import type * as PreferencesApiModule from '../lib/preferencesApi.js';
 import type * as ConfigApiModule from '../lib/configApi.js';
 import type * as LocaleContextModule from './LocaleContext.js';
+import type { AppConfigResponse } from '@cornerstone/shared';
 
 // ─── Mocks (must be registered BEFORE dynamic import) ─────────────────────────
 
@@ -54,8 +55,13 @@ beforeEach(async () => {
   mockChangeLanguage.mockReset();
   mockChangeLanguage.mockResolvedValue(undefined);
 
-  // Default: fetchConfig returns EUR and autoItemizeEnabled false
-  mockFetchConfig.mockResolvedValue({ currency: 'EUR', autoItemizeEnabled: false });
+  // Default: fetchConfig returns EUR and autoItemizeEnabled/llmEnabled false
+  mockFetchConfig.mockResolvedValue({
+    currency: 'EUR',
+    vatRate: 0.19,
+    autoItemizeEnabled: false,
+    llmEnabled: false,
+  });
 
   try {
     localStorage.clear();
@@ -74,12 +80,13 @@ afterEach(() => {
 // ─── Test component ────────────────────────────────────────────────────────────
 
 function TestComponent() {
-  const { locale, resolvedLocale, currency, setLocale, syncWithServer } = useLocale();
+  const { locale, resolvedLocale, currency, vatRate, setLocale, syncWithServer } = useLocale();
   return (
     <div>
       <div data-testid="locale">{locale}</div>
       <div data-testid="resolved-locale">{resolvedLocale}</div>
       <div data-testid="currency">{currency}</div>
+      <div data-testid="vat-rate">{vatRate}</div>
       <button onClick={() => setLocale('en')}>Set English</button>
       <button onClick={() => setLocale('de')}>Set German</button>
       <button onClick={() => setLocale('system')}>Set System</button>
@@ -163,7 +170,12 @@ describe('LocaleProvider', () => {
     });
 
     it('updates currency from fetchConfig response', async () => {
-      mockFetchConfig.mockResolvedValue({ currency: 'CHF', autoItemizeEnabled: false });
+      mockFetchConfig.mockResolvedValue({
+        currency: 'CHF',
+        vatRate: 0.19,
+        autoItemizeEnabled: false,
+        llmEnabled: false,
+      });
 
       renderWithProvider();
 
@@ -188,7 +200,9 @@ describe('LocaleProvider', () => {
     it('keeps EUR when fetchConfig returns a config with no currency field', async () => {
       mockFetchConfig.mockResolvedValue({
         currency: undefined as unknown as string,
+        vatRate: 0.19,
         autoItemizeEnabled: false,
+        llmEnabled: false,
       });
 
       renderWithProvider();
@@ -196,6 +210,59 @@ describe('LocaleProvider', () => {
       await waitFor(() => {
         // undefined ?? 'EUR' → 'EUR'
         expect(screen.getByTestId('currency').textContent).toBe('EUR');
+      });
+    });
+  });
+
+  // ─── vatRate (Story #1807) ─────────────────────────────────────────────────
+
+  describe('vatRate', () => {
+    it('Scenario 17: vatRate defaults to 0.19 before config is fetched', () => {
+      // Suppress the fetchConfig so it never resolves
+      mockFetchConfig.mockReturnValue(new Promise(() => undefined));
+      renderWithProvider();
+      expect(screen.getByTestId('vat-rate').textContent).toBe('0.19');
+    });
+
+    it('Scenario 18: fetchConfig() resolves with vatRate: 0.20 → context vatRate updates to 0.2', async () => {
+      mockFetchConfig.mockResolvedValue({
+        currency: 'EUR',
+        vatRate: 0.2,
+        autoItemizeEnabled: false,
+        llmEnabled: false,
+      });
+
+      renderWithProvider();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('vat-rate').textContent).toBe('0.2');
+      });
+    });
+
+    it('Scenario 19: fetchConfig() rejects → vatRate stays at 0.19', async () => {
+      mockFetchConfig.mockRejectedValue(new Error('Network error'));
+
+      renderWithProvider();
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+
+      expect(screen.getByTestId('vat-rate').textContent).toBe('0.19');
+    });
+
+    it('Scenario 20: fetchConfig() resolves with no vatRate field → vatRate stays at 0.19', async () => {
+      mockFetchConfig.mockResolvedValue({
+        currency: 'EUR',
+        autoItemizeEnabled: false,
+        llmEnabled: false,
+      } as AppConfigResponse);
+
+      renderWithProvider();
+
+      await waitFor(() => {
+        // undefined ?? 0.19 → 0.19
+        expect(screen.getByTestId('vat-rate').textContent).toBe('0.19');
       });
     });
   });

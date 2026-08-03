@@ -1,6 +1,8 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import type { Photo } from '@cornerstone/shared';
+import enErrors from '../i18n/en/errors.json';
+import enPhotoViewer from '../i18n/en/photoViewer.json';
 
 // ─── Hoisted mocks (must precede dynamic import) ───────────────────────────────
 
@@ -159,26 +161,37 @@ describe('usePhotos', () => {
 
   // ─── Error handling ────────────────────────────────────────────────────────
 
-  it('sets error from ApiClientError message and clears loading', async () => {
+  it('sets error from ApiClientError code via translateApiError', async () => {
     mockGetPhotosForEntity.mockRejectedValueOnce(
-      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'ignored server message' }),
     );
 
     const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
 
-    await waitFor(() => expect(result.current.error).toBe('Server error'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.INTERNAL_ERROR));
     expect(result.current.loading).toBe(false);
     expect(result.current.photos).toEqual([]);
   });
 
-  it('uses fallback message when ApiClientError has no message', async () => {
+  it('translates a known ApiClientError code even when message is absent', async () => {
     mockGetPhotosForEntity.mockRejectedValueOnce(
       new MockApiClientError(401, { code: 'UNAUTHORIZED' }),
     );
 
     const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
 
-    await waitFor(() => expect(result.current.error).toBe('Failed to load photos.'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.UNAUTHORIZED));
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('humanizes an unknown ApiClientError code as a fallback', async () => {
+    mockGetPhotosForEntity.mockRejectedValueOnce(
+      new MockApiClientError(500, { code: 'SOME_UNKNOWN_CODE' }),
+    );
+
+    const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
+
+    await waitFor(() => expect(result.current.error).toBe('Some Unknown Code'));
     expect(result.current.loading).toBe(false);
   });
 
@@ -187,9 +200,7 @@ describe('usePhotos', () => {
 
     const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
 
-    await waitFor(() =>
-      expect(result.current.error).toBe('Network error: Unable to connect to the server.'),
-    );
+    await waitFor(() => expect(result.current.error).toBe(enPhotoViewer.networkError));
     expect(result.current.loading).toBe(false);
   });
 
@@ -198,7 +209,7 @@ describe('usePhotos', () => {
 
     const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
 
-    await waitFor(() => expect(result.current.error).toBe('An unexpected error occurred.'));
+    await waitFor(() => expect(result.current.error).toBe(enPhotoViewer.unexpectedError));
     expect(result.current.loading).toBe(false);
   });
 

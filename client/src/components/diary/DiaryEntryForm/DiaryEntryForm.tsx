@@ -13,7 +13,7 @@ import { SignatureSection } from '../SignatureSection/index.js';
 import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
 import { SearchPicker } from '../../SearchPicker/SearchPicker.js';
 import { fetchVendors } from '../../../lib/vendorsApi.js';
-import { computeWorkDuration } from '../../../lib/formatters.js';
+import { computeWorkDuration, useFormatters } from '../../../lib/formatters.js';
 import styles from './DiaryEntryForm.module.css';
 
 export interface DiaryEntryFormProps {
@@ -177,6 +177,7 @@ export function DiaryEntryForm({
   vendors,
 }: DiaryEntryFormProps) {
   const { t } = useTranslation('diary');
+  const { formatHours } = useFormatters();
   const weatherOptions = useWeatherOptions();
   const outcomeOptions = useOutcomeOptions();
   const severityOptions = useSeverityOptions();
@@ -427,7 +428,7 @@ export function DiaryEntryForm({
                 role="status"
                 aria-atomic="true"
               >
-                {workDurationHours.toFixed(2)} h
+                {formatHours(workDurationHours)}
               </span>
             </div>
           )}

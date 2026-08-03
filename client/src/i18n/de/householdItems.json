@@ -257,7 +257,6 @@
     "backButton": "← Zurück zu Haushaltsartikeln",
     "toSchedule": "Zum Zeitplan",
     "edit": "Bearbeiten",
-    "delete": "Löschen",
     "details": {
       "title": "Details",
       "description": "Beschreibung",
@@ -337,6 +336,7 @@
       "plannedAmountLabel": "Geplanter Betrag",
       "actualCostLabel": "Tatsächliche Kosten",
       "paybackLabel": "Rückzahlung"
-    }
+    },
+    "closeErrorMessage": "Fehlermeldung schließen"
   }
 }

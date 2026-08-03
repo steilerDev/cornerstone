@@ -1,0 +1,1347 @@
+/**
+ * E2E tests for the Bank Report Wizard (Story #1879 — `/budget/reports`).
+ *
+ * Covers:
+ * - Scenario 1: Full "claim" walk (desktop) — seed, exclude, preview toggles, download,
+ *   mark-claimed confirm/success, and the resulting invoice statuses on /budget/invoices.
+ * - Scenario 2: Budget-overview report smoke (quotation invoices included).
+ * - Scenario 3: Proof-of-funds report smoke (claimed invoices only).
+ * - Scenario 4: Empty state (zero-match use case/source combo).
+ * - Scenario 5: Upload to Paperless (configured + reachable, mocked).
+ * - Scenario 6: Upload hidden when Paperless unconfigured.
+ * - Scenario 7: `?sourceId=` prefill.
+ * - Scenario 8: Route smoke — heading + stepper render across viewports (@responsive).
+ * - Scenario 9: Forward-lock — unreached steps are non-interactive.
+ * - Scenario 10: Mobile stepper layout.
+ * - Scenario 11: Cross-story integration — a refund entry (Issue #1876) surfaces as a
+ *   negative line in a generated claim report.
+ * - Scenario 12: Story #1899/#1900 — selecting "Deutsch" on the Settings step produces German
+ *   BASELINE FIELD VALUES on the editable step-5 content (proven directly via the live Subject
+ *   field's value — no PDF generation needed) while the wizard's own chrome (heading, stepper
+ *   labels, field LABELS, Back/Next buttons) stays English throughout, and the on-demand
+ *   download still succeeds.
+ * - Scenario 13: Issue #1943 — changing the use case after a source has already been selected
+ *   clears `report`/`sourceId`/the exclusion sets (`handleUseCaseChange`'s reset), re-locking
+ *   step 2's Next button until a source is re-selected under the NEW use case — the wizard-level
+ *   regression guard for the stale-report bug (a claim report could otherwise embed
+ *   quotation-tier documents carried over from a prior `budget-overview` selection; see #1930's
+ *   document-tier filtering, verified separately by #1930/#1942's own suite, not re-verified
+ *   here).
+ * - Scenario 14: Issue #1943 (AC8) — the `?sourceId=` deep-link auto-select effect is a
+ *   ONE-SHOT (`deepLinkAppliedRef`): clearing `report` as part of a use-case change must not
+ *   re-satisfy the effect's `!report` condition and silently re-select the original
+ *   query-string source under the new use case.
+ * - Scenario 15: Issue #1933 — the Select Invoices step's open-invoice affordance opens
+ *   `/budget/invoices/:id` in a genuinely new browsing context (`context.waitForEvent('page')`)
+ *   while leaving the wizard tab's step/source/exclusions untouched (AC 2.2/2.5), its
+ *   accessible name identifies the invoice (AC 2.4, not a bare "Open"), and the select-all
+ *   checkbox shares the per-row checkboxes' left edge (AC 3.1/3.3 alignment regression guard).
+ *   These are things unit tests cannot reach: a real new tab, and CSS layout alignment (no
+ *   layout engine in jsdom).
+ * - Scenario 16: Issue #1933 (AC 2.7) — the open-invoice affordance repeats at mobile viewport,
+ *   proving the new-tab behavior holds regardless of viewport (there is no separate mobile card
+ *   layout for the invoice row — the grid is unconditional).
+ *
+ * NOTE ON CURRENT IMPLEMENTATION STATE: as of this story, `ReportWizardPage.tsx` calls
+ * `setBudgetSources(sources)` with the raw `fetchBudgetSources()` response
+ * (`{ budgetSources: BudgetSource[] }`), not the `BudgetSource[]` array the rest of the
+ * component expects — every `budgetSources.map/.find/.sort` call (starting with the very
+ * first use-case selection in `handleUseCaseChange`) throws `TypeError: budgetSources.map is
+ * not a function` at runtime, which prevents the wizard from ever reaching a working Step 2.
+ * This is filed as a Blocker bug (see PR/issue) and is expected to make every scenario below
+ * that progresses past Step 1 fail until fixed — the tests assert the SPEC-CONFORMANT
+ * behavior per the test-failure-debugging protocol (correct tests are not weakened to
+ * accommodate buggy code) and will pass once the fix lands.
+ *
+ * PDF generation (pdfmake + pdf-lib via dynamic `import()`) can be slow, especially on a
+ * cold chunk load — every scenario that reaches step 5 (the preview) uses `test.slow()`.
+ */
+
+import { test, expect } from '../../fixtures/auth.js';
+import type { Page } from '@playwright/test';
+import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
+import { InvoicesPage, INVOICES_ROUTE } from '../../pages/InvoicesPage.js';
+import { API } from '../../fixtures/testData.js';
+import {
+  createVendorViaApi,
+  deleteVendorViaApi,
+  createBudgetSourceViaApi,
+  deleteBudgetSourceViaApi,
+  createWorkItemViaApi,
+  deleteWorkItemViaApi,
+} from '../../fixtures/apiHelpers.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API helpers (local — mirrors the pattern used by invoices.spec.ts /
+// invoice-deposits.spec.ts / invoice-budget-line-area-breadcrumb.spec.ts; these
+// endpoints don't have shared fixtures/apiHelpers.ts entries yet)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface InvoiceApiResponse {
+  id: string;
+  invoiceNumber: string | null;
+  amount: number;
+  status: string;
+  vendorId: string;
+}
+
+async function createInvoiceViaApi(
+  page: Page,
+  vendorId: string,
+  data: {
+    invoiceNumber?: string;
+    amount: number;
+    date: string;
+    status?: 'pending' | 'paid' | 'claimed' | 'quotation';
+  },
+): Promise<InvoiceApiResponse> {
+  const response = await page.request.post(`${API.vendors}/${vendorId}/invoices`, {
+    data: { status: 'pending', ...data },
+  });
+  expect(response.ok(), `POST invoice failed: ${response.status()}`).toBeTruthy();
+  const body = (await response.json()) as { invoice: InvoiceApiResponse };
+  return body.invoice;
+}
+
+async function createWorkItemBudgetViaApi(
+  page: Page,
+  workItemId: string,
+  data: { plannedAmount: number; budgetSourceId: string; description?: string },
+): Promise<string> {
+  const response = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
+    data: { confidence: 'own_estimate', ...data },
+  });
+  expect(response.ok(), `POST work item budget for ${workItemId}`).toBeTruthy();
+  const body = (await response.json()) as { budget: { id: string } };
+  return body.budget.id;
+}
+
+async function linkInvoiceToBudgetLineViaApi(
+  page: Page,
+  invoiceId: string,
+  data: { workItemBudgetId: string; itemizedAmount: number },
+): Promise<void> {
+  const response = await page.request.post(`/api/invoices/${invoiceId}/budget-lines`, {
+    data,
+  });
+  expect(response.ok(), `POST invoice budget line for ${invoiceId}`).toBeTruthy();
+}
+
+/** Creates an invoice fully allocated (single line, no split) to `sourceId` via `workItemId`. */
+async function seedAllocatedInvoice(
+  page: Page,
+  workItemId: string,
+  vendorId: string,
+  sourceId: string,
+  data: {
+    invoiceNumber: string;
+    amount: number;
+    date: string;
+    status: 'pending' | 'paid' | 'claimed' | 'quotation';
+  },
+): Promise<InvoiceApiResponse> {
+  const invoice = await createInvoiceViaApi(page, vendorId, data);
+  const budgetId = await createWorkItemBudgetViaApi(page, workItemId, {
+    plannedAmount: data.amount,
+    budgetSourceId: sourceId,
+  });
+  await linkInvoiceToBudgetLineViaApi(page, invoice.id, {
+    workItemBudgetId: budgetId,
+    itemizedAmount: data.amount,
+  });
+  return invoice;
+}
+
+async function createDepositViaApi(
+  page: Page,
+  invoiceId: string,
+  data: {
+    amount: number;
+    dueDate: string;
+    status?: 'pending' | 'paid' | 'claimed';
+    entryType?: 'deposit' | 'refund';
+  },
+): Promise<{ id: string }> {
+  const response = await page.request.post(`/api/invoices/${invoiceId}/deposits`, {
+    data: { status: 'pending', ...data },
+  });
+  expect(response.ok(), `POST deposit failed: ${response.status()}`).toBeTruthy();
+  const body = (await response.json()) as { deposit: { id: string } };
+  return body.deposit;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Paperless mocking helpers (established convention — see
+// invoices/paperless-first-invoice.spec.ts)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PAPERLESS_BASE_URL = 'http://paperless.local:8000';
+
+async function mockPaperlessConfigured(page: Page): Promise<void> {
+  await page.route(`**${API.paperlessStatus}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: PAPERLESS_BASE_URL,
+        filterTag: null,
+      }),
+    });
+  });
+}
+
+async function mockPaperlessNotConfigured(page: Page): Promise<void> {
+  await page.route(`**${API.paperlessStatus}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      }),
+    });
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 1: Full claim walk (desktop)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — claim walk (Scenario 1)', () => {
+  test('Full claim flow: select, exclude, preview, download, mark claimed', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceAId = '';
+    let workItemId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Claim Vendor` });
+      sourceAId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Source A`,
+        totalAmount: 50000,
+        // Cover letter requires a contact address + reference (Story #1877) — this scenario
+        // exercises the cover-letter toggle, so both must be seeded.
+        contactAddress: '123 Bank St, Springfield',
+        reference: 'Account #12345',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Claim` });
+
+      const pending1 = await seedAllocatedInvoice(page, workItemId, vendorId, sourceAId, {
+        invoiceNumber: `${testPrefix}-CLM-001`,
+        amount: 500,
+        date: '2026-02-01',
+        status: 'pending',
+      });
+      const pending2 = await seedAllocatedInvoice(page, workItemId, vendorId, sourceAId, {
+        invoiceNumber: `${testPrefix}-CLM-002`,
+        amount: 700,
+        date: '2026-02-02',
+        status: 'pending',
+      });
+      const paid = await seedAllocatedInvoice(page, workItemId, vendorId, sourceAId, {
+        invoiceNumber: `${testPrefix}-CLM-003`,
+        amount: 1200,
+        date: '2026-02-03',
+        status: 'paid',
+      });
+      // Not claimable (irrelevant to the "claim" report — pending+paid only) — proves the
+      // report correctly excludes it.
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceAId, {
+        invoiceNumber: `${testPrefix}-CLM-004`,
+        amount: 900,
+        date: '2026-02-04',
+        status: 'claimed',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+
+      await expect(wizard.sourceRadioGroup).toBeVisible();
+      await wizard.selectSource(sourceAId);
+      await wizard.goNextFromStep2();
+
+      // Step 3: only pending+paid invoices shown, select-all default (all 3 included).
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} Claim Vendor`, pending1.invoiceNumber!),
+      ).toBeVisible();
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} Claim Vendor`, pending2.invoiceNumber!),
+      ).toBeVisible();
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} Claim Vendor`, paid.invoiceNumber!),
+      ).toBeVisible();
+      await expect(
+        wizard.invoiceRow(`${testPrefix} Claim Vendor`, `${testPrefix}-CLM-004`),
+      ).toHaveCount(0);
+      for (const row of [pending1, pending2, paid]) {
+        await expect(
+          wizard.invoiceRowCheckbox(`${testPrefix} Claim Vendor`, row.invoiceNumber!),
+        ).toBeChecked();
+      }
+
+      // Exclude pending1 — running total should drop from 2400 to 1900 (grouped format).
+      await wizard.toggleInvoiceExclusion(`${testPrefix} Claim Vendor`, pending1.invoiceNumber!);
+      await expect(
+        wizard.invoiceRowCheckbox(`${testPrefix} Claim Vendor`, pending1.invoiceNumber!),
+      ).not.toBeChecked();
+      await expect(wizard.selectionCountLabel).toContainText('1,900');
+
+      await wizard.goNextFromStep3();
+
+      // Step 4: Settings — attach-documents/cover-letter toggles now live here, BEFORE any PDF
+      // has ever been generated (Story #1900: generation only happens on-demand once the user
+      // clicks "Preview PDF"/Download/Upload on step 5 — see ReportWizardPage.ts class
+      // docstring). Toggle each option off then on to exercise the controls directly; the
+      // resulting settings feed the on-demand generation proven once, below, via
+      // openPdfPreviewModal() after advancing.
+      await wizard.toggleAttachDocuments();
+      await expect(wizard.attachDocumentsCheckbox).not.toBeChecked();
+      await wizard.toggleAttachDocuments();
+      await expect(wizard.attachDocumentsCheckbox).toBeChecked();
+
+      await wizard.toggleCoverLetter();
+      await expect(wizard.includeCoverLetterCheckbox).not.toBeChecked();
+      await wizard.toggleCoverLetter();
+      await expect(wizard.includeCoverLetterCheckbox).toBeChecked();
+
+      await wizard.step4NextButton.click();
+
+      // Step 5: open the on-demand PDF preview modal once with the final Settings state (also
+      // proves the Story #1891 CSP-hardened checks still pass), then close it before triggering
+      // the (separately on-demand) download below — Story #1900.
+      await wizard.openPdfPreviewModal();
+      await wizard.closePdfPreviewModal();
+
+      // Download — filename `claim-<slug>-<date>.pdf`.
+      const today = new Date().toISOString().slice(0, 10);
+      const slug = `${testPrefix} Source A`
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^\w-]/g, '');
+      const download = await wizard.download();
+      expect(download.suggestedFilename()).toBe(`claim-${slug}-${today}.pdf`);
+
+      // Mark claimed: modal states pending count (1 pending2 + 1 paid = 2 included, 1 pending).
+      await wizard.clickMarkClaimed();
+      await expect(wizard.claimConfirmModalBody).toContainText(
+        'This will mark 2 invoice(s) as claimed (1 pending)',
+      );
+      await wizard.confirmClaim();
+
+      // Success banner + link to /budget/invoices. Copy is now the invoice/deposit split form
+      // (`sourceReports.claimSuccess`) with counts sourced from the SERVER response
+      // (`response.claimedInvoiceIds`/`claimedDepositIds`), not the client-side selection —
+      // pending2 + paid both flip (2 invoices, no other-source interest), and this fixture has
+      // no deposits at all, so the deposit count is 0.
+      await expect(wizard.claimSuccessBanner).toBeVisible();
+      await expect(wizard.claimSuccessBanner).toContainText(
+        '2 invoice(s) and 0 deposit(s) marked as claimed',
+      );
+      await expect(wizard.claimSuccessInvoicesLink).toBeVisible();
+      await wizard.claimSuccessInvoicesLink.click();
+      await expect(page).toHaveURL(new RegExp(INVOICES_ROUTE));
+
+      // Post-mutation assertion discipline: verify actual statuses via the Invoices page,
+      // not just the wizard's own optimistic UI.
+      const invoicesPage = new InvoicesPage(page);
+      await invoicesPage.goto();
+      await invoicesPage.search(pending2.invoiceNumber!);
+      await expect(page.getByText(/claimed/i).first()).toBeVisible();
+      await invoicesPage.search(pending1.invoiceNumber!);
+      await expect(page.getByText(/^pending$/i).first()).toBeVisible();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceAId) await deleteBudgetSourceViaApi(page, sourceAId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 2: Budget overview smoke
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — budget overview smoke (Scenario 2)', () => {
+  test('Quotation invoices appear in step 3 and reach a downloadable step 5', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Overview Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Overview Source`,
+        totalAmount: 20000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Overview` });
+
+      const quotation = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-OV-001`,
+        amount: 300,
+        date: '2026-03-01',
+        status: 'quotation',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('budget-overview');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} Overview Vendor`, quotation.invoiceNumber!),
+      ).toBeVisible();
+
+      await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
+      // Story #1900: open the on-demand preview modal once to prove generation actually
+      // succeeds, then confirm the (independently on-demand) Download button is ready.
+      await wizard.openPdfPreviewModal();
+      await wizard.closePdfPreviewModal();
+      await expect(wizard.downloadButton).toBeEnabled();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 3: Proof of funds smoke
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — proof of funds smoke (Scenario 3)', () => {
+  test('Only claimed invoices appear in the proof-of-funds report', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} PoF Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} PoF Source`,
+        totalAmount: 20000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI PoF` });
+
+      const claimed = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-POF-001`,
+        amount: 400,
+        date: '2026-03-05',
+        status: 'claimed',
+      });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-POF-002`,
+        amount: 400,
+        date: '2026-03-06',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('proof-of-funds');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} PoF Vendor`, claimed.invoiceNumber!),
+      ).toBeVisible();
+      await expect(
+        wizard.invoiceRow(`${testPrefix} PoF Vendor`, `${testPrefix}-POF-002`),
+      ).toHaveCount(0);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 4: Empty state
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — empty state (Scenario 4)', () => {
+  // NOTE: the wizard's <EmptyState> only renders when BOTH this source's allocated invoices
+  // AND the *household-wide* unallocated-invoice list are empty (`ReportInvoiceList.tsx`:
+  // `allocatedInvoices.length === 0 && unallocatedInvoices.length === 0`) — the unallocated
+  // list is a global query with no source scoping at all
+  // (`sourceReportService.ts`'s `unallocRows` query has no `budget_source_id` filter). Under
+  // full parallel CI (8 workers × 3 viewports, dozens of concurrent spec files creating
+  // pending/paid invoices), the household-wide unallocated count is usually non-zero, so the
+  // <EmptyState> component itself is NOT reliably reachable in this environment — the only
+  // thing deterministic for a freshly created, never-allocated source is that ITS OWN
+  // allocated list is empty. Assert that directly, and branch on whichever of the two valid
+  // renders actually occurred (EmptyState vs. a zero-row list with a disabled Next) rather
+  // than assuming one is always reachable.
+  test('A source with zero allocated invoices shows no rows and no crash, regardless of global unallocated noise', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let sourceId = '';
+    try {
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Empty Source`,
+        totalAmount: 5000,
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      // Wait for the report to actually finish loading (either terminal render is fine —
+      // the Skeleton placeholder renders zero rows too, which would otherwise false-pass the
+      // count assertion below before real data arrives).
+      await wizard.emptyState.or(wizard.selectAllCheckbox).waitFor({ state: 'visible' });
+      await expect(wizard.invoiceRows).toHaveCount(0);
+
+      if (await wizard.emptyState.isVisible()) {
+        // No unallocated invoices exist household-wide right now — the EmptyState branch.
+        await expect(wizard.emptyState).toBeVisible();
+      } else {
+        // Other concurrent tests' unallocated invoices keep the list rendered — the
+        // zero-allocated-rows branch, proven via the selection bar and disabled Next.
+        await expect(wizard.selectionCountLabel).toContainText('0 of 0');
+        await expect(wizard.step3NextButton).toBeDisabled();
+      }
+    } finally {
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 5 & 6: Paperless upload gating
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — Paperless upload (Scenarios 5 & 6)', () => {
+  test('Upload to Paperless is visible and posts a multipart request when configured+reachable', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+
+    try {
+      await mockPaperlessConfigured(page);
+      let uploadRequestReceived = false;
+      await page.route(`**${API.paperlessDocuments}`, async (route) => {
+        const request = route.request();
+        uploadRequestReceived =
+          request.method() === 'POST' &&
+          (request.headers()['content-type'] || '').includes('multipart/form-data');
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({ taskId: 'task-e2e-1879' }),
+        });
+      });
+
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Upload Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Upload Source`,
+        totalAmount: 20000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Upload` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-UP-001`,
+        amount: 250,
+        date: '2026-03-10',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} Upload Vendor`, invoice.invoiceNumber!),
+      ).toBeVisible();
+      await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
+
+      // Story #1900: Upload to Paperless is itself on-demand — no need to open the preview
+      // modal first (`clickUploadToPaperless()` waits out its own busy state internally).
+      await expect(wizard.uploadPaperlessButton).toBeVisible();
+      await wizard.clickUploadToPaperless();
+
+      await expect(async () => {
+        expect(uploadRequestReceived).toBe(true);
+      }).toPass({ timeout: 5_000 });
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+
+  test('Upload to Paperless is absent when Paperless is not configured', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+
+    try {
+      await mockPaperlessNotConfigured(page);
+
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} NoUpload Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} NoUpload Source`,
+        totalAmount: 20000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI NoUpload` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-NU-001`,
+        amount: 250,
+        date: '2026-03-11',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} NoUpload Vendor`, invoice.invoiceNumber!),
+      ).toBeVisible();
+      await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
+
+      await expect(wizard.uploadPaperlessButton).toHaveCount(0);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 7: ?sourceId= prefill
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — sourceId prefill (Scenario 7)', () => {
+  test('?sourceId= pre-selects the source once a use case is picked at step 1, and the deep link carries through to a working step 3/4', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Prefill Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Prefill Source`,
+        totalAmount: 15000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Prefill` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-PF-001`,
+        amount: 350,
+        date: '2026-03-12',
+        status: 'pending',
+      });
+
+      await wizard.goto(sourceId);
+      // Still starts on step 1 — user must pick a use case first.
+      await expect(wizard.useCaseRadioGroup).toBeVisible();
+      await expect(wizard.sourceRadioGroup).toHaveCount(0);
+
+      await wizard.selectUseCase('budget-overview');
+      await wizard.goNextFromStep1();
+
+      await expect(wizard.sourceRow(sourceId)).toBeChecked();
+
+      // Picking the use case fires the effect that pre-loads the report for the pre-checked
+      // ?sourceId= source — walk the rest of the wizard through to prove the deep link no
+      // longer dead-ends: step 3 shows the seeded invoice (report actually loaded, not stuck
+      // on the skeleton) and step 5's preview becomes ready.
+      await wizard.goNextFromStep2();
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} Prefill Vendor`, invoice.invoiceNumber!),
+      ).toBeVisible();
+
+      await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
+      await wizard.openPdfPreviewModal();
+      await wizard.closePdfPreviewModal();
+      await expect(wizard.downloadButton).toBeEnabled();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 8: Route smoke across viewports
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — route smoke (Scenario 8)', { tag: '@responsive' }, () => {
+  test('Heading and stepper render', { tag: '@smoke' }, async ({ page }) => {
+    const wizard = new ReportWizardPage(page);
+    await wizard.goto();
+    await expect(wizard.heading).toHaveText('Bank Reports');
+    await expect(wizard.useCaseRadioGroup).toBeVisible();
+    // 5 steps as of Story #1899 (Settings inserted at position 4).
+    await expect(wizard.stepItems).toHaveCount(5);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 9: Forward-lock
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — forward-lock (Scenario 9)', () => {
+  test('Step 4 is not clickable in the stepper from step 3, and step 5 is not clickable from step 4', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Lock Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Lock Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Lock` });
+      // A real allocated invoice is required so step 3's Next button is enabled — otherwise
+      // this source's report has zero rows and the "select at least one" guard would block
+      // reaching step 4 at all.
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LOCK-001`,
+        amount: 100,
+        date: '2026-05-01',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} Lock Vendor`, invoice.invoiceNumber!),
+      ).toBeVisible();
+
+      // maxReachedStep is 3 here — step 4's stepper item must render as a non-interactive
+      // element (no <button>), not merely a disabled one.
+      expect(await wizard.isStepInteractive(4)).toBe(false);
+      await expect(wizard.stepItems.nth(3).locator('button')).toHaveCount(0);
+
+      // Advancing to step 4 (Settings) bumps maxReachedStep to 4 — step 5 must still be locked.
+      await wizard.goNextFromStep3();
+      expect(await wizard.isStepInteractive(5)).toBe(false);
+      await expect(wizard.stepItems.nth(4).locator('button')).toHaveCount(0);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 10: Mobile stepper
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — mobile stepper (Scenario 10)', { tag: '@responsive' }, () => {
+  test('Shows "Step N of 5" + dots instead of the desktop stepper', async ({ page }) => {
+    test.skip(test.info().project.name !== 'mobile', 'Mobile-only layout check');
+    const wizard = new ReportWizardPage(page);
+    await wizard.goto();
+
+    await expect(wizard.mobileStepCount).toBeVisible();
+    await expect(wizard.mobileStepCount).toContainText('1');
+    await expect(wizard.mobileStepCount).toContainText('5');
+    await expect(wizard.mobileDots).toHaveCount(5);
+    // WizardStepper renders BOTH the desktop <ol class="stepList"> and the mobile
+    // stepperMobile tree unconditionally, toggling which is shown purely via a
+    // `@media (max-width: 767px)` CSS rule (WizardStepper.module.css) — the desktop tree is
+    // still present in the DOM at mobile viewport width, just `display:none`. Assert on
+    // visibility, not DOM presence.
+    await expect(wizard.stepListDesktop).not.toBeVisible();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 11: Cross-story integration — refund entry surfaces in a claim report
+// ─────────────────────────────────────────────────────────────────────────────
+// (Story #1877's contact-field / source-form coverage already lives in
+// budget-sources.spec.ts — this scenario intentionally does not duplicate it.)
+
+test.describe('Report wizard — refund cross-story integration (Scenario 11)', () => {
+  // NOTE ON SEED SHAPE: the source report contract is documented (wiki/API-Contract.md,
+  // `sourceReportService.ts`, confirmed by its unit test "scenario 14") as exactly ONE row per
+  // invoice, carrying the NET contribution across the report's status-target set — `lineKind`
+  // only flips to 'refund-adjustment' when that net goes negative. A refund against an invoice
+  // that's ALSO itself in-scope just reduces that invoice's own row (still `lineKind:
+  // 'invoice'`); it does not spawn a second row. To exercise a genuine 'refund-adjustment' row
+  // this seeds TWO invoices: one plain in-scope invoice (positive row) and a SEPARATE
+  // out-of-scope invoice (`status: 'claimed'`, contributes nothing on its own for a 'claim'
+  // report) carrying an in-scope refund (`status: 'paid'`) — its net is therefore purely
+  // negative, matching a real "already-claimed invoice, partially refunded during the current
+  // claim period" scenario.
+  test('A refund against an out-of-scope invoice surfaces as its own negative line and increases the running total when excluded', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Refund Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Refund Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Refund` });
+
+      // In-scope invoice: 'pending' is within the 'claim' report's target statuses
+      // (pending+paid) — contributes its full amount as a normal, positive 'invoice' row.
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-RF-001`,
+        amount: 1000,
+        date: '2026-03-15',
+        status: 'pending',
+      });
+
+      // Out-of-scope invoice: 'claimed' is OUTSIDE {pending, paid}, so its own residual
+      // contributes 0 — but its 'paid' refund IS in scope, so the net for this invoice is
+      // purely the (negative) refund contribution.
+      const refundedInvoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-RF-002`,
+        amount: 1000,
+        date: '2026-03-16',
+        status: 'claimed',
+      });
+      await createDepositViaApi(page, refundedInvoice.id, {
+        amount: 200,
+        dueDate: '2026-03-20',
+        status: 'paid',
+        entryType: 'refund',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      const vendorName = `${testPrefix} Refund Vendor`;
+      await expect(wizard.regularInvoiceRow(vendorName, invoice.invoiceNumber!)).toBeVisible();
+      const refundRow = wizard.refundRow(vendorName, refundedInvoice.invoiceNumber!);
+      await expect(refundRow).toBeVisible();
+      await expect(refundRow).toContainText('Refund');
+      await expect(refundRow).toContainText('-');
+
+      // Running total: 1000 (in-scope invoice) - 200 (refund-adjustment) = 800.
+      await expect(wizard.selectionCountLabel).toContainText('800');
+
+      // Excluding the refund-adjustment row INCREASES the running total (sign behavior).
+      await refundRow.locator('input[type="checkbox"]').click();
+      await expect(wizard.selectionCountLabel).toContainText('1,000');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 12: German report language from an English UI (Story #1899)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — German report language from English UI (Scenario 12)', () => {
+  test('Selecting Deutsch on the Settings step yields German baseline field values on step 5 while the wizard chrome and field labels stay English', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Lang Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Lang Source`,
+        totalAmount: 20000,
+        // Cover letter must be enabled (auto-derived from contactAddress/reference — see
+        // ReportWizardPage.tsx's handleSourceChange) so the Subject field this scenario reads
+        // actually renders.
+        contactAddress: '1 Bank Platz, Berlin',
+        reference: 'Konto #98765',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Lang` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANG-001`,
+        amount: 450,
+        date: '2026-05-15',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await wizard.goNextFromStep3();
+
+      // Settings step — chrome (heading, stepper labels, buttons) is rendered via the app's
+      // own English `t`, entirely independent of `reportLanguage`, which only feeds
+      // `buildReportContent`'s fixed-locale `reportT`/`reportFormatters` pair
+      // (ReportWizardPage.tsx).
+      await expect(page.getByRole('heading', { name: 'Settings', level: 2 })).toBeVisible();
+      await expect(wizard.stepItems.nth(3)).toContainText('Settings');
+      await expect(wizard.stepItems.nth(4)).toContainText('Preview & Export');
+      await expect(wizard.step4BackButton).toHaveText('Back');
+      await expect(wizard.step4NextButton).toHaveText('Next');
+
+      // Default selection is the resolved app locale — English here.
+      await expect(wizard.reportLanguageRadio('en')).toBeChecked();
+      await expect(wizard.reportLanguageRadio('de')).not.toBeChecked();
+
+      await wizard.selectReportLanguage('de');
+      await expect(wizard.reportLanguageRadio('de')).toBeChecked();
+      await expect(wizard.reportLanguageRadio('en')).not.toBeChecked();
+
+      await wizard.step4NextButton.click();
+
+      // Step 5 (Story #1900): the editable content is built CLIENT-SIDE via the
+      // reportLanguage-fixed `reportT` — no PDF generation is required to observe the language
+      // switch, unlike the always-present-auto-regenerating-iframe design this replaced. The
+      // Subject field's baseline value comes straight from
+      // `reportT('sourceReports.coverLetter.subject.claim')` — the German translation for the
+      // 'claim' use case, pre-existing since Story #1879/#1899 (NOT part of this story's new
+      // `sourceReports.editable.*` namespace, which isn't localized into German yet).
+      await expect(wizard.letterField('subject')).toHaveValue('Einreichungsunterlagen');
+
+      // Field LABELS (this story's new sourceReports.editable.* keys, e.g. "Subject" itself)
+      // and every other piece of wizard chrome stay English regardless of `reportLanguage` —
+      // proven by having successfully located the field via its English label above, plus the
+      // heading/stepper/button checks below.
+      await expect(wizard.heading).toHaveText('Bank Reports');
+      await expect(wizard.stepItems.nth(4)).toContainText('Preview & Export');
+      await expect(wizard.step5BackButton).toHaveText('Back');
+
+      // Download still succeeds via the on-demand generation path (Story #1900), with the
+      // unaffected (untranslated) filename pattern. No PDF byte-content assertions here: the
+      // actual German PDF text is covered by the Jest `realRender` test (see the story's QA
+      // spec).
+      const today = new Date().toISOString().slice(0, 10);
+      const slug = `${testPrefix} Lang Source`
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^\w-]/g, '');
+      const download = await wizard.download();
+      expect(download.suggestedFilename()).toBe(`claim-${slug}-${today}.pdf`);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 13/14: Issue #1943 — use-case change discards a stale report
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — use-case change discards stale report (Issue #1943)', () => {
+  test('Full reproduction: changing use case after selecting a source re-locks step 2 until a source is re-selected under the new use case', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} UseCase Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} UseCase Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI UseCase` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-UC-001`,
+        amount: 400,
+        date: '2026-04-01',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('budget-overview');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+
+      // Report fetched under 'budget-overview' — step 2 Next satisfied.
+      await expect(wizard.step2NextButton).toBeEnabled();
+
+      // Back to step 1 with NO unsaved edits/AI content — guardedUpdate runs immediately, no
+      // discard-confirm modal expected.
+      await wizard.goBack();
+      await expect(wizard.useCaseRadioGroup).toBeVisible();
+
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+
+      // Direct browser-level regression guard (#1943 AC1/AC2): pre-fix, `sourceId` and `report`
+      // survived the use-case change, so the source stayed checked and step 2's Next button
+      // (gated only on `!sourceId`) stayed enabled — two clicks reached step 3 holding a report
+      // fetched under 'budget-overview' while `useCase === 'claim'`.
+      await expect(wizard.sourceRow(sourceId)).not.toBeChecked();
+      await expect(wizard.step2NextButton).toBeDisabled();
+
+      // Re-select the source under the NEW use case — proves the wizard recovers cleanly, and
+      // that the report is freshly re-fetched under 'claim' rather than left stale or empty.
+      await wizard.selectSource(sourceId);
+      await expect(wizard.step2NextButton).toBeEnabled();
+      await wizard.goNextFromStep2();
+
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} UseCase Vendor`, invoice.invoiceNumber!),
+      ).toBeVisible();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+
+  test('Deep-link non-reentry: a use-case change after a ?sourceId= deep link does not silently re-select the original source (AC8)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let sourceId = '';
+
+    try {
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} DeepLink Source`,
+        totalAmount: 8000,
+      });
+
+      await wizard.goto(sourceId);
+      await expect(wizard.useCaseRadioGroup).toBeVisible();
+
+      await wizard.selectUseCase('budget-overview');
+      await wizard.goNextFromStep1();
+
+      // Deep link auto-selects the source once a use case is picked.
+      await expect(wizard.sourceRow(sourceId)).toBeChecked();
+
+      await wizard.goBack();
+      await expect(wizard.useCaseRadioGroup).toBeVisible();
+
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+
+      // If the deep-link effect re-fired (re-armed by `report` being cleared to `null`), it
+      // would silently re-select `sourceIdFromQuery` under the new use case and this would be
+      // checked/enabled again — the `deepLinkAppliedRef` one-shot guard must prevent that.
+      await expect(wizard.sourceRow(sourceId)).not.toBeChecked();
+      await expect(wizard.step2NextButton).toBeDisabled();
+    } finally {
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 15: Open-invoice affordance (Issue #1933)
+// ─────────────────────────────────────────────────────────────────────────────
+// Untagged tests in this file run on the 'desktop' project only (tablet/mobile only run
+// @responsive-tagged tests — see playwright.config.ts) — the two tests below that require
+// desktop specifically therefore need no explicit skip; only the mobile-viewport repeat is
+// tagged @responsive with a project-name skip, matching Scenario 10's convention.
+
+test.describe('Report wizard — open-invoice affordance (Issue #1933)', () => {
+  test('Opens the invoice in a new tab and leaves the wizard tab untouched (AC 2.2, 2.5)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} OpenLink Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} OpenLink Source`,
+        totalAmount: 20000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI OpenLink` });
+      const invoiceA = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-OPEN-001`,
+        amount: 300,
+        date: '2026-06-01',
+        status: 'pending',
+      });
+      const invoiceB = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-OPEN-002`,
+        amount: 400,
+        date: '2026-06-02',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} OpenLink Vendor`, invoiceA.invoiceNumber!),
+      ).toBeVisible();
+
+      // Toggle a DIFFERENT invoice's exclusion BEFORE opening the link — this is the part
+      // that actually protects the user's work (AC 2.2: same step, same source, same
+      // exclusions after the affordance is used).
+      await wizard.toggleInvoiceExclusion(`${testPrefix} OpenLink Vendor`, invoiceB.invoiceNumber!);
+      await expect(
+        wizard.invoiceRowCheckbox(`${testPrefix} OpenLink Vendor`, invoiceB.invoiceNumber!),
+      ).not.toBeChecked();
+
+      // `context.waitForEvent('page')` firing is the proof of a genuine new browsing context
+      // (AC 2.2) rather than an in-tab SPA navigation — not observable any other way headlessly.
+      const [newPage] = await Promise.all([
+        page.context().waitForEvent('page'),
+        wizard.openInvoiceLink(`${testPrefix} OpenLink Vendor`, invoiceA.invoiceNumber!).click(),
+      ]);
+      await newPage.waitForLoadState();
+      expect(newPage.url()).toContain('/budget/invoices/');
+      await newPage.close();
+
+      // AC 2.5: opening invoiceA never toggles ITS OWN inclusion state.
+      await expect(
+        wizard.invoiceRowCheckbox(`${testPrefix} OpenLink Vendor`, invoiceA.invoiceNumber!),
+      ).toBeChecked();
+
+      // AC 2.2: the original wizard tab is still on step 3, same source, and invoiceB's
+      // exclusion toggled above is unchanged.
+      await expect(wizard.step3NextButton).toBeVisible();
+      await expect(
+        wizard.regularInvoiceRow(`${testPrefix} OpenLink Vendor`, invoiceA.invoiceNumber!),
+      ).toBeVisible();
+      await expect(
+        wizard.invoiceRowCheckbox(`${testPrefix} OpenLink Vendor`, invoiceB.invoiceNumber!),
+      ).not.toBeChecked();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+
+  test('Accessible name identifies the vendor and invoice number, not a bare "Open" (AC 2.4)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} A11yLink Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} A11yLink Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI A11yLink` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-A11Y-001`,
+        amount: 250,
+        date: '2026-06-03',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      const link = wizard.openInvoiceLink(`${testPrefix} A11yLink Vendor`, invoice.invoiceNumber!);
+      await expect(link).toBeVisible();
+      const accessibleName = (await link.getAttribute('aria-label')) ?? '';
+      expect(accessibleName).toContain(`${testPrefix} A11yLink Vendor`);
+      expect(accessibleName).toContain(invoice.invoiceNumber!);
+      expect(accessibleName.trim().toLowerCase()).not.toBe('open');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+
+  test('Select-all checkbox shares the row checkboxes left edge (AC 3.1, 3.3)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} AlignLink Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} AlignLink Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI AlignLink` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-ALIGN-001`,
+        amount: 150,
+        date: '2026-06-04',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+
+      const rowCheckbox = wizard.invoiceRowCheckbox(
+        `${testPrefix} AlignLink Vendor`,
+        invoice.invoiceNumber!,
+      );
+      await expect(wizard.selectAllCheckbox).toBeVisible();
+      await expect(rowCheckbox).toBeVisible();
+
+      const headerBox = await wizard.selectAllCheckbox.boundingBox();
+      const rowBox = await rowCheckbox.boundingBox();
+      expect(headerBox).not.toBeNull();
+      expect(rowBox).not.toBeNull();
+      // A deterministic proxy for "shares the same vertical axis" (AC 3.1) — the actual
+      // CSS layout math isn't observable from a unit test (no layout engine in jsdom).
+      expect(Math.abs(headerBox!.x - rowBox!.x)).toBeLessThanOrEqual(1);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 16: Open-invoice affordance mobile repeat (Issue #1933)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Report wizard — open-invoice affordance mobile repeat (Issue #1933)',
+  { tag: '@responsive' },
+  () => {
+    test('Opens the invoice in a new tab at mobile viewport (AC 2.7)', async ({
+      page,
+      testPrefix,
+    }) => {
+      test.skip(test.info().project.name !== 'mobile', 'Mobile-only viewport repeat');
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} MobileLink Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} MobileLink Source`,
+          totalAmount: 10000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI MobileLink` });
+        const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-MOB-001`,
+          amount: 200,
+          date: '2026-06-05',
+          status: 'pending',
+        });
+
+        await wizard.goto();
+        await wizard.selectUseCase('claim');
+        await wizard.goNextFromStep1();
+        await wizard.selectSource(sourceId);
+        await wizard.goNextFromStep2();
+
+        await expect(
+          wizard.regularInvoiceRow(`${testPrefix} MobileLink Vendor`, invoice.invoiceNumber!),
+        ).toBeVisible();
+
+        const [newPage] = await Promise.all([
+          page.context().waitForEvent('page'),
+          wizard.openInvoiceLink(`${testPrefix} MobileLink Vendor`, invoice.invoiceNumber!).click(),
+        ]);
+        await newPage.waitForLoadState();
+        expect(newPage.url()).toContain('/budget/invoices/');
+        await newPage.close();
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);

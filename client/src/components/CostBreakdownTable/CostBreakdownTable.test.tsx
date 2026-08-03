@@ -1652,6 +1652,57 @@ describe('CostBreakdownTable', () => {
     expect(maxButton).toHaveAttribute('aria-checked', 'false');
   });
 
+  // Issue #1812: PerspectiveToggle's `t` is scoped to its own useTranslation('budget')
+  // call (separate top-level component from the main table), so the radiogroup
+  // aria-label must be asserted independently of the Min/Avg/Max segment labels.
+  it('renders the perspective toggle radiogroup with aria-label "Cost perspective"', () => {
+    render(
+      <CostBreakdownTable
+        breakdown={buildBreakdownWithWI()}
+        overview={buildOverview()}
+        deselectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole('radiogroup', { name: 'Cost perspective' })).toBeInTheDocument();
+  });
+
+  // Issue #1812: the subsidy-adjustments section expand button has no visible text
+  // (chevron icon only) — its accessible name comes entirely from aria-label.
+  it('renders the subsidy adjustments section expand button with aria-label "Expand subsidy adjustments"', () => {
+    const breakdown = {
+      ...buildBreakdownWithWI(),
+      subsidyAdjustments: [
+        {
+          subsidyProgramId: 'sub-1',
+          name: 'Energy Rebate',
+          maximumAmount: 5000,
+          maxPayout: 5000,
+          minExcess: 100,
+          maxExcess: 200,
+        },
+      ],
+    };
+
+    render(
+      <CostBreakdownTable
+        breakdown={breakdown}
+        overview={buildOverview()}
+        deselectedSourceIds={new Set()}
+        onSourceToggle={() => {}}
+        onSelectAllSources={() => {}}
+        paymentStatus="all"
+        onPaymentStatusChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Expand subsidy adjustments' })).toBeInTheDocument();
+  });
+
   // Scenario 2: Clicking "Min" activates Min, shows projectedMin value for projected items
   it('clicking Min activates Min segment and shows projectedMin value for projected items', () => {
     const { container } = renderWithRouter(

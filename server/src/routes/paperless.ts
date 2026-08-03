@@ -13,7 +13,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { AppError, UnauthorizedError } from '../errors/AppError.js';
+import { AppError, UnauthorizedError, ValidationError } from '../errors/AppError.js';
 import * as paperlessService from '../services/paperlessService.js';
 import type { PaperlessDocumentListQuery } from '@cornerstone/shared';
 
@@ -297,5 +297,54 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
     const { baseUrl, token } = requirePaperless(fastify);
     const result = await paperlessService.listCorrespondents(baseUrl, token);
     return reply.status(200).send(result);
+  });
+
+  /**
+   * POST /api/paperless/documents
+   *
+   * Upload a PDF document to Paperless-ngx's consumption pipeline.
+   * Multipart form: document (file, required), title (string, required)
+   * Returns: { taskId: string } — the Paperless consumption task UUID
+   * File is validated to be PDF only; errors for missing file, non-PDF, or title.
+   *
+   * Auth required: Yes
+   */
+  fastify.post('/documents', async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError();
+    }
+
+    const { baseUrl, token } = requirePaperless(fastify);
+
+    // Request multipart form
+    const file = await request.file();
+    if (!file) {
+      throw new ValidationError('No file uploaded');
+    }
+
+    // MIME check BEFORE toBuffer — reuse exactly with `application/pdf`
+    if (file.mimetype !== 'application/pdf') {
+      throw new ValidationError('Only PDF documents can be uploaded');
+    }
+
+    const buffer = await file.toBuffer();
+
+    // Extract title from form fields
+    const fields = file.fields as Record<string, { value?: string } | undefined>;
+    const titleField = fields['title'];
+    if (!titleField?.value) {
+      throw new ValidationError('Missing required field: title');
+    }
+    const title = titleField.value;
+
+    // Upload to Paperless
+    const result = await paperlessService.uploadDocument(baseUrl, token, {
+      buffer,
+      filename: file.filename,
+      title,
+      filterTagName: fastify.config.paperlessFilterTag,
+    });
+
+    return reply.status(201).send(result);
   });
 }

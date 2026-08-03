@@ -97,7 +97,7 @@ export function BudgetLineCard({
               type="button"
               className={styles.deleteConfirmButton}
               onClick={onConfirmDelete}
-              title="Confirm delete"
+              title={t('vendorDetail.confirmDelete')}
             >
               Confirm
             </button>
@@ -105,7 +105,7 @@ export function BudgetLineCard({
               type="button"
               className={styles.cancelDeleteButton}
               onClick={onCancelDelete}
-              title="Cancel delete"
+              title={t('vendorDetail.cancelDelete')}
             >
               Cancel
             </button>

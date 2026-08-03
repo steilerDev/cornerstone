@@ -21,6 +21,7 @@ export interface DepositAwareRow {
   deposit_id: string | null;
   deposit_amount: number | null;
   deposit_status: string | null;
+  deposit_entry_type: string | null;
 }
 
 /**
@@ -56,12 +57,13 @@ export function splitByDeposits(
     deposit_id: string | null;
     deposit_amount: number | null;
     deposit_status: string | null;
+    deposit_entry_type: string | null;
   }>,
 ): Map<string, InvoiceDepositSplit> {
   const invoiceMap = new Map<string, { invoiceAmount: number; invoiceStatus: string }>();
   const depositsByInvoice = new Map<
     string,
-    Array<{ depositId: string; depositAmount: number; depositStatus: string }>
+    Array<{ depositId: string; depositAmount: number; depositStatus: string; entryType: string }>
   >();
 
   // Group rows by invoice and deduplicate deposits by depositId
@@ -79,6 +81,7 @@ export function splitByDeposits(
           depositId: row.deposit_id,
           depositAmount: row.deposit_amount,
           depositStatus: row.deposit_status,
+          entryType: row.deposit_entry_type ?? 'deposit',
         });
         depositsByInvoice.set(row.invoice_id, deps);
       }
@@ -100,12 +103,17 @@ export function splitByDeposits(
         depositFractions: [],
       });
     } else {
-      const totalDepositAmount = deposits.reduce((s, d) => s + d.depositAmount, 0);
+      const totalDepositTypeAmount = deposits
+        .filter((d) => d.entryType !== 'refund')
+        .reduce((s, d) => s + d.depositAmount, 0);
       const residualFraction =
-        Math.max(0, safeInvoiceAmount - totalDepositAmount) / safeInvoiceAmount;
+        Math.max(0, safeInvoiceAmount - totalDepositTypeAmount) / safeInvoiceAmount;
       const depositFractions = deposits.map((d) => ({
         depositStatus: d.depositStatus,
-        fraction: d.depositAmount / safeInvoiceAmount,
+        fraction:
+          d.entryType === 'refund'
+            ? -(d.depositAmount / safeInvoiceAmount)
+            : d.depositAmount / safeInvoiceAmount,
       }));
 
       result.set(invoiceId, {
@@ -209,6 +217,61 @@ export function computeDepositAwareAggregates(rows: DepositAwareRow[]): {
 }
 
 /**
+ * Per-invoice variant of computeStatusContribution: computes each invoice's net
+ * contribution across a SET of target statuses. Used by sourceReportService, where a
+ * report's status slice (e.g. claim = pending+paid) must accumulate BOTH the invoice's
+ * own residual status AND every deposit/refund status in the slice, into one net figure
+ * per invoice.
+ *
+ * Does NOT drop zero or negative results — callers decide rounding/dropping/refund-adjustment
+ * classification themselves (rounding happens after aggregation at 2dp, so "zero" must be
+ * evaluated post-rounding by the caller).
+ */
+export function computeStatusContributionByInvoice(
+  rows: Array<{
+    ibl_id: string;
+    itemized_amount: number;
+    invoice_id: string;
+    invoice_amount: number;
+    invoice_status: string;
+    deposit_id: string | null;
+    deposit_amount: number | null;
+    deposit_status: string | null;
+    deposit_entry_type: string | null;
+  }>,
+  targetStatuses: Set<string>,
+): Map<string, number> {
+  const result = new Map<string, number>();
+  if (rows.length === 0) return result;
+
+  const iblMap = new Map<string, { itemizedAmount: number; invoiceId: string }>();
+  for (const row of rows) {
+    if (!iblMap.has(row.ibl_id)) {
+      iblMap.set(row.ibl_id, { itemizedAmount: row.itemized_amount, invoiceId: row.invoice_id });
+    }
+  }
+
+  const splitsByInvoiceId = splitByDeposits(rows);
+
+  for (const [_iblId, ibl] of iblMap) {
+    const split = splitsByInvoiceId.get(ibl.invoiceId)!;
+    let contribution = result.get(ibl.invoiceId) ?? 0;
+
+    if (targetStatuses.has(split.invoiceStatus)) {
+      contribution += ibl.itemizedAmount * split.residualFraction;
+    }
+    for (const df of split.depositFractions) {
+      if (targetStatuses.has(df.depositStatus)) {
+        contribution += ibl.itemizedAmount * df.fraction;
+      }
+    }
+    result.set(ibl.invoiceId, contribution);
+  }
+
+  return result;
+}
+
+/**
  * Computes the sum of contributions that match a specific status (for budgetSourceService).
  * Used for claimed/unclaimed/paid amount calculations.
  *
@@ -225,6 +288,7 @@ export function computeStatusContribution(
     deposit_id: string | null;
     deposit_amount: number | null;
     deposit_status: string | null;
+    deposit_entry_type: string | null;
   }>,
   targetStatus: string,
 ): number {
@@ -277,6 +341,74 @@ export function computeStatusContribution(
 }
 
 /**
+ * Computes the refund-aware "final payment amount" for a single invoice:
+ * invoice total minus all deposit-type entries (any status) minus
+ * refund-type entries that have been received (status 'paid' or
+ * 'claimed'). A pending refund has not yet returned money, so it does
+ * not reduce the amount yet. With no refund entries this is identical
+ * to the pre-refund formula (invoice.amount - Σ deposits).
+ */
+export function computeFinalPaymentAmount(
+  invoiceAmount: number,
+  entries: Array<{ amount: number; status: string; entryType: string }>,
+): number {
+  let depositSum = 0;
+  let receivedRefundSum = 0;
+  for (const entry of entries) {
+    if (entry.entryType === 'refund') {
+      if (entry.status === 'paid' || entry.status === 'claimed') {
+        receivedRefundSum += entry.amount;
+      }
+    } else {
+      depositSum += entry.amount;
+    }
+  }
+  return Math.max(0, invoiceAmount - depositSum - receivedRefundSum);
+}
+
+/**
+ * Bulk version of computeFinalPaymentAmount for (invoices LEFT JOIN
+ * invoice_deposits) rows spanning multiple invoices in one query
+ * (e.g. invoiceService.listAllInvoices()'s single bulk summary query).
+ * Dedupes deposit rows by deposit_id per invoice, since a LEFT JOIN
+ * fans an invoice row out once per deposit.
+ */
+export function computeFinalPaymentAmounts(rows: InvoiceDepositRow[]): Map<string, number> {
+  const invoiceAmounts = new Map<string, number>();
+  const entriesByInvoice = new Map<
+    string,
+    Array<{ depositId: string; amount: number; status: string; entryType: string }>
+  >();
+
+  for (const row of rows) {
+    if (!invoiceAmounts.has(row.invoice_id)) {
+      invoiceAmounts.set(row.invoice_id, row.invoice_amount);
+    }
+    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
+      const list = entriesByInvoice.get(row.invoice_id) ?? [];
+      if (!list.some((e) => e.depositId === row.deposit_id)) {
+        list.push({
+          depositId: row.deposit_id,
+          amount: row.deposit_amount,
+          status: row.deposit_status,
+          entryType: row.deposit_entry_type ?? 'deposit',
+        });
+        entriesByInvoice.set(row.invoice_id, list);
+      }
+    }
+  }
+
+  const result = new Map<string, number>();
+  for (const [invoiceId, invoiceAmount] of invoiceAmounts) {
+    result.set(
+      invoiceId,
+      computeFinalPaymentAmount(invoiceAmount, entriesByInvoice.get(invoiceId) ?? []),
+    );
+  }
+  return result;
+}
+
+/**
  * Raw row for (invoices LEFT JOIN invoice_deposits) jointures, used by the
  * InvoiceStatusBreakdown summary computation in invoiceService.listAllInvoices.
  */
@@ -287,17 +419,19 @@ export interface InvoiceDepositRow {
   deposit_id: string | null;
   deposit_amount: number | null;
   deposit_status: string | null;
+  deposit_entry_type: string | null;
 }
 
 /**
  * Computes the InvoiceStatusBreakdown summary from (invoices LEFT JOIN invoice_deposits) rows.
  *
  * Per-invoice split (same as the budget-line rollup formula but at the invoice level):
- *   summary[I.status].totalAmount += max(0, I.amount − Σ deposits.amount)
- *   summary[deposit.status].totalAmount += deposit.amount  (for each deposit)
+ *   summary[I.status].totalAmount += max(0, I.amount − Σ deposit-type.amount)
+ *   summary[deposit.status].totalAmount += deposit.amount  (for each deposit, negative for refunds)
  *   summary[I.status].count += 1  (once per invoice, regardless of deposit rows)
  *
- * Invariant: Σ summary[s].totalAmount === Σ I.amount across all invoices in the input.
+ * Invariant: Σ summary[s].totalAmount === Σ I.amount only holds without refund entries.
+ * With refunds, the total can be less than invoice amount (money left the system).
  *
  * Returns a sparse map — callers must merge with defaults (e.g. { count: 0, totalAmount: 0 }).
  */
@@ -331,5 +465,271 @@ export function aggregateInvoiceStatusBreakdown(
     }
   }
 
+  return result;
+}
+
+/**
+ * Variant of splitByDeposits that excludes deposits tagged to a budget source.
+ *
+ * Story #1891: Deposits with non-null budget_source_id are NOT included in the
+ * split computation (Rail A). They are handled separately by sumTaggedDepositContributions (Rail B).
+ *
+ * @param rows Rows from (invoices LEFT JOIN invoice_deposits), keyed by invoice_id
+ * @returns Map<invoiceId, split> (same structure as splitByDeposits, but missing tagged deposits)
+ */
+export function splitByDepositsExcludingTagged(
+  rows: Array<{
+    invoice_id: string;
+    invoice_amount: number;
+    invoice_status: string;
+    deposit_id: string | null;
+    deposit_amount: number | null;
+    deposit_status: string | null;
+    deposit_entry_type: string | null;
+    deposit_budget_source_id: string | null;
+  }>,
+): Map<string, InvoiceDepositSplit> {
+  const invoiceMap = new Map<string, { invoiceAmount: number; invoiceStatus: string }>();
+  const depositsByInvoice = new Map<
+    string,
+    Array<{
+      depositId: string;
+      depositAmount: number;
+      depositStatus: string;
+      entryType: string;
+      isTagged: boolean;
+    }>
+  >();
+
+  // Group rows by invoice and deduplicate deposits by depositId.
+  // Include ALL deposits (tagged or not), but mark tagged ones.
+  // Tagging affects which deposits are emitted in depositFractions (Rail A),
+  // but not the residual fraction denominator.
+  for (const row of rows) {
+    if (!invoiceMap.has(row.invoice_id)) {
+      invoiceMap.set(row.invoice_id, {
+        invoiceAmount: row.invoice_amount,
+        invoiceStatus: row.invoice_status,
+      });
+    }
+    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
+      const deps = depositsByInvoice.get(row.invoice_id) ?? [];
+      if (!deps.some((d) => d.depositId === row.deposit_id)) {
+        deps.push({
+          depositId: row.deposit_id,
+          depositAmount: row.deposit_amount,
+          depositStatus: row.deposit_status,
+          entryType: row.deposit_entry_type ?? 'deposit',
+          isTagged: row.deposit_budget_source_id !== null,
+        });
+        depositsByInvoice.set(row.invoice_id, deps);
+      }
+    }
+  }
+
+  // Compute splits for each invoice (same residual logic as splitByDeposits)
+  const result = new Map<string, InvoiceDepositSplit>();
+  for (const [invoiceId, inv] of invoiceMap) {
+    const deposits = depositsByInvoice.get(invoiceId) ?? [];
+    const safeInvoiceAmount = inv.invoiceAmount > 0 ? inv.invoiceAmount : 1;
+
+    if (deposits.length === 0) {
+      result.set(invoiceId, {
+        invoiceStatus: inv.invoiceStatus,
+        invoiceAmount: inv.invoiceAmount,
+        residualFraction: 1,
+        depositFractions: [],
+      });
+    } else {
+      // Residual computation includes ALL deposits (tagged or not), excluding refund-type.
+      // This matches legacy splitByDeposits logic regardless of tagging.
+      const totalDepositTypeAmount = deposits
+        .filter((d) => d.entryType !== 'refund')
+        .reduce((s, d) => s + d.depositAmount, 0);
+      const residualFraction =
+        Math.max(0, safeInvoiceAmount - totalDepositTypeAmount) / safeInvoiceAmount;
+
+      // Only emit untagged deposits in depositFractions (Rail A).
+      // Tagged deposits are handled separately by Rail B (sumTaggedDepositContributions).
+      const depositFractions = deposits
+        .filter((d) => !d.isTagged)
+        .map((d) => ({
+          depositStatus: d.depositStatus,
+          fraction:
+            d.entryType === 'refund'
+              ? -(d.depositAmount / safeInvoiceAmount)
+              : d.depositAmount / safeInvoiceAmount,
+        }));
+
+      result.set(invoiceId, {
+        invoiceStatus: inv.invoiceStatus,
+        invoiceAmount: inv.invoiceAmount,
+        residualFraction,
+        depositFractions,
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Variant of computeStatusContributionByInvoice using splitByDepositsExcludingTagged.
+ *
+ * Returns per-ibl_id contributions, each paired with its invoiceId. Used by
+ * sourceReportService to build budgetLines[] with excludable line portions.
+ */
+export function computeLineContributionsExcludingTagged(
+  rows: Array<{
+    ibl_id: string;
+    itemized_amount: number;
+    invoice_id: string;
+    invoice_amount: number;
+    invoice_status: string;
+    deposit_id: string | null;
+    deposit_amount: number | null;
+    deposit_status: string | null;
+    deposit_entry_type: string | null;
+    deposit_budget_source_id: string | null;
+  }>,
+  targetStatuses: Set<string>,
+): Map<string, { invoiceId: string; contribution: number }> {
+  const result = new Map<string, { invoiceId: string; contribution: number }>();
+  if (rows.length === 0) return result;
+
+  const iblMap = new Map<string, { itemizedAmount: number; invoiceId: string }>();
+  for (const row of rows) {
+    if (!iblMap.has(row.ibl_id)) {
+      iblMap.set(row.ibl_id, { itemizedAmount: row.itemized_amount, invoiceId: row.invoice_id });
+    }
+  }
+
+  const splitsByInvoiceId = splitByDepositsExcludingTagged(rows);
+
+  for (const [iblId, ibl] of iblMap) {
+    const split = splitsByInvoiceId.get(ibl.invoiceId)!;
+    let contribution = 0;
+
+    if (targetStatuses.has(split.invoiceStatus)) {
+      contribution += ibl.itemizedAmount * split.residualFraction;
+    }
+    for (const df of split.depositFractions) {
+      if (targetStatuses.has(df.depositStatus)) {
+        contribution += ibl.itemizedAmount * df.fraction;
+      }
+    }
+    result.set(iblId, { invoiceId: ibl.invoiceId, contribution });
+  }
+
+  return result;
+}
+
+/**
+ * Variant of computeStatusContribution using splitByDepositsExcludingTagged.
+ *
+ * Computes the sum of contributions that match a specific status, excluding
+ * tagged deposits (those with non-null budget_source_id).
+ */
+export function computeStatusContributionExcludingTagged(
+  rows: Array<{
+    ibl_id: string;
+    itemized_amount: number;
+    invoice_id: string;
+    invoice_amount: number;
+    invoice_status: string;
+    deposit_id: string | null;
+    deposit_amount: number | null;
+    deposit_status: string | null;
+    deposit_entry_type: string | null;
+    deposit_budget_source_id: string | null;
+  }>,
+  targetStatus: string,
+): number {
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  const iblMap = new Map<
+    string,
+    {
+      itemizedAmount: number;
+      invoiceId: string;
+    }
+  >();
+
+  for (const row of rows) {
+    if (!iblMap.has(row.ibl_id)) {
+      iblMap.set(row.ibl_id, {
+        itemizedAmount: row.itemized_amount,
+        invoiceId: row.invoice_id,
+      });
+    }
+  }
+
+  const splitsByInvoiceId = splitByDepositsExcludingTagged(rows);
+
+  let total = 0;
+
+  for (const [_iblId, ibl] of iblMap) {
+    const split = splitsByInvoiceId.get(ibl.invoiceId)!;
+
+    const residualAmount = ibl.itemizedAmount * split.residualFraction;
+    if (split.invoiceStatus === targetStatus) {
+      total += residualAmount;
+    }
+
+    for (const df of split.depositFractions) {
+      if (df.depositStatus === targetStatus) {
+        const depositContribution = ibl.itemizedAmount * df.fraction;
+        total += depositContribution;
+      }
+    }
+  }
+
+  return total;
+}
+
+/**
+ * Rail B: Sum of deposits tagged to the reported source, signed by entryType.
+ *
+ * Story #1891: A deposit with budget_source_id set contributes directly to that source
+ * if its status is in targetStatuses. Signed: entryType === 'refund' ? -amount : amount.
+ *
+ * @param rows Tagged deposits from the reported source (budget_source_id = sourceId)
+ * @param targetStatuses Set of statuses to include (e.g. Set(['claimed', 'paid']))
+ * @returns Signed sum, or 0 if rows is empty
+ */
+export function sumTaggedDepositContributions(
+  rows: Array<{ amount: number; status: string; entryType: string }>,
+  targetStatuses: Set<string>,
+): number {
+  let total = 0;
+  for (const row of rows) {
+    if (targetStatuses.has(row.status)) {
+      const signed = row.entryType === 'refund' ? -row.amount : row.amount;
+      total += signed;
+    }
+  }
+  return total;
+}
+
+/**
+ * Rail B per-invoice variant: Map of invoiceId to signed sum of tagged deposits.
+ *
+ * Same logic as sumTaggedDepositContributions but per invoice.
+ * Used by sourceReportService to populate the deposits[] for each invoice.
+ */
+export function sumTaggedDepositContributionsByInvoice(
+  rows: Array<{ invoiceId: string; amount: number; status: string; entryType: string }>,
+  targetStatuses: Set<string>,
+): Map<string, number> {
+  const result = new Map<string, number>();
+  for (const row of rows) {
+    if (targetStatuses.has(row.status)) {
+      const signed = row.entryType === 'refund' ? -row.amount : row.amount;
+      const current = result.get(row.invoiceId) ?? 0;
+      result.set(row.invoiceId, current + signed);
+    }
+  }
   return result;
 }

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { PaperlessDocumentSearchResult, PaperlessTag } from '@cornerstone/shared';
 import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
+import { useFormatters } from '../../lib/formatters.js';
 import styles from './DocumentCard.module.css';
 
 interface DocumentCardProps {
@@ -21,16 +22,11 @@ export function DocumentCard({
   paperlessUrl,
 }: DocumentCardProps) {
   const { t } = useTranslation('documents');
+  const { formatDate } = useFormatters();
   const thumbUrl = getDocumentThumbnailUrl(document.id);
 
   // Compute formatted date for aria-label (same format as the visible date)
-  const formattedDate = document.created
-    ? new Date(document.created).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })
-    : null;
+  const formattedDate = document.created ? formatDate(document.created) : null;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -95,15 +91,7 @@ export function DocumentCard({
       </div>
       <div className={styles.body}>
         <h3 className={styles.title}>{document.title}</h3>
-        {document.created && (
-          <p className={styles.meta}>
-            {new Date(document.created).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            })}
-          </p>
-        )}
+        {document.created && <p className={styles.meta}>{formatDate(document.created)}</p>}
         {document.correspondent && <p className={styles.correspondent}>{document.correspondent}</p>}
         {document.tags.length > 0 && (
           <div className={styles.tags}>

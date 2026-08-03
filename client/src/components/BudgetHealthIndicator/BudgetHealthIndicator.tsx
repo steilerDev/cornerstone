@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import styles from './BudgetHealthIndicator.module.css';
+import { Badge, type BadgeVariantMap } from '../Badge/Badge.js';
+import badgeStyles from '../Badge/Badge.module.css';
 
 interface BudgetHealthIndicatorProps {
   remainingVsProjectedMax: number;
@@ -8,45 +10,26 @@ interface BudgetHealthIndicatorProps {
 
 type HealthStatus = 'on-budget' | 'at-risk' | 'over-budget';
 
-interface HealthConfig {
-  status: HealthStatus;
-  label: string;
-  cssClass: string;
-}
-
-function resolveHealth(remainingVsProjectedMax: number, availableFunds: number): HealthConfig {
+function resolveHealthStatus(
+  remainingVsProjectedMax: number,
+  availableFunds: number,
+): HealthStatus {
   if (remainingVsProjectedMax < 0) {
-    return {
-      status: 'over-budget',
-      label: 'health.overBudget',
-      cssClass: styles.overBudget!,
-    };
+    return 'over-budget';
   }
 
   // Special case: both are exactly zero — treat as at-risk
   if (availableFunds === 0) {
-    return {
-      status: 'at-risk',
-      label: 'health.atRisk',
-      cssClass: styles.atRisk!,
-    };
+    return 'at-risk';
   }
 
   const margin = remainingVsProjectedMax / availableFunds;
 
   if (margin > 0.1) {
-    return {
-      status: 'on-budget',
-      label: 'health.onBudget',
-      cssClass: styles.onBudget!,
-    };
+    return 'on-budget';
   }
 
-  return {
-    status: 'at-risk',
-    label: 'health.atRisk',
-    cssClass: styles.atRisk!,
-  };
+  return 'at-risk';
 }
 
 export function BudgetHealthIndicator({
@@ -54,11 +37,23 @@ export function BudgetHealthIndicator({
   availableFunds,
 }: BudgetHealthIndicatorProps) {
   const { t } = useTranslation('budget');
-  const { label, cssClass } = resolveHealth(remainingVsProjectedMax, availableFunds);
+  const status = resolveHealthStatus(remainingVsProjectedMax, availableFunds);
+
+  const variants = useMemo(
+    (): BadgeVariantMap => ({
+      'on-budget': { label: t('health.onBudget'), className: badgeStyles.budgetHealthOnBudget! },
+      'at-risk': { label: t('health.atRisk'), className: badgeStyles.budgetHealthAtRisk! },
+      'over-budget': {
+        label: t('health.overBudget'),
+        className: badgeStyles.budgetHealthOverBudget!,
+      },
+    }),
+    [t],
+  );
 
   return (
-    <span className={`${styles.badge} ${cssClass}`} role="status">
-      {t(label)}
+    <span role="status">
+      <Badge variants={variants} value={status} />
     </span>
   );
 }

@@ -17,15 +17,45 @@
  * 11. No horizontal scroll on current viewport
  */
 
-import { test, expect } from '../../fixtures/auth.js';
+import { test, expect } from '../../fixtures/isolatedUser.js';
 import { DashboardPage, DASHBOARD_ROUTE, CARD_TITLES } from '../../pages/DashboardPage.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Global setup: reset dashboard preferences before every test to prevent
-// state leaking from dismiss tests (Issue 1: server-side preference persistence)
+// Preference isolation (Issue #1957)
+//
+// Every test in this file depends on two per-user preference rows:
+// `dashboard.hiddenCards` (which cards render) and `locale` (English card
+// headings). Scenario 6/7 additionally WRITE `dashboard.hiddenCards` by clicking
+// dismiss/re-enable, and the reset hook below writes both keys.
+//
+// Under `fullyParallel: true` all of that used to happen on the one shared admin
+// user (test-results/.auth/admin.json), so any other spec touching those keys —
+// diary-uat-fixes.spec.ts resets `dashboard.hiddenCards`, i18n.spec.ts flips
+// `locale` — could land a write inside a test's assertion window from another
+// worker, and this file's own reset hook could wipe out Scenario 6's dismissed
+// state mid-test. `mode: 'serial'` cannot fix that: it only orders a file against
+// itself.
+//
+// This file therefore runs against a dedicated user (see e2e/fixtures/isolatedUser.ts
+// for the full mechanism and the audit of every preference-writing spec). One
+// dedicated user per worker is enough: a Playwright worker executes one test at a
+// time and no other worker shares the user, so no concurrent write to those rows
+// is possible from anywhere in the suite. Sequential carry-over inside one worker
+// is still possible (Scenario 6 leaves a card hidden for whatever test runs next
+// in that worker), which is exactly what the reset hook below handles.
+//
+// The write/read path itself is correctly ordered and durable (dismissCard() awaits
+// the PATCH response; preferencesService.upsertPreference() commits synchronously) —
+// this was a test-isolation gap, never a product bug.
 // ─────────────────────────────────────────────────────────────────────────────
 
+test.use({
+  isolatedUserPerWorker: { emailPrefix: 'dash', displayName: 'E2E Dashboard User' },
+});
+
 test.beforeEach(async ({ page }) => {
+  // Reset this worker's dedicated user back to "no cards hidden" so a preceding
+  // dismiss test in the same worker cannot leak into the next one.
   const resp = await page.request.patch('/api/users/me/preferences', {
     data: { key: 'dashboard.hiddenCards', value: '[]' },
   });
@@ -33,9 +63,10 @@ test.beforeEach(async ({ page }) => {
   // from a prior test, causing downstream dismiss tests to fail.
   expect(resp.ok(), `beforeEach: preference reset failed with ${resp.status()}`).toBeTruthy();
 
-  // Also reset the locale preference to English. If an i18n test in the same shard
-  // left the locale as 'de', the dashboard would render with German card headings
-  // (e.g., "Schnellaktionen" instead of "Quick Actions"), causing locator failures.
+  // Force English regardless of the CI browser's default locale — every assertion
+  // in this file matches English headings (e.g. "Quick Actions", not
+  // "Schnellaktionen"). The dedicated user is seeded with locale='en' on creation;
+  // this re-asserts it in case a test in this worker changed it.
   await page.request.patch('/api/users/me/preferences', {
     data: { key: 'locale', value: 'en' },
   });
@@ -480,15 +511,16 @@ test.describe('Quick Actions card (Scenario 5)', { tag: '@responsive' }, () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 6: Card dismiss — clicking dismiss hides card; reload keeps it hidden
+//
+// These two tests are the only ones in this file that WRITE
+// `dashboard.hiddenCards`. They previously provisioned a dedicated user inline
+// (PR #1956) to survive the reset hook of a sibling test running in another
+// worker; that is now handled file-wide by `isolatedUserPerWorker` above, so the
+// plain `page` fixture is already the dedicated user's page and the inline helper
+// is gone (Issue #1957).
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Card dismiss (Scenario 6)', () => {
-  // Serial mode: the first test dismisses Quick Actions and leaves server-side state dirty
-  // until beforeEach of the second test resets it. Running in parallel risks another worker
-  // resetting preferences between the dismiss PATCH and the reload assertion in the second
-  // test, causing the card to reappear after reload.
-  test.describe.configure({ mode: 'serial' });
-
   test('Dismissing a card hides it from the dashboard', async ({ page }) => {
     const dashboardPage = new DashboardPage(page);
 
@@ -519,8 +551,6 @@ test.describe('Card dismiss (Scenario 6)', () => {
     await interceptDashboardApis(page);
 
     try {
-      // The prior test dismisses Quick Actions and beforeEach resets hiddenCards to [].
-      // Navigate to the dashboard and wait for cards to load before asserting card visibility.
       await dashboardPage.goto();
       await dashboardPage.waitForCardsLoaded();
 
@@ -547,11 +577,6 @@ test.describe('Card dismiss (Scenario 6)', () => {
 
       // The Quick Actions card must be absent — usePreferences applied hiddenCards: ["quick-actions"]
       await expect(dashboardPage.card('Quick Actions')).toHaveCount(0);
-
-      // Clean up: re-enable the card via preferences API to not affect other tests
-      await page.request.patch('/api/users/me/preferences', {
-        data: { key: 'dashboard.hiddenCards', value: '[]' },
-      });
     } finally {
       await uninterceptDashboardApis(page);
     }
@@ -569,11 +594,6 @@ test.describe('Card re-enable (Scenario 7)', () => {
     await interceptDashboardApis(page);
 
     try {
-      // Ensure a clean slate: clear hidden cards immediately before navigation to avoid
-      // state pollution from parallel workers sharing the same user preferences.
-      await page.request.patch('/api/users/me/preferences', {
-        data: { key: 'dashboard.hiddenCards', value: '[]' },
-      });
       await dashboardPage.goto();
       await dashboardPage.waitForCardsLoaded();
 
@@ -595,11 +615,6 @@ test.describe('Card re-enable (Scenario 7)', () => {
 
       // Customize button should now appear
       await expect(dashboardPage.customizeButton).toBeVisible();
-
-      // Clean up
-      await page.request.patch('/api/users/me/preferences', {
-        data: { key: 'dashboard.hiddenCards', value: '[]' },
-      });
     } finally {
       await uninterceptDashboardApis(page);
     }

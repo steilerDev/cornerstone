@@ -44,7 +44,7 @@
       "title": "Source Utilization",
       "emptyMessage": "No budget sources configured",
       "emptyAction": "Add a budget source",
-      "utilized": "{{percent}}% utilized",
+      "utilized": "{{percent}} utilized",
       "usedLabel": "Used",
       "sourceTypes": {
         "bank_loan": "Bank Loan",

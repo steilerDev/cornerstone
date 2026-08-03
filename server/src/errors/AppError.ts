@@ -289,6 +289,16 @@ export class StaleOwnershipError extends AppError {
   }
 }
 
+export class InvoicesNotClaimableError extends AppError {
+  constructor(
+    message = 'One or more invoices are not in a claimable state',
+    details?: Record<string, unknown>,
+  ) {
+    super('INVOICES_NOT_CLAIMABLE', 409, message, details);
+    this.name = 'InvoicesNotClaimableError';
+  }
+}
+
 export class DepositsExceedInvoiceTotalError extends AppError {
   constructor(
     message = 'Sum of deposit amounts would exceed the invoice total',
@@ -316,6 +326,16 @@ export class InvalidDepositDateForStatusError extends AppError {
   ) {
     super('INVALID_DEPOSIT_DATE_FOR_STATUS', 400, message, details);
     this.name = 'InvalidDepositDateForStatusError';
+  }
+}
+
+export class RefundExceedsInvoiceError extends AppError {
+  constructor(
+    message = 'Sum of refund amounts would exceed the invoice total',
+    details?: Record<string, unknown>,
+  ) {
+    super('REFUND_EXCEEDS_INVOICE', 400, message, details);
+    this.name = 'RefundExceedsInvoiceError';
   }
 }
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetSource,
@@ -18,20 +19,15 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
+import { SubNav } from '../../components/SubNav/SubNav.js';
 import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { SourceBudgetLinePanel } from '../../components/SourceBudgetLinePanel/SourceBudgetLinePanel.js';
 import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
+import { OverflowMenu } from '../../components/OverflowMenu/index.js';
+import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import styles from './BudgetSourcesPage.module.css';
-
-const BUDGET_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.budget.overview', to: '/budget/overview' },
-  { labelKey: 'subnav.budget.invoices', to: '/budget/invoices' },
-  { labelKey: 'subnav.budget.sources', to: '/budget/sources' },
-  { labelKey: 'subnav.budget.subsidies', to: '/budget/subsidies' },
-];
 
 // ---- Display helpers ----
 
@@ -64,6 +60,8 @@ type EditingSource = {
   totalAmount: string;
   interestRate: string;
   terms: string;
+  reference: string;
+  contactAddress: string;
   notes: string;
   status: BudgetSourceStatus;
 };
@@ -76,6 +74,8 @@ function sourceToEditState(source: BudgetSource): EditingSource {
     totalAmount: String(source.totalAmount),
     interestRate: source.interestRate != null ? String(source.interestRate) : '',
     terms: source.terms ?? '',
+    reference: source.reference ?? '',
+    contactAddress: source.contactAddress ?? '',
     notes: source.notes ?? '',
     status: source.status,
   };
@@ -86,14 +86,10 @@ function sourceToEditState(source: BudgetSource): EditingSource {
 interface SourceBarChartProps {
   source: BudgetSource;
   formatCurrency: (value: number) => string;
-  formatPercent: (value: number) => string;
+  formatPercent: (value: number, digits?: number) => string;
 }
 
-function SourceBarChart({
-  source,
-  formatCurrency,
-  formatPercent: _formatPercent,
-}: SourceBarChartProps) {
+function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChartProps) {
   const { t } = useTranslation('budget');
   const [hoveredSegment, setHoveredSegment] = useState<BudgetBarSegment | null>(null);
   const handleSegmentHover = useCallback((seg: BudgetBarSegment | null) => {
@@ -180,8 +176,8 @@ function SourceBarChart({
               </span>
               <span className={styles.segmentTooltipPct}>
                 {source.totalAmount > 0
-                  ? `${(((hoveredSegment.totalValue ?? hoveredSegment.value) / source.totalAmount) * 100).toFixed(1)}% ${t('sources.barChart.ofTotal')}`
-                  : `0.0% ${t('sources.barChart.ofTotal')}`}
+                  ? `${formatPercent(((hoveredSegment.totalValue ?? hoveredSegment.value) / source.totalAmount) * 100, 1)} ${t('sources.barChart.ofTotal')}`
+                  : `${formatPercent(0, 1)} ${t('sources.barChart.ofTotal')}`}
               </span>
               <span className={styles.segmentTooltipPct}>
                 {t('sources.barChart.remaining')}{' '}
@@ -274,6 +270,7 @@ function SourceBarChart({
 
 export function BudgetSourcesPage() {
   const { t } = useTranslation('budget');
+  const navigate = useNavigate();
   const { formatCurrency, formatPercent } = useFormatters();
   const { showToast } = useToast();
   const [sources, setSources] = useState<BudgetSource[]>([]);
@@ -288,6 +285,8 @@ export function BudgetSourcesPage() {
   const [newTotalAmount, setNewTotalAmount] = useState('');
   const [newInterestRate, setNewInterestRate] = useState('');
   const [newTerms, setNewTerms] = useState('');
+  const [newReference, setNewReference] = useState('');
+  const [newContactAddress, setNewContactAddress] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [newStatus, setNewStatus] = useState<BudgetSourceStatus>('active');
   const [isCreating, setIsCreating] = useState(false);
@@ -364,6 +363,8 @@ export function BudgetSourcesPage() {
     setNewTotalAmount('');
     setNewInterestRate('');
     setNewTerms('');
+    setNewReference('');
+    setNewContactAddress('');
     setNewNotes('');
     setNewStatus('active');
     setCreateError('');
@@ -399,6 +400,8 @@ export function BudgetSourcesPage() {
       totalAmount: totalAmountValue,
       interestRate: interestRateValue ?? null,
       terms: newTerms.trim() || null,
+      reference: newReference.trim() || null,
+      contactAddress: newContactAddress.trim() || null,
       notes: newNotes.trim() || null,
       status: newStatus,
     };
@@ -472,6 +475,8 @@ export function BudgetSourcesPage() {
         totalAmount: totalAmountValue,
         interestRate: interestRateValue,
         terms: editingSource.terms.trim() || null,
+        reference: editingSource.reference.trim() || null,
+        contactAddress: editingSource.contactAddress.trim() || null,
         notes: editingSource.notes.trim() || null,
         status: editingSource.status,
       });
@@ -620,7 +625,11 @@ export function BudgetSourcesPage() {
   const handleToggleDocs = useCallback((sourceId: string) => {
     setExpandedDocsSources((prev) => {
       const next = new Set(prev);
-      next.has(sourceId) ? next.delete(sourceId) : next.add(sourceId);
+      if (next.has(sourceId)) {
+        next.delete(sourceId);
+      } else {
+        next.add(sourceId);
+      }
       return next;
     });
   }, []);
@@ -889,6 +898,38 @@ export function BudgetSourcesPage() {
             </div>
 
             <div className={styles.field}>
+              <label htmlFor="sourceReference" className={styles.label}>
+                {t('sources.form.reference')}
+              </label>
+              <input
+                type="text"
+                id="sourceReference"
+                value={newReference}
+                onChange={(e) => setNewReference(e.target.value)}
+                className={styles.input}
+                placeholder={t('sources.form.placeholders.reference')}
+                maxLength={200}
+                disabled={isCreating}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label htmlFor="sourceContactAddress" className={styles.label}>
+                {t('sources.form.contactAddress')}
+              </label>
+              <textarea
+                id="sourceContactAddress"
+                value={newContactAddress}
+                onChange={(e) => setNewContactAddress(e.target.value)}
+                className={styles.textarea}
+                placeholder={t('sources.form.placeholders.contactAddress')}
+                maxLength={500}
+                disabled={isCreating}
+                rows={3}
+              />
+            </div>
+
+            <div className={styles.field}>
               <label htmlFor="sourceNotes" className={styles.label}>
                 {t('sources.form.notes')}
               </label>
@@ -1074,9 +1115,45 @@ export function BudgetSourcesPage() {
                           setEditingSource({ ...editingSource, terms: e.target.value })
                         }
                         className={styles.input}
-                        placeholder="e.g., 30-year fixed, monthly payments"
+                        placeholder={t('sources.form.placeholders.terms')}
                         maxLength={500}
                         disabled={isUpdating}
+                      />
+                    </div>
+
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-reference-${source.id}`} className={styles.label}>
+                        {t('sources.form.reference')}
+                      </label>
+                      <input
+                        type="text"
+                        id={`edit-reference-${source.id}`}
+                        value={editingSource.reference}
+                        onChange={(e) =>
+                          setEditingSource({ ...editingSource, reference: e.target.value })
+                        }
+                        className={styles.input}
+                        placeholder={t('sources.form.placeholders.reference')}
+                        maxLength={200}
+                        disabled={isUpdating}
+                      />
+                    </div>
+
+                    <div className={styles.field}>
+                      <label htmlFor={`edit-contactAddress-${source.id}`} className={styles.label}>
+                        {t('sources.form.contactAddress')}
+                      </label>
+                      <textarea
+                        id={`edit-contactAddress-${source.id}`}
+                        value={editingSource.contactAddress}
+                        onChange={(e) =>
+                          setEditingSource({ ...editingSource, contactAddress: e.target.value })
+                        }
+                        className={styles.textarea}
+                        placeholder={t('sources.form.placeholders.contactAddress')}
+                        maxLength={500}
+                        disabled={isUpdating}
+                        rows={3}
                       />
                     </div>
 
@@ -1091,7 +1168,7 @@ export function BudgetSourcesPage() {
                           setEditingSource({ ...editingSource, notes: e.target.value })
                         }
                         className={styles.textarea}
-                        placeholder="Optional notes"
+                        placeholder={t('sources.form.placeholders.notes')}
                         maxLength={2000}
                         disabled={isUpdating}
                         rows={3}
@@ -1234,6 +1311,19 @@ export function BudgetSourcesPage() {
                             {t('sources.buttons.delete')}
                           </button>
                         )}
+                        <OverflowMenu
+                          items={[
+                            {
+                              label: t('sources.generateReport'),
+                              onClick: () => navigate(`/budget/reports?sourceId=${source.id}`),
+                            },
+                          ]}
+                          triggerAriaLabel={t('sources.generateReportMenuAriaLabel', {
+                            name: source.name,
+                          })}
+                          placement="bottom-end"
+                          usePortal
+                        />
                       </div>
                     </div>
 
@@ -1250,7 +1340,7 @@ export function BudgetSourcesPage() {
                     />
 
                     {source.terms && (
-                      <p className={styles.sourceTerms} title="Terms">
+                      <p className={styles.sourceTerms} title={t('sources.form.terms')}>
                         {source.terms}
                       </p>
                     )}

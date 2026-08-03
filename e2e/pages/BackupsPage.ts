@@ -2,8 +2,9 @@
  * Page Object Model for the Backups page (/settings/backups)
  */
 
-import type { Page, Locator } from '@playwright/test';
+import type { Page, Locator, Route } from '@playwright/test';
 import { ROUTES } from '../fixtures/testData.js';
+import type { BackupSchedulerStatus } from '@cornerstone/shared';
 
 export class BackupsPage {
   readonly page: Page;
@@ -27,6 +28,15 @@ export class BackupsPage {
   readonly restoreCancelButton: Locator;
   readonly restoreWarningText: Locator;
 
+  // Scheduler status section (only rendered when the page is configured — i.e. NOT the
+  // isNotConfigured branch). Scoped via aria-labelledby to avoid collisions with other
+  // page content.
+  readonly schedulerSection: Locator;
+  readonly schedulerHeading: Locator;
+  readonly schedulerErrorBanner: Locator;
+  readonly schedulerDisabledHint: Locator;
+  readonly schedulerNoRunsYetText: Locator;
+
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole('heading', { level: 1, name: 'Backup & Restore' });
@@ -35,6 +45,18 @@ export class BackupsPage {
     this.emptyState = page.getByText('No backups yet', { exact: false });
     this.notConfiguredState = page.getByText('Backup is not configured', { exact: false });
     this.errorBanner = page.locator('[role="alert"]');
+
+    this.schedulerSection = page.locator('section[aria-labelledby="scheduler-status-heading"]');
+    this.schedulerHeading = page.locator('#scheduler-status-heading');
+    this.schedulerErrorBanner = this.schedulerSection.locator('[role="alert"]');
+    this.schedulerDisabledHint = this.schedulerSection.getByText(
+      'Set the BACKUP_CADENCE environment variable',
+      { exact: false },
+    );
+    this.schedulerNoRunsYetText = this.schedulerSection.getByText(
+      'No automatic backups have run yet',
+      { exact: false },
+    );
 
     // Delete modal — scoped to dialog to avoid button name collisions
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Backup' });
@@ -106,5 +128,64 @@ export class BackupsPage {
     );
     await this.deleteConfirmButton.click();
     await responsePromise;
+  }
+
+  /**
+   * Locate the <dd> value cell for a scheduler status row, matched by its <dt> label text.
+   * The dt/dd pair are siblings inside a single `.schedulerStatusRow` wrapper div.
+   */
+  private schedulerRowValue(dtLabel: string): Locator {
+    return this.schedulerSection
+      .locator('dt', { hasText: dtLabel })
+      .locator('xpath=following-sibling::dd[1]');
+  }
+
+  /** The "Automatic backups" row value — contains the Enabled/Disabled badge. */
+  get schedulerStatusValue(): Locator {
+    return this.schedulerRowValue('Automatic backups');
+  }
+
+  /** The "Last scheduled run" row value — contains the timestamp + Succeeded/Failed badge,
+   * or the "No automatic backups have run yet" muted text. */
+  get schedulerLastRunValue(): Locator {
+    return this.schedulerRowValue('Last scheduled run');
+  }
+
+  /** The "Next scheduled run" row value — contains the primary time and optional "then" text. */
+  get schedulerNextRunValue(): Locator {
+    return this.schedulerRowValue('Next scheduled run');
+  }
+
+  /**
+   * Wait for the scheduler status section to finish loading — races between the three
+   * possible terminal states (status rendered, error banner, or the section being entirely
+   * absent when backups are not configured at all).
+   */
+  async waitForSchedulerLoaded(): Promise<void> {
+    await Promise.race([
+      this.schedulerStatusValue.waitFor({ state: 'visible' }),
+      this.schedulerErrorBanner.waitFor({ state: 'visible' }),
+    ]);
+  }
+
+  /**
+   * Mock GET /api/backups/scheduler-status.
+   *
+   * @param status - HTTP status code to return (200 for a normal payload, 500/503 for errors)
+   * @param body - Response body. For status 200, pass a `BackupSchedulerStatus` object (it will
+   *   be wrapped in `{ scheduler: ... }`). For error statuses, pass the raw error envelope.
+   */
+  async mockSchedulerStatus(
+    status: number,
+    body: BackupSchedulerStatus | { error: { code: string; message: string } },
+  ): Promise<void> {
+    await this.page.route('**/api/backups/scheduler-status', async (route: Route) => {
+      const responseBody = status === 200 ? { scheduler: body } : body;
+      await route.fulfill({
+        status,
+        contentType: 'application/json',
+        body: JSON.stringify(responseBody),
+      });
+    });
   }
 }

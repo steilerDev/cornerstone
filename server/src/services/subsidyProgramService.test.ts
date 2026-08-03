@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { eq } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as subsidyProgramService from './subsidyProgramService.js';
@@ -703,6 +704,48 @@ describe('Subsidy Program Service', () => {
         subsidyProgramService.createSubsidyProgram(db, data, TEST_USER_ID);
       }).toThrow(ValidationError);
     });
+
+    it('rolls back the program insert if the category-link insert throws mid-transaction (#1809)', () => {
+      // Given: A valid category to link
+      const catId = insertBudgetCategory('TestCat-rollback-create');
+      const attemptedName = 'Rollback Program (#1809)';
+
+      const data: CreateSubsidyProgramRequest = {
+        name: attemptedName,
+        reductionType: 'percentage',
+        reductionValue: 10,
+        categoryIds: [catId],
+      };
+
+      // When: db.insert is spied; call 1 (subsidyPrograms row) succeeds, call 2 (the
+      // subsidyProgramCategories bulk insert inside replaceCategoryLinks) throws.
+      const originalInsert = db.insert.bind(db);
+      let calls = 0;
+      const spy = jest
+        .spyOn(db, 'insert')
+        .mockImplementation((...args: Parameters<typeof db.insert>) => {
+          calls++;
+          if (calls === 2) {
+            throw new Error('Simulated crash mid-transaction');
+          }
+          return originalInsert(...args);
+        });
+
+      expect(() => {
+        subsidyProgramService.createSubsidyProgram(db, data, TEST_USER_ID);
+      }).toThrow('Simulated crash mid-transaction');
+
+      spy.mockRestore();
+
+      // Then: no row exists in subsidyPrograms matching the attempted name — the program
+      // insert itself was rolled back, not just the category-link loop.
+      const programRow = db
+        .select()
+        .from(schema.subsidyPrograms)
+        .where(eq(schema.subsidyPrograms.name, attemptedName))
+        .get();
+      expect(programRow).toBeUndefined();
+    });
   });
 
   // ─── updateSubsidyProgram() ───────────────────────────────────────────────
@@ -1069,6 +1112,66 @@ describe('Subsidy Program Service', () => {
       expect(() => {
         subsidyProgramService.updateSubsidyProgram(db, id, data);
       }).toThrow('Unknown category IDs');
+    });
+
+    it('rolls back the name update and the category-link swap if a write mid-sequence throws (#1809)', () => {
+      // Given: A program with existing category links
+      const originalCatId = insertBudgetCategory('TestCat-original');
+      const newCatId = insertBudgetCategory('TestCat-new');
+      const created = subsidyProgramService.createSubsidyProgram(
+        db,
+        {
+          name: 'Original Name',
+          reductionType: 'percentage',
+          reductionValue: 10,
+          categoryIds: [originalCatId],
+        },
+        TEST_USER_ID,
+      );
+
+      // When: db.insert is spied; the update's db.update() call for subsidyPrograms and the
+      // db.delete() call for the old category links (inside replaceCategoryLinks) both
+      // "succeed" (neither is spied), but the single db.insert() call for the new category
+      // links throws.
+      const originalInsert = db.insert.bind(db);
+      let calls = 0;
+      const spy = jest
+        .spyOn(db, 'insert')
+        .mockImplementation((...args: Parameters<typeof db.insert>) => {
+          calls++;
+          if (calls === 1) {
+            throw new Error('Simulated crash mid-transaction');
+          }
+          return originalInsert(...args);
+        });
+
+      expect(() => {
+        subsidyProgramService.updateSubsidyProgram(db, created.id, {
+          name: 'New Name',
+          categoryIds: [newCatId],
+        });
+      }).toThrow('Simulated crash mid-transaction');
+
+      spy.mockRestore();
+
+      // Then: the program's name is still the original value (update rolled back)...
+      const programRow = db
+        .select()
+        .from(schema.subsidyPrograms)
+        .where(eq(schema.subsidyPrograms.id, created.id))
+        .get();
+      expect(programRow!.name).toBe('Original Name');
+
+      // ...and the original category links are still present (the delete-then-insert was
+      // rolled back as a unit, not left half-applied with categories deleted and nothing
+      // re-inserted).
+      const links = db
+        .select()
+        .from(schema.subsidyProgramCategories)
+        .where(eq(schema.subsidyProgramCategories.subsidyProgramId, created.id))
+        .all();
+      expect(links).toHaveLength(1);
+      expect(links[0]!.budgetCategoryId).toBe(originalCatId);
     });
   });
 

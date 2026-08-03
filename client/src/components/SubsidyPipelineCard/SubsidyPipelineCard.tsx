@@ -1,7 +1,10 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { SubsidyProgram } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
+import { Badge, type BadgeVariantMap } from '../Badge/Badge.js';
+import badgeStyles from '../Badge/Badge.module.css';
 import styles from './SubsidyPipelineCard.module.css';
 
 interface SubsidyPipelineCardProps {
@@ -10,16 +13,40 @@ interface SubsidyPipelineCardProps {
 
 interface StatusGroup {
   status: string;
-  label: string;
   count: number;
   totalFixedReduction: number;
   hasUpcomingDeadline: boolean;
-  badgeClass: string;
 }
 
 export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProps) {
   const { t } = useTranslation('dashboard');
   const { formatCurrency } = useFormatters();
+
+  const statusBadgeVariants = useMemo(
+    (): BadgeVariantMap => ({
+      eligible: {
+        label: t('cards.subsidyPipeline.statuses.eligible'),
+        className: badgeStyles.subsidyEligible!,
+      },
+      applied: {
+        label: t('cards.subsidyPipeline.statuses.applied'),
+        className: badgeStyles.subsidyApplied!,
+      },
+      approved: {
+        label: t('cards.subsidyPipeline.statuses.approved'),
+        className: badgeStyles.subsidyApproved!,
+      },
+      received: {
+        label: t('cards.subsidyPipeline.statuses.received'),
+        className: badgeStyles.subsidyApproved!,
+      },
+      rejected: {
+        label: t('cards.subsidyPipeline.statuses.rejected'),
+        className: badgeStyles.subsidyRejected!,
+      },
+    }),
+    [t],
+  );
 
   // Helper to check if deadline is within 14 days (inclusive) from today and >= 0 days in future
   const isUpcomingDeadline = (deadline: string | null): boolean => {
@@ -48,27 +75,11 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
 
       const hasUpcomingDeadline = programs.some((p) => isUpcomingDeadline(p.applicationDeadline));
 
-      const badgeClassMap: Record<string, string> = {
-        eligible: styles.badgeGray!,
-        applied: styles.badgeBlue!,
-        approved: styles.badgeGreen!,
-        received: styles.badgeGreen!,
-      };
-
-      const labelMap: Record<string, string> = {
-        eligible: t('cards.subsidyPipeline.statuses.eligible')!,
-        applied: t('cards.subsidyPipeline.statuses.applied')!,
-        approved: t('cards.subsidyPipeline.statuses.approved')!,
-        received: t('cards.subsidyPipeline.statuses.received')!,
-      };
-
       statusGroups.push({
         status,
-        label: labelMap[status]!,
         count: programs.length,
         totalFixedReduction,
         hasUpcomingDeadline,
-        badgeClass: badgeClassMap[status]!,
       });
     }
   }
@@ -78,11 +89,9 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
   if (rejectedPrograms.length > 0) {
     statusGroups.push({
       status: 'rejected',
-      label: t('cards.subsidyPipeline.statuses.rejected')!,
       count: rejectedPrograms.length,
       totalFixedReduction: 0,
       hasUpcomingDeadline: false,
-      badgeClass: styles.badgeRed!,
     });
   }
 
@@ -100,9 +109,7 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
       <ul className={styles.list}>
         {statusGroups.map((group) => (
           <li key={group.status} data-testid="subsidy-group" className={styles.groupRow}>
-            <span data-testid="status-badge" className={`${styles.badge} ${group.badgeClass}`}>
-              {group.label}
-            </span>
+            <Badge testId="status-badge" variants={statusBadgeVariants} value={group.status} />
             <span data-testid="group-count" className={styles.groupCount}>
               {group.count}{' '}
               {t(`cards.subsidyPipeline.program_${group.count === 1 ? 'one' : 'other'}`)}

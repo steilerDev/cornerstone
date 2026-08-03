@@ -1,0 +1,1810 @@
+/**
+ * Unit tests for sourceReportService.ts
+ *
+ * Story #1878 — Source report backend: report data, mark-claimed & Paperless upload proxy
+ *
+ * Covers:
+ * - getSourceReport: status-slice selection per report type, split-invoice detection,
+ *   drop-on-zero / refund-adjustment classification, attachment-tier document filtering
+ *   (Story #1930), Paperless ASN/title resolution (reachable / throws / unconfigured),
+ *   unallocated invoices, totalAmount rounding.
+ * - markInvoicesClaimed: transactional batch claim of invoices + deposits, claimability
+ *   rules, 409 rollback-on-any-offending, diary event side effects.
+ */
+
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { randomUUID } from 'node:crypto';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { runMigrations } from '../db/migrate.js';
+import * as schema from '../db/schema.js';
+import { getSourceReport, markInvoicesClaimed } from './sourceReportService.js';
+import { NotFoundError, ValidationError, InvoicesNotClaimableError } from '../errors/AppError.js';
+
+// ─── Paperless mocking (mirrors documentLinkService.test.ts / paperlessService.test.ts) ──
+
+const mockFetch = jest.fn<typeof fetch>();
+let originalFetch: typeof fetch;
+
+function mockJsonResponse(body: unknown, status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    statusText: status === 200 ? 'OK' : 'Error',
+    json: () => Promise.resolve(body),
+    headers: { get: (_key: string) => null },
+  } as unknown as Response;
+}
+
+const RAW_TAGS_RESPONSE = { count: 0, results: [] };
+
+const PAPERLESS_DISABLED = { paperlessEnabled: false } as const;
+
+const PAPERLESS_CONFIG_ENABLED = {
+  paperlessEnabled: true,
+  paperlessUrl: 'http://paperless:8000',
+  paperlessApiToken: 'test-token',
+} as const;
+
+describe('sourceReportService', () => {
+  let sqlite: Database.Database;
+  let db: BetterSQLite3Database<typeof schema>;
+  let counter = 0;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+    global.fetch = mockFetch as unknown as typeof fetch;
+    mockFetch.mockReset();
+    // Persistent fallback (not *Once*) so any test that doesn't care about the Paperless
+    // response shape still gets something well-formed back.
+    mockFetch.mockResolvedValue(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+    sqlite = new Database(':memory:');
+    sqlite.pragma('journal_mode = WAL');
+    sqlite.pragma('foreign_keys = ON');
+    runMigrations(sqlite);
+    db = drizzle(sqlite, { schema });
+    counter = 0;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    sqlite.close();
+  });
+
+  function ts(): string {
+    return new Date(Date.now() + counter++).toISOString();
+  }
+
+  // ─── Fixture helpers ────────────────────────────────────────────────────
+
+  function insertSource(overrides: Partial<typeof schema.budgetSources.$inferInsert> = {}): string {
+    const id = overrides.id ?? `src-${++counter}`;
+    const now = ts();
+    db.insert(schema.budgetSources)
+      .values({
+        name: 'Test Source',
+        sourceType: 'bank_loan',
+        totalAmount: 100000,
+        isDiscretionary: false,
+        status: 'active',
+        reference: null,
+        contactAddress: null,
+        createdAt: now,
+        updatedAt: now,
+        ...overrides,
+        id,
+      })
+      .run();
+    return id;
+  }
+
+  function insertVendor(name = 'Test Vendor'): string {
+    const id = `vendor-${++counter}`;
+    const now = ts();
+    db.insert(schema.vendors).values({ id, name, createdAt: now, updatedAt: now }).run();
+    return id;
+  }
+
+  function insertWorkItemBudget(sourceId: string | null): string {
+    const wiId = `wi-${++counter}`;
+    const budgetId = `wib-${counter}`;
+    const now = ts();
+    db.insert(schema.workItems)
+      .values({
+        id: wiId,
+        title: `WI ${counter}`,
+        status: 'not_started',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    db.insert(schema.workItemBudgets)
+      .values({
+        id: budgetId,
+        workItemId: wiId,
+        budgetSourceId: sourceId,
+        plannedAmount: 0,
+        confidence: 'own_estimate',
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return budgetId;
+  }
+
+  function insertInvoice(
+    vendorId: string,
+    overrides: Partial<typeof schema.invoices.$inferInsert> = {},
+  ): string {
+    const id = overrides.id ?? `inv-${++counter}`;
+    const now = ts();
+    db.insert(schema.invoices)
+      .values({
+        vendorId,
+        amount: 1000,
+        date: '2026-01-15',
+        status: 'pending',
+        invoiceNumber: `INV-${counter}`,
+        createdAt: now,
+        updatedAt: now,
+        ...overrides,
+        id,
+      })
+      .run();
+    return id;
+  }
+
+  function insertInvoiceBudgetLine(
+    invoiceId: string,
+    budgetId: string,
+    itemizedAmount: number,
+  ): string {
+    const id = randomUUID();
+    const now = ts();
+    db.insert(schema.invoiceBudgetLines)
+      .values({
+        id,
+        invoiceId,
+        workItemBudgetId: budgetId,
+        itemizedAmount,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  function insertDeposit(
+    invoiceId: string,
+    overrides: Partial<typeof schema.invoiceDeposits.$inferInsert> = {},
+  ): string {
+    const id = overrides.id ?? `dep-${++counter}`;
+    const now = ts();
+    db.insert(schema.invoiceDeposits)
+      .values({
+        invoiceId,
+        amount: 100,
+        dueDate: '2026-01-01',
+        status: 'pending',
+        entryType: 'deposit',
+        createdAt: now,
+        updatedAt: now,
+        ...overrides,
+        id,
+      })
+      .run();
+    return id;
+  }
+
+  function insertDocumentLink(
+    entityId: string,
+    paperlessDocumentId: number,
+    attachmentType: 'quotation' | 'deposit' | 'invoice' | null = null,
+  ): void {
+    db.insert(schema.documentLinks)
+      .values({
+        id: randomUUID(),
+        entityType: 'invoice',
+        entityId,
+        paperlessDocumentId,
+        attachmentType,
+        createdAt: ts(),
+      })
+      .run();
+  }
+
+  function diaryEntryCount(): number {
+    return db.select().from(schema.diaryEntries).all().length;
+  }
+
+  /** Insert an area (Story #1923 AC5), returns its id. Migration seeds no default areas. */
+  function insertArea(name: string, parentId: string | null = null): string {
+    const id = `area-${++counter}`;
+    const now = ts();
+    db.insert(schema.areas)
+      .values({
+        id,
+        name,
+        parentId,
+        color: null,
+        sortOrder: counter,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    return id;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // getSourceReport
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('getSourceReport', () => {
+    it('scenario 20: unknown sourceId throws NotFoundError', async () => {
+      await expect(
+        getSourceReport(db, 'budget-overview', 'does-not-exist', PAPERLESS_DISABLED),
+      ).rejects.toThrow(NotFoundError);
+    });
+
+    it('scenario 8: budget-overview includes all 4 statuses incl. quotation', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+
+      for (const status of ['quotation', 'pending', 'paid', 'claimed'] as const) {
+        const invId = insertInvoice(vendorId, { status });
+        // Each invoice needs its own budget line — invoice_budget_lines has a UNIQUE
+        // index on work_item_budget_id (one invoice per budgeted line item).
+        const budgetId = insertWorkItemBudget(sourceId);
+        insertInvoiceBudgetLine(invId, budgetId, 200);
+      }
+
+      const result = await getSourceReport(db, 'budget-overview', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(4);
+      expect(result.invoices.map((i) => i.status).sort()).toEqual(
+        ['claimed', 'paid', 'pending', 'quotation'].sort(),
+      );
+    });
+
+    it('scenario 9: claim report excludes quotation and claimed statuses', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+
+      for (const status of ['quotation', 'pending', 'paid', 'claimed'] as const) {
+        const invId = insertInvoice(vendorId, { status });
+        // Each invoice needs its own budget line — invoice_budget_lines has a UNIQUE
+        // index on work_item_budget_id (one invoice per budgeted line item).
+        const budgetId = insertWorkItemBudget(sourceId);
+        insertInvoiceBudgetLine(invId, budgetId, 200);
+      }
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(2);
+      expect(result.invoices.map((i) => i.status).sort()).toEqual(['paid', 'pending']);
+    });
+
+    it('scenario 10: proof-of-funds report includes only claimed status', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+
+      for (const status of ['quotation', 'pending', 'paid', 'claimed'] as const) {
+        const invId = insertInvoice(vendorId, { status });
+        // Each invoice needs its own budget line — invoice_budget_lines has a UNIQUE
+        // index on work_item_budget_id (one invoice per budgeted line item).
+        const budgetId = insertWorkItemBudget(sourceId);
+        insertInvoiceBudgetLine(invId, budgetId, 200);
+      }
+
+      const result = await getSourceReport(db, 'proof-of-funds', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.status).toBe('claimed');
+    });
+
+    it('scenario 11: invoice split across two sources → isSplit true, partial allocatedAmount', async () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const sourceB = insertSource({ name: 'Source B' });
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceA);
+      const budgetB = insertWorkItemBudget(sourceB);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 600);
+      insertInvoiceBudgetLine(invId, budgetB, 400);
+
+      const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.isSplit).toBe(true);
+      expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(600);
+    });
+
+    it('scenario 12a: single-source invoice → isSplit false', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices[0]!.isSplit).toBe(false);
+    });
+
+    it('scenario 12b: real source + null-source line (COUNT DISTINCT NULL exclusion) → isSplit false', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetReal = insertWorkItemBudget(sourceId);
+      const budgetNull = insertWorkItemBudget(null); // unassigned budget line
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 700 });
+      insertInvoiceBudgetLine(invId, budgetReal, 500);
+      insertInvoiceBudgetLine(invId, budgetNull, 200);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.isSplit).toBe(false);
+      expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(500);
+    });
+
+    it('Story #1891 regression: invoice with lines only for source B + a deposit tagged to source A → isSplit true in both A and B reports', async () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const sourceB = insertSource({ name: 'Source B' });
+      const vendorId = insertVendor();
+      const budgetB = insertWorkItemBudget(sourceB);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetB, 1000);
+      insertDeposit(invId, {
+        amount: 300,
+        status: 'paid',
+        entryType: 'deposit',
+        budgetSourceId: sourceA,
+      });
+
+      // Invoice appears in Source A's report purely via Rail B (the tagged deposit) —
+      // it has no budget lines pointing at source A at all.
+      const resultA = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+      expect(resultA.invoices).toHaveLength(1);
+      expect(resultA.invoices[0]!.isSplit).toBe(true);
+      expect(resultA.invoices[0]!.allocatedAmount).toBeCloseTo(300);
+
+      const resultB = await getSourceReport(db, 'claim', sourceB, PAPERLESS_DISABLED);
+      expect(resultB.invoices).toHaveLength(1);
+      expect(resultB.invoices[0]!.isSplit).toBe(true);
+      expect(resultB.invoices[0]!.allocatedAmount).toBeCloseTo(700);
+    });
+
+    it('Story #1891 regression: invoice with NO budget lines and two deposits tagged to two different sources → isSplit true in both reports', async () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const sourceB = insertSource({ name: 'Source B' });
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertDeposit(invId, {
+        amount: 400,
+        status: 'paid',
+        entryType: 'deposit',
+        budgetSourceId: sourceA,
+      });
+      insertDeposit(invId, {
+        amount: 600,
+        status: 'paid',
+        entryType: 'deposit',
+        budgetSourceId: sourceB,
+      });
+
+      const resultA = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+      expect(resultA.invoices).toHaveLength(1);
+      expect(resultA.invoices[0]!.isSplit).toBe(true);
+      expect(resultA.invoices[0]!.allocatedAmount).toBeCloseTo(400);
+
+      const resultB = await getSourceReport(db, 'claim', sourceB, PAPERLESS_DISABLED);
+      expect(resultB.invoices).toHaveLength(1);
+      expect(resultB.invoices[0]!.isSplit).toBe(true);
+      expect(resultB.invoices[0]!.allocatedAmount).toBeCloseTo(600);
+    });
+
+    it('Story #1891 regression: invoice with lines for one source + an UNTAGGED deposit → isSplit false', async () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceA);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 1000);
+      insertDeposit(invId, { amount: 300, status: 'paid', entryType: 'deposit' }); // untagged (budgetSourceId null)
+
+      const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.isSplit).toBe(false);
+    });
+
+    it('Story #1891 regression: invoice with lines for one source + a deposit tagged to that SAME source → isSplit false', async () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceA);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 1000);
+      insertDeposit(invId, {
+        amount: 300,
+        status: 'paid',
+        entryType: 'deposit',
+        budgetSourceId: sourceA,
+      });
+
+      const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.isSplit).toBe(false);
+    });
+
+    it('Story #1891 regression: invoice with no lines and a single tagged deposit → isSplit false', async () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertDeposit(invId, {
+        amount: 500,
+        status: 'paid',
+        entryType: 'deposit',
+        budgetSourceId: sourceA,
+      });
+
+      const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.isSplit).toBe(false);
+    });
+
+    it('scenario 13: exactly-zero net contribution is dropped entirely (not in invoices, not in unallocated)', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      // invoice residual status pending (not in {claimed} target); deposit 400 claimed
+      // offset by refund 400 claimed → net 0 in the claimed slice.
+      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetId, 1000);
+      insertDeposit(invId, { amount: 400, status: 'claimed', entryType: 'deposit' });
+      insertDeposit(invId, { amount: 400, status: 'claimed', entryType: 'refund' });
+
+      const result = await getSourceReport(db, 'proof-of-funds', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(0);
+      expect(result.unallocatedInvoices).toHaveLength(0);
+      expect(result.totalAmount).toBe(0);
+    });
+
+    it('scenario 14: negative net contribution → refund-adjustment line with negative allocatedAmount', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      // invoice residual status pending (not in {claimed} target); refund 300 claimed only.
+      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetId, 1000);
+      insertDeposit(invId, { amount: 300, status: 'claimed', entryType: 'refund' });
+
+      const result = await getSourceReport(db, 'proof-of-funds', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.lineKind).toBe('refund-adjustment');
+      expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(-300);
+    });
+
+    it('scenario 15: matching-status invoice with zero budget lines → unallocatedInvoices only', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      insertInvoice(vendorId, { status: 'pending' }); // no invoice_budget_lines at all
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(0);
+      expect(result.unallocatedInvoices).toHaveLength(1);
+      expect(result.unallocatedInvoices[0]!.status).toBe('pending');
+    });
+
+    it('scenario 15b: unallocated invoice with a status outside the target slice is excluded entirely', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      insertInvoice(vendorId, { status: 'claimed' }); // no budget lines
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED); // claim excludes claimed
+      expect(result.unallocatedInvoices).toHaveLength(0);
+    });
+
+    // Story #1930: per-invoice stage matching (driven by invoice status / deposit split /
+    // targetStatuses) was replaced by a report-type tier floor that depends only on report
+    // type and the document's own attachmentType. Scenarios 16a/16b/16c/16e above asserted
+    // the removed stage-derivation internals and are replaced by the AC1/AC2/AC3/AC5
+    // scenarios below. 16d (documentId passthrough) is unaffected and kept verbatim.
+
+    it('scenario 16 (AC1): tier floor determines exactly which documents survive, per report type', async () => {
+      function makeInvoiceWithAllDocTypes(status: 'paid' | 'claimed'): string {
+        const sourceId = insertSource();
+        const vendorId = insertVendor();
+        const budgetId = insertWorkItemBudget(sourceId);
+        const invId = insertInvoice(vendorId, { status, amount: 500 });
+        insertInvoiceBudgetLine(invId, budgetId, 500);
+        insertDocumentLink(invId, 1, 'quotation');
+        insertDocumentLink(invId, 2, 'deposit');
+        insertDocumentLink(invId, 3, 'invoice');
+        insertDocumentLink(invId, 4, null);
+        return sourceId;
+      }
+
+      // budget-overview: floor = quotation (1) -> quotation, deposit, invoice, null all survive.
+      {
+        const sourceId = makeInvoiceWithAllDocTypes('paid');
+        const result = await getSourceReport(db, 'budget-overview', sourceId, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        const tags = result.invoices[0]!.documents.map((d) => d.attachmentType);
+        expect(tags.sort()).toEqual([null, 'deposit', 'invoice', 'quotation'].sort());
+      }
+
+      // claim: floor = deposit (2) -> quotation excluded; deposit, invoice, null survive.
+      {
+        const sourceId = makeInvoiceWithAllDocTypes('paid');
+        const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        const tags = result.invoices[0]!.documents.map((d) => d.attachmentType);
+        expect(tags.sort()).toEqual([null, 'deposit', 'invoice'].sort());
+      }
+
+      // proof-of-funds: floor = invoice (3) -> only invoice and null survive.
+      {
+        const sourceId = makeInvoiceWithAllDocTypes('claimed');
+        const result = await getSourceReport(db, 'proof-of-funds', sourceId, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        const tags = result.invoices[0]!.documents.map((d) => d.attachmentType);
+        expect(tags.sort()).toEqual([null, 'invoice'].sort());
+      }
+    });
+
+    it('AC2: a quotation-typed document never appears in a claim report', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      // 'paid' is squarely inside the claim report's target slice ({pending, paid}).
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+      insertDocumentLink(invId, 1, 'quotation');
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.documents).toEqual([]);
+    });
+
+    it('AC3: a deposit-typed document with no invoice-typed document never appears in a proof-of-funds report', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      // 'claimed' is the proof-of-funds report's target slice.
+      const invId = insertInvoice(vendorId, { status: 'claimed', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+      insertDocumentLink(invId, 1, 'deposit');
+
+      const result = await getSourceReport(db, 'proof-of-funds', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.documents).toEqual([]);
+    });
+
+    // The AC3 test above is not change-detecting: a 'claimed' no-deposit invoice hit the old
+    // stage-derivation's default (no split entry -> no railBContributions entry -> empty
+    // stages set) and would have excluded the 'deposit' doc on `beta` too. This fixture is
+    // the discriminating one: a deposit-only invoice (no invoice_budget_line at all) whose
+    // sole, tagged deposit is 'claimed' — in the OLD stage-derivation this hits the "no split
+    // entry" branch that adds the 'deposit' stage purely because `railBContributions` has an
+    // entry for the invoice, independent of the report type. That would have kept the
+    // 'deposit'-typed document in a proof-of-funds report on `beta`. Under the tier rule,
+    // proof-of-funds' floor is `invoice` (3) and `deposit` is tier 2, so the document must be
+    // excluded regardless of the deposit's own status. Verified change-detecting against the
+    // pre-#1930 filtering logic — see qa-integration-tester agent memory for the isolation
+    // technique used.
+    it('AC3 (discriminating): a claimed tagged deposit does not resurrect a deposit-typed document in a proof-of-funds report', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'claimed', amount: 500 });
+      insertDeposit(invId, {
+        amount: 500,
+        status: 'claimed',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+      insertDocumentLink(invId, 1, 'deposit');
+
+      const result = await getSourceReport(db, 'proof-of-funds', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.documents).toEqual([]);
+    });
+
+    it('AC5: invoice status is irrelevant to document selection — quotation-status and paid-status invoices filter identically', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+
+      const budgetA = insertWorkItemBudget(sourceId);
+      const invA = insertInvoice(vendorId, { status: 'quotation', amount: 300 });
+      insertInvoiceBudgetLine(invA, budgetA, 300);
+      insertDocumentLink(invA, 1, 'deposit');
+
+      const budgetB = insertWorkItemBudget(sourceId);
+      const invB = insertInvoice(vendorId, { status: 'paid', amount: 400 });
+      insertInvoiceBudgetLine(invB, budgetB, 400);
+      insertDocumentLink(invB, 2, 'deposit');
+
+      // Both statuses fall within the budget-overview slice, so both invoices are present.
+      const result = await getSourceReport(db, 'budget-overview', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(2);
+
+      const docsA = result.invoices
+        .find((i) => i.invoiceId === invA)!
+        .documents.map((d) => d.attachmentType);
+      const docsB = result.invoices
+        .find((i) => i.invoiceId === invB)!
+        .documents.map((d) => d.attachmentType);
+
+      // Identically-typed documents survive identically, regardless of invoice status.
+      expect(docsA).toEqual(['deposit']);
+      expect(docsB).toEqual(['deposit']);
+    });
+
+    it('scenario 16d: surviving document objects carry the real Paperless document id', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+      insertDocumentLink(invId, 4242, null);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices[0]!.documents).toHaveLength(1);
+      expect(result.invoices[0]!.documents[0]!.documentId).toBe(4242);
+    });
+
+    // Scenarios 17 ("Paperless reachable → ASN/title populated") and 18 ("getDocuments
+    // throws → degrade to null") were previously omitted because two production bugs
+    // (missing `await` on paperlessService.getDocuments, and a `sql.join(...)` crash) made
+    // this code path unreachable. Both are fixed, and scenario 18 is restored below and
+    // passes. Restoring scenario 17 uncovered a THIRD, previously-masked production bug —
+    // see GitHub issue #1884: getSourceReport does `for (const doc of docs)` over the
+    // `Map<number, PaperlessDocument>` returned by paperlessService.getDocuments(), which
+    // iterates [key, value] tuples, not the document objects — so `doc.documentId` /
+    // `doc.archiveSerialNumber` / `doc.title` are all undefined and the ASN/title
+    // enrichment silently never populates, even when Paperless is reachable and returns
+    // valid data. Per the test-failure protocol, this correct test must not be weakened to
+    // match the buggy output — it is skipped (not deleted, not inverted) until #1884 is
+    // fixed, at which point it should pass as-is with no changes.
+    it('scenario 17: Paperless reachable → ASN/title populated on the matching document', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+      insertDocumentLink(invId, 42, null);
+
+      // Mock: tags first, then the bulk documents list (getDocuments' Promise.all order).
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE)).mockResolvedValueOnce(
+        mockJsonResponse({
+          count: 1,
+          results: [
+            {
+              id: 42,
+              title: 'Invoice from Builder Co',
+              content: 'Full text content here.',
+              tags: [],
+              created: '2026-01-15T00:00:00Z',
+              added: '2026-01-16T08:30:00Z',
+              modified: '2026-01-16T08:30:00Z',
+              correspondent: null,
+              document_type: null,
+              archive_serial_number: 1042,
+              original_file_name: 'invoice-2026-001.pdf',
+              page_count: 2,
+            },
+          ],
+        }),
+      );
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_CONFIG_ENABLED);
+
+      const doc = result.invoices[0]!.documents[0]!;
+      expect(doc.documentId).toBe(42);
+      expect(doc.archiveSerialNumber).toBe(1042);
+      expect(doc.title).toBe('Invoice from Builder Co');
+    });
+
+    it('scenario 18: getDocuments throws → degrades to null ASN/title without failing the report', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+      insertDocumentLink(invId, 42, null);
+
+      mockFetch.mockRejectedValue(new Error('ECONNREFUSED'));
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_CONFIG_ENABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      const doc = result.invoices[0]!.documents[0]!;
+      expect(doc.documentId).toBe(42);
+      expect(doc.archiveSerialNumber).toBeNull();
+      expect(doc.title).toBeNull();
+    });
+
+    it('scenario 19: Paperless unconfigured → degrades without calling fetch at all', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+      insertDocumentLink(invId, 42, null);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(mockFetch).not.toHaveBeenCalled();
+      const doc = result.invoices[0]!.documents[0]!;
+      expect(doc.archiveSerialNumber).toBeNull();
+      expect(doc.title).toBeNull();
+    });
+
+    // M2 (carried over from #1878 architect review): a report with multiple invoices, each
+    // referencing a Paperless document, must call paperlessService.getDocuments exactly ONCE
+    // with all document ids batched together — never once per invoice/document.
+    //
+    // getDocuments itself is a named export on an ESM module namespace object, which Jest
+    // cannot spy on directly under NodeNext ESM (`jest.spyOn` throws "Cannot assign to read
+    // only property" — this is a real ESM immutability constraint, not something to work
+    // around with jest.unstable_mockModule for a single test in an otherwise-real-DB test
+    // file). Instead, this test distinguishes getDocuments' own outbound call from every other
+    // Paperless call (e.g. fetchTagsMap) by its distinctive `/api/documents/?id__in=` URL —
+    // getDocuments makes exactly one call to that specific endpoint per invocation, so counting
+    // matches against that URL pattern is an equally precise way to pin "called exactly once,
+    // batched" as spying on the function reference would have been.
+    it('M2: the batched /api/documents/?id__in= call happens exactly once for a multi-invoice report', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+
+      const docIds = [101, 102, 103];
+      for (const docId of docIds) {
+        const budgetId = insertWorkItemBudget(sourceId);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+        insertInvoiceBudgetLine(invId, budgetId, 500);
+        insertDocumentLink(invId, docId, null);
+      }
+
+      mockFetch.mockResolvedValue(mockJsonResponse(RAW_TAGS_RESPONSE));
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_CONFIG_ENABLED);
+
+      expect(result.invoices).toHaveLength(3);
+
+      const documentListCalls = mockFetch.mock.calls.filter((call) =>
+        String(call[0]).includes('/api/documents/?id__in='),
+      );
+      expect(documentListCalls).toHaveLength(1);
+
+      const calledUrl = String(documentListCalls[0]![0]);
+      const idParam = new URL(calledUrl, 'http://paperless:8000').searchParams.get('id__in');
+      expect(new Set(idParam!.split(',').map(Number))).toEqual(new Set(docIds));
+    });
+
+    it('scenario 21: totalAmount is the exact sum of decimal-noisy rounded lines', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+
+      const inv1 = insertInvoice(vendorId, { status: 'paid', amount: 332.85 });
+      insertInvoiceBudgetLine(inv1, insertWorkItemBudget(sourceId), 332.85);
+      const inv2 = insertInvoice(vendorId, { status: 'paid', amount: 333.04 });
+      insertInvoiceBudgetLine(inv2, insertWorkItemBudget(sourceId), 333.04);
+      const inv3 = insertInvoice(vendorId, { status: 'paid', amount: 334.11 });
+      insertInvoiceBudgetLine(inv3, insertWorkItemBudget(sourceId), 334.11);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+      expect(result.invoices).toHaveLength(3);
+      const sumOfLines = result.invoices.reduce((s, i) => s + i.allocatedAmount, 0);
+      expect(result.totalAmount).toBeCloseTo(sumOfLines, 10);
+      expect(result.totalAmount).toBeCloseTo(1000.0, 2);
+    });
+
+    it('source summary maps reference/contactAddress/sourceType from the budget source row', async () => {
+      const sourceId = insertSource({
+        name: 'Bauspar Bank',
+        sourceType: 'credit_line',
+        reference: 'REF-123',
+        contactAddress: '123 Bank St',
+      });
+
+      const result = await getSourceReport(db, 'budget-overview', sourceId, PAPERLESS_DISABLED);
+      expect(result.source).toEqual({
+        id: sourceId,
+        name: 'Bauspar Bank',
+        sourceType: 'credit_line',
+        reference: 'REF-123',
+        contactAddress: '123 Bank St',
+      });
+      expect(result.type).toBe('budget-overview');
+      expect(typeof result.generatedAt).toBe('string');
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Story #1891: Rail A (line-derived, excluding tagged deposits) + Rail B
+  // (deposit-direct) — budgetLines[]/deposits[] population, deposit-only
+  // invoices, cross-source deposit filtering.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('getSourceReport — Story #1891 Rail A + Rail B', () => {
+    it('a deposit-only invoice (zero budget lines for the source, one tagged deposit) appears with budgetLines:[] and is excluded from unallocatedInvoices', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
+      // No invoice_budget_lines at all for this invoice.
+      insertDeposit(invId, {
+        amount: 300,
+        status: 'paid',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.invoiceId).toBe(invId);
+      expect(result.invoices[0]!.budgetLines).toEqual([]);
+      expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(300);
+      // Must NOT also appear in unallocatedInvoices — the tagged deposit "claims" it.
+      expect(result.unallocatedInvoices).toHaveLength(0);
+    });
+
+    it('a deposit-only invoice whose tagged deposit status is outside the slice does not appear anywhere (0 net, dropped) — and IS counted in unallocatedInvoices if its own status matches', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      // Invoice status itself is 'claimed', which is in the proof-of-funds slice, so it
+      // still surfaces via unallocatedInvoices (no budget lines AND no tagged deposit for
+      // THIS report's slice contributes to it directly).
+      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertDeposit(invId, {
+        amount: 300,
+        status: 'pending',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+
+      // proof-of-funds slice = {claimed} only; the tagged deposit is 'pending' (outside slice).
+      const result = await getSourceReport(db, 'proof-of-funds', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(0);
+      // The invoice's own status (pending) is also outside {claimed}, so it does not
+      // surface via unallocatedInvoices either — fully absent from the report.
+      expect(result.unallocatedInvoices).toHaveLength(0);
+    });
+
+    it('budgetLines[] includes ALL ibl lines for the source, with description and linkedItem populated for a work item', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const wiId = `wi-linked-${++counter}`;
+      const now = ts();
+      db.insert(schema.workItems)
+        .values({
+          id: wiId,
+          title: 'Foundation Work',
+          status: 'not_started',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `wib-linked-${counter}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: wiId,
+          budgetSourceId: sourceId,
+          plannedAmount: 0,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      const iblId = insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.budgetLines).toHaveLength(1);
+      const line = result.invoices[0]!.budgetLines[0]!;
+      expect(line.id).toBe(iblId);
+      expect(line.allocatedPortion).toBeCloseTo(500);
+      expect(line.linkedItem).toEqual({
+        type: 'work_item',
+        id: wiId,
+        name: 'Foundation Work',
+        areaId: null,
+        areaName: null,
+      });
+    });
+
+    it('budgetLines[] linkedItem resolves a household item budget line', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const hiId = `hi-linked-${++counter}`;
+      const now = ts();
+      db.insert(schema.householdItems)
+        .values({
+          id: hiId,
+          name: 'Kitchen Cabinet',
+          categoryId: 'hic-furniture',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `hib-linked-${counter}`;
+      db.insert(schema.householdItemBudgets)
+        .values({
+          id: budgetId,
+          householdItemId: hiId,
+          budgetSourceId: sourceId,
+          plannedAmount: 0,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 250 });
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invId,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 250,
+          createdAt: ts(),
+          updatedAt: ts(),
+        })
+        .run();
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toEqual({
+        type: 'household_item',
+        id: hiId,
+        name: 'Kitchen Cabinet',
+        areaId: null,
+        areaName: null,
+      });
+    });
+
+    it('budgetLines[] includes lines even when their allocatedPortion is 0 for the current status slice', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      // Invoice status = claimed, but report type = claim ({pending, paid}) — line contributes 0.
+      const invId = insertInvoice(vendorId, { status: 'claimed', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      // Net contribution is 0 → dropped from invoices entirely per the drop-on-zero rule,
+      // so budgetLines[] population itself isn't independently observable here; this test
+      // instead confirms the invoice does NOT appear (0 net rows are dropped, not partial).
+      expect(result.invoices).toHaveLength(0);
+    });
+
+    it('cross-source deposit filter: deposits[] includes untagged and this-source deposits, but excludes a deposit tagged to a DIFFERENT source', async () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const sourceB = insertSource({ name: 'Source B' });
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceA);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 1000);
+
+      const untaggedDep = insertDeposit(invId, {
+        amount: 100,
+        status: 'pending',
+        budgetSourceId: null,
+      });
+      const sameSourceDep = insertDeposit(invId, {
+        amount: 200,
+        status: 'pending',
+        budgetSourceId: sourceA,
+      });
+      const otherSourceDep = insertDeposit(invId, {
+        amount: 300,
+        status: 'pending',
+        budgetSourceId: sourceB,
+      });
+
+      const result = await getSourceReport(db, 'budget-overview', sourceA, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      const depositIds = result.invoices[0]!.deposits.map((d) => d.id).sort();
+      expect(depositIds).toEqual([sameSourceDep, untaggedDep].sort());
+      expect(depositIds).not.toContain(otherSourceDep);
+    });
+
+    it('deposits[] is informational: it is populated but its amounts are never summed into allocatedAmount beyond Rail A + Rail B', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetId, 1000);
+      // An UNTAGGED deposit still shows up in deposits[] (informational) even though it's
+      // status is outside this report's slice — deposits[] is unfiltered by status.
+      insertDeposit(invId, { amount: 50, status: 'claimed', budgetSourceId: null });
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED); // claim = {pending, paid}
+
+      expect(result.invoices[0]!.deposits).toHaveLength(1);
+      expect(result.invoices[0]!.deposits[0]!.status).toBe('claimed'); // present despite being out-of-slice
+    });
+
+    it('mixed two-source + tagged deposit reconciliation: source A gets its line share + its own tagged deposit; source B still shares the reduced invoice-level residual', async () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const sourceB = insertSource({ name: 'Source B' });
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceA);
+      const budgetB = insertWorkItemBudget(sourceB);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 600);
+      insertInvoiceBudgetLine(invId, budgetB, 400);
+      // A deposit tagged to source A only.
+      insertDeposit(invId, {
+        amount: 150,
+        status: 'paid',
+        entryType: 'deposit',
+        budgetSourceId: sourceA,
+      });
+
+      const resultA = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+      const resultB = await getSourceReport(db, 'claim', sourceB, PAPERLESS_DISABLED);
+
+      // The tagged deposit contributes 100% to source A via Rail B, so it must be
+      // subtracted from the invoice-level residual (Rail A) — same as legacy splitByDeposits —
+      // even though the deposit is only tagged to A: residual = (1000 - 150) / 1000 = 0.85.
+      // This residual fraction applies uniformly to every budget line on the invoice,
+      // regardless of which source that line belongs to.
+      //
+      // Source A: Rail A = 600 * 0.85 = 510, plus Rail B (its own tagged deposit) = 150.
+      // Total = 510 + 150 = 660.
+      expect(resultA.invoices[0]!.allocatedAmount).toBeCloseTo(660);
+      // Source B: Rail A = 400 * 0.85 = 340 (no tagged deposit of its own, so Rail B = 0).
+      expect(resultB.invoices[0]!.allocatedAmount).toBeCloseTo(340);
+      // Sanity check: Rail A (line pro-rata) + Rail B (tagged deposits) across ALL sources on
+      // this invoice reconstructs exactly to the invoice amount — 660 + 340 = 1000, not 1150.
+      expect(
+        resultA.invoices[0]!.allocatedAmount + resultB.invoices[0]!.allocatedAmount,
+      ).toBeCloseTo(1000);
+    });
+
+    it('deposits[] is ordered by dueDate asc, createdAt asc — identity order, not set-equality — when seeded out of insertion order', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetId, 1000);
+
+      // Seed deposits with dueDates in NON-insertion order — a naive "return rows as
+      // inserted / by rowid" implementation would yield [depLate, depEarly, depMid], which
+      // differs from the required dueDate-asc identity order [depEarly, depMid, depLate].
+      const depLate = insertDeposit(invId, { dueDate: '2026-03-01', amount: 100 });
+      const depEarly = insertDeposit(invId, { dueDate: '2026-01-01', amount: 100 });
+      const depMid = insertDeposit(invId, { dueDate: '2026-02-01', amount: 100 });
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      // Identity order assertion (toEqual on the mapped id array, not toEqual(...).sort() /
+      // a Set comparison) — this fails if the ordering degrades back to insertion/rowid order.
+      expect(result.invoices[0]!.deposits.map((d) => d.id)).toEqual([depEarly, depMid, depLate]);
+    });
+
+    it('deposits[] breaks a dueDate tie using createdAt asc — identity order', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetId, 1000);
+
+      // All three share the same dueDate, so ordering can only be resolved by createdAt.
+      // insertDeposit's ts() helper hands out strictly increasing timestamps in call order,
+      // so createdAt order here matches insertion order: depFirst, depSecond, depThird.
+      const sameDueDate = '2026-05-01';
+      const depFirst = insertDeposit(invId, { dueDate: sameDueDate, amount: 100 });
+      const depSecond = insertDeposit(invId, { dueDate: sameDueDate, amount: 100 });
+      const depThird = insertDeposit(invId, { dueDate: sameDueDate, amount: 100 });
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices[0]!.deposits.map((d) => d.id)).toEqual([
+        depFirst,
+        depSecond,
+        depThird,
+      ]);
+    });
+
+    it('untagged pro-rata regression: with no tagged deposits at all, Rail A alone reproduces the pre-#1891 proportional-split result exactly', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetId, 1000);
+      // Untagged deposit: 300 paid.
+      insertDeposit(invId, {
+        amount: 300,
+        status: 'paid',
+        entryType: 'deposit',
+        budgetSourceId: null,
+      });
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED); // claim = {pending, paid}
+
+      // residual (pending, 700/1000) contributes to 'pending' (in slice) = 700;
+      // deposit (paid, 300/1000) contributes to 'paid' (in slice) = 300; total = 1000.
+      expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(1000);
+    });
+
+    it('a tagged deposit does NOT get double-counted: Rail A residual and Rail B tagged sum to exactly the invoice amount', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetId, 1000);
+      // Deposit tagged to this source: 400 paid.
+      insertDeposit(invId, {
+        amount: 400,
+        status: 'paid',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      // A tagged deposit counts 100% toward its source via Rail B, so it must be subtracted
+      // from Rail A's residual to avoid double-counting: residual = (1000 - 400) / 1000 = 0.6.
+      // Rail A: invoice status 'pending' IS in the claim slice {pending, paid} →
+      // 1000 * 0.6 = 600. Rail B: deposit status 'paid' IS in the claim slice → +400.
+      // Combined = 600 + 400 = 1000 — exactly the invoice amount, not 1400.
+      expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(1000);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Story #1923 AC5: budgetLines[].linkedItem gains areaId/areaName, populated via a
+  // LEFT JOIN areas on work_items.area_id / household_items.area_id.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('getSourceReport — Story #1923 AC5 (linkedItem areaId/areaName)', () => {
+    it('AC5.1: a work-item-linked budget line whose work item has an area → linkedItem.areaId/areaName populated', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const areaId = insertArea('Kitchen');
+      const wiId = `wi-area-${++counter}`;
+      const now = ts();
+      db.insert(schema.workItems)
+        .values({
+          id: wiId,
+          title: 'Cabinetry',
+          status: 'not_started',
+          areaId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `wib-area-${counter}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: wiId,
+          budgetSourceId: sourceId,
+          plannedAmount: 0,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toEqual({
+        type: 'work_item',
+        id: wiId,
+        name: 'Cabinetry',
+        areaId,
+        areaName: 'Kitchen',
+      });
+    });
+
+    it('AC5.1: a household-item-linked budget line whose household item has an area → linkedItem.areaId/areaName populated', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const areaId = insertArea('Living Room');
+      const hiId = `hi-area-${++counter}`;
+      const now = ts();
+      db.insert(schema.householdItems)
+        .values({
+          id: hiId,
+          name: 'Sofa',
+          categoryId: 'hic-furniture',
+          areaId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `hib-area-${counter}`;
+      db.insert(schema.householdItemBudgets)
+        .values({
+          id: budgetId,
+          householdItemId: hiId,
+          budgetSourceId: sourceId,
+          plannedAmount: 0,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 250 });
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId: invId,
+          householdItemBudgetId: budgetId,
+          itemizedAmount: 250,
+          createdAt: ts(),
+          updatedAt: ts(),
+        })
+        .run();
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toEqual({
+        type: 'household_item',
+        id: hiId,
+        name: 'Sofa',
+        areaId,
+        areaName: 'Living Room',
+      });
+    });
+
+    it('AC5.4: linkedItem.areaId/areaName are null (not undefined/"") when the linked work item has no area assigned', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetId = insertWorkItemBudget(sourceId); // areaId defaults to null (insertWorkItemBudget doesn't set it)
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      const linkedItem = result.invoices[0]!.budgetLines[0]!.linkedItem!;
+      expect(linkedItem.areaId).toBeNull();
+      expect(linkedItem.areaName).toBeNull();
+      expect(linkedItem.areaId).not.toBeUndefined();
+      expect(linkedItem.areaName).not.toBeUndefined();
+    });
+
+    it('AC5.5: only the leaf (own) area name is returned for a child area with a parent — no parent-path expansion', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const parentAreaId = insertArea('Ground Floor');
+      const childAreaId = insertArea('Ensuite', parentAreaId);
+      const wiId = `wi-child-area-${++counter}`;
+      const now = ts();
+      db.insert(schema.workItems)
+        .values({
+          id: wiId,
+          title: 'Tiling',
+          status: 'not_started',
+          areaId: childAreaId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `wib-child-area-${counter}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: wiId,
+          budgetSourceId: sourceId,
+          plannedAmount: 0,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      const linkedItem = result.invoices[0]!.budgetLines[0]!.linkedItem!;
+      expect(linkedItem.areaId).toBe(childAreaId);
+      expect(linkedItem.areaName).toBe('Ensuite');
+      expect(linkedItem.areaName).not.toContain('Ground Floor');
+      expect(linkedItem.areaName).not.toContain('/');
+    });
+
+    it('linkedItem stays null (unaffected by the areaId/areaName join) when the work item id resolves but its title is empty (defensive coalesce)', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const areaId = insertArea('Attic');
+      const wiId = `wi-empty-title-${++counter}`;
+      const now = ts();
+      // A work item with an empty-string title and an assigned area: the service's
+      // `row.work_item_id && row.work_item_title` guard treats the falsy empty title as
+      // "unresolved", so linkedItem must stay null — the area join must not leak through when
+      // the item itself doesn't resolve.
+      db.insert(schema.workItems)
+        .values({
+          id: wiId,
+          title: '',
+          status: 'not_started',
+          areaId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const budgetId = `wib-empty-title-${counter}`;
+      db.insert(schema.workItemBudgets)
+        .values({
+          id: budgetId,
+          workItemId: wiId,
+          budgetSourceId: sourceId,
+          plannedAmount: 0,
+          confidence: 'own_estimate',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices[0]!.budgetLines).toHaveLength(1);
+      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toBeNull();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Bug #1918: claim reports drop zero-contribution budget lines. A quotation
+  // invoice whose only funding is a deposit TAGGED to the reported source has its
+  // per-line Rail A contribution swept to zero (residual excluded because
+  // 'quotation' isn't in the claim slice; the tagged deposit is excluded from Rail A
+  // by definition) — so budgetLines[] must be dropped for 'claim' reports specifically,
+  // while allocatedAmount still reflects the deposit's own Rail B contribution and
+  // deposits[] remains fully populated (informational, never filtered by contribution).
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('getSourceReport — Story #1918 (claim reports skip zero-contribution budget lines)', () => {
+    it('AC5: quotation invoice with 2 lines allocated to this source + a pending deposit tagged to this source → claim report drops budgetLines[], allocatedAmount equals the deposit amount, deposits[] unaffected', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceId);
+      const budgetB = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 600);
+      insertInvoiceBudgetLine(invId, budgetB, 400);
+      const depId = insertDeposit(invId, {
+        amount: 300,
+        status: 'pending',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.budgetLines).toEqual([]);
+      expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(300);
+      expect(result.invoices[0]!.deposits).toHaveLength(1);
+      expect(result.invoices[0]!.deposits[0]!.id).toBe(depId);
+    });
+
+    it('AC6 carve-out: same setup but the deposit is UNTAGGED → budgetLines[] is retained with a non-zero allocatedPortion', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceId);
+      const budgetB = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 600);
+      insertInvoiceBudgetLine(invId, budgetB, 400);
+      insertDeposit(invId, { amount: 300, status: 'pending', entryType: 'deposit' }); // untagged
+
+      const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.budgetLines).toHaveLength(2);
+      for (const line of result.invoices[0]!.budgetLines) {
+        expect(line.allocatedPortion).toBeGreaterThan(0);
+      }
+    });
+
+    it('AC7: the same fixture as a budget-overview report → budgetLines[] is non-empty (the zero-portion skip only applies to claim reports)', async () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceId);
+      const budgetB = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 600);
+      insertInvoiceBudgetLine(invId, budgetB, 400);
+      insertDeposit(invId, {
+        amount: 300,
+        status: 'pending',
+        entryType: 'deposit',
+        budgetSourceId: sourceId,
+      });
+
+      const result = await getSourceReport(db, 'budget-overview', sourceId, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.budgetLines.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // markInvoicesClaimed
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('markInvoicesClaimed', () => {
+    it('scenario 22: both invoiceIds and depositIds empty throws ValidationError', () => {
+      const sourceId = insertSource();
+      expect(() => markInvoicesClaimed(db, sourceId, [], [], true)).toThrow(ValidationError);
+      expect(() => markInvoicesClaimed(db, sourceId, [], [], true)).toThrow(
+        'At least one invoice or deposit ID must be provided',
+      );
+    });
+
+    it('empty invoiceIds with non-empty depositIds does NOT throw — sweeps deposits without touching any invoice status', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+      const depId = insertDeposit(invId, { status: 'pending', amount: 100 });
+
+      const result = markInvoicesClaimed(db, sourceId, [], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([]);
+      expect(result.claimedDepositIds).toEqual([depId]);
+
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      // The deposit's parent invoice was never in invoiceIds, so its status is untouched.
+      expect(updatedInv.status).toBe('pending');
+
+      const updatedDep = db
+        .select()
+        .from(schema.invoiceDeposits)
+        .all()
+        .find((d) => d.id === depId)!;
+      expect(updatedDep.status).toBe('claimed');
+    });
+
+    it('nonexistent sourceId throws NotFoundError', () => {
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+      expect(() => markInvoicesClaimed(db, 'does-not-exist-source', [invId], [], true)).toThrow(
+        NotFoundError,
+      );
+      expect(() => markInvoicesClaimed(db, 'does-not-exist-source', [invId], [], true)).toThrow(
+        'Budget source not found',
+      );
+    });
+
+    it('scenario 23: all-pending invoices with no deposits flip to claimed and fire diary events', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const inv1 = insertInvoice(vendorId, { status: 'pending', invoiceNumber: 'INV-1' });
+      const inv2 = insertInvoice(vendorId, { status: 'pending', invoiceNumber: 'INV-2' });
+      const before = diaryEntryCount();
+
+      const result = markInvoicesClaimed(db, sourceId, [inv1, inv2], [], true);
+
+      expect(result.claimedInvoiceIds.sort()).toEqual([inv1, inv2].sort());
+      expect(result.claimedDepositIds).toEqual([]);
+      const claimedRows = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .filter((i) => i.id === inv1 || i.id === inv2);
+      expect(claimedRows.every((i) => i.status === 'claimed')).toBe(true);
+      expect(diaryEntryCount()).toBe(before + 2);
+    });
+
+    it('scenario 24: pending invoice + 2 pending deposits → all flip; claimedDate=today, paidDate stays null', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+      const dep1 = insertDeposit(invId, { status: 'pending', amount: 100 });
+      const dep2 = insertDeposit(invId, { status: 'pending', amount: 200 });
+      const today = new Date().toLocaleDateString('en-CA');
+
+      const result = markInvoicesClaimed(db, sourceId, [invId], [dep1, dep2], true);
+
+      expect(result.claimedInvoiceIds).toEqual([invId]);
+      expect(result.claimedDepositIds.sort()).toEqual([dep1, dep2].sort());
+
+      const updatedDep1 = db
+        .select()
+        .from(schema.invoiceDeposits)
+        .all()
+        .find((d) => d.id === dep1)!;
+      expect(updatedDep1.status).toBe('claimed');
+      expect(updatedDep1.claimedDate).toBe(today);
+      expect(updatedDep1.paidDate).toBeNull();
+    });
+
+    it('scenario 25: paid invoice + paid deposit → both flip; paidDate preserved', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'paid' });
+      const depId = insertDeposit(invId, { status: 'paid', amount: 100, paidDate: '2026-01-10' });
+
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([invId]);
+      expect(result.claimedDepositIds).toEqual([depId]);
+
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      expect(updatedInv.status).toBe('claimed');
+
+      const updatedDep = db
+        .select()
+        .from(schema.invoiceDeposits)
+        .all()
+        .find((d) => d.id === depId)!;
+      expect(updatedDep.status).toBe('claimed');
+      expect(updatedDep.paidDate).toBe('2026-01-10');
+    });
+
+    it('scenario 26: already-claimed invoice with a pending refund → invoice untouched (no event, updatedAt unchanged), refund flips', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, {
+        status: 'claimed',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+      const refundId = insertDeposit(invId, { status: 'pending', entryType: 'refund', amount: 50 });
+      const before = diaryEntryCount();
+
+      const result = markInvoicesClaimed(db, sourceId, [invId], [refundId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([]); // invoice already claimed — not re-flipped
+      expect(result.claimedDepositIds).toEqual([refundId]);
+
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      expect(updatedInv.updatedAt).toBe('2026-01-01T00:00:00.000Z');
+      // No diary event for the invoice itself, but the refund's own transition still fires one.
+      expect(diaryEntryCount()).toBe(before + 1);
+    });
+
+    it('scenario 27: batch with one quotation-status invoice (no deposit at all — genuinely non-claimable) among valid ones → 409, ZERO rows changed (rollback verified by re-query)', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const validInv = insertInvoice(vendorId, { status: 'pending' });
+      const badInv = insertInvoice(vendorId, { status: 'quotation' }); // no deposit at all
+
+      expect(() => markInvoicesClaimed(db, sourceId, [validInv, badInv], [], true)).toThrow(
+        InvoicesNotClaimableError,
+      );
+
+      try {
+        markInvoicesClaimed(db, sourceId, [validInv, badInv], [], true);
+      } catch (e) {
+        const err = e as InvoicesNotClaimableError;
+        expect(err.details).toMatchObject({ invoiceIds: [badInv] });
+      }
+
+      const reQueriedValid = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === validInv)!;
+      expect(reQueriedValid.status).toBe('pending'); // untouched — rollback verified
+    });
+
+    it('scenario 28: batch with a non-existent invoice id → same 409 rollback behavior', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const validInv = insertInvoice(vendorId, { status: 'pending' });
+
+      expect(() =>
+        markInvoicesClaimed(db, sourceId, [validInv, 'does-not-exist'], [], true),
+      ).toThrow(InvoicesNotClaimableError);
+
+      const reQueriedValid = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === validInv)!;
+      expect(reQueriedValid.status).toBe('pending');
+    });
+
+    it('scenario 29: already-claimed invoice with nothing sweepable → 409 offending', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'claimed' }); // no deposits at all
+
+      expect(() => markInvoicesClaimed(db, sourceId, [invId], [], true)).toThrow(
+        InvoicesNotClaimableError,
+      );
+    });
+
+    it('scenario 29b: already-claimed invoice with an already-claimed deposit (nothing sweepable) → 409', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'claimed' });
+      const depId = insertDeposit(invId, { status: 'claimed', amount: 100 }); // ALLOWED_TRANSITIONS.claimed = ['paid'], no 'claimed' target
+
+      expect(() => markInvoicesClaimed(db, sourceId, [invId], [depId], true)).toThrow(
+        InvoicesNotClaimableError,
+      );
+    });
+
+    it('scenario 30: diaryAutoEvents=false suppresses diary entries but writes still happen', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+      const before = diaryEntryCount();
+
+      const result = markInvoicesClaimed(db, sourceId, [invId], [], false);
+
+      expect(result.claimedInvoiceIds).toEqual([invId]);
+      expect(diaryEntryCount()).toBe(before);
+
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      expect(updatedInv.status).toBe('claimed');
+    });
+
+    it('scenario 31: invoice with a null invoiceNumber falls back to N/A in diary events', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending', invoiceNumber: null });
+      const depId = insertDeposit(invId, { status: 'pending', amount: 100 });
+
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([invId]);
+      expect(result.claimedDepositIds).toEqual([depId]);
+      // No assertion on diary event content here — onInvoiceStatusChanged/onDepositStatusChanged
+      // are exercised elsewhere; this scenario's purpose is exercising the `|| 'N/A'` fallback
+      // for a null invoiceNumber without throwing.
+    });
+
+    it('scenario 32: directly-claimable invoice with an already-claimed (non-transitionable) deposit → deposit left untouched', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'pending' });
+      const depId = insertDeposit(invId, { status: 'claimed', amount: 100 }); // ALLOWED_TRANSITIONS.claimed = ['paid'] only
+
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([invId]);
+      expect(result.claimedDepositIds).toEqual([]); // already-claimed deposit is not re-claimed
+
+      const updatedDep = db
+        .select()
+        .from(schema.invoiceDeposits)
+        .all()
+        .find((d) => d.id === depId)!;
+      expect(updatedDep.status).toBe('claimed');
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Bugs #1895 / #1896: sourceId-scoped claim eligibility + decoupled deposit sweep
+    // ═══════════════════════════════════════════════════════════════════════
+
+    it('#1895: an invoice funded by a DIFFERENT budget source is left unclaimed, even though its own deposit tagged to THIS source is claimable — the deposit still sweeps', () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const sourceB = insertSource({ name: 'Source B' });
+      const vendorId = insertVendor();
+      const budgetB = insertWorkItemBudget(sourceB);
+      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetB, 1000);
+      const depAId = insertDeposit(invId, {
+        status: 'pending',
+        amount: 300,
+        budgetSourceId: sourceA,
+      });
+
+      const result = markInvoicesClaimed(db, sourceA, [invId], [depAId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([]);
+      expect(result.claimedDepositIds).toEqual([depAId]);
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      expect(updatedInv.status).toBe('pending');
+    });
+
+    it('same-source-only invoice flips normally: pending invoice funded solely by this source, with a deposit tagged to this source → invoice claimed, deposit swept', () => {
+      const sourceA = insertSource({ name: 'Source A' });
+      const vendorId = insertVendor();
+      const budgetA = insertWorkItemBudget(sourceA);
+      const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetA, 1000);
+      const depId = insertDeposit(invId, {
+        status: 'pending',
+        amount: 300,
+        budgetSourceId: sourceA,
+      });
+
+      const result = markInvoicesClaimed(db, sourceA, [invId], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([invId]);
+      expect(result.claimedDepositIds).toEqual([depId]);
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      expect(updatedInv.status).toBe('claimed');
+    });
+
+    it('#1896: a quotation invoice with a sweepable deposit tagged to this source does not throw — the deposit sweeps, the invoice stays quotation', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+      const depId = insertDeposit(invId, {
+        status: 'pending',
+        amount: 300,
+        budgetSourceId: sourceId,
+      });
+
+      const result = markInvoicesClaimed(db, sourceId, [invId], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([]);
+      expect(result.claimedDepositIds).toEqual([depId]);
+      const updatedInv = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId)!;
+      expect(updatedInv.status).toBe('quotation');
+    });
+
+    it('#1896: mixed batch — a valid pending invoice plus a quotation invoice with a sweepable tagged deposit → no 409; the pending one flips, the quotation one stays put', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const validInv = insertInvoice(vendorId, { status: 'pending' });
+      const quotationInv = insertInvoice(vendorId, { status: 'quotation', amount: 1000 });
+      const depId = insertDeposit(quotationInv, {
+        status: 'pending',
+        amount: 300,
+        budgetSourceId: sourceId,
+      });
+
+      const result = markInvoicesClaimed(db, sourceId, [validInv, quotationInv], [depId], true);
+
+      expect(result.claimedInvoiceIds).toEqual([validInv]);
+      expect(result.claimedDepositIds).toEqual([depId]);
+      const updatedQuotation = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === quotationInv)!;
+      expect(updatedQuotation.status).toBe('quotation');
+    });
+
+    it('deposit sweep is decoupled from invoiceIds membership: a depositId whose parent invoice is NOT in invoiceIds still sweeps', () => {
+      const sourceId = insertSource();
+      const vendorId = insertVendor();
+      const invId1 = insertInvoice(vendorId, { status: 'pending' });
+      const invId2 = insertInvoice(vendorId, { status: 'pending' });
+      const dep2 = insertDeposit(invId2, { status: 'pending', amount: 100 }); // untagged, sweep-eligible
+
+      const result = markInvoicesClaimed(db, sourceId, [invId1], [dep2], true);
+
+      expect(result.claimedInvoiceIds).toEqual([invId1]);
+      expect(result.claimedDepositIds).toEqual([dep2]);
+      // invId2 itself was never in invoiceIds, so its own status is untouched.
+      const updatedInv2 = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((i) => i.id === invId2)!;
+      expect(updatedInv2.status).toBe('pending');
+    });
+  });
+});

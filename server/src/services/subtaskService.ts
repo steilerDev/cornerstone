@@ -250,14 +250,16 @@ export function reorderSubtasks(
 
   // Update sort_order for each subtask
   const now = new Date().toISOString();
-  data.subtaskIds.forEach((subtaskId, index) => {
-    db.update(workItemSubtasks)
-      .set({
-        sortOrder: index,
-        updatedAt: now,
-      })
-      .where(eq(workItemSubtasks.id, subtaskId))
-      .run();
+  db.transaction(() => {
+    data.subtaskIds.forEach((subtaskId, index) => {
+      db.update(workItemSubtasks)
+        .set({
+          sortOrder: index,
+          updatedAt: now,
+        })
+        .where(eq(workItemSubtasks.id, subtaskId))
+        .run();
+    });
   });
 
   // Return updated subtasks in new order
