@@ -81,14 +81,14 @@ change to `overviewPdf.ts` widths, `TABLE_LAYOUT`, or `pageMargins` must be vali
    `/CreationDate` + `/ID`); a unit test asserting `TABLE_LAYOUT.dontBreakRows === true` passes and
    proves nothing.
 2. **Declared widths are CONTENT widths.** pdfmake subtracts `_offsets.total` from the available
-   width *before* distributing them. `offsetsTotal = cols * (paddingLeft + paddingRight +
-   vLineWidth) + vLineWidth`. With `TABLE_LAYOUT`'s `8/8/0.5` that is **116.0pt for 7 columns,
+   width _before_ distributing them. `offsetsTotal = cols * (paddingLeft + paddingRight +
+vLineWidth) + vLineWidth`. With `TABLE_LAYOUT`'s `8/8/0.5` that is **116.0pt for 7 columns,
    99.5pt for 6** out of the 515.28pt A4 printable width. Budget columns against
    `515.28 - offsetsTotal(cols)`, not 515.28. Getting this wrong made a comment claim Usage got
    185.28pt when it actually got **69.28pt**.
 3. **A `'*'` column never shrinks below its longest unbreakable word.**
    `columnCalculator.js:66-75` — when `minW >= availableWidth` the star is set to `starMaxMin` and
-   *the table overflows the page*. So no static assertion on the `widths` array can prove "no
+   _the table overflows the page_. So no static assertion on the `widths` array can prove "no
    horizontal overflow": German compounds (`Wärmedämmverbundsystem` ~128pt @10pt Roboto) push a
    69.28pt star to 128pt and the table to 574pt on a 515.28pt page.
 4. **`dontBreakRows` + a row taller than the printable height = silent data loss.** pdfmake does
@@ -234,13 +234,13 @@ document): page count must be **monotonic** in content size, and **channel-indep
 costs the same paper whichever field carries it.
 
 **The generic-assertion / hand-enumerated-input asymmetry** (the reason it recurred, now the top open item):
-the per-row budget assertion counts characters generically over all runs, so a new channel *would* be
+the per-row budget assertion counts characters generically over all runs, so a new channel _would_ be
 counted — but the test inputs are hand-listed (`usageText`/`areaText`/`attachmentsNote`), so a new
 `ReportContentRow` string field defaults empty and every assertion passes **vacuously**. Fix is key-driven
 saturation (`Object.entries(row)` -> saturate every string field), not another hand-written case.
 Verified empirically during review: losslessness + per-row budget hold over 3k fuzzed inputs (0 failures);
 a hypothetical **second** grey/meta segment trips the existing `splitUsageCell` "at most one grey run per row"
-throw in ~49% of inputs, so *that* channel class is already guarded.
+throw in ~49% of inputs, so _that_ channel class is already guarded.
 
 **Geometry constraint (blocks a feature):** `USAGE_WIDTH_7COL/_6COL` derive from `usableColumnWidth(n)`, and
 `MAX_SAFE_USAGE_CHUNK_CHARS = 650` was **measured against the 7-column shape**. So making column visibility
@@ -251,11 +251,34 @@ through" is a re-measurement story, not a UI change. #1959's toggles are preview
 New to the packer — `splitIntoPageSafeChunks` fails loudly instead (`RangeError`). Unreachable while the
 budget is a constant; matters if it ever becomes computed.
 
+### Legend is document-level, not per-row (#1965)
+
+DONE 2026-08-03: ADR-034 records this (wiki master `03ed804`, addendum "the legend is document-level and
+deduplicated" + a Deviation Log row + a reworded B4 rule). The old B4 wording ("every footnote is referenced
+from the row that owns it") described the pre-#1965 inline-symbol design (`†`/`‡`) and was **wrong** for the
+current model.
+
+Two structurally different note kinds now share the legend block but **not** a numbering scheme:
+
+- **`*N` skipped-document notes** — numbered, row-owned, one per skipped document, built in `overviewPdf.ts`
+  at generation time (never in `ReportContent`). B4's "referenced from the owning row" rule applies here only.
+- **`content.footnotes[]` legend entries** — **at most one per flag type for the whole document**
+  (currently 2: `split`, `depositReduced`). `buildReportContent.ts` accumulates `splitInvoiceIds` /
+  `depositReducedInvoiceIds` as `Set<string>` and pushes gated on `set.size > 0`, so cardinality is
+  independent of how many rows carry the flag. `marker` is the repeated human-readable inline label
+  (`partial` / `less deposit`, report-language) that the Allocated Amount cell prints, **not** an identifier
+  — `id` is the machine key. Row↔legend link is **by repetition of the label**, not by stored reference;
+  rows carry only `isSplit`/`isDepositReduced` booleans. Storing a footnote index on a row would recreate
+  B4's second numbering namespace.
+
+Regression to guard when adding a flag type: emitting one entry per flagged row. Assert
+`footnotes.length === N` (never `>= 1`) on a fixture where several rows share a flag.
+
 ### ADR-034 debt (owed, NOT yet written — carry this forward)
 
 1. Add the `dontBreakRows` lesson + the "bound the rendered cell, not a field" rule + both detection recipes.
 2. **Minimum-bar rule #1 is wrong**: `table._minWidth <= 515.28` fails on correct code (`_minWidth` is the
-   widest unbreakable *word*, not the laid-out width). Correct check: `max(horizontalRatio) <= 1`.
+   widest unbreakable _word_, not the laid-out width). Correct check: `max(horizontalRatio) <= 1`.
    B2's narrative is fine; the generalized rule was mis-transcribed.
 3. Module table drifted twice: add `pageGeometry.ts` (#1939) and `index.ts`; drop "PDF-local formatters" from
    `shared.ts` (deleted in review round 2) and move "table layout constants" to `pageGeometry.ts`.
