@@ -786,3 +786,46 @@ and `DISCARD_EDITS`, the two cases that clear content state, because each needed
 literal keys; each hit is an unenforced case. The fix is always the same shape — spread the factory, then
 name the exception on the next line (`...freshContentTier(), aiError: state.aiError`), which is
 behaviour-identical and makes the KEEP the thing that is written down rather than the CLEAR.
+
+## Hand-rolled regex mirroring a third-party grammar accepts values the library rejects (PR #1989, #1970)
+
+Validating an env var with a regex that *approximates* a library's parser produces configs that pass
+startup validation and then blow up at request time. Concrete case: `AUTH_RATE_LIMIT_WINDOW` validated
+by a bespoke duration regex, while `@fastify/rate-limit` v11 parses `timeWindow` strings with
+**`@lukeed/ms`** (not the classic `ms` package).
+
+Two divergences found, both reaching the same failure:
+
+- **Zero magnitudes.** `@lukeed/ms` guards with `if (arr != null && (num = parseFloat(arr[1])))`, so
+  `'0s'`, `'0 minutes'`, `'0ms'`, `'0.0h'` all `parse()` to `undefined`.
+- **Whitespace class.** `@lukeed/ms` uses ` *` between number and unit; `\s*` additionally accepts
+  `'15\tminutes'` / `'15\nminutes'`, which `parse()` rejects.
+
+Why it's fatal, not a fallback: `mergeParams()` in `@fastify/rate-limit/index.js:163-169` is an
+`if / else if` chain — a *string* takes branch 2, gets `undefined`, and never reaches the
+`defaultTimeWindow` branch. At request time `await params.timeWindow(req, key)` throws, so **every**
+request to the route returns `500 {"message":"params.timeWindow is not a function"}`. Verified:
+`timeWindow: '0s'` on a route → 500. A zero window is the obvious way an operator tries to disable a
+rate limit, so this defeats a "no value may disable the control" acceptance criterion.
+
+**Rule:** when a config value is handed verbatim to a third-party parser, validate it *with that
+parser* (declare the dep) rather than re-deriving its grammar. If a regex is unavoidable, also assert
+the parsed result is defined and `> 0`, and check the library's actual source for which package it
+uses — `@fastify/*` deps are not always the popular one.
+
+## `parseInt` config validation accepts trailing garbage repo-wide
+
+`loadConfig()` uses `parseInt(str, 10)` + `isNaN` for every numeric env var (`PORT`,
+`SESSION_DURATION`, `PHOTO_MAX_FILE_SIZE_MB`, `LLM_MAX_TOKENS`, `BACKUP_RETENTION`,
+`AUTH_RATE_LIMIT_MAX`). So `20abc` → `20`, `20.9` → `20`, `1e3` → `1`, despite error messages that say
+"must be a positive integer". Any AC demanding "non-numeric value fails startup" is only partly met.
+Don't request a one-variable fix in review — it creates local inconsistency; either accept the pattern
+or propose a uniform `/^\d+$/` guard across `loadConfig()` as its own item.
+
+## Env vars are documented in four places, not one
+
+Adding an env var means: `CLAUDE.md` table, `wiki/Architecture.md` (topic-grouped tables — e.g.
+"Authentication & Sessions" ~L393), `wiki/API-Contract.md` ("Environment Variables (Auth)" ~L107), and
+`docs/src/getting-started/configuration.md` (**docs-writer-owned** — file a request, don't edit).
+The first three belong in the implementing PR with the submodule ref bumped on the branch. PR #1989
+updated only `CLAUDE.md`.
