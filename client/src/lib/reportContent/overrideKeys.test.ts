@@ -4,7 +4,7 @@
  * `overrideKey` is a pure, side-effect-free builder for override map keys, decoupling
  * applyOverrides.ts and ReportContentEditor.tsx from manually-constructed string literals.
  * `overrideKey.coverLetter` is a fixed set of literal string constants; `overrideKey.row(id)` is a
- * factory that interpolates a given invoiceId into two field-specific keys.
+ * factory that interpolates a given invoiceId into one field-specific key.
  */
 import { describe, it, expect } from '@jest/globals';
 import { overrideKey } from './overrideKeys.js';
@@ -41,10 +41,9 @@ describe('overrideKey.coverLetter — fixed literal keys', () => {
 });
 
 describe('overrideKey.row(invoiceId) — interpolated per-row keys', () => {
-  it('interpolates a simple invoiceId into both the usageText and attachmentsNote keys', () => {
+  it('interpolates a simple invoiceId into the usageText key', () => {
     expect(overrideKey.row('inv-1')).toEqual({
       usageText: 'row.inv-1.usageText',
-      attachmentsNote: 'row.inv-1.attachmentsNote',
     });
   });
 
@@ -58,11 +57,10 @@ describe('overrideKey.row(invoiceId) — interpolated per-row keys', () => {
 
   it('correctly interpolates an invoiceId that itself contains a literal "." with no key ambiguity', () => {
     // A UUID-like or namespaced invoiceId containing dots must not be confused with the key's own
-    // "row." / ".usageText" / ".attachmentsNote" structural dot-separators — the whole id is used
-    // verbatim as the middle segment, however many dots it contains.
+    // "row." / ".usageText" structural dot-separators — the whole id is used verbatim as the
+    // middle segment, however many dots it contains.
     const keys = overrideKey.row('src.2026.inv-42');
     expect(keys.usageText).toBe('row.src.2026.inv-42.usageText');
-    expect(keys.attachmentsNote).toBe('row.src.2026.inv-42.attachmentsNote');
 
     // Splitting on '.' yields more than 3 segments (proving the id's own dots survived verbatim,
     // rather than being collapsed/stripped), and the first/last segments are still the fixed
@@ -77,8 +75,6 @@ describe('overrideKey.row(invoiceId) — interpolated per-row keys', () => {
     const keys = overrideKey.row('any-id-123');
     expect(keys.usageText.startsWith('row.')).toBe(true);
     expect(keys.usageText.endsWith('.usageText')).toBe(true);
-    expect(keys.attachmentsNote.startsWith('row.')).toBe(true);
-    expect(keys.attachmentsNote.endsWith('.attachmentsNote')).toBe(true);
   });
 
   it('returns a fresh object on each call (not a shared/mutated singleton)', () => {

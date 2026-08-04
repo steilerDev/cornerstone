@@ -14,6 +14,5 @@ export const overrideKey = {
   },
   row: (invoiceId: string) => ({
     usageText: `row.${invoiceId}.usageText`,
-    attachmentsNote: `row.${invoiceId}.attachmentsNote`,
   }),
 } as const;

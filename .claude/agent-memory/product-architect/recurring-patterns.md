@@ -708,8 +708,8 @@ discriminates. Good pattern to reuse; also a reminder that a length assertion al
 ### A bumped submodule ref is not a pushed wiki commit (PR #1987)
 
 PR #1987 had the parent ref bumped to a wiki commit that was **never pushed** — the wiki remote was two
-commits behind. `git -C wiki log --oneline` shows the commit as HEAD, so the wiki *looks* published, and
-`git ls-tree HEAD wiki` matches it, so the ref *looks* correct. Anyone cloning the branch and running
+commits behind. `git -C wiki log --oneline` shows the commit as HEAD, so the wiki _looks_ published, and
+`git ls-tree HEAD wiki` matches it, so the ref _looks_ correct. Anyone cloning the branch and running
 `git submodule update` would fail on an unresolvable ref.
 
 Verify with `git -C wiki ls-remote origin master` compared against `git ls-tree HEAD wiki` — those are the
@@ -730,5 +730,59 @@ and nothing else. A scoped ref-bump commit does not disturb an implementer mid-e
 ### Shell heredocs: a bare `cat >> file` with no redirect hangs the tool
 
 `cat >> a.md 2>/dev/null || true` followed by a second `cat >> b.md <<'EOF'` — the heredoc binds to the
-*second* cat, so the first reads stdin and blocks until the 120s timeout. Prefer the Edit/Write tools for
+_second_ cat, so the first reads stdin and blocks until the 120s timeout. Prefer the Edit/Write tools for
 appending to memory files; if you must use bash, one heredoc per command and never a redirect-less `cat`.
+
+### `Pick<State, 'a'|'b'>` is not a forcing function (#1947 action-set review)
+
+A reducer "tier factory" typed `function freshTier(): Pick<State, 'a'|'b'|'c'>` claims to make
+"what does this transition clear" a compile-time decision. It does not: adding a field to `State`
+produces **no error** — the key union just doesn't mention it, the spread leaves it untouched, and it
+silently defaults to _kept_. The key union is a second hand-maintained list, i.e. the very thing being
+replaced. The working version is a **named tier type** (`interface ReportTier {...}`) whose factory has an
+**explicit return-type annotation** and returns a total object literal — missing property = compile error.
+The annotation is load-bearing: an inferred return type re-derives the shape from the literal and the
+error vanishes. Partition state as a flat intersection of tiers, not nested objects (nesting churns every
+read site). Generalises to any "exhaustive mapping" claim made with `Pick`/`Omit`/`Record<keyof …>`.
+
+### Caller-supplied monotonic seq in an action payload reintroduces the ref it replaces (#1947)
+
+`dispatch({type:'SELECT_SOURCE', payload:{ newReportSeq }})` asks the caller to produce a value that must
+stay **in sync with reducer-owned state** — only achievable with an out-of-reducer counter ref, so the
+"staleness is enforced in the reducer" claim is false. Fix: **opaque nullable token** (`requestId: string |
+null`) used as identity, never ordering — caller generates via a module-level `nextRequestId()`, echoes it
+back in the completion action, reducer no-ops on mismatch. `null` then means "nothing in flight, discard
+every outstanding response", so a reset invalidates in-flight work with no bump arithmetic. Monotonicity is
+never needed when nothing compares generations for order. Corollary: an in-flight **boolean flag**
+(`isGeneratingAi`) alongside such a token must be **derived** (`token !== null`), never stored — the two
+disagreeing is exactly the bug class the token exists to kill.
+
+### A refactor's cascade table smuggles behaviour changes (#1947)
+
+Diff every row of a proposed reset/cascade table against the actual handler line-by-line. Two of three rows
+in #1947's table cleared `aiError` where the code does not: one handler never clears it, and the other
+clears it only inside `if (isGeneratingAi)`. Both were reachable, user-visible, and would have landed inside
+a PR whose stated AC was "no user-visible change". Also watch for **generic setter actions**
+(`SET_MAX_STEP`) — a setter wearing an action's clothes preserves the ad-hoc call it was meant to replace
+and names nothing about what it invalidates. And check whether the _unfixed_ instances of the same race
+exist elsewhere in the file (#1947 had a third, unguarded, in the Step-2 fan-out fetch).
+
+### The neutralised trigger left in the code (#1947 `deepLinkAppliedRef`)
+
+When a defect's trigger condition is _neutralised by a new guard_ rather than removed, the guarantee lives
+in a comment. `if (… && !report && !appliedRef.current)` — `!report` was the AC8 trigger, kept alive behind
+a ref and a nine-line comment. Removing the redundant condition also removes `report` from the effect's
+dep array, making "clearing report cannot re-fire this" structural. Look for this shape in any fix that
+_added_ a guard without deleting what it guards against.
+
+### A total-object tier factory only forces a decision in the cases that spread it (PR #1988 review)
+
+Follow-up to the `Pick<>` entry above: getting the factory right is necessary but not sufficient. A named
+tier type + annotated total-literal factory produces the compile error, but **any reducer case that
+hand-lists that tier's fields instead of spreading the factory keeps the hole** — the new field silently
+defaults to _kept_ there. PR #1988 had `freshContentTier()` correct and then bypassed it in `SELECT_SOURCE`
+and `DISCARD_EDITS`, the two cases that clear content state, because each needed one field _preserved_
+(`aiError`). Reviewing a tier-factory design: grep every case for the tier's field names appearing as
+literal keys; each hit is an unenforced case. The fix is always the same shape — spread the factory, then
+name the exception on the next line (`...freshContentTier(), aiError: state.aiError`), which is
+behaviour-identical and makes the KEEP the thing that is written down rather than the CLEAR.
