@@ -2267,10 +2267,12 @@ test.describe('Report wizard editable content — signature field reset (Scenari
 //   AC1: every column checkbox is present and locatable by accessible name;
 //   AC2: the rendered checkbox count equals the component-defined toggleable-column count;
 //   AC3: toggling fires no PATCH to /api/users/me/preferences (local state, not persisted);
-//   AC4: coverage runs at all three configured viewports (desktop / tablet / mobile) — the
-//        toggle group and checkboxes are always visible; the table <th> removal is asserted via
-//        page.getByRole('columnheader') which queries both the desktop table and is absent from
-//        the mobile card layout (the mobile path is exercised by the mobile-viewport project).
+//   AC4: coverage runs at desktop viewport only (no `@responsive` tag) — the toggle group and
+//        checkboxes are always visible regardless of viewport, but the `<th>` removal assertion
+//        uses `getByRole('columnheader')` which requires elements in the accessibility tree;
+//        the table is CSS-hidden on mobile (`max-width: 767px → .table { display: none }`), so
+//        `columnheader` assertions would fail at mobile. The mobile card layout is tested in
+//        other scenarios that carry `@responsive`.
 //
 // Uses `budget-overview` (7 columns incl. Status) to exercise the `content.isOverview` branch
 // in ReportContentEditor's column list — a claim report would render 6 columns.
@@ -2288,7 +2290,7 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
   ] as const;
   const OVERVIEW_COLUMN_COUNT = OVERVIEW_COLUMNS.length; // 7
 
-  test('Column toggles show/hide <th> and <td> cells, reset on remount, and never write preferences', async ({
+  test('Column toggles show/hide column headers (desktop) and never write to /api/users/me/preferences', async ({
     page,
     testPrefix,
   }) => {
@@ -2331,14 +2333,31 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
         await expect(columnGroup.getByLabel(label)).toBeChecked();
       }
 
-      // ── AC3: intercept preference writes before toggling ──
+      // ── AC3: intercept preference writes ──
+      // Note: API is an object (`testData.ts`), so `${API}/...` would expand to
+      // `[object Object]/...` and never match. Use the glob form instead.
       const prefPatches: string[] = [];
-      await page.route(`${API}/users/me/preferences`, (route) => {
+      await page.route('**/api/users/me/preferences', (route) => {
         if (route.request().method() === 'PATCH') prefPatches.push(route.request().url());
         void route.continue();
       });
 
-      // ── Toggle off: "Vendor" disappears from table header and data cells ──
+      // Positive control: confirm the interceptor fires before relying on "nothing fired".
+      // A real PATCH issued via page.evaluate() must increment the counter.
+      await page.evaluate(async () => {
+        await fetch('/api/users/me/preferences', {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+      });
+      expect(
+        prefPatches,
+        'positive control: interceptor must capture a manually-triggered PATCH',
+      ).toHaveLength(1);
+      prefPatches.length = 0; // reset before the actual toggle assertions
+
+      // ── Toggle off: "Vendor" disappears from table header ──
       await columnGroup.getByLabel('Vendor').uncheck();
       await expect(columnGroup.getByLabel('Vendor')).not.toBeChecked();
 
@@ -2352,7 +2371,7 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
       await expect(columnGroup.getByLabel('Vendor')).toBeChecked();
       await expect(vendorHeader).toHaveCount(1);
 
-      // AC3: no preference PATCH was issued during any toggle
+      // AC3: no preference PATCH was issued during any column toggle
       expect(prefPatches, 'column toggle must not write to /api/users/me/preferences').toHaveLength(
         0,
       );

@@ -25,6 +25,7 @@ export const test = base.extend<{
   // No auth dependency: testInfo provides all needed context without forcing a shared-admin
   // browser context to be constructed for tests that authenticate as their own isolated user.
   testPrefix: [
+    // eslint-disable-next-line no-empty-pattern -- Playwright infers fixture deps from destructuring; {} is required syntax to declare no deps
     async ({}, use, testInfo: TestInfo) => {
       const project = testInfo.project.name.slice(0, 3); // "des", "tab", "mob"
       await use(`E2E-${project}${testInfo.workerIndex}`);
