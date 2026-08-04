@@ -664,3 +664,29 @@ Verified chain: `<td>{row.vendor}</td>` (ReportContentEditor.tsx:251) ← `vendo
 
 Remaining non-blocking: unformatted new line (Prettier, invisible to CI on e2e-only PRs), stale AC4 docstring
 paragraph, hardcoded preferences glob ×3, #1969 AC2 premise error (product-owner).
+
+## PR #1987 (#1913 + #1952) — CHANGES_REQUIRED (round 1, `23c35371`)
+
+`fix(server): calendar-drift test fixtures + LLM plain-prose enforcement`. Review posted via
+`gh pr comment` (self-authored PR blocks `--request-changes`).
+
+**#1913 clean.** `futureDateStr(500)` uses real `new Date()` — no fake timers, per #1913's explicit ban
+(they poison `schedulingEngine.ts`'s module-level `lastRescheduleDate` gate). Both checklist sites hit;
+`insertWorkItem` defaults to `not_started` so both are genuinely CPM-today-floor-sensitive. The surviving
+`'2027-06-15'` at `householdItemDepService.test.ts:186/208` is correctly left alone — `in_progress` **and**
+a `listDeps` read-back with no scheduler in the path, so it cannot expire.
+
+**#1952 — 2 HIGH false positives** in `stripMarkup`, both violating AC 2.5's byte-identical guarantee:
+intraword `_` mangling reference numbers/e-mails, and line-start `\d+[.)] ` eating German ordinals and
+dates. Plus MEDIUM: two unpaired `*` on one line pairing up; AC 3.2 (`'- Pos. 3 - Dachstuhl'`) untested.
+See [[recurring-patterns]] for the generalized rules — single-occurrence guard tests, German ordinals,
+AC-tension, and pre-validating regex fix specs.
+
+Structure/integration were all correct and worth noting as the good half: strip-before-truncate at all
+three call sites, `LlmInvalidResponseError` paths untouched (strip runs after the type/non-empty guards and
+the empty-fallback makes it incapable of emptying a valid field), prompt rule 4 preserved (AC 3.3), wiki
+amended not deleted with the submodule ref bumped on-branch (AC 4.1). 193/193 + 187/187 green locally.
+
+Non-blocking: `futureDateStr` now triplicated (`timeline.test.ts:151` + 2 copies) while
+`server/src/test-helpers/` exists — and the two new copies dropped the JSDoc that carries the *reason*
+(CPM today-floor on `not_started`), i.e. exactly the knowledge #1913 was filed to preserve.

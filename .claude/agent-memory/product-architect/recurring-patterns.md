@@ -564,7 +564,7 @@ Stylelint. No `format:check`, no ESLint. So `npx prettier --check <changed files
 ten seconds: #1984 shipped two violations (a 101-char inline return type, and a rider edit left
 artificially wrapped after the expression shortened) that nothing downstream would have caught.
 
-## Positive membership on a *shared fixture* row is not a filtering assertion (#1971, PR #1985)
+## Positive membership on a _shared fixture_ row is not a filtering assertion (#1971, PR #1985)
 
 The stock "fix" for `expect(rows.length).toBeGreaterThan(0)` is to add
 `expect(await getUserRow(TEST_ADMIN.email)).not.toBeNull()`. That closes nothing: the shared admin/fixture
@@ -608,7 +608,7 @@ and the user-management page applies no default status filter. So `deleteUserVia
 for the rest of the run, and `POST /api/users` still 409s on that email (`findByEmail` does not exclude
 deactivated users). Consequences for review:
 
-- A `finally`-block "delete" comment claiming the DB is left clean is wrong — say *deactivated*.
+- A `finally`-block "delete" comment claiming the DB is left clean is wrong — say _deactivated_.
 - Deterministic seed emails (`${testPrefix}@…`) are one-shot per DB. Currently masked because Playwright
   gives a retried test a fresh `workerIndex` (so `testPrefix` differs), but `--repeat-each` or a switch to
   `parallelIndex` would make `createLocalUserViaApi`'s `expect(response.ok())` fail and mask the real
@@ -619,7 +619,7 @@ deactivated users). Consequences for review:
 
 Two independent ways a route-interception assertion becomes vacuous, both invisible to CI:
 
-1. **`API` is an object map**, not a string (`e2e/fixtures/testData.ts:39`). `` page.route(`${API}/users/me/preferences`) `` interpolates to the glob `[object Object]/users/me/preferences`, which matches nothing — so `expect(captured).toHaveLength(0)` passes forever. The repo convention is `` `**${API.<key>}` `` (property access + `**` prefix); `reportWizardEditableContent.spec.ts:969,998` do it right. ESLint's `restrict-template-expressions` would flag it but **CI runs no ESLint** (`static-analysis` = `npm audit signatures` + `typecheck` + `Stylelint` only).
+1. **`API` is an object map**, not a string (`e2e/fixtures/testData.ts:39`). ``page.route(`${API}/users/me/preferences`)`` interpolates to the glob `[object Object]/users/me/preferences`, which matches nothing — so `expect(captured).toHaveLength(0)` passes forever. The repo convention is `` `**${API.<key>}` `` (property access + `**` prefix); `reportWizardEditableContent.spec.ts:969,998` do it right. ESLint's `restrict-template-expressions` would flag it but **CI runs no ESLint** (`static-analysis` = `npm audit signatures` + `typecheck` + `Stylelint` only).
 2. Any **negative** route assertion (`toHaveLength(0)`, `not.toHaveBeenCalled`) is indistinguishable from a broken matcher. Always require the author to prove the matcher fires once (assert `1` against a deliberate request, then invert) before accepting the guard.
 
 ## "Runs at all three viewports" is false unless the test is `@responsive`-tagged
@@ -630,7 +630,7 @@ claiming multi-viewport coverage without `{ tag: '@responsive' }`.
 
 Adding the tag is not a free fix when the component has a **dual layout in the DOM**: `ReportContentEditor`
 renders both a `<table>` and a `.mobileCardList`, CSS-gated at `@media (max-width: 767px)`. `display: none`
-drops the table from the a11y tree, so `getByRole('columnheader')` is 0 at mobile *regardless of state* —
+drops the table from the a11y tree, so `getByRole('columnheader')` is 0 at mobile _regardless of state_ —
 `toHaveCount(0)` passes vacuously and `toHaveCount(1)` fails. Layout-dependent assertions must branch on
 viewport (assert `.mobileCardRow` captions at mobile). Scenario 1b in that spec is the precedent guard.
 
@@ -644,6 +644,7 @@ the opposite of `innerText`/`toHaveText` assertions, which fail on transformed l
 form when a component may style its casing.
 
 Two follow-on facts worth reusing:
+
 - An embedded control inside a name-from-content traversal contributes its **value**, not its `aria-label`.
   So an `EditableField` whose `ariaLabel` interpolates a neighbouring column's text cannot inflate the
   containing cell's accessible name (and `exact: true` guards even if it could).
@@ -655,3 +656,51 @@ Two follow-on facts worth reusing:
 Absence assertions need a **positive baseline in the same test** (`toHaveCount(1)` before, `toHaveCount(0)`
 after). Without it, a typo'd or mis-scoped locator makes the absence check pass on nothing. With it, every
 mis-scoping fails loudly instead — that property is the review bar, not the assertion count.
+
+### Single-occurrence guard tests prove nothing about delimiter pairing (#1952, PR #1987)
+
+A "false-positive guard" test that feeds the sanitizer **one** unpaired delimiter cannot detect that the
+regex pairs up **two** unpaired ones. `stripMarkup`'s guards were `'value_field without close'` (one `_`)
+and `'Price: 5 EUR* (VAT incl.)'` (one `*`) — both green while `budget_line_id` -> `budgetlineid`,
+`RE_2024_117` -> `RE2024117`, and `'5 EUR* … 10%* …'` -> both stripped. When reviewing any
+strip/sanitize/unescape regex, the question is not "is there a guard test?" but **"is there a guard test with
+two or more of the delimiter on one line?"**
+
+The fix is CommonMark's flanking rules, and they are the right reference for any markdown-ish stripper:
+opening delimiter must be followed by non-space, closing preceded by non-space, and `_` must additionally
+not be intraword (CommonMark disables intraword `_` emphasis precisely because of snake_case and e-mails):
+`/(?<![A-Za-z0-9])_(?=\S)([^_\n]*[^\s_]|\S)_(?![A-Za-z0-9])/g`.
+
+### German-locale ordinals collide with markdown numbered-list markers (#1952)
+
+`^(?:\d+[.)]) ` at a line start cannot distinguish a `1. ` list marker from a German ordinal or date —
+German writes both with a trailing period. `'15. Mai 2026 wurde die Rechnung gestellt.'` loses the **day**;
+`'2. Rate in Höhe von …'` loses the instalment number. This is a **locale-specific** trap that English-only
+test fixtures never surface, and it is live for anything parsing LLM prose in this product (the reports are
+bank-facing German letters).
+
+Conservative resolution: strip a numbered marker only inside a **run of >=2 consecutive numbered lines**
+(a lone marker is an ordinal, not a list). Bullet markers (`- `/`* `/`+ `) stay unconditional — a leading
+`- ` is not idiomatic prose. Document the asymmetry in the JSDoc so a later reader does not "harmonize" it.
+
+### Two ACs in direct tension, silently resolved (#1952 AC 1.2 vs AC 2.5)
+
+AC 1.2 mandated stripping `1. `/`1) `; AC 2.5 mandated compliant plain prose pass through **byte-identical**.
+These cannot both hold for German prose. The implementation picked 1.2 without recording the trade-off.
+When an issue states a preference ordering in prose ("conservative stripping matters more than exhaustive
+stripping… when in doubt, leave the text alone"), that prose **is** the tie-breaker — read the issue's
+narrative sections, not just the checkbox list, before accepting an AC-satisfying implementation.
+
+### Validate a proposed regex fix before writing it into the review
+
+For any non-trivial regex fix spec, transcribe the current + proposed implementation into a throwaway
+`/tmp/*.mjs`, and assert the proposed version against (a) every existing test case, (b) the new false
+positives, and (c) the issue's Verification scenarios. PR #1987's spec was validated 45/45 this way, which
+turns "here is a suggestion" into "here is a drop-in that breaks no existing test" — the difference between
+one fix round and three.
+
+### Strip-order tests need a `toBe`, not just a `toHaveLength`
+
+To pin "strip runs before truncate", the boundary fixture `'**' + 'X'.repeat(limit) + '**'` yields a
+`limit`-length string under **both** orderings (`'X'.repeat(limit)` vs `'**XXX…'`). Only the `toBe` assertion
+discriminates. Good pattern to reuse; also a reminder that a length assertion alone is often vacuous.
