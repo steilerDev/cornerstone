@@ -4,6 +4,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { WorkItemSummary } from '@cornerstone/shared';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
@@ -172,9 +173,11 @@ describe('WorkItemsPage', () => {
 
   function renderPage() {
     return render(
-      <MemoryRouter initialEntries={['/project/work-items']}>
-        <WorkItemsPageModule.WorkItemsPage />
-      </MemoryRouter>,
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/project/work-items']}>
+          <WorkItemsPageModule.WorkItemsPage />
+        </MemoryRouter>
+      </ToastProvider>,
     );
   }
 

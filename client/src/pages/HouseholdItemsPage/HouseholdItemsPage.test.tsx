@@ -8,6 +8,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
@@ -158,9 +159,11 @@ let HouseholdItemsPage: any;
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/project/household-items']}>
-      <HouseholdItemsPage />
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={['/project/household-items']}>
+        <HouseholdItemsPage />
+      </MemoryRouter>
+    </ToastProvider>,
   );
 }
 

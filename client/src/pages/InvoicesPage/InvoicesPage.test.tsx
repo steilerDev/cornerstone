@@ -5,6 +5,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
@@ -290,14 +291,16 @@ describe('InvoicesPage', () => {
 
   function renderPage() {
     return render(
-      <MemoryRouter initialEntries={['/budget/invoices']}>
-        <Routes>
-          <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
-          <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
-          <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
-        </Routes>
-        <LocationDisplay />
-      </MemoryRouter>,
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/budget/invoices']}>
+          <Routes>
+            <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+            <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
+            <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
+          </Routes>
+          <LocationDisplay />
+        </MemoryRouter>
+      </ToastProvider>,
     );
   }
 

@@ -4,6 +4,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type { MilestoneSummary } from '@cornerstone/shared';
@@ -121,9 +122,11 @@ describe('MilestonesPage', () => {
 
   function renderPage() {
     return render(
-      <MemoryRouter initialEntries={['/project/milestones']}>
-        <MilestonesPageModule.MilestonesPage />
-      </MemoryRouter>,
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/project/milestones']}>
+          <MilestonesPageModule.MilestonesPage />
+        </MemoryRouter>
+      </ToastProvider>,
     );
   }
 
