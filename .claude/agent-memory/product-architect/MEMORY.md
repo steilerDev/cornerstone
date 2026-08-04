@@ -76,4 +76,10 @@ is still undocumented in Schema.md.
 - esbuild SIGILL on emulated aarch64; Docker build fails behind the TLS firewall
 - 4GB RAM: Jest OOM mitigated with `--maxWorkers=2 --max-old-space-size=2048`
 - Stale worktrees under `.claude/worktrees/` cause jest-haste-map duplicate-package failures.
-  Work around with `npx jest <file> --modulePathIgnorePatterns='/.claude/worktrees/'`
+  Work around with `npx jest <file> --modulePathIgnorePatterns='/.claude/worktrees/'` — **but only from
+  the base checkout.** Inside a worktree that pattern matches the cwd itself, so jest reports
+  `0 files checked across 3 projects` / `Pattern: <path> - 0 matches` and exits 1. That looks like a
+  missing/misnamed test file, not a config problem, and can be misread as "the tests don't exist".
+  When running from a worktree, drop the flag entirely.
+- Confirm a run actually executed something: `Tests: N passed` — a `--maxWorkers=1 -t <filter>` run that
+  matched nothing still exits 0 in some invocations, so a silent pass is not evidence.

@@ -789,7 +789,7 @@ behaviour-identical and makes the KEEP the thing that is written down rather tha
 
 ## Hand-rolled regex mirroring a third-party grammar accepts values the library rejects (PR #1989, #1970)
 
-Validating an env var with a regex that *approximates* a library's parser produces configs that pass
+Validating an env var with a regex that _approximates_ a library's parser produces configs that pass
 startup validation and then blow up at request time. Concrete case: `AUTH_RATE_LIMIT_WINDOW` validated
 by a bespoke duration regex, while `@fastify/rate-limit` v11 parses `timeWindow` strings with
 **`@lukeed/ms`** (not the classic `ms` package).
@@ -802,16 +802,33 @@ Two divergences found, both reaching the same failure:
   `'15\tminutes'` / `'15\nminutes'`, which `parse()` rejects.
 
 Why it's fatal, not a fallback: `mergeParams()` in `@fastify/rate-limit/index.js:163-169` is an
-`if / else if` chain — a *string* takes branch 2, gets `undefined`, and never reaches the
+`if / else if` chain — a _string_ takes branch 2, gets `undefined`, and never reaches the
 `defaultTimeWindow` branch. At request time `await params.timeWindow(req, key)` throws, so **every**
 request to the route returns `500 {"message":"params.timeWindow is not a function"}`. Verified:
 `timeWindow: '0s'` on a route → 500. A zero window is the obvious way an operator tries to disable a
 rate limit, so this defeats a "no value may disable the control" acceptance criterion.
 
-**Rule:** when a config value is handed verbatim to a third-party parser, validate it *with that
-parser* (declare the dep) rather than re-deriving its grammar. If a regex is unavoidable, also assert
+**Rule:** when a config value is handed verbatim to a third-party parser, validate it _with that
+parser_ (declare the dep) rather than re-deriving its grammar. If a regex is unavoidable, also assert
 the parsed result is defined and `> 0`, and check the library's actual source for which package it
 uses — `@fastify/*` deps are not always the popular one.
+
+**Resolved in `47ee190` (APPROVED)** with regex + guard rather than delegating to the parser, and that
+was accepted. Two transferable lessons:
+
+- **Direction of divergence is what matters, not divergence itself.** A hand-rolled regex that is
+  strictly _narrower_ than the library is fail-closed and fine: config rejects `1y`, `1wk`, `100msec`,
+  `.5s`, `-5m` at startup with an actionable message. Only the _wider_ direction (config accepts what
+  the parser chokes on) is a blocker. Don't demand exact grammar parity in review — demand that the
+  accept-set be a subset, then sanity-check that the excluded values are ones nobody wants.
+- **Verify a grammar claim by brute force, not by reading.** Cross-checking "does anything pass my gate
+  that the library can't parse?" over all units × magnitudes × separator widths took one throwaway
+  script and turned an inspection argument into `config-accepts-but-lukeed-fails: NONE`. Import the
+  library's built file by relative path (`./node_modules/<pkg>/dist/index.mjs`) from a script placed in
+  the repo root — a script in `/tmp` cannot resolve the bare package name.
+- Ordering detail worth preserving: the positive-magnitude guard must be an `else if` _after_ the
+  pattern test, so `parseFloat` only sees strings already known to start with `\d+`. Reversing them
+  reintroduces a `NaN` path.
 
 ## `parseInt` config validation accepts trailing garbage repo-wide
 
@@ -828,4 +845,10 @@ Adding an env var means: `CLAUDE.md` table, `wiki/Architecture.md` (topic-groupe
 "Authentication & Sessions" ~L393), `wiki/API-Contract.md` ("Environment Variables (Auth)" ~L107), and
 `docs/src/getting-started/configuration.md` (**docs-writer-owned** — file a request, don't edit).
 The first three belong in the implementing PR with the submodule ref bumped on the branch. PR #1989
-updated only `CLAUDE.md`.
+updated only `CLAUDE.md` at first review; `47ee190` added both wiki pages, leaving the docs-writer one
+as a release-staging follow-up — that is the correct end state, so treat "3 of 4 + a flagged follow-up"
+as the passing bar, not 4 of 4.
+
+Cheap way to find every location when adding a var: grep an _existing_ comparable var repo-wide
+(`grep -rln SESSION_DURATION --include='*.md' --include='*.yml' .`) instead of guessing which files
+need touching. It also surfaces the ADR pages that pin a default.
