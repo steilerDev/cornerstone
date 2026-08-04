@@ -2290,7 +2290,7 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
   ] as const;
   const OVERVIEW_COLUMN_COUNT = OVERVIEW_COLUMNS.length; // 7
 
-  test('Column toggles show/hide column headers (desktop) and never write to /api/users/me/preferences', async ({
+  test('Column toggles show/hide column headers and data cells (desktop) and never write to /api/users/me/preferences', async ({
     page,
     testPrefix,
   }) => {
@@ -2357,19 +2357,27 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
       ).toHaveLength(1);
       prefPatches.length = 0; // reset before the actual toggle assertions
 
-      // ── Toggle off: "Vendor" disappears from table header ──
+      // ── Toggle off: "Vendor" disappears from both table header and data cells ──
+      // AC1 requires asserting BOTH the <th> and the matching <td> are absent.
+      // ReportContentEditor uses conditional rendering (`show('vendor') && <th>…` and
+      // `show('vendor') && <td>…`), so both are removed from the DOM entirely when hidden.
+      const vendorHeader = page.getByRole('columnheader', { name: 'Vendor', exact: true });
+      const vendorCell = page.getByRole('cell', { name: `${testPrefix} Toggle Vendor`, exact: true });
+
+      // Baseline: both are present before any toggle
+      await expect(vendorHeader).toHaveCount(1);
+      await expect(vendorCell).toHaveCount(1);
+
       await columnGroup.getByLabel('Vendor').uncheck();
       await expect(columnGroup.getByLabel('Vendor')).not.toBeChecked();
-
-      // ReportContentEditor uses conditional rendering (`show('vendor') && <th>…`), so the
-      // element is removed from the DOM entirely, not merely CSS-hidden.
-      const vendorHeader = page.getByRole('columnheader', { name: 'Vendor', exact: true });
       await expect(vendorHeader).toHaveCount(0);
+      await expect(vendorCell).toHaveCount(0);
 
-      // ── Toggle back on: column returns ──
+      // ── Toggle back on: both column header and data cell return ──
       await columnGroup.getByLabel('Vendor').check();
       await expect(columnGroup.getByLabel('Vendor')).toBeChecked();
       await expect(vendorHeader).toHaveCount(1);
+      await expect(vendorCell).toHaveCount(1);
 
       // AC3: no preference PATCH was issued during any column toggle
       expect(prefPatches, 'column toggle must not write to /api/users/me/preferences').toHaveLength(
