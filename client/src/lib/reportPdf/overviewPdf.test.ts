@@ -179,28 +179,33 @@ function splitUsageCell(cell: unknown): {
     throw new Error('Usage cell .text is not a run array — buildUsageTextRuns wiring changed?');
   }
   const greyIndexes = runs.map((run, i) => (run.color === GREY ? i : -1)).filter((i) => i !== -1);
-  if (greyIndexes.length > 1) {
-    throw new Error(
-      `Expected at most ONE grey meta run in a Usage cell, found ${greyIndexes.length}`,
-    );
-  }
-  const metaIndex = greyIndexes[0];
-  if (metaIndex === undefined) {
+  if (greyIndexes.length === 0) {
     return { usageText: runs.map((r) => r.text).join(''), metaRun: null };
   }
-  // The grey meta run must be the LAST run in the cell — it is a suffix, never interleaved into
-  // the usage prose.
-  if (metaIndex !== runs.length - 1) {
+  // Grey meta runs must be contiguous and occupy the tail of the run array (they are a suffix,
+  // never interleaved into the usage prose). Multiple grey runs are allowed since #1968 routes
+  // the meta suffix through buildUsageTextRuns, which may split it into per-token runs.
+  const firstGrey = greyIndexes[0]!;
+  const lastGrey = greyIndexes[greyIndexes.length - 1]!;
+  if (lastGrey !== runs.length - 1) {
     throw new Error(
-      `Grey meta run is at index ${metaIndex} of ${runs.length} runs — expected it last`,
+      `Grey meta run(s) must be the last run(s) in a Usage cell — last grey at ${lastGrey}, last run at ${runs.length - 1}`,
+    );
+  }
+  if (lastGrey - firstGrey !== greyIndexes.length - 1) {
+    throw new Error(
+      `Grey meta runs must be contiguous in a Usage cell — found gaps in indexes ${greyIndexes.join(', ')}`,
     );
   }
   return {
     usageText: runs
-      .slice(0, metaIndex)
+      .slice(0, firstGrey)
       .map((r) => r.text)
       .join(''),
-    metaRun: runs[metaIndex]!,
+    metaRun: {
+      text: greyIndexes.map((i) => runs[i]!.text).join(''),
+      color: GREY,
+    },
   };
 }
 
