@@ -69,6 +69,8 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   llmProvider: 'generic',
   autoItemizeEnabled: false,
   llmEnabled: false,
+  authRateLimitMax: 20,
+  authRateLimitWindow: '15 minutes',
   ...overrides,
 });
 

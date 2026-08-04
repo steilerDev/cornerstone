@@ -2,7 +2,7 @@
 
 ## Topic Files
 
-- [Recurring patterns & traps](recurring-patterns.md) — polymorphic FK cleanup, XOR CHECK vs SET NULL, forked-function drift, test smells, cross-layer contract drift, ajv `anyOf`, N+1 sites, async writes surviving state resets, cross-reference rot in documented-bound comments (#1939), usePreferences per-instance store + serialized-write-queue review (#1955), capability-retained-but-producer-removed (#1959), reinstated-producer-vs-negative-guards (#1965), AC reversal by a polish issue (#1959), amount-threshold booleans narrowing status-existence booleans (#1897), prettier is not CI-gated, single-occurrence delimiter guard tests + German ordinals vs list markers + pre-validating regex fix specs (#1952), `Pick<>` is not a forcing function + caller-supplied monotonic seq reintroduces the ref + cascade tables smuggle behaviour changes + neutralised-trigger-left-in-code (#1947), tier factory only forces the cases that spread it (#1988)
+- [Recurring patterns & traps](recurring-patterns.md) — polymorphic FK cleanup, XOR CHECK vs SET NULL, forked-function drift, test smells, cross-layer contract drift, ajv `anyOf`, N+1 sites, async writes surviving state resets, cross-reference rot in documented-bound comments (#1939), usePreferences per-instance store + serialized-write-queue review (#1955), capability-retained-but-producer-removed (#1959), reinstated-producer-vs-negative-guards (#1965), AC reversal by a polish issue (#1959), amount-threshold booleans narrowing status-existence booleans (#1897), prettier is not CI-gated, single-occurrence delimiter guard tests + German ordinals vs list markers + pre-validating regex fix specs (#1952), `Pick<>` is not a forcing function + caller-supplied monotonic seq reintroduces the ref + cascade tables smuggle behaviour changes + neutralised-trigger-left-in-code (#1947), tier factory only forces the cases that spread it (#1988), regex mirroring a third-party grammar + `parseInt` trailing garbage + env vars documented in four places (#1970, PR #1989)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
 - [Source-report split inference](source-report-split-inference.md) — budgetLines[]/deposits[] are this-source-scoped, so †/‡ classification is a proxy; proposed `splitKind`; pdfmake `'2*'` width trap
 - [Story reviews](story-reviews.md) — per-story and per-PR review log
@@ -76,4 +76,10 @@ is still undocumented in Schema.md.
 - esbuild SIGILL on emulated aarch64; Docker build fails behind the TLS firewall
 - 4GB RAM: Jest OOM mitigated with `--maxWorkers=2 --max-old-space-size=2048`
 - Stale worktrees under `.claude/worktrees/` cause jest-haste-map duplicate-package failures.
-  Work around with `npx jest <file> --modulePathIgnorePatterns='/.claude/worktrees/'`
+  Work around with `npx jest <file> --modulePathIgnorePatterns='/.claude/worktrees/'` — **but only from
+  the base checkout.** Inside a worktree that pattern matches the cwd itself, so jest reports
+  `0 files checked across 3 projects` / `Pattern: <path> - 0 matches` and exits 1. That looks like a
+  missing/misnamed test file, not a config problem, and can be misread as "the tests don't exist".
+  When running from a worktree, drop the flag entirely.
+- Confirm a run actually executed something: `Tests: N passed` — a `--maxWorkers=1 -t <filter>` run that
+  matched nothing still exits 0 in some invocations, so a silent pass is not evidence.

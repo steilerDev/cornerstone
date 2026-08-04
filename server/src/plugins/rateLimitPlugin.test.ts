@@ -85,3 +85,88 @@ describe('Rate Limit Plugin', () => {
     expect(body.error.message).toContain('Too many requests');
   });
 });
+
+describe('Login Route Rate Limiting — Configurable via Env (Issue #1970)', () => {
+  let app: FastifyInstance | undefined;
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-ratelimit-configurable-test-'));
+    process.env.DATABASE_URL = join(tempDir, 'test.db');
+    process.env.SECURE_COOKIES = 'false';
+    app = undefined;
+  });
+
+  afterEach(async () => {
+    if (app) {
+      await app.close();
+    }
+    process.env = originalEnv;
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  it('AC3: configured max exceeded → 429 with RATE_LIMIT_EXCEEDED', async () => {
+    process.env.AUTH_RATE_LIMIT_MAX = '3';
+    app = await buildApp();
+
+    // Make 3 requests — each returns 401 (wrong credentials) but counts toward limit
+    for (let i = 0; i < 3; i++) {
+      await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { email: 'test@x.com', password: 'wrong' },
+      });
+    }
+
+    // 4th request exceeds the configured limit of 3
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'test@x.com', password: 'wrong' },
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(JSON.parse(response.body).error.code).toBe('RATE_LIMIT_EXCEEDED');
+    // Prove the configured max reached the route: header on the 429 response reflects limit=3
+    expect(response.headers['x-ratelimit-limit']).toBe('3');
+  });
+
+  it('AC4: defaults are exactly max=20 and window="15 minutes" and route uses them', async () => {
+    // No AUTH_RATE_LIMIT_MAX or AUTH_RATE_LIMIT_WINDOW in env
+    app = await buildApp();
+
+    expect(app.config.authRateLimitMax).toBe(20);
+    expect(app.config.authRateLimitWindow).toBe('15 minutes');
+
+    // Prove the route actually uses the configured max: x-ratelimit-limit must equal '20'
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'test@x.com', password: 'wrong' },
+    });
+    expect(response.headers['x-ratelimit-limit']).toBe('20');
+    // Prove the configured window reached the route: reset = ceil(900_000ms / 1000) = 900s
+    // If timeWindow were deleted from auth.ts the route would inherit the global '1 minute'
+    // default and this header would be '60', not '900'.
+    expect(response.headers['x-ratelimit-reset']).toBe('900');
+  });
+
+  it('rate-limit headers present on login route', async () => {
+    app = await buildApp();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'test@x.com', password: 'wrong' },
+    });
+
+    expect(response.headers['x-ratelimit-limit']).toBeDefined();
+    expect(response.headers['x-ratelimit-remaining']).toBeDefined();
+  });
+});

@@ -443,3 +443,18 @@ Option (b), widening the column, rejected on **risk not cost**: `ALLOCATED_AMOUN
 ### Glossary: `split`'s three German forms — NO entry, deliberately
 
 `anteilig` (adj.) / `Anteil` (noun) / `Teilbetrag` (noun), each role-correct, mirroring English's own `partial`/`split`/`portion`. **Ruled: not drift, no entry.** The glossary prevents *semantic* divergence — one concept becoming two concepts. It is **not a single-surface-form registry**, and pinning one form here would force ungrammatical copy across an adjective and two nouns. Recorded on #1917 as "reject if proposed later" so a future translator does not re-escalate. Revisit only if the *English* is unified — a copy story, not a glossary one.
+
+### Issues filed from the PR #1959 sweep (2026-08-03)
+
+All parentless, Bank Report Wizard cluster. #1959 was the user's own PR and held promotion #1958.
+
+| Issue | Substance |
+| --- | --- |
+| **#1965** | Report-level, non-editable legend restoring the `(partial)` / `(less deposit)` explanatory sentences (Must Have; producer-only fix — the footnote channel is orphaned, not removed) |
+| **#1966** | E2E coverage for the column toggles |
+| **#1967** | `attachmentsNote` override is unreachable |
+| **#1968** | Meta-suffix emitted as a single run |
+| **#1969** | `testPrefix` / `authenticatedPage` fixture cleanup |
+| **#1970** | Configurable auth rate limits — see [auth-rate-limits-1970.md](auth-rate-limits-1970.md) |
+| **#1971** | `search-users.spec.ts` leftovers |
+| **#1972** | Column-preference saves fail silently + dead `isLoaded` |

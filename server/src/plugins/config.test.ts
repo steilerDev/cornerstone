@@ -49,6 +49,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmProvider: 'generic',
         autoItemizeEnabled: false,
         llmEnabled: false,
+        authRateLimitMax: 20,
+        authRateLimitWindow: '15 minutes',
       });
     });
 
@@ -99,6 +101,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmProvider: 'generic',
         autoItemizeEnabled: false,
         llmEnabled: false,
+        authRateLimitMax: 20,
+        authRateLimitWindow: '15 minutes',
       });
     });
   });
@@ -151,6 +155,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmProvider: 'generic',
         autoItemizeEnabled: false,
         llmEnabled: false,
+        authRateLimitMax: 20,
+        authRateLimitWindow: '15 minutes',
       });
     });
 
@@ -198,6 +204,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmProvider: 'generic',
         autoItemizeEnabled: false,
         llmEnabled: false,
+        authRateLimitMax: 20,
+        authRateLimitWindow: '15 minutes',
       });
     });
   });
@@ -990,6 +998,114 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         const config = loadConfig(env);
         expect(config.llmEnabled).toBe(config.autoItemizeEnabled);
       }
+    });
+  });
+
+  // ─── Issue #1970: AUTH_RATE_LIMIT_MAX and AUTH_RATE_LIMIT_WINDOW ──────────
+
+  describe('AUTH_RATE_LIMIT_MAX and AUTH_RATE_LIMIT_WINDOW Configuration (Issue #1970)', () => {
+    it('AUTH_RATE_LIMIT_MAX unset → authRateLimitMax defaults to 20', () => {
+      const config = loadConfig({});
+      expect(config.authRateLimitMax).toBe(20);
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW unset → authRateLimitWindow defaults to "15 minutes"', () => {
+      const config = loadConfig({});
+      expect(config.authRateLimitWindow).toBe('15 minutes');
+    });
+
+    it('AUTH_RATE_LIMIT_MAX=50 → authRateLimitMax equals 50', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_MAX: '50' });
+      expect(config.authRateLimitMax).toBe(50);
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="1h" → authRateLimitWindow equals "1h"', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_WINDOW: '1h' });
+      expect(config.authRateLimitWindow).toBe('1h');
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="30 minutes" → authRateLimitWindow equals "30 minutes"', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_WINDOW: '30 minutes' });
+      expect(config.authRateLimitWindow).toBe('30 minutes');
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="30s" → authRateLimitWindow equals "30s"', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_WINDOW: '30s' });
+      expect(config.authRateLimitWindow).toBe('30s');
+    });
+
+    it('AUTH_RATE_LIMIT_MAX=abc → throws containing "AUTH_RATE_LIMIT_MAX must be a positive integer, got: abc"', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_MAX: 'abc' })).toThrow(
+        'AUTH_RATE_LIMIT_MAX must be a positive integer, got: abc',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_MAX=0 → throws containing "AUTH_RATE_LIMIT_MAX must be a positive integer, got: 0"', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_MAX: '0' })).toThrow(
+        'AUTH_RATE_LIMIT_MAX must be a positive integer, got: 0',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_MAX=-1 → throws containing "AUTH_RATE_LIMIT_MAX must be a positive integer, got: -1"', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_MAX: '-1' })).toThrow(
+        'AUTH_RATE_LIMIT_MAX must be a positive integer, got: -1',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW=not-a-duration → throws containing "AUTH_RATE_LIMIT_WINDOW must be a valid duration string"', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: 'not-a-duration' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must be a valid duration string',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="5 minutes foo" → throws containing "AUTH_RATE_LIMIT_WINDOW must be a valid duration string"', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '5 minutes foo' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must be a valid duration string',
+      );
+    });
+
+    it('empty string AUTH_RATE_LIMIT_MAX treated as missing → authRateLimitMax defaults to 20', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_MAX: '' });
+      expect(config.authRateLimitMax).toBe(20);
+    });
+
+    it('empty string AUTH_RATE_LIMIT_WINDOW treated as missing → authRateLimitWindow defaults to "15 minutes"', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_WINDOW: '' });
+      expect(config.authRateLimitWindow).toBe('15 minutes');
+    });
+
+    it('both invalid vars in one call → single throw listing both errors', () => {
+      expect(() =>
+        loadConfig({
+          AUTH_RATE_LIMIT_MAX: 'abc',
+          AUTH_RATE_LIMIT_WINDOW: 'not-a-duration',
+        }),
+      ).toThrow(
+        "Configuration validation failed:\n  - AUTH_RATE_LIMIT_MAX must be a positive integer, got: abc\n  - AUTH_RATE_LIMIT_WINDOW must be a valid duration string (e.g. '15 minutes', '1h'), got: not-a-duration",
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_MAX=1 (minimum valid) → authRateLimitMax equals 1', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_MAX: '1' });
+      expect(config.authRateLimitMax).toBe(1);
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="0s" → throws containing zero magnitude error', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '0s' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must have a positive duration (zero magnitude is not allowed), got: 0s',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="0 minutes" → throws containing zero magnitude error', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '0 minutes' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must have a positive duration (zero magnitude is not allowed), got: 0 minutes',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="0.0h" → throws containing zero magnitude error (parseFloat gives 0)', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '0.0h' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must have a positive duration (zero magnitude is not allowed), got: 0.0h',
+      );
     });
   });
 });
