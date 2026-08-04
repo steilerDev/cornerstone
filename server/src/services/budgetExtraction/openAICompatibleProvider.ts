@@ -303,6 +303,44 @@ export function validateMergeResult(body: unknown): MergeLinesLlmResult {
 }
 
 /**
+ * Strips unambiguous markdown and HTML markup from an LLM-generated text field,
+ * applied before length truncation (Story #1952).
+ *
+ * Strips: **bold**, __bold__, *italic*, _italic_ (paired markers only),
+ * ATX heading markers at line-start (# through ######), leading list markers
+ * at line-start (- , * , + , N. , N) ), and HTML tags (<tag>, </tag>, <br/>).
+ *
+ * Does NOT strip: mid-line hyphens (Mo-Fr, 2024-117), # inside a line
+ * (Rechnung #2024-117), lone unpaired * or _, < not opening a well-formed tag
+ * (Beträge < 500 EUR), \n/\n\n paragraph breaks, or German umlauts/ß/€.
+ *
+ * If stripping would leave the text empty or whitespace-only, returns the
+ * original text unchanged (losing the entire body is worse than printing markers).
+ */
+export function stripMarkup(text: string): string {
+  let result = text;
+
+  // Bold — double markers, run before single-marker italic to avoid partial matches
+  result = result.replace(/\*\*([^*\n]+?)\*\*/g, '$1');
+  result = result.replace(/__([^_\n]+?)__/g, '$1');
+
+  // Italic — single markers (only matches genuinely paired markers)
+  result = result.replace(/\*([^*\n]+?)\*/g, '$1');
+  result = result.replace(/_([^_\n]+?)_/g, '$1');
+
+  // ATX headings — line-start only (gm: ^ anchors to each line start)
+  result = result.replace(/^#{1,6} /gm, '');
+
+  // List markers — line-start only; preserve rest of line and all line breaks
+  result = result.replace(/^(?:[-*+]|\d+[.)]) /gm, '');
+
+  // HTML tags — remove open/close/self-closing; keep inner content
+  result = result.replace(/<\/?[a-zA-Z][a-zA-Z0-9]*(?:\s[^>]*)?\/?>/g, '');
+
+  return result.trim() === '' ? text : result;
+}
+
+/**
  * Validates that an unknown value conforms to GenerateReportContentLlmResult schema.
  * Validates structure, length caps, and presence of all requested invoice IDs.
  * Converts descriptions array to Record<string, string> (invoice ID → description).
@@ -328,20 +366,22 @@ export function validateGenerateReportContentResult(
     throw new LlmInvalidResponseError('LLM response missing or invalid "letterSubject"');
   }
   const trimmedSubject = obj.letterSubject.trim();
+  const strippedSubject = stripMarkup(trimmedSubject);
   const letterSubject =
-    trimmedSubject.length > REPORT_CONTENT_LIMITS.letterSubject
-      ? trimmedSubject.slice(0, REPORT_CONTENT_LIMITS.letterSubject)
-      : trimmedSubject;
+    strippedSubject.length > REPORT_CONTENT_LIMITS.letterSubject
+      ? strippedSubject.slice(0, REPORT_CONTENT_LIMITS.letterSubject)
+      : strippedSubject;
 
   // Validate letterBody (non-empty string, max REPORT_CONTENT_LIMITS.letterBody chars)
   if (typeof obj.letterBody !== 'string' || obj.letterBody.trim() === '') {
     throw new LlmInvalidResponseError('LLM response missing or invalid "letterBody"');
   }
   const trimmedBody = obj.letterBody.trim();
+  const strippedBody = stripMarkup(trimmedBody);
   const letterBody =
-    trimmedBody.length > REPORT_CONTENT_LIMITS.letterBody
-      ? trimmedBody.slice(0, REPORT_CONTENT_LIMITS.letterBody)
-      : trimmedBody;
+    strippedBody.length > REPORT_CONTENT_LIMITS.letterBody
+      ? strippedBody.slice(0, REPORT_CONTENT_LIMITS.letterBody)
+      : strippedBody;
 
   // Validate descriptions (array of {invoiceId, description})
   if (!Array.isArray(obj.descriptions)) {
@@ -371,10 +411,11 @@ export function validateGenerateReportContentResult(
 
     const invoiceId = entry.invoiceId.trim();
     const trimmedDesc = entry.description.trim();
+    const strippedDesc = stripMarkup(trimmedDesc);
     const cappedDesc =
-      trimmedDesc.length > REPORT_CONTENT_LIMITS.description
-        ? trimmedDesc.slice(0, REPORT_CONTENT_LIMITS.description)
-        : trimmedDesc;
+      strippedDesc.length > REPORT_CONTENT_LIMITS.description
+        ? strippedDesc.slice(0, REPORT_CONTENT_LIMITS.description)
+        : strippedDesc;
     descriptions[invoiceId] = cappedDesc;
     foundInvoiceIds.add(invoiceId);
   }
