@@ -309,22 +309,28 @@ function splitUsageCell(cell: unknown): {
   const greyIndexes = typed
     .map((run, i) => (run.color === META_GREY ? i : -1))
     .filter((i) => i !== -1);
-  // Production emits at most one grey segment per packed row, and always last in the stream — both
-  // properties are relied on when reading these cells back, so assert them rather than assume.
-  if (greyIndexes.length > 1) {
-    throw new Error(`Expected at most ONE grey meta run per Usage cell, got ${greyIndexes.length}`);
-  }
-  const metaIndex = greyIndexes[0];
-  if (metaIndex === undefined) {
+  if (greyIndexes.length === 0) {
     return { usageText: typed.map((r) => r.text).join(''), metaRaw: null, metaText: null };
   }
-  if (metaIndex !== typed.length - 1) {
-    throw new Error(`Grey meta run at index ${metaIndex} of ${typed.length} — expected it last`);
+  // Grey meta runs must be contiguous and occupy the tail of the run array — they are a suffix,
+  // never interleaved into the usage prose. Multiple grey runs are allowed since #1968 routes the
+  // meta suffix through buildUsageTextRuns, which may split it into per-token runs.
+  const firstGrey = greyIndexes[0]!;
+  const lastGrey = greyIndexes[greyIndexes.length - 1]!;
+  if (lastGrey !== typed.length - 1) {
+    throw new Error(
+      `Grey meta run(s) must be the last run(s) in a Usage cell — last grey at ${lastGrey}, last run at ${typed.length - 1}`,
+    );
   }
-  const metaRaw = typed[metaIndex]!.text;
+  if (lastGrey - firstGrey !== greyIndexes.length - 1) {
+    throw new Error(
+      `Grey meta runs must be contiguous in a Usage cell — found gaps in indexes ${greyIndexes.join(', ')}`,
+    );
+  }
+  const metaRaw = greyIndexes.map((i) => typed[i]!.text).join('');
   return {
     usageText: typed
-      .slice(0, metaIndex)
+      .slice(0, firstGrey)
       .map((r) => r.text)
       .join(''),
     metaRaw,
