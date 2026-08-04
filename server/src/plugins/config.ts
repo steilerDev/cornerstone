@@ -52,6 +52,10 @@ export interface AppConfig {
   autoItemizeEnabled: boolean;
   /** Alias of autoItemizeEnabled — clearer name for LLM capabilities. Story #1901. */
   llmEnabled: boolean;
+  /** Maximum login requests per IP per authRateLimitWindow. Default: 20. */
+  authRateLimitMax: number;
+  /** Time window for login rate limiting (ms library format, e.g. '15 minutes'). Default: '15 minutes'. */
+  authRateLimitWindow: string;
 }
 
 // Type augmentation: makes fastify.config available across all routes/plugins
@@ -347,6 +351,24 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     else if (url.includes(':11434') || /\bollama\b/.test(url)) llmProvider = 'ollama';
   }
 
+  // AUTH_RATE_LIMIT_MAX — maximum login requests per IP per window (positive integer)
+  const authRateLimitMaxStr = getValue('AUTH_RATE_LIMIT_MAX') ?? '20';
+  const authRateLimitMax = parseInt(authRateLimitMaxStr, 10);
+  if (isNaN(authRateLimitMax) || authRateLimitMax <= 0) {
+    errors.push(`AUTH_RATE_LIMIT_MAX must be a positive integer, got: ${authRateLimitMaxStr}`);
+  }
+
+  // AUTH_RATE_LIMIT_WINDOW — time window for login rate limiting (ms library format)
+  // Accepts: '15 minutes', '1h', '30s', '2 days', etc.
+  const authRateLimitWindowStr = getValue('AUTH_RATE_LIMIT_WINDOW') ?? '15 minutes';
+  const AUTH_RATE_LIMIT_WINDOW_PATTERN =
+    /^\d+(\.\d+)?\s*(ms|s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks)$/i;
+  if (!AUTH_RATE_LIMIT_WINDOW_PATTERN.test(authRateLimitWindowStr)) {
+    errors.push(
+      `AUTH_RATE_LIMIT_WINDOW must be a valid duration string (e.g. '15 minutes', '1h'), got: ${authRateLimitWindowStr}`,
+    );
+  }
+
   // If there are any validation errors, throw a single error listing all of them
   if (errors.length > 0) {
     throw new Error(`Configuration validation failed:\n  - ${errors.join('\n  - ')}`);
@@ -389,6 +411,8 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     llmProvider,
     autoItemizeEnabled,
     llmEnabled: autoItemizeEnabled, // Alias for clearer naming
+    authRateLimitMax,
+    authRateLimitWindow: authRateLimitWindowStr,
   };
 }
 
@@ -425,6 +449,8 @@ export default fp(
         autoItemizeEnabled: config.autoItemizeEnabled,
         llmProvider: config.llmProvider,
         llmMaxTokens: config.llmMaxTokens,
+        authRateLimitMax: config.authRateLimitMax,
+        authRateLimitWindow: config.authRateLimitWindow,
       },
       'Configuration loaded',
     );

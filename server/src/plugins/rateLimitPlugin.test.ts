@@ -85,3 +85,74 @@ describe('Rate Limit Plugin', () => {
     expect(body.error.message).toContain('Too many requests');
   });
 });
+
+describe('Login Route Rate Limiting — Configurable via Env (Issue #1970)', () => {
+  let app: FastifyInstance | undefined;
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    tempDir = mkdtempSync(join(tmpdir(), 'cornerstone-ratelimit-configurable-test-'));
+    process.env.DATABASE_URL = join(tempDir, 'test.db');
+    process.env.SECURE_COOKIES = 'false';
+    app = undefined;
+  });
+
+  afterEach(async () => {
+    if (app) {
+      await app.close();
+    }
+    process.env = originalEnv;
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+  });
+
+  it('AC3: configured max exceeded → 429 with RATE_LIMIT_EXCEEDED', async () => {
+    process.env.AUTH_RATE_LIMIT_MAX = '3';
+    app = await buildApp();
+
+    // Make 3 requests — each returns 401 (wrong credentials) but counts toward limit
+    for (let i = 0; i < 3; i++) {
+      await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { email: 'test@x.com', password: 'wrong' },
+      });
+    }
+
+    // 4th request exceeds the configured limit of 3
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'test@x.com', password: 'wrong' },
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(JSON.parse(response.body).error.code).toBe('RATE_LIMIT_EXCEEDED');
+  });
+
+  it('AC4: defaults are exactly max=20 and window="15 minutes"', async () => {
+    // No AUTH_RATE_LIMIT_MAX or AUTH_RATE_LIMIT_WINDOW in env
+    app = await buildApp();
+
+    expect(app.config.authRateLimitMax).toBe(20);
+    expect(app.config.authRateLimitWindow).toBe('15 minutes');
+  });
+
+  it('rate-limit headers present on login route', async () => {
+    app = await buildApp();
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'test@x.com', password: 'wrong' },
+    });
+
+    expect(response.headers['x-ratelimit-limit']).toBeDefined();
+    expect(response.headers['x-ratelimit-remaining']).toBeDefined();
+  });
+});

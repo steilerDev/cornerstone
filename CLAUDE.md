@@ -542,6 +542,8 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `SESSION_DURATION`           | `604800`                   | Session duration in seconds (default: 7 days)                                                                      |
 | `SECURE_COOKIES`             | `true`                     | Enable HTTPS-only cookie flag                                                                                      |
 | `TRUST_PROXY`                | `false`                    | Trust X-Forwarded-\* headers from a reverse proxy                                                                  |
+| `AUTH_RATE_LIMIT_MAX`        | `20`                       | Login endpoint rate limit: max requests per IP per window (positive integer)                                       |
+| `AUTH_RATE_LIMIT_WINDOW`     | `15 minutes`               | Login endpoint rate limit: time window (ms library format, e.g. `15 minutes`, `1h`, `30s`)                        |
 | `OIDC_ISSUER`                | (none)                     | OpenID Connect issuer URL                                                                                          |
 | `OIDC_CLIENT_ID`             | (none)                     | OIDC application client ID                                                                                         |
 | `OIDC_CLIENT_SECRET`         | (none)                     | OIDC application client secret                                                                                     |
