@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../app.js';
+import { rateLimitKeyGenerator } from './rateLimitPlugin.js';
 
 describe('Rate Limit Plugin', () => {
   let app: FastifyInstance;
@@ -191,5 +192,23 @@ describe('Login Route Rate Limiting — Configurable via Env (Issue #1970)', () 
 
     expect(response.headers['x-ratelimit-limit']).toBeDefined();
     expect(response.headers['x-ratelimit-remaining']).toBeDefined();
+  });
+});
+
+describe('rateLimitKeyGenerator', () => {
+  it('does not throw when request.ip is nullish (#1303, #1995)', () => {
+    // request.ip is typed `string` but is undefined when the socket has no address
+    // metadata; normalizeIP dereferences its argument, so an unguarded call 500s.
+    expect(rateLimitKeyGenerator({ ip: undefined as unknown as string })).toBe('unknown');
+  });
+
+  it('normalizes IPv6 to the /64 prefix (CVE-2026-15144)', () => {
+    expect(rateLimitKeyGenerator({ ip: '2001:db8:abcd:12::1' })).toBe('2001:db8:abcd:12::');
+  });
+
+  it('two addresses in different /64 subnets get separate buckets', () => {
+    const key1 = rateLimitKeyGenerator({ ip: '2001:db8::1' });
+    const key2 = rateLimitKeyGenerator({ ip: '2001:db8:1::1' });
+    expect(key1).not.toBe(key2);
   });
 });

@@ -905,7 +905,7 @@ intend to touch; scope your own formatting to the files you edited.
 
 PR #1998 fixed CVE-2026-15144 by **deleting** a `keyGenerator` override, so the natural wiki sentence
 is "`rateLimitPlugin` deliberately sets no `keyGenerator`". That documents an absence: it goes stale the
-moment anyone adds a *correct* override, and it gives a reviewer no rule to check the new code against.
+moment anyone adds a _correct_ override, and it gives a reviewer no rule to check the new code against.
 Found live during this pass — an uncommitted working-tree change already reintroduced
 `keyGenerator: (request) => normalizeIP(request.ip ?? 'unknown')`, which is safe (normalizeIP defaults
 `ipv6Subnet = 64`) yet contradicted the sentence.
@@ -913,3 +913,24 @@ Found live during this pass — an uncommitted working-tree change already reint
 Rule: state the **invariant** ("the key must always be `normalizeIP`-normalized, forwarding the
 configured `ipv6Subnet`"), then note the current mechanism as the preferred way of satisfying it, then
 enumerate the specific forbidden shapes. Applies to any fix whose diff is a deletion.
+
+**Confirmed within the same PR (#1999).** The absence-sentence was falsified before the PR even merged,
+including the "Cornerstone does not override `ipv6Subnet`" clause and both Deviation Log rows that cited
+"the deliberate absence of a `keyGenerator`" as rationale — a self-contradicting PR caught only at
+review. A Deviation Log row is not append-only history while its PR is still open: amend the Resolution
+cell (framed as "the first pass said X; PR #N invalidated that, because …") rather than stacking a
+second row about an unmerged one. Also: an override can be _mandatory_ rather than stylistic — here two
+library facts force it, so "prefer the library default" was wrong advice, not merely stale.
+
+## Verify library internals against the pinned tarball, not `node_modules`
+
+The base checkout's `node_modules/@fastify/rate-limit` was **11.1.0** while the lockfile and
+`server/package.json` pin **11.2.0** — and 11.2.0 is the version that introduced `normalizeIP` and the
+generator-identity gate. Grepping the installed copy showed _no_ `normalizeIP` at all, which reads as
+"the claim in the code comment is false" instead of "the install is stale". Worktrees have no
+`node_modules` of their own, so this is the default situation, not an edge case.
+
+Rule: before documenting or refuting a claim about a dependency's internals, check the installed version
+against the lockfile pin. If they differ, `cd /tmp && npm pack <pkg>@<pinned> && tar xzf …` and read that
+source. Cheap, exact, and it produced the file/line citations (`index.js:14` `defaultIPv6Subnet = 64`,
+`:249-251` identity gate, `:33-34` `ip.toLowerCase()` null deref) that the wiki text now rests on.
