@@ -290,15 +290,15 @@ Regression to guard when adding a flag type: emitting one entry per flagged row.
 The ADR-034 debt owed since #1959 is now paid. Two structurally different note kinds share the block below
 the overview table and must never share a numbering scheme:
 
-| Kind | Marker | Cardinality | Built by |
-| --- | --- | --- | --- |
-| Skipped-document note | `*N`, numbered, referenced by the owning row | one per skipped document | `overviewPdf.ts` at generation time (not in `ReportContent`) |
-| Legend entry (`content.footnotes[]`) | repeated inline word label — `partial`, `less deposit` | **at most one per flag type per document** | `buildReportContent.ts` |
+| Kind                                 | Marker                                                 | Cardinality                                | Built by                                                     |
+| ------------------------------------ | ------------------------------------------------------ | ------------------------------------------ | ------------------------------------------------------------ |
+| Skipped-document note                | `*N`, numbered, referenced by the owning row           | one per skipped document                   | `overviewPdf.ts` at generation time (not in `ReportContent`) |
+| Legend entry (`content.footnotes[]`) | repeated inline word label — `partial`, `less deposit` | **at most one per flag type per document** | `buildReportContent.ts`                                      |
 
 B4's old generalized rule ("every footnote is referenced from the row that owns it") applied only to the
 numbered kind and was reworded. Invariants now recorded in the ADR's legend addendum:
 
-- `footnotes[].marker` is `sourceReports.table.{split,depositReduced}InlineLabel` — the *same* keys as
+- `footnotes[].marker` is `sourceReports.table.{split,depositReduced}InlineLabel` — the _same_ keys as
   `labels.{splitNote,depositReducedNote}` and as the inline label the row cell prints. Row↔legend joins by
   **repetition of that literal**, not by id/index/number. NBSP in `less deposit` / `abzgl. Abschlag` is
   load-bearing; `expect(footnotes[0].marker).toBe(content.labels.splitNote)` is the assertion that pins it.
@@ -307,6 +307,46 @@ numbered kind and was reworded. Invariants now recorded in the ADR's legend adde
 - Adding a flag type = new `Set` + `size > 0` push in `buildReportContent.ts`, new boolean on
   `ReportContentRow`, new inline label in `overviewPdf.ts`. Assert exact `footnotes.length` (not `>= 1`) on a
   fixture where several rows share a flag.
-- Preview/export parity trap: once markers became *words*, `ReportContentEditor`'s
+- Preview/export parity trap: once markers became _words_, `ReportContentEditor`'s
   `<span>{marker}:</span>{text}` ran them together while the PDF used `${marker}: ${text}`. Fixed in #1979 —
   any change to either surface must keep the separator identical.
+
+## Fixed-width column headers impose a per-locale character budget (#1937/#1938, PR #1982)
+
+The overview table's columns are fixed-width (`VENDOR_WIDTH = 45`, `INVOICE_AMOUNT_WIDTH = 48`, …) and
+pdfmake's `elasticWidth` never grows a fixed column to fit its own header. So **every DE translation of a
+`sourceReports.table.*` header key is width-constrained**, and DE is always the binding locale.
+
+- `buildHeaderCell` applies `buildUsageTextRuns` (per-token `wordBreak: 'break-all'`) to every header cell.
+  That is a *last-resort* fallback (pdfmake 0.3.x has no hyphenation), not the fix: a mid-word break with
+  no hyphen on a bank-facing document is a defect in its own right. The fix is a shorter localized label.
+- #1937 shortened `vendor` `Auftragnehmer` → `Firma` and `invoiceAmount` `Rechnungsbetrag` → `Betrag`.
+  The break-all mechanism **must stay** — vendor *data* (server cap 200 chars, German compounds) still
+  needs it, and #1937 explicitly accepted broken vendor names as unfixable without a layout change.
+- Correct guard: a real-render assertion that the header cell resolves to `positions.length === 1` in the
+  `de` locale. Character-count arithmetic is a weaker proxy (see recurring-patterns.md).
+- `overviewPdf.test.ts:833-861` and `VENDOR_HEADER_WORST_CASE_LINES` use hardcoded `'Auftragnehmer'`
+  fixtures/literals, *not* the live bundle — so they survive translation changes, but their comments and
+  test titles rot into claiming to describe the live DE labels.
+- Consumers of `labels.*`: `overviewPdf.ts` (PDF) and `ReportContentEditor.tsx` (`<th>` preview, mobile
+  card captions, column-toggle text). `ReportContentLabels` is `reportT`-derived and **not user-editable**,
+  so a shortened label is safe — and must be identical in both surfaces by design.
+- Glossary tension: `glossary.json` maps `Vendor` → `Auftragnehmer`. PDF column-header short forms diverge
+  from glossary terms under a measured constraint; that exception needs recording *in glossary.json*, not
+  just in translator memory, or an audit reverts it.
+
+### Running header/footer must source strings from the report content model
+
+`merge.ts`'s `header:` callback took the interface `t` for the generated-at label and never passed the
+value (#1938) — a bare label on pages 2+ of every multi-page report. Fixed in PR #1982 to
+`` `${reportContent.labels.generatedAt}: ${reportContent.sourceInfo.generatedAtText}` ``, byte-identical to
+the page-1 block in `overviewPdf.ts:531`. Rule (from #1909): **artifact content resolves through
+`reportT`/`reportFormatters`; only edit affordances use the interface `t`.**
+
+- **Still violating it: `merge.ts:134`** — `buildPageFooter(t('sourceReports.table.pageLabel'))`. With
+  interface DE / report EN the footer reads `Seite 2 / 5` under an English report. Needs a new
+  `pageLabel` on `ReportContentLabels`; flagged as a follow-up in the PR #1982 review.
+- Header height budget: `headerFootprint()` (`pageGeometry.ts`) models only the LEFT stack (title +
+  two-line subheader = 57.2pt) + 20pt block margin → `PAGE_TOP_MARGIN = 93`. The generated-at line is the
+  right child of a two-column node at implicit `'*'` (~257pt on A4) in `small` style, so appending the
+  value cannot threaten the margin — even a two-line wrap (~18pt) stays far under the left stack.

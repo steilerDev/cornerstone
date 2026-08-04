@@ -518,3 +518,26 @@ Open follow-ups I own or should file:
 - Pre-hydration toggle window (F4): editing before the mount fetch resolves discards stored prefs for the
   session. Practically unreachable; `usePreferences.isLoading` is available if it ever matters.
 - `isLoaded` is dead API surface — returned by the hook, not destructured by `DataTable.tsx:171-172`.
+
+## PR #1982 — #1937 (DE header word-break) + #1938 (running-header timestamp) — APPROVED
+
+Two-line production diff (`merge.ts` header string, two DE strings) plus test updates. Verified locally:
+`npx jest realRender -t '#1937'` (5 passed, incl. the two `positions.length === 1` real-render assertions)
+and `npx jest reportPdf/merge.test -t 'pdfmake header callback'`. Note the jest invocation trap here:
+`--modulePathIgnorePatterns='/.claude/worktrees/'` matches the worktree's own rootDir and silently yields
+"0 files checked across 3 projects" — drop it when running inside a worktree.
+
+AC6 of #1938 (header still fits `PAGE_TOP_MARGIN`) discharged by analysis, not a new test — see
+client-pdf-pipeline.md for the footprint reasoning. AC4/AC5 are pinned discriminatingly because the mocked
+interface `t` returns the bare key, so a regression to `t()` fails rather than passing.
+
+Findings, all non-blocking: M1 forked harness header callback; M2 average-vs-worst-case bound in the new
+AC7 tests; M3 four stale `Auftragnehmer`/`Rechnungsbetrag` cross-references (the `buildHeaderCell`
+docstring one matters — it could lead someone to delete break-all protection vendor *data* still needs);
+M4 undocumented glossary divergence (`Vendor` → `Auftragnehmer` vs `Firma`); L6 follow-up: `merge.ts:134`
+footer page label still uses the interface `t`.
+
+**Mine to do:** ADR-034 B-rule addendum — fixed-width columns impose a per-locale header character budget
+(break-all is the fallback, a shorter label is the fix, real-render single-line assertion is the guard),
+plus the companion rule that running headers/footers never use the interface `t`. Deliberately not made a
+condition of this PR to avoid a wiki submodule bump on a two-string fix.
