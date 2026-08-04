@@ -151,6 +151,10 @@ describe('Login Route Rate Limiting — Configurable via Env (Issue #1970)', () 
       payload: { email: 'test@x.com', password: 'wrong' },
     });
     expect(response.headers['x-ratelimit-limit']).toBe('20');
+    // Prove the configured window reached the route: reset = ceil(900_000ms / 1000) = 900s
+    // If timeWindow were deleted from auth.ts the route would inherit the global '1 minute'
+    // default and this header would be '60', not '900'.
+    expect(response.headers['x-ratelimit-reset']).toBe('900');
   });
 
   it('rate-limit headers present on login route', async () => {
