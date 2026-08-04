@@ -79,6 +79,7 @@ function toSubsidyProgram(db: DbType, row: typeof subsidyPrograms.$inferSelect):
     notes: row.notes ?? null,
     maximumAmount: row.maximumAmount ?? null,
     applicableCategories,
+    includesNoCategoryItems: row.includesNoCategoryItems === 1,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

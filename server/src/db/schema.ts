@@ -517,6 +517,7 @@ export const subsidyPrograms = sqliteTable('subsidy_programs', {
   applicationDeadline: text('application_deadline'),
   notes: text('notes'),
   maximumAmount: real('maximum_amount'),
+  includesNoCategoryItems: integer('includes_no_category_items').notNull().default(0),
   createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),

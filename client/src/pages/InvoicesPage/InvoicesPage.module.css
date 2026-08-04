@@ -66,6 +66,12 @@
   color: var(--color-success-badge-text);
 }
 
+.summaryHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-1);
+}
+
 .summaryCardOverdue {
   background: var(--color-warning-bg);
   border: 1px solid var(--color-warning);

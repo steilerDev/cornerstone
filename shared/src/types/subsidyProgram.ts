@@ -17,11 +17,7 @@ export type SubsidyReductionType = 'percentage' | 'fixed';
  * The current application status of a subsidy program.
  */
 export type SubsidyApplicationStatus =
-  | 'eligible'
-  | 'applied'
-  | 'approved'
-  | 'received'
-  | 'rejected';
+  'eligible' | 'applied' | 'approved' | 'received' | 'rejected';
 
 /**
  * Subsidy program entity as returned by the API.
@@ -39,6 +35,7 @@ export interface SubsidyProgram {
   notes: string | null;
   maximumAmount: number | null;
   applicableCategories: BudgetCategory[];
+  includesNoCategoryItems: boolean;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;
@@ -58,6 +55,7 @@ export interface CreateSubsidyProgramRequest {
   notes?: string | null;
   maximumAmount?: number | null;
   categoryIds?: string[];
+  includesNoCategoryItems?: boolean;
 }
 
 /**
@@ -75,6 +73,7 @@ export interface UpdateSubsidyProgramRequest {
   notes?: string | null;
   maximumAmount?: number | null;
   categoryIds?: string[];
+  includesNoCategoryItems?: boolean;
 }
 
 /**

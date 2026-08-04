@@ -124,6 +124,9 @@ test.describe('Invoices list — empty state (Scenario 12)', { tag: '@responsive
               paid: { count: 0, totalAmount: 0 },
               claimed: { count: 0, totalAmount: 0 },
               quotation: { count: 0, totalAmount: 0 },
+              overdue: { count: 0, totalAmount: 0 },
+              claimable: { count: 0, totalAmount: 0 },
+              quotationCoveredByDeposits: 0,
             },
           }),
         });
@@ -160,7 +163,7 @@ test.describe('Invoices list page load (Scenario 1)', { tag: '@responsive' }, ()
       // Summary cards render (at least the containers)
       await expect(invoicesPage.summaryGrid).toBeVisible();
       await expect(invoicesPage.pendingSummary).toBeVisible();
-      await expect(invoicesPage.paidSummary).toBeVisible();
+      await expect(invoicesPage.claimableSummary).toBeVisible();
       await expect(invoicesPage.quotationSummary).toBeVisible();
 
       // Add Invoice button is visible

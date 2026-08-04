@@ -18,6 +18,7 @@ function makeSubsidy(overrides: Partial<LinkedSubsidy> = {}): LinkedSubsidy {
     name: 'Test Subsidy',
     reductionType: 'percentage',
     reductionValue: 10,
+    includesNoCategoryItems: false,
     ...overrides,
   };
 }

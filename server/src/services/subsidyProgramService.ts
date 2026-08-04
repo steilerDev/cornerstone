@@ -106,6 +106,7 @@ function toSubsidyProgram(db: DbType, row: typeof subsidyPrograms.$inferSelect):
     notes: row.notes ?? null,
     maximumAmount: row.maximumAmount ?? null,
     applicableCategories,
+    includesNoCategoryItems: row.includesNoCategoryItems === 1,
     createdBy: toUserSummary(createdByUser),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -241,6 +242,7 @@ export function createSubsidyProgram(
         applicationDeadline: data.applicationDeadline ?? null,
         notes: data.notes ?? null,
         maximumAmount: data.maximumAmount ?? null,
+        includesNoCategoryItems: data.includesNoCategoryItems ? 1 : 0,
         createdBy: userId,
         createdAt: now,
         updatedAt: now,
@@ -289,7 +291,8 @@ export function updateSubsidyProgram(
     data.applicationDeadline === undefined &&
     data.notes === undefined &&
     data.maximumAmount === undefined &&
-    data.categoryIds === undefined
+    data.categoryIds === undefined &&
+    data.includesNoCategoryItems === undefined
   ) {
     throw new ValidationError('At least one field must be provided');
   }
@@ -373,6 +376,10 @@ export function updateSubsidyProgram(
     if (data.categoryIds.length > 0) {
       validateCategoryIds(db, data.categoryIds);
     }
+  }
+
+  if (data.includesNoCategoryItems !== undefined) {
+    updates.includesNoCategoryItems = data.includesNoCategoryItems ? 1 : 0;
   }
 
   // Set updated timestamp

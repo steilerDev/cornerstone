@@ -124,7 +124,7 @@ test.describe('Invoices overdue card — visible (Scenario 1)', { tag: '@respons
 
       // Standard 4 cards are still present alongside the overdue card
       await expect(invoicesPage.pendingSummary).toBeVisible();
-      await expect(invoicesPage.paidSummary).toBeVisible();
+      await expect(invoicesPage.claimableSummary).toBeVisible();
       await expect(invoicesPage.quotationSummary).toBeVisible();
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);

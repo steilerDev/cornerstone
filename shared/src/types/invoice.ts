@@ -162,6 +162,10 @@ export interface InvoiceStatusBreakdown {
   claimed: InvoiceStatusSummary;
   quotation: InvoiceStatusSummary;
   overdue: InvoiceStatusSummary;
+  /** Pending + paid amounts excluding portions funded by discretionary sources */
+  claimable: InvoiceStatusSummary;
+  /** Sum of paid/claimed deposits on quotation invoices (i.e., already committed) */
+  quotationCoveredByDeposits: number;
 }
 
 /**

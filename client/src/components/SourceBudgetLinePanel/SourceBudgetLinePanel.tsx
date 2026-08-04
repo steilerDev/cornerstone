@@ -179,7 +179,9 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
       };
     }
 
-    const childAreaIds = parentMap.get(areaId) ?? [];
+    // areaId === null is the unassigned bucket; parentMap.get(null) would return all named
+    // root areas (their parent key is null), so guard explicitly to avoid duplicating them.
+    const childAreaIds = areaId !== null ? (parentMap.get(areaId) ?? []) : [];
     const children = childAreaIds
       .sort((a, b) => areaMap.get(a)!.name.localeCompare(areaMap.get(b)!.name))
       .map((childId) => buildNode(childId, depth + 1));

@@ -202,6 +202,8 @@ const emptySummary = {
   claimed: { count: 0, totalAmount: 0 },
   quotation: { count: 0, totalAmount: 0 },
   overdue: { count: 0, totalAmount: 0 },
+  claimable: { count: 0, totalAmount: 0 },
+  quotationCoveredByDeposits: 0,
 };
 
 const populatedSummary = {
@@ -210,6 +212,8 @@ const populatedSummary = {
   claimed: { count: 0, totalAmount: 0 },
   quotation: { count: 0, totalAmount: 0 },
   overdue: { count: 0, totalAmount: 0 },
+  claimable: { count: 1, totalAmount: 15000 },
+  quotationCoveredByDeposits: 0,
 };
 
 const emptyResponse: InvoiceListPaginatedResponse = {
@@ -726,6 +730,8 @@ describe('InvoicesPage', () => {
           claimed: { count: 3, totalAmount: 900 },
           quotation: { count: 0, totalAmount: 0 },
           overdue: { count: 0, totalAmount: 0 },
+          claimable: { count: 1, totalAmount: 15000 },
+          quotationCoveredByDeposits: 0,
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithClaimed);
@@ -750,6 +756,8 @@ describe('InvoicesPage', () => {
           claimed: { count: 0, totalAmount: 0 },
           quotation: { count: 0, totalAmount: 0 },
           overdue: { count: 0, totalAmount: 0 },
+          claimable: { count: 0, totalAmount: 0 },
+          quotationCoveredByDeposits: 0,
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithZeroClaimed);
@@ -763,7 +771,7 @@ describe('InvoicesPage', () => {
       expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
     });
 
-    it('Paid card shows only paid summary data (not combined with claimed)', async () => {
+    it('Claimable card shows only claimable summary data (not combined with claimed)', async () => {
       const responseWithSeparateData: InvoiceListPaginatedResponse = {
         ...populatedResponse,
         summary: {
@@ -772,6 +780,8 @@ describe('InvoicesPage', () => {
           claimed: { count: 3, totalAmount: 900 },
           quotation: { count: 0, totalAmount: 0 },
           overdue: { count: 0, totalAmount: 0 },
+          claimable: { count: 2, totalAmount: 12000 },
+          quotationCoveredByDeposits: 0,
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithSeparateData);
@@ -786,12 +796,12 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Claimable').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
       });
 
-      // Paid total is €5,000 and claimed total is €900 — they must appear as separate amounts
-      expect(screen.getByText(fmtCurrency(5000))).toBeInTheDocument();
+      // Claimable total is €12,000 and claimed total is €900 — they must appear as separate amounts
+      expect(screen.getByText(fmtCurrency(12000))).toBeInTheDocument();
       expect(screen.getByText(fmtCurrency(900))).toBeInTheDocument();
     });
   });
@@ -1252,6 +1262,8 @@ describe('InvoicesPage', () => {
         claimed: { count: 0, totalAmount: 0 },
         quotation: { count: 0, totalAmount: 0 },
         overdue: { count: 0, totalAmount: 0 },
+        claimable: { count: 1, totalAmount: 10000 },
+        quotationCoveredByDeposits: 0,
       },
     };
 
