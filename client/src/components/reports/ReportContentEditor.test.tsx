@@ -106,6 +106,7 @@ const LABELS: ReportContentLabels = {
   sourceType: 'REPORT_SOURCE_TYPE_LABEL',
   reference: 'REPORT_REFERENCE_LABEL',
   generatedAt: 'REPORT_GENERATED_AT_LABEL',
+  pageLabel: 'REPORT_PAGE_LABEL',
 };
 
 function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
