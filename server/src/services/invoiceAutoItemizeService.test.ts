@@ -172,6 +172,8 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmProvider: 'openai',
     autoItemizeEnabled: true,
     llmEnabled: true,
+    authRateLimitMax: 20,
+    authRateLimitWindow: '15 minutes',
     ...overrides,
   };
 }
