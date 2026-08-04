@@ -615,3 +615,52 @@ keeps both `tbody tr` rows and the mobile card list in the DOM, so the loops beh
 viewports. Three non-blocking follow-ups (loop-vs-seeded-row discriminating power, non-worker-scoped
 `no-match-<ts>` email, positional cell indices vs column preferences) — all recorded in
 [[recurring-patterns]].
+
+## #1966 + #1969 / PR #1986 — column-toggle E2E coverage + testPrefix decoupling
+
+Round 1 CHANGES_REQUIRED (`${API}` object-interpolation making AC3 vacuous; untagged test claiming
+three-viewport coverage; `no-empty-pattern` lint error; over-claiming test title). Round 2 (`9e4b0e57`)
+still CHANGES_REQUIRED — but on a gap **my own round-1 review created**, see below.
+
+### I told them to trim a title when the AC required the assertion (my error)
+
+Round 1 I wrote "neither `<td>` cells nor remount reset is required by AC1-AC4, so the cheap fix is to trim
+the title" — without re-reading AC1, which bolds "the corresponding `<th>` **and every matching `<td>**`…
+asserts **both** return". They trimmed, as instructed, and the required assertion stayed missing.
+**Rule: when a test title over-claims, re-read the AC before recommending the trim.** An over-claiming title
+has two fixes and they are not interchangeable — trimming is only correct once you have confirmed no AC
+demands the named behavior. Getting this backwards converts a MEDIUM cosmetic finding into a silently
+dropped requirement, and costs an extra review round on top.
+
+### `page.route` does not intercept `page.request.*`
+
+`page.route` only sees requests from the **browser context**. `page.request.patch()` / any
+`APIRequestContext` call bypasses it. So the positive control for a route guard must be
+`page.evaluate(() => fetch(...))`, not `page.request.*` — my round-1 fix spec suggested
+`page.request.patch()` for exactly this purpose, which would have failed and looked like a broken matcher.
+The author correctly used `page.evaluate`. Ordering is deterministic without any wait: the Node-side handler
+pushes before `route.continue()`, so the in-page `await fetch` cannot resolve until the capture has happened.
+
+### Other verified facts from this review
+
+- `--report-unused-disable-directives` is the cheap way to prove an `eslint-disable` is live rather than
+  cargo-culted — run it whenever a PR adds a suppression.
+- `Detect Changes` **skips `Static Analysis` entirely** on `e2e/`+`.claude/`-only PRs, so on those PRs the
+  local lint policy is the only lint gate that exists at all (weaker even than the usual "CI runs no ESLint").
+- AC premise error in #1969 AC2: asks that `testPrefix` "values differ" between two tests in one file, but
+  the value is `E2E-<project><workerIndex>` — identical within a worker despite `{ scope: 'test' }`.
+  Flagged to product-owner for amendment rather than designed around (cf. the AC-premise-error rule).
+- AC4's own suggested rationale ("the mobile card list exposes no column toggles") is factually wrong for
+  `ReportContentEditor` — the card layout gates every row on the same `show()` predicate. The desktop-only
+  exclusion is a limitation of the `columnheader` locator under `display: none`, not an absence of toggles.
+
+### Round 3 (`4cf5a735`) — APPROVED
+
+The `<td>` gap was fixed the right way: `getByRole('cell', { name: <vendor name>, exact: true })` with a
+**baseline `toHaveCount(1)` before the toggle** and `toHaveCount(1)` again after re-checking. That baseline is
+what makes the `toHaveCount(0)` non-vacuous — insist on it every time a test asserts an element's absence.
+Verified chain: `<td>{row.vendor}</td>` (ReportContentEditor.tsx:251) ← `vendor: invoice.vendorName`
+(buildReportContent.ts:200) ← `vendorName: vendors.name` join (invoiceService.ts:272).
+
+Remaining non-blocking: unformatted new line (Prettier, invisible to CI on e2e-only PRs), stale AC4 docstring
+paragraph, hardcoded preferences glob ×3, #1969 AC2 premise error (product-owner).

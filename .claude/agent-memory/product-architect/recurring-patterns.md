@@ -614,3 +614,44 @@ deactivated users). Consequences for review:
   `parallelIndex` would make `createLocalUserViaApi`'s `expect(response.ok())` fail and mask the real
   failure. Require `${testPrefix}-${Date.now()}@e2e-test.local` (precedent: `i18n-categories.spec.ts`).
 - `deleteUserViaApi` ignores the response status, so cleanup failures in this family are always silent.
+
+## `page.route()` matcher traps in e2e specs (PR #1986)
+
+Two independent ways a route-interception assertion becomes vacuous, both invisible to CI:
+
+1. **`API` is an object map**, not a string (`e2e/fixtures/testData.ts:39`). `` page.route(`${API}/users/me/preferences`) `` interpolates to the glob `[object Object]/users/me/preferences`, which matches nothing — so `expect(captured).toHaveLength(0)` passes forever. The repo convention is `` `**${API.<key>}` `` (property access + `**` prefix); `reportWizardEditableContent.spec.ts:969,998` do it right. ESLint's `restrict-template-expressions` would flag it but **CI runs no ESLint** (`static-analysis` = `npm audit signatures` + `typecheck` + `Stylelint` only).
+2. Any **negative** route assertion (`toHaveLength(0)`, `not.toHaveBeenCalled`) is indistinguishable from a broken matcher. Always require the author to prove the matcher fires once (assert `1` against a deliberate request, then invert) before accepting the guard.
+
+## "Runs at all three viewports" is false unless the test is `@responsive`-tagged
+
+`e2e/playwright.config.ts`: `tablet` (iPad gen 7, 810px, webkit) and `mobile` (iPhone 13, 390px, webkit)
+projects both set `grep: /@responsive/`. An untagged test runs **desktop only** — reject any AC/docstring
+claiming multi-viewport coverage without `{ tag: '@responsive' }`.
+
+Adding the tag is not a free fix when the component has a **dual layout in the DOM**: `ReportContentEditor`
+renders both a `<table>` and a `.mobileCardList`, CSS-gated at `@media (max-width: 767px)`. `display: none`
+drops the table from the a11y tree, so `getByRole('columnheader')` is 0 at mobile *regardless of state* —
+`toHaveCount(0)` passes vacuously and `toHaveCount(1)` fails. Layout-dependent assertions must branch on
+viewport (assert `.mobileCardRow` captions at mobile). Scenario 1b in that spec is the precedent guard.
+
+Related smell from the same PR: a test **title** naming behavior the body never asserts ("reset on remount",
+"`<td>` cells" when only `<th>` is checked) — a coverage illusion; trim the title or add the assertions.
+
+### Accessible-name locators: what they are and are not immune to (#1966 round 3)
+
+`getByRole(..., { name })` computes the name from **DOM text**, so it is immune to CSS `text-transform` —
+the opposite of `innerText`/`toHaveText` assertions, which fail on transformed labels. Prefer the role+name
+form when a component may style its casing.
+
+Two follow-on facts worth reusing:
+- An embedded control inside a name-from-content traversal contributes its **value**, not its `aria-label`.
+  So an `EditableField` whose `ariaLabel` interpolates a neighbouring column's text cannot inflate the
+  containing cell's accessible name (and `exact: true` guards even if it could).
+- `role=cell` / `role=columnheader` exposure depends on the table keeping table semantics — a `display: block`
+  or `display: flex` on the `<table>` strips them in Chromium and silently zeroes such locators. Before
+  trusting a new `cell` assertion, confirm a sibling `columnheader` assertion already passes in CI; both rest
+  on the same exposure.
+
+Absence assertions need a **positive baseline in the same test** (`toHaveCount(1)` before, `toHaveCount(0)`
+after). Without it, a typo'd or mis-scoped locator makes the absence check pass on nothing. With it, every
+mis-scoping fails loudly instead — that property is the review bar, not the assertion count.
