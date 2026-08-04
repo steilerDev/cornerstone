@@ -32,12 +32,14 @@ test.describe('Search Users', () => {
   });
 
   test('Search filters by email', async ({ page, testPrefix }) => {
-    // AC1: use testPrefix (unique per worker, e.g. "E2E-des0") as the search term so
-    // this test does not collide with accumulated suite users that share "e2e-test".
+    // AC1: use testPrefix (unique per worker) as the search term so this test does not
+    // collide with accumulated suite users that share "e2e-test".
     // AC2: assert filtering actually worked — matchUser IS present, noMatchUser IS absent.
-    // AC3: both seed users are deleted in the finally block regardless of mid-test failure.
-    const matchEmail = `${testPrefix}@match.example.com`;
-    const noMatchEmail = `no-match-${Date.now()}@other.example.com`;
+    // AC3: both seed users are deactivated (soft delete) in the finally block regardless of failure.
+    // Use Date.now() suffix so the email is unique even if a prior run left a deactivated row
+    // with the same address (POST /api/users 409s on deactivated emails too).
+    const matchEmail = `${testPrefix}-${Date.now()}@e2e-test.local`;
+    const noMatchEmail = `no-match-${Date.now()}@e2e-test.local`;
     let matchUserId: string | null = null;
     let noMatchUserId: string | null = null;
 
@@ -129,9 +131,15 @@ test.describe('Search Users', () => {
 
     // Then: Should still find matching users
     const rows = await userManagementPage.getUserRows();
-    // AC4 audit: the adminRow not-null check below is the meaningful positive assertion;
-    // rows.length > 0 is a redundant sanity guard (acceptable alongside the membership check).
     expect(rows.length).toBeGreaterThan(0);
+
+    // Universal negative: every rendered row must match — checks both name and email cells
+    // because UserManagementPage.tsx filters on `displayName || email` (a name-only check
+    // would false-fail rows that matched by email).
+    for (const row of rows) {
+      const cells = await row.locator('td').allTextContents();
+      expect(`${cells[0]} ${cells[1]}`.toLowerCase()).toContain('admin');
+    }
 
     const adminRow = await userManagementPage.getUserRow(TEST_ADMIN.email);
     expect(adminRow).not.toBeNull();
@@ -151,9 +159,14 @@ test.describe('Search Users', () => {
 
     // Then: Results should update
     const partialRows = await userManagementPage.getUserRows();
-    // AC4 audit: adminRow not-null check below is the positive membership assertion;
-    // rows.length > 0 alone would pass even if search does nothing.
     expect(partialRows.length).toBeGreaterThan(0);
+
+    // Universal negative: every row must contain 'ad' in name or email
+    for (const row of partialRows) {
+      const cells = await row.locator('td').allTextContents();
+      expect(`${cells[0]} ${cells[1]}`.toLowerCase()).toContain('ad');
+    }
+
     const adminRowPartial = await userManagementPage.getUserRow(TEST_ADMIN.email);
     expect(adminRowPartial, `Expected ${TEST_ADMIN.email} in results for "Ad"`).not.toBeNull();
 
@@ -161,10 +174,17 @@ test.describe('Search Users', () => {
     await userManagementPage.searchInput.fill('Admin');
     await page.waitForTimeout(400);
 
-    // Then: Results should update again
+    // Then: Results should update again (narrower query → no more rows than before)
     const fullRows = await userManagementPage.getUserRows();
-    // AC4 audit: same pattern — positive membership check makes the > 0 guard meaningful.
     expect(fullRows.length).toBeGreaterThan(0);
+    expect(fullRows.length).toBeLessThanOrEqual(partialRows.length);
+
+    // Universal negative: every row must contain 'admin' in name or email
+    for (const row of fullRows) {
+      const cells = await row.locator('td').allTextContents();
+      expect(`${cells[0]} ${cells[1]}`.toLowerCase()).toContain('admin');
+    }
+
     const adminRowFull = await userManagementPage.getUserRow(TEST_ADMIN.email);
     expect(adminRowFull, `Expected ${TEST_ADMIN.email} in results for "Admin"`).not.toBeNull();
   });

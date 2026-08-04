@@ -563,3 +563,35 @@ definitions disagree?" and require exactly that fixture.
 Stylelint. No `format:check`, no ESLint. So `npx prettier --check <changed files>` on review is worth the
 ten seconds: #1984 shipped two violations (a 101-char inline return type, and a rider edit left
 artificially wrapped after the expression shortened) that nothing downstream would have caught.
+
+## Positive membership on a *shared fixture* row is not a filtering assertion (#1971, PR #1985)
+
+The stock "fix" for `expect(rows.length).toBeGreaterThan(0)` is to add
+`expect(await getUserRow(TEST_ADMIN.email)).not.toBeNull()`. That closes nothing: the shared admin/fixture
+row is present in the **unfiltered** list too, so the assertion passes verbatim when the filter is a no-op.
+A filtering assertion needs one of:
+
+- a **universal negative** — loop every rendered row and assert it contains the query, or
+- a **seeded non-matching row** asserted absent (the shape the `filters by email` rewrite in #1985 got right).
+
+Watch for the comment that ships alongside it claiming the new positive check "makes the `> 0` guard
+meaningful" — a documented-but-false guarantee is worse than the bare `> 0`, because the next maintainer
+stops looking. Block on the comment/code conflict even if the assertion itself is a mild improvement.
+
+Detail that bites when writing the universal-negative loop: `UserManagementPage.tsx` filters on
+`displayName || email`, so assert on `` `${cells[0]} ${cells[1]}` `` — a name-cell-only check produces false
+failures for rows that matched by email.
+
+## E2E user "cleanup" never frees the email — DELETE /api/users is a soft delete
+
+`server/src/routes/users.ts` DELETE sets `deactivatedAt`; `userService.listUsers` returns deactivated rows
+and the user-management page applies no default status filter. So `deleteUserViaApi` leaves the row visible
+for the rest of the run, and `POST /api/users` still 409s on that email (`findByEmail` does not exclude
+deactivated users). Consequences for review:
+
+- A `finally`-block "delete" comment claiming the DB is left clean is wrong — say *deactivated*.
+- Deterministic seed emails (`${testPrefix}@…`) are one-shot per DB. Currently masked because Playwright
+  gives a retried test a fresh `workerIndex` (so `testPrefix` differs), but `--repeat-each` or a switch to
+  `parallelIndex` would make `createLocalUserViaApi`'s `expect(response.ok())` fail and mask the real
+  failure. Require `${testPrefix}-${Date.now()}@e2e-test.local` (precedent: `i18n-categories.spec.ts`).
+- `deleteUserViaApi` ignores the response status, so cleanup failures in this family are always silent.
