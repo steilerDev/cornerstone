@@ -774,3 +774,15 @@ in a comment. `if (… && !report && !appliedRef.current)` — `!report` was the
 a ref and a nine-line comment. Removing the redundant condition also removes `report` from the effect's
 dep array, making "clearing report cannot re-fire this" structural. Look for this shape in any fix that
 _added_ a guard without deleting what it guards against.
+
+### A total-object tier factory only forces a decision in the cases that spread it (PR #1988 review)
+
+Follow-up to the `Pick<>` entry above: getting the factory right is necessary but not sufficient. A named
+tier type + annotated total-literal factory produces the compile error, but **any reducer case that
+hand-lists that tier's fields instead of spreading the factory keeps the hole** — the new field silently
+defaults to _kept_ there. PR #1988 had `freshContentTier()` correct and then bypassed it in `SELECT_SOURCE`
+and `DISCARD_EDITS`, the two cases that clear content state, because each needed one field _preserved_
+(`aiError`). Reviewing a tier-factory design: grep every case for the tier's field names appearing as
+literal keys; each hit is an unenforced case. The fix is always the same shape — spread the factory, then
+name the exception on the next line (`...freshContentTier(), aiError: state.aiError`), which is
+behaviour-identical and makes the KEEP the thing that is written down rather than the CLEAR.

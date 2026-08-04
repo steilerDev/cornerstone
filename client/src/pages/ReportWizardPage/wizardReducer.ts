@@ -149,17 +149,15 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       };
 
     case 'SELECT_SOURCE':
-      // M-I: SELECT_SOURCE does NOT call freshContentTier() — it preserves aiError.
-      // Current handleSourceChange never clears aiError; that behavior is encoded here.
+      // M-I: preserve aiError by spreading freshContentTier() then overriding aiError back.
+      // Adding a future ContentTier field will be caught here at compile time.
       return {
         ...state,
         ...freshReportTier(),
         reportRequestId: action.payload.requestId,
+        ...freshContentTier(),
+        aiError: state.aiError,
         sourceId: action.payload.sourceId,
-        overrides: {},
-        aiContent: null,
-        aiRequestId: null,
-        // aiError: preserved (state.aiError untouched — do NOT add aiError: '' here)
         currentStep: Math.min(state.currentStep, 3),
         maxReachedStep: 3,
       };
@@ -260,11 +258,10 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return { ...state, aiError: action.payload.error };
 
     case 'DISCARD_EDITS':
+      // M-I: spread freshContentTier() for AC4 enforcement, then override aiError conditionally.
       return {
         ...state,
-        overrides: {},
-        aiContent: null,
-        aiRequestId: null,
+        ...freshContentTier(),
         aiError: state.aiRequestId !== null ? '' : state.aiError,
       };
 

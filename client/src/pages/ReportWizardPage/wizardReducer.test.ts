@@ -766,9 +766,7 @@ describe('Selectors', () => {
   it('isGeneratingOnly: true when generating and no manual edits and no aiContent', () => {
     // Generating, no overrides, no aiContent → true
     expect(
-      isGeneratingOnly(
-        makeState({ aiRequestId: 'req-1', overrides: {}, aiContent: null }),
-      ),
+      isGeneratingOnly(makeState({ aiRequestId: 'req-1', overrides: {}, aiContent: null })),
     ).toBe(true);
 
     // Has manual edits → false
@@ -786,11 +784,9 @@ describe('Selectors', () => {
     ).toBe(false);
 
     // Not generating → false
-    expect(
-      isGeneratingOnly(
-        makeState({ aiRequestId: null, overrides: {}, aiContent: null }),
-      ),
-    ).toBe(false);
+    expect(isGeneratingOnly(makeState({ aiRequestId: null, overrides: {}, aiContent: null }))).toBe(
+      false,
+    );
   });
 });
 
