@@ -23,7 +23,7 @@ import { REPORT_CONTENT_LIMITS } from './contentLimits.js';
 import type { GenerateReportContentLlmInput, GenerateReportContentLlmInvoice } from './types.js';
 
 // Fixtures directory resolved from project root (process.cwd() = project root when jest runs)
-const FIXTURES_DIR = resolve(process.cwd(), 'server/src/services/budgetExtraction/fixtures');
+const FIXTURES_DIR = resolve(process.cwd(), 'server/src/services/llmGateway/fixtures');
 
 describe('SYSTEM_PROMPT', () => {
   it('mentions German construction invoice domain scoping', () => {

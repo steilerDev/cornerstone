@@ -33,7 +33,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
 // Fixtures directory resolved from project root (process.cwd() = project root when jest runs)
-const FIXTURES_DIR = resolve(process.cwd(), 'server/src/services/budgetExtraction/fixtures');
+const FIXTURES_DIR = resolve(process.cwd(), 'server/src/services/llmGateway/fixtures');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

@@ -4,6 +4,7 @@
  * No PDF-specific markup; no pdfmake Content objects.
  */
 import type { TFunction } from 'i18next';
+import { computeIncludedTotal } from '@cornerstone/shared';
 import type {
   SourceReportResponse,
   SourceReportType,
@@ -218,9 +219,7 @@ export function buildReportContent(
   // Build summary rows (single total row only)
   const summaryRows: ReportContentSummaryRow[] = [];
 
-  const includedTotal = report.invoices
-    .filter((inv) => includedInvoiceIds.has(inv.invoiceId))
-    .reduce((sum, inv) => sum + inv.allocatedAmount, 0);
+  const includedTotal = computeIncludedTotal(report, Array.from(includedInvoiceIds), new Set());
 
   const totalAmountText = reportFormatters ? reportFormatters.formatCurrency(includedTotal) : '—';
   summaryRows.push({

@@ -13,11 +13,12 @@ import type {
   GenerateReportContentLlmInvoice,
   GenerateReportContentLlmInvoiceLine,
   GenerateReportContentLlmResult,
-} from './budgetExtraction/types.js';
-import { getProvider } from './budgetExtraction/index.js';
+} from './llmGateway/types.js';
+import { getProvider } from './llmGateway/index.js';
 import { getSourceReport } from './sourceReportService.js';
 import { EmptySelectionError } from '../errors/AppError.js';
 import type { AppConfig } from '../plugins/config.js';
+import { computeIncludedTotal } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -61,14 +62,15 @@ export async function generateReportContent(
 
   // Build excludedLineIds Set for fast lookup
   const excludedLineIds = new Set(body.excludedLineIds ?? []);
+  const includedInvoiceIdSet = new Set(includedInvoiceIds);
 
-  // Compute includedTotal using excluded lines logic
-  // (mirrors client's applyLineExclusions: sum allocatedAmount of non-excluded lines)
-  // Also track per-invoice exclusion-adjusted amounts for LLM input
-  let includedTotal = 0;
+  // Compute includedTotal using shared utility
+  const includedTotal = computeIncludedTotal(report, includedInvoiceIds, excludedLineIds);
+
+  // Build per-invoice exclusion-adjusted amounts for LLM input
   const invoiceAmountsAdjusted = new Map<string, number>();
   for (const inv of report.invoices) {
-    if (!includedInvoiceIds.includes(inv.invoiceId)) {
+    if (!includedInvoiceIdSet.has(inv.invoiceId)) {
       continue; // Not in included set
     }
     // Start with invoice's allocated amount
@@ -82,14 +84,11 @@ export async function generateReportContent(
     // Round to nearest cent (hundredth)
     invContribution = Math.round(invContribution * 100) / 100;
     invoiceAmountsAdjusted.set(inv.invoiceId, invContribution);
-    includedTotal += invContribution;
   }
-  // Round to nearest cent
-  includedTotal = Math.round(includedTotal * 100) / 100;
 
   // Fetch invoice notes and linked-item descriptions in bulk
   const invoiceIds = report.invoices
-    .filter((inv) => includedInvoiceIds.includes(inv.invoiceId))
+    .filter((inv) => includedInvoiceIdSet.has(inv.invoiceId))
     .map((inv) => inv.invoiceId);
 
   // Fetch invoices for notes
@@ -107,7 +106,7 @@ export async function generateReportContent(
   const linkedItemIds = new Set<string>();
   const linkedItemTypes = new Map<string, 'work_item' | 'household_item'>();
   for (const inv of report.invoices) {
-    if (!includedInvoiceIds.includes(inv.invoiceId)) {
+    if (!includedInvoiceIdSet.has(inv.invoiceId)) {
       continue;
     }
     for (const line of inv.budgetLines) {
@@ -149,7 +148,7 @@ export async function generateReportContent(
   // Build GenerateReportContentLlmInput
   const llmInvoices: GenerateReportContentLlmInvoice[] = [];
   for (const inv of report.invoices) {
-    if (!includedInvoiceIds.includes(inv.invoiceId)) {
+    if (!includedInvoiceIdSet.has(inv.invoiceId)) {
       continue;
     }
 

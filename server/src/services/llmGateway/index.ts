@@ -1,5 +1,5 @@
 /**
- * Budget extraction service — orchestrates OCR text to line item extraction via LLM.
+ * LLM gateway service — orchestrates OCR text to line item extraction via LLM.
  */
 
 import { createOpenAICompatibleProvider } from './openAICompatibleProvider.js';
@@ -13,10 +13,10 @@ import { LlmNotConfiguredError } from '../../errors/AppError.js';
  *
  * @param config - Application configuration
  * @returns BudgetExtractionProvider instance
- * @throws LlmNotConfiguredError if autoItemizeEnabled is false
+ * @throws LlmNotConfiguredError if llmEnabled is false
  */
 export function getProvider(config: AppConfig): BudgetExtractionProvider {
-  if (!config.autoItemizeEnabled) {
+  if (!config.llmEnabled) {
     throw new LlmNotConfiguredError('LLM gateway is not configured');
   }
   return createOpenAICompatibleProvider({

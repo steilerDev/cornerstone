@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
     "locales": ["de"],
-    "lastUpdated": "2026-06-15"
+    "lastUpdated": "2026-08-04"
   },
   "terms": {
     "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
@@ -44,6 +44,8 @@
     },
     "Itemize": { "de": { "verb": "aufschlüsseln", "noun": "Aufschlüsselung" } },
     "Orientation": { "de": { "singular": "Ausrichtung", "plural": "Ausrichtungen" } },
-    "Correspondent": { "de": { "singular": "Korrespondent", "plural": "Korrespondenten" } }
+    "Correspondent": { "de": { "singular": "Korrespondent", "plural": "Korrespondenten" } },
+    "AI": { "de": { "singular": "KI" } },
+    "AI Assistance": { "de": { "singular": "KI-Unterstützung" } }
   }
 }

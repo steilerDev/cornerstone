@@ -57,7 +57,7 @@ export interface SourceReportInvoice {
   /** True iff the invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits. */
   isSplit: boolean;
   documents: SourceReportDocument[];
-  /** Budget line subtraction rows: all ibl lines per invoice (even portion 0). Deposit-only invoices: []. */
+  /** Budget lines allocated to this invoice for the requested source only. Other sources' lines are absent (not present with zero portion). Used as a subtraction basis for line-exclusion math. */
   budgetLines: SourceReportBudgetLine[];
   /** Deposit rows: all deposits for this invoice, filtered to untagged-or-this-source only. */
   deposits: SourceReportDeposit[];

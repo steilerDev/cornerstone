@@ -533,7 +533,7 @@ export function ReportWizardPage() {
 
   // Run AI generation
   const runAiGeneration = useCallback(async () => {
-    if (!report || !useCase) return;
+    if (!report || !useCase || !sourceId) return;
 
     const effectiveReport = applyLineExclusions(report, excludedLineIds);
     const includedInvoiceIds = Array.from(
@@ -555,7 +555,7 @@ export function ReportWizardPage() {
     try {
       const result = await generateReportContent({
         type: useCase,
-        sourceId: sourceId!,
+        sourceId,
         language: reportLanguage,
         includedInvoiceIds,
         excludedLineIds: Array.from(excludedLineIds),
