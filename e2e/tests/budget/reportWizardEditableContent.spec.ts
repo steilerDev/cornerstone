@@ -2362,7 +2362,10 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
       // ReportContentEditor uses conditional rendering (`show('vendor') && <th>…` and
       // `show('vendor') && <td>…`), so both are removed from the DOM entirely when hidden.
       const vendorHeader = page.getByRole('columnheader', { name: 'Vendor', exact: true });
-      const vendorCell = page.getByRole('cell', { name: `${testPrefix} Toggle Vendor`, exact: true });
+      const vendorCell = page.getByRole('cell', {
+        name: `${testPrefix} Toggle Vendor`,
+        exact: true,
+      });
 
       // Baseline: both are present before any toggle
       await expect(vendorHeader).toHaveCount(1);
