@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, desc, and, asc, sql, gte, lte } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { invoices, vendors, users, invoiceDeposits } from '../db/schema.js';
+import { invoices, vendors, users, invoiceDeposits, budgetSources } from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
@@ -20,9 +20,10 @@ import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
 import { onInvoiceStatusChanged } from './diaryAutoEventService.js';
 import {
   aggregateInvoiceStatusBreakdown,
+  aggregateClaimableBreakdown,
   computeFinalPaymentAmount,
   computeFinalPaymentAmounts,
-  type InvoiceDepositRow,
+  type InvoiceDepositRowWithDiscretionary,
 } from './shared/depositAggregateUtils.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -282,7 +283,8 @@ export function listAllInvoices(
   // Compute deposit-aware GLOBAL summary across ALL invoices (filter-independent).
   // The page filters only narrow the listed rows; the header summary always shows totals
   // across the entire dataset so users can see what the other filter values would yield.
-  const summaryRawRows: InvoiceDepositRow[] = db
+  // budget_sources is joined to determine which deposits are discretionary (for claimable tile).
+  const summaryRawRows: InvoiceDepositRowWithDiscretionary[] = db
     .select({
       invoice_id: invoices.id,
       invoice_amount: invoices.amount,
@@ -291,12 +293,15 @@ export function listAllInvoices(
       deposit_amount: invoiceDeposits.amount,
       deposit_status: invoiceDeposits.status,
       deposit_entry_type: invoiceDeposits.entryType,
+      deposit_is_discretionary: budgetSources.isDiscretionary,
     })
     .from(invoices)
     .leftJoin(invoiceDeposits, eq(invoiceDeposits.invoiceId, invoices.id))
+    .leftJoin(budgetSources, eq(budgetSources.id, invoiceDeposits.budgetSourceId))
     .all();
 
   const aggregated = aggregateInvoiceStatusBreakdown(summaryRawRows);
+  const { claimable, quotationCoveredByDeposits } = aggregateClaimableBreakdown(summaryRawRows);
   const finalPaymentAmountsByInvoice = computeFinalPaymentAmounts(summaryRawRows);
 
   // Compute overdue count + total: pending invoices with due_date < today (global, unfiltered)
@@ -325,6 +330,8 @@ export function listAllInvoices(
       count: overdueRow?.count ?? 0,
       totalAmount: overdueRow?.totalAmount ?? 0,
     },
+    claimable,
+    quotationCoveredByDeposits,
   };
 
   // Map rows directly (not using toInvoice()) to avoid fetching full deposits in list.
