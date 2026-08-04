@@ -580,7 +580,26 @@ stops looking. Block on the comment/code conflict even if the assertion itself i
 
 Detail that bites when writing the universal-negative loop: `UserManagementPage.tsx` filters on
 `displayName || email`, so assert on `` `${cells[0]} ${cells[1]}` `` — a name-cell-only check produces false
-failures for rows that matched by email.
+failures for rows that matched by email. Join the cells with a **space**: a query with no space in it cannot
+then be matched by bridging two adjacent cells, so no false positives.
+
+Ranking the two remedies (settled on PR #1985 round 2, APPROVED): the universal-negative loop is only
+discriminating when the table happens to contain a non-matching row. `e2e/playwright.config.ts` sets
+`fullyParallel: true` across 16 shards and `e2e/fixtures/seed.ts` seeds only the setup admin, so a test can
+land in a shard whose user table is nearly empty and a broken filter still passes vacuously. Treat the loop
+as sufficient-to-approve (it can no longer pass while wrong rows render) but the **seeded non-matching row**
+as the airtight form; ask for it as a follow-up, not a block.
+
+Positional cell indices (`cells[0]`/`cells[1]`) are coupled to `useColumnPreferences(pageKey, columns)`,
+which persists both visibility **and** order. No E2E test toggles columns on `/settings/users` today and the
+POM's `getUserRow` already assumes `td` nth(1) === email, so it is currently consistent — but a future
+column toggle silently repoints those loops at role/date text. Prefer POM accessors resolved from header
+text when this comes up again.
+
+E2E-only PRs: `Detect Changes` skips Static Analysis, unit shards, and Trailer Check, and `Quality Gates`
+runs smoke only — so the changed spec's real result lives in the 16 `E2E Tests (Shard n/16)` runs, which are
+non-gating on beta. Always tell the orchestrator to confirm the relevant shard is green on **that PR** before
+merging (see MEMORY.md's "Beta merges past red E2E").
 
 ## E2E user "cleanup" never frees the email — DELETE /api/users is a soft delete
 

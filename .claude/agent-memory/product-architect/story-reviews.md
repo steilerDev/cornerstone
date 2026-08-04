@@ -602,3 +602,16 @@ teeth (`DataTable` does not slice `items`, so a no-op search renders every user 
 Blocked on AC4: three of four audited `rows.length > 0` sites kept only a positive membership check against
 the **shared admin row**, which passes on a no-op filter — and the committed comment claimed the opposite.
 See [[recurring-patterns]] for the generalised pattern plus the soft-delete/seed-email findings.
+
+### Round 2 (`c23169f1`) — APPROVED
+
+Universal-negative loops added to `Search is case-insensitive` and both steps of `Search updates results
+dynamically`, plus `fullRows.length <= partialRows.length`. Checks that made the monotonicity assertion
+safe to accept: filtering is a client-side `useMemo` over a `users` array fetched once on mount, so both
+reads come from one snapshot and `'admin'` narrowing `'ad'` under `includes()` cannot flake. Verified
+`createLocalUser` stores the email verbatim (no lowercasing), so the POM's exact-equality `getUserRow`
+still matches the uppercase `E2E-` prefix in `${testPrefix}-${Date.now()}@…`. Also confirmed `DataTable`
+keeps both `tbody tr` rows and the mobile card list in the DOM, so the loops behave the same on all three
+viewports. Three non-blocking follow-ups (loop-vs-seeded-row discriminating power, non-worker-scoped
+`no-match-<ts>` email, positional cell indices vs column preferences) — all recorded in
+[[recurring-patterns]].
