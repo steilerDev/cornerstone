@@ -852,3 +852,100 @@ as the passing bar, not 4 of 4.
 Cheap way to find every location when adding a var: grep an _existing_ comparable var repo-wide
 (`grep -rln SESSION_DURATION --include='*.md' --include='*.yml' .`) instead of guessing which files
 need touching. It also surfaces the ADR pages that pin a default.
+
+## A guard deleted because it looked like the bug (#1303 -> #1995, PR #1998)
+
+CVE-2026-15144 was caused by a custom `keyGenerator` in `rateLimitPlugin.ts` bypassing
+`@fastify/rate-limit` 11.2.0's IPv6 /64 normalization. The fix deleted the option — correct
+direction, but the deleted block had been added deliberately by 69d90882 (#1303) as a nullish-IP
+guard, with **zero test coverage**, which is exactly why deleting it looked free. Before approving
+any deletion framed as "this override was a mistake", run `git log -S` on the removed lines and read
+the commit that introduced them. `git show <sha> --stat` touching no test file is the tell that the
+behaviour is unguarded and its removal will pass CI.
+
+Two library facts worth keeping:
+
+- **`@fastify/rate-limit` gates normalization on an _identity_ check**, `index.js:249`:
+  `params.keyGenerator === defaultKeyGenerator ? defaultKeyGenerator(req, subnet) : keyGenerator(req)`.
+  So even a custom generator written as literally `(req) => req.ip` bypasses /64 normalization. A
+  custom generator is only safe if it calls the library's exported `normalizeIP` itself
+  (typed export, `types/index.d.ts:164`; works as an ESM named import).
+- **`normalizeIP(undefined)` throws** (`ip.toLowerCase()` on line 1), and Fastify's `request.ip` is
+  typed `string` but nullable at runtime in **both** getters (`fastify/lib/request.js:231`
+  non-trustProxy — `undefined` socket or destroyed-socket `remoteAddress`; `:110` trustProxy —
+  empty `proxyAddr.all()`). 11.1.0's default returned `undefined` (shared bucket, mild); 11.2.0
+  turned the same input into a throw -> 500 on every rate-limited route. Another types-lie:
+  `tsc` cannot see it, so a nullability regression is invisible in the diff.
+
+Generalisation: when a minor version replaces a "return the raw value" default with a "transform the
+value" default, any guard written against the old milder failure mode may now be load-bearing against
+a throw. Check the version-bump PR's semantics, not just the option's name.
+
+## A CVE fix's shared-bucket test needs a negative control
+
+"These two IPv6 addresses share a bucket" passes identically if the key collapsed to a constant for
+_all_ clients — which is a self-inflicted DoS (one attacker locks out every user), i.e. the opposite
+defect. Upstream's own `test/ip-normalization.test.js` asserts the third case: a _different_ /64 gets
+a fresh bucket. Same family as "assertions that pass on nothing", but subtler — the test does catch
+the regression it was written for, and only fails to catch the over-correction.
+
+## Prettier config resolution is path-based — "was it clean before?" checks must run inside the repo
+
+Copying a file to `/tmp` and running `npx prettier --check` on it silently uses prettier **defaults**
+(printWidth 80), not the repo's `.prettierrc` (100). During the #1998 wiki pass this made a dirty file
+look clean and a clean file look dirty — the opposite of the truth, in both directions at once.
+Verify baselines with `git show HEAD:<file> > <repo>/_chk_<file>` **inside the working tree**, then delete.
+
+Related: `wiki/` is **not** in `.prettierignore` and `npm run format` globs `**/*.md`, so a repo-wide
+format touches wiki pages — including `Security-Audit.md` (security-engineer-owned) and ADR pages.
+Before committing a wiki edit, run `git -C wiki status --short` and revert any page you did not
+intend to touch; scope your own formatting to the files you edited.
+
+## Documented "absence of code" is falsified by the next commit — document the invariant instead
+
+PR #1998 fixed CVE-2026-15144 by **deleting** a `keyGenerator` override, so the natural wiki sentence
+is "`rateLimitPlugin` deliberately sets no `keyGenerator`". That documents an absence: it goes stale the
+moment anyone adds a _correct_ override, and it gives a reviewer no rule to check the new code against.
+Found live during this pass — an uncommitted working-tree change already reintroduced
+`keyGenerator: (request) => normalizeIP(request.ip ?? 'unknown')`, which is safe (normalizeIP defaults
+`ipv6Subnet = 64`) yet contradicted the sentence.
+
+Rule: state the **invariant** ("the key must always be `normalizeIP`-normalized, forwarding the
+configured `ipv6Subnet`"), then note the current mechanism as the preferred way of satisfying it, then
+enumerate the specific forbidden shapes. Applies to any fix whose diff is a deletion.
+
+**Confirmed within the same PR (#1999).** The absence-sentence was falsified before the PR even merged,
+including the "Cornerstone does not override `ipv6Subnet`" clause and both Deviation Log rows that cited
+"the deliberate absence of a `keyGenerator`" as rationale — a self-contradicting PR caught only at
+review. A Deviation Log row is not append-only history while its PR is still open: amend the Resolution
+cell (framed as "the first pass said X; PR #N invalidated that, because …") rather than stacking a
+second row about an unmerged one. Also: an override can be _mandatory_ rather than stylistic — here two
+library facts force it, so "prefer the library default" was wrong advice, not merely stale.
+
+## Verify library internals against the pinned tarball, not `node_modules`
+
+The base checkout's `node_modules/@fastify/rate-limit` was **11.1.0** while the lockfile and
+`server/package.json` pin **11.2.0** — and 11.2.0 is the version that introduced `normalizeIP` and the
+generator-identity gate. Grepping the installed copy showed _no_ `normalizeIP` at all, which reads as
+"the claim in the code comment is false" instead of "the install is stale". Worktrees have no
+`node_modules` of their own, so this is the default situation, not an edge case.
+
+Rule: before documenting or refuting a claim about a dependency's internals, check the installed version
+against the lockfile pin. If they differ, `cd /tmp && npm pack <pkg>@<pinned> && tar xzf …` and read that
+source. Cheap, exact, and it produced the file/line citations (`index.js:14` `defaultIPv6Subnet = 64`,
+`:249-251` identity gate, `:33-34` `ip.toLowerCase()` null deref) that the wiki text now rests on.
+
+## A config option consumed only inside a bypassed branch is inert, not redundant-but-harmless
+
+`rateLimitPlugin` passes `ipv6Subnet: IPV6_SUBNET` to `@fastify/rate-limit`, but 11.2.0 reads
+`params.ipv6Subnet` **only** inside the identity gate (`index.js:250`, the `keyGenerator ===
+defaultKeyGenerator` arm). With a custom generator set, that option can never influence a key. Keeping
+it is still correct — it becomes load-bearing the moment the override is deleted — but it is a _latch
+for a future state_, not the mechanism doing the work today.
+
+Rule: when reviewing "the constant is shared so the two cannot drift" rationales, check whether the
+second consumer is actually reachable. If it isn't, say so in the code comment ("intentionally redundant
+while the override exists"), otherwise the next reader sees the same value configured twice, believes the
+option delivers the behaviour, and deletes the explicit call as duplicated config — reintroducing the
+very bug. Related: a single constant referenced twice cannot "drift" at all, so that phrasing in wiki
+prose overstates the guarantee it buys.

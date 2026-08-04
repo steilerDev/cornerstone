@@ -732,3 +732,31 @@ the pin that matters. 57 tests, 100% on all four metrics. Also confirmed the one
 drag repo-wide drift with it. Carried forward non-blocking: whole-`wizardState` in a `useCallback` dep
 array, `REPORT_REFRESHED` as the last untokenized async write, `reportStatus` duplicating the page-local
 `PageStatus` union, and a comma-operator exhaustiveness guard that invites deletion.
+
+## PR #1998 — CVE-2026-15144 IPv6 /64 rate-limit key (#1995)
+
+### Round 1 — CHANGES_REQUIRED (posted via `gh pr comment`; `--request-changes` refused: own PR)
+
+Deleting the custom `keyGenerator` is the only correct shape (identity-check gate, see
+[[recurring-patterns]]), and coverage is complete — no other `keyGenerator` exists repo-wide, and the
+four route-level `config.rateLimit` blocks (`auth.ts:81`/`:145`, `users.ts:123`, `davTokens.ts:157`)
+only override `max`/`timeWindow`, so one deletion fixes login, setup, password-change, and DAV tokens
+together. 11.2.0 is correctly pinned in `server/package.json:20` + lockfile, no bump needed.
+
+MUST FIX: the deletion drops #1303's nullish-IP guard, and 11.2.0's default generator _throws_ on
+`request.ip === undefined` -> 500 on the whole auth path. Asked for
+`keyGenerator: (request) => normalizeIP(request.ip ?? 'unknown')` plus a comment, explicitly **not**
+restoring the `x-forwarded-for`/`x-real-ip` fallbacks (they read headers regardless of `TRUST_PROXY`
+— a spoofable key source; dropping them is a genuine win in this PR). Regression test can't go through
+`app.inject` (light-my-request defaults `remoteAddress` to `127.0.0.1`) — suggested exporting the
+generator as a named function and unit-testing `{ ip: undefined }` directly.
+
+Also MUST FIX: confirm `e2e/tests/proxy/proxy-setup.spec.ts:186` was green on _this PR's_ run — it is
+the test #1303 cited, and `E2E Gates` is main-only, so this merges green to beta then blocks promotion.
+
+SHOULD FIX: negative control missing from the new test; `wiki/API-Contract.md:121` +
+`wiki/Architecture.md:406` both still say "keyed on the client IP" (now the /64 for IPv6 — a whole
+household's IPv6 prefix shares one 20-per-15-min login budget, operationally meaningful for
+self-hosters), needs a Deviation Log row on each. MINOR: `wiki/Security-Audit.md:90`'s remediation
+snippet `keyGenerator: (req) => req.ip` is now precisely the vulnerable pattern — flagged to
+security-engineer rather than edited (their page). No ADR needed.
