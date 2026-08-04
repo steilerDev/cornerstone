@@ -211,6 +211,7 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       sourceType: 'Source Type',
       reference: 'Reference',
       generatedAt: 'Generated At',
+      pageLabel: 'Page',
     },
     sourceInfo: {
       sourceName: 'Home Loan',
@@ -704,6 +705,7 @@ describe('generateReportPdf', () => {
 
     const sharedModule = (await import('./shared.js')) as unknown as {
       buildPageHeader: jest.Mock;
+      buildPageFooter: jest.Mock;
     };
     // #1938: the third arg is "label: value", not the bare i18n key — the label cannot silently
     // lose its value again. labels.generatedAt='Generated At', generatedAtText='01/15/2026'.
@@ -712,6 +714,10 @@ describe('generateReportPdf', () => {
       'My Source',
       'Generated At: 01/15/2026',
     );
+    // #1993: footer must use the injected report-language label, not the ambient UI locale t().
+    // content.labels.pageLabel='Page' (set in makeContent), so the call must receive that string,
+    // not t('sourceReports.table.pageLabel') from the UI locale.
+    expect(sharedModule.buildPageFooter).toHaveBeenCalledWith('Page');
 
     // [regression #1929] On current beta this is the hardcoded [40, 40, 40, 60] — the top margin
     // equaled the LEFT margin, not a value sized to the rendered page-header footprint, so the

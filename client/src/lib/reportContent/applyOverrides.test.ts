@@ -50,6 +50,7 @@ function makeLabels(): ReportContent['labels'] {
     sourceType: 'Source Type',
     reference: 'Reference',
     generatedAt: 'Generated At',
+    pageLabel: 'Page',
   };
 }
 
