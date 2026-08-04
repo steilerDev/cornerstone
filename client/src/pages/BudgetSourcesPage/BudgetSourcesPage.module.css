@@ -484,8 +484,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--spacing-8);
-  height: var(--spacing-8);
+  width: 44px;
+  height: 44px;
   padding: 0;
   background: none;
   border: 1px solid var(--color-border);
@@ -979,6 +979,7 @@
   .editButton,
   .deleteButton,
   .expandToggle,
+  .docsToggle,
   .confirmDeleteButton {
     min-height: 44px;
   }
