@@ -162,25 +162,29 @@ function usageRunsText(text: unknown): string {
 
 // #1959: `areaText`/`attachmentsNote` are no longer separate stack sub-rows or separate
 // continuation rows — they are appended to the SAME Usage cell as the first `usageText` chunk, as
-// one trailing grey run prefixed with '\n' (see buildOverviewContent's `metaPieces`). Because
-// `buildUsageTextRuns()` tokenizes usageText into one run PER WHITESPACE-DELIMITED TOKEN, the
-// grey meta run is NEVER at a fixed index like `text[1]` — its position depends on the token count
-// of the usage text before it. Split the cell into "the usageText runs" and "the trailing grey
-// meta run (if any)" by the run's own grey color, so assertions address the two by identity rather
-// than by a positional guess that silently drifts with the fixture's word count.
+// one or more trailing grey runs prefixed with '\n' (see buildOverviewContent's `metaPieces`).
+// After #1968 the meta suffix itself routes through buildUsageTextRuns and may produce multiple
+// grey runs (one per whitespace-delimited token). Because `buildUsageTextRuns()` tokenizes
+// usageText into one run PER WHITESPACE-DELIMITED TOKEN, the grey meta run(s) are NEVER at a fixed
+// index like `text[1]` — their positions depend on the token count of the usage text before them.
+// Split the cell into "the usageText runs" and "the trailing grey meta runs (if any)" by their own
+// grey color, so assertions address the two by identity rather than by a positional guess that
+// silently drifts with the fixture's word count.
 const GREY = '#6b7280';
 
 function splitUsageCell(cell: unknown): {
   usageText: string;
   metaRun: { text: string; color?: string } | null;
+  /** Raw grey runs preserving all pdfmake run properties including wordBreak. */
+  greyRuns: { text: string; color?: string; wordBreak?: string }[];
 } {
-  const runs = (cell as { text: { text: string; color?: string }[] }).text;
+  const runs = (cell as { text: { text: string; color?: string; wordBreak?: string }[] }).text;
   if (!Array.isArray(runs)) {
     throw new Error('Usage cell .text is not a run array — buildUsageTextRuns wiring changed?');
   }
   const greyIndexes = runs.map((run, i) => (run.color === GREY ? i : -1)).filter((i) => i !== -1);
   if (greyIndexes.length === 0) {
-    return { usageText: runs.map((r) => r.text).join(''), metaRun: null };
+    return { usageText: runs.map((r) => r.text).join(''), metaRun: null, greyRuns: [] };
   }
   // Grey meta runs must be contiguous and occupy the tail of the run array (they are a suffix,
   // never interleaved into the usage prose). Multiple grey runs are allowed since #1968 routes
@@ -206,6 +210,7 @@ function splitUsageCell(cell: unknown): {
       text: greyIndexes.map((i) => runs[i]!.text).join(''),
       color: GREY,
     },
+    greyRuns: greyIndexes.map((i) => runs[i]!),
   };
 }
 
@@ -1397,6 +1402,32 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     expect(metaRun).not.toBeNull();
     expect(metaRun!.text).toBe('\nGround Floor · 1 attachment: Invoice');
     expect(metaRun!.color).toBe(GREY);
+  });
+
+  it('[#1968 regression] a space-containing meta suffix produces multiple grey runs — proves per-token emission, not the pre-fix single-run fallback', () => {
+    // 'Ground Floor' has a space. buildUsageTextRuns splits it: ['\n', 'Ground', ' ', 'Floor'].
+    // Pre-#1968 the entire suffix was ONE run — greyRuns.length === 1. Post-fix: > 1.
+    // This is the structural assertion the "revert the production hunk" test checks.
+    const row = makeRow({ invoiceId: 'inv-1', usageText: 'x', areaText: 'Ground Floor' });
+    const table = getTable(buildOverviewContent(makeContent({ rows: [row] }), new Map(), t));
+    const dataRows = table.body.slice(1, table.body.length - 1) as unknown[][];
+    const lastRow = dataRows[dataRows.length - 1]!;
+    const { greyRuns } = splitUsageCell(lastRow[lastRow.length - 1]);
+    expect(greyRuns.length).toBeGreaterThan(1);
+  });
+
+  it('[#1968 regression] a single over-wide space-free token in the meta suffix gets wordBreak: break-all on the grey run', () => {
+    // 'W'.repeat(30) exceeds both USAGE_SAFE_TOKEN_CHARS thresholds (7-col: 19, 6-col: 26).
+    // Pre-#1968, the run had no wordBreak property (single-run emit, bypassing buildUsageTextRuns).
+    // Post-fix, buildUsageTextRuns sees a token longer than safeTokenChars and flags it.
+    const overWideToken = 'W'.repeat(30);
+    const row = makeRow({ invoiceId: 'inv-1', usageText: 'x', areaText: overWideToken });
+    const table = getTable(buildOverviewContent(makeContent({ rows: [row] }), new Map(), t));
+    const dataRows = table.body.slice(1, table.body.length - 1) as unknown[][];
+    const lastRow = dataRows[dataRows.length - 1]!;
+    const { greyRuns } = splitUsageCell(lastRow[lastRow.length - 1]);
+    expect(greyRuns.length).toBeGreaterThan(0);
+    expect(greyRuns.some((r) => r.wordBreak === 'break-all')).toBe(true);
   });
 });
 

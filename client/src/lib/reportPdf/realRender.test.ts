@@ -287,11 +287,12 @@ function usageCellText(text: unknown): string {
 // buildUsageTextRuns), so it must be located by its own grey color, never by a fixed position.
 //
 // #1959 fix round: `packUsageCellRows` packs the cell's WHOLE content stream (prose + grey suffix)
-// against one page-safe budget, so a long suffix now spans SEVERAL rows — one grey run per row,
-// always the last run of its own cell. Reconstructing the suffix therefore means concatenating the
-// grey run of EVERY row in the group, not reading a single cell (see `readCellGroup` below); a
-// helper that only looked at row 0 was what let the old page-count tripwire fail for the wrong
-// reason instead of flipping.
+// against one page-safe budget, so a long suffix now spans SEVERAL rows — one or more grey runs
+// per row (after #1968 the meta suffix itself routes through buildUsageTextRuns and may produce
+// multiple grey runs, always the last run(s) of their own cell). Reconstructing the suffix
+// therefore means concatenating the grey run(s) of EVERY row in the group, not reading a single
+// cell (see `readCellGroup` below); a helper that only looked at row 0 was what let the old
+// page-count tripwire fail for the wrong reason instead of flipping.
 const META_GREY = '#6b7280';
 
 function splitUsageCell(cell: unknown): {
@@ -2625,6 +2626,30 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       },
       300000,
     );
+
+    it('[#1968 regression] a single over-wide space-free token in areaText gets wordBreak: break-all on its grey run — proves meta suffix routes through buildUsageTextRuns, not pre-fix single-run emit', async () => {
+      // 'W'.repeat(30) is the measured worst-case glyph — exceeds both USAGE_SAFE_TOKEN_CHARS
+      // thresholds (7-col: 19, 6-col: 26). No character lost (AC1) and the token carries
+      // wordBreak: 'break-all' (proves fix path was exercised, not the pre-fix bypass).
+      const overWideToken = 'W'.repeat(30);
+      const { dataRows, metaText, metaRowIndexes } = await renderCellScopeRow({
+        usageText: 'x',
+        areaText: overWideToken,
+      });
+      expect(metaText).toBe(overWideToken); // no character lost (#1968 AC1)
+      expect(metaRowIndexes.length).toBeGreaterThan(0);
+
+      // Inspect raw run array directly — splitUsageCell synthesizes { text, metaRaw } and discards
+      // wordBreak, so we bypass it for this structural assertion.
+      const metaRowIdx = metaRowIndexes[metaRowIndexes.length - 1]!;
+      const metaRowCells = dataRows[metaRowIdx] as unknown[];
+      const lastCell = metaRowCells[metaRowCells.length - 1] as {
+        text: { text: string; color?: string; wordBreak?: string }[];
+      };
+      const greyRuns = lastCell.text.filter((r) => r.color === META_GREY);
+      expect(greyRuns.length).toBeGreaterThan(0);
+      expect(greyRuns.some((r) => r.wordBreak === 'break-all')).toBe(true);
+    }, 60000);
   });
 
   // ─── #1929 round 2: AC13 header-band smoke test (scenario 20) ─────────────────────────────────
