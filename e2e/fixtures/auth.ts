@@ -22,8 +22,10 @@ export const test = base.extend<{
 
   // Unique prefix per worker+project to prevent data collisions in shared DB.
   // Format: "E2E-<3-char-project><workerIndex>" e.g. "E2E-des0", "E2E-tab2", "E2E-mob1"
+  // No auth dependency: testInfo provides all needed context without forcing a shared-admin
+  // browser context to be constructed for tests that authenticate as their own isolated user.
   testPrefix: [
-    async ({ authenticatedPage: _ap }, use, testInfo: TestInfo) => {
+    async ({}, use, testInfo: TestInfo) => {
       const project = testInfo.project.name.slice(0, 3); // "des", "tab", "mob"
       await use(`E2E-${project}${testInfo.workerIndex}`);
     },

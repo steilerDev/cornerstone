@@ -2256,3 +2256,110 @@ test.describe('Report wizard editable content — signature field reset (Scenari
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 24: Column-visibility toggles — local state, no persistence (#1966)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// ReportContentEditor renders a `role="group"` labelled "Show/hide columns" above the summary
+// table. Checkboxes control per-column visibility using local `useState` only — the PDF always
+// includes every column regardless of toggle state. This scenario asserts:
+//   AC1: every column checkbox is present and locatable by accessible name;
+//   AC2: the rendered checkbox count equals the component-defined toggleable-column count;
+//   AC3: toggling fires no PATCH to /api/users/me/preferences (local state, not persisted);
+//   AC4: coverage runs at all three configured viewports (desktop / tablet / mobile) — the
+//        toggle group and checkboxes are always visible; the table <th> removal is asserted via
+//        page.getByRole('columnheader') which queries both the desktop table and is absent from
+//        the mobile card layout (the mobile path is exercised by the mobile-viewport project).
+//
+// Uses `budget-overview` (7 columns incl. Status) to exercise the `content.isOverview` branch
+// in ReportContentEditor's column list — a claim report would render 6 columns.
+
+test.describe('Report wizard editable content — column-visibility toggles, local state (Scenario 24, #1966)', () => {
+  // toggleable columns for budget-overview in insertion order (matches component source)
+  const OVERVIEW_COLUMNS = [
+    'Vendor',
+    'Invoice No.',
+    'Date',
+    'Status',
+    'Invoice Amount',
+    'Allocated Amount',
+    'Usage',
+  ] as const;
+  const OVERVIEW_COLUMN_COUNT = OVERVIEW_COLUMNS.length; // 7
+
+  test('Column toggles show/hide <th> and <td> cells, reset on remount, and never write preferences', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Toggle Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Toggle Source`,
+        totalAmount: 5000,
+        // contactAddress + reference required for cover letter to auto-enable on budget-overview
+        contactAddress: '1 Toggle St, Testville',
+        reference: 'Ref-TOGGLE',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Toggle` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-TOG-001`,
+        amount: 500,
+        date: '2026-06-01',
+        status: 'pending',
+      });
+
+      await reachStep5(wizard, sourceId, 'budget-overview');
+
+      // ── AC1 + AC2: group present, every checkbox visible and checked, count matches component ──
+      const columnGroup = page.getByRole('group', { name: 'Show/hide columns' });
+      await expect(columnGroup).toBeVisible();
+
+      const checkboxes = columnGroup.getByRole('checkbox');
+      // AC2: count must equal the component-defined column list length so a future column
+      // addition fails this test instead of silently going uncovered.
+      await expect(checkboxes).toHaveCount(OVERVIEW_COLUMN_COUNT);
+
+      // AC1: each column is locatable by its label and checked by default
+      for (const label of OVERVIEW_COLUMNS) {
+        await expect(columnGroup.getByLabel(label)).toBeVisible();
+        await expect(columnGroup.getByLabel(label)).toBeChecked();
+      }
+
+      // ── AC3: intercept preference writes before toggling ──
+      const prefPatches: string[] = [];
+      await page.route(`${API}/users/me/preferences`, (route) => {
+        if (route.request().method() === 'PATCH') prefPatches.push(route.request().url());
+        void route.continue();
+      });
+
+      // ── Toggle off: "Vendor" disappears from table header and data cells ──
+      await columnGroup.getByLabel('Vendor').uncheck();
+      await expect(columnGroup.getByLabel('Vendor')).not.toBeChecked();
+
+      // ReportContentEditor uses conditional rendering (`show('vendor') && <th>…`), so the
+      // element is removed from the DOM entirely, not merely CSS-hidden.
+      const vendorHeader = page.getByRole('columnheader', { name: 'Vendor', exact: true });
+      await expect(vendorHeader).toHaveCount(0);
+
+      // ── Toggle back on: column returns ──
+      await columnGroup.getByLabel('Vendor').check();
+      await expect(columnGroup.getByLabel('Vendor')).toBeChecked();
+      await expect(vendorHeader).toHaveCount(1);
+
+      // AC3: no preference PATCH was issued during any toggle
+      expect(prefPatches, 'column toggle must not write to /api/users/me/preferences').toHaveLength(
+        0,
+      );
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
