@@ -1958,7 +1958,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       return { headerRow: tableItem.table.body[0]! };
     }
 
-    it('[HIGH1] "Auftragnehmer" (vendor header, real German) and "Rechnungsbetrag" (invoiceAmount header) render without throwing, full text recoverable, and both genuinely wrap to multiple lines (their real measured widths — 67.50pt/78.66pt — exceed their 45pt/48pt columns even at real, not just worst-case, glyph metrics)', async () => {
+    it('[HIGH1] "Firma" (vendor header, real German #1937 fix) and "Betrag" (invoiceAmount header) render without throwing, full text recoverable, and both fit their columns in a single rendered line', async () => {
       const { headerRow } = await renderGermanHeaderRow('budget-overview');
       const vendorHeader = headerRow[0] as { text: unknown; positions?: { pageNumber: number }[] };
       const invoiceAmountHeader = headerRow[4] as {
@@ -1966,16 +1966,18 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         positions?: { pageNumber: number }[];
       };
 
-      expect(usageCellText(vendorHeader.text)).toBe('Auftragnehmer');
-      expect(usageCellText(invoiceAmountHeader.text)).toBe('Rechnungsbetrag');
+      // #1937: DE labels changed from "Auftragnehmer"/"Rechnungsbetrag" (too wide) to
+      // "Firma"/"Betrag" (fit their 45pt/48pt columns at real Roboto glyph metrics).
+      expect(usageCellText(vendorHeader.text)).toBe('Firma');
+      expect(usageCellText(invoiceAmountHeader.text)).toBe('Betrag');
 
-      // Both are single unbroken words wider than their column even at REAL (not worst-case)
-      // metrics, per the architect's own measurement — so both must genuinely wrap across
-      // multiple rendered lines, not merely carry the flag without needing it.
+      // Both new labels are short enough to fit their columns without wrapping — each renders
+      // as exactly 1 line. This is the regression guard: a future DE translation that reintroduces
+      // a wide single-token word would push positions.length above 1.
       expect(vendorHeader.positions).toBeDefined();
-      expect(vendorHeader.positions!.length).toBeGreaterThan(1);
+      expect(vendorHeader.positions!.length).toEqual(1);
       expect(invoiceAmountHeader.positions).toBeDefined();
-      expect(invoiceAmountHeader.positions!.length).toBeGreaterThan(1);
+      expect(invoiceAmountHeader.positions!.length).toEqual(1);
     });
 
     it('[HIGH1] "Zugeordneter Betrag" (allocatedAmount header, 75pt column) is NOT force-broken mid-character — it renders as exactly 2 lines (one word per line, wrapped at the natural space), proving the conservative per-token flag on "Zugeordneter" never actually needed to invoke a mid-character split', async () => {
@@ -1995,12 +1997,12 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       expect(allocatedHeader.positions!.length).toBe(2);
     });
 
-    it('[HIGH1] the claim (6-column) shape header row also renders "Auftragnehmer"/"Rechnungsbetrag" without throwing and with full text recoverable — the same protection applies regardless of table shape', async () => {
+    it('[HIGH1] the claim (6-column) shape header row also renders "Firma"/"Betrag" without throwing and with full text recoverable — the same protection applies regardless of table shape (#1937)', async () => {
       const { headerRow } = await renderGermanHeaderRow('claim');
       const vendorHeader = headerRow[0] as { text: unknown };
       const invoiceAmountHeader = headerRow[3] as { text: unknown }; // no status column in claim shape
-      expect(usageCellText(vendorHeader.text)).toBe('Auftragnehmer');
-      expect(usageCellText(invoiceAmountHeader.text)).toBe('Rechnungsbetrag');
+      expect(usageCellText(vendorHeader.text)).toBe('Firma');
+      expect(usageCellText(invoiceAmountHeader.text)).toBe('Betrag');
     });
   });
 
@@ -2815,7 +2817,8 @@ describe('production i18n singleton — getFixedT resolves a language independen
     expect(i18n.language).toBe('en');
 
     const fixedDe = i18n.getFixedT('de', 'budget');
-    expect(fixedDe('sourceReports.table.vendor')).toBe('Auftragnehmer');
+    // #1937: DE vendor label changed from "Auftragnehmer" to "Firma" (fits the 45pt column).
+    expect(fixedDe('sourceReports.table.vendor')).toBe('Firma');
     expect(fixedDe('sourceReports.download')).toBe('PDF herunterladen');
 
     // Calling getFixedT for a different locale must not mutate the singleton's own active
@@ -2924,5 +2927,57 @@ describe('production i18n singleton — getFixedT resolves a language independen
     ) as { text: unknown | { text: string }[] }[];
     const allocatedCell = constitutedRowCells[4] as { text: { text: string }[] };
     expect(allocatedCell.text[1]!.text).toBe(' (Abschlagszahlung)');
+  });
+});
+
+// ─── #1937: DE header-label column-fit pin (AC7) ─────────────────────────────────────────────────
+//
+// Pins the DE label lengths for the two narrow fixed-width columns whose German translations
+// previously overflowed: Vendor (45pt column) and Invoice Amount (48pt column).
+//
+// Bound derivation: the Roboto font's measured average character advance at 10pt bold
+// (the table header font) is 5.19pt/char — derived from "Auftragnehmer" (13 chars) measuring
+// 67.50pt in a real render, giving 67.50 / 13 = 5.19pt/char. That yields practical column
+// capacities of floor(45 / 5.19) = 8 chars for Vendor and floor(48 / 5.19) = 9 chars for
+// Invoice Amount. A single-token DE label shorter than these bounds will fit without wrapping
+// even at the AVERAGE glyph width, not just the conservatively wide worst-case metric.
+//
+// The HIGH1 tests above exercise the same labels via a full real pdfmake render and assert
+// that each header cell resolves to exactly 1 rendered line — a stronger, renderer-level proof
+// of the same property. The length assertions here are a cheap structural guard: if a future
+// translation lands a wider single-token word, the length check fires immediately without
+// needing the full pdfmake render cycle.
+describe('#1937 AC7: DE header labels fit their narrow fixed-width columns (column-fit pin)', () => {
+  // Measured average glyph advance at 10pt bold Roboto (derived from "Auftragnehmer" real render:
+  // 67.50pt / 13 chars = 5.19pt/char). Used to compute realistic per-column character capacities.
+  const AVG_CHAR_WIDTH_PT = 5.19;
+  const VENDOR_WIDTH_PT = 45;
+  const INVOICE_AMOUNT_WIDTH_PT = 48;
+  // A single-token label this length or shorter fits without pdfmake needing to word-wrap it.
+  const VENDOR_COLUMN_CHAR_CAPACITY = Math.floor(VENDOR_WIDTH_PT / AVG_CHAR_WIDTH_PT); // 8
+  const INVOICE_AMOUNT_COLUMN_CHAR_CAPACITY = Math.floor(
+    INVOICE_AMOUNT_WIDTH_PT / AVG_CHAR_WIDTH_PT,
+  ); // 9
+
+  it('DE vendor label ("Firma") is at most VENDOR_COLUMN_CHAR_CAPACITY chars — fits the 45pt column without wrapping', () => {
+    // Uses the isolated i18next instance loaded with the real de/budget.json bundle (see beforeAll
+    // at the top of this file). The value must match the production JSON exactly.
+    const deVendorLabel = tDe('sourceReports.table.vendor');
+    expect(deVendorLabel).toBe('Firma'); // exact current value pin
+    expect(deVendorLabel.length).toBeLessThanOrEqual(VENDOR_COLUMN_CHAR_CAPACITY);
+  });
+
+  it('DE invoiceAmount label ("Betrag") is at most INVOICE_AMOUNT_COLUMN_CHAR_CAPACITY chars — fits the 48pt column without wrapping', () => {
+    const deInvoiceAmountLabel = tDe('sourceReports.table.invoiceAmount');
+    expect(deInvoiceAmountLabel).toBe('Betrag'); // exact current value pin
+    expect(deInvoiceAmountLabel.length).toBeLessThanOrEqual(INVOICE_AMOUNT_COLUMN_CHAR_CAPACITY);
+  });
+
+  it('EN vendor and invoiceAmount labels are unchanged from their baseline values', () => {
+    // EN labels are stable reference points: "Vendor" (6 chars, fits the 45pt column);
+    // "Invoice Amount" (14 chars) has an internal space so pdfmake wraps at the word boundary —
+    // it never needs break-all and is not subject to the single-token width constraint.
+    expect(tEn('sourceReports.table.vendor')).toBe('Vendor');
+    expect(tEn('sourceReports.table.invoiceAmount')).toBe('Invoice Amount');
   });
 });
