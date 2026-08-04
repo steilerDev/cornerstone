@@ -50,6 +50,7 @@ function makeSubsidy(overrides?: Partial<SubsidyProgram>): SubsidyProgram {
     notes: null,
     maximumAmount: null,
     applicableCategories: [],
+    includesNoCategoryItems: false,
     createdBy: null,
     createdAt: '',
     updatedAt: '',
