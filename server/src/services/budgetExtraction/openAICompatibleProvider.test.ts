@@ -2410,4 +2410,84 @@ describe('stripMarkup() — markup sanitization (Story #1952)', () => {
       'Report\n\nItem 1\nItem 2\n\nTotal: 5000 EUR',
     );
   });
+
+  // ── AC 3.2: markup and legitimate punctuation on the same line ─────────────
+
+  it('strips only the leading bullet and preserves the mid-line hyphen (AC 3.2)', () => {
+    expect(stripMarkup('- Pos. 3 - Dachstuhl')).toBe('Pos. 3 - Dachstuhl');
+  });
+
+  // ── Intraword underscores are not emphasis (CommonMark) ───────────────────
+
+  it('preserves snake_case identifiers with two or more underscores', () => {
+    const input = 'Feld budget_line_id wurde geprüft';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves underscore-separated reference numbers (RE_2024_117)', () => {
+    const input = 'Rechnung RE_2024_117 vom 3. Mai';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves underscores in an e-mail local part', () => {
+    const input = 'E-Mail: max_mustermann_bau@example.com';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves underscores between digits (4_5 … 6_7)', () => {
+    const input = 'Rate: 4_5 Prozent und 6_7 Prozent';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  // ── Whitespace-flanked / unpaired asterisks are not emphasis ──────────────
+
+  it('preserves two footnote asterisks on one line', () => {
+    const input = 'Preis 5 EUR* zzgl. MwSt, Rabatt 10%* auf Position 4';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves asterisks used as multiplication signs', () => {
+    const input = 'Die Kosten für Position 3 * 2 Einheiten * 5 EUR ergeben 30 EUR';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves spaced asterisks in arithmetic prose', () => {
+    const input = '2024 * 12 = Monate, 5 * 3 = 15';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  // ── German ordinals and dates are prose, not lists ────────────────────────
+
+  it('preserves a German date opening a line (15. Mai 2026)', () => {
+    const input = '15. Mai 2026 wurde die Rechnung gestellt.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves a German ordinal opening a line (2. Rate)', () => {
+    const input = '2. Rate in Höhe von 12.000 EUR ist fällig.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves a lone ordinal opening a paragraph after a blank line', () => {
+    const input = 'Sehr geehrte Damen und Herren,\n\n1. Bauabschnitt ist fertig.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves a lone ordinal mid-body (3. Bauabschnitt)', () => {
+    const input = 'Die Rechnung ging ein.\n\n3. Bauabschnitt: Dachstuhl abgeschlossen.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('still strips a genuine numbered run of three lines', () => {
+    expect(stripMarkup('1. Erster Punkt\n2. Zweiter Punkt\n3. Dritter Punkt')).toBe(
+      'Erster Punkt\nZweiter Punkt\nDritter Punkt',
+    );
+  });
+
+  // ── No trailing whitespace left behind by tag removal ─────────────────────
+
+  it('leaves no trailing whitespace after removing a trailing tag', () => {
+    expect(stripMarkup('Text <br/>')).toBe('Text');
+    expect(stripMarkup('Bericht <b>fertig</b>  ')).toBe('Bericht fertig');
+  });
 });

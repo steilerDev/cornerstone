@@ -302,42 +302,72 @@ export function validateMergeResult(body: unknown): MergeLinesLlmResult {
   };
 }
 
+/** Line-start numbered-list marker (`1. ` / `1) `). Also matches a German ordinal, so see below. */
+const NUMBERED_MARKER = /^(\d+[.)]) /;
+
 /**
  * Strips unambiguous markdown and HTML markup from an LLM-generated text field,
  * applied before length truncation (Story #1952).
  *
- * Strips: **bold**, __bold__, *italic*, _italic_ (paired markers only),
- * ATX heading markers at line-start (# through ######), leading list markers
- * at line-start (- , * , + , N. , N) ), and HTML tags (<tag>, </tag>, <br/>).
+ * Strips: **bold**, __bold__, *italic*, _italic_ (genuinely flanked markers only),
+ * ATX heading markers at line-start (# through ######), leading bullet markers at
+ * line-start (- , * , + ), numbered markers at line-start (N. , N) ) when part of a
+ * run of two or more consecutive numbered lines, and HTML tags (<tag>, </tag>, <br/>).
  *
- * Does NOT strip: mid-line hyphens (Mo-Fr, 2024-117), # inside a line
- * (Rechnung #2024-117), lone unpaired * or _, < not opening a well-formed tag
- * (Beträge < 500 EUR), \n/\n\n paragraph breaks, or German umlauts/ß/€.
+ * Does NOT strip:
+ * - mid-line hyphens (`Mo-Fr`, `2024-117`, `Pos. 3 - Dachstuhl`)
+ * - `#` inside a line (`Rechnung #2024-117`)
+ * - intraword `_` — `budget_line_id`, `RE_2024_117`, and e-mail local parts keep every
+ *   underscore, matching CommonMark, which disables intraword `_` emphasis outright
+ * - whitespace-flanked or unpaired `*` — footnote markers (`5 EUR* … 10%* …`) and
+ *   multiplication (`3 * 2 Einheiten`) survive, because a real emphasis opener is
+ *   followed by a non-space and a real closer is preceded by one
+ * - a lone line-start numbered marker: in German a trailing period marks ordinals and
+ *   dates, so `15. Mai 2026 …` and `2. Rate in Höhe von …` are prose, not lists, and
+ *   dropping the number would silently alter a bank-facing document
+ * - `<` not opening a well-formed tag (`Beträge < 500 EUR`)
+ * - `\n` / `\n\n` paragraph breaks, German umlauts, ß, €
  *
- * If stripping would leave the text empty or whitespace-only, returns the
- * original text unchanged (losing the entire body is worse than printing markers).
+ * Bullet stripping is unconditional while numbered stripping is run-gated. The asymmetry
+ * is deliberate: a leading `- ` is not idiomatic German prose, a leading `2. ` is.
+ *
+ * If stripping would leave the text empty or whitespace-only, returns the original text
+ * unchanged (losing the entire body is worse than printing markers).
  */
 export function stripMarkup(text: string): string {
   let result = text;
 
-  // Bold — double markers, run before single-marker italic to avoid partial matches
-  result = result.replace(/\*\*([^*\n]+?)\*\*/g, '$1');
-  result = result.replace(/__([^_\n]+?)__/g, '$1');
-
-  // Italic — single markers (only matches genuinely paired markers)
-  result = result.replace(/\*([^*\n]+?)\*/g, '$1');
-  result = result.replace(/_([^_\n]+?)_/g, '$1');
+  // Emphasis — CommonMark-style flanking guards. The opening delimiter must be followed
+  // by a non-space and the closing one preceded by a non-space; `_` must additionally not
+  // be intraword. Double markers run before single ones to avoid partial matches.
+  result = result.replace(/\*\*(?=\S)([^*\n]*[^\s*]|\S)\*\*/g, '$1');
+  result = result.replace(/(?<![A-Za-z0-9])__(?=\S)([^_\n]*[^\s_]|\S)__(?![A-Za-z0-9])/g, '$1');
+  result = result.replace(/\*(?=\S)([^*\n]*[^\s*]|\S)\*/g, '$1');
+  result = result.replace(/(?<![A-Za-z0-9])_(?=\S)([^_\n]*[^\s_]|\S)_(?![A-Za-z0-9])/g, '$1');
 
   // ATX headings — line-start only (gm: ^ anchors to each line start)
   result = result.replace(/^#{1,6} /gm, '');
 
-  // List markers — line-start only; preserve rest of line and all line breaks
-  result = result.replace(/^(?:[-*+]|\d+[.)]) /gm, '');
+  // Bullet markers — line-start only; preserve rest of line and all line breaks
+  result = result.replace(/^[-*+] /gm, '');
+
+  // Numbered markers — only inside a run of >=2 consecutive numbered lines, so a lone
+  // German ordinal or date at a line start is left intact.
+  const lines = result.split('\n');
+  const isNumbered = lines.map((line) => NUMBERED_MARKER.test(line));
+  result = lines
+    .map((line, i) =>
+      isNumbered[i] === true && (isNumbered[i - 1] === true || isNumbered[i + 1] === true)
+        ? line.replace(NUMBERED_MARKER, '')
+        : line,
+    )
+    .join('\n');
 
   // HTML tags — remove open/close/self-closing; keep inner content
   result = result.replace(/<\/?[a-zA-Z][a-zA-Z0-9]*(?:\s[^>]*)?\/?>/g, '');
 
-  return result.trim() === '' ? text : result;
+  const trimmed = result.trim();
+  return trimmed === '' ? text : trimmed;
 }
 
 /**
