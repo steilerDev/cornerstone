@@ -20,19 +20,18 @@ ADR-034 in future reviews instead of re-deriving. **ADR-035 is the next free num
 
 ## Module seams (good decomposition, keep it)
 
-| Module              | Role                                                            |
-| ------------------- | --------------------------------------------------------------- |
-| `loader.ts`         | Lazy `import()` of both packages, promise-cached                |
-| `shared.ts`         | Page header/footer builders, table layout, PDF formatters       |
-| `coverLetterPdf.ts` | Pure fn: report -> cover-letter `Content[]`                     |
-| `overviewPdf.ts`    | Pure fn: report -> overview-table `Content[]`                   |
-| `merge.ts`          | Orchestration: fetch docs, build, pdfmake render, pdf-lib merge |
-| `sinks.ts`          | Output: download / preview blob URL / upload to Paperless       |
-| `types.ts`          | `ReportPdfOptions`, `GeneratedReport`, `SkippedDocument`        |
+**The authoritative module table is ADR-034's** (corrected 2026-08-04, issue #1914) — read it there
+rather than duplicating it here, since this copy drifted twice. Current shape: `loader.ts`,
+`pageGeometry.ts` (sole owner of the pt coordinate system, extracted #1939), `shared.ts` (header/footer
+builders + `TABLE_LAYOUT` callbacks, **no formatters, no geometry constants**), `coverLetterPdf.ts`,
+`overviewPdf.ts`, `merge.ts`, `sinks.ts`, `types.ts`, `index.ts`.
 
-Builders are pure and take `t: TFunction` -- they cannot use hooks, which is exactly why locale
-and currency get dropped (see [[story-reviews]] B3). Anything locale-dependent must be threaded
-in as a parameter.
+Builders are pure -- they cannot use hooks, which is exactly why locale and currency got dropped
+(see [[story-reviews]] B3). Anything locale-dependent must be threaded in as a parameter. Since #1900
+the builders take `(reportContent: ReportContent, …, t: TFunction)` and **no formatters at all**:
+`buildReportContent` is the single place `reportFormatters` is applied. The residual `t` covers only
+generation-time strings (`*N` skip-note reasons, cover-letter `Reference:`/`Subject:` prefixes) and is
+always `reportT`.
 
 ## Lazy-loading contract (fragile -- verify on every change)
 
@@ -107,11 +106,12 @@ Node API cannot expose computed widths is **wrong** — it can, it is just a pri
 the version. Same trick measures text: `pdfkit` + the Roboto TTF out of `vfs_fonts` gives
 `doc.widthOfString(s)` for exact fit checks (avg lowercase prose char ~4.68pt @10pt Roboto).
 
-**Page geometry is scattered across three files** (`PAGE_TOP_MARGIN` in `shared.ts`, L/R/B inline
+**Page geometry WAS scattered across four sites** (`PAGE_TOP_MARGIN` in `shared.ts`, L/R/B inline
 in `merge.ts`, printable-width prose comment in `overviewPdf.ts`, paddings in `TABLE_LAYOUT`).
-Recommended in the PR #1935 review: one `pageGeometry` module exporting `PAGE_WIDTH/HEIGHT`,
-`PAGE_MARGIN_*`, `CELL_PADDING_X`, `V_LINE_WIDTH`, `printableWidth()`, `printableHeight()`,
-`tableOffsetsTotal(cols)`, `usableColumnWidth(cols)`. `tokens.css` is explicitly NOT the answer —
+Recommended in the PR #1935 review and **since implemented as `pageGeometry.ts` (#1939)**, exporting
+`PAGE_WIDTH/HEIGHT`, `PAGE_MARGIN_*`, `CELL_PADDING_X`, `V_LINE_WIDTH`, font sizes, `PDF_STYLES`,
+`printableWidth()`, `printableHeight()`, `tableOffsetsTotal(cols)`, `usableColumnWidth(cols)`,
+`headerFootprint()`, and the derived `PAGE_TOP_MARGIN` (now 93, not 75). `tokens.css` is explicitly NOT the answer —
 the pdfmake layer is its own pt coordinate system outside the design system.
 
 **`PAGE_TOP_MARGIN` (75) is derived from a single-line-header assumption.** `buildPageHeader`
@@ -274,16 +274,40 @@ Two structurally different note kinds now share the legend block but **not** a n
 Regression to guard when adding a flag type: emitting one entry per flagged row. Assert
 `footnotes.length === N` (never `>= 1`) on a fixture where several rows share a flag.
 
-### ADR-034 debt (owed, NOT yet written — carry this forward)
+### ADR-034 debt — PAID 2026-08-04 (issue #1914)
 
-1. Add the `dontBreakRows` lesson + the "bound the rendered cell, not a field" rule + both detection recipes.
-2. **Minimum-bar rule #1 is wrong**: `table._minWidth <= 515.28` fails on correct code (`_minWidth` is the
-   widest unbreakable _word_, not the laid-out width). Correct check: `max(horizontalRatio) <= 1`.
-   B2's narrative is fine; the generalized rule was mis-transcribed.
-3. Module table drifted twice: add `pageGeometry.ts` (#1939) and `index.ts`; drop "PDF-local formatters" from
-   `shared.ts` (deleted in review round 2) and move "table layout constants" to `pageGeometry.ts`.
-4. Override-key list (line 148): drop `attachmentsNote` — unreachable since #1959.
-5. Record the fixed 6-or-7 column-count constraint above.
+All five items below are now in the wiki. Do not re-file them.
+
+1. `dontBreakRows` lesson + "bound the rendered cell, not a source field" + both detection recipes
+   (monotonic page count, channel-independence) → new section "Unbreakable rows are silently dropped",
+   plus minimum-bar rule #2 pointing at it.
+2. **Minimum-bar rule #1 corrected.** The old `table._minWidth <= 515.28` was a mis-transcription of B2's
+   _diagnostic_ into a _correctness check_. Replaced by two render-derived assertions:
+   `max(node.positions[].horizontalRatio) <= 1` and
+   `tableOffsetsTotal(cols) + sum(widths[i]._calcWidth) <= printableWidth()`. **Verified in this pass:**
+   `horizontalRatio = (x - pageMargins.left) / innerWidth`, set at `pdfmake/js/DocumentContext.js:490`.
+   `horizontalRatio` appears **nowhere in the Cornerstone codebase** — the assertion is documented but not
+   yet implemented; `realRender.test.ts` uses the `_calcWidth` sum form only.
+3. Module table rewritten: added `pageGeometry.ts` (sole owner of the pt coordinate system) and `index.ts`;
+   `shared.ts` no longer claims formatters or geometry constants. Recorded _why_ the formatters were
+   deleted (a PDF-local formatter is a second formatter bound to a different locale = B3).
+4. Override keys corrected against `reportContent/overrideKeys.ts`: `coverLetter.{sender,recipient,
+reference,subject,body,signature}` + `row.<id>.usageText`. `attachmentsNote` is gone; `signature` was
+   added with a **three-way precedence** the old flat sentence misdescribed — explicit override wins,
+   else re-derive from sender **only if `senderChanged`**, else baseline.
+5. Fixed 6-or-7 column-count constraint recorded (blocks plumbing the column toggles into the PDF).
+
+Also folded in during the same pass: the "injection is the only channel" contract (4 numbered invariants +
+grep guard, story #1899 / architect L5), the strengthened labels rule, and the `_minWidth`
+diagnostic-vs-check pointer on B2's narrative. Six Deviation Log rows added.
+
+### `merge.ts` footer locale leak — STILL OPEN (code defect, not wiki debt)
+
+`merge.ts:134` is still `buildPageFooter(t('sourceReports.table.pageLabel'))` — the **interface** `t`. With
+interface DE + report EN, page 2+ is footed `Seite 2 / 5` under an English report. Verified still present
+2026-08-04. The header was fixed in #1938; the footer was not. Fix shape: add `pageLabel` to
+`ReportContentLabels` (which is `reportT`-derived). Now recorded in ADR-034 as a known open violation —
+**needs a GitHub issue**, it has only ever been a PR-review follow-up note.
 
 ## ADR-034 legend model, corrected in PR #1979 (wiki `03ed804`)
 

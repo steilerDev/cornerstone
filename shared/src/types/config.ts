@@ -7,7 +7,10 @@ export interface AppConfigResponse {
   currency: string;
   /** VAT/sales-tax rate as a fraction (e.g. 0.19 = 19%) configured via VAT_RATE env var. Default: 0.19. */
   vatRate: number;
-  /** Whether LLM auto-itemization is enabled (all LLM env vars are set). */
+  /**
+   * Whether LLM auto-itemization is enabled (all LLM env vars are set).
+   * @deprecated Use llmEnabled instead.
+   */
   autoItemizeEnabled: boolean;
   /** Alias for autoItemizeEnabled — clearer name for LLM capabilities. Story #1901. */
   llmEnabled: boolean;

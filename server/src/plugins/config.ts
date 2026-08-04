@@ -46,7 +46,7 @@ export interface AppConfig {
   /**
    * Provider profile that shapes the outbound request body. Set explicitly
    * via `LLM_PROVIDER`, otherwise auto-detected from `LLM_BASE_URL`, with
-   * fallback to `'generic'`. See `services/budgetExtraction/providerProfiles.ts`.
+   * fallback to `'generic'`. See `services/llmGateway/providerProfiles.ts`.
    */
   llmProvider: 'openai' | 'anthropic' | 'gemini' | 'ollama' | 'generic';
   autoItemizeEnabled: boolean;
