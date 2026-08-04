@@ -680,7 +680,7 @@ describe('generateReportPdf', () => {
     expect(result.blob).toBeInstanceOf(Blob);
   });
 
-  it('pdfmake header callback omits the header on page 1, renders it on subsequent pages, and reads title/sourceName from reportContent', async () => {
+  it('pdfmake header callback omits the header on page 1, renders it on subsequent pages, and reads title/sourceName from reportContent including the generatedAt value', async () => {
     const invoice = makeInvoice();
     const report = makeReport([invoice]);
     const content = makeContent({
@@ -705,10 +705,12 @@ describe('generateReportPdf', () => {
     const sharedModule = (await import('./shared.js')) as unknown as {
       buildPageHeader: jest.Mock;
     };
+    // #1938: the third arg is "label: value", not the bare i18n key — the label cannot silently
+    // lose its value again. labels.generatedAt='Generated At', generatedAtText='01/15/2026'.
     expect(sharedModule.buildPageHeader).toHaveBeenCalledWith(
       'My Title',
       'My Source',
-      'sourceReports.table.generatedAt',
+      'Generated At: 01/15/2026',
     );
 
     // [regression #1929] On current beta this is the hardcoded [40, 40, 40, 60] — the top margin

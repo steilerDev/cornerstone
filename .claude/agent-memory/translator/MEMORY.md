@@ -106,6 +106,17 @@ New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + depos
 
 - [Audit pitfalls](audit-pitfalls.md) — incident history behind the mandatory 4-step full-coverage audit protocol: a parity-only audit missed 13 code-referenced keys (Area UI raw-key bug); loose substring greps flagged 52 false positives
 
+## PDF Column Header Short Forms Under Width Constraint (Issue #1937, 2026-08-04)
+
+`sourceReports.table.vendor` ("Auftragnehmer", 13 chars, 67.5pt) overflows its 45pt column. `sourceReports.table.invoiceAmount` ("Rechnungsbetrag", 15 chars, 78.66pt) overflows its 48pt column. Font: Roboto Bold 10pt, avg ~5.19pt/char from "Auftragnehmer" measurement.
+
+Fixes applied (following the Abschlag measured-space-constraint precedent):
+
+- `vendor`: "Auftragnehmer" → **"Firma"** (5 chars, ~26pt). Rationale: no standard German abbreviation of "Auftragnehmer" fits within 8 chars without ambiguity ("Auftr." could be Auftraggeber). "Firma" (company/firm) is universally clear to any German bank employee; column content (actual company names) makes context self-evident. Glossary note: this is a PDF column-header short form under a measured constraint — "Auftragnehmer" remains the canonical term everywhere else.
+- `invoiceAmount`: "Rechnungsbetrag" → **"Betrag"** (6 chars, ~27pt). Rationale: no abbreviation of "Rechnungsbetrag" fits in 9 chars in a `Rechnungsnr.`-style form. "Betrag" (amount) is universally clear; it is unambiguous adjacent to "Zugeordneter Betrag" (allocated amount column), which remains unchanged per AC5.
+
+General rule: when a glossary term overshoots a measured PDF column, prefer the shortest universally-understood German synonym or generic noun over a coined abbreviation that lacks standard status.
+
 ## Cover Letter Signature Block Keys (Issue #1932, 2026-08-02)
 
 `sourceReports.editable.signatureLabel` → "Unterschrift"; `sourceReports.coverLetter.closing` → "Mit freundlichen Grüßen,"; `sourceReports.editable.closingLabel` → "Grußformel". Confirmed: neither "signature" nor "closing salutation" belongs in the glossary (grep across `glossary.json` for signature/closing/Gruß terms found nothing, and these are generic letter-writing vocabulary, not Cornerstone domain terms) — did not add.

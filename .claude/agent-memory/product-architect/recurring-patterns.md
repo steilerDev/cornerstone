@@ -32,6 +32,25 @@ core formula against the original line by line — that divergence is where the 
 `splitByDepositsExcludingTagged` (PR #1894), where the residual expression was the sole difference and
 the sole defect. Prefer an options flag over a fork; when a fork ships anyway, file the collapse follow-up.
 
+### Forked *test harness* — `realRender.test.ts` re-implements merge.ts's docDefinition
+
+`renderOverviewPdfContent` (`client/src/lib/reportPdf/realRender.test.ts` ~L136-159) hand-copies
+production's pdfmake `header:`/`footer:` callbacks while its own docstring claims parity with merge.ts
+("never hand-copied — #1929 AC11"). It imports `pageMargins`/`styles` but forks the callbacks. PR #1982
+changed `merge.ts`'s header string and left the harness on the old expression, so every multi-page
+real-render test (incl. the 3-page long-`sourceName` clipping test) measures a string production no
+longer emits. **Whenever `merge.ts`'s docDefinition changes, grep this helper.** Fix direction: pass
+`content` and build the same string, rather than re-deriving it.
+
+### Proxy bound looser than the production threshold it guards
+
+PR #1982's AC7 tests bound DE header labels at `floor(width / 5.19pt)` (an *average* glyph advance) —
+8/9 chars — while production's own break trigger is `safeTokenChars(width, HEADER_WORST_CASE_CHAR_WIDTH_PT
+= 10.4pt)` = 4 chars. An 8-char wide-glyph label passes the test and still breaks in the PDF. When a test
+re-derives a width/size bound instead of importing the production constant, check which direction the
+error runs: a bound *looser* than production's greenlights the regression it exists to catch. The real
+guard there is the renderer-level `positions.length === 1` assertion.
+
 ## Test smells worth escalating in review
 
 - A combined-path test that places the two interacting entities on **different** parents proves nothing
@@ -491,7 +510,7 @@ content — and check whether the replacement text preserves _meaning_ (`(abzgl.
 
 ## Enumerated multi-site doc fixes come back half-done (PR #1979 r2)
 
-When a review finding names N sites for the same stale claim, expect the fix commit to update the *nearest*
+When a review finding names N sites for the same stale claim, expect the fix commit to update the _nearest_
 ones and miss the rest. #1979's HIGH 2 named four sites for "nothing populates `content.footnotes`"; the fix
 updated the field-declaration comment and the spec header (both adjacent to the changed assertions) and left
 the two class-docstring paragraphs — which contained the strongest form ("they can never be populated by the
@@ -501,10 +520,10 @@ Two habits that follow:
 
 - **Re-grep the literal on re-review**, never trust the fix commit's diff to cover the enumeration. One
   `grep -n -i footnote e2e/pages/ReportWizardPage.ts` found both misses instantly.
-- **Check the test *name*, not just the body.** #1979 inverted Scenario 18's assertions to `toHaveCount(1)`
+- **Check the test _name_, not just the body.** #1979 inverted Scenario 18's assertions to `toHaveCount(1)`
   but left the Playwright title reading "and no footnote list anywhere on the page". A title that states the
   inverse of its body is worse than a stale comment: it renders that way in every CI report and is the first
-  artifact a future reader uses to conclude the *body* drifted. Same for the `// Scenario NN:` block header.
+  artifact a future reader uses to conclude the _body_ drifted. Same for the `// Scenario NN:` block header.
 
 Why this is worth blocking on (I did, r2): the POM class docstring is the contract the spec header points at
 ("See `ReportWizardPage.ts`'s class docstring for the full locator reference"), so a directive there plus a
