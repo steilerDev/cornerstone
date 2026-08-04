@@ -43,7 +43,7 @@ splitKind: 'lines' | 'deposits' | 'both';
 
 Client becomes `† iff splitKind !== 'deposits'`, `‡ iff splitKind !== 'lines'` — no `.length` proxies.
 
-## `budgetLines[]` scope deviation — wiki FIXED, shared type STILL WRONG
+## `budgetLines[]` scope deviation — wiki FIXED, shared type FIXED
 
 Both `wiki/API-Contract.md` and `shared/src/types/sourceReport.ts` described `budgetLines[]` as
 _"all ibl lines per invoice (even portion 0)"_. Wrong twice over: it is all of **this source's** ibl
@@ -53,10 +53,9 @@ step h: `if (type === 'claim' && portion === 0) continue`). Pre-existing since #
 - **API-Contract.md: FIXED 2026-08-04** (issue #1914). Field description rewritten + a "Budget Line
   Scope" note added (subtraction basis not inventory; `isSplit` is the _only_ answer to multi-source
   funding; the `claim`-only zero filter) + a Deviation Log row.
-- **`shared/src/types/sourceReport.ts:60` STILL CARRIES THE WRONG JSDOC.** Classic cross-layer
-  contract drift — the wiki is now right and the type comment developers actually read is wrong.
-  Not fixed in the #1914 pass because `shared/` requires a `backend-developer` trailer under
-  Delegation Enforcement while that pass was wiki-only. Flag it on the next PR touching `shared/`.
+- **`shared/src/types/sourceReport.ts:60`: FIXED 2026-08-04** (issue #1917, PR #1994). JSDoc corrected
+  to "Budget lines allocated to this invoice for the requested source only. Other sources' lines are
+  absent (not present with zero portion). Used as a subtraction basis for line-exclusion math."
 
 ## pdfmake width gotcha (confirmed by QA on #1898)
 
