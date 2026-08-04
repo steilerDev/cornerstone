@@ -124,6 +124,9 @@ test.describe('Invoices list — empty state (Scenario 12)', { tag: '@responsive
               paid: { count: 0, totalAmount: 0 },
               claimed: { count: 0, totalAmount: 0 },
               quotation: { count: 0, totalAmount: 0 },
+              overdue: { count: 0, totalAmount: 0 },
+              claimable: { count: 0, totalAmount: 0 },
+              quotationCoveredByDeposits: 0,
             },
           }),
         });
