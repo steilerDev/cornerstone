@@ -688,7 +688,7 @@ the empty-fallback makes it incapable of emptying a valid field), prompt rule 4 
 amended not deleted with the submodule ref bumped on-branch (AC 4.1). 193/193 + 187/187 green locally.
 
 Non-blocking: `futureDateStr` now triplicated (`timeline.test.ts:151` + 2 copies) while
-`server/src/test-helpers/` exists — and the two new copies dropped the JSDoc that carries the *reason*
+`server/src/test-helpers/` exists — and the two new copies dropped the JSDoc that carries the _reason_
 (CPM today-floor on `not_started`), i.e. exactly the knowledge #1913 was filed to preserve.
 
 ### Round 2 (`857fcedd`) — APPROVED
@@ -705,3 +705,30 @@ Accepted residuals, recorded so they are not rediscovered as bugs: `<word …>` 
 stripped (INFO-1, AC 2.4's `Beträge < 500 EUR` safe via the space-after-`<` guard); a genuine German date
 list of ≥2 lines (`15. Mai: …\n16. Mai: …`) still loses its numbers, which is arguably correct (INFO-2).
 `futureDateStr` extraction to `server/src/test-helpers/dates.ts` deferred as a follow-up.
+
+## PR #1988 (#1967 dead `attachmentsNote` override + #1947 `ReportWizardPage` → `useReducer`)
+
+### Round 1 (`b503e496`) — CHANGES_REQUIRED, one HIGH
+
+The tier design I specified in the #1947 action-set review landed correctly (named tier interfaces,
+annotated total-literal factories, opaque nullable request tokens, `isGeneratingAi` derived not stored,
+the Step-2 fan-out race tokenized, `deepLinkAppliedRef` holding the applied id with `report` out of the
+dep array). H1 was that `freshContentTier()` was **bypassed** in `SELECT_SOURCE` and `DISCARD_EDITS` —
+the two cascades — because each needed `aiError` preserved, so a future 5th `ContentTier` field would
+silently default to _kept_ in exactly the handler that produced #1943 and M2. See the recurring-patterns
+entry; the fix shape is spread-the-factory-then-name-the-exception.
+
+Method note: for a behaviour-preserving refactor, **green CI is necessary but not the review**. What
+settled AC3 here was walking each silently-changed semantic and proving it unreachable — `GO_TO_STEP`
+now bumping `maxReachedStep` at every call site (no-op: step-1 Next only renders once `useCase` is set,
+and `WizardStepper` gates clickability on `maxReachedStep`), the new `Math.min` step clamps (use case is
+only selectable at step 1, source at step 2), `freshContentTier()` in `SELECT_USE_CASE` (no-op because
+`isDirty` covers all three content fields, and the dirty path dispatches `DISCARD_EDITS` first).
+
+### Round 2 (`01d8ff12`) — APPROVED
+
+Both cascades now spread the factory and override `aiError` back; the M-I test passes unmodified, which is
+the pin that matters. 57 tests, 100% on all four metrics. Also confirmed the one-file Prettier fix did not
+drag repo-wide drift with it. Carried forward non-blocking: whole-`wizardState` in a `useCallback` dep
+array, `REPORT_REFRESHED` as the last untokenized async write, `reportStatus` duplicating the page-local
+`PageStatus` union, and a comma-operator exhaustiveness guard that invites deletion.

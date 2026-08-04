@@ -10,6 +10,7 @@ New pure unit test file `client/src/pages/ReportWizardPage/wizardReducer.test.ts
 **Why:** Story #1947 extracted inline reducer logic from ReportWizardPage into a pure module; QA owns the unit tests.
 
 **Key patterns used:**
+
 - `makeState(overrides?)` helper spreads `createInitialWizardState(null)` — keeps tests minimal and focused.
 - Staleness guards tested with `toBe(state)` (same object reference) — proves the reducer short-circuits, not just "returns equivalent state".
 - M-I regression (SELECT_SOURCE must NOT clear `aiError`): tested with a comment that the guard must fail if someone adds `aiError: ''` to that case.
