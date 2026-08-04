@@ -934,3 +934,18 @@ Rule: before documenting or refuting a claim about a dependency's internals, che
 against the lockfile pin. If they differ, `cd /tmp && npm pack <pkg>@<pinned> && tar xzf …` and read that
 source. Cheap, exact, and it produced the file/line citations (`index.js:14` `defaultIPv6Subnet = 64`,
 `:249-251` identity gate, `:33-34` `ip.toLowerCase()` null deref) that the wiki text now rests on.
+
+## A config option consumed only inside a bypassed branch is inert, not redundant-but-harmless
+
+`rateLimitPlugin` passes `ipv6Subnet: IPV6_SUBNET` to `@fastify/rate-limit`, but 11.2.0 reads
+`params.ipv6Subnet` **only** inside the identity gate (`index.js:250`, the `keyGenerator ===
+defaultKeyGenerator` arm). With a custom generator set, that option can never influence a key. Keeping
+it is still correct — it becomes load-bearing the moment the override is deleted — but it is a _latch
+for a future state_, not the mechanism doing the work today.
+
+Rule: when reviewing "the constant is shared so the two cannot drift" rationales, check whether the
+second consumer is actually reachable. If it isn't, say so in the code comment ("intentionally redundant
+while the override exists"), otherwise the next reader sees the same value configured twice, believes the
+option delivers the behaviour, and deletes the explicit call as duplicated config — reintroducing the
+very bug. Related: a single constant referenced twice cannot "drift" at all, so that phrasing in wiki
+prose overstates the guarantee it buys.
