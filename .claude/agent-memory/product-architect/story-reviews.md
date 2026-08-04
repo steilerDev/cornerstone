@@ -533,7 +533,7 @@ interface `t` returns the bare key, so a regression to `t()` fails rather than p
 
 Findings, all non-blocking: M1 forked harness header callback; M2 average-vs-worst-case bound in the new
 AC7 tests; M3 four stale `Auftragnehmer`/`Rechnungsbetrag` cross-references (the `buildHeaderCell`
-docstring one matters — it could lead someone to delete break-all protection vendor *data* still needs);
+docstring one matters — it could lead someone to delete break-all protection vendor _data_ still needs);
 M4 undocumented glossary divergence (`Vendor` → `Auftragnehmer` vs `Firma`); L6 follow-up: `merge.ts:134`
 footer page label still uses the interface `t`.
 
@@ -541,3 +541,36 @@ footer page label still uses the interface `t`.
 (break-all is the fallback, a shorter label is the fix, real-render single-line assertion is the guard),
 plus the companion rule that running headers/footers never use the interface `t`. Deliberately not made a
 condition of this PR to avoid a wiki submodule bump on a two-string fix.
+
+## PR #1984 — deposit-aware budget-source drill-down (#1897) — CHANGES_REQUIRED (2026-08-04)
+
+The structural fix is right: two forked deposit-blind SQL helpers (`getWorkItemLineInvoiceData`,
+`getHouseholdItemLineInvoiceData`) deleted in favour of `getInvoiceAggregates(db, line.id,
+'work_item_budget_id' | 'household_item_budget_id')`. FK columns correct, no circular import
+(`budgetServiceFactory` does not import `budgetSourceService`), additive for `ResolvedBudgetRelations`
+(it destructures only three fields and the `undefined`-column fallback literal keeps those three, so the
+union resolves). `invoiceCount`'s row-count → distinct-invoice change is a no-op because
+`invoice_budget_lines` has _partial unique indexes_ on `work_item_budget_id` / `household_item_budget_id`
+(`schema.ts:457-462`) — at most one ibl row per budget line. Worth remembering: that constraint makes the
+"one line, many invoices" mental model wrong, and makes `wiki/API-Contract.md`'s `"invoiceCount": 2`
+example impossible.
+
+Two blocking findings:
+
+- **HIGH-1** `hasClaimedInvoice: actualCostClaimed > 0` — see recurring-patterns.md
+  ("Amount-threshold booleans silently narrow status-existence booleans").
+- **HIGH-2** the change broadens a field documented at `wiki/API-Contract.md:4694` ("whether any linked
+  invoice has status `'claimed'`") without a wiki update; `actualCostPaid`'s field note on the same
+  endpoint is also stale (still describes whole-invoice-by-status, not the proportional split).
+
+Plus MEDIUM prettier violations and a MEDIUM test gap (AC8: claimed invoice fully covered by `paid`
+deposits). Non-blocking: `hasClaimedInvoice` is now a misnomer — flagged as a polish follow-up, not a
+rename in this PR.
+
+The rider (`new Set([status])`) is genuinely untestable: `computeDiscretionaryInvoiceAmount` is
+module-private with two call sites passing only `'claimed'`/`'paid'`, so no test can distinguish old from
+new. AC7 is honestly labelled a regression guard — accepted as-is rather than demanding a contrived test.
+
+**Process note**: the PR's GitHub author is `steilerDev` (the orchestrator's token), so
+`gh pr review --request-changes` is rejected as a self-review. Used `gh pr comment` and stated the verdict
+in the body — same workaround already noted in MEMORY.md for `--approve`.
