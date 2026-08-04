@@ -1040,14 +1040,16 @@ describe('InvoicesPage', () => {
 
     function renderPageWithCreate() {
       return render(
-        <MemoryRouter initialEntries={['/budget/invoices?create=1']}>
-          <Routes>
-            <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
-            <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
-            <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
-          </Routes>
-          <LocationSearchDisplay />
-        </MemoryRouter>,
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/budget/invoices?create=1']}>
+            <Routes>
+              <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+              <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
+              <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
+            </Routes>
+            <LocationSearchDisplay />
+          </MemoryRouter>
+        </ToastProvider>,
       );
     }
 
