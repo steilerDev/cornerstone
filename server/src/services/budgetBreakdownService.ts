@@ -283,13 +283,15 @@ export function getBudgetBreakdown(
     reductionType: string;
     reductionValue: number;
     maximumAmount: number | null;
+    includesNoCategoryItems: number;
   }>(
     sql`SELECT
-      id              AS subsidyId,
-      name            AS name,
-      reduction_type  AS reductionType,
-      reduction_value AS reductionValue,
-      maximum_amount  AS maximumAmount
+      id                          AS subsidyId,
+      name                        AS name,
+      reduction_type              AS reductionType,
+      reduction_value             AS reductionValue,
+      maximum_amount              AS maximumAmount,
+      includes_no_category_items  AS includesNoCategoryItems
     FROM subsidy_programs
     WHERE application_status != 'rejected'`,
   );
@@ -339,11 +341,15 @@ export function getBudgetBreakdown(
   }
 
   // Build subsidy metadata map
-  const subsidyMeta = new Map<string, { reductionType: string; reductionValue: number }>();
+  const subsidyMeta = new Map<
+    string,
+    { reductionType: string; reductionValue: number; includesNoCategoryItems: boolean }
+  >();
   for (const row of subsidyRows) {
     subsidyMeta.set(row.subsidyId, {
       reductionType: row.reductionType,
       reductionValue: row.reductionValue,
+      includesNoCategoryItems: row.includesNoCategoryItems === 1,
     });
   }
 
@@ -381,6 +387,7 @@ export function getBudgetBreakdown(
         name: subsidyId,
         reductionType: meta.reductionType as 'percentage' | 'fixed',
         reductionValue: meta.reductionValue,
+        includesNoCategoryItems: meta.includesNoCategoryItems,
       });
     }
 
@@ -1076,6 +1083,7 @@ export function getBudgetBreakdown(
         name: subsidyId,
         reductionType: meta.reductionType as 'percentage' | 'fixed',
         reductionValue: meta.reductionValue,
+        includesNoCategoryItems: meta.includesNoCategoryItems,
       });
     }
 

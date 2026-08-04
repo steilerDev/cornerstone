@@ -124,13 +124,15 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
     reductionType: string;
     reductionValue: number;
     maximumAmount: number | null;
+    includesNoCategoryItems: number;
   }>(
     sql`SELECT
-      id              AS subsidyId,
-      name            AS name,
-      reduction_type  AS reductionType,
-      reduction_value AS reductionValue,
-      maximum_amount  AS maximumAmount
+      id                          AS subsidyId,
+      name                        AS name,
+      reduction_type              AS reductionType,
+      reduction_value             AS reductionValue,
+      maximum_amount              AS maximumAmount,
+      includes_no_category_items  AS includesNoCategoryItems
     FROM subsidy_programs
     WHERE application_status != 'rejected'`,
   );
@@ -182,11 +184,15 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   }
 
   // Build a lookup map for subsidy metadata
-  const subsidyMeta = new Map<string, { reductionType: string; reductionValue: number }>();
+  const subsidyMeta = new Map<
+    string,
+    { reductionType: string; reductionValue: number; includesNoCategoryItems: boolean }
+  >();
   for (const row of subsidyRows) {
     subsidyMeta.set(row.subsidyId, {
       reductionType: row.reductionType,
       reductionValue: row.reductionValue,
+      includesNoCategoryItems: row.includesNoCategoryItems === 1,
     });
   }
 
@@ -270,8 +276,11 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
         const applicableCategories = subsidyCategoryMap.get(subsidyId);
         const isUniversalSubsidy = !applicableCategories || applicableCategories.size === 0;
         if (!isUniversalSubsidy) {
-          if (line.budgetCategoryId === null || !applicableCategories.has(line.budgetCategoryId))
-            continue;
+          const categoryMatches =
+            line.budgetCategoryId === null
+              ? meta.includesNoCategoryItems
+              : applicableCategories.has(line.budgetCategoryId);
+          if (!categoryMatches) continue;
         }
 
         // Determine cost basis: use invoice amount if available, otherwise effective planned amount
@@ -296,7 +305,9 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
               (l) =>
                 l.entityId === line.entityId &&
                 (isUniversalSubsidy ||
-                  (l.budgetCategoryId !== null && applicableCategories.has(l.budgetCategoryId))),
+                  (l.budgetCategoryId === null
+                    ? meta.includesNoCategoryItems
+                    : applicableCategories.has(l.budgetCategoryId))),
             ).length;
             // Guard: if somehow 0, use 1 to avoid division by zero
             if (matchingLineCount === 0) matchingLineCount = 1;
@@ -425,6 +436,7 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
         name: subsidyId,
         reductionType: meta.reductionType as 'percentage' | 'fixed',
         reductionValue: meta.reductionValue,
+        includesNoCategoryItems: meta.includesNoCategoryItems,
       });
     }
 

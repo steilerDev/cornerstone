@@ -713,6 +713,7 @@
       "eligibility": "Anforderungen",
       "notes": "Notizen",
       "applicableCategories": "Anwendbare Budgetkategorien",
+      "noCategoryLabel": "Ohne Kategorie",
       "selectAll": "Alle Auswählen",
       "deselectAll": "Alle Abwählen",
       "required": "*",

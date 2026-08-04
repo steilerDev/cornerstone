@@ -13,6 +13,7 @@ export interface LinkedSubsidy {
   name: string;
   reductionType: 'percentage' | 'fixed';
   reductionValue: number;
+  includesNoCategoryItems: boolean;
 }
 
 export interface SubsidyEffect {
@@ -93,7 +94,9 @@ export function computeSubsidyEffects(
       for (const line of effectiveLines) {
         const matches =
           isUniversal ||
-          (line.budgetCategoryId !== null && applicableCategories!.has(line.budgetCategoryId));
+          (line.budgetCategoryId === null
+            ? subsidy.includesNoCategoryItems
+            : applicableCategories!.has(line.budgetCategoryId));
         if (matches) {
           minPayback += line.minAmount * rate;
           maxPayback += line.maxAmount * rate;
