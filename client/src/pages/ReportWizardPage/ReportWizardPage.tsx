@@ -1,15 +1,10 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, useReducer } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type {
-  BudgetSource,
-  SourceReportType,
-  HouseholdSettings,
-  GenerateReportContentResponse,
-} from '@cornerstone/shared';
+import type { BudgetSource, SourceReportType, HouseholdSettings } from '@cornerstone/shared';
 import i18n from '../../i18n/index.js';
 import { useAuth } from '../../contexts/AuthContext.js';
-import { useLocale, type ResolvedLocale } from '../../contexts/LocaleContext.js';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchHouseholdSettings } from '../../lib/settingsApi.js';
 import { fetchConfig } from '../../lib/configApi.js';
@@ -26,14 +21,12 @@ import {
   applyOverrides,
   applyAiContent,
   type ReportContent,
-  type ReportContentOverrides,
 } from '../../lib/reportContent/index.js';
 import {
   generateReportPdf,
   downloadPdf,
   createPreviewUrl,
   uploadToPaperless,
-  type SkippedDocument,
 } from '../../lib/reportPdf/index.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -53,6 +46,15 @@ import { Step1UseCase } from './Step1UseCase.js';
 import { Step2Source } from './Step2Source.js';
 import { Step4Settings } from './Step4Settings.js';
 import { Step5Actions } from './Step5Actions.js';
+import {
+  wizardReducer,
+  createInitialWizardState,
+  nextRequestId,
+  hasManualEdits,
+  isDirty,
+  isGeneratingOnly,
+  isGeneratingAi,
+} from './wizardReducer.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportWizardPage.module.css';
 
@@ -66,19 +68,41 @@ export function ReportWizardPage() {
   const { resolvedLocale, currency } = useLocale();
   const [searchParams] = useSearchParams();
 
-  // Step navigation
-  const [currentStep, setCurrentStep] = useState(1);
-  const [maxReachedStep, setMaxReachedStep] = useState(1);
+  const sourceIdFromQuery = searchParams.get('sourceId');
+  const [wizardState, dispatch] = useReducer(
+    wizardReducer,
+    sourceIdFromQuery,
+    createInitialWizardState,
+  );
+
+  const {
+    useCase,
+    sourceId,
+    step2Amounts,
+    step2Loading,
+    report,
+    reportStatus,
+    excludedInvoiceIds,
+    excludedLineIds,
+    overrides,
+    aiContent,
+    aiError,
+    reportLanguageOverride,
+    attachDocuments,
+    includeCoverLetter,
+    currentStep,
+    maxReachedStep,
+    skippedDocuments,
+  } = wizardState;
+
+  const isGeneratingAiValue = isGeneratingAi(wizardState);
+  const isDirtyValue = isDirty(wizardState);
 
   // Focus management for step headings
   const stepHeadingsRef = useRef<(HTMLHeadingElement | null)[]>([]);
 
   // Report language selection (derived default: override takes precedence, falls back to resolvedLocale)
-  const [reportLanguageOverride, setReportLanguageOverride] = useState<ResolvedLocale | null>(null);
   const reportLanguage = reportLanguageOverride ?? resolvedLocale;
-
-  // Use case selection
-  const [useCase, setUseCase] = useState<SourceReportType | null>(null);
 
   // Budget sources
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
@@ -87,66 +111,25 @@ export function ReportWizardPage() {
   // LLM configuration
   const [llmEnabled, setLlmEnabled] = useState(false);
 
-  // AI generation state
-  const [aiContent, setAiContent] = useState<GenerateReportContentResponse | null>(null);
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  // AI generation state (UI-only, not wizard state)
   const [aiElapsed, setAiElapsed] = useState(0);
-  const [aiError, setAiError] = useState<string>('');
   const [showAiOverwriteConfirm, setShowAiOverwriteConfirm] = useState(false);
   const pendingAiGenerationRef = useRef<(() => void) | null>(null);
 
-  // Step 2 amounts
-  const [step2Amounts, setStep2Amounts] = useState<Map<string, number>>(new Map());
-  const [step2Loading, setStep2Loading] = useState(false);
-
-  // Source selection
-  const sourceIdFromQuery = searchParams.get('sourceId');
-  const [sourceId, setSourceId] = useState<string | null>(sourceIdFromQuery);
+  // Source selection (derived)
   const selectedSource = useMemo(
     () => budgetSources.find((s) => s.id === sourceId) || null,
     [budgetSources, sourceId],
   );
 
-  // Report data
-  const [report, setReport] = useState<Awaited<ReturnType<typeof getSourceReport>> | null>(null);
-  const [reportStatus, setReportStatus] = useState<PageStatus>('loading');
-
-  // Invoice selection
-  const [excludedInvoiceIds, setExcludedInvoiceIds] = useState<Set<string>>(new Set());
-
-  // Line-level exclusions
-  const [excludedLineIds, setExcludedLineIds] = useState<Set<string>>(new Set());
-
-  // PDF generation & options
-  const [attachDocuments, setAttachDocuments] = useState(true);
-  const [includeCoverLetter, setIncludeCoverLetter] = useState(false);
-
-  // Editable content overrides
-  const [overrides, setOverrides] = useState<ReportContentOverrides>({});
-
   // Discard confirmation modal
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const pendingChangeRef = useRef<(() => void) | null>(null);
 
-  // #1943: the ?sourceId= deep link auto-selects a source AT MOST ONCE per page load. Without
-  // this guard, clearing `report` as part of a use-case change re-satisfies this effect's
-  // `!report` condition and silently re-fires handleSourceChange with the ORIGINAL query-string
-  // source id — re-selecting a source and pushing maxReachedStep back to 3, undoing the very
-  // reset handleUseCaseChange performs (see #1943 AC8). The ref persists for the component's
-  // full lifetime and is never reset: sourceIdFromQuery is derived from the URL's search params
-  // once and this page never calls setSearchParams, so the deep-link source id is immutable for
-  // as long as this component instance is mounted.
-  const deepLinkAppliedRef = useRef(false);
-
-  // #1943 (M1): tokens the report-fetch race between handleUseCaseChange and handleSourceChange.
-  // Neither fetch aborts its predecessor, so an out-of-order resolution — a use-case-A fetch
-  // that settles AFTER a later use-case-B fetch for the same source — would let the stale A
-  // report win the `setReport`/`setReportStatus` write, reaching step 3 with a report from the
-  // wrong use case even though the reset above already cleared it. Bumping this token wherever
-  // a fetch starts and checking it in every callback before writing state discards any response
-  // that isn't from the most recently started fetch, in either the success or error path.
-  const reportRequestRef = useRef(0);
-  const aiGenerationTokenRef = useRef(0);
+  // Upgraded from useRef(false) per #1947 M-D decision. Holds the sourceId that was applied
+  // by the deep-link effect, or null if the effect has not yet fired. The ref is the sole guard;
+  // '!report' is dropped from the condition below, removing report from the effect's deps.
+  const deepLinkAppliedRef = useRef<string | null>(null);
 
   // PDF preview modal
   const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
@@ -156,7 +139,6 @@ export function ReportWizardPage() {
   const [actionError, setActionError] = useState<string>('');
   const modalPreviewUrlRef = useRef<string | null>(null);
   const [modalPreviewUrl, setModalPreviewUrl] = useState<string | null>(null);
-  const [skippedDocuments, setSkippedDocuments] = useState<SkippedDocument[]>([]);
 
   // Household settings
   const [household, setHousehold] = useState<HouseholdSettings | null>(null);
@@ -200,17 +182,9 @@ export function ReportWizardPage() {
   // Guard for mutations: if overrides, aiContent, or an in-flight generation exist, show confirm modal; else apply change immediately
   const guardedUpdate = useCallback(
     (applyChange: () => void) => {
-      const hasEdits = Object.keys(overrides).length > 0 || aiContent !== null;
-      const isDirty = hasEdits || isGeneratingAi;
-      if (isDirty) {
+      if (isDirtyValue) {
         pendingChangeRef.current = () => {
-          setOverrides({});
-          setAiContent(null);
-          if (isGeneratingAi) {
-            aiGenerationTokenRef.current += 1;
-            setIsGeneratingAi(false);
-            setAiError('');
-          }
+          dispatch({ type: 'DISCARD_EDITS' });
           applyChange();
         };
         setShowDiscardConfirm(true);
@@ -218,47 +192,29 @@ export function ReportWizardPage() {
         applyChange();
       }
     },
-    [overrides, aiContent, isGeneratingAi],
+    [isDirtyValue],
   );
 
   // Handle use case selection
   const handleUseCaseChange = useCallback(
     (uc: SourceReportType) => {
       guardedUpdate(() => {
-        setUseCase(uc);
-        setMaxReachedStep(2);
-        setStep2Amounts(new Map());
-        setStep2Loading(true);
+        const step2RequestId = nextRequestId();
+        dispatch({ type: 'SELECT_USE_CASE', payload: { useCase: uc, step2RequestId } });
 
-        // #1943: a use-case change invalidates any report fetched under the previous use
-        // case (and the source-gated Step 2 Next control, which only checks `sourceId`).
-        // Clear both so the wizard can't carry a stale report into a later step.
-        // #1943 (M1): also bump the request token so an in-flight fetch from the previous
-        // use case can never win the race against a report fetched after this reset.
-        reportRequestRef.current += 1;
-        setReport(null);
-        setReportStatus('loading');
-        setSourceId(null);
-        setExcludedInvoiceIds(new Set());
-        setExcludedLineIds(new Set());
-        setSkippedDocuments([]);
-        setAiError('');
-
-        // Fetch amounts for all sources in parallel
-        Promise.all(
+        void Promise.all(
           budgetSources.map((source) =>
             getSourceReport(uc, source.id)
               .then((r) => ({ sourceId: source.id, amount: r.totalAmount }))
               .catch(() => ({ sourceId: source.id, amount: 0 })),
           ),
-        )
-          .then((results) => {
-            const map = new Map(results.map((r) => [r.sourceId, r.amount]));
-            setStep2Amounts(map);
-          })
-          .finally(() => {
-            setStep2Loading(false);
+        ).then((results) => {
+          const amounts = new Map(results.map((r) => [r.sourceId, r.amount]));
+          dispatch({
+            type: 'STEP2_AMOUNTS_LOADED',
+            payload: { requestId: step2RequestId, amounts },
           });
+        });
       });
     },
     [budgetSources, guardedUpdate],
@@ -268,31 +224,17 @@ export function ReportWizardPage() {
   const handleSourceChange = useCallback(
     (sid: string) => {
       guardedUpdate(() => {
-        setSourceId(sid);
-        setExcludedInvoiceIds(new Set());
-        setExcludedLineIds(new Set());
-        setSkippedDocuments([]);
-        setMaxReachedStep(3);
-        setReportStatus('loading');
-
-        // #1943 (M1): bump the token before starting this fetch so it can only ever be the
-        // authoritative response for its own request generation — any earlier fetch (whether
-        // started under this use case or a previous one) is discarded below on resolution.
-        const requestId = ++reportRequestRef.current;
+        const requestId = nextRequestId();
+        dispatch({ type: 'SELECT_SOURCE', payload: { sourceId: sid, requestId } });
 
         if (useCase) {
-          getSourceReport(useCase, sid)
+          void getSourceReport(useCase, sid)
             .then((r) => {
-              if (reportRequestRef.current !== requestId) return;
-              setReport(r);
-              // Auto-enable cover letter based on source
-              setIncludeCoverLetter(Boolean(r.source.contactAddress || r.source.reference));
-              setReportStatus('ready');
+              dispatch({ type: 'REPORT_LOADED', payload: { requestId, report: r } });
             })
             .catch((err) => {
-              if (reportRequestRef.current !== requestId) return;
               console.error(err);
-              setReportStatus('error');
+              dispatch({ type: 'REPORT_ERROR', payload: { requestId } });
             });
         }
       });
@@ -302,11 +244,11 @@ export function ReportWizardPage() {
 
   // Handle ?sourceId= query parameter deep link
   useEffect(() => {
-    if (useCase && sourceIdFromQuery && !report && !deepLinkAppliedRef.current) {
-      deepLinkAppliedRef.current = true;
+    if (useCase && sourceIdFromQuery && deepLinkAppliedRef.current !== sourceIdFromQuery) {
+      deepLinkAppliedRef.current = sourceIdFromQuery;
       handleSourceChange(sourceIdFromQuery);
     }
-  }, [useCase, sourceIdFromQuery, report, handleSourceChange]);
+  }, [useCase, sourceIdFromQuery, handleSourceChange]);
 
   // Report-language-specific translation and formatters
   const reportT = useMemo(() => i18n.getFixedT(reportLanguage, 'budget'), [reportLanguage]);
@@ -376,7 +318,7 @@ export function ReportWizardPage() {
         reportT,
       );
 
-      setSkippedDocuments(result.skippedDocuments);
+      dispatch({ type: 'PDF_GENERATED', payload: { skippedDocuments: result.skippedDocuments } });
       return result;
     } catch (err) {
       console.error(err);
@@ -541,15 +483,7 @@ export function ReportWizardPage() {
         if (useCase && sourceId) {
           try {
             const updated = await getSourceReport(useCase, sourceId);
-            setReport(updated);
-            // Reset excluded to only include still-present invoices
-            const stillPresent = new Set<string>();
-            for (const id of excludedInvoiceIds) {
-              if (updated.invoices.some((inv) => inv.invoiceId === id)) {
-                stillPresent.add(id);
-              }
-            }
-            setExcludedInvoiceIds(stillPresent);
+            dispatch({ type: 'REPORT_REFRESHED', payload: { report: updated } });
           } catch {
             // Ignore refetch errors
           }
@@ -568,17 +502,15 @@ export function ReportWizardPage() {
 
   // AI elapsed timer effect
   useEffect(() => {
-    if (!isGeneratingAi) {
-      setAiElapsed(0);
-      return;
-    }
-
+    if (!isGeneratingAiValue) return;
     const id = setInterval(() => {
       setAiElapsed((n) => n + 1);
     }, 1000);
-
-    return () => clearInterval(id);
-  }, [isGeneratingAi]);
+    return () => {
+      clearInterval(id);
+      setAiElapsed(0);
+    };
+  }, [isGeneratingAiValue]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -613,14 +545,12 @@ export function ReportWizardPage() {
     );
 
     if (includedInvoiceIds.length === 0) {
-      setAiError(tErrors('EMPTY_SELECTION'));
+      dispatch({ type: 'AI_GENERATION_BLOCKED', payload: { error: tErrors('EMPTY_SELECTION') } });
       return;
     }
 
-    // #1946: Capture token BEFORE setting isGeneratingAi
-    const token = ++aiGenerationTokenRef.current;
-    setIsGeneratingAi(true);
-    setAiError('');
+    const requestId = nextRequestId();
+    dispatch({ type: 'AI_GENERATION_STARTED', payload: { requestId } });
 
     try {
       const result = await generateReportContent({
@@ -630,39 +560,28 @@ export function ReportWizardPage() {
         includedInvoiceIds,
         excludedLineIds: Array.from(excludedLineIds),
       });
-
-      // Token mismatch: user discarded this generation while in flight
-      if (aiGenerationTokenRef.current !== token) return;
-
-      setAiContent(result);
-      setOverrides({});
+      dispatch({ type: 'AI_GENERATION_COMPLETE', payload: { requestId, result } });
     } catch (err) {
-      // Token mismatch: do not surface error for discarded generation
-      if (aiGenerationTokenRef.current !== token) return;
-
+      let errorMessage: string;
       if (err instanceof ApiClientError) {
-        setAiError(translateApiError(err.error.code, tErrors));
+        errorMessage = translateApiError(err.error.code, tErrors);
       } else {
-        setAiError(t('sourceReports.editable.aiGenerationFailed'));
+        errorMessage = t('sourceReports.editable.aiGenerationFailed');
       }
-    } finally {
-      if (aiGenerationTokenRef.current === token) {
-        setIsGeneratingAi(false);
-      }
+      dispatch({ type: 'AI_GENERATION_ERROR', payload: { requestId, error: errorMessage } });
     }
   }, [report, useCase, excludedLineIds, excludedInvoiceIds, sourceId, reportLanguage, t, tErrors]);
 
   // Handle generate with AI button click
   const handleGenerateWithAiClick = useCallback(() => {
-    const isDirty = Object.keys(overrides).length > 0;
-
-    if (isDirty) {
+    const dirty = hasManualEdits(wizardState);
+    if (dirty) {
       pendingAiGenerationRef.current = runAiGeneration;
       setShowAiOverwriteConfirm(true);
     } else {
       void runAiGeneration();
     }
-  }, [overrides, runAiGeneration]);
+  }, [wizardState, runAiGeneration]);
 
   const steps: WizardStep[] = [
     { id: 'use-case', label: t('sourceReports.stepper.useCase') },
@@ -682,7 +601,7 @@ export function ReportWizardPage() {
         steps={steps}
         currentStep={currentStep}
         maxReachedStep={maxReachedStep}
-        onStepClick={(step) => setCurrentStep(step)}
+        onStepClick={(step) => dispatch({ type: 'GO_TO_STEP', payload: { step } })}
         ariaLabel={t('sourceReports.stepperAriaLabel')}
         mobileStepLabel={(current, total) => t('sourceReports.mobileStepLabel', { current, total })}
       />
@@ -705,7 +624,7 @@ export function ReportWizardPage() {
               <button
                 type="button"
                 className={sharedStyles.btnPrimary}
-                onClick={() => setCurrentStep(2)}
+                onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 2 } })}
               >
                 {t('common:button.next')}
               </button>
@@ -736,14 +655,14 @@ export function ReportWizardPage() {
               <button
                 type="button"
                 className={sharedStyles.btnSecondary}
-                onClick={() => setCurrentStep(1)}
+                onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 1 } })}
               >
                 {t('common:button.back')}
               </button>
               <button
                 type="button"
                 className={sharedStyles.btnPrimary}
-                onClick={() => setCurrentStep(3)}
+                onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 3 } })}
                 disabled={!sourceId}
               >
                 {t('common:button.next')}
@@ -789,56 +708,38 @@ export function ReportWizardPage() {
                       report={effectiveReport}
                       excludedInvoiceIds={excludedInvoiceIds}
                       excludedLineIds={excludedLineIds}
-                      onToggle={(id, excluded) => {
-                        guardedUpdate(() => {
-                          const newSet = new Set(excludedInvoiceIds);
-                          if (excluded) {
-                            newSet.add(id);
-                          } else {
-                            newSet.delete(id);
-                          }
-                          setExcludedInvoiceIds(newSet);
-                        });
-                      }}
-                      onToggleAll={(excludeAll) => {
-                        guardedUpdate(() => {
-                          if (excludeAll) {
-                            setExcludedInvoiceIds(
-                              new Set(report.invoices.map((inv) => inv.invoiceId)),
-                            );
-                          } else {
-                            setExcludedInvoiceIds(new Set());
-                          }
-                        });
-                      }}
-                      onToggleLine={(lineId, excluded) => {
-                        guardedUpdate(() => {
-                          const newSet = new Set(excludedLineIds);
-                          if (excluded) {
-                            newSet.add(lineId);
-                          } else {
-                            newSet.delete(lineId);
-                          }
-                          setExcludedLineIds(newSet);
-                        });
-                      }}
+                      onToggle={(id, excluded) =>
+                        guardedUpdate(() =>
+                          dispatch({
+                            type: 'TOGGLE_INVOICE',
+                            payload: { invoiceId: id, excluded },
+                          }),
+                        )
+                      }
+                      onToggleAll={(excludeAll) =>
+                        guardedUpdate(() =>
+                          dispatch({ type: 'TOGGLE_ALL_INVOICES', payload: { excludeAll } }),
+                        )
+                      }
+                      onToggleLine={(lineId, excluded) =>
+                        guardedUpdate(() =>
+                          dispatch({ type: 'TOGGLE_LINE', payload: { lineId, excluded } }),
+                        )
+                      }
                       t={t}
                     />
                     <div className={styles.buttonRow}>
                       <button
                         type="button"
                         className={sharedStyles.btnSecondary}
-                        onClick={() => setCurrentStep(2)}
+                        onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 2 } })}
                       >
                         {t('common:button.back')}
                       </button>
                       <button
                         type="button"
                         className={sharedStyles.btnPrimary}
-                        onClick={() => {
-                          setMaxReachedStep((s) => Math.max(s, 4));
-                          setCurrentStep(4);
-                        }}
+                        onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 4 } })}
                         disabled={excludedInvoiceIds.size === report.invoices.length}
                         title={
                           excludedInvoiceIds.size === report.invoices.length
@@ -868,16 +769,18 @@ export function ReportWizardPage() {
             <Step4Settings
               reportLanguage={reportLanguage}
               onReportLanguageChange={(lang) =>
-                guardedUpdate(() => setReportLanguageOverride(lang))
+                guardedUpdate(() => dispatch({ type: 'SET_REPORT_LANGUAGE', payload: { lang } }))
               }
               attachDocuments={attachDocuments}
-              onAttachDocumentsChange={(value) => {
-                guardedUpdate(() => setAttachDocuments(value));
-              }}
+              onAttachDocumentsChange={(value) =>
+                guardedUpdate(() => dispatch({ type: 'SET_ATTACH_DOCUMENTS', payload: { value } }))
+              }
               includeCoverLetter={includeCoverLetter}
-              onIncludeCoverLetterChange={(value) => {
-                guardedUpdate(() => setIncludeCoverLetter(value));
-              }}
+              onIncludeCoverLetterChange={(value) =>
+                guardedUpdate(() =>
+                  dispatch({ type: 'SET_INCLUDE_COVER_LETTER', payload: { value } }),
+                )
+              }
               coverLetterDisabled={coverLetterDisabled}
               t={t}
             />
@@ -885,17 +788,14 @@ export function ReportWizardPage() {
               <button
                 type="button"
                 className={sharedStyles.btnSecondary}
-                onClick={() => setCurrentStep(3)}
+                onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 3 } })}
               >
                 {t('common:button.back')}
               </button>
               <button
                 type="button"
                 className={sharedStyles.btnPrimary}
-                onClick={() => {
-                  setMaxReachedStep((s) => Math.max(s, 5));
-                  setCurrentStep(5);
-                }}
+                onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 5 } })}
               >
                 {t('common:button.next')}
               </button>
@@ -921,10 +821,10 @@ export function ReportWizardPage() {
                   type="button"
                   className={sharedStyles.btnSecondary}
                   onClick={handleGenerateWithAiClick}
-                  disabled={isGeneratingAi}
+                  disabled={isGeneratingAiValue}
                   aria-describedby="enhanceWithAiDescription"
                 >
-                  {isGeneratingAi && (
+                  {isGeneratingAiValue && (
                     <span aria-hidden="true">
                       <Spinner size="sm" color="muted" />
                     </span>
@@ -935,7 +835,7 @@ export function ReportWizardPage() {
                   {t('sourceReports.editable.enhanceWithAiDescription')}
                 </span>
 
-                {isGeneratingAi && (
+                {isGeneratingAiValue && (
                   <p className={styles.aiGeneratingCaption} aria-live="polite">
                     {t('sourceReports.editable.generating', { seconds: aiElapsed })}
                   </p>
@@ -943,7 +843,7 @@ export function ReportWizardPage() {
 
                 {aiError && <FormError message={aiError} />}
 
-                {aiContent && !isGeneratingAi && (
+                {aiContent && !isGeneratingAiValue && (
                   <p className={styles.aiGeneratedNote}>
                     {t('sourceReports.editable.aiGeneratedNote')}
                   </p>
@@ -954,16 +854,10 @@ export function ReportWizardPage() {
             <ReportContentEditor
               content={effectiveContent}
               overrides={overrides}
-              onFieldChange={(key, value) => {
-                setOverrides((prev) => ({ ...prev, [key]: value }));
-              }}
-              onFieldReset={(key) => {
-                setOverrides((prev) => {
-                  const next = { ...prev };
-                  delete next[key];
-                  return next;
-                });
-              }}
+              onFieldChange={(key, value) =>
+                dispatch({ type: 'SET_OVERRIDE', payload: { key, value } })
+              }
+              onFieldReset={(key) => dispatch({ type: 'RESET_OVERRIDE', payload: { key } })}
               t={t}
             />
 
@@ -1004,7 +898,7 @@ export function ReportWizardPage() {
               <button
                 type="button"
                 className={sharedStyles.btnSecondary}
-                onClick={() => setCurrentStep(4)}
+                onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 4 } })}
               >
                 {t('common:button.back')}
               </button>
@@ -1017,7 +911,7 @@ export function ReportWizardPage() {
       {showDiscardConfirm && (
         <Modal
           title={
-            isGeneratingAi && Object.keys(overrides).length === 0 && aiContent === null
+            isGeneratingOnly(wizardState)
               ? t('sourceReports.editable.discardConfirmTitleGenerating')
               : t('sourceReports.editable.discardConfirmTitle')
           }
@@ -1052,7 +946,7 @@ export function ReportWizardPage() {
           }
         >
           <p>
-            {isGeneratingAi && Object.keys(overrides).length === 0 && aiContent === null
+            {isGeneratingOnly(wizardState)
               ? t('sourceReports.editable.discardConfirmBodyGenerating')
               : t('sourceReports.editable.discardConfirmBody')}
           </p>
