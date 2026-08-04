@@ -128,7 +128,7 @@ export async function generateReportPdf(
       return buildPageHeader(
         reportContent.tableTitle,
         reportContent.sourceInfo.sourceName,
-        t('sourceReports.table.generatedAt'),
+        `${reportContent.labels.generatedAt}: ${reportContent.sourceInfo.generatedAtText}`,
       );
     },
     footer: buildPageFooter(t('sourceReports.table.pageLabel')),
