@@ -106,6 +106,7 @@ function makeLabels(): ReportContent['labels'] {
     sourceType: 'sourceReports.table.sourceType',
     reference: 'sourceReports.table.reference',
     generatedAt: 'sourceReports.table.generatedAt',
+    pageLabel: 'sourceReports.table.pageLabel',
   };
 }
 

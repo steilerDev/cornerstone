@@ -131,7 +131,7 @@ export async function generateReportPdf(
         `${reportContent.labels.generatedAt}: ${reportContent.sourceInfo.generatedAtText}`,
       );
     },
-    footer: buildPageFooter(t('sourceReports.table.pageLabel')),
+    footer: buildPageFooter(reportContent.labels.pageLabel),
     defaultStyle: PDF_DEFAULT_STYLE,
     styles: PDF_STYLES,
   });

@@ -57,6 +57,7 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       sourceType: 'Source Type',
       reference: 'Reference',
       generatedAt: 'Generated At',
+      pageLabel: 'Page',
     },
     sourceInfo: {
       sourceName: 'Home Loan',

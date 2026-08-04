@@ -63,6 +63,7 @@ export interface ReportContentLabels {
   sourceType: string;
   reference: string;
   generatedAt: string;
+  pageLabel: string; // "Page N / M" label in the PDF footer, translated in report language
 }
 
 export interface ReportContent {

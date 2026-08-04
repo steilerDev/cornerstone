@@ -2346,6 +2346,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           sourceType: 'Source Type',
           reference: 'Reference',
           generatedAt: 'Generated At',
+          pageLabel: 'Page',
         },
         sourceInfo: {
           sourceName: 'Cell Scope Source',

@@ -296,6 +296,7 @@ export function buildReportContent(
       sourceType: reportT('sourceReports.table.sourceType'),
       reference: reportT('sourceReports.table.reference'),
       generatedAt: reportT('sourceReports.table.generatedAt'),
+      pageLabel: reportT('sourceReports.table.pageLabel'),
     },
     sourceInfo,
     coverLetter,
