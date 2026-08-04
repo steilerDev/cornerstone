@@ -698,7 +698,9 @@ export function buildOverviewContent(
       // empty first line instead, so it is dropped — a presentational separator, not content.
       const text = index === 0 ? segment.text.replace(/^\n/, '') : segment.text;
       const metaRuns = buildUsageTextRuns(text, usageSafeTokenChars);
-      runs.push(...metaRuns.map((r) => ({ ...r, color: DEPOSIT_NOTE_TEXT_COLOR })));
+      runs.push(
+        ...metaRuns.map((r) => Object.assign({}, r, { color: DEPOSIT_NOTE_TEXT_COLOR }) as Content),
+      );
     });
     return { text: runs, style: 'tableCell' };
   }
