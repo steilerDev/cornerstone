@@ -690,3 +690,18 @@ amended not deleted with the submodule ref bumped on-branch (AC 4.1). 193/193 + 
 Non-blocking: `futureDateStr` now triplicated (`timeline.test.ts:151` + 2 copies) while
 `server/src/test-helpers/` exists — and the two new copies dropped the JSDoc that carries the *reason*
 (CPM today-floor on `not_started`), i.e. exactly the knowledge #1913 was filed to preserve.
+
+### Round 2 (`857fcedd`) — APPROVED
+
+All six findings fixed; shipped regexes **byte-identical** to the 45/45-validated spec (diffed, not eyeballed).
+207/207 pass. Test file `--numstat` = `80 0`, so no existing assertion was weakened to fit the new behaviour.
+
+The technique worth reusing: **prove non-vacuity by mutation, not inspection.** I replayed all 15 new
+scenarios against the round-1 implementation — 13/15 fail against it. The 2 that pass under both are the
+deliberate regression guards (AC 3.2 bullet+hyphen, genuine numbered run), so passing either way is their
+intended property. That split is the evidence an approval should rest on; "N tests added" is not.
+
+Accepted residuals, recorded so they are not rediscovered as bugs: `<word …>` pseudo-tags are still
+stripped (INFO-1, AC 2.4's `Beträge < 500 EUR` safe via the space-after-`<` guard); a genuine German date
+list of ≥2 lines (`15. Mai: …\n16. Mai: …`) still loses its numbers, which is arguably correct (INFO-2).
+`futureDateStr` extraction to `server/src/test-helpers/dates.ts` deferred as a follow-up.
