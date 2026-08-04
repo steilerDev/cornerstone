@@ -35,7 +35,7 @@ Full detail in [standalone-bugs-and-stories.md](standalone-bugs-and-stories.md) 
 
 - Budget/invoice batches: #1369-#1373 (2026-04-28), #1389-#1390 (2026-04-29), #1401 (2026-05-10), #1421-#1425 (2026-05-15), #1439-#1441 (2026-05-17), #1553 (2026-05-22)
 - Auto-itemize: #1545/#1546/#1547 mini-epic (2026-05-21), #1600 (2026-05-26), **#1833 duplicate budget lines on commit retry (2026-07-07)**
-- **Auth rate limits: #1970** — PR #1989 APPROVED round 2 (2026-08-04) with one MUST FIX; **#1970 stays out of Done** until a test observes the effective *window* at the route. Follow-ups #1990/#1991/#1992. Full detail in [auth-rate-limits-1970.md](auth-rate-limits-1970.md).
+- **Auth rate limits: #1970** — PR #1989 APPROVED round 3 (2026-08-04), M1 resolved (`5446b29a`), all 7 ACs met → **Done on merge**. Follow-ups #1990/#1991/#1992 stay open. Detail in [auth-rate-limits-1970.md](auth-rate-limits-1970.md) — incl. verifying "proves X reached the route" assertions **by local mutation + revert**, and checking a numeric-header probe is deterministic (which request in the window it observes).
 - Diary: #1426 critical photo data loss (2026-05-15)
 - Photo: #1723 lightbox picker UX (2026-06-16)
 - **DataTable: #1955** two-column toggle race silently hides 2nd column, all 6 DataTable pages (Should Have, S, Backlog, 2026-08-02). See [datatable-column-preference-race.md](datatable-column-preference-race.md) — records that **fast clicking is the SAFE case** (I judged this backwards; debounce `clearTimeout` coalesces rapid input, the >500ms reading-pace gap is the reachable one) and that #1920's E2E-only fix (`InvoicesPage.enableColumn()` awaits the PATCH) makes CI green **without** fixing production — don't close #1955 on a green shard.

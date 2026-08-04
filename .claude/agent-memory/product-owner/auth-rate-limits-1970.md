@@ -45,16 +45,36 @@ behaviour (product-architect, against `node_modules`) is `parse('0s') → undefi
 `mergeParams()`'s `if/else if` never reaches `defaultTimeWindow` → **every login 500s** on
 `params.timeWindow is not a function`. Do not cite my round-1 comment as the mechanism.
 
-**M1 still open (MUST FIX before merge).** The new assertions are on `x-ratelimit-limit`
-(`'3'`, `'20'`), which is fed by `max` only. Deleting `timeWindow` from `auth.ts:147` inherits
-the global `'1 minute'` and leaves both assertions green — exactly the drift AC1 and AC4 were
-written to catch. Fix is one line on the default-config test:
-`expect(response.headers['x-ratelimit-reset']).toBe('900')` (`Math.ceil(ttl/1000)`,
-`index.js:265`; emitted on non-exceeded responses too).
+**M1 (was MUST FIX).** The round-2 assertions were on `x-ratelimit-limit` (`'3'`, `'20'`), fed by
+`max` only. Deleting `timeWindow` from `auth.ts:147` inherits the global `'1 minute'` and leaves
+both green — exactly the drift AC1 and AC4 were written to catch. Fix specified as one line on
+the default-config test: `expect(response.headers['x-ratelimit-reset']).toBe('900')`
+(`Math.ceil(ttl/1000)`, `index.js:265`; emitted on non-exceeded responses too).
 
 **Gate ruling: merge is a code gate, Done is an acceptance gate.** The PR may merge on B1;
 #1970 does **not** go to Done until the window assertion lands. If it merges without,
 **reopen #1970** rather than filing a follow-up (same precedent as #1931).
+
+## Review round 3 (`5446b29a`, 2026-08-04) — APPROVED, M1 RESOLVED
+
+Fix applied verbatim at `rateLimitPlugin.test.ts:157`. All 7 ACs met, **no unverifiable AC
+remains** → the Done gate above is satisfied on both sides: #1970 goes to **Done on merge**, no
+reopen, no substitute follow-up. Follow-ups #1990/#1991/#1992 stay independent and don't gate.
+
+Two things worth reusing:
+
+- **Verify a "proves X reached the route" assertion by mutation, not by reading it.** I deleted
+  `timeWindow` from `auth.ts:147` locally, ran the one test file, got
+  `Expected: "900" / Received: "60"`, then `git checkout -- server/src/routes/auth.ts`. That is
+  the only evidence that distinguishes a load-bearing assertion from one that merely *looks*
+  specific. Reverting immediately keeps it inside PO boundaries — it is verification, not
+  authoring. Generalized in [pr-review-patterns.md](pr-review-patterns.md).
+- **Check the header is deterministic before accepting it as an AC probe.** `LocalStore.incr`
+  sets `ttl: timeWindow` exactly on the *first* request of a fresh window
+  (`store/LocalStore.js:17`), and each test builds its own app → fresh in-memory store. So `900`
+  is exact, not timing-sensitive. Had the assertion been on a *later* request, ttl would be
+  `timeWindow - elapsed` (`LocalStore.js:38`) and the same assertion would have been a flake.
+  When approving a numeric-header probe, ask which request in the window it observes.
 
 ## Follow-ups filed from this review
 
