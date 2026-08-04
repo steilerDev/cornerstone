@@ -1,5 +1,5 @@
 import fp from 'fastify-plugin';
-import rateLimit from '@fastify/rate-limit';
+import rateLimit, { normalizeIP } from '@fastify/rate-limit';
 import { AppError } from '../errors/AppError.js';
 
 export default fp(
@@ -8,6 +8,7 @@ export default fp(
       global: false,
       max: 200,
       timeWindow: '1 minute',
+      keyGenerator: (request) => normalizeIP(request.ip ?? 'unknown'),
       errorResponseBuilder: (_request, context) =>
         new AppError(
           'RATE_LIMIT_EXCEEDED',

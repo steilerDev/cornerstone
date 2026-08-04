@@ -852,3 +852,64 @@ as the passing bar, not 4 of 4.
 Cheap way to find every location when adding a var: grep an _existing_ comparable var repo-wide
 (`grep -rln SESSION_DURATION --include='*.md' --include='*.yml' .`) instead of guessing which files
 need touching. It also surfaces the ADR pages that pin a default.
+
+## A guard deleted because it looked like the bug (#1303 -> #1995, PR #1998)
+
+CVE-2026-15144 was caused by a custom `keyGenerator` in `rateLimitPlugin.ts` bypassing
+`@fastify/rate-limit` 11.2.0's IPv6 /64 normalization. The fix deleted the option — correct
+direction, but the deleted block had been added deliberately by 69d90882 (#1303) as a nullish-IP
+guard, with **zero test coverage**, which is exactly why deleting it looked free. Before approving
+any deletion framed as "this override was a mistake", run `git log -S` on the removed lines and read
+the commit that introduced them. `git show <sha> --stat` touching no test file is the tell that the
+behaviour is unguarded and its removal will pass CI.
+
+Two library facts worth keeping:
+
+- **`@fastify/rate-limit` gates normalization on an _identity_ check**, `index.js:249`:
+  `params.keyGenerator === defaultKeyGenerator ? defaultKeyGenerator(req, subnet) : keyGenerator(req)`.
+  So even a custom generator written as literally `(req) => req.ip` bypasses /64 normalization. A
+  custom generator is only safe if it calls the library's exported `normalizeIP` itself
+  (typed export, `types/index.d.ts:164`; works as an ESM named import).
+- **`normalizeIP(undefined)` throws** (`ip.toLowerCase()` on line 1), and Fastify's `request.ip` is
+  typed `string` but nullable at runtime in **both** getters (`fastify/lib/request.js:231`
+  non-trustProxy — `undefined` socket or destroyed-socket `remoteAddress`; `:110` trustProxy —
+  empty `proxyAddr.all()`). 11.1.0's default returned `undefined` (shared bucket, mild); 11.2.0
+  turned the same input into a throw -> 500 on every rate-limited route. Another types-lie:
+  `tsc` cannot see it, so a nullability regression is invisible in the diff.
+
+Generalisation: when a minor version replaces a "return the raw value" default with a "transform the
+value" default, any guard written against the old milder failure mode may now be load-bearing against
+a throw. Check the version-bump PR's semantics, not just the option's name.
+
+## A CVE fix's shared-bucket test needs a negative control
+
+"These two IPv6 addresses share a bucket" passes identically if the key collapsed to a constant for
+_all_ clients — which is a self-inflicted DoS (one attacker locks out every user), i.e. the opposite
+defect. Upstream's own `test/ip-normalization.test.js` asserts the third case: a _different_ /64 gets
+a fresh bucket. Same family as "assertions that pass on nothing", but subtler — the test does catch
+the regression it was written for, and only fails to catch the over-correction.
+
+## Prettier config resolution is path-based — "was it clean before?" checks must run inside the repo
+
+Copying a file to `/tmp` and running `npx prettier --check` on it silently uses prettier **defaults**
+(printWidth 80), not the repo's `.prettierrc` (100). During the #1998 wiki pass this made a dirty file
+look clean and a clean file look dirty — the opposite of the truth, in both directions at once.
+Verify baselines with `git show HEAD:<file> > <repo>/_chk_<file>` **inside the working tree**, then delete.
+
+Related: `wiki/` is **not** in `.prettierignore` and `npm run format` globs `**/*.md`, so a repo-wide
+format touches wiki pages — including `Security-Audit.md` (security-engineer-owned) and ADR pages.
+Before committing a wiki edit, run `git -C wiki status --short` and revert any page you did not
+intend to touch; scope your own formatting to the files you edited.
+
+## Documented "absence of code" is falsified by the next commit — document the invariant instead
+
+PR #1998 fixed CVE-2026-15144 by **deleting** a `keyGenerator` override, so the natural wiki sentence
+is "`rateLimitPlugin` deliberately sets no `keyGenerator`". That documents an absence: it goes stale the
+moment anyone adds a *correct* override, and it gives a reviewer no rule to check the new code against.
+Found live during this pass — an uncommitted working-tree change already reintroduced
+`keyGenerator: (request) => normalizeIP(request.ip ?? 'unknown')`, which is safe (normalizeIP defaults
+`ipv6Subnet = 64`) yet contradicted the sentence.
+
+Rule: state the **invariant** ("the key must always be `normalizeIP`-normalized, forwarding the
+configured `ipv6Subnet`"), then note the current mechanism as the preferred way of satisfying it, then
+enumerate the specific forbidden shapes. Applies to any fix whose diff is a deletion.
