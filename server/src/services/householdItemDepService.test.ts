@@ -19,6 +19,12 @@ import * as schema from '../db/schema.js';
 import * as householdItemDepService from './householdItemDepService.js';
 import { NotFoundError, ConflictError } from '../errors/AppError.js';
 
+function futureDateStr(daysFromNow: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + daysFromNow);
+  return d.toISOString().slice(0, 10);
+}
+
 // ─── Test setup ────────────────────────────────────────────────────────────────
 
 function createTestDb() {
@@ -267,7 +273,8 @@ describe('householdItemDepService', () => {
     it('creates a work_item dependency with default FS type and 0 lag', () => {
       const userId = insertUser(db);
       const hiId = insertHouseholdItem(db);
-      const wiId = insertWorkItem(db, userId, { title: 'Foundation Work', endDate: '2027-06-15' });
+      const futureEndDate = futureDateStr(500);
+      const wiId = insertWorkItem(db, userId, { title: 'Foundation Work', endDate: futureEndDate });
 
       const result = householdItemDepService.createDep(db, hiId, {
         predecessorType: 'work_item',
@@ -279,7 +286,7 @@ describe('householdItemDepService', () => {
       expect(result.predecessorId).toBe(wiId);
       expect(result.predecessor.id).toBe(wiId);
       expect(result.predecessor.title).toBe('Foundation Work');
-      expect(result.predecessor.endDate).toBe('2027-06-15');
+      expect(result.predecessor.endDate).toBe(futureEndDate);
     });
 
     it('creates a milestone dependency with default FS type and 0 lag', () => {
@@ -397,7 +404,7 @@ describe('householdItemDepService', () => {
     it('calls autoReschedule after creating dep — delivery dates updated in DB', () => {
       const userId = insertUser(db);
       const hiId = insertHouseholdItem(db, { status: 'planned' });
-      const wiId = insertWorkItem(db, userId, { endDate: '2027-06-15' });
+      const wiId = insertWorkItem(db, userId, { endDate: futureDateStr(500) });
 
       // Before creating dep, earliest_delivery_date should be null
       const _before = db
