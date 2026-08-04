@@ -84,6 +84,29 @@ describe('Rate Limit Plugin', () => {
     expect(body.error.code).toBe('RATE_LIMIT_EXCEEDED');
     expect(body.error.message).toContain('Too many requests');
   });
+
+  it('two IPv6 addresses in the same /64 subnet share a rate-limit bucket', async () => {
+    // First request from 2001:db8::1
+    const r1 = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      remoteAddress: '2001:db8::1',
+      payload: { email: 'test@example.com', password: 'wrong' },
+    });
+    const remaining1 = Number(r1.headers['x-ratelimit-remaining']);
+    expect(remaining1).toBeGreaterThan(0);
+
+    // Second request from 2001:db8::2 — same /64 prefix, must decrement the shared bucket
+    const r2 = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      remoteAddress: '2001:db8::2',
+      payload: { email: 'test@example.com', password: 'wrong' },
+    });
+    const remaining2 = Number(r2.headers['x-ratelimit-remaining']);
+
+    expect(remaining2).toBe(remaining1 - 1);
+  });
 });
 
 describe('Login Route Rate Limiting — Configurable via Env (Issue #1970)', () => {
