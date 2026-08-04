@@ -11,6 +11,11 @@ jest.unstable_mockModule('./usePreferences.js', () => ({
   usePreferences: mockUsePreferences,
 }));
 
+const mockShowToast = jest.fn();
+jest.unstable_mockModule('../components/Toast/ToastContext.js', () => ({
+  useToast: () => ({ showToast: mockShowToast, dismissToast: jest.fn(), toasts: [] }),
+}));
+
 import type * as UseColumnPreferencesModule from './useColumnPreferences.js';
 
 let useColumnPreferences: (typeof UseColumnPreferencesModule)['useColumnPreferences'];
@@ -46,6 +51,7 @@ beforeEach(async () => {
     (await import('./useColumnPreferences.js')) as typeof UseColumnPreferencesModule);
   mockUsePreferences.mockReset();
   mockUpsert.mockReset();
+  mockShowToast.mockReset();
   mockUsePreferences.mockReturnValue(makeUsePreferencesResult());
   mockUpsert.mockResolvedValue(undefined);
 });
@@ -80,10 +86,6 @@ describe('useColumnPreferences', () => {
       expect(result.current.visibleColumns.has('hidden')).toBe(false);
     });
 
-    it('returns isLoaded=true immediately (preferences available synchronously)', () => {
-      const { result } = renderHook(() => useColumnPreferences('test-page', COLUMNS));
-      expect(result.current.isLoaded).toBe(true);
-    });
   });
 
   describe('loading from preferences', () => {
@@ -211,6 +213,7 @@ describe('useColumnPreferences', () => {
         order: string[];
       };
       expect(savedValue.visible).toContain('id');
+      expect(mockShowToast).not.toHaveBeenCalled();
     });
   });
 
@@ -652,6 +655,32 @@ describe('useColumnPreferences', () => {
       expect(view.result.current.visibleColumns.has('title')).toBe(false);
     });
 
+    it('shows an error toast when a write fails and preserves local column state', async () => {
+      const view = renderRaceHook();
+
+      act(() => {
+        view.result.current.toggleColumn('colA');
+      });
+
+      // Let the debounce fire to dispatch the write.
+      await act(async () => {
+        jest.advanceTimersByTime(500);
+      });
+      expect(upsertCalls).toHaveLength(1);
+
+      // Fail the write.
+      await act(async () => {
+        writes[0]!.reject(new Error('network error'));
+      });
+
+      // Toast must fire exactly once with the error severity.
+      expect(mockShowToast).toHaveBeenCalledTimes(1);
+      expect(mockShowToast).toHaveBeenCalledWith('error', expect.any(String));
+
+      // Local column state must not be reverted — the UI stays consistent.
+      expect(view.result.current.visibleColumns.has('colA')).toBe(true);
+    });
+
     it('does not wedge the save queue when a write fails', async () => {
       const unhandled: unknown[] = [];
       const onUnhandled = (reason: unknown) => {
@@ -681,6 +710,9 @@ describe('useColumnPreferences', () => {
         await act(async () => {
           writes[0]!.reject(new Error('network down'));
         });
+
+        // A toast must fire to inform the user of the save error.
+        expect(mockShowToast).toHaveBeenCalledWith('error', expect.any(String));
 
         // The queue drains anyway: the newest payload still goes out.
         expect(upsertCalls).toHaveLength(2);

@@ -8,6 +8,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { ReactNode } from 'react';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
@@ -153,9 +154,11 @@ let VendorsPage: any;
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/settings/vendors']}>
-      <VendorsPage />
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={['/settings/vendors']}>
+        <VendorsPage />
+      </MemoryRouter>
+    </ToastProvider>,
   );
 }
 
