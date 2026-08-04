@@ -574,3 +574,20 @@ new. AC7 is honestly labelled a regression guard — accepted as-is rather than 
 **Process note**: the PR's GitHub author is `steilerDev` (the orchestrator's token), so
 `gh pr review --request-changes` is rejected as a self-review. Used `gh pr comment` and stated the verdict
 in the body — same workaround already noted in MEMORY.md for `--approve`.
+
+### Round 2 (`1f9de9b8`) — APPROVED
+
+Both HIGHs fixed as specified. `hasClaimedInvoice` is now
+`rows.some((r) => r.invoice_status === 'claimed' || r.deposit_status === 'claimed')` — derived from the raw
+join tuples _before_ `splitByDeposits`, so residual/refund arithmetic cannot reach it, and empty `rows`
+still yields `false` (matches the old `COUNT(...) > 0`). Wiki `API-Contract.md:4694,4696` updated (wiki
+commit `e744969`, submodule ref bumped **on the branch** — the ordering rule held). AC8 verified to be a
+real mutation-killer, not a restatement: invoice 1000 `claimed` + deposit 1000 `paid` gives
+`residualFraction = 0` and no claimed deposit, so the old predicate returned `false`.
+
+Three follow-ups left open, all informational: the `hasClaimedInvoice` rename (a claimed **refund** flips
+it too — same issue), and `wiki/API-Contract.md`'s unreachable `"invoiceCount": 2` example. Also noted for
+the record: `actualCostPaid`'s "Quotations are always excluded" wiki note is now only approximate — a
+`quotation` invoice with a `paid` deposit contributes that portion under the proportional split. That is a
+property of `computeDepositAwareAggregates`, shared by **every** consumer of the deposit-aware path, so it
+is a repo-wide question for `depositAggregateUtils.ts`, never a per-endpoint patch.
