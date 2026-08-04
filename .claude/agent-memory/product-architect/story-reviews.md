@@ -653,3 +653,14 @@ pushes before `route.continue()`, so the in-page `await fetch` cannot resolve un
 - AC4's own suggested rationale ("the mobile card list exposes no column toggles") is factually wrong for
   `ReportContentEditor` — the card layout gates every row on the same `show()` predicate. The desktop-only
   exclusion is a limitation of the `columnheader` locator under `display: none`, not an absence of toggles.
+
+### Round 3 (`4cf5a735`) — APPROVED
+
+The `<td>` gap was fixed the right way: `getByRole('cell', { name: <vendor name>, exact: true })` with a
+**baseline `toHaveCount(1)` before the toggle** and `toHaveCount(1)` again after re-checking. That baseline is
+what makes the `toHaveCount(0)` non-vacuous — insist on it every time a test asserts an element's absence.
+Verified chain: `<td>{row.vendor}</td>` (ReportContentEditor.tsx:251) ← `vendor: invoice.vendorName`
+(buildReportContent.ts:200) ← `vendorName: vendors.name` join (invoiceService.ts:272).
+
+Remaining non-blocking: unformatted new line (Prettier, invisible to CI on e2e-only PRs), stale AC4 docstring
+paragraph, hardcoded preferences glob ×3, #1969 AC2 premise error (product-owner).

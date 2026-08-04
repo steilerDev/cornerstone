@@ -636,3 +636,22 @@ viewport (assert `.mobileCardRow` captions at mobile). Scenario 1b in that spec 
 
 Related smell from the same PR: a test **title** naming behavior the body never asserts ("reset on remount",
 "`<td>` cells" when only `<th>` is checked) — a coverage illusion; trim the title or add the assertions.
+
+### Accessible-name locators: what they are and are not immune to (#1966 round 3)
+
+`getByRole(..., { name })` computes the name from **DOM text**, so it is immune to CSS `text-transform` —
+the opposite of `innerText`/`toHaveText` assertions, which fail on transformed labels. Prefer the role+name
+form when a component may style its casing.
+
+Two follow-on facts worth reusing:
+- An embedded control inside a name-from-content traversal contributes its **value**, not its `aria-label`.
+  So an `EditableField` whose `ariaLabel` interpolates a neighbouring column's text cannot inflate the
+  containing cell's accessible name (and `exact: true` guards even if it could).
+- `role=cell` / `role=columnheader` exposure depends on the table keeping table semantics — a `display: block`
+  or `display: flex` on the `<table>` strips them in Chromium and silently zeroes such locators. Before
+  trusting a new `cell` assertion, confirm a sibling `columnheader` assertion already passes in CI; both rest
+  on the same exposure.
+
+Absence assertions need a **positive baseline in the same test** (`toHaveCount(1)` before, `toHaveCount(0)`
+after). Without it, a typo'd or mis-scoped locator makes the absence check pass on nothing. With it, every
+mis-scoping fails loudly instead — that property is the review bar, not the assertion count.
