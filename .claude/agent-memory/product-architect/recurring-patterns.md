@@ -704,3 +704,31 @@ one fix round and three.
 To pin "strip runs before truncate", the boundary fixture `'**' + 'X'.repeat(limit) + '**'` yields a
 `limit`-length string under **both** orderings (`'X'.repeat(limit)` vs `'**XXX…'`). Only the `toBe` assertion
 discriminates. Good pattern to reuse; also a reminder that a length assertion alone is often vacuous.
+
+### A bumped submodule ref is not a pushed wiki commit (PR #1987)
+
+PR #1987 had the parent ref bumped to a wiki commit that was **never pushed** — the wiki remote was two
+commits behind. `git -C wiki log --oneline` shows the commit as HEAD, so the wiki *looks* published, and
+`git ls-tree HEAD wiki` matches it, so the ref *looks* correct. Anyone cloning the branch and running
+`git submodule update` would fail on an unresolvable ref.
+
+Verify with `git -C wiki ls-remote origin master` compared against `git ls-tree HEAD wiki` — those are the
+only two facts that matter. **Do not** trust `git -C wiki fetch origin master` here: without an explicit
+refspec it only writes `FETCH_HEAD` and leaves `refs/remotes/origin/master` stale, which initially made the
+remote look already-current. Use `git -C wiki fetch origin master:refs/remotes/origin/master`, or `ls-remote`.
+
+Add this to every PR review touching `wiki/`. "The ref is bumped on the branch" is a weaker claim than it
+sounds — I asserted AC 4.1 satisfied on that basis before catching it.
+
+### Shared worktrees: never `git add -A` (PR #1987)
+
+`fix-1913-1952-server-tests` had ~48 dirty files from concurrent agents plus the known repo-wide prettier
+union-type drift (`shared/src/types/{dependency,diary,document,subsidyProgram}.ts` — the same four every
+time). Stage explicit paths only: for a wiki/ADR change that is `git add wiki .claude/agent-memory/<self>`
+and nothing else. A scoped ref-bump commit does not disturb an implementer mid-edit in the same tree.
+
+### Shell heredocs: a bare `cat >> file` with no redirect hangs the tool
+
+`cat >> a.md 2>/dev/null || true` followed by a second `cat >> b.md <<'EOF'` — the heredoc binds to the
+*second* cat, so the first reads stdin and blocks until the 120s timeout. Prefer the Edit/Write tools for
+appending to memory files; if you must use bash, one heredoc per command and never a redirect-less `cat`.

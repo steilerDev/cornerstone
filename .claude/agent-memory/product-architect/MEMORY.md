@@ -35,6 +35,8 @@
 
 - Git submodule at `wiki/`. Sync: `git submodule update --init wiki && git -C wiki pull origin master`
 - Submodule is normally in **detached HEAD** at origin/master — push with `git push origin HEAD:master`
+- **Verify published-ness with `git -C wiki ls-remote origin master` vs `git ls-tree HEAD wiki`**, never with
+  `git -C wiki log` (shows unpushed commits as HEAD) or a refspec-less `fetch` (leaves origin/master stale)
 - Pages: Architecture, Schema, API-Contract, Home, ADR-Index, ADR-NNN-*, Style-Guide (ux-designer), Security-Audit (security-engineer)
 - **Always push wiki before creating the PR** — the submodule ref must be committed on the feature branch. If you push wiki content outside the branch, flag that the PR's ref needs bumping.
 
