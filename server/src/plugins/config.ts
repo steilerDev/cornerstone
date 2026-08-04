@@ -362,10 +362,14 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   // Accepts: '15 minutes', '1h', '30s', '2 days', etc.
   const authRateLimitWindowStr = getValue('AUTH_RATE_LIMIT_WINDOW') ?? '15 minutes';
   const AUTH_RATE_LIMIT_WINDOW_PATTERN =
-    /^\d+(\.\d+)?\s*(ms|s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks)$/i;
+    /^\d+(\.\d+)? *(ms|s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks)$/i;
   if (!AUTH_RATE_LIMIT_WINDOW_PATTERN.test(authRateLimitWindowStr)) {
     errors.push(
       `AUTH_RATE_LIMIT_WINDOW must be a valid duration string (e.g. '15 minutes', '1h'), got: ${authRateLimitWindowStr}`,
+    );
+  } else if (parseFloat(authRateLimitWindowStr) <= 0) {
+    errors.push(
+      `AUTH_RATE_LIMIT_WINDOW must have a positive duration (zero magnitude is not allowed), got: ${authRateLimitWindowStr}`,
     );
   }
 

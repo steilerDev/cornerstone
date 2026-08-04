@@ -133,14 +133,24 @@ describe('Login Route Rate Limiting — Configurable via Env (Issue #1970)', () 
 
     expect(response.statusCode).toBe(429);
     expect(JSON.parse(response.body).error.code).toBe('RATE_LIMIT_EXCEEDED');
+    // Prove the configured max reached the route: header on the 429 response reflects limit=3
+    expect(response.headers['x-ratelimit-limit']).toBe('3');
   });
 
-  it('AC4: defaults are exactly max=20 and window="15 minutes"', async () => {
+  it('AC4: defaults are exactly max=20 and window="15 minutes" and route uses them', async () => {
     // No AUTH_RATE_LIMIT_MAX or AUTH_RATE_LIMIT_WINDOW in env
     app = await buildApp();
 
     expect(app.config.authRateLimitMax).toBe(20);
     expect(app.config.authRateLimitWindow).toBe('15 minutes');
+
+    // Prove the route actually uses the configured max: x-ratelimit-limit must equal '20'
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { email: 'test@x.com', password: 'wrong' },
+    });
+    expect(response.headers['x-ratelimit-limit']).toBe('20');
   });
 
   it('rate-limit headers present on login route', async () => {

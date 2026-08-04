@@ -1089,6 +1089,24 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
       const config = loadConfig({ AUTH_RATE_LIMIT_MAX: '1' });
       expect(config.authRateLimitMax).toBe(1);
     });
+
+    it('AUTH_RATE_LIMIT_WINDOW="0s" → throws containing zero magnitude error', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '0s' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must have a positive duration (zero magnitude is not allowed), got: 0s',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="0 minutes" → throws containing zero magnitude error', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '0 minutes' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must have a positive duration (zero magnitude is not allowed), got: 0 minutes',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="0.0h" → throws containing zero magnitude error (parseFloat gives 0)', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '0.0h' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must have a positive duration (zero magnitude is not allowed), got: 0.0h',
+      );
+    });
   });
 });
 
