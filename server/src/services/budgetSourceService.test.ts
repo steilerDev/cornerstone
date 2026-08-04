@@ -3519,6 +3519,29 @@ describe('Budget Source Service', () => {
       expect(result.householdItemLines[0]!.hasClaimedInvoice).toBe(false);
     });
 
+    it('AC8 — claimed invoice fully covered by paid deposits still sets hasClaimedInvoice = true', () => {
+      // Edge case for the hasClaimedInvoice fix (issue #1897):
+      // When a claimed invoice is 100% covered by paid (not claimed) deposits,
+      // residualFraction = 0, so actualCostClaimed = 0.
+      // Old logic (actualCostClaimed > 0) would incorrectly return hasClaimedInvoice = false.
+      // New logic checks rows.some(r => r.invoice_status === 'claimed' || r.deposit_status === 'claimed'),
+      // which sees invoice_status = 'claimed' and correctly returns true.
+      const src = insertRawSource({ name: 'AC8 Claimed+PaidDeposit Source', totalAmount: 50000 });
+      const { budgetId } = insertRawWorkItemWithSource(src.id, 1000);
+      const invoiceId = insertInvoiceForWILine(budgetId, 1000, 'claimed');
+      insertDeposit(invoiceId, 1000, 'paid'); // fully covers the invoice → residualFraction = 0
+
+      const result = budgetSourceService.getBudgetSourceBudgetLines(db, src.id);
+
+      expect(result.workItemLines).toHaveLength(1);
+      // residualFraction = 0, so the residual portion contributes 0 to actualCostClaimed,
+      // but the paid deposit contributes its full amount to actualCostPaid.
+      expect(result.workItemLines[0]!.actualCost).toBe(1000);
+      expect(result.workItemLines[0]!.actualCostPaid).toBeCloseTo(1000);
+      // The invoice IS claimed — hasClaimedInvoice must be true regardless of actualCostClaimed.
+      expect(result.workItemLines[0]!.hasClaimedInvoice).toBe(true);
+    });
+
     it('AC7 — rider regression: computeDiscretionaryInvoiceAmount passes status through correctly for status="paid"', () => {
       // The rider fix changed `new Set([status === 'claimed' ? 'claimed' : 'paid'])` to
       // `new Set([status])`. For the two caller-supplied values ('paid', 'claimed') the behavior

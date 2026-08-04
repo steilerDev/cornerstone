@@ -392,10 +392,7 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
       WHERE d.budget_source_id = ${discretionarySourceId}`,
     );
 
-    railBAmount = sumTaggedDepositContributions(
-      railBRows,
-      new Set([status]),
-    );
+    railBAmount = sumTaggedDepositContributions(railBRows, new Set([status]));
   }
 
   return remainderTotal + noSourceTotal + railBAmount;
