@@ -9,6 +9,12 @@ import type { FastifyInstance } from 'fastify';
 import type { ScheduleResponse, ApiErrorResponse, ScheduleRequest } from '@cornerstone/shared';
 import { workItems, workItemDependencies } from '../db/schema.js';
 
+function futureDateStr(daysFromNow: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + daysFromNow);
+  return d.toISOString().slice(0, 10);
+}
+
 describe('Schedule Routes', () => {
   let app: FastifyInstance;
   let tempDir: string;
@@ -764,7 +770,7 @@ describe('Schedule Routes', () => {
         'Test User',
         'password123',
       );
-      const futureDate = '2027-06-01';
+      const futureDate = futureDateStr(500);
       const wiId = createTestWorkItem(userId, 'Future Task', {
         durationDays: 5,
         startAfter: futureDate,

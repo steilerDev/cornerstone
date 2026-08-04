@@ -2,7 +2,7 @@
 
 ## Topic Files
 
-- [Recurring patterns & traps](recurring-patterns.md) — polymorphic FK cleanup, XOR CHECK vs SET NULL, forked-function drift, test smells, cross-layer contract drift, ajv `anyOf`, N+1 sites, async writes surviving state resets, cross-reference rot in documented-bound comments (#1939), usePreferences per-instance store + serialized-write-queue review (#1955), capability-retained-but-producer-removed (#1959), reinstated-producer-vs-negative-guards (#1965), AC reversal by a polish issue (#1959), amount-threshold booleans narrowing status-existence booleans (#1897), prettier is not CI-gated
+- [Recurring patterns & traps](recurring-patterns.md) — polymorphic FK cleanup, XOR CHECK vs SET NULL, forked-function drift, test smells, cross-layer contract drift, ajv `anyOf`, N+1 sites, async writes surviving state resets, cross-reference rot in documented-bound comments (#1939), usePreferences per-instance store + serialized-write-queue review (#1955), capability-retained-but-producer-removed (#1959), reinstated-producer-vs-negative-guards (#1965), AC reversal by a polish issue (#1959), amount-threshold booleans narrowing status-existence booleans (#1897), prettier is not CI-gated, single-occurrence delimiter guard tests + German ordinals vs list markers + pre-validating regex fix specs (#1952)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
 - [Source-report split inference](source-report-split-inference.md) — budgetLines[]/deposits[] are this-source-scoped, so †/‡ classification is a proxy; proposed `splitKind`; pdfmake `'2*'` width trap
 - [Story reviews](story-reviews.md) — per-story and per-PR review log
@@ -35,6 +35,8 @@
 
 - Git submodule at `wiki/`. Sync: `git submodule update --init wiki && git -C wiki pull origin master`
 - Submodule is normally in **detached HEAD** at origin/master — push with `git push origin HEAD:master`
+- **Verify published-ness with `git -C wiki ls-remote origin master` vs `git ls-tree HEAD wiki`**, never with
+  `git -C wiki log` (shows unpushed commits as HEAD) or a refspec-less `fetch` (leaves origin/master stale)
 - Pages: Architecture, Schema, API-Contract, Home, ADR-Index, ADR-NNN-*, Style-Guide (ux-designer), Security-Audit (security-engineer)
 - **Always push wiki before creating the PR** — the submodule ref must be committed on the feature branch. If you push wiki content outside the branch, flag that the PR's ref needs bumping.
 
