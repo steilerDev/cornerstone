@@ -563,3 +563,54 @@ definitions disagree?" and require exactly that fixture.
 Stylelint. No `format:check`, no ESLint. So `npx prettier --check <changed files>` on review is worth the
 ten seconds: #1984 shipped two violations (a 101-char inline return type, and a rider edit left
 artificially wrapped after the expression shortened) that nothing downstream would have caught.
+
+## Positive membership on a *shared fixture* row is not a filtering assertion (#1971, PR #1985)
+
+The stock "fix" for `expect(rows.length).toBeGreaterThan(0)` is to add
+`expect(await getUserRow(TEST_ADMIN.email)).not.toBeNull()`. That closes nothing: the shared admin/fixture
+row is present in the **unfiltered** list too, so the assertion passes verbatim when the filter is a no-op.
+A filtering assertion needs one of:
+
+- a **universal negative** — loop every rendered row and assert it contains the query, or
+- a **seeded non-matching row** asserted absent (the shape the `filters by email` rewrite in #1985 got right).
+
+Watch for the comment that ships alongside it claiming the new positive check "makes the `> 0` guard
+meaningful" — a documented-but-false guarantee is worse than the bare `> 0`, because the next maintainer
+stops looking. Block on the comment/code conflict even if the assertion itself is a mild improvement.
+
+Detail that bites when writing the universal-negative loop: `UserManagementPage.tsx` filters on
+`displayName || email`, so assert on `` `${cells[0]} ${cells[1]}` `` — a name-cell-only check produces false
+failures for rows that matched by email. Join the cells with a **space**: a query with no space in it cannot
+then be matched by bridging two adjacent cells, so no false positives.
+
+Ranking the two remedies (settled on PR #1985 round 2, APPROVED): the universal-negative loop is only
+discriminating when the table happens to contain a non-matching row. `e2e/playwright.config.ts` sets
+`fullyParallel: true` across 16 shards and `e2e/fixtures/seed.ts` seeds only the setup admin, so a test can
+land in a shard whose user table is nearly empty and a broken filter still passes vacuously. Treat the loop
+as sufficient-to-approve (it can no longer pass while wrong rows render) but the **seeded non-matching row**
+as the airtight form; ask for it as a follow-up, not a block.
+
+Positional cell indices (`cells[0]`/`cells[1]`) are coupled to `useColumnPreferences(pageKey, columns)`,
+which persists both visibility **and** order. No E2E test toggles columns on `/settings/users` today and the
+POM's `getUserRow` already assumes `td` nth(1) === email, so it is currently consistent — but a future
+column toggle silently repoints those loops at role/date text. Prefer POM accessors resolved from header
+text when this comes up again.
+
+E2E-only PRs: `Detect Changes` skips Static Analysis, unit shards, and Trailer Check, and `Quality Gates`
+runs smoke only — so the changed spec's real result lives in the 16 `E2E Tests (Shard n/16)` runs, which are
+non-gating on beta. Always tell the orchestrator to confirm the relevant shard is green on **that PR** before
+merging (see MEMORY.md's "Beta merges past red E2E").
+
+## E2E user "cleanup" never frees the email — DELETE /api/users is a soft delete
+
+`server/src/routes/users.ts` DELETE sets `deactivatedAt`; `userService.listUsers` returns deactivated rows
+and the user-management page applies no default status filter. So `deleteUserViaApi` leaves the row visible
+for the rest of the run, and `POST /api/users` still 409s on that email (`findByEmail` does not exclude
+deactivated users). Consequences for review:
+
+- A `finally`-block "delete" comment claiming the DB is left clean is wrong — say *deactivated*.
+- Deterministic seed emails (`${testPrefix}@…`) are one-shot per DB. Currently masked because Playwright
+  gives a retried test a fresh `workerIndex` (so `testPrefix` differs), but `--repeat-each` or a switch to
+  `parallelIndex` would make `createLocalUserViaApi`'s `expect(response.ok())` fail and mask the real
+  failure. Require `${testPrefix}-${Date.now()}@e2e-test.local` (precedent: `i18n-categories.spec.ts`).
+- `deleteUserViaApi` ignores the response status, so cleanup failures in this family are always silent.
