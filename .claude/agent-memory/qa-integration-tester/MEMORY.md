@@ -15,6 +15,8 @@
 
 ## Recent bug/story notes (2026-08)
 
+- [Bug #1897 — deposit-blind drill-down fix](bug-1897-deposit-blind-drilldown.md) (2026-08-04) — `getBudgetSourceBudgetLines` was deposit-blind; fix routes through `getInvoiceAggregates`; 7 tests in new `describe('deposit-aware drill-down')` block appended to `budgetSourceService.test.ts`; local WI/HI/deposit helpers; AC1 is the reproduction case.
+
 - [PR #1959 — inline meta content loss + `it.failing` tripwires](pr-1959-inline-meta-content-loss.md) (2026-08-03, RESOLVED) — prod defect found+fixed (unchunked meta in a `dontBreakRows` cell silently drops pages); **a tripwire is worthless if a shared helper bakes in the buggy assumption** — mine nearly stayed green through the fix; channel-equivalence is the threshold-free assertion; tree-level assertions cannot see this bug class; **write NBSP as `\u00A0` in test expectations, never a literal** (I smuggled one into the guard against it); keep literal+invariant at different levels; non-positive chunk budgets HANG not throw; `grep` silently returns nothing on these test files (use `awk`).
 - [Bug #1955 — echo-race harness + mutation probes](bug-1955-echo-race-harness.md) (2026-08-03) — echo must fire on the write's *resolve* (not the call) or the queue fix masks the guard and the test passes pre-fix; `rerender()` stands in for the optimistic `setPreferences`; 4 perl mutation probes prove each test guards a distinct part of the fix; never run repo-wide `npm run format` (38 unrelated files drift).
 

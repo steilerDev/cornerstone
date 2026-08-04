@@ -318,21 +318,21 @@ pdfmake's `elasticWidth` never grows a fixed column to fit its own header. So **
 `sourceReports.table.*` header key is width-constrained**, and DE is always the binding locale.
 
 - `buildHeaderCell` applies `buildUsageTextRuns` (per-token `wordBreak: 'break-all'`) to every header cell.
-  That is a *last-resort* fallback (pdfmake 0.3.x has no hyphenation), not the fix: a mid-word break with
+  That is a _last-resort_ fallback (pdfmake 0.3.x has no hyphenation), not the fix: a mid-word break with
   no hyphen on a bank-facing document is a defect in its own right. The fix is a shorter localized label.
 - #1937 shortened `vendor` `Auftragnehmer` → `Firma` and `invoiceAmount` `Rechnungsbetrag` → `Betrag`.
-  The break-all mechanism **must stay** — vendor *data* (server cap 200 chars, German compounds) still
+  The break-all mechanism **must stay** — vendor _data_ (server cap 200 chars, German compounds) still
   needs it, and #1937 explicitly accepted broken vendor names as unfixable without a layout change.
 - Correct guard: a real-render assertion that the header cell resolves to `positions.length === 1` in the
   `de` locale. Character-count arithmetic is a weaker proxy (see recurring-patterns.md).
 - `overviewPdf.test.ts:833-861` and `VENDOR_HEADER_WORST_CASE_LINES` use hardcoded `'Auftragnehmer'`
-  fixtures/literals, *not* the live bundle — so they survive translation changes, but their comments and
+  fixtures/literals, _not_ the live bundle — so they survive translation changes, but their comments and
   test titles rot into claiming to describe the live DE labels.
 - Consumers of `labels.*`: `overviewPdf.ts` (PDF) and `ReportContentEditor.tsx` (`<th>` preview, mobile
   card captions, column-toggle text). `ReportContentLabels` is `reportT`-derived and **not user-editable**,
   so a shortened label is safe — and must be identical in both surfaces by design.
 - Glossary tension: `glossary.json` maps `Vendor` → `Auftragnehmer`. PDF column-header short forms diverge
-  from glossary terms under a measured constraint; that exception needs recording *in glossary.json*, not
+  from glossary terms under a measured constraint; that exception needs recording _in glossary.json_, not
   just in translator memory, or an audit reverts it.
 
 ### Running header/footer must source strings from the report content model

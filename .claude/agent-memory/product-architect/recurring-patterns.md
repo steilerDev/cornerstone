@@ -32,7 +32,7 @@ core formula against the original line by line — that divergence is where the 
 `splitByDepositsExcludingTagged` (PR #1894), where the residual expression was the sole difference and
 the sole defect. Prefer an options flag over a fork; when a fork ships anyway, file the collapse follow-up.
 
-### Forked *test harness* — `realRender.test.ts` re-implements merge.ts's docDefinition
+### Forked _test harness_ — `realRender.test.ts` re-implements merge.ts's docDefinition
 
 `renderOverviewPdfContent` (`client/src/lib/reportPdf/realRender.test.ts` ~L136-159) hand-copies
 production's pdfmake `header:`/`footer:` callbacks while its own docstring claims parity with merge.ts
@@ -44,11 +44,11 @@ longer emits. **Whenever `merge.ts`'s docDefinition changes, grep this helper.**
 
 ### Proxy bound looser than the production threshold it guards
 
-PR #1982's AC7 tests bound DE header labels at `floor(width / 5.19pt)` (an *average* glyph advance) —
+PR #1982's AC7 tests bound DE header labels at `floor(width / 5.19pt)` (an _average_ glyph advance) —
 8/9 chars — while production's own break trigger is `safeTokenChars(width, HEADER_WORST_CASE_CHAR_WIDTH_PT
 = 10.4pt)` = 4 chars. An 8-char wide-glyph label passes the test and still breaks in the PDF. When a test
 re-derives a width/size bound instead of importing the production constant, check which direction the
-error runs: a bound *looser* than production's greenlights the regression it exists to catch. The real
+error runs: a bound _looser_ than production's greenlights the regression it exists to catch. The real
 guard there is the renderer-level `positions.length === 1` assertion.
 
 ## Test smells worth escalating in review
@@ -530,3 +530,36 @@ Why this is worth blocking on (I did, r2): the POM class docstring is the contra
 lying test title is a complete instruction set for deleting the coverage the PR exists to add — and with
 `E2E Gates` main-only, that deletion lands on `beta` silently. It is the same mechanism that produced #1965:
 #1959 removed a producer and left comments asserting the removal was permanent.
+
+## Amount-threshold booleans silently narrow status-existence booleans (PR #1984, #1897)
+
+When a deposit-blind SQL helper is collapsed into the shared deposit-aware path, the _money_ fields
+(`actualCost`, `actualCostPaid`) port cleanly but any **boolean** flag does not. #1984 re-derived
+`hasClaimedInvoice` from `actualCostClaimed > 0` where the old SQL used
+`COUNT(CASE WHEN i.status = 'claimed' ...) > 0`. Those are different predicates:
+
+- **Gains** the intended case (pending invoice + claimed deposit → `true`).
+- **Loses** a claimed invoice whose deposits fully cover it with non-claimed status: `residualFraction`
+  is 0 in `splitByDeposits`, so the claimed residual contributes nothing and the flag flips to `false`.
+- **Loses** a refund-neutralised claim (refunds carry a negative fraction, netting the bucket to 0).
+
+Fix shape: derive booleans from statuses on the raw rows, never from a post-split amount —
+`rows.some((r) => r.invoice_status === 'claimed' || r.deposit_status === 'claimed')`. Strict superset of
+the old predicate, threshold-free, so rounding and refunds cannot flip it.
+
+**Why this is worth blocking on**: the flag's only consumer was `MassMoveModal`'s `claimedCount`, which
+gates the "I understand" confirmation before mass-moving bank-claimed lines. A display-parity bug fix
+quietly disabled a safety confirmation. Generalise: before accepting a boolean's re-derivation, find its
+consumers — if any is a guard rail rather than a label, demand predicate equivalence, not "the tests pass".
+
+**Companion test smell**: every pre-existing claimed-invoice test used an invoice with **no deposits**, so
+`residualFraction === 1` and the two predicates coincide. A whole suite can agree with a wrong predicate
+because no case exercises the branch where they differ. Ask "which fixture makes the old and new
+definitions disagree?" and require exactly that fixture.
+
+## Prettier is not CI-gated — the local gate is the only gate
+
+`static-analysis` in `.github/workflows/ci.yml` runs `npm audit signatures`, `npm run typecheck`, and
+Stylelint. No `format:check`, no ESLint. So `npx prettier --check <changed files>` on review is worth the
+ten seconds: #1984 shipped two violations (a 101-char inline return type, and a rider edit left
+artificially wrapped after the expression shortened) that nothing downstream would have caught.
