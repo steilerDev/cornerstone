@@ -334,6 +334,8 @@ describe('App', () => {
         claimed: { count: 0, totalAmount: 0 },
         quotation: { count: 0, totalAmount: 0 },
         overdue: { count: 0, totalAmount: 0 },
+        claimable: { count: 0, totalAmount: 0 },
+        quotationCoveredByDeposits: 0,
       },
     });
     mockFetchWorkItemBudgets.mockResolvedValue([]);

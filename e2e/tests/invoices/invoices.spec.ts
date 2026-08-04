@@ -160,7 +160,7 @@ test.describe('Invoices list page load (Scenario 1)', { tag: '@responsive' }, ()
       // Summary cards render (at least the containers)
       await expect(invoicesPage.summaryGrid).toBeVisible();
       await expect(invoicesPage.pendingSummary).toBeVisible();
-      await expect(invoicesPage.paidSummary).toBeVisible();
+      await expect(invoicesPage.claimableSummary).toBeVisible();
       await expect(invoicesPage.quotationSummary).toBeVisible();
 
       // Add Invoice button is visible

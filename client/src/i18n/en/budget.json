@@ -471,7 +471,7 @@
     "summaryQuotation": "Quotation",
     "summaryQuotationCovered": "{{amount}} already deposited",
     "summaryClaimable": "Claimable",
-    "summaryClaimableHint": "Pending & paid excl. discretionary",
+    "summaryClaimableHint": "Excl. discretionary sources",
     "summaryOverdue": "Overdue",
     "summaryOverdueWarning_one": "{{count}} pending invoice past due",
     "summaryOverdueWarning_other": "{{count}} pending invoices past due",

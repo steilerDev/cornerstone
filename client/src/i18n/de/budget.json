@@ -892,7 +892,7 @@
     "summaryQuotation": "Angebot",
     "summaryQuotationCovered": "{{amount}} bereits hinterlegt",
     "summaryClaimable": "Einreichbar",
-    "summaryClaimableHint": "Ausstehend & bezahlt ohne Eigenanteil",
+    "summaryClaimableHint": "Ohne Eigenanteil",
     "summaryOverdue": "Überfällig",
     "summaryOverdueWarning_one": "{{count}} ausstehende Rechnung überfällig",
     "summaryOverdueWarning_other": "{{count}} ausstehende Rechnungen überfällig",
