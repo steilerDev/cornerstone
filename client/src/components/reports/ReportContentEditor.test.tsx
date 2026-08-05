@@ -1510,12 +1510,15 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
     }
   });
 
-  it('the .tableWrapper carries lang="de" when the lang prop is passed', () => {
-    // The table wrapper wraps only the report-content table — a genuine section-level lang tag.
+  it('applies lang="de" to the report table <thead> (column headers are report-language) when lang="de" is passed', () => {
     const { container } = renderEditor({ lang: 'de' });
+    const thead = container.querySelector('thead');
+    expect(thead).not.toBeNull();
+    expect(thead!.getAttribute('lang')).toBe('de');
+    // tableWrapper no longer carries lang — EditableField chrome inside it is UI-lang
     const tableWrapper = container.querySelector('[class*="tableWrapper"]');
     expect(tableWrapper).not.toBeNull();
-    expect(tableWrapper!.getAttribute('lang')).toBe('de');
+    expect(tableWrapper!.getAttribute('lang')).toBeNull();
   });
 
   it('EditableField <label> elements inside the cover-letter card have NO lang attribute (UI chrome labels are untagged)', () => {
@@ -1532,11 +1535,21 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
     }
   });
 
-  it('the .tableWrapper has no lang attribute when the lang prop is omitted', () => {
-    // Without the lang prop the attribute must be absent (null), not an empty string.
+  it('the <thead> has no lang attribute when the lang prop is omitted', () => {
     const { container } = renderEditor();
-    const tableWrapper = container.querySelector('[class*="tableWrapper"]');
-    expect(tableWrapper).not.toBeNull();
-    expect(tableWrapper!.getAttribute('lang')).toBeNull();
+    const thead = container.querySelector('thead');
+    expect(thead).not.toBeNull();
+    expect(thead!.getAttribute('lang')).toBeNull();
+  });
+
+  it('[integration] a usage EditableField <input> carries lang="de" when lang="de" is passed — wires the EditableField.lang prop', () => {
+    const { container } = renderEditor({ lang: 'de' });
+    // Scope to the desktop table body to avoid picking up column-toggle checkboxes, which appear
+    // before the usage inputs in DOM order and carry no lang attribute.
+    // The default fixture (makeContent → makeRow) has usageText: 'Baseline usage'.
+    const table = getDesktopTable(container);
+    const input = within(table).getByDisplayValue('Baseline usage');
+    expect(input.tagName).toBe('INPUT');
+    expect(input.getAttribute('lang')).toBe('de');
   });
 });

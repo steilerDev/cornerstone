@@ -107,7 +107,7 @@ export function ReportContentEditor({
               <span className={styles.readOnlyLabel}>
                 {t('sourceReports.coverLetter.dateLabel')}
               </span>
-              <span className={styles.readOnlyValue}>{content.coverLetter.dateLine}</span>
+              <span className={styles.readOnlyValue} lang={lang}>{content.coverLetter.dateLine}</span>
             </div>
 
             {content.coverLetter.reference && (
@@ -162,7 +162,7 @@ export function ReportContentEditor({
               <span className={styles.readOnlyLabel}>
                 {t('sourceReports.editable.closingLabel')}
               </span>
-              <span className={styles.readOnlyValue}>{content.coverLetter.closing}</span>
+              <span className={styles.readOnlyValue} lang={lang}>{content.coverLetter.closing}</span>
             </div>
 
             <EditableField
@@ -237,9 +237,9 @@ export function ReportContentEditor({
           </div>
         </div>
       </div>
-      <div className={styles.tableWrapper} lang={lang}>
+      <div className={styles.tableWrapper}>
         <table className={styles.table}>
-          <thead>
+          <thead lang={lang}>
             <tr>
               {show('vendor') && <th>{content.labels.vendor}</th>}
               {show('invoiceNumber') && <th>{content.labels.invoiceNumber}</th>}
@@ -342,7 +342,7 @@ export function ReportContentEditor({
       </div>
 
       {/* Mobile Card List */}
-      <div className={styles.mobileCardList} lang={lang}>
+      <div className={styles.mobileCardList}>
         {content.rows.map((row) => (
           <div key={row.invoiceId} className={styles.mobileCard}>
             {show('vendor') && (

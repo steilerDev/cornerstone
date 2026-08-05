@@ -1019,3 +1019,39 @@ The discriminating fixture is the one that satisfies the early return's escape b
 (`makeReport([], [oneUnallocated])`). Check: **which branch does the fixture actually land in**, not
 just whether the expectation is `not.toBeInTheDocument()`. Same revert test as always — delete the
 guard, does it go red?
+
+## Comment refreshed, assertion left behind (PR #2004 round 2, #1910)
+
+When a fix inverts a contract, the tests that encoded the OLD contract get their **explanatory comments
+rewritten to describe the new design while the `expect` line is left untouched**. In #2004 the H1 fix
+moved `lang` off the container onto sections; E2E Scenario 25's comment was rewritten to say "under
+Option A the tagging is on `.tableWrapper`" and the very next line still read
+`expect(await container.getAttribute('lang')).toBe('de')`. It went red in CI (Shard 2/16, both attempts).
+
+Why it survives review: a diff that shows a rewritten comment block *looks* like the test was updated,
+and the unchanged assertion line is not in the diff hunk at all if the comment is long enough.
+How to apply: on any contract-inverting fix, grep the test suites for the **old** attribute/selector/value
+(`getAttribute('lang')` here) and read every hit's assertion, not its comment. Also diff the shard
+results against the previous commit of the same PR — "shard N was green before this commit" is the
+cleanest way to separate a real regression from the standing flakes (diary shard 3, dashboard #1735
+shard 8). Remember `E2E Gates` is `main`-only, so a red E2E test merges to `beta` silently.
+
+## Inverting a contract can make an existing negative test unconditional (PR #2004, #1910)
+
+Distinct from the two vacuity patterns above: the test was genuinely falsifiable **before** the fix.
+Scenario 27 asserted "container has no `lang` when report language matches the UI locale" — meaningful
+while the container was the tagging site. After Option A the container never carries `lang` for any
+input, so the assertion can no longer distinguish the two branches of the conditional it guards;
+deleting the `lang={…}` prop from the caller entirely leaves it green.
+How to apply: when a fix narrows *where* a property is applied, re-run the revert test on the
+**pre-existing** negative tests too, not only on the ones the fix touched. Retarget them to whatever
+element now varies with the condition.
+
+## Surgical tagging misses read-only value nodes (PR #2004, #1910)
+
+Positive/surgical tagging (the fix I recommended in round 1) has its own failure mode: it is an
+enumeration, so it misses sites. #2004 tagged five sections plus every `EditableField`, and missed the
+two `.readOnlyValue` spans (`coverLetter.dateLine`, `coverLetter.closing`) — read-only report-language
+text that no editable-field prop threads through. Check: enumerate the render sites of the
+*data-derived* strings (`content.*`), not the elements the diff touched. Sibling `.readOnlyLabel` spans
+are `t()` UI chrome and must stay untagged — the label/value pair splits across the boundary.

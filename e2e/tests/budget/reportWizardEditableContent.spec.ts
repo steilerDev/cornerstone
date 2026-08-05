@@ -2395,12 +2395,12 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 25: lang attribute on ReportContentEditor container when report language
+// Scenario 25: lang attribute on the report table <thead> when report language
 // differs from the UI locale (Issue #1910)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Report wizard editable content — lang attribute on container when report language differs from UI locale (Scenario 25, #1910)', () => {
-  test('The ReportContentEditor container carries lang="de" when the report language is set to Deutsch and the UI locale is "en"', async ({
+test.describe('Report wizard editable content — lang attribute on thead when report language differs from UI locale (Scenario 25, #1910)', () => {
+  test('The report table <thead> carries lang="de" when the report language is set to Deutsch and the UI locale is "en"', async ({
     page,
     testPrefix,
   }) => {
@@ -2439,15 +2439,15 @@ test.describe('Report wizard editable content — lang attribute on container wh
       await wizard.selectReportLanguage('de');
       await wizard.step4NextButton.click(); // now on step 5
 
-      // `ReportWizardPage.tsx` passes `lang={reportLanguage !== resolvedLocale ?
-      // reportLanguage : undefined}` to `ReportContentEditor`. When the user selected
-      // "Deutsch" and the UI locale resolved to "en", the condition is true and the outer
-      // <div> carries `lang="de"` — marking the body text's language for screen readers
-      // and browser spell-checkers. Under Option A, the surgical tagging is on
-      // `.tableWrapper` sections, not on individual headings (see Scenario 26).
+      // Under Option A, lang is placed on the <thead> of the report table — the element
+      // that carries the translated column headings — rather than on the outer container
+      // div. This gives screen readers and spell-checkers a precise language boundary
+      // without over-tagging surrounding UI text (see Scenario 26).
       const container = wizard.reportContentContainer();
       await expect(container).toBeVisible();
-      expect(await container.getAttribute('lang')).toBe('de');
+      const thead = container.locator('thead').first();
+      await expect(thead).toBeVisible();
+      expect(await thead.getAttribute('lang')).toBe('de');
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
@@ -2457,12 +2457,12 @@ test.describe('Report wizard editable content — lang attribute on container wh
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 26: .tableWrapper carries lang="de" when report language differs (Option A
+// Scenario 26: <thead> carries lang="de" when report language differs (Option A
 // surgical tagging); h3 headings carry NO lang attribute — (Issue #1910)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Report wizard editable content — tableWrapper carries report lang, h3 headings carry no lang under Option A (Scenario 26, #1910)', () => {
-  test('The .tableWrapper section inside the ReportContentEditor carries lang="de" when the report language is set to Deutsch — report-language content is surgically tagged', async ({
+test.describe('Report wizard editable content — thead carries report lang, h3 headings carry no lang under Option A (Scenario 26, #1910)', () => {
+  test('The <thead> inside the ReportContentEditor carries lang="de" when the report language is set to Deutsch — report-language content is surgically tagged', async ({
     page,
     testPrefix,
   }) => {
@@ -2499,10 +2499,10 @@ test.describe('Report wizard editable content — tableWrapper carries report la
       const container = wizard.reportContentContainer();
       await expect(container).toBeVisible();
 
-      // Option A surgical tagging: .tableWrapper carries lang="de" (report-language content).
-      const tableWrapper = container.locator('[class*="tableWrapper"]').first();
-      await expect(tableWrapper).toBeVisible();
-      expect(await tableWrapper.getAttribute('lang')).toBe('de');
+      // Option A surgical tagging: <thead> carries lang="de" (report-language column headings).
+      const thead = container.locator('thead').first();
+      await expect(thead).toBeVisible();
+      expect(await thead.getAttribute('lang')).toBe('de');
 
       // Regression guard: h3 headings must NOT carry a lang attribute under Option A.
       const headings = container.locator('h3');
@@ -2523,12 +2523,12 @@ test.describe('Report wizard editable content — tableWrapper carries report la
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 27: No lang attribute on the container when report language matches UI locale
-// (Issue #1910)
+// Scenario 27: No lang attribute on the report table <thead> when report language
+// matches UI locale (Issue #1910)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Report wizard editable content — no lang attribute on container when report language matches UI locale (Scenario 27, #1910)', () => {
-  test('The ReportContentEditor container has no lang attribute when the report language is left at the default "English", matching the test environment UI locale', async ({
+test.describe('Report wizard editable content — no lang attribute on thead when report language matches UI locale (Scenario 27, #1910)', () => {
+  test('The report table <thead> has no lang attribute when report language matches UI locale (no redundant tagging)', async ({
     page,
     testPrefix,
   }) => {
@@ -2556,14 +2556,14 @@ test.describe('Report wizard editable content — no lang attribute on container
       // navigates all four preceding steps with the default settings.
       await reachStep5(wizard, sourceId, 'claim');
 
-      // When `reportLanguage === resolvedLocale` (both "en"), `ReportWizardPage.tsx` passes
-      // `lang={undefined}` and `uiLang={undefined}` to `ReportContentEditor` — the outer
-      // <div> renders with no lang attribute at all (inheriting language from the page root,
-      // which is the correct default when no translation layering is needed). Playwright's
-      // `getAttribute` returns `null` for absent attributes.
+      // When `reportLanguage === resolvedLocale` (both "en"), the <thead> renders with no
+      // lang attribute — no redundant tagging is needed when the report language matches the
+      // page locale. Playwright's `getAttribute` returns `null` for absent attributes.
       const container = wizard.reportContentContainer();
       await expect(container).toBeVisible();
-      expect(await container.getAttribute('lang')).toBeNull();
+      const thead = container.locator('thead').first();
+      await expect(thead).toBeVisible();
+      expect(await thead.getAttribute('lang')).toBeNull();
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);

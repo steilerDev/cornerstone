@@ -823,3 +823,22 @@ plus a scoped `git diff --stat` before paying for isolation.
 - Could not `gh pr review` (own PR) → posted via `gh pr comment`.
 - E2E: new Scenarios 25/26/27 pass; Shard 8's 3 failures are pre-existing
   `navigation/dashboard.spec.ts` Scenario 13 (#1735) — unrelated.
+
+### PR #2004 round 2 — Option A H1 fix (2026-08-05, CHANGES_REQUIRED again)
+
+- H1 correctly fixed via Option A (surgical positive tagging, `uiLang` deleted). Design is clean:
+  every `lang`-bearing element's own text is `content.*` (report language); all `t()` chrome is outside.
+- **New blocking H1-r2**: E2E Scenario 25's assertion still expects container `lang="de"` (comment was
+  updated, assertion was not) → Shard 2/16 red, confirmed via shard-diff vs `2744d75b`.
+  See recurring-patterns "Comment refreshed, assertion left behind".
+- **H2-r2**: Scenario 27 became unconditional (see "Inverting a contract can make an existing negative
+  test unconditional").
+- M: `.readOnlyValue` spans (`dateLine`, `closing`) missed by the tagging; no test proves
+  `ReportContentEditor` passes `lang` to its `EditableField`s (delete all 8 props → still green);
+  4 of 5 tagged sections unasserted.
+- L: POM `reportContentContainer()` docstring now describes the removed behaviour; `aria-label` in UI
+  locale inside a `lang`-tagged `<input>` is an inherent, accepted residual — leave a code comment so
+  nobody "fixes" it by deleting the attribute; `expect(tableWrapper).toBeVisible()` would fail if
+  Scenario 26 were ever tagged `@responsive` (≤767px hides `.table`, not `.tableWrapper`).
+- Playwright projects: `tablet` and `mobile` both `grep: /@responsive/` — untagged scenarios are
+  **desktop-only**. Useful when judging whether a viewport-sensitive assertion is actually at risk.
