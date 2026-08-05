@@ -14,11 +14,13 @@ Issues #2003 and #1980 (2026-08-05, PR `fix/2003-1980-realrender-overflow-legend
 - `collectHorizontalRatios(node, out?)` — recursively collects all `positions[].horizontalRatio` values from a rendered pdfmake Content tree. Only detects column-START overflow (left edge past the margin), not content-extent overflow.
 - `maxHorizontalRatio(pdfContent)` — returns `Math.max(...ratios)`; throws if called before the render. Used ONLY in the revert-test (column-start overflow scenario); not used in production-content assertions.
 
-**`realRender.test.ts` — describe `'ADR-034 rule #1: horizontal-overflow assertion (issue #2003)'` (after the last `});` at EOF):**
+**`realRender.test.ts` — describe `'ADR-034 rule #1: horizontal-overflow via _minWidth <= _calcWidth (issue #2003)'` (after the last `});` at EOF):**
 
 - Revert-test: `widths: [600, 50]` forces column 2 past the right margin → `maxHorizontalRatio > 1`. Proves the helper detects column-START overflow.
 - it.each usageText (claim/budget-overview × en/de): `applyOverrides({..., 'row.inv-normal.usageText': 'W'.repeat(30)})` → `usageCell._minWidth <= usageCalcWidth` (via `calcWidthsOf(table.widths)`). Falsifiable: removing `wordBreak: 'break-all'` from `buildUsageTextRuns` breaks this (30 W chars → _minWidth ~266pt > ~69pt _calcWidth).
 - it.each areaText (claim/budget-overview × en/de): invoice with `areaName = 'W'.repeat(30)` → same `_minWidth <= _calcWidth` assertion on `tableItem.table.body[1][usageColIndex]`.
+- Total: 9 tests in this describe block (1 revert + 4 usageText + 4 areaText). 13 total including #1980.
+- NOTE: Earlier iteration of this describe had vacuous `maxHorizontalRatio <= 1` production assertions (commits dc40b769, f2b4e77a). Final form uses `_minWidth <= _calcWidth` exclusively for production content. The describe rename (from "assertion" to "via _minWidth <= _calcWidth") was commit ad511908.
 
 **`realRender.test.ts` — describe `'legend sentence layout and occurrence count (#1980)'` (after `#2003` describe):**
 
