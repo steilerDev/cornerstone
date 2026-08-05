@@ -4,8 +4,8 @@
  * Pure unit tests — no React rendering, no jsdom, no module mocks.
  * All tests operate on the reducer, factories, and selectors directly.
  *
- * Coverage: createInitialWizardState, wizardReducer (all 20 action types),
- * isGeneratingAi, hasManualEdits, isDirty, isGeneratingOnly.
+ * Coverage: createInitialWizardState, wizardReducer (all 22 action types, including #1973's
+ * TOGGLE_COLUMN), isGeneratingAi, hasManualEdits, isDirty, isGeneratingOnly.
  *
  * Story #1947 / Bug #1943 regression tests are in Group 17.
  */
@@ -147,12 +147,16 @@ describe('Tier factories (via createInitialWizardState)', () => {
     expect(state.skippedDocuments).toEqual([]);
   });
 
-  it('freshContentTier shape: aiContent=null, aiRequestId=null, aiError="", overrides={}', () => {
+  it('freshContentTier shape: aiContent=null, aiRequestId=null, aiError="", overrides={}, hiddenColumns=empty Set', () => {
     const state = createInitialWizardState(null);
     expect(state.aiContent).toBeNull();
     expect(state.aiRequestId).toBeNull();
     expect(state.aiError).toBe('');
     expect(state.overrides).toEqual({});
+    // #1973: hiddenColumns joined ContentTier — R5 co-locates it with overrides for
+    // reset-on-use-case-change purposes.
+    expect(state.hiddenColumns).toBeInstanceOf(Set);
+    expect(state.hiddenColumns.size).toBe(0);
   });
 });
 
@@ -243,6 +247,18 @@ describe('SELECT_USE_CASE', () => {
     expect(next.aiContent).toBeNull();
     expect(next.aiRequestId).toBeNull();
     expect(next.aiError).toBe('');
+  });
+
+  it('(#1973 R5) resets hiddenColumns to empty, even when the prior state had columns hidden — a hidden-Status selection on a budget-overview report must not survive a switch to claim', () => {
+    const state = makeState({
+      hiddenColumns: new Set(['status', 'vendor']),
+    });
+    const next = wizardReducer(state, {
+      type: 'SELECT_USE_CASE',
+      payload: { useCase: 'claim', step2RequestId: 'req-1' },
+    });
+    expect(next.hiddenColumns).toBeInstanceOf(Set);
+    expect(next.hiddenColumns.size).toBe(0);
   });
 
   it('preserves SettingsTier fields', () => {
@@ -700,6 +716,73 @@ describe('DISCARD_EDITS', () => {
     expect(next.aiContent).toBeNull();
     expect(next.aiRequestId).toBeNull();
     expect(next.aiError).toBe('persistent error'); // preserved because aiRequestId was null
+  });
+
+  it('(#1973) PRESERVES hiddenColumns across the call — the one deliberately asymmetric case: column visibility is a presentation choice, not a discardable content edit, so a future refactor must not "fix" this back to clearing it alongside overrides/aiContent', () => {
+    const state = makeState({
+      overrides: { key: 'val' },
+      aiContent: makeAiResult(),
+      hiddenColumns: new Set(['vendor', 'usage']),
+    });
+    const next = wizardReducer(state, { type: 'DISCARD_EDITS' });
+    // Sanity: overrides/aiContent DID clear, same as the tests above.
+    expect(next.overrides).toEqual({});
+    expect(next.aiContent).toBeNull();
+    // hiddenColumns did NOT clear.
+    expect(next.hiddenColumns).toEqual(new Set(['vendor', 'usage']));
+  });
+});
+
+// ─── Group 13b: TOGGLE_COLUMN (#1973) ─────────────────────────────────────────
+
+describe('TOGGLE_COLUMN', () => {
+  it('toggling an unhidden column adds it to hiddenColumns', () => {
+    const state = makeState({ hiddenColumns: new Set() });
+    const next = wizardReducer(state, {
+      type: 'TOGGLE_COLUMN',
+      payload: { column: 'vendor' },
+    });
+    expect(next.hiddenColumns).toEqual(new Set(['vendor']));
+  });
+
+  it('toggling an already-hidden column removes it from hiddenColumns', () => {
+    const state = makeState({ hiddenColumns: new Set(['vendor']) });
+    const next = wizardReducer(state, {
+      type: 'TOGGLE_COLUMN',
+      payload: { column: 'vendor' },
+    });
+    expect(next.hiddenColumns).toEqual(new Set());
+  });
+
+  it('toggling two different columns independently does not affect each other', () => {
+    const state = makeState({ hiddenColumns: new Set() });
+    const afterVendor = wizardReducer(state, {
+      type: 'TOGGLE_COLUMN',
+      payload: { column: 'vendor' },
+    });
+    const afterBoth = wizardReducer(afterVendor, {
+      type: 'TOGGLE_COLUMN',
+      payload: { column: 'usage' },
+    });
+    expect(afterBoth.hiddenColumns).toEqual(new Set(['vendor', 'usage']));
+
+    // Un-hiding vendor leaves usage hidden, untouched.
+    const afterUnhideVendor = wizardReducer(afterBoth, {
+      type: 'TOGGLE_COLUMN',
+      payload: { column: 'vendor' },
+    });
+    expect(afterUnhideVendor.hiddenColumns).toEqual(new Set(['usage']));
+  });
+
+  it("does not mutate the previous state's hiddenColumns Set (new Set returned each time)", () => {
+    const priorHidden = new Set<'vendor'>(['vendor']);
+    const state = makeState({ hiddenColumns: priorHidden });
+    const next = wizardReducer(state, {
+      type: 'TOGGLE_COLUMN',
+      payload: { column: 'usage' },
+    });
+    expect(priorHidden).toEqual(new Set(['vendor'])); // untouched
+    expect(next.hiddenColumns).not.toBe(priorHidden);
   });
 });
 

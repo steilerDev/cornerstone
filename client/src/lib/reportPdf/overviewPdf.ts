@@ -3,7 +3,13 @@
  * Consumes ReportContent (text only); no data derivation.
  */
 import type { Content } from 'pdfmake/build/pdfmake';
-import type { ReportContent, ReportContentRow, ReportSkipReason } from '../reportContent/index.js';
+import type {
+  ReportContent,
+  ReportContentRow,
+  ReportSkipReason,
+  ReportColumnKey,
+} from '../reportContent/index.js';
+import { visibleReportColumns } from '../reportContent/index.js';
 import {
   TABLE_LAYOUT,
   REFUND_TEXT_COLOR,
@@ -31,6 +37,74 @@ const INVOICE_AMOUNT_WIDTH = 48;
 const ALLOCATED_AMOUNT_WIDTH = 75; // value+markers (~57pt) + " (Abschlagszahlung)" badge (72.9pt)
 // both hold; "Zugeordneter Betrag" header wraps at its internal space ("Zugeordneter"=60.42pt,
 // "Betrag"=29.42pt — both < 75pt) so it never needs word-breaking either.
+
+/**
+ * Every column except Usage has a pinned, content-measured width (see the constants above).
+ * Usage is the odd one out: its width is derived per-subset by computeColumnWidths below, never
+ * pinned, which is what FixedColumnKey / PINNED_WIDTHS being Usage-exclusive encodes at the type
+ * level (#1973).
+ */
+type FixedColumnKey = Exclude<ReportColumnKey, 'usage'>;
+const PINNED_WIDTHS: Record<FixedColumnKey, number> = {
+  vendor: VENDOR_WIDTH,
+  invoiceNumber: INVOICE_NUMBER_WIDTH,
+  date: DATE_WIDTH,
+  status: STATUS_WIDTH,
+  invoiceAmount: INVOICE_AMOUNT_WIDTH,
+  allocatedAmount: ALLOCATED_AMOUNT_WIDTH,
+};
+const RIGHT_ALIGNED_COLUMNS: ReadonlySet<ReportColumnKey> = new Set([
+  'invoiceAmount',
+  'allocatedAmount',
+]);
+const LEADING_COLUMNS: readonly ReportColumnKey[] = ['vendor', 'invoiceNumber', 'date', 'status'];
+
+export interface ColumnWidths {
+  widths: Partial<Record<ReportColumnKey, number>>;
+  absorber: ReportColumnKey | null;
+}
+
+/**
+ * The R7 width-absorber algorithm (#1973). For a given ordered visible-column list, the
+ * "absorber" is 'usage' if visible, else 'vendor' if visible, else null (no absorber — every
+ * remaining column is bounded/numeric, so the table renders narrower than the page rather than
+ * wider).
+ *
+ * Provably correct against AC 3.1-3.5 (re-derived here, not merely asserted):
+ * - When an absorber exists: `total = tableOffsetsTotal(n) + fixedSum + (usableColumnWidth(n) -
+ *   fixedSum) = tableOffsetsTotal(n) + usableColumnWidth(n) = printableWidth()` EXACTLY,
+ *   algebraically, for any visible set with an absorber (AC 3.2's 72-subset case).
+ * - When no absorber exists: `total = tableOffsetsTotal(n) + fixedSum(all visible)`, strictly
+ *   less than printableWidth() since no term consumes the remaining slack (AC 3.4's 24-subset
+ *   case).
+ * - Every non-absorber visible column keeps its exact PINNED_WIDTHS value in every case (AC 3.5
+ *   holds by construction).
+ * - Removing any column while 'usage' stays the absorber strictly INCREASES widths.usage (fixedSum
+ *   shrinks by the removed column's pinned width, and usableColumnWidth(n) grows by
+ *   tableOffsetsTotal's per-column increment, 8.5pt) — so the narrowest Usage can ever be, across
+ *   all 96 legal subsets, is USAGE_WIDTH_7COL (138.28pt), reached only at the full 7-column set.
+ */
+export function computeColumnWidths(visible: readonly ReportColumnKey[]): ColumnWidths {
+  const n = visible.length;
+  const absorber: ReportColumnKey | null = visible.includes('usage')
+    ? 'usage'
+    : visible.includes('vendor')
+      ? 'vendor'
+      : null;
+  let fixedSum = 0;
+  const widths: Partial<Record<ReportColumnKey, number>> = {};
+  for (const col of visible) {
+    if (col === absorber) continue;
+    // Every non-absorber column reached here is a genuine FixedColumnKey: 'usage' is only ever
+    // skipped as `absorber` (never appears in this branch), so this narrowly-scoped cast is the
+    // one exception the compliance checklist allows for satisfying PINNED_WIDTHS' exhaustive key
+    // type — do not widen it further.
+    widths[col] = PINNED_WIDTHS[col as FixedColumnKey];
+    fixedSum += widths[col]!;
+  }
+  if (absorber) widths[absorber] = usableColumnWidth(n) - fixedSum;
+  return { widths, absorber };
+}
 
 /**
  * Usage column width (both shapes) — an EXPLICIT NUMERIC width computed from
@@ -363,6 +437,31 @@ export const USAGE_SAFE_TOKEN_CHARS_6COL = safeTokenChars(
  */
 export const VENDOR_SAFE_TOKEN_CHARS = safeTokenChars(VENDOR_WIDTH, BODY_WORST_CASE_CHAR_WIDTH_PT);
 
+/** Per-subset Usage safe-token-char threshold (AC 3.6) — same formula as USAGE_SAFE_TOKEN_CHARS_*COL
+ * above, generalized to any Usage width computeColumnWidths produces. */
+export function usageSafeTokenCharsForWidth(usageWidthPt: number): number {
+  return safeTokenChars(usageWidthPt, BODY_WORST_CASE_CHAR_WIDTH_PT);
+}
+
+/**
+ * AC 3.7 one-sided clamp. MAX_SAFE_USAGE_CHUNK_CHARS (650) was measured (see that constant's own
+ * doc comment) against a real render at the 7-column shape's Usage width (USAGE_WIDTH_7COL,
+ * 138.28pt) — the narrowest Usage can ever be across all 96 legal subsets (hiding any column
+ * while Usage stays visible only ever widens it further; see computeColumnWidths' derivation).
+ * Scaling proportionally to width and then clamping to 650 means this budget MAY scale down for a
+ * width narrower than the reference, and MUST NOT scale up for a wider one — required by AC 3.7
+ * specifically so a FUTURE column addition that narrows Usage below today's floor fails safe
+ * instead of silently reinstating the #1929 content-loss defect. No subset in today's 96 legal
+ * combinations reaches the downward branch — it exists for that future case, and must be tested
+ * by calling this function directly with a synthetic width (see QA Spec), not by enumerating
+ * today's subsets. Do not "simplify" this to always return MAX_SAFE_USAGE_CHUNK_CHARS: that would
+ * remove the clamp's entire reason for existing.
+ */
+export function usageChunkCharsForWidth(usageWidthPt: number): number {
+  const scaled = Math.floor(MAX_SAFE_USAGE_CHUNK_CHARS * (usageWidthPt / USAGE_WIDTH_7COL));
+  return Math.min(MAX_SAFE_USAGE_CHUNK_CHARS, scaled);
+}
+
 /**
  * Splits `text` into inline pdfmake text runs. Whitespace-free runs at or under `safeTokenChars`
  * are emitted verbatim (default whitespace-only wrapping); a run over that length gets
@@ -445,10 +544,9 @@ export const HEADER_ROW_HEIGHT_MAX =
   HEADER_ROW_VERTICAL_PADDING_PT;
 
 /**
- * Every cell-content channel this table renders (buildLeadingCells/buildAmountCells/the row-
- * building loop below), and the bound that closes each one (#1939, product-architect round-4
- * sweep). Documentation only — see the two exceptions called out at the end; neither is fixed
- * here (scope guard: AC7).
+ * Every cell-content channel this table renders (buildBodyCell/the row-building loop below), and
+ * the bound that closes each one (#1939, product-architect round-4 sweep). Documentation only —
+ * see the two exceptions called out at the end; neither is fixed here (scope guard: AC7).
  *
  * - `vendor`            — server `maxLength: 200` (`server/src/routes/vendors.ts` createVendorSchema,
  *                          `name` field). Worst case (VENDOR_SAFE_TOKEN_CHARS break-all, 200 chars
@@ -457,7 +555,7 @@ export const HEADER_ROW_HEIGHT_MAX =
  * - `invoiceNumber`     — server `maxLength: 100` (`server/src/routes/invoices.ts`
  *                          createInvoiceSchema, `invoiceNumber` field). Worst case ~158pt — 74.6%
  *                          margin. NOT routed through buildUsageTextRuns (rendered as a plain
- *                          `contentRow.invoiceNumber` text cell in buildLeadingCells) — see the
+ *                          `contentRow.invoiceNumber` text cell in buildBodyCell) — see the
  *                          exception below.
  * - `statusText`        — enum label via `reportT` (bounded by construction: finite enum of
  *                          translated strings, not user input).
@@ -491,6 +589,7 @@ export const HEADER_ROW_HEIGHT_MAX =
 export function buildOverviewContent(
   reportContent: ReportContent,
   skippedDocuments: Map<string, ReportSkipReason[]>,
+  hiddenColumns: ReadonlySet<ReportColumnKey> = new Set(),
 ): Content[] {
   const content: Content[] = [];
 
@@ -530,58 +629,66 @@ export function buildOverviewContent(
     });
   }
 
+  // Visible columns for this report, in canonical order — the single AC 2.1 derivation shared
+  // with ReportContentEditor's toggle UI (client/src/lib/reportContent/columns.ts). The R7
+  // width-absorber algorithm (computeColumnWidths) is applied against this exact set.
+  const visible = visibleReportColumns(reportContent.isOverview, hiddenColumns);
+  const { widths: colWidths } = computeColumnWidths(visible);
+
   // Build table columns — every header cell goes through buildHeaderCell so a single-word label
   // wider than its column (#1929 round-3 architect review HIGH1) breaks mid-character instead of
   // overflowing; harmless for labels that already fit.
-  const usageWidth = reportContent.isOverview ? USAGE_WIDTH_7COL : USAGE_WIDTH_6COL;
-  const columns: Content[] = [
-    buildHeaderCell(reportContent.labels.vendor, VENDOR_WIDTH),
-    buildHeaderCell(reportContent.labels.invoiceNumber, INVOICE_NUMBER_WIDTH),
-    buildHeaderCell(reportContent.labels.date, DATE_WIDTH),
-  ];
-
-  // Add status column only if budget-overview
-  if (reportContent.isOverview) {
-    columns.push(buildHeaderCell(reportContent.labels.status, STATUS_WIDTH));
-  }
-
-  columns.push(
-    buildHeaderCell(reportContent.labels.invoiceAmount, INVOICE_AMOUNT_WIDTH, 'right'),
-    buildHeaderCell(reportContent.labels.allocatedAmount, ALLOCATED_AMOUNT_WIDTH, 'right'),
-    buildHeaderCell(reportContent.labels.usage, usageWidth),
+  const HEADER_LABEL: Record<ReportColumnKey, string> = {
+    vendor: reportContent.labels.vendor,
+    invoiceNumber: reportContent.labels.invoiceNumber,
+    date: reportContent.labels.date,
+    status: reportContent.labels.status,
+    invoiceAmount: reportContent.labels.invoiceAmount,
+    allocatedAmount: reportContent.labels.allocatedAmount,
+    usage: reportContent.labels.usage,
+  };
+  const columns: Content[] = visible.map((col) =>
+    buildHeaderCell(
+      HEADER_LABEL[col],
+      colWidths[col]!,
+      RIGHT_ALIGNED_COLUMNS.has(col) ? 'right' : undefined,
+    ),
   );
 
+  const nonUsageVisible = visible.filter((c): c is FixedColumnKey => c !== 'usage');
+  const usageVisible = visible.includes('usage');
+
+  // R2's three-tier fallback for a summary row's label placement (AC 4.5/4.6), computed once per
+  // document rather than per row.
+  const lastLeadingVisible = [...LEADING_COLUMNS].reverse().find((c) => visible.includes(c));
+  const hasLeadingVisible = lastLeadingVisible !== undefined;
+  const invoiceAmountVisible = visible.includes('invoiceAmount');
+  // Tier 3, exactly the {allocatedAmount} / {allocatedAmount, usage} subsets: no leading column
+  // and no invoiceAmount column survive to carry the label, so summary rows render as a stack
+  // block below the table instead of a table row — matching ReportContentEditor.tsx's preview,
+  // which always renders summary rows in a separate block (R2's "preview parity").
+  const usesSeparateSummaryBlock = !hasLeadingVisible && !invoiceAmountVisible;
+
   /**
-   * Helper: build summary row (subtotal/total) with label at last leading index.
+   * Helper: build summary row (subtotal/total) with the label at the last visible leading column
+   * (Tier 1), falling back to invoiceAmount when no leading column survives (Tier 2). Never
+   * called for usesSeparateSummaryBlock's Tier 3 subsets.
    */
   function buildSummaryRow(labelText: string, amountText: string): Content[] {
-    const leadingCount = reportContent.isOverview ? 4 : 3;
-    const row: Content[] = [];
-
-    // Leading cells: empty except the last one which has the label
-    for (let i = 0; i < leadingCount; i++) {
-      if (i === leadingCount - 1) {
-        row.push({ text: labelText, style: 'tableCell', bold: true });
-      } else {
-        row.push({ text: '', style: 'tableCell' });
-      }
-    }
-
-    // Empty invoiceAmount cell
-    row.push({ text: '', style: 'tableCell' });
-
-    // Bold right-aligned amount
-    row.push({
-      text: amountText,
-      style: 'tableCell',
-      alignment: 'right',
-      bold: true,
-    });
-
-    // Empty trailing usage cell
-    row.push({ text: '', style: 'tableCell' });
-
-    return row;
+    return nonUsageVisible
+      .map((col): Content => {
+        if (col === 'allocatedAmount') {
+          return { text: amountText, style: 'tableCell', alignment: 'right', bold: true };
+        }
+        if (col === lastLeadingVisible) {
+          return { text: labelText, style: 'tableCell', bold: true }; // Tier 1
+        }
+        if (col === 'invoiceAmount' && !hasLeadingVisible) {
+          return { text: labelText, style: 'tableCell', bold: true }; // Tier 2
+        }
+        return { text: '', style: 'tableCell' };
+      })
+      .concat(usageVisible ? [{ text: '', style: 'tableCell' }] : []);
   }
 
   // Build table rows from reportContent.rows
@@ -602,79 +709,63 @@ export function buildOverviewContent(
   }
 
   /**
-   * Leading (vendor/invoiceNumber/date/[status]) cells for a content row. Status is pushed
-   * unconditionally whenever isOverview — see AC14: a falsy statusText must still produce a
-   * cell, or the row's cell count falls short of the 7-entry `widths` array and pdfmake throws
-   * "Malformed table row, a cell is undefined."
+   * Body cell for one non-usage visible column. AC14 precedent: status is never omitted even
+   * when falsy — every visible non-usage column must always produce a cell, or the row's cell
+   * count falls short of `widths` and pdfmake throws "Malformed table row, a cell is undefined."
    */
-  function buildLeadingCells(
+  function buildBodyCell(
+    col: FixedColumnKey,
     contentRow: ReportContentRow,
-    isOverview: boolean,
-    statusText: string,
-  ): Content[] {
-    const cells: Content[] = [
-      // Vendor names are free-form business names (unlike invoiceNumber/dateText, which are
-      // system-generated and bounded) — protected with the same per-token break-all treatment
-      // as Usage (#1929 round-3 architect review HIGH1: "Elektroinstallationsbetrieb" measured
-      // 92.72pt against the 45pt Vendor column).
-      { text: buildUsageTextRuns(contentRow.vendor, VENDOR_SAFE_TOKEN_CHARS), style: 'tableCell' },
-      { text: contentRow.invoiceNumber, style: 'tableCell' },
-      { text: contentRow.dateText, style: 'tableCell' },
-    ];
-    if (isOverview) {
-      cells.push({ text: statusText, style: 'tableCell' });
+    allocatedRuns: Content[],
+  ): Content {
+    switch (col) {
+      case 'vendor':
+        // Vendor names are free-form business names (unlike invoiceNumber/dateText, which are
+        // system-generated and bounded) — protected with the same per-token break-all treatment
+        // as Usage (#1929 round-3 architect review HIGH1: "Elektroinstallationsbetrieb" measured
+        // 92.72pt against the 45pt Vendor column).
+        return {
+          text: buildUsageTextRuns(contentRow.vendor, VENDOR_SAFE_TOKEN_CHARS),
+          style: 'tableCell',
+        };
+      case 'invoiceNumber':
+        return { text: contentRow.invoiceNumber, style: 'tableCell' };
+      case 'date':
+        return { text: contentRow.dateText, style: 'tableCell' };
+      case 'status':
+        return { text: contentRow.statusText ?? '', style: 'tableCell' };
+      case 'invoiceAmount':
+        return {
+          text: contentRow.invoiceAmountText,
+          style: 'tableCell',
+          alignment: 'right',
+          color: contentRow.isRefund ? REFUND_TEXT_COLOR : undefined,
+        };
+      case 'allocatedAmount':
+        return {
+          text: allocatedRuns,
+          style: 'tableCell',
+          alignment: 'right',
+          color: contentRow.isRefund ? REFUND_TEXT_COLOR : undefined,
+        };
     }
-    return cells;
   }
 
   /**
-   * Invoice-amount and allocated-amount cells for a content row.
+   * Empty body cell for a Usage continuation row — every non-usage visible column blank.
    */
-  function buildAmountCells(contentRow: ReportContentRow, allocatedRuns: Content[]): Content[] {
-    return [
-      {
-        text: contentRow.invoiceAmountText,
-        style: 'tableCell',
-        alignment: 'right',
-        color: contentRow.isRefund ? REFUND_TEXT_COLOR : undefined,
-      },
-      {
-        text: allocatedRuns,
-        style: 'tableCell',
-        alignment: 'right',
-        color: contentRow.isRefund ? REFUND_TEXT_COLOR : undefined,
-      },
-    ];
+  function buildEmptyBodyCell(col: FixedColumnKey): Content {
+    return RIGHT_ALIGNED_COLUMNS.has(col)
+      ? { text: '', style: 'tableCell', alignment: 'right' }
+      : { text: '', style: 'tableCell' };
   }
 
-  /**
-   * Empty leading cells for a Usage continuation row — every column blank except Usage.
-   */
-  function buildEmptyLeadingCells(isOverview: boolean): Content[] {
-    const cells: Content[] = [
-      { text: '', style: 'tableCell' },
-      { text: '', style: 'tableCell' },
-      { text: '', style: 'tableCell' },
-    ];
-    if (isOverview) cells.push({ text: '', style: 'tableCell' });
-    return cells;
-  }
-
-  /**
-   * Empty amount cells for a Usage continuation row.
-   */
-  function buildEmptyAmountCells(): Content[] {
-    return [
-      { text: '', style: 'tableCell', alignment: 'right' },
-      { text: '', style: 'tableCell', alignment: 'right' },
-    ];
-  }
-
-  // Word-break thresholds for this table shape (#1929 round-2 review finding: AC2 permits
-  // breaking a word only when it doesn't fit its column alone — see buildUsageTextRuns).
-  const usageSafeTokenChars = reportContent.isOverview
-    ? USAGE_SAFE_TOKEN_CHARS_7COL
-    : USAGE_SAFE_TOKEN_CHARS_6COL;
+  // Word-break threshold and chunk budget for THIS subset's Usage width (AC 3.6/3.7) — derived
+  // from the per-subset width computeColumnWidths produced above, not the old two-shape
+  // constants (USAGE_SAFE_TOKEN_CHARS_7COL/6COL, which remain exported unchanged as the "hiding
+  // nothing" baseline values plus the reference denominator usageChunkCharsForWidth's clamp uses).
+  const usageSafeTokenChars = usageVisible ? usageSafeTokenCharsForWidth(colWidths.usage!) : 0;
+  const usageChunkChars = usageVisible ? usageChunkCharsForWidth(colWidths.usage!) : 0;
 
   /**
    * Renders one packed row's worth of Usage-cell segments (see packUsageCellRows) into a cell.
@@ -711,7 +802,10 @@ export function buildOverviewContent(
       skipMarkerText += `*${noteNum}`;
     }
 
-    // Build allocated runs: value+skip markers, then optional inline labels, then optional refund note
+    // Build allocated runs: value+skip markers, then optional inline labels, then optional
+    // refund note. `allocatedAmount` is the locked column — always in `visible` regardless of
+    // `hiddenColumns` — so allocatedRuns is always built and always rendered here; #1973 AC 4.7
+    // holds structurally, not incidentally.
     const allocatedRuns: Content[] = [
       { text: `${contentRow.allocatedAmountValueText}${skipMarkerText}` },
     ];
@@ -740,6 +834,15 @@ export function buildOverviewContent(
       allocatedRuns.push({ text: ` ${contentRow.refundNoteText}` });
     }
 
+    const nonUsageCells = nonUsageVisible.map((col) =>
+      buildBodyCell(col, contentRow, allocatedRuns),
+    );
+
+    if (!usageVisible) {
+      rows.push(nonUsageCells);
+      continue; // no Usage cell ⇒ no continuation rows possible
+    }
+
     // Area and attachmentsNote render inline as one trailing grey suffix on the Usage cell
     // (#1959), '\n'-prefixed and joined by ' · '.
     const metaPieces: string[] = [];
@@ -760,25 +863,21 @@ export function buildOverviewContent(
     if (metaPieces.length > 0) {
       cellSegments.push({ text: `\n${metaPieces.join(' · ')}`, meta: true });
     }
-    const packedCellRows = packUsageCellRows(cellSegments, MAX_SAFE_USAGE_CHUNK_CHARS);
+    const packedCellRows = packUsageCellRows(cellSegments, usageChunkChars);
 
-    rows.push([
-      ...buildLeadingCells(contentRow, reportContent.isOverview, contentRow.statusText ?? ''),
-      ...buildAmountCells(contentRow, allocatedRuns),
-      buildUsageCell(packedCellRows[0]!),
-    ]);
+    rows.push([...nonUsageCells, buildUsageCell(packedCellRows[0]!)]);
     for (let i = 1; i < packedCellRows.length; i++) {
-      rows.push([
-        ...buildEmptyLeadingCells(reportContent.isOverview),
-        ...buildEmptyAmountCells(),
-        buildUsageCell(packedCellRows[i]!),
-      ]);
+      rows.push([...nonUsageVisible.map(buildEmptyBodyCell), buildUsageCell(packedCellRows[i]!)]);
     }
   }
 
-  // Add summary rows from reportContent.summaryRows
-  for (const summaryRow of reportContent.summaryRows) {
-    rows.push(buildSummaryRow(summaryRow.label, summaryRow.amountText));
+  // Add summary rows from reportContent.summaryRows — Tier 1/2 push a row into the table body;
+  // Tier 3 (usesSeparateSummaryBlock) renders as a stack block below the table instead (see the
+  // block pushed after the table, below).
+  if (!usesSeparateSummaryBlock) {
+    for (const summaryRow of reportContent.summaryRows) {
+      rows.push(buildSummaryRow(summaryRow.label, summaryRow.amountText));
+    }
   }
 
   // Add table
@@ -790,34 +889,33 @@ export function buildOverviewContent(
       // (as round 1 did) is inert, since layout is only consumed for border/padding/fill
       // callbacks (#1929 architect review, CRITICAL 1).
       dontBreakRows: true,
-      // Usage is an explicit NUMBER (usageWidth), never '*' — #1929 round-3 architect review
+      // Every column is an explicit NUMBER, never '*' — #1929 round-3 architect review
       // CRITICAL/HIGH1: pdfmake never grows a fixed column past its declared width
       // (elasticWidth is read but assigned nowhere), so declaring every column numeric makes
       // the star column's content-driven overflow branch (columnCalculator.js's case-1) simply
-      // unreachable — the table's total rendered width is printableWidth() for any input.
-      widths: reportContent.isOverview
-        ? [
-            VENDOR_WIDTH,
-            INVOICE_NUMBER_WIDTH,
-            DATE_WIDTH,
-            STATUS_WIDTH,
-            INVOICE_AMOUNT_WIDTH,
-            ALLOCATED_AMOUNT_WIDTH,
-            usageWidth,
-          ]
-        : [
-            VENDOR_WIDTH,
-            INVOICE_NUMBER_WIDTH,
-            DATE_WIDTH,
-            INVOICE_AMOUNT_WIDTH,
-            ALLOCATED_AMOUNT_WIDTH,
-            usageWidth,
-          ],
+      // unreachable — the table's total rendered width is printableWidth() for any input (see
+      // computeColumnWidths' derivation for the general N-column proof).
+      widths: visible.map((col) => colWidths[col]!),
       body: rows,
     },
     layout: TABLE_LAYOUT, // no longer carries dontBreakRows — see shared.ts
     margin: [0, 0, 0, 20],
   });
+
+  // Tier 3 (usesSeparateSummaryBlock): summary rows render as their own stack block, matching
+  // ReportContentEditor.tsx's preview which always renders summary rows separately from the
+  // table (R2 "preview parity").
+  if (usesSeparateSummaryBlock && reportContent.summaryRows.length > 0) {
+    content.push({
+      stack: reportContent.summaryRows.map((row) => ({
+        columns: [
+          { text: row.label, style: 'tableCell', bold: true },
+          { text: row.amountText, style: 'tableCell', bold: true, alignment: 'right' },
+        ],
+      })),
+      margin: [0, 0, 0, 20],
+    });
+  }
 
   // Add footnotes (skip block only; split/deposit annotations are now rendered inline)
   const footnotes: Content[] = [];

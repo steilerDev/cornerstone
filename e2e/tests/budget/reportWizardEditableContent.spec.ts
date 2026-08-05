@@ -120,6 +120,35 @@
  *   reset-button fix (glyph sizing only, unchanged `resetButton` className/DOM structure) never
  *   broke the existing `resetButtonFor`/`hasEditedIndicator` POM locators.
  *
+ * Issue #1973 (column visibility wired through to the generated PDF, supersedes #1966): the
+ * `hiddenColumns` selection used to be `ReportContentEditor` local state that never left the
+ * component (preview-only, #1966) — it now lives in `ReportWizardPage`'s wizard-reducer state
+ * and is threaded through to `generatePdfFromContent`/`overviewPdf.ts`, so hiding a column
+ * actually changes the downloaded/uploaded/previewed PDF, not just the on-screen preview. See
+ * `ReportWizardPage.ts`'s "Issue #1973" docstring paragraph for `columnToggleGroup`/
+ * `usageHiddenAttachmentsWarning`.
+ * - Scenario 28: The DOM-level baseline carried forward from #1966 (AC 7.1) — every column
+ *   checkbox present by accessible name, unticking removes both the `<th>` and matching `<td>`,
+ *   re-ticking restores both, and no toggle ever issues a preference PATCH (AC 5.2). Desktop
+ *   only, by documented exclusion (AC 7.3) — the `columnheader`/`cell` ARIA-role assertions
+ *   require real `<table>` semantics, absent from the mobile `.mobileCardList` fallback.
+ * - Scenario 29: THE scenario that closes the #1966 gap (AC 1.2/7.2) — hiding the Usage column
+ *   (seeded with substantial text) produces a measurably SMALLER downloaded PDF than a baseline
+ *   download with Usage visible, proving the toggle reaches PDF generation and not only the
+ *   preview DOM. A bare non-trivial-size check (Scenario 8's shape) would not catch a regression
+ *   back to preview-only behavior.
+ * - Scenario 30: AC 2.2 — the Allocated Amount checkbox is disabled with a resolvable, non-empty
+ *   `aria-describedby`, and a forced click cannot uncheck it. All three viewports (AC 7.3).
+ * - Scenario 31: AC 6.2 — the Usage-hidden-with-attachments warning banner renders in exactly
+ *   one of the four (Usage hidden/visible) × (attachDocuments on/off) combinations. All three
+ *   viewports (AC 7.3).
+ * - Scenario 32: AC 5.1 — hiding a column, then switching use case (`claim` 6 columns →
+ *   `budget-overview` 7 columns), restores the full base set for the NEW use case. All three
+ *   viewports (AC 7.3).
+ * - Scenario 33: AC 5.3 — hiding a column, then reloading the wizard on the same `?sourceId=`
+ *   deep link, restores the full base set rather than the previously-hidden state. All three
+ *   viewports (AC 7.3).
+ *
  * PDF generation (pdfmake + pdf-lib via dynamic `import()`) can be slow, especially on a cold
  * chunk load — every scenario that opens the preview modal, downloads, or uploads uses
  * `test.slow()`. As established in Scenario 8's own note, this project has no PDF-text-extraction
@@ -2304,26 +2333,38 @@ test.describe('Report wizard editable content — signature field reset (Scenari
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 24: Column-visibility toggles — local state, no persistence (#1966)
+// Scenario 28: Column-visibility toggles — DOM baseline (Issue #1973, supersedes #1966)
 // ─────────────────────────────────────────────────────────────────────────────
 //
-// ReportContentEditor renders a `role="group"` labelled "Show/hide columns" above the summary
-// table. Checkboxes control per-column visibility using local `useState` only — the PDF always
-// includes every column regardless of toggle state. This scenario asserts:
+// Issue #1973 lifted `hiddenColumns` out of `ReportContentEditor` local state into
+// `ReportWizardPage` wizard-reducer state and threaded it through to PDF generation — the
+// checkboxes are no longer preview-only (that was #1966's premise, now superseded, not amended;
+// see this file's class-level docstring and `wizardReducer.ts`'s `ContentTier.hiddenColumns`).
+// This scenario is the DOM-level baseline carried forward verbatim from #1966 (AC 7.1):
 //   AC1: every column checkbox is present and locatable by accessible name;
 //   AC2: the rendered checkbox count equals the component-defined toggleable-column count;
-//   AC3: toggling fires no PATCH to /api/users/me/preferences (local state, not persisted);
-//   AC4: coverage runs at desktop viewport only (no `@responsive` tag) — the toggle group and
-//        checkboxes are always visible regardless of viewport, but the `<th>` removal assertion
-//        uses `getByRole('columnheader')` which requires elements in the accessibility tree;
-//        the table is CSS-hidden on mobile (`max-width: 767px → .table { display: none }`), so
-//        `columnheader` assertions would fail at mobile. The mobile card layout is tested in
-//        other scenarios that carry `@responsive`.
+//   AC5.2: toggling fires no PATCH to /api/users/me/preferences (R5: per-run only, never
+//          persisted — carried forward from #1966 AC3 with updated rationale: the toggles now
+//          DO reach the PDF, but still must not reach the server);
+//   the corresponding <th> AND every matching <td> are absent from the DOM when hidden, and
+//   restored when re-ticked.
+// The PDF-level consequence (AC 1.2/7.2 — this is the specific gap that made #1966
+// insufficient) is asserted separately in Scenario 29 below, since it needs a real download
+// round trip rather than a DOM read.
+//
+// Viewport scope (AC 7.3): desktop only, by explicit exclusion with reason, not silently. The
+// toggle group and checkboxes are visible at every viewport (verified on disk: no `@media` rule
+// in `ReportContentEditor.module.css` touches `.columnToggles`), but THIS scenario's `<th>`/
+// `<td>` removal assertions use `getByRole('columnheader')`/`getByRole('cell')`, which require
+// real `<table>` semantics — the desktop `<table>` is CSS-hidden below 768px, replaced by a
+// `div`/`span`-based `.mobileCardList` with no table roles at all. Scenarios 30-33 below cover
+// the checkbox-state behaviors (locked column, warning banner, use-case reset, reload reset) at
+// all three configured viewports per AC 7.3, since those assertions don't depend on table roles.
 //
 // Uses `budget-overview` (7 columns incl. Status) to exercise the `content.isOverview` branch
 // in ReportContentEditor's column list — a claim report would render 6 columns.
 
-test.describe('Report wizard editable content — column-visibility toggles, local state (Scenario 24, #1966)', () => {
+test.describe('Report wizard editable content — column-visibility toggles reach the PDF (Scenario 28, Issue #1973)', () => {
   // toggleable columns for budget-overview in insertion order (matches component source)
   const OVERVIEW_COLUMNS = [
     'Vendor',
@@ -2365,7 +2406,7 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
       await reachStep5(wizard, sourceId, 'budget-overview');
 
       // ── AC1 + AC2: group present, every checkbox visible and checked, count matches component ──
-      const columnGroup = page.getByRole('group', { name: 'Show/hide columns' });
+      const columnGroup = wizard.columnToggleGroup;
       await expect(columnGroup).toBeVisible();
 
       const checkboxes = columnGroup.getByRole('checkbox');
@@ -2379,7 +2420,7 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
         await expect(columnGroup.getByLabel(label)).toBeChecked();
       }
 
-      // ── AC3: intercept preference writes ──
+      // ── AC5.2: intercept preference writes ──
       // Note: API is an object (`testData.ts`), so `${API}/...` would expand to
       // `[object Object]/...` and never match. Use the glob form instead.
       const prefPatches: string[] = [];
@@ -2428,7 +2469,7 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
       await expect(vendorHeader).toHaveCount(1);
       await expect(vendorCell).toHaveCount(1);
 
-      // AC3: no preference PATCH was issued during any column toggle
+      // AC5.2: no preference PATCH was issued during any column toggle
       expect(prefPatches, 'column toggle must not write to /api/users/me/preferences').toHaveLength(
         0,
       );
@@ -2439,6 +2480,381 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 29: Column visibility reaches the generated PDF, not only the preview DOM
+// (AC 1.2 / 7.2, Issue #1973)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// This is the scenario that actually closes the #1966 gap: a test that only checks the DOM (as
+// Scenario 28 above does, correctly, for the preview surface) would pass identically whether or
+// not the toggle reaches PDF generation — that gap is exactly what #1966 shipped and #1973 exists
+// to close. As established in Scenario 8's own note (and Story #1879/#1899's boundary), this
+// project has no PDF-text-extraction library in its E2E dependencies (no pdf-parse/pdfjs), so
+// reading the literal rendered column text back out of the downloaded bytes is out of scope here
+// (that's `overviewPdf.test.ts`'s job, per the QA spec's AC 4.3). The achievable, still-falsifiable
+// E2E-level proxy is a SIZE-DIFF, not a bare "non-trivial size" check like Scenario 8's: a
+// baseline download (all columns visible) vs. a second download taken after hiding the Usage
+// column (seeded with substantial real text so hiding it removes non-trivial content weight) must
+// produce a MEASURABLY SMALLER file. A "> 1000 bytes" check alone (Scenario 8's assertion) would
+// pass identically regardless of whether the toggle ever reached generation — do not simplify this
+// back to that shape.
+
+test.describe('Report wizard editable content — hiding a column shrinks the downloaded PDF (Scenario 29, AC 1.2/7.2)', () => {
+  test('Downloading after hiding the Usage column produces a measurably smaller PDF than the baseline download with Usage visible', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} SizeDiff Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} SizeDiff Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI SizeDiff` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-SZDF-001`,
+        amount: 400,
+        date: '2026-06-12',
+        status: 'pending',
+      });
+
+      await reachStep5(wizard, sourceId, 'claim');
+      const vendorName = `${testPrefix} SizeDiff Vendor`;
+
+      // Give Usage substantial real content weight so hiding it removes a non-trivial amount of
+      // rendered PDF content (short strings could round-trip through pdfmake's compression with
+      // a difference too small to reliably assert on across environments).
+      const longUsage = Array.from(
+        { length: 40 },
+        (_, i) => `Line item narrative segment ${i} describing the work performed in detail.`,
+      ).join(' ');
+      await wizard.editField(wizard.usageField(vendorName, invoice.invoiceNumber!), longUsage);
+
+      const baselineDownload = await wizard.download();
+      const baselinePath = await baselineDownload.path();
+      expect(baselinePath, 'baseline download must have saved to a local temp file').toBeTruthy();
+      const baselineSize = statSync(baselinePath!).size;
+
+      await wizard.columnToggleGroup.getByLabel('Usage').uncheck();
+      await expect(wizard.columnToggleGroup.getByLabel('Usage')).not.toBeChecked();
+
+      const hiddenDownload = await wizard.download();
+      const hiddenPath = await hiddenDownload.path();
+      expect(
+        hiddenPath,
+        'hidden-column download must have saved to a local temp file',
+      ).toBeTruthy();
+      const hiddenSize = statSync(hiddenPath!).size;
+
+      // AC 1.2/7.2: the PDF *consequence*, not just the DOM consequence. A test that only
+      // asserted `hiddenSize > 1000` (Scenario 8's shape) would pass identically whether or not
+      // the toggle ever reached `generatePdfFromContent`/`overviewPdf.ts` — the strictly-smaller
+      // comparison against this test's OWN baseline is what actually falls if the wiring regresses
+      // back to #1966's preview-only behavior. Do not weaken this to a non-trivial-size check.
+      expect(hiddenSize).toBeLessThan(baselineSize);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 30: Allocated Amount column is locked (AC 2.2, Issue #1973)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Runs at all three configured viewports (AC 7.3) — the toggle group (and therefore this
+// checkbox) is not viewport-gated.
+
+test.describe(
+  'Report wizard editable content — Allocated Amount checkbox is locked (Scenario 30, AC 2.2)',
+  { tag: '@responsive' },
+  () => {
+    test('The Allocated Amount checkbox is disabled with a resolvable, non-empty accessible description, and a forced click cannot uncheck it', async ({
+      page,
+      testPrefix,
+    }) => {
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Locked Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Locked Source`,
+          totalAmount: 5000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Locked` });
+        await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-LOCK-001`,
+          amount: 250,
+          date: '2026-06-05',
+          status: 'pending',
+        });
+
+        await reachStep5(wizard, sourceId, 'claim');
+
+        const allocatedCheckbox = wizard.columnToggleGroup.getByLabel('Allocated Amount');
+        await expect(allocatedCheckbox).toBeVisible();
+        await expect(allocatedCheckbox).toBeDisabled();
+        await expect(allocatedCheckbox).toBeChecked();
+
+        const describedBy = await allocatedCheckbox.getAttribute('aria-describedby');
+        expect(
+          describedBy,
+          'the locked checkbox must carry a resolvable aria-describedby',
+        ).toBeTruthy();
+        const hintText = await page.locator(`#${describedBy}`).textContent();
+        expect(hintText?.trim()).not.toBe('');
+
+        // A forced click bypasses Playwright's actionability check (which would otherwise refuse
+        // to interact with a disabled element outright) — this is a genuine behavioral proof the
+        // control is inert, not just a restatement of `toBeDisabled()` above. Browsers do not
+        // deliver interaction-driven state changes to disabled form controls even when a click is
+        // forced onto them, so `uncheck` either no-ops or throws; either way the checkbox must
+        // still be checked afterward.
+        await allocatedCheckbox.uncheck({ force: true }).catch(() => {});
+        await expect(allocatedCheckbox).toBeChecked();
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 31: Usage-hidden-with-attachments warning banner (AC 6.2, Issue #1973)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// All four combinations of (Usage hidden/visible) × (attachDocuments on/off) in a single test,
+// reusing one seeded invoice/source (R4: hiding a column never changes a number, so the same
+// fixture is valid across every combination). Runs at all three configured viewports (AC 7.3).
+// The warning is scoped by its CSS-module class (`usageHiddenAttachmentsWarning`, `[class*=
+// "bannerWarning"]`) rather than by text, per the checklist's "E2E text locators after label
+// changes" guidance — it survives minor English copy edits and is unambiguous against the page's
+// other `role="status"` regions (e.g. `Toast`).
+
+test.describe(
+  'Report wizard editable content — Usage-hidden attachments warning (Scenario 31, AC 6.2)',
+  { tag: '@responsive' },
+  () => {
+    test('The warning renders only when Usage is hidden AND attach-documents is enabled — absent in all three other combinations', async ({
+      page,
+      testPrefix,
+    }) => {
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Warn Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Warn Source`,
+          totalAmount: 5000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Warn` });
+        await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-WARN-001`,
+          amount: 275,
+          date: '2026-06-06',
+          status: 'pending',
+        });
+
+        // attachDocuments defaults to true (freshSettingsTier()).
+        await reachStep5(wizard, sourceId, 'claim');
+
+        // 1) Usage visible + attach on → no warning.
+        await expect(wizard.usageHiddenAttachmentsWarning).toHaveCount(0);
+
+        // 2) Usage hidden + attach on → warning present.
+        await wizard.columnToggleGroup.getByLabel('Usage').uncheck();
+        await expect(wizard.columnToggleGroup.getByLabel('Usage')).not.toBeChecked();
+        await expect(wizard.usageHiddenAttachmentsWarning).toBeVisible();
+
+        // 3) Usage hidden + attach off → no warning (nothing left to warn about). Going back to
+        // Settings and forward again must NOT reset hiddenColumns — R5 co-locates it with
+        // `overrides` on ContentTier for use-case-change resets only (see Scenario 32), and
+        // `SET_ATTACH_DOCUMENTS` touches only `SettingsTier`.
+        await wizard.goBack(); // step 5 -> step 4 (Settings)
+        await wizard.toggleAttachDocuments();
+        await expect(wizard.attachDocumentsCheckbox).not.toBeChecked();
+        await wizard.step4NextButton.click();
+        await expect(wizard.columnToggleGroup.getByLabel('Usage')).not.toBeChecked();
+        await expect(wizard.usageHiddenAttachmentsWarning).toHaveCount(0);
+
+        // 4) Usage visible + attach off → no warning.
+        await wizard.columnToggleGroup.getByLabel('Usage').check();
+        await expect(wizard.columnToggleGroup.getByLabel('Usage')).toBeChecked();
+        await expect(wizard.usageHiddenAttachmentsWarning).toHaveCount(0);
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 32: Hidden columns reset on use-case change (AC 5.1, Issue #1973)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Runs at all three configured viewports (AC 7.3). Walks all the way back to step 1 via
+// `goBack()` (viewport-independent — the currently-mounted step's own Back button, not the
+// desktop-only stepper's `goToStep()`), switches use case from `claim` (6 columns) to
+// `budget-overview` (7 columns, adding Status), and re-walks forward — proving BOTH that the
+// hidden selection is cleared AND that the restored base set matches the NEW use case's own
+// column count, not the old one's.
+
+test.describe(
+  'Report wizard editable content — hidden columns reset on use-case change (Scenario 32, AC 5.1)',
+  { tag: '@responsive' },
+  () => {
+    test('Switching use case after hiding a column restores the full base set for the newly selected use case', async ({
+      page,
+      testPrefix,
+    }) => {
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Reset Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Reset Source`,
+          totalAmount: 5000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Reset` });
+        await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-RESET-001`,
+          amount: 225,
+          date: '2026-06-07',
+          status: 'pending',
+        });
+
+        await reachStep5(wizard, sourceId, 'claim');
+        await expect(wizard.columnToggleGroup.getByRole('checkbox')).toHaveCount(6);
+        await wizard.columnToggleGroup.getByLabel('Vendor').uncheck();
+        await expect(wizard.columnToggleGroup.getByLabel('Vendor')).not.toBeChecked();
+
+        // Walk all the way back to step 1 (5 -> 4 -> 3 -> 2 -> 1).
+        await wizard.goBack();
+        await wizard.goBack();
+        await wizard.goBack();
+        await wizard.goBack();
+        await expect(wizard.useCaseRadioGroup).toBeVisible();
+
+        await wizard.selectUseCase('budget-overview');
+        await wizard.goNextFromStep1();
+        await wizard.selectSource(sourceId);
+        await wizard.goNextFromStep2();
+        await wizard.goNextFromStep3();
+        await wizard.step4NextButton.click();
+
+        // Full base set for the NEW use case (7 columns incl. Status, not the old 6) — every
+        // checkbox checked, including the one that was hidden before the use-case switch.
+        const checkboxes = wizard.columnToggleGroup.getByRole('checkbox');
+        await expect(checkboxes).toHaveCount(7);
+        const count = await checkboxes.count();
+        for (let i = 0; i < count; i++) {
+          await expect(checkboxes.nth(i)).toBeChecked();
+        }
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 33: Hidden columns reset on reload / re-entry (AC 5.3, Issue #1973)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Runs at all three configured viewports (AC 7.3). Uses this app's established `?sourceId=`
+// deep-link resume pattern (`reportWizard.spec.ts` Scenario 7 / `ReportWizardPage.goto(sourceId)`)
+// rather than a fresh unparented navigation, so the reload genuinely re-enters the SAME
+// in-progress report rather than starting an unrelated one. `hiddenColumns` lives only in
+// in-memory `useReducer` state (R5 — never persisted), so a full page reload discards it the same
+// way it discards every other wizard-run-scoped field; this scenario proves that directly rather
+// than assuming it from the state architecture.
+
+test.describe(
+  'Report wizard editable content — hidden columns reset on reload (Scenario 33, AC 5.3)',
+  { tag: '@responsive' },
+  () => {
+    test('Reloading the wizard on the same ?sourceId= deep link restores the full base set instead of the previously-hidden state', async ({
+      page,
+      testPrefix,
+    }) => {
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Reload Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Reload Source`,
+          totalAmount: 5000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Reload` });
+        await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-RELOAD-001`,
+          amount: 235,
+          date: '2026-06-08',
+          status: 'pending',
+        });
+
+        // Reach step 5 via the ?sourceId= deep-link flow (goto(sourceId) keeps the query param
+        // in the URL across the reload below — see reportWizard.spec.ts Scenario 7).
+        await wizard.goto(sourceId);
+        await wizard.selectUseCase('claim');
+        await wizard.goNextFromStep1();
+        await wizard.goNextFromStep2();
+        await wizard.goNextFromStep3();
+        await wizard.step4NextButton.click();
+
+        await wizard.columnToggleGroup.getByLabel('Vendor').uncheck();
+        await expect(wizard.columnToggleGroup.getByLabel('Vendor')).not.toBeChecked();
+
+        // Reload the same URL (still carrying ?sourceId=) and re-walk the deep-link flow.
+        await page.reload();
+        await expect(wizard.useCaseRadioGroup).toBeVisible();
+        await wizard.selectUseCase('claim');
+        await wizard.goNextFromStep1();
+        await wizard.goNextFromStep2();
+        await wizard.goNextFromStep3();
+        await wizard.step4NextButton.click();
+
+        const checkboxes = wizard.columnToggleGroup.getByRole('checkbox');
+        await expect(checkboxes).toHaveCount(6);
+        const count = await checkboxes.count();
+        for (let i = 0; i < count; i++) {
+          await expect(checkboxes.nth(i)).toBeChecked();
+        }
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 25: lang attribute on the report table <thead> when report language

@@ -3410,3 +3410,67 @@ describe('legend sentence layout and occurrence count (#1980)', () => {
     expect(allStrings.some((s) => s.includes(depositReducedSentence))).toBe(false);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// #1973 AC 2.7 — the degenerate single-column case ({allocatedAmount} alone), through the REAL,
+// unmocked pdfmake table-layout resolver. This is the strongest guard for AC 2.7 in the whole
+// suite: overviewPdf.test.ts only inspects the declared Content[] tree (which cannot see a real
+// pdfmake table-layout failure), while this file actually resolves layout via getBlob().
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+describe('#1973 AC2.7: single-column ({allocatedAmount} alone) real render', () => {
+  it.each([
+    ['budget-overview', 'budget-overview' as const],
+    ['claim', 'claim' as const],
+  ])(
+    'a real, unmocked pdfmake render of the %s report with every hideable column hidden completes without throwing and produces at least one page',
+    async (_label, useCase) => {
+      const { generateReportPdf } = await import('./merge.js');
+      const { reportColumnsForUseCase, REQUIRED_REPORT_COLUMN } =
+        await import('../reportContent/columns.js');
+      const report = makeInvoice({ invoiceId: 'inv-solo', vendorName: 'Solo Vendor' });
+      const fullReport: SourceReportResponse = {
+        type: useCase === 'budget-overview' ? 'budget-overview' : 'claim',
+        source: {
+          id: 'src-1',
+          name: 'Home Loan',
+          sourceType: 'bank_loan',
+          reference: null,
+          contactAddress: null,
+        },
+        invoices: [report],
+        totalAmount: 100,
+        unallocatedInvoices: [],
+        generatedAt: '2026-02-15T00:00:00.000Z',
+      };
+      const includedIds = new Set(['inv-solo']);
+      const formatters = formattersFor('en-US');
+      const content = buildReportContent(fullReport, includedIds, useCase, tEn, formatters, {
+        includeCoverLetter: false,
+        household: null,
+      });
+
+      // Every column this use case offers, except the locked one, is hidden — the degenerate
+      // single-column case (visible === [allocatedAmount]).
+      const hiddenColumns = new Set(
+        reportColumnsForUseCase(content.isOverview).filter((c) => c !== REQUIRED_REPORT_COLUMN),
+      );
+
+      let result: Awaited<ReturnType<typeof generateReportPdf>>;
+      await expect(
+        (async () => {
+          result = await generateReportPdf(fullReport, includedIds, content, {
+            attachDocuments: false,
+            hiddenColumns,
+          });
+        })(),
+      ).resolves.not.toThrow();
+
+      expect(result!.blob).toBeInstanceOf(Blob);
+      expect(result!.blob.size).toBeGreaterThan(0);
+
+      const pdfDoc = await PDFDocument.load(await result!.blob.arrayBuffer());
+      expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
+    },
+  );
+});
