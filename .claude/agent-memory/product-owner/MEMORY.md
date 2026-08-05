@@ -49,7 +49,7 @@ All rulings, contract facts, per-PR review outcomes and filed follow-ups live in
 - Open: #1888, #1891, #1895-#1897, #1910, #1912, #1917, #1937-#1941, #1946 (Must Have), #1947, #1950, #1952, #1953, #1966-#1972, #2011-#2014
 - Merged but **not Done** (awaiting live-LLM UAT): #1931 (ACs 3.2/3.3)
 - **#1973** column visibility → PDF: PR #2010 approved R1, 28/33 ACs, → **UAT, stays In Progress**. Follow-ups #2011-#2014 all Backlog + blocked-by #1973.
-- **#1911** `splitKind`: ACs refined 2026-08-05 onto an orchestrator-filed body → **UAT, not Done-on-merge**. Privacy: no objection. Legend: no new sentence. Addendum ruling (pre-merge): zero-line-contribution row now shows `(Deposit)`+`(partial)` — **intended, do not narrow**, AC 3.6/3.7/4.7 added.
+- **#1911** `splitKind`: ACs refined 2026-08-05 onto an orchestrator-filed body → **UAT, not Done-on-merge**. Privacy: no objection. Legend: no new sentence. Addendum ruling (pre-merge): zero-line-contribution row now shows `(Deposit)`+`(partial)` — **intended, do not narrow**, AC 3.6/3.7/4.7 added. **PR #2015 CHANGES REQUESTED round 1** — logic correct, evidence layer not: 2 red E2E scenarios (stale assertions, not defects) + AC 4.5's render measurement unfalsifiable by construction.
 
 ## Requirements Coverage
 
@@ -90,6 +90,8 @@ Full derivations and the incidents behind each are in [pr-review-patterns.md](pr
 - **"Dominated by an existing measurement, do not re-measure" is as valuable as demanding the measurement.** Rank flagged risks against each other instead of treating every new co-occurrence as equally alarming.
 - **When a fix removes a mutual exclusion, ask what combination just became reachable** that never rendered before.
 - **A documented measurement (glossary space budget, column width) can close a wording debate before it starts.**
+- **"Real render" ≠ "measured."** An unmocked render whose assertions read the *input* content tree, or read a quantity fixed by construction (e.g. a table width that is `printableWidth()` for any input), is still a vacuous assertion. Ask what *varies* when the guarded content changes — not whether a render happened.
+- **Check that the issue a routing rule points at is still open before restating the rule.**
 - **Answer boundary/privacy questions about the artifact that leaves the system, not only about the API.**
 - **A finding's severity is capped by my own enumeration failure** — if I missed it in earlier rounds, it can't be blocking now. End mirror-image review cycles by **stating the enumeration as exhaustive**.
 - **Comment keeps the rationale, issue owns the guard.** Bounded-and-quantified earns a tracked owner; unbounded-and-estimated gets documentation only.

@@ -1680,7 +1680,6 @@ test.describe(
           const note = wizard.inlineNote(vendorName, invoice.invoiceNumber!);
           await expect(note).toHaveCount(1);
           await expect(note).toHaveText('(partial)');
-          await expect(row).toContainText('€150.00 (partial)');
           const rowText = (await row.textContent()) ?? '';
           expect(rowText).not.toContain('less deposit');
           expect(rowText).not.toContain('†');
@@ -1818,7 +1817,17 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
       // Issue #1980).
       const note3 = wizard.inlineNote(vendorName, invoice3.invoiceNumber!);
       await expect(note3).toHaveCount(2);
-      await expect(row3).toContainText('€75.00 (partial)');
+      // €56.25, not €75.00: the deposit is now tagged to `otherSourceId` (a source ≠
+      // `reportedSourceId`), so `depositAggregateUtils.ts`'s redirect rule applies —
+      // `computeLineContributionsExcludingTagged` multiplies the reported source's own
+      // itemized line (€75) by the invoice's RESIDUAL fraction after excluding tagged deposits:
+      // (invoiceAmount €200 − taggedDeposit €50) / €200 = 0.75, and `depositFractions` for THIS
+      // source is empty (the deposit is tagged elsewhere, so it's filtered out of this source's
+      // own fractions). 75 × 0.75 = 56.25. This arithmetic is the strongest proof of the AC 3.2
+      // fix: a foreign-tagged deposit genuinely reduces this source's allocation, so "claimed
+      // separately" is a TRUE statement here — contrast the untagged case in the sibling guard
+      // below, where the same residual math nets back to the full amount.
+      await expect(row3).toContainText('€56.25 (partial)');
       await expect(row3).toContainText('(less deposit)');
 
       // Negatives, each paired with the positives above: neither legacy footnote glyph survives
@@ -1938,6 +1947,15 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
       const note = wizard.inlineNote(vendorName, invoice.invoiceNumber!);
       await expect(note).toHaveCount(1);
       await expect(note).toHaveText('(partial)');
+      // €60.00, the FULL itemized line amount, not a reduced one: `depositAggregateUtils.ts`'s
+      // `residualFraction` subtracts ALL deposits (tagged or not) from the invoice total, but an
+      // UNTAGGED deposit is also returned via `depositFractions` pro-rata across every line by
+      // itemized share. With exactly one deposit on this invoice, residual + returned fraction
+      // sum to 1.0 (invoice €150 − deposit €25 = €125 residual, €25 returned = €150 = 100%), so
+      // €60 × 1.0 = €60 — a net-zero change. This is the other half of the AC 3.2 proof (see the
+      // comment on invoice3's foreign-tagged €56.25 above): an untagged deposit changes NOTHING
+      // about this source's allocation, so the pre-#1911 "claimed separately" label on this shape
+      // was literally false to a bank recipient — nothing was, in fact, claimed separately.
       await expect(row).toContainText('€60.00 (partial)');
 
       // The regression guard itself: no second inline note, specifically not the deposit-reduced

@@ -996,3 +996,73 @@ down even though the code is already correct.**
 seeded an *untagged* deposit and asserted `isDepositReduced: true` — the E2E suite had encoded the
 bug as expected behaviour. QA also verified the new behaviour genuinely fails against pre-#1911 code
 (9 of 70 tests fail on restore), which is the anti-vacuity check AC 5.5 asked for.
+
+### PR #2015 (#1911 implementation) — CHANGES REQUESTED round 1 (2026-08-05, head `db982cb1`, comment `5198588590`)
+
+Derivation is correct and well-tested (all of §1, §2, §3.1–3.5/3.7, §5.1/5.2/5.5/5.6, §6, §7 met).
+Both blockers are in the **evidence layer**, not the logic. AC 1.5's trap test is genuinely
+falsifying; AC 2.5's wiki entry states the negative form of the predicate verbatim; AC 5.5's
+mutation test flips legend membership, not just flags, and the whole-suite discrimination figure
+(9/70 fail on restore) was volunteered in the PR body as demanded.
+
+**B1 — the PR's own two E2E scenarios red, both stale assertions in the NEW test code, not product
+defects.** Deterministic (both retries, shards 2 + 9, desktop + tablet).
+
+- *Scenario 17*: asserted `'€150.00 (partial)'`, DOM is `'€150.00Deposit (partial)'` — the assertion
+  was copied from a badge-less row and doesn't allow for the `Deposit` badge sitting between amount
+  and note. **Told them not to loosen it to a bare `€150.00`**: the adjacency IS the AC.
+- *Scenario 18*: asserted `'€75.00 (partial)'`, got `'€56.25 (partial) (less deposit)'`. Labels
+  right, **amount stale**. Re-seeding invoice3's deposit untagged → tagged-to-other changed the
+  arithmetic via the #1891 **redirect** rule: `75/200 × (200 − 50) = 56.25`. #1911 touches no money
+  path. **Demanded the derivation go in a comment** — a bare number change reads as weakening a test.
+  **General: when a fixture re-seed changes a derived amount, the corrected number needs its
+  derivation written down or the next reviewer cannot distinguish it from a weakened assertion.**
+
+**B2 — AC 4.5's measurement is unfalsifiable by the content it claims to guard.** The real-render
+setup is right (unmocked, en+de, 7-col and 1-col endpoints of the #1973 subsets). But:
+`maxHorizontalRatio <= 1` **cannot fail on any input** — after #1929 round 4 there is no `'*'` column
+and `overviewPdf.ts:105` documents table width = `printableWidth()` for ANY input; `horizontalRatio`
+is recorded at each line's *start* x, derived from content-independent column offsets. And "all four
+labels present verbatim" reads the pdfmake **content tree** (the input), so it cannot observe drop,
+clip or wrap. `getPageCount() >= 1` adds nothing. Net: the named risk — #1959's wrap-mid-bracket in
+this exact column, live because `(abzgl. Abschlag)` has an internal space — is unguarded.
+
+**Fix spec given**: pdfmake writes one `positions` entry per rendered *line*, so assert the allocated
+cell's line count — (a) differential (maximal row vs. no-label row, strictly more lines: cannot go
+vacuous) and (b) a ceiling derived from `ALLOCATED_AMOUNT_WIDTH` + font constants, #1929/#1950 style,
+never a typed literal. Offered a documented deviation → fold 4.5 into UAT if neither is achievable.
+
+**Reusable: "real render" is not the same as "measured".** A genuinely unmocked render whose
+assertions read the input tree, or read a quantity fixed by construction, is still a vacuous
+assertion. Ask *what varies* in the assertion when the guarded content changes — not whether a
+render happened. This is the fourth instance of the pattern in this cluster (cf. #2008 C1 "metric is
+a constant", the config-object checks, the never-failing alternations).
+
+**Severity note to self:** I enumerated AC 4.5 explicitly as "highest-risk — measure it" and named the
+#1959 precedent, so the enumeration-failure cap does *not* apply — it was fair to block on it.
+
+**Non-blocking, filed as observations:** (N1) preview emits `refundNoteText` *before* the three labels
+(`ReportContentEditor.tsx:331`) while the PDF emits it *after* (`overviewPdf.ts:856`) — AC 4.4's
+three-label order is identical on both surfaces so the AC is met, and it predates #1911, but the
+newly-reachable four-run row makes it visible; follow-up, do not expand the PR. (N2) AC 5.3's
+preview-DOM half is en-only. (N3) `Fixes #1911` auto-closes on `main` — the UAT pass must run before
+promotion or the UAT disposition evaporates silently.
+
+**PR body assessment (asked for explicitly).** Honest where it counts: it flags the over-inclusive
+defect as *not* in the original issue, and states plainly that the dev-team-lead's own E2E spec was
+wrong to call the change "purely additive". Told them to keep that verbatim — a spec author marking
+their own error in the permanent record is worth more than a tidy body. One **overstatement** (AC 4.5
+"measured … all four labels present verbatim" — the render is real, the measurement isn't sensitive
+to the labels) and one **understatement** ("Both fixed" while CI shows both scenarios red).
+
+**UAT disposition reconfirmed; one leg of the routing was stale.** #1911 still goes to UAT, AC 4.7
+still folded into the existing pass. B2 *strengthens* the case — with the four-run geometry unguarded,
+the human pass is the only thing looking at that row. Corrected routing:
+
+- fix is to **what the labels say** → **reopen #1911** (its deliverable), unchanged;
+- fix is to **column geometry** → **new issue in the #1939 lineage**. My original "route width
+  rejections to the already-filed issue" is **stale: #1937 is closed** and none of #2011–#2014 or
+  #1950 covers the allocated column. #1911's scope boundary never included geometry — AC 4.5 only
+  *measured*, it never authorised a fix.
+
+**General: check that the issue a routing rule points at is still open before restating the rule.**

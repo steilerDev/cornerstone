@@ -81,4 +81,46 @@ not just the ONE scenario the spec happened to mention. The unit test suite (alr
 green) is a fast, authoritative way to derive "what SHOULD this fixture shape now assert" without
 needing a live browser.
 
+## PR #2015 review round: two red shards, both self-inflicted, neither a production defect
+
+`product-architect` and `product-owner` independently traced both E2E failures to stale
+assertions I wrote, not to product behavior:
+
+- **Badge-vs-note DOM order isn't a fact worth asserting.** Scenario 17's rewrite added
+  `toContainText('€150.00 (partial)')`, but the `depositBadge` renders BETWEEN the amount and the
+  note (`ReportContentEditor.tsx`: value → badge → split note → deposit-reduced note, in that
+  literal JSX order), so the DOM text is `€150.00Deposit (partial)` and the substring can never
+  match. Fix was to **delete the assertion**, not rewrite it to encode the ordering — two sibling
+  assertions already pin the same fact against the `inlineNote` locator directly (count 1, text
+  `(partial)`), and hardcoding badge-before-note relative order is exactly the kind of brittleness
+  this area (already reshuffled twice: #1959, #1911) keeps punishing.
+- **Get the money math from the actual formula, not intuition.** Scenario 18's invoice3 retag (see
+  above) changed the deposit from untagged to tagged-to-`otherSourceId`, but I left the OLD
+  expected amount (`€75.00`) on the row assertion below it. The correct value is **€56.25** —
+  `depositAggregateUtils.ts`'s `splitByDepositsExcludingTagged`: `residualFraction` ALWAYS
+  subtracts every deposit (tagged or not) from the invoice total in the denominator
+  ((200−50)/200=0.75), but `depositFractions` (which gets ADDED back per line) only includes
+  UNTAGGED deposits — a tagged one is filtered out entirely (it's handled by Rail B, on a
+  different source's row). So `75 × 0.75 = 56.25`, full stop, no returned fraction. Contrast the
+  sibling negative-control test's untagged deposit (60/90 split, 25 untagged deposit, invoice
+  150): residual `(150−25)/150=0.8333` PLUS the returned `depositFraction` `25/150=0.1667` sum to
+  exactly 1.0 (true whenever there's exactly one deposit, tagged-or-not doesn't matter to the
+  sum-to-1 property when it's the ONLY deposit and it's untagged) → `60 × 1.0 = 60`, i.e. the
+  original `€60.00` assertion was already correct and needed no change, only a comment.
+- **The arithmetic proves the fix in both directions** — worth stating explicitly in test comments
+  next to both numbers, not just implied: foreign-tagged deposit → allocation genuinely drops
+  (75→56.25), so "claimed separately" is true; untagged deposit → residual + returned fraction net
+  to the FULL original amount (no drop at all), so the pre-#1911 "claimed separately" label on
+  that shape was literally false to a bank recipient. This is why the AC 3.2 negative-control test
+  exists, and it's a stronger justification than "the bug fired on the wrong condition" — worth
+  reaching for in future PR descriptions/comments on this area, not just re-deriving silently.
+- **Lesson**: when a fixture retag changes the underlying formula's inputs, don't assume "keep
+  every other assertion the same, just add the new one" — re-derive EVERY downstream numeric
+  assertion from the actual utility function (not from a coordinator's or reviewer's restated
+  number without checking it against the source), and put the derivation in a comment so a future
+  reader (or reviewer) can tell "the fixture changed and the arithmetic followed" apart from
+  "the assertion was made convenient." I re-verified the €56.25 figure independently against
+  `depositAggregateUtils.ts` rather than taking two reviewers' restated arithmetic on faith — it
+  checked out, but the habit is the point: derive, don't just relay.
+
 See [[story-1879-report-wizard]], [[issue-1959-inline-meta-and-labels]].

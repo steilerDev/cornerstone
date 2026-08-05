@@ -108,6 +108,55 @@ unrelated errors. In this case both projects came back fully clean (0 errors) af
 warned about didn't materialize for this run — but the scoped-check discipline is the reusable
 lesson, not the specific number.
 
+## Post-merge review finding: AC 4.5's geometry test was vacuous on both assertions — read ADR-034 first
+
+PR #2015 review (product-owner + product-architect) found the AC 4.5 four-run-row test I wrote could
+not fail on either assertion, and it was **already documented**: the wiki's `ADR-034` Deviation Log
+(2026-08-05 entry, filed off PR #2008's own mutation testing) states `maxHorizontalRatio(pdfContent)
+<= 1` is **proven vacuous on production content** in this exact table — every column is a fixed,
+content-independent width (#1929 round 4 removed the last `'*'`), so `horizontalRatio` (recorded at
+each rendered line's START x) can never move regardless of content width; it only detects a
+mispositioned COLUMN, never an overflowing CELL. Always read an ADR's Deviation Log before writing a
+geometry assertion in `realRender.test.ts` — the falsifiable form for this exact risk class is
+already prescribed there (`ADR-034-Client-Side-Report-PDF-Generation.md`, "Testing requirement: real
+renders, not mocks" section, rule #1): per-cell `_minWidth <= widths[i]._calcWidth`, read AFTER a real
+render — `_minWidth` is pdfmake's own post-render measurement of the widest atom `TextBreaker` could
+not further break, so it is a genuine OUTPUT value, not something the test supplies.
+
+The SECOND assertion ("all four labels present, read from `cell.text`") was independently broken for
+a different reason: pdfmake never modifies `.text` during render (only annotates `_minWidth`,
+`positions`, etc. onto the same objects) — reading `.text` post-render observes exactly what the test
+itself constructed, so it can never detect a drop/clip/wrap. Fixed with a **differential** check using
+`.positions.length` (a real per-render line count, written by pdfmake during layout): render the
+maximal 4-label fixture and a reduced 3-label comparator (same fixture, `splitKind: 'both'` →
+`'deposits'`, which removes exactly the split label) side by side, and assert
+`maximal.positionsLength > reduced.positionsLength`. If a code change silently drops a label from the
+maximal row, the two renders become indistinguishable and the inequality collapses — this is what
+actually caught the mutation (see below), not a hand-derived absolute line-count ceiling.
+
+**Mutation-testing proof (both checks), git-diff-verified restore:**
+- Backed up `overviewPdf.ts` to `/tmp` before either mutation (this file is NOT part of my PR's diff
+  — it's already-committed code from #1959/#1973, so `git diff --stat` after restore showing nothing
+  is the correct "byte-identical" signal here, not `git show HEAD:`).
+- Mutation 1 (overflow): merged the `isDeposit`/`isSplit` label pushes into one run joined by a
+  (accidentally-real, not hand-typed) NBSP — 2 of 4 `it.each` cases (both DE) went red at 113.6pt vs
+  the 75pt column, confirming `_minWidth <= _calcWidth` is genuinely sensitive to an unbreakable atom
+  exceeding the column. EN stayed green because the merged EN label pair happens to still fit under
+  75pt — expected and fine; the proof only needs at least one genuine failure, not all four.
+- Mutation 2 (drop): gated the `isSplit` label push with `&& false`. **All 4 `it.each` cases went red**
+  — `positionsLength` collapsed to an exact equality (e.g. `Expected: > 4, Received: 4`) — directly
+  confirming the differential check catches a silently-dropped label.
+- Restored via `cp` from the `/tmp` backup after each mutation; `diff` against the backup and
+  `git diff --stat`/`git status --short` both confirmed byte-identical before moving to the next step.
+
+**Process lesson for any future geometry assertion in this file:** `maxHorizontalRatio` and reading
+`.text` post-render are both natural-looking but WRONG defaults for "did this overflow/get dropped" —
+the file already has two established, genuinely-falsifiable idioms for these two risk classes
+(per-cell `_minWidth`/`_calcWidth` for overflow, `.positions.length`-based differential/ceiling checks
+for drops) sitting in the same file (`'ADR-034 rule #1: horizontal-overflow...'` describe block,
+`'#2003 usageText'`/`'#2003 areaText'` tests) — copy those idioms rather than reaching for
+`maxHorizontalRatio` or a `.text` substring check on a new fixture.
+
 ## Coverage
 
 `sourceReportService.ts`: 100% stmts/lines/funcs, 93.75% branch (whole-file; the new splitKind lines

@@ -3521,15 +3521,28 @@ describe('#1911 AC 5.3: the AC 1.2 shape renders (less deposit)/depositReducedFo
 // configured page size must paint no text outside the printable area and drop none of the four
 // labels, in both locales and under the #1973 column-visibility subsets that narrow the allocated
 // column (glossary.json records a prior wrap-mid-bracket break in exactly this column, #1959).
+//
+// REVIEW FINDING (product-owner + product-architect, PR #2015): the first version of this test
+// asserted `maxHorizontalRatio(pdfContent) <= 1` and "all four labels present in cell.text" —
+// neither is falsifiable. `maxHorizontalRatio` is proven vacuous on production content by the
+// ADR-034 Deviation Log (2026-08-05, filed off PR #2008's mutation testing): every column in this
+// table is a fixed, content-independent width (#1929 round 4 removed the last `'*'` column), so
+// `horizontalRatio` — recorded at each rendered line's START x, from content-independent column
+// offsets — can never move no matter how wide a cell's content is; it detects a mispositioned
+// COLUMN, not an overflowing CELL. And reading `.text` off the pdfmake content tree reads what
+// THIS TEST constructed, never what pdfmake actually laid out — it cannot observe a drop, a clip,
+// or a wrap. Replaced with the two checks below, both read from pdfmake's OWN post-render state.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 describe('#1911 AC 4.5: maximal four-run allocated-amount row — real render, no overflow, no label drop', () => {
-  function makeMaximalReport(): SourceReportResponse {
+  function makeMaximalReport(
+    splitKindValue: SourceReportInvoice['splitKind'],
+  ): SourceReportResponse {
     const inv = makeInvoice({
       invoiceId: 'inv-1911-maximal',
       vendorName: 'Maximal Vendor',
       invoiceNumber: 'MAX-0001',
       isSplit: true,
-      splitKind: 'both',
+      splitKind: splitKindValue,
       lineKind: 'refund-adjustment',
       invoiceAmount: 500,
       allocatedAmount: -150,
@@ -3565,29 +3578,29 @@ describe('#1911 AC 4.5: maximal four-run allocated-amount row — real render, n
     };
   }
 
-  it.each([
-    ['budget-overview 7-col', 'budget-overview' as const, 'en', 'en-US', () => tEn] as const,
-    ['budget-overview 7-col', 'budget-overview' as const, 'de', 'de-DE', () => tDe] as const,
-    ['claim 1-col', 'claim' as const, 'en', 'en-US', () => tEn] as const,
-    ['claim 1-col', 'claim' as const, 'de', 'de-DE', () => tDe] as const,
-  ])('%s, %s locale', async (_shapeLabel, useCase, _localeLabel, localeStr, getT) => {
+  // Renders `report`'s single invoice for the given use case/locale/column-visibility shape and
+  // reads back pdfmake's own POST-RENDER annotations on the allocated-amount cell — `_minWidth`
+  // (ADR-034 rule #1's falsifiable overflow measurement) and `.positions` (real per-line layout
+  // records, used below for the differential no-drop check) — never just the `.text` we built.
+  async function renderAllocatedCell(
+    report: SourceReportResponse,
+    useCase: 'budget-overview' | 'claim',
+    t: TFunction,
+    formatters: Formatters,
+  ): Promise<{
+    minWidth: number;
+    calcWidth: number;
+    positionsLength: number;
+    pageCount: number;
+  }> {
     const { buildOverviewContent } = await import('./overviewPdf.js');
     const { reportColumnsForUseCase, REQUIRED_REPORT_COLUMN } =
       await import('../reportContent/columns.js');
-    const t = getT();
-    const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
-    const report = makeMaximalReport();
-    const includedIds = new Set(['inv-1911-maximal']);
-
+    const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
     const content = buildReportContent(report, includedIds, useCase, t, formatters, {
       includeCoverLetter: false,
       household: null,
     });
-    // Sanity: this really is the maximal four-run case at the model level.
-    expect(content.rows[0]!.isDeposit).toBe(true);
-    expect(content.rows[0]!.isSplit).toBe(true);
-    expect(content.rows[0]!.isDepositReduced).toBe(true);
-    expect(content.rows[0]!.isRefund).toBe(true);
 
     // budget-overview: every column visible (the 7-col shape, default hiddenColumns). claim: every
     // hideable column hidden except the locked allocatedAmount column — the same construction as
@@ -3611,33 +3624,96 @@ describe('#1911 AC 4.5: maximal four-run allocated-amount row — real render, n
       t,
     );
 
-    // AC1: nothing rendered past the printable right edge, in either shape.
-    expect(maxHorizontalRatio(pdfContent)).toBeLessThanOrEqual(1);
-
     // Single invoice in this report -> table.body[0] is the header, table.body[1] is the one data
     // row, regardless of which columns are visible (usage content is short: no continuation rows).
-    const tableItem = pdfContent.find(
-      (c) => typeof c === 'object' && c !== null && 'table' in c,
-    ) as { table: { body: unknown[][] } };
-    const dataRow = tableItem.table.body[1] as { text: unknown }[];
+    const tableItem = findTableItem(pdfContent);
+    const calcWidths = calcWidthsOf(tableItem.table.widths);
     // allocatedAmount is the sole cell in the 1-col claim shape, or the 6th (index 5) non-usage
     // cell before the trailing Usage cell in the 7-col budget-overview shape.
-    const allocatedCell = (useCase === 'budget-overview' ? dataRow[5] : dataRow[0]) as {
-      text: { text: string }[];
+    const allocatedColIndex = useCase === 'budget-overview' ? 5 : 0;
+    const dataRow = tableItem.table.body[1] as {
+      text: unknown;
+      _minWidth?: number;
+      positions?: unknown[];
+    }[];
+    const allocatedCell = dataRow[allocatedColIndex] as {
+      text: unknown;
+      _minWidth?: number;
+      positions?: unknown[];
     };
-    const allocatedRuns = allocatedCell.text;
-    expect(Array.isArray(allocatedRuns)).toBe(true);
-    const allocatedText = allocatedRuns.map((r) => r.text).join('');
-
-    // All four labels present verbatim, in the documented order — (Deposit) (partial) (less
-    // deposit) refundNote — proves no silent drop under the newly-reachable four-run row.
-    expect(allocatedText).toContain(` (${content.labels.deposit})`);
-    expect(allocatedText).toContain(` (${content.labels.splitNote})`);
-    expect(allocatedText).toContain(` (${content.labels.depositReducedNote})`);
-    expect(allocatedText).toContain(content.rows[0]!.refundNoteText);
+    if (typeof allocatedCell._minWidth !== 'number') {
+      throw new Error(
+        'allocatedCell._minWidth is not a number — was pdfContent rendered before reading it?',
+      );
+    }
+    if (!Array.isArray(allocatedCell.positions)) {
+      throw new Error(
+        'allocatedCell.positions is not an array — was pdfContent rendered before reading it?',
+      );
+    }
 
     const pdfDoc = await PDFDocument.load(await blob.arrayBuffer());
-    expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
+    return {
+      minWidth: allocatedCell._minWidth,
+      calcWidth: calcWidths[allocatedColIndex]!,
+      positionsLength: allocatedCell.positions.length,
+      pageCount: pdfDoc.getPageCount(),
+    };
+  }
+
+  it.each([
+    ['budget-overview 7-col', 'en', 'budget-overview' as const, 'en-US', () => tEn] as const,
+    ['budget-overview 7-col', 'de', 'budget-overview' as const, 'de-DE', () => tDe] as const,
+    ['claim 1-col', 'en', 'claim' as const, 'en-US', () => tEn] as const,
+    ['claim 1-col', 'de', 'claim' as const, 'de-DE', () => tDe] as const,
+  ])('%s, %s locale', async (_shapeLabel, _localeLabel, useCase, localeStr, getT) => {
+    const t = getT();
+    const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
+
+    // Sanity at the model level: this really is the maximal four-flag case, before we render it.
+    const maximalReport = makeMaximalReport('both');
+    const maximalModelCheck = buildReportContent(
+      maximalReport,
+      new Set(['inv-1911-maximal']),
+      useCase,
+      t,
+      formatters,
+      { includeCoverLetter: false, household: null },
+    );
+    expect(maximalModelCheck.rows[0]!.isDeposit).toBe(true);
+    expect(maximalModelCheck.rows[0]!.isSplit).toBe(true);
+    expect(maximalModelCheck.rows[0]!.isDepositReduced).toBe(true);
+    expect(maximalModelCheck.rows[0]!.isRefund).toBe(true);
+
+    const maximal = await renderAllocatedCell(maximalReport, useCase, t, formatters);
+
+    // CHECK 1 — overflow (ADR-034 rule #1, the falsifiable form; see the Deviation Log entry cited
+    // above). `_minWidth` is pdfmake's own post-render measurement of the widest atom TextBreaker
+    // could not further break, computed AFTER the cell's real content laid out — exactly the
+    // quantity that overflows a fixed-width column. This is genuinely sensitive to the maximal
+    // row's content: the allocated-amount column is a tight, PINNED 75pt regardless of shape (it
+    // is never the absorber column), and the individual labels already sit close to that width
+    // (glossary.json: "Abschlagszahlung" alone measures ~72.85pt) — an unbreakable atom wider than
+    // 75pt would fail this.
+    expect(maximal.minWidth).toBeLessThanOrEqual(maximal.calcWidth);
+
+    // CHECK 2 — no silent drop (differential, real OUTPUT not input). Render a REDUCED comparator:
+    // the same fixture with exactly one fact removed — splitKind "deposits" instead of "both",
+    // which is the isSplit flag alone toggling off, dropping exactly the ' (partial)'/
+    // ' (Teilbetrag)' run. `.positions.length` is written by pdfmake DURING layout and reflects
+    // how many real lines the cell's ACTUAL content required — unlike `.text`, it cannot be
+    // satisfied by what the test merely constructed. Given how tight the 75pt column is (no two of
+    // these labels can share a line — each individually approaches the column's full width), the
+    // maximal (4-label) row must lay out into strictly more lines than the reduced (3-label) row.
+    // If a future change silently drops a label from the maximal row — the exact regression this
+    // criterion exists to catch — the two renders become indistinguishable and this collapses to
+    // an equality, failing the assertion.
+    const reducedReport = makeMaximalReport('deposits');
+    const reduced = await renderAllocatedCell(reducedReport, useCase, t, formatters);
+    expect(maximal.positionsLength).toBeGreaterThan(reduced.positionsLength);
+
+    // No throw, at least one page, for the maximal shape.
+    expect(maximal.pageCount).toBeGreaterThanOrEqual(1);
   });
 });
 
