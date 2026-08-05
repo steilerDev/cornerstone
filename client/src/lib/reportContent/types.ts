@@ -64,6 +64,12 @@ export interface ReportContentLabels {
   reference: string;
   generatedAt: string;
   pageLabel: string; // "Page N / M" label in the PDF footer, translated in report language
+  coverLetterReferenceLabel: string;
+  coverLetterSubjectLabel: string;
+  skipReasonLabels: {
+    footnoteFetchFailed: string;
+    footnoteInvalidPdf: string;
+  };
 }
 
 export interface ReportContent {

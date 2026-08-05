@@ -1,7 +1,6 @@
 /**
  * PDF generation and merging pipeline.
  */
-import type { TFunction } from 'i18next';
 import type { Content, Style } from 'pdfmake/build/pdfmake';
 import type { SourceReportResponse } from '@cornerstone/shared';
 import type { ReportContent } from '../reportContent/index.js';
@@ -36,7 +35,6 @@ export async function generateReportPdf(
   includedInvoiceIds: Set<string>,
   reportContent: ReportContent,
   options: { attachDocuments: boolean },
-  t: TFunction,
 ): Promise<GeneratedReport> {
   const { pdfMake, PDFDocument } = await loadPdfLibs();
   const skippedDocuments: SkippedDocument[] = [];
@@ -111,11 +109,11 @@ export async function generateReportPdf(
   const content: Content[] = [];
 
   if (reportContent.coverLetter) {
-    const coverLetter = buildCoverLetterContent(reportContent, t);
+    const coverLetter = buildCoverLetterContent(reportContent);
     content.push(...coverLetter);
   }
 
-  const overview = buildOverviewContent(reportContent, skippedByInvoice, t);
+  const overview = buildOverviewContent(reportContent, skippedByInvoice);
   content.push(...overview);
 
   // Step 3: Generate pdfmake document

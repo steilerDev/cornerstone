@@ -297,6 +297,12 @@ export function buildReportContent(
       reference: reportT('sourceReports.table.reference'),
       generatedAt: reportT('sourceReports.table.generatedAt'),
       pageLabel: reportT('sourceReports.table.pageLabel'),
+      coverLetterReferenceLabel: reportT('sourceReports.coverLetter.reference'),
+      coverLetterSubjectLabel: reportT('sourceReports.coverLetter.subjectLabel'),
+      skipReasonLabels: {
+        footnoteFetchFailed: reportT('sourceReports.table.footnoteFetchFailed'),
+        footnoteInvalidPdf: reportT('sourceReports.table.footnoteInvalidPdf'),
+      },
     },
     sourceInfo,
     coverLetter,
