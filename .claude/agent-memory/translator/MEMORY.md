@@ -102,6 +102,10 @@ New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + depos
 - [NBSP for inline labels](nbsp-inline-labels.md) — multi-word inline PDF labels need U+00A0, not a regular space, or pdfmake wraps mid-bracket; includes the ad-hoc real-render/pdftoppm verification recipe
 - [Abschlag glossary short-form](abschlag-glossary-shortform.md) — PO-approved `Abschlag` short form recorded IN glossary.json (75pt column has no room for any qualifier); `split`'s 3 German forms deliberately un-pinned
 
+## Inline Label Quoting (Issue #1973, 2026-08-05)
+
+- [Inline label quoting](inline-label-quoting-1973.md) — „...\" (curly open, straight close) is the established codebase convention for naming a UI label inline in a sentence; cross-check the referenced label's own translation, don't re-translate the noun independently
+
 ## Audit Protocol History
 
 - [Audit pitfalls](audit-pitfalls.md) — incident history behind the mandatory 4-step full-coverage audit protocol: a parity-only audit missed 13 code-referenced keys (Area UI raw-key bug); loose substring greps flagged 52 false positives

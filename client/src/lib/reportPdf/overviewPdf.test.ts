@@ -43,13 +43,22 @@
  * exported `VENDOR_SAFE_TOKEN_CHARS`.
  */
 import { describe, it, expect } from '@jest/globals';
-import type { ReportContent, ReportContentRow, ReportSkipReason } from '../reportContent/index.js';
+import type {
+  ReportContent,
+  ReportContentRow,
+  ReportSkipReason,
+  ReportColumnKey,
+} from '../reportContent/index.js';
+import { reportColumnsForUseCase, visibleReportColumns } from '../reportContent/index.js';
 import type { UsageCellSegment } from './overviewPdf.js';
 import {
   buildOverviewContent,
   splitIntoPageSafeChunks,
   packUsageCellRows,
   buildUsageTextRuns,
+  computeColumnWidths,
+  usageSafeTokenCharsForWidth,
+  usageChunkCharsForWidth,
   USAGE_WIDTH_7COL,
   USAGE_WIDTH_6COL,
   USAGE_SAFE_TOKEN_CHARS_7COL,
@@ -1669,5 +1678,475 @@ describe('AC7 — skip reason labels come from reportContent.labels.skipReasonLa
     const result = buildOverviewContent(content, skipped);
     const notesStack = result[result.length - 1] as { stack: { text: string }[] };
     expect(notesStack.stack[0]!.text).toBe('*1: Beta (B-2) — INVALID-SENTINEL');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// #1973 — column visibility wired through to the PDF geometry engine (96 legal subsets)
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+//
+// R6/AC2.6: budget-overview (isOverview=true) has 6 free (hideable) columns -> 2^6 = 64 legal
+// subsets; claim/proof-of-funds (isOverview=false) has 5 free columns -> 2^5 = 32 legal subsets.
+// allocatedAmount is never free (R1) so it is not part of either mask. 64 + 32 = 96 total.
+const OVERVIEW_FREE: ReportColumnKey[] = [
+  'vendor',
+  'invoiceNumber',
+  'date',
+  'status',
+  'invoiceAmount',
+  'usage',
+];
+const CLAIM_FREE: ReportColumnKey[] = ['vendor', 'invoiceNumber', 'date', 'invoiceAmount', 'usage'];
+
+/** Every legal hiddenColumns Set for a use case: one per bitmask over its free-column list. */
+function allLegalHiddenSets(isOverview: boolean): Set<ReportColumnKey>[] {
+  const free = isOverview ? OVERVIEW_FREE : CLAIM_FREE;
+  const sets: Set<ReportColumnKey>[] = [];
+  for (let mask = 0; mask < 1 << free.length; mask++) {
+    const hidden = free.filter((_col, i) => (mask & (1 << i)) === 0);
+    sets.push(new Set(hidden));
+  }
+  return sets;
+}
+
+// Sanity on the enumerator itself — if this drifts, every test below silently tests fewer/more
+// subsets than the AC requires.
+describe('#1973 subset enumerator sanity', () => {
+  it('produces exactly 64 overview subsets and 32 claim subsets (96 total, per R6)', () => {
+    expect(allLegalHiddenSets(true)).toHaveLength(64);
+    expect(allLegalHiddenSets(false)).toHaveLength(32);
+  });
+
+  it('every produced subset always keeps allocatedAmount visible (never appears in any hidden set)', () => {
+    for (const isOverview of [true, false]) {
+      for (const hidden of allLegalHiddenSets(isOverview)) {
+        expect(hidden.has('allocatedAmount')).toBe(false);
+      }
+    }
+  });
+});
+
+describe('#1973 AC3.1/3.2/3.3: computeColumnWidths — full base sets (scenario 7)', () => {
+  it('7-column budget-overview: absorber is usage, widths.usage === USAGE_WIDTH_7COL exactly', () => {
+    const { widths, absorber } = computeColumnWidths(reportColumnsForUseCase(true));
+    expect(absorber).toBe('usage');
+    expect(widths.usage).toBe(USAGE_WIDTH_7COL);
+  });
+
+  it('6-column claim/proof-of-funds: absorber is usage, widths.usage === USAGE_WIDTH_6COL exactly', () => {
+    const { widths, absorber } = computeColumnWidths(reportColumnsForUseCase(false));
+    expect(absorber).toBe('usage');
+    expect(widths.usage).toBe(USAGE_WIDTH_6COL);
+  });
+});
+
+describe('#1973 AC3.2/3.3/3.5: geometry across all 96 legal subsets', () => {
+  // Reference per-column pinned widths, derived from a real computeColumnWidths call rather than
+  // re-typed literals (AC3.2 explicitly forbids adding more bare-literal geometry assertions —
+  // #1950). The 7-column full set has every FixedColumnKey visible except usage (the absorber),
+  // so it supplies the reference width for all six non-usage columns at once.
+  const REFERENCE_WIDTHS = computeColumnWidths(reportColumnsForUseCase(true)).widths;
+
+  function totalWidth(
+    widths: Partial<Record<ReportColumnKey, number>>,
+    visible: ReportColumnKey[],
+  ): number {
+    return tableOffsetsTotal(visible.length) + visible.reduce((sum, col) => sum + widths[col]!, 0);
+  }
+
+  it('(AC3.2, scenario 8) for every subset where usage or vendor is visible (72 of 96), the total equals printableWidth() exactly', () => {
+    let checked = 0;
+    for (const isOverview of [true, false]) {
+      for (const hidden of allLegalHiddenSets(isOverview)) {
+        const visible = visibleReportColumns(isOverview, hidden);
+        if (!visible.includes('usage') && !visible.includes('vendor')) continue;
+        const { widths, absorber } = computeColumnWidths(visible);
+        expect(absorber).not.toBeNull();
+        expect(totalWidth(widths, visible)).toBe(printableWidth());
+        checked++;
+      }
+    }
+    expect(checked).toBe(72); // 48 overview + 24 claim, per R7/AC3.2
+  });
+
+  it('(AC3.4, scenario 9) for every subset where NEITHER usage nor vendor is visible (24 of 96), the total is strictly less than printableWidth(), and the min/max checkpoints are exactly 84.00pt / 315.00pt, computed from tableOffsetsTotal + the pinned constants', () => {
+    const totals: number[] = [];
+    let checked = 0;
+    for (const isOverview of [true, false]) {
+      for (const hidden of allLegalHiddenSets(isOverview)) {
+        const visible = visibleReportColumns(isOverview, hidden);
+        if (visible.includes('usage') || visible.includes('vendor')) continue;
+        const { widths, absorber } = computeColumnWidths(visible);
+        expect(absorber).toBeNull();
+        const total = totalWidth(widths, visible);
+        expect(total).toBeLessThan(printableWidth());
+        totals.push(total);
+        checked++;
+      }
+    }
+    expect(checked).toBe(24); // 16 overview + 8 claim
+
+    // Min checkpoint: {allocatedAmount} alone (reachable identically from both use cases).
+    const minExpected = tableOffsetsTotal(1) + REFERENCE_WIDTHS.allocatedAmount!;
+    expect(minExpected).toBe(84);
+    expect(Math.min(...totals)).toBe(minExpected);
+
+    // Max checkpoint: the 5-column overview subset {invoiceNumber, date, status, invoiceAmount,
+    // allocatedAmount} — the largest no-absorber subset, since only budget-overview has a 5th
+    // free (non-usage/vendor) column (status) to add.
+    const maxVisible = visibleReportColumns(true, new Set(['vendor', 'usage']));
+    expect(maxVisible).toEqual([
+      'invoiceNumber',
+      'date',
+      'status',
+      'invoiceAmount',
+      'allocatedAmount',
+    ]);
+    const maxExpected = totalWidth(REFERENCE_WIDTHS, maxVisible);
+    expect(maxExpected).toBe(315);
+    expect(Math.max(...totals)).toBe(maxExpected);
+  });
+
+  it('(AC3.5, scenario 10) every visible non-absorber column keeps its exact pinned width, at every one of the 96 subsets', () => {
+    let checked = 0;
+    for (const isOverview of [true, false]) {
+      for (const hidden of allLegalHiddenSets(isOverview)) {
+        const visible = visibleReportColumns(isOverview, hidden);
+        const { widths, absorber } = computeColumnWidths(visible);
+        for (const col of visible) {
+          if (col === absorber) continue;
+          expect(widths[col]).toBe(REFERENCE_WIDTHS[col]);
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+});
+
+describe('#1973 AC3.6: usageSafeTokenCharsForWidth recomputes per subset width, not the pinned *_7COL/_6COL constants', () => {
+  it('(scenario 11) hiding date from a 7-column report widens Usage, producing a strictly higher safe-token-char threshold than USAGE_SAFE_TOKEN_CHARS_7COL', () => {
+    const visible = visibleReportColumns(true, new Set(['date']));
+    const { widths } = computeColumnWidths(visible);
+    const recomputed = usageSafeTokenCharsForWidth(widths.usage!);
+    expect(widths.usage!).toBeGreaterThan(USAGE_WIDTH_7COL);
+    expect(recomputed).toBeGreaterThan(USAGE_SAFE_TOKEN_CHARS_7COL);
+  });
+});
+
+describe('#1973 AC3.7: usageChunkCharsForWidth — one-sided clamp (scenario 12)', () => {
+  // No subset among today's 96 legal combinations reaches the downward branch (hiding columns
+  // only ever WIDENS Usage — see computeColumnWidths' own derivation comment), so both directions
+  // are exercised by calling the function directly with synthetic widths, per the QA spec.
+  it('a width NARROWER than USAGE_WIDTH_7COL scales the budget strictly below 650', () => {
+    const narrower = USAGE_WIDTH_7COL / 2;
+    const result = usageChunkCharsForWidth(narrower);
+    expect(result).toBeLessThan(MAX_SAFE_USAGE_CHUNK_CHARS);
+    expect(result).toBe(Math.floor(MAX_SAFE_USAGE_CHUNK_CHARS * (narrower / USAGE_WIDTH_7COL)));
+  });
+
+  it('a width WIDER than USAGE_WIDTH_7COL (e.g. USAGE_WIDTH_6COL, or hiding every other free column) stays clamped at exactly 650, never scaling up', () => {
+    expect(USAGE_WIDTH_6COL).toBeGreaterThan(USAGE_WIDTH_7COL);
+    expect(usageChunkCharsForWidth(USAGE_WIDTH_6COL)).toBe(MAX_SAFE_USAGE_CHUNK_CHARS);
+
+    // A much wider synthetic width (e.g. the degenerate near-full-page Usage-only case) must
+    // still clamp at 650, not scale proportionally past it.
+    const muchWider = USAGE_WIDTH_7COL * 3;
+    expect(usageChunkCharsForWidth(muchWider)).toBe(MAX_SAFE_USAGE_CHUNK_CHARS);
+  });
+
+  it('exactly at USAGE_WIDTH_7COL (the reference width) returns exactly 650 — the boundary is inclusive', () => {
+    expect(usageChunkCharsForWidth(USAGE_WIDTH_7COL)).toBe(MAX_SAFE_USAGE_CHUNK_CHARS);
+  });
+});
+
+describe('#1973 AC2.4/AC4.1/AC4.2: buildOverviewContent renders every one of the 96 legal subsets without a malformed row', () => {
+  function fixtureContent(isOverview: boolean): ReportContent {
+    return makeContent({
+      isOverview,
+      rows: [
+        makeRow({ invoiceId: 'inv-1', vendor: 'ACME', statusText: isOverview ? 'Pending' : null }),
+        makeRow({ invoiceId: 'inv-2', vendor: 'Beta Co', statusText: isOverview ? 'Paid' : null }),
+      ],
+      summaryRows: [{ key: 'total', label: 'sourceReports.table.total', amountText: '€500.00' }],
+    });
+  }
+
+  it('every one of the 96 subsets builds without throwing, and every header/body/summary row has exactly visible.length cells (scenarios 13, 15)', () => {
+    let checked = 0;
+    for (const isOverview of [true, false]) {
+      const content = fixtureContent(isOverview);
+      for (const hidden of allLegalHiddenSets(isOverview)) {
+        const visible = visibleReportColumns(isOverview, hidden);
+        let result: unknown[] = [];
+        expect(() => {
+          result = buildOverviewContent(content, new Map(), hidden);
+        }).not.toThrow();
+        const table = getTable(result);
+        // Header row.
+        expect((table.body[0] as unknown[]).length).toBe(visible.length);
+        // Every remaining row (data + summary — no continuation rows possible with this short
+        // fixture text) also matches the visible column count exactly.
+        for (const row of table.body.slice(1)) {
+          expect((row as unknown[]).length).toBe(visible.length);
+        }
+        checked++;
+      }
+    }
+    expect(checked).toBe(96);
+  });
+
+  it('(AC2.7, scenario 14) the single-column case ({allocatedAmount} alone) produces a 1-wide table with one header cell and no zero-width column, for both use cases', () => {
+    for (const isOverview of [true, false]) {
+      const free = isOverview ? OVERVIEW_FREE : CLAIM_FREE;
+      const content = fixtureContent(isOverview);
+      const result = buildOverviewContent(content, new Map(), new Set(free));
+      const table = getTable(result);
+      expect(table.widths).toHaveLength(1);
+      expect(table.widths[0]).toBeGreaterThan(0);
+      expect((table.body[0] as unknown[]).length).toBe(1);
+    }
+  });
+});
+
+describe('#1973 AC4.3: no content belonging to a visible column is ever dropped, across every subset (scenario 16)', () => {
+  function fixtureContent(isOverview: boolean): ReportContent {
+    return makeContent({
+      isOverview,
+      rows: [
+        makeRow({
+          invoiceId: 'inv-1',
+          vendor: 'Vendor One',
+          invoiceNumber: 'INV-100',
+          dateText: 'date-a',
+          statusText: isOverview ? 'Pending' : null,
+          invoiceAmountText: '€111.00',
+          allocatedAmountValueText: '€222.00',
+          usageText: 'Kitchen work',
+        }),
+        makeRow({
+          invoiceId: 'inv-2',
+          vendor: 'Vendor Two',
+          invoiceNumber: 'INV-200',
+          dateText: 'date-b',
+          statusText: isOverview ? 'Paid' : null,
+          invoiceAmountText: '€333.00',
+          allocatedAmountValueText: '€444.00',
+          usageText: 'Bathroom work',
+        }),
+      ],
+      summaryRows: [],
+    });
+  }
+
+  function dataRowCellsByColumn(
+    result: unknown[],
+    visible: ReportColumnKey[],
+  ): Partial<Record<ReportColumnKey, string | undefined>>[] {
+    const table = getTable(result);
+    // Header (1) + 2 data rows, no summary rows in this fixture, no continuation rows (short text).
+    const dataRows = table.body.slice(1, 3);
+    return dataRows.map((row) => {
+      const texts = rowTexts(row);
+      const map: Partial<Record<ReportColumnKey, string | undefined>> = {};
+      visible.forEach((col, i) => {
+        map[col] = texts[i];
+      });
+      return map;
+    });
+  }
+
+  it('every visible column, at every subset, renders byte-identical text to the same column in the full-column-set baseline', () => {
+    let comparisons = 0;
+    for (const isOverview of [true, false]) {
+      const content = fixtureContent(isOverview);
+      const baselineVisible = reportColumnsForUseCase(isOverview) as ReportColumnKey[];
+      const baseline = dataRowCellsByColumn(
+        buildOverviewContent(content, new Map()),
+        baselineVisible,
+      );
+
+      for (const hidden of allLegalHiddenSets(isOverview)) {
+        const visible = visibleReportColumns(isOverview, hidden);
+        const rows = dataRowCellsByColumn(
+          buildOverviewContent(content, new Map(), hidden),
+          visible,
+        );
+        for (const col of visible) {
+          for (let r = 0; r < rows.length; r++) {
+            expect(rows[r]![col]).toBe(baseline[r]![col]);
+            comparisons++;
+          }
+        }
+      }
+    }
+    expect(comparisons).toBeGreaterThan(0);
+  });
+});
+
+describe('#1973 AC4.4: summaryRows render identically at every subset (scenario 17)', () => {
+  function fixtureContent(isOverview: boolean): ReportContent {
+    return makeContent({
+      isOverview,
+      rows: [makeRow({ invoiceId: 'inv-1' })],
+      summaryRows: [
+        { key: 'subtotal', label: 'sourceReports.table.subtotal', amountText: '€100.00' },
+        { key: 'total', label: 'sourceReports.table.total', amountText: '€200.00' },
+      ],
+    });
+  }
+
+  it("every summaryRows entry's amountText renders byte-for-byte identically regardless of hiddenColumns (R4: visibility never changes a number)", () => {
+    for (const isOverview of [true, false]) {
+      const content = fixtureContent(isOverview);
+      for (const hidden of allLegalHiddenSets(isOverview)) {
+        const visible = visibleReportColumns(isOverview, hidden);
+        const result = buildOverviewContent(content, new Map(), hidden);
+        // Every subset renders BOTH declared amounts somewhere in the document — either as
+        // in-table cells (Tier 1/2) or as a stack block beneath the table (Tier 3, asserted in
+        // detail in the AC4.5/4.6 describe block below).
+        const allStrings = JSON.stringify(result);
+        expect(allStrings).toContain('€100.00');
+        expect(allStrings).toContain('€200.00');
+        expect(visible.length).toBeGreaterThan(0); // sanity: subset is non-degenerate to reach here
+      }
+    }
+  });
+});
+
+describe('#1973 AC4.5/AC4.6: summary-label three-tier placement, asserted per tier (scenario 18)', () => {
+  function fixtureContent(isOverview: boolean): ReportContent {
+    return makeContent({
+      isOverview,
+      rows: [],
+      summaryRows: [{ key: 'total', label: 'TOTAL_LABEL', amountText: '€999.00' }],
+    });
+  }
+
+  it("Tier 1 (92 subsets): label lands at the last visible LEADING column's own cell — e.g. date, when it is the only leading column left visible", () => {
+    const content = fixtureContent(true);
+    const hidden = new Set<ReportColumnKey>(['vendor', 'invoiceNumber', 'status', 'usage']);
+    const visible = visibleReportColumns(true, hidden);
+    expect(visible).toEqual(['date', 'invoiceAmount', 'allocatedAmount']);
+
+    const result = buildOverviewContent(content, new Map(), hidden);
+    const table = getTable(result);
+    const summaryRow = table.body[table.body.length - 1] as { text?: unknown }[];
+    expect(rowTexts(summaryRow)).toEqual(['TOTAL_LABEL', '', '€999.00']);
+  });
+
+  it('Tier 2 ({invoiceAmount, allocatedAmount}, no leading column): label appears in the invoiceAmount cell, NOT the allocatedAmount cell', () => {
+    const content = fixtureContent(false);
+    const hidden = new Set<ReportColumnKey>(['vendor', 'invoiceNumber', 'date', 'usage']);
+    const visible = visibleReportColumns(false, hidden);
+    expect(visible).toEqual(['invoiceAmount', 'allocatedAmount']);
+
+    const result = buildOverviewContent(content, new Map(), hidden);
+    const table = getTable(result);
+    const summaryRow = table.body[table.body.length - 1] as Record<string, unknown>[];
+    expect(rowTexts(summaryRow)).toEqual(['TOTAL_LABEL', '€999.00']);
+    // The label is specifically in the invoiceAmount cell (index 0), not folded into the bold
+    // right-aligned allocatedAmount cell (index 1).
+    expect(summaryRow[0]!['bold']).toBe(true);
+    expect(summaryRow[0]!['alignment']).toBeUndefined();
+    expect(summaryRow[1]!['alignment']).toBe('right');
+  });
+
+  it.each([
+    ['overview', true, ['vendor', 'invoiceNumber', 'date', 'status', 'invoiceAmount', 'usage']],
+    ['overview+usage', true, ['vendor', 'invoiceNumber', 'date', 'status', 'invoiceAmount']],
+    ['claim', false, ['vendor', 'invoiceNumber', 'date', 'invoiceAmount', 'usage']],
+    ['claim+usage', false, ['vendor', 'invoiceNumber', 'date', 'invoiceAmount']],
+  ] as const)(
+    'Tier 3 (%s): {allocatedAmount} / {allocatedAmount, usage} render NO in-table summary row — the label+amount live in a separate stack block below the table instead',
+    (_label, isOverview, hiddenList) => {
+      const content = fixtureContent(isOverview);
+      const hidden = new Set<ReportColumnKey>(hiddenList as unknown as ReportColumnKey[]);
+      const visible = visibleReportColumns(isOverview, hidden);
+      expect(visible.every((c) => c === 'allocatedAmount' || c === 'usage')).toBe(true);
+
+      const result = buildOverviewContent(content, new Map(), hidden);
+      const table = getTable(result);
+      // No data rows in this fixture (rows: []), so the table body must be JUST the header — no
+      // unlabelled bare-number row leaked into the table for the total.
+      expect(table.body).toHaveLength(1);
+
+      // The label+amount instead render as a stack block AFTER the table item in the content array.
+      const tableIndex = result.findIndex(
+        (c) => typeof c === 'object' && c !== null && 'table' in c,
+      );
+      const afterTable = result[tableIndex + 1] as { stack?: { columns: { text: string }[] }[] };
+      expect(afterTable.stack).toBeDefined();
+      expect(afterTable.stack).toHaveLength(1);
+      const [labelCell, amountCell] = afterTable.stack![0]!.columns;
+      expect(labelCell!.text).toBe('TOTAL_LABEL');
+      expect(amountCell!.text).toBe('€999.00');
+    },
+  );
+});
+
+describe('#1973 AC4.7: inline (partial) label survives even with every other free column hidden (scenario 19)', () => {
+  it('visible = [allocatedAmount] alone still renders the isSplit inline label in the Allocated Amount cell text', () => {
+    const row = makeRow({ allocatedAmountValueText: '€400.00', isSplit: true });
+    const content = makeContent({
+      isOverview: true,
+      rows: [row],
+      labels: { ...makeLabels(), splitNote: 'SPLIT_LABEL_SENTINEL' },
+    });
+    const hidden = new Set<ReportColumnKey>(OVERVIEW_FREE);
+    const visible = visibleReportColumns(true, hidden);
+    expect(visible).toEqual(['allocatedAmount']);
+
+    const result = buildOverviewContent(content, new Map(), hidden);
+    const table = getTable(result);
+    expect(rowTexts(table.body[1])).toEqual(['€400.00 (SPLIT_LABEL_SENTINEL)']);
+  });
+});
+
+describe('#1973 AC6.1 regression (R3/#1965 precondition): legend is unconditional, independent of Invoice Amount visibility (scenario 20)', () => {
+  it('a subset with Invoice Amount hidden and a (partial) row still emits the split footnote/legend text — this must hold structurally, not via an `if (invoiceAmountHidden)` branch', () => {
+    const row = makeRow({ isSplit: true });
+    const content = makeContent({
+      rows: [row],
+      footnotes: [{ id: 'split', marker: 'SPLIT_MARKER', text: 'SPLIT_LEGEND_SENTINEL' }],
+    });
+
+    // Invoice Amount hidden, alongside vendor/invoiceNumber/date/usage — only allocatedAmount
+    // (locked) survives, so Invoice Amount is unambiguously absent from `visible`.
+    const hidden = new Set<ReportColumnKey>(CLAIM_FREE);
+    const visible = visibleReportColumns(false, hidden);
+    expect(visible).not.toContain('invoiceAmount');
+
+    const result = buildOverviewContent(content, new Map(), hidden);
+    const allText = JSON.stringify(result);
+    expect(allText).toContain('SPLIT_LEGEND_SENTINEL');
+
+    // Same assertion holds when Invoice Amount IS visible too — the legend does not depend on it
+    // either way (R3 rejects a conditional legend in BOTH directions).
+    const withInvoiceAmountVisible = visibleReportColumns(true, new Set());
+    expect(withInvoiceAmountVisible).toContain('invoiceAmount');
+    const resultVisible = buildOverviewContent(
+      makeContent({ isOverview: true, rows: [row], footnotes: content.footnotes }),
+      new Map(),
+    );
+    expect(JSON.stringify(resultVisible)).toContain('SPLIT_LEGEND_SENTINEL');
+  });
+});
+
+describe('#1973 AC6.3: attachment-tier skip-footnote handling is unaffected by column visibility (scenario 21)', () => {
+  it('the same skippedDocuments input produces identical footnote output whether or not Usage is hidden', () => {
+    const row = makeRow({ invoiceId: 'inv-1', vendor: 'Skip Co', invoiceNumber: 'SK-1' });
+    const content = makeContent({ rows: [row] });
+    const skipped = new Map<string, ReportSkipReason[]>([['inv-1', ['footnoteFetchFailed']]]);
+
+    const baseline = buildOverviewContent(content, skipped);
+    const baselineNotes = (baseline[baseline.length - 1] as { stack: { text: string }[] }).stack;
+
+    const withUsageHidden = buildOverviewContent(content, skipped, new Set(['usage']));
+    const hiddenNotes = (
+      withUsageHidden[withUsageHidden.length - 1] as { stack: { text: string }[] }
+    ).stack;
+
+    expect(hiddenNotes.map((n) => n.text)).toEqual(baselineNotes.map((n) => n.text));
   });
 });

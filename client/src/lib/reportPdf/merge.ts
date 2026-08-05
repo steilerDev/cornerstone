@@ -8,7 +8,7 @@ import { loadPdfLibs } from './loader.js';
 import { buildPageHeader, buildPageFooter } from './shared.js';
 import { buildCoverLetterContent } from './coverLetterPdf.js';
 import { buildOverviewContent } from './overviewPdf.js';
-import type { GeneratedReport, SkippedDocument } from './types.js';
+import type { GeneratedReport, ReportPdfOptions, SkippedDocument } from './types.js';
 import { getDocumentPreviewUrl } from '../paperlessApi.js';
 import { PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_BOTTOM, PDF_STYLES } from './pageGeometry.js';
 
@@ -34,8 +34,9 @@ export async function generateReportPdf(
   report: SourceReportResponse,
   includedInvoiceIds: Set<string>,
   reportContent: ReportContent,
-  options: { attachDocuments: boolean },
+  options: ReportPdfOptions,
 ): Promise<GeneratedReport> {
+  const hiddenColumns = options.hiddenColumns ?? new Set();
   const { pdfMake, PDFDocument } = await loadPdfLibs();
   const skippedDocuments: SkippedDocument[] = [];
   const appendixByInvoiceId = new Map<string, number>();
@@ -113,7 +114,7 @@ export async function generateReportPdf(
     content.push(...coverLetter);
   }
 
-  const overview = buildOverviewContent(reportContent, skippedByInvoice);
+  const overview = buildOverviewContent(reportContent, skippedByInvoice, hiddenColumns);
   content.push(...overview);
 
   // Step 3: Generate pdfmake document

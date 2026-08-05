@@ -305,16 +305,51 @@ describe('generateReportPdf', () => {
     });
   });
 
-  it('calls buildOverviewContent with (reportContent, skippedByInvoice map) — the new 2-arg shape', async () => {
+  it('calls buildOverviewContent with (reportContent, skippedByInvoice map, hiddenColumns) — the #1973 3-arg shape', async () => {
     const invoice = makeInvoice({ invoiceId: 'inv-1' });
     const report = makeReport([invoice]);
     const content = makeContent();
 
     await generateReportPdf(report, new Set(['inv-1']), content, { attachDocuments: false });
 
-    expect(mockBuildOverviewContent).toHaveBeenCalledWith(content, expect.any(Map));
+    expect(mockBuildOverviewContent).toHaveBeenCalledWith(content, expect.any(Map), new Set());
     const skippedByInvoiceArg = mockBuildOverviewContent.mock.calls[0]![1] as Map<string, string[]>;
     expect(skippedByInvoiceArg.size).toBe(0);
+  });
+
+  describe('#1973: hiddenColumns plumbing', () => {
+    it('a hiddenColumns Set passed in options reaches buildOverviewContent unchanged', async () => {
+      const invoice = makeInvoice({ invoiceId: 'inv-1' });
+      const report = makeReport([invoice]);
+      const content = makeContent();
+      const hiddenColumns = new Set<'vendor'>(['vendor']);
+
+      await generateReportPdf(report, new Set(['inv-1']), content, {
+        attachDocuments: false,
+        hiddenColumns,
+      });
+
+      expect(mockBuildOverviewContent).toHaveBeenCalledWith(
+        content,
+        expect.any(Map),
+        hiddenColumns,
+      );
+      const hiddenColumnsArg = mockBuildOverviewContent.mock.calls[0]![2] as Set<string>;
+      expect(hiddenColumnsArg.has('vendor')).toBe(true);
+    });
+
+    it('omitting hiddenColumns entirely behaves identically to passing an explicit empty Set (the internal default)', async () => {
+      const invoice = makeInvoice({ invoiceId: 'inv-1' });
+      const report = makeReport([invoice]);
+      const content = makeContent();
+
+      await generateReportPdf(report, new Set(['inv-1']), content, { attachDocuments: false });
+
+      const hiddenColumnsArg = mockBuildOverviewContent.mock.calls[0]![2] as Set<string>;
+      expect(hiddenColumnsArg).toBeInstanceOf(Set);
+      expect(hiddenColumnsArg.size).toBe(0);
+      expect(hiddenColumnsArg).toEqual(new Set());
+    });
   });
 
   it('builds the skippedByInvoice map passed to buildOverviewContent from actual skip failures', async () => {
@@ -352,8 +387,9 @@ describe('generateReportPdf', () => {
     expect(result.skippedDocuments).toEqual([]);
 
     // buildOverviewContent no longer receives an appendix map argument at all (only reportContent,
-    // skippedByInvoice) — appendix numbering is purely internal to the pdf-lib splice step.
-    expect(mockBuildOverviewContent.mock.calls[0]).toHaveLength(2);
+    // skippedByInvoice, hiddenColumns) — appendix numbering is purely internal to the pdf-lib
+    // splice step.
+    expect(mockBuildOverviewContent.mock.calls[0]).toHaveLength(3);
 
     // Final blob comes from finalDoc.save(), not the raw pdfmake text blob.
     const bytes = new Uint8Array(await result.blob.arrayBuffer());

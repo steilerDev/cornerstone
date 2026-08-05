@@ -443,6 +443,21 @@
   font-size: var(--font-size-sm);
 }
 
+/**
+ * Inline warning banner — amber-tinted, displayed for a non-blocking, reversible
+ * caution the user should be aware of before proceeding. Not for errors (use
+ * .bannerError) and not for actions that cannot be undone (use MassMoveModal's
+ * icon+heading warningBlock pattern for those).
+ */
+.bannerWarning {
+  background-color: var(--color-warning-bg);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  color: var(--color-warning-text-on-light);
+  padding: var(--spacing-3);
+  font-size: var(--font-size-sm);
+}
+
 /* ============================================================
  * SCREEN READER ONLY
  * ============================================================ */

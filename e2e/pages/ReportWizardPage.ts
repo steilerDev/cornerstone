@@ -487,6 +487,18 @@ export class ReportWizardPage {
   readonly footnotesBlock: Locator;
   readonly footnoteItems: Locator;
 
+  // Issue #1973: column visibility is now wired through to the generated PDF (previously
+  // preview-only local state, #1966). `columnToggleGroup` is the single `role="group"` rendered
+  // ABOVE both the desktop `<table>` and the mobile `.mobileCardList` — it is NOT duplicated or
+  // viewport-gated (verified on disk: no `@media` rule touches `.columnToggles`/`.columnToggleGroup`
+  // in `ReportContentEditor.module.css`), so the same locator is valid at every configured
+  // viewport. Individual checkboxes are reached via `columnToggleGroup.getByLabel(<column label>)`.
+  // `usageHiddenAttachmentsWarning` is the AC 6.2 warning banner (`sharedStyles.bannerWarning`,
+  // `role="status"`), scoped by its CSS-module class rather than by text so it survives copy
+  // edits and is unambiguous against the page's other `role="status"` regions (e.g. `Toast`).
+  readonly columnToggleGroup: Locator;
+  readonly usageHiddenAttachmentsWarning: Locator;
+
   // Claim confirm modal
   readonly claimConfirmModal: Locator;
   readonly claimConfirmModalBody: Locator;
@@ -624,6 +636,10 @@ export class ReportWizardPage {
     this.summaryTableRows = this.summaryTable.locator('tbody tr');
     this.footnotesBlock = page.locator('[class*="footnotes"]');
     this.footnoteItems = this.footnotesBlock.locator('li');
+
+    // Issue #1973.
+    this.columnToggleGroup = page.getByRole('group', { name: 'Show/hide columns' });
+    this.usageHiddenAttachmentsWarning = page.locator('[class*="bannerWarning"]');
 
     this.claimConfirmModal = page.getByRole('dialog', { name: 'Mark Invoices as Claimed?' });
     this.claimConfirmModalBody = this.claimConfirmModal.locator('p');

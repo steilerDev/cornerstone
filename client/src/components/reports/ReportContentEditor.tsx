@@ -3,13 +3,23 @@
  * Handles field changes and resets via callbacks; no state management.
  */
 
-import { useId, useState } from 'react';
+import { useId, useMemo } from 'react';
 import type { TFunction } from 'i18next';
 import type { InvoiceStatus } from '@cornerstone/shared';
-import type { ReportContent, ReportContentOverrides } from '../../lib/reportContent/index.js';
-import { overrideKey } from '../../lib/reportContent/index.js';
+import type {
+  ReportColumnKey,
+  ReportContent,
+  ReportContentOverrides,
+} from '../../lib/reportContent/index.js';
+import {
+  isColumnLocked,
+  overrideKey,
+  reportColumnsForUseCase,
+  visibleReportColumns,
+} from '../../lib/reportContent/index.js';
 import { Badge } from '../Badge/Badge.js';
 import { EditableField } from '../EditableField/EditableField.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportContentEditor.module.css';
 
 export interface ReportContentEditorProps {
@@ -17,6 +27,13 @@ export interface ReportContentEditorProps {
   overrides: ReportContentOverrides;
   onFieldChange: (key: string, value: string) => void;
   onFieldReset: (key: string) => void;
+  /** Columns the user has hidden from the preview and generated PDF (#1973 AC 1.1: this
+   * component holds no column state of its own — it is fully controlled by the parent). */
+  hiddenColumns: ReadonlySet<ReportColumnKey>;
+  onToggleColumn: (col: ReportColumnKey) => void;
+  /** Whether the wizard's "attach source documents" setting is enabled — drives the
+   * Usage-hidden-with-attachments warning banner (AC 3/#1973 UX spec §2). */
+  attachDocuments: boolean;
   t: TFunction;
   /** HTML lang attribute for report-language content. Omit when report language matches UI language. */
   lang?: string;
@@ -32,14 +49,16 @@ const STATUS_BADGE_CLASSNAME: Record<InvoiceStatus, string> = {
   quotation: styles.statusQuotation!,
 };
 
-type ColumnKey =
-  'vendor' | 'invoiceNumber' | 'date' | 'status' | 'invoiceAmount' | 'allocatedAmount' | 'usage';
+type ColumnKey = ReportColumnKey;
 
 export function ReportContentEditor({
   content,
   overrides,
   onFieldChange,
   onFieldReset,
+  hiddenColumns,
+  onToggleColumn,
+  attachDocuments,
   t,
   lang,
   uiLang,
@@ -47,22 +66,29 @@ export function ReportContentEditor({
   // Helper: check if a field has been overridden
   const isFieldEdited = (key: string): boolean => key in overrides;
 
-  // Column visibility state. PREVIEW-ONLY: `hiddenColumns` is local to this component and is not
-  // exposed as a prop or callback — the generated PDF always contains every column. The hint
-  // rendered beside the toggles says so, because the control otherwise reads as "choose the
-  // report's columns" (every other control in this editor does change the PDF). Wiring these
-  // through to the PDF is a filed follow-up.
-  const columnHintId = useId();
-  const [hiddenColumns, setHiddenColumns] = useState<Set<ColumnKey>>(new Set());
-  const toggleColumn = (col: ColumnKey) => {
-    setHiddenColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(col)) next.delete(col);
-      else next.add(col);
-      return next;
-    });
+  // Visible columns (AC 2.1's single derivation, shared with the PDF geometry engine) —
+  // hiddenColumns/onToggleColumn are fully controlled by the parent (ReportWizardPage), which is
+  // what makes this control actually change the generated PDF instead of being preview-only.
+  const visible = useMemo(
+    () => new Set(visibleReportColumns(content.isOverview, hiddenColumns)),
+    [content.isOverview, hiddenColumns],
+  );
+  const show = (col: ColumnKey) => visible.has(col);
+  const requiredHintId = useId();
+
+  // Label lookup for the column-toggle list — mirrors overviewPdf.ts's HEADER_LABEL pattern, so
+  // the toggle list's column ENUMERATION comes from reportColumnsForUseCase (AC 2.1's single
+  // derivation, shared with the PDF geometry engine) rather than a second, independently
+  // maintained array literal.
+  const COLUMN_LABEL: Record<ColumnKey, string> = {
+    vendor: content.labels.vendor,
+    invoiceNumber: content.labels.invoiceNumber,
+    date: content.labels.date,
+    status: content.labels.status,
+    invoiceAmount: content.labels.invoiceAmount,
+    allocatedAmount: content.labels.allocatedAmount,
+    usage: content.labels.usage,
   };
-  const show = (col: ColumnKey) => !hiddenColumns.has(col);
 
   return (
     <div className={styles.container}>
@@ -220,36 +246,41 @@ export function ReportContentEditor({
       <div className={styles.tableHeadingRow}>
         <h3 className={styles.tableHeading}>{t('sourceReports.editable.tableHeading')}</h3>
         <div className={styles.columnToggleGroup}>
-          <p id={columnHintId} className={styles.columnToggleHint}>
-            {t('sourceReports.editable.columnVisibilityHint')}
-          </p>
           <div
             className={styles.columnToggles}
             role="group"
             aria-label={t('sourceReports.editable.columnVisibilityLabel')}
-            aria-describedby={columnHintId}
           >
-            {(
-              [
-                ['vendor', content.labels.vendor],
-                ['invoiceNumber', content.labels.invoiceNumber],
-                ['date', content.labels.date],
-                ...(content.isOverview
-                  ? [['status', content.labels.status] as [ColumnKey, string]]
-                  : []),
-                ['invoiceAmount', content.labels.invoiceAmount],
-                ['allocatedAmount', content.labels.allocatedAmount],
-                ['usage', content.labels.usage],
-              ] as [ColumnKey, string][]
-            ).map(([col, label]) => (
+            {reportColumnsForUseCase(content.isOverview).map((col) => (
               <label key={col} className={styles.columnToggle} lang={lang}>
-                <input type="checkbox" checked={show(col)} onChange={() => toggleColumn(col)} />
-                {label}
+                <input
+                  type="checkbox"
+                  checked={show(col)}
+                  disabled={isColumnLocked(col)}
+                  aria-describedby={isColumnLocked(col) ? requiredHintId : undefined}
+                  onChange={() => onToggleColumn(col)}
+                  data-column-key={col}
+                />
+                {COLUMN_LABEL[col]}
+                {isColumnLocked(col) && (
+                  <span aria-hidden="true" className={styles.requiredMarker}>
+                    {' '}
+                    *
+                  </span>
+                )}
               </label>
             ))}
           </div>
+          <p id={requiredHintId} className={styles.columnToggleRequiredHint}>
+            * {t('sourceReports.editable.allocatedAmountRequiredHint')}
+          </p>
         </div>
       </div>
+      {!show('usage') && attachDocuments && (
+        <div className={sharedStyles.bannerWarning} role="status">
+          {t('sourceReports.editable.usageHiddenAttachmentsWarning')}
+        </div>
+      )}
       <div className={styles.tableWrapper} lang={lang}>
         <table className={styles.table}>
           <thead lang={lang}>

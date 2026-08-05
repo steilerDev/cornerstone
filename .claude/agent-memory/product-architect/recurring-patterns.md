@@ -1296,3 +1296,33 @@ where DE is the documented binding locale (#1937). Usage at 138-187pt is the _wi
 **How to apply:** when a test lands against a universally-quantified documented rule, check the
 quantifier. Picking the column the issue happened to mention is not the same as picking the binding
 one — and when the render already happened, iterating all cells is nearly free.
+
+## A wiki page can state a PROHIBITION that the PR under review deletes
+
+**Why:** #1973/PR #2010 generalised `overviewPdf.ts` to 96 column subsets. ADR-034's "Geometry
+constraint that blocks a feature" said the PDF column count is fixed at 6 or 7 and that wiring the
+wizard's toggles through "is a re-measurement story, not a UI change." The PR touched no wiki file,
+so the merged state would have documented the shipped feature as impossible — actively steering the
+next agent away from it. Same page, same round: a quoted constant reference (`MAX_SAFE_USAGE_CHUNK_CHARS`
+→ per-subset `usageChunkChars`) and a "this function **hangs** on `maxChars <= 0`" claim that a prior
+fix had already turned into a throw.
+
+**How to apply:** on any PR that *removes* a limitation, grep the wiki for the limitation's own
+statement — not just for the API/schema surface the diff touches. Constraint prose lives in ADR
+Consequences and "sharp edge" sections that no schema/contract diff would ever point you at. Bonus
+tell: if the issue body cites a wiki constraint as its motivation, that exact paragraph is the one
+the PR must rewrite.
+
+## Exhaustiveness audit for a keyed engine: list which links are compile-enforced and which are not
+
+**Why:** #1973's geometry engine keys everything off a `ReportColumnKey` union. Three links force a
+new key at compile time (`Record<FixedColumnKey, number>`, `Record<ReportColumnKey, string>`, a
+`default`-less switch with a declared return type). Four do not — the base-set arrays in `columns.ts`,
+`LEADING_COLUMNS`, `RIGHT_ALIGNED_COLUMNS`, and the absorber-priority ternary — and the tests that
+look like they'd catch it pin literal counts (`toHaveLength(7)`) derived from the test's own hand-typed
+array, so they can't.
+
+**How to apply:** when reviewing a union-keyed engine, enumerate every site that consumes the union and
+classify each as forcing or non-forcing; report the non-forcing ones even when they are correct today.
+The cheap fix is almost always to derive the hand-typed list from an exhaustive `Record<Key, …>` and
+filter, which converts a silent omission into a compile error.

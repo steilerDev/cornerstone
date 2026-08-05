@@ -80,7 +80,9 @@ import type {
   ReportContent,
   ReportContentRow,
   ReportContentLabels,
+  ReportColumnKey,
 } from '../../lib/reportContent/index.js';
+import { reportColumnsForUseCase } from '../../lib/reportContent/index.js';
 import { ReportContentEditor } from './ReportContentEditor.js';
 import styles from './ReportContentEditor.module.css';
 
@@ -172,17 +174,21 @@ function getMobileList(container: HTMLElement): HTMLElement {
 function renderEditor(overridesProp: Partial<Parameters<typeof ReportContentEditor>[0]> = {}) {
   const onFieldChange = jest.fn();
   const onFieldReset = jest.fn();
+  const onToggleColumn = jest.fn();
   const utils = render(
     <ReportContentEditor
       content={makeContent()}
       overrides={{}}
       onFieldChange={onFieldChange}
       onFieldReset={onFieldReset}
+      hiddenColumns={new Set()}
+      onToggleColumn={onToggleColumn}
+      attachDocuments={false}
       t={t}
       {...overridesProp}
     />,
   );
-  return { ...utils, onFieldChange, onFieldReset };
+  return { ...utils, onFieldChange, onFieldReset, onToggleColumn };
 }
 
 // A fully-populated ReportContent (cover letter + one row with a non-null attachmentsNote) used by
@@ -351,6 +357,9 @@ describe('ReportContentEditor — cover letter card', () => {
         overrides={{}}
         onFieldChange={jest.fn()}
         onFieldReset={jest.fn()}
+        hiddenColumns={new Set()}
+        onToggleColumn={jest.fn()}
+        attachDocuments={false}
         t={t}
       />,
     );
@@ -1122,30 +1131,32 @@ describe('ReportContentEditor — #1959 isSplit / isDepositReduced inline labels
   });
 });
 
-describe('ReportContentEditor — #1959 column visibility toggles (local state, no persistence)', () => {
+describe('ReportContentEditor — #1973 column visibility toggles (controlled: hiddenColumns/onToggleColumn props)', () => {
   function getToggleGroup(container: HTMLElement): HTMLElement {
     return within(container).getByRole('group', {
       name: 'sourceReports.editable.columnVisibilityLabel',
     });
   }
 
-  it('renders one checked checkbox per column, labeled from content.labels.*, with a Status toggle only for overview reports', () => {
+  it('renders one checked checkbox per column when hiddenColumns is empty, labeled from content.labels.*, with a Status toggle only for overview reports', () => {
     const { container } = renderEditor({ content: makeContent({ isOverview: false }) });
     const group = within(getToggleGroup(container));
     const boxes = group.getAllByRole('checkbox');
     expect(boxes).toHaveLength(6); // vendor, invoiceNumber, date, invoiceAmount, allocatedAmount, usage
     for (const box of boxes) expect(box).toBeChecked();
-    // Labels come from content.labels.* (report language), never a chrome t() echo.
+    // Labels come from content.labels.* (report language), never a chrome t() echo. Allocated
+    // Amount is excluded from this loop — its label carries a trailing " *" required marker (see
+    // the dedicated AC2.2 test below), so an exact-match getByLabelText would not find it here.
     for (const label of [
       LABELS.vendor,
       LABELS.invoiceNumber,
       LABELS.date,
       LABELS.invoiceAmount,
-      LABELS.allocatedAmount,
       LABELS.usage,
     ]) {
       expect(group.getByLabelText(label)).toBeChecked();
     }
+    expect(group.getByLabelText(LABELS.allocatedAmount, { exact: false })).toBeChecked();
     expect(group.queryByLabelText(LABELS.status)).not.toBeInTheDocument();
   });
 
@@ -1154,6 +1165,95 @@ describe('ReportContentEditor — #1959 column visibility toggles (local state, 
     const group = within(getToggleGroup(container));
     expect(group.getAllByRole('checkbox')).toHaveLength(7);
     expect(group.getByLabelText(LABELS.status)).toBeChecked();
+  });
+
+  // (AC 2.5, carried from #1966 AC2) The rendered checkbox ORDER — not just its length — must
+  // equal reportColumnsForUseCase(isOverview) exactly, for both use cases, independent of
+  // hiddenColumns' contents (hiding a column removes its th/td from the table, never its own
+  // toggle). A count-only assertion previously passed against a hand-typed array literal that had
+  // silently drifted from this same derivation (AC 2.1 violation, since fixed) — a future reorder,
+  // or a swapped column that happened to keep the same length, would have passed it too. Order
+  // matters here beyond cosmetics: the PDF's header row is built from this identical array.
+  it.each([
+    ['overview', true, 7],
+    ['claim/proof-of-funds', false, 6],
+  ] as const)(
+    '(AC2.5, scenario 27) %s: rendered checkbox order exactly equals reportColumnsForUseCase(isOverview) (%i columns), even with some columns hidden',
+    (_label, isOverview, expectedCount) => {
+      expect(reportColumnsForUseCase(isOverview)).toHaveLength(expectedCount);
+      const { container } = renderEditor({
+        content: makeContent({ isOverview }),
+        hiddenColumns: new Set<ReportColumnKey>(['vendor']),
+      });
+      const boxes = within(getToggleGroup(container)).getAllByRole('checkbox');
+      expect(boxes).toHaveLength(expectedCount);
+
+      // Guard the guard: if data-column-key were ever dropped from the markup, every entry below
+      // would read null. reportColumnsForUseCase(isOverview) is never empty (6 or 7 real keys), so
+      // that failure mode is NOT the "[] equals []" vacuous-pass shape — a null-filled array can
+      // never toEqual a string-keyed one — but asserting non-null explicitly here means the test
+      // fails with an immediate "attribute missing" signal rather than a confusing array diff.
+      const renderedOrder = boxes.map((box) => box.getAttribute('data-column-key'));
+      for (const key of renderedOrder) {
+        expect(key).not.toBeNull();
+      }
+      expect(renderedOrder).toEqual(reportColumnsForUseCase(isOverview));
+    },
+  );
+
+  it('(AC2.6, scenario 28) claim/proof-of-funds NEVER renders a Status checkbox, at any hiddenColumns value — including one that names status explicitly', () => {
+    for (const hiddenColumns of [
+      new Set<ReportColumnKey>(),
+      new Set<ReportColumnKey>(['status']),
+      new Set<ReportColumnKey>(['vendor', 'usage']),
+    ]) {
+      const { container, unmount } = renderEditor({
+        content: makeContent({ isOverview: false }),
+        hiddenColumns,
+      });
+      expect(
+        within(getToggleGroup(container)).queryByLabelText(LABELS.status),
+      ).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('(AC2.2, scenario 25) the Allocated Amount checkbox is disabled and has a non-empty accessible description', () => {
+    const { container } = renderEditor();
+    const box = within(getToggleGroup(container)).getByLabelText(LABELS.allocatedAmount, {
+      exact: false,
+    });
+    expect(box).toBeDisabled();
+    const describedBy = box.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    const descriptionEl = container.querySelector(`#${describedBy}`);
+    expect(descriptionEl).not.toBeNull();
+    expect(descriptionEl!.textContent!.trim().length).toBeGreaterThan(0);
+  });
+
+  it('(AC2.3, scenario 26) every OTHER column checkbox is enabled, and hiding every one of them at once leaves the desktop table with exactly one (Allocated Amount) column', () => {
+    const { container } = renderEditor({ content: makeContent({ isOverview: true }) });
+    const group = within(getToggleGroup(container));
+    for (const box of group.getAllByRole('checkbox')) {
+      if (box.getAttribute('aria-describedby')) continue; // the locked allocatedAmount checkbox
+      expect(box).not.toBeDisabled();
+    }
+
+    const everyHideable = new Set<ReportColumnKey>([
+      'vendor',
+      'invoiceNumber',
+      'date',
+      'status',
+      'invoiceAmount',
+      'usage',
+    ]);
+    const { container: hiddenContainer } = renderEditor({
+      content: makeContent({ isOverview: true }),
+      hiddenColumns: everyHideable,
+    });
+    const table = getDesktopTable(hiddenContainer);
+    expect(table.querySelectorAll('thead th')).toHaveLength(1);
+    expect(within(table).getByText(LABELS.allocatedAmount, { selector: 'th' })).toBeInTheDocument();
   });
 
   // Every column gets a DISTINCT value so a disappearing cell can be attributed to the toggled
@@ -1176,26 +1276,40 @@ describe('ReportContentEditor — #1959 column visibility toggles (local state, 
     });
   }
 
+  // allocatedAmount is deliberately excluded here — it is the locked column and can never be
+  // hidden by ANY hiddenColumns value (see columns.test.ts's "defense-in-depth" coverage and the
+  // AC2.2 disabled-checkbox test above), so a "hiding it removes the column" case would assert a
+  // state the production code makes unreachable.
   it.each([
-    [LABELS.vendor, 'ACME'],
-    [LABELS.invoiceNumber, 'INV-001'],
-    [LABELS.date, '01/10/2026'],
-    [LABELS.invoiceAmount, '€111.00'],
-    [LABELS.allocatedAmount, '€222.00'],
-  ])(
-    'unchecking the "%s" toggle removes that column header AND its cell value from the desktop table and the mobile card',
-    (label, cellValue) => {
-      const { container } = renderEditor({ content: distinctValueContent() });
+    [LABELS.vendor, 'ACME', 'vendor'],
+    [LABELS.invoiceNumber, 'INV-001', 'invoiceNumber'],
+    [LABELS.date, '01/10/2026', 'date'],
+    [LABELS.invoiceAmount, '€111.00', 'invoiceAmount'],
+  ] as const)(
+    'a hiddenColumns prop containing "%s" removes that column header AND its cell value from the desktop table and the mobile card',
+    (label, cellValue, columnKey) => {
+      const { container, rerender } = renderEditor({ content: distinctValueContent() });
       const table = getDesktopTable(container);
       const mobileList = getMobileList(container);
       const headerCountBefore = table.querySelectorAll('thead th').length;
 
-      // Positive: header label and cell value are both present before the toggle.
+      // Positive: header label and cell value are both present with nothing hidden.
       expect(within(table).getByText(label, { selector: 'th' })).toBeInTheDocument();
       expect(within(table).getByText(cellValue)).toBeInTheDocument();
       expect(within(mobileList).getByText(cellValue)).toBeInTheDocument();
 
-      fireEvent.click(within(getToggleGroup(container)).getByLabelText(label));
+      rerender(
+        <ReportContentEditor
+          content={distinctValueContent()}
+          overrides={{}}
+          onFieldChange={jest.fn()}
+          onFieldReset={jest.fn()}
+          hiddenColumns={new Set<ReportColumnKey>([columnKey])}
+          onToggleColumn={jest.fn()}
+          attachDocuments={false}
+          t={t}
+        />,
+      );
 
       // ...and both are gone afterwards, in BOTH responsive trees.
       expect(within(table).queryByText(label, { selector: 'th' })).not.toBeInTheDocument();
@@ -1206,43 +1320,37 @@ describe('ReportContentEditor — #1959 column visibility toggles (local state, 
       // The toggle itself stays visible (so the column can be restored) and reflects hidden state.
       const box = within(getToggleGroup(container)).getByLabelText(label);
       expect(box).not.toBeChecked();
-      // Re-checking restores the column — the state is a real toggle, not a one-way hide.
-      fireEvent.click(box);
-      expect(within(table).getByText(label, { selector: 'th' })).toBeInTheDocument();
-      expect(within(table).getByText(cellValue)).toBeInTheDocument();
     },
   );
 
-  it('unchecking the Usage toggle removes the usage EditableField (and its inline meta text) entirely', () => {
+  it('unchecking the Usage toggle (hiddenColumns={usage}) removes the usage EditableField (and its inline meta text) entirely', () => {
     const rows = [
       makeRow({ invoiceId: 'inv-1', usageText: 'Kitchen work', areaText: 'Ground Floor' }),
     ];
-    const { container } = renderEditor({ content: makeContent({ rows }) });
-    expect(screen.getAllByDisplayValue('Kitchen work').length).toBeGreaterThan(0);
-    expect(container.querySelectorAll(`.${styles.usageMetaText}`).length).toBeGreaterThan(0);
-
-    fireEvent.click(within(getToggleGroup(container)).getByLabelText(LABELS.usage));
-
+    const { container } = renderEditor({
+      content: makeContent({ rows }),
+      hiddenColumns: new Set<ReportColumnKey>(['usage']),
+    });
     expect(screen.queryAllByDisplayValue('Kitchen work')).toHaveLength(0);
     expect(container.querySelectorAll(`.${styles.usageMetaText}`)).toHaveLength(0);
   });
 
-  it('unchecking the Status toggle removes the status Badge from an overview report', () => {
+  it('unchecking the Status toggle (hiddenColumns={status}) removes the status Badge from an overview report', () => {
     const rows = [makeRow({ invoiceId: 'inv-1', status: 'paid', statusText: 'REPORT_PAID_TEXT' })];
-    const { container } = renderEditor({ content: makeContent({ isOverview: true, rows }) });
-    expect(screen.getAllByText('REPORT_PAID_TEXT').length).toBeGreaterThan(0);
-
-    fireEvent.click(within(getToggleGroup(container)).getByLabelText(LABELS.status));
-
+    const { container } = renderEditor({
+      content: makeContent({ isOverview: true, rows }),
+      hiddenColumns: new Set<ReportColumnKey>(['status']),
+    });
     expect(screen.queryAllByText('REPORT_PAID_TEXT')).toHaveLength(0);
     expect(
       within(getDesktopTable(container)).queryByText(LABELS.status, { selector: 'th' }),
     ).not.toBeInTheDocument();
   });
 
-  it('hides only the toggled column, leaving the others rendered (toggles are independent)', () => {
-    const { container } = renderEditor();
-    fireEvent.click(within(getToggleGroup(container)).getByLabelText(LABELS.vendor));
+  it('hides only the named column, leaving the others rendered (each toggle is independent)', () => {
+    const { container } = renderEditor({
+      hiddenColumns: new Set<ReportColumnKey>(['vendor']),
+    });
     const table = getDesktopTable(container);
     expect(within(table).queryByText('ACME')).not.toBeInTheDocument();
     // Every other column's value survives.
@@ -1251,13 +1359,51 @@ describe('ReportContentEditor — #1959 column visibility toggles (local state, 
     expect(within(table).getByDisplayValue('Baseline usage')).toBeInTheDocument();
   });
 
-  it('does not invoke onFieldChange/onFieldReset when a column is toggled (visibility is local state, never an override)', () => {
-    const { container, onFieldChange, onFieldReset } = renderEditor();
-    for (const box of within(getToggleGroup(container)).getAllByRole('checkbox')) {
-      fireEvent.click(box);
-    }
+  it('(scenario 29) clicking a checkbox calls onToggleColumn with the exact column key, and NEVER onFieldChange/onFieldReset — visibility reaches its own callback, never the override callbacks', () => {
+    const { container, onFieldChange, onFieldReset, onToggleColumn } = renderEditor({
+      content: makeContent({ isOverview: true }),
+    });
+    fireEvent.click(within(getToggleGroup(container)).getByLabelText(LABELS.vendor));
+    expect(onToggleColumn).toHaveBeenCalledTimes(1);
+    expect(onToggleColumn).toHaveBeenCalledWith('vendor');
+
+    fireEvent.click(within(getToggleGroup(container)).getByLabelText(LABELS.usage));
+    expect(onToggleColumn).toHaveBeenCalledTimes(2);
+    expect(onToggleColumn).toHaveBeenLastCalledWith('usage');
+
     expect(onFieldChange).not.toHaveBeenCalled();
     expect(onFieldReset).not.toHaveBeenCalled();
+  });
+
+  it('(AC6.2, scenario 30) the warning banner renders with role="status" and the usageHiddenAttachmentsWarning key ONLY when Usage is hidden AND attachDocuments is on — absent in the other three combinations', () => {
+    const matrix: [boolean, boolean, boolean][] = [
+      // [usageHidden, attachDocuments, expectBanner]
+      [false, false, false],
+      [false, true, false],
+      [true, false, false],
+      [true, true, true],
+    ];
+    for (const [usageHidden, attachDocuments, expectBanner] of matrix) {
+      const { container, unmount } = renderEditor({
+        hiddenColumns: usageHidden
+          ? new Set<ReportColumnKey>(['usage'])
+          : new Set<ReportColumnKey>(),
+        attachDocuments,
+      });
+      const banner = within(container).queryByRole('status');
+      if (expectBanner) {
+        expect(banner).not.toBeNull();
+        expect(banner!.textContent).toBe('sourceReports.editable.usageHiddenAttachmentsWarning');
+      } else {
+        expect(banner).toBeNull();
+      }
+      unmount();
+    }
+  });
+
+  it('(AC1.3/AC1.4, scenario 31) columnVisibilityHint is no longer rendered anywhere', () => {
+    renderEditor();
+    expect(screen.queryByText(/columnVisibilityHint/)).not.toBeInTheDocument();
   });
 });
 

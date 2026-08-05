@@ -762,3 +762,100 @@ record a deviation on AC1 — the one criterion whose stated measurement exists 
 Architect's Lows still open: `collectAllStrings` forked 3× (`:884`/`:1151`/`:3207`); helper comment header
 still says *"content overflowed the page horizontally"* (the framing the ADR corrects) and cites
 `src/DocumentContext.js:528` vs the ADR's `DocumentContext.js:490`.
+
+---
+
+## PR #2010 — #1973 column visibility wired through to the PDF — APPROVED round 1 (2026-08-05, `b5b03bec`)
+
+Verdict in a **comment** (PR authored by `steilerDev` = the token identity, so `gh pr review --approve`
+is rejected as self-approval — same constraint as #2004/#2008). 33 criteria across 8 groups walked
+individually: **28 satisfied, 5 Medium partials, 0 functional gaps.** All 16 E2E shards + `E2E Gates`
+green on the head SHA.
+
+**What landed well, and is worth copying into future AC design:**
+
+- **A sanity test on the enumerator itself.** `allLegalHiddenSets()` bitmasks over the free-column list;
+  a separate test asserts it yields 64/32 and never puts `allocatedAmount` in a hidden set. Without that,
+  a silently-shrunk enumerator takes every downstream 96-subset assertion with it and nothing goes red.
+  Every subset loop also asserts `checked === 96/72/24` rather than trusting the iteration.
+- **A positive control on a negative assertion.** E2E AC 5.2 fires a real PATCH via `page.evaluate()`,
+  asserts the interceptor caught it, resets the counter, *then* asserts the toggles produce zero. This is
+  the general fix for "assertions that pass on nothing" — demand it whenever an AC is "X never happens".
+- **A forced click as behavioural proof of `disabled`.** `uncheck({ force: true }).catch(() => {})` then
+  re-assert `toBeChecked()` — genuinely different from restating `toBeDisabled()`.
+- **A size-diff against the test's own baseline**, not a bare `> 1000 bytes`, as the E2E proxy for
+  "the toggle reached PDF generation". The bare-size shape is what let #1966 pass while preview-only.
+
+**Five Medium partials — all the same shape: an AC's second clause dropped while the first was met.**
+M1 AC 4.1 (cell *count* asserted, header *text in order* not). M2 AC 4.2 (continuation rows explicitly
+excluded from the 96-loop by fixture choice — the test comment says so). M3 AC 4.5 (96-loop checks
+`amountText` only, never the label — the exact half I'd flagged as most likely to be quietly unmet).
+M4 AC 3.3 (`expect(absorber).not.toBeNull()` would pass for *any* absorber; AC 3.5's loop `continue`s past
+the absorber, so a wrong one is doubly unchecked). M5 AC 7.4 (PR body still says results "will be appended").
+**Lesson: when an AC is a compound sentence, tick each clause off separately — the first clause getting a
+test is what makes the second one invisible.**
+
+**Verified by hand what the missing assertion would have covered** rather than just reporting the hole:
+worst-case vendor-as-absorber is the 6-column overview subset, `515.28 − 51.5 − 272 = 191.78pt`, never
+below the 45pt pin — so M4 is a coverage hole, not a defect, and gets capped at Medium on that basis.
+`tableOffsetsTotal(n) = n*8.5 + 0.5`; `printableWidth() = 515.28`.
+
+**Two AC-text errors were mine** (posted as a dated correction comment on #1973, body left intact):
+1. **AC 4.6's "92 subsets" is wrong — Tier 1 is 88.** 92 = 96−4, which folded Tier 2 into Tier 1. Tier 2 is
+   `{alloc, invoiceAmount}` and `{alloc, invoiceAmount, usage}` × 2 use cases = 4. 88+4+4 = 96. The tests
+   asserted the partition *behaviourally* (exact row arrays per tier) and never the count, which is why a
+   correct implementation didn't fail — **assert partitions behaviourally, not by cardinality.**
+2. **AC 5.3's "leaving and re-entering the step" over-reached R5.** R5 says the selection dies with the
+   *run*; `overrides` survive in-run step navigation, so `hiddenColumns` should too. The AC as written would
+   have mandated a *third* instance of the #1943/#1946 silent-state-loss class. Implementation resets on
+   reload + use-case change, preserves across step nav and `DISCARD_EDITS`, documents why. Corrected reading
+   published; AC satisfied under it.
+
+**R6 non-smuggling confirmed three ways** (worth reusing as a checklist for "did the fix quietly grant the
+thing I declined?"): the enabling file (`buildReportContent.ts`) is absent from the diff entirely; the data
+is structurally absent (`CLAIM_COLUMNS` has no `status`); and a test passes `hiddenColumns` containing
+`'status'` to a claim editor and still finds no checkbox.
+
+**Merge gate vs Done gate applied:** every AC is machine-checked (incl. the degenerate 1-column case through
+*real unmocked pdfmake* in `realRender.test.ts`), so nothing blocks merge. But R7's narrower-than-page table
+(84.00pt single column on a 515.28pt page) and R2's Tier-3 summary block are *visual* judgments no assertion
+can make — **#1973 → UAT, stays In Progress, not Done-on-merge. If UAT rejects either, reopen #1973; the
+ruling would be what was wrong, not the implementation.**
+
+**L2 for the user:** `de` warning renders `„Verwendung"` — German opening low-9 quote closed by ASCII `"`.
+Translator documented it as matching `selectForMergeAriaLabel`, honestly — but `de/budget.json` has exactly
+**2** `„` and **0** `“`, so the "convention" is one prior instance. Flagged, not blocked; worth a follow-up
+fixing both. **When an agent cites a codebase convention, count the instances.**
+
+### #2010 follow-ups filed (2026-08-05) — #2011 / #2012 / #2013 / #2014
+
+Coordinator ruling: **a green PR is not reopened to absorb non-blocking findings.** All four filed as
+issues, Backlog, blocked-by #1973. Reusable: this is the standing disposition for architect/PO Mediums
+raised on an already-green PR — file, don't expand.
+
+- **#2011** (`bug`, Should Have) — architect M3: tier-3 summary block laid out against `printableWidth()`
+  instead of the table's own width. `{allocatedAmount}` alone → total ~431pt from an 84pt table. **R7's
+  own "a stretched numeric table looks broken" failure mode, relocated below the table.**
+  **Why it slipped, and the rule that generalises: R7 and R2 were written separately, in different
+  revisions, against different problems — neither anticipated that the same degenerate subsets fire both.
+  When a ruling introduces a new element OUTSIDE an existing element's geometry, state its width
+  relationship to that element explicitly. Two rulings that each constrain a different element can
+  produce an unstated third outcome wherever their triggers coincide.**
+- **#2012** (`tech-debt`, Should Have) — M1+M2+M4 bundled, plus the stale `92 subsets` surviving in the
+  test title at `overviewPdf.test.ts:2026` (folded in, not filed separately — one line, same file).
+  Framed around the shared shape: **"correct by construction, therefore untested" is a claim about
+  today's code shape, and its whole value is that it stops holding silently.**
+- **#2013** (`bug`, Should Have) — German mixed quotes, **both** instances (user ruled: fix, but not on
+  that PR). AC 2 asks for a repo-wide `„`-count == `“`-count check so the mixed form can't re-accumulate.
+- **#2014** (`tech-debt`, Could Have) — state the `ContentTier` `DISCARD_EDITS` preserve-vs-discard rule
+  in `wizardReducer.ts`. Architect put the architecture in the wiki ("Multi-step wizard state: tier
+  factories") but was authorised only one production-comment edit. **Inverse of "comment keeps the
+  rationale, issue owns the guard": here the guard already exists and what's missing is the rule telling
+  the next person the guard was a decision, not an accident.**
+
+**#1973 disposition recorded on the issue:** stays **In Progress pending UAT** on merge, not Done —
+R7's narrow table and R2's tier-3 block are visual judgments. **Separated #2011 from a #1973 reopen
+explicitly, because #2011 is a live candidate for exactly that UAT rejection:** a **width** rejection is
+#2011; a **design** rejection ("the total should not have left the table at all, at any width") reopens
+#1973, because then the *ruling* was wrong. Worth reusing whenever a follow-up issue overlaps the same
+surface a parent issue is going to UAT on — say which rejection routes where, before UAT runs.

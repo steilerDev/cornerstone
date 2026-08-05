@@ -4,7 +4,7 @@ import type {
   GenerateReportContentResponse,
 } from '@cornerstone/shared';
 import type { ResolvedLocale } from '../../contexts/LocaleContext.js';
-import type { ReportContentOverrides } from '../../lib/reportContent/index.js';
+import type { ReportColumnKey, ReportContentOverrides } from '../../lib/reportContent/index.js';
 import type { SkippedDocument } from '../../lib/reportPdf/index.js';
 
 export interface SelectionTier {
@@ -32,6 +32,9 @@ export interface ContentTier {
   aiContent: GenerateReportContentResponse | null;
   aiRequestId: string | null;
   aiError: string;
+  /** R5: per-wizard-run only, resets on use-case change (via freshContentTier()), never
+   * persisted to a preference endpoint. */
+  hiddenColumns: Set<ReportColumnKey>;
 }
 
 export interface SettingsTier {
@@ -78,7 +81,13 @@ function freshReportTier(): ReportTier {
 }
 
 function freshContentTier(): ContentTier {
-  return { overrides: {}, aiContent: null, aiRequestId: null, aiError: '' };
+  return {
+    overrides: {},
+    aiContent: null,
+    aiRequestId: null,
+    aiError: '',
+    hiddenColumns: new Set(),
+  };
 }
 
 function freshSettingsTier(): SettingsTier {
@@ -118,7 +127,8 @@ export type WizardAction =
   | { type: 'AI_GENERATION_BLOCKED'; payload: { error: string } }
   | { type: 'DISCARD_EDITS' }
   | { type: 'GO_TO_STEP'; payload: { step: number } }
-  | { type: 'PDF_GENERATED'; payload: { skippedDocuments: SkippedDocument[] } };
+  | { type: 'PDF_GENERATED'; payload: { skippedDocuments: SkippedDocument[] } }
+  | { type: 'TOGGLE_COLUMN'; payload: { column: ReportColumnKey } };
 
 export function createInitialWizardState(sourceIdFromQuery: string | null): WizardState {
   return {
@@ -259,9 +269,14 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
 
     case 'DISCARD_EDITS':
       // M-I: spread freshContentTier() for AC4 enforcement, then override aiError conditionally.
+      // hiddenColumns is explicitly PRESERVED here (not discarded with overrides/aiContent):
+      // column visibility is a presentation choice, not a "content edit" — R5 co-locates it with
+      // `overrides` on ContentTier for reset-on-use-case-change purposes only, not to make it
+      // discardable together with text edits (#1973).
       return {
         ...state,
         ...freshContentTier(),
+        hiddenColumns: state.hiddenColumns,
         aiError: state.aiRequestId !== null ? '' : state.aiError,
       };
 
@@ -274,6 +289,13 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
 
     case 'PDF_GENERATED':
       return { ...state, skippedDocuments: action.payload.skippedDocuments };
+
+    case 'TOGGLE_COLUMN': {
+      const next = new Set(state.hiddenColumns);
+      if (next.has(action.payload.column)) next.delete(action.payload.column);
+      else next.add(action.payload.column);
+      return { ...state, hiddenColumns: next };
+    }
 
     default:
       return (action satisfies never, state);

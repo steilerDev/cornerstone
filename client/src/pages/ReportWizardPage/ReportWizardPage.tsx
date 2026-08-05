@@ -87,6 +87,7 @@ export function ReportWizardPage() {
     overrides,
     aiContent,
     aiError,
+    hiddenColumns,
     reportLanguageOverride,
     attachDocuments,
     includeCoverLetter,
@@ -312,6 +313,7 @@ export function ReportWizardPage() {
 
       const result = await generateReportPdf(report, includedInvoiceIds, effectiveContent, {
         attachDocuments,
+        hiddenColumns,
       });
 
       dispatch({ type: 'PDF_GENERATED', payload: { skippedDocuments: result.skippedDocuments } });
@@ -320,7 +322,15 @@ export function ReportWizardPage() {
       console.error(err);
       return null;
     }
-  }, [report, useCase, effectiveContent, excludedLineIds, excludedInvoiceIds, attachDocuments]);
+  }, [
+    report,
+    useCase,
+    effectiveContent,
+    excludedLineIds,
+    excludedInvoiceIds,
+    attachDocuments,
+    hiddenColumns,
+  ]);
 
   // Handle preview PDF
   const handlePreviewPdf = useCallback(async () => {
@@ -846,6 +856,9 @@ export function ReportWizardPage() {
                 dispatch({ type: 'SET_OVERRIDE', payload: { key, value } })
               }
               onFieldReset={(key) => dispatch({ type: 'RESET_OVERRIDE', payload: { key } })}
+              hiddenColumns={hiddenColumns}
+              onToggleColumn={(column) => dispatch({ type: 'TOGGLE_COLUMN', payload: { column } })}
+              attachDocuments={attachDocuments}
               t={t}
               lang={reportLanguage !== resolvedLocale ? reportLanguage : undefined}
               uiLang={reportLanguage !== resolvedLocale ? resolvedLocale : undefined}
