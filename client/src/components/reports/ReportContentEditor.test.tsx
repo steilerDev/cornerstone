@@ -1484,3 +1484,132 @@ describe(
     });
   },
 );
+
+// ─── Story #1910: lang HTML attribute prop (Option A: surgical section tagging) ──────────────────
+
+describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical section tagging)', () => {
+  it('container has NO lang attribute even when the lang prop is passed', () => {
+    // Option A: lang is applied surgically to report-language sections (.tableWrapper, mobile
+    // cards), NOT to the outer container — the container hosts both UI-chrome and report content
+    // and must not receive a blanket language tag.
+    const { container } = renderEditor({ lang: 'de' });
+    const outerContainer = container.querySelector('[class*="container"]');
+    expect(outerContainer).not.toBeNull();
+    expect(outerContainer!.getAttribute('lang')).toBeNull();
+  });
+
+  it('h3 headings are NOT tagged with lang (they are UI chrome, not report content)', () => {
+    // fullContent() includes a coverLetter, so both the cover-letter <h3> and the table <h3>
+    // render. Neither carries lang — they are chrome headings, not report-language content.
+    const { container } = renderEditor({ content: fullContent(), lang: 'de' });
+    const headings = Array.from(container.querySelectorAll('h3'));
+    // Positive anchor: at least 2 headings render, so the loop is not vacuous.
+    expect(headings.length).toBeGreaterThanOrEqual(2);
+    for (const h3 of headings) {
+      expect(h3.getAttribute('lang')).toBeNull();
+    }
+  });
+
+  it('applies lang="de" to the report table <thead> and .tableWrapper (report-language content sections) when lang="de" is passed', () => {
+    const { container } = renderEditor({ lang: 'de' });
+    const thead = container.querySelector('thead');
+    expect(thead).not.toBeNull();
+    expect(thead!.getAttribute('lang')).toBe('de');
+    // tableWrapper restored to carry lang={lang} for mobile coverage
+    const tableWrapper = container.querySelector('[class*="tableWrapper"]');
+    expect(tableWrapper).not.toBeNull();
+    expect(tableWrapper!.getAttribute('lang')).toBe('de');
+  });
+
+  it('EditableField <label> elements inside the cover-letter card have NO lang attribute (UI chrome labels are untagged)', () => {
+    // Labels like "Sender", "Subject", "Body" are UI chrome — they must not be tagged with the
+    // report language. Only the editable field VALUE sections carry the lang attribute.
+    const { container } = renderEditor({ content: fullContent(), lang: 'de' });
+    const coverLetterCard = container.querySelector('[class*="coverLetterCard"]');
+    expect(coverLetterCard).not.toBeNull();
+    const labels = Array.from(coverLetterCard!.querySelectorAll('label'));
+    // Positive anchor: fullContent() includes a coverLetter with multiple editable fields.
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) {
+      expect(label.getAttribute('lang')).toBeNull();
+    }
+  });
+
+  it('the <thead> has no lang attribute when the lang prop is omitted', () => {
+    const { container } = renderEditor();
+    const thead = container.querySelector('thead');
+    expect(thead).not.toBeNull();
+    expect(thead!.getAttribute('lang')).toBeNull();
+  });
+
+  it('[integration] a usage EditableField <input> carries lang="de" when lang="de" is passed — wires the EditableField.lang prop', () => {
+    const { container } = renderEditor({ lang: 'de' });
+    // Scope to the desktop table body to avoid picking up column-toggle checkboxes, which appear
+    // before the usage inputs in DOM order and carry no lang attribute.
+    // The default fixture (makeContent → makeRow) has usageText: 'Baseline usage'.
+    const table = getDesktopTable(container);
+    const input = within(table).getByDisplayValue('Baseline usage');
+    expect(input.tagName).toBe('INPUT');
+    expect(input.getAttribute('lang')).toBe('de');
+  });
+
+  it('applies lang="de" to .mobileCardList (the mobile viewport table mirror)', () => {
+    // .mobileCardList is the CSS-only responsive counterpart of .tableWrapper: always present in
+    // the DOM, hidden by @media on desktop. It must carry lang={lang} so mobile screen readers
+    // get the correct report-language pronunciation hint, matching the desktop tableWrapper tag.
+    const { container } = renderEditor({ lang: 'de' });
+    const mobileList = container.querySelector('[class*="mobileCardList"]');
+    expect(mobileList).not.toBeNull();
+    expect(mobileList!.getAttribute('lang')).toBe('de');
+  });
+
+  it('tableWrapper has no lang attribute when the lang prop is omitted', () => {
+    // Counterpart to the thead-no-lang test above: when no lang is passed, neither the thead
+    // nor the tableWrapper wrapper carries a lang attribute.
+    const { container } = renderEditor();
+    const tableWrapper = container.querySelector('[class*="tableWrapper"]');
+    expect(tableWrapper).not.toBeNull();
+    expect(tableWrapper!.getAttribute('lang')).toBeNull();
+  });
+
+  it('column-toggle <label> elements carry lang="de" (report-language content, not UI chrome)', () => {
+    // The column-toggle labels render content.labels.* (report language): vendor, invoiceNumber,
+    // date, invoiceAmount, allocatedAmount, usage. After the round-3 fix, each <label> receives
+    // lang={lang}. The parent .columnToggles div cannot carry it (its aria-label is UI chrome).
+    const { container } = renderEditor({ lang: 'de' });
+    const toggleLabels = Array.from(
+      container.querySelectorAll('[class*="columnToggles"] [class*="columnToggle"]'),
+    ) as HTMLElement[];
+    // Positive anchor: at least 5 toggle labels always render (vendor, invoiceNumber, date,
+    // invoiceAmount, allocatedAmount, usage — 6 when not isOverview, 7 when isOverview).
+    expect(toggleLabels.length).toBeGreaterThanOrEqual(5);
+    for (const label of toggleLabels) {
+      expect(label.getAttribute('lang')).toBe('de');
+    }
+  });
+
+  it('[integration] the reset button on an edited field carries uiLang="en" — wires the EditableField.uiLang prop', () => {
+    // When lang !== uiLang, uiLang must flow from ReportContentEditor through to EditableField's
+    // reset button and sr-only edited hint. Deleting all uiLang={uiLang} call-site props from
+    // ReportContentEditor.tsx would be type-legal (optional prop) and leave existing suites green.
+    // This test closes that coverage gap: render with an edited cover-letter sender field and assert
+    // the reset button (which only renders when isEdited=true) carries lang="en" (the uiLang).
+    const { container } = renderEditor({
+      content: fullContent(),
+      lang: 'de',
+      uiLang: 'en',
+      overrides: { 'coverLetter.sender': 'Edited sender value' },
+    });
+    // The sender field is edited (key in overrides), so its reset button renders.
+    // The button carries lang={uiLang} per EditableField.tsx — it is always UI chrome.
+    const resetButtons = Array.from(container.querySelectorAll('button[lang="en"]')) as HTMLElement[];
+    // Positive anchor: at least one reset button renders (the sender field is edited).
+    expect(resetButtons.length).toBeGreaterThanOrEqual(1);
+    for (const btn of resetButtons) {
+      expect(btn.getAttribute('lang')).toBe('en');
+    }
+    // Negative: no button should carry the report language (buttons are always UI chrome).
+    const reportLangButtons = container.querySelectorAll('button[lang="de"]');
+    expect(reportLangButtons.length).toBe(0);
+  });
+});

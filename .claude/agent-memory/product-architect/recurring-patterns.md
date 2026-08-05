@@ -961,16 +961,16 @@ tests green. The PR body's "all existing tests pass unchanged" was true and was 
 
 Shape to watch for: **a fix whose enabling step is a loosened assertion.** The loosened assertion is
 by construction the one that used to observe the structure being changed; if nothing new observes the
-new structure, coverage went *down* while the diff looked like it went up.
+new structure, coverage went _down_ while the diff looked like it went up.
 
 Rule: for any bug fix, ask "if I reverted just the production hunk, which test goes red?" If the answer
 is none, the fix has no regression guard regardless of suite size. Two specific tells: (a) the diff
-touches only test *helpers*, never test *cases*; (b) the helper reconstructs a synthetic object from the
+touches only test _helpers_, never test _cases_; (b) the helper reconstructs a synthetic object from the
 real one, silently dropping exactly the property the fix adds.
 
 Corollary: relaxing an invariant is fine and often correct (contiguous-at-tail still catches interleaved
 or mis-coloured runs — it is weaker only in the dimension the fix deliberately changed). What is not fine
-is relaxing it *and* leaving the new dimension unassertable.
+is relaxing it _and_ leaving the new dimension unassertable.
 
 **Round-2 outcome (2026-08-04) — run the revert test yourself; don't grade the description of it.** #2002
 came back claiming H1 fixed. It genuinely was, but I only know that because I re-ran the revert: reverting
@@ -984,8 +984,137 @@ assertions were added is not a substitute, because the whole failure mode was an
 Two good repair shapes to accept: return the raw object instead of a reconstruction, and add one test that
 skips the helper layer under suspicion.
 
-**Also check the fix's *other* axis.** `break-all` converts horizontal overflow into extra wrapped lines,
+**Also check the fix's _other_ axis.** `break-all` converts horizontal overflow into extra wrapped lines,
 which in this table meets the `dontBreakRows` silent-drop hazard — so an overflow fix can create a height
-bug. Here it cannot: `packUsageCellRows` budgets by *character* count derived from a per-line char count, so
-the pre-fix unbroken token used *fewer* lines than already budgeted and the fix only moves actual behaviour
+bug. Here it cannot: `packUsageCellRows` budgets by _character_ count derived from a per-line char count, so
+the pre-fix unbroken token used _fewer_ lines than already budgeted and the fix only moves actual behaviour
 toward the budget's assumption. Worth asking every time a wrap/break flag is introduced.
+
+## Broad-scope attribute + partial counter-tagging (PR #2004, #1910)
+
+An inherited HTML attribute (`lang`, `dir`, `aria-hidden`, `role`) applied to a **container** is a claim about
+every descendant. The tempting shape is "tag the container, then counter-tag the exceptions" — and it
+ships correct only if the counter-tag list is exhaustive. #1910's AC named three exception classes
+("editable-field labels, buttons, headings"); the implementation put `lang={reportLanguage}` on
+`ReportContentEditor`'s root and counter-tagged `<h3>` + one hint `<p>`, leaving six `EditableField`
+`<label>`s, every reset button's `aria-label`/`title`, the `srOnly` edited hint, two `.readOnlyLabel`
+spans, and a `role="group"` `aria-label` announced in the wrong language. Note the direction: those
+strings were **correct before** the change (they inherited the document locale), so a partial
+counter-tag is a net regression on exactly the axis the story exists to fix.
+
+Review heuristic: when a diff adds an inherited attribute to a container, enumerate the container's
+`t()` call sites and check each one against the counter-tag list — do not read the counter-tags as the
+spec. Prefer the reviewer's alternative of **positive tagging**: put the attribute only on elements whose
+own text carries the property (inputs' values, the table, footnotes), which needs no exception list and
+kills the coupled `lang`/`uiLang` prop pair (an invariant enforced by JSDoc prose, and the caller
+evaluated the same ternary twice — same class as "`Pick<>` is not a forcing function").
+
+## Vacuous negative via an _earlier_ early return (PR #2004, #1888)
+
+Related to "assertions that pass on nothing", but the giveaway is different: the fixture is legitimate
+and the assertion is well-formed — it just never reaches the new guard. `makeReport([])` gives 0
+allocated **and** 0 unallocated, tripping a pre-existing `EmptyState` early return, so the test proves
+nothing about the new `allocatedInvoices.length > 0` guard and duplicates an existing EmptyState test.
+The discriminating fixture is the one that satisfies the early return's escape but not the guard
+(`makeReport([], [oneUnallocated])`). Check: **which branch does the fixture actually land in**, not
+just whether the expectation is `not.toBeInTheDocument()`. Same revert test as always — delete the
+guard, does it go red?
+
+## Comment refreshed, assertion left behind (PR #2004 round 2, #1910)
+
+When a fix inverts a contract, the tests that encoded the OLD contract get their **explanatory comments
+rewritten to describe the new design while the `expect` line is left untouched**. In #2004 the H1 fix
+moved `lang` off the container onto sections; E2E Scenario 25's comment was rewritten to say "under
+Option A the tagging is on `.tableWrapper`" and the very next line still read
+`expect(await container.getAttribute('lang')).toBe('de')`. It went red in CI (Shard 2/16, both attempts).
+
+Why it survives review: a diff that shows a rewritten comment block _looks_ like the test was updated,
+and the unchanged assertion line is not in the diff hunk at all if the comment is long enough.
+How to apply: on any contract-inverting fix, grep the test suites for the **old** attribute/selector/value
+(`getAttribute('lang')` here) and read every hit's assertion, not its comment. Also diff the shard
+results against the previous commit of the same PR — "shard N was green before this commit" is the
+cleanest way to separate a real regression from the standing flakes (diary shard 3, dashboard #1735
+shard 8). Remember `E2E Gates` is `main`-only, so a red E2E test merges to `beta` silently.
+
+## Inverting a contract can make an existing negative test unconditional (PR #2004, #1910)
+
+Distinct from the two vacuity patterns above: the test was genuinely falsifiable **before** the fix.
+Scenario 27 asserted "container has no `lang` when report language matches the UI locale" — meaningful
+while the container was the tagging site. After Option A the container never carries `lang` for any
+input, so the assertion can no longer distinguish the two branches of the conditional it guards;
+deleting the `lang={…}` prop from the caller entirely leaves it green.
+How to apply: when a fix narrows _where_ a property is applied, re-run the revert test on the
+**pre-existing** negative tests too, not only on the ones the fix touched. Retarget them to whatever
+element now varies with the condition.
+
+## Surgical tagging misses read-only value nodes (PR #2004, #1910)
+
+Positive/surgical tagging (the fix I recommended in round 1) has its own failure mode: it is an
+enumeration, so it misses sites. #2004 tagged five sections plus every `EditableField`, and missed the
+two `.readOnlyValue` spans (`coverLetter.dateLine`, `coverLetter.closing`) — read-only report-language
+text that no editable-field prop threads through. Check: enumerate the render sites of the
+_data-derived_ strings (`content.*`), not the elements the diff touched. Sibling `.readOnlyLabel` spans
+are `t()` UI chrome and must stay untagged — the label/value pair splits across the boundary.
+
+## Removing a wrapper tag on an over-tagging objection loses the coverage it provided (PR #2004 r3)
+
+Round 2 flagged `lang` on `.tableWrapper`/`.mobileCardList` as over-tagging (they contain UI-chrome
+reset buttons and sr-only hints). Round 3 **deleted** the wrapper tags and re-added `lang` to
+`<thead>` only — so the desktop `<tbody>` (statusText, splitNote, depositReducedNote, refundNote,
+deposit badge) and the _entire_ mobile card tree lost coverage. Net worse than round 2: it traded a
+minor over-tag (English chrome read with German rules) for a larger under-tag (German data read with
+English rules), and below the 767px breakpoint `.table { display: none }` means zero coverage.
+**Why:** an "over-tagging" finding asks you to _relocate or except_ the tag, never to drop it. The
+HTML idiom for a nested language exception is **counter-tagging** the inner chrome (`lang={uiLang}`
+on the reset button + sr-only hint), not removing the outer boundary.
+**How to apply:** when a review round removes an attribute/wrapper, diff the set of leaf nodes that
+_were_ covered against those that _are_ covered and demand the delta be re-covered. Two specific
+traps here: (a) responsive CSS-only duplicate trees — a fix applied to the desktop table silently
+leaves the mobile card list uncovered, and mobile/tablet Playwright projects only run
+`@responsive`-tagged tests so E2E won't catch it; (b) a blanket rule like "EditableField labels are
+UI chrome" holds only where labels come from `t()` — the mobile usage field's label is
+`content.labels.usage`, i.e. report-language, so the rule inverts inside the table region.
+Also: the code fix for a round-N finding landing **without an assertion** (the `.readOnlyValue`
+`lang` spans) means it can be reverted with every suite green — always ask "what test would fail?"
+for each item the author claims to have addressed.
+
+**Round-3 addendum (#1910, PR #2004) — "the prop landed" is not "the prop is wired".** The fix for a
+review finding can introduce a *new* optional prop, unit-test the prop on the leaf component, thread
+it through N call sites, and still have zero coverage of the threading: the leaf tests pass the prop
+in themselves. Revert test applied at the call-site level (not the component level) is the only thing
+that catches it — delete the `foo={foo}` lines, not the `foo` implementation, and see what goes red.
+Optional props make this silent because removing them from JSX is type-legal.
+
+Companion trap: **a redundant tag that a test asserts.** After restoring an ancestor tag, the
+descendant tag it duplicates becomes redundant, and if a test asserts *both* the redundancy is
+locked in. The danger is not the duplication, it is that a later cleanup reads the pair as an error
+and removes the ancestor — reintroducing the original finding. Ask for a comment naming the
+duplication as deliberate.
+
+Third: **an `aria-label` cannot be language-tagged.** When an element's accessible name comes from
+`aria-label` but its content is in another language, no `lang` placement fixes both — the name is
+computed on the element that carries the `lang`. The only exact fix is a visually-hidden span with
+its own `lang` plus `aria-labelledby`. Worth naming as a known limit rather than looping on it.
+
+**Round-4 addendum (#1910, PR #2004) — a positive anchor only pins the call sites the fixture
+actually renders.** The round-3 fix for "all 8 `uiLang={uiLang}` props could be deleted with every
+suite green" was a test asserting `button[lang="en"]` count `>= 1` plus an all-must-match loop. It
+does close the *stated* gap (deleting all 8 fails), and the handoff claimed "removing **any** prop
+fails" — but per-site mutation testing showed **1 of 8** pinned. The fixture put exactly one field
+(`coverLetter.sender`) into edited state, so exactly one reset button ever rendered, so the anchor
+could only ever cover that one site; the other 7 still delete silently.
+
+Generalises well beyond `lang`: **`count >= 1` + "all matches satisfy P" is a per-instance assertion
+masquerading as a coverage assertion.** It pins the instances the fixture happens to produce, and the
+count floor hides how few that is. When N call sites thread a prop, the discriminating shape is
+`expect(matches.length).toBe(N)` with a fixture that forces all N to render — an exact count is the
+only version that fails when a site disappears. Two review habits that follow:
+
+- Never accept "removing any X fails" on the strength of an all-at-once revert. Revert each site
+  **individually** — the all-at-once test passing tells you nothing about per-site coverage.
+- When a fix is partial, say which fraction is pinned. "M1 resolved" and "1 of 8 sites pinned" get
+  recorded very differently, and the second is what stops the gap being re-found in three months.
+
+Related smell confirmed the same round: a **near-vacuous negative guard** (`button[lang="de"] === 0`
+when no button can ever receive `lang={lang}`) is still worth keeping if it pins a *contract* on
+another component ("chrome is always `uiLang`") rather than restating the positive assertion.

@@ -20,6 +20,8 @@ export interface EditableFieldProps {
   onReset: () => void;
   rows?: number; // for textarea
   className?: string;
+  lang?: string;
+  uiLang?: string;
 }
 
 export function EditableField({
@@ -35,6 +37,8 @@ export function EditableField({
   onReset,
   rows = 6,
   className = '',
+  lang,
+  uiLang,
 }: EditableFieldProps) {
   const generatedId = useId();
   const fieldId = providedId || generatedId;
@@ -64,6 +68,7 @@ export function EditableField({
             rows={rows}
             aria-label={effectiveAriaLabel}
             aria-describedby={ariaDescribedBy}
+            lang={lang}
           />
         ) : (
           <input
@@ -74,6 +79,7 @@ export function EditableField({
             onChange={(e) => onChange(e.currentTarget.value)}
             aria-label={effectiveAriaLabel}
             aria-describedby={ariaDescribedBy}
+            lang={lang}
           />
         )}
 
@@ -81,7 +87,7 @@ export function EditableField({
           <>
             <div className={styles.editedDot} aria-hidden="true" />
             {label && (
-              <span id={editedHintId} className={sharedStyles.srOnly}>
+              <span id={editedHintId} className={sharedStyles.srOnly} lang={uiLang}>
                 {editedSuffix}
               </span>
             )}
@@ -96,6 +102,7 @@ export function EditableField({
           onClick={onReset}
           aria-label={resetAriaLabel}
           title={resetAriaLabel}
+          lang={uiLang}
         >
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41z" />

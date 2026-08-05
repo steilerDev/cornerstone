@@ -793,7 +793,7 @@ H1 properly fixed, verified by re-running the revert myself rather than reading 
 plus a `realRender` case that bypasses the helper and reads the rendered doc's run array. The relaxed
 invariant keeps the two load-bearing properties (contiguous, tail-anchored) with distinct error messages.
 
-M1 (`as Content`) resolved as *unnecessary*, not merely deferrable: removing it type-checks clean, proven
+M1 (`as Content`) resolved as _unnecessary_, not merely deferrable: removing it type-checks clean, proven
 with a tsc positive control (the client project carries ~63 pre-existing stale-`shared` errors, so
 "tsc is clean" was not available as a signal). Left in place as non-blocking.
 
@@ -801,7 +801,7 @@ M2 (new, non-blocking, pre-existing): ADR-034 rule #1 `max(horizontalRatio) <= 1
 `client/`, so this pipeline verifies overflow fixes by mechanism (`wordBreak` present) not outcome. Filed
 **issue #2003** (tech-debt / should-have / backlog) and took ownership, since it's my ADR text setting the bar.
 
-Also checked and cleared: the fix's *vertical* axis (break-all adds wrapped lines → `dontBreakRows`
+Also checked and cleared: the fix's _vertical_ axis (break-all adds wrapped lines → `dontBreakRows`
 silent-drop hazard) — `packUsageCellRows`' character budget already assumes worst-case per-line counts, so
 the bound is not weakened. And confirmed no consumer of the old single-grey-run invariant exists in
 production, `e2e/`, or any wiki page → no wiki update owed. prettier + eslint clean on all three files.
@@ -809,3 +809,83 @@ production, `e2e/`, or any wiki page → no wiki update owed. prettier + eslint 
 Method note: this worktree's HEAD already contained the PR head with byte-identical `client/src/lib`, so the
 revert test ran in place with no extra worktree or `npm install`. Check `git merge-base HEAD <pr-branch>`
 plus a scoped `git diff --stat` before paying for isolation.
+
+## PR #2004 — #1910 preview `lang` attribute + #1888 attachments note (2026-08-05, CHANGES_REQUIRED)
+
+- **H1 blocking**: container-level `lang` + partial counter-tagging left UI-locale labels/buttons
+  mis-tagged → see recurring-patterns "Broad-scope attribute + partial counter-tagging".
+- M1 coupled `lang`/`uiLang` prop pair; M2 vacuous negative test via earlier `EmptyState` early return;
+  L: en/de terminal-punctuation mismatch in a new key pair, `sourceReports.attachmentsNote` collides by
+  concept with `editable.attachmentsNoteLabel` + `table.attachmentsNote_one/_other`,
+  `[class*="container"]` POM selector, `styles.step4Body` is step **5**'s wrapper (pre-existing misnomer).
+- Verified fine: `SourceReportType` union exactly matches the three `sourceReports.useCase.*` keys in both
+  locales (dynamic `t()` key is exhaustive); no client-side document filtering added (#1930 AC7 intact).
+- Could not `gh pr review` (own PR) → posted via `gh pr comment`.
+- E2E: new Scenarios 25/26/27 pass; Shard 8's 3 failures are pre-existing
+  `navigation/dashboard.spec.ts` Scenario 13 (#1735) — unrelated.
+
+### PR #2004 round 2 — Option A H1 fix (2026-08-05, CHANGES_REQUIRED again)
+
+- H1 correctly fixed via Option A (surgical positive tagging, `uiLang` deleted). Design is clean:
+  every `lang`-bearing element's own text is `content.*` (report language); all `t()` chrome is outside.
+- **New blocking H1-r2**: E2E Scenario 25's assertion still expects container `lang="de"` (comment was
+  updated, assertion was not) → Shard 2/16 red, confirmed via shard-diff vs `2744d75b`.
+  See recurring-patterns "Comment refreshed, assertion left behind".
+- **H2-r2**: Scenario 27 became unconditional (see "Inverting a contract can make an existing negative
+  test unconditional").
+- M: `.readOnlyValue` spans (`dateLine`, `closing`) missed by the tagging; no test proves
+  `ReportContentEditor` passes `lang` to its `EditableField`s (delete all 8 props → still green);
+  4 of 5 tagged sections unasserted.
+- L: POM `reportContentContainer()` docstring now describes the removed behaviour; `aria-label` in UI
+  locale inside a `lang`-tagged `<input>` is an inherent, accepted residual — leave a code comment so
+  nobody "fixes" it by deleting the attribute; `expect(tableWrapper).toBeVisible()` would fail if
+  Scenario 26 were ever tagged `@responsive` (≤767px hides `.table`, not `.tableWrapper`).
+- Playwright projects: `tablet` and `mobile` both `grep: /@responsive/` — untagged scenarios are
+  **desktop-only**. Useful when judging whether a viewport-sensitive assertion is actually at risk.
+
+### PR #2004 round 3 — thead retarget (2026-08-05, CHANGES_REQUIRED, 3rd round)
+
+- **Both round-2 blockers CLEARED**: E2E 25/26/27 now target `<thead>` with real assertions
+  (`'de'` / `null`); `<thead>` is unique in the component (`.summaryTable` has no `thead`), so
+  `.first()` is unambiguous. `toBeVisible()` on `<thead>` is only safe because 25-27 are untagged →
+  desktop-only. M2-r2 (integration test on the usage input, scoped via `getDesktopTable` +
+  `getByDisplayValue`), M3-r2 (double guard), L1-r2 (POM docstring, verified line-by-line) all fixed.
+  `uiLang` is now 0 hits repo-wide.
+- **New blocking H1-r3**: removing `lang` from `.tableWrapper`/`.mobileCardList` and re-adding it to
+  `<thead>` only dropped coverage for the desktop `<tbody>` and the whole mobile card tree —
+  AC1 of #1910 explicitly enumerates "table captions … status text". Recommended fix: restore the
+  wrapper tags and counter-tag `EditableField`'s sr-only hint + reset button via a new `uiLang` prop
+  (do NOT counter-tag `<label>` — mobile's is `content.labels.usage`). See recurring-patterns
+  "Removing a wrapper tag on an over-tagging objection loses the coverage it provided".
+- M/L: M1-r2's `.readOnlyValue` code fix landed with **no** assertion; the first Option-A unit test's
+  comment still names `.tableWrapper`/`mobile cards` as the tagging sites (rot introduced by the same
+  commit that falsified it); `ReportContentEditor.tsx` fails `prettier --check` (lines 110/165 at
+  102/101 cols — `npm run format` not run); PR body still describes container-level tagging.
+- `@eslint-react/use-state` warning at `ReportContentEditor.tsx:53` is pre-existing on `beta`.
+
+### PR #2004 round 3 (#1910, 2026-08-05) — VERDICT: APPROVED
+
+H5 fixed for real: `.mobileCardList` and `.tableWrapper` both carry `lang={lang}` again, and the
+revert test passes (delete the `mobileCardList` tag -> the new unit test goes red). The `uiLang`
+counter-tag prop landed on `EditableField` (input/textarea get `lang`; reset button + sr-only hint
+get `uiLang`; `<label>` deliberately gets neither). Negative controls now exist for both attributes.
+Non-blocking residuals recorded for the next touch of these files:
+
+- **M1** `uiLang` *wiring* is untested — `uiLang` is 0 hits in `ReportContentEditor.test.tsx` and
+  `ReportWizardPage.test.tsx`, so deleting all 8 `uiLang={uiLang}` call-site props leaves every suite
+  green. The `EditableField` unit tests pass the prop directly, which proves the component, not the
+  threading. One assertion (reset button inside `[class*="tableWrapper"]` has `lang="en"` when
+  `{lang:'de',uiLang:'en'}`) closes it.
+- **L1** column-toggle labels (`ReportContentEditor.tsx:245-247`) render `content.labels.*` —
+  report language — untagged. The group div can't take `lang` because its own `aria-label` is UI
+  text; wrap the text in `<span lang={lang}>`.
+- **L2** dense desktop cell: `effectiveAriaLabel` (UI strings) is set on `<input lang={reportLang}>`.
+  Unfixable with `lang` alone; needs sr-only span + `aria-labelledby`. Net still an improvement.
+- **I** `<thead lang>` is now redundant with the wrapper tag and a test asserts both — a future
+  cleanup could delete the *wrapper* instead and reintroduce H5.
+- E2E scenarios 25-27 are untagged, therefore desktop-only (`e2e/playwright.config.ts` gates
+  tablet/mobile on `grep: /@responsive/`), so their `expect(thead).toBeVisible()` is safe despite
+  `.table { display: none }` at <=767px. Consequence: the mobile fix has unit coverage only.
+- CI: `Quality Gates` green. `E2E Tests (Shard 8/16)` fails on `navigation/dashboard.spec.ts`
+  1130/1164/1192 (#1735 Add dropdown) on **all four** head commits including the first -> pre-existing,
+  main-only, needs its own issue before the next promotion.

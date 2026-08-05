@@ -1045,6 +1045,22 @@ export class ReportWizardPage {
 
   // ─── Story #1900: editable report content (ReportContentEditor.tsx) ────────────────────────
 
+  /**
+   * Locator for the `ReportContentEditor` container in step 5 — the outermost `<div>` that
+   * wraps the entire editor. The container div itself does NOT receive a `lang` attribute;
+   * report-language content within it carries `lang` individually (Issue #1910): the
+   * `<thead>`, the two `.readOnlyValue` spans (dateLine, closing), the source-info block,
+   * the summary table, and the footnotes block. EditableField inputs carry `lang` via the
+   * `EditableField.lang` prop. UI-chrome elements (reset buttons, sr-only hints, labels)
+   * are NOT tagged. Scoped within `[class*="step4Body"]` (step 5's wrapper class in
+   * `ReportWizardPage.module.css`) so this never collides with any other element whose CSS
+   * Module class contains the "container" substring elsewhere on the page. `.first()` is a
+   * conservative tie-breaker — only one `ReportContentEditor` is ever mounted at a time.
+   */
+  reportContentContainer(): Locator {
+    return this.page.locator('[class*="step4Body"] [class*="container"]').first();
+  }
+
   private static readonly LETTER_FIELD_LABELS = {
     sender: 'Sender',
     recipient: 'Recipient',

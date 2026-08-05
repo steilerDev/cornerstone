@@ -2393,3 +2393,181 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 25: lang attribute on the report table <thead> when report language
+// differs from the UI locale (Issue #1910)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — lang attribute on thead when report language differs from UI locale (Scenario 25, #1910)', () => {
+  test('The report table <thead> carries lang="de" when the report language is set to Deutsch and the UI locale is "en"', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} LangAttr Vendor` });
+      // contactAddress + reference cause the cover letter to auto-enable so both
+      // <h3> elements are present in the DOM — relevant for Scenario 26's "all h3s"
+      // assertion, reused here so the seed is consistent across the three scenarios.
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} LangAttr Source`,
+        totalAmount: 10000,
+        contactAddress: '1 LangAttr St, Testville',
+        reference: 'Ref-LANGATTR',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI LangAttr` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANGATTR-001`,
+        amount: 175,
+        date: '2026-07-03',
+        status: 'pending',
+      });
+
+      // Navigate through steps 1-4 manually so we can change the language on step 4
+      // before advancing to step 5 — `reachStep5` skips step 4 interaction.
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await wizard.goNextFromStep3(); // now on step 4 (Settings)
+      await wizard.selectReportLanguage('de');
+      await wizard.step4NextButton.click(); // now on step 5
+
+      // Under Option A, lang is placed on the <thead> of the report table — the element
+      // that carries the translated column headings — rather than on the outer container
+      // div. This gives screen readers and spell-checkers a precise language boundary
+      // without over-tagging surrounding UI text (see Scenario 26).
+      const container = wizard.reportContentContainer();
+      await expect(container).toBeVisible();
+      const thead = container.locator('thead').first();
+      await expect(thead).toBeVisible();
+      expect(await thead.getAttribute('lang')).toBe('de');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 26: <thead> carries lang="de" when report language differs (Option A
+// surgical tagging); h3 headings carry NO lang attribute — (Issue #1910)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — thead carries report lang, h3 headings carry no lang under Option A (Scenario 26, #1910)', () => {
+  test('The <thead> inside the ReportContentEditor carries lang="de" when the report language is set to Deutsch — report-language content is surgically tagged', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} LangH3 Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} LangH3 Source`,
+        totalAmount: 10000,
+        contactAddress: '1 LangH3 St, Testville',
+        reference: 'Ref-LANGH3',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI LangH3` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANGH3-001`,
+        amount: 180,
+        date: '2026-07-04',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await wizard.goNextFromStep3(); // now on step 4 (Settings)
+      await wizard.selectReportLanguage('de');
+      await wizard.step4NextButton.click(); // now on step 5
+
+      const container = wizard.reportContentContainer();
+      await expect(container).toBeVisible();
+
+      // Option A surgical tagging: <thead> carries lang="de" (report-language column headings).
+      const thead = container.locator('thead').first();
+      await expect(thead).toBeVisible();
+      expect(await thead.getAttribute('lang')).toBe('de');
+
+      // Regression guard: h3 headings must NOT carry a lang attribute under Option A.
+      const headings = container.locator('h3');
+      const headingCount = await headings.count();
+      expect(headingCount).toBeGreaterThan(0); // positive anchor
+      for (let i = 0; i < headingCount; i++) {
+        expect(
+          await headings.nth(i).getAttribute('lang'),
+          `<h3> at index ${i} must NOT carry a lang attribute under Option A`,
+        ).toBeNull();
+      }
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 27: No lang attribute on the report table <thead> when report language
+// matches UI locale (Issue #1910)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — no lang attribute on thead when report language matches UI locale (Scenario 27, #1910)', () => {
+  test('The report table <thead> has no lang attribute when report language matches UI locale (no redundant tagging)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} LangMatch Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} LangMatch Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI LangMatch` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANGMATCH-001`,
+        amount: 185,
+        date: '2026-07-05',
+        status: 'pending',
+      });
+
+      // Navigate to step 5 without touching the language picker — the default is "English"
+      // which matches the E2E test environment's UI locale ("en"). The `reachStep5` helper
+      // navigates all four preceding steps with the default settings.
+      await reachStep5(wizard, sourceId, 'claim');
+
+      // When `reportLanguage === resolvedLocale` (both "en"), the <thead> renders with no
+      // lang attribute — no redundant tagging is needed when the report language matches the
+      // page locale. Playwright's `getAttribute` returns `null` for absent attributes.
+      const container = wizard.reportContentContainer();
+      await expect(container).toBeVisible();
+      const thead = container.locator('thead').first();
+      await expect(thead).toBeVisible();
+      expect(await thead.getAttribute('lang')).toBeNull();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});

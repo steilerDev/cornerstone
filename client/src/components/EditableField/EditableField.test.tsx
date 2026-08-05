@@ -222,3 +222,72 @@ describe('EditableField — className composition', () => {
     expect(wrapper.className).toContain('myExtra');
   });
 });
+
+describe('EditableField — lang prop (Story #1910)', () => {
+  it('sets the lang attribute on <input> when the lang prop is passed', () => {
+    const { container } = render(<EditableField as="input" {...baseProps()} lang="de" />);
+    expect(container.querySelector('input')!.getAttribute('lang')).toBe('de');
+  });
+
+  it('sets the lang attribute on <textarea> when the lang prop is passed', () => {
+    const { container } = render(<EditableField as="textarea" {...baseProps()} lang="de" />);
+    expect(container.querySelector('textarea')!.getAttribute('lang')).toBe('de');
+  });
+
+  it('does not set a lang attribute on the input when the lang prop is absent', () => {
+    const { container } = render(<EditableField as="input" {...baseProps()} />);
+    expect(container.querySelector('input')!.getAttribute('lang')).toBeNull();
+  });
+
+  it('applies uiLang to the reset button (UI chrome — not report content) when uiLang prop is provided', () => {
+    // The reset button is UI chrome: its accessible name ("Reset field to generated text") is in
+    // the application UI language, not the report language. Tagging it with uiLang lets a screen
+    // reader switch pronunciation correctly when the surrounding content is in a foreign lang.
+    const { container } = render(
+      <EditableField as="input" {...baseProps()} lang="de" uiLang="en" isEdited={true} />,
+    );
+    const resetButton = container.querySelector('button');
+    expect(resetButton).not.toBeNull();
+    expect(resetButton!.getAttribute('lang')).toBe('en');
+  });
+
+  it('applies uiLang to the sr-only edited hint span (UI chrome) when uiLang prop is provided', () => {
+    // The editedSuffix (" (edited)") is UI chrome text — it must be tagged with the UI language so
+    // screen readers pronounce it correctly even when the surrounding field content is in a foreign
+    // report language. The hint span id is derived from the field id, so we pass an explicit id.
+    const { container } = render(
+      <EditableField
+        as="input"
+        {...baseProps()}
+        lang="de"
+        uiLang="en"
+        isEdited={true}
+        label="Sender"
+        id="sender-field"
+      />,
+    );
+    // The hint span id is `{fieldId}-edited-hint` — confirmed by the aria-describedby test above.
+    const hintSpan = container.querySelector('#sender-field-edited-hint');
+    expect(hintSpan).not.toBeNull();
+    expect(hintSpan!.getAttribute('lang')).toBe('en');
+  });
+
+  it('does not apply uiLang to <label> — the label carries report-language content (no counter-tag needed)', () => {
+    // In table context the label text comes from `content.labels.*` (report language), so the
+    // label's language already matches the parent wrapper's `lang`. No `lang` override on the
+    // <label> element itself is needed or desirable.
+    const { container } = render(
+      <EditableField
+        as="input"
+        {...baseProps()}
+        lang="de"
+        uiLang="en"
+        label="Sender"
+        id="sender-field"
+      />,
+    );
+    const label = container.querySelector('label');
+    expect(label).not.toBeNull();
+    expect(label!.getAttribute('lang')).toBeNull();
+  });
+});
