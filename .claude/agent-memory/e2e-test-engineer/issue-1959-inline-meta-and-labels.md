@@ -21,9 +21,21 @@ class*="inlineNote">` in the **Allocated Amount cell**: `(partial)` / `(less dep
    `depositReducedInvoiceIds.size > 0` → one `'depositReduced'` footnote. `footnotesBlock` /
    `footnoteItems` are NO LONGER negative-only guards. Scenarios with split or deposit-reduced rows
    must assert a **positive** count; constituted-deposit-only rows (Scenario 17) still assert
-   `toHaveCount(0)` because neither set is non-empty for them. Scenario 18 (two split invoices)
-   asserts `footnotesBlock` count=1, `footnoteItems` count=1, and the legend sentence IS present in
-   `main`'s text content.
+   `toHaveCount(0)` because neither set is non-empty for them.
+
+   **AC5 Issue #1980 update (fix/2003-1980-realrender-overflow-legend-assertions, commit 4ffc1425):**
+   Scenario 18 extended with a third invoice (`${testPrefix}-SPLITDR-003`) that is BOTH split AND
+   deposit-reduced (split via `seedSplitInvoice` across the same two sources + untagged deposit via
+   `createDepositViaApi` with `budgetSourceId: null`). Assertions updated:
+   - `footnoteItems` count: **2** (was 1)
+   - `footnoteItems.nth(0)` contains the split sentence
+   - `footnoteItems.nth(1)` contains "This position reflects deposits claimed separately."
+   - `invoice3`'s row asserts `inlineNote` count=2 (both `(partial)` and `(less deposit)`)
+   - `toContainText('(less deposit)')` on the page-wide text confirms both labels appear
+
+   **Deposit-reduced trigger**: `budgetSourceId: null` on a deposit = untagged = never matches
+   any source ID → `isDepositReduced: true` from `buildReportContent.ts` when the deposit is on an
+   invoice that also has budget-line allocation to the reported source (`isSplit: true` too).
 
 2. `.usageAreaText` sub-line + the separate editable `Attachments Note` column → ONE read-only
    `.usageMetaText` line inside the Usage cell: `[areaText, attachmentsNote].join(' · ')`
