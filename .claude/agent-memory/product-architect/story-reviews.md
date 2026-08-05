@@ -862,3 +862,30 @@ plus a scoped `git diff --stat` before paying for isolation.
   commit that falsified it); `ReportContentEditor.tsx` fails `prettier --check` (lines 110/165 at
   102/101 cols — `npm run format` not run); PR body still describes container-level tagging.
 - `@eslint-react/use-state` warning at `ReportContentEditor.tsx:53` is pre-existing on `beta`.
+
+### PR #2004 round 3 (#1910, 2026-08-05) — VERDICT: APPROVED
+
+H5 fixed for real: `.mobileCardList` and `.tableWrapper` both carry `lang={lang}` again, and the
+revert test passes (delete the `mobileCardList` tag -> the new unit test goes red). The `uiLang`
+counter-tag prop landed on `EditableField` (input/textarea get `lang`; reset button + sr-only hint
+get `uiLang`; `<label>` deliberately gets neither). Negative controls now exist for both attributes.
+Non-blocking residuals recorded for the next touch of these files:
+
+- **M1** `uiLang` *wiring* is untested — `uiLang` is 0 hits in `ReportContentEditor.test.tsx` and
+  `ReportWizardPage.test.tsx`, so deleting all 8 `uiLang={uiLang}` call-site props leaves every suite
+  green. The `EditableField` unit tests pass the prop directly, which proves the component, not the
+  threading. One assertion (reset button inside `[class*="tableWrapper"]` has `lang="en"` when
+  `{lang:'de',uiLang:'en'}`) closes it.
+- **L1** column-toggle labels (`ReportContentEditor.tsx:245-247`) render `content.labels.*` —
+  report language — untagged. The group div can't take `lang` because its own `aria-label` is UI
+  text; wrap the text in `<span lang={lang}>`.
+- **L2** dense desktop cell: `effectiveAriaLabel` (UI strings) is set on `<input lang={reportLang}>`.
+  Unfixable with `lang` alone; needs sr-only span + `aria-labelledby`. Net still an improvement.
+- **I** `<thead lang>` is now redundant with the wrapper tag and a test asserts both — a future
+  cleanup could delete the *wrapper* instead and reintroduce H5.
+- E2E scenarios 25-27 are untagged, therefore desktop-only (`e2e/playwright.config.ts` gates
+  tablet/mobile on `grep: /@responsive/`), so their `expect(thead).toBeVisible()` is safe despite
+  `.table { display: none }` at <=767px. Consequence: the mobile fix has unit coverage only.
+- CI: `Quality Gates` green. `E2E Tests (Shard 8/16)` fails on `navigation/dashboard.spec.ts`
+  1130/1164/1192 (#1735 Add dropdown) on **all four** head commits including the first -> pre-existing,
+  main-only, needs its own issue before the next promotion.

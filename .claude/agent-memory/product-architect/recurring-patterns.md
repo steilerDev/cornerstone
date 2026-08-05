@@ -1077,3 +1077,44 @@ UI chrome" holds only where labels come from `t()` — the mobile usage field's 
 Also: the code fix for a round-N finding landing **without an assertion** (the `.readOnlyValue`
 `lang` spans) means it can be reverted with every suite green — always ask "what test would fail?"
 for each item the author claims to have addressed.
+
+**Round-3 addendum (#1910, PR #2004) — "the prop landed" is not "the prop is wired".** The fix for a
+review finding can introduce a *new* optional prop, unit-test the prop on the leaf component, thread
+it through N call sites, and still have zero coverage of the threading: the leaf tests pass the prop
+in themselves. Revert test applied at the call-site level (not the component level) is the only thing
+that catches it — delete the `foo={foo}` lines, not the `foo` implementation, and see what goes red.
+Optional props make this silent because removing them from JSX is type-legal.
+
+Companion trap: **a redundant tag that a test asserts.** After restoring an ancestor tag, the
+descendant tag it duplicates becomes redundant, and if a test asserts *both* the redundancy is
+locked in. The danger is not the duplication, it is that a later cleanup reads the pair as an error
+and removes the ancestor — reintroducing the original finding. Ask for a comment naming the
+duplication as deliberate.
+
+Third: **an `aria-label` cannot be language-tagged.** When an element's accessible name comes from
+`aria-label` but its content is in another language, no `lang` placement fixes both — the name is
+computed on the element that carries the `lang`. The only exact fix is a visually-hidden span with
+its own `lang` plus `aria-labelledby`. Worth naming as a known limit rather than looping on it.
+
+**Round-4 addendum (#1910, PR #2004) — a positive anchor only pins the call sites the fixture
+actually renders.** The round-3 fix for "all 8 `uiLang={uiLang}` props could be deleted with every
+suite green" was a test asserting `button[lang="en"]` count `>= 1` plus an all-must-match loop. It
+does close the *stated* gap (deleting all 8 fails), and the handoff claimed "removing **any** prop
+fails" — but per-site mutation testing showed **1 of 8** pinned. The fixture put exactly one field
+(`coverLetter.sender`) into edited state, so exactly one reset button ever rendered, so the anchor
+could only ever cover that one site; the other 7 still delete silently.
+
+Generalises well beyond `lang`: **`count >= 1` + "all matches satisfy P" is a per-instance assertion
+masquerading as a coverage assertion.** It pins the instances the fixture happens to produce, and the
+count floor hides how few that is. When N call sites thread a prop, the discriminating shape is
+`expect(matches.length).toBe(N)` with a fixture that forces all N to render — an exact count is the
+only version that fails when a site disappears. Two review habits that follow:
+
+- Never accept "removing any X fails" on the strength of an all-at-once revert. Revert each site
+  **individually** — the all-at-once test passing tells you nothing about per-site coverage.
+- When a fix is partial, say which fraction is pinned. "M1 resolved" and "1 of 8 sites pinned" get
+  recorded very differently, and the second is what stops the gap being re-found in three months.
+
+Related smell confirmed the same round: a **near-vacuous negative guard** (`button[lang="de"] === 0`
+when no button can ever receive `lang={lang}`) is still worth keeping if it pins a *contract* on
+another component ("chrome is always `uiLang`") rather than restating the positive assertion.

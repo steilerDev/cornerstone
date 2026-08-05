@@ -556,3 +556,83 @@ All five verified genuinely fixed.
 - `gh pr review --request-changes` fails with "Can not request changes on your own pull request" on
   this cluster (human is the PR author, agent operates as that account) → the verdict lives in a
   `gh pr comment`, same as the architect's reviews here.
+
+### PR #2004 round 4 — APPROVED (2026-08-05, commit `03a30990`, comment `5189956686`)
+
+Fix took mechanism (b) verbatim: restored `lang` on `.tableWrapper`/`.mobileCardList`, added
+`EditableField.uiLang` → reset `<button>` + sr-only edited hint only (**not** the `<label>`, which is
+polymorphic). 184/184 local, `prettier --check` clean, `Quality Gates` green, **`Shard 2/16` green**
+(was red on `64c07b8a`), `Shard 8/16` red on **all four** commits → standing #1735, not introduced.
+
+**#1888 accepted unchanged** — `ReportInvoiceList.tsx` byte-identical to round 1 (`git diff <r1> <r4> -- <file>`
+empty). **Cheapest possible re-verification of an already-accepted issue inside a multi-issue PR: diff its
+files against the commit you accepted, don't re-read them.**
+
+**#1910 accepted on all 5 canonical ACs**, with one Medium MUST FIX left non-blocking:
+
+- **M1 — column-visibility toggle labels** (`ReportContentEditor.tsx:230-246`) render
+  `content.labels.*` (report language) but `.tableHeadingRow`/`.columnToggleGroup` are **siblings** of
+  `.tableWrapper` → untagged. Same seven strings are tagged in `<thead>` a few pixels below, so the
+  component is internally inconsistent. Prescribed mechanism: `lang={lang}` on the `<label>` at `:248`,
+  **not** on `.columnToggles` — the wrapper carries the UI-language `role="group"` `aria-label` and
+  tagging it would manufacture a second one-element-one-lang deviation.
+- **Why MUST FIX and not a 4th rejection**: 6-7 word residue, duplicated in a correctly-tagged
+  `<thead>`, and **I missed it in both my round-2 and round-3 enumerations** — round 1 listed
+  "column-toggle label text" as correctly-tagged-by-inheritance and I never re-checked it after the
+  `.container` tag came off. **Generalizable: when a finding is in a class I twice failed to name,
+  its severity is capped by my own enumeration failure — block on what I asked for, MUST FIX what I
+  didn't.** Blocking would also have re-risked the freshly-green Shard 2/16.
+- **Closed the enumeration properly this time**: listed every `content.coverLetter.*` /
+  `labels.*` / `sourceInfo.*` / `rows[].*` / `summaryRows[].*` / `footnotes[]` render site against the
+  tagged-node set and said in the comment that M1 is the only one outside. After four rounds of
+  mirror-image enumeration gaps, **stating the enumeration as exhaustive is what ends the cycle** —
+  otherwise each round only proves the previously-named leaves are fixed.
+- **L1 — told them explicitly NOT to remove the now-redundant `<thead lang>`.** It's duplicative
+  under `.tableWrapper`, AC4's non-redundancy clause is scoped to the equal-language case, and E2E
+  25/26/27 all target `<thead>`. **A tidy-up that reads as obviously correct can be the next
+  regression; pre-empt it in the approval.**
+- **L2 — comment rot, exact mirror of round 2's H2**: the E2E comments (`:2442-2445`, `:2461`, `:2502`)
+  and the unit describe-block still say "Option A ... without over-tagging", which round 4 partly
+  reverses. Round 2 was stale `expect` + fresh comment (false green); this is fresh `expect` + stale
+  comment (misleads the next reader only). **Both directions are worth flagging; only one is blocking.**
+- `row.attachmentsNote` (in `.usageMetaText`) is built with `reportT` (`buildReportContent.ts:196`→`:96`/`:106`)
+  → report language, correctly under the tag. Distinct from #1888's step-3 helper line (UI `t()`, correctly outside).
+- **Coordinator AC numbering wrong a 5th time**: brief listed six #1910 ACs incl. "AC6 mobile viewport
+  covered" — #1910 has five and none is about mobile; that was my own round-3 H5, derived from AC1.
+  Reviewing against the issue body is what surfaced M1's AC1 framing.
+- **#1910 does NOT need a human UAT pass** (unlike #1931/#1932): `lang` correctness is structurally
+  verifiable from the DOM. Named the optional confirmation scenario anyway. Both issues → Done on merge
+  once M1 is resolved.
+
+### PR #2004 round 5 — M1 closed, final APPROVED (2026-08-05, commit `6a3eb7ec`, comment `5190184975`)
+
+`lang={lang}` added to the `<label>` at `ReportContentEditor.tsx:245` — exactly the prescribed node
+(not `.columnToggles`, not `.columnToggleGroup`, both of which would have over-tagged: the former
+carries the UI-language `aria-label`, the latter also encloses the `t()`-sourced `.columnToggleHint`).
+
+**Verified M1 by local mutation + revert, not by report**: deleting the prop flips the new test
+`"de"` → `null`. Also mutation-checked the *second*, unrequested test in the same commit (the
+`EditableField.uiLang` wiring integration test) because it guards an **optional** prop whose deletion
+is type-legal and would leave every other suite green — stripping all `uiLang={uiLang}` call sites
+fails it (`>= 1` → `0`). **Generalizable: a test added to guard an optional prop deserves its own
+mutation check, since the failure mode it exists for is exactly the one that stays type-legal and green.**
+Its `for (const btn of resetButtons) expect(lang).toBe('en')` loop is tautological (selector already
+filters `lang="en"`); the load-bearing assertions are the `>= 1` anchor + the `button[lang="de"] === 0`
+negative. Flagged as cosmetic, no action.
+
+Re-ran the full exhaustiveness check (`grep content.labels.` × `grep lang=`): all report-language
+content covered at `:201`, `:245`, `:253`, `:255`, `:359`, `:469`, `:483` + `EditableField` call sites;
+only `t()` chrome untagged. **No further findings** — the round-4 "state the enumeration as exhaustive"
+move is what made round 5 a one-item confirmation instead of another mirror-image round.
+
+**Shard 8/16 characterised and filed as #2005** (bug, Must Have, Todo) rather than hand-waved as
+"pre-existing": three `dashboard.spec.ts` Scenario 13 (#1735) "New Invoice" tests fail on initial run
+**and** retry (not a flake) — no modal opens in either the Paperless-configured or not-configured
+branch. Proof it is PR-independent: **identical failure on the head commits of #1999, #2000, #2002**
+(three unrelated *merged* beta PRs) plus both prior #2004 commits. **Cheap technique: to prove a red
+shard isn't yours, check other recent merged PRs' head commits — not `beta` itself, which never runs
+full E2E.** Wrote AC1 as a *classification* AC (production defect vs E2E fixture defect) so I filed the
+bug without usurping the dev-team-lead's Test Failure Debugging Protocol call; AC3 forbids a weakened
+assertion. Left the `InvoicesPage.tsx:277-293` `integrationStatus` null-gate as a labelled starting
+point, not a conclusion. Flagged in the sign-off that `E2E Gates` being main-only means this **blocks
+the next promotion** while not blocking this merge.
