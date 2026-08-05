@@ -47,6 +47,8 @@ export interface ReportContentCoverLetter {
   closing: string; // READ-ONLY; reportT('sourceReports.coverLetter.closing'); part of the letter artifact, never rendered through the editor's interface t (artifact-content-vs-edit-affordance rule, #1909/#1924)
 }
 
+export type ReportSkipReason = 'footnoteFetchFailed' | 'footnoteInvalidPdf';
+
 export interface ReportContentLabels {
   vendor: string;
   invoiceNumber: string;
@@ -64,6 +66,9 @@ export interface ReportContentLabels {
   reference: string;
   generatedAt: string;
   pageLabel: string; // "Page N / M" label in the PDF footer, translated in report language
+  coverLetterReferenceLabel: string;
+  coverLetterSubjectLabel: string;
+  skipReasonLabels: Record<ReportSkipReason, string>;
 }
 
 export interface ReportContent {

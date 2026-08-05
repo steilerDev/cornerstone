@@ -310,13 +310,9 @@ export function ReportWizardPage() {
           .map((inv) => inv.invoiceId),
       );
 
-      const result = await generateReportPdf(
-        report,
-        includedInvoiceIds,
-        effectiveContent,
-        { attachDocuments },
-        reportT,
-      );
+      const result = await generateReportPdf(report, includedInvoiceIds, effectiveContent, {
+        attachDocuments,
+      });
 
       dispatch({ type: 'PDF_GENERATED', payload: { skippedDocuments: result.skippedDocuments } });
       return result;
@@ -324,15 +320,7 @@ export function ReportWizardPage() {
       console.error(err);
       return null;
     }
-  }, [
-    report,
-    useCase,
-    effectiveContent,
-    excludedLineIds,
-    excludedInvoiceIds,
-    attachDocuments,
-    reportT,
-  ]);
+  }, [report, useCase, effectiveContent, excludedLineIds, excludedInvoiceIds, attachDocuments]);
 
   // Handle preview PDF
   const handlePreviewPdf = useCallback(async () => {

@@ -611,7 +611,7 @@ files against the commit you accepted, don't re-read them.**
 carries the UI-language `aria-label`, the latter also encloses the `t()`-sourced `.columnToggleHint`).
 
 **Verified M1 by local mutation + revert, not by report**: deleting the prop flips the new test
-`"de"` → `null`. Also mutation-checked the *second*, unrequested test in the same commit (the
+`"de"` → `null`. Also mutation-checked the _second_, unrequested test in the same commit (the
 `EditableField.uiLang` wiring integration test) because it guards an **optional** prop whose deletion
 is type-legal and would leave every other suite green — stripping all `uiLang={uiLang}` call sites
 fails it (`>= 1` → `0`). **Generalizable: a test added to guard an optional prop deserves its own
@@ -629,10 +629,53 @@ move is what made round 5 a one-item confirmation instead of another mirror-imag
 "pre-existing": three `dashboard.spec.ts` Scenario 13 (#1735) "New Invoice" tests fail on initial run
 **and** retry (not a flake) — no modal opens in either the Paperless-configured or not-configured
 branch. Proof it is PR-independent: **identical failure on the head commits of #1999, #2000, #2002**
-(three unrelated *merged* beta PRs) plus both prior #2004 commits. **Cheap technique: to prove a red
+(three unrelated _merged_ beta PRs) plus both prior #2004 commits. **Cheap technique: to prove a red
 shard isn't yours, check other recent merged PRs' head commits — not `beta` itself, which never runs
-full E2E.** Wrote AC1 as a *classification* AC (production defect vs E2E fixture defect) so I filed the
+full E2E.** Wrote AC1 as a _classification_ AC (production defect vs E2E fixture defect) so I filed the
 bug without usurping the dev-team-lead's Test Failure Debugging Protocol call; AC3 forbids a weakened
 assertion. Left the `InvoicesPage.tsx:277-293` `integrationStatus` null-gate as a labelled starting
 point, not a conclusion. Flagged in the sign-off that `E2E Gates` being main-only means this **blocks
 the next promotion** while not blocking this merge.
+
+## #2001 reviewed — PR #2007 APPROVED round 1 (2026-08-05)
+
+`refactor(reports): remove TFunction from reportPdf/*`. All 9 ACs met, one Medium non-blocking finding.
+The story existed to **close a class** (#1938 and #1993 had each fixed one call site of the same shape),
+so the review question was "is the class closed", not "do the three call sites work".
+
+**Verification techniques worth reusing:**
+
+- **AC5-style grep ACs: run the grep over the whole directory at the head commit, then go one step
+  further than the AC text.** AC5 only asked for `TFunction`; I also grepped all 9 production `.ts`
+  files for `i18n`, `useTranslation`, `toLocale*`, `Intl.` — the ADR-034 contract is "never reach the
+  ambient locale", and `TFunction`-free is a proxy for that, not the thing itself. (All clean here.)
+- **AC7 "verified to discriminate" ACs get an actual mutation run.** Throwaway worktree at the head
+  commit (`git worktree add --detach /tmp/<x> <sha>` + symlink the root `node_modules` — npm-workspace
+  worktrees under `.claude/worktrees/` resolve the root `node_modules` by upward lookup, `/tmp` ones
+  don't), mutate, run, revert, `git worktree remove --force`. 9 tests red under 3 mutations, 116 green
+  after revert. **Mutate the i18n _key_ too, not just the value** — swapping in a wrong-but-existing
+  key proved the AC1 tests pin the specific key rather than "some string".
+- **A refactor that moves a string from call time to build time needs a staleness check, and it is a
+  memoization question, not a rendering one.** Here: labels moved from `reportT` passed into
+  `generateReportPdf` to `reportContent.labels`. Safe only because `baselineContent`'s `useMemo` deps
+  include `reportT`, which is memoized on `reportLanguage`. Check the dep array; a missing dep would
+  have made the label silently stick to the first-selected language.
+
+**Medium M1 (non-blocking) — the fix re-opened the same hazard class in a new form.** `overviewPdf.ts`
+resolved the dynamic skip-reason via `labels.skipReasonLabels[reason as 'a' | 'b'] ?? reason`. The
+`as` cast + `??` fallback is exactly the "enforced by convention" shape the story was written to kill:
+a third `SkippedDocument['reason']` would compile silently and echo a raw identifier into a document
+handed to a bank. **Ruling: capped at Medium, not blocking, because AC2 as written is about values the
+code _can produce today_ and the union is closed.** But flagged with the two-line typed-parameter fix
+(`Map<string, SkippedDocument['reason'][]>` in `overviewPdf.ts` + `merge.ts`) and an explicit offer to
+file it as a follow-up instead. **Pattern: when a refactor's purpose is "close the class", check
+whether the fix introduces a fresh instance of the class — an unchecked `as` cast plus a silent `??`
+fallback is the usual shape.**
+
+**Also:** AC8's own warning ("ts-jest emits no type diagnostics; a green Jest run does not mean the
+field is wired everywhere") fired exactly as written — commit `3b26a82c` fixed 4 missed
+`ReportContentLabels` construction sites after CI typecheck went red. An AC that names the trap from a
+prior PR earns its keep. Every AC here is machine-checkable, so **#2001 goes to Done on merge, no UAT**
+(contrast the #1931 live-LLM ACs). `gh pr review --approve` refuses own-authored PRs → verdict in a
+comment. #2005 is now **closed** and all 16 E2E shards are green on this head commit — the promotion
+blocker recorded above is cleared.

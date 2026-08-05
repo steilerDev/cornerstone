@@ -1079,14 +1079,14 @@ Also: the code fix for a round-N finding landing **without an assertion** (the `
 for each item the author claims to have addressed.
 
 **Round-3 addendum (#1910, PR #2004) — "the prop landed" is not "the prop is wired".** The fix for a
-review finding can introduce a *new* optional prop, unit-test the prop on the leaf component, thread
+review finding can introduce a _new_ optional prop, unit-test the prop on the leaf component, thread
 it through N call sites, and still have zero coverage of the threading: the leaf tests pass the prop
 in themselves. Revert test applied at the call-site level (not the component level) is the only thing
 that catches it — delete the `foo={foo}` lines, not the `foo` implementation, and see what goes red.
 Optional props make this silent because removing them from JSX is type-legal.
 
 Companion trap: **a redundant tag that a test asserts.** After restoring an ancestor tag, the
-descendant tag it duplicates becomes redundant, and if a test asserts *both* the redundancy is
+descendant tag it duplicates becomes redundant, and if a test asserts _both_ the redundancy is
 locked in. The danger is not the duplication, it is that a later cleanup reads the pair as an error
 and removes the ancestor — reintroducing the original finding. Ask for a comment naming the
 duplication as deliberate.
@@ -1099,7 +1099,7 @@ its own `lang` plus `aria-labelledby`. Worth naming as a known limit rather than
 **Round-4 addendum (#1910, PR #2004) — a positive anchor only pins the call sites the fixture
 actually renders.** The round-3 fix for "all 8 `uiLang={uiLang}` props could be deleted with every
 suite green" was a test asserting `button[lang="en"]` count `>= 1` plus an all-must-match loop. It
-does close the *stated* gap (deleting all 8 fails), and the handoff claimed "removing **any** prop
+does close the _stated_ gap (deleting all 8 fails), and the handoff claimed "removing **any** prop
 fails" — but per-site mutation testing showed **1 of 8** pinned. The fixture put exactly one field
 (`coverLetter.sender`) into edited state, so exactly one reset button ever rendered, so the anchor
 could only ever cover that one site; the other 7 still delete silently.
@@ -1116,7 +1116,7 @@ only version that fails when a site disappears. Two review habits that follow:
   recorded very differently, and the second is what stops the gap being re-found in three months.
 
 Related smell confirmed the same round: a **near-vacuous negative guard** (`button[lang="de"] === 0`
-when no button can ever receive `lang={lang}`) is still worth keeping if it pins a *contract* on
+when no button can ever receive `lang={lang}`) is still worth keeping if it pins a _contract_ on
 another component ("chrome is always `uiLang`") rather than restating the positive assertion.
 
 ## Untyped E2E route fixtures drift silently from shared contracts (#2005, PR #2006)
@@ -1126,7 +1126,7 @@ returned a `summary` missing two **required** members of `InvoiceStatusBreakdown
 `quotationCoveredByDeposits`) and used `pagination.total` where `PaginationMeta` says `totalItems`.
 
 The failure mode is worth remembering because it is maximally indirect. `InvoicesPage` initialises
-`summary` to a *complete* default, so first paint is clean; `setSummary(response.summary)` then swaps
+`summary` to a _complete_ default, so first paint is clean; `setSummary(response.summary)` then swaps
 in the incomplete mock and the next render throws on `summary.claimable.count`. React unmounts the
 tree, the `loadIntegrationStatus` cleanup sets `cancelled = true`, `integrationStatus.paperless` stays
 `null`, and the `?create=1` effect's readiness gate never opens. **Reported symptom: "the New Invoice
@@ -1138,7 +1138,7 @@ Three durable rules:
 
 - **Annotate route fixtures with the shared response type** (`function mockX(): InvoiceListPaginatedResponse`).
   `e2e/` already imports from `@cornerstone/shared`, so both defects here were compile-time detectable.
-  An untyped literal handed straight to `JSON.stringify` has *zero* coupling to the contract it mimics —
+  An untyped literal handed straight to `JSON.stringify` has _zero_ coupling to the contract it mimics —
   adding a required field to a shared type will never break it, which is exactly backwards.
 - **A consumer's early return can mask an incomplete fixture indefinitely.** `mockInvoices()` in the
   same file also omits `quotation`/`overdue`/`claimable`, and `InvoicePipelineCard` dereferences
@@ -1146,7 +1146,7 @@ Three durable rules:
   when `invoices: []`. The first person to add one invoice to that fixture reproduces the same
   TypeError. "It's been green for months" is not evidence a fixture is complete.
 - **Fix the fixture, not the dereference.** The tempting patch is optional chaining in the page. But
-  `claimable` is *required* by the contract, so the page is entitled to dereference it unconditionally;
+  `claimable` is _required_ by the contract, so the page is entitled to dereference it unconditionally;
   adding `?.` relaxes a correct invariant to accommodate a wrong test. Source-of-truth ordering holds.
 
 Also load-bearing and undocumented in that file: scenarios 13c–13f register **two** `**/api/invoices*`
@@ -1160,3 +1160,56 @@ was cheap here because all three scenarios guard with **positive** `toBeVisible(
 negative (`not.toContain('create=1')`) is only non-vacuous because the preceding positive assertion
 can't pass unless `create=1` was present — negatives anchored to a positive in the same test are fine;
 negatives standing alone are the ones to challenge.
+
+## Widen-then-`as`-narrow round trip defeats union exhaustiveness (#2001, PR #2007)
+
+A field typed as a proper string-literal union gets widened to `string` by an _intermediate_ container
+(`SkippedDocument.reason: 'a'|'b'` → `new Map<string, string[]>()` in `merge.ts`), then re-narrowed at
+the consumer with `reason as 'a'|'b'` plus a `?? reason` fallback. Every symptom of type safety, none of
+the enforcement:
+
+- Adding a third union member produces **zero** compile errors — not at the `as`, not at the hand-written
+  label literal in `buildReportContent.ts`, not at the interface declaration.
+- The `?? reason` fallback is dead code today (indexed access into a fully-keyed object type is
+  non-optional `string`), so it reads as a guard while guarding nothing — and it is exactly what would
+  _mask_ the future regression instead of surfacing it. Here it would print a raw i18n identifier into a
+  bank-facing PDF.
+
+Fix shape: name the union (`export type ReportSkipReason = …`), type the intermediate container with it,
+and declare the lookup table as `Record<TheUnion, string>`. Then adding a member is a compile error at
+the single population site. Type the container, don't assert at the consumer.
+
+**Review heuristic:** any `as '<literal>' | '<literal>'` in new code is a claim that some _upstream_
+type was needlessly widened. Trace where the widening happened — that's the real fix site. Doubly so
+when the PR's stated purpose is "compiler-enforced, not convention-enforced": a cast is convention
+re-entering through the back door.
+
+## A refactor that changes an invariant falsifies the ADR that states it (#2001, PR #2007)
+
+Removing a hazard _upgrades_ the enforcement level, which means the ADR passages describing the old
+weaker level are now actively harmful — they instruct the next contributor to reintroduce what was
+removed. ADR-034 had four: a signature quote naming the removed `t` param, a "nothing in the type system
+distinguishes X from Y, so the only defences are contract/review/tests" sentence (false once the channel
+is gone), a grep guard that cannot see the new violation shape (a _parameter type_ — `useTranslation|
+/i18n/` greps miss it), and a list of "sites still doing it independently" that is now empty.
+
+**Checklist when reviewing any hardening/refactor PR:** grep the governing ADR for (a) quoted
+signatures, (b) "the only defence is…" / "nothing enforces…" sentences, (c) enumerated
+remaining-violation lists, (d) grep guards — all four go stale from a fix, and none is caught by CI.
+Also: the strongest guard is usually the story's own AC grep — promote it into the ADR as a numbered
+invariant rather than leaving it in the closed issue.
+
+Corollary on routing: when the wiki delta is ADR _prose_, request that the orchestrator route it back to
+`product-architect`, not to the implementing dev agent.
+
+## Key-echo test fixtures make same-layer assertions non-discriminating (#2001, PR #2007)
+
+`reportPdf` test fixtures follow a convention where label values _equal the i18n key strings_
+(`makeLabels()` → `pageLabel: 'sourceReports.table.pageLabel'`), matching the mock `t`'s echo behaviour.
+Consequence: an assertion expecting `'… — sourceReports.table.footnoteFetchFailed'` passes identically
+whether the production code reads `labels.x` or calls `t('sourceReports.table.x')`. Six such assertions
+existed in `overviewPdf.test.ts`; all six contribute zero coverage for the injection contract.
+
+Only fixtures with a **unique sentinel** (`FETCH-SENTINEL`) discriminate. When a PR adds an AC-driven
+sentinel block alongside pre-existing key-echo assertions, say in the review that the sentinel block is
+the load-bearing one and must not later be "harmonised" into the surrounding style.

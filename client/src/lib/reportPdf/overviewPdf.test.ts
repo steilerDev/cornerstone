@@ -7,7 +7,7 @@
  * `skippedDocuments: Map<invoiceId, reason[]>` map (skip footnotes are the one thing NOT baked
  * into ReportContent per the spec — they're async, generation-time data):
  *
- *   buildOverviewContent(reportContent: ReportContent, skippedDocuments: Map<string, string[]>, t: TFunction): Content[]
+ *   buildOverviewContent(reportContent: ReportContent, skippedDocuments: Map<string, string[]>): Content[]
  *
  * `appendixByInvoiceId` is GONE entirely (previously accepted-but-unrendered; now the appendix
  * column doesn't exist in the signature at all — see merge.ts/merge.test.ts for where appendix
@@ -43,8 +43,7 @@
  * exported `VENDOR_SAFE_TOKEN_CHARS`.
  */
 import { describe, it, expect } from '@jest/globals';
-import type { TFunction } from 'i18next';
-import type { ReportContent, ReportContentRow } from '../reportContent/index.js';
+import type { ReportContent, ReportContentRow, ReportSkipReason } from '../reportContent/index.js';
 import type { UsageCellSegment } from './overviewPdf.js';
 import {
   buildOverviewContent,
@@ -59,8 +58,6 @@ import {
   MAX_SAFE_USAGE_CHUNK_CHARS,
 } from './overviewPdf.js';
 import { tableOffsetsTotal, printableWidth } from './pageGeometry.js';
-
-const t = ((key: string) => key) as unknown as TFunction;
 
 function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
   return {
@@ -107,6 +104,12 @@ function makeLabels(): ReportContent['labels'] {
     reference: 'sourceReports.table.reference',
     generatedAt: 'sourceReports.table.generatedAt',
     pageLabel: 'sourceReports.table.pageLabel',
+    coverLetterReferenceLabel: 'sourceReports.coverLetter.reference',
+    coverLetterSubjectLabel: 'sourceReports.coverLetter.subjectLabel',
+    skipReasonLabels: {
+      footnoteFetchFailed: 'sourceReports.table.footnoteFetchFailed',
+      footnoteInvalidPdf: 'sourceReports.table.footnoteInvalidPdf',
+    },
   };
 }
 
@@ -228,7 +231,7 @@ function getTable(content: unknown[]): {
 describe('buildOverviewContent — title and source info', () => {
   it('renders the title from reportContent.tableTitle and source info from reportContent.sourceInfo', () => {
     const content = makeContent({ tableTitle: 'sourceReports.table.title.claim' });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
 
     const titleItem = result[0] as { text: string };
     expect(titleItem.text).toBe('sourceReports.table.title.claim');
@@ -247,7 +250,7 @@ describe('buildOverviewContent — title and source info', () => {
     const content = makeContent({
       sourceInfo: { ...makeContent().sourceInfo, referenceText: null },
     });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const infoStack = result[1] as { stack: { text: string }[] };
     expect(
       infoStack.stack.find((s) => s.text.includes('sourceReports.table.reference')),
@@ -258,14 +261,14 @@ describe('buildOverviewContent — title and source info', () => {
     const content = makeContent({
       sourceInfo: { ...makeContent().sourceInfo, referenceText: 'REF-99' },
     });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const infoStack = result[1] as { stack: { text: string }[] };
     expect(infoStack.stack.find((s) => s.text.includes('REF-99'))).toBeDefined();
   });
 
   it('AC3.2: omits the sourceInfoStack entirely when isClaim is true — the table follows the title directly', () => {
     const content = makeContent({ isClaim: true, rows: [] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     expect(result).toHaveLength(2); // title + table only, no stack in between
     const second = result[1] as unknown as Record<string, unknown>;
     expect(second.table).toBeDefined();
@@ -274,7 +277,7 @@ describe('buildOverviewContent — title and source info', () => {
 
   it('renders the sourceInfoStack when isClaim is false (budget-overview/proof-of-funds), unchanged', () => {
     const content = makeContent({ isClaim: false, rows: [] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const second = result[1] as unknown as Record<string, unknown>;
     expect(second.stack).toBeDefined();
   });
@@ -283,7 +286,7 @@ describe('buildOverviewContent — title and source info', () => {
 describe('buildOverviewContent — column layout', () => {
   it('[regression #1929 round 3, scenario 6] budget-overview header is exactly [vendor, invoiceNumber, date, status, invoiceAmount, allocatedAmount, usage]; EVERY width (including Usage) is an explicit number — no "*" anywhere — and the algebraic identity holds exactly', () => {
     const content = makeContent({ isOverview: true });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
 
     // #1929 round 3 (architect CRITICAL/HIGH1): Usage is no longer '*' — pdfmake never grows a
@@ -317,7 +320,7 @@ describe('buildOverviewContent — column layout', () => {
 
   it('[regression #1929 round 3, scenario 6] claim/proof-of-funds header has exactly 6 cells with no status column; EVERY width (including Usage) is an explicit number, and the algebraic identity holds exactly', () => {
     const content = makeContent({ isOverview: false });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
 
     // Same shape/contract as the 7-column case above.
@@ -342,7 +345,7 @@ describe('buildOverviewContent — column layout', () => {
 
   it('never renders an Appendix column (the appendix concept no longer exists in this signature)', () => {
     const content = makeContent({ isOverview: false, rows: [makeRow()] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     expect(rowTexts(table.body[0])).not.toContain('sourceReports.table.appendix');
     expect((table.body[1] as unknown[]).length).toBe(6);
@@ -350,7 +353,7 @@ describe('buildOverviewContent — column layout', () => {
 
   it('[regression #1929 round 2 / CRITICAL 1, scenario 7] the table NODE itself carries dontBreakRows: true — the only place pdfmake actually reads it (TableProcessor.js:123: tableNode.table.dontBreakRows), not the round-1 (inert) TABLE_LAYOUT placement', () => {
     const content = makeContent({ isOverview: true });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const tableItem = result.find((c) => typeof c === 'object' && c !== null && 'table' in c) as {
       table: { dontBreakRows?: boolean };
     };
@@ -817,7 +820,7 @@ describe('buildUsageTextRuns (#1929 round 2/3/4 word-break follow-up findings, s
       const row = makeRow({ usageText: borderlineToken });
 
       const overviewContent = makeContent({ isOverview: true, rows: [row] });
-      const overviewResult = buildOverviewContent(overviewContent, new Map(), t);
+      const overviewResult = buildOverviewContent(overviewContent, new Map());
       const overviewTable = getTable(overviewResult);
       const overviewCell = (overviewTable.body[1] as unknown[])[6] as {
         text: { text: string; wordBreak?: string }[];
@@ -825,7 +828,7 @@ describe('buildUsageTextRuns (#1929 round 2/3/4 word-break follow-up findings, s
       expect(overviewCell.text.some((run) => run.wordBreak === 'break-all')).toBe(true);
 
       const claimContent = makeContent({ isOverview: false, rows: [row] });
-      const claimResult = buildOverviewContent(claimContent, new Map(), t);
+      const claimResult = buildOverviewContent(claimContent, new Map());
       const claimTable = getTable(claimResult);
       const claimCell = (claimTable.body[1] as unknown[])[5] as {
         text: { text: string; wordBreak?: string }[];
@@ -853,7 +856,7 @@ describe('#1929 round 3 HIGH1: header-cell and vendor-body-cell word-break prote
 
   it('[HIGH1] "Auftragnehmer" (13 chars, vendor header, 45pt column) is flagged for word-break — measured 67.50pt against the 45pt column', () => {
     const content = makeContent({ isOverview: true, labels: makeGermanLabels() });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     const vendorHeaderCell = (table.body[0] as unknown[])[0] as {
       text: { text: string; wordBreak?: string }[];
@@ -864,7 +867,7 @@ describe('#1929 round 3 HIGH1: header-cell and vendor-body-cell word-break prote
 
   it('[HIGH1] "Rechnungsbetrag" (15 chars, invoiceAmount header, 48pt column) is flagged for word-break — measured 78.66pt against the 48pt column', () => {
     const content = makeContent({ isOverview: true, labels: makeGermanLabels() });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     const invoiceAmountHeaderCell = (table.body[0] as unknown[])[4] as {
       text: { text: string; wordBreak?: string }[];
@@ -875,7 +878,7 @@ describe('#1929 round 3 HIGH1: header-cell and vendor-body-cell word-break prote
 
   it('[HIGH1] "Zugeordneter Betrag" (allocatedAmount header, 75pt column): each word\'s own token-level flag reflects the conservative worst-case estimate exactly — "Betrag" (6 chars) fits under the 8-char header threshold and is NOT flagged; "Zugeordneter" (12 chars) exceeds it and IS flagged even though its real measured width (60.42pt) fits the 75pt column on its own — over-flagging here is the designed-harmless case (see buildHeaderCell/buildUsageTextRuns doc comments), not a bug: break-all only forces a MID-CHARACTER split when a token does not fit on one line by itself, which "Zugeordneter" does. The real-render test in realRender.test.ts confirms this never visually force-breaks the word.', () => {
     const content = makeContent({ isOverview: true, labels: makeGermanLabels() });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     const allocatedHeaderCell = (table.body[0] as unknown[])[5] as {
       text: { text: string; wordBreak?: string }[];
@@ -889,7 +892,7 @@ describe('#1929 round 3 HIGH1: header-cell and vendor-body-cell word-break prote
 
   it('[HIGH1, round 4] "Verwendung" (Usage header, wide column) stays unflagged; "Datum" (Date header, narrow column) is now ALSO flagged under round 4s tighter worst-case ratio — over-flagging, not a bug', () => {
     const content = makeContent({ isOverview: true, labels: makeGermanLabels() });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     const dateHeaderCell = (table.body[0] as unknown[])[2] as {
       text: { text: string; wordBreak?: string }[];
@@ -915,7 +918,7 @@ describe('#1929 round 3 HIGH1: header-cell and vendor-body-cell word-break prote
   it('[HIGH1] a real free-form vendor body cell ("Elektroinstallationsbetrieb", 28 chars, no whitespace) is flagged for word-break — measured 92.72pt against the 45pt Vendor column', () => {
     const row = makeRow({ vendor: 'Elektroinstallationsbetrieb' });
     const content = makeContent({ isOverview: false, rows: [row] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     const vendorBodyCell = (table.body[1] as unknown[])[0] as {
       text: { text: string; wordBreak?: string }[];
@@ -932,7 +935,7 @@ describe('#1929 round 3 HIGH1: header-cell and vendor-body-cell word-break prote
     // exercise the "nothing flagged" path cleanly.
     const row = makeRow({ vendor: 'ACME AG' });
     const content = makeContent({ isOverview: false, rows: [row] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     const vendorBodyCell = (table.body[1] as unknown[])[0] as {
       text: { text: string; wordBreak?: string }[];
@@ -951,7 +954,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       statusText: 'sources.lines.invoiceStatus.pending',
     });
     const content = makeContent({ isOverview: true, rows: [row] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     expect(rowTexts(table.body[1])).toEqual([
       'Included Vendor',
@@ -967,7 +970,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
   it('omits the status cell when isOverview is false, even if statusText happens to be set', () => {
     const row = makeRow({ statusText: 'sources.lines.invoiceStatus.pending' });
     const content = makeContent({ isOverview: false, rows: [row] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     expect(rowTexts(table.body[1])).not.toContain('sources.lines.invoiceStatus.pending');
   });
@@ -978,7 +981,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
       makeRow({ invoiceId: 'inv-2', vendor: 'Second' }),
     ];
     const content = makeContent({ rows });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     expect(rowTexts(table.body[1])[0]).toBe('First');
     expect(rowTexts(table.body[2])[0]).toBe('Second');
@@ -988,7 +991,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('renders the invoice amount with the refund text color', () => {
       const row = makeRow({ isRefund: true, invoiceAmountText: '€200.00' });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       const rawRow = table.body[1] as { color?: string }[];
       expect(rawRow[3]!.color).toBe('#991b1b');
@@ -1002,7 +1005,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
         refundNoteText: '(refund)',
       });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       expect(rowTexts(table.body[1])[4]).toBe('€-200.00 (refund)');
       const rawRow = table.body[1] as { color?: string }[];
@@ -1012,7 +1015,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('does not apply the refund color or note for a non-refund row', () => {
       const row = makeRow({ isRefund: false, allocatedAmountValueText: '€500.00' });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       expect(rowTexts(table.body[1])[4]).toBe('€500.00');
       const rawRow = table.body[1] as { color?: string }[];
@@ -1024,7 +1027,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('renders a plain { text } cell (not a stack) with NO grey meta run when both areaText and attachmentsNote are null', () => {
       const row = makeRow({ usageText: 'Kitchen work', areaText: null, attachmentsNote: null });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[5] as { text?: unknown; stack?: unknown };
       expect(cell.stack).toBeUndefined();
@@ -1038,7 +1041,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('#1959: appends attachmentsNote as a trailing grey newline-prefixed run INSIDE the usage cell (not a stack sub-row, not a separate row)', () => {
       const row = makeRow({ usageText: 'Kitchen work', attachmentsNote: '1 attachment: Invoice' });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[5] as { text: unknown; stack?: unknown };
       expect(cell.stack).toBeUndefined();
@@ -1061,7 +1064,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
         attachmentsNote: '1 attachment: Invoice',
       });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[5] as { text: unknown };
       const { usageText, metaRun } = splitUsageCell(cell);
@@ -1080,7 +1083,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
         attachmentsNote: null,
       });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[5] as { text: unknown; stack?: unknown };
       expect(cell.stack).toBeUndefined();
@@ -1096,7 +1099,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('[#1929 round 2] the plain-cell Usage text is a run array of the individual whitespace-preserving tokens (buildUsageTextRuns wiring, not a plain string)', () => {
       const row = makeRow({ usageText: 'Kitchen work', attachmentsNote: null });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[5] as { text: { text: string }[] };
       expect(Array.isArray(cell.text)).toBe(true);
@@ -1108,7 +1111,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('renders allocatedAmountValueText plain when there are no markers and not a refund', () => {
       const row = makeRow({ allocatedAmountValueText: '€400.00' });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       expect(rowTexts(table.body[1])[4]).toBe('€400.00');
     });
@@ -1116,7 +1119,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('appends inline isSplit label when isSplit=true', () => {
       const row = makeRow({ allocatedAmountValueText: '€400.00', isSplit: true });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       expect(rowTexts(table.body[1])[4]).toContain('€400.00');
       expect(rowTexts(table.body[1])[4]).toContain('sourceReports.table.splitInlineLabel');
@@ -1125,7 +1128,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('appends inline isDepositReduced label when isDepositReduced=true', () => {
       const row = makeRow({ allocatedAmountValueText: '€400.00', isDepositReduced: true });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       expect(rowTexts(table.body[1])[4]).toContain('€400.00');
       expect(rowTexts(table.body[1])[4]).toContain('sourceReports.table.depositReducedInlineLabel');
@@ -1134,8 +1137,8 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('prepends skip-footnote markers (*N) before the allocated value, numbered from skippedDocuments', () => {
       const row = makeRow({ invoiceId: 'inv-1', allocatedAmountValueText: '€400.00' });
       const content = makeContent({ rows: [row] });
-      const skipped = new Map<string, string[]>([['inv-1', ['footnoteFetchFailed']]]);
-      const result = buildOverviewContent(content, skipped, t);
+      const skipped = new Map<string, ReportSkipReason[]>([['inv-1', ['footnoteFetchFailed']]]);
+      const result = buildOverviewContent(content, skipped);
       const table = getTable(result);
       expect(rowTexts(table.body[1])[4]).toBe('€400.00*1');
     });
@@ -1143,10 +1146,10 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('numbers multiple skip reasons on the same invoice sequentially', () => {
       const row = makeRow({ invoiceId: 'inv-1', allocatedAmountValueText: '€400.00' });
       const content = makeContent({ rows: [row] });
-      const skipped = new Map<string, string[]>([
+      const skipped = new Map<string, ReportSkipReason[]>([
         ['inv-1', ['footnoteFetchFailed', 'footnoteInvalidPdf']],
       ]);
-      const result = buildOverviewContent(content, skipped, t);
+      const result = buildOverviewContent(content, skipped);
       const table = getTable(result);
       expect(rowTexts(table.body[1])[4]).toBe('€400.00*1*2');
     });
@@ -1156,7 +1159,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('renders the allocated cell text as an array of runs when isDeposit is true', () => {
       const row = makeRow({ allocatedAmountValueText: '€300.00', isDeposit: true });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[4] as { text: unknown };
       expect(Array.isArray(cell.text)).toBe(true);
@@ -1165,7 +1168,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('the second run carries the deposit label, gray color and small fontSize', () => {
       const row = makeRow({ allocatedAmountValueText: '€300.00', isDeposit: true });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[4] as {
         text: { text: string; color?: string; fontSize?: number }[];
@@ -1180,7 +1183,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('renders exactly one run (no deposit run appended) when isDeposit is false', () => {
       const row = makeRow({ allocatedAmountValueText: '€300.00', isDeposit: false });
       const content = makeContent({ rows: [row] });
-      const result = buildOverviewContent(content, new Map(), t);
+      const result = buildOverviewContent(content, new Map());
       const table = getTable(result);
       const cell = (table.body[1] as unknown[])[4] as { text: { text: string }[] };
       expect(cell.text).toHaveLength(1);
@@ -1213,7 +1216,7 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     expect(usageText.length).toBe(MAX_SAFE_USAGE_CHUNK_CHARS);
     const row = makeRow({ invoiceId: 'inv-1', vendor: 'Only Row', usageText });
     const content = makeContent({ rows: [row] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     // header (1) + exactly 1 row for this invoice + 1 summary row = 3
     expect(table.body).toHaveLength(3);
@@ -1224,7 +1227,7 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     const usageText = proseOfLength(MAX_SAFE_USAGE_CHUNK_CHARS - 1);
     const row = makeRow({ invoiceId: 'inv-1', vendor: 'Only Row', usageText });
     const content = makeContent({ rows: [row] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     expect(table.body).toHaveLength(3);
   });
@@ -1243,7 +1246,7 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     });
     const rowB = makeRow({ invoiceId: 'inv-next', vendor: 'Next Vendor', usageText: 'short' });
     const content = makeContent({ isOverview: true, rows: [rowA, rowB] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
 
     // Derive the expected chunk count from splitIntoPageSafeChunks itself (unit-tested separately
@@ -1297,7 +1300,7 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
       attachmentsNote: '1 attachment: Invoice',
     });
     const content = makeContent({ rows: [row] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
 
     // Row count is driven by `packUsageCellRows` over the WHOLE cell stream (prose + suffix), not
@@ -1365,7 +1368,7 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
       areaText: 'Ground Floor',
       attachmentsNote: '1 attachment: Invoice',
     });
-    const table = getTable(buildOverviewContent(makeContent({ rows: [row] }), new Map(), t));
+    const table = getTable(buildOverviewContent(makeContent({ rows: [row] }), new Map()));
 
     // header (1) + prose row + suffix-only row + summary (1).
     expect(table.body).toHaveLength(4);
@@ -1392,7 +1395,7 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
       attachmentsNote: '1 attachment: Invoice',
     });
     const content = makeContent({ rows: [row] });
-    const table = getTable(buildOverviewContent(content, new Map(), t));
+    const table = getTable(buildOverviewContent(content, new Map()));
 
     // header (1) + exactly ONE data row + summary (1) — packing must not add rows when the whole
     // cell already fits, or every ordinary report would grow spurious continuation rows.
@@ -1409,7 +1412,7 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     // Pre-#1968 the entire suffix was ONE run — greyRuns.length === 1. Post-fix: > 1.
     // This is the structural assertion the "revert the production hunk" test checks.
     const row = makeRow({ invoiceId: 'inv-1', usageText: 'x', areaText: 'Ground Floor' });
-    const table = getTable(buildOverviewContent(makeContent({ rows: [row] }), new Map(), t));
+    const table = getTable(buildOverviewContent(makeContent({ rows: [row] }), new Map()));
     const dataRows = table.body.slice(1, table.body.length - 1) as unknown[][];
     const lastRow = dataRows[dataRows.length - 1]!;
     const { greyRuns } = splitUsageCell(lastRow[lastRow.length - 1]);
@@ -1422,7 +1425,7 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     // Post-fix, buildUsageTextRuns sees a token longer than safeTokenChars and flags it.
     const overWideToken = 'W'.repeat(30);
     const row = makeRow({ invoiceId: 'inv-1', usageText: 'x', areaText: overWideToken });
-    const table = getTable(buildOverviewContent(makeContent({ rows: [row] }), new Map(), t));
+    const table = getTable(buildOverviewContent(makeContent({ rows: [row] }), new Map()));
     const dataRows = table.body.slice(1, table.body.length - 1) as unknown[][];
     const lastRow = dataRows[dataRows.length - 1]!;
     const { greyRuns } = splitUsageCell(lastRow[lastRow.length - 1]);
@@ -1435,8 +1438,8 @@ describe('buildOverviewContent — AC14: falsy statusText never produces a malfo
   it('an overview row with statusText: "" still produces a 7-cell row with an empty-text status cell, and does not throw', () => {
     const row = makeRow({ statusText: '' });
     const content = makeContent({ isOverview: true, rows: [row] });
-    expect(() => buildOverviewContent(content, new Map(), t)).not.toThrow();
-    const result = buildOverviewContent(content, new Map(), t);
+    expect(() => buildOverviewContent(content, new Map())).not.toThrow();
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     expect((table.body[1] as unknown[]).length).toBe(7);
     expect((table.body[1] as { text?: string }[])[3]).toEqual({ text: '', style: 'tableCell' });
@@ -1445,8 +1448,8 @@ describe('buildOverviewContent — AC14: falsy statusText never produces a malfo
   it('an overview row with statusText: null still produces a 7-cell row with an empty-text status cell, and does not throw', () => {
     const row = makeRow({ statusText: null });
     const content = makeContent({ isOverview: true, rows: [row] });
-    expect(() => buildOverviewContent(content, new Map(), t)).not.toThrow();
-    const result = buildOverviewContent(content, new Map(), t);
+    expect(() => buildOverviewContent(content, new Map())).not.toThrow();
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     expect((table.body[1] as unknown[]).length).toBe(7);
     expect((table.body[1] as { text?: string }[])[3]).toEqual({ text: '', style: 'tableCell' });
@@ -1458,7 +1461,7 @@ describe('buildOverviewContent — AC14: falsy statusText never produces a malfo
       makeRow({ invoiceId: 'inv-2', vendor: 'B', statusText: 'sources.lines.invoiceStatus.paid' }),
     ];
     const content = makeContent({ isOverview: true, rows });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     expect((table.body[1] as unknown[]).length).toBe(7);
     expect((table.body[2] as unknown[]).length).toBe(7);
@@ -1473,11 +1476,11 @@ describe('buildOverviewContent — footnotes (skip block first, then reportConte
       makeRow({ invoiceId: 'inv-2', vendor: 'Beta', invoiceNumber: 'B-2' }),
     ];
     const content = makeContent({ rows });
-    const skipped = new Map<string, string[]>([
+    const skipped = new Map<string, ReportSkipReason[]>([
       ['inv-1', ['footnoteFetchFailed']],
       ['inv-2', ['footnoteInvalidPdf', 'footnoteFetchFailed']],
     ]);
-    const result = buildOverviewContent(content, skipped, t);
+    const result = buildOverviewContent(content, skipped);
     const notesStack = result[result.length - 1] as { stack: { text: string }[] };
     expect(notesStack.stack).toHaveLength(3);
     expect(notesStack.stack[0]!.text).toBe(
@@ -1493,8 +1496,8 @@ describe('buildOverviewContent — footnotes (skip block first, then reportConte
 
   it('falls back to em-dashes when the skipped invoiceId is not found in reportContent.rows', () => {
     const content = makeContent({ rows: [] });
-    const skipped = new Map<string, string[]>([['unknown-inv', ['footnoteFetchFailed']]]);
-    const result = buildOverviewContent(content, skipped, t);
+    const skipped = new Map<string, ReportSkipReason[]>([['unknown-inv', ['footnoteFetchFailed']]]);
+    const result = buildOverviewContent(content, skipped);
     const notesStack = result[result.length - 1] as { stack: { text: string }[] };
     expect(notesStack.stack[0]!.text).toBe('*1: — (—) — sourceReports.table.footnoteFetchFailed');
   });
@@ -1509,12 +1512,12 @@ describe('buildOverviewContent — footnotes (skip block first, then reportConte
         },
       ],
     });
-    const skipped = new Map<string, string[]>([['inv-skip', ['footnoteFetchFailed']]]);
+    const skipped = new Map<string, ReportSkipReason[]>([['inv-skip', ['footnoteFetchFailed']]]);
     const contentWithSkipRow = makeContent({
       rows: [makeRow({ invoiceId: 'inv-skip', vendor: 'Skip Co', invoiceNumber: 'K-1' })],
       footnotes: content.footnotes,
     });
-    const result = buildOverviewContent(contentWithSkipRow, skipped, t);
+    const result = buildOverviewContent(contentWithSkipRow, skipped);
     const notesStack = result[result.length - 1] as { stack: { text: string }[] };
     expect(notesStack.stack).toHaveLength(2);
     expect(notesStack.stack[0]!.text).toBe(
@@ -1529,8 +1532,8 @@ describe('buildOverviewContent — footnotes (skip block first, then reportConte
     const content = makeContent({
       footnotes: [{ id: 'split-1', marker: '†1', text: 'first footnote' }],
     });
-    const skipped = new Map<string, string[]>([['inv-skip', ['footnoteFetchFailed']]]);
-    const result = buildOverviewContent(content, skipped, t);
+    const skipped = new Map<string, ReportSkipReason[]>([['inv-skip', ['footnoteFetchFailed']]]);
+    const result = buildOverviewContent(content, skipped);
     const notesStack = result[result.length - 1] as {
       stack: (Record<string, unknown> & { text: string })[];
     };
@@ -1547,7 +1550,7 @@ describe('buildOverviewContent — footnotes (skip block first, then reportConte
         { id: 'split-2', marker: '†2', text: 'second' },
       ],
     });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const notesStack = result[result.length - 1] as {
       stack: (Record<string, unknown> & { text: string })[];
     };
@@ -1557,7 +1560,7 @@ describe('buildOverviewContent — footnotes (skip block first, then reportConte
 
   it('renders no footnotes block when skippedDocuments is empty and reportContent.footnotes is empty', () => {
     const content = makeContent({ footnotes: [] });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const lastItem = result[result.length - 1];
     expect(lastItem).toEqual(expect.objectContaining({ table: expect.anything() }));
   });
@@ -1569,7 +1572,7 @@ describe('buildOverviewContent — summary rows (consumes reportContent.summaryR
       isOverview: true,
       summaryRows: [{ key: 'total', label: 'sourceReports.table.total', amountText: '€500.00' }],
     });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     const totalRow = table.body[table.body.length - 1] as Record<string, unknown>[];
     expect(totalRow).toEqual([
@@ -1588,7 +1591,7 @@ describe('buildOverviewContent — summary rows (consumes reportContent.summaryR
       isOverview: false,
       summaryRows: [{ key: 'total', label: 'sourceReports.table.total', amountText: '€500.00' }],
     });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     const totalRow = table.body[table.body.length - 1] as Record<string, unknown>[];
     expect(totalRow).toEqual([
@@ -1609,7 +1612,7 @@ describe('buildOverviewContent — summary rows (consumes reportContent.summaryR
         { key: 'total', label: 'Total', amountText: '€300.00' },
       ],
     });
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
     // header (1) + 0 invoice rows + 3 summary rows = 4
     expect(table.body).toHaveLength(4);
@@ -1623,10 +1626,48 @@ describe('buildOverviewContent — layout passthrough', () => {
   it('passes the real TABLE_LAYOUT through to the pdfmake table content block', async () => {
     const { TABLE_LAYOUT } = await import('./shared.js');
     const content = makeContent();
-    const result = buildOverviewContent(content, new Map(), t);
+    const result = buildOverviewContent(content, new Map());
     const tableItem = result.find((c) => typeof c === 'object' && c !== null && 'table' in c) as {
       layout: unknown;
     };
     expect(tableItem.layout).toBe(TABLE_LAYOUT);
+  });
+});
+
+describe('AC7 — skip reason labels come from reportContent.labels.skipReasonLabels, not TFunction (#2001)', () => {
+  it('uses skipReasonLabels.footnoteFetchFailed from labels, not t() key resolution', () => {
+    const rows = [makeRow({ invoiceId: 'inv-1', vendor: 'ACME', invoiceNumber: 'A-1' })];
+    const content = makeContent({
+      rows,
+      labels: {
+        ...makeLabels(),
+        skipReasonLabels: {
+          footnoteFetchFailed: 'FETCH-SENTINEL',
+          footnoteInvalidPdf: 'INVALID-SENTINEL',
+        },
+      },
+    });
+    const skipped = new Map<string, ReportSkipReason[]>([['inv-1', ['footnoteFetchFailed']]]);
+    const result = buildOverviewContent(content, skipped);
+    const notesStack = result[result.length - 1] as { stack: { text: string }[] };
+    expect(notesStack.stack[0]!.text).toBe('*1: ACME (A-1) — FETCH-SENTINEL');
+  });
+
+  it('uses skipReasonLabels.footnoteInvalidPdf from labels, not t() key resolution', () => {
+    const rows = [makeRow({ invoiceId: 'inv-2', vendor: 'Beta', invoiceNumber: 'B-2' })];
+    const content = makeContent({
+      rows,
+      labels: {
+        ...makeLabels(),
+        skipReasonLabels: {
+          footnoteFetchFailed: 'FETCH-SENTINEL',
+          footnoteInvalidPdf: 'INVALID-SENTINEL',
+        },
+      },
+    });
+    const skipped = new Map<string, ReportSkipReason[]>([['inv-2', ['footnoteInvalidPdf']]]);
+    const result = buildOverviewContent(content, skipped);
+    const notesStack = result[result.length - 1] as { stack: { text: string }[] };
+    expect(notesStack.stack[0]!.text).toBe('*1: Beta (B-2) — INVALID-SENTINEL');
   });
 });

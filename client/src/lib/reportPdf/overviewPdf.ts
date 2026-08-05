@@ -2,9 +2,8 @@
  * Overview table PDF content builder.
  * Consumes ReportContent (text only); no data derivation.
  */
-import type { TFunction } from 'i18next';
 import type { Content } from 'pdfmake/build/pdfmake';
-import type { ReportContent, ReportContentRow } from '../reportContent/index.js';
+import type { ReportContent, ReportContentRow, ReportSkipReason } from '../reportContent/index.js';
 import {
   TABLE_LAYOUT,
   REFUND_TEXT_COLOR,
@@ -491,8 +490,7 @@ export const HEADER_ROW_HEIGHT_MAX =
 
 export function buildOverviewContent(
   reportContent: ReportContent,
-  skippedDocuments: Map<string, string[]>,
-  t: TFunction,
+  skippedDocuments: Map<string, ReportSkipReason[]>,
 ): Content[] {
   const content: Content[] = [];
 
@@ -834,8 +832,9 @@ export function buildOverviewContent(
       const invoiceNumber = row?.invoiceNumber ?? '—';
 
       for (const reason of reasons) {
+        const reasonLabel = reportContent.labels.skipReasonLabels[reason];
         footnotes.push({
-          text: `*${skipFootnoteNum}: ${vendorName} (${invoiceNumber}) — ${t(`sourceReports.table.${reason}`)}`,
+          text: `*${skipFootnoteNum}: ${vendorName} (${invoiceNumber}) — ${reasonLabel}`,
           style: 'small',
         });
         skipFootnoteNum++;

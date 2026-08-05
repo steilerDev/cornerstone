@@ -868,3 +868,33 @@ describe('buildReportContent — t() call tracking sanity', () => {
     expect(statusCalls.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('buildReportContent — labels: 3 new fields (#2001)', () => {
+  // The identity-TFunction (`t = (key) => key`) is defined at the top of this file. Because
+  // buildReportContent calls reportT(key) for each label and `t` echoes the key verbatim, the
+  // returned label value equals the i18n key string — so these assertions verify which keys are
+  // being resolved, not the translated text (realRender.test.ts covers the latter end-to-end).
+  it('labels.coverLetterReferenceLabel is populated via reportT("sourceReports.coverLetter.reference")', () => {
+    const result = buildReportContent(makeReport([]), new Set(), 'claim', t, formatters);
+    expect(result.labels.coverLetterReferenceLabel).toBe('sourceReports.coverLetter.reference');
+  });
+
+  it('labels.coverLetterSubjectLabel is populated via reportT("sourceReports.coverLetter.subjectLabel")', () => {
+    const result = buildReportContent(makeReport([]), new Set(), 'claim', t, formatters);
+    expect(result.labels.coverLetterSubjectLabel).toBe('sourceReports.coverLetter.subjectLabel');
+  });
+
+  it('labels.skipReasonLabels.footnoteFetchFailed is populated via reportT("sourceReports.table.footnoteFetchFailed")', () => {
+    const result = buildReportContent(makeReport([]), new Set(), 'claim', t, formatters);
+    expect(result.labels.skipReasonLabels.footnoteFetchFailed).toBe(
+      'sourceReports.table.footnoteFetchFailed',
+    );
+  });
+
+  it('labels.skipReasonLabels.footnoteInvalidPdf is populated via reportT("sourceReports.table.footnoteInvalidPdf")', () => {
+    const result = buildReportContent(makeReport([]), new Set(), 'claim', t, formatters);
+    expect(result.labels.skipReasonLabels.footnoteInvalidPdf).toBe(
+      'sourceReports.table.footnoteInvalidPdf',
+    );
+  });
+});

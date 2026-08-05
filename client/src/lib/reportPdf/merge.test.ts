@@ -7,12 +7,12 @@
  * directly:
  *
  *   generateReportPdf(report, includedInvoiceIds, reportContent: ReportContent,
- *     options: { attachDocuments: boolean }, t: TFunction): Promise<GeneratedReport>
+ *     options: { attachDocuments: boolean }): Promise<GeneratedReport>
  *
  * `includeCoverLetter` is no longer a separate options flag — merge.ts now derives it purely from
  * `reportContent.coverLetter !== null` (the caller already decided whether to include a cover
  * letter when it built reportContent). buildCoverLetterContent/buildOverviewContent's own
- * signatures shrank correspondingly (reportContent [, skippedByInvoice], t) — see
+ * signatures shrank correspondingly (reportContent [, skippedByInvoice]) — see
  * coverLetterPdf.test.ts / overviewPdf.test.ts for their own coverage.
  *
  * Isolation strategy unchanged from the pre-#1900 file: mocks ./loader.js, ./shared.js,
@@ -28,7 +28,6 @@
  * "resolves before the mock" trick needed anymore, unlike round 1's shared.js import.
  */
 import { describe, it, expect, jest, beforeEach, beforeAll } from '@jest/globals';
-import type { TFunction } from 'i18next';
 import type { SourceReportResponse, SourceReportInvoice } from '@cornerstone/shared';
 import type { ReportContent } from '../reportContent/index.js';
 import type * as MergeModule from './merge.js';
@@ -40,8 +39,6 @@ import {
   PAGE_MARGIN_BOTTOM,
   TABLE_BODY_FONT_SIZE,
 } from './pageGeometry.js';
-
-const t = ((key: string) => key) as unknown as TFunction;
 
 // ─── Mock: ./loader.js ────────────────────────────────────────────────────────
 
@@ -212,6 +209,12 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       reference: 'Reference',
       generatedAt: 'Generated At',
       pageLabel: 'Page',
+      coverLetterReferenceLabel: 'Reference',
+      coverLetterSubjectLabel: 'Subject',
+      skipReasonLabels: {
+        footnoteFetchFailed: 'FetchFailed-label',
+        footnoteInvalidPdf: 'InvalidPdf-label',
+      },
     },
     sourceInfo: {
       sourceName: 'Home Loan',
@@ -242,13 +245,9 @@ describe('generateReportPdf', () => {
     });
     const report = makeReport([invoice]);
 
-    const result = await generateReportPdf(
-      report,
-      new Set(['inv-1']),
-      makeContent(),
-      { attachDocuments: false },
-      t,
-    );
+    const result = await generateReportPdf(report, new Set(['inv-1']), makeContent(), {
+      attachDocuments: false,
+    });
 
     expect(mockFetch).not.toHaveBeenCalled();
     expect(mockPDFDocumentCreate).not.toHaveBeenCalled();
@@ -261,13 +260,9 @@ describe('generateReportPdf', () => {
     const invoice = makeInvoice({ documents: [] });
     const report = makeReport([invoice]);
 
-    const result = await generateReportPdf(
-      report,
-      new Set(['inv-1']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    const result = await generateReportPdf(report, new Set(['inv-1']), makeContent(), {
+      attachDocuments: true,
+    });
 
     expect(mockPDFDocumentCreate).not.toHaveBeenCalled();
     expect(result.skippedDocuments).toEqual([]);
@@ -289,9 +284,9 @@ describe('generateReportPdf', () => {
         },
       });
 
-      await generateReportPdf(report, new Set(), content, { attachDocuments: false }, t);
+      await generateReportPdf(report, new Set(), content, { attachDocuments: false });
 
-      expect(mockBuildCoverLetterContent).toHaveBeenCalledWith(content, t);
+      expect(mockBuildCoverLetterContent).toHaveBeenCalledWith(content);
       const passedContent = (mockCreatePdf.mock.calls[0]![0] as { content: { text: string }[] })
         .content;
       expect(passedContent).toEqual([{ text: 'COVER_LETTER' }, { text: 'OVERVIEW' }]);
@@ -301,7 +296,7 @@ describe('generateReportPdf', () => {
       const report = makeReport([]);
       const content = makeContent({ coverLetter: null });
 
-      await generateReportPdf(report, new Set(), content, { attachDocuments: false }, t);
+      await generateReportPdf(report, new Set(), content, { attachDocuments: false });
 
       expect(mockBuildCoverLetterContent).not.toHaveBeenCalled();
       const passedContent = (mockCreatePdf.mock.calls[0]![0] as { content: { text: string }[] })
@@ -310,14 +305,14 @@ describe('generateReportPdf', () => {
     });
   });
 
-  it('calls buildOverviewContent with (reportContent, skippedByInvoice map, t) — the new 3-arg shape', async () => {
+  it('calls buildOverviewContent with (reportContent, skippedByInvoice map) — the new 2-arg shape', async () => {
     const invoice = makeInvoice({ invoiceId: 'inv-1' });
     const report = makeReport([invoice]);
     const content = makeContent();
 
-    await generateReportPdf(report, new Set(['inv-1']), content, { attachDocuments: false }, t);
+    await generateReportPdf(report, new Set(['inv-1']), content, { attachDocuments: false });
 
-    expect(mockBuildOverviewContent).toHaveBeenCalledWith(content, expect.any(Map), t);
+    expect(mockBuildOverviewContent).toHaveBeenCalledWith(content, expect.any(Map));
     const skippedByInvoiceArg = mockBuildOverviewContent.mock.calls[0]![1] as Map<string, string[]>;
     expect(skippedByInvoiceArg.size).toBe(0);
   });
@@ -330,13 +325,7 @@ describe('generateReportPdf', () => {
     const report = makeReport([invoice]);
     mockFetch.mockResolvedValue(notOkResponse(404));
 
-    await generateReportPdf(
-      report,
-      new Set(['inv-1']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    await generateReportPdf(report, new Set(['inv-1']), makeContent(), { attachDocuments: true });
 
     const skippedByInvoiceArg = mockBuildOverviewContent.mock.calls[0]![1] as Map<string, string[]>;
     expect(skippedByInvoiceArg.get('inv-1')).toEqual(['footnoteFetchFailed']);
@@ -351,13 +340,9 @@ describe('generateReportPdf', () => {
     mockFetch.mockResolvedValue(okResponse());
     mockPdfDocumentLoad.mockResolvedValue({ getPageIndices: () => [0] });
 
-    const result = await generateReportPdf(
-      report,
-      new Set(['inv-1']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    const result = await generateReportPdf(report, new Set(['inv-1']), makeContent(), {
+      attachDocuments: true,
+    });
 
     expect(mockPDFDocumentCreate).toHaveBeenCalledTimes(1);
     // Once for the text blob's own pages, once for the invoice PDF's pages.
@@ -367,8 +352,8 @@ describe('generateReportPdf', () => {
     expect(result.skippedDocuments).toEqual([]);
 
     // buildOverviewContent no longer receives an appendix map argument at all (only reportContent,
-    // skippedByInvoice, t) — appendix numbering is purely internal to the pdf-lib splice step.
-    expect(mockBuildOverviewContent.mock.calls[0]).toHaveLength(3);
+    // skippedByInvoice) — appendix numbering is purely internal to the pdf-lib splice step.
+    expect(mockBuildOverviewContent.mock.calls[0]).toHaveLength(2);
 
     // Final blob comes from finalDoc.save(), not the raw pdfmake text blob.
     const bytes = new Uint8Array(await result.blob.arrayBuffer());
@@ -389,13 +374,9 @@ describe('generateReportPdf', () => {
     mockFetch.mockResolvedValue(okResponse());
     mockPdfDocumentLoad.mockResolvedValue({ getPageIndices: () => [0] });
 
-    const result = await generateReportPdf(
-      report,
-      new Set(['inv-1', 'inv-2']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    const result = await generateReportPdf(report, new Set(['inv-1', 'inv-2']), makeContent(), {
+      attachDocuments: true,
+    });
 
     // Both invoices' documents were embedded (2 copyPages calls beyond the text-blob's own: one
     // per invoice) and no skips were recorded, confirming both got processed in report order.
@@ -417,13 +398,7 @@ describe('generateReportPdf', () => {
     mockFetch.mockResolvedValue(okResponse());
     mockPdfDocumentLoad.mockResolvedValue({ getPageIndices: () => [0] });
 
-    await generateReportPdf(
-      report,
-      new Set(['inv-1']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    await generateReportPdf(report, new Set(['inv-1']), makeContent(), { attachDocuments: true });
 
     // The included invoice's one document is fetched exactly once — merge.ts caches the bytes
     // fetched during the appendix-numbering pass (Step 1) and reuses them in the pdf-lib embed
@@ -452,13 +427,9 @@ describe('generateReportPdf', () => {
     mockFetch.mockResolvedValue(okResponse());
     mockPdfDocumentLoad.mockResolvedValue({ getPageIndices: () => [0] });
 
-    await generateReportPdf(
-      report,
-      new Set(['inv-1', 'inv-2']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    await generateReportPdf(report, new Set(['inv-1', 'inv-2']), makeContent(), {
+      attachDocuments: true,
+    });
 
     // inv-1 has 2 documents but only ONE appendix slot (1 extra copyPages call beyond text blob +
     // inv-2's own), confirming the appendix counter isn't inflated per extra document.
@@ -480,13 +451,9 @@ describe('generateReportPdf', () => {
     mockFetch.mockResolvedValue(okResponse());
     mockPdfDocumentLoad.mockResolvedValue({ getPageIndices: () => [0] });
 
-    const result = await generateReportPdf(
-      report,
-      new Set(['inv-1']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    const result = await generateReportPdf(report, new Set(['inv-1']), makeContent(), {
+      attachDocuments: true,
+    });
 
     // 2 documents, fetched exactly once each (2 total) — not twice each (4 total).
     expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -512,7 +479,7 @@ describe('generateReportPdf', () => {
       mockFetch.mockResolvedValue(notOkResponse(404));
 
       await expect(
-        generateReportPdf(report, new Set(['inv-1']), makeContent(), { attachDocuments: true }, t),
+        generateReportPdf(report, new Set(['inv-1']), makeContent(), { attachDocuments: true }),
       ).resolves.toEqual(
         expect.objectContaining({
           skippedDocuments: [
@@ -536,7 +503,7 @@ describe('generateReportPdf', () => {
     mockPdfDocumentLoad.mockRejectedValue(new Error('not a valid PDF'));
 
     await expect(
-      generateReportPdf(report, new Set(['inv-1']), makeContent(), { attachDocuments: true }, t),
+      generateReportPdf(report, new Set(['inv-1']), makeContent(), { attachDocuments: true }),
     ).resolves.toEqual(
       expect.objectContaining({
         skippedDocuments: [
@@ -560,13 +527,9 @@ describe('generateReportPdf', () => {
       .mockResolvedValueOnce([{ page: 'text-page' }]) // step 4: text blob's own pages
       .mockRejectedValueOnce(new Error('corrupt during embed')); // step 4: this invoice's pages
 
-    const result = await generateReportPdf(
-      report,
-      new Set(['inv-1']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    const result = await generateReportPdf(report, new Set(['inv-1']), makeContent(), {
+      attachDocuments: true,
+    });
 
     expect(result.skippedDocuments).toEqual([
       {
@@ -602,13 +565,9 @@ describe('generateReportPdf', () => {
       .mockResolvedValueOnce({ getPageIndices: () => [0] }) // step 4: text blob's own re-load
       .mockResolvedValueOnce({ getPageIndices: () => [0] }); // step 4: doc 1's cached-bytes re-load
 
-    const result = await generateReportPdf(
-      report,
-      new Set(['inv-1']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    const result = await generateReportPdf(report, new Set(['inv-1']), makeContent(), {
+      attachDocuments: true,
+    });
 
     expect(result.skippedDocuments).toEqual([
       {
@@ -637,13 +596,9 @@ describe('generateReportPdf', () => {
     const report = makeReport([invoice]);
     mockFetch.mockRejectedValue(new Error('network down'));
 
-    const result = await generateReportPdf(
-      report,
-      new Set(['inv-1']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    const result = await generateReportPdf(report, new Set(['inv-1']), makeContent(), {
+      attachDocuments: true,
+    });
 
     expect(result.skippedDocuments).toEqual([
       {
@@ -668,13 +623,9 @@ describe('generateReportPdf', () => {
     mockFetch.mockResolvedValue(okResponse());
     mockPdfDocumentLoad.mockResolvedValue({ getPageIndices: () => [0] });
 
-    const result = await generateReportPdf(
-      report,
-      new Set(['inv-1', 'inv-2']),
-      makeContent(),
-      { attachDocuments: true },
-      t,
-    );
+    const result = await generateReportPdf(report, new Set(['inv-1', 'inv-2']), makeContent(), {
+      attachDocuments: true,
+    });
 
     expect(mockPDFDocumentCreate).toHaveBeenCalledTimes(1);
     expect(result.skippedDocuments).toEqual([]);
@@ -694,7 +645,7 @@ describe('generateReportPdf', () => {
       },
     });
 
-    await generateReportPdf(report, new Set(['inv-1']), content, { attachDocuments: false }, t);
+    await generateReportPdf(report, new Set(['inv-1']), content, { attachDocuments: false });
 
     const def = mockCreatePdf.mock.calls[0]![0] as {
       header: (currentPage: number) => unknown;
@@ -731,13 +682,9 @@ describe('generateReportPdf', () => {
       const invoice = makeInvoice();
       const report = makeReport([invoice]);
 
-      await generateReportPdf(
-        report,
-        new Set(['inv-1']),
-        makeContent(),
-        { attachDocuments: false },
-        t,
-      );
+      await generateReportPdf(report, new Set(['inv-1']), makeContent(), {
+        attachDocuments: false,
+      });
 
       const def = mockCreatePdf.mock.calls[0]![0] as {
         pageMargins: [number, number, number, number];
@@ -758,13 +705,9 @@ describe('generateReportPdf', () => {
       const invoice = makeInvoice();
       const report = makeReport([invoice]);
 
-      await generateReportPdf(
-        report,
-        new Set(['inv-1']),
-        makeContent(),
-        { attachDocuments: false },
-        t,
-      );
+      await generateReportPdf(report, new Set(['inv-1']), makeContent(), {
+        attachDocuments: false,
+      });
 
       const def = mockCreatePdf.mock.calls[0]![0] as {
         styles: { tableCell: { fontSize: number } };
@@ -782,13 +725,9 @@ describe('generateReportPdf', () => {
 
       const invoice = makeInvoice();
       const report = makeReport([invoice]);
-      await generateReportPdf(
-        report,
-        new Set(['inv-1']),
-        makeContent(),
-        { attachDocuments: false },
-        t,
-      );
+      await generateReportPdf(report, new Set(['inv-1']), makeContent(), {
+        attachDocuments: false,
+      });
 
       const def = mockCreatePdf.mock.calls[0]![0] as {
         styles: unknown;
