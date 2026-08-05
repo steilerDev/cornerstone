@@ -3047,7 +3047,7 @@ describe('#1937 AC7: DE header labels fit their narrow fixed-width columns (colu
 //
 // The revert-test (first `it` below) verifies `collectHorizontalRatios` / `maxHorizontalRatio`
 // themselves detect column-start overflow (a column whose left edge is past the printable margin).
-describe('ADR-034 rule #1: horizontal-overflow assertion (issue #2003)', () => {
+describe('ADR-034 rule #1: horizontal-overflow via _minWidth <= _calcWidth (issue #2003)', () => {
   it('[#2003 revert-test] maxHorizontalRatio() returns > 1 for a two-column table whose second column starts past the printable right margin', async () => {
     const { pdfMake } = await loadPdfLibs();
     // First column 600pt — far wider than the A4 printable width of ~515.28pt. pdfmake renders
