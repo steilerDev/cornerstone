@@ -933,3 +933,24 @@ Also pre-existing: `merge.ts` pushes appendix-load failures to `skippedDocuments
 `buildOverviewContent` already consumed the map, so those get no `*N` footnote.
 
 Process note: could not `gh pr review --request-changes` (own-PR restriction) — posted via `gh pr comment`.
+
+### Round 2 — APPROVED (2026-08-05)
+
+Both blocking findings closed on head `7a40fa3`. H1 fixed exactly as specced _and_ the widened
+`Map<string, string[]>` was replaced too — that second half is the load-bearing one, since keeping the
+widened transport type forces the assertion straight back. `SkippedDocument.reason` now references
+`ReportSkipReason` rather than re-declaring the literals (the one gap that survived the first fix
+attempt; caught by re-reading rather than trusting the "resolved" report). `Static Analysis` green is
+itself the proof no call site smuggles an out-of-union reason.
+
+H2: wiki commit `cfbb0bd` published and `git ls-tree <head> wiki` on the branch resolves to it, so the
+PR carries the ref — worth checking explicitly, because a wiki push outside the branch leaves the ref
+un-bumped and the PR technically still fails the finding.
+
+The unrelated repo-wide prettier union-collapse drift (5 files) was kept out of the commit after I
+flagged it; verified with `git diff --stat origin/beta...<head> -- <those paths>` being empty.
+
+Left three non-blocking follow-ups: stale signature in `overviewPdf.test.ts:10`'s header comment
+(cross-reference rot, one layer down from the ADR lines this PR fixed), two read-side
+`as Map<string, string[]>` casts in `merge.test.ts:316,330`, and the `attachmentType` dynamic-key echo
+in `buildReportContent.ts:82` (same key-echo class, outside scope).
