@@ -954,3 +954,31 @@ Left three non-blocking follow-ups: stale signature in `overviewPdf.test.ts:10`'
 (cross-reference rot, one layer down from the ADR lines this PR fixed), two read-side
 `as Map<string, string[]>` casts in `merge.test.ts:316,330`, and the `attachmentType` dynamic-key echo
 in `buildReportContent.ts:82` (same key-echo class, outside scope).
+
+## PR #2008 — ADR-034 horizontal-overflow + legend coverage (#2003, #1980) — CHANGES REQUESTED (2026-08-05)
+
+Test-only PR. **Posted as `gh pr comment`, not `--request-changes`** (GitHub refuses review verdicts on
+your own PR — recurring constraint).
+
+Blocking finding: the three production `maxHorizontalRatio(...) <= 1` assertions **cannot fail**, so
+#2003's explicit "must demonstrably fail" AC is unmet. Full mechanism, measurements and the working
+replacement (per-cell `_minWidth <= _calcWidth`) are in [client-pdf-pipeline.md](client-pdf-pipeline.md);
+the two generalisable review lessons are in [recurring-patterns.md](recurring-patterns.md). ADR-034
+rule #1 needs its **third** correction — mine, not the author's fault; the implementation followed my
+prose faithfully.
+
+Recommended split: land the #1980 half (sound), rework the #2003 half separately.
+
+Verified sound and worth not re-deriving:
+
+- AC4's `budgetLines: []` + untagged deposit **is** the right flag isolation (`buildReportContent.ts:157`
+  gates `splitInvoiceIds` on `isSplit && budgetLines.length > 0`).
+- The E2E deposit-reduced path is genuine end-to-end: `sourceReportService.ts:389` filters deposits with
+  `budgetSourceId === null || === sourceId`, so an untagged deposit **survives** into the response;
+  combined with `seedSplitInvoice`'s `isSplit` that yields `isDepositReduced === true`. No fixture/production
+  divergence — this was the specific gap I was asked to chase.
+- `footnoteItems.nth(0)`/`nth(1)` correctly pins `buildReportContent`'s deterministic push order.
+
+Non-blocking: en-only worst-case token fixtures (#2003 asks for both locales); third forked
+`collectAllStrings`; `src/DocumentContext.js:528` vs ADR's `:490` citation drift (both correct — src vs
+js build — but name the file).

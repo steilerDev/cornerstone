@@ -430,3 +430,73 @@ The grey `areaText`/`attachmentsNote` suffix inherits `tableCell`'s `TABLE_BODY_
 deposit/split labels in the AllocatedAmount cell do (`overviewPdf.ts:720-740`). That is why
 `usageSafeTokenChars` (from `BODY_WORST_CASE_CHAR_WIDTH_PT`) is the correct break threshold for it.
 Adding a `fontSize` to those runs later would decouple threshold from rendered size.
+
+## ADR-034 rule #1 is WRONG A SECOND TIME: `horizontalRatio` is a cell-origin bound, not an overflow check
+
+Measured against `pdfmake@0.3.11` during the PR #2008 review (#2003). `ElementWriter.addLine`
+(`src/ElementWriter.js:32`) captures `position = this.getCurrentPositionOnPage()` **before** placing the
+line, so `positions[].horizontalRatio` records the **left origin of each text line**, never its right
+extent. Consequences:
+
+| fixture (A4, 40pt margins, five 80pt fixed cols) | `max(horizontalRatio)` |
+| ------------------------------------------------ | ---------------------- |
+| 400-char unbreakable `W` token in an 80pt column | 0.7006                 |
+| **4000**-char unbreakable `W` token, same column | 0.7006 (identical)     |
+| 4000-char token in one 500pt column              | 0.0097                 |
+| `widths: [600, 50]`                              | 1.1916                 |
+| widths summing 900pt                             | 1.2091                 |
+
+The overview table is all-fixed-width summing to exactly `printableWidth()` (asserted at
+`realRender.test.ts:1751`/`:1890`), so **no cell origin is ever past the right margin** ⇒
+`max(horizontalRatio) <= 1` is _unconditionally true_ on every production fixture. It cannot detect token
+overflow within a column — the failure mode `safeTokenChars`/`wordBreak: 'break-all'` exist to prevent.
+It only catches table-box overflow, which the `tableOffsetsTotal + sum(_calcWidth) === printableWidth()`
+assertion already forbids more strictly. Note even B2 as literally described (last column starts at
+~511pt of 515.28) would have scored < 1.
+
+**The assertion that DOES work: per-cell `cell._minWidth <= table.widths[c]._calcWidth`.**
+`_minWidth` is computed _after_ `TextBreaker` applies `wordBreak`, so `break-all` collapses it to one
+glyph. Measured on the real inline-run cell shape, Usage column `_calcWidth` = 69.28pt:
+
+| cell                                              | `_minWidth`       |
+| ------------------------------------------------- | ----------------- |
+| prose + grey 30-`W` areaName **with** `break-all` | 33.54 → PASS      |
+| same **without** `break-all` (the regression)     | 266.16 → **FAIL** |
+| all plain prose                                   | 33.54 → PASS      |
+
+Same cell with `'W'.repeat(400)`: 3548.83 without `break-all`, **8.87** with. So ADR-034's
+"Do not assert `_minWidth`" paragraph is right about the **table-level** form but its `wordBreak`
+false-positive rationale is **empirically false**, and it wrongly generalises to the **cell-level**
+form, which is the discriminating revert-provable check. Needs no new renders — existing renders already
+mutate both fields.
+
+**PAID 2026-08-05** (wiki `b12ebb1`, parent ref `2a1862c7`, on the PR #2008 branch). Rule #1 now leads with
+the per-cell `_minWidth <= widths[i]._calcWidth` content-extent check; `maxHorizontalRatio` was re-scoped
+(not deleted) to "no element is positioned past the right margin" with an explicit vacuity warning against
+asserting it on production content; the `_minWidth` ban was split into table-level (still banned, the
+`starMaxMin` reason) vs per-cell (the correct check); finding B2's cross-reference now says its quoted
+`_minWidth` figures are table-level sums. Third Deviation Log row added, carrying the process lesson:
+**a revert test proves the helper can fire on _some_ input, not that it can fire on the input the rule is
+about — the negative control must mutate the production code path the rule governs.** Note the ADR row I
+wrote on 2026-08-04 is the one that introduced the wrong guidance, and #2003 implemented it faithfully:
+when I replace a rule, I owe the replacement its own falsifiability check, not just a source-line citation.
+
+### Probing pdfmake from bare Node (no jsdom)
+
+Memory previously said `getBuffer()` callbacks don't fire in bare Node CJS. Workaround that does work
+for layout-geometry probes (`createPdf().getBlob()` not needed):
+
+```js
+const PdfPrinter = require('<repo>/node_modules/pdfmake/js/printer.js').default;
+const printer = new PdfPrinter(
+  fonts,
+  { existsSync: () => false },
+  { resolve() {}, resolved: async () => {} },
+  () => true,
+);
+const doc = await printer.createPdfKitDocument(def); // async in 0.3.x; mutates def.content in place
+```
+
+Fonts: real TTF paths under `node_modules/pdfmake/fonts/Roboto/`. The `virtualfs`/`urlResolver`/
+`localAccessPolicy` ctor args are required (positional) or `resolveUrls` throws on `undefined.resolve`.
+Line numbers differ between `src/` (528) and the `js/` build (490) — cite the file, not just the number.

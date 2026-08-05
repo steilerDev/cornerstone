@@ -1213,3 +1213,40 @@ existed in `overviewPdf.test.ts`; all six contribute zero coverage for the injec
 Only fixtures with a **unique sentinel** (`FETCH-SENTINEL`) discriminate. When a PR adds an AC-driven
 sentinel block alongside pre-existing key-echo assertions, say in the review that the sentinel block is
 the load-bearing one and must not later be "harmonised" into the surrounding style.
+
+## A revert test can prove a _different_ proposition than the one it licenses (#2003, PR #2008)
+
+PR #2008 added a genuine revert test (synthetic `widths: [600, 50]` table → `maxHorizontalRatio > 1`)
+and then used it to justify three `<= 1` assertions on production fixtures that target a **different
+failure mode** (over-wide token inside a fixed-width column) which the helper is provably blind to. The
+revert test passes, the assertions pass, and nothing is enforced. Seven extra real pdfmake renders for
+zero signal.
+
+**The check:** a revert test only licenses assertions whose failure mode it actually reproduces. Ask
+"is the thing I broke in the revert fixture the _same mechanism_ as the thing the production assertions
+guard?" — not merely "does the helper return a different number for _some_ input?" A synthetic fixture
+shaped unlike production content is the tell.
+
+Corollary: when a helper's own doc comment documents a limitation ("overflow is only detectable
+when..."), treat that paragraph as a **finding about the assertions**, not as a caveat to be noted and
+moved past. #2008's comment stated the limitation accurately and the tests below it ignored it.
+
+## Implementing a documented rule for the first time is when you learn the rule is wrong
+
+ADR-034 rule #1 has now been wrong twice (`_minWidth` table-form → corrected 2026-08-04 →
+`horizontalRatio`, falsified 2026-08-05 during PR #2008). Both times the wrongness surfaced only when
+someone tried to _enforce_ it. An unenforced documented bar is not merely unenforced — it is
+**unvalidated**, and citing it as authority ("verified against `DocumentContext.js:490`") verifies the
+field exists, not that the assertion means what the prose claims.
+
+**How to apply:** when a PR lands the first implementation of a documented rule, review the _rule_ as
+well as the code, and never let the PR add an "Implementing test:" pointer without checking that the
+test enforces the property the prose states. A pointer linking a bar to a non-enforcing test is worse
+than no pointer — it retires the debt on paper.
+
+## Forked tree-walk helpers: three copies of `collectAllStrings`
+
+`realRender.test.ts` had two describe-scoped copies (`:837`, `:1094`) before PR #2008 added a third,
+each with a comment justifying the fork ("so this block is self-contained"). Self-containment is not a
+reason to fork a pure recursive tree walk — hoist to module scope. Watch for this whenever a new
+top-level describe block is appended to a long test file.
