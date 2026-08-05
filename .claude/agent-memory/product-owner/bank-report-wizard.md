@@ -679,3 +679,86 @@ prior PR earns its keep. Every AC here is machine-checkable, so **#2001 goes to 
 (contrast the #1931 live-LLM ACs). `gh pr review --approve` refuses own-authored PRs → verdict in a
 comment. #2005 is now **closed** and all 16 E2E shards are green on this head commit — the promotion
 blocker recorded above is cleared.
+
+## PR #2008 (#2003 ADR-034 overflow enforcement + #1980 legend assertions) — REJECTED round 1 (2026-08-05, head `664bf048`, comment `5192596322`)
+
+Verdict posted as a **comment** (`gh pr review --request-changes` refuses: human-authored PR — the recurring quirk).
+
+### C1 — the AC that says "prove it can fail" was the AC that failed. Metric is a constant.
+
+`max(node.positions[].horizontalRatio) <= 1` (ADR-034 rule #1) is **structurally `0`** for this pipeline. pdfmake `DocumentContext.js:515-529` (0.3.11) returns `left: this.x` — the **write cursor's left edge** when the position was recorded, not the rightward extent of content. Every node lives in one full-width table anchored at the left margin ⇒ `this.x - pageMargins.left === 0`, always.
+
+Proven by three experiments in a worktree, then reverted:
+
+- `WORST_CASE_CHAR_ADVANCE_EM: 1.04 → 0.1` (no token ever gets `wordBreak: 'break-all'` — the exact regression the `'W'.repeat(30)` fixtures exist for) → **all 7 tests green**.
+- `VENDOR_WIDTH: 45 → 600` (~85pt wider than the whole printable area) → **all 7 tests green**.
+- `toBeLessThanOrEqual(1)` → `(-1)` to read the value out of the failure message → `Received: 0` for **all 8** call sites, in **all three** states.
+
+**Reusable patterns:**
+
+1. **To test whether an inequality assertion discriminates, invert the bound and read the value out of the failure message.** `toBeLessThanOrEqual(-1)` printing `Received: 0` in every state is a one-command proof of vacuity — far faster than reasoning about the metric's semantics. Do this on any new `<=` / `>=` / `toBeGreaterThan` assertion whose measured quantity you haven't seen printed.
+2. **A revert-test on a synthetic fixture proves the helper, not the assertion.** #2008's revert-test built a `widths: [600, 50]` table by hand — a shape `buildOverviewContent()` cannot emit (all columns numeric, total `=== printableWidth()` by construction). It passed while both production mutations also passed. **Demand the revert-test mutate the production constant the AC names**, not a fixture the production path can't reach.
+3. **When the implementation ships with a comment conceding it doesn't cover the case, that concession IS the finding.** The helper's own `NOTE` said "A single overflowing column whose left edge is at the page margin still records horizontalRatio≈0" — which describes this pipeline's only shape. Read new explanatory comments as admissions, not as documentation.
+4. **A documented bar can be wrong.** Don't assume an ADR rule is implementable as written; #2003 existed only because rule #1 was documented-but-unenforced, and enforcing it revealed the rule itself is unmeasurable here. Second correction cycle on the same rule (the `_minWidth` mis-transcription was the first). Escalate as a rule correction to `product-architect`, not a pointer tweak.
+
+### C2 — wiki pointer documenting a guarantee refuted by the same PR's code comment
+
+Added ADR line claimed "…so a passing `<= 1` assertion on production content is **non-vacuous**". Worse than no pointer: the next width edit reads it as covered. **Rule: a wiki pointer asserting a property must be verified like an AC.**
+
+### C3 — the PR's own new E2E test red in CI, initial run + retry
+
+Shard 2/16, `reportWizardEditableContent.spec.ts:1780`, `expect(pageText).toContain('(less deposit)')`. `depositReducedInlineLabel` is `"less deposit"` (deliberate NBSP, pinned by `i18n.parity.test.ts`); **`locator.textContent()` does NOT normalize whitespace, `toContainText()` does.** The failure message _looks_ like the substring is present because terminals render U+00A0 as a space — read the received string with `cat -A`/codepoints before calling it a flake. #1980's own Notes had warned about this exact trap.
+
+`E2E Gates` is `main`-only ⇒ a red shard merges to `beta` on a green `Quality Gates` and lands on the next promotion (the #2005 pattern). **Always check every shard's conclusion on the head SHA, not just `Quality Gates`.**
+
+### Met / not met
+
+- #2003: helper ✓ (reusable, throws pre-render), fixtures ✓ (structure), ADR pointer present ✗ (content false), **falsifiability ✗**.
+- #1980: AC2 ✓ (`filter().length`, N=2 fixture discriminates), AC3 ✓ (Low: needles from `t()` — a renamed key makes the negative pass trivially), AC4 ✓ (verified fixture against `buildReportContent.ts:157-166`: split needs `isSplit && budgetLines.length > 0`, so `budgetLines: []` + untagged deposits isolates `depositReduced`), AC1 **partial** (presence yes; the measurement is the constant-`0` ratio plus `getPageCount() >= 1`, which no successful render can fail — AC had named `PRINTABLE_WIDTH_PT` and it went unused), AC5 ✗ (red).
+- Scope clean; test-only; AC ownership split (QA 1-4, E2E 5) respected in trailers.
+
+### Round 2 — APPROVED (2026-08-05, head `4f4b93e3`, comment `5193215663`)
+
+All three criticals fixed at the root. Verdict again in a comment (`--approve` refuses own-authored PRs).
+Final metric: per-Usage-cell **`_minWidth <= widths[i]._calcWidth`** after a real render, 2 blocks ×
+{claim, budget-overview} × {en, de} = 8 assertions. `maxHorizontalRatio` kept with its `[600, 50]`
+revert-test as the **table-box positioning** check — its only consumer, but ADR-sanctioned, so not dead
+scaffolding. ADR-034 rule #1 corrected (3rd correction) + Deviation Log row; I amended **#2003's body**
+with a supersession block so the old `<= 1` bullet isn't read as live spec.
+
+**Reusable patterns — all five are cheap and generalise:**
+
+1. **To verify a vacuity fix, re-run the exact mutations that stayed green last round.** Don't invent new
+   ones. `WORST_CASE_CHAR_ADVANCE_EM 1.04→0.1` and `VENDOR_WIDTH 45→600` both went green→**all 8 fail**;
+   that mirror-image result is the whole proof, and it's unarguable because the reader already knows those
+   two mutations were the false negatives. Add one direct mechanism-removal (`wordBreak` line deleted) to
+   cover the AC's other arm.
+2. **"Moves with the input" is the positive signal, the mirror of "is a constant".** Received `212.93` /
+   `7.10` / ~`33` across states, and legend `_minWidth` `36.80` (en) vs `54.86` (de). Quote two differing
+   values from the same assertion and vacuity is ruled out without arguing about semantics.
+3. **When a fix removes a vacuous assertion, check whether it was REPLACED or merely deleted.** #1980 AC1
+   went vacuous → **absent**; that is not progress on the AC, and it's easy to miss because the diff looks
+   like a cleanup. Carried M1 at Medium (unchanged severity — the *presence* half guards the #1959 channel,
+   and re-grading my own round-1 Medium upward would be moving goalposts).
+4. **Before demanding a measurement, probe that it exists** — the mirror of "a documented bar can be
+   unmeasurable" (round 1's lesson #4). I probed the rendered legend nodes and found `_minWidth` /
+   `_maxWidth` / `positions[0].pageInnerWidth` (515.28 = the file's `PRINTABLE_WIDTH_PT`) before saying the
+   fix was 2 lines. `horizontalRatio: 0` on that very node re-confirmed C1's root cause for free.
+5. **To prove an E2E failure is a flake, find a green run whose subtree is byte-identical.**
+   `git diff <green-sha> <red-sha> -- e2e/` empty **and** a fully-green 16-shard run 16 min earlier is
+   determinative — far stronger than "known flake" folklore or a rerun. Also check the *previous* round's
+   shard map: shard 3/16 was green at `664bf048` (shard 2/16 was the red one), which rules out a
+   shard-boundary shift from the new fixture (the worker-hash hazard). Failure here was
+   `diary-automatic-events.spec.ts:100`, unrelated. Still asked for a shard re-run before merge (#2005).
+
+**Documented-deviation loop closed end to end, worth reusing verbatim:** unmeasurable ADR bar → escalate as
+a *rule correction* to `product-architect` (not a pointer tweak) → ADR corrected with a Deviation Log entry
+→ PO amends the **open** issue's body with a dated supersession block + inline `~~strikethrough~~` on the
+superseded step. The ADR's own new text carries the right lesson: *"a revert-test proves the helper can fire
+on some input, not that it can fire on the input the rule is about."*
+
+**Done gates:** #2003 → Done on merge (every AC machine-checked). **#1980 → Done only if M1 lands**, else I
+record a deviation on AC1 — the one criterion whose stated measurement exists in no form.
+Architect's Lows still open: `collectAllStrings` forked 3× (`:884`/`:1151`/`:3207`); helper comment header
+still says *"content overflowed the page horizontally"* (the framing the ADR corrects) and cites
+`src/DocumentContext.js:528` vs the ADR's `DocumentContext.js:490`.
