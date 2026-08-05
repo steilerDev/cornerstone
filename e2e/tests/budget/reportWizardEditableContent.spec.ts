@@ -1775,9 +1775,13 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
         'This position reflects deposits claimed separately.',
       );
       // The inline labels from the table rows must also still be present.
+      // `(partial)` uses a plain space — safe to compare via raw textContent().
+      // `(less deposit)` contains U+00A0 (non-breaking space) in `depositReducedInlineLabel`
+      // (pinned by i18n.parity.test.ts) — textContent() returns it verbatim, so a plain-space
+      // string comparison would fail. Use toContainText() which normalizes whitespace.
       const pageText = (await page.locator('main').textContent()) ?? '';
       expect(pageText).toContain('(partial)');
-      expect(pageText).toContain('(less deposit)');
+      await expect(page.locator('main')).toContainText('(less deposit)');
     } finally {
       if (reportedWorkItemId) await deleteWorkItemViaApi(page, reportedWorkItemId);
       if (otherWorkItemId) await deleteWorkItemViaApi(page, otherWorkItemId);
