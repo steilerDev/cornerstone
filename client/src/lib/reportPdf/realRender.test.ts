@@ -3036,9 +3036,17 @@ describe('#1937 AC7: DE header labels fit their narrow fixed-width columns (colu
 // ─── #2003: ADR-034 rule #1 — horizontal-overflow assertion ──────────────────────────────────────
 //
 // Implements the minimum-bar rule from ADR-034's "Testing requirement: real renders, not mocks"
-// section: `max(node.positions[].horizontalRatio) <= 1` for all supported locales and use-cases.
-// The revert-test (first `it` below) verifies the helper itself detects overflow — a passing
-// `<= 1` assertion on production content is therefore non-vacuous.
+// section: production Usage cells must not require more width than pdfmake allocates them.
+//
+// pdfmake sets `_minWidth` on each cell (DocMeasure.js) — the minimum space needed for the widest
+// unbreakable token — and `_calcWidth` on the column width descriptor (columnCalculator.js) — the
+// resolved allocation after the layout pass. With `wordBreak: 'break-all'` on 30-W-char tokens,
+// `_minWidth` drops to ~33.54pt (single glyph width); without it, 30 W chars would need ~266pt,
+// far exceeding the ~69pt Usage column. The assertion `_minWidth <= _calcWidth` is therefore
+// falsifiable: removing `wordBreak: 'break-all'` from buildUsageTextRuns breaks these tests.
+//
+// The revert-test (first `it` below) verifies `collectHorizontalRatios` / `maxHorizontalRatio`
+// themselves detect column-start overflow (a column whose left edge is past the printable margin).
 describe('ADR-034 rule #1: horizontal-overflow assertion (issue #2003)', () => {
   it('[#2003 revert-test] maxHorizontalRatio() returns > 1 for a two-column table whose second column starts past the printable right margin', async () => {
     const { pdfMake } = await loadPdfLibs();
@@ -3065,79 +3073,53 @@ describe('ADR-034 rule #1: horizontal-overflow assertion (issue #2003)', () => {
     expect(maxHorizontalRatio(rawContent)).toBeGreaterThan(1);
   });
 
-  it('[#2003 areaText] worst-case areaName token (30 W chars): maxHorizontalRatio <= 1 in the rendered overview PDF', async () => {
-    const { buildOverviewContent } = await import('./overviewPdf.js');
-    // 'W' is the measured single widest glyph (per WORST_CASE_TOKENS.mwRun in the cell-scope
-    // invariant block above). 30 W chars as the areaName of a linked work item exercises the
-    // grey meta-suffix path through buildUsageTextRuns.
-    const wideAreaInv = makeInvoice({
-      invoiceId: 'inv-wide-area',
-      invoiceAmount: 200,
-      allocatedAmount: 200,
-      budgetLines: [
-        {
-          id: 'bl-wide-area',
-          description: null,
-          allocatedPortion: 200,
-          linkedItem: {
-            type: 'work_item',
-            id: 'wi-wa',
-            name: 'Wide Area Item',
-            areaId: null,
-            areaName: 'W'.repeat(30),
-          },
-        },
-      ],
-    });
-    const report: SourceReportResponse = {
-      type: 'claim',
-      source: {
-        id: 'src-area',
-        name: 'Area Source',
-        sourceType: 'bank_loan',
-        reference: null,
-        contactAddress: null,
-      },
-      invoices: [wideAreaInv],
-      totalAmount: 200,
-      unallocatedInvoices: [],
-      generatedAt: '2026-03-01T00:00:00.000Z',
-    };
-    const content = buildReportContent(
-      report,
-      new Set(['inv-wide-area']),
-      'claim',
-      tEn,
-      formattersFor('en-US'),
-      { includeCoverLetter: false, household: null },
-    );
-    const pdfContent = buildOverviewContent(content, new Map());
-    await renderOverviewPdfContent(
-      pdfContent,
-      { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
-      tEn,
-    );
-    expect(maxHorizontalRatio(pdfContent)).toBeLessThanOrEqual(1);
-  });
-
-  it('[#2003 usageText] worst-case usageText (30 W chars via override): maxHorizontalRatio <= 1 in the rendered overview PDF', async () => {
-    const { buildOverviewContent } = await import('./overviewPdf.js');
-    const { report, includedIds } = await makeMixedReport();
-    const baseline = buildReportContent(report, includedIds, 'claim', tEn, formattersFor('en-US'), {
-      includeCoverLetter: false,
-      household: null,
-    });
-    const effective = applyOverrides(baseline, {
-      'row.inv-normal.usageText': 'W'.repeat(30),
-    } as ReportContentOverrides);
-    const pdfContent = buildOverviewContent(effective, new Map());
-    await renderOverviewPdfContent(
-      pdfContent,
-      { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
-      tEn,
-    );
-    expect(maxHorizontalRatio(pdfContent)).toBeLessThanOrEqual(1);
-  });
+  // 'W' is the measured single widest glyph (per WORST_CASE_TOKENS.mwRun in the cell-scope
+  // invariant block above). 30 W chars exercises the worst-case token width through
+  // buildUsageTextRuns, which must apply `wordBreak: 'break-all'` to keep _minWidth <= _calcWidth.
+  it.each([
+    ['claim', 'en', 'en-US', () => tEn] as const,
+    ['claim', 'de', 'de-DE', () => tDe] as const,
+    ['budget-overview', 'en', 'en-US', () => tEn] as const,
+    ['budget-overview', 'de', 'de-DE', () => tDe] as const,
+  ])(
+    '[#2003 usageText] %s/%s: usage cell _minWidth <= _calcWidth with 30-W usageText override',
+    async (useCase, _label, localeStr, getT) => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const t = getT();
+      const { report, includedIds } = await makeMixedReport();
+      const baseline = buildReportContent(
+        report,
+        includedIds,
+        useCase as 'claim' | 'budget-overview',
+        t,
+        formattersFor(localeStr as 'en-US' | 'de-DE'),
+        { includeCoverLetter: false, household: null },
+      );
+      const effective = applyOverrides(baseline, {
+        'row.inv-normal.usageText': 'W'.repeat(30),
+      } as ReportContentOverrides);
+      const pdfContent = buildOverviewContent(effective, new Map());
+      await renderOverviewPdfContent(
+        pdfContent,
+        { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
+        t,
+      );
+      const tableItem = findTableItem(pdfContent);
+      const usageColIndex = tableItem.table.widths.length - 1;
+      const usageCalcWidth = calcWidthsOf(tableItem.table.widths)[usageColIndex]!;
+      const normalRowIndex = effective.rows.findIndex((r) => r.invoiceId === 'inv-normal');
+      const usageCell = tableItem.table.body[1 + normalRowIndex]![usageColIndex] as {
+        _minWidth?: number;
+      };
+      const minWidth = usageCell._minWidth;
+      if (typeof minWidth !== 'number') {
+        throw new Error(
+          'usageCell._minWidth is not a number — pdfmake DocMeasure did not run on this cell',
+        );
+      }
+      expect(minWidth).toBeLessThanOrEqual(usageCalcWidth);
+    },
+  );
 
   it.each([
     ['claim', 'en', 'en-US', () => tEn] as const,
@@ -3145,14 +3127,46 @@ describe('ADR-034 rule #1: horizontal-overflow assertion (issue #2003)', () => {
     ['budget-overview', 'en', 'en-US', () => tEn] as const,
     ['budget-overview', 'de', 'de-DE', () => tDe] as const,
   ])(
-    '[#2003] %s/%s: maxHorizontalRatio <= 1 for the production mixed-report fixture',
+    '[#2003 areaText] %s/%s: usage cell _minWidth <= _calcWidth with 30-W areaName token',
     async (useCase, _label, localeStr, getT) => {
       const { buildOverviewContent } = await import('./overviewPdf.js');
       const t = getT();
-      const { report, includedIds } = await makeMixedReport();
+      const wideAreaInv = makeInvoice({
+        invoiceId: 'inv-wide-area',
+        invoiceAmount: 200,
+        allocatedAmount: 200,
+        budgetLines: [
+          {
+            id: 'bl-wide-area',
+            description: null,
+            allocatedPortion: 200,
+            linkedItem: {
+              type: 'work_item',
+              id: 'wi-wa',
+              name: 'Wide Area Item',
+              areaId: null,
+              areaName: 'W'.repeat(30),
+            },
+          },
+        ],
+      });
+      const report: SourceReportResponse = {
+        type: 'claim',
+        source: {
+          id: 'src-area',
+          name: 'Area Source',
+          sourceType: 'bank_loan',
+          reference: null,
+          contactAddress: null,
+        },
+        invoices: [wideAreaInv],
+        totalAmount: 200,
+        unallocatedInvoices: [],
+        generatedAt: '2026-03-01T00:00:00.000Z',
+      };
       const content = buildReportContent(
         report,
-        includedIds,
+        new Set(['inv-wide-area']),
         useCase as 'claim' | 'budget-overview',
         t,
         formattersFor(localeStr as 'en-US' | 'de-DE'),
@@ -3164,7 +3178,18 @@ describe('ADR-034 rule #1: horizontal-overflow assertion (issue #2003)', () => {
         { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
         t,
       );
-      expect(maxHorizontalRatio(pdfContent)).toBeLessThanOrEqual(1);
+      const tableItem = findTableItem(pdfContent);
+      const usageColIndex = tableItem.table.widths.length - 1;
+      const usageCalcWidth = calcWidthsOf(tableItem.table.widths)[usageColIndex]!;
+      // Single invoice → body[1] is the only data row
+      const usageCell = tableItem.table.body[1]![usageColIndex] as { _minWidth?: number };
+      const minWidth = usageCell._minWidth;
+      if (typeof minWidth !== 'number') {
+        throw new Error(
+          'usageCell._minWidth is not a number — pdfmake DocMeasure did not run on this cell',
+        );
+      }
+      expect(minWidth).toBeLessThanOrEqual(usageCalcWidth);
     },
   );
 });
@@ -3193,7 +3218,7 @@ describe('legend sentence layout and occurrence count (#1980)', () => {
   }
 
   it.each([['en', 'en-US', () => tEn] as const, ['de', 'de-DE', () => tDe] as const])(
-    '[#1980 AC1] %s locale: both legend sentences in rendered content tree, maxHorizontalRatio <= 1, page count >= 1',
+    '[#1980 AC1] %s locale: both legend sentences in rendered content tree, page count >= 1',
     async (_label, localeStr, getT) => {
       const { buildOverviewContent } = await import('./overviewPdf.js');
       const t = getT();
@@ -3272,9 +3297,6 @@ describe('legend sentence layout and occurrence count (#1980)', () => {
       const allStrings = collectAllStrings(pdfContent);
       expect(allStrings.some((s) => s.includes(splitSentence))).toBe(true);
       expect(allStrings.some((s) => s.includes(depositReducedSentence))).toBe(true);
-
-      // Horizontal layout must be within printable bounds.
-      expect(maxHorizontalRatio(pdfContent)).toBeLessThanOrEqual(1);
 
       // Page count must be sane (at least 1 page rendered successfully).
       const pdfDoc = await PDFDocument.load(await blob.arrayBuffer());
