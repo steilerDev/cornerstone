@@ -288,6 +288,14 @@ All five items below are now in the wiki. Do not re-file them.
    `horizontalRatio = (x - pageMargins.left) / innerWidth`, set at `pdfmake/js/DocumentContext.js:490`.
    `horizontalRatio` appears **nowhere in the Cornerstone codebase** — the assertion is documented but not
    yet implemented; `realRender.test.ts` uses the `_calcWidth` sum form only.
+   **Re-verified 2026-08-04** (PR #2002 round-2 review): still zero hits for `horizontalRatio` across
+   `client/`. Consequence worth naming — every horizontal-overflow fix in this pipeline is verified by
+   **mechanism** (`wordBreak: 'break-all'` is present on the expected run) rather than **outcome** (nothing
+   advanced past the printable edge). A mechanism assertion cannot catch "the mechanism fired and it still
+   overflowed" (wrong `safeTokenChars` threshold, or a column-width edit that silently invalidates one).
+   Now tracked as **issue #2003** (tech-debt, should-have, on the board backlog), which I own. Its AC
+   requires a revert test on the new assertion — a documented-bar-turned-test that cannot fail would just
+   move the debt. Pair candidate: rule #2's `_calcWidth` table-box form is also documented-and-unimplemented.
 3. Module table rewritten: added `pageGeometry.ts` (sole owner of the pt coordinate system) and `index.ts`;
    `shared.ts` no longer claims formatters or geometry constants. Recorded _why_ the formatters were
    deleted (a PDF-local formatter is a second formatter bound to a different locale = B3).
@@ -374,3 +382,51 @@ the page-1 block in `overviewPdf.ts:531`. Rule (from #1909): **artifact content 
   two-line subheader = 57.2pt) + 20pt block margin → `PAGE_TOP_MARGIN = 93`. The generated-at line is the
   right child of a two-column node at implicit `'*'` (~257pt on A4) in `small` style, so appending the
   value cannot threaten the margin — even a two-line wrap (~18pt) stays far under the left stack.
+
+## pdfmake typing: `Content` cannot be spread, but `Object.assign` needs no cast
+
+Verified with `tsc --strict` in-repo (PR #2002 review):
+
+- `{ ...r, color }` where `r: Content` → **TS2698 "Spread types may only be created from object types"**
+  (the union includes `string`). Real error, not a lint rule — `tseslint.configs.recommended` is not
+  type-checked, so `no-misused-spread` is not even enabled here.
+- `Object.assign({}, r, { color })` **is** already assignable to `Content` — the `as Content` assertion
+  seen in `overviewPdf.ts:702` is redundant. **Confirmed against the real project 2026-08-04** (not just a
+  scratch file): deleting ` as Content` and running `npx tsc --noEmit -p client/tsconfig.json` yields no
+  error at that line. PR #2002 shipped the redundant cast anyway (accepted as non-blocking M1).
+  Method note worth reusing: the client project has ~63 **pre-existing** errors, so "tsc is clean" is not
+  an available signal — ask "any error in MY file?" and prove tsc really checked it with a **positive
+  control** (drop a `const __probe: number = "not-a-number"` into the same function and confirm tsc reports
+  it). Without that control, a clean grep for your filename is indistinguishable from tsc never reaching it.
+  Those 63 errors are stale-`shared`-type noise (`llmEnabled`, `claimable`, `areaId`) that survives
+  `npm run build --workspace @cornerstone/shared`, so don't chase them.
+- Cleanest fix: narrow the helper's return type. `type TextRun = { text: string; wordBreak?: 'break-all' }`,
+  `buildUsageTextRuns(...): TextRun[]` — then `{ ...r, color }` compiles, `TextRun[]` stays assignable to
+  `Content[]` (so `buildHeaderCell` and the vendor/usage cells keep working), and the signature stops
+  over-promising that the helper might return a column/table/stack node.
+- `Content` resolves via `@types/pdfmake/build/pdfmake.d.ts` → `export * from "../index"` → `interfaces.d.ts`,
+  so `pdfmake/interfaces.js` and `pdfmake/build/pdfmake` give the identical type. Scratch typecheck files
+  must live under `client/src/` to resolve it; `/tmp` gets TS2307.
+
+## pdfmake run-splitting facts (read from source, PR #2002)
+
+`node_modules/pdfmake/src/TextBreaker.js`:
+
+- `wordBreak` is resolved **per item** (`getBreaks`, :124-127) via `StyleContextStack.getStyleProperty`, and
+  `copyStyle(item)` copies `color` onto every produced word. So `wordBreak: 'break-all'` and `color`
+  coexist on one run correctly, and `Object.assign` preserves the flag (own enumerable prop).
+- A run whose whole text is `'\n'` still forces a line break: `splitWords('\n')` → `{ text: '', lineEnd: true }`
+  (:43-46). Crucially `getLastWord` returns `null` when the last word has `lineEnd` (:88-90), so the
+  cross-run merge that sets `noNewLine` (:135-141) is **skipped** after a newline-only run.
+- Why that matters: had `noNewLine` landed on the `'\n'` word, `LayoutBuilder.js:1388`'s
+  `hasEnoughSpaceForInline(...) || isForceContinue` would have pulled the next token onto the same line
+  despite `Line.newLineForced`, silently swallowing the separator. Splitting a `'\n'`-prefixed run into
+  per-token runs is safe, but check `getLastWord`/`noNewLine` before assuming so for any new split site.
+
+## Usage-cell meta suffix renders at body size, not note size
+
+The grey `areaText`/`attachmentsNote` suffix inherits `tableCell`'s `TABLE_BODY_FONT_SIZE` (8pt,
+`pageGeometry.ts:104-106`) and deliberately does **not** set `DEPOSIT_NOTE_FONT_SIZE` the way the
+deposit/split labels in the AllocatedAmount cell do (`overviewPdf.ts:720-740`). That is why
+`usageSafeTokenChars` (from `BODY_WORST_CASE_CHAR_WIDTH_PT`) is the correct break threshold for it.
+Adding a `fontSize` to those runs later would decouple threshold from rendered size.

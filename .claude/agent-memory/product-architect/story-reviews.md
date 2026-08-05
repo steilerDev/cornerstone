@@ -760,3 +760,52 @@ household's IPv6 prefix shares one 20-per-15-min login budget, operationally mea
 self-hosters), needs a Deviation Log row on each. MINOR: `wiki/Security-Audit.md:90`'s remediation
 snippet `keyGenerator: (req) => req.ip` is now precisely the vulnerable pattern — flagged to
 security-engineer rather than edited (their page). No ADR needed.
+
+## PR #2002 — #1968 usage-cell grey meta suffix per-token runs (2026-08-04) — CHANGES_REQUIRED
+
+Production change correct; blocked on coverage. Routed the grey meta suffix through `buildUsageTextRuns`
+and coloured each resulting run. Verified against pdfmake source that per-run `wordBreak` + `color`
+coexist and the `'\n'`-only run still forces its line break (details in `client-pdf-pipeline.md`).
+
+BLOCKING (H1): reverting the production hunk left all 95 + 73 tests green — the PR only relaxed the two
+`splitUsageCell` helpers (which now synthesize the meta run and drop `wordBreak`) and added no test case.
+#1968 AC1 (measured, real embedded font) and AC2 (short-suffix baseline unchanged) both unmet. Asked for a
+`realRender.test.ts` case using the existing `WORST_CASE_TOKENS` + `renderCellScopeRow` fixtures, plus an
+`overviewPdf.test.ts` unit case asserting both `color` and `wordBreak` on the raw runs. Generalised as the
+"revert test" pattern in `recurring-patterns.md`.
+
+Non-blocking: redundant `as Content` at `overviewPdf.ts:702`; narrow-return-type alternative (M2); two
+stale helper doc comments still saying "one grey run" (`overviewPdf.test.ts:162-169`,
+`realRender.test.ts:289-294`); font-size coupling note.
+
+Notable: the comment update **repaired** a pre-existing inconsistency — `overviewPdf.ts:451` already said
+"the two exceptions" on beta while the tail list enumerated three. Worth checking header-vs-list agreement
+whenever that channel enumeration is edited. No schema/API/ADR surface touched, no wiki update needed.
+
+Mechanics: PR authored by `steilerDev` (the authenticated account), so `gh pr review --request-changes`
+fails with "Can not request changes on your own pull request" — posted via `gh pr comment` instead.
+
+### Round 2 (2026-08-04) — APPROVED
+
+H1 properly fixed, verified by re-running the revert myself rather than reading the summary: reverted hunk
+→ all three new tests red (`greyRuns.length` 1 not >1, both `wordBreak` assertions false); restored →
+171/171. Repair shape was right — `greyRuns` returns the **raw** run objects instead of a reconstruction,
+plus a `realRender` case that bypasses the helper and reads the rendered doc's run array. The relaxed
+invariant keeps the two load-bearing properties (contiguous, tail-anchored) with distinct error messages.
+
+M1 (`as Content`) resolved as *unnecessary*, not merely deferrable: removing it type-checks clean, proven
+with a tsc positive control (the client project carries ~63 pre-existing stale-`shared` errors, so
+"tsc is clean" was not available as a signal). Left in place as non-blocking.
+
+M2 (new, non-blocking, pre-existing): ADR-034 rule #1 `max(horizontalRatio) <= 1` has **zero hits** in
+`client/`, so this pipeline verifies overflow fixes by mechanism (`wordBreak` present) not outcome. Filed
+**issue #2003** (tech-debt / should-have / backlog) and took ownership, since it's my ADR text setting the bar.
+
+Also checked and cleared: the fix's *vertical* axis (break-all adds wrapped lines → `dontBreakRows`
+silent-drop hazard) — `packUsageCellRows`' character budget already assumes worst-case per-line counts, so
+the bound is not weakened. And confirmed no consumer of the old single-grey-run invariant exists in
+production, `e2e/`, or any wiki page → no wiki update owed. prettier + eslint clean on all three files.
+
+Method note: this worktree's HEAD already contained the PR head with byte-identical `client/src/lib`, so the
+revert test ran in place with no extra worktree or `npm install`. Check `git merge-base HEAD <pr-branch>`
+plus a scoped `git diff --stat` before paying for isolation.
