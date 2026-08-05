@@ -2913,7 +2913,7 @@ describe('production i18n singleton — getFixedT resolves a language independen
     // the same real German label sourced from content.labels.deposit — overviewPdf.ts never
     // re-derives it from its own `t` parameter.
     const { buildOverviewContent } = await import('./overviewPdf.js');
-    const pdfContent = buildOverviewContent(contentDe, new Map(), reportTDe);
+    const pdfContent = buildOverviewContent(contentDe, new Map());
     const tableItem = pdfContent.find(
       (c) => typeof c === 'object' && c !== null && 'table' in c,
     ) as { table: { body: unknown[][] } };
