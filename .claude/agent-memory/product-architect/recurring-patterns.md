@@ -1118,3 +1118,45 @@ only version that fails when a site disappears. Two review habits that follow:
 Related smell confirmed the same round: a **near-vacuous negative guard** (`button[lang="de"] === 0`
 when no button can ever receive `lang={lang}`) is still worth keeping if it pins a *contract* on
 another component ("chrome is always `uiLang`") rather than restating the positive assertion.
+
+## Untyped E2E route fixtures drift silently from shared contracts (#2005, PR #2006)
+
+E2E shard 8/16 went red because `mockInvoicesFullSummary()` in `e2e/tests/navigation/dashboard.spec.ts`
+returned a `summary` missing two **required** members of `InvoiceStatusBreakdown` (`claimable`,
+`quotationCoveredByDeposits`) and used `pagination.total` where `PaginationMeta` says `totalItems`.
+
+The failure mode is worth remembering because it is maximally indirect. `InvoicesPage` initialises
+`summary` to a *complete* default, so first paint is clean; `setSummary(response.summary)` then swaps
+in the incomplete mock and the next render throws on `summary.claimable.count`. React unmounts the
+tree, the `loadIntegrationStatus` cleanup sets `cancelled = true`, `integrationStatus.paperless` stays
+`null`, and the `?create=1` effect's readiness gate never opens. **Reported symptom: "the New Invoice
+shortcut opens no modal."** Nothing in that symptom points at a fixture field name. When an E2E
+failure looks like a missing feature or a race, check the mock against the shared response type before
+theorising about timing.
+
+Three durable rules:
+
+- **Annotate route fixtures with the shared response type** (`function mockX(): InvoiceListPaginatedResponse`).
+  `e2e/` already imports from `@cornerstone/shared`, so both defects here were compile-time detectable.
+  An untyped literal handed straight to `JSON.stringify` has *zero* coupling to the contract it mimics —
+  adding a required field to a shared type will never break it, which is exactly backwards.
+- **A consumer's early return can mask an incomplete fixture indefinitely.** `mockInvoices()` in the
+  same file also omits `quotation`/`overdue`/`claimable`, and `InvoicePipelineCard` dereferences
+  `summary.quotation.totalAmount` — it survives only because the card early-returns its empty state
+  when `invoices: []`. The first person to add one invoice to that fixture reproduces the same
+  TypeError. "It's been green for months" is not evidence a fixture is complete.
+- **Fix the fixture, not the dereference.** The tempting patch is optional chaining in the page. But
+  `claimable` is *required* by the contract, so the page is entitled to dereference it unconditionally;
+  adding `?.` relaxes a correct invariant to accommodate a wrong test. Source-of-truth ordering holds.
+
+Also load-bearing and undocumented in that file: scenarios 13c–13f register **two** `**/api/invoices*`
+handlers (`interceptDashboardApis` then `interceptInvoicesPageApis`), and correctness depends on
+Playwright's reverse-registration precedence letting the later full-summary handler win. Swapping the
+two `intercept*` call lines silently reintroduces the identical failure. When reviewing Playwright
+specs, treat duplicate route globs as an ordering dependency that must be commented.
+
+Review-craft note from the same PR: verifying "would this test still fail if the feature were removed?"
+was cheap here because all three scenarios guard with **positive** `toBeVisible()` assertions. The one
+negative (`not.toContain('create=1')`) is only non-vacuous because the preceding positive assertion
+can't pass unless `create=1` was present — negatives anchored to a positive in the same test are fine;
+negatives standing alone are the ones to challenge.
