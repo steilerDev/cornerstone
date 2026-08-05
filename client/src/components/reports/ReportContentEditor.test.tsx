@@ -1571,4 +1571,45 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
     expect(tableWrapper).not.toBeNull();
     expect(tableWrapper!.getAttribute('lang')).toBeNull();
   });
+
+  it('column-toggle <label> elements carry lang="de" (report-language content, not UI chrome)', () => {
+    // The column-toggle labels render content.labels.* (report language): vendor, invoiceNumber,
+    // date, invoiceAmount, allocatedAmount, usage. After the round-3 fix, each <label> receives
+    // lang={lang}. The parent .columnToggles div cannot carry it (its aria-label is UI chrome).
+    const { container } = renderEditor({ lang: 'de' });
+    const toggleLabels = Array.from(
+      container.querySelectorAll('[class*="columnToggles"] [class*="columnToggle"]'),
+    ) as HTMLElement[];
+    // Positive anchor: at least 5 toggle labels always render (vendor, invoiceNumber, date,
+    // invoiceAmount, allocatedAmount, usage — 6 when not isOverview, 7 when isOverview).
+    expect(toggleLabels.length).toBeGreaterThanOrEqual(5);
+    for (const label of toggleLabels) {
+      expect(label.getAttribute('lang')).toBe('de');
+    }
+  });
+
+  it('[integration] the reset button on an edited field carries uiLang="en" — wires the EditableField.uiLang prop', () => {
+    // When lang !== uiLang, uiLang must flow from ReportContentEditor through to EditableField's
+    // reset button and sr-only edited hint. Deleting all uiLang={uiLang} call-site props from
+    // ReportContentEditor.tsx would be type-legal (optional prop) and leave existing suites green.
+    // This test closes that coverage gap: render with an edited cover-letter sender field and assert
+    // the reset button (which only renders when isEdited=true) carries lang="en" (the uiLang).
+    const { container } = renderEditor({
+      content: fullContent(),
+      lang: 'de',
+      uiLang: 'en',
+      overrides: { 'coverLetter.sender': 'Edited sender value' },
+    });
+    // The sender field is edited (key in overrides), so its reset button renders.
+    // The button carries lang={uiLang} per EditableField.tsx — it is always UI chrome.
+    const resetButtons = Array.from(container.querySelectorAll('button[lang="en"]')) as HTMLElement[];
+    // Positive anchor: at least one reset button renders (the sender field is edited).
+    expect(resetButtons.length).toBeGreaterThanOrEqual(1);
+    for (const btn of resetButtons) {
+      expect(btn.getAttribute('lang')).toBe('en');
+    }
+    // Negative: no button should carry the report language (buttons are always UI chrome).
+    const reportLangButtons = container.querySelectorAll('button[lang="de"]');
+    expect(reportLangButtons.length).toBe(0);
+  });
 });

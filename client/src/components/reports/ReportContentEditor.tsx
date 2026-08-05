@@ -242,7 +242,7 @@ export function ReportContentEditor({
                 ['usage', content.labels.usage],
               ] as [ColumnKey, string][]
             ).map(([col, label]) => (
-              <label key={col} className={styles.columnToggle}>
+              <label key={col} className={styles.columnToggle} lang={lang}>
                 <input type="checkbox" checked={show(col)} onChange={() => toggleColumn(col)} />
                 {label}
               </label>
