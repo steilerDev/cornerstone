@@ -18,10 +18,8 @@ export interface ReportContentEditorProps {
   onFieldChange: (key: string, value: string) => void;
   onFieldReset: (key: string) => void;
   t: TFunction;
-  /** HTML lang attribute for report-language content. Set only when report lang differs from UI lang. */
+  /** HTML lang attribute for report-language content. Omit when report language matches UI language. */
   lang?: string;
-  /** HTML lang attribute to apply to UI-chrome headings inside the container. Set only when lang is set. */
-  uiLang?: string;
 }
 
 // Status badge className mapping
@@ -42,7 +40,6 @@ export function ReportContentEditor({
   onFieldReset,
   t,
   lang,
-  uiLang,
 }: ReportContentEditorProps) {
   // Helper: check if a field has been overridden
   const isFieldEdited = (key: string): boolean => key in overrides;
@@ -65,11 +62,11 @@ export function ReportContentEditor({
   const show = (col: ColumnKey) => !hiddenColumns.has(col);
 
   return (
-    <div className={styles.container} lang={lang}>
+    <div className={styles.container}>
       {/* Cover Letter */}
       {content.coverLetter && (
         <div className={styles.coverLetterCard}>
-          <h3 lang={uiLang}>{t('sourceReports.editable.coverLetterHeading')}</h3>
+          <h3>{t('sourceReports.editable.coverLetterHeading')}</h3>
 
           <div className={styles.letterFields}>
             <EditableField
@@ -85,6 +82,7 @@ export function ReportContentEditor({
               isEdited={isFieldEdited(overrideKey.coverLetter.sender)}
               onReset={() => onFieldReset(overrideKey.coverLetter.sender)}
               rows={4}
+              lang={lang}
             />
 
             {content.coverLetter.recipient && (
@@ -101,6 +99,7 @@ export function ReportContentEditor({
                 isEdited={isFieldEdited(overrideKey.coverLetter.recipient)}
                 onReset={() => onFieldReset(overrideKey.coverLetter.recipient)}
                 rows={3}
+                lang={lang}
               />
             )}
 
@@ -124,6 +123,7 @@ export function ReportContentEditor({
                 onChange={(value) => onFieldChange(overrideKey.coverLetter.reference, value)}
                 isEdited={isFieldEdited(overrideKey.coverLetter.reference)}
                 onReset={() => onFieldReset(overrideKey.coverLetter.reference)}
+                lang={lang}
               />
             )}
 
@@ -139,6 +139,7 @@ export function ReportContentEditor({
               onChange={(value) => onFieldChange(overrideKey.coverLetter.subject, value)}
               isEdited={isFieldEdited(overrideKey.coverLetter.subject)}
               onReset={() => onFieldReset(overrideKey.coverLetter.subject)}
+              lang={lang}
             />
 
             <EditableField
@@ -154,6 +155,7 @@ export function ReportContentEditor({
               isEdited={isFieldEdited(overrideKey.coverLetter.body)}
               onReset={() => onFieldReset(overrideKey.coverLetter.body)}
               rows={10}
+              lang={lang}
             />
 
             <div className={styles.readOnlyField}>
@@ -175,6 +177,7 @@ export function ReportContentEditor({
               onChange={(value) => onFieldChange(overrideKey.coverLetter.signature, value)}
               isEdited={isFieldEdited(overrideKey.coverLetter.signature)}
               onReset={() => onFieldReset(overrideKey.coverLetter.signature)}
+              lang={lang}
             />
           </div>
         </div>
@@ -182,7 +185,7 @@ export function ReportContentEditor({
 
       {/* Source Info Block */}
       {!content.isClaim && (
-        <div className={styles.sourceInfoBlock}>
+        <div className={styles.sourceInfoBlock} lang={lang}>
           <p>
             {content.labels.source}: {content.sourceInfo.sourceName}
           </p>
@@ -202,11 +205,9 @@ export function ReportContentEditor({
 
       {/* Report Table */}
       <div className={styles.tableHeadingRow}>
-        <h3 className={styles.tableHeading} lang={uiLang}>
-          {t('sourceReports.editable.tableHeading')}
-        </h3>
+        <h3 className={styles.tableHeading}>{t('sourceReports.editable.tableHeading')}</h3>
         <div className={styles.columnToggleGroup}>
-          <p id={columnHintId} className={styles.columnToggleHint} lang={uiLang}>
+          <p id={columnHintId} className={styles.columnToggleHint}>
             {t('sourceReports.editable.columnVisibilityHint')}
           </p>
           <div
@@ -236,7 +237,7 @@ export function ReportContentEditor({
           </div>
         </div>
       </div>
-      <div className={styles.tableWrapper}>
+      <div className={styles.tableWrapper} lang={lang}>
         <table className={styles.table}>
           <thead>
             <tr>
@@ -325,6 +326,7 @@ export function ReportContentEditor({
                       }
                       isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
                       onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
+                      lang={lang}
                     />
                     {(row.areaText || row.attachmentsNote) && (
                       <div className={styles.usageMetaText}>
@@ -340,7 +342,7 @@ export function ReportContentEditor({
       </div>
 
       {/* Mobile Card List */}
-      <div className={styles.mobileCardList}>
+      <div className={styles.mobileCardList} lang={lang}>
         {content.rows.map((row) => (
           <div key={row.invoiceId} className={styles.mobileCard}>
             {show('vendor') && (
@@ -434,6 +436,7 @@ export function ReportContentEditor({
                   }
                   isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
                   onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
+                  lang={lang}
                 />
                 {(row.areaText || row.attachmentsNote) && (
                   <span className={styles.usageMetaText}>
@@ -448,7 +451,7 @@ export function ReportContentEditor({
 
       {/* Summary Rows */}
       {content.summaryRows.length > 0 && (
-        <table className={styles.summaryTable}>
+        <table className={styles.summaryTable} lang={lang}>
           <tbody>
             {content.summaryRows.map((row) => (
               <tr key={row.key}>
@@ -462,7 +465,7 @@ export function ReportContentEditor({
 
       {/* Footnotes */}
       {content.footnotes.length > 0 && (
-        <div className={styles.footnotes}>
+        <div className={styles.footnotes} lang={lang}>
           <ul>
             {content.footnotes.map((note) => (
               <li key={note.id}>

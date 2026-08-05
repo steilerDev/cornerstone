@@ -1527,10 +1527,22 @@ describe('ReportInvoiceList', () => {
       expect(screen.getByText(/sourceReports\.attachmentsNote/)).toBeInTheDocument();
     });
 
+    // M2 VACUOUS-NEGATIVE FIX: makeReport([]) hits the EmptyState early-return BEFORE reaching
+    // the `allocatedInvoices.length > 0` guard — the note's absence then proves nothing about that
+    // guard (the component bailed out before ever evaluating it). Using one unallocated invoice
+    // bypasses EmptyState (there IS something to render) but keeps allocatedInvoices.length === 0,
+    // so the note is absent because of the guard under test, not the early-return shortcut.
     it('does not render the attachments note paragraph when there are no allocated invoices', () => {
-      // makeReport([]) produces 0 allocated invoices and 0 unallocated — the component returns
-      // the EmptyState early, so neither the note paragraph nor any invoice row appears.
-      const report = makeReport([]);
+      const oneUnallocated = {
+        invoiceId: 'unalloc-note-1',
+        vendorId: 'vend-ua',
+        vendorName: 'UA Vendor',
+        invoiceNumber: 'INV-UA-001',
+        date: '2026-01-20',
+        status: 'pending' as const,
+        invoiceAmount: 300,
+      };
+      const report = makeReport([], [oneUnallocated]);
       renderWithRouter(
         <ReportInvoiceList
           report={report}

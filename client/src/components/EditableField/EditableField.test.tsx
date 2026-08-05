@@ -222,3 +222,20 @@ describe('EditableField — className composition', () => {
     expect(wrapper.className).toContain('myExtra');
   });
 });
+
+describe('EditableField — lang prop (Story #1910)', () => {
+  it('sets the lang attribute on <input> when the lang prop is passed', () => {
+    const { container } = render(<EditableField as="input" {...baseProps()} lang="de" />);
+    expect(container.querySelector('input')!.getAttribute('lang')).toBe('de');
+  });
+
+  it('sets the lang attribute on <textarea> when the lang prop is passed', () => {
+    const { container } = render(<EditableField as="textarea" {...baseProps()} lang="de" />);
+    expect(container.querySelector('textarea')!.getAttribute('lang')).toBe('de');
+  });
+
+  it('does not set a lang attribute on the input when the lang prop is absent', () => {
+    const { container } = render(<EditableField as="input" {...baseProps()} />);
+    expect(container.querySelector('input')!.getAttribute('lang')).toBeNull();
+  });
+});

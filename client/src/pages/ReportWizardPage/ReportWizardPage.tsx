@@ -860,7 +860,6 @@ export function ReportWizardPage() {
               onFieldReset={(key) => dispatch({ type: 'RESET_OVERRIDE', payload: { key } })}
               t={t}
               lang={reportLanguage !== resolvedLocale ? reportLanguage : undefined}
-              uiLang={reportLanguage !== resolvedLocale ? resolvedLocale : undefined}
             />
 
             {skippedDocuments.length > 0 && (

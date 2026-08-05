@@ -793,7 +793,7 @@ H1 properly fixed, verified by re-running the revert myself rather than reading 
 plus a `realRender` case that bypasses the helper and reads the rendered doc's run array. The relaxed
 invariant keeps the two load-bearing properties (contiguous, tail-anchored) with distinct error messages.
 
-M1 (`as Content`) resolved as *unnecessary*, not merely deferrable: removing it type-checks clean, proven
+M1 (`as Content`) resolved as _unnecessary_, not merely deferrable: removing it type-checks clean, proven
 with a tsc positive control (the client project carries ~63 pre-existing stale-`shared` errors, so
 "tsc is clean" was not available as a signal). Left in place as non-blocking.
 
@@ -801,7 +801,7 @@ M2 (new, non-blocking, pre-existing): ADR-034 rule #1 `max(horizontalRatio) <= 1
 `client/`, so this pipeline verifies overflow fixes by mechanism (`wordBreak` present) not outcome. Filed
 **issue #2003** (tech-debt / should-have / backlog) and took ownership, since it's my ADR text setting the bar.
 
-Also checked and cleared: the fix's *vertical* axis (break-all adds wrapped lines → `dontBreakRows`
+Also checked and cleared: the fix's _vertical_ axis (break-all adds wrapped lines → `dontBreakRows`
 silent-drop hazard) — `packUsageCellRows`' character budget already assumes worst-case per-line counts, so
 the bound is not weakened. And confirmed no consumer of the old single-grey-run invariant exists in
 production, `e2e/`, or any wiki page → no wiki update owed. prettier + eslint clean on all three files.
@@ -809,3 +809,17 @@ production, `e2e/`, or any wiki page → no wiki update owed. prettier + eslint 
 Method note: this worktree's HEAD already contained the PR head with byte-identical `client/src/lib`, so the
 revert test ran in place with no extra worktree or `npm install`. Check `git merge-base HEAD <pr-branch>`
 plus a scoped `git diff --stat` before paying for isolation.
+
+## PR #2004 — #1910 preview `lang` attribute + #1888 attachments note (2026-08-05, CHANGES_REQUIRED)
+
+- **H1 blocking**: container-level `lang` + partial counter-tagging left UI-locale labels/buttons
+  mis-tagged → see recurring-patterns "Broad-scope attribute + partial counter-tagging".
+- M1 coupled `lang`/`uiLang` prop pair; M2 vacuous negative test via earlier `EmptyState` early return;
+  L: en/de terminal-punctuation mismatch in a new key pair, `sourceReports.attachmentsNote` collides by
+  concept with `editable.attachmentsNoteLabel` + `table.attachmentsNote_one/_other`,
+  `[class*="container"]` POM selector, `styles.step4Body` is step **5**'s wrapper (pre-existing misnomer).
+- Verified fine: `SourceReportType` union exactly matches the three `sourceReports.useCase.*` keys in both
+  locales (dynamic `t()` key is exhaustive); no client-side document filtering added (#1930 AC7 intact).
+- Could not `gh pr review` (own PR) → posted via `gh pr comment`.
+- E2E: new Scenarios 25/26/27 pass; Shard 8's 3 failures are pre-existing
+  `navigation/dashboard.spec.ts` Scenario 13 (#1735) — unrelated.

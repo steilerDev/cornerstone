@@ -1485,86 +1485,58 @@ describe(
   },
 );
 
-// ─── Story #1910: lang and uiLang HTML attribute props ────────────────────────────────────────────
+// ─── Story #1910: lang HTML attribute prop (Option A: surgical section tagging) ──────────────────
 
-describe('ReportContentEditor — lang and uiLang props (Story #1910)', () => {
-  // The component applies `lang={lang}` to the outer `.container` <div> and `lang={uiLang}` to
-  // every UI-chrome heading (<h3>) and to the column-toggle hint <p>. Both attributes are absent
-  // when the props are not supplied (undefined → attribute omitted).
-
-  it('applies the lang prop as an HTML lang attribute on the outer container div when set', () => {
-    // Positive: container carries lang="de" when report content is in German.
-    const { container } = render(
-      <ReportContentEditor
-        content={makeContent()}
-        overrides={{}}
-        onFieldChange={jest.fn()}
-        onFieldReset={jest.fn()}
-        t={t}
-        lang="de"
-        uiLang="en"
-      />,
-    );
-    const outerContainer = container.querySelector('[class*="container"]');
-    expect(outerContainer).not.toBeNull();
-    expect(outerContainer!.getAttribute('lang')).toBe('de');
-  });
-
-  it('does not set a lang attribute on the container when the lang prop is not provided', () => {
-    // Negative: without the prop, the attribute must be absent (null), not an empty string.
-    const { container } = render(
-      <ReportContentEditor
-        content={makeContent()}
-        overrides={{}}
-        onFieldChange={jest.fn()}
-        onFieldReset={jest.fn()}
-        t={t}
-      />,
-    );
+describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical section tagging)', () => {
+  it('container has NO lang attribute even when the lang prop is passed', () => {
+    // Option A: lang is applied surgically to report-language sections (.tableWrapper, mobile
+    // cards), NOT to the outer container — the container hosts both UI-chrome and report content
+    // and must not receive a blanket language tag.
+    const { container } = renderEditor({ lang: 'de' });
     const outerContainer = container.querySelector('[class*="container"]');
     expect(outerContainer).not.toBeNull();
     expect(outerContainer!.getAttribute('lang')).toBeNull();
   });
 
-  it('applies uiLang to every <h3> heading when set, including the cover-letter heading', () => {
+  it('h3 headings are NOT tagged with lang (they are UI chrome, not report content)', () => {
     // fullContent() includes a coverLetter, so both the cover-letter <h3> and the table <h3>
-    // render. Both must carry lang="en" (the UI language) when report content is in German.
-    const { container } = render(
-      <ReportContentEditor
-        content={fullContent()}
-        overrides={{}}
-        onFieldChange={jest.fn()}
-        onFieldReset={jest.fn()}
-        t={t}
-        lang="de"
-        uiLang="en"
-      />,
-    );
+    // render. Neither carries lang — they are chrome headings, not report-language content.
+    const { container } = renderEditor({ content: fullContent(), lang: 'de' });
     const headings = Array.from(container.querySelectorAll('h3'));
-    // There are at least 2 headings (cover letter + table heading) when coverLetter is present.
+    // Positive anchor: at least 2 headings render, so the loop is not vacuous.
     expect(headings.length).toBeGreaterThanOrEqual(2);
     for (const h3 of headings) {
-      expect(h3.getAttribute('lang')).toBe('en');
+      expect(h3.getAttribute('lang')).toBeNull();
     }
   });
 
-  it('applies uiLang to the column-toggle hint paragraph when set', () => {
-    // The <p className={styles.columnToggleHint}> clarifies that column toggles only affect the
-    // preview, not the PDF. It must carry the UI language so screen readers announce it correctly
-    // even when the rest of the editor content is in a different language.
-    const { container } = render(
-      <ReportContentEditor
-        content={makeContent()}
-        overrides={{}}
-        onFieldChange={jest.fn()}
-        onFieldReset={jest.fn()}
-        t={t}
-        lang="de"
-        uiLang="en"
-      />,
-    );
-    const hint = container.querySelector('[class*="columnToggleHint"]');
-    expect(hint).not.toBeNull();
-    expect(hint!.getAttribute('lang')).toBe('en');
+  it('the .tableWrapper carries lang="de" when the lang prop is passed', () => {
+    // The table wrapper wraps only the report-content table — a genuine section-level lang tag.
+    const { container } = renderEditor({ lang: 'de' });
+    const tableWrapper = container.querySelector('[class*="tableWrapper"]');
+    expect(tableWrapper).not.toBeNull();
+    expect(tableWrapper!.getAttribute('lang')).toBe('de');
+  });
+
+  it('EditableField <label> elements inside the cover-letter card have NO lang attribute (UI chrome labels are untagged)', () => {
+    // Labels like "Sender", "Subject", "Body" are UI chrome — they must not be tagged with the
+    // report language. Only the editable field VALUE sections carry the lang attribute.
+    const { container } = renderEditor({ content: fullContent(), lang: 'de' });
+    const coverLetterCard = container.querySelector('[class*="coverLetterCard"]');
+    expect(coverLetterCard).not.toBeNull();
+    const labels = Array.from(coverLetterCard!.querySelectorAll('label'));
+    // Positive anchor: fullContent() includes a coverLetter with multiple editable fields.
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) {
+      expect(label.getAttribute('lang')).toBeNull();
+    }
+  });
+
+  it('the .tableWrapper has no lang attribute when the lang prop is omitted', () => {
+    // Without the lang prop the attribute must be absent (null), not an empty string.
+    const { container } = renderEditor();
+    const tableWrapper = container.querySelector('[class*="tableWrapper"]');
+    expect(tableWrapper).not.toBeNull();
+    expect(tableWrapper!.getAttribute('lang')).toBeNull();
   });
 });

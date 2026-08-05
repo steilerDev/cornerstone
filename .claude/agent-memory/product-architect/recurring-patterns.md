@@ -961,16 +961,16 @@ tests green. The PR body's "all existing tests pass unchanged" was true and was 
 
 Shape to watch for: **a fix whose enabling step is a loosened assertion.** The loosened assertion is
 by construction the one that used to observe the structure being changed; if nothing new observes the
-new structure, coverage went *down* while the diff looked like it went up.
+new structure, coverage went _down_ while the diff looked like it went up.
 
 Rule: for any bug fix, ask "if I reverted just the production hunk, which test goes red?" If the answer
 is none, the fix has no regression guard regardless of suite size. Two specific tells: (a) the diff
-touches only test *helpers*, never test *cases*; (b) the helper reconstructs a synthetic object from the
+touches only test _helpers_, never test _cases_; (b) the helper reconstructs a synthetic object from the
 real one, silently dropping exactly the property the fix adds.
 
 Corollary: relaxing an invariant is fine and often correct (contiguous-at-tail still catches interleaved
 or mis-coloured runs — it is weaker only in the dimension the fix deliberately changed). What is not fine
-is relaxing it *and* leaving the new dimension unassertable.
+is relaxing it _and_ leaving the new dimension unassertable.
 
 **Round-2 outcome (2026-08-04) — run the revert test yourself; don't grade the description of it.** #2002
 came back claiming H1 fixed. It genuinely was, but I only know that because I re-ran the revert: reverting
@@ -984,8 +984,38 @@ assertions were added is not a substitute, because the whole failure mode was an
 Two good repair shapes to accept: return the raw object instead of a reconstruction, and add one test that
 skips the helper layer under suspicion.
 
-**Also check the fix's *other* axis.** `break-all` converts horizontal overflow into extra wrapped lines,
+**Also check the fix's _other_ axis.** `break-all` converts horizontal overflow into extra wrapped lines,
 which in this table meets the `dontBreakRows` silent-drop hazard — so an overflow fix can create a height
-bug. Here it cannot: `packUsageCellRows` budgets by *character* count derived from a per-line char count, so
-the pre-fix unbroken token used *fewer* lines than already budgeted and the fix only moves actual behaviour
+bug. Here it cannot: `packUsageCellRows` budgets by _character_ count derived from a per-line char count, so
+the pre-fix unbroken token used _fewer_ lines than already budgeted and the fix only moves actual behaviour
 toward the budget's assumption. Worth asking every time a wrap/break flag is introduced.
+
+## Broad-scope attribute + partial counter-tagging (PR #2004, #1910)
+
+An inherited HTML attribute (`lang`, `dir`, `aria-hidden`, `role`) applied to a **container** is a claim about
+every descendant. The tempting shape is "tag the container, then counter-tag the exceptions" — and it
+ships correct only if the counter-tag list is exhaustive. #1910's AC named three exception classes
+("editable-field labels, buttons, headings"); the implementation put `lang={reportLanguage}` on
+`ReportContentEditor`'s root and counter-tagged `<h3>` + one hint `<p>`, leaving six `EditableField`
+`<label>`s, every reset button's `aria-label`/`title`, the `srOnly` edited hint, two `.readOnlyLabel`
+spans, and a `role="group"` `aria-label` announced in the wrong language. Note the direction: those
+strings were **correct before** the change (they inherited the document locale), so a partial
+counter-tag is a net regression on exactly the axis the story exists to fix.
+
+Review heuristic: when a diff adds an inherited attribute to a container, enumerate the container's
+`t()` call sites and check each one against the counter-tag list — do not read the counter-tags as the
+spec. Prefer the reviewer's alternative of **positive tagging**: put the attribute only on elements whose
+own text carries the property (inputs' values, the table, footnotes), which needs no exception list and
+kills the coupled `lang`/`uiLang` prop pair (an invariant enforced by JSDoc prose, and the caller
+evaluated the same ternary twice — same class as "`Pick<>` is not a forcing function").
+
+## Vacuous negative via an _earlier_ early return (PR #2004, #1888)
+
+Related to "assertions that pass on nothing", but the giveaway is different: the fixture is legitimate
+and the assertion is well-formed — it just never reaches the new guard. `makeReport([])` gives 0
+allocated **and** 0 unallocated, tripping a pre-existing `EmptyState` early return, so the test proves
+nothing about the new `allocatedInvoices.length > 0` guard and duplicates an existing EmptyState test.
+The discriminating fixture is the one that satisfies the early return's escape but not the guard
+(`makeReport([], [oneUnallocated])`). Check: **which branch does the fixture actually land in**, not
+just whether the expectation is `not.toBeInTheDocument()`. Same revert test as always — delete the
+guard, does it go red?

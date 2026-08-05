@@ -2443,8 +2443,8 @@ test.describe('Report wizard editable content — lang attribute on container wh
       // reportLanguage : undefined}` to `ReportContentEditor`. When the user selected
       // "Deutsch" and the UI locale resolved to "en", the condition is true and the outer
       // <div> carries `lang="de"` — marking the body text's language for screen readers
-      // and browser spell-checkers without mis-annotating the UI-chrome headings (which
-      // are counter-tagged via `uiLang`, see Scenario 26).
+      // and browser spell-checkers. Under Option A, the surgical tagging is on
+      // `.tableWrapper` sections, not on individual headings (see Scenario 26).
       const container = wizard.reportContentContainer();
       await expect(container).toBeVisible();
       expect(await container.getAttribute('lang')).toBe('de');
@@ -2457,12 +2457,12 @@ test.describe('Report wizard editable content — lang attribute on container wh
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 26: <h3> UI-chrome headings carry uiLang when report language differs
-// (Issue #1910)
+// Scenario 26: .tableWrapper carries lang="de" when report language differs (Option A
+// surgical tagging); h3 headings carry NO lang attribute — (Issue #1910)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Report wizard editable content — h3 headings carry UI lang when report language differs (Scenario 26, #1910)', () => {
-  test('All <h3> headings inside the ReportContentEditor carry lang="en" (the UI locale) when the report language is Deutsch, counter-tagging them back to the UI language', async ({
+test.describe('Report wizard editable content — tableWrapper carries report lang, h3 headings carry no lang under Option A (Scenario 26, #1910)', () => {
+  test('The .tableWrapper section inside the ReportContentEditor carries lang="de" when the report language is set to Deutsch — report-language content is surgically tagged', async ({
     page,
     testPrefix,
   }) => {
@@ -2496,26 +2496,23 @@ test.describe('Report wizard editable content — h3 headings carry UI lang when
       await wizard.selectReportLanguage('de');
       await wizard.step4NextButton.click(); // now on step 5
 
-      // The container's body text is in German (lang="de" on the outer div — see Scenario 25),
-      // but ReportContentEditor's own UI-chrome headings (<h3> elements rendered via `t()` in
-      // the UI locale) are counter-tagged back to the UI locale via `uiLang`. With a Deutsch
-      // report language and an "en" UI locale, each <h3> inside the container must carry
-      // `lang="en"` so screen-reader language engines switch correctly between the German
-      // report content and the English section headings.
       const container = wizard.reportContentContainer();
       await expect(container).toBeVisible();
 
+      // Option A surgical tagging: .tableWrapper carries lang="de" (report-language content).
+      const tableWrapper = container.locator('[class*="tableWrapper"]').first();
+      await expect(tableWrapper).toBeVisible();
+      expect(await tableWrapper.getAttribute('lang')).toBe('de');
+
+      // Regression guard: h3 headings must NOT carry a lang attribute under Option A.
       const headings = container.locator('h3');
       const headingCount = await headings.count();
-      // Positive guard: the cover letter (seeded via contactAddress/reference) produces two
-      // <h3>s — one in the cover-letter card, one for the report table. If both are absent
-      // the assertions below would pass vacuously against a 0-element collection.
-      expect(headingCount).toBeGreaterThan(0);
+      expect(headingCount).toBeGreaterThan(0); // positive anchor
       for (let i = 0; i < headingCount; i++) {
         expect(
           await headings.nth(i).getAttribute('lang'),
-          `<h3> at index ${i} must carry lang="en"`,
-        ).toBe('en');
+          `<h3> at index ${i} must NOT carry a lang attribute under Option A`,
+        ).toBeNull();
       }
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);

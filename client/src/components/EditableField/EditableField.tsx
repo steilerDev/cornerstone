@@ -20,6 +20,7 @@ export interface EditableFieldProps {
   onReset: () => void;
   rows?: number; // for textarea
   className?: string;
+  lang?: string;
 }
 
 export function EditableField({
@@ -35,6 +36,7 @@ export function EditableField({
   onReset,
   rows = 6,
   className = '',
+  lang,
 }: EditableFieldProps) {
   const generatedId = useId();
   const fieldId = providedId || generatedId;
@@ -64,6 +66,7 @@ export function EditableField({
             rows={rows}
             aria-label={effectiveAriaLabel}
             aria-describedby={ariaDescribedBy}
+            lang={lang}
           />
         ) : (
           <input
@@ -74,6 +77,7 @@ export function EditableField({
             onChange={(e) => onChange(e.currentTarget.value)}
             aria-label={effectiveAriaLabel}
             aria-describedby={ariaDescribedBy}
+            lang={lang}
           />
         )}
 
