@@ -842,3 +842,23 @@ plus a scoped `git diff --stat` before paying for isolation.
   Scenario 26 were ever tagged `@responsive` (≤767px hides `.table`, not `.tableWrapper`).
 - Playwright projects: `tablet` and `mobile` both `grep: /@responsive/` — untagged scenarios are
   **desktop-only**. Useful when judging whether a viewport-sensitive assertion is actually at risk.
+
+### PR #2004 round 3 — thead retarget (2026-08-05, CHANGES_REQUIRED, 3rd round)
+
+- **Both round-2 blockers CLEARED**: E2E 25/26/27 now target `<thead>` with real assertions
+  (`'de'` / `null`); `<thead>` is unique in the component (`.summaryTable` has no `thead`), so
+  `.first()` is unambiguous. `toBeVisible()` on `<thead>` is only safe because 25-27 are untagged →
+  desktop-only. M2-r2 (integration test on the usage input, scoped via `getDesktopTable` +
+  `getByDisplayValue`), M3-r2 (double guard), L1-r2 (POM docstring, verified line-by-line) all fixed.
+  `uiLang` is now 0 hits repo-wide.
+- **New blocking H1-r3**: removing `lang` from `.tableWrapper`/`.mobileCardList` and re-adding it to
+  `<thead>` only dropped coverage for the desktop `<tbody>` and the whole mobile card tree —
+  AC1 of #1910 explicitly enumerates "table captions … status text". Recommended fix: restore the
+  wrapper tags and counter-tag `EditableField`'s sr-only hint + reset button via a new `uiLang` prop
+  (do NOT counter-tag `<label>` — mobile's is `content.labels.usage`). See recurring-patterns
+  "Removing a wrapper tag on an over-tagging objection loses the coverage it provided".
+- M/L: M1-r2's `.readOnlyValue` code fix landed with **no** assertion; the first Option-A unit test's
+  comment still names `.tableWrapper`/`mobile cards` as the tagging sites (rot introduced by the same
+  commit that falsified it); `ReportContentEditor.tsx` fails `prettier --check` (lines 110/165 at
+  102/101 cols — `npm run format` not run); PR body still describes container-level tagging.
+- `@eslint-react/use-state` warning at `ReportContentEditor.tsx:53` is pre-existing on `beta`.

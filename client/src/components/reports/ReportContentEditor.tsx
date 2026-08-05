@@ -20,6 +20,8 @@ export interface ReportContentEditorProps {
   t: TFunction;
   /** HTML lang attribute for report-language content. Omit when report language matches UI language. */
   lang?: string;
+  /** HTML lang attribute for UI-chrome content (reset button, sr-only hints). Omit when report language matches UI language. */
+  uiLang?: string;
 }
 
 // Status badge className mapping
@@ -40,6 +42,7 @@ export function ReportContentEditor({
   onFieldReset,
   t,
   lang,
+  uiLang,
 }: ReportContentEditorProps) {
   // Helper: check if a field has been overridden
   const isFieldEdited = (key: string): boolean => key in overrides;
@@ -83,6 +86,7 @@ export function ReportContentEditor({
               onReset={() => onFieldReset(overrideKey.coverLetter.sender)}
               rows={4}
               lang={lang}
+              uiLang={uiLang}
             />
 
             {content.coverLetter.recipient && (
@@ -100,6 +104,7 @@ export function ReportContentEditor({
                 onReset={() => onFieldReset(overrideKey.coverLetter.recipient)}
                 rows={3}
                 lang={lang}
+                uiLang={uiLang}
               />
             )}
 
@@ -107,7 +112,9 @@ export function ReportContentEditor({
               <span className={styles.readOnlyLabel}>
                 {t('sourceReports.coverLetter.dateLabel')}
               </span>
-              <span className={styles.readOnlyValue} lang={lang}>{content.coverLetter.dateLine}</span>
+              <span className={styles.readOnlyValue} lang={lang}>
+                {content.coverLetter.dateLine}
+              </span>
             </div>
 
             {content.coverLetter.reference && (
@@ -124,6 +131,7 @@ export function ReportContentEditor({
                 isEdited={isFieldEdited(overrideKey.coverLetter.reference)}
                 onReset={() => onFieldReset(overrideKey.coverLetter.reference)}
                 lang={lang}
+                uiLang={uiLang}
               />
             )}
 
@@ -140,6 +148,7 @@ export function ReportContentEditor({
               isEdited={isFieldEdited(overrideKey.coverLetter.subject)}
               onReset={() => onFieldReset(overrideKey.coverLetter.subject)}
               lang={lang}
+              uiLang={uiLang}
             />
 
             <EditableField
@@ -156,13 +165,16 @@ export function ReportContentEditor({
               onReset={() => onFieldReset(overrideKey.coverLetter.body)}
               rows={10}
               lang={lang}
+              uiLang={uiLang}
             />
 
             <div className={styles.readOnlyField}>
               <span className={styles.readOnlyLabel}>
                 {t('sourceReports.editable.closingLabel')}
               </span>
-              <span className={styles.readOnlyValue} lang={lang}>{content.coverLetter.closing}</span>
+              <span className={styles.readOnlyValue} lang={lang}>
+                {content.coverLetter.closing}
+              </span>
             </div>
 
             <EditableField
@@ -178,6 +190,7 @@ export function ReportContentEditor({
               isEdited={isFieldEdited(overrideKey.coverLetter.signature)}
               onReset={() => onFieldReset(overrideKey.coverLetter.signature)}
               lang={lang}
+              uiLang={uiLang}
             />
           </div>
         </div>
@@ -237,7 +250,7 @@ export function ReportContentEditor({
           </div>
         </div>
       </div>
-      <div className={styles.tableWrapper}>
+      <div className={styles.tableWrapper} lang={lang}>
         <table className={styles.table}>
           <thead lang={lang}>
             <tr>
@@ -327,6 +340,7 @@ export function ReportContentEditor({
                       isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
                       onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
                       lang={lang}
+                      uiLang={uiLang}
                     />
                     {(row.areaText || row.attachmentsNote) && (
                       <div className={styles.usageMetaText}>
@@ -342,7 +356,7 @@ export function ReportContentEditor({
       </div>
 
       {/* Mobile Card List */}
-      <div className={styles.mobileCardList}>
+      <div className={styles.mobileCardList} lang={lang}>
         {content.rows.map((row) => (
           <div key={row.invoiceId} className={styles.mobileCard}>
             {show('vendor') && (
@@ -437,6 +451,7 @@ export function ReportContentEditor({
                   isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
                   onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
                   lang={lang}
+                  uiLang={uiLang}
                 />
                 {(row.areaText || row.attachmentsNote) && (
                   <span className={styles.usageMetaText}>

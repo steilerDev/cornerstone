@@ -1510,15 +1510,15 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
     }
   });
 
-  it('applies lang="de" to the report table <thead> (column headers are report-language) when lang="de" is passed', () => {
+  it('applies lang="de" to the report table <thead> and .tableWrapper (report-language content sections) when lang="de" is passed', () => {
     const { container } = renderEditor({ lang: 'de' });
     const thead = container.querySelector('thead');
     expect(thead).not.toBeNull();
     expect(thead!.getAttribute('lang')).toBe('de');
-    // tableWrapper no longer carries lang — EditableField chrome inside it is UI-lang
+    // tableWrapper restored to carry lang={lang} for mobile coverage
     const tableWrapper = container.querySelector('[class*="tableWrapper"]');
     expect(tableWrapper).not.toBeNull();
-    expect(tableWrapper!.getAttribute('lang')).toBeNull();
+    expect(tableWrapper!.getAttribute('lang')).toBe('de');
   });
 
   it('EditableField <label> elements inside the cover-letter card have NO lang attribute (UI chrome labels are untagged)', () => {
@@ -1551,5 +1551,24 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
     const input = within(table).getByDisplayValue('Baseline usage');
     expect(input.tagName).toBe('INPUT');
     expect(input.getAttribute('lang')).toBe('de');
+  });
+
+  it('applies lang="de" to .mobileCardList (the mobile viewport table mirror)', () => {
+    // .mobileCardList is the CSS-only responsive counterpart of .tableWrapper: always present in
+    // the DOM, hidden by @media on desktop. It must carry lang={lang} so mobile screen readers
+    // get the correct report-language pronunciation hint, matching the desktop tableWrapper tag.
+    const { container } = renderEditor({ lang: 'de' });
+    const mobileList = container.querySelector('[class*="mobileCardList"]');
+    expect(mobileList).not.toBeNull();
+    expect(mobileList!.getAttribute('lang')).toBe('de');
+  });
+
+  it('tableWrapper has no lang attribute when the lang prop is omitted', () => {
+    // Counterpart to the thead-no-lang test above: when no lang is passed, neither the thead
+    // nor the tableWrapper wrapper carries a lang attribute.
+    const { container } = renderEditor();
+    const tableWrapper = container.querySelector('[class*="tableWrapper"]');
+    expect(tableWrapper).not.toBeNull();
+    expect(tableWrapper!.getAttribute('lang')).toBeNull();
   });
 });

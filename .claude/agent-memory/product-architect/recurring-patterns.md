@@ -1028,7 +1028,7 @@ moved `lang` off the container onto sections; E2E Scenario 25's comment was rewr
 Option A the tagging is on `.tableWrapper`" and the very next line still read
 `expect(await container.getAttribute('lang')).toBe('de')`. It went red in CI (Shard 2/16, both attempts).
 
-Why it survives review: a diff that shows a rewritten comment block *looks* like the test was updated,
+Why it survives review: a diff that shows a rewritten comment block _looks_ like the test was updated,
 and the unchanged assertion line is not in the diff hunk at all if the comment is long enough.
 How to apply: on any contract-inverting fix, grep the test suites for the **old** attribute/selector/value
 (`getAttribute('lang')` here) and read every hit's assertion, not its comment. Also diff the shard
@@ -1043,7 +1043,7 @@ Scenario 27 asserted "container has no `lang` when report language matches the U
 while the container was the tagging site. After Option A the container never carries `lang` for any
 input, so the assertion can no longer distinguish the two branches of the conditional it guards;
 deleting the `lang={…}` prop from the caller entirely leaves it green.
-How to apply: when a fix narrows *where* a property is applied, re-run the revert test on the
+How to apply: when a fix narrows _where_ a property is applied, re-run the revert test on the
 **pre-existing** negative tests too, not only on the ones the fix touched. Retarget them to whatever
 element now varies with the condition.
 
@@ -1053,5 +1053,27 @@ Positive/surgical tagging (the fix I recommended in round 1) has its own failure
 enumeration, so it misses sites. #2004 tagged five sections plus every `EditableField`, and missed the
 two `.readOnlyValue` spans (`coverLetter.dateLine`, `coverLetter.closing`) — read-only report-language
 text that no editable-field prop threads through. Check: enumerate the render sites of the
-*data-derived* strings (`content.*`), not the elements the diff touched. Sibling `.readOnlyLabel` spans
+_data-derived_ strings (`content.*`), not the elements the diff touched. Sibling `.readOnlyLabel` spans
 are `t()` UI chrome and must stay untagged — the label/value pair splits across the boundary.
+
+## Removing a wrapper tag on an over-tagging objection loses the coverage it provided (PR #2004 r3)
+
+Round 2 flagged `lang` on `.tableWrapper`/`.mobileCardList` as over-tagging (they contain UI-chrome
+reset buttons and sr-only hints). Round 3 **deleted** the wrapper tags and re-added `lang` to
+`<thead>` only — so the desktop `<tbody>` (statusText, splitNote, depositReducedNote, refundNote,
+deposit badge) and the _entire_ mobile card tree lost coverage. Net worse than round 2: it traded a
+minor over-tag (English chrome read with German rules) for a larger under-tag (German data read with
+English rules), and below the 767px breakpoint `.table { display: none }` means zero coverage.
+**Why:** an "over-tagging" finding asks you to _relocate or except_ the tag, never to drop it. The
+HTML idiom for a nested language exception is **counter-tagging** the inner chrome (`lang={uiLang}`
+on the reset button + sr-only hint), not removing the outer boundary.
+**How to apply:** when a review round removes an attribute/wrapper, diff the set of leaf nodes that
+_were_ covered against those that _are_ covered and demand the delta be re-covered. Two specific
+traps here: (a) responsive CSS-only duplicate trees — a fix applied to the desktop table silently
+leaves the mobile card list uncovered, and mobile/tablet Playwright projects only run
+`@responsive`-tagged tests so E2E won't catch it; (b) a blanket rule like "EditableField labels are
+UI chrome" holds only where labels come from `t()` — the mobile usage field's label is
+`content.labels.usage`, i.e. report-language, so the rule inverts inside the table region.
+Also: the code fix for a round-N finding landing **without an assertion** (the `.readOnlyValue`
+`lang` spans) means it can be reverted with every suite green — always ask "what test would fail?"
+for each item the author claims to have addressed.

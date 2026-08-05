@@ -510,8 +510,49 @@ The finding survives either reading of AC3 ("not inside the report-language subt
 The fix ("Option A surgical tagging") removed `uiLang`, untagged `.container` / `<h3>`s / the column-toggle hint, added `EditableField.lang?` → the `<input>`/`<textarea>`, and moved `lang={lang}` onto `.sourceInfoBlock`, `.tableWrapper`, `.mobileCardList`, `.summaryTable`, `.footnotes`. That resolved the loudest part of round-1 H1. **Rejected again on three findings, all traceable to not re-asking round 1's own diagnostic question after the tag moved down a level.**
 
 - **H2 (AC5 red, not merely unmet)** — E2E Scenario 25 (`e2e/tests/budget/reportWizardEditableContent.spec.ts:2450`) still asserts `container.getAttribute('lang') === 'de'` on the node the fix deliberately stopped tagging. **Only the comment above the assertion was rewritten to describe Option A.** Confirmed failing on Shard 2/16 test #168 + retry. Shards 3/8 red = known diary/dashboard flakes. **Pattern: when a behaviour-inverting fix lands, grep the test suite for the OLD assertion, not for the old comment — an updated comment over a stale expect is the most convincing false green there is.** Also: a red shard here blocks the next `beta`→`main` promotion (`E2E Gates` is main-only) even with `Quality Gates` green.
-- **H3 (AC1 regression introduced BY the fix)** — `ReportContentEditor.tsx:110` (`coverLetter.dateLine`, from `reportFormatters.formatDate`) and `:165` (`coverLetter.closing`, documented in `reportContent/types.ts:47` as `reportT(...)` artifact content) are report-language values in bare `.readOnlyValue` spans covered by none of the six tagged nodes. The round-1 container approach *did* cover them. **Pattern: a blanket→surgical refactor must be audited for what the blanket was silently covering; narrowing a wrong-but-broad tag can drop correct coverage. Enumerate the old subtree's report-language leaves and check each against the new tagged set.**
+- **H3 (AC1 regression introduced BY the fix)** — `ReportContentEditor.tsx:110` (`coverLetter.dateLine`, from `reportFormatters.formatDate`) and `:165` (`coverLetter.closing`, documented in `reportContent/types.ts:47` as `reportT(...)` artifact content) are report-language values in bare `.readOnlyValue` spans covered by none of the six tagged nodes. The round-1 container approach _did_ cover them. **Pattern: a blanket→surgical refactor must be audited for what the blanket was silently covering; narrowing a wrong-but-broad tag can drop correct coverage. Enumerate the old subtree's report-language leaves and check each against the new tagged set.**
 - **H4 (AC3 residue)** — `.tableWrapper:240` and `.mobileCardList:345` still enclose `EditableField` chrome: the reset `<button>` (`EditableField.tsx:99`, UI-language `aria-label`/`title`), the sr-only edited hint (`:88`), and the desktop usage `<input>`'s UI-language `aria-label` sitting on the very element given `lang={lang}`. Load-bearing fact: `ReportWizardPage.tsx:861` passes `t={t}` (UI `t`), **not** `reportT` — so every `t()` string in the component is UI language, while `content.*`/`content.labels.*` are report language. The mobile usage field's visible `label={content.labels.usage}` IS report content and is correctly tagged.
 - **Ruled acceptable-with-documentation**: the desktop `aria-label`-on-a-`lang`-tagged-input conflict is a genuine one-element-one-lang tension, not sloppiness. Offered `aria-labelledby`→untagged sr-only span **or** a documented deviation in the AC3 close-out. **Distinguishing "oversight" from "intrinsic tension" and pricing them differently is what keeps a third rejection from reading as perfectionism.**
-- **M1** — Scenario 27 (`:2566`) asserts the container has no `lang` when languages match, but under Option A the container has no `lang` in *either* case, so it passes with the `reportLanguage !== resolvedLocale` guard deleted. Another instance of "assertions that pass on nothing" — retarget to `.tableWrapper`.
+- **M1** — Scenario 27 (`:2566`) asserts the container has no `lang` when languages match, but under Option A the container has no `lang` in _either_ case, so it passes with the `reportLanguage !== resolvedLocale` guard deleted. Another instance of "assertions that pass on nothing" — retarget to `.tableWrapper`.
 - **M2 fix verified genuine**: `makeReport([], [oneUnallocated])` bypasses `EmptyState` while keeping `allocatedInvoices.length === 0`, so the guard under test is actually reached. Flagged L1: no positive anchor asserting the unallocated row rendered, so it can silently re-become vacuous.
+
+### PR #2004 round 3 — H2/H3/H4/M1/L1 all fixed, rejected a third time on H5 (2026-08-05, commit `04e4ae0c`)
+
+Fix moved `lang` off `.tableWrapper`/`.mobileCardList` onto `<thead lang={lang}>`, tagged the two
+`.readOnlyValue` spans, retargeted E2E Scenarios 25/26/27 to `<thead>`, and anchored the M2 test.
+All five verified genuinely fixed.
+
+- **CI as review evidence, not just diff-reading**: `Shard 2/16` was **failure** on `64c07b8a` and
+  **success** on `04e4ae0c`. Diffing the same PR's shard results across commits is the cheapest proof
+  that a test fix is real. Shard 8/16 red on **all three** commits (`2744d75b`/`64c07b8a`/`04e4ae0c`)
+  → standing dashboard #1735 failure, provably not introduced.
+- **H5 (blocking, AC1)** — the H4 fix emptied two wrappers and only reconciled `<thead>`. Desktop
+  `<tbody>` (dateText, statusText Badge, both amount texts, refundNoteText, `labels.deposit`/
+  `splitNote`/`depositReducedNote`, `.usageMetaText` incl. **#1888's own attachmentsNote**) and the
+  **entire** `.mobileCardList` are untagged. Load-bearing: `ReportContentEditor.module.css:286-292`
+  hides `.table` and shows `.mobileCardList` at ≤767px, so **the mobile viewport has zero `lang`
+  tagging in the whole table region** — AC1 unmet for one viewport, and `.mobileCardList` _had_ the
+  tag in the previous commit, so it is a net regression within the PR. Also internally inconsistent:
+  the same seven `content.labels.*` strings are tagged in `<thead>` and untagged in the mobile captions.
+- **Same pattern as H3, one level down** (third instance in this PR): the fix audited only the leaves
+  I happened to name and did not re-run the enumeration on the subtrees it emptied. **When you demand
+  a tag be removed, name the replacement coverage in the same breath — otherwise the next round is
+  the mirror-image finding.** My round-2 H4 didn't, and this round is the cost.
+- **Retracted a takeaway of my own**: round 2's "deleted `uiLang`" was read as a ruling against any
+  UI-language counter-tag. It wasn't — a _targeted_ counter-tag on chrome is the standard HTML pattern
+  for interleaved languages and is AC3-compliant; round 1's error was the **blanket on `.container`
+  with only `<h3>`s counter-tagged**. Offered it as mechanism (b) (restore wrapper tags + counter-tag
+  `EditableField`'s reset button and sr-only hint) alongside (a) leaf tagging, and said (b) is
+  strictly better because it also covers the mobile usage `<label>` for free. **A rejection that
+  corrects a misreading of the previous rejection costs less than a fourth round.**
+- `EditableField.lang` reaches only `<input>`/`<textarea>` (`:69`,`:78`), never the `<label>` (`:58`),
+  and that label is polymorphic — UI `t()` in the cover letter, report `content.labels.usage` on mobile.
+  That asymmetry is why mechanism (a) can't cover the mobile label without a new prop; granted a
+  documented deviation there rather than demanding the prop.
+- **M2 (non-blocking)** — `npx prettier --check` fails on `ReportContentEditor.tsx:110`/`:165`.
+  **`npm run lint` is `eslint . && npm run stylelint` — no Prettier — and `ci.yml` has no
+  `format:check` step, so formatting drift merges silently.** Worth checking on every PR touching
+  client code; it only surfaces later as unrelated drift in someone else's `npm run format`.
+- `gh pr review --request-changes` fails with "Can not request changes on your own pull request" on
+  this cluster (human is the PR author, agent operates as that account) → the verdict lives in a
+  `gh pr comment`, same as the architect's reviews here.
