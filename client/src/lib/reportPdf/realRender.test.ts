@@ -261,6 +261,57 @@ function cellPageNumber(cell: unknown): number {
   return positions[0]!.pageNumber;
 }
 
+// Recursively collects every horizontalRatio value from every node's positions array
+// in a pdfmake Content tree. The field is set by DocumentContext.js:getCurrentPosition()
+// (src/DocumentContext.js:528 in pdfmake 0.3.11):
+//   horizontalRatio = (this.x - this.pageMargins.left) / innerWidth
+// where innerWidth = pageSize.width - pageMargins.left - pageMargins.right.
+// A value above 1 means the layout cursor was past the printable right edge when pdfmake
+// recorded that position — i.e. content overflowed the page horizontally.
+//
+// NOTE: pdfmake records the position at the START of each rendered text line (the left
+// edge of the text block), not at the rightward extent of the content. Overflow is
+// therefore only detectable when the START of a node's rendered line is past the margin —
+// which happens when the node's containing cell starts past the right margin (e.g. in a
+// multi-column table whose left column is wider than printableWidth()). A single
+// overflowing column whose left edge is at the page margin still records horizontalRatio≈0
+// for its text nodes.
+//
+// Version-sensitive: this field is internal to pdfmake and could change in a future
+// release. The field name was verified against pdfmake 0.3.11 source before writing this
+// helper — the pdfmake version is pinned in client/package.json.
+function collectHorizontalRatios(node: unknown, out: number[] = []): number[] {
+  if (node === null || typeof node !== 'object') return out;
+  if (Array.isArray(node)) {
+    for (const item of node) collectHorizontalRatios(item, out);
+    return out;
+  }
+  const obj = node as Record<string, unknown>;
+  if (Array.isArray(obj['positions'])) {
+    for (const pos of obj['positions'] as { horizontalRatio?: number }[]) {
+      if (typeof pos.horizontalRatio === 'number') {
+        out.push(pos.horizontalRatio);
+      }
+    }
+  }
+  for (const value of Object.values(obj)) {
+    collectHorizontalRatios(value, out);
+  }
+  return out;
+}
+
+function maxHorizontalRatio(pdfContent: unknown[]): number {
+  const ratios = collectHorizontalRatios(pdfContent);
+  if (ratios.length === 0) {
+    throw new Error(
+      'No horizontalRatio values found — was renderOverviewPdfContent() (or an equivalent ' +
+        'pdfMake.createPdf(...).getBlob()) awaited on this exact pdfContent reference before ' +
+        'calling maxHorizontalRatio()?',
+    );
+  }
+  return Math.max(...ratios);
+}
+
 function formattersFor(locale: 'en-US' | 'de-DE'): Formatters {
   return {
     formatCurrency: (n: number) => formatCurrency(n, locale, 'EUR'),
@@ -2979,5 +3030,361 @@ describe('#1937 AC7: DE header labels fit their narrow fixed-width columns (colu
     // it never needs break-all and is not subject to the single-token width constraint.
     expect(tEn('sourceReports.table.vendor')).toBe('Vendor');
     expect(tEn('sourceReports.table.invoiceAmount')).toBe('Invoice Amount');
+  });
+});
+
+// ─── #2003: ADR-034 rule #1 — horizontal-overflow assertion ──────────────────────────────────────
+//
+// Implements the minimum-bar rule from ADR-034's "Testing requirement: real renders, not mocks"
+// section: `max(node.positions[].horizontalRatio) <= 1` for all supported locales and use-cases.
+// The revert-test (first `it` below) verifies the helper itself detects overflow — a passing
+// `<= 1` assertion on production content is therefore non-vacuous.
+describe('ADR-034 rule #1: horizontal-overflow assertion (issue #2003)', () => {
+  it('[#2003 revert-test] maxHorizontalRatio() returns > 1 for a two-column table whose second column starts past the printable right margin', async () => {
+    const { pdfMake } = await loadPdfLibs();
+    // First column 600pt — far wider than the A4 printable width of ~515.28pt. pdfmake renders
+    // it without error (no overflow guard) but the second column's text starts past the right
+    // margin, so horizontalRatio > 1 for that node.
+    const rawContent = [
+      {
+        table: {
+          widths: [600, 50],
+          body: [[{ text: 'col-1' }, { text: 'OVERFLOW' }]],
+        },
+      },
+    ] as unknown as Content[];
+    await pdfMake
+      .createPdf({
+        content: rawContent,
+        pageSize: 'A4',
+        pageMargins: [PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_X, PAGE_MARGIN_BOTTOM],
+        defaultStyle: PDF_DEFAULT_STYLE,
+        styles: PDF_STYLES,
+      })
+      .getBlob();
+    expect(maxHorizontalRatio(rawContent)).toBeGreaterThan(1);
+  });
+
+  it('[#2003 areaText] worst-case areaName token (30 W chars): maxHorizontalRatio <= 1 in the rendered overview PDF', async () => {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+    // 'W' is the measured single widest glyph (per WORST_CASE_TOKENS.mwRun in the cell-scope
+    // invariant block above). 30 W chars as the areaName of a linked work item exercises the
+    // grey meta-suffix path through buildUsageTextRuns.
+    const wideAreaInv = makeInvoice({
+      invoiceId: 'inv-wide-area',
+      invoiceAmount: 200,
+      allocatedAmount: 200,
+      budgetLines: [
+        {
+          id: 'bl-wide-area',
+          description: null,
+          allocatedPortion: 200,
+          linkedItem: {
+            type: 'work_item',
+            id: 'wi-wa',
+            name: 'Wide Area Item',
+            areaId: null,
+            areaName: 'W'.repeat(30),
+          },
+        },
+      ],
+    });
+    const report: SourceReportResponse = {
+      type: 'claim',
+      source: {
+        id: 'src-area',
+        name: 'Area Source',
+        sourceType: 'bank_loan',
+        reference: null,
+        contactAddress: null,
+      },
+      invoices: [wideAreaInv],
+      totalAmount: 200,
+      unallocatedInvoices: [],
+      generatedAt: '2026-03-01T00:00:00.000Z',
+    };
+    const content = buildReportContent(
+      report,
+      new Set(['inv-wide-area']),
+      'claim',
+      tEn,
+      formattersFor('en-US'),
+      { includeCoverLetter: false, household: null },
+    );
+    const pdfContent = buildOverviewContent(content, new Map());
+    await renderOverviewPdfContent(
+      pdfContent,
+      { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+      tEn,
+    );
+    expect(maxHorizontalRatio(pdfContent)).toBeLessThanOrEqual(1);
+  });
+
+  it('[#2003 usageText] worst-case usageText (30 W chars via override): maxHorizontalRatio <= 1 in the rendered overview PDF', async () => {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+    const { report, includedIds } = await makeMixedReport();
+    const baseline = buildReportContent(report, includedIds, 'claim', tEn, formattersFor('en-US'), {
+      includeCoverLetter: false,
+      household: null,
+    });
+    const effective = applyOverrides(baseline, {
+      'row.inv-normal.usageText': 'W'.repeat(30),
+    } as ReportContentOverrides);
+    const pdfContent = buildOverviewContent(effective, new Map());
+    await renderOverviewPdfContent(
+      pdfContent,
+      { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
+      tEn,
+    );
+    expect(maxHorizontalRatio(pdfContent)).toBeLessThanOrEqual(1);
+  });
+
+  it.each([
+    ['claim', 'en', 'en-US', () => tEn] as const,
+    ['claim', 'de', 'de-DE', () => tDe] as const,
+    ['budget-overview', 'en', 'en-US', () => tEn] as const,
+    ['budget-overview', 'de', 'de-DE', () => tDe] as const,
+  ])(
+    '[#2003] %s/%s: maxHorizontalRatio <= 1 for the production mixed-report fixture',
+    async (useCase, _label, localeStr, getT) => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const t = getT();
+      const { report, includedIds } = await makeMixedReport();
+      const content = buildReportContent(
+        report,
+        includedIds,
+        useCase as 'claim' | 'budget-overview',
+        t,
+        formattersFor(localeStr as 'en-US' | 'de-DE'),
+        { includeCoverLetter: false, household: null },
+      );
+      const pdfContent = buildOverviewContent(content, new Map());
+      await renderOverviewPdfContent(
+        pdfContent,
+        { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+        t,
+      );
+      expect(maxHorizontalRatio(pdfContent)).toBeLessThanOrEqual(1);
+    },
+  );
+});
+
+// ─── #1980: legend sentence layout and occurrence count ───────────────────────────────────────────
+//
+// Exercises the document-level legend entries (content.footnotes[]) added by issue #1965:
+// AC1 proves both sentences appear in the rendered PDF for every locale;
+// AC2 proves the split sentence appears EXACTLY ONCE when N > 1 split rows exist (not .some());
+// AC3 proves neither sentence bleeds into a no-flag report.
+describe('legend sentence layout and occurrence count (#1980)', () => {
+  // Recursively collects every string value anywhere in a pdfmake Content tree. Defined here
+  // (rather than relying on the inner-describe-block version above) so this top-level describe
+  // block is self-contained and its tests can run without the outer describe's scope.
+  function collectAllStrings(node: unknown, out: string[] = []): string[] {
+    if (typeof node === 'string') {
+      out.push(node);
+    } else if (Array.isArray(node)) {
+      for (const item of node) collectAllStrings(item, out);
+    } else if (node !== null && typeof node === 'object') {
+      for (const value of Object.values(node as Record<string, unknown>)) {
+        collectAllStrings(value, out);
+      }
+    }
+    return out;
+  }
+
+  it.each([['en', 'en-US', () => tEn] as const, ['de', 'de-DE', () => tDe] as const])(
+    '[#1980 AC1] %s locale: both legend sentences in rendered content tree, maxHorizontalRatio <= 1, page count >= 1',
+    async (_label, localeStr, getT) => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const t = getT();
+      const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
+
+      // One split invoice (isSplit + budgetLines) and one deposit-reduced invoice
+      // (isSplit + untagged deposit, no budget lines) — both flag types present so
+      // buildReportContent emits two footnote entries.
+      const splitInv = makeInvoice({
+        invoiceId: 'inv-leg-split',
+        isSplit: true,
+        invoiceAmount: 300,
+        allocatedAmount: 300,
+        budgetLines: [
+          { id: 'bl-leg-split', description: null, allocatedPortion: 300, linkedItem: null },
+        ],
+        deposits: [],
+      });
+      const depositReducedInv = makeInvoice({
+        invoiceId: 'inv-leg-deposit',
+        isSplit: true,
+        invoiceAmount: 150,
+        allocatedAmount: 150,
+        budgetLines: [],
+        deposits: [
+          {
+            id: 'dep-leg',
+            amount: 50,
+            status: 'pending' as const,
+            entryType: 'deposit' as const,
+            dueDate: '2026-02-01',
+            paidDate: null,
+            claimedDate: null,
+            budgetSourceId: null, // untagged → isDepositReduced=true
+          },
+        ],
+      });
+      const report: SourceReportResponse = {
+        type: 'claim',
+        source: {
+          id: 'src-leg',
+          name: 'Legend Source',
+          sourceType: 'bank_loan',
+          reference: null,
+          contactAddress: null,
+        },
+        invoices: [splitInv, depositReducedInv],
+        totalAmount: splitInv.allocatedAmount + depositReducedInv.allocatedAmount,
+        unallocatedInvoices: [],
+        generatedAt: '2026-03-01T00:00:00.000Z',
+      };
+
+      const content = buildReportContent(
+        report,
+        new Set(['inv-leg-split', 'inv-leg-deposit']),
+        'claim',
+        t,
+        formatters,
+        { includeCoverLetter: false, household: null },
+      );
+      // Sanity: both legend entries must be in the model before we assert on the rendered output.
+      expect(content.footnotes).toHaveLength(2);
+
+      const pdfContent = buildOverviewContent(content, new Map());
+      const blob = await renderOverviewPdfContent(
+        pdfContent,
+        { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+        t,
+      );
+
+      // Derive expected sentence texts from the already-built content model — locale-agnostic
+      // (works for both en and de without hardcoding either translation).
+      const splitSentence = content.footnotes.find((f) => f.id === 'split')!.text;
+      const depositReducedSentence = content.footnotes.find((f) => f.id === 'depositReduced')!.text;
+
+      const allStrings = collectAllStrings(pdfContent);
+      expect(allStrings.some((s) => s.includes(splitSentence))).toBe(true);
+      expect(allStrings.some((s) => s.includes(depositReducedSentence))).toBe(true);
+
+      // Horizontal layout must be within printable bounds.
+      expect(maxHorizontalRatio(pdfContent)).toBeLessThanOrEqual(1);
+
+      // Page count must be sane (at least 1 page rendered successfully).
+      const pdfDoc = await PDFDocument.load(await blob.arrayBuffer());
+      expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
+    },
+  );
+
+  it('[#1980 AC2] two split invoices produce exactly ONE split-legend sentence in rendered PDF tree', async () => {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+
+    // N = 2 split invoices: deduplication in buildReportContent must collapse them to one entry.
+    const inv1 = makeInvoice({
+      invoiceId: 'inv-split-a',
+      isSplit: true,
+      invoiceAmount: 200,
+      allocatedAmount: 200,
+      budgetLines: [
+        { id: 'bl-split-a', description: null, allocatedPortion: 200, linkedItem: null },
+      ],
+    });
+    const inv2 = makeInvoice({
+      invoiceId: 'inv-split-b',
+      isSplit: true,
+      invoiceAmount: 150,
+      allocatedAmount: 150,
+      budgetLines: [
+        { id: 'bl-split-b', description: null, allocatedPortion: 150, linkedItem: null },
+      ],
+    });
+    const report: SourceReportResponse = {
+      type: 'claim',
+      source: {
+        id: 'src-ac2',
+        name: 'Source AC2',
+        sourceType: 'bank_loan',
+        reference: null,
+        contactAddress: null,
+      },
+      invoices: [inv1, inv2],
+      totalAmount: inv1.allocatedAmount + inv2.allocatedAmount,
+      unallocatedInvoices: [],
+      generatedAt: '2026-03-01T00:00:00.000Z',
+    };
+
+    const content = buildReportContent(
+      report,
+      new Set(['inv-split-a', 'inv-split-b']),
+      'claim',
+      tEn,
+      formattersFor('en-US'),
+      { includeCoverLetter: false, household: null },
+    );
+    // Sanity: two split rows → exactly one model-level legend entry.
+    expect(content.footnotes).toHaveLength(1);
+    expect(content.footnotes[0]!.id).toBe('split');
+
+    const pdfContent = buildOverviewContent(content, new Map());
+
+    // AC2: use filter().length, NOT .some() — .some() passes vacuously when the sentence is
+    // absent (0 matches). filter().length === 1 proves the sentence is present exactly once.
+    const allStrings = collectAllStrings(pdfContent);
+    const splitSentence = content.footnotes[0]!.text;
+    const splitMatches = allStrings.filter((s) => s.includes(splitSentence));
+    expect(splitMatches).toHaveLength(1);
+  });
+
+  it('[#1980 AC3] report with no split or deposit-reduced rows renders neither legend sentence', async () => {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+
+    const normalInv = makeInvoice({
+      invoiceId: 'inv-normal-ac3',
+      isSplit: false,
+      invoiceAmount: 500,
+      allocatedAmount: 500,
+    });
+    const report: SourceReportResponse = {
+      type: 'claim',
+      source: {
+        id: 'src-ac3',
+        name: 'Source AC3',
+        sourceType: 'bank_loan',
+        reference: null,
+        contactAddress: null,
+      },
+      invoices: [normalInv],
+      totalAmount: 500,
+      unallocatedInvoices: [],
+      generatedAt: '2026-03-01T00:00:00.000Z',
+    };
+
+    const content = buildReportContent(
+      report,
+      new Set(['inv-normal-ac3']),
+      'claim',
+      tEn,
+      formattersFor('en-US'),
+      { includeCoverLetter: false, household: null },
+    );
+    // Sanity: no legend entries.
+    expect(content.footnotes).toHaveLength(0);
+
+    const pdfContent = buildOverviewContent(content, new Map());
+
+    // Derive from the real i18n instance — not hardcoded strings. This ensures the assertion
+    // tracks the translation, not a stale literal.
+    const splitSentence = tEn('sourceReports.table.splitFootnote');
+    const depositReducedSentence = tEn('sourceReports.table.depositReducedFootnote');
+
+    const allStrings = collectAllStrings(pdfContent);
+    expect(allStrings.some((s) => s.includes(splitSentence))).toBe(false);
+    expect(allStrings.some((s) => s.includes(depositReducedSentence))).toBe(false);
   });
 });

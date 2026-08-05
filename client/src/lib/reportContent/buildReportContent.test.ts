@@ -523,6 +523,35 @@ describe('buildReportContent — footnotes (legend sentences for split/depositRe
     const content = buildReportContent(report, new Set(['inv-included']), 'claim', t, formatters);
     expect(content.footnotes).toEqual([]);
   });
+
+  it('AC4 (#1980) — depositReduced dedup: two deposit-reduced invoices produce exactly one footnote entry', () => {
+    // Two invoices both with isSplit=true and an untagged deposit (budgetSourceId: null).
+    // Empty budgetLines ensures no splitInvoiceIds entry — the only flag is depositReduced.
+    // buildReportContent accumulates depositReducedInvoiceIds as a Set, so two matching
+    // invoices collapse to a single `{ id: "depositReduced" }` legend entry, not two.
+    const inv1 = makeInvoice({
+      invoiceId: 'inv-dr-1',
+      isSplit: true,
+      budgetLines: [],
+      deposits: [makeDeposit({ budgetSourceId: null })],
+    });
+    const inv2 = makeInvoice({
+      invoiceId: 'inv-dr-2',
+      isSplit: true,
+      budgetLines: [],
+      deposits: [makeDeposit({ id: 'dep-2', budgetSourceId: null })],
+    });
+    const report = makeReport([inv1, inv2], { id: 'src-1' });
+    const content = buildReportContent(
+      report,
+      new Set(['inv-dr-1', 'inv-dr-2']),
+      'claim',
+      t,
+      formatters,
+    );
+    expect(content.footnotes).toHaveLength(1);
+    expect(content.footnotes[0]!.id).toBe('depositReduced');
+  });
 });
 
 describe('buildReportContent — summaryRows (AC4: total-only summary)', () => {
