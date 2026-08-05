@@ -871,7 +871,7 @@ counter-tag prop landed on `EditableField` (input/textarea get `lang`; reset but
 get `uiLang`; `<label>` deliberately gets neither). Negative controls now exist for both attributes.
 Non-blocking residuals recorded for the next touch of these files:
 
-- **M1** `uiLang` *wiring* is untested — `uiLang` is 0 hits in `ReportContentEditor.test.tsx` and
+- **M1** `uiLang` _wiring_ is untested — `uiLang` is 0 hits in `ReportContentEditor.test.tsx` and
   `ReportWizardPage.test.tsx`, so deleting all 8 `uiLang={uiLang}` call-site props leaves every suite
   green. The `EditableField` unit tests pass the prop directly, which proves the component, not the
   threading. One assertion (reset button inside `[class*="tableWrapper"]` has `lang="en"` when
@@ -882,7 +882,7 @@ Non-blocking residuals recorded for the next touch of these files:
 - **L2** dense desktop cell: `effectiveAriaLabel` (UI strings) is set on `<input lang={reportLang}>`.
   Unfixable with `lang` alone; needs sr-only span + `aria-labelledby`. Net still an improvement.
 - **I** `<thead lang>` is now redundant with the wrapper tag and a test asserts both — a future
-  cleanup could delete the *wrapper* instead and reintroduce H5.
+  cleanup could delete the _wrapper_ instead and reintroduce H5.
 - E2E scenarios 25-27 are untagged, therefore desktop-only (`e2e/playwright.config.ts` gates
   tablet/mobile on `grep: /@responsive/`), so their `expect(thead).toBeVisible()` is safe despite
   `.table { display: none }` at <=767px. Consequence: the mobile fix has unit coverage only.
@@ -908,3 +908,28 @@ dependency; re-add `@smoke` now that #1735 is in beta. **If these are still unti
 Process note: memory updates for this review were left **uncommitted** rather than pushed onto the
 author's branch — appending a commit to an approved PR with green CI would retrigger E2E and invalidate
 the review. As reviewer, hand memory edits back to the orchestrator to ride along on a later PR.
+
+## PR #2007 / issue #2001 — remove `TFunction` from `reportPdf/*` (2026-08-05) — CHANGES_REQUIRED (r1)
+
+Pure refactor closing the ADR-034 locale-leak class. AC5 (no `TFunction` in `reportPdf/*` production
+files) verified holding on head; AC1/3/4/6/8 verified; all CI gates green including full E2E.
+
+Two blocking findings:
+
+1. `overviewPdf.ts:835-838` — `skipReasonLabels[reason as 'footnoteFetchFailed'|'footnoteInvalidPdf'] ?? reason`.
+   The union is already exact on `SkippedDocument.reason`; `merge.ts:101`'s `Map<string, string[]>`
+   widens it. Fix: name the union in `reportContent/types.ts`, `Record<ReportSkipReason, string>`,
+   `Map<string, ReportSkipReason[]>` in merge + the `buildOverviewContent` signature, drop cast and `??`.
+   Verified no test passes an out-of-union reason, so the change is annotation-only.
+2. ADR-034 stale at lines 82 / 178 / 186-188 (grep guard) / 200 / 219 — all describe the pre-#2001
+   weaker contract. Requested the wiki delta be routed back to product-architect on the same branch,
+   plus a Deviation Log row.
+
+Informational: `buildReportContent.ts:82` `getAttachmentNote(invoice, t)` is the last one-character
+`t`/`reportT` confusion (private, single caller, correct); its dynamic
+`sourceReports.table.attachmentType.${type}` key can echo a raw identifier into the PDF if the server
+sends an untranslated `attachmentType` — same key-echo class, needs its own issue if the set is open.
+Also pre-existing: `merge.ts` pushes appendix-load failures to `skippedDocuments` _after_
+`buildOverviewContent` already consumed the map, so those get no `*N` footnote.
+
+Process note: could not `gh pr review --request-changes` (own-PR restriction) — posted via `gh pr comment`.
