@@ -889,3 +889,22 @@ Non-blocking residuals recorded for the next touch of these files:
 - CI: `Quality Gates` green. `E2E Tests (Shard 8/16)` fails on `navigation/dashboard.spec.ts`
   1130/1164/1192 (#1735 Add dropdown) on **all four** head commits including the first -> pre-existing,
   main-only, needs its own issue before the next promotion.
+
+## PR #2006 — #2005 E2E shard 8/16 red, dashboard "New Invoice" opens no modal — APPROVED
+
+Test-fixture-only diff (`e2e/tests/navigation/dashboard.spec.ts`), no production/schema/API surface.
+`mockInvoicesFullSummary()` gained `claimable` + `quotationCoveredByDeposits` and `pagination.total`
+became `totalItems`. Verified against `shared/src/types/invoice.ts:159-169` and
+`shared/src/types/pagination.ts:4-9`, every consumer site in `InvoicesPage.tsx` /
+`InvoicePipelineCard.tsx`, the `?create=1` gate at `InvoicesPage.tsx:277-293`, the navigation source at
+`DashboardPage.tsx:552`, trailers, and CI (shard 8/16 + Quality Gates green on 7b7a1ea).
+
+Five non-blocking follow-ups filed in the review comment, none yet ticketed:
+type the fixtures against `InvoiceListPaginatedResponse` (would have caught both defects at typecheck —
+highest leverage); backfill `mockInvoices()` (latently broken, see recurring-patterns); refresh the
+stale JSDoc at ~L976 that enumerates an outdated field list; comment the duplicate-route-glob ordering
+dependency; re-add `@smoke` now that #1735 is in beta. **If these are still unticketed, file them.**
+
+Process note: memory updates for this review were left **uncommitted** rather than pushed onto the
+author's branch — appending a commit to an approved PR with green CI would retrigger E2E and invalidate
+the review. As reviewer, hand memory edits back to the orchestrator to ride along on a later PR.
