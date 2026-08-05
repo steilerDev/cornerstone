@@ -1250,3 +1250,49 @@ than no pointer — it retires the debt on paper.
 each with a comment justifying the fork ("so this block is self-contained"). Self-containment is not a
 reason to fork a pure recursive tree walk — hoist to module scope. Watch for this whenever a new
 top-level describe block is appended to a long test file.
+
+## Mutation-test the fix, don't read it (PR #2008 round 2, 2026-08-05)
+
+Round 1's finding was "this assertion cannot fail". The round-2 fix _looked_ right on inspection. The
+only thing that settled it was reverting the production line the rule governs
+(`wordBreak: 'break-all'`, `overviewPdf.ts:385`) and confirming 8-of-9 tests flip red while the
+revert-test stays green. Cost: two jest runs. **Whenever a round-1 finding was "vacuous assertion",
+round 2's verification is a mutation, not a re-read** — you already know reading cannot distinguish the
+two states. Restore with a `cp` backup and confirm `git status --porcelain -- <files>` is empty after.
+
+Corollary worth the extra run: also capture the _pass-side_ numbers (add a temporary `console.log`,
+then `git checkout` the test file). That is what exposed M1 below — the assertion was correct but every
+figure documenting it was wrong, which reading alone would never have surfaced.
+
+## Corrected prose re-imports the very figures the correction reclassified
+
+ADR-034's 3rd rule-#1 correction (PR #2008) explicitly reclassified `_minWidth` 33.54pt/266.16pt as
+**table-level sums** and diagnostics (ADR line 162) — and then quoted those same two numbers, plus a
+stale 69.28pt Usage width, as the _measured evidence_ for the new **per-cell** check. Real values:
+`_calcWidth` 186.78/138.28pt (= exported `USAGE_WIDTH_6COL`/`_7COL`, `overviewPdf.ts:57-58`),
+`_minWidth` 7.098pt with `break-all`, 212.93pt without.
+
+**Why it happens:** a correction rewrites the _claim_ by editing around the existing sentence, and the
+numbers ride along because they were never the thing under dispute. The rule's semantics get fixed
+three times while its arithmetic is never re-measured.
+
+**How to apply:** when reviewing a corrected documented bound, verify the _numbers_ separately from the
+_semantics_ — a stale figure elsewhere on the page (69.28pt also survives at ADR lines 105 and 138) is
+the tell that it predates a geometry change. Prefer citing exported constants by name over literals so
+the doc cannot drift from the code.
+
+Same class, conceptual variant: the ADR's no-false-positive argument read "plain prose yields 33.54pt".
+Prose `_minWidth` is its widest **word**, which can be large — that is the entire reason over-long
+tokens need flagging. A no-false-positive claim must be stated as a _condition_ ("prose whose words all
+fit under `safeTokenChars`"), never as a constant.
+
+## "For every cell" in the rule, one column in the test
+
+ADR-034 rule #1 states the bar as "for every cell of the overview table"; #2003's implementing test
+reads only `body[i][usageColIndex]`. The **uncovered** cells are the tighter ones: Vendor body at 45pt
+/ `VENDOR_SAFE_TOKEN_CHARS` = 5 (`overviewPdf.ts:620`) and every header cell via `buildHeaderCell`,
+where DE is the documented binding locale (#1937). Usage at 138-187pt is the _widest_ text column.
+
+**How to apply:** when a test lands against a universally-quantified documented rule, check the
+quantifier. Picking the column the issue happened to mention is not the same as picking the binding
+one — and when the render already happened, iterating all cells is nearly free.

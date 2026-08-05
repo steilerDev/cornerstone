@@ -500,3 +500,26 @@ const doc = await printer.createPdfKitDocument(def); // async in 0.3.x; mutates 
 Fonts: real TTF paths under `node_modules/pdfmake/fonts/Roboto/`. The `virtualfs`/`urlResolver`/
 `localAccessPolicy` ctor args are required (positional) or `resolveUrls` throws on `undefined.resolve`.
 Line numbers differ between `src/` (528) and the `js/` build (490) — cite the file, not just the number.
+
+## Measured overview-table width/`_minWidth` figures (PR #2008 re-review, 2026-08-05)
+
+Measured directly by instrumenting `realRender.test.ts`'s `#2003` block. **Use these, not the numbers
+in ADR-034's rule #1 prose — those are stale (see M1 in the PR #2008 round-2 review).**
+
+| Quantity                                         | Value    | Source                                  |
+| ------------------------------------------------ | -------- | --------------------------------------- |
+| Usage `_calcWidth`, 6-col (`claim`)              | 186.78pt | `USAGE_WIDTH_6COL`, `overviewPdf.ts:58` |
+| Usage `_calcWidth`, 7-col (`budget-overview`)    | 138.28pt | `USAGE_WIDTH_7COL`, `overviewPdf.ts:57` |
+| Cell `_minWidth`, 30x'W' **with** `break-all`    | 7.098pt  | single 'W' glyph @ 8pt `tableCell`      |
+| Cell `_minWidth`, 30x'W' **without** `break-all` | 212.93pt | 30 x 7.098pt                            |
+
+Which use case maps to which shape: `claim` → 6 columns, `budget-overview` → 7 columns
+(`reportContent.isOverview` selects the width, `overviewPdf.ts:536`).
+
+**69.28pt is not the Usage column width and has not been for some time** — it is a pre-rebalance
+figure that still appears at ADR-034 lines 105, 120, 129, 138 and in the Deviation Log. Treat any
+`69.28` in this pipeline's docs as suspect.
+
+Narrowest text column is **Vendor at 45pt** (`VENDOR_WIDTH`, `overviewPdf.ts:26`,
+`VENDOR_SAFE_TOKEN_CHARS` = 5) — it is the binding constraint for the `wordBreak` rule, not Usage,
+and as of PR #2008 it has no `_minWidth` coverage.
