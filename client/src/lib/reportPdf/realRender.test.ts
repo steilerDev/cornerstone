@@ -523,13 +523,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { calls, restore } = stubFetch();
       let result: Awaited<ReturnType<typeof generateReportPdf>>;
       try {
-        result = await generateReportPdf(
-          report,
-          includedIds,
-          content,
-          { attachDocuments: true },
-          t,
-        );
+        result = await generateReportPdf(report, includedIds, content, { attachDocuments: true });
       } finally {
         restore();
       }
@@ -581,13 +575,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { restore } = stubFetch();
       let result: Awaited<ReturnType<typeof generateReportPdf>>;
       try {
-        result = await generateReportPdf(
-          report,
-          includedIds,
-          content,
-          { attachDocuments: false },
-          t,
-        );
+        result = await generateReportPdf(report, includedIds, content, { attachDocuments: false });
       } finally {
         restore();
       }
@@ -605,7 +593,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     });
     const { calls, restore } = stubFetch();
     try {
-      await generateReportPdf(report, includedIds, content, { attachDocuments: true }, tEn);
+      await generateReportPdf(report, includedIds, content, { attachDocuments: true });
     } finally {
       restore();
     }
@@ -640,7 +628,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         includeCoverLetter: false,
         household: null,
       });
-      const pdfContent = buildOverviewContent(content, new Map(), tEn);
+      const pdfContent = buildOverviewContent(content, new Map());
       const tableItem = pdfContent.find(
         (c) => typeof c === 'object' && c !== null && 'table' in c,
       ) as { table: { body: { text?: unknown }[][] } };
@@ -690,7 +678,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           household: null,
         });
 
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { widths: (string | number)[] } };
@@ -711,7 +699,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           household: null,
         });
 
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { widths: (string | number)[] } };
@@ -868,17 +856,13 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           household,
         });
 
-        const result = await generateReportPdf(
-          report,
-          includedIds,
-          content,
-          { attachDocuments: false },
-          t,
-        );
+        const result = await generateReportPdf(report, includedIds, content, {
+          attachDocuments: false,
+        });
         expect(result.blob).toBeInstanceOf(Blob);
         expect(result.blob.size).toBeGreaterThan(0);
 
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const allStrings = collectAllStrings(pdfContent);
         const leakedKeys = allStrings.filter((s) => /^sourceReports\.[a-zA-Z.]+$/.test(s));
         expect(leakedKeys).toEqual([]);
@@ -900,7 +884,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           household: null,
         },
       );
-      const pdfContent = buildOverviewContent(content, new Map(), tEn);
+      const pdfContent = buildOverviewContent(content, new Map());
       const tableItem = pdfContent.find(
         (c) => typeof c === 'object' && c !== null && 'table' in c,
       ) as { table: { body: unknown[][] } };
@@ -931,7 +915,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           includeCoverLetter: false,
           household: null,
         });
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: unknown[][] } };
@@ -1029,7 +1013,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         expect(content.footnotes[0]!.text).toBe(expected.splitFootnoteText);
         expect(content.footnotes[1]!.text).toBe(expected.depositFootnoteText);
 
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: unknown[][] } };
@@ -1089,7 +1073,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         const splitRows = content.rows.filter((r) => r.isSplit);
         expect(splitRows.length).toBeGreaterThan(0); // the fixture really does contain split rows
 
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: unknown[][] } };
@@ -1165,7 +1149,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         };
         const effective = applyOverrides(baseline, overrides);
 
-        const pdfContent = buildOverviewContent(effective, new Map(), t);
+        const pdfContent = buildOverviewContent(effective, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: { text?: unknown }[][] } };
@@ -1183,13 +1167,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         // Confirm the whole real pipeline (real pdfmake render) still succeeds with the edited
         // content, not just that the Content[] tree looks right in isolation.
         const { generateReportPdf } = await import('./merge.js');
-        const result = await generateReportPdf(
-          report,
-          includedIds,
-          effective,
-          { attachDocuments: false },
-          t,
-        );
+        const result = await generateReportPdf(report, includedIds, effective, {
+          attachDocuments: false,
+        });
         expect(result.blob.size).toBeGreaterThan(0);
       },
     );
@@ -1208,7 +1188,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       };
       const effective = applyOverrides(baseline, overrides);
 
-      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const pdfContent = buildCoverLetterContent(effective);
       const allStrings = collectAllStrings(pdfContent);
       expect(allStrings).toContain(
         'This is a completely custom cover letter body written by the user.',
@@ -1230,7 +1210,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const effective = applyOverrides(baseline, overrides);
       expect(effective.coverLetter!.signature).toBe('Jane Doe');
 
-      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const pdfContent = buildCoverLetterContent(effective);
       const allStrings = collectAllStrings(pdfContent);
       expect(allStrings).toContain('Jane Doe\n99 New Address');
       expect(allStrings).toContain('Jane Doe'); // the (distinct) signature line
@@ -1272,7 +1252,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         // The explicit override wins regardless of key insertion order in the overrides object.
         expect(effective.coverLetter!.signature).toBe('Explicit Signature');
 
-        const pdfContent = buildCoverLetterContent(effective, tEn);
+        const pdfContent = buildCoverLetterContent(effective);
         const allStrings = collectAllStrings(pdfContent);
         // The sender edit DID take effect (this isn't passing because the whole override map was
         // ignored) — the multi-line sender leaf is present verbatim.
@@ -1313,7 +1293,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const overrides: ReportContentOverrides = { 'coverLetter.body': body };
       const effective = applyOverrides(baseline, overrides);
 
-      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const pdfContent = buildCoverLetterContent(effective);
 
       // #1959: the double newline is a PARAGRAPH boundary — the body is emitted as two sibling
       // blocks, never one node whose text still contains '\n\n'.
@@ -1372,7 +1352,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const body = 'Only paragraph, line one.\nOnly paragraph, line two.';
       const effective = applyOverrides(baseline, { 'coverLetter.body': body });
 
-      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const pdfContent = buildCoverLetterContent(effective);
       const matching = pdfContent.filter(
         (c) =>
           typeof c === 'object' &&
@@ -1403,7 +1383,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const overrides: ReportContentOverrides = { 'coverLetter.body': body };
       const effective = applyOverrides(baseline, overrides);
 
-      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const pdfContent = buildCoverLetterContent(effective);
       const bodyItem = findBodyItem(pdfContent, 'bold');
       // Never parsed pre-render: the exact literal string, markup characters included verbatim.
       expect(bodyItem['text']).toBe(body);
@@ -1442,7 +1422,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         'row.inv-normal.usageText': 'ONLY THIS ROW IS EDITED',
       };
       const effective = applyOverrides(baseline, overrides);
-      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const pdfContent = buildOverviewContent(effective, new Map());
 
       // #1929 round 2: 'ONLY THIS ROW IS EDITED' no longer appears as a single leaf string in the
       // content tree — buildUsageTextRuns() always splits the Usage cell into per-token runs
@@ -1552,13 +1532,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { report, includedIds, effective, longUsageText, overriddenIds } =
         buildLongUsageFixture();
 
-      const result = await generateReportPdf(
-        report,
-        includedIds,
-        effective,
-        { attachDocuments: false },
-        tEn,
-      );
+      const result = await generateReportPdf(report, includedIds, effective, {
+        attachDocuments: false,
+      });
       expect(result.blob).toBeInstanceOf(Blob);
       expect(result.blob.size).toBeGreaterThan(0);
 
@@ -1578,7 +1554,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       // overridden invoice's own rendered Usage cell directly and reconstruct it via
       // usageCellText() instead — this is a MORE precise check than the old blanket search, since
       // it verifies the text landed on the correct row, not just somewhere in the tree.
-      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const pdfContent = buildOverviewContent(effective, new Map());
       const tableItem = findTableItem(pdfContent);
       let reconstructedMatches = 0;
       for (const invoiceId of overriddenIds) {
@@ -1611,7 +1587,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       // A FRESH buildOverviewContent() call, so this test holds its own live reference to render
       // and mutate — generateReportPdf()'s internal call (used by the test above) builds its own
       // content array that isn't exposed to the caller.
-      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const pdfContent = buildOverviewContent(effective, new Map());
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
@@ -1741,7 +1717,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       // Multiple stacked footnote markers on the split invoice's allocated cell (skip-footnote
       // *1 PREPENDED to its already-present split marker †).
       const skipped = new Map<string, string[]>([['inv-worst-split', ['footnoteFetchFailed']]]);
-      const pdfContent = buildOverviewContent(effective, skipped, t);
+      const pdfContent = buildOverviewContent(effective, skipped);
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
@@ -1847,7 +1823,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         'row.inv-worst-usage.usageText': usageOverrideText,
       };
       const effective = applyOverrides(baseline, overrides);
-      const pdfContent = buildOverviewContent(effective, new Map(), t);
+      const pdfContent = buildOverviewContent(effective, new Map());
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
@@ -1955,7 +1931,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         includeCoverLetter: false,
         household: null,
       });
-      const pdfContent = buildOverviewContent(content, new Map(), tDe);
+      const pdfContent = buildOverviewContent(content, new Map());
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
@@ -2026,7 +2002,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         includeCoverLetter: false,
         household: null,
       });
-      const pdfContent = buildOverviewContent(content, new Map(), tDe);
+      const pdfContent = buildOverviewContent(content, new Map());
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
@@ -2143,7 +2119,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         'row.inv-boundary-target.usageText': usageText,
       };
       const effective = applyOverrides(baseline, overrides);
-      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const pdfContent = buildOverviewContent(effective, new Map());
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
@@ -2226,19 +2202,15 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       // it in `expect(async () => {...}).not.toThrow()` would be a no-op (that matcher never awaits
       // the returned promise, so a rejection inside would surface as an unrelated unhandled
       // rejection instead of a test failure).
-      const result = await generateReportPdf(
-        report,
-        includedIds,
-        effective,
-        { attachDocuments: false },
-        tEn,
-      );
+      const result = await generateReportPdf(report, includedIds, effective, {
+        attachDocuments: false,
+      });
       expect(result.blob.size).toBeGreaterThan(0);
 
       const pdfDoc = await PDFDocument.load(await result.blob.arrayBuffer());
       expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
 
-      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const pdfContent = buildOverviewContent(effective, new Map());
       const tableItem = findTableItem(pdfContent);
 
       // The target invoice's contiguous row group: starts at its own (non-blank vendor) row, and
@@ -2354,6 +2326,12 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           reference: 'Reference',
           generatedAt: 'Generated At',
           pageLabel: 'Page',
+          coverLetterReferenceLabel: 'Reference:',
+          coverLetterSubjectLabel: 'Subject:',
+          skipReasonLabels: {
+            footnoteFetchFailed: 'Fetch failed',
+            footnoteInvalidPdf: 'Invalid PDF',
+          },
         },
         sourceInfo: {
           sourceName: 'Cell Scope Source',
@@ -2410,7 +2388,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { buildOverviewContent, packUsageCellRows } = await import('./overviewPdf.js');
       const content = makeCellScopeContent(rowOverrides);
       const row = content.rows[0]!;
-      const pdfContent = buildOverviewContent(content, new Map(), tEn);
+      const pdfContent = buildOverviewContent(content, new Map());
       const blob = await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
@@ -2530,13 +2508,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         unallocatedInvoices: [],
         generatedAt: '2026-01-01T00:00:00.000Z',
       };
-      const result = await generateReportPdf(
-        report,
-        new Set(),
-        content,
-        { attachDocuments: false },
-        tEn,
-      );
+      const result = await generateReportPdf(report, new Set(), content, {
+        attachDocuments: false,
+      });
       const pdfDoc = await PDFDocument.load(await result.blob.arrayBuffer());
       expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(2);
     });
@@ -2702,13 +2676,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       });
       expect(content.sourceInfo.sourceName).toBe(longSourceName);
 
-      const result = await generateReportPdf(
-        report,
-        includedIds,
-        content,
-        { attachDocuments: false },
-        tEn,
-      );
+      const result = await generateReportPdf(report, includedIds, content, {
+        attachDocuments: false,
+      });
       expect(result.blob.size).toBeGreaterThan(0);
 
       const pdfDoc = await PDFDocument.load(await result.blob.arrayBuffer());
@@ -2783,13 +2753,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       let result: Awaited<ReturnType<typeof generateReportPdf>> | undefined;
       let thrown: unknown;
       try {
-        result = await generateReportPdf(
-          report,
-          includedIds,
-          effective,
-          { attachDocuments: false },
-          tEn,
-        );
+        result = await generateReportPdf(report, includedIds, effective, {
+          attachDocuments: false,
+        });
       } catch (err) {
         thrown = err;
       }
@@ -2820,7 +2786,6 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         includedIds,
         content,
         { attachDocuments: false }, // no attachment pages, isolates the cover-letter break itself
-        tEn,
       );
       expect(result.blob.size).toBeGreaterThan(0);
 

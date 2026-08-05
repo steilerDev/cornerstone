@@ -107,6 +107,12 @@ const LABELS: ReportContentLabels = {
   reference: 'REPORT_REFERENCE_LABEL',
   generatedAt: 'REPORT_GENERATED_AT_LABEL',
   pageLabel: 'REPORT_PAGE_LABEL',
+  coverLetterReferenceLabel: 'REPORT_COVER_LETTER_REFERENCE_LABEL',
+  coverLetterSubjectLabel: 'REPORT_COVER_LETTER_SUBJECT_LABEL',
+  skipReasonLabels: {
+    footnoteFetchFailed: 'REPORT_FOOTNOTE_FETCH_FAILED_LABEL',
+    footnoteInvalidPdf: 'REPORT_FOOTNOTE_INVALID_PDF_LABEL',
+  },
 };
 
 function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
@@ -1602,7 +1608,9 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
     });
     // The sender field is edited (key in overrides), so its reset button renders.
     // The button carries lang={uiLang} per EditableField.tsx — it is always UI chrome.
-    const resetButtons = Array.from(container.querySelectorAll('button[lang="en"]')) as HTMLElement[];
+    const resetButtons = Array.from(
+      container.querySelectorAll('button[lang="en"]'),
+    ) as HTMLElement[];
     // Positive anchor: at least one reset button renders (the sender field is edited).
     expect(resetButtons.length).toBeGreaterThanOrEqual(1);
     for (const btn of resetButtons) {
