@@ -981,13 +981,15 @@ test.describe('"Add" dropdown (Scenario 12)', () => {
 function mockInvoicesFullSummary() {
   return {
     invoices: [],
-    pagination: { total: 0, page: 1, pageSize: 10, totalPages: 0 },
+    pagination: { page: 1, pageSize: 10, totalItems: 0, totalPages: 0 },
     summary: {
       pending: { count: 0, totalAmount: 0 },
       paid: { count: 0, totalAmount: 0 },
       claimed: { count: 0, totalAmount: 0 },
       quotation: { count: 0, totalAmount: 0 },
       overdue: { count: 0, totalAmount: 0 },
+      claimable: { count: 0, totalAmount: 0 },
+      quotationCoveredByDeposits: 0,
     },
   };
 }
