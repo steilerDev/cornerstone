@@ -1641,12 +1641,13 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 18: Split invoices carry an inline "(partial)" label AND produce one deduplicated
-// legend entry in the footnotes block (Issue #1965)
+// Scenario 18: Split invoices carry an inline "(partial)" label; deposit-reduced invoices
+// carry a "(less deposit)" label; together they produce two deduplicated legend entries in
+// the footnotes block (Issue #1965, AC5 Issue #1980)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Report wizard editable content — inline split label (Scenario 18)', () => {
-  test('Two split invoices each show a grey inline "(partial)" note in their Allocated Amount cell, and produce exactly one deduplicated legend entry in the footnotes block', async ({
+test.describe('Report wizard editable content — inline split and deposit-reduced labels (Scenario 18)', () => {
+  test('Two split invoices show a "(partial)" note each, a third invoice (split + deposit-reduced) shows both "(partial)" and "(less deposit)" notes, and two deduplicated legend sentences appear in the footnotes block', async ({
     page,
     testPrefix,
   }) => {
@@ -1693,11 +1694,34 @@ test.describe('Report wizard editable content — inline split label (Scenario 1
         250,
       );
 
+      // Third invoice: split across the same two sources AND carrying an untagged deposit
+      // (`budgetSourceId: null` — no source match for `reportedSourceId` → `isDepositReduced:
+      // true` when viewed from `reportedSourceId`). This is the first real-browser fixture that
+      // exercises the deposit-reduced code path (AC5 — Issue #1980).
+      const invoice3 = await seedSplitInvoice(
+        page,
+        vendorId,
+        reportedSourceId,
+        otherSourceId,
+        reportedWorkItemId,
+        otherWorkItemId,
+        { invoiceNumber: `${testPrefix}-SPLITDR-003`, date: '2026-06-12', status: 'pending' },
+        75,
+        125,
+      );
+      await createDepositViaApi(page, invoice3.id, {
+        amount: 50,
+        dueDate: '2026-06-20',
+        status: 'pending',
+        budgetSourceId: null,
+      });
+
       await reachStep5(wizard, reportedSourceId);
 
       const vendorName = `${testPrefix} Split Vendor`;
       const row1 = wizard.contentTableRow(vendorName, invoice1.invoiceNumber!);
       const row2 = wizard.contentTableRow(vendorName, invoice2.invoiceNumber!);
+      const row3 = wizard.contentTableRow(vendorName, invoice3.invoiceNumber!);
 
       // Issue #1959 replaced the shared, unnumbered `†` marker + its footnote entry with a grey
       // inline label appended to each split row's Allocated Amount cell. Positive first: exactly
@@ -1714,6 +1738,15 @@ test.describe('Report wizard editable content — inline split label (Scenario 1
       await expect(row1).toContainText('€100.00 (partial)');
       await expect(row2).toContainText('€150.00 (partial)');
 
+      // invoice3 is BOTH split AND deposit-reduced — two `[class*="inlineNote"]` spans appear in
+      // its Allocated Amount cell: one `(partial)` and one `(less deposit)`. This is the
+      // real-browser proof that `isDepositReduced` is computed and rendered correctly (AC5 —
+      // Issue #1980).
+      const note3 = wizard.inlineNote(vendorName, invoice3.invoiceNumber!);
+      await expect(note3).toHaveCount(2);
+      await expect(row3).toContainText('€75.00 (partial)');
+      await expect(row3).toContainText('(less deposit)');
+
       // Negatives, each paired with the positives above: neither legacy footnote glyph survives
       // anywhere in the row (numbered or not).
       const row1Text = (await row1.textContent()) ?? '';
@@ -1723,19 +1756,32 @@ test.describe('Report wizard editable content — inline split label (Scenario 1
       expect(row1Text).not.toContain('‡');
       expect(row2Text).not.toContain('‡');
 
-      // Issue #1965: `buildReportContent.ts` now pushes ONE deduplicated legend entry to
-      // `content.footnotes` whenever `splitInvoiceIds.size > 0`. Both invoices in this fixture
-      // are split, so the block must be present with exactly 1 item — deduped even though two
-      // rows triggered it.
+      // Issue #1965 + AC5 (Issue #1980): the footnotes block now contains TWO deduplicated
+      // legend entries — one for `isSplit` (all three invoices trigger it) and one for
+      // `isDepositReduced` (invoice3 triggers it via its untagged deposit). Two distinct flag
+      // types → two distinct legend sentences, even though invoice3 triggers both simultaneously.
+      // The block itself is still exactly one element (one `<ul class*="footnotes">`), but now
+      // holds two `<li>` items.
       await expect(wizard.footnotesBlock).toHaveCount(1);
-      await expect(wizard.footnoteItems).toHaveCount(1);
+      await expect(wizard.footnoteItems).toHaveCount(2);
 
-      // The long-form legend sentence must be present in the footnote list.
-      const pageText = (await page.locator('main').textContent()) ?? '';
-      expect(pageText).toContain(
+      // First legend entry: split sentence (Issue #1965, `sourceReports.table.splitFootnote`).
+      await expect(wizard.footnoteItems.nth(0)).toContainText(
         'Amount shown reflects only the portion allocated to this source.',
       );
+      // Second legend entry: deposit-reduced sentence — first real-browser assertion of the
+      // `isDepositReduced` path (`sourceReports.table.depositReducedFootnote`, AC5 Issue #1980).
+      await expect(wizard.footnoteItems.nth(1)).toContainText(
+        'This position reflects deposits claimed separately.',
+      );
+      // The inline labels from the table rows must also still be present.
+      // `(partial)` uses a plain space — safe to compare via raw textContent().
+      // `(less deposit)` contains U+00A0 (non-breaking space) in `depositReducedInlineLabel`
+      // (pinned by i18n.parity.test.ts) — textContent() returns it verbatim, so a plain-space
+      // string comparison would fail. Use toContainText() which normalizes whitespace.
+      const pageText = (await page.locator('main').textContent()) ?? '';
       expect(pageText).toContain('(partial)');
+      await expect(page.locator('main')).toContainText('(less deposit)');
     } finally {
       if (reportedWorkItemId) await deleteWorkItemViaApi(page, reportedWorkItemId);
       if (otherWorkItemId) await deleteWorkItemViaApi(page, otherWorkItemId);
