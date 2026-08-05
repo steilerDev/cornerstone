@@ -1,6 +1,7 @@
 /**
  * Types for the report PDF pipeline.
  */
+import type { ReportSkipReason } from '../reportContent/index.js';
 
 export interface ReportPdfOptions {
   attachDocuments: boolean;
@@ -14,7 +15,7 @@ export interface GeneratedReport {
 export interface SkippedDocument {
   invoiceId: string;
   documentId: string;
-  reason: 'footnoteFetchFailed' | 'footnoteInvalidPdf';
+  reason: ReportSkipReason;
   vendorName: string;
   invoiceNumber: string | null;
 }

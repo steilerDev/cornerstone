@@ -3,7 +3,7 @@
  */
 import type { Content, Style } from 'pdfmake/build/pdfmake';
 import type { SourceReportResponse } from '@cornerstone/shared';
-import type { ReportContent } from '../reportContent/index.js';
+import type { ReportContent, ReportSkipReason } from '../reportContent/index.js';
 import { loadPdfLibs } from './loader.js';
 import { buildPageHeader, buildPageFooter } from './shared.js';
 import { buildCoverLetterContent } from './coverLetterPdf.js';
@@ -98,7 +98,7 @@ export async function generateReportPdf(
   }
 
   // Step 2: Build PDF content
-  const skippedByInvoice = new Map<string, string[]>();
+  const skippedByInvoice = new Map<string, ReportSkipReason[]>();
   for (const skip of skippedDocuments) {
     if (!skippedByInvoice.has(skip.invoiceId)) {
       skippedByInvoice.set(skip.invoiceId, []);

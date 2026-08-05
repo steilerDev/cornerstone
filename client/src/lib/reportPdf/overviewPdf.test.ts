@@ -43,7 +43,7 @@
  * exported `VENDOR_SAFE_TOKEN_CHARS`.
  */
 import { describe, it, expect } from '@jest/globals';
-import type { ReportContent, ReportContentRow } from '../reportContent/index.js';
+import type { ReportContent, ReportContentRow, ReportSkipReason } from '../reportContent/index.js';
 import type { UsageCellSegment } from './overviewPdf.js';
 import {
   buildOverviewContent,
@@ -1137,7 +1137,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('prepends skip-footnote markers (*N) before the allocated value, numbered from skippedDocuments', () => {
       const row = makeRow({ invoiceId: 'inv-1', allocatedAmountValueText: '€400.00' });
       const content = makeContent({ rows: [row] });
-      const skipped = new Map<string, string[]>([['inv-1', ['footnoteFetchFailed']]]);
+      const skipped = new Map<string, ReportSkipReason[]>([['inv-1', ['footnoteFetchFailed']]]);
       const result = buildOverviewContent(content, skipped);
       const table = getTable(result);
       expect(rowTexts(table.body[1])[4]).toBe('€400.00*1');
@@ -1146,7 +1146,7 @@ describe('buildOverviewContent — row rendering (consumes already-derived Repor
     it('numbers multiple skip reasons on the same invoice sequentially', () => {
       const row = makeRow({ invoiceId: 'inv-1', allocatedAmountValueText: '€400.00' });
       const content = makeContent({ rows: [row] });
-      const skipped = new Map<string, string[]>([
+      const skipped = new Map<string, ReportSkipReason[]>([
         ['inv-1', ['footnoteFetchFailed', 'footnoteInvalidPdf']],
       ]);
       const result = buildOverviewContent(content, skipped);
@@ -1476,7 +1476,7 @@ describe('buildOverviewContent — footnotes (skip block first, then reportConte
       makeRow({ invoiceId: 'inv-2', vendor: 'Beta', invoiceNumber: 'B-2' }),
     ];
     const content = makeContent({ rows });
-    const skipped = new Map<string, string[]>([
+    const skipped = new Map<string, ReportSkipReason[]>([
       ['inv-1', ['footnoteFetchFailed']],
       ['inv-2', ['footnoteInvalidPdf', 'footnoteFetchFailed']],
     ]);
@@ -1496,7 +1496,7 @@ describe('buildOverviewContent — footnotes (skip block first, then reportConte
 
   it('falls back to em-dashes when the skipped invoiceId is not found in reportContent.rows', () => {
     const content = makeContent({ rows: [] });
-    const skipped = new Map<string, string[]>([['unknown-inv', ['footnoteFetchFailed']]]);
+    const skipped = new Map<string, ReportSkipReason[]>([['unknown-inv', ['footnoteFetchFailed']]]);
     const result = buildOverviewContent(content, skipped);
     const notesStack = result[result.length - 1] as { stack: { text: string }[] };
     expect(notesStack.stack[0]!.text).toBe('*1: — (—) — sourceReports.table.footnoteFetchFailed');
@@ -1512,7 +1512,7 @@ describe('buildOverviewContent — footnotes (skip block first, then reportConte
         },
       ],
     });
-    const skipped = new Map<string, string[]>([['inv-skip', ['footnoteFetchFailed']]]);
+    const skipped = new Map<string, ReportSkipReason[]>([['inv-skip', ['footnoteFetchFailed']]]);
     const contentWithSkipRow = makeContent({
       rows: [makeRow({ invoiceId: 'inv-skip', vendor: 'Skip Co', invoiceNumber: 'K-1' })],
       footnotes: content.footnotes,
@@ -1532,7 +1532,7 @@ describe('buildOverviewContent — footnotes (skip block first, then reportConte
     const content = makeContent({
       footnotes: [{ id: 'split-1', marker: '†1', text: 'first footnote' }],
     });
-    const skipped = new Map<string, string[]>([['inv-skip', ['footnoteFetchFailed']]]);
+    const skipped = new Map<string, ReportSkipReason[]>([['inv-skip', ['footnoteFetchFailed']]]);
     const result = buildOverviewContent(content, skipped);
     const notesStack = result[result.length - 1] as {
       stack: (Record<string, unknown> & { text: string })[];
@@ -1647,7 +1647,7 @@ describe('AC7 — skip reason labels come from reportContent.labels.skipReasonLa
         },
       },
     });
-    const skipped = new Map<string, string[]>([['inv-1', ['footnoteFetchFailed']]]);
+    const skipped = new Map<string, ReportSkipReason[]>([['inv-1', ['footnoteFetchFailed']]]);
     const result = buildOverviewContent(content, skipped);
     const notesStack = result[result.length - 1] as { stack: { text: string }[] };
     expect(notesStack.stack[0]!.text).toBe('*1: ACME (A-1) — FETCH-SENTINEL');
@@ -1665,7 +1665,7 @@ describe('AC7 — skip reason labels come from reportContent.labels.skipReasonLa
         },
       },
     });
-    const skipped = new Map<string, string[]>([['inv-2', ['footnoteInvalidPdf']]]);
+    const skipped = new Map<string, ReportSkipReason[]>([['inv-2', ['footnoteInvalidPdf']]]);
     const result = buildOverviewContent(content, skipped);
     const notesStack = result[result.length - 1] as { stack: { text: string }[] };
     expect(notesStack.stack[0]!.text).toBe('*1: Beta (B-2) — INVALID-SENTINEL');

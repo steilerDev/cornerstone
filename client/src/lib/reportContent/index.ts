@@ -10,6 +10,7 @@ export type {
   ReportContentCoverLetter,
   ReportContentLabels,
   ReportContentOverrides,
+  ReportSkipReason,
 } from './types.js';
 
 export { buildReportContent } from './buildReportContent.js';

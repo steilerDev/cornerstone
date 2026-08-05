@@ -61,6 +61,7 @@ import type {
   ReportContentOverrides,
   ReportContent,
   ReportContentRow,
+  ReportSkipReason,
 } from '../reportContent/index.js';
 import enBudget from '../../i18n/en/budget.json';
 import deBudget from '../../i18n/de/budget.json';
@@ -1716,7 +1717,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const effective = applyOverrides(baseline, overrides);
       // Multiple stacked footnote markers on the split invoice's allocated cell (skip-footnote
       // *1 PREPENDED to its already-present split marker †).
-      const skipped = new Map<string, string[]>([['inv-worst-split', ['footnoteFetchFailed']]]);
+      const skipped = new Map<string, ReportSkipReason[]>([
+        ['inv-worst-split', ['footnoteFetchFailed']],
+      ]);
       const pdfContent = buildOverviewContent(effective, skipped);
       await renderOverviewPdfContent(
         pdfContent,
