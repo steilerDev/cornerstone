@@ -1045,6 +1045,18 @@ export class ReportWizardPage {
 
   // ─── Story #1900: editable report content (ReportContentEditor.tsx) ────────────────────────
 
+  /**
+   * Locator for the `ReportContentEditor` container in step 5 — the outermost `<div>` that
+   * receives `lang={reportLanguage}` when the chosen report language differs from the UI
+   * locale (Issue #1910). Scoped within `[class*="step4Body"]` (step 5's wrapper class in
+   * `ReportWizardPage.module.css`) so this never collides with any other element whose CSS
+   * Module class contains the "container" substring elsewhere on the page. `.first()` is a
+   * conservative tie-breaker — only one `ReportContentEditor` is ever mounted at a time.
+   */
+  reportContentContainer(): Locator {
+    return this.page.locator('[class*="step4Body"] [class*="container"]').first();
+  }
+
   private static readonly LETTER_FIELD_LABELS = {
     sender: 'Sender',
     recipient: 'Recipient',

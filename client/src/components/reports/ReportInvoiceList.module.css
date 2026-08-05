@@ -26,6 +26,14 @@
   color: var(--color-text-primary);
 }
 
+.attachmentsNote {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  padding: var(--spacing-2) var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+  margin: 0;
+}
+
 .invoiceRow {
   display: grid;
   grid-template-columns: 1.5rem auto 1fr auto auto auto auto;

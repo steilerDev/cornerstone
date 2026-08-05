@@ -1174,6 +1174,7 @@
     "pdfPreviewTitle": "Berichts-PDF-Vorschau",
     "hasAttachment": "Dokument angehängt",
     "noDocument": "Kein Dokument",
+    "attachmentsNote": "Die angezeigten Anhänge umfassen die für die Berichtsart {{reportType}} verfügbaren Dokumente.",
     "refund": "Rückerstattung",
     "splitBadge": "anteilig {{allocated}} von {{total}}",
     "splitTooltip": "Diese Rechnung ist auf mehrere Quellen aufgeteilt",

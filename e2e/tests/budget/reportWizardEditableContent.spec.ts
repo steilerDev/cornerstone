@@ -2393,3 +2393,184 @@ test.describe('Report wizard editable content — column-visibility toggles, loc
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 25: lang attribute on ReportContentEditor container when report language
+// differs from the UI locale (Issue #1910)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — lang attribute on container when report language differs from UI locale (Scenario 25, #1910)', () => {
+  test('The ReportContentEditor container carries lang="de" when the report language is set to Deutsch and the UI locale is "en"', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} LangAttr Vendor` });
+      // contactAddress + reference cause the cover letter to auto-enable so both
+      // <h3> elements are present in the DOM — relevant for Scenario 26's "all h3s"
+      // assertion, reused here so the seed is consistent across the three scenarios.
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} LangAttr Source`,
+        totalAmount: 10000,
+        contactAddress: '1 LangAttr St, Testville',
+        reference: 'Ref-LANGATTR',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI LangAttr` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANGATTR-001`,
+        amount: 175,
+        date: '2026-07-03',
+        status: 'pending',
+      });
+
+      // Navigate through steps 1-4 manually so we can change the language on step 4
+      // before advancing to step 5 — `reachStep5` skips step 4 interaction.
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await wizard.goNextFromStep3(); // now on step 4 (Settings)
+      await wizard.selectReportLanguage('de');
+      await wizard.step4NextButton.click(); // now on step 5
+
+      // `ReportWizardPage.tsx` passes `lang={reportLanguage !== resolvedLocale ?
+      // reportLanguage : undefined}` to `ReportContentEditor`. When the user selected
+      // "Deutsch" and the UI locale resolved to "en", the condition is true and the outer
+      // <div> carries `lang="de"` — marking the body text's language for screen readers
+      // and browser spell-checkers without mis-annotating the UI-chrome headings (which
+      // are counter-tagged via `uiLang`, see Scenario 26).
+      const container = wizard.reportContentContainer();
+      await expect(container).toBeVisible();
+      expect(await container.getAttribute('lang')).toBe('de');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 26: <h3> UI-chrome headings carry uiLang when report language differs
+// (Issue #1910)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — h3 headings carry UI lang when report language differs (Scenario 26, #1910)', () => {
+  test('All <h3> headings inside the ReportContentEditor carry lang="en" (the UI locale) when the report language is Deutsch, counter-tagging them back to the UI language', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} LangH3 Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} LangH3 Source`,
+        totalAmount: 10000,
+        contactAddress: '1 LangH3 St, Testville',
+        reference: 'Ref-LANGH3',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI LangH3` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANGH3-001`,
+        amount: 180,
+        date: '2026-07-04',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await wizard.goNextFromStep3(); // now on step 4 (Settings)
+      await wizard.selectReportLanguage('de');
+      await wizard.step4NextButton.click(); // now on step 5
+
+      // The container's body text is in German (lang="de" on the outer div — see Scenario 25),
+      // but ReportContentEditor's own UI-chrome headings (<h3> elements rendered via `t()` in
+      // the UI locale) are counter-tagged back to the UI locale via `uiLang`. With a Deutsch
+      // report language and an "en" UI locale, each <h3> inside the container must carry
+      // `lang="en"` so screen-reader language engines switch correctly between the German
+      // report content and the English section headings.
+      const container = wizard.reportContentContainer();
+      await expect(container).toBeVisible();
+
+      const headings = container.locator('h3');
+      const headingCount = await headings.count();
+      // Positive guard: the cover letter (seeded via contactAddress/reference) produces two
+      // <h3>s — one in the cover-letter card, one for the report table. If both are absent
+      // the assertions below would pass vacuously against a 0-element collection.
+      expect(headingCount).toBeGreaterThan(0);
+      for (let i = 0; i < headingCount; i++) {
+        expect(
+          await headings.nth(i).getAttribute('lang'),
+          `<h3> at index ${i} must carry lang="en"`,
+        ).toBe('en');
+      }
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 27: No lang attribute on the container when report language matches UI locale
+// (Issue #1910)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — no lang attribute on container when report language matches UI locale (Scenario 27, #1910)', () => {
+  test('The ReportContentEditor container has no lang attribute when the report language is left at the default "English", matching the test environment UI locale', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} LangMatch Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} LangMatch Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI LangMatch` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANGMATCH-001`,
+        amount: 185,
+        date: '2026-07-05',
+        status: 'pending',
+      });
+
+      // Navigate to step 5 without touching the language picker — the default is "English"
+      // which matches the E2E test environment's UI locale ("en"). The `reachStep5` helper
+      // navigates all four preceding steps with the default settings.
+      await reachStep5(wizard, sourceId, 'claim');
+
+      // When `reportLanguage === resolvedLocale` (both "en"), `ReportWizardPage.tsx` passes
+      // `lang={undefined}` and `uiLang={undefined}` to `ReportContentEditor` — the outer
+      // <div> renders with no lang attribute at all (inheriting language from the page root,
+      // which is the correct default when no translation layering is needed). Playwright's
+      // `getAttribute` returns `null` for absent attributes.
+      const container = wizard.reportContentContainer();
+      await expect(container).toBeVisible();
+      expect(await container.getAttribute('lang')).toBeNull();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});

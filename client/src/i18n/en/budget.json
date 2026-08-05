@@ -1174,6 +1174,7 @@
     "pdfPreviewTitle": "Report PDF preview",
     "hasAttachment": "Document attached",
     "noDocument": "No document",
+    "attachmentsNote": "Attachments shown reflect documents available for the {{reportType}} report type",
     "refund": "Refund",
     "splitBadge": "partial {{allocated}} of {{total}}",
     "splitTooltip": "This invoice is split across multiple sources",

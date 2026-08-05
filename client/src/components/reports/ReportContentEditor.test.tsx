@@ -1484,3 +1484,87 @@ describe(
     });
   },
 );
+
+// ─── Story #1910: lang and uiLang HTML attribute props ────────────────────────────────────────────
+
+describe('ReportContentEditor — lang and uiLang props (Story #1910)', () => {
+  // The component applies `lang={lang}` to the outer `.container` <div> and `lang={uiLang}` to
+  // every UI-chrome heading (<h3>) and to the column-toggle hint <p>. Both attributes are absent
+  // when the props are not supplied (undefined → attribute omitted).
+
+  it('applies the lang prop as an HTML lang attribute on the outer container div when set', () => {
+    // Positive: container carries lang="de" when report content is in German.
+    const { container } = render(
+      <ReportContentEditor
+        content={makeContent()}
+        overrides={{}}
+        onFieldChange={jest.fn()}
+        onFieldReset={jest.fn()}
+        t={t}
+        lang="de"
+        uiLang="en"
+      />,
+    );
+    const outerContainer = container.querySelector('[class*="container"]');
+    expect(outerContainer).not.toBeNull();
+    expect(outerContainer!.getAttribute('lang')).toBe('de');
+  });
+
+  it('does not set a lang attribute on the container when the lang prop is not provided', () => {
+    // Negative: without the prop, the attribute must be absent (null), not an empty string.
+    const { container } = render(
+      <ReportContentEditor
+        content={makeContent()}
+        overrides={{}}
+        onFieldChange={jest.fn()}
+        onFieldReset={jest.fn()}
+        t={t}
+      />,
+    );
+    const outerContainer = container.querySelector('[class*="container"]');
+    expect(outerContainer).not.toBeNull();
+    expect(outerContainer!.getAttribute('lang')).toBeNull();
+  });
+
+  it('applies uiLang to every <h3> heading when set, including the cover-letter heading', () => {
+    // fullContent() includes a coverLetter, so both the cover-letter <h3> and the table <h3>
+    // render. Both must carry lang="en" (the UI language) when report content is in German.
+    const { container } = render(
+      <ReportContentEditor
+        content={fullContent()}
+        overrides={{}}
+        onFieldChange={jest.fn()}
+        onFieldReset={jest.fn()}
+        t={t}
+        lang="de"
+        uiLang="en"
+      />,
+    );
+    const headings = Array.from(container.querySelectorAll('h3'));
+    // There are at least 2 headings (cover letter + table heading) when coverLetter is present.
+    expect(headings.length).toBeGreaterThanOrEqual(2);
+    for (const h3 of headings) {
+      expect(h3.getAttribute('lang')).toBe('en');
+    }
+  });
+
+  it('applies uiLang to the column-toggle hint paragraph when set', () => {
+    // The <p className={styles.columnToggleHint}> clarifies that column toggles only affect the
+    // preview, not the PDF. It must carry the UI language so screen readers announce it correctly
+    // even when the rest of the editor content is in a different language.
+    const { container } = render(
+      <ReportContentEditor
+        content={makeContent()}
+        overrides={{}}
+        onFieldChange={jest.fn()}
+        onFieldReset={jest.fn()}
+        t={t}
+        lang="de"
+        uiLang="en"
+      />,
+    );
+    const hint = container.querySelector('[class*="columnToggleHint"]');
+    expect(hint).not.toBeNull();
+    expect(hint!.getAttribute('lang')).toBe('en');
+  });
+});

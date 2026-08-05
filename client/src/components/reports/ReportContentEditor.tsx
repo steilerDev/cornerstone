@@ -18,6 +18,10 @@ export interface ReportContentEditorProps {
   onFieldChange: (key: string, value: string) => void;
   onFieldReset: (key: string) => void;
   t: TFunction;
+  /** HTML lang attribute for report-language content. Set only when report lang differs from UI lang. */
+  lang?: string;
+  /** HTML lang attribute to apply to UI-chrome headings inside the container. Set only when lang is set. */
+  uiLang?: string;
 }
 
 // Status badge className mapping
@@ -37,6 +41,8 @@ export function ReportContentEditor({
   onFieldChange,
   onFieldReset,
   t,
+  lang,
+  uiLang,
 }: ReportContentEditorProps) {
   // Helper: check if a field has been overridden
   const isFieldEdited = (key: string): boolean => key in overrides;
@@ -59,11 +65,11 @@ export function ReportContentEditor({
   const show = (col: ColumnKey) => !hiddenColumns.has(col);
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} lang={lang}>
       {/* Cover Letter */}
       {content.coverLetter && (
         <div className={styles.coverLetterCard}>
-          <h3>{t('sourceReports.editable.coverLetterHeading')}</h3>
+          <h3 lang={uiLang}>{t('sourceReports.editable.coverLetterHeading')}</h3>
 
           <div className={styles.letterFields}>
             <EditableField
@@ -196,9 +202,11 @@ export function ReportContentEditor({
 
       {/* Report Table */}
       <div className={styles.tableHeadingRow}>
-        <h3 className={styles.tableHeading}>{t('sourceReports.editable.tableHeading')}</h3>
+        <h3 className={styles.tableHeading} lang={uiLang}>
+          {t('sourceReports.editable.tableHeading')}
+        </h3>
         <div className={styles.columnToggleGroup}>
-          <p id={columnHintId} className={styles.columnToggleHint}>
+          <p id={columnHintId} className={styles.columnToggleHint} lang={uiLang}>
             {t('sourceReports.editable.columnVisibilityHint')}
           </p>
           <div
