@@ -266,12 +266,20 @@ export async function getSourceReport(
     reportInvoiceIds.map((id) => sql`${id}`),
     sql`, `,
   );
-  const splitRows = db.all<{ invoice_id: string; source_count: number }>(
+  const splitRows = db.all<{
+    invoice_id: string;
+    source_count: number;
+    has_foreign_line_source: number;
+    has_foreign_deposit_source: number;
+  }>(
     sql`SELECT split_data.invoice_id AS invoice_id,
-           COUNT(DISTINCT split_data.source_id) AS source_count
+           COUNT(DISTINCT split_data.source_id) AS source_count,
+           MAX(CASE WHEN split_data.origin = 'line' AND split_data.source_id != ${sourceId} THEN 1 ELSE 0 END) AS has_foreign_line_source,
+           MAX(CASE WHEN split_data.origin = 'deposit' AND split_data.source_id != ${sourceId} THEN 1 ELSE 0 END) AS has_foreign_deposit_source
     FROM (
       SELECT ibl.invoice_id,
-             COALESCE(wib.budget_source_id, hib.budget_source_id) AS source_id
+             COALESCE(wib.budget_source_id, hib.budget_source_id) AS source_id,
+             'line' AS origin
       FROM invoice_budget_lines ibl
       LEFT JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
       LEFT JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
@@ -281,7 +289,8 @@ export async function getSourceReport(
       UNION
 
       SELECT d.invoice_id,
-             d.budget_source_id AS source_id
+             d.budget_source_id AS source_id,
+             'deposit' AS origin
       FROM invoice_deposits d
       WHERE d.invoice_id IN (${joinedInvoiceIds})
         AND d.budget_source_id IS NOT NULL
@@ -290,8 +299,21 @@ export async function getSourceReport(
   );
 
   const isSplitMap = new Map<string, boolean>();
+  const splitKindMap = new Map<string, SourceReportInvoice['splitKind']>();
   for (const row of splitRows) {
     isSplitMap.set(row.invoice_id, row.source_count > 1);
+    const hasForeignLine = row.has_foreign_line_source === 1;
+    const hasForeignDeposit = row.has_foreign_deposit_source === 1;
+    splitKindMap.set(
+      row.invoice_id,
+      hasForeignLine && hasForeignDeposit
+        ? 'both'
+        : hasForeignLine
+          ? 'lines'
+          : hasForeignDeposit
+            ? 'deposits'
+            : null,
+    );
   }
 
   // Step g: Batch fetch document links
@@ -434,6 +456,7 @@ export async function getSourceReport(
       allocatedAmount: roundedAmount,
       lineKind,
       isSplit: isSplitMap.get(invoiceId) ?? false, // true iff invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits
+      splitKind: splitKindMap.get(invoiceId) ?? null,
       documents,
       budgetLines: budgetLinesByInvoiceId.get(invoiceId) ?? [],
       deposits: depositsByInvoiceId.get(invoiceId) ?? [],

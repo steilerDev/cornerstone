@@ -49,6 +49,7 @@ function makeInvoice(id: string): SourceReportResponse['invoices'][0] {
     allocatedAmount: 1000,
     lineKind: 'invoice',
     isSplit: false,
+    splitKind: null,
     documents: [],
     budgetLines: [
       {

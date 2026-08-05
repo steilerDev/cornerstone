@@ -56,6 +56,14 @@ export interface SourceReportInvoice {
   lineKind: 'invoice' | 'refund-adjustment';
   /** True iff the invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits. */
   isSplit: boolean;
+  /**
+   * Discriminates why the invoice's funding spans multiple budget sources: 'lines' (a budget
+   * line resolves to a source other than the requested one), 'deposits' (a tagged deposit
+   * references a different source), 'both', or null when the invoice is not split. Structurally,
+   * splitKind !== null iff isSplit === true. Never carries the other source's identity — only
+   * the categorical value crosses the API boundary (#1911).
+   */
+  splitKind: 'lines' | 'deposits' | 'both' | null;
   documents: SourceReportDocument[];
   /** Budget lines allocated to this invoice for the requested source only. Other sources' lines are absent (not present with zero portion). Used as a subtraction basis for line-exclusion math. */
   budgetLines: SourceReportBudgetLine[];

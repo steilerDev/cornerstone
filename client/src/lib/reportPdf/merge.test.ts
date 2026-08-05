@@ -163,6 +163,7 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
     allocatedAmount: 1000,
     lineKind: 'invoice',
     isSplit: false,
+    splitKind: null,
     documents: [],
     budgetLines: [],
     deposits: [],

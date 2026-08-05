@@ -144,7 +144,10 @@ export function buildReportContent(
     generatedAtText,
   };
 
-  // Track invoices for split/deposit markers
+  // Track invoices for split/deposit markers (#1911: driven by splitKind, not isSplit +
+  // budgetLines/deposits shape — the array-shape gate was unsound: claim reports drop
+  // zero-contribution budget lines (§3.1), and a foreign-tagged deposit is filtered out of
+  // deposits[] server-side entirely (§3.2, the bug this story exists to fix).
   const splitInvoiceIds = new Set<string>();
   const depositReducedInvoiceIds = new Set<string>();
   const depositConstitutedInvoiceIds = new Set<string>();
@@ -154,17 +157,22 @@ export function buildReportContent(
       continue;
     }
 
-    if (invoice.isSplit && invoice.budgetLines.length > 0) {
+    // AC 3.1: row.isSplit ⟺ splitKind === 'lines' || splitKind === 'both'
+    if (invoice.splitKind === 'lines' || invoice.splitKind === 'both') {
       splitInvoiceIds.add(invoice.invoiceId);
     }
 
-    if (invoice.isSplit && invoice.deposits.length > 0) {
-      const taggedDeposit = invoice.deposits.some((d) => d.budgetSourceId === report.source.id);
-      if (taggedDeposit) {
-        depositConstitutedInvoiceIds.add(invoice.invoiceId);
-      } else {
-        depositReducedInvoiceIds.add(invoice.invoiceId);
-      }
+    // AC 3.2: row.isDepositReduced ⟺ splitKind === 'deposits' || splitKind === 'both'
+    if (invoice.splitKind === 'deposits' || invoice.splitKind === 'both') {
+      depositReducedInvoiceIds.add(invoice.invoiceId);
+    }
+
+    // AC 3.3: row.isDeposit (constituted) trigger is UNCHANGED — still invoice.isSplit &&
+    // hasOwnTaggedDeposit, still read from the visible deposits[]. Decoupling isDeposit from
+    // isSplit is an explicit non-goal (§3).
+    const hasOwnTaggedDeposit = invoice.deposits.some((d) => d.budgetSourceId === report.source.id);
+    if (invoice.isSplit && hasOwnTaggedDeposit) {
+      depositConstitutedInvoiceIds.add(invoice.invoiceId);
     }
   }
 

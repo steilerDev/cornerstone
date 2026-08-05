@@ -859,3 +859,140 @@ explicitly, because #2011 is a live candidate for exactly that UAT rejection:** 
 #2011; a **design** rejection ("the total should not have left the table at all, at any width") reopens
 #1973, because then the *ruling* was wrong. Worth reusing whenever a follow-up issue overlaps the same
 surface a parent issue is going to UAT on — say which rejection routes where, before UAT runs.
+
+## #1911 `splitKind` — AC refinement (2026-08-05)
+
+Refined ACs onto a **body filed by the orchestrator**, not by me (prior session's subagent budget ran
+out). 7 AC sections + UAT determination + two corrections to the issue's own framing.
+
+**All three premises verified true, but the issue body describes a dead codebase in two places** —
+recorded as an explicit "Corrections to the issue's framing" section:
+
+1. The `†`/`‡` glyph markers **no longer exist** — #1959 replaced them with inline grey word labels
+   (`(partial)` / `(less deposit)` / `(Deposit)`), and #1965 AC 2.2 *forbids* reintroducing them.
+2. The `‡` "This is a deposit." constituted sentence **is absent from `client/src/i18n/`**. So the
+   wording nit's stated premise cannot be fixed by editing that sentence.
+
+**Pattern: when the premise is real but its described mechanism is stale, correct the mechanism and
+keep the story.** The underlying defect (AC 1.2) was untouched by either correction. An issue filed by
+another agent from a review round is a snapshot of *that round's* codebase — re-verify the mechanism,
+not just the defect.
+
+### The trap AC (1.5) — worth reusing
+
+The derivation predicate is **"this arm contains a source ≠ S"**, NOT "this arm contains ≥2 distinct
+sources". The headline case (lines all in A, deposit tagged B, requested A) has arm1=`{A}`, arm2=`{B}`
+— *one source each* — yet must yield `'deposits'`. The naive per-arm-count reading returns `null` and
+silently reproduces the exact bug the story fixes. **When an AC's correct predicate is one plausible
+misreading away from a no-op, write the misreading into the AC and demand a test pinning that shape.**
+
+### Findings I added beyond what was filed
+
+- **A second, opposite defect in the same classifier.** Today `isDepositReduced` is *over*-inclusive:
+  it fires on a line-split invoice carrying an **untagged** deposit, whose legend sentence says
+  "claimed **separately**" — but untagged deposits are apportioned back *into* this source pro-rata
+  (`depositAggregateUtils.ts` L607-620). Given #1965 ruled `separately` audit-load-bearing, that is a
+  **false statement to a report recipient shipping today**. Filed defect was under-inclusive; checking
+  the other direction of the same boolean found the mirror.
+- **The `budgetLines.length > 0` gate is unsound too** — `claim` reports drop zero-contribution lines
+  (service step h), so a line-split invoice can arrive with `budgetLines: []` and lose `(partial)`.
+  **When a story's thesis is "stop inferring the reason from filtered arrays", apply it to every gate
+  that does so, not only the one that was reported.**
+
+### Rulings I made rather than leaving to the implementer
+
+- **Constituted-wording nit: NO string change.** Precision is delivered *structurally* by removing the
+  `if/else` so `(Deposit)` and `(less deposit)` co-occur. Backed by `glossary.json`: the label lives in
+  a **75pt** column where `Abschlagszahlung` alone already measures 72.85pt — **no qualifier of any
+  length fits**, so "reword it more precisely" was never an available option. **A documented
+  measurement can close a wording debate before it starts — check the glossary for a space budget
+  before specifying any label change.**
+- **`splitKind` is `… | null`, REQUIRED not optional.** `null` matches the file's own `T | null`
+  convention; *required* because `splitKind?:` lets a construction site omit it → `undefined` → reads
+  as "not split" at the classifier. Required makes `tsc` enumerate the sites, which is the point.
+- **Non-goal stated explicitly:** decoupling `isDeposit` from `isSplit` (a real gap — a wholly
+  single-source invoice funded by an S-tagged deposit gets no `(Deposit)` badge) is **out of scope**;
+  it changes non-split rows. Named it so it isn't silently absorbed.
+- **New max-label row is newly reachable:** removing the `else` makes
+  `(Deposit) (partial) (less deposit) (refund)` — four runs — possible for the first time. Demanded a
+  **measured** geometry AC (#1929 pattern) in en+de under #1973's column subsets. `glossary.json`
+  records a prior wrap-mid-bracket break in this exact column. **Whenever a fix removes a mutual
+  exclusion, ask what combination just became reachable that never rendered before.**
+
+### Privacy ruling (asked for explicitly)
+
+**No objection.** There is *no authorization boundary between budget sources* — `GET /api/source-reports`
+requires only a session (`sourceReports.ts` L40-42), every `budgetSources` route is "both admin and
+member", no per-user scoping anywhere. So "a source the requester cannot see" **does not exist** in this
+app. The question that *does* matter is the PDF leaving the system: `(partial)` already discloses "funded
+from >1 source", so `splitKind` only picks between two already-shipped sentences and adds no new fact
+class; AC 1.10 forbids ever carrying the other source's id/name/count. **Answer the boundary question
+about the artifact that leaves the system, not only about the API.**
+
+### Legend ruling (#1965)
+
+**No new sentence.** The legend populates by set membership, so changing *which rows enter the sets* is
+handled by existing machinery. AC 7.2 pins "two entries max, not three" — there is no constituted
+legend sentence and none is added.
+
+### UAT determination
+
+**Goes to UAT, does not close on merge** (same call as #1973). Machine-checkable: everything except
+**AC 4.3/4.4 mixed-case legibility** — whether `€1,234.00 (Deposit) (partial) (less deposit)` reads as
+three compatible facts or as self-contradiction is a judgment no assertion makes. German is the sharper
+case: `(Abschlagszahlung) (abzgl. Abschlag)` is **the same root twice with opposite senses** on one
+line, and `glossary.json` already records these as "a different fact" from each other. Reopen #1911 on
+UAT failure — the wording is this story's deliverable, so it is not follow-up material.
+
+### #1911 addendum — the zero-line-contribution row (ruled 2026-08-05, pre-merge)
+
+Coordinator escalated a behaviour change my ACs **implied but never named**, found by the
+`e2e-test-engineer` grepping every `createDepositViaApi` fixture instead of trusting the spec's
+"purely additive, no E2E changes needed" claim. That claim was mine by implication and **it was
+wrong**. Two scenarios affected, not the one that had been spotted.
+
+**Shape:** invoice lines entirely on source A + deposit tagged to source B, reported for **B**.
+`hasForeignLineSource` true, `hasForeignDepositSource` false → `splitKind: 'lines'` → row now shows
+`(Deposit)` **and** `(partial)` where it previously showed `(Deposit)` alone.
+
+**Ruled: intended and correct, do not narrow, merge.** Added AC 3.6 + 3.7 + UAT 4.7.
+
+**The argument that settled it — the server field was always right; only the client's inference was
+wrong.** Arm1=`{A}`, arm2=`{B}`, count=2, so `SourceReportInvoice.isSplit` was **already true** on
+this row pre-#1911 — provably, because the old `(Deposit)` badge itself required `invoice.isSplit`
+to render. The `budgetLines.length > 0` gate was **discarding a correct signal the client already
+had**, on the false theory that an empty array means "not split" when it means "none of the split's
+lines belong to you". **Reusable: when a change looks like new behaviour, check whether the
+underlying field already carried the right value and only a downstream gate was lying. If so it's a
+fix, and the burden flips to whoever wants the old output.**
+
+**Why narrowing was refused:** any suppressing predicate must be "…and the reported source has ≥1
+line of its own" = `budgetLines.length > 0` under a new name, which re-breaks AC 3.1's claim-report
+case. **When the only available narrowing is the removed gate wearing a hat, there is no narrowing —
+say so plainly instead of negotiating.**
+
+**Non-goal held:** my §3 non-goal was the `isDeposit` *trigger* (still `isSplit && hasOwnTaggedDeposit`,
+AC 3.3, unchanged). This changed the `isSplit` trigger — the converse. **Check which side of a pair a
+"converse" escalation actually touches before conceding the non-goal was breached.**
+
+**Layout: explicitly declined a re-measurement.** `(Deposit) (partial)` is a strict subset of AC 4.5's
+already-measured four-run maximum. **Saying "dominated by an existing measurement, do not re-measure"
+is as valuable as demanding the measurement** — it stops a reflexive second geometry pass.
+
+**UAT: extended the existing pass, didn't add one.** Assessed the new pair as *lower* risk than my
+original AC 4.4 flag — `(Abschlagszahlung) (Teilbetrag)` is two different roots, vs. the sharp
+`(Abschlagszahlung) (abzgl. Abschlag)` same-root-opposite-senses collision. Same reader, same pass,
+zero marginal cost. **Rank the flagged risks against each other rather than treating every new
+co-occurrence as equally alarming.**
+
+**The three-places signal.** The stale "a constituted-deposit row carries no other note" invariant
+lived in the `if/else`, in **two** page-object JSDoc blocks, and in a Scenario 18 assertion. It was
+**believed, not specified** — three readers encoded an invariant the server data never supported,
+because the client gate made it look true. **When a corrected assumption turns up independently in
+code + docs + tests, that's one spec gap, not three bugs — and it's the argument for writing the AC
+down even though the code is already correct.**
+
+**Scenario 18 separately confirmed the over-inclusive defect was real and shipped:** its `invoice3`
+seeded an *untagged* deposit and asserted `isDepositReduced: true` — the E2E suite had encoded the
+bug as expected behaviour. QA also verified the new behaviour genuinely fails against pre-#1911 code
+(9 of 70 tests fail on restore), which is the anti-vacuity check AC 5.5 asked for.

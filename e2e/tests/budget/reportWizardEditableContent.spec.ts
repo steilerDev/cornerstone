@@ -75,20 +75,38 @@
  * attachments note into ONE read-only grey meta line in the Usage cell. See `ReportWizardPage.ts`'s
  * class docstring for the full locator reference (`sourceInfoBlock`, `depositBadge`/
  * `mobileDepositBadge`, `inlineNote`/`mobileInlineNote`, `usageMetaText`/`mobileUsageMetaText`,
- * `summaryTable`/`summaryTableRows`, and `footnotesBlock`/`footnoteItems` — zero for
- * constituted-deposit-only scenarios (Scenario 17), one deduplicated entry for split/
- * deposit-reduced scenarios (Issue #1965)).
+ * `summaryTable`/`summaryTableRows`, and `footnotesBlock`/`footnoteItems` — one deduplicated
+ * entry per active flag (`isSplit`/`isDepositReduced`), absent only when NEITHER flag fires
+ * anywhere in the report (Issue #1965)).
+ *
+ * Issue #1911 (`splitKind`): `isSplit`/`isDepositReduced`/`isDeposit` are now derived purely from
+ * the server's `splitKind: 'lines' | 'deposits' | 'both' | null` rather than the old
+ * `isSplit(raw) && budgetLines.length>0` / `isSplit(raw) && deposits.length>0` array-shape gates.
+ * Two consequences that ripple into Scenario 17/18 below: (1) a ZERO-contribution-line row (all
+ * of the invoice's budget lines point to a DIFFERENT source, `splitKind: 'lines'`) now DOES carry
+ * the `(partial)` label — the old `budgetLines.length>0` gate used to suppress it, which was the
+ * #1911 bug's mirror case; (2) `isDepositReduced` now fires ONLY when a deposit is tagged to a
+ * source OTHER than the one being reported (`splitKind: 'deposits'`/`'both'`) — an UNTAGGED
+ * deposit (`budgetSourceId: null`) never triggers it, because untagged deposits are apportioned
+ * pro-rata back INTO the reported source (`depositAggregateUtils.ts`), not claimed separately.
+ * `isDeposit` (the constituted-deposit badge trigger) is UNCHANGED and can now co-occur with
+ * `isSplit`/`isDepositReduced` on the same row — the old code's implicit either/or is gone.
  * - Scenario 16: A `claim` report omits the source-info metadata block entirely (AC3.1) — the
  *   counterpart to Scenario 1's `budget-overview` regression guard (AC3.3).
  * - Scenario 17: A constituted-deposit row (the row's allocation is made up entirely by a
- *   deposit tagged to the currently reported source) shows the inline "Deposit" badge on
- *   desktop, tablet, AND mobile, carries NO inline `(partial)`/`(less deposit)` note (nor either
- *   legacy `†`/`‡` glyph), and there is no footnotes block at all (AC2.1, AC2.2).
+ *   deposit tagged to the currently reported source, with the invoice's OWN budget lines pointing
+ *   entirely at a DIFFERENT source) shows the inline "Deposit" badge on desktop, tablet, AND
+ *   mobile (AC2.1, AC2.2) — and, since Issue #1911, ALSO the `(partial)` note and one footnote
+ *   entry, because the invoice's lines are foreign to the reported source (`splitKind: 'lines'`).
+ *   It still carries NO `(less deposit)` note (nor either legacy `†`/`‡` glyph): the deposit is
+ *   tagged to the reported source itself, not a foreign one.
  * - Scenario 18: Every split invoice carries its OWN inline `(partial)` label in its Allocated
  *   Amount cell (Issue #1959, superseding AC1.1-AC1.2's shared unnumbered `†` marker). The
  *   footnote list now contains exactly ONE deduplicated legend sentence ("Amount shown reflects
  *   only the portion allocated to this source.") pushed by `buildReportContent.ts` because
- *   `splitInvoiceIds.size > 0` (Issue #1965).
+ *   `splitInvoiceIds.size > 0` (Issue #1965). A sibling test at the end of this describe block is
+ *   the Issue #1911 AC 3.2 regression guard: a split invoice with an UNTAGGED deposit must show
+ *   `(partial)` but never `(less deposit)`.
  * - Scenario 19: Invoices spanning two or more statuses still produce exactly one summary row
  *   (`Total`) — no per-status subtotal rows (AC4.1-AC4.2).
  * - Scenario 20: A budget line linked to an item with an assigned area shows the item's leaf
@@ -326,7 +344,8 @@ async function linkDocumentToInvoiceViaApi(
  * Creates a deposit on `invoiceId`, optionally tagged to a budget source
  * (`data.budgetSourceId`) — mirrors the established pattern in `reportWizardExpansion.spec.ts`
  * (Story #1891/#1895/#1896). Used by Scenario 17 to construct a constituted-deposit row (Story
- * #1923 AC2.1).
+ * #1923 AC2.1) and by Scenario 18 to construct deposit-reduced (`budgetSourceId` tagged to a
+ * DIFFERENT source) and untagged (`budgetSourceId: null`) rows (Issue #1911).
  */
 async function createDepositViaApi(
   page: Page,
@@ -1567,15 +1586,17 @@ test.describe('Report wizard editable content — claim reports omit the metadat
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 17: Constituted-deposit row shows the inline Deposit badge and no deposit-reduced
-// note (Story #1923 AC2.1, AC2.2; note shape updated by Issue #1959)
+// Scenario 17: Constituted-deposit row shows the inline Deposit badge, a "(partial)" note (the
+// invoice's own budget lines are foreign to the reported source), and no "(less deposit)" note
+// (Story #1923 AC2.1, AC2.2; note shape updated by Issue #1959; `(partial)` addition + rationale
+// per Issue #1911's splitKind-driven derivation)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
   'Report wizard editable content — inline deposit badge (Scenario 17)',
   { tag: '@responsive' },
   () => {
-    test('A row whose allocation is made up entirely by a deposit tagged to the reported source shows an inline "Deposit" badge and no "(less deposit)" note, with no footnote entry, on desktop, tablet, and mobile', async ({
+    test('A row whose allocation is made up entirely by a deposit tagged to the reported source shows an inline "Deposit" badge and a "(partial)" note (its own budget lines are foreign to this source), but no "(less deposit)" note, with one footnote entry, on desktop, tablet, and mobile', async ({
       page,
       testPrefix,
     }) => {
@@ -1614,12 +1635,20 @@ test.describe(
           budgetSourceId: sourceBId,
         });
 
-        // View source B's own claim report — this invoice has zero budget lines for B, so its
-        // entire row here is the tagged deposit: isSplit (spans A + B) with an empty
-        // `budgetLines` slice for B → constituted-deposit, so `isSplit` is false (no
-        // budget-line split for B) and `isDepositReduced` is false (the deposit IS tagged to B,
-        // not "reduced") → NEITHER inline note (Issue #1959 replaced the old †/‡ markers with
-        // the `(partial)`/`(less deposit)` labels asserted against here).
+        // View source B's own claim report — this invoice has zero budget lines for B (all of
+        // its budget lines point at source A), so its entire row here is the tagged deposit:
+        // `isDeposit` fires (own-tagged deposit present, raw `isSplit` true — unchanged trigger).
+        // Since Issue #1911, `isSplit`/`isDepositReduced` are driven purely by the server's
+        // `splitKind`, not by whether B itself has a budget-line contribution: the invoice's
+        // lines are ALL foreign to B (they're on A) → `has_foreign_line_source` is true for B's
+        // report → `splitKind: 'lines'` → `isSplit` fires too, even though B's own `budgetLines[]`
+        // slice is empty (AC 3.1's zero-contribution-line case — the old `budgetLines.length>0`
+        // gate used to suppress this; `splitKind` alone decides now). `isDepositReduced` stays
+        // false: the deposit is tagged to B itself (the reported source), not a foreign one, so
+        // `has_foreign_deposit_source` is false and `splitKind` cannot be 'deposits'/'both'.
+        // Net effect: BOTH the "Deposit" badge AND the `(partial)` note render on this row — the
+        // old code's implicit either/or between "constituted" and "split" is gone — but never
+        // `(less deposit)`.
         await reachStep5(wizard, sourceBId);
 
         const vendorName = `${testPrefix} Deposit Vendor`;
@@ -1632,10 +1661,13 @@ test.describe(
           const badge = wizard.mobileDepositBadge(vendorName, invoice.invoiceNumber!);
           await expect(badge).toBeVisible();
           await expect(badge).toHaveText('Deposit');
-          // The badge is the row's ONLY allocated-amount annotation: no `(partial)`/`(less
-          // deposit)` inline note (Issue #1959), and — belt and braces — neither legacy glyph.
-          await expect(wizard.mobileInlineNote(vendorName, invoice.invoiceNumber!)).toHaveCount(0);
+          // The badge co-occurs with exactly one inline note: `(partial)` (Issue #1911 AC 3.1),
+          // never `(less deposit)`, and — belt and braces — neither legacy glyph.
+          const mobileNote = wizard.mobileInlineNote(vendorName, invoice.invoiceNumber!);
+          await expect(mobileNote).toHaveCount(1);
+          await expect(mobileNote).toHaveText('(partial)');
           const cardText = (await card.textContent()) ?? '';
+          expect(cardText).not.toContain('less deposit');
           expect(cardText).not.toContain('†');
           expect(cardText).not.toContain('‡');
         } else {
@@ -1645,20 +1677,26 @@ test.describe(
           const badge = wizard.depositBadge(vendorName, invoice.invoiceNumber!);
           await expect(badge).toBeVisible();
           await expect(badge).toHaveText('Deposit');
-          await expect(wizard.inlineNote(vendorName, invoice.invoiceNumber!)).toHaveCount(0);
+          const note = wizard.inlineNote(vendorName, invoice.invoiceNumber!);
+          await expect(note).toHaveCount(1);
+          await expect(note).toHaveText('(partial)');
+          await expect(row).toContainText('€150.00 (partial)');
           const rowText = (await row.textContent()) ?? '';
+          expect(rowText).not.toContain('less deposit');
           expect(rowText).not.toContain('†');
           expect(rowText).not.toContain('‡');
         }
 
-        // No footnote entry: this is a constituted-deposit row — the allocation is made up
-        // entirely by a deposit tagged to source B, so `isSplit` is false (only source B has
-        // budget lines; the invoice is not split across sources), and `isDepositReduced` is also
-        // false (the deposit constitutes the row, it does not reduce a gross amount).
-        // `buildReportContent.ts` only pushes legend entries when `splitInvoiceIds.size > 0` or
-        // `depositReducedInvoiceIds.size > 0` — neither condition holds here, so
-        // `content.footnotes` stays empty and the block is absent from the DOM (Issue #1965).
-        await expect(wizard.footnotesBlock).toHaveCount(0);
+        // One footnote entry: `splitInvoiceIds.size > 0` now holds (the `splitKind: 'lines'`
+        // shape above), so `buildReportContent.ts` pushes the split legend sentence.
+        // `depositReducedInvoiceIds` stays empty (no foreign-tagged deposit here), so there is
+        // still no "claimed separately" entry — the block holds exactly ONE `<li>`, not two
+        // (Issue #1965, re-verified under Issue #1911's splitKind-driven derivation).
+        await expect(wizard.footnotesBlock).toHaveCount(1);
+        await expect(wizard.footnoteItems).toHaveCount(1);
+        await expect(wizard.footnoteItems.nth(0)).toContainText(
+          'Amount shown reflects only the portion allocated to this source.',
+        );
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
         if (sourceBId) await deleteBudgetSourceViaApi(page, sourceBId);
@@ -1723,10 +1761,17 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
         250,
       );
 
-      // Third invoice: split across the same two sources AND carrying an untagged deposit
-      // (`budgetSourceId: null` — no source match for `reportedSourceId` → `isDepositReduced:
-      // true` when viewed from `reportedSourceId`). This is the first real-browser fixture that
-      // exercises the deposit-reduced code path (AC5 — Issue #1980).
+      // Third invoice: split across the same two sources AND carrying a deposit TAGGED to the
+      // OTHER source (`otherSourceId` — not `reportedSourceId` and not null). Since Issue #1911,
+      // `isDepositReduced` is driven by `splitKind`, which is 'deposits'/'both' only when a
+      // deposit is tagged to a source OTHER than the one being reported — the server SQL's
+      // `has_foreign_deposit_source` aggregate filters `budget_source_id IS NOT NULL`, so an
+      // UNTAGGED deposit never sets it (that shape moved to the sibling negative-control test
+      // below, Issue #1911 AC 3.2 — it used to live here and was the over-inclusive bug this
+      // story exists to fix). Tagging to `otherSourceId` produces the genuine `splitKind: 'both'`
+      // shape (foreign line from `otherSourceId`'s own budget line AND a foreign deposit also on
+      // `otherSourceId`) — the first real-browser fixture that exercises the deposit-reduced code
+      // path (AC5 — Issue #1980; re-seeded for #1911).
       const invoice3 = await seedSplitInvoice(
         page,
         vendorId,
@@ -1742,7 +1787,7 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
         amount: 50,
         dueDate: '2026-06-20',
         status: 'pending',
-        budgetSourceId: null,
+        budgetSourceId: otherSourceId,
       });
 
       await reachStep5(wizard, reportedSourceId);
@@ -1787,8 +1832,9 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
 
       // Issue #1965 + AC5 (Issue #1980): the footnotes block now contains TWO deduplicated
       // legend entries — one for `isSplit` (all three invoices trigger it) and one for
-      // `isDepositReduced` (invoice3 triggers it via its untagged deposit). Two distinct flag
-      // types → two distinct legend sentences, even though invoice3 triggers both simultaneously.
+      // `isDepositReduced` (invoice3 triggers it via its deposit tagged to `otherSourceId` —
+      // Issue #1911's `splitKind: 'both'` shape). Two distinct flag types → two distinct legend
+      // sentences, even though invoice3 triggers both simultaneously.
       // The block itself is still exactly one element (one `<ul class*="footnotes">`), but now
       // holds two `<li>` items.
       await expect(wizard.footnotesBlock).toHaveCount(1);
@@ -1811,6 +1857,100 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
       const pageText = (await page.locator('main').textContent()) ?? '';
       expect(pageText).toContain('(partial)');
       await expect(page.locator('main')).toContainText('(less deposit)');
+    } finally {
+      if (reportedWorkItemId) await deleteWorkItemViaApi(page, reportedWorkItemId);
+      if (otherWorkItemId) await deleteWorkItemViaApi(page, otherWorkItemId);
+      if (reportedSourceId) await deleteBudgetSourceViaApi(page, reportedSourceId);
+      if (otherSourceId) await deleteBudgetSourceViaApi(page, otherSourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+
+  // Issue #1911 AC 3.2 regression guard (the over-inclusive-fix direction): a split invoice
+  // carrying an UNTAGGED deposit must show "(partial)" — the invoice's lines genuinely span two
+  // sources, so `splitKind: 'lines'` and `isSplit` fires normally — but must NEVER show
+  // "(less deposit)", and must contribute exactly ONE legend entry. Before #1911,
+  // `isDepositReduced` fired on ANY untagged deposit sharing an invoice with a split line,
+  // producing a false "claimed separately" legend sentence for a deposit that
+  // `depositAggregateUtils.ts`'s residual-fraction apportionment actually folds pro-rata back
+  // INTO this source — #1965 ruled "separately" audit-load-bearing, which is what makes the old
+  // behavior a real defect rather than a nit. This used to be invoice3's shape above (before it
+  // was re-seeded to a genuinely foreign-tagged deposit for the true deposit-reduced case), so
+  // without a standalone guard here the over-inclusive bug could regress silently. Isolated into
+  // its own invoice/source/vendor set (not folded into the test above) specifically so
+  // `footnoteItems` can assert count 1 cleanly — the scenario above always has 2 (split +
+  // deposit-reduced) for unrelated reasons. Positive control: the `(partial)` note AND the split
+  // footnote sentence both render, proving this isn't passing against a blank/mis-seeded page.
+  test('A split invoice carrying an untagged deposit shows only the "(partial)" note — never "(less deposit)" — and contributes exactly one legend entry', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let reportedSourceId = '';
+    let otherSourceId = '';
+    let reportedWorkItemId = '';
+    let otherWorkItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Untagged Vendor` });
+      reportedSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Untagged Source A`,
+        totalAmount: 10000,
+      });
+      otherSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Untagged Source B`,
+        totalAmount: 10000,
+      });
+      reportedWorkItemId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} WI Untagged A`,
+      });
+      otherWorkItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Untagged B` });
+
+      const invoice = await seedSplitInvoice(
+        page,
+        vendorId,
+        reportedSourceId,
+        otherSourceId,
+        reportedWorkItemId,
+        otherWorkItemId,
+        { invoiceNumber: `${testPrefix}-SPLITUNTAG-001`, date: '2026-06-13', status: 'pending' },
+        60,
+        90,
+      );
+      // Untagged: `budgetSourceId: null`. The server SQL's `has_foreign_deposit_source` aggregate
+      // filters `d.budget_source_id IS NOT NULL`, so an untagged deposit is invisible to it —
+      // `splitKind` resolves to 'lines' (from the foreign budget line on `otherSourceId`), never
+      // 'deposits'/'both'. This is the exact AC 3.2 over-inclusive-fix shape.
+      await createDepositViaApi(page, invoice.id, {
+        amount: 25,
+        dueDate: '2026-06-21',
+        status: 'pending',
+        budgetSourceId: null,
+      });
+
+      await reachStep5(wizard, reportedSourceId);
+
+      const vendorName = `${testPrefix} Untagged Vendor`;
+      const row = wizard.contentTableRow(vendorName, invoice.invoiceNumber!);
+
+      // Positive control: the split note renders normally.
+      const note = wizard.inlineNote(vendorName, invoice.invoiceNumber!);
+      await expect(note).toHaveCount(1);
+      await expect(note).toHaveText('(partial)');
+      await expect(row).toContainText('€60.00 (partial)');
+
+      // The regression guard itself: no second inline note, specifically not the deposit-reduced
+      // label (the untagged deposit must not read as "claimed separately").
+      const rowText = (await row.textContent()) ?? '';
+      expect(rowText).not.toContain('less deposit');
+
+      // Exactly one legend entry (the split sentence) — never a second deposit-reduced entry.
+      await expect(wizard.footnotesBlock).toHaveCount(1);
+      await expect(wizard.footnoteItems).toHaveCount(1);
+      await expect(wizard.footnoteItems.nth(0)).toContainText(
+        'Amount shown reflects only the portion allocated to this source.',
+      );
     } finally {
       if (reportedWorkItemId) await deleteWorkItemViaApi(page, reportedWorkItemId);
       if (otherWorkItemId) await deleteWorkItemViaApi(page, otherWorkItemId);

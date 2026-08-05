@@ -221,6 +221,7 @@ function makeReport(overrides: Partial<SourceReportResponse> = {}): SourceReport
         allocatedAmount: 1000,
         lineKind: 'invoice',
         isSplit: false,
+        splitKind: null,
         documents: [],
         budgetLines: [
           {
@@ -440,6 +441,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
               allocatedAmount: 500,
               lineKind: 'invoice',
               isSplit: false,
+              splitKind: null,
               documents: [],
               budgetLines: [],
               deposits: [],
@@ -1209,7 +1211,7 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
 
     // H1: a discarded generation's finally block must NOT clear the spinner that
     // belongs to a second, still-in-flight generation started after the discard.
-    it('H1 — discarded generation\'s finally does not clear spinner of new generation', async () => {
+    it("H1 — discarded generation's finally does not clear spinner of new generation", async () => {
       let resolveA!: (value: GenerateReportContentResponse) => void;
       const controlledA = new Promise<GenerateReportContentResponse>((res) => {
         resolveA = res;
