@@ -469,9 +469,9 @@ export const HEADER_ROW_HEIGHT_MAX =
  *                          areaText/attachmentsNote as an inline grey suffix), and that cell's
  *                          whole content stream is packed into page-safe rows by
  *                          packUsageCellRows against MAX_SAFE_USAGE_CHUNK_CHARS. VERTICAL height
- *                          is therefore bounded for all three together. The grey suffix is not
- *                          routed through buildUsageTextRuns, so HORIZONTALLY it is in the same
- *                          recorded-not-fixed class as `invoiceNumber` below.
+ *                          is therefore bounded for all three together. The grey suffix routes
+ *                          through buildUsageTextRuns (per-token break-all), so HORIZONTAL
+ *                          overflow there is also closed (#1968).
  * - `markerText`        — UNBOUNDED. One `*N` footnote marker is appended per skipped document on
  *                          an invoice (see the row-building loop's `skipMarkers` accumulation),
  *                          with no chunking and no word-break, into the 75pt ALLOCATED_AMOUNT_WIDTH
@@ -482,17 +482,10 @@ export const HEADER_ROW_HEIGHT_MAX =
  *                          self-hosted app — not a credible input, and the fix (chunking a
  *                          footnote-marker run) would be pure ceremony against that reachability.
  *
- * Three channels are recorded here without a fix, same class as `markerText` above:
+ * Two channels are recorded here without a fix, same class as `markerText` above:
  * - `invoiceNumber` (see above) does not route through buildUsageTextRuns, so a 100-character
  *   unbroken number would paint outside its 63pt INVOICE_NUMBER_WIDTH column. Interior column,
  *   cosmetic overflow only, capped at 100 by the server schema — recorded, not fixed.
- * - the inline grey `areaText`/`attachmentsNote` suffix (see above) is emitted as ONE run rather
- *   than per-token runs, so an unbroken token in a leaf-area name or note wider than the Usage
- *   column paints outside that cell. Horizontal and cosmetic only (every column is an explicit
- *   numeric width, so no token can widen the table itself — see WORST_CASE_CHAR_ADVANCE_EM reason
- *   (1)); the VERTICAL channel, which is the one that loses content, is closed. Emitting per-token
- *   runs here would also put more than one grey run in a cell, which readers of these cells
- *   currently treat as an invariant violation — recorded, not fixed.
  * - `markerText` (see above) is the one remaining unbounded row-height contributor in this table.
  */
 
@@ -688,12 +681,10 @@ export function buildOverviewContent(
   /**
    * Renders one packed row's worth of Usage-cell segments (see packUsageCellRows) into a cell.
    *
-   * Body segments go through `buildUsageTextRuns` for per-token break-all protection; the grey
-   * meta suffix is emitted as ONE run, so a cell never holds more than a single grey run and that
-   * run is always last (both properties are relied on when reading these cells back). The meta
-   * suffix is NOT token-protected: it is 8pt body-font text in a fixed-width column, so an
-   * over-wide unbroken token there paints outside its own cell — cosmetic horizontal overflow only,
-   * the same recorded-not-fixed class as `invoiceNumber` (see the channel enumeration above).
+   * Both body and grey meta segments go through `buildUsageTextRuns` for per-token break-all
+   * protection. Each meta run is coloured DEPOSIT_NOTE_TEXT_COLOR after the split, so a cell may
+   * hold multiple consecutive grey runs — they are always last (relied on by splitUsageCell in
+   * tests and by any caller reading these cells back).
    */
   function buildUsageCell(segments: UsageCellSegment[]): Content {
     const runs: Content[] = [];
@@ -706,7 +697,10 @@ export function buildOverviewContent(
       // cell (it was pushed onto a continuation row of its own), that newline would render an
       // empty first line instead, so it is dropped — a presentational separator, not content.
       const text = index === 0 ? segment.text.replace(/^\n/, '') : segment.text;
-      runs.push({ text, color: DEPOSIT_NOTE_TEXT_COLOR });
+      const metaRuns = buildUsageTextRuns(text, usageSafeTokenChars);
+      runs.push(
+        ...metaRuns.map((r) => Object.assign({}, r, { color: DEPOSIT_NOTE_TEXT_COLOR }) as Content),
+      );
     });
     return { text: runs, style: 'tableCell' };
   }

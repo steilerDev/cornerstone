@@ -949,3 +949,43 @@ while the override exists"), otherwise the next reader sees the same value confi
 option delivers the behaviour, and deletes the explicit call as duplicated config — reintroducing the
 very bug. Related: a single constant referenced twice cannot "drift" at all, so that phrasing in wiki
 prose overstates the guarantee it buys.
+
+## The revert test: a fix that relaxes an invariant and adds no assertion is unobserved
+
+PR #2002 (#1968) routed the report-PDF usage-cell grey meta suffix through `buildUsageTextRuns` so
+per-token `wordBreak: 'break-all'` applies. To let the resulting multiple grey runs through, it relaxed
+both `splitUsageCell` test helpers from "exactly one grey run" to "grey runs contiguous at the tail" —
+and in doing so made the helpers **synthesize** the meta run (`{ text: <joined>, color: GREY }`),
+discarding the per-run `wordBreak` flag. Net effect: reverting the production hunk left all 95 + 73
+tests green. The PR body's "all existing tests pass unchanged" was true and was the problem.
+
+Shape to watch for: **a fix whose enabling step is a loosened assertion.** The loosened assertion is
+by construction the one that used to observe the structure being changed; if nothing new observes the
+new structure, coverage went *down* while the diff looked like it went up.
+
+Rule: for any bug fix, ask "if I reverted just the production hunk, which test goes red?" If the answer
+is none, the fix has no regression guard regardless of suite size. Two specific tells: (a) the diff
+touches only test *helpers*, never test *cases*; (b) the helper reconstructs a synthetic object from the
+real one, silently dropping exactly the property the fix adds.
+
+Corollary: relaxing an invariant is fine and often correct (contiguous-at-tail still catches interleaved
+or mis-coloured runs — it is weaker only in the dimension the fix deliberately changed). What is not fine
+is relaxing it *and* leaving the new dimension unassertable.
+
+**Round-2 outcome (2026-08-04) — run the revert test yourself; don't grade the description of it.** #2002
+came back claiming H1 fixed. It genuinely was, but I only know that because I re-ran the revert: reverting
+the hunk to `runs.push({ text, color: DEPOSIT_NOTE_TEXT_COLOR })` failed all three new tests (`greyRuns.length`
+1 not >1; `wordBreak` assertions false), and restoring passed 171/171. The fix was to stop synthesizing —
+the helper now returns the **raw** run objects (`greyIndexes.map((i) => runs[i]!)`) so no pdfmake property is
+dropped, plus a second test that bypasses the helper entirely and reads the run array off the rendered doc.
+Generalizable: when the round-1 finding was "the test cannot observe the fix", the round-2 evidence is a
+**demonstrated red**, and that is cheap to produce (one edit, one `-t` jest run) — a prose summary of which
+assertions were added is not a substitute, because the whole failure mode was an assertion that looked right.
+Two good repair shapes to accept: return the raw object instead of a reconstruction, and add one test that
+skips the helper layer under suspicion.
+
+**Also check the fix's *other* axis.** `break-all` converts horizontal overflow into extra wrapped lines,
+which in this table meets the `dontBreakRows` silent-drop hazard — so an overflow fix can create a height
+bug. Here it cannot: `packUsageCellRows` budgets by *character* count derived from a per-line char count, so
+the pre-fix unbroken token used *fewer* lines than already budgeted and the fix only moves actual behaviour
+toward the budget's assumption. Worth asking every time a wrap/break flag is introduced.

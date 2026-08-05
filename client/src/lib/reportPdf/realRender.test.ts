@@ -287,11 +287,12 @@ function usageCellText(text: unknown): string {
 // buildUsageTextRuns), so it must be located by its own grey color, never by a fixed position.
 //
 // #1959 fix round: `packUsageCellRows` packs the cell's WHOLE content stream (prose + grey suffix)
-// against one page-safe budget, so a long suffix now spans SEVERAL rows — one grey run per row,
-// always the last run of its own cell. Reconstructing the suffix therefore means concatenating the
-// grey run of EVERY row in the group, not reading a single cell (see `readCellGroup` below); a
-// helper that only looked at row 0 was what let the old page-count tripwire fail for the wrong
-// reason instead of flipping.
+// against one page-safe budget, so a long suffix now spans SEVERAL rows — one or more grey runs
+// per row (after #1968 the meta suffix itself routes through buildUsageTextRuns and may produce
+// multiple grey runs, always the last run(s) of their own cell). Reconstructing the suffix
+// therefore means concatenating the grey run(s) of EVERY row in the group, not reading a single
+// cell (see `readCellGroup` below); a helper that only looked at row 0 was what let the old
+// page-count tripwire fail for the wrong reason instead of flipping.
 const META_GREY = '#6b7280';
 
 function splitUsageCell(cell: unknown): {
@@ -309,22 +310,28 @@ function splitUsageCell(cell: unknown): {
   const greyIndexes = typed
     .map((run, i) => (run.color === META_GREY ? i : -1))
     .filter((i) => i !== -1);
-  // Production emits at most one grey segment per packed row, and always last in the stream — both
-  // properties are relied on when reading these cells back, so assert them rather than assume.
-  if (greyIndexes.length > 1) {
-    throw new Error(`Expected at most ONE grey meta run per Usage cell, got ${greyIndexes.length}`);
-  }
-  const metaIndex = greyIndexes[0];
-  if (metaIndex === undefined) {
+  if (greyIndexes.length === 0) {
     return { usageText: typed.map((r) => r.text).join(''), metaRaw: null, metaText: null };
   }
-  if (metaIndex !== typed.length - 1) {
-    throw new Error(`Grey meta run at index ${metaIndex} of ${typed.length} — expected it last`);
+  // Grey meta runs must be contiguous and occupy the tail of the run array — they are a suffix,
+  // never interleaved into the usage prose. Multiple grey runs are allowed since #1968 routes the
+  // meta suffix through buildUsageTextRuns, which may split it into per-token runs.
+  const firstGrey = greyIndexes[0]!;
+  const lastGrey = greyIndexes[greyIndexes.length - 1]!;
+  if (lastGrey !== typed.length - 1) {
+    throw new Error(
+      `Grey meta run(s) must be the last run(s) in a Usage cell — last grey at ${lastGrey}, last run at ${typed.length - 1}`,
+    );
   }
-  const metaRaw = typed[metaIndex]!.text;
+  if (lastGrey - firstGrey !== greyIndexes.length - 1) {
+    throw new Error(
+      `Grey meta runs must be contiguous in a Usage cell — found gaps in indexes ${greyIndexes.join(', ')}`,
+    );
+  }
+  const metaRaw = greyIndexes.map((i) => typed[i]!.text).join('');
   return {
     usageText: typed
-      .slice(0, metaIndex)
+      .slice(0, firstGrey)
       .map((r) => r.text)
       .join(''),
     metaRaw,
@@ -2619,6 +2626,30 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       },
       300000,
     );
+
+    it('[#1968 regression] a single over-wide space-free token in areaText gets wordBreak: break-all on its grey run — proves meta suffix routes through buildUsageTextRuns, not pre-fix single-run emit', async () => {
+      // 'W'.repeat(30) is the measured worst-case glyph — exceeds both USAGE_SAFE_TOKEN_CHARS
+      // thresholds (7-col: 19, 6-col: 26). No character lost (AC1) and the token carries
+      // wordBreak: 'break-all' (proves fix path was exercised, not the pre-fix bypass).
+      const overWideToken = 'W'.repeat(30);
+      const { dataRows, metaText, metaRowIndexes } = await renderCellScopeRow({
+        usageText: 'x',
+        areaText: overWideToken,
+      });
+      expect(metaText).toBe(overWideToken); // no character lost (#1968 AC1)
+      expect(metaRowIndexes.length).toBeGreaterThan(0);
+
+      // Inspect raw run array directly — splitUsageCell synthesizes { text, metaRaw } and discards
+      // wordBreak, so we bypass it for this structural assertion.
+      const metaRowIdx = metaRowIndexes[metaRowIndexes.length - 1]!;
+      const metaRowCells = dataRows[metaRowIdx] as unknown[];
+      const lastCell = metaRowCells[metaRowCells.length - 1] as {
+        text: { text: string; color?: string; wordBreak?: string }[];
+      };
+      const greyRuns = lastCell.text.filter((r) => r.color === META_GREY);
+      expect(greyRuns.length).toBeGreaterThan(0);
+      expect(greyRuns.some((r) => r.wordBreak === 'break-all')).toBe(true);
+    }, 60000);
   });
 
   // ─── #1929 round 2: AC13 header-band smoke test (scenario 20) ─────────────────────────────────
