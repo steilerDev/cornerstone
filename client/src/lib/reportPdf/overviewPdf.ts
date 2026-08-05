@@ -456,6 +456,28 @@ export function usageSafeTokenCharsForWidth(usageWidthPt: number): number {
  * by calling this function directly with a synthetic width (see QA Spec), not by enumerating
  * today's subsets. Do not "simplify" this to always return MAX_SAFE_USAGE_CHUNK_CHARS: that would
  * remove the clamp's entire reason for existing.
+ *
+ * Why the full 7-column shape returns EXACTLY 650 rather than 649: the ratio is exactly 1.0 there,
+ * because computeColumnWidths derives that subset's Usage width via the SAME usableColumnWidth(7)
+ * call USAGE_WIDTH_7COL uses, minus a `fixedSum` that sums the identical six PINNED_WIDTHS values
+ * USAGE_FIXED_SUM_7COL sums. Two computations of `usableColumnWidth(7) - X` are bit-identical
+ * whenever both `X`s are bit-identical (floating-point subtraction is a deterministic function of
+ * its two operands) — so the only question is whether `fixedSum === USAGE_FIXED_SUM_7COL`, and at
+ * this magnitude (six terms, tens of pt each, nowhere near the 52-bit mantissa's limit) that sum is
+ * order-independent REGARDLESS of whether a term is fractional — verified by exhaustively summing
+ * all 720 orderings of the six pinned widths with each one substituted for a non-integer value in
+ * turn: zero divergence. So, unlike an earlier draft of this comment claimed, a fractional pinned
+ * width does NOT threaten this equality on its own; do not trust that framing if it reappears.
+ *
+ * The real fragility is that USAGE_FIXED_SUM_7COL / USAGE_FIXED_SUM_6COL (above) are hand-written
+ * literal sums with no type-level tether to PINNED_WIDTHS or OVERVIEW_COLUMNS/CLAIM_COLUMNS —
+ * unlike PINNED_WIDTHS, which is typed `Record<FixedColumnKey, number>` and forces a compile error
+ * if a column is added without a pinned-width entry, nothing re-checks USAGE_FIXED_SUM_7COL's term
+ * list against the columns it's meant to cover. If a future column addition or removal updates one
+ * without the other, `fixedSum` and USAGE_FIXED_SUM_7COL would sum different term sets — a real,
+ * likely non-trivial divergence (not a subtle rounding nudge) — and THAT is what would silently
+ * break the boundary assertion in overviewPdf.test.ts's AC 3.7 block. Re-check that test, and this
+ * comment, if either constant's term list is ever touched independently of the other.
  */
 export function usageChunkCharsForWidth(usageWidthPt: number): number {
   const scaled = Math.floor(MAX_SAFE_USAGE_CHUNK_CHARS * (usageWidthPt / USAGE_WIDTH_7COL));

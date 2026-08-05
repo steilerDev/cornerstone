@@ -523,3 +523,64 @@ figure that still appears at ADR-034 lines 105, 120, 129, 138 and in the Deviati
 Narrowest text column is **Vendor at 45pt** (`VENDOR_WIDTH`, `overviewPdf.ts:26`,
 `VENDOR_SAFE_TOKEN_CHARS` = 5) — it is the binding constraint for the `wordBreak` rule, not Usage,
 and as of PR #2008 it has no `_minWidth` coverage.
+
+## #1973 / PR #2010 — column-visibility geometry engine (reviewed 2026-08-05, CHANGES REQUESTED)
+
+The two hardcoded table shapes are gone. `overviewPdf.ts` now renders any of **96 legal column
+subsets** (64 budget-overview + 32 claim; `allocatedAmount` locked, R1), driven by
+`client/src/lib/reportContent/columns.ts` — the AC 2.1 single derivation consumed by *both*
+`overviewPdf.ts` and `ReportContentEditor.tsx`.
+
+**Width mechanism (endorsed): single absorber.** `computeColumnWidths(visible)` picks
+`usage` → else `vendor` → else `null`; the absorber takes `usableColumnWidth(n) − fixedSum`, every
+other column keeps its pinned constant. This discharges R7/AC 3.1–3.5 *algebraically*
+(`total = printableWidth()` exactly with an absorber, strictly less without) instead of by 96
+assertions. `'*'` was correctly rejected (#1929 `columnCalculator.js` case-1); proportional
+slack-sharing would violate R7's "don't stretch a numeric table across 515pt".
+
+**Key derived fact: `USAGE_WIDTH_7COL` (138.28pt) is the NARROWEST Usage width across all 96
+subsets.** Removing any column both shrinks `fixedSum` (≥ 40pt) and grows `usableColumnWidth`
+(+8.5pt), so Usage is strictly monotone-decreasing in column count. That is why
+`MAX_SAFE_USAGE_CHUNK_CHARS` (650, measured at 138.28pt) needed **no re-measurement** — hiding
+columns only makes it more conservative. `usageChunkCharsForWidth` is a deliberate one-sided clamp
+(`min(650, floor(650 · w/138.28))`): scales down for a future *added* column, never up.
+
+**Standing review lesson — a wiki page can state a PROHIBITION that a later PR deletes.**
+ADR-034's "Geometry constraint that blocks a feature" (line 153) said the PDF column count is
+fixed at 6 or 7 and that wiring the toggles through "is a re-measurement story, not a UI change."
+PR #2010 falsified every clause and touched no wiki file. **When reviewing a PR that removes a
+constraint, grep the wiki for the constraint's own statement, not just for the API/schema surface
+the PR touches** — a stale prohibition actively steers the next agent away from work that already
+shipped. Also stale on that page and folded into the same ask: line 144 quotes
+`packUsageCellRows(segments, MAX_SAFE_USAGE_CHUNK_CHARS)` (now per-subset `usageChunkChars`), and
+line 155's "Related sharp edge" says `packUsageCellRows` **hangs** on `maxChars <= 0` — it throws
+(`overviewPdf.ts:338`), and its own prediction ("it matters the moment it becomes computed") went
+live with this PR.
+
+**Summary-label three-tier fallback (R2)** — tier 1 last visible leading column, tier 2
+`invoiceAmount`, tier 3 a stack block below the table. Real subset counts are **88 / 4 / 4**; the
+issue body and the test title both say "92" for tier 1 (they merged tiers 1+2). Tier 3's block is
+**not width-constrained** — two implicit `'*'` columns across 515.28pt while the
+`{allocatedAmount}`-alone table is only 84pt, so the total floats 431pt from its column (2 of 96
+subsets; flagged M3).
+
+**ADR-034 debt for #1973 is PAID (wiki `eb24774`, 2026-08-05, by me during PR #2010 review.)** The old
+"Geometry constraint that blocks a feature" section is replaced by **"Column geometry is a computed
+engine, not two pinned shapes"**, which now carries the narrowest-Usage-width proof, the absorber
+rationale (and why `'*'` / proportional slack-sharing were rejected), the one-sided clamp, the
+residual "adding a column IS still a re-measurement story" constraint, and the forcing-function
+audit. `reportContent/columns.ts` is in the module structure. Same commit added Architecture.md's
+**"Multi-step wizard state: tier factories"** subsection — the `freshXTier()`-spread convention had
+never been documented anywhere despite being the fix for #1943/#1946/#1947.
+
+**Still open on ADR-034 after this pass** (all pre-existing, none introduced by #1973): every quoted
+`69.28`/`33.54`/`266.16pt` figure is stale (lines ~105/120/129/138), and rule #1 says "every cell"
+while `realRender.test.ts` covers only Usage — Vendor at 45pt is the binding column.
+
+**Exhaustiveness audit pattern for a keyed geometry engine.** Compile-error-enforced here:
+`PINNED_WIDTHS: Record<FixedColumnKey, number>`, `HEADER_LABEL: Record<ReportColumnKey, string>`,
+`buildBodyCell`'s `default`-less switch. **Not** enforced: `OVERVIEW_COLUMNS`/`CLAIM_COLUMNS` in
+`columns.ts`, `LEADING_COLUMNS`/`RIGHT_ALIGNED_COLUMNS`, and the absorber ternary — all hand-typed
+lists over the same union, and the tests that "count" them pin the literals 7/6, so a new key is
+silently absent everywhere. Recommended fix shape: derive the canonical order from an exhaustive
+`Record<ReportColumnKey, number>` and define the base sets as filters over it.
