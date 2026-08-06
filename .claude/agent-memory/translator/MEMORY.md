@@ -106,6 +106,10 @@ New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + depos
 
 - [Inline label quoting](inline-label-quoting-1973.md) — „...\" (curly open, straight close) is the established codebase convention for naming a UI label inline in a sentence; cross-check the referenced label's own translation, don't re-translate the noun independently
 
+## Non-Mandatory Register / sr-only Hints (Issue #1941, 2026-08-06)
+
+- [Non-mandatory register](non-mandatory-register-1941.md) — no semicolon anywhere in de locale files, use en dash "–" as clause joiner instead; avoid "Grenze"/negated "müssen" when spec bans error-blame framing; sr-only strings have no pixel budget
+
 ## Audit Protocol History
 
 - [Audit pitfalls](audit-pitfalls.md) — incident history behind the mandatory 4-step full-coverage audit protocol: a parity-only audit missed 13 code-referenced keys (Area UI raw-key bug); loose substring greps flagged 52 false positives

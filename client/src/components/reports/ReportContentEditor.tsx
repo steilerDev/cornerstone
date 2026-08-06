@@ -51,6 +51,47 @@ const STATUS_BADGE_CLASSNAME: Record<InvoiceStatus, string> = {
 
 type ColumnKey = ReportColumnKey;
 
+// #1941 AC2 — override field length limits. Each is anchored on a measured constant or an
+// existing server-side cap; the rationale is recorded per-field, not shared, per AC2.
+
+// sender: ~5 address lines — one line of headroom beyond the widest affordance (rows={4}).
+// Deliberately equal to recipient (see below): the row-count affordance is a display choice,
+// not a semantic difference, and both render in the letter's fixed address zone.
+const SENDER_MAX_LENGTH = 300;
+
+// recipient: deliberately equal to sender (300) — a recipient block legitimately carries a
+// department, a c/o line, or a country line, so an asymmetric cap would be arbitrary and only
+// discoverable once one of the two trips it.
+const RECIPIENT_MAX_LENGTH = 300;
+
+// reference: matches invoices.invoiceNumber (server/src/routes/invoices.ts:25) — same category
+// of value, an external identifier.
+const REFERENCE_MAX_LENGTH = 100;
+
+// subject: matches vendors.name / areas.name (server/src/routes/vendors.ts:35,
+// server/src/routes/areas.ts:12) — the codebase's established "short human-authored label" cap.
+const SUBJECT_MAX_LENGTH = 200;
+
+// signature: same anchor as subject (200), deliberately not in the 300 sender/recipient band —
+// it is a name plus an optional role, not an address block, and coverLetterPdf.ts:76-81 reserves
+// a fixed 54pt signing gap above it on the assumption of a compact block.
+const SIGNATURE_MAX_LENGTH = 200;
+
+// body: buildCoverLetterContent() (coverLetterPdf.ts:59-74) emits plain flowing paragraphs with
+// no table, no dontBreakRows, no fixed-height container, so pdfmake paginates natively and an
+// over-long body makes more pages, never clips. Bounded instead by the realistic runaway:
+// LLM_MAX_TOKENS defaults to 16384 output tokens (~60k chars), so 4000 (~1.5 A4 pages at this
+// style) stops that runaway while a legitimate two-page letter never fights the limit.
+const BODY_MAX_LENGTH = 4000;
+
+// usageText: floor is invoiceBudgetLines.description (server/src/routes/invoiceBudgetLines.ts:49,
+// cap 500) — getUsageText() (buildReportContent.ts:53) joins linked-item names/descriptions each
+// already capped at 500 server-side, so a single budget line already admits a legal 500-char
+// value. Ceiling is MAX_SAFE_USAGE_CHUNK_CHARS (overviewPdf.ts:245, 650) — the shared per-chunk
+// budget for the whole Usage cell — leaving 150 chars for the derived areaText/attachmentsNote
+// suffix rendered alongside it.
+const USAGE_TEXT_MAX_LENGTH = 500;
+
 export function ReportContentEditor({
   content,
   overrides,
@@ -113,6 +154,14 @@ export function ReportContentEditor({
               rows={4}
               lang={lang}
               uiLang={uiLang}
+              maxLength={SENDER_MAX_LENGTH}
+              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                max: SENDER_MAX_LENGTH,
+              })}
+              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+              maxLengthReachedAnnouncement={t(
+                'sourceReports.editable.maxLengthReachedAnnouncement',
+              )}
             />
 
             {content.coverLetter.recipient && (
@@ -131,6 +180,14 @@ export function ReportContentEditor({
                 rows={3}
                 lang={lang}
                 uiLang={uiLang}
+                maxLength={RECIPIENT_MAX_LENGTH}
+                maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                  max: RECIPIENT_MAX_LENGTH,
+                })}
+                overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+                maxLengthReachedAnnouncement={t(
+                  'sourceReports.editable.maxLengthReachedAnnouncement',
+                )}
               />
             )}
 
@@ -158,6 +215,14 @@ export function ReportContentEditor({
                 onReset={() => onFieldReset(overrideKey.coverLetter.reference)}
                 lang={lang}
                 uiLang={uiLang}
+                maxLength={REFERENCE_MAX_LENGTH}
+                maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                  max: REFERENCE_MAX_LENGTH,
+                })}
+                overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+                maxLengthReachedAnnouncement={t(
+                  'sourceReports.editable.maxLengthReachedAnnouncement',
+                )}
               />
             )}
 
@@ -175,6 +240,14 @@ export function ReportContentEditor({
               onReset={() => onFieldReset(overrideKey.coverLetter.subject)}
               lang={lang}
               uiLang={uiLang}
+              maxLength={SUBJECT_MAX_LENGTH}
+              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                max: SUBJECT_MAX_LENGTH,
+              })}
+              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+              maxLengthReachedAnnouncement={t(
+                'sourceReports.editable.maxLengthReachedAnnouncement',
+              )}
             />
 
             <EditableField
@@ -192,6 +265,14 @@ export function ReportContentEditor({
               rows={10}
               lang={lang}
               uiLang={uiLang}
+              maxLength={BODY_MAX_LENGTH}
+              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                max: BODY_MAX_LENGTH,
+              })}
+              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+              maxLengthReachedAnnouncement={t(
+                'sourceReports.editable.maxLengthReachedAnnouncement',
+              )}
             />
 
             <div className={styles.readOnlyField}>
@@ -217,6 +298,14 @@ export function ReportContentEditor({
               onReset={() => onFieldReset(overrideKey.coverLetter.signature)}
               lang={lang}
               uiLang={uiLang}
+              maxLength={SIGNATURE_MAX_LENGTH}
+              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                max: SIGNATURE_MAX_LENGTH,
+              })}
+              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+              maxLengthReachedAnnouncement={t(
+                'sourceReports.editable.maxLengthReachedAnnouncement',
+              )}
             />
           </div>
         </div>
@@ -372,6 +461,14 @@ export function ReportContentEditor({
                       onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
                       lang={lang}
                       uiLang={uiLang}
+                      maxLength={USAGE_TEXT_MAX_LENGTH}
+                      maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                        max: USAGE_TEXT_MAX_LENGTH,
+                      })}
+                      overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+                      maxLengthReachedAnnouncement={t(
+                        'sourceReports.editable.maxLengthReachedAnnouncement',
+                      )}
                     />
                     {(row.areaText || row.attachmentsNote) && (
                       <div className={styles.usageMetaText}>
@@ -483,6 +580,14 @@ export function ReportContentEditor({
                   onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
                   lang={lang}
                   uiLang={uiLang}
+                  maxLength={USAGE_TEXT_MAX_LENGTH}
+                  maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                    max: USAGE_TEXT_MAX_LENGTH,
+                  })}
+                  overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+                  maxLengthReachedAnnouncement={t(
+                    'sourceReports.editable.maxLengthReachedAnnouncement',
+                  )}
                 />
                 {(row.areaText || row.attachmentsNote) && (
                   <span className={styles.usageMetaText}>

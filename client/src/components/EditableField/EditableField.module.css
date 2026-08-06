@@ -78,6 +78,32 @@
   opacity: 1;
 }
 
+/* Meta row — holds the length counter and/or the reset button beneath the field.
+   No margin-top here: .metaRow is a flex child of .container, which already applies
+   gap: var(--spacing-2) between its children — a child's own margin stacks additively on top
+   of flex gap rather than collapsing into it, so adding one here would double the spacing. */
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+/* Length counter — flat, informational; no color escalation as the limit approaches */
+.counter {
+  flex: 1;
+  text-align: right;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* Over-limit counter — warning-orange, informational register (not an error) */
+.counterOverLimit {
+  flex: 1;
+  text-align: right;
+  font-size: var(--font-size-xs);
+  color: var(--color-warning-text-on-light);
+}
+
 /* Reset button */
 .resetButton {
   flex-shrink: 0;
