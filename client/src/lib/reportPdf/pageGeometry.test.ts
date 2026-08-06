@@ -72,6 +72,35 @@ describe('pageGeometry — page constants', () => {
   });
 });
 
+describe('pageGeometry — PDF_STYLES.letterSubject / PDF_STYLES.subheader font sizes are independently pinned (#1953)', () => {
+  // #1953: LETTER_SUBJECT_FONT_SIZE and SUBHEADER_FONT_SIZE are two module-private constants that
+  // currently both equal 12, but production deliberately split them into two separate literals
+  // (see pageGeometry.ts's LETTER_SUBJECT_FONT_SIZE comment) because they mean different things:
+  // SUBHEADER_FONT_SIZE is load-bearing footprint arithmetic feeding PAGE_TOP_MARGIN (via
+  // headerFootprint()); LETTER_SUBJECT_FONT_SIZE is plain cover-letter typography with no geometry
+  // consumer at all. The two assertions below MUST stay separate, each pinned to its own literal —
+  // do NOT "deduplicate" them into `expect(PDF_STYLES.letterSubject.fontSize).toBe(PDF_STYLES.subheader.fontSize)`
+  // (or into `SUBHEADER_FONT_SIZE`) just because the numbers currently match. Doing so would
+  // silently re-couple two values production deliberately decoupled, and this test would stop
+  // catching the exact regression #1953 exists to prevent: an edit to one font size that
+  // unintentionally changes the other (or, for SUBHEADER_FONT_SIZE, reflows every page's top
+  // margin — see PAGE_TOP_MARGIN below).
+  it('PDF_STYLES.letterSubject.fontSize is 12pt, pinned to its own literal', () => {
+    expect(PDF_STYLES['letterSubject']).toBeDefined();
+    expect(PDF_STYLES['letterSubject']!.fontSize).toBe(12);
+  });
+
+  it('PDF_STYLES.subheader.fontSize is 12pt, pinned to its own literal (independently of letterSubject above)', () => {
+    expect(PDF_STYLES['subheader']).toBeDefined();
+    expect(PDF_STYLES['subheader']!.fontSize).toBe(12);
+  });
+
+  it('PAGE_TOP_MARGIN does not depend on letterSubject.fontSize: headerFootprint() sums only HEADER_FONT_SIZE, SUBHEADER_FONT_SIZE, SUBHEADER_MARGIN_TOP, and HEADER_BLOCK_BOTTOM_MARGIN — letterSubject is not one of its inputs, so a future change to the cover-letter subject size cannot reflow any page of the report (#1953 Verification)', () => {
+    expect(PAGE_TOP_MARGIN).toBe(93);
+    expect(PAGE_TOP_MARGIN).toBe(Math.ceil(headerFootprint() + 15));
+  });
+});
+
 describe('pageGeometry — printableWidth (scenario 1)', () => {
   it('printableWidth() === 515.28 (595.28 page width minus 40pt left/right margins)', () => {
     expect(printableWidth()).toBe(515.28);
