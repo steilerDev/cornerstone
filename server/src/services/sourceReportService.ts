@@ -266,22 +266,48 @@ export async function getSourceReport(
     reportInvoiceIds.map((id) => sql`${id}`),
     sql`, `,
   );
-  const splitRows = db.all<{ invoice_id: string; source_count: number }>(
+  const splitRows = db.all<{
+    invoice_id: string;
+    source_count: number;
+    has_foreign_line_source: number;
+    has_foreign_deposit_source: number;
+  }>(
     sql`SELECT split_data.invoice_id AS invoice_id,
-           COUNT(DISTINCT split_data.source_id) AS source_count
+           -- LOAD-BEARING DISTINCT (#1911): the 'origin' column below makes the same
+           -- (invoice_id, source_id) pair produce two rows when both a budget line and a tagged
+           -- deposit resolve to that source, because 'origin' now differs between the arms.
+           -- UNION ALL (see below) no longer collapses that pair at all, so this DISTINCT is the
+           -- only thing standing between this count and double-counting. Do NOT simplify to
+           -- COUNT(*): an invoice with a same-source line AND a same-source tagged deposit would
+           -- get source_count = 2 and isSplit would flip to true for every such invoice, even
+           -- though it funds from exactly one source. COUNT(DISTINCT source_id) is unaffected by
+           -- row duplication because it operates on the source_id column, not row identity — keep
+           -- it that way. AC 1.9's regression fixture pins this.
+           COUNT(DISTINCT split_data.source_id) AS source_count,
+           MAX(CASE WHEN split_data.origin = 'line' AND split_data.source_id != ${sourceId} THEN 1 ELSE 0 END) AS has_foreign_line_source,
+           MAX(CASE WHEN split_data.origin = 'deposit' AND split_data.source_id != ${sourceId} THEN 1 ELSE 0 END) AS has_foreign_deposit_source
     FROM (
       SELECT ibl.invoice_id,
-             COALESCE(wib.budget_source_id, hib.budget_source_id) AS source_id
+             COALESCE(wib.budget_source_id, hib.budget_source_id) AS source_id,
+             'line' AS origin
       FROM invoice_budget_lines ibl
       LEFT JOIN work_item_budgets wib ON wib.id = ibl.work_item_budget_id
       LEFT JOIN household_item_budgets hib ON hib.id = ibl.household_item_budget_id
       WHERE ibl.invoice_id IN (${joinedInvoiceIds})
         AND COALESCE(wib.budget_source_id, hib.budget_source_id) IS NOT NULL
 
-      UNION
+      -- UNION ALL, not UNION (#1911): with the 'origin' column, UNION's cross-arm dedup on
+      -- (invoice_id, source_id, origin) never fires anyway, since 'origin' always differs between
+      -- the two arms — so UNION here bought nothing but an unnecessary sort/dedup pass, while
+      -- reading as though it still guarantees uniqueness (it doesn't; see the DISTINCT note
+      -- above). Both aggregates that consume this union are multiplicity-insensitive:
+      -- COUNT(DISTINCT source_id) ignores duplicate rows by construction, and MAX(CASE ...) is
+      -- idempotent under duplicates. No other consumer of this query depends on row uniqueness.
+      UNION ALL
 
       SELECT d.invoice_id,
-             d.budget_source_id AS source_id
+             d.budget_source_id AS source_id,
+             'deposit' AS origin
       FROM invoice_deposits d
       WHERE d.invoice_id IN (${joinedInvoiceIds})
         AND d.budget_source_id IS NOT NULL
@@ -290,8 +316,21 @@ export async function getSourceReport(
   );
 
   const isSplitMap = new Map<string, boolean>();
+  const splitKindMap = new Map<string, SourceReportInvoice['splitKind']>();
   for (const row of splitRows) {
     isSplitMap.set(row.invoice_id, row.source_count > 1);
+    const hasForeignLine = row.has_foreign_line_source === 1;
+    const hasForeignDeposit = row.has_foreign_deposit_source === 1;
+    splitKindMap.set(
+      row.invoice_id,
+      hasForeignLine && hasForeignDeposit
+        ? 'both'
+        : hasForeignLine
+          ? 'lines'
+          : hasForeignDeposit
+            ? 'deposits'
+            : null,
+    );
   }
 
   // Step g: Batch fetch document links
@@ -434,6 +473,7 @@ export async function getSourceReport(
       allocatedAmount: roundedAmount,
       lineKind,
       isSplit: isSplitMap.get(invoiceId) ?? false, // true iff invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits
+      splitKind: splitKindMap.get(invoiceId) ?? null,
       documents,
       budgetLines: budgetLinesByInvoiceId.get(invoiceId) ?? [],
       deposits: depositsByInvoiceId.get(invoiceId) ?? [],

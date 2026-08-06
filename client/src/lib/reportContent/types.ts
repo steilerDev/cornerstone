@@ -13,8 +13,8 @@ export interface ReportContentRow {
   statusText: string | null; // null when useCase !== 'budget-overview'
   invoiceAmountText: string;
   allocatedAmountValueText: string; // formatted currency only — no markers/refund note
-  isSplit: boolean; // split invoice with budget lines → inline "partial" label
-  isDepositReduced: boolean; // split invoice reduced by untagged deposits → inline label
+  isSplit: boolean; // splitKind === 'lines' | 'both' → inline "(partial)" label
+  isDepositReduced: boolean; // splitKind === 'deposits' | 'both' → reduced by a deposit tagged to a DIFFERENT source; inline label. Untagged deposits are apportioned back into this source pro-rata and never set this flag.
   isDeposit: boolean; // constituted-deposit row → inline Deposit badge
   isRefund: boolean;
   refundNoteText: string; // shown only when isRefund

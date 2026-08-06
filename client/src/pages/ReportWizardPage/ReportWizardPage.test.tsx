@@ -250,6 +250,7 @@ function makeReport(overrides: Partial<SourceReportResponse> = {}): SourceReport
         allocatedAmount: 1000,
         lineKind: 'invoice',
         isSplit: false,
+        splitKind: null,
         documents: [],
         budgetLines: [
           {
@@ -809,6 +810,7 @@ describe('ReportWizardPage', () => {
               allocatedAmount: 1000,
               lineKind: 'invoice',
               isSplit: false,
+              splitKind: null,
               documents: [],
               budgetLines: [
                 {
@@ -1138,6 +1140,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 1000,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [{ id: 'bl-a', description: 'A', allocatedPortion: 0, linkedItem: null }],
             deposits: [],
@@ -1158,6 +1161,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 2000,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [{ id: 'bl-b', description: 'B', allocatedPortion: 0, linkedItem: null }],
             deposits: [],
@@ -1229,6 +1233,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 2000,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [
               { id: 'bl-b2', description: 'B2', allocatedPortion: 0, linkedItem: null },
@@ -1878,6 +1883,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 500,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [],
             deposits: [],
@@ -1929,6 +1935,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 500,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [],
             deposits: [],
@@ -2038,6 +2045,7 @@ describe('ReportWizardPage', () => {
               allocatedAmount: 1000,
               lineKind: 'invoice',
               isSplit: false,
+              splitKind: null,
               documents: [],
               budgetLines: [
                 {
@@ -2148,6 +2156,7 @@ describe('ReportWizardPage', () => {
               allocatedAmount: 1000,
               lineKind: 'invoice',
               isSplit: false,
+              splitKind: null,
               documents: [],
               budgetLines: [
                 {
@@ -2320,6 +2329,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 1000,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [
               {

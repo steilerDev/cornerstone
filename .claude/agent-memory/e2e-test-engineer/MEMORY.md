@@ -32,6 +32,7 @@
 - [issue-1959-inline-meta-and-labels.md](issue-1959-inline-meta-and-labels.md) — #1959 reversed #1923's †/‡ footnotes → inline `(partial)`/`(less deposit)` and merged area+attachments into one `.usageMetaText` line; POM renames, rewritten scenarios 2/17/18/20 + AI 8, attachment-tier facts, untested column toggles.
 - [claim-deposit-scope-1922.md](claim-deposit-scope-1922.md) — PR #1922 invoice/deposit claim-scope split: `handleMarkClaimed`'s two-array submit, server-truth success-banner counts, the three "deposit surfaces the invoice" shapes, `claimNothingClaimable` guard.
 - [issue-1973-column-visibility-pdf.md](issue-1973-column-visibility-pdf.md) — column-visibility toggles wired to the PDF (supersedes #1966): reducer reset facts (use-case change resets `hiddenColumns`, `SET_ATTACH_DOCUMENTS` doesn't), Scenarios 28-33, size-diff PDF-consequence proof pattern, `goBack()` viewport-independent multi-step walk, new `columnToggleGroup`/`usageHiddenAttachmentsWarning` POM locators.
+- [issue-1911-splitkind-e2e.md](issue-1911-splitkind-e2e.md) — #1911 `splitKind` field: incoming spec said "no E2E changes needed", was wrong — fixed Scenario 18's mis-seeded fixture AND found Scenario 17 independently affected (zero-contribution-line case) by cross-referencing unit-test ACs; new AC-3.2 regression-guard sibling test; POM docblock corrections.
 
 ## Open follow-ups to flag to orchestrator
 

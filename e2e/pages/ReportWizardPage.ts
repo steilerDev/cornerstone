@@ -208,9 +208,10 @@
  *   appears anywhere in the UI or the PDF any more. `footnotesBlock`/`footnoteItems` had no
  *   producer at this point, but see Issue #1965 below — that changed.
  * - A constituted-deposit row (the allocation is made up entirely by a deposit tagged to the
- *   reported source) carries NO marker/label at all — instead an inline `Badge` (`depositBadge`/
- *   `mobileDepositBadge` below) reading "Deposit"/"Abschlagszahlung". There is correspondingly
- *   no "This is a deposit." footnote anymore (`depositConstitutedFootnote` key removed).
+ *   reported source) carries an inline `Badge` (`depositBadge`/`mobileDepositBadge` below)
+ *   reading "Deposit"/"Abschlagszahlung" — at this point in the story it carried NO other
+ *   marker/label; see Issue #1911 below, which changed that. There is correspondingly no "This is
+ *   a deposit." footnote anymore (`depositConstitutedFootnote` key removed).
  * - `summaryTable`/`summaryTableRows` (declared above) now contains exactly ONE row — `Total`/
  *   `Gesamt` — regardless of how many distinct invoice statuses are included; the old
  *   per-status `Outstanding`/`Paid`/`Quotation`/`Claimed Subtotal` rows are gone
@@ -250,6 +251,21 @@
  *   mobile cards. Local `useState` only — nothing persisted, so it resets on every remount.
  *   Not currently covered by any locator/scenario here (coverage gap, deliberately not added on
  *   the #1959 critical path since a new test case reshuffles E2E shard membership).
+ *
+ * Issue #1911: `splitKind` — `row.isSplit`/`row.isDepositReduced` are now derived purely from the
+ * server's `splitKind: 'lines' | 'deposits' | 'both' | null` (`buildReportContent.ts`), not from
+ * the old `isSplit(raw) && budgetLines.length>0` / `isSplit(raw) && deposits.length>0` array-shape
+ * gates. Two DOM-visible consequences:
+ * - A row whose OWN budget lines are entirely foreign to the reported source (zero-contribution
+ *   line case) now DOES carry `(partial)`, even when it ALSO carries the constituted-deposit
+ *   `depositBadge` — the old array-length gate used to suppress `(partial)` here; `splitKind`
+ *   alone decides now, and `row.isDeposit`'s trigger is unrelated to it. See Scenario 17 in
+ *   `reportWizardEditableContent.spec.ts`.
+ * - `(less deposit)` now fires ONLY when a deposit is tagged to a source OTHER than the one being
+ *   reported. An UNTAGGED deposit (`budgetSourceId: null`) never triggers it — untagged deposits
+ *   are apportioned pro-rata back INTO the reported source, not claimed separately (Issue #1965's
+ *   "separately" wording is audit-load-bearing, which is what made the old over-inclusive
+ *   behavior a real defect). See the Scenario 18 sibling test in `reportWizardEditableContent.spec.ts`.
  *
  * Issue #1932: cover letter overhaul — formatted body, editable signature block, personal
  * sender, professional PDF layout.
@@ -1176,9 +1192,15 @@ export class ReportWizardPage {
    * The inline "Deposit" `Badge` (`[class*="depositBadge"]`, composed from the shared
    * `.attachmentDeposit` variant) rendered in a desktop content-table row's Allocated Amount
    * cell when `row.isDeposit` — a constituted-deposit row (AC2.1), i.e. the row's allocation is
-   * made up entirely by a deposit tagged to the CURRENTLY reported source. Carries no inline
-   * note of its own (see `inlineNote()` — neither `(partial)` nor `(less deposit)`, and, before
-   * Issue #1959 replaced them, neither `†` nor `‡`).
+   * made up entirely by a deposit tagged to the CURRENTLY reported source.
+   *
+   * Issue #1911: `isDeposit`'s trigger (`invoice.isSplit(raw) && hasOwnTaggedDeposit`) is
+   * independent of `isSplit`/`isDepositReduced`, which are now driven purely by `splitKind`. The
+   * badge CAN co-occur with an `inlineNote()` `(partial)` label when the invoice's own budget
+   * lines are foreign to the reported source (`splitKind: 'lines'` — see Scenario 17 in
+   * `reportWizardEditableContent.spec.ts`) — it is no longer guaranteed to be the row's ONLY
+   * annotation. `(less deposit)` still never co-occurs with the badge on the SAME source's own
+   * tagged deposit (that would require a foreign-tagged deposit, which is a different row shape).
    * Scoped to the row so it never collides with `mobileDepositBadge`'s copy
    * (both trees share the `depositBadge` class and are always in the DOM simultaneously, per
    * the class docstring's dual-DOM-tree convention).
@@ -1219,10 +1241,15 @@ export class ReportWizardPage {
   /**
    * The grey inline note(s) (`[class*="inlineNote"]`) appended INSIDE a desktop row's Allocated
    * Amount cell by Issue #1959, which replaced the `†`/`‡` footnote markers: `(partial)` when
-   * `row.isSplit` (the amount shown is only this source's portion) and `(less deposit)` when
-   * `row.isDepositReduced` (separately-claimed deposits already netted off). A constituted-
-   * deposit row (`row.isDeposit`) gets NEITHER — it gets the inline `depositBadge` instead — so
-   * asserting `toHaveCount(0)` here is a meaningful negative for that case.
+   * `row.isSplit` and `(less deposit)` when `row.isDepositReduced`. Since Issue #1911 both flags
+   * are driven purely by the server's `splitKind` (`'lines'`/`'both'` → `isSplit`;
+   * `'deposits'`/`'both'` → `isDepositReduced`), independently of `row.isDeposit` (the
+   * constituted-deposit badge trigger, unchanged) — a row CAN carry the `depositBadge` AND an
+   * inline note simultaneously (e.g. a constituted-deposit row whose own budget lines are
+   * foreign to the reported source gets the badge AND `(partial)`; see Scenario 17 in
+   * `reportWizardEditableContent.spec.ts`). `toHaveCount(0)` is only a meaningful negative when
+   * BOTH `splitKind` conditions are known to be false for that row — it does not follow merely
+   * from `row.isDeposit` being true.
    *
    * Scoped to the row, so it never collides with `mobileInlineNote`'s copy (both DOM trees are
    * always present simultaneously — see the class docstring's dual-DOM-tree convention).

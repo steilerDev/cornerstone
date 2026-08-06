@@ -269,6 +269,9 @@ describe('Source Report Routes', () => {
       expect(body.report.invoices).toHaveLength(1);
       expect(body.report.invoices[0]!.invoiceId).toBe(invId);
       expect(body.report.totalAmount).toBeCloseTo(500);
+      // #1911 AC 2.4: splitKind is present on every element of report.invoices, purely additive.
+      expect(body.report.invoices.every((inv) => 'splitKind' in inv)).toBe(true);
+      expect(body.report.invoices[0]!.splitKind).toBeNull(); // single-source invoice, not split
     });
 
     // Story #1891: response shape now includes budgetLines[]/deposits[] per invoice.

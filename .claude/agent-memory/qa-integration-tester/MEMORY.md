@@ -15,6 +15,7 @@
 
 ## Recent bug/story notes (2026-08)
 
+- [Issue #1911 — splitKind field](story-1911-splitkind.md) (2026-08-05) — server UNION `origin`-column trap (AC1.5: "≠S per arm" not "≥2 distinct per arm"); UNION-dedup regression guard (AC1.9); `jest.spyOn(db,'all')` pass-through + drizzle `queryChunks` introspection for round-trip proof; client-side ripple broke 9 pre-existing tests in 2 files beyond the "add splitKind default" checklist item (found by just running the file); AC1.2 git-stash anti-vacuity proof (9/70 genuinely fail on reverted code).
 - [Issue #2001 — remove TFunction from reportPdf](story-2001-remove-tfunc-reportpdf.md) (2026-08-05, 2 rounds) — 7 test files total; realRender.test.ts has renderOverviewPdfContent (KEEP its t) vs buildOverviewContent/generateReportPdf (REMOVE); perl regex targets `{ attachDocuments: }` context to avoid removing renderOverviewPdfContent args; comment on same line blocks regex → explicit Edit; 218 tests pass round 2.
 
 - [Bug #1897 — deposit-blind drill-down fix](bug-1897-deposit-blind-drilldown.md) (2026-08-04) — `getBudgetSourceBudgetLines` was deposit-blind; fix routes through `getInvoiceAggregates`; 7 tests in new `describe('deposit-aware drill-down')` block appended to `budgetSourceService.test.ts`; local WI/HI/deposit helpers; AC1 is the reproduction case.

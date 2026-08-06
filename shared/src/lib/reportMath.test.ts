@@ -28,6 +28,7 @@ function makeInvoice(
     allocatedAmount,
     lineKind: 'invoice',
     isSplit: false,
+    splitKind: null,
     documents: [],
     budgetLines: budgetLines.map(({ id, allocatedPortion }) => ({
       id,
