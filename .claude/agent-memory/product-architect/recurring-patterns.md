@@ -1326,3 +1326,38 @@ array, so they can't.
 classify each as forcing or non-forcing; report the non-forcing ones even when they are correct today.
 The cheap fix is almost always to derive the hand-typed list from an exhaustive `Record<Key, …>` and
 filter, which converts a silent omission into a compile error.
+
+---
+
+## A documented env var the code never reads, and how to sweep for more (#1992, wiki `e14bcbe`)
+
+Both auth env-var tables documented `OIDC_REDIRECT_URI`; `server/src/plugins/config.ts` never reads it.
+The gate is three vars (`config.ts:142`), and the redirect URI is built per request at
+`server/src/routes/oidc.ts:45` as `externalUrl || \`${request.protocol}://${request.host}\`` +
+`/api/auth/oidc/callback`. Fixed wiki-only.
+
+**The cheap sweep** (run it whenever you touch an env-var table, it is two commands):
+`grep -oE "getValue\('[A-Z0-9_]+'\)" server/src/plugins/config.ts` gives the authoritative read-set;
+`grep -oE '^\| \`[A-Z][A-Z0-9_]+\`' wiki/<page>.md` gives the documented set; `comm -23` the sorted
+pair. Then `grep -n "enabled when\|If unset\|If either is missing"` — **any sentence that states a
+variable count or an enablement gate is a second, independent drift surface** that the name-level diff
+cannot see. That is how the "all four OIDC variables" sentence survived.
+
+**Findings still open from that sweep (not fixed, not filed):**
+
+- `Architecture.md` "Backup & Restore": `BACKUP_DIR` is documented as default `(none)` with "Backup
+  functionality is enabled when `BACKUP_DIR` is set. If unset, all `/api/backups/*` endpoints return
+  503." Both halves are wrong — `config.ts:259` is `getValue('BACKUP_DIR') ?? '/backups'`, so
+  `backupEnabled = !!backupDir` (line 288) is **unconditionally true** and the 503 path is dead.
+  CLAUDE.md already documents the `/backups` default, so the wiki is the outlier.
+- `API-Contract.md` lines ~3681-3720 (the `invoices[].splitKind` table from #1911/PR #2015) is the
+  **only** prettier-dirty region of that file — the `splitKind` row's type cell overflows the table's
+  padded width. `format:check`'s glob is `**/*.{...,md}` and `.prettierignore` excludes `docs/` but
+  **not** `wiki/`, so this is a latent format-check failure sitting on `beta`.
+
+**Wiki table mechanics (bit me, cost two rounds):** these tables are prettier-padded so every row is
+the *same character width* (auth tables 131; API-Contract Deviation Log 2153 = cells 10/74/780/1276).
+Measure with python `len()`, **never `awk length()`** — awk counts bytes here, and the em-dashes that
+are everywhere in this wiki make a correctly-padded row read 2 bytes long per dash, which looks like a
+padding bug and isn't. Editing a Deviation Log cell means re-padding the cell to its exact column
+width, not just swapping the sentence.
