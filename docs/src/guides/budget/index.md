@@ -17,6 +17,7 @@ The budget system provides:
 - **Invoices** -- Track vendor invoices and their line-item links to budget lines (vendor records now live under the Settings section -- see [Invoices & Vendors](vendors-and-invoices))
 - **Subsidy Programs** -- Manage percentage-based or fixed-amount subsidies that reduce your effective costs
 - **Budget Overview Dashboard** -- See your project's financial health grouped by **area hierarchy**, with clickable summary tiles, expandable nested rows, source attribution badges on every line, a per-source filter that updates the entire breakdown, and print-friendly styling
+- **Bank Reports** -- Generate a formatted PDF for a budget source -- a claim submission, a proof-of-funds statement, or a general overview -- with an editable cover letter, optional AI-drafted content, and configurable columns
 
 ## How It Fits Together
 
@@ -37,3 +38,4 @@ When a vendor submits an **invoice**, you link the relevant budget lines to the 
 - [Auto-itemize Invoices](auto-itemize) -- Extract line items from invoice PDFs using your own LLM provider
 - [Subsidies](subsidies) -- Manage subsidy programs
 - [Budget Overview](budget-overview) -- Area-grouped cost breakdown, source attribution badges, per-source filter, clickable tiles, and print output
+- [Bank Reports](bank-reports) -- Generate claim, proof-of-funds, and budget overview PDFs for a financing source

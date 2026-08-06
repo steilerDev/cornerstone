@@ -30,7 +30,7 @@
 - `getting-started/` -- index, docker-setup, first-login, configuration
 - `guides/work-items/` -- index, creating-work-items, tags, notes-and-subtasks, dependencies, keyboard-shortcuts
 - `guides/users/` -- index, oidc-setup, admin-panel
-- `guides/budget/` -- index, categories, financing-sources, work-item-budgets, vendors-and-invoices, subsidies, budget-overview
+- `guides/budget/` -- index, categories, financing-sources, work-item-budgets, vendors-and-invoices, subsidies, budget-overview, bank-reports (added PR #2041, see [Bank Report Wizard docs](bank-report-wizard-docs.md))
 - `guides/timeline/` -- index, gantt-chart, milestones, calendar-view
 - `guides/documents/` -- index, setup, browsing-documents, linking-documents
 - `guides/household-items/` -- index, creating-editing-items, budget-and-invoices, work-item-linking, delivery-and-dependencies
@@ -102,6 +102,12 @@ Three user-facing changes documented (no new pages, no sidebar changes):
 `.env.example` was in sync (no drift); no new env vars -> no CLAUDE.md change. #1780 (harmonize auto-itemize flows) is internal, no user-facing doc.
 
 Pre-existing lint baseline in worktree: ~8 eslint ERRORS in production/test .ts across client/server/e2e (photoService OrientationSummary unused, usePaperless import() type, etc.) -- NOT introduced by docs changes (docs edits are markdown-only; eslint doesn't lint .md). Likely a local `npm install --ignore-scripts` artifact since beta CI requires lint green. Do NOT touch those files as docs-writer.
+
+## Release: PR #2041 (Bank Report Wizard docs gap, subsidies drift fix, .env.example drift fix)
+
+Full env-var scan (`grep` for `getValue('...')` in `server/src/`) confirmed 3 vars missing/wrong in `.env.example`: `AUTH_RATE_LIMIT_MAX` and `AUTH_RATE_LIMIT_WINDOW` (new, added commented-out under Server section near `TRUST_PROXY`/`EXTERNAL_URL`) and `VAT_RATE` (pre-existing gap, added commented-out under Localization near `CURRENCY`). `CLAUDE.md`'s env-var table was already current for all three (added in an earlier commit within the same 40-commit range) -- always diff `.env.example` against `server/src/plugins/config.ts` directly rather than assuming the two docs surfaces drift together.
+
+New page `guides/budget/bank-reports.md` closes a total docs gap for the Bank Report Wizard feature -- see [Bank Report Wizard docs](bank-report-wizard-docs.md) for what it covers and why the gap existed. Same pass also rewrote stale portions of `subsidies.md` (multi-category + "No Category" + real 5-status enum) -- same memory file has the detail.
 
 ## Build Note (still true)
 
