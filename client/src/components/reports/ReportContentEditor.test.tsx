@@ -85,6 +85,7 @@ import type {
 import { reportColumnsForUseCase } from '../../lib/reportContent/index.js';
 import { ReportContentEditor } from './ReportContentEditor.js';
 import styles from './ReportContentEditor.module.css';
+import { usageChunkCharsForWidth, USAGE_WIDTH_7COL } from '../../lib/reportPdf/overviewPdf.js';
 
 const t = ((key: string, opts?: Record<string, unknown>) =>
   opts ? `${key}::${JSON.stringify(opts)}` : key) as unknown as TFunction;
@@ -1802,6 +1803,47 @@ describe('ReportContentEditor — #1941 per-field maxLength wiring (usage field,
       expect(usageField).toHaveAttribute('maxlength', '500');
     },
   );
+});
+
+// Issue #1950 AC2 — editor<->renderer input-cap coupling. `USAGE_TEXT_MAX_LENGTH` (this
+// component, private) is an INPUT constraint; it is only meaningful measured against the
+// RENDERER's per-subset budget (usageChunkCharsForWidth), so the assertion belongs on the editor
+// side per the issue: "putting an input constraint's guard in the renderer inverts the
+// dependency." `USAGE_TEXT_MAX_LENGTH` is module-private in ReportContentEditor.tsx and is NOT
+// exported (a one-line export would be a production change, outside qa-integration-tester's lane
+// — flagged rather than done here). Reaching it via a production export turned out unnecessary:
+// EditableField forwards `maxLength` straight onto the native `<textarea maxLength={...}>` (see
+// EditableField.tsx), so the ACTUAL runtime value is directly observable as the rendered
+// `maxlength` DOM attribute — the same technique the #1941 test immediately above already uses to
+// pin it at 500. That is real behaviour, not a re-typed literal: if `USAGE_TEXT_MAX_LENGTH` in
+// production ever changed, this reads the new value straight off the DOM, no export needed.
+describe('ReportContentEditor — #1950 AC2: usageText input cap stays below the 7-column renderer budget', () => {
+  it("the usage field's rendered maxLength (USAGE_TEXT_MAX_LENGTH, currently 500) is strictly less than usageChunkCharsForWidth(USAGE_WIDTH_7COL) — the narrowest legal Usage-column budget", () => {
+    const { container } = renderEditor({ content: fullContent() });
+    const usageField = within(getDesktopTable(container)).getByDisplayValue('Baseline usage');
+    const renderedMaxLength = Number(usageField.getAttribute('maxlength'));
+
+    expect(Number.isNaN(renderedMaxLength)).toBe(false);
+    // Cross-check against the #1941 test's own pin, so a drift in ONE of the two duplicated
+    // observations (that test's literal '500', or this test's derived comparison) is visible as
+    // an inconsistency rather than each silently testing a different actual value.
+    expect(renderedMaxLength).toBe(500);
+
+    // AC 1.7-style sensitivity: this compares against the REAL exported budget function/constant,
+    // not a re-typed 616 — if USAGE_WIDTH_7COL or usageChunkCharsForWidth's clamp ever moves this
+    // budget below 500, this fails instead of silently letting a legal 500-char input overflow
+    // its column's own per-subset ceiling.
+    const sevenColumnUsageBudget = usageChunkCharsForWidth(USAGE_WIDTH_7COL);
+    if (renderedMaxLength >= sevenColumnUsageBudget) {
+      throw new Error(
+        `USAGE_TEXT_MAX_LENGTH (${renderedMaxLength}, from ReportContentEditor.tsx) is no longer ` +
+          `strictly below usageChunkCharsForWidth(USAGE_WIDTH_7COL) (${sevenColumnUsageBudget}, from ` +
+          `client/src/lib/reportPdf/overviewPdf.ts). A legal single-field usageText override can now ` +
+          `exceed the narrowest Usage column's own per-subset budget on its own, with no ` +
+          `areaText/attachmentsNote contribution at all. See issue #1950.`,
+      );
+    }
+  });
 });
 
 describe('ReportContentEditor — #1941 conditional cover-letter fields render nothing (not a disabled/empty field) when their content is null', () => {
