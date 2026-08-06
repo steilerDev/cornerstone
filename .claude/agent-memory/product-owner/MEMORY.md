@@ -40,6 +40,7 @@ Detail in [standalone-bugs-and-stories.md](standalone-bugs-and-stories.md) (budg
 - **#1955 DataTable two-column toggle race** (Should Have, Backlog) — fast clicking is the SAFE case; #1920's E2E-only fix makes CI green without fixing production. See [datatable-column-preference-race.md](datatable-column-preference-race.md)
 - **#1957 E2E test-isolation hazard** (shared-admin `user_preferences` writes under `fullyParallel`) — Should Have, Backlog; an audit + per-spec sweep, not a single-file fix. See [e2e-shared-admin-preference-hazard.md](e2e-shared-admin-preference-hazard.md)
 - **#2005 CLOSED** — dashboard "New Invoice" shard 8/16 failure; all 16 shards green on `df7d2c73`, promotion blocker cleared.
+- **#1992 wiki-only OIDC env-var fix** — PR #2022 APPROVED, 7/7 ACs, **close on merge + board Done, no UAT** (all claims machine-checkable against `config.ts`/`oidc.ts`). Deviation-Log ruling in [pr-review-patterns.md](pr-review-patterns.md). Sweep spin-offs: **#2023** (`BACKUP_DIR` default+dead 503 gate; its AC2 hides a product decision — making backups opt-in is a behaviour change for existing deployments and comes to me), **#2024** (`wiki/` missing from `.prettierignore`; recommend splitting its AC3/AC4 out so the 2-line safety fix ships first).
 
 ## Bank Report Wizard mini-epic (no parent epic)
 
@@ -81,6 +82,8 @@ Full derivations and the incidents behind each are in [pr-review-patterns.md](pr
 - **Merge is a code gate; Done is an acceptance gate.** An unverifiable AC *with* a substitute assertion = documented deviation; *without* one → UAT, reopen on failure.
 - **A finding that defeats the PR's own AC belongs in that PR, not a follow-up.** Conversely: **a green PR is not reopened to absorb non-blocking findings — file, don't expand.**
 - **Closed/released ACs get a dated supersession comment, never a rewrite.** When a body *is* rewritten, always report "body rewritten, numbering reassigned" — omitting that let two agents spec from a stale revision.
+- **Wiki Deviation Log: the Observation column of a dated entry is immutable; corrections go forward in that entry's Resolution.** Ruled 2026-08-06 on PR #2022 (#1992). Same shape as the AC supersession rule. Rationale + boundaries (spurious entries are withdrawn not deleted; lead a correction with "Correction to the observation above:", never a trailing parenthetical) in [pr-review-patterns.md](pr-review-patterns.md).
+- **An item whose every claim is machine-checkable against source has no UAT surface** — the PO review *is* the acceptance gate; close on merge (#1992). UAT is for rendered artefacts and operator-observable behaviour.
 - **ACs that misdescribe reality fail correct implementations at UAT** (seen 4×). Amend the text; don't design around it.
 - **An issue filed by another agent is a snapshot of that round's codebase** — re-verify the *mechanism*, not just the defect, and correct the mechanism while keeping the story.
 - **When an AC's correct predicate is one plausible misreading away from a no-op, write the misreading into the AC** and demand a test pinning that shape.
