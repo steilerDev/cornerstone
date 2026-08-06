@@ -1343,17 +1343,27 @@ pair. Then `grep -n "enabled when\|If unset\|If either is missing"` — **any se
 variable count or an enablement gate is a second, independent drift surface** that the name-level diff
 cannot see. That is how the "all four OIDC variables" sentence survived.
 
-**Findings still open from that sweep (not fixed, not filed):**
+**Findings from that sweep — both FILED, do not re-file:**
 
-- `Architecture.md` "Backup & Restore": `BACKUP_DIR` is documented as default `(none)` with "Backup
-  functionality is enabled when `BACKUP_DIR` is set. If unset, all `/api/backups/*` endpoints return
-  503." Both halves are wrong — `config.ts:259` is `getValue('BACKUP_DIR') ?? '/backups'`, so
+- **#2023** — `Architecture.md` "Backup & Restore": `BACKUP_DIR` is documented as default `(none)` with
+  "Backup functionality is enabled when `BACKUP_DIR` is set. If unset, all `/api/backups/*` endpoints
+  return 503." Both halves are wrong — `config.ts:259` is `getValue('BACKUP_DIR') ?? '/backups'`, so
   `backupEnabled = !!backupDir` (line 288) is **unconditionally true** and the 503 path is dead.
   CLAUDE.md already documents the `/backups` default, so the wiki is the outlier.
-- `API-Contract.md` lines ~3681-3720 (the `invoices[].splitKind` table from #1911/PR #2015) is the
-  **only** prettier-dirty region of that file — the `splitKind` row's type cell overflows the table's
-  padded width. `format:check`'s glob is `**/*.{...,md}` and `.prettierignore` excludes `docs/` but
-  **not** `wiki/`, so this is a latent format-check failure sitting on `beta`.
+- **#2024** — `npm run format` reformats `wiki/*.md`: `.prettierignore` excludes `docs/` but **not**
+  `wiki/`, while `format`/`format:check` glob `**/*.{...,md}`. Surfaced via `API-Contract.md`
+  lines ~3681-3720 (the `invoices[].splitKind` table from #1911/PR #2015), whose type cell overflows
+  the table's padded width — the only prettier-dirty region of that file, and a latent format-check
+  failure sitting on `beta`.
+- **Ruled a CODE defect and handed to the coordinator to file** (issue number unknown at write time —
+  search issues for `oidc.ts:106` / `redirect_uri` before filing anything) — the two OIDC legs derive the
+  callback URL differently: `oidc.ts:45` uses `externalUrl || request-origin`, `oidc.ts:106` uses the
+  request origin unconditionally. openid-client sends the **token-request** `redirect_uri` derived
+  from the URL you hand `authorizationCodeGrant` (`index.js:974`, `redirectUri = stripParams(currentUrl)`),
+  so with `EXTERNAL_URL` set and `TRUST_PROXY` unset the two legs send *different* `redirect_uri`
+  values and the provider rejects the exchange with `invalid_grant` (RFC 6749 §4.1.3 requires them to
+  be identical). **Backend fix, not a wiki fix** — the wiki paragraph deliberately documents only the
+  login leg, because documenting leg 2's derivation as intended behaviour would enshrine the bug.
 
 **Wiki table mechanics (bit me, cost two rounds):** these tables are prettier-padded so every row is
 the *same character width* (auth tables 131; API-Contract Deviation Log 2153 = cells 10/74/780/1276).
