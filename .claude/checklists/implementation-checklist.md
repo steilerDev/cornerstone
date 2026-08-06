@@ -9,7 +9,7 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 ## Frontend — Display & Formatting
 
 - [ ] **Null/undefined rendering**: All nullable fields must render a placeholder (e.g., `—` or `N/A`) when null/undefined. Never render empty strings or "null"/"undefined" text.
-- [ ] **Date formatting**: Use the project's `formatDate()` / `formatDateTime()` utilities from `client/src/lib/format.ts`. Never use raw `.toLocaleDateString()` or hardcoded date format strings.
+- [ ] **Date formatting**: Use the project's `formatDate()` / `formatDateTime()` utilities from `client/src/lib/formatters.ts`. Never use raw `.toLocaleDateString()` or hardcoded date format strings.
 - [ ] **Currency formatting**: Use the project's `formatCurrency()` utility. Never hardcode currency symbols or decimal precision.
 - [ ] **Number formatting**: Use `formatNumber()` for display. Handle zero, negative, and large numbers explicitly.
 - [ ] **Empty states**: Every list/table view must use the shared `EmptyState` component when data is empty. Never show a blank page or raw "No data" text.
@@ -24,7 +24,7 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 ## Frontend — Design Tokens & Styling
 
 - [ ] **No hardcoded colors**: All `color`, `background`, `border-color`, `box-shadow` values must use `var(--token-name)` from `tokens.css`. Stylelint enforces this.
-- [ ] **No hardcoded spacing**: All `margin`, `padding`, `gap` values must use spacing tokens (`var(--space-*)` or `var(--gap-*)`).
+- [ ] **No hardcoded spacing**: All `margin`, `padding`, `gap` values must use spacing tokens (`var(--spacing-*)`, as defined in `client/src/styles/tokens.css`).
 - [ ] **No hardcoded radii**: All `border-radius` values must use `var(--radius-*)` tokens.
 - [ ] **No hardcoded font sizes**: All `font-size` values must use `var(--font-size-*)` tokens.
 - [ ] **No hardcoded transition durations**: All `transition` duration values must use `var(--transition-*)` tokens (e.g., `--transition-fast`, `--transition-normal`). Never hardcode `0.2s`, `150ms`, etc.

@@ -136,7 +136,15 @@ EOF
 
 Use the exact per-agent string from CLAUDE.md's **Canonical Agent Trailers** table — this commit is authored directly by this skill (not via `dev-team-lead [MODE: commit]`), so there is no automated normalization; get the casing right the first time. If `backend-developer` or `frontend-developer` also contributed a fix (per step 3's classification table), include their canonical trailers too.
 
-#### 4b. Push and create/update PR
+#### 4b. Verify locally, then push
+
+Before burning a full CI round on an unverified fix, run **only the failing spec files** locally where the environment permits (Docker available for testcontainers):
+
+```bash
+npx playwright test <failing-spec-file> [<failing-spec-file> ...] --project=desktop-chromium
+```
+
+Run just the affected files/projects — never the full suite locally; the full sharded suite runs exactly once per iteration, in CI (step 4c), which stays authoritative. If the local environment cannot run E2E, push and let CI verify.
 
 ```bash
 git push -u origin <branch-name>

@@ -7,7 +7,7 @@
 # Usage: ci-wait.sh <pr-number> [beta|main]
 #
 # Gate mode defaults to the PR's base branch: beta waits for "Quality Gates"
-# (timeout 300s), main waits for "Quality Gates" + "E2E Gates" (timeout 900s).
+# (timeout 600s), main waits for "Quality Gates" + "E2E Gates" (timeout 900s).
 # Override the timeout with CI_WAIT_TIMEOUT=<seconds>.
 #
 # NOTE: `gh pr checks --json` does not support the required-checks / Rulesets
@@ -42,7 +42,7 @@ if [ "$MODE" = "main" ]; then
   TIMEOUT="${CI_WAIT_TIMEOUT:-900}"
 else
   CHECKS=("Quality Gates")
-  TIMEOUT="${CI_WAIT_TIMEOUT:-300}"
+  TIMEOUT="${CI_WAIT_TIMEOUT:-600}"
 fi
 
 SHA=$(gh pr view "$PR" --repo "$REPO" --json headRefOid -q '.headRefOid')
@@ -60,7 +60,7 @@ while true; do
   fi
 
   if ! runs=$(gh api "repos/$REPO/commits/$SHA/check-runs" --paginate \
-      -q '.check_runs[] | "\(.name)\t\(.status)\t\(.conclusion)"' 2>&1); then
+      -q '.check_runs[] | "\(.name)\t\(.status)\t\(.conclusion)\t\(.started_at)"' 2>&1); then
     if echo "$runs" | grep -qiE 'rate limit|abuse detection|was blocked|HTTP 403|HTTP 429'; then
       echo "ci-wait: rate-limited, backing off ${backoff}s"
       sleep "$backoff"
@@ -75,7 +75,9 @@ while true; do
 
   all_passed=true
   for check in "${CHECKS[@]}"; do
-    line=$(printf '%s\n' "$runs" | awk -F'\t' -v c="$check" '$1 == c { print; exit }')
+    # A re-run creates a second check-run with the same name; always judge the
+    # most recently started one so a stale failure can't shadow a green re-run.
+    line=$(printf '%s\n' "$runs" | awk -F'\t' -v c="$check" '$1 == c' | sort -t "$(printf '\t')" -k4,4r | head -n 1)
     if [ -z "$line" ]; then
       all_passed=false
       continue

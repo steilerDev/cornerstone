@@ -33,7 +33,7 @@
 
 ## GitHub Wiki
 
-- Git submodule at `wiki/`. Sync: `git submodule update --init wiki && git -C wiki pull origin master`
+- Git submodule at `wiki/`. The orchestrator syncs it once per skill run (CLAUDE.md > Agent Context Discipline) — read the checked-out files directly, don't re-sync
 - Submodule is normally in **detached HEAD** at origin/master — push with `git push origin HEAD:master`
 - **Verify published-ness with `git -C wiki ls-remote origin master` vs `git ls-tree HEAD wiki`**, never with
   `git -C wiki log` (shows unpushed commits as HEAD) or a refspec-less `fetch` (leaves origin/master stale)
