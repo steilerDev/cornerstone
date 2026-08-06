@@ -55,6 +55,7 @@ import {
   buildOverviewContent,
   splitIntoPageSafeChunks,
   packUsageCellRows,
+  packUsageCellRowsWithMinimum,
   buildUsageTextRuns,
   computeColumnWidths,
   usageSafeTokenCharsForWidth,
@@ -65,6 +66,7 @@ import {
   USAGE_SAFE_TOKEN_CHARS_6COL,
   VENDOR_SAFE_TOKEN_CHARS,
   MAX_SAFE_USAGE_CHUNK_CHARS,
+  MIN_CONTINUATION_ROW_FLOOR_CHARS,
 } from './overviewPdf.js';
 import { tableOffsetsTotal, printableWidth } from './pageGeometry.js';
 
@@ -142,16 +144,44 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
   };
 }
 
+// #1940 AC5: buildUsageCell prepends a single literal `{ text: '… ' }` run (U+2026 + space, no
+// `color` override) as the very first run of a CONTINUATION row's (packedCellRows index >= 1)
+// Usage cell — the visual "this row continues" signal. Every reconstruction helper in this file
+// concatenates a cell's ENTIRE run array, so without stripping, every continuation-row assertion
+// would silently start comparing `'… ' + text` against `text`. Centralized HERE, once, rather than
+// patched ad hoc per call site: strips exactly one leading run whose `.text === '… '` and which
+// carries no `color`. Only ever applied when the CALLER already asserts the row is a continuation
+// row (`isContinuation: true`) — never applied unconditionally by substring/prefix match, which
+// would risk silently masking a genuine reconstruction defect that happened to produce a leading
+// '… ' in real user content on a row that was never supposed to carry the marker.
+function stripContinuationMarker<T extends { text: string; color?: string }>(runs: T[]): T[] {
+  if (runs.length > 0 && runs[0]!.text === '… ' && runs[0]!.color === undefined) {
+    return runs.slice(1);
+  }
+  return runs;
+}
+
 // Flattens a pdfmake `table.body` row into plain text strings for easy assertions. Cells that are
 // `stack`s (the Usage column when an attachment note or area text is present) yield `undefined`.
 // The allocated-amount cell's `text` is always an array of runs (story #1923: the isDeposit inline
 // label is a distinct, separately-styled run) — concatenate those runs' own `.text` values so
 // existing plain-string assertions keep working; dedicated tests inspect the raw run array instead
 // where the per-run styling itself is under test.
-function rowTexts(row: unknown): (string | undefined)[] {
-  return (row as { text?: string | { text: string }[] }[]).map((cell) => {
+//
+// `opts.isContinuation` (#1940): pass `true` when `row` is known to be a Usage continuation row —
+// strips the leading '… ' marker (see stripContinuationMarker above) from the LAST cell before
+// reconstructing, since the Usage cell is always the last cell in a row (buildOverviewContent
+// always appends it last) and the only cell that is ever a run array on a continuation row (every
+// other column is blanked to a plain '' string by buildEmptyBodyCell).
+function rowTexts(row: unknown, opts: { isContinuation?: boolean } = {}): (string | undefined)[] {
+  const cells = row as { text?: string | { text: string; color?: string }[] }[];
+  return cells.map((cell, i) => {
     if (Array.isArray(cell.text)) {
-      return cell.text.map((run) => run.text).join('');
+      const runs =
+        opts.isContinuation && i === cells.length - 1
+          ? stripContinuationMarker(cell.text)
+          : cell.text;
+      return runs.map((run) => run.text).join('');
     }
     return cell.text;
   });
@@ -184,16 +214,24 @@ function usageRunsText(text: unknown): string {
 // silently drifts with the fixture's word count.
 const GREY = '#6b7280';
 
-function splitUsageCell(cell: unknown): {
+// `opts.isContinuation` (#1940): pass `true` when `cell` is known to be a Usage continuation row's
+// cell — strips the leading '… ' marker (see stripContinuationMarker above) before parsing, so the
+// marker never leaks into `usageText` (it would otherwise land in the non-grey prefix, ahead of
+// any grey meta run).
+function splitUsageCell(
+  cell: unknown,
+  opts: { isContinuation?: boolean } = {},
+): {
   usageText: string;
   metaRun: { text: string; color?: string } | null;
   /** Raw grey runs preserving all pdfmake run properties including wordBreak. */
   greyRuns: { text: string; color?: string; wordBreak?: string }[];
 } {
-  const runs = (cell as { text: { text: string; color?: string; wordBreak?: string }[] }).text;
-  if (!Array.isArray(runs)) {
+  const rawRuns = (cell as { text: { text: string; color?: string; wordBreak?: string }[] }).text;
+  if (!Array.isArray(rawRuns)) {
     throw new Error('Usage cell .text is not a run array — buildUsageTextRuns wiring changed?');
   }
+  const runs = opts.isContinuation ? stripContinuationMarker(rawRuns) : rawRuns;
   const greyIndexes = runs.map((run, i) => (run.color === GREY ? i : -1)).filter((i) => i !== -1);
   if (greyIndexes.length === 0) {
     return { usageText: runs.map((r) => r.text).join(''), metaRun: null, greyRuns: [] };
@@ -650,6 +688,174 @@ describe('packUsageCellRows (#1959 fix round: one page-safe budget for the whole
       MAX_SAFE_USAGE_CHUNK_CHARS,
     );
     expect(rows).toHaveLength(1);
+  });
+});
+
+// ─── packUsageCellRowsWithMinimum (#1940 AC1/AC2: runt-remainder merge) ───────────────────────
+//
+// Wraps packUsageCellRows with a floor on every CONTINUATION row's (index >= 1) character count,
+// so a would-be runt remainder merges into the row before it instead of rendering as a near-empty
+// row indistinguishable from a broken document (#1940 — the "Could Have" deferred from #1929,
+// observed twice in a real rendered PDF). Every assertion below is expressed against the INPUT/
+// budget/floor, or against a direct packUsageCellRows() call for comparison — never against the
+// wrapped function's own prior output — same discipline as the packUsageCellRows block above.
+describe('packUsageCellRowsWithMinimum (#1940 AC1/AC2: runt-remainder merge)', () => {
+  const BUDGET = 20; // same small budget as the packUsageCellRows block, for legible assertions
+  const MIN = 5;
+
+  function flatten(rows: UsageCellSegment[][]): UsageCellSegment[] {
+    return rows.flat();
+  }
+  function totalText(rows: UsageCellSegment[][]): string {
+    return flatten(rows)
+      .map((s) => s.text)
+      .join('');
+  }
+  function rowLengths(rows: UsageCellSegment[][]): number[] {
+    return rows.map((row) => row.reduce((sum, s) => sum + s.text.length, 0));
+  }
+  // Local word-boundary-clean filler, scoped to this describe block per this file's own
+  // convention (see proseOfLength further down, duplicated rather than hoisted-and-shared).
+  function fillerOfLength(exactLength: number): string {
+    const words = ['lorem', 'ipsum', 'dolor', 'sit', 'amet', 'consectetur', 'adipiscing'];
+    let text = '';
+    let i = 0;
+    for (;;) {
+      const word = words[i % words.length]!;
+      const candidate = text.length === 0 ? word : `${text} ${word}`;
+      if (candidate.length >= exactLength) return candidate.slice(0, exactLength);
+      text = candidate;
+      i++;
+    }
+  }
+
+  it('minTrailingChars <= 0 degrades to a direct packUsageCellRows call — no floor applies', () => {
+    const segments: UsageCellSegment[] = [
+      { text: 'aaaa bbbb cccc ddddd' },
+      { text: '\nEEEEE', meta: true },
+    ];
+    expect(packUsageCellRowsWithMinimum(segments, BUDGET, 0)).toEqual(
+      packUsageCellRows(segments, BUDGET),
+    );
+    expect(packUsageCellRowsWithMinimum(segments, BUDGET, -3)).toEqual(
+      packUsageCellRows(segments, BUDGET),
+    );
+  });
+
+  it('minTrailingChars >= maxChars degrades to a direct packUsageCellRows call — a floor that would consume the whole budget is not a floor', () => {
+    const segments: UsageCellSegment[] = [
+      { text: 'aaaa bbbb cccc ddddd' },
+      { text: '\nEEEEE', meta: true },
+    ];
+    expect(packUsageCellRowsWithMinimum(segments, BUDGET, BUDGET)).toEqual(
+      packUsageCellRows(segments, BUDGET),
+    );
+    expect(packUsageCellRowsWithMinimum(segments, BUDGET, BUDGET + 10)).toEqual(
+      packUsageCellRows(segments, BUDGET),
+    );
+  });
+
+  it("propagates packUsageCellRows's non-positive-maxChars throw rather than the degenerate-minTrailingChars guard swallowing it", () => {
+    const segments: UsageCellSegment[] = [{ text: 'x' }];
+    expect(() => packUsageCellRowsWithMinimum(segments, 0, MIN)).toThrow(
+      'packUsageCellRows: maxChars must be positive, got 0',
+    );
+    expect(() => packUsageCellRowsWithMinimum(segments, -1, MIN)).toThrow(
+      'packUsageCellRows: maxChars must be positive, got -1',
+    );
+  });
+
+  it('fast-path preservation, single row: content of exactly maxChars returns EXACTLY what packUsageCellRows returns (deep equality, not merely "one row")', () => {
+    const segments: UsageCellSegment[] = [{ text: 'a'.repeat(BUDGET) }];
+    expect(packUsageCellRowsWithMinimum(segments, BUDGET, MIN)).toEqual(
+      packUsageCellRows(segments, BUDGET),
+    );
+  });
+
+  it('fast-path preservation, multi-row no-runt: two healthy rows come back unchanged — proves the fix path never engages when unneeded', () => {
+    const segments: UsageCellSegment[] = [
+      { text: 'aaaa bbbb cccc ddddd' }, // exactly BUDGET (20 chars): one full row
+      { text: '\nEEEEE', meta: true }, // 6 chars, >= MIN(5): not a runt
+    ];
+    const raw = packUsageCellRows(segments, BUDGET);
+    expect(raw).toHaveLength(2);
+    expect(rowLengths(raw)[1]).toBeGreaterThanOrEqual(MIN); // sanity: this fixture has no runt
+    expect(packUsageCellRowsWithMinimum(segments, BUDGET, MIN)).toEqual(raw);
+  });
+
+  it("the pathological single-token case: a token of length 2*maxChars + 1 hard-splits to [maxChars, maxChars, 1] under plain packing (today's runt) — the wrapped function leaves no row after the first under MIN, and every row stays <= maxChars", () => {
+    const token = 'z'.repeat(BUDGET * 2 + 1); // 41 chars
+    const segments: UsageCellSegment[] = [{ text: token }];
+
+    // Document the exact pre-fix pathology this AC exists to close.
+    const raw = packUsageCellRows(segments, BUDGET);
+    expect(rowLengths(raw)).toEqual([BUDGET, BUDGET, 1]);
+
+    const rows = packUsageCellRowsWithMinimum(segments, BUDGET, MIN);
+    for (const length of rowLengths(rows).slice(1)) {
+      expect(length).toBeGreaterThanOrEqual(MIN);
+    }
+    for (const length of rowLengths(rows)) {
+      expect(length).toBeLessThanOrEqual(BUDGET);
+    }
+    expect(totalText(rows)).toBe(token); // I1 still holds
+  });
+
+  it('a MID-list runt (not merely trailing) is also eliminated: a short word stranded alone between two full-width rows', () => {
+    // 'A'x20 fills row 0 exactly; the leftover ' hi ' (4 chars, < MIN) doesn't fit alongside the
+    // next token ('B'x18, itself <= BUDGET) but DOES fit a row of its own, so plain packing stands
+    // it up as its own near-empty row — sandwiched between two full rows, not at the tail.
+    const text = 'A'.repeat(BUDGET) + ' hi ' + 'B'.repeat(18);
+    const segments: UsageCellSegment[] = [{ text }];
+
+    const raw = packUsageCellRows(segments, BUDGET);
+    expect(raw).toHaveLength(3);
+    const rawLengths = rowLengths(raw);
+    expect(rawLengths[1]).toBeLessThan(MIN); // confirms the runt sits at index 1
+    expect(raw.length - 1).toBeGreaterThan(1); // 1 < rows.length - 1: genuinely mid-list, not trailing
+
+    const rows = packUsageCellRowsWithMinimum(segments, BUDGET, MIN);
+    for (const length of rowLengths(rows).slice(1)) {
+      expect(length).toBeGreaterThanOrEqual(MIN);
+    }
+    for (const length of rowLengths(rows)) {
+      expect(length).toBeLessThanOrEqual(BUDGET);
+    }
+    expect(totalText(rows)).toBe(text);
+  });
+
+  describe('I1: reconstruction holds across every fixture above, plus one carrying a meta segment', () => {
+    it.each<[string, UsageCellSegment[]]>([
+      ['exact-fit single row', [{ text: 'a'.repeat(BUDGET) }]],
+      ['multi-row no-runt', [{ text: 'aaaa bbbb cccc ddddd' }, { text: '\nEEEEE', meta: true }]],
+      ['pathological hard-split token', [{ text: 'z'.repeat(BUDGET * 2 + 1) }]],
+      ['mid-list runt', [{ text: 'A'.repeat(BUDGET) + ' hi ' + 'B'.repeat(18) }]],
+      [
+        'mid-list runt shape with a trailing meta segment',
+        [
+          { text: 'A'.repeat(BUDGET) + ' hi ' + 'B'.repeat(18) },
+          { text: '\nGround Floor', meta: true },
+        ],
+      ],
+    ])('%s', (_label, segments) => {
+      const expected = segments.map((s) => s.text).join('');
+      const rows = packUsageCellRowsWithMinimum(segments, BUDGET, MIN);
+      expect(totalText(rows)).toBe(expected);
+    });
+  });
+
+  it('property-style sweep: for total lengths stepping from maxChars - minTrailingChars up to maxChars * 4, NO row after the first is EVER < minTrailingChars, and NO row EVER exceeds maxChars', () => {
+    for (let len = BUDGET - MIN; len <= BUDGET * 4; len++) {
+      const text = fillerOfLength(len);
+      const segments: UsageCellSegment[] = [{ text }];
+      const rows = packUsageCellRowsWithMinimum(segments, BUDGET, MIN);
+      for (const length of rowLengths(rows).slice(1)) {
+        expect(length).toBeGreaterThanOrEqual(MIN);
+      }
+      for (const length of rowLengths(rows)) {
+        expect(length).toBeLessThanOrEqual(BUDGET);
+      }
+    }
   });
 });
 
@@ -1258,12 +1464,17 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
 
-    // Derive the expected chunk count from splitIntoPageSafeChunks itself (unit-tested separately
-    // above) rather than a naive Math.ceil(len/maxChars) — the algorithm greedily fills each chunk
-    // up to the last clean word boundary <= maxChars, so it can produce one or two MORE chunks
-    // than the arithmetic minimum. This test's job is to verify buildOverviewContent WIRES that
-    // chunking output into the right row shapes, not to re-derive the chunking algorithm's output.
-    const expectedChunks = splitIntoPageSafeChunks(usageText, MAX_SAFE_USAGE_CHUNK_CHARS).length;
+    // Derive the expected chunk count from the SAME formula buildOverviewContent itself calls
+    // (#1940 AC1: packUsageCellRowsWithMinimum, not the bare splitIntoPageSafeChunks a runt-merge
+    // fix can change the row count of) rather than a naive Math.ceil(len/maxChars) — this test's
+    // job is to verify buildOverviewContent WIRES that packer's output into the right row shapes,
+    // not to re-derive the packing algorithm's own output. isOverview: true above -> 7-column
+    // shape -> USAGE_SAFE_TOKEN_CHARS_7COL is the right per-line floor input.
+    const expectedChunks = packUsageCellRowsWithMinimum(
+      [{ text: usageText }],
+      MAX_SAFE_USAGE_CHUNK_CHARS,
+      Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, USAGE_SAFE_TOKEN_CHARS_7COL),
+    ).length;
     expect(expectedChunks).toBeGreaterThan(1);
 
     // header (1) + expectedChunks rows for inv-long + 1 row for inv-next + 1 summary row.
@@ -1281,16 +1492,20 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
       expect.any(String),
     ]);
     // Every subsequent (continuation) row: leading + amount cells are all blank, Usage cell is
-    // non-empty text.
+    // non-empty text (marker-stripped — #1940 AC5 prepends '… ' to every continuation row, see
+    // stripContinuationMarker).
     for (const contRow of longRows.slice(1)) {
-      const texts = rowTexts(contRow);
+      const texts = rowTexts(contRow, { isContinuation: true });
       expect(texts.slice(0, 6)).toEqual(['', '', '', '', '', '']);
       expect(texts[6]).toBeTruthy();
     }
 
     // I1: concatenating every chunk row's Usage text, in table order, reproduces the ORIGINAL
-    // usageText exactly — no character (including inter-chunk whitespace) is dropped.
-    const reconstructed = longRows.map((r) => rowTexts(r)[6]).join('');
+    // usageText exactly — no character (including inter-chunk whitespace) is dropped. Row 0 is
+    // never a continuation row (isContinuation: i > 0), so its marker-free text stays as-is.
+    const reconstructed = longRows
+      .map((r, i) => rowTexts(r, { isContinuation: i > 0 })[6])
+      .join('');
     expect(reconstructed).toBe(usageText);
 
     // The next invoice's own (unrelated) row must still be present and unaffected, immediately
@@ -1312,11 +1527,14 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     const result = buildOverviewContent(content, new Map());
     const table = getTable(result);
 
-    // Row count is driven by `packUsageCellRows` over the WHOLE cell stream (prose + suffix), not
-    // by the prose alone — see that function's own unit tests for the packing rules themselves.
-    const expectedRows = packUsageCellRows(
+    // Row count is driven by `packUsageCellRowsWithMinimum` over the WHOLE cell stream (prose +
+    // suffix) — the same formula buildOverviewContent itself calls (#1940 AC1), not the bare
+    // packUsageCellRows a runt-merge fix can change the row count of. isOverview defaults false
+    // above -> 6-column (claim) shape -> USAGE_SAFE_TOKEN_CHARS_6COL is the right per-line floor.
+    const expectedRows = packUsageCellRowsWithMinimum(
       [{ text: usageText }, { text: '\nGround Floor · 1 attachment: Invoice', meta: true }],
       MAX_SAFE_USAGE_CHUNK_CHARS,
+      Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, USAGE_SAFE_TOKEN_CHARS_6COL),
     ).length;
     expect(expectedRows).toBeGreaterThan(1);
     // header (1) + packed rows + summary row (1).
@@ -1327,35 +1545,44 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     // PLACEMENT (changed deliberately in the fix round): the suffix trails the prose, so it sits on
     // the LAST row — not row 0. Pinning it to row 0 rendered grey meta text mid-prose with more
     // usage text below it, and forced the prose's own chunk boundary to shrink to make room.
+    // usageRows.length === expectedRows > 1, so the last row is always index >= 1 (a continuation
+    // row) — strip its #1940 AC5 marker before inspecting.
     const lastRow = usageRows[usageRows.length - 1]!;
     const lastCell = lastRow[lastRow.length - 1] as { text: unknown; stack?: unknown };
     expect(lastCell.stack).toBeUndefined();
-    const last = splitUsageCell(lastCell);
+    const last = splitUsageCell(lastCell, { isContinuation: true });
     expect(last.metaRun).not.toBeNull();
     expect(last.metaRun!.text).toBe('\nGround Floor · 1 attachment: Invoice');
     expect(last.metaRun!.color).toBe(GREY);
 
-    // Every EARLIER row is pure prose — the suffix is neither duplicated nor emitted early.
-    for (const earlierRow of usageRows.slice(0, -1)) {
+    // Every EARLIER row is pure prose — the suffix is neither duplicated nor emitted early. Row 0
+    // (index 0 of usageRows) is never a continuation row; any further "earlier" row (index >= 1,
+    // possible when expectedRows > 2) is.
+    usageRows.slice(0, -1).forEach((earlierRow, i) => {
       const cell = earlierRow[earlierRow.length - 1] as { text: unknown; stack?: unknown };
       expect(cell.stack).toBeUndefined();
-      expect(splitUsageCell(cell).metaRun).toBeNull();
-    }
+      expect(splitUsageCell(cell, { isContinuation: i > 0 }).metaRun).toBeNull();
+    });
 
     // I1 (no character is ever lost): concatenating only the usageText PORTION of every row's cell
-    // — i.e. excluding the grey meta suffix — reproduces the original usageText exactly. This is
-    // what proves the inline suffix didn't displace or truncate any prose.
-    const reconstructed = usageRows.map((r) => splitUsageCell(r[r.length - 1]).usageText).join('');
+    // — i.e. excluding the grey meta suffix AND the #1940 marker — reproduces the original
+    // usageText exactly. This is what proves the inline suffix didn't displace or truncate any
+    // prose, and that the marker (render-time decoration only) never enters the reconstruction.
+    const reconstructed = usageRows
+      .map((r, i) => splitUsageCell(r[r.length - 1], { isContinuation: i > 0 }).usageText)
+      .join('');
     expect(reconstructed).toBe(usageText);
 
     // Every row's Usage cell stays within the ONE page-safe budget — the bound that makes
     // `dontBreakRows: true` safe. Asserted against the constant, not the packer's own output.
-    for (const usageRow of usageRows) {
-      const { usageText: prose, metaRun } = splitUsageCell(usageRow[usageRow.length - 1]);
+    usageRows.forEach((usageRow, i) => {
+      const { usageText: prose, metaRun } = splitUsageCell(usageRow[usageRow.length - 1], {
+        isContinuation: i > 0,
+      });
       expect(prose.length + (metaRun?.text.length ?? 0)).toBeLessThanOrEqual(
         MAX_SAFE_USAGE_CHUNK_CHARS,
       );
-    }
+    });
 
     // areaText/attachmentsNote text appears EXACTLY once across the WHOLE table — no duplication
     // onto other rows, no leakage into the summary row.
@@ -1382,12 +1609,25 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     // header (1) + prose row + suffix-only row + summary (1).
     expect(table.body).toHaveLength(4);
 
+    // Row 0 (the prose row) is never a continuation row — no #1940 marker.
     const proseRow = splitUsageCell((table.body[1] as unknown[])[5]);
     expect(proseRow.usageText).toBe(usageText);
     expect(proseRow.metaRun).toBeNull();
 
-    const suffixRow = splitUsageCell((table.body[2] as unknown[])[5]);
-    // Body portion is the empty run buildUsageTextRuns emits for an absent prose segment.
+    // Row 1 (the suffix-only row) IS a continuation row. #1940 trace: this exact 645+37 fixture
+    // does NOT trigger AC1's runt-merge repack — packUsageCellRowsWithMinimum(6-col shape,
+    // minTrailingChars=22) packs the 37-char suffix into its own row at full budget already (37 >=
+    // 22, no runt), so packUsageCellRowsWithMinimum returns byte-identical row boundaries to plain
+    // packUsageCellRows here. The marker is still unconditionally prepended by buildUsageCell for
+    // every row index >= 1 regardless of whether AC1's merge fired — assert that directly first.
+    const suffixCellRaw = (table.body[2] as unknown[])[5] as {
+      text: { text: string; color?: string }[];
+    };
+    expect(suffixCellRaw.text[0]).toEqual({ text: '… ' });
+
+    const suffixRow = splitUsageCell((table.body[2] as unknown[])[5], { isContinuation: true });
+    // Body portion is the empty run buildUsageTextRuns emits for an absent prose segment (after
+    // the marker itself is stripped).
     expect(suffixRow.usageText).toBe('');
     expect(suffixRow.metaRun).not.toBeNull();
     // NO leading newline — this is the whole point of the assertion.
@@ -1440,6 +1680,152 @@ describe('buildOverviewContent — Usage chunking into continuation rows (scenar
     const { greyRuns } = splitUsageCell(lastRow[lastRow.length - 1]);
     expect(greyRuns.length).toBeGreaterThan(0);
     expect(greyRuns.some((r) => r.wordBreak === 'break-all')).toBe(true);
+  });
+});
+
+describe('AC5 (#1940): the "… " continuation marker — placement and exact run shape', () => {
+  it('(a) multiple continuation rows, no meta suffix: row 0 never starts with the marker; every row i>=1 starts with EXACTLY { text: "… " } — no color, bold, or fontSize', () => {
+    const usageText = proseOfLength(MAX_SAFE_USAGE_CHUNK_CHARS * 5);
+    const row = makeRow({ invoiceId: 'inv-1', vendor: 'Marker Vendor', usageText });
+    const content = makeContent({ rows: [row] }); // isOverview default false -> 6-column shape
+    const table = getTable(buildOverviewContent(content, new Map()));
+
+    const expectedRows = packUsageCellRowsWithMinimum(
+      [{ text: usageText }],
+      MAX_SAFE_USAGE_CHUNK_CHARS,
+      Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, USAGE_SAFE_TOKEN_CHARS_6COL),
+    ).length;
+    expect(expectedRows).toBeGreaterThan(1);
+
+    const usageRows = table.body.slice(1, 1 + expectedRows) as { text: unknown }[][];
+
+    const row0Cell = usageRows[0]![usageRows[0]!.length - 1] as {
+      text: { text: string; color?: string }[];
+    };
+    expect(row0Cell.text[0]!.text).not.toBe('… ');
+
+    for (const contRow of usageRows.slice(1)) {
+      const cell = contRow[contRow.length - 1] as {
+        text: { text: string; color?: string; bold?: boolean; fontSize?: number }[];
+      };
+      // Exact run shape — not just "starts with the right text" but no stray styling either.
+      expect(cell.text[0]).toEqual({ text: '… ' });
+    }
+  });
+
+  it('(b) the meta-suffix-on-its-own-row case: the marker still comes first, then the grey run whose text no longer starts with "\\n"', () => {
+    const usageText = proseOfLength(645);
+    const row = makeRow({
+      invoiceId: 'inv-1',
+      usageText,
+      areaText: 'Ground Floor',
+      attachmentsNote: '1 attachment: Invoice',
+    });
+    const table = getTable(buildOverviewContent(makeContent({ rows: [row] }), new Map()));
+
+    const suffixCell = (table.body[2] as unknown[])[5] as {
+      text: { text: string; color?: string }[];
+    };
+    expect(suffixCell.text[0]).toEqual({ text: '… ' });
+    expect(suffixCell.text[1]!.color).toBe(GREY);
+    expect(suffixCell.text[1]!.text.startsWith('\n')).toBe(false);
+  });
+});
+
+describe('AC8 (#1940): content at/below the zero-degradation range never produces a continuation row', () => {
+  it('MAX_SAFE_USAGE_CHUNK_CHARS characters still yields exactly ONE row for the 7-column shape — unchanged by the runt-merge fix', () => {
+    const usageText = proseOfLength(MAX_SAFE_USAGE_CHUNK_CHARS);
+    const row = makeRow({ usageText });
+    const content = makeContent({ isOverview: true, rows: [row] });
+    const table = getTable(buildOverviewContent(content, new Map()));
+    // header (1) + exactly 1 row + 1 summary row.
+    expect(table.body).toHaveLength(3);
+  });
+
+  it('600 characters yields exactly ONE row at the widest legal subset ({allocatedAmount, usage}) — derived via computeColumnWidths, not hand-computed', () => {
+    const { widths } = computeColumnWidths(['allocatedAmount', 'usage']);
+    // Sanity: this subset's Usage width really is wider than the 7-column reference (a real,
+    // legal #1973 subset, not an invented one) — a failure here means the fixture premise
+    // ("widest legal subset") silently stopped holding, not that AC8 broke.
+    expect(widths.usage!).toBeGreaterThan(USAGE_WIDTH_7COL);
+    const usageChunkChars = usageChunkCharsForWidth(widths.usage!);
+    // usageChunkCharsForWidth's one-sided clamp (AC 3.7) means a WIDER subset never exceeds
+    // MAX_SAFE_USAGE_CHUNK_CHARS — confirmed directly rather than assumed >= 600.
+    expect(usageChunkChars).toBe(MAX_SAFE_USAGE_CHUNK_CHARS);
+
+    const usageText = proseOfLength(600);
+    const row = makeRow({ usageText });
+    const hiddenColumns = new Set<ReportColumnKey>([
+      'vendor',
+      'invoiceNumber',
+      'date',
+      'status',
+      'invoiceAmount',
+    ]);
+    const content = makeContent({ isOverview: true, rows: [row] });
+    const table = getTable(buildOverviewContent(content, new Map(), hiddenColumns));
+
+    // Confirm the subset genuinely rendered as {allocatedAmount, usage} — not silently something
+    // wider — so this test can't pass vacuously if the hidden-set derivation above were wrong.
+    expect(table.widths).toHaveLength(2);
+    // header (1) + exactly 1 row. No leading column and no invoiceAmount column survive at this
+    // subset, so summary rows render as a separate stack block below the table (Tier 3, R2) rather
+    // than a table row — table.body has no third row to account for here.
+    expect(table.body).toHaveLength(2);
+  });
+});
+
+describe('AC2 (#1940): every emitted row still fits the page-safe ceiling after the runt merge', () => {
+  it('a token engineered to hard-split into a runt at the 7-column shape: every row (marker excluded) stays within usageChunkChars, and no continuation row drops below minTrailingUsageChars', () => {
+    const { widths } = computeColumnWidths(reportColumnsForUseCase(true) as ReportColumnKey[]);
+    const usageChunkChars = usageChunkCharsForWidth(widths.usage!);
+    // Two deliberately distinct jobs, not a redundant pair: usageSafeTokenCharsForWidth does the
+    // main work of guaranteeing a merged runt fills one real line at THIS subset's width;
+    // MIN_CONTINUATION_ROW_FLOOR_CHARS is the absolute fallback floor for subsets where that
+    // per-line figure is itself small. Do not collapse this to either operand alone.
+    const minTrailingUsageChars = Math.max(
+      MIN_CONTINUATION_ROW_FLOOR_CHARS,
+      usageSafeTokenCharsForWidth(widths.usage!),
+    );
+
+    // Today's exact pathology: a whitespace-free run of 2*usageChunkChars + 1 hard-splits to
+    // [usageChunkChars, usageChunkChars, 1] under plain packing — a 1-character runt row.
+    const token = 'z'.repeat(usageChunkChars * 2 + 1);
+    const row = makeRow({ usageText: token });
+    const content = makeContent({ isOverview: true, rows: [row] });
+    const table = getTable(buildOverviewContent(content, new Map()));
+
+    const dataRows = table.body.slice(1, table.body.length - 1) as unknown[][];
+    expect(dataRows.length).toBeGreaterThan(1);
+
+    let reconstructed = '';
+    dataRows.forEach((r, i) => {
+      const { usageText } = splitUsageCell(r[r.length - 1], { isContinuation: i > 0 });
+      reconstructed += usageText;
+      expect(usageText.length).toBeLessThanOrEqual(usageChunkChars);
+      if (i > 0) {
+        expect(usageText.length).toBeGreaterThanOrEqual(minTrailingUsageChars);
+      }
+    });
+    expect(reconstructed).toBe(token);
+  });
+
+  it('AC4 regression: a whitespace-free run of usageChunkChars * 3 still terminates, every row <= usageChunkChars, and reconstructs exactly', () => {
+    const { widths } = computeColumnWidths(reportColumnsForUseCase(true) as ReportColumnKey[]);
+    const usageChunkChars = usageChunkCharsForWidth(widths.usage!);
+    const token = 'q'.repeat(usageChunkChars * 3);
+    const row = makeRow({ usageText: token });
+    const content = makeContent({ isOverview: true, rows: [row] });
+    const table = getTable(buildOverviewContent(content, new Map()));
+
+    const dataRows = table.body.slice(1, table.body.length - 1) as unknown[][];
+    let reconstructed = '';
+    dataRows.forEach((r, i) => {
+      const { usageText } = splitUsageCell(r[r.length - 1], { isContinuation: i > 0 });
+      reconstructed += usageText;
+      expect(usageText.length).toBeLessThanOrEqual(usageChunkChars);
+    });
+    expect(reconstructed).toBe(token);
   });
 });
 

@@ -80,6 +80,9 @@ import {
   USAGE_WIDTH_6COL,
   MAX_SAFE_USAGE_CHUNK_CHARS,
   HEADER_ROW_HEIGHT_MAX,
+  USAGE_SAFE_TOKEN_CHARS_7COL,
+  USAGE_SAFE_TOKEN_CHARS_6COL,
+  MIN_CONTINUATION_ROW_FLOOR_CHARS,
 } from './overviewPdf.js';
 import type { UsageCellSegment } from './overviewPdf.js';
 
@@ -347,18 +350,41 @@ function usageCellText(text: unknown): string {
 // page-count tripwire fail for the wrong reason instead of flipping.
 const META_GREY = '#6b7280';
 
-function splitUsageCell(cell: unknown): {
+// #1940 AC5: buildUsageCell prepends a single literal `{ text: '… ' }` run (U+2026 + space, no
+// `color` override) as the very first run of a CONTINUATION row's (packedCellRows index >= 1)
+// Usage cell — the visual "this row continues" signal. `splitUsageCell` below concatenates a
+// cell's ENTIRE run array into `usageText`, so without stripping, every continuation-row
+// reconstruction in this file would silently start comparing `'… ' + text` against `text`.
+// Centralized HERE, once: strips exactly one leading run whose `.text === '… '` and which carries
+// no `color`. Only ever applied when the CALLER passes `isContinuation: true` — never applied
+// unconditionally, which would risk masking a genuine reconstruction defect that happened to
+// produce a leading '… ' in real user content on a row that was never supposed to carry it.
+function stripContinuationMarker<T extends { text: string; color?: string }>(runs: T[]): T[] {
+  if (runs.length > 0 && runs[0]!.text === '… ' && runs[0]!.color === undefined) {
+    return runs.slice(1);
+  }
+  return runs;
+}
+
+function splitUsageCell(
+  cell: unknown,
+  opts: { isContinuation?: boolean } = {},
+): {
   usageText: string;
   /** Grey suffix exactly as rendered, INCLUDING any leading '\n' — for faithful concatenation. */
   metaRaw: string | null;
   /** Grey suffix with the presentational leading '\n' stripped — for single-cell assertions. */
   metaText: string | null;
 } {
-  const runs = (cell as { text: unknown }).text;
-  if (!Array.isArray(runs)) {
-    return { usageText: runs as string, metaRaw: null, metaText: null };
+  const rawRuns = (cell as { text: unknown }).text;
+  if (!Array.isArray(rawRuns)) {
+    return { usageText: rawRuns as string, metaRaw: null, metaText: null };
   }
-  const typed = runs as { text: string; color?: string }[];
+  const typed = (
+    opts.isContinuation
+      ? stripContinuationMarker(rawRuns as { text: string; color?: string }[])
+      : rawRuns
+  ) as { text: string; color?: string }[];
   const greyIndexes = typed
     .map((run, i) => (run.color === META_GREY ? i : -1))
     .filter((i) => i !== -1);
@@ -2291,9 +2317,11 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       expect(chunkRows.length).toBeGreaterThan(1); // multiple rows, per AC12's "well over" side
 
       // #1929 round 2: each row's Usage cell `.text` is now a run array (buildUsageTextRuns), not
-      // a plain string — reconstruct each row's runs before concatenating across rows.
+      // a plain string — reconstruct each row's runs before concatenating across rows. #1940 AC5:
+      // every row but the first (index 0) in this group is a continuation row and carries the '… '
+      // marker — strip it via splitUsageCell (usageCellText alone doesn't know about the marker).
       const reconstructed = chunkRows
-        .map((row) => usageCellText((row[row.length - 1] as { text?: unknown })?.text ?? ''))
+        .map((row, i) => splitUsageCell(row[row.length - 1], { isContinuation: i > 0 }).usageText)
         .join('');
       expect(reconstructed).toBe(usageText);
     });
@@ -2445,7 +2473,8 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       /** Real page count of the rendered PDF. */
       pageCount: number;
     }> {
-      const { buildOverviewContent, packUsageCellRows } = await import('./overviewPdf.js');
+      const { buildOverviewContent, packUsageCellRowsWithMinimum } =
+        await import('./overviewPdf.js');
       const content = makeCellScopeContent(rowOverrides);
       const row = content.rows[0]!;
       const pdfContent = buildOverviewContent(content, new Map());
@@ -2456,9 +2485,17 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       );
       const tableItem = findTableItem(pdfContent);
 
-      const packedRowCount = packUsageCellRows(
+      // #1940: production now packs via packUsageCellRowsWithMinimum (AC1's runt-remainder merge),
+      // not the bare packUsageCellRows — the row count this helper expects must be derived from
+      // the SAME formula buildOverviewContent itself calls, or a genuine runt-merge in one of this
+      // block's large fixtures would make this length assertion (and the "row was SILENTLY
+      // DROPPED" guard below) fail for an unrelated reason. makeCellScopeContent's content has
+      // isOverview: false -> 6-column (claim) shape -> USAGE_SAFE_TOKEN_CHARS_6COL is the right
+      // per-line floor input.
+      const packedRowCount = packUsageCellRowsWithMinimum(
         cellSegmentsFor(row),
         MAX_SAFE_USAGE_CHUNK_CHARS,
+        Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, USAGE_SAFE_TOKEN_CHARS_6COL),
       ).length;
 
       // header (1) + packedRowCount + summary (1) — if this length check fails, a row was
@@ -2467,7 +2504,12 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       expect(tableItem.table.body).toHaveLength(1 + packedRowCount + 1);
 
       const dataRows = tableItem.table.body.slice(1, 1 + packedRowCount) as unknown[][];
-      const parts = dataRows.map((r) => splitUsageCell(r[r.length - 1]));
+      // #1940 AC5: every row but the first (index 0) is a continuation row and carries the '… '
+      // marker buildUsageCell prepends — strip it before reconstructing usageText/metaRaw, or the
+      // marker leaks into usageText (it is never grey, so it always lands in the non-grey prefix).
+      const parts = dataRows.map((r, i) =>
+        splitUsageCell(r[r.length - 1], { isContinuation: i > 0 }),
+      );
       const metaRaw = parts.map((p) => p.metaRaw ?? '').join('');
       const pdfDoc = await PDFDocument.load(await blob.arrayBuffer());
       return {
@@ -3199,6 +3241,201 @@ describe('ADR-034 rule #1: horizontal-overflow via _minWidth <= _calcWidth (issu
       expect(minWidth).toBeLessThanOrEqual(usageCalcWidth);
     },
   );
+});
+
+// ─── #1940: continuation-row marker (AC5) and runt-avoidance (AC1/AC9), real render ────────────
+//
+// AC9 explicitly asks for a real-render pin that no near-empty continuation row is emitted for
+// text engineered to land just past a chunk boundary, plus verification (not assumption) that the
+// marker glyph U+2026 actually paints in the embedded font. AC7 asks for the same
+// _minWidth <= _calcWidth / same-page-number proof this file already applies elsewhere (see the
+// ADR-034 block directly above), at the per-subset ceiling.
+describe('#1940: continuation-row marker (AC5) and runt-avoidance (AC1/AC9), real render', () => {
+  // Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, USAGE_SAFE_TOKEN_CHARS_7COL) — 16 < 20 at the
+  // 7-column shape, so the floor is MIN_CONTINUATION_ROW_FLOOR_CHARS (20) itself here. The two
+  // operands are deliberately distinct: the per-line figure does the main work at wider subsets,
+  // the named floor is the fallback for narrow ones — see that constant's own doc comment.
+  const MIN_TRAILING_7COL = Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, USAGE_SAFE_TOKEN_CHARS_7COL);
+
+  // Minimal hand-built ReportContent, mirroring the "cell-scope invariant" block's own
+  // makeCellScopeContent fixture above (same file convention: scope fixture helpers locally per
+  // describe block). isOverview: true -> 7-column shape, matching MAX_SAFE_USAGE_CHUNK_CHARS's own
+  // measured reference geometry (see that constant's doc comment in overviewPdf.ts).
+  function makeMarkerContent(usageText: string): ReportContent {
+    const row: ReportContentRow = {
+      invoiceId: 'inv-marker',
+      vendor: 'Marker Vendor',
+      invoiceNumber: 'MRK-1',
+      dateText: '01/01/2026',
+      status: null,
+      statusText: 'Pending',
+      invoiceAmountText: '€100.00',
+      allocatedAmountValueText: '€100.00',
+      isSplit: false,
+      isDepositReduced: false,
+      isDeposit: false,
+      isRefund: false,
+      refundNoteText: '',
+      usageText,
+      attachmentsNote: null,
+      areaText: null,
+    };
+    return {
+      isOverview: true,
+      isClaim: false,
+      tableTitle: 'Marker Test Report',
+      labels: {
+        vendor: 'Vendor',
+        invoiceNumber: 'Invoice No.',
+        date: 'Date',
+        status: 'Status',
+        invoiceAmount: 'Invoice Amount',
+        allocatedAmount: 'Allocated Amount',
+        usage: 'Usage',
+        attachmentsNote: 'Attachments',
+        deposit: 'Deposit',
+        splitNote: 'partial',
+        depositReducedNote: 'less deposit',
+        source: 'Source',
+        sourceType: 'Source Type',
+        reference: 'Reference',
+        generatedAt: 'Generated At',
+        pageLabel: 'Page',
+        coverLetterReferenceLabel: 'Reference:',
+        coverLetterSubjectLabel: 'Subject:',
+        skipReasonLabels: {
+          footnoteFetchFailed: 'Fetch failed',
+          footnoteInvalidPdf: 'Invalid PDF',
+        },
+      },
+      sourceInfo: {
+        sourceName: 'Marker Source',
+        sourceTypeText: 'Bank Loan',
+        referenceText: null,
+        generatedAtText: '01/01/2026',
+      },
+      coverLetter: null,
+      rows: [row],
+      summaryRows: [{ key: 'total', label: 'Total', amountText: '€100.00' }],
+      footnotes: [],
+    };
+  }
+
+  // Same pathological construction as the unit-level AC1/AC2 tests in overviewPdf.test.ts: a
+  // whitespace-free run of 2*MAX_SAFE_USAGE_CHUNK_CHARS + 1 hard-splits to [chunk, chunk, 1] under
+  // PLAIN packing — a single-character last row, the exact "one letter" reproduction #1940 was
+  // filed from (issue body, round-4 ux-designer finding).
+  async function renderRuntBoundaryFixture(): Promise<{
+    dataRows: unknown[][];
+    tableItem: { table: RenderedTable };
+  }> {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+    const token = 'z'.repeat(MAX_SAFE_USAGE_CHUNK_CHARS * 2 + 1);
+    const content = makeMarkerContent(token);
+    const pdfContent = buildOverviewContent(content, new Map());
+    await renderOverviewPdfContent(
+      pdfContent,
+      { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+      tEn,
+    );
+    const tableItem = findTableItem(pdfContent);
+    const dataRows = tableItem.table.body.slice(1, tableItem.table.body.length - 1) as unknown[][];
+    return { dataRows, tableItem };
+  }
+
+  it("[AC9] a runt-boundary fixture renders with NO near-empty continuation row: the last row's marker-stripped Usage content is substantial, and the full token is recoverable across the group", async () => {
+    const token = 'z'.repeat(MAX_SAFE_USAGE_CHUNK_CHARS * 2 + 1);
+    const { dataRows } = await renderRuntBoundaryFixture();
+    expect(dataRows.length).toBeGreaterThan(1);
+
+    const lastRow = dataRows[dataRows.length - 1]!;
+    const { usageText } = splitUsageCell(lastRow[lastRow.length - 1], { isContinuation: true });
+    // The pre-fix pathology this AC exists to close: a near-empty (1-character) last row. The
+    // fix's own floor guarantees at least MIN_TRAILING_7COL characters here — this is the direct
+    // negation of "a table row that was entirely blank except for a single stray character".
+    expect(usageText.length).toBeGreaterThanOrEqual(MIN_TRAILING_7COL);
+
+    // Full losslessness across the group (I1), marker excluded from the reconstruction.
+    const reconstructed = dataRows
+      .map((r, i) => splitUsageCell(r[r.length - 1], { isContinuation: i > 0 }).usageText)
+      .join('');
+    expect(reconstructed).toBe(token);
+  });
+
+  it('[AC5] every continuation row starts with the literal "… " marker in the real rendered content tree; row 0 never does', async () => {
+    const { dataRows } = await renderRuntBoundaryFixture();
+    expect(dataRows.length).toBeGreaterThan(1);
+
+    const row0Cell = dataRows[0]![dataRows[0]!.length - 1] as {
+      text: { text: string; color?: string }[];
+    };
+    expect(row0Cell.text[0]!.text).not.toBe('… ');
+
+    for (const contRow of dataRows.slice(1)) {
+      const cell = contRow[contRow.length - 1] as { text: { text: string; color?: string }[] };
+      expect(cell.text[0]).toEqual({ text: '… ' });
+    }
+  });
+
+  it('[AC9, glyph coverage] the marker glyph U+2026 (HORIZONTAL ELLIPSIS) has a real, non-.notdef glyph in the embedded Roboto-Regular font', async () => {
+    // Verified rather than assumed by U+2014 (em dash) precedent elsewhere in this file — same
+    // General Punctuation Unicode block, but a different codepoint, and per the ux-designer's own
+    // review comment, "this file's whole culture is measured, not estimated". fontkit is a
+    // transitive dependency of pdfmake (via pdfkit) already present in node_modules; pinned here as
+    // an explicit devDependency (client/package.json) per the Dependency Policy rather than relying
+    // on an undeclared transitive resolution.
+    //
+    // Glyph id 0 is `.notdef` by spec — the exact "tofu box" failure mode this check rules out. A
+    // raw advance-width measurement would NOT prove this: fonts commonly give `.notdef` a real,
+    // non-zero advance width, so only the glyph id itself is dispositive.
+    const fontkitModule = await import('fontkit');
+    const fontkit =
+      (fontkitModule as unknown as { default?: typeof fontkitModule }).default ?? fontkitModule;
+    const vfsModule = await import('pdfmake/build/vfs_fonts');
+    const vfs =
+      (vfsModule as { default?: Record<string, string> }).default ??
+      (vfsModule as unknown as Record<string, string>);
+    const base64 = vfs['Roboto-Regular.ttf'];
+    if (typeof base64 !== 'string') {
+      throw new Error(
+        'Roboto-Regular.ttf not found in pdfmake vfs_fonts — loader.ts font wiring changed?',
+      );
+    }
+    const font = fontkit.create(Buffer.from(base64, 'base64'));
+    const glyph = font.glyphForCodePoint(0x2026);
+    expect(glyph.id).not.toBe(0);
+
+    // Sanity check on the technique itself: a genuinely unmapped astral codepoint DOES resolve to
+    // glyph id 0 in this font — proves glyph id 0 is reachable and meaningful here, not a fontkit
+    // quirk that always returns non-zero.
+    const unmapped = font.glyphForCodePoint(0x10ffff);
+    expect(unmapped.id).toBe(0);
+  });
+
+  it('[AC7] at the per-subset ceiling, the Usage column has no horizontal overflow (_minWidth <= _calcWidth) and every cell of the continuation row shares one real page number', async () => {
+    const { dataRows, tableItem } = await renderRuntBoundaryFixture();
+    expect(dataRows.length).toBeGreaterThan(1);
+
+    const usageColIndex = tableItem.table.widths.length - 1;
+    const usageCalcWidth = calcWidthsOf(tableItem.table.widths)[usageColIndex]!;
+
+    const contRow = dataRows[dataRows.length - 1] as { _minWidth?: number }[];
+    const usageCell = contRow[usageColIndex] as { _minWidth?: number };
+    const minWidth = usageCell._minWidth;
+    if (typeof minWidth !== 'number') {
+      throw new Error('usageCell._minWidth is not a number — was the render awaited first?');
+    }
+    expect(minWidth).toBeLessThanOrEqual(usageCalcWidth);
+
+    // Every cell of this continuation row — INCLUDING the blank leading/amount cells
+    // buildEmptyBodyCell produces — lands on the SAME real page: `dontBreakRows: true` held for
+    // the whole row, not just the Usage cell. A blank-text cell still receives a real
+    // `.positions` entry from pdfmake's layout engine (confirmed empirically before writing this
+    // assertion: an empty-string cell gets exactly one position, the same shape a non-empty cell
+    // gets), so `cellPageNumber` is meaningful on every cell here, not just the Usage one.
+    const pageNumbers = contRow.map((cell) => cellPageNumber(cell));
+    expect(new Set(pageNumbers).size).toBe(1);
+  });
 });
 
 // ─── #1980: legend sentence layout and occurrence count ───────────────────────────────────────────
