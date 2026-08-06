@@ -106,3 +106,9 @@ Pre-existing lint baseline in worktree: ~8 eslint ERRORS in production/test .ts 
 ## Build Note (still true)
 
 `npm run docs:build` fails in worktrees with webpack `ProgressPlugin` ValidationError (node_modules corruption, NOT content). Build reaches the webpack bundling stage, so MDX/content/link loading succeeded. Validate internal links/anchors statically with grep instead; CI does the real build.
+
+Update: in the `batch-develop-1973` worktree (2026-08), `npm run docs:build` completed successfully end-to-end (only the expected pre-existing screenshot-image warnings) -- the corruption is worktree-instance-specific, not universal. Still try the build first; fall back to static grep validation only if it actually fails.
+
+## configuration.md sections
+
+`docs/src/getting-started/configuration.md` has an `## Authentication Rate Limiting` section (added for #1990) documenting `AUTH_RATE_LIMIT_MAX`/`AUTH_RATE_LIMIT_WINDOW` (defaults 20 / `15 minutes`, `ms`-format window, startup-failure-on-invalid-value caveat, and household-NAT-vs-internet-exposed tuning guidance), cross-linked with the `## Reverse Proxy` section's `TRUST_PROXY` explanation (bucket-by-proxy-IP vs bucket-by-client-IP). The setup-endpoint's fixed 5/15min limit is mentioned as non-configurable, per issue Notes. This is the only general env-var reference table on the docs site -- `guides/users/oidc-setup.md` has a small OIDC-scoped var table but it's not a second general reference.
