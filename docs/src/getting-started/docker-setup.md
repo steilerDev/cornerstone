@@ -51,6 +51,8 @@ SECURE_COOKIES=true
 
 :::note Safer proxy handling
 Cornerstone's proxy handling has been tightened: when `TRUST_PROXY=true`, only the **first** proxy hop is trusted (your own reverse proxy), and the rate-limit plugin uses a resilient client identifier that cannot be spoofed by a user-supplied `X-Forwarded-For` header. In short, you still need to set `TRUST_PROXY=true` when running behind nginx/Caddy/Traefik, but that setting no longer exposes rate limiting to header spoofing from the public internet. No configuration change is required to benefit from this -- upgrading to the current release is enough.
+
+This only controls *whose* IP the rate limiter trusts, not *how many* login attempts that IP gets. If several people log in from behind the same home network, they still share one rate-limit bucket even with `TRUST_PROXY=true` set correctly. See [Authentication Rate Limiting](configuration#authentication-rate-limiting) in the Configuration guide to tune `AUTH_RATE_LIMIT_MAX` for your household.
 :::
 
 :::tip Large file uploads

@@ -1371,3 +1371,35 @@ Measure with python `len()`, **never `awk length()`** — awk counts bytes here,
 are everywhere in this wiki make a correctly-padded row read 2 bytes long per dash, which looks like a
 padding bug and isn't. Editing a Deviation Log cell means re-padding the cell to its exact column
 width, not just swapping the sentence.
+
+## Operator-facing docs make behavioural claims a validator must actually back (#1990, PR #2027)
+
+Reviewed a docs-site-only PR for technical accuracy (no architecture surface). Everything structural
+checked out — defaults, the startup-failure chain, the setup route's hardcoded 5/15min. The defects
+were all in the gap between *what the prose promises* and *what the code validates*:
+
+- **Hyperlinking a third-party library while enforcing a strict subset of it.** Copy said
+  "`AUTH_RATE_LIMIT_WINDOW` in [`ms`](vercel/ms) duration format". `config.ts:364` is a hand-rolled
+  regex that rejects `1y`, bare `900000`, `.5h`, `1 msec` — all valid `ms` input shown in that README.
+  Paired with a caution box promising a hard startup failure, the link *invites* the crash it warns
+  about (and the library is named `ms`, so "ms format" reads as "milliseconds" to many). This is the
+  reader-facing twin of the #1970 "regex mirroring a third-party grammar" trap: **when docs link the
+  upstream spec, the regex's subset becomes a documentation bug, not just a code smell.** Same loose
+  phrasing exists in CLAUDE.md + both wiki pages — the hyperlink is what made it actionable.
+- **A caution box can be falsified by `parseInt` leniency.** "A typo is caught immediately rather than
+  producing an unexpectedly loose or strict limit" is false while `parseInt('2e3',10) === 2` and
+  `parseInt('20abc',10) === 20`. Open issue #1991 would make the copy true — **don't let prose depend
+  on an unlanded fix**; soften now or sequence the docs behind the fix.
+- **`trustProxy: 1` is a hop count, not "trust all proxies".** `app.ts:75`
+  (`TRUST_PROXY === 'true' ? 1 : false`); `proxy-addr` compiles a number `n` to `(addr,i) => i < n`.
+  Correct for one reverse-proxy hop, but with CDN → nginx → app the list is
+  `[nginx(socket), cfEdge, client]`, index 1 is untrusted, and `request.ip` = the CDN edge — so
+  `TRUST_PROXY=true` does **not** always deliver "each client's real IP", and buckets still collapse.
+- **The rate-limit key is per-/64 for IPv6**, not per-address (`rateLimitPlugin.ts` `IPV6_SUBNET = 64`),
+  so "keys on the client's IP" is imprecise and shared-bucket guidance isn't NAT-only.
+
+**Method that worked:** execute the validator's regex against every example the prose gives *and*
+against examples the linked upstream spec gives — the second set is where the mismatch lives. Verify a
+"fails at startup" claim by walking to the entrypoint (`server.ts` had no try/catch around
+`buildApp()`; the only `try` wrapped `app.listen`) and confirming intermediate `catch` blocks *push
+onto* the error array rather than swallow.
