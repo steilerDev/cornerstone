@@ -37,6 +37,34 @@ All configuration is done through environment variables. The defaults are suitab
 
 When deploying behind a reverse proxy, set `TRUST_PROXY=true` so the server correctly reads forwarded headers (`X-Forwarded-For`, `X-Forwarded-Proto`, etc.). Set `EXTERNAL_URL` to the public URL users access your instance at -- this ensures OIDC callbacks, CalDAV/CardDAV discovery, and Apple configuration profiles work correctly regardless of internal networking.
 
+`TRUST_PROXY` also determines which IP address the login rate limit (below) buckets requests by -- see [Authentication Rate Limiting](#authentication-rate-limiting) for the deployment implications.
+
+## Authentication Rate Limiting
+
+The login endpoint (`POST /api/auth/login`) is rate-limited per client to slow down credential-stuffing and brute-force attempts.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AUTH_RATE_LIMIT_MAX` | `20` | Maximum login requests allowed per client within the window (positive integer) |
+| `AUTH_RATE_LIMIT_WINDOW` | `15 minutes` | Length of the rate-limit window, in [`ms`](https://github.com/vercel/ms) duration format (e.g. `15 minutes`, `1h`, `30s`) |
+
+:::caution
+An invalid value for either variable -- a non-numeric or non-positive `AUTH_RATE_LIMIT_MAX`, or an `AUTH_RATE_LIMIT_WINDOW` that isn't a recognized duration string -- causes the server to **fail at startup** with a configuration error. It does not silently fall back to the default, so a typo here is caught immediately rather than producing an unexpectedly loose or strict limit in production.
+:::
+
+### Which direction to tune
+
+Which way to adjust `AUTH_RATE_LIMIT_MAX` depends on your deployment shape:
+
+- **Behind one NAT / shared egress IP** (the common household case). Everyone on your home network shares a single public IP, so the login endpoint sees your whole household's attempts as coming from one client. A few mistyped passwords in quick succession across family members can exhaust the default limit for everyone. Consider **raising** `AUTH_RATE_LIMIT_MAX`.
+- **Internet-exposed with no reverse-proxy protection**. If Cornerstone is reachable directly from the internet without a fronting proxy or WAF doing its own throttling, this limit is your primary defense against brute-force login attempts. Consider **lowering** `AUTH_RATE_LIMIT_MAX`.
+
+This is where `TRUST_PROXY` matters: the rate limiter buckets requests by the client IP Fastify resolves for each request, and `TRUST_PROXY` controls whether that is the real visitor's IP or your reverse proxy's IP. With `TRUST_PROXY=false` (the default) behind a reverse proxy, every request arrives from the proxy's IP, so **all visitors share a single rate-limit bucket** -- turning the shared-IP household scenario above into a shared-IP scenario for every visitor, not just your own network. Set `TRUST_PROXY=true` so the limiter keys on each client's real IP instead. See [Reverse Proxy](#reverse-proxy) above for the full `TRUST_PROXY` setup.
+
+:::note
+The account-setup endpoint (`POST /api/auth/setup`) has its own fixed limit of 5 requests per 15 minutes and is not configurable.
+:::
+
 ## OIDC (Single Sign-On)
 
 OIDC is automatically enabled when `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` are all set. No separate "enable" flag is needed.
