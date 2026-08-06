@@ -46,7 +46,7 @@ Detail in [standalone-bugs-and-stories.md](standalone-bugs-and-stories.md) (budg
 All rulings, contract facts, per-PR review outcomes and filed follow-ups live in [bank-report-wizard.md](bank-report-wizard.md) — consult it before any work on this cluster.
 
 - Shipped: #1876-#1879, #1898-#1901, #1929-#1933, #1958, #1959, #1965, #2001, #2003, #1973
-- Open: #1888, #1891, #1895-#1897, #1910, #1912, #1917, #1937-#1941, #1946 (Must Have), #1947, #1950, #1952, #1953, #1966-#1972, #2011-#2014
+- Open: #1888, #1891, #1895-#1897, #1910, #1912, #1917, #1938, #1940, #1941, #1946 (Must Have), #1947, #1950, #1952, #1953, #1966-#1972, #2011-#2014, #2016-#2021 (#1937/#1939 CLOSED — no open home for allocated-column geometry)
 - Merged but **not Done** (awaiting live-LLM UAT): #1931 (ACs 3.2/3.3)
 - **#1973** column visibility → PDF: PR #2010 approved R1, 28/33 ACs, → **UAT, stays In Progress**. Follow-ups #2011-#2014 all Backlog + blocked-by #1973.
 - **#1911** `splitKind`: ACs refined 2026-08-05 onto an orchestrator-filed body → **UAT, not Done-on-merge**. Privacy: no objection. Legend: no new sentence. Addendum ruling (pre-merge): zero-line-contribution row now shows `(Deposit)`+`(partial)` — **intended, do not narrow**, AC 3.6/3.7/4.7 added. **PR #2015 CHANGES REQUESTED round 1** — logic correct, evidence layer not: 2 red E2E scenarios (stale assertions, not defects) + AC 4.5's render measurement unfalsifiable by construction.
@@ -85,6 +85,8 @@ Full derivations and the incidents behind each are in [pr-review-patterns.md](pr
 - **An issue filed by another agent is a snapshot of that round's codebase** — re-verify the *mechanism*, not just the defect, and correct the mechanism while keeping the story.
 - **When an AC's correct predicate is one plausible misreading away from a no-op, write the misreading into the AC** and demand a test pinning that shape.
 - **Check the other direction of any reported boolean defect** — the mirror case is often live too.
+- **`Refs #N`, not `Fixes #N`, for any issue in a parent-less cluster carrying a UAT disposition** — `/epic-close` (the only skill with a UAT step) never runs without an epic, so standalone `/release` would auto-close it unvalidated. **Before trusting "the lifecycle protects this", check the item actually enters that lifecycle.** The acceptance gate is the board status, which I set — not open/closed, which GitHub sets.
+- **When a review finding invokes a principle, check whether the principle actually condemns the code.** A principle stated only in its prohibiting direction generates false positives; write the permission into the ADR alongside it.
 - **When a change looks like new behaviour, check whether the underlying field already carried the right value and only a downstream gate was lying.** If so it is a fix, and the burden flips to whoever wants the old output. If the only available narrowing is the removed gate under a new name, there is no narrowing — say so plainly.
 - **A corrected assumption appearing independently in code + docs + tests is one spec gap, not three bugs** — and is the argument for writing the AC down even when the code is already right.
 - **"Dominated by an existing measurement, do not re-measure" is as valuable as demanding the measurement.** Rank flagged risks against each other instead of treating every new co-occurrence as equally alarming.

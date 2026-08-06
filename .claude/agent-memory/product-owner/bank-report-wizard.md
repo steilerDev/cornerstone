@@ -1066,3 +1066,75 @@ the human pass is the only thing looking at that row. Corrected routing:
   *measured*, it never authorised a fix.
 
 **General: check that the issue a routing rule points at is still open before restating the rule.**
+
+### #1911 PR #2015 follow-ups + two rulings (2026-08-05)
+
+Filed six non-blockers so #2015 could merge without expanding a PR already through a red-E2E round:
+
+- **#2016** (tech-debt, Should) `ReportContentRow.isSplit` → `isPartial`. Row flag now means "shows
+  `(partial)`" (`splitKind ∈ lines|both`) while `SourceReportInvoice.isSplit` means "split at all"
+  (`splitKind !== null`) — **false-vs-true across the entire `deposits`-only population**, spelled
+  identically, read and written 12 lines apart. frontend-developer added that `deposits`-only splits
+  are common, so the divergence is permanent.
+- **#2017** (tech-debt, Should) `budgetLines` → `budgetLinesForSource`, `deposits` →
+  `depositsVisibleToSource`. Blocked-by #2016 (same file/append points — parallel-worktree collision
+  risk). Flagged AC 1.6: this is a **breaking response-field rename**, safe only because client+server
+  ship as one container from one repo.
+- **#2018** (tech-debt, **Could** — I downgraded it) `hasOwnTaggedDeposit` guard test.
+- **#2019** (documentation, Should) the ADR — **product-architect's page**, I filed the tracker only.
+- **#2020** (bug, Should) preview/PDF refund-label **order** divergence. Verified on disk: PDF emits
+  refund **last** (`overviewPdf.ts` L833-856), preview emits it **first** (`ReportContentEditor.tsx`
+  L331 before the badge at L335). Pre-existing since #1959; #1911 made multi-label rows common enough
+  to see it.
+- **#2021** (tech-debt, Could) AC 5.3's preview-DOM half is `en`-only. **My own AC was
+  under-specified** — it stated a 2×2 matrix in one sentence without saying it was a matrix, so the
+  `en`-only reading was reasonable. Amended via new issue, not by rewriting a released AC.
+
+All six Backlog + blocked-by #1911.
+
+**I downgraded #2018 and disagreed with the architect's framing — worth keeping.** It was flagged as
+"the same shape as the bug we just fixed". It is not. The #1911 bug derived an **unscoped** predicate
+from a scoped projection (impossible to do right — the projection discarded the needed rows).
+`hasOwnTaggedDeposit` derives a **scoped** predicate from a projection at **the same scope**, which is
+the correct and intended use, sound **by construction, not by accident**. Rated Could Have: guard test
++ comment, no refactor. **Then fed the correction back into #2019 as AC 1.2 — the ADR must state the
+converse with equal prominence, or it will condemn correct code and be ignored.**
+**Reusable: when a review finding invokes a principle, check whether the principle actually condemns
+the code — a principle stated only in its prohibiting direction generates false positives, and the
+fix is to write the permission into the ADR alongside it.**
+
+### Ruling: `Fixes` vs `Refs` for UAT-pending issues — **`Refs`**
+
+Coordinator's premise ("UAT runs in `/epic-close` before promotion, so auto-close fires after UAT")
+is **true for epics and false for this cluster**. The Bank Report Wizard cluster is **parent-less**
+(#1965's body: "Parent Epic: none"), so `/epic-close` — the only skill with a UAT step (step 6) —
+**can never run for it**; promotion goes through standalone `/release`, whose step 2b is a
+"Manual Validation Checklist … spot-check" and which explicitly *omits* the UAT sections when no epic
+number is given.
+
+**Ruling: `Refs #N`, not `Fixes #N`, for any issue in a parent-less cluster carrying a UAT
+disposition.** `Fixes` is right when the acceptance gate IS the merge; a UAT disposition means the
+gate is downstream of the merge. Not a broken convention — the convention applied to its actual case.
+
+**#1973 is already merged with `Fixes` and has the same exposure** — noted on the issue with two
+recovery options (walk UAT before promotion, or reopen after). Key line worth reusing:
+**"the acceptance gate is the board status, which I set — not the issue's open/closed state, which
+GitHub sets."** If a board automation flips closed→Done, that is not a PO decision and gets reverted.
+
+**Generalisable: before trusting "the lifecycle protects this", check the work item actually enters
+that lifecycle.** A cluster with no parent epic silently skips every epic-scoped gate.
+
+### Ruling: UAT rejection routing for #1911 (recorded on the issue)
+
+- Rejection about **what the labels say** (AC 4.3/4.4/4.7) → **reopen #1911**; the wording is the
+  deliverable, and a follow-up leaves the shipped document wrong meanwhile.
+- Rejection about **column geometry** → **new issue in the #1939 lineage**. Verified #1937 and #1939
+  are both **closed** and none of #2011-#2014 or #1950 covers the allocated-amount column — no open
+  home exists.
+- The line between them: the first says my *ruling* was wrong (no string change, precision via
+  co-occurrence); the second says the ruling was right but the column can't afford it. Only the first
+  invalidates #1911.
+
+**AC 4.5 now MET, not deviated** — both assertions proven to fail by mutation against the real
+production path, file restored byte-identical. `positions` is written during layout, which is why it
+observes a drop that `.text` (the test's own input) cannot. That is the exact property AC 5.5 demands.
