@@ -1543,3 +1543,42 @@ row on its own — and it is the one that fails loudly if the Usage column ever 
 and whether the consumer clips or paginates. Routed to #1950 (chunk-ceiling drift guard) rather than a
 bespoke test; needs `USAGE_TEXT_MAX_LENGTH` exported. Keep the constant in the editor — an input
 constraint living in the renderer inverts the dependency.
+
+## A duplicate test with a stronger title, and when a comment beats machinery (#1953, PR #2035)
+
+Two findings from reviewing the split of `LETTER_SUBJECT_FONT_SIZE` out of `SUBHEADER_FONT_SIZE` in
+`client/src/lib/reportPdf/pageGeometry.ts`. The split itself was clean (own literal `12`, not an alias;
+`headerFootprint()`/`PAGE_TOP_MARGIN` byte-identical; reason-carrying comment; inverted comment removed).
+
+**(a) A new test whose assertions duplicate an existing test, under a title that claims more.**
+`pageGeometry.test.ts:98-101` was assertion-for-assertion identical to the pre-existing test at lines
+160-167 (`toBe(93)` + `toBe(Math.ceil(headerFootprint() + 15))`, order swapped) but titled *"PAGE_TOP_MARGIN
+does not depend on letterSubject.fontSize"* — a proposition its body never references. Zero added
+discrimination; it catches exactly the older test's mutation set.
+
+**Why:** QA's mutation evidence *corroborated* rather than exposed it — "SUBHEADER 12→11 fails 4 tests"
+reads as strong coverage, but two of the four are the duplicated pair. **A mutation count is not evidence
+of independent coverage; it counts assertions, not propositions.** Compare each new test's failing-mutation
+set against the existing suite's, not against zero. Same family as the PR #2008 "revert test proves a
+different proposition than the one it licenses" and the PR #2004 r4 `count >= 1` finding.
+**How to apply:** when a new test lands next to an existing one in the same file, diff the assertion bodies
+before reading the titles. A title asserting a *negative dependency* ("X does not depend on Y") whose body
+never mentions Y is the tell.
+
+**(b) When a comment is genuinely the right guard — the argument, not the shrug.**
+Two adjacent `expect(...).toBe(12)` assertions protected only by a "do NOT deduplicate these" comment is
+the right shape here. Not because no machinery exists, but because: (1) what is guarded is a *test's own
+discrimination* — collapsing it loses coverage, it does not regress production, since the production split
+and its comment stand regardless; and (2) **any structural guard would have to encode the coupling you just
+removed** — "these two `number`s must be permitted to differ" is not expressible in TS, and its closest
+approximation is exactly what already exists: two identifiers, two literals. The production split *is* the
+structural guard.
+
+Rejected strengthenings, both costing more than the comment: asserting the constant through its role in
+`headerFootprint()` restates production's formula in the test (the very anti-pattern `pageGeometry.ts`'s
+own header comment warns against, from #1929); mirroring the `TABLE_SMALL_FONT_SIZE` constant-to-style tie
+needs a module-private constant exported purely to be read by a test.
+**How to apply:** before proposing machinery for a test-integrity concern, ask what the failure mode
+actually costs (coverage loss vs regression) and whether the enforcement would re-express the coupling
+under removal. If both answers are "yes", a comment naming the *reason* is the correct tool — and say so
+affirmatively rather than as an absence of alternatives.

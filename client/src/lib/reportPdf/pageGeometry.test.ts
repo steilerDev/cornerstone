@@ -95,10 +95,20 @@ describe('pageGeometry — PDF_STYLES.letterSubject / PDF_STYLES.subheader font 
     expect(PDF_STYLES['subheader']!.fontSize).toBe(12);
   });
 
-  it('PAGE_TOP_MARGIN does not depend on letterSubject.fontSize: headerFootprint() sums only HEADER_FONT_SIZE, SUBHEADER_FONT_SIZE, SUBHEADER_MARGIN_TOP, and HEADER_BLOCK_BOTTOM_MARGIN — letterSubject is not one of its inputs, so a future change to the cover-letter subject size cannot reflow any page of the report (#1953 Verification)', () => {
-    expect(PAGE_TOP_MARGIN).toBe(93);
-    expect(PAGE_TOP_MARGIN).toBe(Math.ceil(headerFootprint() + 15));
-  });
+  // A third test asserting PAGE_TOP_MARGIN/headerFootprint() was deliberately removed here: it was
+  // assertion-for-assertion identical to the pre-existing "PAGE_TOP_MARGIN is a computed expression"
+  // test below (same two `toBe` checks, order swapped), so it added zero discrimination — the
+  // #1953 SUBHEADER_FONT_SIZE 12->11 mutation failed both copies for the same reason, not two
+  // independent reasons. Neither assertion actually references `letterSubject`, so a title claiming
+  // "PAGE_TOP_MARGIN does not depend on letterSubject.fontSize" overclaimed what the body proved.
+  // That guarantee (changing LETTER_SUBJECT_FONT_SIZE cannot move PAGE_TOP_MARGIN) is not
+  // expressible as a standing assertion here: neither constant is exported, so the only proof
+  // available is the manual mutation test performed for #1953 (see PR #2035 / the qa-integration-
+  // tester's #1953 report) — LETTER_SUBJECT_FONT_SIZE 12->13 left PAGE_TOP_MARGIN and
+  // headerFootprint() unchanged, confirmed by re-running this file with the mutation applied and
+  // reverted. If a future change makes that guarantee expressible in code (e.g. an exported
+  // computation helper), assert it directly rather than restating the existing PAGE_TOP_MARGIN
+  // formula test under a claim it doesn't back.
 });
 
 describe('pageGeometry — printableWidth (scenario 1)', () => {

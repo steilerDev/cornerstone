@@ -73,6 +73,7 @@ const SUBHEADER_MARGIN_TOP = 4; // PDF_STYLES.subheader margin, below
 const HEADER_BLOCK_BOTTOM_MARGIN = 20; // buildPageHeader's own margin: [0,0,0,20]
 const HEADER_TOP_GAP = 15; // visible separation kept above the computed footprint
 
+// --- Cover letter typography (#1953) — NOT page-geometry arithmetic; no geometry consumer ---
 /**
  * Cover letter subject-line font size, pt — PDF_STYLES.letterSubject below, only. This equals
  * SUBHEADER_FONT_SIZE (12) above by COINCIDENCE, not by design: it is deliberately its own
