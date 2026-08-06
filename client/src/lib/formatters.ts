@@ -286,6 +286,38 @@ export interface Formatters {
 }
 
 /**
+ * Full set of formatter closures returned by createFormatters()/useFormatters(): the
+ * PDF-builder subset (Formatters) plus the remaining nine app-wide formatters. Declaring this
+ * explicitly (rather than letting createFormatters()'s return type be inferred) makes the
+ * "Formatters is a subset of AppFormatters" relationship a compile-time contract instead of a
+ * structural coincidence that could silently drift.
+ */
+export interface AppFormatters extends Formatters {
+  getCurrencySymbol: () => string;
+  formatTime: (timestamp: string | null | undefined, fallback?: string) => string;
+  formatDateTime: (timestamp: string | null | undefined, fallback?: string) => string;
+  formatPercent: (rate: number, digits?: number) => string;
+  formatWeekdayShort: (date: Date) => string;
+  formatWeekdayMonthDay: (date: Date) => string;
+  formatFileSize: (bytes: number) => string;
+  formatHours: (hours: number) => string;
+  formatDateTimeWithZone: (date: Date) => string;
+}
+
+import type { ResolvedLocale } from '../contexts/LocaleContext.js';
+
+/**
+ * Maps a ResolvedLocale ('en'/'de') to its BCP 47 locale tag for Intl formatting.
+ * Single source of truth for this mapping — extend the map for a new locale rather than
+ * scattering an inline ternary at each call site.
+ */
+const BCP47_LOCALE_MAP: Record<ResolvedLocale, string> = { en: 'en-US', de: 'de-DE' };
+
+export function toBcp47Locale(locale: ResolvedLocale): string {
+  return BCP47_LOCALE_MAP[locale];
+}
+
+/**
  * Create locale-aware formatting functions for a given locale and currency.
  *
  * Returns all 11 formatter closures bound to the specified locale string and currency.
@@ -295,26 +327,7 @@ export interface Formatters {
  * @param currency - The currency code (e.g., 'EUR').
  * @returns An object containing all 11 formatter functions.
  */
-export function createFormatters(
-  locale: string,
-  currency: string,
-): {
-  formatCurrency: (amount: number) => string;
-  getCurrencySymbol: () => string;
-  formatDate: (
-    dateStr: string | null | undefined,
-    fallback?: string,
-    monthStyle?: 'short' | 'long',
-  ) => string;
-  formatTime: (timestamp: string | null | undefined, fallback?: string) => string;
-  formatDateTime: (timestamp: string | null | undefined, fallback?: string) => string;
-  formatPercent: (rate: number, digits?: number) => string;
-  formatWeekdayShort: (date: Date) => string;
-  formatWeekdayMonthDay: (date: Date) => string;
-  formatFileSize: (bytes: number) => string;
-  formatHours: (hours: number) => string;
-  formatDateTimeWithZone: (date: Date) => string;
-} {
+export function createFormatters(locale: string, currency: string): AppFormatters {
   return {
     /**
      * Format a number as a currency string using the bound locale and currency.
@@ -394,8 +407,5 @@ import { useLocale } from '../contexts/LocaleContext.js';
 export function useFormatters() {
   const { resolvedLocale, currency } = useLocale();
 
-  // Map 'en' to 'en-US' and 'de' to 'de-DE'
-  const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
-
-  return createFormatters(localeString, currency);
+  return createFormatters(toBcp47Locale(resolvedLocale), currency);
 }

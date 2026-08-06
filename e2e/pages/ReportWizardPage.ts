@@ -1084,13 +1084,15 @@ export class ReportWizardPage {
    * `<thead>`, the two `.readOnlyValue` spans (dateLine, closing), the source-info block,
    * the summary table, and the footnotes block. EditableField inputs carry `lang` via the
    * `EditableField.lang` prop. UI-chrome elements (reset buttons, sr-only hints, labels)
-   * are NOT tagged. Scoped within `[class*="step4Body"]` (step 5's wrapper class in
-   * `ReportWizardPage.module.css`) so this never collides with any other element whose CSS
-   * Module class contains the "container" substring elsewhere on the page. `.first()` is a
-   * conservative tie-breaker — only one `ReportContentEditor` is ever mounted at a time.
+   * are NOT tagged. Scoped within `[class*="step5Body"]` (step 5's wrapper class in
+   * `ReportWizardPage.module.css`; renamed from `step4Body` by Issue #1912 item 4 — the old
+   * name implied step 4, but this wrapper has always rendered step 5's content, so do not
+   * "correct" it back) so this never collides with any other element whose CSS Module class
+   * contains the "container" substring elsewhere on the page. `.first()` is a conservative
+   * tie-breaker — only one `ReportContentEditor` is ever mounted at a time.
    */
   reportContentContainer(): Locator {
-    return this.page.locator('[class*="step4Body"] [class*="container"]').first();
+    return this.page.locator('[class*="step5Body"] [class*="container"]').first();
   }
 
   private static readonly LETTER_FIELD_LABELS = {

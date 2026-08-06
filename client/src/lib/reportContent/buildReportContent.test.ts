@@ -135,14 +135,18 @@ const user: { displayName: string } = { displayName: 'Jane Doe' };
 describe('buildReportContent — top-level fields', () => {
   it('sets isOverview true for budget-overview and false for claim/proof-of-funds', () => {
     const report = makeReport([]);
-    expect(buildReportContent(report, new Set(), 'budget-overview', t).isOverview).toBe(true);
-    expect(buildReportContent(report, new Set(), 'claim', t).isOverview).toBe(false);
-    expect(buildReportContent(report, new Set(), 'proof-of-funds', t).isOverview).toBe(false);
+    expect(buildReportContent(report, new Set(), 'budget-overview', t, formatters).isOverview).toBe(
+      true,
+    );
+    expect(buildReportContent(report, new Set(), 'claim', t, formatters).isOverview).toBe(false);
+    expect(buildReportContent(report, new Set(), 'proof-of-funds', t, formatters).isOverview).toBe(
+      false,
+    );
   });
 
   it('resolves tableTitle via sourceReports.table.title.<useCase>', () => {
     const report = makeReport([]);
-    const content = buildReportContent(report, new Set(), 'proof-of-funds', t);
+    const content = buildReportContent(report, new Set(), 'proof-of-funds', t, formatters);
     expect(content.tableTitle).toBe('sourceReports.table.title.proof-of-funds');
   });
 
@@ -161,14 +165,8 @@ describe('buildReportContent — top-level fields', () => {
 
   it('sourceInfo.referenceText is null when source.reference is null', () => {
     const report = makeReport([], { reference: null });
-    const content = buildReportContent(report, new Set(), 'claim', t);
+    const content = buildReportContent(report, new Set(), 'claim', t, formatters);
     expect(content.sourceInfo.referenceText).toBeNull();
-  });
-
-  it('falls back to the raw ISO date string for generatedAtText when formatters is omitted', () => {
-    const report = makeReport([]);
-    const content = buildReportContent(report, new Set(), 'claim', t);
-    expect(content.sourceInfo.generatedAtText).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 
@@ -215,15 +213,6 @@ describe('buildReportContent — rows', () => {
     const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
     expect(content.rows[0]!.invoiceAmountText).toBe('€500.00');
     expect(content.rows[0]!.allocatedAmountValueText).toBe('€250.00');
-  });
-
-  it('falls back to "—" for amounts when formatters is omitted, and raw date string', () => {
-    const invoice = makeInvoice({ date: '2026-02-01' });
-    const report = makeReport([invoice]);
-    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t);
-    expect(content.rows[0]!.invoiceAmountText).toBe('—');
-    expect(content.rows[0]!.allocatedAmountValueText).toBe('—');
-    expect(content.rows[0]!.dateText).toBe('2026-02-01');
   });
 
   it('invoiceNumber falls back to "—" when null', () => {
@@ -302,6 +291,48 @@ describe('buildReportContent — rows', () => {
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.attachmentsNote).toBe(
         'sourceReports.table.attachmentsNote_one::{"count":1,"types":"sourceReports.table.attachmentType.invoice"}',
+      );
+    });
+
+    // #1912 item 1: ATTACHMENT_TYPE_KEYS (a Record<AttachmentType, string>) replaces the old
+    // template-literal key interpolation. These three tests fail if a map entry is deleted or its
+    // value is scrambled — verified via a local temporary edit to the map before writing this
+    // suite. They cannot (and do not attempt to) prove the compile-time "4th member" guard that
+    // the Record<AttachmentType, string> type itself provides — that's re-verified by tsc in CI
+    // Static Analysis, not by ts-jest.
+    it('maps attachmentType "quotation" to its dedicated i18n key', () => {
+      const invoice = makeInvoice({
+        documents: [makeDocument({ attachmentType: 'quotation' })],
+      });
+      const report = makeReport([invoice]);
+      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+      expect(content.rows[0]!.attachmentsNote).toBe(
+        'sourceReports.table.attachmentsNote_one::{"count":1,"types":"sourceReports.table.attachmentType.quotation"}',
+      );
+    });
+
+    it('maps attachmentType "deposit" to its dedicated i18n key (closes a pre-existing gap — "deposit" had zero coverage through getAttachmentNote anywhere in the repo)', () => {
+      const invoice = makeInvoice({
+        documents: [makeDocument({ attachmentType: 'deposit' })],
+      });
+      const report = makeReport([invoice]);
+      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+      expect(content.rows[0]!.attachmentsNote).toBe(
+        'sourceReports.table.attachmentsNote_one::{"count":1,"types":"sourceReports.table.attachmentType.deposit"}',
+      );
+    });
+
+    it('dedupes mixed attachment types and joins their translated labels in first-occurrence order', () => {
+      const invoice = makeInvoice({
+        documents: [
+          makeDocument({ attachmentType: 'invoice' }),
+          makeDocument({ documentId: 2, attachmentType: 'quotation' }),
+        ],
+      });
+      const report = makeReport([invoice]);
+      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+      expect(content.rows[0]!.attachmentsNote).toBe(
+        'sourceReports.table.attachmentsNote_other::{"count":2,"types":"sourceReports.table.attachmentType.invoice, sourceReports.table.attachmentType.quotation"}',
       );
     });
 
@@ -678,9 +709,13 @@ describe('buildReportContent — summaryRows (AC4: total-only summary)', () => {
 describe('buildReportContent — isClaim (AC3)', () => {
   it('is true only for the claim useCase, false for budget-overview and proof-of-funds', () => {
     const report = makeReport([]);
-    expect(buildReportContent(report, new Set(), 'claim', t).isClaim).toBe(true);
-    expect(buildReportContent(report, new Set(), 'budget-overview', t).isClaim).toBe(false);
-    expect(buildReportContent(report, new Set(), 'proof-of-funds', t).isClaim).toBe(false);
+    expect(buildReportContent(report, new Set(), 'claim', t, formatters).isClaim).toBe(true);
+    expect(buildReportContent(report, new Set(), 'budget-overview', t, formatters).isClaim).toBe(
+      false,
+    );
+    expect(buildReportContent(report, new Set(), 'proof-of-funds', t, formatters).isClaim).toBe(
+      false,
+    );
   });
 });
 
@@ -856,15 +891,6 @@ describe('buildReportContent — cover letter', () => {
       household,
     });
     expect(content.coverLetter!.dateLine).toMatch(/^date\(\d{4}-\d{2}-\d{2}\)$/);
-  });
-
-  it('dateLine falls back to the raw ISO date string when reportFormatters is omitted', () => {
-    const report = makeReport([]);
-    const content = buildReportContent(report, new Set(), 'claim', t, undefined, {
-      includeCoverLetter: true,
-      household,
-    });
-    expect(content.coverLetter!.dateLine).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it('coverLetter.reference and sourceInfo.referenceText share the same seed value but are independent fields', () => {

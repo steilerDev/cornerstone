@@ -40,7 +40,7 @@ import {
   getDayName,
   getWeekDates,
 } from './calendarUtils.js';
-import { computeActualDuration } from '../../lib/formatters.js';
+import { computeActualDuration, toBcp47Locale } from '../../lib/formatters.js';
 import styles from './CalendarView.module.css';
 
 // ---------------------------------------------------------------------------
@@ -150,7 +150,7 @@ export function CalendarView({
 }: CalendarViewProps) {
   const { t } = useTranslation('schedule');
   const { resolvedLocale } = useLocale();
-  const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
+  const localeString = toBcp47Locale(resolvedLocale);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Track which item is hovered for cross-cell highlighting

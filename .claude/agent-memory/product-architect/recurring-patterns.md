@@ -1403,3 +1403,62 @@ against examples the linked upstream spec gives — the second set is where the 
 "fails at startup" claim by walking to the entrypoint (`server.ts` had no try/catch around
 `buildApp()`; the only `try` wrapped `app.listen`) and confirming intermediate `catch` blocks *push
 onto* the error array rather than swallow.
+
+## A guard applied to 1 of N sites of the same hazard — check the finding's own file first (#1912, PR #2028, 2026-08-06)
+
+My M3 finding said `getAttachmentNote` interpolates `attachmentType` into a template-literal i18n
+key, so a 4th `AttachmentType` member prints a raw key onto a bank-facing PDF. Fix landed as
+`ATTACHMENT_TYPE_KEYS: Record<AttachmentType, string>` in `buildReportContent.ts`. Real guard (missing
+property on the object literal; indexed access is total). **But `buildReportContent.ts` has five
+union-into-`reportT()`-key sites and the fix covers one** — lines 143 `table.title.${useCase}`,
+146 `sourceType.${source.sourceType}` (5-member `BudgetSourceType`), 204 `invoiceStatus.${status}`,
+274 `coverLetter.subject.${useCase}` all still interpolate, all render into the same PDF. Line 204
+even launders through `invoice.status as InvoiceStatus` — the exact widening-plus-cast shape the fix
+removed two functions above. Same `AttachmentType` union is also interpolated at
+`LinkedDocumentsSection.tsx:276`, plus ~a dozen status-union sites app-wide.
+
+- **When a finding names one call site, grep the finding's own file before reviewing the fix.**
+  The finding text is a sample, not a boundary — it names whatever the review chain happened to read.
+- **Detection:** `grep -rEn 't\(`[^`]*\$\{' client/src` misses `reportT(` / `fixedT(` aliases. Grep the
+  actual alias too. `_${count === 1 ? 'one' : 'other'}` plural suffixes are a closed boolean — not
+  part of this class, filter them out.
+- **Internal asymmetry is the tell:** the same PR argued (correctly, for the `toBcp47Locale` item)
+  that "a fix covering two of six would not achieve the finding's stated purpose", then shipped 1 of 2
+  for the key-map item. When one item in a batch widens scope on that reasoning, apply the reasoning
+  to the *other* items before approving.
+- **Don't ask for 15 hand-written `Record` maps.** The generalisation is one small generic
+  (`unionKeyMap<T extends string>(prefix, Record<T, true>)`); leave the shape to the follow-up.
+- **Residual gap the `Record` does NOT close:** union↔map parity is enforced, map↔locale-JSON parity
+  is not. A 4th member with a map entry and no `budget.json` key still prints a raw key. The map was
+  module-private so no test could iterate it — ask for the export.
+- Verify "live bug or latent drift" before setting severity: I loaded both `budget.json` files with
+  python and diffed key sets against each union. All complete → medium, not high, approve.
+
+**Required-parameter hardening is ADR-034's own principle, not merely "better than a runtime throw".**
+Making `reportFormatters` required on `buildReportContent` (deleting six dead silent fallbacks) is
+line 230's "when a hazard is enforced only by convention, remove the channel, not the individual
+call", applied to the formatters channel exactly as #2001 applied it to `TFunction`. A runtime throw
+would be worse than *both* alternatives — it converts a silently-degraded bank PDF into an
+export-time crash with no compile-time signal either way. **ADR-034 line 248 already documented the
+6-arg signature with no optionality marker, so the change moved code toward the ADR — no Deviation
+Log row.** The ADR now *under-claims* (invariant 1 at line 206 describes injection as convention where
+it is now compiler-enforced at the `buildReportContent` boundary). Under-claiming is the benign
+direction: note it for the next ADR-034 pass, don't request changes.
+
+**`toBcp47Locale` placement (the "is `formatters.ts` a grab-bag?" question).** Kept it there: all six
+consumers feed the tag straight into `Intl`-backed calls (`getMonthName`/`getDayName`/
+`formatDateForAria` in `calendarUtils`, `formatWeekdayMonthDay`, `createFormatters`), so it *is* the
+boundary `formatters.ts` owns. `GanttHeader`/`CalendarView` already imported it; only `MonthGrid`/
+`WeekGrid` are new importers. The file is mildly grab-baggy already (`computeActualDuration`/
+`computeWorkDuration` are arithmetic, not formatting) and the long-term shape is
+`client/src/lib/locale.ts` owning `ResolvedLocale` + `toBcp47Locale`, with both `LocaleContext` and
+`formatters` importing it — that also inverts the odd current direction of a pure module importing a
+React context file for a type. **Trigger for doing it: a third locale-derivation helper.** ADR-034
+invariant 4 (locale chosen once at the page boundary) is unaffected — `ReportWizardPage` is still the
+only mapper.
+
+**Checks worth repeating on refactor-only PRs:** `ReturnType<typeof X>` grep before approving a named
+return interface (proves nothing depended on the structural-only relation); `composes:` must be the
+first declaration in the rule and the composed class must not share properties with the composer
+(source order decides, both being single-class selectors); grep the *old* CSS-module class name across
+`e2e/` — a POM `[class*="step4Body"]` locator survives a rename as a zero-match locator with Jest green.

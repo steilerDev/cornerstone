@@ -16,6 +16,7 @@ import {
   formatDateTimeWithZone,
   useFormatters,
   createFormatters,
+  toBcp47Locale,
 } from './formatters.js';
 import { LocaleProvider } from '../contexts/LocaleContext.js';
 
@@ -748,6 +749,21 @@ describe('formatDateTimeWithZone', () => {
 // confirm every one of the 11 bound closures is a byte-for-byte delegate to the corresponding raw
 // function, and that useFormatters() itself is just createFormatters() called with the resolved
 // locale/currency from context — not a parallel, potentially-diverging implementation.
+
+// ─── toBcp47Locale (#1912) ──────────────────────────────────────────────────
+//
+// BCP47_LOCALE_MAP is the single source of truth for ResolvedLocale ('en'/'de') → Intl locale tag,
+// replacing an inline ternary duplicated at several call sites. These tests pin its two entries.
+
+describe('toBcp47Locale', () => {
+  it('maps "en" to "en-US"', () => {
+    expect(toBcp47Locale('en')).toBe('en-US');
+  });
+
+  it('maps "de" to "de-DE"', () => {
+    expect(toBcp47Locale('de')).toBe('de-DE');
+  });
+});
 
 describe('createFormatters', () => {
   describe('parity with the raw formatter functions (en-US / EUR)', () => {
