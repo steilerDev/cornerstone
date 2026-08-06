@@ -68,7 +68,13 @@ import {
   MAX_SAFE_USAGE_CHUNK_CHARS,
   MIN_CONTINUATION_ROW_FLOOR_CHARS,
 } from './overviewPdf.js';
-import { tableOffsetsTotal, printableWidth } from './pageGeometry.js';
+import {
+  tableOffsetsTotal,
+  printableWidth,
+  TABLE_BODY_FONT_SIZE,
+  TABLE_SMALL_FONT_SIZE,
+  DEFAULT_LINE_HEIGHT,
+} from './pageGeometry.js';
 
 function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
   return {
@@ -1051,6 +1057,155 @@ describe('buildUsageTextRuns (#1929 round 2/3/4 word-break follow-up findings, s
       expect(claimCell.text.some((run) => run.wordBreak === 'break-all')).toBe(false);
     });
   });
+});
+
+// ─── Issue #1950: derived Ѹ ceiling guard for MAX_SAFE_USAGE_CHUNK_CHARS ───────────────────────
+//
+// #1939's WORST_CASE_CHAR_ADVANCE_EM comment (this file) records that `Ѹ` U+0478 measures
+// 1.1611em at both 8pt and 9pt (the two font sizes this block derives ceilings for) — wider than
+// the `№`-fill measurement (1.0283em) that produced the 704/546 real-render ceilings pinned above.
+// That same comment observes those two real-render figures are each an exact multiple of their own
+// `№`-fill per-line char count (704 = 44 x 16, 546 = 39 x 14) — i.e. they pinned a LINE budget
+// (font-size-driven), not a glyph-driven one — so swapping in `Ѹ`'s narrower per-line count
+// re-derives a `Ѹ`-safe ceiling without any new render. This block makes that derivation
+// executable so it fails the moment any of its geometry inputs move, instead of only the prose
+// comment going stale. It guards MAX_SAFE_USAGE_CHUNK_CHARS's own doc comment — it does not
+// restate or replace it (AC 2.1); that comment remains the authoritative rationale.
+describe('Issue #1950: derived Ѹ ceiling guard for MAX_SAFE_USAGE_CHUNK_CHARS', () => {
+  // Ѹ U+0478's measured per-em advance at 8pt/9pt (WORST_CASE_CHAR_ADVANCE_EM's own comment in
+  // this file: "#1939 ... `Ѹ` U+0478 ... is the true maximum found, at 1.1611em (8pt/9pt)"). This
+  // is a SCANNED glyph metric, not derivable from any of the four geometry constants below — same
+  // status as the measured line budgets immediately below, and pinned here for the same reason
+  // (AC 1.1/1.6): it is an input to the derivation, not an output of it.
+  const USOK_ADVANCE_EM = 1.1611;
+
+  // The real-render page-height measurements this file's own "MAX_SAFE_USAGE_CHUNK_CHARS === 650"
+  // test (above) pins via MEASURED_TRUE_CEILING (704 = 44 lines x 16 '№'-chars/line at 8pt; the 9pt
+  // companion, 546 = 39 x 14, was measured in #1929 round 4 — its own MAX_SAFE_SMALL_CHUNK_CHARS
+  // budget constant was later removed by #1959, see the AC 1.5 note below, but the underlying
+  // real-render line-budget measurement itself is still valid and still what this derivation
+  // reuses). AC 1.6: these two line counts are the ONLY pinned literals in this block — everything
+  // else is computed from USAGE_WIDTH_7COL, TABLE_BODY_FONT_SIZE, TABLE_SMALL_FONT_SIZE,
+  // DEFAULT_LINE_HEIGHT, and USOK_ADVANCE_EM above.
+  const MEASURED_LINE_BUDGET_8PT = 44;
+  const MEASURED_LINE_BUDGET_9PT = 39;
+
+  // AC 1.1: per-line character counts under a `Ѹ` fill, RECOMPUTED from geometry — never re-typed
+  // as 14/13.
+  const usagePerLineChars8pt = Math.floor(
+    USAGE_WIDTH_7COL / (TABLE_BODY_FONT_SIZE * USOK_ADVANCE_EM),
+  );
+  const usagePerLineChars9pt = Math.floor(
+    USAGE_WIDTH_7COL / (TABLE_SMALL_FONT_SIZE * USOK_ADVANCE_EM),
+  );
+
+  // AC 1.1: the derived Ѹ ceilings themselves — computed, never re-typed as 616/507.
+  const derivedUsageCeiling8pt = usagePerLineChars8pt * MEASURED_LINE_BUDGET_8PT;
+  const derivedSmallCeiling9pt = usagePerLineChars9pt * MEASURED_LINE_BUDGET_9PT;
+
+  /**
+   * AC 1.8: a moved-constant failure must name the constant and point at
+   * MAX_SAFE_USAGE_CHUNK_CHARS's doc comment, not just print two mismatched numbers. Thrown
+   * directly (not wrapped in `expect().not.toThrow()`) so Jest's own failure output carries this
+   * message verbatim.
+   */
+  function assertCeilingUnmoved(inputsLabel: string, actual: number, expected: number): void {
+    if (actual !== expected) {
+      throw new Error(
+        `Derived Ѹ ceiling depending on [${inputsLabel}] is now ${actual}, not the ${expected} ` +
+          `pinned by MAX_SAFE_USAGE_CHUNK_CHARS's doc comment ` +
+          `(client/src/lib/reportPdf/overviewPdf.ts). One of USAGE_WIDTH_7COL, ` +
+          `TABLE_BODY_FONT_SIZE, TABLE_SMALL_FONT_SIZE, or DEFAULT_LINE_HEIGHT moved — re-read that ` +
+          `comment (and issue #1950) before adjusting MAX_SAFE_USAGE_CHUNK_CHARS to match.`,
+      );
+    }
+  }
+
+  it("AC 1.2/1.7/1.8: today's constants derive a 616-char ceiling at 8pt (USAGE_WIDTH_7COL, TABLE_BODY_FONT_SIZE) and a 507-char ceiling at 9pt (USAGE_WIDTH_7COL, TABLE_SMALL_FONT_SIZE)", () => {
+    expect(usagePerLineChars8pt).toBe(14);
+    expect(usagePerLineChars9pt).toBe(13);
+    assertCeilingUnmoved('USAGE_WIDTH_7COL, TABLE_BODY_FONT_SIZE', derivedUsageCeiling8pt, 616);
+    assertCeilingUnmoved('USAGE_WIDTH_7COL, TABLE_SMALL_FONT_SIZE', derivedSmallCeiling9pt, 507);
+  });
+
+  it('AC 1.6 cross-check: the pinned line budgets are consistent with the ~492.8pt / ~491.4pt page-height figures via DEFAULT_LINE_HEIGHT', () => {
+    // Both real-render measurements independently landed on the same ~492pt vertical content
+    // budget (see WORST_CASE_CHAR_ADVANCE_EM's comment) — this pins that cross-check itself, so a
+    // DEFAULT_LINE_HEIGHT drift is caught here even though it doesn't feed the char-count
+    // derivation above.
+    const budget8ptPt = MEASURED_LINE_BUDGET_8PT * TABLE_BODY_FONT_SIZE * DEFAULT_LINE_HEIGHT;
+    const budget9ptPt = MEASURED_LINE_BUDGET_9PT * TABLE_SMALL_FONT_SIZE * DEFAULT_LINE_HEIGHT;
+    if (Math.abs(budget8ptPt - 492.8) > 1e-9 || Math.abs(budget9ptPt - 491.4) > 1e-9) {
+      throw new Error(
+        `DEFAULT_LINE_HEIGHT moved: the 44-line/8pt and 39-line/9pt budgets now convert to ` +
+          `${budget8ptPt}pt/${budget9ptPt}pt, not the ~492.8pt/~491.4pt pinned by ` +
+          `MAX_SAFE_USAGE_CHUNK_CHARS's doc comment (client/src/lib/reportPdf/overviewPdf.ts). ` +
+          `Re-read that comment (and issue #1950) before adjusting MAX_SAFE_USAGE_CHUNK_CHARS.`,
+      );
+    }
+  });
+
+  it('AC 1.3/1.4: MAX_SAFE_USAGE_CHUNK_CHARS (650) exceeds its derived 616 ceiling by exactly 34 characters / 3 lines / 33.6pt, on a BASE (non-continuation) row', () => {
+    // Scoped explicitly to a row that is NOT a continuation row — see the paired test below for
+    // why a continuation row's real overage differs (orchestrator carry-forward from #1940).
+    const overageChars = MAX_SAFE_USAGE_CHUNK_CHARS - derivedUsageCeiling8pt;
+    expect(overageChars).toBe(34);
+
+    const overageLines = Math.ceil(overageChars / usagePerLineChars8pt);
+    expect(overageLines).toBe(3);
+
+    const overagePt = overageLines * TABLE_BODY_FONT_SIZE * DEFAULT_LINE_HEIGHT;
+    expect(overagePt).toBeCloseTo(33.6, 5);
+  });
+
+  it('orchestrator carry-forward from #1940: on a CONTINUATION row the real overage is 36 characters / 4 lines / 44.8pt, not the base rows 34/3/33.6', () => {
+    // buildUsageCell() (this file) prepends a literal '… ' run — U+2026 + space, 2 rendered
+    // characters — as the very first run of every continuation row (isContinuation === true), and
+    // that marker is deliberately never counted against MAX_SAFE_USAGE_CHUNK_CHARS (see
+    // buildUsageCell's own comment: "never counted against packUsageCellRowsWithMinimum's
+    // character budget ... it is added here, after packing, purely for what gets rendered"). So a
+    // continuation row packed right up to the 650-char budget actually RENDERS 652 characters.
+    const CONTINUATION_MARKER_CHARS = '… '.length;
+    expect(CONTINUATION_MARKER_CHARS).toBe(2);
+
+    // The marker is strictly shorter than one full line's worth of `Ѹ` characters (14), which is
+    // what makes "at most one extra line" a SOUND worst-case bound rather than a guess: shifting a
+    // line-packed run by fewer characters than its own per-line capacity can cross at most one
+    // additional line boundary, never two.
+    expect(CONTINUATION_MARKER_CHARS).toBeLessThan(usagePerLineChars8pt);
+
+    const baseOverageChars = MAX_SAFE_USAGE_CHUNK_CHARS - derivedUsageCeiling8pt;
+    const baseOverageLines = Math.ceil(baseOverageChars / usagePerLineChars8pt);
+
+    const continuationOverageChars = baseOverageChars + CONTINUATION_MARKER_CHARS;
+    expect(continuationOverageChars).toBe(36);
+
+    const continuationOverageLines = baseOverageLines + 1;
+    expect(continuationOverageLines).toBe(4);
+
+    const continuationOveragePt =
+      continuationOverageLines * TABLE_BODY_FONT_SIZE * DEFAULT_LINE_HEIGHT;
+    expect(continuationOveragePt).toBeCloseTo(44.8, 5);
+  });
+
+  // AC 1.5 note — flagged, not silently designed around: the issue's AC 1.5 asks this block to
+  // assert `MAX_SAFE_SMALL_CHUNK_CHARS` (450) stays strictly below its derived 507 ceiling. That
+  // constant no longer exists in production: #1959's cell-unification fix deleted it (along with
+  // SMALL_SAFE_TOKEN_CHARS_7COL/_6COL and SMALL_WORST_CASE_CHAR_WIDTH_PT, per this repo's QA agent
+  // memory of that PR), because areaText/attachmentsNote now render inline at the SAME 8pt
+  // 'tableCell' style as usageText, governed by the ONE MAX_SAFE_USAGE_CHUNK_CHARS budget. Both
+  // this file's MAX_SAFE_USAGE_CHUNK_CHARS doc comment ("#1929 round 4's separate 9pt ceiling for
+  // the suffix's own continuation rows was removed with those rows ... must not be reinstated
+  // as-is if a 9pt cell style ever returns") and pageGeometry.ts's TABLE_SMALL_FONT_SIZE comment
+  // ("NOT the Usage column ... Nothing in the Usage column is 9pt") independently confirm this.
+  // The derived-507 half of AC 1.2 above is kept — it documents the historical #1929 round-4
+  // measurement those comments still reference, and keeps TABLE_SMALL_FONT_SIZE drift-guarded per
+  // AC 1.7 — but there is no live production constant left to compare it against; reinstating one
+  // here would contradict the removal it is guarding against regressing. Flagged to the issue
+  // owner rather than fabricated; see this PR/session's report for the explicit callout.
+  it.todo(
+    'AC 1.5 (stale premise, flagged — see comment above): MAX_SAFE_SMALL_CHUNK_CHARS no longer exists in production; removed by #1959',
+  );
 });
 
 describe('#1929 round 3 HIGH1: header-cell and vendor-body-cell word-break protection', () => {
