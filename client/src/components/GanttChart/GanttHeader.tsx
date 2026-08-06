@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useLocale } from '../../contexts/LocaleContext.js';
-import { formatWeekdayMonthDay } from '../../lib/formatters.js';
+import { formatWeekdayMonthDay, toBcp47Locale } from '../../lib/formatters.js';
 import type { HeaderCell, ZoomLevel } from './ganttUtils.js';
 import styles from './GanttHeader.module.css';
 
@@ -29,7 +29,7 @@ export const GanttHeader = memo(function GanttHeader({
   todayColor,
 }: GanttHeaderProps) {
   const { resolvedLocale } = useLocale();
-  const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
+  const localeString = toBcp47Locale(resolvedLocale);
 
   return (
     <div

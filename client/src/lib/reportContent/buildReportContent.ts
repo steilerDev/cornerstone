@@ -10,6 +10,7 @@ import type {
   SourceReportType,
   InvoiceStatus,
   HouseholdSettings,
+  AttachmentType,
 } from '@cornerstone/shared';
 import type { Formatters } from '../formatters.js';
 import type {
@@ -72,12 +73,24 @@ function getUsageText(invoice: {
 }
 
 /**
+ * Maps each AttachmentType member to its i18n key under sourceReports.table.attachmentType.
+ * Declared as Record<AttachmentType, string> so that adding a 4th AttachmentType member without
+ * a corresponding entry here fails to compile — the previous template-literal key interpolation
+ * would instead print a raw i18n key onto a bank-facing PDF (issue #1912 item 1).
+ */
+const ATTACHMENT_TYPE_KEYS: Record<AttachmentType, string> = {
+  quotation: 'sourceReports.table.attachmentType.quotation',
+  deposit: 'sourceReports.table.attachmentType.deposit',
+  invoice: 'sourceReports.table.attachmentType.invoice',
+};
+
+/**
  * Helper: get attachment note from invoice documents.
  * Returns null if no documents; else formatted note with deduped types or count-only.
  */
 function getAttachmentNote(
   invoice: {
-    documents: Array<{ attachmentType: string | null }>;
+    documents: Array<{ attachmentType: AttachmentType | null }>;
   },
   t: TFunction,
 ): string | null {
@@ -88,7 +101,7 @@ function getAttachmentNote(
 
   const attachmentTypes = documents
     .map((doc) => doc.attachmentType)
-    .filter((type) => type !== null) as string[];
+    .filter((type): type is AttachmentType => type !== null);
 
   if (attachmentTypes.length === 0) {
     // All null types
@@ -99,8 +112,8 @@ function getAttachmentNote(
   }
 
   // Deduplicate types and translate
-  const deducedTypes = uniqueInOrder(attachmentTypes);
-  const typeLabels = deducedTypes.map((type) => t(`sourceReports.table.attachmentType.${type}`));
+  const dedupedTypes = uniqueInOrder(attachmentTypes);
+  const typeLabels = dedupedTypes.map((type) => t(ATTACHMENT_TYPE_KEYS[type]));
 
   const count = documents.length;
   return t(`sourceReports.table.attachmentsNote_${count === 1 ? 'one' : 'other'}`, {
@@ -114,7 +127,7 @@ export function buildReportContent(
   includedInvoiceIds: Set<string>,
   useCase: SourceReportType,
   reportT: TFunction,
-  reportFormatters?: Formatters,
+  reportFormatters: Formatters,
   options?: {
     includeCoverLetter: boolean;
     household: HouseholdSettings | null;
@@ -133,9 +146,7 @@ export function buildReportContent(
   const sourceTypeText = reportT(`sourceReports.sourceType.${report.source.sourceType}`);
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0] ?? '';
-  const generatedAtText: string = reportFormatters
-    ? reportFormatters.formatDate(todayStr)
-    : todayStr;
+  const generatedAtText: string = reportFormatters.formatDate(todayStr);
 
   const sourceInfo = {
     sourceName: report.source.name,
@@ -186,13 +197,9 @@ export function buildReportContent(
 
     const status = invoice.status as InvoiceStatus;
 
-    const invoiceAmountText = reportFormatters
-      ? reportFormatters.formatCurrency(invoice.invoiceAmount)
-      : '—';
+    const invoiceAmountText = reportFormatters.formatCurrency(invoice.invoiceAmount);
 
-    const allocatedAmountValueText = reportFormatters
-      ? reportFormatters.formatCurrency(invoice.allocatedAmount)
-      : '—';
+    const allocatedAmountValueText = reportFormatters.formatCurrency(invoice.allocatedAmount);
 
     const statusText = isOverview ? reportT(`sources.lines.invoiceStatus.${status}`) : null;
 
@@ -208,7 +215,7 @@ export function buildReportContent(
       invoiceId: invoice.invoiceId,
       vendor: invoice.vendorName,
       invoiceNumber: invoice.invoiceNumber ?? '—',
-      dateText: reportFormatters ? reportFormatters.formatDate(invoice.date) : invoice.date,
+      dateText: reportFormatters.formatDate(invoice.date),
       status: isOverview ? status : null,
       statusText,
       invoiceAmountText,
@@ -229,7 +236,7 @@ export function buildReportContent(
 
   const includedTotal = computeIncludedTotal(report, Array.from(includedInvoiceIds), new Set());
 
-  const totalAmountText = reportFormatters ? reportFormatters.formatCurrency(includedTotal) : '—';
+  const totalAmountText = reportFormatters.formatCurrency(includedTotal);
   summaryRows.push({
     key: 'total',
     label: reportT('sourceReports.table.total'),
@@ -257,7 +264,7 @@ export function buildReportContent(
   // Build cover letter (if enabled)
   let coverLetter: ReportContentCoverLetter | null = null;
   if (includeCoverLetter) {
-    const dateLine = reportFormatters ? reportFormatters.formatDate(todayStr) : todayStr;
+    const dateLine = reportFormatters.formatDate(todayStr);
 
     const senderLines = [];
     if (user?.displayName) senderLines.push(user.displayName);

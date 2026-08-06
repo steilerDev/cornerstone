@@ -14,7 +14,7 @@ import {
   generateReportContent,
 } from '../../lib/sourceReportsApi.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
-import { createFormatters } from '../../lib/formatters.js';
+import { createFormatters, toBcp47Locale } from '../../lib/formatters.js';
 import { applyLineExclusions } from '../../lib/reportExclusions.js';
 import {
   buildReportContent,
@@ -255,7 +255,7 @@ export function ReportWizardPage() {
   const reportT = useMemo(() => i18n.getFixedT(reportLanguage, 'budget'), [reportLanguage]);
 
   const reportFormatters = useMemo(
-    () => createFormatters(reportLanguage === 'de' ? 'de-DE' : 'en-US', currency),
+    () => createFormatters(toBcp47Locale(reportLanguage), currency),
     [reportLanguage, currency],
   );
 
@@ -586,7 +586,7 @@ export function ReportWizardPage() {
     { id: 'source', label: t('sourceReports.stepper.source') },
     { id: 'invoices', label: t('sourceReports.stepper.invoices') },
     { id: 'settings', label: t('sourceReports.stepper.settings') },
-    { id: 'actions', label: t('sourceReports.stepper.options') },
+    { id: 'actions', label: t('sourceReports.stepper.actions') },
   ];
 
   const coverLetterDisabled = !selectedSource?.contactAddress && !selectedSource?.reference;
@@ -802,7 +802,7 @@ export function ReportWizardPage() {
         )}
 
         {currentStep === 5 && effectiveContent && (
-          <div className={styles.step4Body}>
+          <div className={styles.step5Body}>
             <h2
               ref={(el) => {
                 stepHeadingsRef.current[4] = el;
