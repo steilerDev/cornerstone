@@ -84,12 +84,20 @@ const SIGNATURE_MAX_LENGTH = 200;
 // style) stops that runaway while a legitimate two-page letter never fights the limit.
 const BODY_MAX_LENGTH = 4000;
 
-// usageText: floor is invoiceBudgetLines.description (server/src/routes/invoiceBudgetLines.ts:49,
-// cap 500) — getUsageText() (buildReportContent.ts:53) joins linked-item names/descriptions each
-// already capped at 500 server-side, so a single budget line already admits a legal 500-char
-// value. Ceiling is MAX_SAFE_USAGE_CHUNK_CHARS (overviewPdf.ts:245, 650) — the shared per-chunk
-// budget for the whole Usage cell — leaving 150 chars for the derived areaText/attachmentsNote
-// suffix rendered alongside it.
+// usageText: floor is invoiceBudgetLines.description (server/src/routes/invoiceBudgetLines.ts,
+// cap 500) — getUsageText() (client/src/lib/reportContent/buildReportContent.ts) joins linked-item
+// names/descriptions each already capped at 500 server-side, so a single budget line already
+// admits a legal 500-char value. Ceiling is the per-subset *computed* usage budget
+// (usageChunkCharsForWidth in client/src/lib/reportPdf/overviewPdf.ts) — since #1973 this is not a
+// fixed number; MAX_SAFE_USAGE_CHUNK_CHARS (650) is only the one-sided clamp bounding it, not a
+// hard limit itself. Exceeding that budget is not a data-loss risk: packUsageCellRows paginates
+// losslessly, so going over costs presentation quality (an extra continuation row), never content.
+// (There is deliberately no claimed "headroom" for the derived areaText/attachmentsNote suffix
+// sharing the cell — attachmentsNote has no maxLength and areaText is aggregate-unbounded, which
+// is exactly why the budget is enforced at the whole-cell level via packing rather than by
+// reserving a fixed slice per contributor.) The invariant this constant must hold is
+// USAGE_TEXT_MAX_LENGTH < usageChunkCharsForWidth(USAGE_WIDTH_7COL); a guard test for it is
+// tracked in #1950.
 const USAGE_TEXT_MAX_LENGTH = 500;
 
 export function ReportContentEditor({
