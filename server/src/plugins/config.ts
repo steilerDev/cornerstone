@@ -82,9 +82,26 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     return value === '' ? undefined : value;
   };
 
+  // Strictly parses an integer env var string. Unlike bare `parseInt`, which
+  // silently truncates trailing garbage ('20abc' -> 20), decimals
+  // ('20.9' -> 20), exponent notation ('1e3' -> 1), and whitespace padding
+  // (' 20' -> 20), this only accepts an optional leading '-' followed by one
+  // or more digits — nothing else. Returns NaN for anything else so callers
+  // can keep using their existing `isNaN(...)` validation/error-message
+  // logic unchanged. Sign and magnitude bounds (e.g. `>= 0`, `> 0`, PORT's
+  // range) are intentionally left to each call site, exactly as before this
+  // change — a leading '-' still parses to a real negative number so that
+  // existing out-of-range error messages (e.g. "PORT must be in range
+  // 0-65535") keep firing instead of being reclassified as "not a number."
+  // DIARY_DRAFT_RETENTION_DAYS relies on 0 being a valid, meaningful value;
+  // this helper permits zero and leaves the lower bound to the caller.
+  const parseStrictInteger = (value: string): number => {
+    return /^-?\d+$/.test(value) ? parseInt(value, 10) : NaN;
+  };
+
   // Parse and validate PORT
   const portStr = getValue('PORT') ?? '3000';
-  const port = parseInt(portStr, 10);
+  const port = parseStrictInteger(portStr);
   if (isNaN(port)) {
     errors.push(`PORT must be a valid number, got: ${portStr}`);
   } else if (port < 0 || port > 65535) {
@@ -112,7 +129,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
 
   // Parse and validate SESSION_DURATION
   const sessionDurationStr = getValue('SESSION_DURATION') ?? '604800';
-  const sessionDuration = parseInt(sessionDurationStr, 10);
+  const sessionDuration = parseStrictInteger(sessionDurationStr);
   if (isNaN(sessionDuration)) {
     errors.push(`SESSION_DURATION must be a valid number, got: ${sessionDurationStr}`);
   } else if (sessionDuration <= 0) {
@@ -190,7 +207,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
 
   // Photo storage configuration
   const photoMaxFileSizeMbStr = getValue('PHOTO_MAX_FILE_SIZE_MB') ?? '20';
-  const photoMaxFileSizeMb = parseInt(photoMaxFileSizeMbStr, 10);
+  const photoMaxFileSizeMb = parseStrictInteger(photoMaxFileSizeMbStr);
   if (isNaN(photoMaxFileSizeMb)) {
     errors.push(`PHOTO_MAX_FILE_SIZE_MB must be a valid number, got: ${photoMaxFileSizeMbStr}`);
   } else if (photoMaxFileSizeMb <= 0) {
@@ -211,7 +228,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
 
   // Parse and validate DIARY_DRAFT_RETENTION_DAYS
   const diaryDraftRetentionDaysStr = getValue('DIARY_DRAFT_RETENTION_DAYS') ?? '30';
-  const diaryDraftRetentionDays = parseInt(diaryDraftRetentionDaysStr, 10);
+  const diaryDraftRetentionDays = parseStrictInteger(diaryDraftRetentionDaysStr);
   if (isNaN(diaryDraftRetentionDays) || diaryDraftRetentionDays < 0) {
     errors.push(
       `DIARY_DRAFT_RETENTION_DAYS must be a non-negative integer, got: ${diaryDraftRetentionDaysStr}`,
@@ -262,7 +279,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   const backupRetentionStr = getValue('BACKUP_RETENTION');
   let backupRetention: number | undefined = undefined;
   if (backupRetentionStr !== undefined) {
-    const parsed = parseInt(backupRetentionStr, 10);
+    const parsed = parseStrictInteger(backupRetentionStr);
     if (isNaN(parsed) || parsed <= 0) {
       errors.push(`BACKUP_RETENTION must be a positive integer, got: ${backupRetentionStr}`);
     } else {
@@ -309,7 +326,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
 
   // Parse and validate LLM_REQUEST_TIMEOUT_MS
   const llmRequestTimeoutMsStr = getValue('LLM_REQUEST_TIMEOUT_MS') ?? '30000';
-  const llmRequestTimeoutMs = parseInt(llmRequestTimeoutMsStr, 10);
+  const llmRequestTimeoutMs = parseStrictInteger(llmRequestTimeoutMsStr);
   if (isNaN(llmRequestTimeoutMs) || llmRequestTimeoutMs <= 0) {
     errors.push(
       `LLM_REQUEST_TIMEOUT_MS must be a positive integer, got: ${llmRequestTimeoutMsStr}`,
@@ -319,7 +336,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   // Parse and validate LLM_MAX_TOKENS (default 16384 — handles 100+ line invoices
   // on every supported provider, stays under OpenAI gpt-4o-mini's 16K binding cap).
   const llmMaxTokensStr = getValue('LLM_MAX_TOKENS') ?? '16384';
-  const llmMaxTokens = parseInt(llmMaxTokensStr, 10);
+  const llmMaxTokens = parseStrictInteger(llmMaxTokensStr);
   if (isNaN(llmMaxTokens) || llmMaxTokens <= 0) {
     errors.push(`LLM_MAX_TOKENS must be a positive integer, got: ${llmMaxTokensStr}`);
   }
@@ -353,7 +370,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
 
   // AUTH_RATE_LIMIT_MAX — maximum login requests per IP per window (positive integer)
   const authRateLimitMaxStr = getValue('AUTH_RATE_LIMIT_MAX') ?? '20';
-  const authRateLimitMax = parseInt(authRateLimitMaxStr, 10);
+  const authRateLimitMax = parseStrictInteger(authRateLimitMaxStr);
   if (isNaN(authRateLimitMax) || authRateLimitMax <= 0) {
     errors.push(`AUTH_RATE_LIMIT_MAX must be a positive integer, got: ${authRateLimitMaxStr}`);
   }
