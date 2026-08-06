@@ -10,21 +10,30 @@ Cornerstone is a web-based home building project management application designed
 
 ## Agent Team
 
-This project uses a team of 11 specialized Claude Code agents defined in `.claude/agents/`:
+This project uses a team of 11 specialized Claude Code agents defined in `.claude/agents/`. Models are the `haiku`/`sonnet`/`opus` aliases (they resolve to the latest model of that tier); spend follows judgment density — opus for spec/verdict/design reasoning, haiku for mechanical roles:
 
-| Agent                   | Role                                                                                                                                    |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `product-owner`         | Defines epics, user stories, and acceptance criteria; manages the backlog                                                               |
-| `product-architect`     | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                                                                   |
-| `ux-designer`           | Design tokens, brand identity, component styling specs, dark mode, accessibility                                                        |
-| `dev-team-lead`         | Spec-writer, reviewer, and committer: decomposes work into implementation specs, reviews agent output, commits and monitors CI          |
-| `backend-developer`     | API endpoints, business logic, auth, database operations (launched by orchestrator with dev-team-lead specs)                            |
-| `frontend-developer`    | UI components, pages, interactions, API client (launched by orchestrator with dev-team-lead specs)                                      |
-| `translator`            | Non-English translations, glossary enforcement (launched by orchestrator with dev-team-lead Translator Specs)                           |
-| `qa-integration-tester` | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                                   |
-| `e2e-test-engineer`     | Playwright E2E browser tests, page objects, smoke tests, responsive testing, dependent system integration testing                       |
-| `security-engineer`     | Security audits, vulnerability reports, remediation guidance                                                                            |
-| `docs-writer`           | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                                     |
+| Agent                   | Model  | Role                                                                                                                           |
+| ----------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `product-owner`         | sonnet | Defines epics, user stories, and acceptance criteria; manages the backlog                                                      |
+| `product-architect`     | opus   | Tech stack, schema, API contract, project structure, ADRs, Dockerfile                                                          |
+| `ux-designer`           | sonnet | Design tokens, brand identity, component styling specs, dark mode, accessibility                                               |
+| `dev-team-lead`         | opus   | Spec-writer, reviewer, and committer: decomposes work into implementation specs, reviews agent output, commits and creates PRs |
+| `backend-developer`     | sonnet | API endpoints, business logic, auth, database operations (launched by orchestrator with dev-team-lead specs)                   |
+| `frontend-developer`    | sonnet | UI components, pages, interactions, API client (launched by orchestrator with dev-team-lead specs)                             |
+| `translator`            | haiku  | Non-English translations, glossary enforcement (launched by orchestrator with dev-team-lead Translator Specs)                  |
+| `qa-integration-tester` | sonnet | Unit test coverage (95%+ target), integration tests, performance testing, bug reports                                          |
+| `e2e-test-engineer`     | sonnet | Playwright E2E browser tests, page objects, smoke tests, responsive testing, dependent system integration testing              |
+| `security-engineer`     | sonnet | Security audits, vulnerability reports, remediation guidance                                                                   |
+| `docs-writer`           | haiku  | Documentation site (`docs/`), lean README.md, user-facing guides after UAT approval                                            |
+
+### Agent Context Discipline
+
+Agent context is the dominant cost of a development cycle — scale it to the task, never to a ritual:
+
+- **The orchestrator syncs the wiki once per skill run** (`git submodule update --init wiki && git -C wiki pull origin master`). Agents never run the sync themselves.
+- **Read sections, not documents.** `wiki/API-Contract.md` and `wiki/Schema.md` are thousands of lines — grep/search for the endpoints, tables, or components your task touches and read those sections only. Never read either file whole.
+- **Scale reading to task size.** S-sized items need the issue, the spec, and the affected files — nothing else. Reserve broad context reads (architecture pages, style guide, existing test suites) for M/L work that genuinely spans layers.
+- **Specs carry the context.** When launched with a dev-team-lead spec, the spec plus its listed reference files is your context — do not re-derive it from the wiki.
 
 ## GitHub Tools Strategy
 
@@ -50,7 +59,9 @@ The GitHub Wiki is checked out as a git submodule at `wiki/` in the project root
 
 ### Wiki Submodule
 
-Wiki pages are markdown files in `wiki/`. Sync before reading: `git submodule update --init wiki && git -C wiki pull origin master`. See skill files for writing workflows and page naming conventions.
+Wiki pages are markdown files in `wiki/`. The orchestrator syncs once per skill run (`git submodule update --init wiki && git -C wiki pull origin master`); agents read the checked-out files directly without re-syncing. See skill files for writing workflows and page naming conventions.
+
+**Wiki Accuracy** (applies to every agent): when reading wiki content, verify it matches the actual implementation. On a deviation: flag it explicitly (PR description or GitHub comment), determine the source of truth (wiki outdated vs code wrong), fix the wiki with a "Deviation Log" entry at the bottom of the affected page, and log it on the relevant GitHub Issue. Never silently diverge from wiki documentation.
 
 ### GitHub Repo
 
@@ -106,13 +117,13 @@ Execution skills track their steps with the harness task tools. The standard rul
 
 Deterministic git/GitHub mechanics live in `scripts/` — skills and agents call these instead of inlining bash:
 
-| Script | Purpose |
-| --- | --- |
-| `scripts/ci-wait.sh <pr> [beta\|main]` | Canonical CI-gate wait: mergeability precheck, check-runs polling, timeouts, rate-limit backoff |
-| `scripts/board.sh <issue> <status>` | GitHub Projects board mutations (owns the board IDs) |
-| `scripts/squash-merge.sh <pr> "<subject>" [body-file]` | Squash merge with trailer preservation and skip-ci guard |
-| `scripts/worktree-done.sh <path> [branch]` | End-of-session worktree + branch cleanup (run from the base repo) |
-| `scripts/check-trailers.sh <base> <head>` | Trailer verification for a commit range |
+| Script                                                 | Purpose                                                                                         |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `scripts/ci-wait.sh <pr> [beta\|main]`                 | Canonical CI-gate wait: mergeability precheck, check-runs polling, timeouts, rate-limit backoff |
+| `scripts/board.sh <issue> <status>`                    | GitHub Projects board mutations (owns the board IDs)                                            |
+| `scripts/squash-merge.sh <pr> "<subject>" [body-file]` | Squash merge with trailer preservation and skip-ci guard                                        |
+| `scripts/worktree-done.sh <path> [branch]`             | End-of-session worktree + branch cleanup (run from the base repo)                               |
+| `scripts/check-trailers.sh <base> <head>`              | Trailer verification for a commit range                                                         |
 
 ### Acceptance & Validation
 
@@ -126,9 +137,11 @@ Every epic has two phases: **Development** (`/develop`) where QA and E2E write a
 - **Acceptance criteria live on GitHub Issues** — stored on story issues, summarized on promotion PRs
 - **Security review conditional** — the `security-engineer` reviews PRs touching security-relevant files per the **PR Review Gate**; not every story PR requires it (see Security Review Trigger Rules)
 - **Test agents own all tests** — `qa-integration-tester` owns unit and integration tests; `e2e-test-engineer` owns Playwright E2E browser tests. Developer agents do not write tests.
-- **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/CI. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and `e2e-test-engineer`.
+- **Flat delegation model** — the orchestrator launches all agents directly. The `dev-team-lead` produces implementation specs, reviews agent output, and handles commits/PR creation. The orchestrator routes specs to `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and `e2e-test-engineer`.
 - **Story sizing (Spec-Lite)** — `dev-team-lead [MODE: spec]` classifies each work item S/M/L. S-sized items (single-file or trivially scoped) get a 5–10 line Spec-Lite and a single implementer plus QA instead of the full multi-agent fan-out; M/L get the full spec pipeline.
 - **Continue agents through fix loops** — fix iterations continue the previously launched agent via SendMessage (it keeps the context it built) instead of launching a fresh agent each round.
+- **dev-team-lead is launched once per story** — the `[MODE: spec]` launch is the only cold start; all subsequent `[MODE: review]` and `[MODE: commit]` invocations for that story continue the same agent via SendMessage, so it never re-reads the spec, the checklist, or the changed files it already holds.
+- **CI is gated once, at merge time** — `[MODE: commit]` ends when the PR exists; reviews run in parallel with CI, and the single `scripts/ci-wait.sh` call happens right before merge.
 
 ### PR Review Gate
 
@@ -139,7 +152,16 @@ Every story/bug PR is reviewed by the applicable subset of:
 - `product-owner` — user-story PRs only (requirements coverage, acceptance criteria). Skipped for bug-only PRs.
 - `ux-designer` — only for PRs touching `client/src/` (token adherence, visual consistency, dark mode, accessibility).
 
-All requested reviewers must approve (or post only medium/low findings, per each reviewer's verdict matrix) before merge.
+All requested reviewers must approve per the Reviewer Verdict Policy below before merge. Reviews start as soon as the PR exists — they run in parallel with CI, not after it.
+
+### Reviewer Verdict Policy
+
+One verdict matrix for all reviewer agents (product-architect, security-engineer, product-owner, ux-designer) — **fix-or-block**, designed so work completes in the session that started it:
+
+- **`gh pr review --request-changes`** — any Critical/High finding, any acceptance-criteria/API-contract/design-system violation, **and any Medium/Low finding that is low-effort and contained to the PR's files**. Label such findings `fix-in-session`; they are fixed in the same PR before merge, never deferred.
+- **`gh pr review --approve`** — no findings, or only findings that are genuinely out of scope for this PR (require a schema change, a new dependency, or touch unrelated code). Every deferral **must** be filed as a GitHub issue referenced in the review comment, with a one-line justification of why it cannot be fixed in-session. An unfiled or unjustified deferral is a policy violation, not an approval.
+- **Never use `--comment` as a verdict** — with one mechanical exception: GitHub rejects `--approve`/`--request-changes` from the token that authored the PR. When that happens, post the review as a comment whose **first line** is `VERDICT: APPROVE` or `VERDICT: REQUEST_CHANGES`; the orchestrator treats it identically.
+- **The external review loop is capped at 2 rounds.** If findings remain after round 2, stop and escalate them to the user in-session instead of looping further.
 
 ### Delegation Enforcement
 
@@ -250,7 +272,9 @@ The only exception is the QA agent running a specific test file it just wrote (e
 
 ### CI Gate Polling (canonical pattern)
 
-**Use `bash scripts/ci-wait.sh <pr-number> [beta|main]`** — the single canonical CI wait. It performs the mergeability precheck (CI may not run, or silently hang, on a conflicted PR), then polls the required gate checks (`Quality Gates` on beta PRs, plus `E2E Gates` on main PRs) with timeouts (300s / 900s, override via `CI_WAIT_TIMEOUT=<seconds>`) and rate-limit backoff.
+**Use `bash scripts/ci-wait.sh <pr-number> [beta|main]`** — the single canonical CI wait. It performs the mergeability precheck (CI may not run, or silently hang, on a conflicted PR), then polls the required gate checks (`Quality Gates` on beta PRs, plus `E2E Gates` on main PRs) with timeouts (600s / 900s, override via `CI_WAIT_TIMEOUT=<seconds>`) and rate-limit backoff.
+
+**CI is gated once per PR, at merge time.** Reviews and CI run in parallel after the PR is created; the single `ci-wait.sh` call happens right before merging. Do not wait for CI before starting reviews, and do not re-wait on a SHA that already passed.
 
 Do **not** hand-roll polling loops, and do **not** use `gh pr checks --watch` or `gh pr checks --json` — neither works with this repo's GitHub Rulesets setup (`--json` silently returns nothing). The script polls the commit check-runs API (`gh api repos/<repo>/commits/<sha>/check-runs`) instead, which is the reliable source.
 
@@ -543,7 +567,7 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 | `SECURE_COOKIES`             | `true`                     | Enable HTTPS-only cookie flag                                                                                      |
 | `TRUST_PROXY`                | `false`                    | Trust X-Forwarded-\* headers from a reverse proxy                                                                  |
 | `AUTH_RATE_LIMIT_MAX`        | `20`                       | Login endpoint rate limit: max requests per IP per window (positive integer)                                       |
-| `AUTH_RATE_LIMIT_WINDOW`     | `15 minutes`               | Login endpoint rate limit: time window (ms library format, e.g. `15 minutes`, `1h`, `30s`)                        |
+| `AUTH_RATE_LIMIT_WINDOW`     | `15 minutes`               | Login endpoint rate limit: time window (ms library format, e.g. `15 minutes`, `1h`, `30s`)                         |
 | `OIDC_ISSUER`                | (none)                     | OpenID Connect issuer URL                                                                                          |
 | `OIDC_CLIENT_ID`             | (none)                     | OIDC application client ID                                                                                         |
 | `OIDC_CLIENT_SECRET`         | (none)                     | OIDC application client secret                                                                                     |
@@ -580,4 +604,8 @@ Any agent making a decision that affects other agents (e.g., a new naming conven
 
 ### Agent Memory Maintenance
 
-When a code change invalidates information in agent memory (e.g., fixing a bug documented in memory, changing a public API, updating routes), the implementing agent must update the relevant agent memory files.
+Every agent has persistent memory in `.claude/agent-memory/<agent-name>/` (project-scope, shared via version control). `MEMORY.md` is auto-loaded into that agent's system prompt and truncated after 200 lines — keep it a concise index of one-line hooks linking to topic files for detail. Consult it before starting work; update it (or its topic files) whenever your work invalidates recorded facts or teaches something durable and generalizable.
+
+- When a code change invalidates information in agent memory (e.g., fixing a bug documented in memory, changing a public API, updating routes), the implementing agent must update the relevant agent memory files.
+- When policy or process changes, **delete or correct contradicted entries** — never leave an old instruction standing next to a new one.
+- Do not record session-scoped status (issue progress, one-off timelines) — memory is for durable facts only.

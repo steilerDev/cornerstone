@@ -86,9 +86,9 @@ If there are refinement items to address:
    - Frontend fixes → **frontend-developer**
    - Unit/integration test fixes → **qa-integration-tester**
    - E2E test fixes → **e2e-test-engineer**
-4. Launch the **dev-team-lead** in `[MODE: review]` with the original refinement items + changed files
+4. Continue the **dev-team-lead** (SendMessage — one launch per cycle, per CLAUDE.md Key Rules) in `[MODE: review]` with the original refinement items + changed files
 5. If `VERDICT: CHANGES_REQUIRED`, iterate fixes (route to agents, re-review). Continue the previously launched agent via SendMessage (it retains the context it built in the earlier round) instead of launching a fresh agent; launch fresh only if that agent is no longer available.
-6. Launch the **dev-team-lead** in `[MODE: commit]` with contributing agents list, branch name, and no issue number (refinement)
+6. Continue the **dev-team-lead** in `[MODE: commit]` with contributing agents list, branch name, and no issue number (refinement) — commit mode ends at the PR; CI is gated in item 8 below
 7. Verify PR exists. If not, create a PR targeting `beta`:
    ```
    gh pr create --base beta --title "chore: address refinement items for epic #<epic-number>" --body "..."
@@ -108,7 +108,7 @@ If no refinement items exist, skip to step 5.
 
 Launch the **e2e-test-engineer** agent to:
 
-- **Triage prior E2E failures** from recent beta PRs (the agent does this automatically per its "Before Starting Any Work" checklist — review the triage report before proceeding). If real regressions are found, address them before continuing.
+- **Triage prior E2E failures** from recent beta PRs — this is the designated place for CI-failure archaeology (the agent no longer does it on every launch). Instruct it to: list the last ~10 beta CI runs (`gh run list --branch beta --workflow "Quality Gates" --limit 10 --json conclusion,url,displayTitle`), inspect the jobs of any run with E2E failures, and categorize each failure as _already fixed_ (note and move on), _known flake_ (record in agent memory, fix if cheap), _real regression_ (file a `bug` issue and flag it), or _environment issue_ (note and move on). If real regressions are found, address them before continuing.
 - Verify every approved UAT scenario (from story issues) has E2E coverage
 - Write new E2E tests on a branch if coverage gaps exist
 - Ensure dependent system containers are included in the E2E environment (not just `page.route()` mocks)

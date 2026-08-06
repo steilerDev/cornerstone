@@ -57,7 +57,7 @@ Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
 ## Steps
 
-### 1. Rebase
+### 1. Rebase & Sync
 
 Fetch and rebase the worktree branch onto `origin/beta` to ensure development starts from the latest integration state:
 
@@ -65,7 +65,13 @@ Fetch and rebase the worktree branch onto `origin/beta` to ensure development st
 git fetch origin beta && git rebase origin/beta
 ```
 
-If already rebased at session start, skip.
+If already rebased at session start, skip the rebase.
+
+Then sync the wiki submodule **once for the whole run** — agents must not re-sync it themselves (CLAUDE.md > Agent Context Discipline):
+
+```
+git submodule update --init wiki && git -C wiki pull origin master
+```
 
 ### 2. Resolve Issues
 
@@ -163,7 +169,7 @@ Implementation uses a flat delegation model. The orchestrator launches all agent
 
 #### 6a. Spec Generation
 
-Launch the **dev-team-lead** in `[MODE: spec]` with:
+Launch the **dev-team-lead** in `[MODE: spec]`. **This is the only cold start of the dev-team-lead for the whole item** — every later `[MODE: review]` / `[MODE: commit]` invocation (6e, 6f, 6g, and step 9) continues this same agent via SendMessage so it keeps the spec, checklist, and file context it already holds; launch fresh only if the agent is no longer available. Provide:
 
 - Issue number(s) and acceptance criteria (single-item or full items list for multi-item mode)
 - Layers affected: backend-only, frontend-only, or full-stack
@@ -210,13 +216,12 @@ After implementation agents complete, launch both test agents in parallel:
 
 - The `## E2E Spec` section from the spec document
 - List of files created/modified by the backend and frontend agents
-- Reminder to triage prior E2E failures from recent beta PRs before writing new tests (the agent does this automatically per its "Before Starting Any Work" checklist)
 
 **If test agents report failures**: Collect structured failure reports (see the agents' "Test Failure Reporting Format" sections) and include them verbatim in the review input for step 6e. This triggers the dev-team-lead's diagnostic protocol.
 
 #### 6e. Code Review
 
-Launch the **dev-team-lead** in `[MODE: review]` with:
+Continue the **dev-team-lead** (SendMessage) in `[MODE: review]` with:
 
 - The original full spec document
 - List of all files changed by implementation and test agents (from 6b, 6c, 6d)
@@ -226,7 +231,7 @@ Launch the **dev-team-lead** in `[MODE: review]` with:
 
 **If `VERDICT: CHANGES_REQUIRED`** → proceed to step 6f
 
-**If `VERDICT: ESCALATE_TO_ARCHITECT`** → The spec is ambiguous. Launch the **product-architect** agent to clarify the spec (provide the ambiguous spec reference and the dev-team-lead's reasoning). After the architect clarifies, re-launch the **dev-team-lead** in `[MODE: review]` with the clarified spec. Then proceed based on the new verdict.
+**If `VERDICT: ESCALATE_TO_ARCHITECT`** → The spec is ambiguous. Launch the **product-architect** agent to clarify the spec (provide the ambiguous spec reference and the dev-team-lead's reasoning). After the architect clarifies, continue the **dev-team-lead** in `[MODE: review]` with the clarified spec. Then proceed based on the new verdict.
 
 #### 6f. Fix Loop (max 3 iterations)
 
@@ -243,7 +248,7 @@ Track `internalFixCount` (starts at 0). When routing a fix to an agent that alre
      - Frontend fixes → **frontend-developer**
      - Unit/integration test fixes → **qa-integration-tester**
      - E2E test fixes → **e2e-test-engineer**
-3. After fixes complete, re-launch **dev-team-lead** in `[MODE: review]` with updated file list
+3. After fixes complete, continue the **dev-team-lead** (SendMessage) in `[MODE: review]` with the updated file list
 4. Increment `internalFixCount`
 5. If `VERDICT: APPROVED` → proceed to step 6g
 6. If `VERDICT: CHANGES_REQUIRED` and `internalFixCount < 3` → repeat from step 1
@@ -251,25 +256,17 @@ Track `internalFixCount` (starts at 0). When routing a fix to an agent that alre
 
 #### 6g. Commit and PR
 
-Launch the **dev-team-lead** in `[MODE: commit]` with:
+Continue the **dev-team-lead** (SendMessage) in `[MODE: commit]` with:
 
 - Contributing agents list: list every agent that was launched in steps 6b-6d (and 6f if applicable). Include `backend-developer`, `frontend-developer`, `translator`, `qa-integration-tester`, and/or `e2e-test-engineer` as appropriate.
 - Issue number(s) for `Fixes #N` lines
 - Branch name
 
-The dev-team-lead stages files, commits with conventional message + all agent trailers, pushes, creates the PR targeting `beta`, and watches CI.
-
-**If CI fails**: The dev-team-lead returns a CI fix spec. Route the fix to the specified agent, then re-launch the dev-team-lead in `[MODE: commit]` (it will amend or create a new commit). Repeat until CI is green or escalate after 3 CI fix attempts.
+The dev-team-lead stages files, commits with conventional message + all agent trailers, pushes, creates the PR targeting `beta`, and returns the PR URL. **It does not wait for CI** — CI is gated once, at step 10, and reviews (step 8) start immediately.
 
 #### 6h. Trailer Verification
 
-After the commit is created, verify that commit trailers match the agents launched:
-
-```bash
-bash scripts/check-trailers.sh origin/beta HEAD
-```
-
-If this fails, the dev-team-lead missed an agent in the contributing list despite the Layer 0 self-check in its `[MODE: commit]` process (see `.claude/agents/dev-team-lead.md`). Re-launch `[MODE: commit]` with the corrected list — the CI `trailer-check` job will also catch this if it slips through.
+Trailer correctness is enforced at commit time by the bash-guard hook and authoritatively by CI's `trailer-check` job — no manual check needed here. If the CI job fails at step 10, continue the dev-team-lead in `[MODE: commit]` with the corrected agent list.
 
 ### 7. Verify PR
 
@@ -331,14 +328,23 @@ EOF
 
 ### 8. Review
 
-The dev-team-lead has already ensured CI is green. Determine the applicable reviewers:
+**Start reviews immediately after the PR exists — do not wait for CI.** Reviews and CI run in parallel; CI is gated once at step 10. Determine the applicable reviewers:
 
 - `product-architect` — architecture compliance, test coverage, code quality (always)
 - `security-engineer` — **conditional**: only include if the PR touches security-relevant files (see Security Review Trigger Rules below). Skip for frontend-only, test-only, or CSS-only PRs.
 - `product-owner` — requirements coverage, acceptance criteria (**stories only**; skip if all items are bugs)
 - `ux-designer` — token adherence, visual consistency, accessibility (only for PRs touching `client/src/`, skip otherwise)
 
-Then invoke the Workflow tool with `{name: "pr-review", args: {pr: <n>, reviewers: [{agent: "product-architect"}, {agent: "security-engineer"}, ...]}}` — one entry per applicable reviewer. If the Workflow tool is unavailable, fall back to launching the applicable reviewer agents in parallel with the Agent tool (keep each review short if the changes are minimal).
+Before invoking the workflow, pre-fetch the diff once and compute per-reviewer file scopes:
+
+```bash
+gh pr diff <n> > /tmp/pr-<n>.diff
+gh pr diff <n> --name-only   # source for the per-reviewer file lists
+```
+
+Scopes: `ux-designer` → files under `client/src/`; `security-engineer` → the files matching the Security Review Trigger Rules; `product-architect` and `product-owner` → the full file list.
+
+Then invoke the Workflow tool with `{name: "pr-review", args: {pr: <n>, diffPath: "/tmp/pr-<n>.diff", reviewers: [{agent: "product-architect", files: [...]}, {agent: "security-engineer", files: [...]}, ...]}}` — one entry per applicable reviewer. If the Workflow tool is unavailable, fall back to launching the applicable reviewer agents in parallel with the Agent tool, passing the same diffPath and file scopes (keep each review short if the changes are minimal).
 
 #### Security Review Trigger Rules
 
@@ -358,35 +364,37 @@ After all reviews are posted, note each reviewer's verdict. Track this as review
 
 In multi-item mode, reviewers must validate that **all items** in the batch are addressed.
 
-### 9. Fix Loop
+### 9. Fix Loop (max 2 rounds)
+
+Reviewers operate **fix-or-block** (CLAUDE.md > Reviewer Verdict Policy): low-effort findings are fixed in this PR before merge — never deferred — and any deferral must arrive as a filed, justified GitHub issue in the review body. Never merge with unfixed `fix-in-session` findings, and never accept an unfiled deferral.
 
 Track fix loop iterations. Each fix-and-re-review cycle counts as one round.
 
 If any reviewer identifies blocking issues:
 
 1. Collect all reviewer feedback into a fix request
-2. Launch the **dev-team-lead** in `[MODE: spec]` with the reviewer feedback to produce targeted fix specs (or write the fix specs yourself if the feedback is clear enough to route directly)
+2. Continue the **dev-team-lead** (SendMessage) in `[MODE: spec]` with the reviewer feedback to produce targeted fix specs (or write the fix specs yourself if the feedback is clear enough to route directly)
 3. Route fix specs to the appropriate implementation agent(s). Continue the previously launched agent via SendMessage (it retains the context it built in the earlier round) instead of launching a fresh agent; launch fresh only if that agent is no longer available:
    - Backend fixes → **backend-developer**
    - Frontend fixes → **frontend-developer**
    - Unit/integration test fixes → **qa-integration-tester**
    - E2E test fixes → **e2e-test-engineer**
-4. After fixes, launch **dev-team-lead** in `[MODE: review]` to verify the fixes
-5. Launch **dev-team-lead** in `[MODE: commit]` to commit, push, and watch CI
-6. Run **trailer verification** (same as step 6h)
-7. Re-request review from the agent(s) that flagged issues
-8. **Update the implementation checklist**: If the fix loop was caused by a recurring pattern not yet in `.claude/checklists/implementation-checklist.md`, add the new pattern. This creates a flywheel where each fix loop reduces future occurrences.
-9. Repeat until all reviewers approve
+4. After fixes, continue the **dev-team-lead** in `[MODE: review]` to verify the fixes, then in `[MODE: commit]` to commit and push (no CI wait — step 10 gates it)
+5. Re-request review from the agent(s) that flagged issues
+6. **Update the implementation checklist**: If the fix loop was caused by a recurring pattern not yet in `.claude/checklists/implementation-checklist.md`, add the new pattern. This creates a flywheel where each fix loop reduces future occurrences.
+7. If reviewers still report blocking findings after **round 2**, stop looping — present the remaining findings to the user in this session and let them decide (fix per their direction, or merge with explicitly accepted findings).
 
 ### 10. Merge
 
-Once all reviews are clean, wait for CI to go green:
+Once all reviews are clean, wait for CI to go green — **this is the single CI gate of the whole cycle**:
 
 ```bash
 bash scripts/ci-wait.sh <pr-number>
 ```
 
 The script handles the mergeability precheck, gate polling, timeouts, and rate-limit backoff. If it reports a merge conflict, rebase onto `beta`, force-push, and re-run it.
+
+**If CI fails**: continue the **dev-team-lead** with the failure logs — it returns a CI fix spec (diagnosis + target agent). Route the fix, have the dev-team-lead re-commit in `[MODE: commit]`, and re-run `ci-wait.sh`. Escalate to the user after 3 CI fix attempts.
 
 After CI is green, present the user with:
 
@@ -405,6 +413,8 @@ In multi-item mode, present a **per-item summary table**:
 | #55   | Budget rounding error          | Resolved |
 | #61   | Add export button to Gantt     | Resolved |
 ```
+
+**Left-shifted verification**: in an interactive session, offer the user the PR image (`docker pull steilerdev/cornerstone:pr-<n>`) and ask whether they want to verify before the merge; treat any feedback as a step 9 fix round **before** merging — catching it here is one commit, catching it at epic UAT is a new session. In autonomous contexts (`/epic-run`, `/batch-develop`, background runs), merge without waiting.
 
 Once CI is green and all reviewers have approved, merge to beta. Write the body (1-3 summary bullets reused from the PR body, plus one `Fixes #<issue-number>` line per issue in multi-item mode) to a temp file, then:
 

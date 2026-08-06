@@ -6,8 +6,8 @@
 
 - **Repo**: `steilerDev/cornerstone`, beta → main model
 - **Auth comment**: All comments must start with `**[security-engineer]**`
-- **Commit trailer**: `Co-Authored-By: Claude security-engineer (Sonnet 4.6) <noreply@anthropic.com>`
-- **PR review**: Post as `--comment` (NOT `--approve` — same token can't approve own PRs)
+- **Commit trailer**: `Co-Authored-By: Claude security-engineer <noreply@anthropic.com>` (de-versioned canonical form — never embed a model name)
+- **PR review**: verdicts per CLAUDE.md > Reviewer Verdict Policy (fix-or-block). Same token can't `--approve`/`--request-changes` its own PRs — in that case post a comment whose first line is `VERDICT: APPROVE` / `VERDICT: REQUEST_CHANGES`
 - **npm audit**: Run `npm audit --omit=dev` for production vuln check (dev audit includes npm's own bundled tools which have 39 vulns unrelated to app)
 - **CI does NOT run a vuln scan**: `.github/workflows/ci.yml` Static Analysis job only runs `npm audit signatures` (provenance/signing check) — never `npm audit` for known CVEs. This security review is the only vulnerability-scan gate dependency PRs get; don't assume a green CI implies audit-clean.
 - **Fast whole-lockfile audit without `npm install`**: parse `package-lock.json` `.packages` entries into unique `name -> [versions]`, POST as `{name:[versions...]}` to `https://registry.npmjs.org/-/npm/v1/security/advisories/bulk` (same data source `npm audit` uses). Works on a lockfile alone — no install needed, handles monorepos with 1700+ resolved packages in one call. Use this whenever reviewing a package-lock.json diff.

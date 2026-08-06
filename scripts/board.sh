@@ -32,7 +32,13 @@ case "$STATUS" in
     ;;
 esac
 
-ITEM_ID=$(gh project item-list "$PROJECT_NUMBER" --owner "$OWNER" --format json --limit 1000 \
+ITEMS_JSON=$(gh project item-list "$PROJECT_NUMBER" --owner "$OWNER" --format json --limit 1000)
+ITEM_COUNT=$(printf '%s' "$ITEMS_JSON" | jq '.items | length')
+if [ "$ITEM_COUNT" -ge 1000 ]; then
+  echo "board: item-list returned $ITEM_COUNT items (the --limit) -- the board may be truncated and the lookup unreliable. Raise the limit in board.sh." >&2
+  exit 1
+fi
+ITEM_ID=$(printf '%s' "$ITEMS_JSON" \
   | jq -r --argjson n "$ISSUE" '.items[] | select(.content.number == $n) | .id' | head -1)
 
 if [ -z "$ITEM_ID" ]; then
