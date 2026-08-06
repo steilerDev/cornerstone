@@ -1767,3 +1767,97 @@ describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical sec
     expect(reportLangButtons.length).toBe(0);
   });
 });
+
+// ─── Issue #1941: per-field maxLength wiring ─────────────────────────────────────────────────────
+
+describe('ReportContentEditor — #1941 per-field maxLength wiring (cover-letter fields)', () => {
+  it.each([
+    ['sourceReports.editable.senderLabel', '300'],
+    ['sourceReports.editable.recipientLabel', '300'],
+    ['sourceReports.editable.referenceLabel', '100'],
+    ['sourceReports.editable.subjectLabel', '200'],
+    ['sourceReports.editable.bodyLabel', '4000'],
+    ['sourceReports.editable.signatureLabel', '200'],
+  ])(
+    'sets the native maxLength attribute to %s on the field labeled "%s"',
+    (labelKey, expectedMax) => {
+      renderEditor({ content: fullContent() });
+      const field = screen.getByLabelText(labelKey);
+      expect(field).toHaveAttribute('maxlength', expectedMax);
+    },
+  );
+});
+
+describe('ReportContentEditor — #1941 per-field maxLength wiring (usage field, both responsive render sites)', () => {
+  it.each([
+    ['desktop table', getDesktopTable],
+    ['mobile card', getMobileList],
+  ] as const)(
+    'sets the native maxLength attribute to 500 on the usage EditableField (%s)',
+    (_label, getTree) => {
+      const { container } = renderEditor({ content: fullContent() });
+      const tree = getTree(container);
+      // fullContent()'s single row uses makeRow()'s default usageText, 'Baseline usage'.
+      const usageField = within(tree).getByDisplayValue('Baseline usage');
+      expect(usageField).toHaveAttribute('maxlength', '500');
+    },
+  );
+});
+
+describe('ReportContentEditor — #1941 conditional cover-letter fields render nothing (not a disabled/empty field) when their content is null', () => {
+  it('renders no recipient field at all when content.coverLetter.recipient is null (control: with recipient present, the same query finds an ENABLED field)', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'S',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: 'R',
+        subject: 'Subj',
+        body: 'B',
+        signature: 'Sig',
+        closing: 'Sincerely,',
+      },
+    });
+    renderEditor({ content });
+    expect(
+      screen.queryByLabelText('sourceReports.editable.recipientLabel'),
+    ).not.toBeInTheDocument();
+
+    const withRecipient = makeContent({
+      coverLetter: { ...content.coverLetter!, recipient: 'Recipient text' },
+    });
+    const { unmount } = renderEditor({ content: withRecipient });
+    const recipientField = screen.getByLabelText('sourceReports.editable.recipientLabel');
+    expect(recipientField).toBeInTheDocument();
+    expect(recipientField).not.toBeDisabled();
+    unmount();
+  });
+
+  it('renders no reference field at all when content.coverLetter.reference is null (control: with reference present, the same query finds an ENABLED field)', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'S',
+        recipient: 'R',
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'Subj',
+        body: 'B',
+        signature: 'Sig',
+        closing: 'Sincerely,',
+      },
+    });
+    renderEditor({ content });
+    expect(
+      screen.queryByLabelText('sourceReports.editable.referenceLabel'),
+    ).not.toBeInTheDocument();
+
+    const withReference = makeContent({
+      coverLetter: { ...content.coverLetter!, reference: 'Reference text' },
+    });
+    const { unmount } = renderEditor({ content: withReference });
+    const referenceField = screen.getByLabelText('sourceReports.editable.referenceLabel');
+    expect(referenceField).toBeInTheDocument();
+    expect(referenceField).not.toBeDisabled();
+    unmount();
+  });
+});

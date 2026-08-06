@@ -1490,3 +1490,56 @@ code comment and the ADR.
 and they are exactly the arguments that read as obviously true.
 **How to apply:** whenever a spec or comment justifies safety by "both sides scale off the same
 basis", grep the chain for `Math.min`/`Math.max`/`Math.floor` before letting the sentence land.
+
+## Flex `gap` and a child's `margin` are ADDITIVE, not collapsing (#1941, PR #2033)
+
+`EditableField.module.css`'s `.container` is `display: flex; flex-direction: column; gap: var(--spacing-2)`.
+A new `.metaRow` child was given `margin-top: var(--spacing-1)`; the two **stack**, so the reset button's
+spacing went 8px -> 12px on ordinary edits — a 50% regression to chrome nobody meant to touch (#1932's
+already-approved sizing). Caught in review, fixed by dropping `margin-top` entirely. The ux-designer then
+found the **same bug in their own spec** for the counter-showing case.
+
+**Why:** people carry the block-layout intuition that adjacent margins collapse. Flex/grid `gap` does not
+participate in margin collapsing at all — the child margin is added on top of the gap. It bit twice in one
+PR, in the code and in the spec reviewing the code, which is the signature of a wrong mental model rather
+than a slip.
+**How to apply:** whenever a container owns its spacing via `gap`, no child may set `margin` in the gap
+axis. Check this on any PR that introduces a new wrapper element inside an existing flex/grid container —
+the symptom is only "looks slightly off", so no test catches it unless a DOM-shape assertion exists.
+Recommended to @ux-designer for `Style-Guide.md` as a spacing-model rule (I don't own that page).
+
+## A cohesive prop group modelled as N independent optionals (#1941, PR #2033)
+
+`EditableField` gained four optionals: `maxLength` + three pre-translated hint strings. `hasMaxLength`
+alone gates both `srOnly` spans and puts both ids in `aria-describedby`, so `maxLength={200}` with no
+hints compiles clean, passes every test, and yields an `aria-describedby` pointing at two empty elements.
+Invisible today (one consumer, all 8 call sites pass all four); bites at consumer #2. The fix is one
+optional object prop (`lengthLimit?: { max, hint, overHint?, reachedAnnouncement }`) — absent/present
+becomes a single discriminant and the compiler enforces the group.
+
+**Why:** same family as "the-prop-landed-is-not-the-prop-is-wired" (#1910/PR #2004), but arriving through
+the *type system* instead of a call site. Optional props that are only correct together are a latent
+contract, not a flexible API.
+**How to apply:** when a shared component gains >1 optional prop for ONE feature, ask whether any subset is
+legal. If not, make it one object. Note this is NOT an argument for the component calling
+`useTranslation()` — the injection-only locale convention (same as `reportPdf/*`, ADR-034) is correct and
+should be kept; only the grouping is wrong.
+
+## An input cap coupled to a render budget: name the packer, not the arithmetic (#1941, PR #2033)
+
+`USAGE_TEXT_MAX_LENGTH = 500` was documented as "leaving 150 chars for the derived suffix" under
+`MAX_SAFE_USAGE_CHUNK_CHARS` (650). Three things wrong with that framing: (1) 650 is **not a cliff** —
+`packUsageCellRows` splits the whole cell stream losslessly, so exceeding it costs a continuation row, not
+content; (2) the 150 is **unenforceable** — `areaText` is aggregate-unbounded and `attachmentsNote` has no
+`maxLength` at all, which is *why* the bound was moved to the whole cell; (3) since #1973 the budget is
+**computed** (`usageChunkCharsForWidth`), pinned at 650 only by a one-sided clamp against the narrowest
+subset. #1940's `'… '` marker is orthogonal: it's applied post-packing to rows `i >= 1` only, so a
+single-row cell never gets one and it cannot consume headroom.
+
+**Why:** an arithmetic budget-split comment invites a guard test that pins a fiction. The true invariant is
+`USAGE_TEXT_MAX_LENGTH < usageChunkCharsForWidth(USAGE_WIDTH_7COL)` — a typed value at the cap must fit one
+row on its own — and it is the one that fails loudly if the Usage column ever narrows.
+**How to apply:** before writing a guard for a "leaves N for X" comment, check whether X is bounded at all
+and whether the consumer clips or paginates. Routed to #1950 (chunk-ceiling drift guard) rather than a
+bespoke test; needs `USAGE_TEXT_MAX_LENGTH` exported. Keep the constant in the editor — an input
+constraint living in the renderer inverts the dependency.
