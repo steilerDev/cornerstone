@@ -584,3 +584,59 @@ while `realRender.test.ts` covers only Usage — Vendor at 45pt is the binding c
 lists over the same union, and the tests that "count" them pin the literals 7/6, so a new key is
 silently absent everywhere. Recommended fix shape: derive the canonical order from an exhaustive
 `Record<ReportColumnKey, number>` and define the base sets as filters over it.
+
+## #1940 / PR #2032 — runt-merge + continuation marker (reviewed 2026-08-06, APPROVED)
+
+`packUsageCellRowsWithMinimum(segments, maxChars, minTrailingChars)` wraps `packUsageCellRows`
+(both `packUsageCellRows` and `splitIntoPageSafeChunks` byte-identical to `beta`, hash-verified).
+Production floor: `Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS /* 20 */, usageSafeTokenChars)`.
+Render-time marker: a bare `{ text: '… ' }` run prepended by `buildUsageCell(segments, true)` for
+`packedCellRows` index >= 1 — never in `UsageCellSegment.text`, so I1 stays trivially true.
+
+**The AC1-vs-AC2 resolution worth reusing.** Three candidate designs; only one works:
+merge-without-repack is *unsound* (receiver can already be at `maxChars`); always-repack-at-reduced
+budget is sound but regresses the zero-degradation range; **gate the reduced-budget repack behind an
+actual runt check** is the only one that pays neither. A "lookahead inside the packer" is not a
+single-pass alternative — you cannot know a remainder exists without packing to the end, so the
+lookahead *is* the first pass, and folding it in would cost the primitive its clean
+"every row <= the budget I was given" contract, which is what the safety proof rests on.
+
+**The backward-merge induction, stated so it can be defended.** (1) primitive guarantees
+`rowCharCount <= B`; (2) **receiver virginity is structural**: at counter `i` the only index written
+is `i-1`, the counter strictly decreases, so index `k` is written iff the counter equals `k+1` —
+exactly once ever; `splice(i,1)` shifts only indices `> i`; (3) the donor is `< min` *at the moment
+of donation* because the guard re-reads the possibly-already-grown row. Hence
+`(<= M-m) + (< m) < M` at any cascade depth. Verified by hand **and** by a 400k-case fuzz
+(verbatim ports, `maxChars` 2..61, `min` 1..maxChars+4 incl. the degenerate band, meta segments,
+leading empty segments): 0 AC1 / 0 AC2 / 0 I1 violations. **Fuzzing verbatim function ports in a
+throwaway `.mjs` is the cheapest independent read of an induction argument — do this again whenever
+a doc comment carries a proof.**
+
+**Wrapping row-level output was the right layer, for a stronger reason than the PR gave.** The PR's
+reason (a runt arises from two paths, one of which the chunker never sees) is true — the packer's
+own `used > 0 && rest.length <= maxChars` flush creates runts with `splitIntoPageSafeChunks` never
+invoked. But the load-bearing reason is a **unit mismatch**: the AC's unit is the rendered *row*;
+the chunker's unit is a chunk within one *segment*. A row can hold a prose chunk AND the grey meta
+segment, so a chunk-level floor bounds the wrong quantity.
+
+**Findings left open (all non-blocking, for the ADR-034 pass):**
+- ADR-034 **line 152**'s call-site quote is stale a **third** time (`MAX_SAFE_USAGE_CHUNK_CHARS` ->
+  `usageChunkChars` -> now `packUsageCellRowsWithMinimum(..., minTrailingUsageChars)`). Three
+  staleness events on one quoted signature: name the *contract*, drop the literal call.
+- ADR-034 **line 148**'s rule ("bound what a cell *renders*") is now literally under-satisfied — the
+  marker is rendered and unbounded. Safe *by size only*: 2 chars, worst case **+1 line** (when the
+  next token is <= 16 chars so no `break-all`, but too long for the 14 slots left beside `'… '`);
+  0 lines in the break-all case. 41 -> 42 vs the 44-line `№` budget. Nobody wrote that down, and the
+  ux spec already budgets 14 chars for a *textual* marker variant — the obvious next request.
+- `packUsageCellRows` now has **exactly one production caller** (the wrapper). Add a "production
+  callers go through the wrapper" line to its doc comment.
+- ux-designer's "threshold-to-ceiling **ratio** stays roughly constant across subsets" is **false**
+  (the one-sided clamp pins `usageChunkChars` at 650 while `usageSafeTokenCharsForWidth` scales with
+  width: ratio runs ~3% -> ~9.5%). Harmless — the algebraic bound is subset-independent — but do not
+  let the ratio framing get copied into the ADR as the reason.
+
+**#1950 sequencing: confirmed no reorder needed.** No geometry constant moves, and the repack budget
+is strictly *below* the ceiling, so the new consumer is more conservative. But #1950's guard pins a
+**rendered** quantity, and the marker adds 2 uncounted rendered characters: on a continuation row the
+real overage against the derived `Ѹ` 616 ceiling is 36 chars / **4 lines / 44.8pt**, not 34 / 3 /
+33.6. State which quantity the guard pins when #1950 lands.
