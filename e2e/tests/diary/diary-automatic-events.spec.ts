@@ -104,10 +104,8 @@ test.describe('Type chip filter for automatic entries (Scenario 2)', () => {
     // Filtering is now done via individual type chip buttons in the filter bar.
     // This test verifies the type chip correctly sends the type query parameter.
     const diaryPage = new DiaryPage(page);
-    const requests: URL[] = [];
 
     await page.route('**/api/diary-entries*', async (route) => {
-      requests.push(new URL(route.request().url()));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -123,38 +121,39 @@ test.describe('Type chip filter for automatic entries (Scenario 2)', () => {
       await diaryPage.waitForLoaded();
 
       // Default mode is now "Manual" — switch to "All" so the automatic type chips are visible.
-      // Use waitForLoaded() after the click instead of waitForResponse: it waits for
-      // the full load cycle (isLoading→false, empty-state visible), guaranteeing the
-      // All-click API response was received and captured in requests[].
+      // waitForLoaded() after the click only guarantees the UI has settled (timeline/empty-state/
+      // error-banner visible) — it does NOT guarantee that no diary-entries request from this
+      // click is still in flight. Bug #2030: a prior version of this test relied on that false
+      // guarantee to safely reset a shared "captured requests" array before the chip click below,
+      // and a trailing All-click response landing after the reset could satisfy a generic
+      // waitForResponse predicate before the chip's own request was ever captured.
       const allChip = page.getByTestId('mode-filter-all');
       await allChip.waitFor({ state: 'visible' });
       await allChip.click();
       await diaryPage.waitForLoaded();
 
-      // Reset captured requests from initial load + mode switch
-      requests.length = 0;
-
-      // Register the response promise BEFORE clicking the chip (waitForResponse pattern)
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
+      // Register the listener BEFORE clicking the chip, and predicate it on the response's OWN
+      // request URL containing the expected type param — not just "any diary-entries 200". A
+      // generic predicate can resolve against a trailing response from the All-click above
+      // landing after this click, silently asserting on the wrong response (#2030). Reading the
+      // type param straight off the resolved Response also removes the shared-mutable-array
+      // request/response race entirely, rather than just narrowing its window.
+      const responsePromise = page.waitForResponse((resp) => {
+        if (!resp.url().includes('/api/diary-entries') || resp.status() !== 200) return false;
+        const typeParam = new URL(resp.url()).searchParams.get('type');
+        return !!typeParam && typeParam.includes('work_item_status');
+      });
 
       // Click the "work_item_status" type chip filter button
       const typeChip = diaryPage.typeFilterChip('work_item_status');
       await typeChip.waitFor({ state: 'visible' });
       await typeChip.click();
-      await responsePromise;
+      const response = await responsePromise;
 
       // The request should include the work_item_status type parameter
-      const lastRequest = requests[requests.length - 1];
-      expect(lastRequest).toBeDefined();
-      const typeParam = lastRequest?.searchParams.get('type');
-
-      // The type parameter must be set and must include the work_item_status type
+      const typeParam = new URL(response.url()).searchParams.get('type');
       expect(typeParam).toBeTruthy();
-      if (typeParam) {
-        expect(typeParam).toContain('work_item_status');
-      }
+      expect(typeParam).toContain('work_item_status');
     } finally {
       await page.unroute('**/api/diary-entries*');
     }

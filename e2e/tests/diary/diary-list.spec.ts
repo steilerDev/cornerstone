@@ -481,11 +481,7 @@ test.describe('Type chip filter (Scenario 9)', () => {
   }) => {
     const diaryPage = new DiaryPage(page);
 
-    // Capture API requests to assert the query params
-    const requests: URL[] = [];
-
     await page.route('**/api/diary-entries*', async (route) => {
-      requests.push(new URL(route.request().url()));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -497,30 +493,29 @@ test.describe('Type chip filter (Scenario 9)', () => {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
 
-      // Clear captured requests from the initial load
-      requests.length = 0;
-
-      // Register the response promise BEFORE clicking the chip (waitForResponse pattern)
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
+      // Register the listener BEFORE clicking the chip, and predicate it on the response's OWN
+      // request URL containing the expected type param — not just "any diary-entries 200". A
+      // generic predicate (plus reading a separately captured requests[] array) can resolve
+      // against a trailing response from the initial load landing after the click, silently
+      // asserting on the wrong response — see #2030, the same bug in the sibling
+      // diary-automatic-events.spec.ts test. Reading the type param straight off the resolved
+      // Response removes the shared-mutable-array request/response race entirely.
+      const responsePromise = page.waitForResponse((resp) => {
+        if (!resp.url().includes('/api/diary-entries') || resp.status() !== 200) return false;
+        const typeParam = new URL(resp.url()).searchParams.get('type');
+        return !!typeParam && typeParam.includes('daily_log');
+      });
 
       // Click the "daily_log" type chip filter button
       const typeChip = diaryPage.typeFilterChip('daily_log');
       await typeChip.waitFor({ state: 'visible' });
       await typeChip.click();
-      await responsePromise;
+      const response = await responsePromise;
 
       // The request should include the daily_log type parameter
-      const lastRequest = requests[requests.length - 1];
-      expect(lastRequest).toBeDefined();
-      const typeParam = lastRequest?.searchParams.get('type');
-
-      // The type parameter must be set and contain daily_log
+      const typeParam = new URL(response.url()).searchParams.get('type');
       expect(typeParam).toBeTruthy();
-      if (typeParam) {
-        expect(typeParam).toContain('daily_log');
-      }
+      expect(typeParam).toContain('daily_log');
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
