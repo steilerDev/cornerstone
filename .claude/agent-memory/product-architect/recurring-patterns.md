@@ -1462,3 +1462,31 @@ return interface (proves nothing depended on the structural-only relation); `com
 first declaration in the rule and the composed class must not share properties with the composer
 (source order decides, both being single-class selectors); grep the *old* CSS-module class name across
 `e2e/` — a POM `[class*="step4Body"]` locator survives a rename as a zero-match locator with Jest green.
+
+## Fuzz the verbatim ports when a doc comment carries a proof (#1940, PR #2032)
+
+When an AC's whole correctness rests on an induction argument written in a doc comment, a hand-trace
+(mine, plus the dev-team-lead's) is two reads of the same reasoning, not two independent checks.
+Copy the functions verbatim into a throwaway `.mjs` and fuzz the *stated postconditions* across a
+parameter space that includes the degenerate guards — 400k cases took under a minute and covered
+the cascade, the mid-list runt, the hard-split path, and the meta-segment boundary at once.
+
+**Why:** a hand-trace confirms the argument the author wrote; it does not search for the case the
+author did not consider. Only randomized inputs do that.
+**How to apply:** any PR whose doc comment says "and this bound holds at any depth / for all N".
+Write the ports, assert the postconditions, `rm` the file before committing. Note that the harness
+must be created with `Write` (the Bash tool refuses heredoc redirects inside a worktree session).
+
+## A safety argument phrased as a *ratio* is falsified by any clamp in the chain (#1940)
+
+The #1940 ux spec argued the merge stays safe across all 96 subsets because "the threshold-to-ceiling
+ratio stays roughly constant." False: `usageChunkCharsForWidth`'s **one-sided clamp** pins the
+numerator's ceiling at 650 for every subset while `usageSafeTokenCharsForWidth` scales linearly with
+width — the ratio runs ~3% to ~9.5%. The implementation was safe anyway (its bound is algebraic and
+subset-independent), so this never became a defect — but the ratio sentence was on its way into a
+code comment and the ADR.
+
+**Why:** proportional-scaling arguments are the first thing a clamp, a floor, or a `Math.max` breaks,
+and they are exactly the arguments that read as obviously true.
+**How to apply:** whenever a spec or comment justifies safety by "both sides scale off the same
+basis", grep the chain for `Math.min`/`Math.max`/`Math.floor` before letting the sentence land.

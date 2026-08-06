@@ -51,6 +51,37 @@ Design-review implication: don't take an AC like "rows are not split across page
 just because the layout code sets the documented pdfmake flag and the existing tests pass — for a
 `dontBreakRows` claim specifically, render-and-inspect before approving.
 
+## #1940 closed (PR #2032): runt-merge + continuation marker, verified at both column-subset extremes
+
+The round-4 "single stray character" degenerate row (above) got its own issue and PR.
+`packUsageCellRowsWithMinimum` wraps `packUsageCellRows` with a backward-merge pass so no
+continuation row (index >= 1) ever renders under `Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS,
+usageSafeTokenChars)` characters — hand-traced the backward `for` loop against the exact
+`'z'.repeat(2*maxChars+1)` repro and it holds at any cascade depth (a runt merged into a row that
+becomes a runt itself gets re-checked, since the scan re-tests the receiver before moving on).
+`buildUsageCell(segments, isContinuation)` prepends a literal `{ text: '… ' }` run (no `color`/
+`bold`/`fontSize` override — deliberately ink-only for greyscale/photocopy robustness) as the
+FIRST run when `isContinuation`, and the cell still returns `{ text: runs, style: 'tableCell' }`
+so the marker inherits the same 8pt non-bold body style as everything else — checked the actual
+run object, not just "a marker exists somewhere in the cell."
+
+**New technique validated here**: to check a per-cell visual signal across #1973's column-subset
+range, pass a `hiddenColumns` Set into `buildOverviewContent(content, skipped, hiddenColumns)` to
+force the narrowest legal subset (`{allocatedAmount, usage}` — hide vendor/invoiceNumber/date/
+status/invoiceAmount) alongside the default widest (7-col, empty Set), render both through the
+real pipeline, and rasterize both. This is the right check whenever a spec says a signal must
+"read correctly" across subsets, not just render without crashing — a marker/badge can be
+structurally present at every width and still be illegible or ambiguous at the narrow end, and a
+single-subset render can't catch that. Confirmed for the '… ' marker: legible and unambiguous at
+both the 2-column and 7-column shapes, including the 2-column case where Usage is the only
+non-blank cell on a continuation row at all.
+
+Also confirmed: the font the glyph-coverage check (`fontkit.glyphForCodePoint(0x2026)`) targets
+(`Roboto-Regular.ttf`, per `loader.ts`'s `normal:` mapping) is the SAME font `tableCell` actually
+renders with (non-bold body style) — worth checking this alignment explicitly whenever a PR adds a
+glyph-coverage check for a specific font file, since checking the wrong font/weight file would
+pass while the actually-rendered glyph could still be `.notdef`.
+
 ## Round 3 (PR #1935, same issue): fix confirmed, root cause was the wrong object
 
 Round 2 moved `dontBreakRows` onto `table.dontBreakRows` (the object `TableProcessor.js:123`

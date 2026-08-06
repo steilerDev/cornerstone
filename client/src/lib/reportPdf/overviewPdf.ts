@@ -395,6 +395,71 @@ export function packUsageCellRows(
 }
 
 /**
+ * Row-total character count for a packed Usage-cell row (sum of every segment's text length).
+ */
+function rowCharCount(row: UsageCellSegment[]): number {
+  return row.reduce((sum, segment) => sum + segment.text.length, 0);
+}
+
+/**
+ * Wraps `packUsageCellRows` with a floor on every continuation row's (row index >= 1) character
+ * count, so a would-be runt remainder never renders as its own near-empty row (#1940 AC1).
+ *
+ * Why the runt check gates the repack rather than always packing at a reduced budget: packing
+ * once at the FULL `maxChars` budget and returning that result untouched whenever no row is a
+ * runt preserves today's exact row counts for everything that already fits one row (AC8) and for
+ * multi-row content that already divides cleanly — both cases are real-render-verified elsewhere
+ * in this file (see MAX_SAFE_USAGE_CHUNK_CHARS). Unconditionally packing at `maxChars -
+ * minTrailingChars` would split some of that content into an extra row for no reason, regressing
+ * the "content at the ceiling renders as one row" behaviour AC8 exists to pin.
+ *
+ * AC2 safety argument (every row this returns fits the page-safe budget it was originally called
+ * with): `packUsageCellRows` guarantees every row it returns is <= the `maxChars` it was called
+ * with. In the repack path here, every raw row from `packUsageCellRows(segments, maxChars -
+ * minTrailingChars)` is therefore <= `maxChars - minTrailingChars`. The backward scan below merges
+ * `rows[i]` into `rows[i - 1]` only when `rowCharCount(rows[i]) < minTrailingChars`, and because
+ * the scan runs backward, `rows[i - 1]` (the receiver) has never yet been grown by an earlier
+ * merge in this same pass when it receives one — so every merge produces a row of size
+ * `(<= maxChars - minTrailingChars) + (< minTrailingChars) < maxChars`, and this bound holds at
+ * any cascade depth (a receiver can itself be merged into its predecessor later in the same
+ * backward pass, but by the same argument applied again).
+ *
+ * Termination: a single backward pass over an array that only shrinks (`splice` removes, never
+ * inserts) — `packUsageCellRows` is invoked exactly once up front and never again inside the loop,
+ * so there is no risk of the repack recursing or re-deriving a smaller and smaller budget.
+ *
+ * The `minTrailingChars <= 0 || minTrailingChars >= maxChars` guard degrades to the plain
+ * `packUsageCellRows` output rather than throwing: unlike `packUsageCellRows`/
+ * `splitIntoPageSafeChunks` (which throw on a non-positive `maxChars` because that budget can
+ * never be survived), a degenerate `minTrailingChars` here just means "no runt-merge floor" is
+ * applicable, and the real caller always derives it as a positive value strictly below the chunk
+ * ceiling — so falling back to unmerged rows is the correct behaviour for an edge case that isn't
+ * expected to occur, rather than crashing a report render over a decoration threshold.
+ */
+export function packUsageCellRowsWithMinimum(
+  segments: UsageCellSegment[],
+  maxChars: number,
+  minTrailingChars: number,
+): UsageCellSegment[][] {
+  if (minTrailingChars <= 0 || minTrailingChars >= maxChars) {
+    return packUsageCellRows(segments, maxChars);
+  }
+  const rawRows = packUsageCellRows(segments, maxChars);
+  const hasRunt = rawRows.slice(1).some((row) => rowCharCount(row) < minTrailingChars);
+  if (!hasRunt) {
+    return rawRows;
+  }
+  const rows = packUsageCellRows(segments, maxChars - minTrailingChars);
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (rowCharCount(rows[i]!) < minTrailingChars) {
+      rows[i - 1] = rows[i - 1]!.concat(rows[i]!);
+      rows.splice(i, 1);
+    }
+  }
+  return rows;
+}
+
+/**
  * A whitespace-free run at or under this many characters is guaranteed to fit on one line within
  * the given column width, EVEN IN THE WORST CASE (every character as wide as 'W'), and renders
  * with pdfmake's default (whitespace-only) wrapping. A run over this length gets
@@ -608,6 +673,26 @@ export const HEADER_ROW_HEIGHT_MAX =
  * - `markerText` (see above) is the one remaining unbounded row-height contributor in this table.
  */
 
+/**
+ * Absolute floor (characters) for a continuation row's runt-merge threshold (#1940 AC1), used as
+ * the lower bound of `Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, usageSafeTokenChars)` below.
+ *
+ * The runt-merge threshold has two different jobs, and this constant is only the second one:
+ * `usageSafeTokenChars` (the per-subset, per-line character budget already computed for word-
+ * break protection) does the main work — it guarantees a merged runt fills at least one real line
+ * at the CURRENT subset's actual width, so "does this look like a real line of content" holds
+ * regardless of which of the 96 legal subsets (#1973) produced it. This constant is the fallback
+ * for the case where that per-line figure is itself very small (a narrow Usage column at a small
+ * font): 20 characters reads as "clearly more than a stray word or character" even in isolation,
+ * independent of any subset's width, so the merge threshold never degrades below a value that
+ * still looks like real content on its own.
+ *
+ * Named and exported (not inlined) per #1950: a numeric threshold that appears in test assertions
+ * needs one source of truth, so a future ux-designer tuning of the floor changes this one constant
+ * rather than silently drifting between production and every test call site that re-derives it.
+ */
+export const MIN_CONTINUATION_ROW_FLOOR_CHARS = 20;
+
 export function buildOverviewContent(
   reportContent: ReportContent,
   skippedDocuments: Map<string, ReportSkipReason[]>,
@@ -789,6 +874,15 @@ export function buildOverviewContent(
   const usageSafeTokenChars = usageVisible ? usageSafeTokenCharsForWidth(colWidths.usage!) : 0;
   const usageChunkChars = usageVisible ? usageChunkCharsForWidth(colWidths.usage!) : 0;
 
+  // AC1 (#1940): floor for a continuation row so a would-be runt remainder merges into the row
+  // before it instead of rendering as a near-empty row indistinguishable from a broken document.
+  // Expressed via this subset's own per-line character budget (ux-designer recommendation), with
+  // MIN_CONTINUATION_ROW_FLOOR_CHARS as the absolute lower bound — see that constant's doc comment
+  // for why the threshold needs both terms.
+  const minTrailingUsageChars = usageVisible
+    ? Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, usageSafeTokenChars)
+    : 0;
+
   /**
    * Renders one packed row's worth of Usage-cell segments (see packUsageCellRows) into a cell.
    *
@@ -796,9 +890,22 @@ export function buildOverviewContent(
    * protection. Each meta run is coloured DEPOSIT_NOTE_TEXT_COLOR after the split, so a cell may
    * hold multiple consecutive grey runs — they are always last (relied on by splitUsageCell in
    * tests and by any caller reading these cells back).
+   *
+   * `isContinuation` (#1940 AC5) prepends a single literal `'… '` run (U+2026 + space) as the very
+   * first run when true, per the ux-designer's visual spec (issue #1940 comment). This is pure
+   * render-time decoration: it is never counted against `packUsageCellRowsWithMinimum`'s character
+   * budget and never part of the #1929 I1 reconstruction, since neither `packUsageCellRows`/
+   * `packUsageCellRowsWithMinimum` nor `UsageCellSegment.text` ever see this string — it is added
+   * here, after packing, purely for what gets rendered. Deliberately NO colour override (not
+   * `DEPOSIT_NOTE_TEXT_COLOR`): the ux-designer chose an ink-shape signal over a colour/fill signal
+   * precisely because colour is what degrades under greyscale printing and photocopying, and this
+   * is a bank document that gets scanned — do not "helpfully" add a colour here.
    */
-  function buildUsageCell(segments: UsageCellSegment[]): Content {
+  function buildUsageCell(segments: UsageCellSegment[], isContinuation = false): Content {
     const runs: Content[] = [];
+    if (isContinuation) {
+      runs.push({ text: '… ' });
+    }
     segments.forEach((segment, index) => {
       if (!segment.meta) {
         runs.push(...buildUsageTextRuns(segment.text, usageSafeTokenChars));
@@ -879,17 +986,26 @@ export function buildOverviewContent(
     // overflow instead of paginating it (#1929 architect review HIGH 4 / I1). Wherever the whole
     // cell fits one row — the common case — this emits exactly one row, unchanged from #1959.
     // The first packed row shares this invoice's leading/amount cells; any further row is a
-    // Usage-only continuation row with no "continued" marker, per the product-owner's ruling
-    // (#1929 AC2/AC4/AC12).
+    // Usage-only continuation row (#1929 AC2/AC4/AC12), now carrying the leading '… ' marker
+    // buildUsageCell adds for isContinuation rows (#1940 AC5) — the earlier "no marker" ruling
+    // was superseded once round-3/4 renders showed a markerless continuation row is visually
+    // indistinguishable from a broken/orphaned one.
     const cellSegments: UsageCellSegment[] = [{ text: contentRow.usageText }];
     if (metaPieces.length > 0) {
       cellSegments.push({ text: `\n${metaPieces.join(' · ')}`, meta: true });
     }
-    const packedCellRows = packUsageCellRows(cellSegments, usageChunkChars);
+    const packedCellRows = packUsageCellRowsWithMinimum(
+      cellSegments,
+      usageChunkChars,
+      minTrailingUsageChars,
+    );
 
     rows.push([...nonUsageCells, buildUsageCell(packedCellRows[0]!)]);
     for (let i = 1; i < packedCellRows.length; i++) {
-      rows.push([...nonUsageVisible.map(buildEmptyBodyCell), buildUsageCell(packedCellRows[i]!)]);
+      rows.push([
+        ...nonUsageVisible.map(buildEmptyBodyCell),
+        buildUsageCell(packedCellRows[i]!, true),
+      ]);
     }
   }
 
