@@ -2,11 +2,10 @@
  * Cover letter PDF content builder.
  * Consumes ReportContent.coverLetter (text only); no data derivation.
  */
-import type { TFunction } from 'i18next';
 import type { Content } from 'pdfmake/build/pdfmake';
 import type { ReportContent } from '../reportContent/index.js';
 
-export function buildCoverLetterContent(reportContent: ReportContent, t: TFunction): Content[] {
+export function buildCoverLetterContent(reportContent: ReportContent): Content[] {
   const content: Content[] = [];
   const coverLetter = reportContent.coverLetter;
 
@@ -43,7 +42,7 @@ export function buildCoverLetterContent(reportContent: ReportContent, t: TFuncti
   // Reference line — tightly grouped with the subject directly below.
   if (coverLetter.reference) {
     content.push({
-      text: `${t('sourceReports.coverLetter.reference')}: ${coverLetter.reference}`,
+      text: `${reportContent.labels.coverLetterReferenceLabel}: ${coverLetter.reference}`,
       style: 'small',
       margin: [0, 0, 0, 4],
     });
@@ -51,7 +50,7 @@ export function buildCoverLetterContent(reportContent: ReportContent, t: TFuncti
 
   // Subject line — bold/larger so it reads as a subject, not a sixth identical paragraph.
   content.push({
-    text: `${t('sourceReports.coverLetter.subjectLabel')}: ${coverLetter.subject}`,
+    text: `${reportContent.labels.coverLetterSubjectLabel}: ${coverLetter.subject}`,
     style: 'letterSubject',
     margin: [0, 0, 0, 16],
   });

@@ -73,6 +73,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
    * Creates the first admin user. Only works when no users exist.
    * After setup is complete, returns 403 SETUP_COMPLETE.
    */
+  // Rate limit is intentionally hardcoded and not configurable: once any user
+  // exists this route returns 403 unconditionally, so tuning the limit provides
+  // no operational value (Issue #1970, AC6).
   fastify.post(
     '/setup',
     { schema: setupSchema, config: { rateLimit: { max: 5, timeWindow: '15 minutes' } } },
@@ -136,7 +139,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
    */
   fastify.post(
     '/login',
-    { schema: loginSchema, config: { rateLimit: { max: 20, timeWindow: '15 minutes' } } },
+    {
+      schema: loginSchema,
+      config: {
+        rateLimit: {
+          max: fastify.config.authRateLimitMax,
+          timeWindow: fastify.config.authRateLimitWindow,
+        },
+      },
+    },
     async (request, reply) => {
       const { email, password } = request.body as {
         email: string;

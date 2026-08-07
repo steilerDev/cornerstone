@@ -3,13 +3,23 @@
  * Handles field changes and resets via callbacks; no state management.
  */
 
-import { useId, useState } from 'react';
+import { useId, useMemo } from 'react';
 import type { TFunction } from 'i18next';
 import type { InvoiceStatus } from '@cornerstone/shared';
-import type { ReportContent, ReportContentOverrides } from '../../lib/reportContent/index.js';
-import { overrideKey } from '../../lib/reportContent/index.js';
+import type {
+  ReportColumnKey,
+  ReportContent,
+  ReportContentOverrides,
+} from '../../lib/reportContent/index.js';
+import {
+  isColumnLocked,
+  overrideKey,
+  reportColumnsForUseCase,
+  visibleReportColumns,
+} from '../../lib/reportContent/index.js';
 import { Badge } from '../Badge/Badge.js';
 import { EditableField } from '../EditableField/EditableField.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportContentEditor.module.css';
 
 export interface ReportContentEditorProps {
@@ -17,7 +27,18 @@ export interface ReportContentEditorProps {
   overrides: ReportContentOverrides;
   onFieldChange: (key: string, value: string) => void;
   onFieldReset: (key: string) => void;
+  /** Columns the user has hidden from the preview and generated PDF (#1973 AC 1.1: this
+   * component holds no column state of its own — it is fully controlled by the parent). */
+  hiddenColumns: ReadonlySet<ReportColumnKey>;
+  onToggleColumn: (col: ReportColumnKey) => void;
+  /** Whether the wizard's "attach source documents" setting is enabled — drives the
+   * Usage-hidden-with-attachments warning banner (AC 3/#1973 UX spec §2). */
+  attachDocuments: boolean;
   t: TFunction;
+  /** HTML lang attribute for report-language content. Omit when report language matches UI language. */
+  lang?: string;
+  /** HTML lang attribute for UI-chrome content (reset button, sr-only hints). Omit when report language matches UI language. */
+  uiLang?: string;
 }
 
 // Status badge className mapping
@@ -28,35 +49,95 @@ const STATUS_BADGE_CLASSNAME: Record<InvoiceStatus, string> = {
   quotation: styles.statusQuotation!,
 };
 
-type ColumnKey =
-  'vendor' | 'invoiceNumber' | 'date' | 'status' | 'invoiceAmount' | 'allocatedAmount' | 'usage';
+type ColumnKey = ReportColumnKey;
+
+// #1941 AC2 — override field length limits. Each is anchored on a measured constant or an
+// existing server-side cap; the rationale is recorded per-field, not shared, per AC2.
+
+// sender: ~5 address lines — one line of headroom beyond the widest affordance (rows={4}).
+// Deliberately equal to recipient (see below): the row-count affordance is a display choice,
+// not a semantic difference, and both render in the letter's fixed address zone.
+const SENDER_MAX_LENGTH = 300;
+
+// recipient: deliberately equal to sender (300) — a recipient block legitimately carries a
+// department, a c/o line, or a country line, so an asymmetric cap would be arbitrary and only
+// discoverable once one of the two trips it.
+const RECIPIENT_MAX_LENGTH = 300;
+
+// reference: matches invoices.invoiceNumber (server/src/routes/invoices.ts:25) — same category
+// of value, an external identifier.
+const REFERENCE_MAX_LENGTH = 100;
+
+// subject: matches vendors.name / areas.name (server/src/routes/vendors.ts:35,
+// server/src/routes/areas.ts:12) — the codebase's established "short human-authored label" cap.
+const SUBJECT_MAX_LENGTH = 200;
+
+// signature: same anchor as subject (200), deliberately not in the 300 sender/recipient band —
+// it is a name plus an optional role, not an address block, and coverLetterPdf.ts:76-81 reserves
+// a fixed 54pt signing gap above it on the assumption of a compact block.
+const SIGNATURE_MAX_LENGTH = 200;
+
+// body: buildCoverLetterContent() (coverLetterPdf.ts:59-74) emits plain flowing paragraphs with
+// no table, no dontBreakRows, no fixed-height container, so pdfmake paginates natively and an
+// over-long body makes more pages, never clips. Bounded instead by the realistic runaway:
+// LLM_MAX_TOKENS defaults to 16384 output tokens (~60k chars), so 4000 (~1.5 A4 pages at this
+// style) stops that runaway while a legitimate two-page letter never fights the limit.
+const BODY_MAX_LENGTH = 4000;
+
+// usageText: floor is invoiceBudgetLines.description (server/src/routes/invoiceBudgetLines.ts,
+// cap 500) — getUsageText() (client/src/lib/reportContent/buildReportContent.ts) joins linked-item
+// names/descriptions each already capped at 500 server-side, so a single budget line already
+// admits a legal 500-char value. Ceiling is the per-subset *computed* usage budget
+// (usageChunkCharsForWidth in client/src/lib/reportPdf/overviewPdf.ts) — since #1973 this is not a
+// fixed number; MAX_SAFE_USAGE_CHUNK_CHARS (650) is only the one-sided clamp bounding it, not a
+// hard limit itself. Exceeding that budget is not a data-loss risk: packUsageCellRows paginates
+// losslessly, so going over costs presentation quality (an extra continuation row), never content.
+// (There is deliberately no claimed "headroom" for the derived areaText/attachmentsNote suffix
+// sharing the cell — attachmentsNote has no maxLength and areaText is aggregate-unbounded, which
+// is exactly why the budget is enforced at the whole-cell level via packing rather than by
+// reserving a fixed slice per contributor.) The invariant this constant must hold is
+// USAGE_TEXT_MAX_LENGTH < usageChunkCharsForWidth(USAGE_WIDTH_7COL); a guard test for it is
+// tracked in #1950.
+const USAGE_TEXT_MAX_LENGTH = 500;
 
 export function ReportContentEditor({
   content,
   overrides,
   onFieldChange,
   onFieldReset,
+  hiddenColumns,
+  onToggleColumn,
+  attachDocuments,
   t,
+  lang,
+  uiLang,
 }: ReportContentEditorProps) {
   // Helper: check if a field has been overridden
   const isFieldEdited = (key: string): boolean => key in overrides;
 
-  // Column visibility state. PREVIEW-ONLY: `hiddenColumns` is local to this component and is not
-  // exposed as a prop or callback — the generated PDF always contains every column. The hint
-  // rendered beside the toggles says so, because the control otherwise reads as "choose the
-  // report's columns" (every other control in this editor does change the PDF). Wiring these
-  // through to the PDF is a filed follow-up.
-  const columnHintId = useId();
-  const [hiddenColumns, setHiddenColumns] = useState<Set<ColumnKey>>(new Set());
-  const toggleColumn = (col: ColumnKey) => {
-    setHiddenColumns((prev) => {
-      const next = new Set(prev);
-      if (next.has(col)) next.delete(col);
-      else next.add(col);
-      return next;
-    });
+  // Visible columns (AC 2.1's single derivation, shared with the PDF geometry engine) —
+  // hiddenColumns/onToggleColumn are fully controlled by the parent (ReportWizardPage), which is
+  // what makes this control actually change the generated PDF instead of being preview-only.
+  const visible = useMemo(
+    () => new Set(visibleReportColumns(content.isOverview, hiddenColumns)),
+    [content.isOverview, hiddenColumns],
+  );
+  const show = (col: ColumnKey) => visible.has(col);
+  const requiredHintId = useId();
+
+  // Label lookup for the column-toggle list — mirrors overviewPdf.ts's HEADER_LABEL pattern, so
+  // the toggle list's column ENUMERATION comes from reportColumnsForUseCase (AC 2.1's single
+  // derivation, shared with the PDF geometry engine) rather than a second, independently
+  // maintained array literal.
+  const COLUMN_LABEL: Record<ColumnKey, string> = {
+    vendor: content.labels.vendor,
+    invoiceNumber: content.labels.invoiceNumber,
+    date: content.labels.date,
+    status: content.labels.status,
+    invoiceAmount: content.labels.invoiceAmount,
+    allocatedAmount: content.labels.allocatedAmount,
+    usage: content.labels.usage,
   };
-  const show = (col: ColumnKey) => !hiddenColumns.has(col);
 
   return (
     <div className={styles.container}>
@@ -79,6 +160,16 @@ export function ReportContentEditor({
               isEdited={isFieldEdited(overrideKey.coverLetter.sender)}
               onReset={() => onFieldReset(overrideKey.coverLetter.sender)}
               rows={4}
+              lang={lang}
+              uiLang={uiLang}
+              maxLength={SENDER_MAX_LENGTH}
+              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                max: SENDER_MAX_LENGTH,
+              })}
+              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+              maxLengthReachedAnnouncement={t(
+                'sourceReports.editable.maxLengthReachedAnnouncement',
+              )}
             />
 
             {content.coverLetter.recipient && (
@@ -95,6 +186,16 @@ export function ReportContentEditor({
                 isEdited={isFieldEdited(overrideKey.coverLetter.recipient)}
                 onReset={() => onFieldReset(overrideKey.coverLetter.recipient)}
                 rows={3}
+                lang={lang}
+                uiLang={uiLang}
+                maxLength={RECIPIENT_MAX_LENGTH}
+                maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                  max: RECIPIENT_MAX_LENGTH,
+                })}
+                overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+                maxLengthReachedAnnouncement={t(
+                  'sourceReports.editable.maxLengthReachedAnnouncement',
+                )}
               />
             )}
 
@@ -102,7 +203,9 @@ export function ReportContentEditor({
               <span className={styles.readOnlyLabel}>
                 {t('sourceReports.coverLetter.dateLabel')}
               </span>
-              <span className={styles.readOnlyValue}>{content.coverLetter.dateLine}</span>
+              <span className={styles.readOnlyValue} lang={lang}>
+                {content.coverLetter.dateLine}
+              </span>
             </div>
 
             {content.coverLetter.reference && (
@@ -118,6 +221,16 @@ export function ReportContentEditor({
                 onChange={(value) => onFieldChange(overrideKey.coverLetter.reference, value)}
                 isEdited={isFieldEdited(overrideKey.coverLetter.reference)}
                 onReset={() => onFieldReset(overrideKey.coverLetter.reference)}
+                lang={lang}
+                uiLang={uiLang}
+                maxLength={REFERENCE_MAX_LENGTH}
+                maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                  max: REFERENCE_MAX_LENGTH,
+                })}
+                overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+                maxLengthReachedAnnouncement={t(
+                  'sourceReports.editable.maxLengthReachedAnnouncement',
+                )}
               />
             )}
 
@@ -133,6 +246,16 @@ export function ReportContentEditor({
               onChange={(value) => onFieldChange(overrideKey.coverLetter.subject, value)}
               isEdited={isFieldEdited(overrideKey.coverLetter.subject)}
               onReset={() => onFieldReset(overrideKey.coverLetter.subject)}
+              lang={lang}
+              uiLang={uiLang}
+              maxLength={SUBJECT_MAX_LENGTH}
+              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                max: SUBJECT_MAX_LENGTH,
+              })}
+              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+              maxLengthReachedAnnouncement={t(
+                'sourceReports.editable.maxLengthReachedAnnouncement',
+              )}
             />
 
             <EditableField
@@ -148,13 +271,25 @@ export function ReportContentEditor({
               isEdited={isFieldEdited(overrideKey.coverLetter.body)}
               onReset={() => onFieldReset(overrideKey.coverLetter.body)}
               rows={10}
+              lang={lang}
+              uiLang={uiLang}
+              maxLength={BODY_MAX_LENGTH}
+              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                max: BODY_MAX_LENGTH,
+              })}
+              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+              maxLengthReachedAnnouncement={t(
+                'sourceReports.editable.maxLengthReachedAnnouncement',
+              )}
             />
 
             <div className={styles.readOnlyField}>
               <span className={styles.readOnlyLabel}>
                 {t('sourceReports.editable.closingLabel')}
               </span>
-              <span className={styles.readOnlyValue}>{content.coverLetter.closing}</span>
+              <span className={styles.readOnlyValue} lang={lang}>
+                {content.coverLetter.closing}
+              </span>
             </div>
 
             <EditableField
@@ -169,6 +304,16 @@ export function ReportContentEditor({
               onChange={(value) => onFieldChange(overrideKey.coverLetter.signature, value)}
               isEdited={isFieldEdited(overrideKey.coverLetter.signature)}
               onReset={() => onFieldReset(overrideKey.coverLetter.signature)}
+              lang={lang}
+              uiLang={uiLang}
+              maxLength={SIGNATURE_MAX_LENGTH}
+              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                max: SIGNATURE_MAX_LENGTH,
+              })}
+              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+              maxLengthReachedAnnouncement={t(
+                'sourceReports.editable.maxLengthReachedAnnouncement',
+              )}
             />
           </div>
         </div>
@@ -176,7 +321,7 @@ export function ReportContentEditor({
 
       {/* Source Info Block */}
       {!content.isClaim && (
-        <div className={styles.sourceInfoBlock}>
+        <div className={styles.sourceInfoBlock} lang={lang}>
           <p>
             {content.labels.source}: {content.sourceInfo.sourceName}
           </p>
@@ -198,39 +343,44 @@ export function ReportContentEditor({
       <div className={styles.tableHeadingRow}>
         <h3 className={styles.tableHeading}>{t('sourceReports.editable.tableHeading')}</h3>
         <div className={styles.columnToggleGroup}>
-          <p id={columnHintId} className={styles.columnToggleHint}>
-            {t('sourceReports.editable.columnVisibilityHint')}
-          </p>
           <div
             className={styles.columnToggles}
             role="group"
             aria-label={t('sourceReports.editable.columnVisibilityLabel')}
-            aria-describedby={columnHintId}
           >
-            {(
-              [
-                ['vendor', content.labels.vendor],
-                ['invoiceNumber', content.labels.invoiceNumber],
-                ['date', content.labels.date],
-                ...(content.isOverview
-                  ? [['status', content.labels.status] as [ColumnKey, string]]
-                  : []),
-                ['invoiceAmount', content.labels.invoiceAmount],
-                ['allocatedAmount', content.labels.allocatedAmount],
-                ['usage', content.labels.usage],
-              ] as [ColumnKey, string][]
-            ).map(([col, label]) => (
-              <label key={col} className={styles.columnToggle}>
-                <input type="checkbox" checked={show(col)} onChange={() => toggleColumn(col)} />
-                {label}
+            {reportColumnsForUseCase(content.isOverview).map((col) => (
+              <label key={col} className={styles.columnToggle} lang={lang}>
+                <input
+                  type="checkbox"
+                  checked={show(col)}
+                  disabled={isColumnLocked(col)}
+                  aria-describedby={isColumnLocked(col) ? requiredHintId : undefined}
+                  onChange={() => onToggleColumn(col)}
+                  data-column-key={col}
+                />
+                {COLUMN_LABEL[col]}
+                {isColumnLocked(col) && (
+                  <span aria-hidden="true" className={styles.requiredMarker}>
+                    {' '}
+                    *
+                  </span>
+                )}
               </label>
             ))}
           </div>
+          <p id={requiredHintId} className={styles.columnToggleRequiredHint}>
+            * {t('sourceReports.editable.allocatedAmountRequiredHint')}
+          </p>
         </div>
       </div>
-      <div className={styles.tableWrapper}>
+      {!show('usage') && attachDocuments && (
+        <div className={sharedStyles.bannerWarning} role="status">
+          {t('sourceReports.editable.usageHiddenAttachmentsWarning')}
+        </div>
+      )}
+      <div className={styles.tableWrapper} lang={lang}>
         <table className={styles.table}>
-          <thead>
+          <thead lang={lang}>
             <tr>
               {show('vendor') && <th>{content.labels.vendor}</th>}
               {show('invoiceNumber') && <th>{content.labels.invoiceNumber}</th>}
@@ -317,6 +467,16 @@ export function ReportContentEditor({
                       }
                       isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
                       onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
+                      lang={lang}
+                      uiLang={uiLang}
+                      maxLength={USAGE_TEXT_MAX_LENGTH}
+                      maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                        max: USAGE_TEXT_MAX_LENGTH,
+                      })}
+                      overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+                      maxLengthReachedAnnouncement={t(
+                        'sourceReports.editable.maxLengthReachedAnnouncement',
+                      )}
                     />
                     {(row.areaText || row.attachmentsNote) && (
                       <div className={styles.usageMetaText}>
@@ -332,7 +492,7 @@ export function ReportContentEditor({
       </div>
 
       {/* Mobile Card List */}
-      <div className={styles.mobileCardList}>
+      <div className={styles.mobileCardList} lang={lang}>
         {content.rows.map((row) => (
           <div key={row.invoiceId} className={styles.mobileCard}>
             {show('vendor') && (
@@ -426,6 +586,16 @@ export function ReportContentEditor({
                   }
                   isEdited={isFieldEdited(overrideKey.row(row.invoiceId).usageText)}
                   onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
+                  lang={lang}
+                  uiLang={uiLang}
+                  maxLength={USAGE_TEXT_MAX_LENGTH}
+                  maxLengthHint={t('sourceReports.editable.maxLengthHint', {
+                    max: USAGE_TEXT_MAX_LENGTH,
+                  })}
+                  overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
+                  maxLengthReachedAnnouncement={t(
+                    'sourceReports.editable.maxLengthReachedAnnouncement',
+                  )}
                 />
                 {(row.areaText || row.attachmentsNote) && (
                   <span className={styles.usageMetaText}>
@@ -440,7 +610,7 @@ export function ReportContentEditor({
 
       {/* Summary Rows */}
       {content.summaryRows.length > 0 && (
-        <table className={styles.summaryTable}>
+        <table className={styles.summaryTable} lang={lang}>
           <tbody>
             {content.summaryRows.map((row) => (
               <tr key={row.key}>
@@ -454,12 +624,11 @@ export function ReportContentEditor({
 
       {/* Footnotes */}
       {content.footnotes.length > 0 && (
-        <div className={styles.footnotes}>
+        <div className={styles.footnotes} lang={lang}>
           <ul>
             {content.footnotes.map((note) => (
               <li key={note.id}>
-                <span className={styles.footnoteMarker}>{note.marker}:</span>
-                {note.text}
+                <span className={styles.footnoteMarker}>{note.marker}:</span> {note.text}
               </li>
             ))}
           </ul>

@@ -5,7 +5,7 @@
  * sourceReportService.test.ts) — the interesting behavior of this service is how it assembles
  * GenerateReportContentLlmInput from real DB rows (filtering, truncation, includedTotal math,
  * linked-item enrichment), so the DB layer is NOT mocked. The LLM provider itself IS mocked (via
- * jest.unstable_mockModule on './budgetExtraction/index.js') so tests can assert directly on the
+ * jest.unstable_mockModule on './llmGateway/index.js') so tests can assert directly on the
  * exact `input` object handed to `provider.generateReportContent(input)` and control its return
  * value precisely — this is a cleaner seam than stubbing globalThis.fetch and parsing prompt text,
  * and it keeps this file scoped to reportContentGenerationService.ts's own orchestration logic
@@ -39,7 +39,7 @@ import type {
   BudgetExtractionProvider,
   GenerateReportContentLlmInput,
   GenerateReportContentLlmResult,
-} from './budgetExtraction/types.js';
+} from './llmGateway/types.js';
 import type * as ReportContentGenerationServiceModule from './reportContentGenerationService.js';
 
 // ─── Mock the LLM provider seam (getProvider) ─────────────────────────────────
@@ -48,7 +48,7 @@ const mockProviderGenerateReportContent =
   jest.fn<(input: GenerateReportContentLlmInput) => Promise<GenerateReportContentLlmResult>>();
 const mockGetProvider = jest.fn<(config: AppConfig) => BudgetExtractionProvider>();
 
-jest.unstable_mockModule('./budgetExtraction/index.js', () => ({
+jest.unstable_mockModule('./llmGateway/index.js', () => ({
   getProvider: mockGetProvider,
 }));
 
@@ -103,6 +103,8 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmProvider: 'openai',
     autoItemizeEnabled: true,
     llmEnabled: true,
+    authRateLimitMax: 20,
+    authRateLimitWindow: '15 minutes',
     ...overrides,
   };
 }

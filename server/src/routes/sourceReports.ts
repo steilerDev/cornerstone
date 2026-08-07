@@ -6,6 +6,7 @@ import type {
   SourceReportType,
   MarkClaimedRequest,
   GenerateReportContentRequest,
+  GenerateReportContentResponse,
 } from '@cornerstone/shared';
 
 export default async function sourceReportRoutes(fastify: FastifyInstance) {
@@ -162,7 +163,11 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const result = await generateReportContent(fastify.db, fastify.config, request.body);
+      const result: GenerateReportContentResponse = await generateReportContent(
+        fastify.db,
+        fastify.config,
+        request.body,
+      );
 
       return reply.status(200).send(result);
     },

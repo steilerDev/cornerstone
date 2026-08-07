@@ -1,9 +1,10 @@
 /**
- * Unit and integration tests for budgetExtraction/index.ts
+ * Unit and integration tests for llmGateway/index.ts
  *
  * Tests cover:
- * - getProvider() with autoItemizeEnabled: true returns a BudgetExtractionProvider
- * - getProvider() with autoItemizeEnabled: false throws LlmNotConfiguredError
+ * - getProvider() with llmEnabled: true returns a BudgetExtractionProvider
+ * - getProvider() with llmEnabled: false throws LlmNotConfiguredError
+ * - The gate checks llmEnabled specifically (not autoItemizeEnabled)
  * - The returned provider's extract() method calls fetch end-to-end (smoke test)
  * - Re-exports are available (validateExtractedLines, createOpenAICompatibleProvider)
  */
@@ -44,6 +45,8 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmProvider: 'generic',
     autoItemizeEnabled: false,
     llmEnabled: false,
+    authRateLimitMax: 20,
+    authRateLimitWindow: '15 minutes',
     ...overrides,
   };
 }
@@ -83,14 +86,14 @@ const fetchSpy = mockFetch;
 // ─── getProvider() ────────────────────────────────────────────────────────────
 
 describe('getProvider()', () => {
-  it('throws LlmNotConfiguredError when autoItemizeEnabled is false', () => {
-    const config = makeConfig({ autoItemizeEnabled: false });
+  it('throws LlmNotConfiguredError when llmEnabled is false', () => {
+    const config = makeConfig({ llmEnabled: false });
 
     expect(() => getProvider(config)).toThrow(LlmNotConfiguredError);
   });
 
   it('LlmNotConfiguredError has code LLM_NOT_CONFIGURED', () => {
-    const config = makeConfig({ autoItemizeEnabled: false });
+    const config = makeConfig({ llmEnabled: false });
 
     try {
       getProvider(config);
@@ -101,7 +104,7 @@ describe('getProvider()', () => {
   });
 
   it('LlmNotConfiguredError has statusCode 503', () => {
-    const config = makeConfig({ autoItemizeEnabled: false });
+    const config = makeConfig({ llmEnabled: false });
 
     try {
       getProvider(config);
@@ -111,8 +114,24 @@ describe('getProvider()', () => {
     }
   });
 
-  it('returns a provider object when autoItemizeEnabled is true', () => {
+  it('throws when llmEnabled is false even if autoItemizeEnabled is true', () => {
+    // The gate is llmEnabled, not autoItemizeEnabled — verify the discriminating case
+    const config = makeConfig({ llmEnabled: false, autoItemizeEnabled: true });
+
+    expect(() => getProvider(config)).toThrow(LlmNotConfiguredError);
+  });
+
+  it('returns a provider object when llmEnabled is true', () => {
     const config = makeLlmConfig();
+    const provider = getProvider(config);
+
+    expect(provider).toBeDefined();
+    expect(typeof provider.extract).toBe('function');
+  });
+
+  it('returns a provider when llmEnabled is true even if autoItemizeEnabled is false', () => {
+    // autoItemizeEnabled is a separate flag; the gateway gate is llmEnabled only
+    const config = makeLlmConfig({ llmEnabled: true, autoItemizeEnabled: false });
     const provider = getProvider(config);
 
     expect(provider).toBeDefined();

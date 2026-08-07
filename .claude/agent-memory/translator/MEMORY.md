@@ -102,9 +102,28 @@ New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + depos
 - [NBSP for inline labels](nbsp-inline-labels.md) — multi-word inline PDF labels need U+00A0, not a regular space, or pdfmake wraps mid-bracket; includes the ad-hoc real-render/pdftoppm verification recipe
 - [Abschlag glossary short-form](abschlag-glossary-shortform.md) — PO-approved `Abschlag` short form recorded IN glossary.json (75pt column has no room for any qualifier); `split`'s 3 German forms deliberately un-pinned
 
+## Inline Label Quoting (Issue #1973, 2026-08-05)
+
+- [Inline label quoting](inline-label-quoting-1973.md) — „...\" (curly open, straight close) is the established codebase convention for naming a UI label inline in a sentence; cross-check the referenced label's own translation, don't re-translate the noun independently
+
+## Non-Mandatory Register / sr-only Hints (Issue #1941, 2026-08-06)
+
+- [Non-mandatory register](non-mandatory-register-1941.md) — no semicolon anywhere in de locale files, use en dash "–" as clause joiner instead; avoid "Grenze"/negated "müssen" when spec bans error-blame framing; sr-only strings have no pixel budget
+
 ## Audit Protocol History
 
 - [Audit pitfalls](audit-pitfalls.md) — incident history behind the mandatory 4-step full-coverage audit protocol: a parity-only audit missed 13 code-referenced keys (Area UI raw-key bug); loose substring greps flagged 52 false positives
+
+## PDF Column Header Short Forms Under Width Constraint (Issue #1937, 2026-08-04)
+
+`sourceReports.table.vendor` ("Auftragnehmer", 13 chars, 67.5pt) overflows its 45pt column. `sourceReports.table.invoiceAmount` ("Rechnungsbetrag", 15 chars, 78.66pt) overflows its 48pt column. Font: Roboto Bold 10pt, avg ~5.19pt/char from "Auftragnehmer" measurement.
+
+Fixes applied (following the Abschlag measured-space-constraint precedent):
+
+- `vendor`: "Auftragnehmer" → **"Firma"** (5 chars, ~26pt). Rationale: no standard German abbreviation of "Auftragnehmer" fits within 8 chars without ambiguity ("Auftr." could be Auftraggeber). "Firma" (company/firm) is universally clear to any German bank employee; column content (actual company names) makes context self-evident. Glossary note: this is a PDF column-header short form under a measured constraint — "Auftragnehmer" remains the canonical term everywhere else.
+- `invoiceAmount`: "Rechnungsbetrag" → **"Betrag"** (6 chars, ~27pt). Rationale: no abbreviation of "Rechnungsbetrag" fits in 9 chars in a `Rechnungsnr.`-style form. "Betrag" (amount) is universally clear; it is unambiguous adjacent to "Zugeordneter Betrag" (allocated amount column), which remains unchanged per AC5.
+
+General rule: when a glossary term overshoots a measured PDF column, prefer the shortest universally-understood German synonym or generic noun over a coined abbreviation that lacks standard status.
 
 ## Cover Letter Signature Block Keys (Issue #1932, 2026-08-02)
 

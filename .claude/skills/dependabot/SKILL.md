@@ -99,37 +99,33 @@ For each alert, match on `package` name + `manifest` path against the PR's title
 
 Alerts with no matching open PR are `ORPHAN` and handled in step 6.
 
-### 3. Changelog Analysis (mandatory before any merge or fix)
+### 3. Changelog Analysis (mandatory before any merge or fix; tiered)
 
-For every PR (both `READY` and `FAILING`), run the changelog analysis once. **Launch both agents in parallel** using a single message with two `Agent` tool calls:
+For every PR (both `READY` and `FAILING`), run the changelog analysis once — at the tier the bump warrants:
 
-- **security-engineer**:
-  - Inputs: PR number, package name, version range, linked GHSA/CVE IDs (from the alert correlation in step 2b)
-  - Tasks: (1) confirm the bump addresses the linked advisory by checking the package's release notes against the `first_patched_version`; (2) review the PR's `package-lock.json` diff for any newly introduced transitive dependencies and flag CVEs against those.
-  - Returns: severity-rated verdict — `CLEAR`, `INFORMATIONAL`, or `BLOCKING` with rationale.
+**Tier 1 — patch/minor bump of a devDependency, green CI, no linked security alert**: the orchestrator reviews the changelog itself (`gh release view <tag> --repo <upstream>` or WebFetch of the package changelog) — **no agent launch**. Look only for `BREAKING` lines and surprises; if none, proceed to step 4 (merge). If anything looks breaking or unclear, escalate to Tier 2.
 
-- **product-architect**:
-  - Inputs: PR number, package name, version range
-  - Tasks: fetch release notes for every version in the range. Use `gh release view <tag> --repo <upstream>` for GitHub-hosted projects, or `WebFetch` on the package's CHANGELOG / homepage / npm page for others.
-  - Categorize each notable line into one of:
-    - `BREAKING` — code in this repo will break or behave differently. Cite the exact call site (file + line) when possible.
-    - `BUGFIX_RELEVANT` — fixes a bug we have hit or could plausibly hit
-    - `ADOPTION_OPPORTUNITY` — new API or capability that would benefit Cornerstone. Name the code path that should adopt it.
-    - `NEUTRAL` — no impact
+**Tier 2 — everything else** (runtime dependencies, major bumps, or any linked GHSA/CVE): launch a **single security-engineer** agent:
 
-  - Returns: structured report with the four categories.
+- Inputs: PR number, package name, version range, linked GHSA/CVE IDs (from the alert correlation in step 2b)
+- Tasks: (1) confirm the bump addresses any linked advisory by checking the release notes against the `first_patched_version`; (2) review the PR's `package-lock.json` diff for newly introduced transitive dependencies and flag CVEs against those; (3) fetch release notes for every version in the range and categorize each notable line:
+  - `BREAKING` — code in this repo will break or behave differently. Cite the exact call site (file + line) when possible.
+  - `BUGFIX_RELEVANT` — fixes a bug we have hit or could plausibly hit
+  - `ADOPTION_OPPORTUNITY` — new API or capability that would benefit Cornerstone. Name the code path that should adopt it.
+  - `NEUTRAL` — no impact
+- Returns: severity-rated security verdict (`CLEAR` / `INFORMATIONAL` / `BLOCKING`) plus the categorized changelog report.
 
-Collect both reports. Decide:
+Decide:
 
 - `BLOCKING` security verdict OR any `BREAKING` finding → route the PR to step 5 (treat as failing) regardless of CI state, so the team can patch call sites before merging.
-- `ADOPTION_OPPORTUNITY` findings → queue for step 7 (one batched follow-up issue per package). Do not add inline adoption commits to the Dependabot branch — keeps the bump PR focused and the adoption work reviewable independently.
+- `ADOPTION_OPPORTUNITY` findings → queue for step 7 (one batched follow-up issue per run). Do not add inline adoption commits to the Dependabot branch — keeps the bump PR focused and the adoption work reviewable independently.
 - All other cases → proceed to step 4 (merge).
 
 ### 4. Process READY PRs
 
 For each `READY` PR with no `BREAKING` or `BLOCKING` findings from step 3:
 
-1. Post a consolidated approve review summarising both analyses:
+1. Post a consolidated approve review summarising the step-3 analysis (Tier 1: the orchestrator's changelog check; Tier 2: the security-engineer's report):
 
    ```bash
    gh pr review <PR> --repo steilerDev/cornerstone --approve --body "$(cat <<'EOF'
@@ -301,7 +297,7 @@ After each alert (merged, blocked, or recommended for dismissal): return to the 
 
 ### 7. File adoption-opportunity follow-ups
 
-Aggregate every `ADOPTION_OPPORTUNITY` finding from step 3, grouped by package. For each package with at least one opportunity, file one issue:
+Aggregate every `ADOPTION_OPPORTUNITY` finding from step 3 into **one issue for the whole run** (sections per package) — not one issue per package; a scattered trail of small adoption issues is exactly the follow-up churn this repo is trying to eliminate. Skip entirely if there are no opportunities. File it as:
 
 ```bash
 gh issue create --repo steilerDev/cornerstone --label enhancement --title "Adopt new capabilities from <package> <version>" --body "$(cat <<'EOF'

@@ -420,6 +420,9 @@ export type {
   HouseholdSettingsResponse,
 } from './types/settings.js';
 
+// Source Report Math
+export { computeIncludedTotal } from './lib/reportMath.js';
+
 // Source Reports
 export type {
   SourceReportType,

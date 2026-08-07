@@ -4,7 +4,7 @@
  * applyOverrides is a pure function: given a baseline ReportContent and a flat
  * ReportContentOverrides map, it returns a NEW ReportContent with the recognized override keys
  * applied, without mutating the input. Recognized keys: coverLetter.{sender,recipient,reference,
- * subject,body} and row.<invoiceId>.{usageText,attachmentsNote}. Unknown keys are silently
+ * subject,body,signature} and row.<invoiceId>.usageText. Unknown keys are silently
  * ignored. Overriding coverLetter.sender recomputes coverLetter.signature.
  */
 import { describe, it, expect } from '@jest/globals';
@@ -50,6 +50,13 @@ function makeLabels(): ReportContent['labels'] {
     sourceType: 'Source Type',
     reference: 'Reference',
     generatedAt: 'Generated At',
+    pageLabel: 'Page',
+    coverLetterReferenceLabel: 'Cover Letter Reference',
+    coverLetterSubjectLabel: 'Cover Letter Subject',
+    skipReasonLabels: {
+      footnoteFetchFailed: 'Footnote Fetch Failed',
+      footnoteInvalidPdf: 'Footnote Invalid PDF',
+    },
   };
 }
 
@@ -291,20 +298,6 @@ describe('applyOverrides — row overrides', () => {
     expect(result.rows.find((r) => r.invoiceId === 'inv-b')!.usageText).toBe('B baseline');
   });
 
-  it('overrides attachmentsNote with a non-empty string', () => {
-    const row = makeRow({ attachmentsNote: '1 attachment: Invoice' });
-    const content = makeContent({ rows: [row] });
-    const result = applyOverrides(content, { 'row.inv-1.attachmentsNote': 'Edited note' });
-    expect(result.rows[0]!.attachmentsNote).toBe('Edited note');
-  });
-
-  it('overriding attachmentsNote with an empty string coerces it to null', () => {
-    const row = makeRow({ attachmentsNote: '1 attachment: Invoice' });
-    const content = makeContent({ rows: [row] });
-    const result = applyOverrides(content, { 'row.inv-1.attachmentsNote': '' });
-    expect(result.rows[0]!.attachmentsNote).toBeNull();
-  });
-
   it('overriding usageText with an empty string coerces it to an empty string (never null)', () => {
     const content = makeContent();
     const result = applyOverrides(content, { 'row.inv-1.usageText': '' });
@@ -318,15 +311,23 @@ describe('applyOverrides — row overrides', () => {
     expect(result.rows[0]!.usageText).toBe(content.rows[0]!.usageText);
   });
 
-  it('applies both usageText and attachmentsNote overrides for the same row together', () => {
-    const row = makeRow({ attachmentsNote: 'baseline note' });
-    const content = makeContent({ rows: [row] });
-    const result = applyOverrides(content, {
-      'row.inv-1.usageText': 'Edited usage',
-      'row.inv-1.attachmentsNote': 'Edited note',
-    });
-    expect(result.rows[0]!.usageText).toBe('Edited usage');
-    expect(result.rows[0]!.attachmentsNote).toBe('Edited note');
+  it('silently ignores the row.attachmentsNote key (dead since #1959)', () => {
+    // Arrange: content with an invoice row where attachmentsNote is null (the default)
+    const content = makeContent();
+    // Act: call applyOverrides with the attachmentsNote key — no `in`-check exists for it in
+    // applyOverrides.ts, so it cannot update any row field
+    const result = applyOverrides(content, { 'row.inv-1.attachmentsNote': 'some-override' });
+    // Assert: attachmentsNote is still null — the key is silently ignored
+    expect(result.rows[0]!.attachmentsNote).toBeNull();
+  });
+
+  it('still applies usageText override (positive control for remaining field coverage)', () => {
+    // Arrange: content with an invoice row
+    const content = makeContent();
+    // Act: apply the usageText key — it IS in the `in`-check inside applyOverrides.ts
+    const result = applyOverrides(content, { 'row.inv-1.usageText': 'positive-control' });
+    // Assert: the field was updated — proves the row-loop is still wired up correctly
+    expect(result.rows[0]!.usageText).toBe('positive-control');
   });
 });
 

@@ -1,7 +1,7 @@
 /**
  * Apply user overrides to baseline ReportContent.
  * Pure function: returns a new ReportContent without mutating the input.
- * Recognized override keys: coverLetter.{sender,recipient,reference,subject,body,signature}, row.<id>.{usageText,attachmentsNote}
+ * Recognized override keys: coverLetter.{sender,recipient,reference,subject,body,signature}, row.<id>.usageText
  * Unknown keys are silently ignored.
  * When sender is overridden, signature is recomputed from it UNLESS signature has itself been
  * explicitly overridden — an explicit signature override always wins (AC 2.6).
@@ -85,9 +85,6 @@ export function applyOverrides(
 
     if (rowKeys.usageText in overrides) {
       row.usageText = overrides[rowKeys.usageText] || '';
-    }
-    if (rowKeys.attachmentsNote in overrides) {
-      row.attachmentsNote = overrides[rowKeys.attachmentsNote] || null;
     }
   }
 

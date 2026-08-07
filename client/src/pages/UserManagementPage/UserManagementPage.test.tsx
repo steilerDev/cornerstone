@@ -8,6 +8,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { ReactNode } from 'react';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
@@ -83,9 +84,11 @@ let UserManagementPage: any;
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/settings/users']}>
-      <UserManagementPage />
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter initialEntries={['/settings/users']}>
+        <UserManagementPage />
+      </MemoryRouter>
+    </ToastProvider>,
   );
 }
 

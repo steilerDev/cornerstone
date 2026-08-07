@@ -6,19 +6,17 @@
  * already-built `ReportContent` (whose `.coverLetter` is non-null — guaranteed by the caller,
  * merge.ts, which only invokes this when `reportContent.coverLetter` exists):
  *
- *   buildCoverLetterContent(reportContent: ReportContent, t: TFunction): Content[]
+ *   buildCoverLetterContent(reportContent: ReportContent): Content[]
  *
  * All field derivation (sender/recipient/dateLine/reference/subject/body/signature) now lives in
  * buildReportContent.ts (see buildReportContent.test.ts) — this file only lays out the
- * already-derived ReportContentCoverLetter fields into pdfmake Content[], plus the two sanctioned
- * reportT() label-prefix exceptions (Reference:/Subject:).
+ * already-derived ReportContentCoverLetter fields into pdfmake Content[], using the two label
+ * fields in reportContent.labels (coverLetterReferenceLabel / coverLetterSubjectLabel) for the
+ * Reference: / Subject: prefixes (AC7, #2001: these labels come from labels, NOT from t()).
  */
 import { describe, it, expect } from '@jest/globals';
-import type { TFunction } from 'i18next';
 import type { ReportContent, ReportContentCoverLetter } from '../reportContent/index.js';
 import { buildCoverLetterContent } from './coverLetterPdf.js';
-
-const t = ((key: string) => key) as unknown as TFunction;
 
 function makeCoverLetter(
   overrides: Partial<ReportContentCoverLetter> = {},
@@ -57,6 +55,13 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       sourceType: 'Source Type',
       reference: 'Reference',
       generatedAt: 'Generated At',
+      pageLabel: 'Page',
+      coverLetterReferenceLabel: 'Reference',
+      coverLetterSubjectLabel: 'Subject',
+      skipReasonLabels: {
+        footnoteFetchFailed: 'FetchFailed-label',
+        footnoteInvalidPdf: 'InvalidPdf-label',
+      },
     },
     sourceInfo: {
       sourceName: 'Home Loan',
@@ -75,7 +80,7 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
 describe('buildCoverLetterContent — guarded by caller (coverLetter non-null)', () => {
   it('returns an empty array if coverLetter happens to be null (defensive, though the caller guarantees non-null)', () => {
     const content = makeContent({ coverLetter: null });
-    expect(buildCoverLetterContent(content, t)).toEqual([]);
+    expect(buildCoverLetterContent(content)).toEqual([]);
   });
 });
 
@@ -84,7 +89,7 @@ describe('buildCoverLetterContent — sender block', () => {
     const content = makeContent({
       coverLetter: makeCoverLetter({ sender: 'The Smiths\n123 Main St' }),
     });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     const senderItem = result.find(
       (c) =>
         typeof c === 'object' && c !== null && 'text' in c && c.text === 'The Smiths\n123 Main St',
@@ -94,7 +99,7 @@ describe('buildCoverLetterContent — sender block', () => {
 
   it('omits the sender block entirely when sender is an empty string (household absent)', () => {
     const content = makeContent({ coverLetter: makeCoverLetter({ sender: '' }) });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     // Only the fixed dateLine/subject/body blocks remain; no empty-text sender item is pushed.
     const senderCandidates = result.filter(
       (c) =>
@@ -107,7 +112,7 @@ describe('buildCoverLetterContent — sender block', () => {
 describe('buildCoverLetterContent — recipient block', () => {
   it('renders the recipient text when present', () => {
     const content = makeContent({ coverLetter: makeCoverLetter({ recipient: '456 Bank Ave' }) });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     const recipientItem = result.find(
       (c) => typeof c === 'object' && c !== null && 'text' in c && c.text === '456 Bank Ave',
     );
@@ -116,7 +121,7 @@ describe('buildCoverLetterContent — recipient block', () => {
 
   it('omits the recipient block when recipient is null', () => {
     const content = makeContent({ coverLetter: makeCoverLetter({ recipient: null }) });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     const recipientItem = result.find(
       (c) => typeof c === 'object' && c !== null && 'text' in c && c.text === '456 Bank Ave',
     );
@@ -127,7 +132,7 @@ describe('buildCoverLetterContent — recipient block', () => {
 describe('buildCoverLetterContent — date line (read-only)', () => {
   it('renders coverLetter.dateLine verbatim (no re-formatting in this layer)', () => {
     const content = makeContent({ coverLetter: makeCoverLetter({ dateLine: 'date(2026-03-01)' }) });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     const dateItem = result.find(
       (c) => typeof c === 'object' && c !== null && 'text' in c && c.text === 'date(2026-03-01)',
     );
@@ -138,17 +143,17 @@ describe('buildCoverLetterContent — date line (read-only)', () => {
 describe('buildCoverLetterContent — reference line (sanctioned reportT label prefix)', () => {
   it('renders "Reference: <value>" when reference is present', () => {
     const content = makeContent({ coverLetter: makeCoverLetter({ reference: 'REF-42' }) });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     const refItem = result.find(
       (c) =>
         typeof c === 'object' && c !== null && 'text' in c && String(c.text).includes('REF-42'),
     ) as { text: string } | undefined;
-    expect(refItem?.text).toBe('sourceReports.coverLetter.reference: REF-42');
+    expect(refItem?.text).toBe('Reference: REF-42');
   });
 
   it('omits the reference line when reference is null', () => {
     const content = makeContent({ coverLetter: makeCoverLetter({ reference: null }) });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     const refItem = result.find(
       (c) =>
         typeof c === 'object' && c !== null && 'text' in c && String(c.text).includes('REF-42'),
@@ -166,7 +171,7 @@ describe('buildCoverLetterContent — reference line (sanctioned reportT label p
       },
       coverLetter: makeCoverLetter({ reference: 'LETTER-REF' }),
     });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     const refItem = result.find(
       (c) =>
         typeof c === 'object' && c !== null && 'text' in c && String(c.text).includes('LETTER-REF'),
@@ -179,19 +184,19 @@ describe('buildCoverLetterContent — reference line (sanctioned reportT label p
 describe('buildCoverLetterContent — subject and body (always rendered, already-derived text)', () => {
   it('renders "Subject: <text>" verbatim', () => {
     const content = makeContent({ coverLetter: makeCoverLetter({ subject: 'My Subject' }) });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     const subjectItem = result.find(
       (c) =>
         typeof c === 'object' && c !== null && 'text' in c && String(c.text).includes('My Subject'),
     ) as { text: string } | undefined;
-    expect(subjectItem?.text).toBe('sourceReports.coverLetter.subjectLabel: My Subject');
+    expect(subjectItem?.text).toBe('Subject: My Subject');
   });
 
   it('renders the body text verbatim (already interpolated once at build time)', () => {
     const content = makeContent({
       coverLetter: makeCoverLetter({ body: 'Already interpolated €500.00 body' }),
     });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     const bodyItem = result.find(
       (c) =>
         typeof c === 'object' &&
@@ -214,7 +219,7 @@ describe('buildCoverLetterContent — signature block (closing + signature, AC 2
     const content = makeContent({
       coverLetter: makeCoverLetter({ closing: 'Sincerely,', signature: 'The Smiths' }),
     });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
 
     const closingIndex = result.findIndex(
       (c) =>
@@ -251,7 +256,7 @@ describe('buildCoverLetterContent — signature block (closing + signature, AC 2
     const content = makeContent({
       coverLetter: makeCoverLetter({ closing: 'Sincerely,', signature: '' }),
     });
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
 
     const closingItem = result.find(
       (c) => typeof c === 'object' && c !== null && 'text' in c && c.text === 'Sincerely,',
@@ -275,7 +280,7 @@ describe('buildCoverLetterContent — signature block (closing + signature, AC 2
 describe('buildCoverLetterContent — structure', () => {
   it('always ends with a trailing page break before the overview section', () => {
     const content = makeContent();
-    const result = buildCoverLetterContent(content, t);
+    const result = buildCoverLetterContent(content);
     expect(result[result.length - 1]).toEqual({ text: '', pageBreak: 'after' });
   });
 
@@ -292,8 +297,35 @@ describe('buildCoverLetterContent — structure', () => {
     });
     let result: ReturnType<typeof buildCoverLetterContent> | undefined;
     expect(() => {
-      result = buildCoverLetterContent(content, t);
+      result = buildCoverLetterContent(content);
     }).not.toThrow();
     expect(result!.length).toBeGreaterThan(0);
+  });
+});
+
+describe('AC7 — label strings come from reportContent.labels, not TFunction (#2001)', () => {
+  it('reference prefix uses labels.coverLetterReferenceLabel, not t() key resolution', () => {
+    const content = makeContent({
+      labels: { ...makeContent().labels, coverLetterReferenceLabel: 'LABEL-REF-SENTINEL' },
+      coverLetter: makeCoverLetter({ reference: 'R-999' }),
+    });
+    const result = buildCoverLetterContent(content);
+    const refItem = result.find(
+      (c) => typeof c === 'object' && c !== null && 'text' in c && String(c.text).includes('R-999'),
+    ) as { text: string } | undefined;
+    expect(refItem?.text).toBe('LABEL-REF-SENTINEL: R-999');
+  });
+
+  it('subject prefix uses labels.coverLetterSubjectLabel, not t() key resolution', () => {
+    const content = makeContent({
+      labels: { ...makeContent().labels, coverLetterSubjectLabel: 'LABEL-SUBJ-SENTINEL' },
+      coverLetter: makeCoverLetter({ subject: 'My Subject' }),
+    });
+    const result = buildCoverLetterContent(content);
+    const subjectItem = result.find(
+      (c) =>
+        typeof c === 'object' && c !== null && 'text' in c && String(c.text).includes('My Subject'),
+    ) as { text: string } | undefined;
+    expect(subjectItem?.text).toBe('LABEL-SUBJ-SENTINEL: My Subject');
   });
 });

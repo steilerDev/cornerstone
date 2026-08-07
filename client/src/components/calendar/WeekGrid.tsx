@@ -18,6 +18,7 @@ import type {
   TimelineHouseholdItem,
 } from '@cornerstone/shared';
 import { useLocale } from '../../contexts/LocaleContext.js';
+import { toBcp47Locale } from '../../lib/formatters.js';
 import { CalendarItem, LANE_HEIGHT_FULL } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
 import { CalendarHouseholdItem } from './CalendarHouseholdItem.js';
@@ -91,7 +92,7 @@ export function WeekGrid({
   onTouchTap,
 }: WeekGridProps) {
   const { resolvedLocale } = useLocale();
-  const localeString = resolvedLocale === 'de' ? 'de-DE' : 'en-US';
+  const localeString = toBcp47Locale(resolvedLocale);
   const { t } = useTranslation('schedule');
   const days = useMemo(() => getWeekDates(weekDate), [weekDate]);
 

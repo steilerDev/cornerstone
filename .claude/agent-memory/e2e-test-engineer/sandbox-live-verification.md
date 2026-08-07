@@ -75,6 +75,22 @@ CSP header itself, via a raw `curl`/`page.request` HTTP check that doesn't need 
 plus code-reasoning for the browser-rendering part, and document the CI expectation explicitly
 — this is what Story #1891's CSP-hardening verification did.
 
+## Re-confirmed 2026-08-06 (Issue #2030 session, no container build attempted)
+
+`npx playwright install chromium` still 403s identically on all three mirrors
+(`cdn.playwright.dev`, its `dbazure` path, `playwright.download.prss.microsoft.com`) —
+`no matching allow rule — blocked by default deny policy`. `chromium-browser --version` still
+fails with the same `requires the chromium snap to be installed` message, and there is still no
+`snapd` socket/service (`systemctl status snapd` → "System has not been booted with systemd as
+init system"). This means a mutation-test AC ("change production code, confirm the E2E test goes
+red, revert, confirm byte-identical") cannot be executed live in this sandbox class — do the
+edit/observe-would-fail-by-code-reading/revert cycle instead, verify the revert is byte-identical
+via `git diff`/`git status` (that part *is* mechanically provable), and state the live-red
+confirmation as deferred to CI in the report. Did not attempt the `dhi.io` container build this
+session (task didn't need it — pure E2E test-file edits, no app change), so that half of the
+2026-07-30 finding is unverified this round; re-attempt it fresh next time a task needs it rather
+than assuming either outcome.
+
 ## Practical technique: overriding the browser executable without touching committed config
 
 If a real Chromium binary ever IS available (e.g. `sbx policy allow` was granted, or a cached

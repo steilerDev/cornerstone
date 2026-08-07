@@ -5,7 +5,7 @@ metadata:
   type: project
 ---
 
-These have been noted in previous reviews. **GitHub Issue #315** tracks items 1-6 (security hygiene backlog story). Items 7+ remain as informational tracking, surfaced again only if directly touched by a future PR.
+**Legacy backlog (pre-2026-08 policy).** Under the current fix-or-block Reviewer Verdict Policy (CLAUDE.md), low-effort findings are fixed in the same PR and deferrals require a filed, justified GitHub issue — this list must not grow. **GitHub Issue #315** tracks items 1-6 (security hygiene backlog story). Items 7+ remain as informational tracking, surfaced again only if directly touched by a future PR.
 
 1. **Rate limiting** (Medium): Add @fastify/rate-limit to login/setup/password endpoints
 2. **Security headers** (Low): Install @fastify/helmet for CSP, HSTS, X-Frame-Options

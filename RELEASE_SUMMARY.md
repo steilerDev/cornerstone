@@ -2,18 +2,26 @@
 
 ## What's New
 
-This release sharpens two of the areas you spend the most time in: the budget overview and invoice auto-itemization. You can now see your budget through a "how much have we spent versus how much is left" lens, and consolidate messy multi-row invoices into clean budget lines before saving. No new configuration or migration steps are required.
+This release is a reliability and polish pass on the bank report wizard -- the PDFs you hand to a lender now render correctly in every case that was previously fragile, from long German descriptions to multi-page tables. It also adds a configurable login rate limit, a "No Category" option for subsidies, and three security fixes.
 
 ### Highlights
 
-- **Cost Basis filter on the Budget Overview** -- The Cost Breakdown table gains a **Cost Basis** dropdown with three views: **All** (the full blended projection, as before), **Paid** (only money that has actually left your account), and **Outstanding** (everything still to pay -- unpaid invoice balances plus not-yet-invoiced projections). It is deposit-aware, so invoices paid in instalments split correctly between Paid and Outstanding, and your choice is saved in the URL for bookmarking and sharing.
-- **Merge line items when auto-itemizing** -- On both the auto-itemize review page and the "create invoice from a Paperless document" flow, you can now select two or more extracted rows and merge them into one consolidated line. Amounts are summed on your own server for exact arithmetic; only the descriptions are sent to the language model to propose a combined name and category. A failed merge can be retried or fully undone -- nothing is destructive until you save.
-- **Diary opens on your own entries** -- The construction diary now defaults to the **Manual** filter, so you land on the entries you actually wrote instead of a feed dominated by auto-generated system events. Switch to **All** or **Automatic** anytime; the choice is reflected in the URL.
+- **Report table columns now flow through to the exported PDF.** The Show/Hide columns you toggle in the wizard preview are respected in the downloaded document, not just the on-screen preview.
+- **Long rows are handled cleanly.** Descriptions that need to continue onto the next page are now clearly marked as continuations instead of reading like truncated or broken rows.
+- **Split invoices are footnoted correctly.** The report now distinguishes an invoice split across budget lines from one split via a deposit tagged to a different source, so the footnote on each row explains the right reason.
+- **Editable fields in the report editor have sensible length limits**, so cover letters and usage descriptions stay within what the PDF layout can safely render.
+- **Fixed German header word-breaks, a missing timestamp on later report pages, and the page footer's locale**, so multi-page German-language reports read correctly throughout.
+- **AI-assisted report generation is now guarded** against switching report type or source while a generation is still in progress, preventing content written for the wrong report from landing in your draft.
+- **Configurable login rate limiting.** New `AUTH_RATE_LIMIT_MAX` and `AUTH_RATE_LIMIT_WINDOW` settings let you tune the login endpoint's rate limit for your household's network setup -- see the [Configuration guide](https://cornerstone.steiler.dev/getting-started/configuration#authentication-rate-limiting).
+- **Subsidies can now include uncategorized items.** A subsidy program's applicable-categories picker gained a "No Category" option, so a subsidy can cover budget lines that have no category assigned.
+- **Budget source drill-down is deposit-aware.** Instalment-paid invoices now show the correct paid and outstanding split when viewed from a financing source.
+- **Failed column-preference saves now surface an error toast** in list views instead of failing silently.
 
-### Behind the Scenes
+### Security
 
-- Auto-itemization now shares a single, harmonized code path between the existing-invoice and new-invoice flows -- no change in behavior, but a more consistent and reliable review experience.
-- Dependency and toolchain updates for security and maintenance, with no user-facing changes.
+- Fixed an IPv6 address-normalization bypass in the login rate limiter (CVE-2026-15144).
+- Remediated a credential-leak/SSRF vulnerability in the `undici` HTTP client (GHSA-g4rg-993r-mgx8).
+- Remediated a vulnerability in the `brace-expansion` dependency (GHSA-rhx6-c78j-4q9w).
 
 ## Upgrade
 

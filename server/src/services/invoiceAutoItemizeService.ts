@@ -31,7 +31,7 @@ import {
   validateExtractedLines,
   computeDueDateFallback,
   mapCategoryNameToId,
-} from './budgetExtraction/index.js';
+} from './llmGateway/index.js';
 import * as paperlessService from './paperlessService.js';
 import * as invoiceBudgetLineService from './invoiceBudgetLineService.js';
 import * as invoiceService from './invoiceService.js';
@@ -326,9 +326,8 @@ export function persistLines(
 
       // Look up the budget line in the appropriate table
       let existingBudgetLine:
-        | typeof workItemBudgets.$inferSelect
-        | typeof householdItemBudgets.$inferSelect
-        | undefined = undefined;
+        typeof workItemBudgets.$inferSelect | typeof householdItemBudgets.$inferSelect | undefined =
+        undefined;
 
       if (extractedLine.assignedBudgetLineType === 'work_item') {
         existingBudgetLine = db

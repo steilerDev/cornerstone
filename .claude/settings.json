@@ -22,7 +22,11 @@
       "Bash(npm run lint:*)",
       "Bash(bash scripts/ci-wait.sh:*)",
       "Bash(bash scripts/board.sh:*)",
-      "Bash(bash scripts/check-trailers.sh:*)"
+      "Bash(bash scripts/check-trailers.sh:*)",
+      "Bash(bash scripts/squash-merge.sh:*)",
+      "Bash(bash scripts/worktree-done.sh:*)",
+      "Bash(node scripts/i18n-audit.mjs)",
+      "Bash(git submodule update:*)"
     ]
   },
   "hooks": {

@@ -2,9 +2,14 @@
  * Overview table PDF content builder.
  * Consumes ReportContent (text only); no data derivation.
  */
-import type { TFunction } from 'i18next';
 import type { Content } from 'pdfmake/build/pdfmake';
-import type { ReportContent, ReportContentRow } from '../reportContent/index.js';
+import type {
+  ReportContent,
+  ReportContentRow,
+  ReportSkipReason,
+  ReportColumnKey,
+} from '../reportContent/index.js';
+import { visibleReportColumns } from '../reportContent/index.js';
 import {
   TABLE_LAYOUT,
   REFUND_TEXT_COLOR,
@@ -32,6 +37,74 @@ const INVOICE_AMOUNT_WIDTH = 48;
 const ALLOCATED_AMOUNT_WIDTH = 75; // value+markers (~57pt) + " (Abschlagszahlung)" badge (72.9pt)
 // both hold; "Zugeordneter Betrag" header wraps at its internal space ("Zugeordneter"=60.42pt,
 // "Betrag"=29.42pt — both < 75pt) so it never needs word-breaking either.
+
+/**
+ * Every column except Usage has a pinned, content-measured width (see the constants above).
+ * Usage is the odd one out: its width is derived per-subset by computeColumnWidths below, never
+ * pinned, which is what FixedColumnKey / PINNED_WIDTHS being Usage-exclusive encodes at the type
+ * level (#1973).
+ */
+type FixedColumnKey = Exclude<ReportColumnKey, 'usage'>;
+const PINNED_WIDTHS: Record<FixedColumnKey, number> = {
+  vendor: VENDOR_WIDTH,
+  invoiceNumber: INVOICE_NUMBER_WIDTH,
+  date: DATE_WIDTH,
+  status: STATUS_WIDTH,
+  invoiceAmount: INVOICE_AMOUNT_WIDTH,
+  allocatedAmount: ALLOCATED_AMOUNT_WIDTH,
+};
+const RIGHT_ALIGNED_COLUMNS: ReadonlySet<ReportColumnKey> = new Set([
+  'invoiceAmount',
+  'allocatedAmount',
+]);
+const LEADING_COLUMNS: readonly ReportColumnKey[] = ['vendor', 'invoiceNumber', 'date', 'status'];
+
+export interface ColumnWidths {
+  widths: Partial<Record<ReportColumnKey, number>>;
+  absorber: ReportColumnKey | null;
+}
+
+/**
+ * The R7 width-absorber algorithm (#1973). For a given ordered visible-column list, the
+ * "absorber" is 'usage' if visible, else 'vendor' if visible, else null (no absorber — every
+ * remaining column is bounded/numeric, so the table renders narrower than the page rather than
+ * wider).
+ *
+ * Provably correct against AC 3.1-3.5 (re-derived here, not merely asserted):
+ * - When an absorber exists: `total = tableOffsetsTotal(n) + fixedSum + (usableColumnWidth(n) -
+ *   fixedSum) = tableOffsetsTotal(n) + usableColumnWidth(n) = printableWidth()` EXACTLY,
+ *   algebraically, for any visible set with an absorber (AC 3.2's 72-subset case).
+ * - When no absorber exists: `total = tableOffsetsTotal(n) + fixedSum(all visible)`, strictly
+ *   less than printableWidth() since no term consumes the remaining slack (AC 3.4's 24-subset
+ *   case).
+ * - Every non-absorber visible column keeps its exact PINNED_WIDTHS value in every case (AC 3.5
+ *   holds by construction).
+ * - Removing any column while 'usage' stays the absorber strictly INCREASES widths.usage (fixedSum
+ *   shrinks by the removed column's pinned width, and usableColumnWidth(n) grows by
+ *   tableOffsetsTotal's per-column increment, 8.5pt) — so the narrowest Usage can ever be, across
+ *   all 96 legal subsets, is USAGE_WIDTH_7COL (138.28pt), reached only at the full 7-column set.
+ */
+export function computeColumnWidths(visible: readonly ReportColumnKey[]): ColumnWidths {
+  const n = visible.length;
+  const absorber: ReportColumnKey | null = visible.includes('usage')
+    ? 'usage'
+    : visible.includes('vendor')
+      ? 'vendor'
+      : null;
+  let fixedSum = 0;
+  const widths: Partial<Record<ReportColumnKey, number>> = {};
+  for (const col of visible) {
+    if (col === absorber) continue;
+    // Every non-absorber column reached here is a genuine FixedColumnKey: 'usage' is only ever
+    // skipped as `absorber` (never appears in this branch), so this narrowly-scoped cast is the
+    // one exception the compliance checklist allows for satisfying PINNED_WIDTHS' exhaustive key
+    // type — do not widen it further.
+    widths[col] = PINNED_WIDTHS[col as FixedColumnKey];
+    fixedSum += widths[col]!;
+  }
+  if (absorber) widths[absorber] = usableColumnWidth(n) - fixedSum;
+  return { widths, absorber };
+}
 
 /**
  * Usage column width (both shapes) — an EXPLICIT NUMERIC width computed from
@@ -322,6 +395,71 @@ export function packUsageCellRows(
 }
 
 /**
+ * Row-total character count for a packed Usage-cell row (sum of every segment's text length).
+ */
+function rowCharCount(row: UsageCellSegment[]): number {
+  return row.reduce((sum, segment) => sum + segment.text.length, 0);
+}
+
+/**
+ * Wraps `packUsageCellRows` with a floor on every continuation row's (row index >= 1) character
+ * count, so a would-be runt remainder never renders as its own near-empty row (#1940 AC1).
+ *
+ * Why the runt check gates the repack rather than always packing at a reduced budget: packing
+ * once at the FULL `maxChars` budget and returning that result untouched whenever no row is a
+ * runt preserves today's exact row counts for everything that already fits one row (AC8) and for
+ * multi-row content that already divides cleanly — both cases are real-render-verified elsewhere
+ * in this file (see MAX_SAFE_USAGE_CHUNK_CHARS). Unconditionally packing at `maxChars -
+ * minTrailingChars` would split some of that content into an extra row for no reason, regressing
+ * the "content at the ceiling renders as one row" behaviour AC8 exists to pin.
+ *
+ * AC2 safety argument (every row this returns fits the page-safe budget it was originally called
+ * with): `packUsageCellRows` guarantees every row it returns is <= the `maxChars` it was called
+ * with. In the repack path here, every raw row from `packUsageCellRows(segments, maxChars -
+ * minTrailingChars)` is therefore <= `maxChars - minTrailingChars`. The backward scan below merges
+ * `rows[i]` into `rows[i - 1]` only when `rowCharCount(rows[i]) < minTrailingChars`, and because
+ * the scan runs backward, `rows[i - 1]` (the receiver) has never yet been grown by an earlier
+ * merge in this same pass when it receives one — so every merge produces a row of size
+ * `(<= maxChars - minTrailingChars) + (< minTrailingChars) < maxChars`, and this bound holds at
+ * any cascade depth (a receiver can itself be merged into its predecessor later in the same
+ * backward pass, but by the same argument applied again).
+ *
+ * Termination: a single backward pass over an array that only shrinks (`splice` removes, never
+ * inserts) — `packUsageCellRows` is invoked exactly once up front and never again inside the loop,
+ * so there is no risk of the repack recursing or re-deriving a smaller and smaller budget.
+ *
+ * The `minTrailingChars <= 0 || minTrailingChars >= maxChars` guard degrades to the plain
+ * `packUsageCellRows` output rather than throwing: unlike `packUsageCellRows`/
+ * `splitIntoPageSafeChunks` (which throw on a non-positive `maxChars` because that budget can
+ * never be survived), a degenerate `minTrailingChars` here just means "no runt-merge floor" is
+ * applicable, and the real caller always derives it as a positive value strictly below the chunk
+ * ceiling — so falling back to unmerged rows is the correct behaviour for an edge case that isn't
+ * expected to occur, rather than crashing a report render over a decoration threshold.
+ */
+export function packUsageCellRowsWithMinimum(
+  segments: UsageCellSegment[],
+  maxChars: number,
+  minTrailingChars: number,
+): UsageCellSegment[][] {
+  if (minTrailingChars <= 0 || minTrailingChars >= maxChars) {
+    return packUsageCellRows(segments, maxChars);
+  }
+  const rawRows = packUsageCellRows(segments, maxChars);
+  const hasRunt = rawRows.slice(1).some((row) => rowCharCount(row) < minTrailingChars);
+  if (!hasRunt) {
+    return rawRows;
+  }
+  const rows = packUsageCellRows(segments, maxChars - minTrailingChars);
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (rowCharCount(rows[i]!) < minTrailingChars) {
+      rows[i - 1] = rows[i - 1]!.concat(rows[i]!);
+      rows.splice(i, 1);
+    }
+  }
+  return rows;
+}
+
+/**
  * A whitespace-free run at or under this many characters is guaranteed to fit on one line within
  * the given column width, EVEN IN THE WORST CASE (every character as wide as 'W'), and renders
  * with pdfmake's default (whitespace-only) wrapping. A run over this length gets
@@ -363,6 +501,53 @@ export const USAGE_SAFE_TOKEN_CHARS_6COL = safeTokenChars(
  * break-all protection rather than an assumption that they always fit.
  */
 export const VENDOR_SAFE_TOKEN_CHARS = safeTokenChars(VENDOR_WIDTH, BODY_WORST_CASE_CHAR_WIDTH_PT);
+
+/** Per-subset Usage safe-token-char threshold (AC 3.6) — same formula as USAGE_SAFE_TOKEN_CHARS_*COL
+ * above, generalized to any Usage width computeColumnWidths produces. */
+export function usageSafeTokenCharsForWidth(usageWidthPt: number): number {
+  return safeTokenChars(usageWidthPt, BODY_WORST_CASE_CHAR_WIDTH_PT);
+}
+
+/**
+ * AC 3.7 one-sided clamp. MAX_SAFE_USAGE_CHUNK_CHARS (650) was measured (see that constant's own
+ * doc comment) against a real render at the 7-column shape's Usage width (USAGE_WIDTH_7COL,
+ * 138.28pt) — the narrowest Usage can ever be across all 96 legal subsets (hiding any column
+ * while Usage stays visible only ever widens it further; see computeColumnWidths' derivation).
+ * Scaling proportionally to width and then clamping to 650 means this budget MAY scale down for a
+ * width narrower than the reference, and MUST NOT scale up for a wider one — required by AC 3.7
+ * specifically so a FUTURE column addition that narrows Usage below today's floor fails safe
+ * instead of silently reinstating the #1929 content-loss defect. No subset in today's 96 legal
+ * combinations reaches the downward branch — it exists for that future case, and must be tested
+ * by calling this function directly with a synthetic width (see QA Spec), not by enumerating
+ * today's subsets. Do not "simplify" this to always return MAX_SAFE_USAGE_CHUNK_CHARS: that would
+ * remove the clamp's entire reason for existing.
+ *
+ * Why the full 7-column shape returns EXACTLY 650 rather than 649: the ratio is exactly 1.0 there,
+ * because computeColumnWidths derives that subset's Usage width via the SAME usableColumnWidth(7)
+ * call USAGE_WIDTH_7COL uses, minus a `fixedSum` that sums the identical six PINNED_WIDTHS values
+ * USAGE_FIXED_SUM_7COL sums. Two computations of `usableColumnWidth(7) - X` are bit-identical
+ * whenever both `X`s are bit-identical (floating-point subtraction is a deterministic function of
+ * its two operands) — so the only question is whether `fixedSum === USAGE_FIXED_SUM_7COL`, and at
+ * this magnitude (six terms, tens of pt each, nowhere near the 52-bit mantissa's limit) that sum is
+ * order-independent REGARDLESS of whether a term is fractional — verified by exhaustively summing
+ * all 720 orderings of the six pinned widths with each one substituted for a non-integer value in
+ * turn: zero divergence. So, unlike an earlier draft of this comment claimed, a fractional pinned
+ * width does NOT threaten this equality on its own; do not trust that framing if it reappears.
+ *
+ * The real fragility is that USAGE_FIXED_SUM_7COL / USAGE_FIXED_SUM_6COL (above) are hand-written
+ * literal sums with no type-level tether to PINNED_WIDTHS or OVERVIEW_COLUMNS/CLAIM_COLUMNS —
+ * unlike PINNED_WIDTHS, which is typed `Record<FixedColumnKey, number>` and forces a compile error
+ * if a column is added without a pinned-width entry, nothing re-checks USAGE_FIXED_SUM_7COL's term
+ * list against the columns it's meant to cover. If a future column addition or removal updates one
+ * without the other, `fixedSum` and USAGE_FIXED_SUM_7COL would sum different term sets — a real,
+ * likely non-trivial divergence (not a subtle rounding nudge) — and THAT is what would silently
+ * break the boundary assertion in overviewPdf.test.ts's AC 3.7 block. Re-check that test, and this
+ * comment, if either constant's term list is ever touched independently of the other.
+ */
+export function usageChunkCharsForWidth(usageWidthPt: number): number {
+  const scaled = Math.floor(MAX_SAFE_USAGE_CHUNK_CHARS * (usageWidthPt / USAGE_WIDTH_7COL));
+  return Math.min(MAX_SAFE_USAGE_CHUNK_CHARS, scaled);
+}
 
 /**
  * Splits `text` into inline pdfmake text runs. Whitespace-free runs at or under `safeTokenChars`
@@ -446,10 +631,9 @@ export const HEADER_ROW_HEIGHT_MAX =
   HEADER_ROW_VERTICAL_PADDING_PT;
 
 /**
- * Every cell-content channel this table renders (buildLeadingCells/buildAmountCells/the row-
- * building loop below), and the bound that closes each one (#1939, product-architect round-4
- * sweep). Documentation only — see the two exceptions called out at the end; neither is fixed
- * here (scope guard: AC7).
+ * Every cell-content channel this table renders (buildBodyCell/the row-building loop below), and
+ * the bound that closes each one (#1939, product-architect round-4 sweep). Documentation only —
+ * see the two exceptions called out at the end; neither is fixed here (scope guard: AC7).
  *
  * - `vendor`            — server `maxLength: 200` (`server/src/routes/vendors.ts` createVendorSchema,
  *                          `name` field). Worst case (VENDOR_SAFE_TOKEN_CHARS break-all, 200 chars
@@ -458,7 +642,7 @@ export const HEADER_ROW_HEIGHT_MAX =
  * - `invoiceNumber`     — server `maxLength: 100` (`server/src/routes/invoices.ts`
  *                          createInvoiceSchema, `invoiceNumber` field). Worst case ~158pt — 74.6%
  *                          margin. NOT routed through buildUsageTextRuns (rendered as a plain
- *                          `contentRow.invoiceNumber` text cell in buildLeadingCells) — see the
+ *                          `contentRow.invoiceNumber` text cell in buildBodyCell) — see the
  *                          exception below.
  * - `statusText`        — enum label via `reportT` (bounded by construction: finite enum of
  *                          translated strings, not user input).
@@ -469,9 +653,9 @@ export const HEADER_ROW_HEIGHT_MAX =
  *                          areaText/attachmentsNote as an inline grey suffix), and that cell's
  *                          whole content stream is packed into page-safe rows by
  *                          packUsageCellRows against MAX_SAFE_USAGE_CHUNK_CHARS. VERTICAL height
- *                          is therefore bounded for all three together. The grey suffix is not
- *                          routed through buildUsageTextRuns, so HORIZONTALLY it is in the same
- *                          recorded-not-fixed class as `invoiceNumber` below.
+ *                          is therefore bounded for all three together. The grey suffix routes
+ *                          through buildUsageTextRuns (per-token break-all), so HORIZONTAL
+ *                          overflow there is also closed (#1968).
  * - `markerText`        — UNBOUNDED. One `*N` footnote marker is appended per skipped document on
  *                          an invoice (see the row-building loop's `skipMarkers` accumulation),
  *                          with no chunking and no word-break, into the 75pt ALLOCATED_AMOUNT_WIDTH
@@ -482,24 +666,37 @@ export const HEADER_ROW_HEIGHT_MAX =
  *                          self-hosted app — not a credible input, and the fix (chunking a
  *                          footnote-marker run) would be pure ceremony against that reachability.
  *
- * Three channels are recorded here without a fix, same class as `markerText` above:
+ * Two channels are recorded here without a fix, same class as `markerText` above:
  * - `invoiceNumber` (see above) does not route through buildUsageTextRuns, so a 100-character
  *   unbroken number would paint outside its 63pt INVOICE_NUMBER_WIDTH column. Interior column,
  *   cosmetic overflow only, capped at 100 by the server schema — recorded, not fixed.
- * - the inline grey `areaText`/`attachmentsNote` suffix (see above) is emitted as ONE run rather
- *   than per-token runs, so an unbroken token in a leaf-area name or note wider than the Usage
- *   column paints outside that cell. Horizontal and cosmetic only (every column is an explicit
- *   numeric width, so no token can widen the table itself — see WORST_CASE_CHAR_ADVANCE_EM reason
- *   (1)); the VERTICAL channel, which is the one that loses content, is closed. Emitting per-token
- *   runs here would also put more than one grey run in a cell, which readers of these cells
- *   currently treat as an invariant violation — recorded, not fixed.
  * - `markerText` (see above) is the one remaining unbounded row-height contributor in this table.
  */
 
+/**
+ * Absolute floor (characters) for a continuation row's runt-merge threshold (#1940 AC1), used as
+ * the lower bound of `Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, usageSafeTokenChars)` below.
+ *
+ * The runt-merge threshold has two different jobs, and this constant is only the second one:
+ * `usageSafeTokenChars` (the per-subset, per-line character budget already computed for word-
+ * break protection) does the main work — it guarantees a merged runt fills at least one real line
+ * at the CURRENT subset's actual width, so "does this look like a real line of content" holds
+ * regardless of which of the 96 legal subsets (#1973) produced it. This constant is the fallback
+ * for the case where that per-line figure is itself very small (a narrow Usage column at a small
+ * font): 20 characters reads as "clearly more than a stray word or character" even in isolation,
+ * independent of any subset's width, so the merge threshold never degrades below a value that
+ * still looks like real content on its own.
+ *
+ * Named and exported (not inlined) per #1950: a numeric threshold that appears in test assertions
+ * needs one source of truth, so a future ux-designer tuning of the floor changes this one constant
+ * rather than silently drifting between production and every test call site that re-derives it.
+ */
+export const MIN_CONTINUATION_ROW_FLOOR_CHARS = 20;
+
 export function buildOverviewContent(
   reportContent: ReportContent,
-  skippedDocuments: Map<string, string[]>,
-  t: TFunction,
+  skippedDocuments: Map<string, ReportSkipReason[]>,
+  hiddenColumns: ReadonlySet<ReportColumnKey> = new Set(),
 ): Content[] {
   const content: Content[] = [];
 
@@ -539,58 +736,66 @@ export function buildOverviewContent(
     });
   }
 
+  // Visible columns for this report, in canonical order — the single AC 2.1 derivation shared
+  // with ReportContentEditor's toggle UI (client/src/lib/reportContent/columns.ts). The R7
+  // width-absorber algorithm (computeColumnWidths) is applied against this exact set.
+  const visible = visibleReportColumns(reportContent.isOverview, hiddenColumns);
+  const { widths: colWidths } = computeColumnWidths(visible);
+
   // Build table columns — every header cell goes through buildHeaderCell so a single-word label
   // wider than its column (#1929 round-3 architect review HIGH1) breaks mid-character instead of
   // overflowing; harmless for labels that already fit.
-  const usageWidth = reportContent.isOverview ? USAGE_WIDTH_7COL : USAGE_WIDTH_6COL;
-  const columns: Content[] = [
-    buildHeaderCell(reportContent.labels.vendor, VENDOR_WIDTH),
-    buildHeaderCell(reportContent.labels.invoiceNumber, INVOICE_NUMBER_WIDTH),
-    buildHeaderCell(reportContent.labels.date, DATE_WIDTH),
-  ];
-
-  // Add status column only if budget-overview
-  if (reportContent.isOverview) {
-    columns.push(buildHeaderCell(reportContent.labels.status, STATUS_WIDTH));
-  }
-
-  columns.push(
-    buildHeaderCell(reportContent.labels.invoiceAmount, INVOICE_AMOUNT_WIDTH, 'right'),
-    buildHeaderCell(reportContent.labels.allocatedAmount, ALLOCATED_AMOUNT_WIDTH, 'right'),
-    buildHeaderCell(reportContent.labels.usage, usageWidth),
+  const HEADER_LABEL: Record<ReportColumnKey, string> = {
+    vendor: reportContent.labels.vendor,
+    invoiceNumber: reportContent.labels.invoiceNumber,
+    date: reportContent.labels.date,
+    status: reportContent.labels.status,
+    invoiceAmount: reportContent.labels.invoiceAmount,
+    allocatedAmount: reportContent.labels.allocatedAmount,
+    usage: reportContent.labels.usage,
+  };
+  const columns: Content[] = visible.map((col) =>
+    buildHeaderCell(
+      HEADER_LABEL[col],
+      colWidths[col]!,
+      RIGHT_ALIGNED_COLUMNS.has(col) ? 'right' : undefined,
+    ),
   );
 
+  const nonUsageVisible = visible.filter((c): c is FixedColumnKey => c !== 'usage');
+  const usageVisible = visible.includes('usage');
+
+  // R2's three-tier fallback for a summary row's label placement (AC 4.5/4.6), computed once per
+  // document rather than per row.
+  const lastLeadingVisible = [...LEADING_COLUMNS].reverse().find((c) => visible.includes(c));
+  const hasLeadingVisible = lastLeadingVisible !== undefined;
+  const invoiceAmountVisible = visible.includes('invoiceAmount');
+  // Tier 3, exactly the {allocatedAmount} / {allocatedAmount, usage} subsets: no leading column
+  // and no invoiceAmount column survive to carry the label, so summary rows render as a stack
+  // block below the table instead of a table row — matching ReportContentEditor.tsx's preview,
+  // which always renders summary rows in a separate block (R2's "preview parity").
+  const usesSeparateSummaryBlock = !hasLeadingVisible && !invoiceAmountVisible;
+
   /**
-   * Helper: build summary row (subtotal/total) with label at last leading index.
+   * Helper: build summary row (subtotal/total) with the label at the last visible leading column
+   * (Tier 1), falling back to invoiceAmount when no leading column survives (Tier 2). Never
+   * called for usesSeparateSummaryBlock's Tier 3 subsets.
    */
   function buildSummaryRow(labelText: string, amountText: string): Content[] {
-    const leadingCount = reportContent.isOverview ? 4 : 3;
-    const row: Content[] = [];
-
-    // Leading cells: empty except the last one which has the label
-    for (let i = 0; i < leadingCount; i++) {
-      if (i === leadingCount - 1) {
-        row.push({ text: labelText, style: 'tableCell', bold: true });
-      } else {
-        row.push({ text: '', style: 'tableCell' });
-      }
-    }
-
-    // Empty invoiceAmount cell
-    row.push({ text: '', style: 'tableCell' });
-
-    // Bold right-aligned amount
-    row.push({
-      text: amountText,
-      style: 'tableCell',
-      alignment: 'right',
-      bold: true,
-    });
-
-    // Empty trailing usage cell
-    row.push({ text: '', style: 'tableCell' });
-
-    return row;
+    return nonUsageVisible
+      .map((col): Content => {
+        if (col === 'allocatedAmount') {
+          return { text: amountText, style: 'tableCell', alignment: 'right', bold: true };
+        }
+        if (col === lastLeadingVisible) {
+          return { text: labelText, style: 'tableCell', bold: true }; // Tier 1
+        }
+        if (col === 'invoiceAmount' && !hasLeadingVisible) {
+          return { text: labelText, style: 'tableCell', bold: true }; // Tier 2
+        }
+        return { text: '', style: 'tableCell' };
+      })
+      .concat(usageVisible ? [{ text: '', style: 'tableCell' }] : []);
   }
 
   // Build table rows from reportContent.rows
@@ -611,92 +816,96 @@ export function buildOverviewContent(
   }
 
   /**
-   * Leading (vendor/invoiceNumber/date/[status]) cells for a content row. Status is pushed
-   * unconditionally whenever isOverview — see AC14: a falsy statusText must still produce a
-   * cell, or the row's cell count falls short of the 7-entry `widths` array and pdfmake throws
-   * "Malformed table row, a cell is undefined."
+   * Body cell for one non-usage visible column. AC14 precedent: status is never omitted even
+   * when falsy — every visible non-usage column must always produce a cell, or the row's cell
+   * count falls short of `widths` and pdfmake throws "Malformed table row, a cell is undefined."
    */
-  function buildLeadingCells(
+  function buildBodyCell(
+    col: FixedColumnKey,
     contentRow: ReportContentRow,
-    isOverview: boolean,
-    statusText: string,
-  ): Content[] {
-    const cells: Content[] = [
-      // Vendor names are free-form business names (unlike invoiceNumber/dateText, which are
-      // system-generated and bounded) — protected with the same per-token break-all treatment
-      // as Usage (#1929 round-3 architect review HIGH1: "Elektroinstallationsbetrieb" measured
-      // 92.72pt against the 45pt Vendor column).
-      { text: buildUsageTextRuns(contentRow.vendor, VENDOR_SAFE_TOKEN_CHARS), style: 'tableCell' },
-      { text: contentRow.invoiceNumber, style: 'tableCell' },
-      { text: contentRow.dateText, style: 'tableCell' },
-    ];
-    if (isOverview) {
-      cells.push({ text: statusText, style: 'tableCell' });
+    allocatedRuns: Content[],
+  ): Content {
+    switch (col) {
+      case 'vendor':
+        // Vendor names are free-form business names (unlike invoiceNumber/dateText, which are
+        // system-generated and bounded) — protected with the same per-token break-all treatment
+        // as Usage (#1929 round-3 architect review HIGH1: "Elektroinstallationsbetrieb" measured
+        // 92.72pt against the 45pt Vendor column).
+        return {
+          text: buildUsageTextRuns(contentRow.vendor, VENDOR_SAFE_TOKEN_CHARS),
+          style: 'tableCell',
+        };
+      case 'invoiceNumber':
+        return { text: contentRow.invoiceNumber, style: 'tableCell' };
+      case 'date':
+        return { text: contentRow.dateText, style: 'tableCell' };
+      case 'status':
+        return { text: contentRow.statusText ?? '', style: 'tableCell' };
+      case 'invoiceAmount':
+        return {
+          text: contentRow.invoiceAmountText,
+          style: 'tableCell',
+          alignment: 'right',
+          color: contentRow.isRefund ? REFUND_TEXT_COLOR : undefined,
+        };
+      case 'allocatedAmount':
+        return {
+          text: allocatedRuns,
+          style: 'tableCell',
+          alignment: 'right',
+          color: contentRow.isRefund ? REFUND_TEXT_COLOR : undefined,
+        };
     }
-    return cells;
   }
 
   /**
-   * Invoice-amount and allocated-amount cells for a content row.
+   * Empty body cell for a Usage continuation row — every non-usage visible column blank.
    */
-  function buildAmountCells(contentRow: ReportContentRow, allocatedRuns: Content[]): Content[] {
-    return [
-      {
-        text: contentRow.invoiceAmountText,
-        style: 'tableCell',
-        alignment: 'right',
-        color: contentRow.isRefund ? REFUND_TEXT_COLOR : undefined,
-      },
-      {
-        text: allocatedRuns,
-        style: 'tableCell',
-        alignment: 'right',
-        color: contentRow.isRefund ? REFUND_TEXT_COLOR : undefined,
-      },
-    ];
+  function buildEmptyBodyCell(col: FixedColumnKey): Content {
+    return RIGHT_ALIGNED_COLUMNS.has(col)
+      ? { text: '', style: 'tableCell', alignment: 'right' }
+      : { text: '', style: 'tableCell' };
   }
 
-  /**
-   * Empty leading cells for a Usage continuation row — every column blank except Usage.
-   */
-  function buildEmptyLeadingCells(isOverview: boolean): Content[] {
-    const cells: Content[] = [
-      { text: '', style: 'tableCell' },
-      { text: '', style: 'tableCell' },
-      { text: '', style: 'tableCell' },
-    ];
-    if (isOverview) cells.push({ text: '', style: 'tableCell' });
-    return cells;
-  }
+  // Word-break threshold and chunk budget for THIS subset's Usage width (AC 3.6/3.7) — derived
+  // from the per-subset width computeColumnWidths produced above, not the old two-shape
+  // constants (USAGE_SAFE_TOKEN_CHARS_7COL/6COL, which remain exported unchanged as the "hiding
+  // nothing" baseline values plus the reference denominator usageChunkCharsForWidth's clamp uses).
+  const usageSafeTokenChars = usageVisible ? usageSafeTokenCharsForWidth(colWidths.usage!) : 0;
+  const usageChunkChars = usageVisible ? usageChunkCharsForWidth(colWidths.usage!) : 0;
 
-  /**
-   * Empty amount cells for a Usage continuation row.
-   */
-  function buildEmptyAmountCells(): Content[] {
-    return [
-      { text: '', style: 'tableCell', alignment: 'right' },
-      { text: '', style: 'tableCell', alignment: 'right' },
-    ];
-  }
-
-  // Word-break thresholds for this table shape (#1929 round-2 review finding: AC2 permits
-  // breaking a word only when it doesn't fit its column alone — see buildUsageTextRuns).
-  const usageSafeTokenChars = reportContent.isOverview
-    ? USAGE_SAFE_TOKEN_CHARS_7COL
-    : USAGE_SAFE_TOKEN_CHARS_6COL;
+  // AC1 (#1940): floor for a continuation row so a would-be runt remainder merges into the row
+  // before it instead of rendering as a near-empty row indistinguishable from a broken document.
+  // Expressed via this subset's own per-line character budget (ux-designer recommendation), with
+  // MIN_CONTINUATION_ROW_FLOOR_CHARS as the absolute lower bound — see that constant's doc comment
+  // for why the threshold needs both terms.
+  const minTrailingUsageChars = usageVisible
+    ? Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, usageSafeTokenChars)
+    : 0;
 
   /**
    * Renders one packed row's worth of Usage-cell segments (see packUsageCellRows) into a cell.
    *
-   * Body segments go through `buildUsageTextRuns` for per-token break-all protection; the grey
-   * meta suffix is emitted as ONE run, so a cell never holds more than a single grey run and that
-   * run is always last (both properties are relied on when reading these cells back). The meta
-   * suffix is NOT token-protected: it is 8pt body-font text in a fixed-width column, so an
-   * over-wide unbroken token there paints outside its own cell — cosmetic horizontal overflow only,
-   * the same recorded-not-fixed class as `invoiceNumber` (see the channel enumeration above).
+   * Both body and grey meta segments go through `buildUsageTextRuns` for per-token break-all
+   * protection. Each meta run is coloured DEPOSIT_NOTE_TEXT_COLOR after the split, so a cell may
+   * hold multiple consecutive grey runs — they are always last (relied on by splitUsageCell in
+   * tests and by any caller reading these cells back).
+   *
+   * `isContinuation` (#1940 AC5) prepends a single literal `'… '` run (U+2026 + space) as the very
+   * first run when true, per the ux-designer's visual spec (issue #1940 comment). This is pure
+   * render-time decoration: it is never counted against `packUsageCellRowsWithMinimum`'s character
+   * budget and never part of the #1929 I1 reconstruction, since neither `packUsageCellRows`/
+   * `packUsageCellRowsWithMinimum` nor `UsageCellSegment.text` ever see this string — it is added
+   * here, after packing, purely for what gets rendered. Deliberately NO colour override (not
+   * `DEPOSIT_NOTE_TEXT_COLOR`): the ux-designer chose an ink-shape signal over a colour/fill signal
+   * precisely because colour is what degrades under greyscale printing and photocopying, and this
+   * is a bank document that gets scanned — do not "helpfully" add a colour here.
    */
-  function buildUsageCell(segments: UsageCellSegment[]): Content {
+  function buildUsageCell(segments: UsageCellSegment[], isContinuation = false): Content {
     const runs: Content[] = [];
+    if (isContinuation) {
+      runs.push({ text: '… ' });
+    }
     segments.forEach((segment, index) => {
       if (!segment.meta) {
         runs.push(...buildUsageTextRuns(segment.text, usageSafeTokenChars));
@@ -706,7 +915,10 @@ export function buildOverviewContent(
       // cell (it was pushed onto a continuation row of its own), that newline would render an
       // empty first line instead, so it is dropped — a presentational separator, not content.
       const text = index === 0 ? segment.text.replace(/^\n/, '') : segment.text;
-      runs.push({ text, color: DEPOSIT_NOTE_TEXT_COLOR });
+      const metaRuns = buildUsageTextRuns(text, usageSafeTokenChars);
+      runs.push(
+        ...metaRuns.map((r) => Object.assign({}, r, { color: DEPOSIT_NOTE_TEXT_COLOR }) as Content),
+      );
     });
     return { text: runs, style: 'tableCell' };
   }
@@ -719,7 +931,10 @@ export function buildOverviewContent(
       skipMarkerText += `*${noteNum}`;
     }
 
-    // Build allocated runs: value+skip markers, then optional inline labels, then optional refund note
+    // Build allocated runs: value+skip markers, then optional inline labels, then optional
+    // refund note. `allocatedAmount` is the locked column — always in `visible` regardless of
+    // `hiddenColumns` — so allocatedRuns is always built and always rendered here; #1973 AC 4.7
+    // holds structurally, not incidentally.
     const allocatedRuns: Content[] = [
       { text: `${contentRow.allocatedAmountValueText}${skipMarkerText}` },
     ];
@@ -748,6 +963,15 @@ export function buildOverviewContent(
       allocatedRuns.push({ text: ` ${contentRow.refundNoteText}` });
     }
 
+    const nonUsageCells = nonUsageVisible.map((col) =>
+      buildBodyCell(col, contentRow, allocatedRuns),
+    );
+
+    if (!usageVisible) {
+      rows.push(nonUsageCells);
+      continue; // no Usage cell ⇒ no continuation rows possible
+    }
+
     // Area and attachmentsNote render inline as one trailing grey suffix on the Usage cell
     // (#1959), '\n'-prefixed and joined by ' · '.
     const metaPieces: string[] = [];
@@ -762,31 +986,36 @@ export function buildOverviewContent(
     // overflow instead of paginating it (#1929 architect review HIGH 4 / I1). Wherever the whole
     // cell fits one row — the common case — this emits exactly one row, unchanged from #1959.
     // The first packed row shares this invoice's leading/amount cells; any further row is a
-    // Usage-only continuation row with no "continued" marker, per the product-owner's ruling
-    // (#1929 AC2/AC4/AC12).
+    // Usage-only continuation row (#1929 AC2/AC4/AC12), now carrying the leading '… ' marker
+    // buildUsageCell adds for isContinuation rows (#1940 AC5) — the earlier "no marker" ruling
+    // was superseded once round-3/4 renders showed a markerless continuation row is visually
+    // indistinguishable from a broken/orphaned one.
     const cellSegments: UsageCellSegment[] = [{ text: contentRow.usageText }];
     if (metaPieces.length > 0) {
       cellSegments.push({ text: `\n${metaPieces.join(' · ')}`, meta: true });
     }
-    const packedCellRows = packUsageCellRows(cellSegments, MAX_SAFE_USAGE_CHUNK_CHARS);
+    const packedCellRows = packUsageCellRowsWithMinimum(
+      cellSegments,
+      usageChunkChars,
+      minTrailingUsageChars,
+    );
 
-    rows.push([
-      ...buildLeadingCells(contentRow, reportContent.isOverview, contentRow.statusText ?? ''),
-      ...buildAmountCells(contentRow, allocatedRuns),
-      buildUsageCell(packedCellRows[0]!),
-    ]);
+    rows.push([...nonUsageCells, buildUsageCell(packedCellRows[0]!)]);
     for (let i = 1; i < packedCellRows.length; i++) {
       rows.push([
-        ...buildEmptyLeadingCells(reportContent.isOverview),
-        ...buildEmptyAmountCells(),
-        buildUsageCell(packedCellRows[i]!),
+        ...nonUsageVisible.map(buildEmptyBodyCell),
+        buildUsageCell(packedCellRows[i]!, true),
       ]);
     }
   }
 
-  // Add summary rows from reportContent.summaryRows
-  for (const summaryRow of reportContent.summaryRows) {
-    rows.push(buildSummaryRow(summaryRow.label, summaryRow.amountText));
+  // Add summary rows from reportContent.summaryRows — Tier 1/2 push a row into the table body;
+  // Tier 3 (usesSeparateSummaryBlock) renders as a stack block below the table instead (see the
+  // block pushed after the table, below).
+  if (!usesSeparateSummaryBlock) {
+    for (const summaryRow of reportContent.summaryRows) {
+      rows.push(buildSummaryRow(summaryRow.label, summaryRow.amountText));
+    }
   }
 
   // Add table
@@ -798,34 +1027,33 @@ export function buildOverviewContent(
       // (as round 1 did) is inert, since layout is only consumed for border/padding/fill
       // callbacks (#1929 architect review, CRITICAL 1).
       dontBreakRows: true,
-      // Usage is an explicit NUMBER (usageWidth), never '*' — #1929 round-3 architect review
+      // Every column is an explicit NUMBER, never '*' — #1929 round-3 architect review
       // CRITICAL/HIGH1: pdfmake never grows a fixed column past its declared width
       // (elasticWidth is read but assigned nowhere), so declaring every column numeric makes
       // the star column's content-driven overflow branch (columnCalculator.js's case-1) simply
-      // unreachable — the table's total rendered width is printableWidth() for any input.
-      widths: reportContent.isOverview
-        ? [
-            VENDOR_WIDTH,
-            INVOICE_NUMBER_WIDTH,
-            DATE_WIDTH,
-            STATUS_WIDTH,
-            INVOICE_AMOUNT_WIDTH,
-            ALLOCATED_AMOUNT_WIDTH,
-            usageWidth,
-          ]
-        : [
-            VENDOR_WIDTH,
-            INVOICE_NUMBER_WIDTH,
-            DATE_WIDTH,
-            INVOICE_AMOUNT_WIDTH,
-            ALLOCATED_AMOUNT_WIDTH,
-            usageWidth,
-          ],
+      // unreachable — the table's total rendered width is printableWidth() for any input (see
+      // computeColumnWidths' derivation for the general N-column proof).
+      widths: visible.map((col) => colWidths[col]!),
       body: rows,
     },
     layout: TABLE_LAYOUT, // no longer carries dontBreakRows — see shared.ts
     margin: [0, 0, 0, 20],
   });
+
+  // Tier 3 (usesSeparateSummaryBlock): summary rows render as their own stack block, matching
+  // ReportContentEditor.tsx's preview which always renders summary rows separately from the
+  // table (R2 "preview parity").
+  if (usesSeparateSummaryBlock && reportContent.summaryRows.length > 0) {
+    content.push({
+      stack: reportContent.summaryRows.map((row) => ({
+        columns: [
+          { text: row.label, style: 'tableCell', bold: true },
+          { text: row.amountText, style: 'tableCell', bold: true, alignment: 'right' },
+        ],
+      })),
+      margin: [0, 0, 0, 20],
+    });
+  }
 
   // Add footnotes (skip block only; split/deposit annotations are now rendered inline)
   const footnotes: Content[] = [];
@@ -840,8 +1068,9 @@ export function buildOverviewContent(
       const invoiceNumber = row?.invoiceNumber ?? '—';
 
       for (const reason of reasons) {
+        const reasonLabel = reportContent.labels.skipReasonLabels[reason];
         footnotes.push({
-          text: `*${skipFootnoteNum}: ${vendorName} (${invoiceNumber}) — ${t(`sourceReports.table.${reason}`)}`,
+          text: `*${skipFootnoteNum}: ${vendorName} (${invoiceNumber}) — ${reasonLabel}`,
           style: 'small',
         });
         skipFootnoteNum++;

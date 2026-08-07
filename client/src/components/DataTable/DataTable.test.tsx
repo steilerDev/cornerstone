@@ -98,7 +98,6 @@ beforeEach(async () => {
   mockUseColumnPreferences.mockReturnValue({
     visibleColumns: new Set(COLUMNS.map((c) => c.key)),
     columnOrder: COLUMNS.map((c) => c.key),
-    isLoaded: true,
     toggleColumn: mockToggleColumn,
     moveColumn: mockMoveColumn,
     resetToDefaults: mockResetToDefaults,

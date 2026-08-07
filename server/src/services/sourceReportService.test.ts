@@ -446,6 +446,416 @@ describe('sourceReportService', () => {
       expect(result.invoices[0]!.isSplit).toBe(false);
     });
 
+    // ═══════════════════════════════════════════════════════════════════
+    // #1911 — splitKind: discriminates why an invoice's funding spans multiple budget sources.
+    // PO's binding AC comment: https://github.com/steilerDev/cornerstone/issues/1911#issuecomment-5197987890
+    // ═══════════════════════════════════════════════════════════════════
+    describe('splitKind (#1911)', () => {
+      it('AC 1.1: lines in two sources, no tagged deposits → splitKind "lines" for the requested source', async () => {
+        const sourceA = insertSource({ name: 'Source A' });
+        const sourceB = insertSource({ name: 'Source B' });
+        const vendorId = insertVendor();
+        const budgetA = insertWorkItemBudget(sourceA);
+        const budgetB = insertWorkItemBudget(sourceB);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+        insertInvoiceBudgetLine(invId, budgetA, 600);
+        insertInvoiceBudgetLine(invId, budgetB, 400);
+
+        const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        expect(result.invoices[0]!.splitKind).toBe('lines');
+      });
+
+      it('AC 1.2 (headline): budget lines all in the requested source, one deposit tagged to a different source → splitKind "deposits" — the exact case the issue is about', async () => {
+        // Byte-identical to a non-split invoice in every OTHER field (budgetLines[] holds only
+        // A's line, deposits[] is empty because the B-tagged deposit is filtered out server-side
+        // — PO's premise-1 verification table). splitKind is the only field that discriminates
+        // this from a genuinely unsplit invoice.
+        const sourceA = insertSource({ name: 'Source A' });
+        const sourceB = insertSource({ name: 'Source B' });
+        const vendorId = insertVendor();
+        const budgetA = insertWorkItemBudget(sourceA);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+        insertInvoiceBudgetLine(invId, budgetA, 1000);
+        insertDeposit(invId, {
+          amount: 300,
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: sourceB,
+        });
+
+        const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        expect(result.invoices[0]!.splitKind).toBe('deposits');
+        expect(result.invoices[0]!.isSplit).toBe(true);
+        // Reproduce the byte-identical-response premise: budgetLines[] carries only A's own line,
+        // deposits[] is empty (the B-tagged deposit is invisible), yet splitKind still tells them
+        // apart.
+        expect(result.invoices[0]!.budgetLines).toHaveLength(1);
+        expect(result.invoices[0]!.deposits).toEqual([]);
+      });
+
+      it('AC 1.3: lines in two sources AND a deposit tagged to a third source → splitKind "both"', async () => {
+        const sourceA = insertSource({ name: 'Source A' });
+        const sourceB = insertSource({ name: 'Source B' });
+        const sourceC = insertSource({ name: 'Source C' });
+        const vendorId = insertVendor();
+        const budgetA = insertWorkItemBudget(sourceA);
+        const budgetB = insertWorkItemBudget(sourceB);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+        insertInvoiceBudgetLine(invId, budgetA, 600);
+        insertInvoiceBudgetLine(invId, budgetB, 400);
+        insertDeposit(invId, {
+          amount: 200,
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: sourceC,
+        });
+
+        const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        expect(result.invoices[0]!.splitKind).toBe('both');
+      });
+
+      it('AC 1.4: lines and tagged deposit all reference the requested source only → splitKind null', async () => {
+        const sourceA = insertSource({ name: 'Source A' });
+        const vendorId = insertVendor();
+        const budgetA = insertWorkItemBudget(sourceA);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+        insertInvoiceBudgetLine(invId, budgetA, 1000);
+        insertDeposit(invId, {
+          amount: 300,
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: sourceA,
+        });
+
+        const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        expect(result.invoices[0]!.splitKind).toBeNull();
+        expect(result.invoices[0]!.isSplit).toBe(false);
+      });
+
+      it('AC 1.5 (the trap): arm 1 = {A} exactly, arm 2 = {B} exactly — ONE source per arm, not two — yet splitKind must still be "deposits", never null. The predicate is "this arm contains a source != S", NOT "this arm contains >= 2 distinct sources": an implementation that counts distinct sources per arm returns null here and silently reproduces the #1911 bug', async () => {
+        const sourceA = insertSource({ name: 'Source A' });
+        const sourceB = insertSource({ name: 'Source B' });
+        const vendorId = insertVendor();
+        const budgetA = insertWorkItemBudget(sourceA);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+        // Arm 1 (lines): exactly one distinct source_id value in this arm, {A} — matches S,
+        // contributes nothing foreign to arm 1 on its own.
+        insertInvoiceBudgetLine(invId, budgetA, 1000);
+        // Arm 2 (deposits): exactly one distinct source_id value in this arm, {B} — a single
+        // foreign source is sufficient; this arm never contains 2+ distinct sources either.
+        insertDeposit(invId, {
+          amount: 300,
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: sourceB,
+        });
+
+        const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+        expect(result.invoices[0]!.splitKind).toBe('deposits');
+      });
+
+      // AC 1.6: for every invoice in every report type, splitKind !== null iff isSplit === true.
+      // Re-runs the EXISTING isSplit fixture set (scenarios 11/12a/12b + the four Story #1891
+      // regression fixtures above) and pins the invariant on each, without modifying those
+      // original tests (which remain the isSplit-only regression guard).
+      describe('AC 1.6 (invariant): splitKind !== null iff isSplit === true, across the existing isSplit fixture set', () => {
+        it('holds for: two-source line split (mirrors scenario 11) — isSplit true', async () => {
+          const sourceA = insertSource({ name: 'Source A' });
+          const sourceB = insertSource({ name: 'Source B' });
+          const vendorId = insertVendor();
+          const budgetA = insertWorkItemBudget(sourceA);
+          const budgetB = insertWorkItemBudget(sourceB);
+          const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+          insertInvoiceBudgetLine(invId, budgetA, 600);
+          insertInvoiceBudgetLine(invId, budgetB, 400);
+
+          const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+          const inv = result.invoices[0]!;
+          expect(inv.isSplit).toBe(true);
+          expect(inv.splitKind !== null).toBe(inv.isSplit);
+        });
+
+        it('holds for: single-source invoice (mirrors scenario 12a) — isSplit false', async () => {
+          const sourceId = insertSource();
+          const vendorId = insertVendor();
+          const budgetId = insertWorkItemBudget(sourceId);
+          const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+          insertInvoiceBudgetLine(invId, budgetId, 500);
+
+          const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+          const inv = result.invoices[0]!;
+          expect(inv.isSplit).toBe(false);
+          expect(inv.splitKind !== null).toBe(inv.isSplit);
+        });
+
+        it('holds for: real source + null-source line (mirrors scenario 12b) — isSplit false', async () => {
+          const sourceId = insertSource();
+          const vendorId = insertVendor();
+          const budgetReal = insertWorkItemBudget(sourceId);
+          const budgetNull = insertWorkItemBudget(null);
+          const invId = insertInvoice(vendorId, { status: 'paid', amount: 700 });
+          insertInvoiceBudgetLine(invId, budgetReal, 500);
+          insertInvoiceBudgetLine(invId, budgetNull, 200);
+
+          const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
+          const inv = result.invoices[0]!;
+          expect(inv.isSplit).toBe(false);
+          expect(inv.splitKind !== null).toBe(inv.isSplit);
+        });
+
+        it('holds for: lines only in B + a deposit tagged to A, requested A (mirrors Story #1891 regression) — isSplit true', async () => {
+          const sourceA = insertSource({ name: 'Source A' });
+          const sourceB = insertSource({ name: 'Source B' });
+          const vendorId = insertVendor();
+          const budgetB = insertWorkItemBudget(sourceB);
+          const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+          insertInvoiceBudgetLine(invId, budgetB, 1000);
+          insertDeposit(invId, {
+            amount: 300,
+            status: 'paid',
+            entryType: 'deposit',
+            budgetSourceId: sourceA,
+          });
+
+          const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+          const inv = result.invoices[0]!;
+          expect(inv.isSplit).toBe(true);
+          expect(inv.splitKind !== null).toBe(inv.isSplit);
+        });
+
+        it('holds for: no budget lines, two deposits tagged to two different sources (mirrors Story #1891 regression) — isSplit true', async () => {
+          const sourceA = insertSource({ name: 'Source A' });
+          const sourceB = insertSource({ name: 'Source B' });
+          const vendorId = insertVendor();
+          const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+          insertDeposit(invId, {
+            amount: 400,
+            status: 'paid',
+            entryType: 'deposit',
+            budgetSourceId: sourceA,
+          });
+          insertDeposit(invId, {
+            amount: 600,
+            status: 'paid',
+            entryType: 'deposit',
+            budgetSourceId: sourceB,
+          });
+
+          const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+          const inv = result.invoices[0]!;
+          expect(inv.isSplit).toBe(true);
+          expect(inv.splitKind !== null).toBe(inv.isSplit);
+        });
+
+        it('holds for: lines for one source + an UNTAGGED deposit (mirrors Story #1891 regression) — isSplit false', async () => {
+          const sourceA = insertSource({ name: 'Source A' });
+          const vendorId = insertVendor();
+          const budgetA = insertWorkItemBudget(sourceA);
+          const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+          insertInvoiceBudgetLine(invId, budgetA, 1000);
+          insertDeposit(invId, { amount: 300, status: 'paid', entryType: 'deposit' }); // untagged
+
+          const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+          const inv = result.invoices[0]!;
+          expect(inv.isSplit).toBe(false);
+          expect(inv.splitKind !== null).toBe(inv.isSplit);
+        });
+
+        it('holds for: lines for one source + a deposit tagged to that SAME source (mirrors Story #1891 regression) — isSplit false', async () => {
+          const sourceA = insertSource({ name: 'Source A' });
+          const vendorId = insertVendor();
+          const budgetA = insertWorkItemBudget(sourceA);
+          const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+          insertInvoiceBudgetLine(invId, budgetA, 1000);
+          insertDeposit(invId, {
+            amount: 300,
+            status: 'paid',
+            entryType: 'deposit',
+            budgetSourceId: sourceA,
+          });
+
+          const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+          const inv = result.invoices[0]!;
+          expect(inv.isSplit).toBe(false);
+          expect(inv.splitKind !== null).toBe(inv.isSplit);
+        });
+
+        it('holds for: no lines, a single tagged deposit only (mirrors Story #1891 regression) — isSplit false', async () => {
+          const sourceA = insertSource({ name: 'Source A' });
+          const vendorId = insertVendor();
+          const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+          insertDeposit(invId, {
+            amount: 500,
+            status: 'paid',
+            entryType: 'deposit',
+            budgetSourceId: sourceA,
+          });
+
+          const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+          const inv = result.invoices[0]!;
+          expect(inv.isSplit).toBe(false);
+          expect(inv.splitKind !== null).toBe(inv.isSplit);
+        });
+      });
+
+      it('AC 1.7: splitKind is computed identically across budget-overview, claim, and proof-of-funds for the same split shape (statuses adjusted so each invoice survives its own report type slice)', async () => {
+        const sourceA = insertSource({ name: 'Source A' });
+        const sourceB = insertSource({ name: 'Source B' });
+        const vendorId = insertVendor();
+
+        // budget-overview: any of quotation/pending/paid/claimed survives — use 'paid'.
+        const overviewBudget = insertWorkItemBudget(sourceA);
+        const invOverview = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+        insertInvoiceBudgetLine(invOverview, overviewBudget, 1000);
+        insertDeposit(invOverview, {
+          amount: 300,
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: sourceB,
+        });
+
+        // claim: pending/paid survives — use 'paid'.
+        const claimBudget = insertWorkItemBudget(sourceA);
+        const invClaim = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+        insertInvoiceBudgetLine(invClaim, claimBudget, 1000);
+        insertDeposit(invClaim, {
+          amount: 300,
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: sourceB,
+        });
+
+        // proof-of-funds: only 'claimed' survives.
+        const pofBudget = insertWorkItemBudget(sourceA);
+        const invPof = insertInvoice(vendorId, { status: 'claimed', amount: 1000 });
+        insertInvoiceBudgetLine(invPof, pofBudget, 1000);
+        insertDeposit(invPof, {
+          amount: 300,
+          status: 'claimed',
+          entryType: 'deposit',
+          budgetSourceId: sourceB,
+        });
+
+        const overviewResult = await getSourceReport(
+          db,
+          'budget-overview',
+          sourceA,
+          PAPERLESS_DISABLED,
+        );
+        const claimResult = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+        const pofResult = await getSourceReport(db, 'proof-of-funds', sourceA, PAPERLESS_DISABLED);
+
+        const overviewInv = overviewResult.invoices.find((i) => i.invoiceId === invOverview);
+        const claimInv = claimResult.invoices.find((i) => i.invoiceId === invClaim);
+        const pofInv = pofResult.invoices.find((i) => i.invoiceId === invPof);
+
+        expect(overviewInv).toBeDefined();
+        expect(claimInv).toBeDefined();
+        expect(pofInv).toBeDefined();
+        expect(overviewInv!.splitKind).toBe('deposits');
+        expect(claimInv!.splitKind).toBe('deposits');
+        expect(pofInv!.splitKind).toBe('deposits');
+      });
+
+      it('AC 1.8 (round-trip): splitKind is derived from the SAME db.all() statement as isSplit — no second query is issued for it', async () => {
+        const sourceA = insertSource({ name: 'Source A' });
+        const sourceB = insertSource({ name: 'Source B' });
+        const vendorId = insertVendor();
+        const budgetA = insertWorkItemBudget(sourceA);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+        insertInvoiceBudgetLine(invId, budgetA, 1000);
+        insertDeposit(invId, {
+          amount: 300,
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: sourceB,
+        });
+
+        // Pass-through spy: no mockImplementation, so the real query still executes — this proves
+        // the derivation shares the existing statement's result rows rather than counting calls
+        // against a stub that would trivially satisfy any assertion.
+        const allSpy = jest.spyOn(db, 'all');
+
+        const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+
+        // Sanity: the real derivation still produced the expected value through the spy.
+        expect(result.invoices[0]!.splitKind).toBe('deposits');
+        expect(result.invoices[0]!.isSplit).toBe(true);
+
+        // drizzle's sql`` tagged template returns an SQL object whose static text lives in
+        // `queryChunks` as StringChunk-like `{ value: string[] }` entries, interleaved with raw
+        // bound-parameter values (not wrapped) — join only the string-chunk text to reconstruct
+        // the query's literal SQL, skipping parameters.
+        function extractSqlText(query: unknown): string {
+          const chunks = (query as { queryChunks?: unknown[] }).queryChunks;
+          if (!Array.isArray(chunks)) return '';
+          return chunks
+            .map((chunk) => {
+              if (chunk && typeof chunk === 'object' && 'value' in chunk) {
+                const value = (chunk as { value: unknown }).value;
+                return Array.isArray(value) ? value.join('') : String(value ?? '');
+              }
+              return '';
+            })
+            .join('');
+        }
+
+        const splitDataCalls = allSpy.mock.calls.filter((call) =>
+          extractSqlText(call[0]).includes('split_data'),
+        );
+        expect(splitDataCalls).toHaveLength(1);
+
+        allSpy.mockRestore();
+      });
+
+      it('AC 1.9 (regression guard): source S has both a budget line AND a tagged deposit, both tagged to S, nothing else → isSplit false, splitKind null. Adding the discriminating `origin` column to the UNION defeats its cross-arm row dedup (a source appearing in both arms now yields two rows), so COUNT(DISTINCT source_id) must remain the isSplit basis — if that basis changes, this fixture flips to isSplit true', async () => {
+        const sourceA = insertSource({ name: 'Source A' });
+        const vendorId = insertVendor();
+        const budgetA = insertWorkItemBudget(sourceA);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+        insertInvoiceBudgetLine(invId, budgetA, 1000);
+        insertDeposit(invId, {
+          amount: 300,
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: sourceA,
+        });
+
+        const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+        expect(result.invoices).toHaveLength(1);
+        expect(result.invoices[0]!.isSplit).toBe(false);
+        expect(result.invoices[0]!.splitKind).toBeNull();
+      });
+
+      it("AC 1.10 / §6: splitKind never leaks the other source's id or name across the API boundary — only the categorical value crosses", async () => {
+        const sourceA = insertSource({ name: 'Source A' });
+        const sourceB = insertSource({
+          id: 'source-b-leak-check',
+          name: 'Distinctive Source B Name',
+        });
+        const vendorId = insertVendor();
+        const budgetA = insertWorkItemBudget(sourceA);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+        insertInvoiceBudgetLine(invId, budgetA, 1000);
+        insertDeposit(invId, {
+          amount: 300,
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: sourceB,
+        });
+
+        const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+        expect(result.invoices[0]!.splitKind).toBe('deposits'); // sanity: this is the AC 1.2 shape
+        const serialized = JSON.stringify(result.invoices[0]);
+        expect(serialized).not.toContain(sourceB);
+        expect(serialized).not.toContain('Distinctive Source B Name');
+      });
+    });
+
     it('scenario 13: exactly-zero net contribution is dropped entirely (not in invoices, not in unallocated)', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();

@@ -51,6 +51,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatDate: (d: string | null) => d ?? '—',
   formatPercent: (n: number) => `${n.toFixed(2)}%`,
   formatWeekdayMonthDay: (d: Date) => d.toISOString().slice(0, 10),
+  toBcp47Locale: (locale: string) => (locale === 'de' ? 'de-DE' : 'en-US'),
 }));
 
 // Dynamic import — must happen after jest.unstable_mockModule calls.

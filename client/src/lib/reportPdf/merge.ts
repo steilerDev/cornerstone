@@ -1,15 +1,14 @@
 /**
  * PDF generation and merging pipeline.
  */
-import type { TFunction } from 'i18next';
 import type { Content, Style } from 'pdfmake/build/pdfmake';
 import type { SourceReportResponse } from '@cornerstone/shared';
-import type { ReportContent } from '../reportContent/index.js';
+import type { ReportContent, ReportSkipReason } from '../reportContent/index.js';
 import { loadPdfLibs } from './loader.js';
 import { buildPageHeader, buildPageFooter } from './shared.js';
 import { buildCoverLetterContent } from './coverLetterPdf.js';
 import { buildOverviewContent } from './overviewPdf.js';
-import type { GeneratedReport, SkippedDocument } from './types.js';
+import type { GeneratedReport, ReportPdfOptions, SkippedDocument } from './types.js';
 import { getDocumentPreviewUrl } from '../paperlessApi.js';
 import { PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_BOTTOM, PDF_STYLES } from './pageGeometry.js';
 
@@ -35,9 +34,9 @@ export async function generateReportPdf(
   report: SourceReportResponse,
   includedInvoiceIds: Set<string>,
   reportContent: ReportContent,
-  options: { attachDocuments: boolean },
-  t: TFunction,
+  options: ReportPdfOptions,
 ): Promise<GeneratedReport> {
+  const hiddenColumns = options.hiddenColumns ?? new Set();
   const { pdfMake, PDFDocument } = await loadPdfLibs();
   const skippedDocuments: SkippedDocument[] = [];
   const appendixByInvoiceId = new Map<string, number>();
@@ -100,7 +99,7 @@ export async function generateReportPdf(
   }
 
   // Step 2: Build PDF content
-  const skippedByInvoice = new Map<string, string[]>();
+  const skippedByInvoice = new Map<string, ReportSkipReason[]>();
   for (const skip of skippedDocuments) {
     if (!skippedByInvoice.has(skip.invoiceId)) {
       skippedByInvoice.set(skip.invoiceId, []);
@@ -111,11 +110,11 @@ export async function generateReportPdf(
   const content: Content[] = [];
 
   if (reportContent.coverLetter) {
-    const coverLetter = buildCoverLetterContent(reportContent, t);
+    const coverLetter = buildCoverLetterContent(reportContent);
     content.push(...coverLetter);
   }
 
-  const overview = buildOverviewContent(reportContent, skippedByInvoice, t);
+  const overview = buildOverviewContent(reportContent, skippedByInvoice, hiddenColumns);
   content.push(...overview);
 
   // Step 3: Generate pdfmake document
@@ -128,10 +127,10 @@ export async function generateReportPdf(
       return buildPageHeader(
         reportContent.tableTitle,
         reportContent.sourceInfo.sourceName,
-        t('sourceReports.table.generatedAt'),
+        `${reportContent.labels.generatedAt}: ${reportContent.sourceInfo.generatedAtText}`,
       );
     },
-    footer: buildPageFooter(t('sourceReports.table.pageLabel')),
+    footer: buildPageFooter(reportContent.labels.pageLabel),
     defaultStyle: PDF_DEFAULT_STYLE,
     styles: PDF_STYLES,
   });

@@ -6,6 +6,7 @@ import {
   budgetSources,
   workItemBudgets,
   householdItemBudgets,
+  invoiceBudgetLines,
   users,
   workItems,
   householdItems,
@@ -20,6 +21,7 @@ import {
   sumTaggedDepositContributions,
   type DepositAwareRow,
 } from './shared/depositAggregateUtils.js';
+import { getInvoiceAggregates } from './shared/budgetServiceFactory.js';
 import type {
   BudgetSource,
   BudgetSourceType,
@@ -108,16 +110,22 @@ function toBudgetSource(
 
 /**
  * Compute the used amount for a budget source.
- * Sums planned_amount from both work_item_budgets and household_item_budgets where budget_source_id matches.
+ * For invoiced lines uses the actual itemized amount; for non-invoiced lines uses planned_amount.
  * Returns 0 if no budget lines reference this source.
  */
 function computeUsedAmount(db: DbType, sourceId: string): number {
   const result = db.get<{ total: number }>(
-    sql`SELECT COALESCE(SUM(planned_amount), 0) AS total
+    sql`SELECT COALESCE(SUM(effective_amount), 0) AS total
     FROM (
-      SELECT planned_amount FROM ${workItemBudgets} WHERE budget_source_id = ${sourceId}
+      SELECT COALESCE(ibl.itemized_amount, wib.planned_amount) AS effective_amount
+      FROM ${workItemBudgets} wib
+      LEFT JOIN ${invoiceBudgetLines} ibl ON ibl.work_item_budget_id = wib.id
+      WHERE wib.budget_source_id = ${sourceId}
       UNION ALL
-      SELECT planned_amount FROM ${householdItemBudgets} WHERE budget_source_id = ${sourceId}
+      SELECT COALESCE(ibl.itemized_amount, hib.planned_amount) AS effective_amount
+      FROM ${householdItemBudgets} hib
+      LEFT JOIN ${invoiceBudgetLines} ibl ON ibl.household_item_budget_id = hib.id
+      WHERE hib.budget_source_id = ${sourceId}
     )`,
   );
   return result?.total ?? 0;
@@ -384,10 +392,7 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
       WHERE d.budget_source_id = ${discretionarySourceId}`,
     );
 
-    railBAmount = sumTaggedDepositContributions(
-      railBRows,
-      new Set([status === 'claimed' ? 'claimed' : 'paid']),
-    );
+    railBAmount = sumTaggedDepositContributions(railBRows, new Set([status]));
   }
 
   return remainderTotal + noSourceTotal + railBAmount;
@@ -805,82 +810,6 @@ export function deleteBudgetSource(db: DbType, id: string): void {
 }
 
 /**
- * Get invoice aggregates for a work item budget line.
- * Returns actualCost (sum of all itemized amounts), actualCostPaid (sum of paid/claimed amounts),
- * and invoiceCount (number of linked invoices).
- */
-function getWorkItemLineInvoiceData(
-  db: DbType,
-  lineId: string,
-): {
-  actualCost: number;
-  actualCostPaid: number;
-  invoiceCount: number;
-  hasClaimedInvoice: boolean;
-} {
-  const result = db.get<{
-    actualCost: number;
-    actualCostPaid: number;
-    invoiceCount: number;
-    hasClaimedInvoice: number;
-  }>(
-    sql`SELECT
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
-      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
-      COUNT(*) AS invoiceCount,
-      CASE WHEN COUNT(CASE WHEN i.status = 'claimed' THEN 1 END) > 0 THEN 1 ELSE 0 END AS hasClaimedInvoice
-    FROM invoice_budget_lines ibl
-    INNER JOIN invoices i ON i.id = ibl.invoice_id
-    WHERE ibl.work_item_budget_id = ${lineId}`,
-  );
-
-  return {
-    actualCost: result?.actualCost ?? 0,
-    actualCostPaid: result?.actualCostPaid ?? 0,
-    invoiceCount: result?.invoiceCount ?? 0,
-    hasClaimedInvoice: (result?.hasClaimedInvoice ?? 0) === 1,
-  };
-}
-
-/**
- * Get invoice aggregates for a household item budget line.
- * Returns actualCost (sum of all itemized amounts), actualCostPaid (sum of paid/claimed amounts),
- * and invoiceCount (number of linked invoices).
- */
-function getHouseholdItemLineInvoiceData(
-  db: DbType,
-  lineId: string,
-): {
-  actualCost: number;
-  actualCostPaid: number;
-  invoiceCount: number;
-  hasClaimedInvoice: boolean;
-} {
-  const result = db.get<{
-    actualCost: number;
-    actualCostPaid: number;
-    invoiceCount: number;
-    hasClaimedInvoice: number;
-  }>(
-    sql`SELECT
-      COALESCE(SUM(ibl.itemized_amount), 0) AS actualCost,
-      COALESCE(SUM(CASE WHEN i.status IN ('paid', 'claimed') THEN ibl.itemized_amount ELSE 0 END), 0) AS actualCostPaid,
-      COUNT(*) AS invoiceCount,
-      CASE WHEN COUNT(CASE WHEN i.status = 'claimed' THEN 1 END) > 0 THEN 1 ELSE 0 END AS hasClaimedInvoice
-    FROM invoice_budget_lines ibl
-    INNER JOIN invoices i ON i.id = ibl.invoice_id
-    WHERE ibl.household_item_budget_id = ${lineId}`,
-  );
-
-  return {
-    actualCost: result?.actualCost ?? 0,
-    actualCostPaid: result?.actualCostPaid ?? 0,
-    invoiceCount: result?.invoiceCount ?? 0,
-    hasClaimedInvoice: (result?.hasClaimedInvoice ?? 0) === 1,
-  };
-}
-
-/**
  * Get the first linked invoice for a budget line (or null if none).
  * Used for work item budget lines.
  */
@@ -982,7 +911,7 @@ function buildWorkItemBudgetLine(
     ? db.select().from(users).where(eq(users.id, line.createdBy)).get()
     : null;
 
-  const invoiceData = getWorkItemLineInvoiceData(db, line.id);
+  const invoiceData = getInvoiceAggregates(db, line.id, 'work_item_budget_id');
   const invoiceLink = getWorkItemLineInvoiceLink(db, line.id);
 
   return {
@@ -1043,7 +972,7 @@ function buildHouseholdItemBudgetLine(
     ? db.select().from(users).where(eq(users.id, line.createdBy)).get()
     : null;
 
-  const invoiceData = getHouseholdItemLineInvoiceData(db, line.id);
+  const invoiceData = getInvoiceAggregates(db, line.id, 'household_item_budget_id');
   const invoiceLink = getHouseholdItemLineInvoiceLink(db, line.id);
 
   return {

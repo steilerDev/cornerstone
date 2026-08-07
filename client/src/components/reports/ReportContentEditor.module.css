@@ -90,14 +90,6 @@
   margin-bottom: var(--spacing-3);
 }
 
-/* Preview-only disclaimer for the column toggles — these do not affect the generated PDF. */
-.columnToggleHint {
-  margin: 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  font-style: italic;
-}
-
 .columnToggles {
   display: flex;
   flex-wrap: wrap;
@@ -112,6 +104,29 @@
   color: var(--color-text-muted);
   cursor: pointer;
   white-space: nowrap;
+}
+
+.requiredMarker {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-semibold);
+}
+
+.columnToggleRequiredHint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.columnToggle:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  .columnToggle {
+    min-height: 44px;
+  }
 }
 
 /* Table Wrapper (Desktop) */

@@ -61,6 +61,7 @@ import type {
   ReportContentOverrides,
   ReportContent,
   ReportContentRow,
+  ReportSkipReason,
 } from '../reportContent/index.js';
 import enBudget from '../../i18n/en/budget.json';
 import deBudget from '../../i18n/de/budget.json';
@@ -79,6 +80,9 @@ import {
   USAGE_WIDTH_6COL,
   MAX_SAFE_USAGE_CHUNK_CHARS,
   HEADER_ROW_HEIGHT_MAX,
+  USAGE_SAFE_TOKEN_CHARS_7COL,
+  USAGE_SAFE_TOKEN_CHARS_6COL,
+  MIN_CONTINUATION_ROW_FLOOR_CHARS,
 } from './overviewPdf.js';
 import type { UsageCellSegment } from './overviewPdf.js';
 
@@ -260,6 +264,57 @@ function cellPageNumber(cell: unknown): number {
   return positions[0]!.pageNumber;
 }
 
+// Recursively collects every horizontalRatio value from every node's positions array
+// in a pdfmake Content tree. The field is set by DocumentContext.js:getCurrentPosition()
+// (src/DocumentContext.js:528 in pdfmake 0.3.11):
+//   horizontalRatio = (this.x - this.pageMargins.left) / innerWidth
+// where innerWidth = pageSize.width - pageMargins.left - pageMargins.right.
+// A value above 1 means the layout cursor was past the printable right edge when pdfmake
+// recorded that position — i.e. content overflowed the page horizontally.
+//
+// NOTE: pdfmake records the position at the START of each rendered text line (the left
+// edge of the text block), not at the rightward extent of the content. Overflow is
+// therefore only detectable when the START of a node's rendered line is past the margin —
+// which happens when the node's containing cell starts past the right margin (e.g. in a
+// multi-column table whose left column is wider than printableWidth()). A single
+// overflowing column whose left edge is at the page margin still records horizontalRatio≈0
+// for its text nodes.
+//
+// Version-sensitive: this field is internal to pdfmake and could change in a future
+// release. The field name was verified against pdfmake 0.3.11 source before writing this
+// helper — the pdfmake version is pinned in client/package.json.
+function collectHorizontalRatios(node: unknown, out: number[] = []): number[] {
+  if (node === null || typeof node !== 'object') return out;
+  if (Array.isArray(node)) {
+    for (const item of node) collectHorizontalRatios(item, out);
+    return out;
+  }
+  const obj = node as Record<string, unknown>;
+  if (Array.isArray(obj['positions'])) {
+    for (const pos of obj['positions'] as { horizontalRatio?: number }[]) {
+      if (typeof pos.horizontalRatio === 'number') {
+        out.push(pos.horizontalRatio);
+      }
+    }
+  }
+  for (const value of Object.values(obj)) {
+    collectHorizontalRatios(value, out);
+  }
+  return out;
+}
+
+function maxHorizontalRatio(pdfContent: unknown[]): number {
+  const ratios = collectHorizontalRatios(pdfContent);
+  if (ratios.length === 0) {
+    throw new Error(
+      'No horizontalRatio values found — was renderOverviewPdfContent() (or an equivalent ' +
+        'pdfMake.createPdf(...).getBlob()) awaited on this exact pdfContent reference before ' +
+        'calling maxHorizontalRatio()?',
+    );
+  }
+  return Math.max(...ratios);
+}
+
 function formattersFor(locale: 'en-US' | 'de-DE'): Formatters {
   return {
     formatCurrency: (n: number) => formatCurrency(n, locale, 'EUR'),
@@ -287,44 +342,74 @@ function usageCellText(text: unknown): string {
 // buildUsageTextRuns), so it must be located by its own grey color, never by a fixed position.
 //
 // #1959 fix round: `packUsageCellRows` packs the cell's WHOLE content stream (prose + grey suffix)
-// against one page-safe budget, so a long suffix now spans SEVERAL rows — one grey run per row,
-// always the last run of its own cell. Reconstructing the suffix therefore means concatenating the
-// grey run of EVERY row in the group, not reading a single cell (see `readCellGroup` below); a
-// helper that only looked at row 0 was what let the old page-count tripwire fail for the wrong
-// reason instead of flipping.
+// against one page-safe budget, so a long suffix now spans SEVERAL rows — one or more grey runs
+// per row (after #1968 the meta suffix itself routes through buildUsageTextRuns and may produce
+// multiple grey runs, always the last run(s) of their own cell). Reconstructing the suffix
+// therefore means concatenating the grey run(s) of EVERY row in the group, not reading a single
+// cell (see `readCellGroup` below); a helper that only looked at row 0 was what let the old
+// page-count tripwire fail for the wrong reason instead of flipping.
 const META_GREY = '#6b7280';
 
-function splitUsageCell(cell: unknown): {
+// #1940 AC5: buildUsageCell prepends a single literal `{ text: '… ' }` run (U+2026 + space, no
+// `color` override) as the very first run of a CONTINUATION row's (packedCellRows index >= 1)
+// Usage cell — the visual "this row continues" signal. `splitUsageCell` below concatenates a
+// cell's ENTIRE run array into `usageText`, so without stripping, every continuation-row
+// reconstruction in this file would silently start comparing `'… ' + text` against `text`.
+// Centralized HERE, once: strips exactly one leading run whose `.text === '… '` and which carries
+// no `color`. Only ever applied when the CALLER passes `isContinuation: true` — never applied
+// unconditionally, which would risk masking a genuine reconstruction defect that happened to
+// produce a leading '… ' in real user content on a row that was never supposed to carry it.
+function stripContinuationMarker<T extends { text: string; color?: string }>(runs: T[]): T[] {
+  if (runs.length > 0 && runs[0]!.text === '… ' && runs[0]!.color === undefined) {
+    return runs.slice(1);
+  }
+  return runs;
+}
+
+function splitUsageCell(
+  cell: unknown,
+  opts: { isContinuation?: boolean } = {},
+): {
   usageText: string;
   /** Grey suffix exactly as rendered, INCLUDING any leading '\n' — for faithful concatenation. */
   metaRaw: string | null;
   /** Grey suffix with the presentational leading '\n' stripped — for single-cell assertions. */
   metaText: string | null;
 } {
-  const runs = (cell as { text: unknown }).text;
-  if (!Array.isArray(runs)) {
-    return { usageText: runs as string, metaRaw: null, metaText: null };
+  const rawRuns = (cell as { text: unknown }).text;
+  if (!Array.isArray(rawRuns)) {
+    return { usageText: rawRuns as string, metaRaw: null, metaText: null };
   }
-  const typed = runs as { text: string; color?: string }[];
+  const typed = (
+    opts.isContinuation
+      ? stripContinuationMarker(rawRuns as { text: string; color?: string }[])
+      : rawRuns
+  ) as { text: string; color?: string }[];
   const greyIndexes = typed
     .map((run, i) => (run.color === META_GREY ? i : -1))
     .filter((i) => i !== -1);
-  // Production emits at most one grey segment per packed row, and always last in the stream — both
-  // properties are relied on when reading these cells back, so assert them rather than assume.
-  if (greyIndexes.length > 1) {
-    throw new Error(`Expected at most ONE grey meta run per Usage cell, got ${greyIndexes.length}`);
-  }
-  const metaIndex = greyIndexes[0];
-  if (metaIndex === undefined) {
+  if (greyIndexes.length === 0) {
     return { usageText: typed.map((r) => r.text).join(''), metaRaw: null, metaText: null };
   }
-  if (metaIndex !== typed.length - 1) {
-    throw new Error(`Grey meta run at index ${metaIndex} of ${typed.length} — expected it last`);
+  // Grey meta runs must be contiguous and occupy the tail of the run array — they are a suffix,
+  // never interleaved into the usage prose. Multiple grey runs are allowed since #1968 routes the
+  // meta suffix through buildUsageTextRuns, which may split it into per-token runs.
+  const firstGrey = greyIndexes[0]!;
+  const lastGrey = greyIndexes[greyIndexes.length - 1]!;
+  if (lastGrey !== typed.length - 1) {
+    throw new Error(
+      `Grey meta run(s) must be the last run(s) in a Usage cell — last grey at ${lastGrey}, last run at ${typed.length - 1}`,
+    );
   }
-  const metaRaw = typed[metaIndex]!.text;
+  if (lastGrey - firstGrey !== greyIndexes.length - 1) {
+    throw new Error(
+      `Grey meta runs must be contiguous in a Usage cell — found gaps in indexes ${greyIndexes.join(', ')}`,
+    );
+  }
+  const metaRaw = greyIndexes.map((i) => typed[i]!.text).join('');
   return {
     usageText: typed
-      .slice(0, metaIndex)
+      .slice(0, firstGrey)
       .map((r) => r.text)
       .join(''),
     metaRaw,
@@ -370,6 +455,7 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
     allocatedAmount: 100,
     lineKind: 'invoice',
     isSplit: false,
+    splitKind: null,
     documents: [],
     budgetLines: [],
     deposits: [],
@@ -395,6 +481,7 @@ async function makeMixedReport(): Promise<{
     vendorName: 'Split Vendor',
     invoiceNumber: 'S-1',
     isSplit: true,
+    splitKind: 'lines', // #1911: a genuine line split (foreign budget-line source)
     invoiceAmount: 800,
     allocatedAmount: 300,
     budgetLines: [
@@ -406,6 +493,7 @@ async function makeMixedReport(): Promise<{
     vendorName: 'Split-Doc Vendor',
     invoiceNumber: 'S-2',
     isSplit: true,
+    splitKind: 'lines', // #1911: a genuine line split (foreign budget-line source)
     invoiceAmount: 700,
     allocatedAmount: 250,
     documents: [{ documentId: 1, archiveSerialNumber: null, title: null, attachmentType: null }],
@@ -516,13 +604,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { calls, restore } = stubFetch();
       let result: Awaited<ReturnType<typeof generateReportPdf>>;
       try {
-        result = await generateReportPdf(
-          report,
-          includedIds,
-          content,
-          { attachDocuments: true },
-          t,
-        );
+        result = await generateReportPdf(report, includedIds, content, { attachDocuments: true });
       } finally {
         restore();
       }
@@ -574,13 +656,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { restore } = stubFetch();
       let result: Awaited<ReturnType<typeof generateReportPdf>>;
       try {
-        result = await generateReportPdf(
-          report,
-          includedIds,
-          content,
-          { attachDocuments: false },
-          t,
-        );
+        result = await generateReportPdf(report, includedIds, content, { attachDocuments: false });
       } finally {
         restore();
       }
@@ -598,7 +674,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
     });
     const { calls, restore } = stubFetch();
     try {
-      await generateReportPdf(report, includedIds, content, { attachDocuments: true }, tEn);
+      await generateReportPdf(report, includedIds, content, { attachDocuments: true });
     } finally {
       restore();
     }
@@ -633,7 +709,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         includeCoverLetter: false,
         household: null,
       });
-      const pdfContent = buildOverviewContent(content, new Map(), tEn);
+      const pdfContent = buildOverviewContent(content, new Map());
       const tableItem = pdfContent.find(
         (c) => typeof c === 'object' && c !== null && 'table' in c,
       ) as { table: { body: { text?: unknown }[][] } };
@@ -683,7 +759,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           household: null,
         });
 
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { widths: (string | number)[] } };
@@ -704,7 +780,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           household: null,
         });
 
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { widths: (string | number)[] } };
@@ -777,6 +853,10 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         vendorName: 'Constituted Vendor',
         invoiceNumber: 'U-5',
         isSplit: true,
+        // #1911: splitKind stays null — this fixture isolates the isDeposit trigger, which is
+        // UNCHANGED (invoice.isSplit && hasOwnTaggedDeposit, §3.3) and does not depend on
+        // splitKind at all. Nothing here is foreign (only an own-tagged deposit is present).
+        splitKind: null,
         invoiceAmount: 250,
         allocatedAmount: 250,
         budgetLines: [],
@@ -798,23 +878,20 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         vendorName: 'Reduced Vendor',
         invoiceNumber: 'U-6',
         isSplit: true,
+        // #1911 AC 1.2 shape: splitKind "both" — this fixture is what pre-#1911 code (wrongly)
+        // treated as "split (from non-empty budgetLines) AND deposit-reduced (from an untagged
+        // deposit)" simultaneously. Post-#1911, an UNTAGGED deposit no longer triggers
+        // isDepositReduced at all (§3.2 over-inclusive fix) — the reduction must come from a
+        // genuinely foreign-tagged deposit, which is invisible in deposits[] (§1.10). "both"
+        // preserves this row contributing BOTH the split and depositReduced legend entries, same
+        // as the original fixture intended, without relying on the fixed bug to do it.
+        splitKind: 'both',
         invoiceAmount: 150,
         allocatedAmount: 150,
         budgetLines: [
           { id: 'bl-reduced', description: null, allocatedPortion: 150, linkedItem: null },
         ],
-        deposits: [
-          {
-            id: 'dep-reduced',
-            amount: 50,
-            status: 'pending',
-            entryType: 'deposit',
-            dueDate: '2026-02-01',
-            paidDate: null,
-            claimedDate: null,
-            budgetSourceId: null, // untagged -> "reduced" wording
-          },
-        ],
+        deposits: [], // the foreign-tagged deposit causing the reduction is invisible (§1.10)
       });
 
       return {
@@ -861,17 +938,13 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           household,
         });
 
-        const result = await generateReportPdf(
-          report,
-          includedIds,
-          content,
-          { attachDocuments: false },
-          t,
-        );
+        const result = await generateReportPdf(report, includedIds, content, {
+          attachDocuments: false,
+        });
         expect(result.blob).toBeInstanceOf(Blob);
         expect(result.blob.size).toBeGreaterThan(0);
 
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const allStrings = collectAllStrings(pdfContent);
         const leakedKeys = allStrings.filter((s) => /^sourceReports\.[a-zA-Z.]+$/.test(s));
         expect(leakedKeys).toEqual([]);
@@ -893,7 +966,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           household: null,
         },
       );
-      const pdfContent = buildOverviewContent(content, new Map(), tEn);
+      const pdfContent = buildOverviewContent(content, new Map());
       const tableItem = pdfContent.find(
         (c) => typeof c === 'object' && c !== null && 'table' in c,
       ) as { table: { body: unknown[][] } };
@@ -924,7 +997,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           includeCoverLetter: false,
           household: null,
         });
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: unknown[][] } };
@@ -976,10 +1049,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
             depositReducedLabel: ' (less\u00A0deposit)',
             splitLabel: ' (partial)',
             // The footnote WORDINGS that must no longer appear anywhere in the tree.
-            goneFootnotes: [
-              'This position reflects deposits claimed separately.',
-              'This is a deposit',
-            ],
+            goneFootnotes: ['This is a deposit'],
+            depositFootnoteText: 'This position reflects deposits claimed separately.',
+            splitFootnoteText: 'Amount shown reflects only the portion allocated to this source.',
           },
         ],
         [
@@ -991,10 +1063,11 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
             // DE wrapped as "(Teilbetrag) (abzgl." / "Abschlag)" before the fix.
             depositReducedLabel: ' (abzgl.\u00A0Abschlag)',
             splitLabel: ' (Teilbetrag)',
-            goneFootnotes: [
+            goneFootnotes: ['Dies ist eine Abschlagszahlung'],
+            depositFootnoteText:
               'Diese Position berücksichtigt separat eingereichte Abschlagszahlungen.',
-              'Dies ist eine Abschlagszahlung',
-            ],
+            splitFootnoteText:
+              'Der angezeigte Betrag umfasst nur den dieser Quelle zugeordneten Anteil.',
           },
         ],
       ] as const) {
@@ -1011,10 +1084,18 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         const reducedRow = content.rows.find((r) => r.invoiceId === 'inv-deposit-reduced')!;
         expect(reducedRow.isDeposit).toBe(false);
         expect(reducedRow.isDepositReduced).toBe(true);
-        // #1959: the footnote array is empty — the annotations no longer live there at all.
-        expect(content.footnotes).toEqual([]);
+        // #1965: legend sentences are reinstated — split and depositReduced each produce one entry.
+        expect(content.footnotes).toHaveLength(2);
+        expect(content.footnotes[0]!.id).toBe('split');
+        expect(content.footnotes[1]!.id).toBe('depositReduced');
+        // Markers match the inline labels (AC 2.3) — shared token between legend and row cell
+        expect(content.footnotes[0]!.marker).toBe(content.labels.splitNote);
+        expect(content.footnotes[1]!.marker).toBe(content.labels.depositReducedNote);
+        // Text values resolve from real i18n bundles, not echoed keys (real render, not mock t)
+        expect(content.footnotes[0]!.text).toBe(expected.splitFootnoteText);
+        expect(content.footnotes[1]!.text).toBe(expected.depositFootnoteText);
 
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: unknown[][] } };
@@ -1050,6 +1131,12 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         for (const gone of expected.goneFootnotes) {
           expect(allStrings.some((s) => s.includes(gone))).toBe(false);
         }
+        // #1965: the deposit-reduced legend sentence IS present in the rendered content.
+        const depositFootnoteText = expected.depositFootnoteText;
+        expect(allStrings.some((s) => s.includes(depositFootnoteText))).toBe(true);
+        // #1965 AC 3.1: split legend sentence also present in the rendered content tree
+        const splitFootnoteText = expected.splitFootnoteText;
+        expect(allStrings.some((s) => s.includes(splitFootnoteText))).toBe(true);
       }
     });
 
@@ -1068,7 +1155,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         const splitRows = content.rows.filter((r) => r.isSplit);
         expect(splitRows.length).toBeGreaterThan(0); // the fixture really does contain split rows
 
-        const pdfContent = buildOverviewContent(content, new Map(), t);
+        const pdfContent = buildOverviewContent(content, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: unknown[][] } };
@@ -1144,7 +1231,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         };
         const effective = applyOverrides(baseline, overrides);
 
-        const pdfContent = buildOverviewContent(effective, new Map(), t);
+        const pdfContent = buildOverviewContent(effective, new Map());
         const tableItem = pdfContent.find(
           (c) => typeof c === 'object' && c !== null && 'table' in c,
         ) as { table: { body: { text?: unknown }[][] } };
@@ -1162,13 +1249,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         // Confirm the whole real pipeline (real pdfmake render) still succeeds with the edited
         // content, not just that the Content[] tree looks right in isolation.
         const { generateReportPdf } = await import('./merge.js');
-        const result = await generateReportPdf(
-          report,
-          includedIds,
-          effective,
-          { attachDocuments: false },
-          t,
-        );
+        const result = await generateReportPdf(report, includedIds, effective, {
+          attachDocuments: false,
+        });
         expect(result.blob.size).toBeGreaterThan(0);
       },
     );
@@ -1187,7 +1270,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       };
       const effective = applyOverrides(baseline, overrides);
 
-      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const pdfContent = buildCoverLetterContent(effective);
       const allStrings = collectAllStrings(pdfContent);
       expect(allStrings).toContain(
         'This is a completely custom cover letter body written by the user.',
@@ -1209,7 +1292,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const effective = applyOverrides(baseline, overrides);
       expect(effective.coverLetter!.signature).toBe('Jane Doe');
 
-      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const pdfContent = buildCoverLetterContent(effective);
       const allStrings = collectAllStrings(pdfContent);
       expect(allStrings).toContain('Jane Doe\n99 New Address');
       expect(allStrings).toContain('Jane Doe'); // the (distinct) signature line
@@ -1251,7 +1334,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         // The explicit override wins regardless of key insertion order in the overrides object.
         expect(effective.coverLetter!.signature).toBe('Explicit Signature');
 
-        const pdfContent = buildCoverLetterContent(effective, tEn);
+        const pdfContent = buildCoverLetterContent(effective);
         const allStrings = collectAllStrings(pdfContent);
         // The sender edit DID take effect (this isn't passing because the whole override map was
         // ignored) — the multi-line sender leaf is present verbatim.
@@ -1292,7 +1375,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const overrides: ReportContentOverrides = { 'coverLetter.body': body };
       const effective = applyOverrides(baseline, overrides);
 
-      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const pdfContent = buildCoverLetterContent(effective);
 
       // #1959: the double newline is a PARAGRAPH boundary — the body is emitted as two sibling
       // blocks, never one node whose text still contains '\n\n'.
@@ -1351,7 +1434,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const body = 'Only paragraph, line one.\nOnly paragraph, line two.';
       const effective = applyOverrides(baseline, { 'coverLetter.body': body });
 
-      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const pdfContent = buildCoverLetterContent(effective);
       const matching = pdfContent.filter(
         (c) =>
           typeof c === 'object' &&
@@ -1382,7 +1465,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const overrides: ReportContentOverrides = { 'coverLetter.body': body };
       const effective = applyOverrides(baseline, overrides);
 
-      const pdfContent = buildCoverLetterContent(effective, tEn);
+      const pdfContent = buildCoverLetterContent(effective);
       const bodyItem = findBodyItem(pdfContent, 'bold');
       // Never parsed pre-render: the exact literal string, markup characters included verbatim.
       expect(bodyItem['text']).toBe(body);
@@ -1421,7 +1504,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         'row.inv-normal.usageText': 'ONLY THIS ROW IS EDITED',
       };
       const effective = applyOverrides(baseline, overrides);
-      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const pdfContent = buildOverviewContent(effective, new Map());
 
       // #1929 round 2: 'ONLY THIS ROW IS EDITED' no longer appears as a single leaf string in the
       // content tree — buildUsageTextRuns() always splits the Usage cell into per-token runs
@@ -1531,13 +1614,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const { report, includedIds, effective, longUsageText, overriddenIds } =
         buildLongUsageFixture();
 
-      const result = await generateReportPdf(
-        report,
-        includedIds,
-        effective,
-        { attachDocuments: false },
-        tEn,
-      );
+      const result = await generateReportPdf(report, includedIds, effective, {
+        attachDocuments: false,
+      });
       expect(result.blob).toBeInstanceOf(Blob);
       expect(result.blob.size).toBeGreaterThan(0);
 
@@ -1557,7 +1636,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       // overridden invoice's own rendered Usage cell directly and reconstruct it via
       // usageCellText() instead — this is a MORE precise check than the old blanket search, since
       // it verifies the text landed on the correct row, not just somewhere in the tree.
-      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const pdfContent = buildOverviewContent(effective, new Map());
       const tableItem = findTableItem(pdfContent);
       let reconstructedMatches = 0;
       for (const invoiceId of overriddenIds) {
@@ -1590,7 +1669,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       // A FRESH buildOverviewContent() call, so this test holds its own live reference to render
       // and mutate — generateReportPdf()'s internal call (used by the test above) builds its own
       // content array that isn't exposed to the caller.
-      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const pdfContent = buildOverviewContent(effective, new Map());
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
@@ -1640,6 +1719,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         vendorName: 'Bau- und Sanitärtechnik Schwarzwald e.K.',
         invoiceNumber: 'WORST-0001',
         isSplit: true,
+        splitKind: 'lines', // #1911: genuine line split, drives the ' (partial)' inline label
         invoiceAmount: 1234.56,
         allocatedAmount: 987.65,
         budgetLines: [
@@ -1652,6 +1732,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         vendorName: 'Elektro Müller GmbH & Co. KG',
         invoiceNumber: 'WORST-0002',
         isSplit: true,
+        splitKind: null, // isDeposit trigger is unchanged (isSplit && hasOwnTaggedDeposit), §3.3
         invoiceAmount: 500,
         allocatedAmount: 500,
         budgetLines: [],
@@ -1719,8 +1800,10 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       const effective = applyOverrides(baseline, overrides);
       // Multiple stacked footnote markers on the split invoice's allocated cell (skip-footnote
       // *1 PREPENDED to its already-present split marker †).
-      const skipped = new Map<string, string[]>([['inv-worst-split', ['footnoteFetchFailed']]]);
-      const pdfContent = buildOverviewContent(effective, skipped, t);
+      const skipped = new Map<string, ReportSkipReason[]>([
+        ['inv-worst-split', ['footnoteFetchFailed']],
+      ]);
+      const pdfContent = buildOverviewContent(effective, skipped);
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
@@ -1826,7 +1909,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         'row.inv-worst-usage.usageText': usageOverrideText,
       };
       const effective = applyOverrides(baseline, overrides);
-      const pdfContent = buildOverviewContent(effective, new Map(), t);
+      const pdfContent = buildOverviewContent(effective, new Map());
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
@@ -1934,7 +2017,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         includeCoverLetter: false,
         household: null,
       });
-      const pdfContent = buildOverviewContent(content, new Map(), tDe);
+      const pdfContent = buildOverviewContent(content, new Map());
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
@@ -1944,7 +2027,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       return { headerRow: tableItem.table.body[0]! };
     }
 
-    it('[HIGH1] "Auftragnehmer" (vendor header, real German) and "Rechnungsbetrag" (invoiceAmount header) render without throwing, full text recoverable, and both genuinely wrap to multiple lines (their real measured widths — 67.50pt/78.66pt — exceed their 45pt/48pt columns even at real, not just worst-case, glyph metrics)', async () => {
+    it('[HIGH1] "Firma" (vendor header, real German #1937 fix) and "Betrag" (invoiceAmount header) render without throwing, full text recoverable, and both fit their columns in a single rendered line', async () => {
       const { headerRow } = await renderGermanHeaderRow('budget-overview');
       const vendorHeader = headerRow[0] as { text: unknown; positions?: { pageNumber: number }[] };
       const invoiceAmountHeader = headerRow[4] as {
@@ -1952,16 +2035,18 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         positions?: { pageNumber: number }[];
       };
 
-      expect(usageCellText(vendorHeader.text)).toBe('Auftragnehmer');
-      expect(usageCellText(invoiceAmountHeader.text)).toBe('Rechnungsbetrag');
+      // #1937: DE labels changed from "Auftragnehmer"/"Rechnungsbetrag" (too wide) to
+      // "Firma"/"Betrag" (fit their 45pt/48pt columns at real Roboto glyph metrics).
+      expect(usageCellText(vendorHeader.text)).toBe('Firma');
+      expect(usageCellText(invoiceAmountHeader.text)).toBe('Betrag');
 
-      // Both are single unbroken words wider than their column even at REAL (not worst-case)
-      // metrics, per the architect's own measurement — so both must genuinely wrap across
-      // multiple rendered lines, not merely carry the flag without needing it.
+      // Both new labels are short enough to fit their columns without wrapping — each renders
+      // as exactly 1 line. This is the regression guard: a future DE translation that reintroduces
+      // a wide single-token word would push positions.length above 1.
       expect(vendorHeader.positions).toBeDefined();
-      expect(vendorHeader.positions!.length).toBeGreaterThan(1);
+      expect(vendorHeader.positions!.length).toEqual(1);
       expect(invoiceAmountHeader.positions).toBeDefined();
-      expect(invoiceAmountHeader.positions!.length).toBeGreaterThan(1);
+      expect(invoiceAmountHeader.positions!.length).toEqual(1);
     });
 
     it('[HIGH1] "Zugeordneter Betrag" (allocatedAmount header, 75pt column) is NOT force-broken mid-character — it renders as exactly 2 lines (one word per line, wrapped at the natural space), proving the conservative per-token flag on "Zugeordneter" never actually needed to invoke a mid-character split', async () => {
@@ -1981,12 +2066,12 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       expect(allocatedHeader.positions!.length).toBe(2);
     });
 
-    it('[HIGH1] the claim (6-column) shape header row also renders "Auftragnehmer"/"Rechnungsbetrag" without throwing and with full text recoverable — the same protection applies regardless of table shape', async () => {
+    it('[HIGH1] the claim (6-column) shape header row also renders "Firma"/"Betrag" without throwing and with full text recoverable — the same protection applies regardless of table shape (#1937)', async () => {
       const { headerRow } = await renderGermanHeaderRow('claim');
       const vendorHeader = headerRow[0] as { text: unknown };
       const invoiceAmountHeader = headerRow[3] as { text: unknown }; // no status column in claim shape
-      expect(usageCellText(vendorHeader.text)).toBe('Auftragnehmer');
-      expect(usageCellText(invoiceAmountHeader.text)).toBe('Rechnungsbetrag');
+      expect(usageCellText(vendorHeader.text)).toBe('Firma');
+      expect(usageCellText(invoiceAmountHeader.text)).toBe('Betrag');
     });
   });
 
@@ -2003,7 +2088,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         includeCoverLetter: false,
         household: null,
       });
-      const pdfContent = buildOverviewContent(content, new Map(), tDe);
+      const pdfContent = buildOverviewContent(content, new Map());
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
@@ -2120,7 +2205,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         'row.inv-boundary-target.usageText': usageText,
       };
       const effective = applyOverrides(baseline, overrides);
-      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const pdfContent = buildOverviewContent(effective, new Map());
       await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
@@ -2203,19 +2288,15 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       // it in `expect(async () => {...}).not.toThrow()` would be a no-op (that matcher never awaits
       // the returned promise, so a rejection inside would surface as an unrelated unhandled
       // rejection instead of a test failure).
-      const result = await generateReportPdf(
-        report,
-        includedIds,
-        effective,
-        { attachDocuments: false },
-        tEn,
-      );
+      const result = await generateReportPdf(report, includedIds, effective, {
+        attachDocuments: false,
+      });
       expect(result.blob.size).toBeGreaterThan(0);
 
       const pdfDoc = await PDFDocument.load(await result.blob.arrayBuffer());
       expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
 
-      const pdfContent = buildOverviewContent(effective, new Map(), tEn);
+      const pdfContent = buildOverviewContent(effective, new Map());
       const tableItem = findTableItem(pdfContent);
 
       // The target invoice's contiguous row group: starts at its own (non-blank vendor) row, and
@@ -2236,9 +2317,11 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       expect(chunkRows.length).toBeGreaterThan(1); // multiple rows, per AC12's "well over" side
 
       // #1929 round 2: each row's Usage cell `.text` is now a run array (buildUsageTextRuns), not
-      // a plain string — reconstruct each row's runs before concatenating across rows.
+      // a plain string — reconstruct each row's runs before concatenating across rows. #1940 AC5:
+      // every row but the first (index 0) in this group is a continuation row and carries the '… '
+      // marker — strip it via splitUsageCell (usageCellText alone doesn't know about the marker).
       const reconstructed = chunkRows
-        .map((row) => usageCellText((row[row.length - 1] as { text?: unknown })?.text ?? ''))
+        .map((row, i) => splitUsageCell(row[row.length - 1], { isContinuation: i > 0 }).usageText)
         .join('');
       expect(reconstructed).toBe(usageText);
     });
@@ -2330,6 +2413,13 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           sourceType: 'Source Type',
           reference: 'Reference',
           generatedAt: 'Generated At',
+          pageLabel: 'Page',
+          coverLetterReferenceLabel: 'Reference:',
+          coverLetterSubjectLabel: 'Subject:',
+          skipReasonLabels: {
+            footnoteFetchFailed: 'Fetch failed',
+            footnoteInvalidPdf: 'Invalid PDF',
+          },
         },
         sourceInfo: {
           sourceName: 'Cell Scope Source',
@@ -2383,10 +2473,11 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       /** Real page count of the rendered PDF. */
       pageCount: number;
     }> {
-      const { buildOverviewContent, packUsageCellRows } = await import('./overviewPdf.js');
+      const { buildOverviewContent, packUsageCellRowsWithMinimum } =
+        await import('./overviewPdf.js');
       const content = makeCellScopeContent(rowOverrides);
       const row = content.rows[0]!;
-      const pdfContent = buildOverviewContent(content, new Map(), tEn);
+      const pdfContent = buildOverviewContent(content, new Map());
       const blob = await renderOverviewPdfContent(
         pdfContent,
         { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
@@ -2394,9 +2485,17 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       );
       const tableItem = findTableItem(pdfContent);
 
-      const packedRowCount = packUsageCellRows(
+      // #1940: production now packs via packUsageCellRowsWithMinimum (AC1's runt-remainder merge),
+      // not the bare packUsageCellRows — the row count this helper expects must be derived from
+      // the SAME formula buildOverviewContent itself calls, or a genuine runt-merge in one of this
+      // block's large fixtures would make this length assertion (and the "row was SILENTLY
+      // DROPPED" guard below) fail for an unrelated reason. makeCellScopeContent's content has
+      // isOverview: false -> 6-column (claim) shape -> USAGE_SAFE_TOKEN_CHARS_6COL is the right
+      // per-line floor input.
+      const packedRowCount = packUsageCellRowsWithMinimum(
         cellSegmentsFor(row),
         MAX_SAFE_USAGE_CHUNK_CHARS,
+        Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, USAGE_SAFE_TOKEN_CHARS_6COL),
       ).length;
 
       // header (1) + packedRowCount + summary (1) — if this length check fails, a row was
@@ -2405,7 +2504,12 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       expect(tableItem.table.body).toHaveLength(1 + packedRowCount + 1);
 
       const dataRows = tableItem.table.body.slice(1, 1 + packedRowCount) as unknown[][];
-      const parts = dataRows.map((r) => splitUsageCell(r[r.length - 1]));
+      // #1940 AC5: every row but the first (index 0) is a continuation row and carries the '… '
+      // marker buildUsageCell prepends — strip it before reconstructing usageText/metaRaw, or the
+      // marker leaks into usageText (it is never grey, so it always lands in the non-grey prefix).
+      const parts = dataRows.map((r, i) =>
+        splitUsageCell(r[r.length - 1], { isContinuation: i > 0 }),
+      );
       const metaRaw = parts.map((p) => p.metaRaw ?? '').join('');
       const pdfDoc = await PDFDocument.load(await blob.arrayBuffer());
       return {
@@ -2506,13 +2610,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         unallocatedInvoices: [],
         generatedAt: '2026-01-01T00:00:00.000Z',
       };
-      const result = await generateReportPdf(
-        report,
-        new Set(),
-        content,
-        { attachDocuments: false },
-        tEn,
-      );
+      const result = await generateReportPdf(report, new Set(), content, {
+        attachDocuments: false,
+      });
       const pdfDoc = await PDFDocument.load(await result.blob.arrayBuffer());
       expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(2);
     });
@@ -2602,6 +2702,30 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       },
       300000,
     );
+
+    it('[#1968 regression] a single over-wide space-free token in areaText gets wordBreak: break-all on its grey run — proves meta suffix routes through buildUsageTextRuns, not pre-fix single-run emit', async () => {
+      // 'W'.repeat(30) is the measured worst-case glyph — exceeds both USAGE_SAFE_TOKEN_CHARS
+      // thresholds (7-col: 19, 6-col: 26). No character lost (AC1) and the token carries
+      // wordBreak: 'break-all' (proves fix path was exercised, not the pre-fix bypass).
+      const overWideToken = 'W'.repeat(30);
+      const { dataRows, metaText, metaRowIndexes } = await renderCellScopeRow({
+        usageText: 'x',
+        areaText: overWideToken,
+      });
+      expect(metaText).toBe(overWideToken); // no character lost (#1968 AC1)
+      expect(metaRowIndexes.length).toBeGreaterThan(0);
+
+      // Inspect raw run array directly — splitUsageCell synthesizes { text, metaRaw } and discards
+      // wordBreak, so we bypass it for this structural assertion.
+      const metaRowIdx = metaRowIndexes[metaRowIndexes.length - 1]!;
+      const metaRowCells = dataRows[metaRowIdx] as unknown[];
+      const lastCell = metaRowCells[metaRowCells.length - 1] as {
+        text: { text: string; color?: string; wordBreak?: string }[];
+      };
+      const greyRuns = lastCell.text.filter((r) => r.color === META_GREY);
+      expect(greyRuns.length).toBeGreaterThan(0);
+      expect(greyRuns.some((r) => r.wordBreak === 'break-all')).toBe(true);
+    }, 60000);
   });
 
   // ─── #1929 round 2: AC13 header-band smoke test (scenario 20) ─────────────────────────────────
@@ -2654,13 +2778,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       });
       expect(content.sourceInfo.sourceName).toBe(longSourceName);
 
-      const result = await generateReportPdf(
-        report,
-        includedIds,
-        content,
-        { attachDocuments: false },
-        tEn,
-      );
+      const result = await generateReportPdf(report, includedIds, content, {
+        attachDocuments: false,
+      });
       expect(result.blob.size).toBeGreaterThan(0);
 
       const pdfDoc = await PDFDocument.load(await result.blob.arrayBuffer());
@@ -2735,13 +2855,9 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
       let result: Awaited<ReturnType<typeof generateReportPdf>> | undefined;
       let thrown: unknown;
       try {
-        result = await generateReportPdf(
-          report,
-          includedIds,
-          effective,
-          { attachDocuments: false },
-          tEn,
-        );
+        result = await generateReportPdf(report, includedIds, effective, {
+          attachDocuments: false,
+        });
       } catch (err) {
         thrown = err;
       }
@@ -2772,7 +2888,6 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         includedIds,
         content,
         { attachDocuments: false }, // no attachment pages, isolates the cover-letter break itself
-        tEn,
       );
       expect(result.blob.size).toBeGreaterThan(0);
 
@@ -2801,7 +2916,8 @@ describe('production i18n singleton — getFixedT resolves a language independen
     expect(i18n.language).toBe('en');
 
     const fixedDe = i18n.getFixedT('de', 'budget');
-    expect(fixedDe('sourceReports.table.vendor')).toBe('Auftragnehmer');
+    // #1937: DE vendor label changed from "Auftragnehmer" to "Firma" (fits the 45pt column).
+    expect(fixedDe('sourceReports.table.vendor')).toBe('Firma');
     expect(fixedDe('sourceReports.download')).toBe('PDF herunterladen');
 
     // Calling getFixedT for a different locale must not mutate the singleton's own active
@@ -2832,6 +2948,7 @@ describe('production i18n singleton — getFixedT resolves a language independen
       vendorName: 'Constituted Vendor',
       invoiceNumber: 'U-5',
       isSplit: true,
+      splitKind: null, // isDeposit trigger is unchanged (isSplit && hasOwnTaggedDeposit), §3.3
       invoiceAmount: 250,
       allocatedAmount: 250,
       budgetLines: [],
@@ -2899,7 +3016,7 @@ describe('production i18n singleton — getFixedT resolves a language independen
     // the same real German label sourced from content.labels.deposit — overviewPdf.ts never
     // re-derives it from its own `t` parameter.
     const { buildOverviewContent } = await import('./overviewPdf.js');
-    const pdfContent = buildOverviewContent(contentDe, new Map(), reportTDe);
+    const pdfContent = buildOverviewContent(contentDe, new Map());
     const tableItem = pdfContent.find(
       (c) => typeof c === 'object' && c !== null && 'table' in c,
     ) as { table: { body: unknown[][] } };
@@ -2911,4 +3028,992 @@ describe('production i18n singleton — getFixedT resolves a language independen
     const allocatedCell = constitutedRowCells[4] as { text: { text: string }[] };
     expect(allocatedCell.text[1]!.text).toBe(' (Abschlagszahlung)');
   });
+});
+
+// ─── #1937: DE header-label column-fit pin (AC7) ─────────────────────────────────────────────────
+//
+// Pins the DE label lengths for the two narrow fixed-width columns whose German translations
+// previously overflowed: Vendor (45pt column) and Invoice Amount (48pt column).
+//
+// Bound derivation: the Roboto font's measured average character advance at 10pt bold
+// (the table header font) is 5.19pt/char — derived from "Auftragnehmer" (13 chars) measuring
+// 67.50pt in a real render, giving 67.50 / 13 = 5.19pt/char. That yields practical column
+// capacities of floor(45 / 5.19) = 8 chars for Vendor and floor(48 / 5.19) = 9 chars for
+// Invoice Amount. A single-token DE label shorter than these bounds will fit without wrapping
+// even at the AVERAGE glyph width, not just the conservatively wide worst-case metric.
+//
+// The HIGH1 tests above exercise the same labels via a full real pdfmake render and assert
+// that each header cell resolves to exactly 1 rendered line — a stronger, renderer-level proof
+// of the same property. The length assertions here are a cheap structural guard: if a future
+// translation lands a wider single-token word, the length check fires immediately without
+// needing the full pdfmake render cycle.
+describe('#1937 AC7: DE header labels fit their narrow fixed-width columns (column-fit pin)', () => {
+  // Measured average glyph advance at 10pt bold Roboto (derived from "Auftragnehmer" real render:
+  // 67.50pt / 13 chars = 5.19pt/char). Used to compute realistic per-column character capacities.
+  const AVG_CHAR_WIDTH_PT = 5.19;
+  const VENDOR_WIDTH_PT = 45;
+  const INVOICE_AMOUNT_WIDTH_PT = 48;
+  // A single-token label this length or shorter fits without pdfmake needing to word-wrap it.
+  const VENDOR_COLUMN_CHAR_CAPACITY = Math.floor(VENDOR_WIDTH_PT / AVG_CHAR_WIDTH_PT); // 8
+  const INVOICE_AMOUNT_COLUMN_CHAR_CAPACITY = Math.floor(
+    INVOICE_AMOUNT_WIDTH_PT / AVG_CHAR_WIDTH_PT,
+  ); // 9
+
+  it('DE vendor label ("Firma") is at most VENDOR_COLUMN_CHAR_CAPACITY chars — fits the 45pt column without wrapping', () => {
+    // Uses the isolated i18next instance loaded with the real de/budget.json bundle (see beforeAll
+    // at the top of this file). The value must match the production JSON exactly.
+    const deVendorLabel = tDe('sourceReports.table.vendor');
+    expect(deVendorLabel).toBe('Firma'); // exact current value pin
+    expect(deVendorLabel.length).toBeLessThanOrEqual(VENDOR_COLUMN_CHAR_CAPACITY);
+  });
+
+  it('DE invoiceAmount label ("Betrag") is at most INVOICE_AMOUNT_COLUMN_CHAR_CAPACITY chars — fits the 48pt column without wrapping', () => {
+    const deInvoiceAmountLabel = tDe('sourceReports.table.invoiceAmount');
+    expect(deInvoiceAmountLabel).toBe('Betrag'); // exact current value pin
+    expect(deInvoiceAmountLabel.length).toBeLessThanOrEqual(INVOICE_AMOUNT_COLUMN_CHAR_CAPACITY);
+  });
+
+  it('EN vendor and invoiceAmount labels are unchanged from their baseline values', () => {
+    // EN labels are stable reference points: "Vendor" (6 chars, fits the 45pt column);
+    // "Invoice Amount" (14 chars) has an internal space so pdfmake wraps at the word boundary —
+    // it never needs break-all and is not subject to the single-token width constraint.
+    expect(tEn('sourceReports.table.vendor')).toBe('Vendor');
+    expect(tEn('sourceReports.table.invoiceAmount')).toBe('Invoice Amount');
+  });
+});
+
+// ─── #2003: ADR-034 rule #1 — horizontal-overflow assertion ──────────────────────────────────────
+//
+// Implements the minimum-bar rule from ADR-034's "Testing requirement: real renders, not mocks"
+// section: production Usage cells must not require more width than pdfmake allocates them.
+//
+// pdfmake sets `_minWidth` on each cell (DocMeasure.js) — the minimum space needed for the widest
+// unbreakable token — and `_calcWidth` on the column width descriptor (columnCalculator.js) — the
+// resolved allocation after the layout pass. With `wordBreak: 'break-all'` on 30-W-char tokens,
+// `_minWidth` drops to ~33.54pt (single glyph width); without it, 30 W chars would need ~266pt,
+// far exceeding the ~69pt Usage column. The assertion `_minWidth <= _calcWidth` is therefore
+// falsifiable: removing `wordBreak: 'break-all'` from buildUsageTextRuns breaks these tests.
+//
+// The revert-test (first `it` below) verifies `collectHorizontalRatios` / `maxHorizontalRatio`
+// themselves detect column-start overflow (a column whose left edge is past the printable margin).
+describe('ADR-034 rule #1: horizontal-overflow via _minWidth <= _calcWidth (issue #2003)', () => {
+  it('[#2003 revert-test] maxHorizontalRatio() returns > 1 for a two-column table whose second column starts past the printable right margin', async () => {
+    const { pdfMake } = await loadPdfLibs();
+    // First column 600pt — far wider than the A4 printable width of ~515.28pt. pdfmake renders
+    // it without error (no overflow guard) but the second column's text starts past the right
+    // margin, so horizontalRatio > 1 for that node.
+    const rawContent = [
+      {
+        table: {
+          widths: [600, 50],
+          body: [[{ text: 'col-1' }, { text: 'OVERFLOW' }]],
+        },
+      },
+    ] as unknown as Content[];
+    await pdfMake
+      .createPdf({
+        content: rawContent,
+        pageSize: 'A4',
+        pageMargins: [PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_X, PAGE_MARGIN_BOTTOM],
+        defaultStyle: PDF_DEFAULT_STYLE,
+        styles: PDF_STYLES,
+      })
+      .getBlob();
+    expect(maxHorizontalRatio(rawContent)).toBeGreaterThan(1);
+  });
+
+  // 'W' is the measured single widest glyph (per WORST_CASE_TOKENS.mwRun in the cell-scope
+  // invariant block above). 30 W chars exercises the worst-case token width through
+  // buildUsageTextRuns, which must apply `wordBreak: 'break-all'` to keep _minWidth <= _calcWidth.
+  it.each([
+    ['claim', 'en', 'en-US', () => tEn] as const,
+    ['claim', 'de', 'de-DE', () => tDe] as const,
+    ['budget-overview', 'en', 'en-US', () => tEn] as const,
+    ['budget-overview', 'de', 'de-DE', () => tDe] as const,
+  ])(
+    '[#2003 usageText] %s/%s: usage cell _minWidth <= _calcWidth with 30-W usageText override',
+    async (useCase, _label, localeStr, getT) => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const t = getT();
+      const { report, includedIds } = await makeMixedReport();
+      const baseline = buildReportContent(
+        report,
+        includedIds,
+        useCase as 'claim' | 'budget-overview',
+        t,
+        formattersFor(localeStr as 'en-US' | 'de-DE'),
+        { includeCoverLetter: false, household: null },
+      );
+      const effective = applyOverrides(baseline, {
+        'row.inv-normal.usageText': 'W'.repeat(30),
+      } as ReportContentOverrides);
+      const pdfContent = buildOverviewContent(effective, new Map());
+      await renderOverviewPdfContent(
+        pdfContent,
+        { tableTitle: effective.tableTitle, sourceName: effective.sourceInfo.sourceName },
+        t,
+      );
+      const tableItem = findTableItem(pdfContent);
+      const usageColIndex = tableItem.table.widths.length - 1;
+      const usageCalcWidth = calcWidthsOf(tableItem.table.widths)[usageColIndex]!;
+      const normalRowIndex = effective.rows.findIndex((r) => r.invoiceId === 'inv-normal');
+      const usageCell = tableItem.table.body[1 + normalRowIndex]![usageColIndex] as {
+        _minWidth?: number;
+      };
+      const minWidth = usageCell._minWidth;
+      if (typeof minWidth !== 'number') {
+        throw new Error(
+          'usageCell._minWidth is not a number — pdfmake DocMeasure did not run on this cell',
+        );
+      }
+      expect(minWidth).toBeLessThanOrEqual(usageCalcWidth);
+    },
+  );
+
+  it.each([
+    ['claim', 'en', 'en-US', () => tEn] as const,
+    ['claim', 'de', 'de-DE', () => tDe] as const,
+    ['budget-overview', 'en', 'en-US', () => tEn] as const,
+    ['budget-overview', 'de', 'de-DE', () => tDe] as const,
+  ])(
+    '[#2003 areaText] %s/%s: usage cell _minWidth <= _calcWidth with 30-W areaName token',
+    async (useCase, _label, localeStr, getT) => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const t = getT();
+      const wideAreaInv = makeInvoice({
+        invoiceId: 'inv-wide-area',
+        invoiceAmount: 200,
+        allocatedAmount: 200,
+        budgetLines: [
+          {
+            id: 'bl-wide-area',
+            description: null,
+            allocatedPortion: 200,
+            linkedItem: {
+              type: 'work_item',
+              id: 'wi-wa',
+              name: 'Wide Area Item',
+              areaId: null,
+              areaName: 'W'.repeat(30),
+            },
+          },
+        ],
+      });
+      const report: SourceReportResponse = {
+        type: 'claim',
+        source: {
+          id: 'src-area',
+          name: 'Area Source',
+          sourceType: 'bank_loan',
+          reference: null,
+          contactAddress: null,
+        },
+        invoices: [wideAreaInv],
+        totalAmount: 200,
+        unallocatedInvoices: [],
+        generatedAt: '2026-03-01T00:00:00.000Z',
+      };
+      const content = buildReportContent(
+        report,
+        new Set(['inv-wide-area']),
+        useCase as 'claim' | 'budget-overview',
+        t,
+        formattersFor(localeStr as 'en-US' | 'de-DE'),
+        { includeCoverLetter: false, household: null },
+      );
+      const pdfContent = buildOverviewContent(content, new Map());
+      await renderOverviewPdfContent(
+        pdfContent,
+        { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+        t,
+      );
+      const tableItem = findTableItem(pdfContent);
+      const usageColIndex = tableItem.table.widths.length - 1;
+      const usageCalcWidth = calcWidthsOf(tableItem.table.widths)[usageColIndex]!;
+      // Single invoice → body[1] is the only data row
+      const usageCell = tableItem.table.body[1]![usageColIndex] as { _minWidth?: number };
+      const minWidth = usageCell._minWidth;
+      if (typeof minWidth !== 'number') {
+        throw new Error(
+          'usageCell._minWidth is not a number — pdfmake DocMeasure did not run on this cell',
+        );
+      }
+      expect(minWidth).toBeLessThanOrEqual(usageCalcWidth);
+    },
+  );
+});
+
+// ─── #1940: continuation-row marker (AC5) and runt-avoidance (AC1/AC9), real render ────────────
+//
+// AC9 explicitly asks for a real-render pin that no near-empty continuation row is emitted for
+// text engineered to land just past a chunk boundary, plus verification (not assumption) that the
+// marker glyph U+2026 actually paints in the embedded font. AC7 asks for the same
+// _minWidth <= _calcWidth / same-page-number proof this file already applies elsewhere (see the
+// ADR-034 block directly above), at the per-subset ceiling.
+describe('#1940: continuation-row marker (AC5) and runt-avoidance (AC1/AC9), real render', () => {
+  // Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, USAGE_SAFE_TOKEN_CHARS_7COL) — 16 < 20 at the
+  // 7-column shape, so the floor is MIN_CONTINUATION_ROW_FLOOR_CHARS (20) itself here. The two
+  // operands are deliberately distinct: the per-line figure does the main work at wider subsets,
+  // the named floor is the fallback for narrow ones — see that constant's own doc comment.
+  const MIN_TRAILING_7COL = Math.max(MIN_CONTINUATION_ROW_FLOOR_CHARS, USAGE_SAFE_TOKEN_CHARS_7COL);
+
+  // Minimal hand-built ReportContent, mirroring the "cell-scope invariant" block's own
+  // makeCellScopeContent fixture above (same file convention: scope fixture helpers locally per
+  // describe block). isOverview: true -> 7-column shape, matching MAX_SAFE_USAGE_CHUNK_CHARS's own
+  // measured reference geometry (see that constant's doc comment in overviewPdf.ts).
+  function makeMarkerContent(usageText: string): ReportContent {
+    const row: ReportContentRow = {
+      invoiceId: 'inv-marker',
+      vendor: 'Marker Vendor',
+      invoiceNumber: 'MRK-1',
+      dateText: '01/01/2026',
+      status: null,
+      statusText: 'Pending',
+      invoiceAmountText: '€100.00',
+      allocatedAmountValueText: '€100.00',
+      isSplit: false,
+      isDepositReduced: false,
+      isDeposit: false,
+      isRefund: false,
+      refundNoteText: '',
+      usageText,
+      attachmentsNote: null,
+      areaText: null,
+    };
+    return {
+      isOverview: true,
+      isClaim: false,
+      tableTitle: 'Marker Test Report',
+      labels: {
+        vendor: 'Vendor',
+        invoiceNumber: 'Invoice No.',
+        date: 'Date',
+        status: 'Status',
+        invoiceAmount: 'Invoice Amount',
+        allocatedAmount: 'Allocated Amount',
+        usage: 'Usage',
+        attachmentsNote: 'Attachments',
+        deposit: 'Deposit',
+        splitNote: 'partial',
+        depositReducedNote: 'less deposit',
+        source: 'Source',
+        sourceType: 'Source Type',
+        reference: 'Reference',
+        generatedAt: 'Generated At',
+        pageLabel: 'Page',
+        coverLetterReferenceLabel: 'Reference:',
+        coverLetterSubjectLabel: 'Subject:',
+        skipReasonLabels: {
+          footnoteFetchFailed: 'Fetch failed',
+          footnoteInvalidPdf: 'Invalid PDF',
+        },
+      },
+      sourceInfo: {
+        sourceName: 'Marker Source',
+        sourceTypeText: 'Bank Loan',
+        referenceText: null,
+        generatedAtText: '01/01/2026',
+      },
+      coverLetter: null,
+      rows: [row],
+      summaryRows: [{ key: 'total', label: 'Total', amountText: '€100.00' }],
+      footnotes: [],
+    };
+  }
+
+  // Same pathological construction as the unit-level AC1/AC2 tests in overviewPdf.test.ts: a
+  // whitespace-free run of 2*MAX_SAFE_USAGE_CHUNK_CHARS + 1 hard-splits to [chunk, chunk, 1] under
+  // PLAIN packing — a single-character last row, the exact "one letter" reproduction #1940 was
+  // filed from (issue body, round-4 ux-designer finding).
+  async function renderRuntBoundaryFixture(): Promise<{
+    dataRows: unknown[][];
+    tableItem: { table: RenderedTable };
+  }> {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+    const token = 'z'.repeat(MAX_SAFE_USAGE_CHUNK_CHARS * 2 + 1);
+    const content = makeMarkerContent(token);
+    const pdfContent = buildOverviewContent(content, new Map());
+    await renderOverviewPdfContent(
+      pdfContent,
+      { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+      tEn,
+    );
+    const tableItem = findTableItem(pdfContent);
+    const dataRows = tableItem.table.body.slice(1, tableItem.table.body.length - 1) as unknown[][];
+    return { dataRows, tableItem };
+  }
+
+  it("[AC9] a runt-boundary fixture renders with NO near-empty continuation row: the last row's marker-stripped Usage content is substantial, and the full token is recoverable across the group", async () => {
+    const token = 'z'.repeat(MAX_SAFE_USAGE_CHUNK_CHARS * 2 + 1);
+    const { dataRows } = await renderRuntBoundaryFixture();
+    expect(dataRows.length).toBeGreaterThan(1);
+
+    const lastRow = dataRows[dataRows.length - 1]!;
+    const { usageText } = splitUsageCell(lastRow[lastRow.length - 1], { isContinuation: true });
+    // The pre-fix pathology this AC exists to close: a near-empty (1-character) last row. The
+    // fix's own floor guarantees at least MIN_TRAILING_7COL characters here — this is the direct
+    // negation of "a table row that was entirely blank except for a single stray character".
+    expect(usageText.length).toBeGreaterThanOrEqual(MIN_TRAILING_7COL);
+
+    // Full losslessness across the group (I1), marker excluded from the reconstruction.
+    const reconstructed = dataRows
+      .map((r, i) => splitUsageCell(r[r.length - 1], { isContinuation: i > 0 }).usageText)
+      .join('');
+    expect(reconstructed).toBe(token);
+  });
+
+  it('[AC5] every continuation row starts with the literal "… " marker in the real rendered content tree; row 0 never does', async () => {
+    const { dataRows } = await renderRuntBoundaryFixture();
+    expect(dataRows.length).toBeGreaterThan(1);
+
+    const row0Cell = dataRows[0]![dataRows[0]!.length - 1] as {
+      text: { text: string; color?: string }[];
+    };
+    expect(row0Cell.text[0]!.text).not.toBe('… ');
+
+    for (const contRow of dataRows.slice(1)) {
+      const cell = contRow[contRow.length - 1] as { text: { text: string; color?: string }[] };
+      expect(cell.text[0]).toEqual({ text: '… ' });
+    }
+  });
+
+  it('[AC9, glyph coverage] the marker glyph U+2026 (HORIZONTAL ELLIPSIS) has a real, non-.notdef glyph in the embedded Roboto-Regular font', async () => {
+    // Verified rather than assumed by U+2014 (em dash) precedent elsewhere in this file — same
+    // General Punctuation Unicode block, but a different codepoint, and per the ux-designer's own
+    // review comment, "this file's whole culture is measured, not estimated". fontkit is a
+    // transitive dependency of pdfmake (via pdfkit) already present in node_modules; pinned here as
+    // an explicit devDependency (client/package.json) per the Dependency Policy rather than relying
+    // on an undeclared transitive resolution.
+    //
+    // Glyph id 0 is `.notdef` by spec — the exact "tofu box" failure mode this check rules out. A
+    // raw advance-width measurement would NOT prove this: fonts commonly give `.notdef` a real,
+    // non-zero advance width, so only the glyph id itself is dispositive.
+    const fontkitModule = await import('fontkit');
+    const fontkit =
+      (fontkitModule as unknown as { default?: typeof fontkitModule }).default ?? fontkitModule;
+    const vfsModule = await import('pdfmake/build/vfs_fonts');
+    const vfs =
+      (vfsModule as { default?: Record<string, string> }).default ??
+      (vfsModule as unknown as Record<string, string>);
+    const base64 = vfs['Roboto-Regular.ttf'];
+    if (typeof base64 !== 'string') {
+      throw new Error(
+        'Roboto-Regular.ttf not found in pdfmake vfs_fonts — loader.ts font wiring changed?',
+      );
+    }
+    const font = fontkit.create(Buffer.from(base64, 'base64'));
+    const glyph = font.glyphForCodePoint(0x2026);
+    expect(glyph.id).not.toBe(0);
+
+    // Sanity check on the technique itself: a genuinely unmapped astral codepoint DOES resolve to
+    // glyph id 0 in this font — proves glyph id 0 is reachable and meaningful here, not a fontkit
+    // quirk that always returns non-zero.
+    const unmapped = font.glyphForCodePoint(0x10ffff);
+    expect(unmapped.id).toBe(0);
+  });
+
+  it('[AC7] at the per-subset ceiling, the Usage column has no horizontal overflow (_minWidth <= _calcWidth) and every cell of the continuation row shares one real page number', async () => {
+    const { dataRows, tableItem } = await renderRuntBoundaryFixture();
+    expect(dataRows.length).toBeGreaterThan(1);
+
+    const usageColIndex = tableItem.table.widths.length - 1;
+    const usageCalcWidth = calcWidthsOf(tableItem.table.widths)[usageColIndex]!;
+
+    const contRow = dataRows[dataRows.length - 1] as { _minWidth?: number }[];
+    const usageCell = contRow[usageColIndex] as { _minWidth?: number };
+    const minWidth = usageCell._minWidth;
+    if (typeof minWidth !== 'number') {
+      throw new Error('usageCell._minWidth is not a number — was the render awaited first?');
+    }
+    expect(minWidth).toBeLessThanOrEqual(usageCalcWidth);
+
+    // Every cell of this continuation row — INCLUDING the blank leading/amount cells
+    // buildEmptyBodyCell produces — lands on the SAME real page: `dontBreakRows: true` held for
+    // the whole row, not just the Usage cell. A blank-text cell still receives a real
+    // `.positions` entry from pdfmake's layout engine (confirmed empirically before writing this
+    // assertion: an empty-string cell gets exactly one position, the same shape a non-empty cell
+    // gets), so `cellPageNumber` is meaningful on every cell here, not just the Usage one.
+    const pageNumbers = contRow.map((cell) => cellPageNumber(cell));
+    expect(new Set(pageNumbers).size).toBe(1);
+  });
+});
+
+// ─── #1980: legend sentence layout and occurrence count ───────────────────────────────────────────
+//
+// Exercises the document-level legend entries (content.footnotes[]) added by issue #1965:
+// AC1 proves both sentences appear in the rendered PDF for every locale;
+// AC2 proves the split sentence appears EXACTLY ONCE when N > 1 split rows exist (not .some());
+// AC3 proves neither sentence bleeds into a no-flag report.
+describe('legend sentence layout and occurrence count (#1980)', () => {
+  // Recursively collects every string value anywhere in a pdfmake Content tree. Defined here
+  // (rather than relying on the inner-describe-block version above) so this top-level describe
+  // block is self-contained and its tests can run without the outer describe's scope.
+  function collectAllStrings(node: unknown, out: string[] = []): string[] {
+    if (typeof node === 'string') {
+      out.push(node);
+    } else if (Array.isArray(node)) {
+      for (const item of node) collectAllStrings(item, out);
+    } else if (node !== null && typeof node === 'object') {
+      for (const value of Object.values(node as Record<string, unknown>)) {
+        collectAllStrings(value, out);
+      }
+    }
+    return out;
+  }
+
+  it.each([['en', 'en-US', () => tEn] as const, ['de', 'de-DE', () => tDe] as const])(
+    '[#1980 AC1] %s locale: both legend sentences in rendered content tree, page count >= 1',
+    async (_label, localeStr, getT) => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const t = getT();
+      const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
+
+      // One split invoice (isSplit + budgetLines) and one deposit-reduced invoice
+      // (isSplit + untagged deposit, no budget lines) — both flag types present so
+      // buildReportContent emits two footnote entries.
+      const splitInv = makeInvoice({
+        invoiceId: 'inv-leg-split',
+        isSplit: true,
+        splitKind: 'lines', // #1911: genuine line split
+        invoiceAmount: 300,
+        allocatedAmount: 300,
+        budgetLines: [
+          { id: 'bl-leg-split', description: null, allocatedPortion: 300, linkedItem: null },
+        ],
+        deposits: [],
+      });
+      const depositReducedInv = makeInvoice({
+        invoiceId: 'inv-leg-deposit',
+        isSplit: true,
+        // #1911 AC 1.2 shape: the reduction comes from a foreign-TAGGED deposit, which is
+        // invisible in deposits[] (§1.10) — an untagged deposit no longer triggers
+        // isDepositReduced at all (§3.2 over-inclusive fix).
+        splitKind: 'deposits',
+        invoiceAmount: 150,
+        allocatedAmount: 150,
+        budgetLines: [],
+        deposits: [],
+      });
+      const report: SourceReportResponse = {
+        type: 'claim',
+        source: {
+          id: 'src-leg',
+          name: 'Legend Source',
+          sourceType: 'bank_loan',
+          reference: null,
+          contactAddress: null,
+        },
+        invoices: [splitInv, depositReducedInv],
+        totalAmount: splitInv.allocatedAmount + depositReducedInv.allocatedAmount,
+        unallocatedInvoices: [],
+        generatedAt: '2026-03-01T00:00:00.000Z',
+      };
+
+      const content = buildReportContent(
+        report,
+        new Set(['inv-leg-split', 'inv-leg-deposit']),
+        'claim',
+        t,
+        formatters,
+        { includeCoverLetter: false, household: null },
+      );
+      // Sanity: both legend entries must be in the model before we assert on the rendered output.
+      expect(content.footnotes).toHaveLength(2);
+
+      const pdfContent = buildOverviewContent(content, new Map());
+      const blob = await renderOverviewPdfContent(
+        pdfContent,
+        { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+        t,
+      );
+
+      // Derive expected sentence texts from the already-built content model — locale-agnostic
+      // (works for both en and de without hardcoding either translation).
+      const splitSentence = content.footnotes.find((f) => f.id === 'split')!.text;
+      const depositReducedSentence = content.footnotes.find((f) => f.id === 'depositReduced')!.text;
+
+      const allStrings = collectAllStrings(pdfContent);
+      expect(allStrings.some((s) => s.includes(splitSentence))).toBe(true);
+      expect(allStrings.some((s) => s.includes(depositReducedSentence))).toBe(true);
+
+      // Page count must be sane (at least 1 page rendered successfully).
+      const pdfDoc = await PDFDocument.load(await blob.arrayBuffer());
+      expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
+    },
+  );
+
+  it('[#1980 AC2] two split invoices produce exactly ONE split-legend sentence in rendered PDF tree', async () => {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+
+    // N = 2 split invoices: deduplication in buildReportContent must collapse them to one entry.
+    const inv1 = makeInvoice({
+      invoiceId: 'inv-split-a',
+      isSplit: true,
+      splitKind: 'lines',
+      invoiceAmount: 200,
+      allocatedAmount: 200,
+      budgetLines: [
+        { id: 'bl-split-a', description: null, allocatedPortion: 200, linkedItem: null },
+      ],
+    });
+    const inv2 = makeInvoice({
+      invoiceId: 'inv-split-b',
+      isSplit: true,
+      splitKind: 'lines',
+      invoiceAmount: 150,
+      allocatedAmount: 150,
+      budgetLines: [
+        { id: 'bl-split-b', description: null, allocatedPortion: 150, linkedItem: null },
+      ],
+    });
+    const report: SourceReportResponse = {
+      type: 'claim',
+      source: {
+        id: 'src-ac2',
+        name: 'Source AC2',
+        sourceType: 'bank_loan',
+        reference: null,
+        contactAddress: null,
+      },
+      invoices: [inv1, inv2],
+      totalAmount: inv1.allocatedAmount + inv2.allocatedAmount,
+      unallocatedInvoices: [],
+      generatedAt: '2026-03-01T00:00:00.000Z',
+    };
+
+    const content = buildReportContent(
+      report,
+      new Set(['inv-split-a', 'inv-split-b']),
+      'claim',
+      tEn,
+      formattersFor('en-US'),
+      { includeCoverLetter: false, household: null },
+    );
+    // Sanity: two split rows → exactly one model-level legend entry.
+    expect(content.footnotes).toHaveLength(1);
+    expect(content.footnotes[0]!.id).toBe('split');
+
+    const pdfContent = buildOverviewContent(content, new Map());
+
+    // AC2: use filter().length, NOT .some() — .some() passes vacuously when the sentence is
+    // absent (0 matches). filter().length === 1 proves the sentence is present exactly once.
+    const allStrings = collectAllStrings(pdfContent);
+    const splitSentence = content.footnotes[0]!.text;
+    const splitMatches = allStrings.filter((s) => s.includes(splitSentence));
+    expect(splitMatches).toHaveLength(1);
+  });
+
+  it('[#1980 AC3] report with no split or deposit-reduced rows renders neither legend sentence', async () => {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+
+    const normalInv = makeInvoice({
+      invoiceId: 'inv-normal-ac3',
+      isSplit: false,
+      invoiceAmount: 500,
+      allocatedAmount: 500,
+    });
+    const report: SourceReportResponse = {
+      type: 'claim',
+      source: {
+        id: 'src-ac3',
+        name: 'Source AC3',
+        sourceType: 'bank_loan',
+        reference: null,
+        contactAddress: null,
+      },
+      invoices: [normalInv],
+      totalAmount: 500,
+      unallocatedInvoices: [],
+      generatedAt: '2026-03-01T00:00:00.000Z',
+    };
+
+    const content = buildReportContent(
+      report,
+      new Set(['inv-normal-ac3']),
+      'claim',
+      tEn,
+      formattersFor('en-US'),
+      { includeCoverLetter: false, household: null },
+    );
+    // Sanity: no legend entries.
+    expect(content.footnotes).toHaveLength(0);
+
+    const pdfContent = buildOverviewContent(content, new Map());
+
+    // Derive from the real i18n instance — not hardcoded strings. This ensures the assertion
+    // tracks the translation, not a stale literal.
+    const splitSentence = tEn('sourceReports.table.splitFootnote');
+    const depositReducedSentence = tEn('sourceReports.table.depositReducedFootnote');
+
+    const allStrings = collectAllStrings(pdfContent);
+    expect(allStrings.some((s) => s.includes(splitSentence))).toBe(false);
+    expect(allStrings.some((s) => s.includes(depositReducedSentence))).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// #1911 §5.3 — the AC 1.2 shape (splitKind "deposits", deposits: [] — the foreign-tagged deposit
+// causing the split is invisible server-side) renders the deposit-reduced inline label and legend
+// sentence, and NEVER the split label/sentence, through the real, unmocked pdfmake pipeline in
+// both locales. This is the content-level companion to the AC 1.2 server test (which proves the
+// derivation) and the buildReportContent unit test (which proves the flag) — this one proves the
+// PDF a bank recipient actually reads carries the correct wording.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+describe('#1911 AC 5.3: the AC 1.2 shape renders (less deposit)/depositReducedFootnote, never (partial)/splitFootnote (real i18n, both locales)', () => {
+  function collectAllStrings(node: unknown, out: string[] = []): string[] {
+    if (typeof node === 'string') {
+      out.push(node);
+    } else if (Array.isArray(node)) {
+      for (const item of node) collectAllStrings(item, out);
+    } else if (node !== null && typeof node === 'object') {
+      for (const value of Object.values(node as Record<string, unknown>)) {
+        collectAllStrings(value, out);
+      }
+    }
+    return out;
+  }
+
+  it.each([['en', 'en-US', () => tEn] as const, ['de', 'de-DE', () => tDe] as const])(
+    '%s locale',
+    async (_label, localeStr, getT) => {
+      const { buildOverviewContent } = await import('./overviewPdf.js');
+      const t = getT();
+      const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
+
+      const inv = makeInvoice({
+        invoiceId: 'inv-1911-ac12',
+        vendorName: 'AC12 Vendor',
+        isSplit: true,
+        splitKind: 'deposits',
+        invoiceAmount: 500,
+        allocatedAmount: 500,
+        budgetLines: [],
+        deposits: [], // the foreign-tagged deposit causing the split is invisible (§1.10)
+      });
+      const report: SourceReportResponse = {
+        type: 'claim',
+        source: {
+          id: 'src-ac12',
+          name: 'Source AC12',
+          sourceType: 'bank_loan',
+          reference: null,
+          contactAddress: null,
+        },
+        invoices: [inv],
+        totalAmount: 500,
+        unallocatedInvoices: [],
+        generatedAt: '2026-03-01T00:00:00.000Z',
+      };
+
+      const content = buildReportContent(
+        report,
+        new Set(['inv-1911-ac12']),
+        'claim',
+        t,
+        formatters,
+        { includeCoverLetter: false, household: null },
+      );
+      // Sanity at the model level before rendering.
+      expect(content.rows[0]!.isDepositReduced).toBe(true);
+      expect(content.rows[0]!.isSplit).toBe(false);
+      expect(content.footnotes.map((f) => f.id)).toEqual(['depositReduced']);
+
+      const pdfContent = buildOverviewContent(content, new Map());
+      await renderOverviewPdfContent(
+        pdfContent,
+        { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+        t,
+      );
+
+      const tableItem = pdfContent.find(
+        (c) => typeof c === 'object' && c !== null && 'table' in c,
+      ) as { table: { body: unknown[][] } };
+      const row = tableItem.table.body.find(
+        (r) => usageCellText((r[0] as { text?: unknown })?.text) === 'AC12 Vendor',
+      ) as { text: unknown }[];
+      const allocatedRuns = (row[4] as { text: { text: string }[] }).text;
+      expect(Array.isArray(allocatedRuns)).toBe(true);
+      const allocatedText = allocatedRuns.map((r) => r.text).join('');
+
+      const depositReducedLabel = ` (${content.labels.depositReducedNote})`;
+      const splitLabel = ` (${content.labels.splitNote})`;
+      expect(allocatedText).toContain(depositReducedLabel);
+      expect(allocatedText).not.toContain(splitLabel);
+
+      // Legend sentence present in the rendered PDF content tree exactly once; split sentence absent.
+      const depositReducedSentence = content.footnotes.find((f) => f.id === 'depositReduced')!.text;
+      const splitSentence = t('sourceReports.table.splitFootnote');
+      const allStrings = collectAllStrings(pdfContent);
+      expect(allStrings.filter((s) => s.includes(depositReducedSentence))).toHaveLength(1);
+      expect(allStrings.some((s) => s.includes(splitSentence))).toBe(false);
+    },
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// #1911 AC 4.5 (highest-risk criterion) — the maximal four-run allocated-amount row:
+// splitKind "both" + an own-tagged deposit + lineKind "refund-adjustment" produces FOUR appended
+// runs — (Deposit) (partial) (less deposit) refundNote — reachable for the first time because §3.4
+// removes the if/else that previously capped a row at three labels. A real render at the report's
+// configured page size must paint no text outside the printable area and drop none of the four
+// labels, in both locales and under the #1973 column-visibility subsets that narrow the allocated
+// column (glossary.json records a prior wrap-mid-bracket break in exactly this column, #1959).
+//
+// REVIEW FINDING (product-owner + product-architect, PR #2015): the first version of this test
+// asserted `maxHorizontalRatio(pdfContent) <= 1` and "all four labels present in cell.text" —
+// neither is falsifiable. `maxHorizontalRatio` is proven vacuous on production content by the
+// ADR-034 Deviation Log (2026-08-05, filed off PR #2008's mutation testing): every column in this
+// table is a fixed, content-independent width (#1929 round 4 removed the last `'*'` column), so
+// `horizontalRatio` — recorded at each rendered line's START x, from content-independent column
+// offsets — can never move no matter how wide a cell's content is; it detects a mispositioned
+// COLUMN, not an overflowing CELL. And reading `.text` off the pdfmake content tree reads what
+// THIS TEST constructed, never what pdfmake actually laid out — it cannot observe a drop, a clip,
+// or a wrap. Replaced with the two checks below, both read from pdfmake's OWN post-render state.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+describe('#1911 AC 4.5: maximal four-run allocated-amount row — real render, no overflow, no label drop', () => {
+  function makeMaximalReport(
+    splitKindValue: SourceReportInvoice['splitKind'],
+  ): SourceReportResponse {
+    const inv = makeInvoice({
+      invoiceId: 'inv-1911-maximal',
+      vendorName: 'Maximal Vendor',
+      invoiceNumber: 'MAX-0001',
+      isSplit: true,
+      splitKind: splitKindValue,
+      lineKind: 'refund-adjustment',
+      invoiceAmount: 500,
+      allocatedAmount: -150,
+      budgetLines: [
+        { id: 'bl-maximal', description: 'Materials', allocatedPortion: -150, linkedItem: null },
+      ],
+      deposits: [
+        {
+          id: 'dep-maximal',
+          amount: 100,
+          status: 'paid',
+          entryType: 'deposit',
+          dueDate: '2026-01-01',
+          paidDate: null,
+          claimedDate: null,
+          budgetSourceId: 'src-maximal', // tagged to THIS source -> own-tagged (Deposit) badge
+        },
+      ],
+    });
+    return {
+      type: 'claim',
+      source: {
+        id: 'src-maximal',
+        name: 'Maximal Source',
+        sourceType: 'bank_loan',
+        reference: null,
+        contactAddress: null,
+      },
+      invoices: [inv],
+      totalAmount: -150,
+      unallocatedInvoices: [],
+      generatedAt: '2026-03-01T00:00:00.000Z',
+    };
+  }
+
+  // Renders `report`'s single invoice for the given use case/locale/column-visibility shape and
+  // reads back pdfmake's own POST-RENDER annotations on the allocated-amount cell — `_minWidth`
+  // (ADR-034 rule #1's falsifiable overflow measurement) and `.positions` (real per-line layout
+  // records, used below for the differential no-drop check) — never just the `.text` we built.
+  async function renderAllocatedCell(
+    report: SourceReportResponse,
+    useCase: 'budget-overview' | 'claim',
+    t: TFunction,
+    formatters: Formatters,
+  ): Promise<{
+    minWidth: number;
+    calcWidth: number;
+    positionsLength: number;
+    pageCount: number;
+  }> {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+    const { reportColumnsForUseCase, REQUIRED_REPORT_COLUMN } =
+      await import('../reportContent/columns.js');
+    const includedIds = new Set(report.invoices.map((inv) => inv.invoiceId));
+    const content = buildReportContent(report, includedIds, useCase, t, formatters, {
+      includeCoverLetter: false,
+      household: null,
+    });
+
+    // budget-overview: every column visible (the 7-col shape, default hiddenColumns). claim: every
+    // hideable column hidden except the locked allocatedAmount column — the same construction as
+    // the #1973 AC2.7 degenerate single-column block above.
+    const pdfContent =
+      useCase === 'claim'
+        ? buildOverviewContent(
+            content,
+            new Map(),
+            new Set(
+              reportColumnsForUseCase(content.isOverview).filter(
+                (c) => c !== REQUIRED_REPORT_COLUMN,
+              ),
+            ),
+          )
+        : buildOverviewContent(content, new Map());
+
+    const blob = await renderOverviewPdfContent(
+      pdfContent,
+      { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+      t,
+    );
+
+    // Single invoice in this report -> table.body[0] is the header, table.body[1] is the one data
+    // row, regardless of which columns are visible (usage content is short: no continuation rows).
+    const tableItem = findTableItem(pdfContent);
+    const calcWidths = calcWidthsOf(tableItem.table.widths);
+    // allocatedAmount is the sole cell in the 1-col claim shape, or the 6th (index 5) non-usage
+    // cell before the trailing Usage cell in the 7-col budget-overview shape.
+    const allocatedColIndex = useCase === 'budget-overview' ? 5 : 0;
+    const dataRow = tableItem.table.body[1] as {
+      text: unknown;
+      _minWidth?: number;
+      positions?: unknown[];
+    }[];
+    const allocatedCell = dataRow[allocatedColIndex] as {
+      text: unknown;
+      _minWidth?: number;
+      positions?: unknown[];
+    };
+    if (typeof allocatedCell._minWidth !== 'number') {
+      throw new Error(
+        'allocatedCell._minWidth is not a number — was pdfContent rendered before reading it?',
+      );
+    }
+    if (!Array.isArray(allocatedCell.positions)) {
+      throw new Error(
+        'allocatedCell.positions is not an array — was pdfContent rendered before reading it?',
+      );
+    }
+
+    const pdfDoc = await PDFDocument.load(await blob.arrayBuffer());
+    return {
+      minWidth: allocatedCell._minWidth,
+      calcWidth: calcWidths[allocatedColIndex]!,
+      positionsLength: allocatedCell.positions.length,
+      pageCount: pdfDoc.getPageCount(),
+    };
+  }
+
+  it.each([
+    ['budget-overview 7-col', 'en', 'budget-overview' as const, 'en-US', () => tEn] as const,
+    ['budget-overview 7-col', 'de', 'budget-overview' as const, 'de-DE', () => tDe] as const,
+    ['claim 1-col', 'en', 'claim' as const, 'en-US', () => tEn] as const,
+    ['claim 1-col', 'de', 'claim' as const, 'de-DE', () => tDe] as const,
+  ])('%s, %s locale', async (_shapeLabel, _localeLabel, useCase, localeStr, getT) => {
+    const t = getT();
+    const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
+
+    // Sanity at the model level: this really is the maximal four-flag case, before we render it.
+    const maximalReport = makeMaximalReport('both');
+    const maximalModelCheck = buildReportContent(
+      maximalReport,
+      new Set(['inv-1911-maximal']),
+      useCase,
+      t,
+      formatters,
+      { includeCoverLetter: false, household: null },
+    );
+    expect(maximalModelCheck.rows[0]!.isDeposit).toBe(true);
+    expect(maximalModelCheck.rows[0]!.isSplit).toBe(true);
+    expect(maximalModelCheck.rows[0]!.isDepositReduced).toBe(true);
+    expect(maximalModelCheck.rows[0]!.isRefund).toBe(true);
+
+    const maximal = await renderAllocatedCell(maximalReport, useCase, t, formatters);
+
+    // CHECK 1 — overflow (ADR-034 rule #1, the falsifiable form; see the Deviation Log entry cited
+    // above). `_minWidth` is pdfmake's own post-render measurement of the widest atom TextBreaker
+    // could not further break, computed AFTER the cell's real content laid out — exactly the
+    // quantity that overflows a fixed-width column. This is genuinely sensitive to the maximal
+    // row's content: the allocated-amount column is a tight, PINNED 75pt regardless of shape (it
+    // is never the absorber column), and the individual labels already sit close to that width
+    // (glossary.json: "Abschlagszahlung" alone measures ~72.85pt) — an unbreakable atom wider than
+    // 75pt would fail this.
+    expect(maximal.minWidth).toBeLessThanOrEqual(maximal.calcWidth);
+
+    // CHECK 2 — no silent drop (differential, real OUTPUT not input). Render a REDUCED comparator:
+    // the same fixture with exactly one fact removed — splitKind "deposits" instead of "both",
+    // which is the isSplit flag alone toggling off, dropping exactly the ' (partial)'/
+    // ' (Teilbetrag)' run. `.positions.length` is written by pdfmake DURING layout and reflects
+    // how many real lines the cell's ACTUAL content required — unlike `.text`, it cannot be
+    // satisfied by what the test merely constructed. Given how tight the 75pt column is (no two of
+    // these labels can share a line — each individually approaches the column's full width), the
+    // maximal (4-label) row must lay out into strictly more lines than the reduced (3-label) row.
+    // If a future change silently drops a label from the maximal row — the exact regression this
+    // criterion exists to catch — the two renders become indistinguishable and this collapses to
+    // an equality, failing the assertion.
+    const reducedReport = makeMaximalReport('deposits');
+    const reduced = await renderAllocatedCell(reducedReport, useCase, t, formatters);
+    expect(maximal.positionsLength).toBeGreaterThan(reduced.positionsLength);
+
+    // No throw, at least one page, for the maximal shape.
+    expect(maximal.pageCount).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// #1973 AC 2.7 — the degenerate single-column case ({allocatedAmount} alone), through the REAL,
+// unmocked pdfmake table-layout resolver. This is the strongest guard for AC 2.7 in the whole
+// suite: overviewPdf.test.ts only inspects the declared Content[] tree (which cannot see a real
+// pdfmake table-layout failure), while this file actually resolves layout via getBlob().
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+describe('#1973 AC2.7: single-column ({allocatedAmount} alone) real render', () => {
+  it.each([
+    ['budget-overview', 'budget-overview' as const],
+    ['claim', 'claim' as const],
+  ])(
+    'a real, unmocked pdfmake render of the %s report with every hideable column hidden completes without throwing and produces at least one page',
+    async (_label, useCase) => {
+      const { generateReportPdf } = await import('./merge.js');
+      const { reportColumnsForUseCase, REQUIRED_REPORT_COLUMN } =
+        await import('../reportContent/columns.js');
+      const report = makeInvoice({ invoiceId: 'inv-solo', vendorName: 'Solo Vendor' });
+      const fullReport: SourceReportResponse = {
+        type: useCase === 'budget-overview' ? 'budget-overview' : 'claim',
+        source: {
+          id: 'src-1',
+          name: 'Home Loan',
+          sourceType: 'bank_loan',
+          reference: null,
+          contactAddress: null,
+        },
+        invoices: [report],
+        totalAmount: 100,
+        unallocatedInvoices: [],
+        generatedAt: '2026-02-15T00:00:00.000Z',
+      };
+      const includedIds = new Set(['inv-solo']);
+      const formatters = formattersFor('en-US');
+      const content = buildReportContent(fullReport, includedIds, useCase, tEn, formatters, {
+        includeCoverLetter: false,
+        household: null,
+      });
+
+      // Every column this use case offers, except the locked one, is hidden — the degenerate
+      // single-column case (visible === [allocatedAmount]).
+      const hiddenColumns = new Set(
+        reportColumnsForUseCase(content.isOverview).filter((c) => c !== REQUIRED_REPORT_COLUMN),
+      );
+
+      let result: Awaited<ReturnType<typeof generateReportPdf>>;
+      await expect(
+        (async () => {
+          result = await generateReportPdf(fullReport, includedIds, content, {
+            attachDocuments: false,
+            hiddenColumns,
+          });
+        })(),
+      ).resolves.not.toThrow();
+
+      expect(result!.blob).toBeInstanceOf(Blob);
+      expect(result!.blob.size).toBeGreaterThan(0);
+
+      const pdfDoc = await PDFDocument.load(await result!.blob.arrayBuffer());
+      expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
+    },
+  );
 });

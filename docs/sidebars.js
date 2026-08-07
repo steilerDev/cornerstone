@@ -45,6 +45,7 @@ const sidebars = {
         'guides/budget/auto-itemize',
         'guides/budget/subsidies',
         'guides/budget/budget-overview',
+        'guides/budget/bank-reports',
       ],
     },
     {

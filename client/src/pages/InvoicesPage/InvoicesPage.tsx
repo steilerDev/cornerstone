@@ -76,6 +76,8 @@ export function InvoicesPage() {
     claimed: { count: 0, totalAmount: 0 },
     quotation: { count: 0, totalAmount: 0 },
     overdue: { count: 0, totalAmount: 0 },
+    claimable: { count: 0, totalAmount: 0 },
+    quotationCoveredByDeposits: 0,
   });
   const [filterMeta, setFilterMeta] = useState<FilterMeta>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -531,11 +533,12 @@ export function InvoicesPage() {
         <span className={styles.summaryAmount}>{formatCurrency(summary.pending.totalAmount)}</span>
       </div>
       <div className={styles.summaryCard}>
-        <span className={styles.summaryLabel}>{t('invoices.summaryPaid')}</span>
-        <span className={styles.summaryCount}>{summary.paid.count}</span>
+        <span className={styles.summaryLabel}>{t('invoices.summaryClaimable')}</span>
+        <span className={styles.summaryCount}>{summary.claimable.count}</span>
         <span className={`${styles.summaryAmount} ${styles.summaryAmountPaid}`}>
-          {formatCurrency(summary.paid.totalAmount)}
+          {formatCurrency(summary.claimable.totalAmount)}
         </span>
+        <span className={styles.summaryHint}>{t('invoices.summaryClaimableHint')}</span>
       </div>
       <div className={styles.summaryCard}>
         <span className={styles.summaryLabel}>{t('invoices.summaryClaimed')}</span>
@@ -550,6 +553,13 @@ export function InvoicesPage() {
         <span className={styles.summaryAmount}>
           {formatCurrency(summary.quotation.totalAmount)}
         </span>
+        {summary.quotationCoveredByDeposits > 0 && (
+          <span className={styles.summaryHint}>
+            {t('invoices.summaryQuotationCovered', {
+              amount: formatCurrency(summary.quotationCoveredByDeposits),
+            })}
+          </span>
+        )}
       </div>
       {hasOverdue && (
         <div

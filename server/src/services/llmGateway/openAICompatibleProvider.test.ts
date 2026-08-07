@@ -19,6 +19,7 @@ import {
   validateExtractedLines,
   validateMergeResult,
   validateGenerateReportContentResult,
+  stripMarkup,
 } from './openAICompatibleProvider.js';
 import {
   LlmUnreachableError,
@@ -32,7 +33,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 
 // Fixtures directory resolved from project root (process.cwd() = project root when jest runs)
-const FIXTURES_DIR = resolve(process.cwd(), 'server/src/services/budgetExtraction/fixtures');
+const FIXTURES_DIR = resolve(process.cwd(), 'server/src/services/llmGateway/fixtures');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -1827,6 +1828,77 @@ describe('createOpenAICompatibleProvider — generateReportContent() failure mod
 // ─── Story #1901: validateGenerateReportContentResult() ─────────────────────
 
 describe('validateGenerateReportContentResult()', () => {
+  // ─── Story #1952: markup stripping integration ────────────────────────────
+  // These tests verify that stripMarkup is applied inside validateGenerateReportContentResult
+  // before length capping and before the result is returned.
+  describe('markup stripping — Story #1952', () => {
+    it('strips **bold** from letterSubject before returning', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: '**Construction** Project Report',
+          letterBody: 'Body',
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterSubject).toBe('Construction Project Report');
+    });
+
+    it('strips bullet list from letterBody before returning', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: '- Point A\n- Point B',
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterBody).toBe('Point A\nPoint B');
+    });
+
+    it('strips HTML from descriptions[].description before returning', () => {
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: 'Body',
+          descriptions: [{ invoiceId: 'inv-1', description: '<b>Foundation</b> work completed' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.descriptions['inv-1']).toBe('Foundation work completed');
+    });
+
+    it('markup is stripped before truncation — stripped length determines the cap', () => {
+      // Input letterSubject is '**' + 'S'.repeat(limit) + '**', which is limit+4 chars.
+      // After stripping the bold markers the inner text is exactly `limit` chars (at the boundary).
+      // If truncation were applied to the raw (pre-strip) string, it would cut into the markers and
+      // the result would be shorter than the limit.  If strip happens first, result === 'S'.repeat(limit).
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: '**' + 'S'.repeat(REPORT_CONTENT_LIMITS.letterSubject) + '**',
+          letterBody: 'Body',
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterSubject).toHaveLength(REPORT_CONTENT_LIMITS.letterSubject);
+      expect(result.letterSubject).toBe('S'.repeat(REPORT_CONTENT_LIMITS.letterSubject));
+    });
+
+    it('fallback: letterBody preserved when stripping yields whitespace-only', () => {
+      // '** **' strips to ' ' (whitespace-only) → stripMarkup returns original '** **'
+      const result = validateGenerateReportContentResult(
+        {
+          letterSubject: 'Subject',
+          letterBody: '** **',
+          descriptions: [{ invoiceId: 'inv-1', description: 'Desc' }],
+        },
+        ['inv-1'],
+      );
+      expect(result.letterBody).toBe('** **');
+    });
+  });
+
   describe('valid inputs', () => {
     it('validates a minimal valid result', () => {
       const result = validateGenerateReportContentResult(
@@ -2186,5 +2258,236 @@ describe('validateGenerateReportContentResult()', () => {
       expect(thrown).toBeInstanceOf(LlmInvalidResponseError);
       expect((thrown as LlmInvalidResponseError).details?.missingCount).toBe(1);
     });
+  });
+});
+
+// ─── Story #1952: stripMarkup() — markup sanitization ────────────────────────
+
+describe('stripMarkup() — markup sanitization (Story #1952)', () => {
+  // ── Happy path: markup is removed ─────────────────────────────────────────
+
+  it('returns plain text unchanged — no markup chars', () => {
+    const input = 'Dear Bank Officer,\n\nPlease find our report.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('strips **bold** markers', () => {
+    expect(stripMarkup('The **key** figure is 5000 EUR.')).toBe('The key figure is 5000 EUR.');
+  });
+
+  it('strips __bold__ markers', () => {
+    expect(stripMarkup('This __matters__.')).toBe('This matters.');
+  });
+
+  it('strips *italic* markers', () => {
+    expect(stripMarkup('Amount *increased* significantly.')).toBe(
+      'Amount increased significantly.',
+    );
+  });
+
+  it('strips _italic_ markers', () => {
+    expect(stripMarkup('Amount _decreased_ slightly.')).toBe('Amount decreased slightly.');
+  });
+
+  it('strips # ATX heading at line start', () => {
+    expect(stripMarkup('# Project Report\nBody text.')).toBe('Project Report\nBody text.');
+  });
+
+  it('strips ## through ###### ATX headings at line start', () => {
+    expect(stripMarkup('## Section\n### Sub-section')).toBe('Section\nSub-section');
+  });
+
+  it('strips leading - list marker — does not merge lines', () => {
+    expect(stripMarkup('- First item\n- Second item')).toBe('First item\nSecond item');
+  });
+
+  it('strips leading * list marker at line start', () => {
+    expect(stripMarkup('* Item one\n* Item two')).toBe('Item one\nItem two');
+  });
+
+  it('strips leading + list marker at line start', () => {
+    expect(stripMarkup('+ Line A')).toBe('Line A');
+  });
+
+  it('strips leading numbered list marker with period (N.)', () => {
+    expect(stripMarkup('1. First\n2. Second')).toBe('First\nSecond');
+  });
+
+  it('strips leading numbered list marker with parenthesis (N))', () => {
+    expect(stripMarkup('1) First\n2) Second')).toBe('First\nSecond');
+  });
+
+  it('strips <b> and </b> HTML tags — keeps inner text', () => {
+    expect(stripMarkup('<b>bold</b> content')).toBe('bold content');
+  });
+
+  it('strips <br/> self-closing HTML tag', () => {
+    expect(stripMarkup('line1<br/>line2')).toBe('line1line2');
+  });
+
+  it('strips <p> and </p> HTML tags', () => {
+    expect(stripMarkup('<p>paragraph text</p>')).toBe('paragraph text');
+  });
+
+  it('strips nested HTML tags — processes all matches', () => {
+    expect(stripMarkup('<b>Important</b> and <i>noted</i>')).toBe('Important and noted');
+  });
+
+  it('bold + italic combination both stripped', () => {
+    expect(stripMarkup('**bold** and *italic* text')).toBe('bold and italic text');
+  });
+
+  it('heading + list combo — both stripped, line structure preserved', () => {
+    expect(stripMarkup('# Summary\n- Point A\n- Point B')).toBe('Summary\nPoint A\nPoint B');
+  });
+
+  // ── False-positive guards: must NOT strip ─────────────────────────────────
+
+  it('preserves mid-line hyphen (Pos. 3 - Dachstuhl)', () => {
+    const input = 'Pos. 3 - Dachstuhl';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves date-string hyphens (2024-117)', () => {
+    const input = 'Rechnung 2024-117 liegt vor.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves Mo-Fr abbreviation', () => {
+    const input = 'Arbeitszeit Mo-Fr 08:00-17:00';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves # inside a line (not at line start)', () => {
+    const input = 'Rechnung #2024-117';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves lone * with no matching partner', () => {
+    const input = 'Price: 5 EUR* (VAT incl.)';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves lone _ with no matching partner', () => {
+    const input = 'value_field without close';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves < not opening a well-formed tag (Beträge < 500 EUR)', () => {
+    const input = 'Beträge < 500 EUR';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('passes \\n and \\n\\n paragraph breaks through unchanged', () => {
+    const input = 'Paragraph 1.\n\nParagraph 2.\nContinued.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('passes German umlauts, ß, and € through unchanged', () => {
+    const input = 'Über die Maßnahmen: Straße kostet 5.000 €.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  // ── Edge cases ─────────────────────────────────────────────────────────────
+
+  it('returns original when stripping leaves empty string', () => {
+    // '* ' matches the list-marker regex and strips to ''; fallback returns original
+    expect(stripMarkup('* ')).toBe('* ');
+  });
+
+  it('returns original when stripping leaves whitespace-only', () => {
+    // '** **' bold-wraps a space; stripped inner is ' '; fallback returns original
+    expect(stripMarkup('** **')).toBe('** **');
+  });
+
+  it('empty string input returns empty string', () => {
+    // '' trims to '' which equals ''; fallback returns original ''
+    expect(stripMarkup('')).toBe('');
+  });
+
+  it('multi-line body with mixed markup — strips all, preserves line breaks', () => {
+    expect(stripMarkup('## Report\n\n- Item 1\n- Item 2\n\n<b>Total</b>: 5000 EUR')).toBe(
+      'Report\n\nItem 1\nItem 2\n\nTotal: 5000 EUR',
+    );
+  });
+
+  // ── AC 3.2: markup and legitimate punctuation on the same line ─────────────
+
+  it('strips only the leading bullet and preserves the mid-line hyphen (AC 3.2)', () => {
+    expect(stripMarkup('- Pos. 3 - Dachstuhl')).toBe('Pos. 3 - Dachstuhl');
+  });
+
+  // ── Intraword underscores are not emphasis (CommonMark) ───────────────────
+
+  it('preserves snake_case identifiers with two or more underscores', () => {
+    const input = 'Feld budget_line_id wurde geprüft';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves underscore-separated reference numbers (RE_2024_117)', () => {
+    const input = 'Rechnung RE_2024_117 vom 3. Mai';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves underscores in an e-mail local part', () => {
+    const input = 'E-Mail: max_mustermann_bau@example.com';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves underscores between digits (4_5 … 6_7)', () => {
+    const input = 'Rate: 4_5 Prozent und 6_7 Prozent';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  // ── Whitespace-flanked / unpaired asterisks are not emphasis ──────────────
+
+  it('preserves two footnote asterisks on one line', () => {
+    const input = 'Preis 5 EUR* zzgl. MwSt, Rabatt 10%* auf Position 4';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves asterisks used as multiplication signs', () => {
+    const input = 'Die Kosten für Position 3 * 2 Einheiten * 5 EUR ergeben 30 EUR';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves spaced asterisks in arithmetic prose', () => {
+    const input = '2024 * 12 = Monate, 5 * 3 = 15';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  // ── German ordinals and dates are prose, not lists ────────────────────────
+
+  it('preserves a German date opening a line (15. Mai 2026)', () => {
+    const input = '15. Mai 2026 wurde die Rechnung gestellt.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves a German ordinal opening a line (2. Rate)', () => {
+    const input = '2. Rate in Höhe von 12.000 EUR ist fällig.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves a lone ordinal opening a paragraph after a blank line', () => {
+    const input = 'Sehr geehrte Damen und Herren,\n\n1. Bauabschnitt ist fertig.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('preserves a lone ordinal mid-body (3. Bauabschnitt)', () => {
+    const input = 'Die Rechnung ging ein.\n\n3. Bauabschnitt: Dachstuhl abgeschlossen.';
+    expect(stripMarkup(input)).toBe(input);
+  });
+
+  it('still strips a genuine numbered run of three lines', () => {
+    expect(stripMarkup('1. Erster Punkt\n2. Zweiter Punkt\n3. Dritter Punkt')).toBe(
+      'Erster Punkt\nZweiter Punkt\nDritter Punkt',
+    );
+  });
+
+  // ── No trailing whitespace left behind by tag removal ─────────────────────
+
+  it('leaves no trailing whitespace after removing a trailing tag', () => {
+    expect(stripMarkup('Text <br/>')).toBe('Text');
+    expect(stripMarkup('Bericht <b>fertig</b>  ')).toBe('Bericht fertig');
   });
 });

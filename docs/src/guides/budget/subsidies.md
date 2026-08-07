@@ -16,34 +16,43 @@ Subsidy programs reduce the effective cost of your construction project. Corners
 
 ## Creating a Subsidy
 
-Navigate to **Budget > Subsidies** in the sidebar. Click **New Subsidy** and provide:
+Navigate to **Budget > Subsidies** in the sidebar. Click **Add Program** and provide:
 
-- **Name** -- A descriptive label (e.g., "Energy Efficiency Rebate")
-- **Type** -- Percentage or Fixed Amount
-- **Amount / Rate** -- The fixed amount or percentage rate
-- **Budget Category** -- Which category this subsidy applies to
-- **Maximum Amount** -- Optional cap on the total subsidy payout (for percentage subsidies)
-- **Status** -- The current status of the subsidy application
+- **Name** -- A descriptive label (e.g., "Energy Efficiency Rebate Program")
+- **Reduction Type** -- Percentage or Fixed Amount
+- **Reduction Value** -- The percentage rate or fixed amount
+- **Applicable Budget Categories** -- Which categories this program applies to (see [Applicable Categories](#applicable-categories) below)
+- **Maximum Amount** -- Optional cap on the total subsidy payout
+- **Application Status** -- The current status of the subsidy application
+- **Deadline**, **Eligibility Requirements**, **Notes** -- Optional reference fields
 
-## Subsidy Statuses
+## Applicable Categories
+
+A subsidy program can target one or more [budget categories](categories) at once -- tick the categories it applies to, or use **Select All** / **Deselect All**. Two special cases:
+
+- **No categories selected** -- the subsidy is treated as universal and applies to every budget line, regardless of category.
+- **No Category** -- a separate checkbox (independent of the category list) that includes budget lines that have no category assigned at all. Leave it unchecked to exclude uncategorized lines even when the program targets specific categories.
+
+## Application Statuses
 
 | Status | Meaning |
 |--------|---------|
-| **Pending** | Application submitted, awaiting decision |
-| **Approved** | Subsidy approved but not yet received |
-| **Rejected** | Subsidy application was denied |
-| **Disbursed** | Subsidy funds have been received |
+| **Eligible** | Identified as a program you qualify for, not yet applied |
+| **Applied** | Application has been submitted, awaiting decision |
+| **Approved** | Subsidy approved but funds not yet received |
+| **Received** | Subsidy funds have been received |
+| **Rejected** | Application was denied |
 
-Only subsidies with **Approved** or **Disbursed** status are applied to budget calculations. Pending and rejected subsidies are tracked but do not affect the budget overview.
+Only subsidies with **Approved** or **Received** status are applied to budget calculations. Eligible, applied, and rejected subsidies are tracked but do not affect the budget overview.
 
 ## How Subsidies Affect the Budget
 
-Subsidies reduce the total cost shown in the [Budget Overview](budget-overview). A subsidy applies to all budget lines in its linked category across all work items and [household items](/guides/household-items):
+Subsidies reduce the total cost shown in the [Budget Overview](budget-overview). A subsidy applies to every budget line that matches its applicable categories (see above), across all work items and [household items](/guides/household-items):
 
-- **Percentage subsidy**: Reduces the category total by the specified percentage
-- **Fixed-amount subsidy**: Subtracts the flat amount from the category total
+- **Percentage subsidy**: Reduces the total of matching lines by the specified percentage
+- **Fixed-amount subsidy**: Subtracts the flat amount from the total of matching lines
 
-Multiple subsidies can apply to the same category, and their reductions stack.
+Multiple subsidies can apply to the same budget line, and their reductions stack.
 
 ### Maximum Amount Cap
 

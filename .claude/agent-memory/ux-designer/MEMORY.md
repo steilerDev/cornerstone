@@ -12,7 +12,7 @@
 - [feature-spec-history.md](feature-spec-history.md) — detailed notes from past visual specs posted to GitHub issues, by story number
 - [pr-review-findings.md](pr-review-findings.md) — past PR design-review findings, verdicts, and recurring bugs; process notes for posting GitHub reviews/comments
 - `story-4-9-invoice-linking-hi.md`, `pr-1490-measurement-freehand.md`, `annotator-a11y-audit.md` — standalone detailed reports referenced from the files above
-- [pdfmake-rendering-verification.md](pdfmake-rendering-verification.md) — render-and-rasterize technique for `reportPdf/` reviews; PR #1935/#1929 rounds 1-4, both APPROVED (word-break-without-hyphen, page-1-top-margin, "test the common case not just the adversarial one" lessons)
+- [pdfmake-rendering-verification.md](pdfmake-rendering-verification.md) — render-and-rasterize technique for `reportPdf/` reviews; PR #1935/#1929 rounds 1-4, both APPROVED (word-break-without-hyphen, page-1-top-margin, "test the common case not just the adversarial one" lessons); PR #2032/#1940 APPROVED (runt-merge + ink-only continuation marker, cross-subset render check via `hiddenColumns`)
 
 ## Quick-reference rules (apply on every spec/review)
 

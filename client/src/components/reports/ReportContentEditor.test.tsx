@@ -80,9 +80,12 @@ import type {
   ReportContent,
   ReportContentRow,
   ReportContentLabels,
+  ReportColumnKey,
 } from '../../lib/reportContent/index.js';
+import { reportColumnsForUseCase } from '../../lib/reportContent/index.js';
 import { ReportContentEditor } from './ReportContentEditor.js';
 import styles from './ReportContentEditor.module.css';
+import { usageChunkCharsForWidth, USAGE_WIDTH_7COL } from '../../lib/reportPdf/overviewPdf.js';
 
 const t = ((key: string, opts?: Record<string, unknown>) =>
   opts ? `${key}::${JSON.stringify(opts)}` : key) as unknown as TFunction;
@@ -106,6 +109,13 @@ const LABELS: ReportContentLabels = {
   sourceType: 'REPORT_SOURCE_TYPE_LABEL',
   reference: 'REPORT_REFERENCE_LABEL',
   generatedAt: 'REPORT_GENERATED_AT_LABEL',
+  pageLabel: 'REPORT_PAGE_LABEL',
+  coverLetterReferenceLabel: 'REPORT_COVER_LETTER_REFERENCE_LABEL',
+  coverLetterSubjectLabel: 'REPORT_COVER_LETTER_SUBJECT_LABEL',
+  skipReasonLabels: {
+    footnoteFetchFailed: 'REPORT_FOOTNOTE_FETCH_FAILED_LABEL',
+    footnoteInvalidPdf: 'REPORT_FOOTNOTE_INVALID_PDF_LABEL',
+  },
 };
 
 function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
@@ -165,17 +175,21 @@ function getMobileList(container: HTMLElement): HTMLElement {
 function renderEditor(overridesProp: Partial<Parameters<typeof ReportContentEditor>[0]> = {}) {
   const onFieldChange = jest.fn();
   const onFieldReset = jest.fn();
+  const onToggleColumn = jest.fn();
   const utils = render(
     <ReportContentEditor
       content={makeContent()}
       overrides={{}}
       onFieldChange={onFieldChange}
       onFieldReset={onFieldReset}
+      hiddenColumns={new Set()}
+      onToggleColumn={onToggleColumn}
+      attachDocuments={false}
       t={t}
       {...overridesProp}
     />,
   );
-  return { ...utils, onFieldChange, onFieldReset };
+  return { ...utils, onFieldChange, onFieldReset, onToggleColumn };
 }
 
 // A fully-populated ReportContent (cover letter + one row with a non-null attachmentsNote) used by
@@ -344,6 +358,9 @@ describe('ReportContentEditor — cover letter card', () => {
         overrides={{}}
         onFieldChange={jest.fn()}
         onFieldReset={jest.fn()}
+        hiddenColumns={new Set()}
+        onToggleColumn={jest.fn()}
+        attachDocuments={false}
         t={t}
       />,
     );
@@ -938,20 +955,37 @@ describe('ReportContentEditor — summary rows and footnotes', () => {
   it('renders each footnote with its unnumbered/shared marker and text, read-only', () => {
     const content = makeContent({
       footnotes: [
-        { id: 'split', marker: '†', text: 'Amount shown reflects only the portion allocated.' },
         {
-          id: 'deposit-reduced',
-          marker: '‡',
+          id: 'split',
+          marker: 'partial',
+          text: 'Amount shown reflects only the portion allocated to this source.',
+        },
+        {
+          id: 'depositReduced',
+          marker: 'less deposit',
           text: 'This position reflects deposits claimed separately.',
         },
       ],
     });
     renderEditor({ content });
-    expect(screen.getByText('†:')).toBeInTheDocument();
+    expect(screen.getByText('partial:')).toBeInTheDocument();
     expect(
-      screen.getByText(/Amount shown reflects only the portion allocated\./),
+      screen.getByText(/Amount shown reflects only the portion allocated to this source\./),
     ).toBeInTheDocument();
-    expect(screen.getByText('‡:')).toBeInTheDocument();
+    // getByText with a string fails when marker has NBSP: the lib normalizes element text
+    // (NBSP→space) but does NOT normalize the matcher, so ==='less deposit:' always mismatches.
+    // Regex is tested against the already-normalized text, so \s matches the collapsed space.
+    expect(screen.getByText(/^less\sdeposit:$/)).toBeInTheDocument();
+    // Whitespace-parity guard (#1965): the <li>'s combined text must be "partial: Amount shown…" —
+    // marker, a single space, then the note text. jest-dom's toHaveTextContent normalises whitespace
+    // (including NBSP→space) in the element's textContent before comparing, so this catches a
+    // missing space (or extra space) between the <span> and the text node without being fragile to
+    // NBSP, while the independent getByText checks above cannot detect inter-node spacing defects.
+    // Locate via the already-proven marker <span> and walk up to the enclosing <li>.
+    const splitLi = screen.getByText('partial:').closest('li') as HTMLElement;
+    expect(splitLi).toHaveTextContent(
+      'partial: Amount shown reflects only the portion allocated to this source.',
+    );
   });
 
   it('renders no footnotes block when footnotes is empty', () => {
@@ -1098,30 +1132,32 @@ describe('ReportContentEditor — #1959 isSplit / isDepositReduced inline labels
   });
 });
 
-describe('ReportContentEditor — #1959 column visibility toggles (local state, no persistence)', () => {
+describe('ReportContentEditor — #1973 column visibility toggles (controlled: hiddenColumns/onToggleColumn props)', () => {
   function getToggleGroup(container: HTMLElement): HTMLElement {
     return within(container).getByRole('group', {
       name: 'sourceReports.editable.columnVisibilityLabel',
     });
   }
 
-  it('renders one checked checkbox per column, labeled from content.labels.*, with a Status toggle only for overview reports', () => {
+  it('renders one checked checkbox per column when hiddenColumns is empty, labeled from content.labels.*, with a Status toggle only for overview reports', () => {
     const { container } = renderEditor({ content: makeContent({ isOverview: false }) });
     const group = within(getToggleGroup(container));
     const boxes = group.getAllByRole('checkbox');
     expect(boxes).toHaveLength(6); // vendor, invoiceNumber, date, invoiceAmount, allocatedAmount, usage
     for (const box of boxes) expect(box).toBeChecked();
-    // Labels come from content.labels.* (report language), never a chrome t() echo.
+    // Labels come from content.labels.* (report language), never a chrome t() echo. Allocated
+    // Amount is excluded from this loop — its label carries a trailing " *" required marker (see
+    // the dedicated AC2.2 test below), so an exact-match getByLabelText would not find it here.
     for (const label of [
       LABELS.vendor,
       LABELS.invoiceNumber,
       LABELS.date,
       LABELS.invoiceAmount,
-      LABELS.allocatedAmount,
       LABELS.usage,
     ]) {
       expect(group.getByLabelText(label)).toBeChecked();
     }
+    expect(group.getByLabelText(LABELS.allocatedAmount, { exact: false })).toBeChecked();
     expect(group.queryByLabelText(LABELS.status)).not.toBeInTheDocument();
   });
 
@@ -1130,6 +1166,95 @@ describe('ReportContentEditor — #1959 column visibility toggles (local state, 
     const group = within(getToggleGroup(container));
     expect(group.getAllByRole('checkbox')).toHaveLength(7);
     expect(group.getByLabelText(LABELS.status)).toBeChecked();
+  });
+
+  // (AC 2.5, carried from #1966 AC2) The rendered checkbox ORDER — not just its length — must
+  // equal reportColumnsForUseCase(isOverview) exactly, for both use cases, independent of
+  // hiddenColumns' contents (hiding a column removes its th/td from the table, never its own
+  // toggle). A count-only assertion previously passed against a hand-typed array literal that had
+  // silently drifted from this same derivation (AC 2.1 violation, since fixed) — a future reorder,
+  // or a swapped column that happened to keep the same length, would have passed it too. Order
+  // matters here beyond cosmetics: the PDF's header row is built from this identical array.
+  it.each([
+    ['overview', true, 7],
+    ['claim/proof-of-funds', false, 6],
+  ] as const)(
+    '(AC2.5, scenario 27) %s: rendered checkbox order exactly equals reportColumnsForUseCase(isOverview) (%i columns), even with some columns hidden',
+    (_label, isOverview, expectedCount) => {
+      expect(reportColumnsForUseCase(isOverview)).toHaveLength(expectedCount);
+      const { container } = renderEditor({
+        content: makeContent({ isOverview }),
+        hiddenColumns: new Set<ReportColumnKey>(['vendor']),
+      });
+      const boxes = within(getToggleGroup(container)).getAllByRole('checkbox');
+      expect(boxes).toHaveLength(expectedCount);
+
+      // Guard the guard: if data-column-key were ever dropped from the markup, every entry below
+      // would read null. reportColumnsForUseCase(isOverview) is never empty (6 or 7 real keys), so
+      // that failure mode is NOT the "[] equals []" vacuous-pass shape — a null-filled array can
+      // never toEqual a string-keyed one — but asserting non-null explicitly here means the test
+      // fails with an immediate "attribute missing" signal rather than a confusing array diff.
+      const renderedOrder = boxes.map((box) => box.getAttribute('data-column-key'));
+      for (const key of renderedOrder) {
+        expect(key).not.toBeNull();
+      }
+      expect(renderedOrder).toEqual(reportColumnsForUseCase(isOverview));
+    },
+  );
+
+  it('(AC2.6, scenario 28) claim/proof-of-funds NEVER renders a Status checkbox, at any hiddenColumns value — including one that names status explicitly', () => {
+    for (const hiddenColumns of [
+      new Set<ReportColumnKey>(),
+      new Set<ReportColumnKey>(['status']),
+      new Set<ReportColumnKey>(['vendor', 'usage']),
+    ]) {
+      const { container, unmount } = renderEditor({
+        content: makeContent({ isOverview: false }),
+        hiddenColumns,
+      });
+      expect(
+        within(getToggleGroup(container)).queryByLabelText(LABELS.status),
+      ).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('(AC2.2, scenario 25) the Allocated Amount checkbox is disabled and has a non-empty accessible description', () => {
+    const { container } = renderEditor();
+    const box = within(getToggleGroup(container)).getByLabelText(LABELS.allocatedAmount, {
+      exact: false,
+    });
+    expect(box).toBeDisabled();
+    const describedBy = box.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    const descriptionEl = container.querySelector(`#${describedBy}`);
+    expect(descriptionEl).not.toBeNull();
+    expect(descriptionEl!.textContent!.trim().length).toBeGreaterThan(0);
+  });
+
+  it('(AC2.3, scenario 26) every OTHER column checkbox is enabled, and hiding every one of them at once leaves the desktop table with exactly one (Allocated Amount) column', () => {
+    const { container } = renderEditor({ content: makeContent({ isOverview: true }) });
+    const group = within(getToggleGroup(container));
+    for (const box of group.getAllByRole('checkbox')) {
+      if (box.getAttribute('aria-describedby')) continue; // the locked allocatedAmount checkbox
+      expect(box).not.toBeDisabled();
+    }
+
+    const everyHideable = new Set<ReportColumnKey>([
+      'vendor',
+      'invoiceNumber',
+      'date',
+      'status',
+      'invoiceAmount',
+      'usage',
+    ]);
+    const { container: hiddenContainer } = renderEditor({
+      content: makeContent({ isOverview: true }),
+      hiddenColumns: everyHideable,
+    });
+    const table = getDesktopTable(hiddenContainer);
+    expect(table.querySelectorAll('thead th')).toHaveLength(1);
+    expect(within(table).getByText(LABELS.allocatedAmount, { selector: 'th' })).toBeInTheDocument();
   });
 
   // Every column gets a DISTINCT value so a disappearing cell can be attributed to the toggled
@@ -1152,26 +1277,40 @@ describe('ReportContentEditor — #1959 column visibility toggles (local state, 
     });
   }
 
+  // allocatedAmount is deliberately excluded here — it is the locked column and can never be
+  // hidden by ANY hiddenColumns value (see columns.test.ts's "defense-in-depth" coverage and the
+  // AC2.2 disabled-checkbox test above), so a "hiding it removes the column" case would assert a
+  // state the production code makes unreachable.
   it.each([
-    [LABELS.vendor, 'ACME'],
-    [LABELS.invoiceNumber, 'INV-001'],
-    [LABELS.date, '01/10/2026'],
-    [LABELS.invoiceAmount, '€111.00'],
-    [LABELS.allocatedAmount, '€222.00'],
-  ])(
-    'unchecking the "%s" toggle removes that column header AND its cell value from the desktop table and the mobile card',
-    (label, cellValue) => {
-      const { container } = renderEditor({ content: distinctValueContent() });
+    [LABELS.vendor, 'ACME', 'vendor'],
+    [LABELS.invoiceNumber, 'INV-001', 'invoiceNumber'],
+    [LABELS.date, '01/10/2026', 'date'],
+    [LABELS.invoiceAmount, '€111.00', 'invoiceAmount'],
+  ] as const)(
+    'a hiddenColumns prop containing "%s" removes that column header AND its cell value from the desktop table and the mobile card',
+    (label, cellValue, columnKey) => {
+      const { container, rerender } = renderEditor({ content: distinctValueContent() });
       const table = getDesktopTable(container);
       const mobileList = getMobileList(container);
       const headerCountBefore = table.querySelectorAll('thead th').length;
 
-      // Positive: header label and cell value are both present before the toggle.
+      // Positive: header label and cell value are both present with nothing hidden.
       expect(within(table).getByText(label, { selector: 'th' })).toBeInTheDocument();
       expect(within(table).getByText(cellValue)).toBeInTheDocument();
       expect(within(mobileList).getByText(cellValue)).toBeInTheDocument();
 
-      fireEvent.click(within(getToggleGroup(container)).getByLabelText(label));
+      rerender(
+        <ReportContentEditor
+          content={distinctValueContent()}
+          overrides={{}}
+          onFieldChange={jest.fn()}
+          onFieldReset={jest.fn()}
+          hiddenColumns={new Set<ReportColumnKey>([columnKey])}
+          onToggleColumn={jest.fn()}
+          attachDocuments={false}
+          t={t}
+        />,
+      );
 
       // ...and both are gone afterwards, in BOTH responsive trees.
       expect(within(table).queryByText(label, { selector: 'th' })).not.toBeInTheDocument();
@@ -1182,43 +1321,37 @@ describe('ReportContentEditor — #1959 column visibility toggles (local state, 
       // The toggle itself stays visible (so the column can be restored) and reflects hidden state.
       const box = within(getToggleGroup(container)).getByLabelText(label);
       expect(box).not.toBeChecked();
-      // Re-checking restores the column — the state is a real toggle, not a one-way hide.
-      fireEvent.click(box);
-      expect(within(table).getByText(label, { selector: 'th' })).toBeInTheDocument();
-      expect(within(table).getByText(cellValue)).toBeInTheDocument();
     },
   );
 
-  it('unchecking the Usage toggle removes the usage EditableField (and its inline meta text) entirely', () => {
+  it('unchecking the Usage toggle (hiddenColumns={usage}) removes the usage EditableField (and its inline meta text) entirely', () => {
     const rows = [
       makeRow({ invoiceId: 'inv-1', usageText: 'Kitchen work', areaText: 'Ground Floor' }),
     ];
-    const { container } = renderEditor({ content: makeContent({ rows }) });
-    expect(screen.getAllByDisplayValue('Kitchen work').length).toBeGreaterThan(0);
-    expect(container.querySelectorAll(`.${styles.usageMetaText}`).length).toBeGreaterThan(0);
-
-    fireEvent.click(within(getToggleGroup(container)).getByLabelText(LABELS.usage));
-
+    const { container } = renderEditor({
+      content: makeContent({ rows }),
+      hiddenColumns: new Set<ReportColumnKey>(['usage']),
+    });
     expect(screen.queryAllByDisplayValue('Kitchen work')).toHaveLength(0);
     expect(container.querySelectorAll(`.${styles.usageMetaText}`)).toHaveLength(0);
   });
 
-  it('unchecking the Status toggle removes the status Badge from an overview report', () => {
+  it('unchecking the Status toggle (hiddenColumns={status}) removes the status Badge from an overview report', () => {
     const rows = [makeRow({ invoiceId: 'inv-1', status: 'paid', statusText: 'REPORT_PAID_TEXT' })];
-    const { container } = renderEditor({ content: makeContent({ isOverview: true, rows }) });
-    expect(screen.getAllByText('REPORT_PAID_TEXT').length).toBeGreaterThan(0);
-
-    fireEvent.click(within(getToggleGroup(container)).getByLabelText(LABELS.status));
-
+    const { container } = renderEditor({
+      content: makeContent({ isOverview: true, rows }),
+      hiddenColumns: new Set<ReportColumnKey>(['status']),
+    });
     expect(screen.queryAllByText('REPORT_PAID_TEXT')).toHaveLength(0);
     expect(
       within(getDesktopTable(container)).queryByText(LABELS.status, { selector: 'th' }),
     ).not.toBeInTheDocument();
   });
 
-  it('hides only the toggled column, leaving the others rendered (toggles are independent)', () => {
-    const { container } = renderEditor();
-    fireEvent.click(within(getToggleGroup(container)).getByLabelText(LABELS.vendor));
+  it('hides only the named column, leaving the others rendered (each toggle is independent)', () => {
+    const { container } = renderEditor({
+      hiddenColumns: new Set<ReportColumnKey>(['vendor']),
+    });
     const table = getDesktopTable(container);
     expect(within(table).queryByText('ACME')).not.toBeInTheDocument();
     // Every other column's value survives.
@@ -1227,13 +1360,51 @@ describe('ReportContentEditor — #1959 column visibility toggles (local state, 
     expect(within(table).getByDisplayValue('Baseline usage')).toBeInTheDocument();
   });
 
-  it('does not invoke onFieldChange/onFieldReset when a column is toggled (visibility is local state, never an override)', () => {
-    const { container, onFieldChange, onFieldReset } = renderEditor();
-    for (const box of within(getToggleGroup(container)).getAllByRole('checkbox')) {
-      fireEvent.click(box);
-    }
+  it('(scenario 29) clicking a checkbox calls onToggleColumn with the exact column key, and NEVER onFieldChange/onFieldReset — visibility reaches its own callback, never the override callbacks', () => {
+    const { container, onFieldChange, onFieldReset, onToggleColumn } = renderEditor({
+      content: makeContent({ isOverview: true }),
+    });
+    fireEvent.click(within(getToggleGroup(container)).getByLabelText(LABELS.vendor));
+    expect(onToggleColumn).toHaveBeenCalledTimes(1);
+    expect(onToggleColumn).toHaveBeenCalledWith('vendor');
+
+    fireEvent.click(within(getToggleGroup(container)).getByLabelText(LABELS.usage));
+    expect(onToggleColumn).toHaveBeenCalledTimes(2);
+    expect(onToggleColumn).toHaveBeenLastCalledWith('usage');
+
     expect(onFieldChange).not.toHaveBeenCalled();
     expect(onFieldReset).not.toHaveBeenCalled();
+  });
+
+  it('(AC6.2, scenario 30) the warning banner renders with role="status" and the usageHiddenAttachmentsWarning key ONLY when Usage is hidden AND attachDocuments is on — absent in the other three combinations', () => {
+    const matrix: [boolean, boolean, boolean][] = [
+      // [usageHidden, attachDocuments, expectBanner]
+      [false, false, false],
+      [false, true, false],
+      [true, false, false],
+      [true, true, true],
+    ];
+    for (const [usageHidden, attachDocuments, expectBanner] of matrix) {
+      const { container, unmount } = renderEditor({
+        hiddenColumns: usageHidden
+          ? new Set<ReportColumnKey>(['usage'])
+          : new Set<ReportColumnKey>(),
+        attachDocuments,
+      });
+      const banner = within(container).queryByRole('status');
+      if (expectBanner) {
+        expect(banner).not.toBeNull();
+        expect(banner!.textContent).toBe('sourceReports.editable.usageHiddenAttachmentsWarning');
+      } else {
+        expect(banner).toBeNull();
+      }
+      unmount();
+    }
+  });
+
+  it('(AC1.3/AC1.4, scenario 31) columnVisibilityHint is no longer rendered anywhere', () => {
+    renderEditor();
+    expect(screen.queryByText(/columnVisibilityHint/)).not.toBeInTheDocument();
   });
 });
 
@@ -1466,3 +1637,269 @@ describe(
     });
   },
 );
+
+// ─── Story #1910: lang HTML attribute prop (Option A: surgical section tagging) ──────────────────
+
+describe('ReportContentEditor — lang prop (Story #1910, Option A: surgical section tagging)', () => {
+  it('container has NO lang attribute even when the lang prop is passed', () => {
+    // Option A: lang is applied surgically to report-language sections (.tableWrapper, mobile
+    // cards), NOT to the outer container — the container hosts both UI-chrome and report content
+    // and must not receive a blanket language tag.
+    const { container } = renderEditor({ lang: 'de' });
+    const outerContainer = container.querySelector('[class*="container"]');
+    expect(outerContainer).not.toBeNull();
+    expect(outerContainer!.getAttribute('lang')).toBeNull();
+  });
+
+  it('h3 headings are NOT tagged with lang (they are UI chrome, not report content)', () => {
+    // fullContent() includes a coverLetter, so both the cover-letter <h3> and the table <h3>
+    // render. Neither carries lang — they are chrome headings, not report-language content.
+    const { container } = renderEditor({ content: fullContent(), lang: 'de' });
+    const headings = Array.from(container.querySelectorAll('h3'));
+    // Positive anchor: at least 2 headings render, so the loop is not vacuous.
+    expect(headings.length).toBeGreaterThanOrEqual(2);
+    for (const h3 of headings) {
+      expect(h3.getAttribute('lang')).toBeNull();
+    }
+  });
+
+  it('applies lang="de" to the report table <thead> and .tableWrapper (report-language content sections) when lang="de" is passed', () => {
+    const { container } = renderEditor({ lang: 'de' });
+    const thead = container.querySelector('thead');
+    expect(thead).not.toBeNull();
+    expect(thead!.getAttribute('lang')).toBe('de');
+    // tableWrapper restored to carry lang={lang} for mobile coverage
+    const tableWrapper = container.querySelector('[class*="tableWrapper"]');
+    expect(tableWrapper).not.toBeNull();
+    expect(tableWrapper!.getAttribute('lang')).toBe('de');
+  });
+
+  it('EditableField <label> elements inside the cover-letter card have NO lang attribute (UI chrome labels are untagged)', () => {
+    // Labels like "Sender", "Subject", "Body" are UI chrome — they must not be tagged with the
+    // report language. Only the editable field VALUE sections carry the lang attribute.
+    const { container } = renderEditor({ content: fullContent(), lang: 'de' });
+    const coverLetterCard = container.querySelector('[class*="coverLetterCard"]');
+    expect(coverLetterCard).not.toBeNull();
+    const labels = Array.from(coverLetterCard!.querySelectorAll('label'));
+    // Positive anchor: fullContent() includes a coverLetter with multiple editable fields.
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) {
+      expect(label.getAttribute('lang')).toBeNull();
+    }
+  });
+
+  it('the <thead> has no lang attribute when the lang prop is omitted', () => {
+    const { container } = renderEditor();
+    const thead = container.querySelector('thead');
+    expect(thead).not.toBeNull();
+    expect(thead!.getAttribute('lang')).toBeNull();
+  });
+
+  it('[integration] a usage EditableField <input> carries lang="de" when lang="de" is passed — wires the EditableField.lang prop', () => {
+    const { container } = renderEditor({ lang: 'de' });
+    // Scope to the desktop table body to avoid picking up column-toggle checkboxes, which appear
+    // before the usage inputs in DOM order and carry no lang attribute.
+    // The default fixture (makeContent → makeRow) has usageText: 'Baseline usage'.
+    const table = getDesktopTable(container);
+    const input = within(table).getByDisplayValue('Baseline usage');
+    expect(input.tagName).toBe('INPUT');
+    expect(input.getAttribute('lang')).toBe('de');
+  });
+
+  it('applies lang="de" to .mobileCardList (the mobile viewport table mirror)', () => {
+    // .mobileCardList is the CSS-only responsive counterpart of .tableWrapper: always present in
+    // the DOM, hidden by @media on desktop. It must carry lang={lang} so mobile screen readers
+    // get the correct report-language pronunciation hint, matching the desktop tableWrapper tag.
+    const { container } = renderEditor({ lang: 'de' });
+    const mobileList = container.querySelector('[class*="mobileCardList"]');
+    expect(mobileList).not.toBeNull();
+    expect(mobileList!.getAttribute('lang')).toBe('de');
+  });
+
+  it('tableWrapper has no lang attribute when the lang prop is omitted', () => {
+    // Counterpart to the thead-no-lang test above: when no lang is passed, neither the thead
+    // nor the tableWrapper wrapper carries a lang attribute.
+    const { container } = renderEditor();
+    const tableWrapper = container.querySelector('[class*="tableWrapper"]');
+    expect(tableWrapper).not.toBeNull();
+    expect(tableWrapper!.getAttribute('lang')).toBeNull();
+  });
+
+  it('column-toggle <label> elements carry lang="de" (report-language content, not UI chrome)', () => {
+    // The column-toggle labels render content.labels.* (report language): vendor, invoiceNumber,
+    // date, invoiceAmount, allocatedAmount, usage. After the round-3 fix, each <label> receives
+    // lang={lang}. The parent .columnToggles div cannot carry it (its aria-label is UI chrome).
+    const { container } = renderEditor({ lang: 'de' });
+    const toggleLabels = Array.from(
+      container.querySelectorAll('[class*="columnToggles"] [class*="columnToggle"]'),
+    ) as HTMLElement[];
+    // Positive anchor: at least 5 toggle labels always render (vendor, invoiceNumber, date,
+    // invoiceAmount, allocatedAmount, usage — 6 when not isOverview, 7 when isOverview).
+    expect(toggleLabels.length).toBeGreaterThanOrEqual(5);
+    for (const label of toggleLabels) {
+      expect(label.getAttribute('lang')).toBe('de');
+    }
+  });
+
+  it('[integration] the reset button on an edited field carries uiLang="en" — wires the EditableField.uiLang prop', () => {
+    // When lang !== uiLang, uiLang must flow from ReportContentEditor through to EditableField's
+    // reset button and sr-only edited hint. Deleting all uiLang={uiLang} call-site props from
+    // ReportContentEditor.tsx would be type-legal (optional prop) and leave existing suites green.
+    // This test closes that coverage gap: render with an edited cover-letter sender field and assert
+    // the reset button (which only renders when isEdited=true) carries lang="en" (the uiLang).
+    const { container } = renderEditor({
+      content: fullContent(),
+      lang: 'de',
+      uiLang: 'en',
+      overrides: { 'coverLetter.sender': 'Edited sender value' },
+    });
+    // The sender field is edited (key in overrides), so its reset button renders.
+    // The button carries lang={uiLang} per EditableField.tsx — it is always UI chrome.
+    const resetButtons = Array.from(
+      container.querySelectorAll('button[lang="en"]'),
+    ) as HTMLElement[];
+    // Positive anchor: at least one reset button renders (the sender field is edited).
+    expect(resetButtons.length).toBeGreaterThanOrEqual(1);
+    for (const btn of resetButtons) {
+      expect(btn.getAttribute('lang')).toBe('en');
+    }
+    // Negative: no button should carry the report language (buttons are always UI chrome).
+    const reportLangButtons = container.querySelectorAll('button[lang="de"]');
+    expect(reportLangButtons.length).toBe(0);
+  });
+});
+
+// ─── Issue #1941: per-field maxLength wiring ─────────────────────────────────────────────────────
+
+describe('ReportContentEditor — #1941 per-field maxLength wiring (cover-letter fields)', () => {
+  it.each([
+    ['sourceReports.editable.senderLabel', '300'],
+    ['sourceReports.editable.recipientLabel', '300'],
+    ['sourceReports.editable.referenceLabel', '100'],
+    ['sourceReports.editable.subjectLabel', '200'],
+    ['sourceReports.editable.bodyLabel', '4000'],
+    ['sourceReports.editable.signatureLabel', '200'],
+  ])(
+    'sets the native maxLength attribute to %s on the field labeled "%s"',
+    (labelKey, expectedMax) => {
+      renderEditor({ content: fullContent() });
+      const field = screen.getByLabelText(labelKey);
+      expect(field).toHaveAttribute('maxlength', expectedMax);
+    },
+  );
+});
+
+describe('ReportContentEditor — #1941 per-field maxLength wiring (usage field, both responsive render sites)', () => {
+  it.each([
+    ['desktop table', getDesktopTable],
+    ['mobile card', getMobileList],
+  ] as const)(
+    'sets the native maxLength attribute to 500 on the usage EditableField (%s)',
+    (_label, getTree) => {
+      const { container } = renderEditor({ content: fullContent() });
+      const tree = getTree(container);
+      // fullContent()'s single row uses makeRow()'s default usageText, 'Baseline usage'.
+      const usageField = within(tree).getByDisplayValue('Baseline usage');
+      expect(usageField).toHaveAttribute('maxlength', '500');
+    },
+  );
+});
+
+// Issue #1950 AC2 — editor<->renderer input-cap coupling. `USAGE_TEXT_MAX_LENGTH` (this
+// component, private) is an INPUT constraint; it is only meaningful measured against the
+// RENDERER's per-subset budget (usageChunkCharsForWidth), so the assertion belongs on the editor
+// side per the issue: "putting an input constraint's guard in the renderer inverts the
+// dependency." `USAGE_TEXT_MAX_LENGTH` is module-private in ReportContentEditor.tsx and is NOT
+// exported (a one-line export would be a production change, outside qa-integration-tester's lane
+// — flagged rather than done here). Reaching it via a production export turned out unnecessary:
+// EditableField forwards `maxLength` straight onto the native `<textarea maxLength={...}>` (see
+// EditableField.tsx), so the ACTUAL runtime value is directly observable as the rendered
+// `maxlength` DOM attribute — the same technique the #1941 test immediately above already uses to
+// pin it at 500. That is real behaviour, not a re-typed literal: if `USAGE_TEXT_MAX_LENGTH` in
+// production ever changed, this reads the new value straight off the DOM, no export needed.
+describe('ReportContentEditor — #1950 AC2: usageText input cap stays below the 7-column renderer budget', () => {
+  it("the usage field's rendered maxLength (USAGE_TEXT_MAX_LENGTH, currently 500) is strictly less than usageChunkCharsForWidth(USAGE_WIDTH_7COL) — the narrowest legal Usage-column budget", () => {
+    const { container } = renderEditor({ content: fullContent() });
+    const usageField = within(getDesktopTable(container)).getByDisplayValue('Baseline usage');
+    const renderedMaxLength = Number(usageField.getAttribute('maxlength'));
+
+    expect(Number.isNaN(renderedMaxLength)).toBe(false);
+    // Cross-check against the #1941 test's own pin, so a drift in ONE of the two duplicated
+    // observations (that test's literal '500', or this test's derived comparison) is visible as
+    // an inconsistency rather than each silently testing a different actual value.
+    expect(renderedMaxLength).toBe(500);
+
+    // AC 1.7-style sensitivity: this compares against the REAL exported budget function/constant,
+    // not a re-typed 616 — if USAGE_WIDTH_7COL or usageChunkCharsForWidth's clamp ever moves this
+    // budget below 500, this fails instead of silently letting a legal 500-char input overflow
+    // its column's own per-subset ceiling.
+    const sevenColumnUsageBudget = usageChunkCharsForWidth(USAGE_WIDTH_7COL);
+    if (renderedMaxLength >= sevenColumnUsageBudget) {
+      throw new Error(
+        `USAGE_TEXT_MAX_LENGTH (${renderedMaxLength}, from ReportContentEditor.tsx) is no longer ` +
+          `strictly below usageChunkCharsForWidth(USAGE_WIDTH_7COL) (${sevenColumnUsageBudget}, from ` +
+          `client/src/lib/reportPdf/overviewPdf.ts). A legal single-field usageText override can now ` +
+          `exceed the narrowest Usage column's own per-subset budget on its own, with no ` +
+          `areaText/attachmentsNote contribution at all. See issue #1950.`,
+      );
+    }
+  });
+});
+
+describe('ReportContentEditor — #1941 conditional cover-letter fields render nothing (not a disabled/empty field) when their content is null', () => {
+  it('renders no recipient field at all when content.coverLetter.recipient is null (control: with recipient present, the same query finds an ENABLED field)', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'S',
+        recipient: null,
+        dateLine: '01/15/2026',
+        reference: 'R',
+        subject: 'Subj',
+        body: 'B',
+        signature: 'Sig',
+        closing: 'Sincerely,',
+      },
+    });
+    renderEditor({ content });
+    expect(
+      screen.queryByLabelText('sourceReports.editable.recipientLabel'),
+    ).not.toBeInTheDocument();
+
+    const withRecipient = makeContent({
+      coverLetter: { ...content.coverLetter!, recipient: 'Recipient text' },
+    });
+    const { unmount } = renderEditor({ content: withRecipient });
+    const recipientField = screen.getByLabelText('sourceReports.editable.recipientLabel');
+    expect(recipientField).toBeInTheDocument();
+    expect(recipientField).not.toBeDisabled();
+    unmount();
+  });
+
+  it('renders no reference field at all when content.coverLetter.reference is null (control: with reference present, the same query finds an ENABLED field)', () => {
+    const content = makeContent({
+      coverLetter: {
+        sender: 'S',
+        recipient: 'R',
+        dateLine: '01/15/2026',
+        reference: null,
+        subject: 'Subj',
+        body: 'B',
+        signature: 'Sig',
+        closing: 'Sincerely,',
+      },
+    });
+    renderEditor({ content });
+    expect(
+      screen.queryByLabelText('sourceReports.editable.referenceLabel'),
+    ).not.toBeInTheDocument();
+
+    const withReference = makeContent({
+      coverLetter: { ...content.coverLetter!, reference: 'Reference text' },
+    });
+    const { unmount } = renderEditor({ content: withReference });
+    const referenceField = screen.getByLabelText('sourceReports.editable.referenceLabel');
+    expect(referenceField).toBeInTheDocument();
+    expect(referenceField).not.toBeDisabled();
+    unmount();
+  });
+});

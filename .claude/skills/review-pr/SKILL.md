@@ -75,7 +75,9 @@ Compute the applicable reviewers, then run them all in one review round. Each ag
 - `TESTS` affected or test coverage gaps expected → **qa-integration-tester** (unit/integration test quality, coverage) + **e2e-test-engineer** (Playwright patterns, page objects, viewport coverage)
 - `DOCS` affected → **docs-writer** (Docusaurus conventions, content accuracy, cross-references)
 
-Then invoke the Workflow tool with `{name: "pr-review", args: {pr: <n>, reviewers: [{agent: "product-architect"}, {agent: "dev-team-lead"}, ...]}}` — one entry per applicable reviewer (same invocation as `/develop` step 8). If the Workflow tool is unavailable, fall back to launching the applicable reviewer agents in parallel with the Agent tool.
+Before invoking the workflow, pre-fetch the diff once (`gh pr diff <n> > /tmp/pr-<n>.diff`) and derive per-reviewer file scopes from `gh pr diff <n> --name-only` (ux-designer/frontend-developer → `client/src/` files; backend-developer → `server/`+`shared/` files; security-engineer → trigger-rule matches; qa/e2e → test files; architect/dev-team-lead/product-owner → full list).
+
+Then invoke the Workflow tool with `{name: "pr-review", args: {pr: <n>, diffPath: "/tmp/pr-<n>.diff", reviewers: [{agent: "product-architect", files: [...]}, {agent: "dev-team-lead", ...}, ...]}}` — one entry per applicable reviewer (same invocation as `/develop` step 8). Reviewers apply CLAUDE.md > Reviewer Verdict Policy (fix-or-block). If the Workflow tool is unavailable, fall back to launching the applicable reviewer agents in parallel with the Agent tool, passing the same diffPath and scopes.
 
 Each agent receives:
 

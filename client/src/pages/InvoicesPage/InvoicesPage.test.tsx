@@ -5,6 +5,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
@@ -201,6 +202,8 @@ const emptySummary = {
   claimed: { count: 0, totalAmount: 0 },
   quotation: { count: 0, totalAmount: 0 },
   overdue: { count: 0, totalAmount: 0 },
+  claimable: { count: 0, totalAmount: 0 },
+  quotationCoveredByDeposits: 0,
 };
 
 const populatedSummary = {
@@ -209,6 +212,8 @@ const populatedSummary = {
   claimed: { count: 0, totalAmount: 0 },
   quotation: { count: 0, totalAmount: 0 },
   overdue: { count: 0, totalAmount: 0 },
+  claimable: { count: 1, totalAmount: 15000 },
+  quotationCoveredByDeposits: 0,
 };
 
 const emptyResponse: InvoiceListPaginatedResponse = {
@@ -290,14 +295,16 @@ describe('InvoicesPage', () => {
 
   function renderPage() {
     return render(
-      <MemoryRouter initialEntries={['/budget/invoices']}>
-        <Routes>
-          <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
-          <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
-          <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
-        </Routes>
-        <LocationDisplay />
-      </MemoryRouter>,
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/budget/invoices']}>
+          <Routes>
+            <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+            <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
+            <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
+          </Routes>
+          <LocationDisplay />
+        </MemoryRouter>
+      </ToastProvider>,
     );
   }
 
@@ -723,6 +730,8 @@ describe('InvoicesPage', () => {
           claimed: { count: 3, totalAmount: 900 },
           quotation: { count: 0, totalAmount: 0 },
           overdue: { count: 0, totalAmount: 0 },
+          claimable: { count: 1, totalAmount: 15000 },
+          quotationCoveredByDeposits: 0,
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithClaimed);
@@ -747,6 +756,8 @@ describe('InvoicesPage', () => {
           claimed: { count: 0, totalAmount: 0 },
           quotation: { count: 0, totalAmount: 0 },
           overdue: { count: 0, totalAmount: 0 },
+          claimable: { count: 0, totalAmount: 0 },
+          quotationCoveredByDeposits: 0,
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithZeroClaimed);
@@ -760,7 +771,7 @@ describe('InvoicesPage', () => {
       expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
     });
 
-    it('Paid card shows only paid summary data (not combined with claimed)', async () => {
+    it('Claimable card shows only claimable summary data (not combined with claimed)', async () => {
       const responseWithSeparateData: InvoiceListPaginatedResponse = {
         ...populatedResponse,
         summary: {
@@ -769,6 +780,8 @@ describe('InvoicesPage', () => {
           claimed: { count: 3, totalAmount: 900 },
           quotation: { count: 0, totalAmount: 0 },
           overdue: { count: 0, totalAmount: 0 },
+          claimable: { count: 2, totalAmount: 12000 },
+          quotationCoveredByDeposits: 0,
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithSeparateData);
@@ -783,12 +796,12 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Claimable').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
       });
 
-      // Paid total is €5,000 and claimed total is €900 — they must appear as separate amounts
-      expect(screen.getByText(fmtCurrency(5000))).toBeInTheDocument();
+      // Claimable total is €12,000 and claimed total is €900 — they must appear as separate amounts
+      expect(screen.getByText(fmtCurrency(12000))).toBeInTheDocument();
       expect(screen.getByText(fmtCurrency(900))).toBeInTheDocument();
     });
   });
@@ -1037,14 +1050,16 @@ describe('InvoicesPage', () => {
 
     function renderPageWithCreate() {
       return render(
-        <MemoryRouter initialEntries={['/budget/invoices?create=1']}>
-          <Routes>
-            <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
-            <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
-            <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
-          </Routes>
-          <LocationSearchDisplay />
-        </MemoryRouter>,
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/budget/invoices?create=1']}>
+            <Routes>
+              <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+              <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
+              <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
+            </Routes>
+            <LocationSearchDisplay />
+          </MemoryRouter>
+        </ToastProvider>,
       );
     }
 
@@ -1247,6 +1262,8 @@ describe('InvoicesPage', () => {
         claimed: { count: 0, totalAmount: 0 },
         quotation: { count: 0, totalAmount: 0 },
         overdue: { count: 0, totalAmount: 0 },
+        claimable: { count: 1, totalAmount: 10000 },
+        quotationCoveredByDeposits: 0,
       },
     };
 

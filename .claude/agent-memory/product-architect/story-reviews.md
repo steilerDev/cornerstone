@@ -518,3 +518,467 @@ Open follow-ups I own or should file:
 - Pre-hydration toggle window (F4): editing before the mount fetch resolves discards stored prefs for the
   session. Practically unreachable; `usePreferences.isLoading` is available if it ever matters.
 - `isLoaded` is dead API surface — returned by the hook, not destructured by `DataTable.tsx:171-172`.
+
+## PR #1982 — #1937 (DE header word-break) + #1938 (running-header timestamp) — APPROVED
+
+Two-line production diff (`merge.ts` header string, two DE strings) plus test updates. Verified locally:
+`npx jest realRender -t '#1937'` (5 passed, incl. the two `positions.length === 1` real-render assertions)
+and `npx jest reportPdf/merge.test -t 'pdfmake header callback'`. Note the jest invocation trap here:
+`--modulePathIgnorePatterns='/.claude/worktrees/'` matches the worktree's own rootDir and silently yields
+"0 files checked across 3 projects" — drop it when running inside a worktree.
+
+AC6 of #1938 (header still fits `PAGE_TOP_MARGIN`) discharged by analysis, not a new test — see
+client-pdf-pipeline.md for the footprint reasoning. AC4/AC5 are pinned discriminatingly because the mocked
+interface `t` returns the bare key, so a regression to `t()` fails rather than passing.
+
+Findings, all non-blocking: M1 forked harness header callback; M2 average-vs-worst-case bound in the new
+AC7 tests; M3 four stale `Auftragnehmer`/`Rechnungsbetrag` cross-references (the `buildHeaderCell`
+docstring one matters — it could lead someone to delete break-all protection vendor _data_ still needs);
+M4 undocumented glossary divergence (`Vendor` → `Auftragnehmer` vs `Firma`); L6 follow-up: `merge.ts:134`
+footer page label still uses the interface `t`.
+
+**Mine to do:** ADR-034 B-rule addendum — fixed-width columns impose a per-locale header character budget
+(break-all is the fallback, a shorter label is the fix, real-render single-line assertion is the guard),
+plus the companion rule that running headers/footers never use the interface `t`. Deliberately not made a
+condition of this PR to avoid a wiki submodule bump on a two-string fix.
+
+## PR #1984 — deposit-aware budget-source drill-down (#1897) — CHANGES_REQUIRED (2026-08-04)
+
+The structural fix is right: two forked deposit-blind SQL helpers (`getWorkItemLineInvoiceData`,
+`getHouseholdItemLineInvoiceData`) deleted in favour of `getInvoiceAggregates(db, line.id,
+'work_item_budget_id' | 'household_item_budget_id')`. FK columns correct, no circular import
+(`budgetServiceFactory` does not import `budgetSourceService`), additive for `ResolvedBudgetRelations`
+(it destructures only three fields and the `undefined`-column fallback literal keeps those three, so the
+union resolves). `invoiceCount`'s row-count → distinct-invoice change is a no-op because
+`invoice_budget_lines` has _partial unique indexes_ on `work_item_budget_id` / `household_item_budget_id`
+(`schema.ts:457-462`) — at most one ibl row per budget line. Worth remembering: that constraint makes the
+"one line, many invoices" mental model wrong, and makes `wiki/API-Contract.md`'s `"invoiceCount": 2`
+example impossible.
+
+Two blocking findings:
+
+- **HIGH-1** `hasClaimedInvoice: actualCostClaimed > 0` — see recurring-patterns.md
+  ("Amount-threshold booleans silently narrow status-existence booleans").
+- **HIGH-2** the change broadens a field documented at `wiki/API-Contract.md:4694` ("whether any linked
+  invoice has status `'claimed'`") without a wiki update; `actualCostPaid`'s field note on the same
+  endpoint is also stale (still describes whole-invoice-by-status, not the proportional split).
+
+Plus MEDIUM prettier violations and a MEDIUM test gap (AC8: claimed invoice fully covered by `paid`
+deposits). Non-blocking: `hasClaimedInvoice` is now a misnomer — flagged as a polish follow-up, not a
+rename in this PR.
+
+The rider (`new Set([status])`) is genuinely untestable: `computeDiscretionaryInvoiceAmount` is
+module-private with two call sites passing only `'claimed'`/`'paid'`, so no test can distinguish old from
+new. AC7 is honestly labelled a regression guard — accepted as-is rather than demanding a contrived test.
+
+**Process note**: the PR's GitHub author is `steilerDev` (the orchestrator's token), so
+`gh pr review --request-changes` is rejected as a self-review. Used `gh pr comment` and stated the verdict
+in the body — same workaround already noted in MEMORY.md for `--approve`.
+
+### Round 2 (`1f9de9b8`) — APPROVED
+
+Both HIGHs fixed as specified. `hasClaimedInvoice` is now
+`rows.some((r) => r.invoice_status === 'claimed' || r.deposit_status === 'claimed')` — derived from the raw
+join tuples _before_ `splitByDeposits`, so residual/refund arithmetic cannot reach it, and empty `rows`
+still yields `false` (matches the old `COUNT(...) > 0`). Wiki `API-Contract.md:4694,4696` updated (wiki
+commit `e744969`, submodule ref bumped **on the branch** — the ordering rule held). AC8 verified to be a
+real mutation-killer, not a restatement: invoice 1000 `claimed` + deposit 1000 `paid` gives
+`residualFraction = 0` and no claimed deposit, so the old predicate returned `false`.
+
+Three follow-ups left open, all informational: the `hasClaimedInvoice` rename (a claimed **refund** flips
+it too — same issue), and `wiki/API-Contract.md`'s unreachable `"invoiceCount": 2` example. Also noted for
+the record: `actualCostPaid`'s "Quotations are always excluded" wiki note is now only approximate — a
+`quotation` invoice with a `paid` deposit contributes that portion under the proportional split. That is a
+property of `computeDepositAwareAggregates`, shared by **every** consumer of the deposit-aware path, so it
+is a repo-wide question for `depositAggregateUtils.ts`, never a per-endpoint patch.
+
+## #1971 / PR #1985 — email-search test self-containment (E2E-only) — CHANGES_REQUIRED
+
+Verdict posted as a `gh pr comment` (author was the authenticated user, so `gh pr review` self-review is
+refused). The `Search filters by email` rewrite itself was correct and needed no changes — worker-scoped
+`testPrefix` search term, seeded match + non-match, `finally` cleanup, and the negative assertion has real
+teeth (`DataTable` does not slice `items`, so a no-op search renders every user and the absence check fires).
+
+Blocked on AC4: three of four audited `rows.length > 0` sites kept only a positive membership check against
+the **shared admin row**, which passes on a no-op filter — and the committed comment claimed the opposite.
+See [[recurring-patterns]] for the generalised pattern plus the soft-delete/seed-email findings.
+
+### Round 2 (`c23169f1`) — APPROVED
+
+Universal-negative loops added to `Search is case-insensitive` and both steps of `Search updates results
+dynamically`, plus `fullRows.length <= partialRows.length`. Checks that made the monotonicity assertion
+safe to accept: filtering is a client-side `useMemo` over a `users` array fetched once on mount, so both
+reads come from one snapshot and `'admin'` narrowing `'ad'` under `includes()` cannot flake. Verified
+`createLocalUser` stores the email verbatim (no lowercasing), so the POM's exact-equality `getUserRow`
+still matches the uppercase `E2E-` prefix in `${testPrefix}-${Date.now()}@…`. Also confirmed `DataTable`
+keeps both `tbody tr` rows and the mobile card list in the DOM, so the loops behave the same on all three
+viewports. Three non-blocking follow-ups (loop-vs-seeded-row discriminating power, non-worker-scoped
+`no-match-<ts>` email, positional cell indices vs column preferences) — all recorded in
+[[recurring-patterns]].
+
+## #1966 + #1969 / PR #1986 — column-toggle E2E coverage + testPrefix decoupling
+
+Round 1 CHANGES_REQUIRED (`${API}` object-interpolation making AC3 vacuous; untagged test claiming
+three-viewport coverage; `no-empty-pattern` lint error; over-claiming test title). Round 2 (`9e4b0e57`)
+still CHANGES_REQUIRED — but on a gap **my own round-1 review created**, see below.
+
+### I told them to trim a title when the AC required the assertion (my error)
+
+Round 1 I wrote "neither `<td>` cells nor remount reset is required by AC1-AC4, so the cheap fix is to trim
+the title" — without re-reading AC1, which bolds "the corresponding `<th>` **and every matching `<td>**`…
+asserts **both** return". They trimmed, as instructed, and the required assertion stayed missing.
+**Rule: when a test title over-claims, re-read the AC before recommending the trim.** An over-claiming title
+has two fixes and they are not interchangeable — trimming is only correct once you have confirmed no AC
+demands the named behavior. Getting this backwards converts a MEDIUM cosmetic finding into a silently
+dropped requirement, and costs an extra review round on top.
+
+### `page.route` does not intercept `page.request.*`
+
+`page.route` only sees requests from the **browser context**. `page.request.patch()` / any
+`APIRequestContext` call bypasses it. So the positive control for a route guard must be
+`page.evaluate(() => fetch(...))`, not `page.request.*` — my round-1 fix spec suggested
+`page.request.patch()` for exactly this purpose, which would have failed and looked like a broken matcher.
+The author correctly used `page.evaluate`. Ordering is deterministic without any wait: the Node-side handler
+pushes before `route.continue()`, so the in-page `await fetch` cannot resolve until the capture has happened.
+
+### Other verified facts from this review
+
+- `--report-unused-disable-directives` is the cheap way to prove an `eslint-disable` is live rather than
+  cargo-culted — run it whenever a PR adds a suppression.
+- `Detect Changes` **skips `Static Analysis` entirely** on `e2e/`+`.claude/`-only PRs, so on those PRs the
+  local lint policy is the only lint gate that exists at all (weaker even than the usual "CI runs no ESLint").
+- AC premise error in #1969 AC2: asks that `testPrefix` "values differ" between two tests in one file, but
+  the value is `E2E-<project><workerIndex>` — identical within a worker despite `{ scope: 'test' }`.
+  Flagged to product-owner for amendment rather than designed around (cf. the AC-premise-error rule).
+- AC4's own suggested rationale ("the mobile card list exposes no column toggles") is factually wrong for
+  `ReportContentEditor` — the card layout gates every row on the same `show()` predicate. The desktop-only
+  exclusion is a limitation of the `columnheader` locator under `display: none`, not an absence of toggles.
+
+### Round 3 (`4cf5a735`) — APPROVED
+
+The `<td>` gap was fixed the right way: `getByRole('cell', { name: <vendor name>, exact: true })` with a
+**baseline `toHaveCount(1)` before the toggle** and `toHaveCount(1)` again after re-checking. That baseline is
+what makes the `toHaveCount(0)` non-vacuous — insist on it every time a test asserts an element's absence.
+Verified chain: `<td>{row.vendor}</td>` (ReportContentEditor.tsx:251) ← `vendor: invoice.vendorName`
+(buildReportContent.ts:200) ← `vendorName: vendors.name` join (invoiceService.ts:272).
+
+Remaining non-blocking: unformatted new line (Prettier, invisible to CI on e2e-only PRs), stale AC4 docstring
+paragraph, hardcoded preferences glob ×3, #1969 AC2 premise error (product-owner).
+
+## PR #1987 (#1913 + #1952) — CHANGES_REQUIRED (round 1, `23c35371`)
+
+`fix(server): calendar-drift test fixtures + LLM plain-prose enforcement`. Review posted via
+`gh pr comment` (self-authored PR blocks `--request-changes`).
+
+**#1913 clean.** `futureDateStr(500)` uses real `new Date()` — no fake timers, per #1913's explicit ban
+(they poison `schedulingEngine.ts`'s module-level `lastRescheduleDate` gate). Both checklist sites hit;
+`insertWorkItem` defaults to `not_started` so both are genuinely CPM-today-floor-sensitive. The surviving
+`'2027-06-15'` at `householdItemDepService.test.ts:186/208` is correctly left alone — `in_progress` **and**
+a `listDeps` read-back with no scheduler in the path, so it cannot expire.
+
+**#1952 — 2 HIGH false positives** in `stripMarkup`, both violating AC 2.5's byte-identical guarantee:
+intraword `_` mangling reference numbers/e-mails, and line-start `\d+[.)] ` eating German ordinals and
+dates. Plus MEDIUM: two unpaired `*` on one line pairing up; AC 3.2 (`'- Pos. 3 - Dachstuhl'`) untested.
+See [[recurring-patterns]] for the generalized rules — single-occurrence guard tests, German ordinals,
+AC-tension, and pre-validating regex fix specs.
+
+Structure/integration were all correct and worth noting as the good half: strip-before-truncate at all
+three call sites, `LlmInvalidResponseError` paths untouched (strip runs after the type/non-empty guards and
+the empty-fallback makes it incapable of emptying a valid field), prompt rule 4 preserved (AC 3.3), wiki
+amended not deleted with the submodule ref bumped on-branch (AC 4.1). 193/193 + 187/187 green locally.
+
+Non-blocking: `futureDateStr` now triplicated (`timeline.test.ts:151` + 2 copies) while
+`server/src/test-helpers/` exists — and the two new copies dropped the JSDoc that carries the _reason_
+(CPM today-floor on `not_started`), i.e. exactly the knowledge #1913 was filed to preserve.
+
+### Round 2 (`857fcedd`) — APPROVED
+
+All six findings fixed; shipped regexes **byte-identical** to the 45/45-validated spec (diffed, not eyeballed).
+207/207 pass. Test file `--numstat` = `80 0`, so no existing assertion was weakened to fit the new behaviour.
+
+The technique worth reusing: **prove non-vacuity by mutation, not inspection.** I replayed all 15 new
+scenarios against the round-1 implementation — 13/15 fail against it. The 2 that pass under both are the
+deliberate regression guards (AC 3.2 bullet+hyphen, genuine numbered run), so passing either way is their
+intended property. That split is the evidence an approval should rest on; "N tests added" is not.
+
+Accepted residuals, recorded so they are not rediscovered as bugs: `<word …>` pseudo-tags are still
+stripped (INFO-1, AC 2.4's `Beträge < 500 EUR` safe via the space-after-`<` guard); a genuine German date
+list of ≥2 lines (`15. Mai: …\n16. Mai: …`) still loses its numbers, which is arguably correct (INFO-2).
+`futureDateStr` extraction to `server/src/test-helpers/dates.ts` deferred as a follow-up.
+
+## PR #1988 (#1967 dead `attachmentsNote` override + #1947 `ReportWizardPage` → `useReducer`)
+
+### Round 1 (`b503e496`) — CHANGES_REQUIRED, one HIGH
+
+The tier design I specified in the #1947 action-set review landed correctly (named tier interfaces,
+annotated total-literal factories, opaque nullable request tokens, `isGeneratingAi` derived not stored,
+the Step-2 fan-out race tokenized, `deepLinkAppliedRef` holding the applied id with `report` out of the
+dep array). H1 was that `freshContentTier()` was **bypassed** in `SELECT_SOURCE` and `DISCARD_EDITS` —
+the two cascades — because each needed `aiError` preserved, so a future 5th `ContentTier` field would
+silently default to _kept_ in exactly the handler that produced #1943 and M2. See the recurring-patterns
+entry; the fix shape is spread-the-factory-then-name-the-exception.
+
+Method note: for a behaviour-preserving refactor, **green CI is necessary but not the review**. What
+settled AC3 here was walking each silently-changed semantic and proving it unreachable — `GO_TO_STEP`
+now bumping `maxReachedStep` at every call site (no-op: step-1 Next only renders once `useCase` is set,
+and `WizardStepper` gates clickability on `maxReachedStep`), the new `Math.min` step clamps (use case is
+only selectable at step 1, source at step 2), `freshContentTier()` in `SELECT_USE_CASE` (no-op because
+`isDirty` covers all three content fields, and the dirty path dispatches `DISCARD_EDITS` first).
+
+### Round 2 (`01d8ff12`) — APPROVED
+
+Both cascades now spread the factory and override `aiError` back; the M-I test passes unmodified, which is
+the pin that matters. 57 tests, 100% on all four metrics. Also confirmed the one-file Prettier fix did not
+drag repo-wide drift with it. Carried forward non-blocking: whole-`wizardState` in a `useCallback` dep
+array, `REPORT_REFRESHED` as the last untokenized async write, `reportStatus` duplicating the page-local
+`PageStatus` union, and a comma-operator exhaustiveness guard that invites deletion.
+
+## PR #1998 — CVE-2026-15144 IPv6 /64 rate-limit key (#1995)
+
+### Round 1 — CHANGES_REQUIRED (posted via `gh pr comment`; `--request-changes` refused: own PR)
+
+Deleting the custom `keyGenerator` is the only correct shape (identity-check gate, see
+[[recurring-patterns]]), and coverage is complete — no other `keyGenerator` exists repo-wide, and the
+four route-level `config.rateLimit` blocks (`auth.ts:81`/`:145`, `users.ts:123`, `davTokens.ts:157`)
+only override `max`/`timeWindow`, so one deletion fixes login, setup, password-change, and DAV tokens
+together. 11.2.0 is correctly pinned in `server/package.json:20` + lockfile, no bump needed.
+
+MUST FIX: the deletion drops #1303's nullish-IP guard, and 11.2.0's default generator _throws_ on
+`request.ip === undefined` -> 500 on the whole auth path. Asked for
+`keyGenerator: (request) => normalizeIP(request.ip ?? 'unknown')` plus a comment, explicitly **not**
+restoring the `x-forwarded-for`/`x-real-ip` fallbacks (they read headers regardless of `TRUST_PROXY`
+— a spoofable key source; dropping them is a genuine win in this PR). Regression test can't go through
+`app.inject` (light-my-request defaults `remoteAddress` to `127.0.0.1`) — suggested exporting the
+generator as a named function and unit-testing `{ ip: undefined }` directly.
+
+Also MUST FIX: confirm `e2e/tests/proxy/proxy-setup.spec.ts:186` was green on _this PR's_ run — it is
+the test #1303 cited, and `E2E Gates` is main-only, so this merges green to beta then blocks promotion.
+
+SHOULD FIX: negative control missing from the new test; `wiki/API-Contract.md:121` +
+`wiki/Architecture.md:406` both still say "keyed on the client IP" (now the /64 for IPv6 — a whole
+household's IPv6 prefix shares one 20-per-15-min login budget, operationally meaningful for
+self-hosters), needs a Deviation Log row on each. MINOR: `wiki/Security-Audit.md:90`'s remediation
+snippet `keyGenerator: (req) => req.ip` is now precisely the vulnerable pattern — flagged to
+security-engineer rather than edited (their page). No ADR needed.
+
+## PR #2002 — #1968 usage-cell grey meta suffix per-token runs (2026-08-04) — CHANGES_REQUIRED
+
+Production change correct; blocked on coverage. Routed the grey meta suffix through `buildUsageTextRuns`
+and coloured each resulting run. Verified against pdfmake source that per-run `wordBreak` + `color`
+coexist and the `'\n'`-only run still forces its line break (details in `client-pdf-pipeline.md`).
+
+BLOCKING (H1): reverting the production hunk left all 95 + 73 tests green — the PR only relaxed the two
+`splitUsageCell` helpers (which now synthesize the meta run and drop `wordBreak`) and added no test case.
+#1968 AC1 (measured, real embedded font) and AC2 (short-suffix baseline unchanged) both unmet. Asked for a
+`realRender.test.ts` case using the existing `WORST_CASE_TOKENS` + `renderCellScopeRow` fixtures, plus an
+`overviewPdf.test.ts` unit case asserting both `color` and `wordBreak` on the raw runs. Generalised as the
+"revert test" pattern in `recurring-patterns.md`.
+
+Non-blocking: redundant `as Content` at `overviewPdf.ts:702`; narrow-return-type alternative (M2); two
+stale helper doc comments still saying "one grey run" (`overviewPdf.test.ts:162-169`,
+`realRender.test.ts:289-294`); font-size coupling note.
+
+Notable: the comment update **repaired** a pre-existing inconsistency — `overviewPdf.ts:451` already said
+"the two exceptions" on beta while the tail list enumerated three. Worth checking header-vs-list agreement
+whenever that channel enumeration is edited. No schema/API/ADR surface touched, no wiki update needed.
+
+Mechanics: PR authored by `steilerDev` (the authenticated account), so `gh pr review --request-changes`
+fails with "Can not request changes on your own pull request" — posted via `gh pr comment` instead.
+
+### Round 2 (2026-08-04) — APPROVED
+
+H1 properly fixed, verified by re-running the revert myself rather than reading the summary: reverted hunk
+→ all three new tests red (`greyRuns.length` 1 not >1, both `wordBreak` assertions false); restored →
+171/171. Repair shape was right — `greyRuns` returns the **raw** run objects instead of a reconstruction,
+plus a `realRender` case that bypasses the helper and reads the rendered doc's run array. The relaxed
+invariant keeps the two load-bearing properties (contiguous, tail-anchored) with distinct error messages.
+
+M1 (`as Content`) resolved as _unnecessary_, not merely deferrable: removing it type-checks clean, proven
+with a tsc positive control (the client project carries ~63 pre-existing stale-`shared` errors, so
+"tsc is clean" was not available as a signal). Left in place as non-blocking.
+
+M2 (new, non-blocking, pre-existing): ADR-034 rule #1 `max(horizontalRatio) <= 1` has **zero hits** in
+`client/`, so this pipeline verifies overflow fixes by mechanism (`wordBreak` present) not outcome. Filed
+**issue #2003** (tech-debt / should-have / backlog) and took ownership, since it's my ADR text setting the bar.
+
+Also checked and cleared: the fix's _vertical_ axis (break-all adds wrapped lines → `dontBreakRows`
+silent-drop hazard) — `packUsageCellRows`' character budget already assumes worst-case per-line counts, so
+the bound is not weakened. And confirmed no consumer of the old single-grey-run invariant exists in
+production, `e2e/`, or any wiki page → no wiki update owed. prettier + eslint clean on all three files.
+
+Method note: this worktree's HEAD already contained the PR head with byte-identical `client/src/lib`, so the
+revert test ran in place with no extra worktree or `npm install`. Check `git merge-base HEAD <pr-branch>`
+plus a scoped `git diff --stat` before paying for isolation.
+
+## PR #2004 — #1910 preview `lang` attribute + #1888 attachments note (2026-08-05, CHANGES_REQUIRED)
+
+- **H1 blocking**: container-level `lang` + partial counter-tagging left UI-locale labels/buttons
+  mis-tagged → see recurring-patterns "Broad-scope attribute + partial counter-tagging".
+- M1 coupled `lang`/`uiLang` prop pair; M2 vacuous negative test via earlier `EmptyState` early return;
+  L: en/de terminal-punctuation mismatch in a new key pair, `sourceReports.attachmentsNote` collides by
+  concept with `editable.attachmentsNoteLabel` + `table.attachmentsNote_one/_other`,
+  `[class*="container"]` POM selector, `styles.step4Body` is step **5**'s wrapper (pre-existing misnomer).
+- Verified fine: `SourceReportType` union exactly matches the three `sourceReports.useCase.*` keys in both
+  locales (dynamic `t()` key is exhaustive); no client-side document filtering added (#1930 AC7 intact).
+- Could not `gh pr review` (own PR) → posted via `gh pr comment`.
+- E2E: new Scenarios 25/26/27 pass; Shard 8's 3 failures are pre-existing
+  `navigation/dashboard.spec.ts` Scenario 13 (#1735) — unrelated.
+
+### PR #2004 round 2 — Option A H1 fix (2026-08-05, CHANGES_REQUIRED again)
+
+- H1 correctly fixed via Option A (surgical positive tagging, `uiLang` deleted). Design is clean:
+  every `lang`-bearing element's own text is `content.*` (report language); all `t()` chrome is outside.
+- **New blocking H1-r2**: E2E Scenario 25's assertion still expects container `lang="de"` (comment was
+  updated, assertion was not) → Shard 2/16 red, confirmed via shard-diff vs `2744d75b`.
+  See recurring-patterns "Comment refreshed, assertion left behind".
+- **H2-r2**: Scenario 27 became unconditional (see "Inverting a contract can make an existing negative
+  test unconditional").
+- M: `.readOnlyValue` spans (`dateLine`, `closing`) missed by the tagging; no test proves
+  `ReportContentEditor` passes `lang` to its `EditableField`s (delete all 8 props → still green);
+  4 of 5 tagged sections unasserted.
+- L: POM `reportContentContainer()` docstring now describes the removed behaviour; `aria-label` in UI
+  locale inside a `lang`-tagged `<input>` is an inherent, accepted residual — leave a code comment so
+  nobody "fixes" it by deleting the attribute; `expect(tableWrapper).toBeVisible()` would fail if
+  Scenario 26 were ever tagged `@responsive` (≤767px hides `.table`, not `.tableWrapper`).
+- Playwright projects: `tablet` and `mobile` both `grep: /@responsive/` — untagged scenarios are
+  **desktop-only**. Useful when judging whether a viewport-sensitive assertion is actually at risk.
+
+### PR #2004 round 3 — thead retarget (2026-08-05, CHANGES_REQUIRED, 3rd round)
+
+- **Both round-2 blockers CLEARED**: E2E 25/26/27 now target `<thead>` with real assertions
+  (`'de'` / `null`); `<thead>` is unique in the component (`.summaryTable` has no `thead`), so
+  `.first()` is unambiguous. `toBeVisible()` on `<thead>` is only safe because 25-27 are untagged →
+  desktop-only. M2-r2 (integration test on the usage input, scoped via `getDesktopTable` +
+  `getByDisplayValue`), M3-r2 (double guard), L1-r2 (POM docstring, verified line-by-line) all fixed.
+  `uiLang` is now 0 hits repo-wide.
+- **New blocking H1-r3**: removing `lang` from `.tableWrapper`/`.mobileCardList` and re-adding it to
+  `<thead>` only dropped coverage for the desktop `<tbody>` and the whole mobile card tree —
+  AC1 of #1910 explicitly enumerates "table captions … status text". Recommended fix: restore the
+  wrapper tags and counter-tag `EditableField`'s sr-only hint + reset button via a new `uiLang` prop
+  (do NOT counter-tag `<label>` — mobile's is `content.labels.usage`). See recurring-patterns
+  "Removing a wrapper tag on an over-tagging objection loses the coverage it provided".
+- M/L: M1-r2's `.readOnlyValue` code fix landed with **no** assertion; the first Option-A unit test's
+  comment still names `.tableWrapper`/`mobile cards` as the tagging sites (rot introduced by the same
+  commit that falsified it); `ReportContentEditor.tsx` fails `prettier --check` (lines 110/165 at
+  102/101 cols — `npm run format` not run); PR body still describes container-level tagging.
+- `@eslint-react/use-state` warning at `ReportContentEditor.tsx:53` is pre-existing on `beta`.
+
+### PR #2004 round 3 (#1910, 2026-08-05) — VERDICT: APPROVED
+
+H5 fixed for real: `.mobileCardList` and `.tableWrapper` both carry `lang={lang}` again, and the
+revert test passes (delete the `mobileCardList` tag -> the new unit test goes red). The `uiLang`
+counter-tag prop landed on `EditableField` (input/textarea get `lang`; reset button + sr-only hint
+get `uiLang`; `<label>` deliberately gets neither). Negative controls now exist for both attributes.
+Non-blocking residuals recorded for the next touch of these files:
+
+- **M1** `uiLang` _wiring_ is untested — `uiLang` is 0 hits in `ReportContentEditor.test.tsx` and
+  `ReportWizardPage.test.tsx`, so deleting all 8 `uiLang={uiLang}` call-site props leaves every suite
+  green. The `EditableField` unit tests pass the prop directly, which proves the component, not the
+  threading. One assertion (reset button inside `[class*="tableWrapper"]` has `lang="en"` when
+  `{lang:'de',uiLang:'en'}`) closes it.
+- **L1** column-toggle labels (`ReportContentEditor.tsx:245-247`) render `content.labels.*` —
+  report language — untagged. The group div can't take `lang` because its own `aria-label` is UI
+  text; wrap the text in `<span lang={lang}>`.
+- **L2** dense desktop cell: `effectiveAriaLabel` (UI strings) is set on `<input lang={reportLang}>`.
+  Unfixable with `lang` alone; needs sr-only span + `aria-labelledby`. Net still an improvement.
+- **I** `<thead lang>` is now redundant with the wrapper tag and a test asserts both — a future
+  cleanup could delete the _wrapper_ instead and reintroduce H5.
+- E2E scenarios 25-27 are untagged, therefore desktop-only (`e2e/playwright.config.ts` gates
+  tablet/mobile on `grep: /@responsive/`), so their `expect(thead).toBeVisible()` is safe despite
+  `.table { display: none }` at <=767px. Consequence: the mobile fix has unit coverage only.
+- CI: `Quality Gates` green. `E2E Tests (Shard 8/16)` fails on `navigation/dashboard.spec.ts`
+  1130/1164/1192 (#1735 Add dropdown) on **all four** head commits including the first -> pre-existing,
+  main-only, needs its own issue before the next promotion.
+
+## PR #2006 — #2005 E2E shard 8/16 red, dashboard "New Invoice" opens no modal — APPROVED
+
+Test-fixture-only diff (`e2e/tests/navigation/dashboard.spec.ts`), no production/schema/API surface.
+`mockInvoicesFullSummary()` gained `claimable` + `quotationCoveredByDeposits` and `pagination.total`
+became `totalItems`. Verified against `shared/src/types/invoice.ts:159-169` and
+`shared/src/types/pagination.ts:4-9`, every consumer site in `InvoicesPage.tsx` /
+`InvoicePipelineCard.tsx`, the `?create=1` gate at `InvoicesPage.tsx:277-293`, the navigation source at
+`DashboardPage.tsx:552`, trailers, and CI (shard 8/16 + Quality Gates green on 7b7a1ea).
+
+Five non-blocking follow-ups filed in the review comment, none yet ticketed:
+type the fixtures against `InvoiceListPaginatedResponse` (would have caught both defects at typecheck —
+highest leverage); backfill `mockInvoices()` (latently broken, see recurring-patterns); refresh the
+stale JSDoc at ~L976 that enumerates an outdated field list; comment the duplicate-route-glob ordering
+dependency; re-add `@smoke` now that #1735 is in beta. **If these are still unticketed, file them.**
+
+Process note: memory updates for this review were left **uncommitted** rather than pushed onto the
+author's branch — appending a commit to an approved PR with green CI would retrigger E2E and invalidate
+the review. As reviewer, hand memory edits back to the orchestrator to ride along on a later PR.
+
+## PR #2007 / issue #2001 — remove `TFunction` from `reportPdf/*` (2026-08-05) — CHANGES_REQUIRED (r1)
+
+Pure refactor closing the ADR-034 locale-leak class. AC5 (no `TFunction` in `reportPdf/*` production
+files) verified holding on head; AC1/3/4/6/8 verified; all CI gates green including full E2E.
+
+Two blocking findings:
+
+1. `overviewPdf.ts:835-838` — `skipReasonLabels[reason as 'footnoteFetchFailed'|'footnoteInvalidPdf'] ?? reason`.
+   The union is already exact on `SkippedDocument.reason`; `merge.ts:101`'s `Map<string, string[]>`
+   widens it. Fix: name the union in `reportContent/types.ts`, `Record<ReportSkipReason, string>`,
+   `Map<string, ReportSkipReason[]>` in merge + the `buildOverviewContent` signature, drop cast and `??`.
+   Verified no test passes an out-of-union reason, so the change is annotation-only.
+2. ADR-034 stale at lines 82 / 178 / 186-188 (grep guard) / 200 / 219 — all describe the pre-#2001
+   weaker contract. Requested the wiki delta be routed back to product-architect on the same branch,
+   plus a Deviation Log row.
+
+Informational: `buildReportContent.ts:82` `getAttachmentNote(invoice, t)` is the last one-character
+`t`/`reportT` confusion (private, single caller, correct); its dynamic
+`sourceReports.table.attachmentType.${type}` key can echo a raw identifier into the PDF if the server
+sends an untranslated `attachmentType` — same key-echo class, needs its own issue if the set is open.
+Also pre-existing: `merge.ts` pushes appendix-load failures to `skippedDocuments` _after_
+`buildOverviewContent` already consumed the map, so those get no `*N` footnote.
+
+Process note: could not `gh pr review --request-changes` (own-PR restriction) — posted via `gh pr comment`.
+
+### Round 2 — APPROVED (2026-08-05)
+
+Both blocking findings closed on head `7a40fa3`. H1 fixed exactly as specced _and_ the widened
+`Map<string, string[]>` was replaced too — that second half is the load-bearing one, since keeping the
+widened transport type forces the assertion straight back. `SkippedDocument.reason` now references
+`ReportSkipReason` rather than re-declaring the literals (the one gap that survived the first fix
+attempt; caught by re-reading rather than trusting the "resolved" report). `Static Analysis` green is
+itself the proof no call site smuggles an out-of-union reason.
+
+H2: wiki commit `cfbb0bd` published and `git ls-tree <head> wiki` on the branch resolves to it, so the
+PR carries the ref — worth checking explicitly, because a wiki push outside the branch leaves the ref
+un-bumped and the PR technically still fails the finding.
+
+The unrelated repo-wide prettier union-collapse drift (5 files) was kept out of the commit after I
+flagged it; verified with `git diff --stat origin/beta...<head> -- <those paths>` being empty.
+
+Left three non-blocking follow-ups: stale signature in `overviewPdf.test.ts:10`'s header comment
+(cross-reference rot, one layer down from the ADR lines this PR fixed), two read-side
+`as Map<string, string[]>` casts in `merge.test.ts:316,330`, and the `attachmentType` dynamic-key echo
+in `buildReportContent.ts:82` (same key-echo class, outside scope).
+
+## PR #2008 — ADR-034 horizontal-overflow + legend coverage (#2003, #1980) — CHANGES REQUESTED (2026-08-05)
+
+Test-only PR. **Posted as `gh pr comment`, not `--request-changes`** (GitHub refuses review verdicts on
+your own PR — recurring constraint).
+
+Blocking finding: the three production `maxHorizontalRatio(...) <= 1` assertions **cannot fail**, so
+#2003's explicit "must demonstrably fail" AC is unmet. Full mechanism, measurements and the working
+replacement (per-cell `_minWidth <= _calcWidth`) are in [client-pdf-pipeline.md](client-pdf-pipeline.md);
+the two generalisable review lessons are in [recurring-patterns.md](recurring-patterns.md). ADR-034
+rule #1 needs its **third** correction — mine, not the author's fault; the implementation followed my
+prose faithfully.
+
+Recommended split: land the #1980 half (sound), rework the #2003 half separately.
+
+Verified sound and worth not re-deriving:
+
+- AC4's `budgetLines: []` + untagged deposit **is** the right flag isolation (`buildReportContent.ts:157`
+  gates `splitInvoiceIds` on `isSplit && budgetLines.length > 0`).
+- The E2E deposit-reduced path is genuine end-to-end: `sourceReportService.ts:389` filters deposits with
+  `budgetSourceId === null || === sourceId`, so an untagged deposit **survives** into the response;
+  combined with `seedSplitInvoice`'s `isSplit` that yields `isDepositReduced === true`. No fixture/production
+  divergence — this was the specific gap I was asked to chase.
+- `footnoteItems.nth(0)`/`nth(1)` correctly pins `buildReportContent`'s deterministic push order.
+
+Non-blocking: en-only worst-case token fixtures (#2003 asks for both locales); third forked
+`collectAllStrings`; `src/DocumentContext.js:528` vs ADR's `:490` citation drift (both correct — src vs
+js build — but name the file).

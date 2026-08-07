@@ -27,6 +27,7 @@ export interface GenerateReportContentLlmInvoice {
   vendorName: string;
   invoiceNumber: string | null;
   date: string;
+  /** Major currency units, 2 dp — not cents. */
   amount: number;
   notes: string | null;
   budgetLines: GenerateReportContentLlmInvoiceLine[];
@@ -37,6 +38,7 @@ export interface GenerateReportContentLlmInput {
   reportType: string; // SourceReportType
   sourceName: string;
   sourceType: string; // BudgetSourceType
+  /** Major currency units, 2 dp — not cents. */
   totalAmount: number;
   currency: string;
   invoices: GenerateReportContentLlmInvoice[];

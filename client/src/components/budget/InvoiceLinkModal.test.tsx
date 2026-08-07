@@ -125,6 +125,8 @@ function buildPaginatedResponse(invoices: Invoice[]): InvoiceListPaginatedRespon
       claimed: { count: 0, totalAmount: 0 },
       quotation: { count: 0, totalAmount: 0 },
       overdue: { count: 0, totalAmount: 0 },
+      claimable: { count: invoices.length, totalAmount: 1000 },
+      quotationCoveredByDeposits: 0,
     },
   };
 }

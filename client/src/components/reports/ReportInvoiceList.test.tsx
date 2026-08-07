@@ -74,6 +74,7 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
     allocatedAmount: 1000,
     lineKind: 'invoice',
     isSplit: false,
+    splitKind: null,
     documents: [],
     budgetLines: [],
     deposits: [],
@@ -1500,6 +1501,61 @@ describe('ReportInvoiceList', () => {
       const headerWrapper = container.querySelector('.listHeader .checkboxWithContent');
       expect(headerWrapper).not.toBeNull();
       expect(headerWrapper!.className).not.toMatch(/headerCheckbox/);
+    });
+  });
+
+  // ─── Story #1888: attachments note paragraph ─────────────────────────────────────────────
+
+  describe('attachments note (Story #1888)', () => {
+    it('renders the attachments note paragraph when there is at least one allocated invoice', () => {
+      // makeInvoice() has allocatedAmount: 1000, so it passes the allocatedInvoices filter
+      // (allocatedAmount > 0). The component renders the <p className={styles.attachmentsNote}>
+      // when allocatedInvoices.length > 0. The t() mock returns
+      // 'sourceReports.attachmentsNote::{"reportType":"sourceReports.useCase.claim"}' which
+      // matches the regex /sourceReports\.attachmentsNote/.
+      const report = makeReport([makeInvoice()]);
+      renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      expect(screen.getByText(/sourceReports\.attachmentsNote/)).toBeInTheDocument();
+    });
+
+    // M2 VACUOUS-NEGATIVE FIX: makeReport([]) hits the EmptyState early-return BEFORE reaching
+    // the `allocatedInvoices.length > 0` guard — the note's absence then proves nothing about that
+    // guard (the component bailed out before ever evaluating it). Using one unallocated invoice
+    // bypasses EmptyState (there IS something to render) but keeps allocatedInvoices.length === 0,
+    // so the note is absent because of the guard under test, not the early-return shortcut.
+    it('does not render the attachments note paragraph when there are no allocated invoices', () => {
+      const oneUnallocated = {
+        invoiceId: 'unalloc-note-1',
+        vendorId: 'vend-ua',
+        vendorName: 'UA Vendor',
+        invoiceNumber: 'INV-UA-001',
+        date: '2026-01-20',
+        status: 'pending' as const,
+        invoiceAmount: 300,
+      };
+      const report = makeReport([], [oneUnallocated]);
+      renderWithRouter(
+        <ReportInvoiceList
+          report={report}
+          excludedInvoiceIds={new Set()}
+          excludedLineIds={new Set()}
+          onToggle={jest.fn()}
+          onToggleLine={jest.fn()}
+          onToggleAll={jest.fn()}
+          t={t}
+        />,
+      );
+      expect(screen.queryByText(/sourceReports\.attachmentsNote/)).not.toBeInTheDocument();
     });
   });
 

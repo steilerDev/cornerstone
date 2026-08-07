@@ -75,18 +75,38 @@
  * attachments note into ONE read-only grey meta line in the Usage cell. See `ReportWizardPage.ts`'s
  * class docstring for the full locator reference (`sourceInfoBlock`, `depositBadge`/
  * `mobileDepositBadge`, `inlineNote`/`mobileInlineNote`, `usageMetaText`/`mobileUsageMetaText`,
- * `summaryTable`/`summaryTableRows`, and `footnotesBlock`/`footnoteItems` — retained as
- * negative-only guards now that nothing populates `content.footnotes`).
+ * `summaryTable`/`summaryTableRows`, and `footnotesBlock`/`footnoteItems` — one deduplicated
+ * entry per active flag (`isSplit`/`isDepositReduced`), absent only when NEITHER flag fires
+ * anywhere in the report (Issue #1965)).
+ *
+ * Issue #1911 (`splitKind`): `isSplit`/`isDepositReduced`/`isDeposit` are now derived purely from
+ * the server's `splitKind: 'lines' | 'deposits' | 'both' | null` rather than the old
+ * `isSplit(raw) && budgetLines.length>0` / `isSplit(raw) && deposits.length>0` array-shape gates.
+ * Two consequences that ripple into Scenario 17/18 below: (1) a ZERO-contribution-line row (all
+ * of the invoice's budget lines point to a DIFFERENT source, `splitKind: 'lines'`) now DOES carry
+ * the `(partial)` label — the old `budgetLines.length>0` gate used to suppress it, which was the
+ * #1911 bug's mirror case; (2) `isDepositReduced` now fires ONLY when a deposit is tagged to a
+ * source OTHER than the one being reported (`splitKind: 'deposits'`/`'both'`) — an UNTAGGED
+ * deposit (`budgetSourceId: null`) never triggers it, because untagged deposits are apportioned
+ * pro-rata back INTO the reported source (`depositAggregateUtils.ts`), not claimed separately.
+ * `isDeposit` (the constituted-deposit badge trigger) is UNCHANGED and can now co-occur with
+ * `isSplit`/`isDepositReduced` on the same row — the old code's implicit either/or is gone.
  * - Scenario 16: A `claim` report omits the source-info metadata block entirely (AC3.1) — the
  *   counterpart to Scenario 1's `budget-overview` regression guard (AC3.3).
  * - Scenario 17: A constituted-deposit row (the row's allocation is made up entirely by a
- *   deposit tagged to the currently reported source) shows the inline "Deposit" badge on
- *   desktop, tablet, AND mobile, carries NO inline `(partial)`/`(less deposit)` note (nor either
- *   legacy `†`/`‡` glyph), and there is no footnotes block at all (AC2.1, AC2.2).
+ *   deposit tagged to the currently reported source, with the invoice's OWN budget lines pointing
+ *   entirely at a DIFFERENT source) shows the inline "Deposit" badge on desktop, tablet, AND
+ *   mobile (AC2.1, AC2.2) — and, since Issue #1911, ALSO the `(partial)` note and one footnote
+ *   entry, because the invoice's lines are foreign to the reported source (`splitKind: 'lines'`).
+ *   It still carries NO `(less deposit)` note (nor either legacy `†`/`‡` glyph): the deposit is
+ *   tagged to the reported source itself, not a foreign one.
  * - Scenario 18: Every split invoice carries its OWN inline `(partial)` label in its Allocated
- *   Amount cell (Issue #1959, superseding AC1.1-AC1.2's shared unnumbered `†` marker), and the
- *   footnote list — including the long-form "Amount shown reflects only the portion allocated to
- *   this source." sentence — is gone from the page entirely.
+ *   Amount cell (Issue #1959, superseding AC1.1-AC1.2's shared unnumbered `†` marker). The
+ *   footnote list now contains exactly ONE deduplicated legend sentence ("Amount shown reflects
+ *   only the portion allocated to this source.") pushed by `buildReportContent.ts` because
+ *   `splitInvoiceIds.size > 0` (Issue #1965). A sibling test at the end of this describe block is
+ *   the Issue #1911 AC 3.2 regression guard: a split invoice with an UNTAGGED deposit must show
+ *   `(partial)` but never `(less deposit)`.
  * - Scenario 19: Invoices spanning two or more statuses still produce exactly one summary row
  *   (`Total`) — no per-status subtotal rows (AC4.1-AC4.2).
  * - Scenario 20: A budget line linked to an item with an assigned area shows the item's leaf
@@ -117,6 +137,35 @@
  *   the reset affordance disappears — also a live regression guard that the CSS-only §5
  *   reset-button fix (glyph sizing only, unchanged `resetButton` className/DOM structure) never
  *   broke the existing `resetButtonFor`/`hasEditedIndicator` POM locators.
+ *
+ * Issue #1973 (column visibility wired through to the generated PDF, supersedes #1966): the
+ * `hiddenColumns` selection used to be `ReportContentEditor` local state that never left the
+ * component (preview-only, #1966) — it now lives in `ReportWizardPage`'s wizard-reducer state
+ * and is threaded through to `generatePdfFromContent`/`overviewPdf.ts`, so hiding a column
+ * actually changes the downloaded/uploaded/previewed PDF, not just the on-screen preview. See
+ * `ReportWizardPage.ts`'s "Issue #1973" docstring paragraph for `columnToggleGroup`/
+ * `usageHiddenAttachmentsWarning`.
+ * - Scenario 28: The DOM-level baseline carried forward from #1966 (AC 7.1) — every column
+ *   checkbox present by accessible name, unticking removes both the `<th>` and matching `<td>`,
+ *   re-ticking restores both, and no toggle ever issues a preference PATCH (AC 5.2). Desktop
+ *   only, by documented exclusion (AC 7.3) — the `columnheader`/`cell` ARIA-role assertions
+ *   require real `<table>` semantics, absent from the mobile `.mobileCardList` fallback.
+ * - Scenario 29: THE scenario that closes the #1966 gap (AC 1.2/7.2) — hiding the Usage column
+ *   (seeded with substantial text) produces a measurably SMALLER downloaded PDF than a baseline
+ *   download with Usage visible, proving the toggle reaches PDF generation and not only the
+ *   preview DOM. A bare non-trivial-size check (Scenario 8's shape) would not catch a regression
+ *   back to preview-only behavior.
+ * - Scenario 30: AC 2.2 — the Allocated Amount checkbox is disabled with a resolvable, non-empty
+ *   `aria-describedby`, and a forced click cannot uncheck it. All three viewports (AC 7.3).
+ * - Scenario 31: AC 6.2 — the Usage-hidden-with-attachments warning banner renders in exactly
+ *   one of the four (Usage hidden/visible) × (attachDocuments on/off) combinations. All three
+ *   viewports (AC 7.3).
+ * - Scenario 32: AC 5.1 — hiding a column, then switching use case (`claim` 6 columns →
+ *   `budget-overview` 7 columns), restores the full base set for the NEW use case. All three
+ *   viewports (AC 7.3).
+ * - Scenario 33: AC 5.3 — hiding a column, then reloading the wizard on the same `?sourceId=`
+ *   deep link, restores the full base set rather than the previously-hidden state. All three
+ *   viewports (AC 7.3).
  *
  * PDF generation (pdfmake + pdf-lib via dynamic `import()`) can be slow, especially on a cold
  * chunk load — every scenario that opens the preview modal, downloads, or uploads uses
@@ -295,7 +344,8 @@ async function linkDocumentToInvoiceViaApi(
  * Creates a deposit on `invoiceId`, optionally tagged to a budget source
  * (`data.budgetSourceId`) — mirrors the established pattern in `reportWizardExpansion.spec.ts`
  * (Story #1891/#1895/#1896). Used by Scenario 17 to construct a constituted-deposit row (Story
- * #1923 AC2.1).
+ * #1923 AC2.1) and by Scenario 18 to construct deposit-reduced (`budgetSourceId` tagged to a
+ * DIFFERENT source) and untagged (`budgetSourceId: null`) rows (Issue #1911).
  */
 async function createDepositViaApi(
   page: Page,
@@ -1536,15 +1586,17 @@ test.describe('Report wizard editable content — claim reports omit the metadat
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 17: Constituted-deposit row shows the inline Deposit badge and no deposit-reduced
-// note (Story #1923 AC2.1, AC2.2; note shape updated by Issue #1959)
+// Scenario 17: Constituted-deposit row shows the inline Deposit badge, a "(partial)" note (the
+// invoice's own budget lines are foreign to the reported source), and no "(less deposit)" note
+// (Story #1923 AC2.1, AC2.2; note shape updated by Issue #1959; `(partial)` addition + rationale
+// per Issue #1911's splitKind-driven derivation)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe(
   'Report wizard editable content — inline deposit badge (Scenario 17)',
   { tag: '@responsive' },
   () => {
-    test('A row whose allocation is made up entirely by a deposit tagged to the reported source shows an inline "Deposit" badge and no "(less deposit)" note, with no footnote entry, on desktop, tablet, and mobile', async ({
+    test('A row whose allocation is made up entirely by a deposit tagged to the reported source shows an inline "Deposit" badge and a "(partial)" note (its own budget lines are foreign to this source), but no "(less deposit)" note, with one footnote entry, on desktop, tablet, and mobile', async ({
       page,
       testPrefix,
     }) => {
@@ -1583,12 +1635,20 @@ test.describe(
           budgetSourceId: sourceBId,
         });
 
-        // View source B's own claim report — this invoice has zero budget lines for B, so its
-        // entire row here is the tagged deposit: isSplit (spans A + B) with an empty
-        // `budgetLines` slice for B → constituted-deposit, so `isSplit` is false (no
-        // budget-line split for B) and `isDepositReduced` is false (the deposit IS tagged to B,
-        // not "reduced") → NEITHER inline note (Issue #1959 replaced the old †/‡ markers with
-        // the `(partial)`/`(less deposit)` labels asserted against here).
+        // View source B's own claim report — this invoice has zero budget lines for B (all of
+        // its budget lines point at source A), so its entire row here is the tagged deposit:
+        // `isDeposit` fires (own-tagged deposit present, raw `isSplit` true — unchanged trigger).
+        // Since Issue #1911, `isSplit`/`isDepositReduced` are driven purely by the server's
+        // `splitKind`, not by whether B itself has a budget-line contribution: the invoice's
+        // lines are ALL foreign to B (they're on A) → `has_foreign_line_source` is true for B's
+        // report → `splitKind: 'lines'` → `isSplit` fires too, even though B's own `budgetLines[]`
+        // slice is empty (AC 3.1's zero-contribution-line case — the old `budgetLines.length>0`
+        // gate used to suppress this; `splitKind` alone decides now). `isDepositReduced` stays
+        // false: the deposit is tagged to B itself (the reported source), not a foreign one, so
+        // `has_foreign_deposit_source` is false and `splitKind` cannot be 'deposits'/'both'.
+        // Net effect: BOTH the "Deposit" badge AND the `(partial)` note render on this row — the
+        // old code's implicit either/or between "constituted" and "split" is gone — but never
+        // `(less deposit)`.
         await reachStep5(wizard, sourceBId);
 
         const vendorName = `${testPrefix} Deposit Vendor`;
@@ -1601,10 +1661,13 @@ test.describe(
           const badge = wizard.mobileDepositBadge(vendorName, invoice.invoiceNumber!);
           await expect(badge).toBeVisible();
           await expect(badge).toHaveText('Deposit');
-          // The badge is the row's ONLY allocated-amount annotation: no `(partial)`/`(less
-          // deposit)` inline note (Issue #1959), and — belt and braces — neither legacy glyph.
-          await expect(wizard.mobileInlineNote(vendorName, invoice.invoiceNumber!)).toHaveCount(0);
+          // The badge co-occurs with exactly one inline note: `(partial)` (Issue #1911 AC 3.1),
+          // never `(less deposit)`, and — belt and braces — neither legacy glyph.
+          const mobileNote = wizard.mobileInlineNote(vendorName, invoice.invoiceNumber!);
+          await expect(mobileNote).toHaveCount(1);
+          await expect(mobileNote).toHaveText('(partial)');
           const cardText = (await card.textContent()) ?? '';
+          expect(cardText).not.toContain('less deposit');
           expect(cardText).not.toContain('†');
           expect(cardText).not.toContain('‡');
         } else {
@@ -1614,18 +1677,25 @@ test.describe(
           const badge = wizard.depositBadge(vendorName, invoice.invoiceNumber!);
           await expect(badge).toBeVisible();
           await expect(badge).toHaveText('Deposit');
-          await expect(wizard.inlineNote(vendorName, invoice.invoiceNumber!)).toHaveCount(0);
+          const note = wizard.inlineNote(vendorName, invoice.invoiceNumber!);
+          await expect(note).toHaveCount(1);
+          await expect(note).toHaveText('(partial)');
           const rowText = (await row.textContent()) ?? '';
+          expect(rowText).not.toContain('less deposit');
           expect(rowText).not.toContain('†');
           expect(rowText).not.toContain('‡');
         }
 
-        // No footnote entry at all — no split (B has zero budget lines here), no
-        // deposit-reduced (the deposit IS tagged to B, not "reduced"), the removed
-        // `depositConstitutedFootnote` key ("This is a deposit.") never had a footnote to begin
-        // with even before Story #1923, and as of Issue #1959 nothing populates
-        // `content.footnotes` at all any more.
-        await expect(wizard.footnotesBlock).toHaveCount(0);
+        // One footnote entry: `splitInvoiceIds.size > 0` now holds (the `splitKind: 'lines'`
+        // shape above), so `buildReportContent.ts` pushes the split legend sentence.
+        // `depositReducedInvoiceIds` stays empty (no foreign-tagged deposit here), so there is
+        // still no "claimed separately" entry — the block holds exactly ONE `<li>`, not two
+        // (Issue #1965, re-verified under Issue #1911's splitKind-driven derivation).
+        await expect(wizard.footnotesBlock).toHaveCount(1);
+        await expect(wizard.footnoteItems).toHaveCount(1);
+        await expect(wizard.footnoteItems.nth(0)).toContainText(
+          'Amount shown reflects only the portion allocated to this source.',
+        );
       } finally {
         if (workItemId) await deleteWorkItemViaApi(page, workItemId);
         if (sourceBId) await deleteBudgetSourceViaApi(page, sourceBId);
@@ -1637,12 +1707,13 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 18: Every split invoice carries its own inline "(partial)" label and there is no
-// footnote list at all (Story #1923 AC1, superseded by Issue #1959)
+// Scenario 18: Split invoices carry an inline "(partial)" label; deposit-reduced invoices
+// carry a "(less deposit)" label; together they produce two deduplicated legend entries in
+// the footnotes block (Issue #1965, AC5 Issue #1980)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Report wizard editable content — inline split label (Scenario 18)', () => {
-  test('Two split invoices each show a grey inline "(partial)" note in their Allocated Amount cell, with no †/‡ marker and no footnote list anywhere on the page', async ({
+test.describe('Report wizard editable content — inline split and deposit-reduced labels (Scenario 18)', () => {
+  test('Two split invoices show a "(partial)" note each, a third invoice (split + deposit-reduced) shows both "(partial)" and "(less deposit)" notes, and two deduplicated legend sentences appear in the footnotes block', async ({
     page,
     testPrefix,
   }) => {
@@ -1689,11 +1760,41 @@ test.describe('Report wizard editable content — inline split label (Scenario 1
         250,
       );
 
+      // Third invoice: split across the same two sources AND carrying a deposit TAGGED to the
+      // OTHER source (`otherSourceId` — not `reportedSourceId` and not null). Since Issue #1911,
+      // `isDepositReduced` is driven by `splitKind`, which is 'deposits'/'both' only when a
+      // deposit is tagged to a source OTHER than the one being reported — the server SQL's
+      // `has_foreign_deposit_source` aggregate filters `budget_source_id IS NOT NULL`, so an
+      // UNTAGGED deposit never sets it (that shape moved to the sibling negative-control test
+      // below, Issue #1911 AC 3.2 — it used to live here and was the over-inclusive bug this
+      // story exists to fix). Tagging to `otherSourceId` produces the genuine `splitKind: 'both'`
+      // shape (foreign line from `otherSourceId`'s own budget line AND a foreign deposit also on
+      // `otherSourceId`) — the first real-browser fixture that exercises the deposit-reduced code
+      // path (AC5 — Issue #1980; re-seeded for #1911).
+      const invoice3 = await seedSplitInvoice(
+        page,
+        vendorId,
+        reportedSourceId,
+        otherSourceId,
+        reportedWorkItemId,
+        otherWorkItemId,
+        { invoiceNumber: `${testPrefix}-SPLITDR-003`, date: '2026-06-12', status: 'pending' },
+        75,
+        125,
+      );
+      await createDepositViaApi(page, invoice3.id, {
+        amount: 50,
+        dueDate: '2026-06-20',
+        status: 'pending',
+        budgetSourceId: otherSourceId,
+      });
+
       await reachStep5(wizard, reportedSourceId);
 
       const vendorName = `${testPrefix} Split Vendor`;
       const row1 = wizard.contentTableRow(vendorName, invoice1.invoiceNumber!);
       const row2 = wizard.contentTableRow(vendorName, invoice2.invoiceNumber!);
+      const row3 = wizard.contentTableRow(vendorName, invoice3.invoiceNumber!);
 
       // Issue #1959 replaced the shared, unnumbered `†` marker + its footnote entry with a grey
       // inline label appended to each split row's Allocated Amount cell. Positive first: exactly
@@ -1710,25 +1811,164 @@ test.describe('Report wizard editable content — inline split label (Scenario 1
       await expect(row1).toContainText('€100.00 (partial)');
       await expect(row2).toContainText('€150.00 (partial)');
 
-      // Negatives, each paired with the positives above: neither footnote glyph survives
-      // anywhere in the row (numbered or not), and the footnote list has no producer left — the
-      // block is absent from the DOM entirely rather than merely empty.
+      // invoice3 is BOTH split AND deposit-reduced — two `[class*="inlineNote"]` spans appear in
+      // its Allocated Amount cell: one `(partial)` and one `(less deposit)`. This is the
+      // real-browser proof that `isDepositReduced` is computed and rendered correctly (AC5 —
+      // Issue #1980).
+      const note3 = wizard.inlineNote(vendorName, invoice3.invoiceNumber!);
+      await expect(note3).toHaveCount(2);
+      // €56.25, not €75.00: the deposit is now tagged to `otherSourceId` (a source ≠
+      // `reportedSourceId`), so `depositAggregateUtils.ts`'s redirect rule applies —
+      // `computeLineContributionsExcludingTagged` multiplies the reported source's own
+      // itemized line (€75) by the invoice's RESIDUAL fraction after excluding tagged deposits:
+      // (invoiceAmount €200 − taggedDeposit €50) / €200 = 0.75, and `depositFractions` for THIS
+      // source is empty (the deposit is tagged elsewhere, so it's filtered out of this source's
+      // own fractions). 75 × 0.75 = 56.25. This arithmetic is the strongest proof of the AC 3.2
+      // fix: a foreign-tagged deposit genuinely reduces this source's allocation, so "claimed
+      // separately" is a TRUE statement here — contrast the untagged case in the sibling guard
+      // below, where the same residual math nets back to the full amount.
+      await expect(row3).toContainText('€56.25 (partial)');
+      await expect(row3).toContainText('(less deposit)');
+
+      // Negatives, each paired with the positives above: neither legacy footnote glyph survives
+      // anywhere in the row (numbered or not).
       const row1Text = (await row1.textContent()) ?? '';
       const row2Text = (await row2.textContent()) ?? '';
       expect(row1Text).not.toContain('†');
       expect(row2Text).not.toContain('†');
       expect(row1Text).not.toContain('‡');
       expect(row2Text).not.toContain('‡');
-      await expect(wizard.footnotesBlock).toHaveCount(0);
-      await expect(wizard.footnoteItems).toHaveCount(0);
 
-      // The long-form footnote sentence the marker used to point at is gone from the page too
-      // (it now only exists as the short inline label asserted above).
-      const pageText = (await page.locator('main').textContent()) ?? '';
-      expect(pageText).not.toContain(
+      // Issue #1965 + AC5 (Issue #1980): the footnotes block now contains TWO deduplicated
+      // legend entries — one for `isSplit` (all three invoices trigger it) and one for
+      // `isDepositReduced` (invoice3 triggers it via its deposit tagged to `otherSourceId` —
+      // Issue #1911's `splitKind: 'both'` shape). Two distinct flag types → two distinct legend
+      // sentences, even though invoice3 triggers both simultaneously.
+      // The block itself is still exactly one element (one `<ul class*="footnotes">`), but now
+      // holds two `<li>` items.
+      await expect(wizard.footnotesBlock).toHaveCount(1);
+      await expect(wizard.footnoteItems).toHaveCount(2);
+
+      // First legend entry: split sentence (Issue #1965, `sourceReports.table.splitFootnote`).
+      await expect(wizard.footnoteItems.nth(0)).toContainText(
         'Amount shown reflects only the portion allocated to this source.',
       );
+      // Second legend entry: deposit-reduced sentence — first real-browser assertion of the
+      // `isDepositReduced` path (`sourceReports.table.depositReducedFootnote`, AC5 Issue #1980).
+      await expect(wizard.footnoteItems.nth(1)).toContainText(
+        'This position reflects deposits claimed separately.',
+      );
+      // The inline labels from the table rows must also still be present.
+      // `(partial)` uses a plain space — safe to compare via raw textContent().
+      // `(less deposit)` contains U+00A0 (non-breaking space) in `depositReducedInlineLabel`
+      // (pinned by i18n.parity.test.ts) — textContent() returns it verbatim, so a plain-space
+      // string comparison would fail. Use toContainText() which normalizes whitespace.
+      const pageText = (await page.locator('main').textContent()) ?? '';
       expect(pageText).toContain('(partial)');
+      await expect(page.locator('main')).toContainText('(less deposit)');
+    } finally {
+      if (reportedWorkItemId) await deleteWorkItemViaApi(page, reportedWorkItemId);
+      if (otherWorkItemId) await deleteWorkItemViaApi(page, otherWorkItemId);
+      if (reportedSourceId) await deleteBudgetSourceViaApi(page, reportedSourceId);
+      if (otherSourceId) await deleteBudgetSourceViaApi(page, otherSourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+
+  // Issue #1911 AC 3.2 regression guard (the over-inclusive-fix direction): a split invoice
+  // carrying an UNTAGGED deposit must show "(partial)" — the invoice's lines genuinely span two
+  // sources, so `splitKind: 'lines'` and `isSplit` fires normally — but must NEVER show
+  // "(less deposit)", and must contribute exactly ONE legend entry. Before #1911,
+  // `isDepositReduced` fired on ANY untagged deposit sharing an invoice with a split line,
+  // producing a false "claimed separately" legend sentence for a deposit that
+  // `depositAggregateUtils.ts`'s residual-fraction apportionment actually folds pro-rata back
+  // INTO this source — #1965 ruled "separately" audit-load-bearing, which is what makes the old
+  // behavior a real defect rather than a nit. This used to be invoice3's shape above (before it
+  // was re-seeded to a genuinely foreign-tagged deposit for the true deposit-reduced case), so
+  // without a standalone guard here the over-inclusive bug could regress silently. Isolated into
+  // its own invoice/source/vendor set (not folded into the test above) specifically so
+  // `footnoteItems` can assert count 1 cleanly — the scenario above always has 2 (split +
+  // deposit-reduced) for unrelated reasons. Positive control: the `(partial)` note AND the split
+  // footnote sentence both render, proving this isn't passing against a blank/mis-seeded page.
+  test('A split invoice carrying an untagged deposit shows only the "(partial)" note — never "(less deposit)" — and contributes exactly one legend entry', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let reportedSourceId = '';
+    let otherSourceId = '';
+    let reportedWorkItemId = '';
+    let otherWorkItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Untagged Vendor` });
+      reportedSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Untagged Source A`,
+        totalAmount: 10000,
+      });
+      otherSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Untagged Source B`,
+        totalAmount: 10000,
+      });
+      reportedWorkItemId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} WI Untagged A`,
+      });
+      otherWorkItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Untagged B` });
+
+      const invoice = await seedSplitInvoice(
+        page,
+        vendorId,
+        reportedSourceId,
+        otherSourceId,
+        reportedWorkItemId,
+        otherWorkItemId,
+        { invoiceNumber: `${testPrefix}-SPLITUNTAG-001`, date: '2026-06-13', status: 'pending' },
+        60,
+        90,
+      );
+      // Untagged: `budgetSourceId: null`. The server SQL's `has_foreign_deposit_source` aggregate
+      // filters `d.budget_source_id IS NOT NULL`, so an untagged deposit is invisible to it —
+      // `splitKind` resolves to 'lines' (from the foreign budget line on `otherSourceId`), never
+      // 'deposits'/'both'. This is the exact AC 3.2 over-inclusive-fix shape.
+      await createDepositViaApi(page, invoice.id, {
+        amount: 25,
+        dueDate: '2026-06-21',
+        status: 'pending',
+        budgetSourceId: null,
+      });
+
+      await reachStep5(wizard, reportedSourceId);
+
+      const vendorName = `${testPrefix} Untagged Vendor`;
+      const row = wizard.contentTableRow(vendorName, invoice.invoiceNumber!);
+
+      // Positive control: the split note renders normally.
+      const note = wizard.inlineNote(vendorName, invoice.invoiceNumber!);
+      await expect(note).toHaveCount(1);
+      await expect(note).toHaveText('(partial)');
+      // €60.00, the FULL itemized line amount, not a reduced one: `depositAggregateUtils.ts`'s
+      // `residualFraction` subtracts ALL deposits (tagged or not) from the invoice total, but an
+      // UNTAGGED deposit is also returned via `depositFractions` pro-rata across every line by
+      // itemized share. With exactly one deposit on this invoice, residual + returned fraction
+      // sum to 1.0 (invoice €150 − deposit €25 = €125 residual, €25 returned = €150 = 100%), so
+      // €60 × 1.0 = €60 — a net-zero change. This is the other half of the AC 3.2 proof (see the
+      // comment on invoice3's foreign-tagged €56.25 above): an untagged deposit changes NOTHING
+      // about this source's allocation, so the pre-#1911 "claimed separately" label on this shape
+      // was literally false to a bank recipient — nothing was, in fact, claimed separately.
+      await expect(row).toContainText('€60.00 (partial)');
+
+      // The regression guard itself: no second inline note, specifically not the deposit-reduced
+      // label (the untagged deposit must not read as "claimed separately").
+      const rowText = (await row.textContent()) ?? '';
+      expect(rowText).not.toContain('less deposit');
+
+      // Exactly one legend entry (the split sentence) — never a second deposit-reduced entry.
+      await expect(wizard.footnotesBlock).toHaveCount(1);
+      await expect(wizard.footnoteItems).toHaveCount(1);
+      await expect(wizard.footnoteItems.nth(0)).toContainText(
+        'Amount shown reflects only the portion allocated to this source.',
+      );
     } finally {
       if (reportedWorkItemId) await deleteWorkItemViaApi(page, reportedWorkItemId);
       if (otherWorkItemId) await deleteWorkItemViaApi(page, otherWorkItemId);
@@ -2242,6 +2482,708 @@ test.describe('Report wizard editable content — signature field reset (Scenari
       expect(await wizard.hasEditedIndicator(signature)).toBe(false);
       // The reset affordance itself disappears once the field is no longer edited.
       await expect(wizard.resetButtonFor(signature)).not.toBeVisible();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 28: Column-visibility toggles — DOM baseline (Issue #1973, supersedes #1966)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Issue #1973 lifted `hiddenColumns` out of `ReportContentEditor` local state into
+// `ReportWizardPage` wizard-reducer state and threaded it through to PDF generation — the
+// checkboxes are no longer preview-only (that was #1966's premise, now superseded, not amended;
+// see this file's class-level docstring and `wizardReducer.ts`'s `ContentTier.hiddenColumns`).
+// This scenario is the DOM-level baseline carried forward verbatim from #1966 (AC 7.1):
+//   AC1: every column checkbox is present and locatable by accessible name;
+//   AC2: the rendered checkbox count equals the component-defined toggleable-column count;
+//   AC5.2: toggling fires no PATCH to /api/users/me/preferences (R5: per-run only, never
+//          persisted — carried forward from #1966 AC3 with updated rationale: the toggles now
+//          DO reach the PDF, but still must not reach the server);
+//   the corresponding <th> AND every matching <td> are absent from the DOM when hidden, and
+//   restored when re-ticked.
+// The PDF-level consequence (AC 1.2/7.2 — this is the specific gap that made #1966
+// insufficient) is asserted separately in Scenario 29 below, since it needs a real download
+// round trip rather than a DOM read.
+//
+// Viewport scope (AC 7.3): desktop only, by explicit exclusion with reason, not silently. The
+// toggle group and checkboxes are visible at every viewport (verified on disk: no `@media` rule
+// in `ReportContentEditor.module.css` touches `.columnToggles`), but THIS scenario's `<th>`/
+// `<td>` removal assertions use `getByRole('columnheader')`/`getByRole('cell')`, which require
+// real `<table>` semantics — the desktop `<table>` is CSS-hidden below 768px, replaced by a
+// `div`/`span`-based `.mobileCardList` with no table roles at all. Scenarios 30-33 below cover
+// the checkbox-state behaviors (locked column, warning banner, use-case reset, reload reset) at
+// all three configured viewports per AC 7.3, since those assertions don't depend on table roles.
+//
+// Uses `budget-overview` (7 columns incl. Status) to exercise the `content.isOverview` branch
+// in ReportContentEditor's column list — a claim report would render 6 columns.
+
+test.describe('Report wizard editable content — column-visibility toggles reach the PDF (Scenario 28, Issue #1973)', () => {
+  // toggleable columns for budget-overview in insertion order (matches component source)
+  const OVERVIEW_COLUMNS = [
+    'Vendor',
+    'Invoice No.',
+    'Date',
+    'Status',
+    'Invoice Amount',
+    'Allocated Amount',
+    'Usage',
+  ] as const;
+  const OVERVIEW_COLUMN_COUNT = OVERVIEW_COLUMNS.length; // 7
+
+  test('Column toggles show/hide column headers and data cells (desktop) and never write to /api/users/me/preferences', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Toggle Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Toggle Source`,
+        totalAmount: 5000,
+        // contactAddress + reference required for cover letter to auto-enable on budget-overview
+        contactAddress: '1 Toggle St, Testville',
+        reference: 'Ref-TOGGLE',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Toggle` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-TOG-001`,
+        amount: 500,
+        date: '2026-06-01',
+        status: 'pending',
+      });
+
+      await reachStep5(wizard, sourceId, 'budget-overview');
+
+      // ── AC1 + AC2: group present, every checkbox visible and checked, count matches component ──
+      const columnGroup = wizard.columnToggleGroup;
+      await expect(columnGroup).toBeVisible();
+
+      const checkboxes = columnGroup.getByRole('checkbox');
+      // AC2: count must equal the component-defined column list length so a future column
+      // addition fails this test instead of silently going uncovered.
+      await expect(checkboxes).toHaveCount(OVERVIEW_COLUMN_COUNT);
+
+      // AC1: each column is locatable by its label and checked by default
+      for (const label of OVERVIEW_COLUMNS) {
+        await expect(columnGroup.getByLabel(label)).toBeVisible();
+        await expect(columnGroup.getByLabel(label)).toBeChecked();
+      }
+
+      // ── AC5.2: intercept preference writes ──
+      // Note: API is an object (`testData.ts`), so `${API}/...` would expand to
+      // `[object Object]/...` and never match. Use the glob form instead.
+      const prefPatches: string[] = [];
+      await page.route('**/api/users/me/preferences', (route) => {
+        if (route.request().method() === 'PATCH') prefPatches.push(route.request().url());
+        void route.continue();
+      });
+
+      // Positive control: confirm the interceptor fires before relying on "nothing fired".
+      // A real PATCH issued via page.evaluate() must increment the counter.
+      await page.evaluate(async () => {
+        await fetch('/api/users/me/preferences', {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+      });
+      expect(
+        prefPatches,
+        'positive control: interceptor must capture a manually-triggered PATCH',
+      ).toHaveLength(1);
+      prefPatches.length = 0; // reset before the actual toggle assertions
+
+      // ── Toggle off: "Vendor" disappears from both table header and data cells ──
+      // AC1 requires asserting BOTH the <th> and the matching <td> are absent.
+      // ReportContentEditor uses conditional rendering (`show('vendor') && <th>…` and
+      // `show('vendor') && <td>…`), so both are removed from the DOM entirely when hidden.
+      const vendorHeader = page.getByRole('columnheader', { name: 'Vendor', exact: true });
+      const vendorCell = page.getByRole('cell', {
+        name: `${testPrefix} Toggle Vendor`,
+        exact: true,
+      });
+
+      // Baseline: both are present before any toggle
+      await expect(vendorHeader).toHaveCount(1);
+      await expect(vendorCell).toHaveCount(1);
+
+      await columnGroup.getByLabel('Vendor').uncheck();
+      await expect(columnGroup.getByLabel('Vendor')).not.toBeChecked();
+      await expect(vendorHeader).toHaveCount(0);
+      await expect(vendorCell).toHaveCount(0);
+
+      // ── Toggle back on: both column header and data cell return ──
+      await columnGroup.getByLabel('Vendor').check();
+      await expect(columnGroup.getByLabel('Vendor')).toBeChecked();
+      await expect(vendorHeader).toHaveCount(1);
+      await expect(vendorCell).toHaveCount(1);
+
+      // AC5.2: no preference PATCH was issued during any column toggle
+      expect(prefPatches, 'column toggle must not write to /api/users/me/preferences').toHaveLength(
+        0,
+      );
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 29: Column visibility reaches the generated PDF, not only the preview DOM
+// (AC 1.2 / 7.2, Issue #1973)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// This is the scenario that actually closes the #1966 gap: a test that only checks the DOM (as
+// Scenario 28 above does, correctly, for the preview surface) would pass identically whether or
+// not the toggle reaches PDF generation — that gap is exactly what #1966 shipped and #1973 exists
+// to close. As established in Scenario 8's own note (and Story #1879/#1899's boundary), this
+// project has no PDF-text-extraction library in its E2E dependencies (no pdf-parse/pdfjs), so
+// reading the literal rendered column text back out of the downloaded bytes is out of scope here
+// (that's `overviewPdf.test.ts`'s job, per the QA spec's AC 4.3). The achievable, still-falsifiable
+// E2E-level proxy is a SIZE-DIFF, not a bare "non-trivial size" check like Scenario 8's: a
+// baseline download (all columns visible) vs. a second download taken after hiding the Usage
+// column (seeded with substantial real text so hiding it removes non-trivial content weight) must
+// produce a MEASURABLY SMALLER file. A "> 1000 bytes" check alone (Scenario 8's assertion) would
+// pass identically regardless of whether the toggle ever reached generation — do not simplify this
+// back to that shape.
+
+test.describe('Report wizard editable content — hiding a column shrinks the downloaded PDF (Scenario 29, AC 1.2/7.2)', () => {
+  test('Downloading after hiding the Usage column produces a measurably smaller PDF than the baseline download with Usage visible', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} SizeDiff Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} SizeDiff Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI SizeDiff` });
+      const invoice = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-SZDF-001`,
+        amount: 400,
+        date: '2026-06-12',
+        status: 'pending',
+      });
+
+      await reachStep5(wizard, sourceId, 'claim');
+      const vendorName = `${testPrefix} SizeDiff Vendor`;
+
+      // Give Usage substantial real content weight so hiding it removes a non-trivial amount of
+      // rendered PDF content (short strings could round-trip through pdfmake's compression with
+      // a difference too small to reliably assert on across environments).
+      const longUsage = Array.from(
+        { length: 40 },
+        (_, i) => `Line item narrative segment ${i} describing the work performed in detail.`,
+      ).join(' ');
+      await wizard.editField(wizard.usageField(vendorName, invoice.invoiceNumber!), longUsage);
+
+      const baselineDownload = await wizard.download();
+      const baselinePath = await baselineDownload.path();
+      expect(baselinePath, 'baseline download must have saved to a local temp file').toBeTruthy();
+      const baselineSize = statSync(baselinePath!).size;
+
+      await wizard.columnToggleGroup.getByLabel('Usage').uncheck();
+      await expect(wizard.columnToggleGroup.getByLabel('Usage')).not.toBeChecked();
+
+      const hiddenDownload = await wizard.download();
+      const hiddenPath = await hiddenDownload.path();
+      expect(
+        hiddenPath,
+        'hidden-column download must have saved to a local temp file',
+      ).toBeTruthy();
+      const hiddenSize = statSync(hiddenPath!).size;
+
+      // AC 1.2/7.2: the PDF *consequence*, not just the DOM consequence. A test that only
+      // asserted `hiddenSize > 1000` (Scenario 8's shape) would pass identically whether or not
+      // the toggle ever reached `generatePdfFromContent`/`overviewPdf.ts` — the strictly-smaller
+      // comparison against this test's OWN baseline is what actually falls if the wiring regresses
+      // back to #1966's preview-only behavior. Do not weaken this to a non-trivial-size check.
+      expect(hiddenSize).toBeLessThan(baselineSize);
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 30: Allocated Amount column is locked (AC 2.2, Issue #1973)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Runs at all three configured viewports (AC 7.3) — the toggle group (and therefore this
+// checkbox) is not viewport-gated.
+
+test.describe(
+  'Report wizard editable content — Allocated Amount checkbox is locked (Scenario 30, AC 2.2)',
+  { tag: '@responsive' },
+  () => {
+    test('The Allocated Amount checkbox is disabled with a resolvable, non-empty accessible description, and a forced click cannot uncheck it', async ({
+      page,
+      testPrefix,
+    }) => {
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Locked Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Locked Source`,
+          totalAmount: 5000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Locked` });
+        await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-LOCK-001`,
+          amount: 250,
+          date: '2026-06-05',
+          status: 'pending',
+        });
+
+        await reachStep5(wizard, sourceId, 'claim');
+
+        const allocatedCheckbox = wizard.columnToggleGroup.getByLabel('Allocated Amount');
+        await expect(allocatedCheckbox).toBeVisible();
+        await expect(allocatedCheckbox).toBeDisabled();
+        await expect(allocatedCheckbox).toBeChecked();
+
+        const describedBy = await allocatedCheckbox.getAttribute('aria-describedby');
+        expect(
+          describedBy,
+          'the locked checkbox must carry a resolvable aria-describedby',
+        ).toBeTruthy();
+        const hintText = await page.locator(`#${describedBy}`).textContent();
+        expect(hintText?.trim()).not.toBe('');
+
+        // A forced click bypasses Playwright's actionability check (which would otherwise refuse
+        // to interact with a disabled element outright) — this is a genuine behavioral proof the
+        // control is inert, not just a restatement of `toBeDisabled()` above. Browsers do not
+        // deliver interaction-driven state changes to disabled form controls even when a click is
+        // forced onto them, so `uncheck` either no-ops or throws; either way the checkbox must
+        // still be checked afterward.
+        await allocatedCheckbox.uncheck({ force: true }).catch(() => {});
+        await expect(allocatedCheckbox).toBeChecked();
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 31: Usage-hidden-with-attachments warning banner (AC 6.2, Issue #1973)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// All four combinations of (Usage hidden/visible) × (attachDocuments on/off) in a single test,
+// reusing one seeded invoice/source (R4: hiding a column never changes a number, so the same
+// fixture is valid across every combination). Runs at all three configured viewports (AC 7.3).
+// The warning is scoped by its CSS-module class (`usageHiddenAttachmentsWarning`, `[class*=
+// "bannerWarning"]`) rather than by text, per the checklist's "E2E text locators after label
+// changes" guidance — it survives minor English copy edits and is unambiguous against the page's
+// other `role="status"` regions (e.g. `Toast`).
+
+test.describe(
+  'Report wizard editable content — Usage-hidden attachments warning (Scenario 31, AC 6.2)',
+  { tag: '@responsive' },
+  () => {
+    test('The warning renders only when Usage is hidden AND attach-documents is enabled — absent in all three other combinations', async ({
+      page,
+      testPrefix,
+    }) => {
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Warn Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Warn Source`,
+          totalAmount: 5000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Warn` });
+        await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-WARN-001`,
+          amount: 275,
+          date: '2026-06-06',
+          status: 'pending',
+        });
+
+        // attachDocuments defaults to true (freshSettingsTier()).
+        await reachStep5(wizard, sourceId, 'claim');
+
+        // 1) Usage visible + attach on → no warning.
+        await expect(wizard.usageHiddenAttachmentsWarning).toHaveCount(0);
+
+        // 2) Usage hidden + attach on → warning present.
+        await wizard.columnToggleGroup.getByLabel('Usage').uncheck();
+        await expect(wizard.columnToggleGroup.getByLabel('Usage')).not.toBeChecked();
+        await expect(wizard.usageHiddenAttachmentsWarning).toBeVisible();
+
+        // 3) Usage hidden + attach off → no warning (nothing left to warn about). Going back to
+        // Settings and forward again must NOT reset hiddenColumns — R5 co-locates it with
+        // `overrides` on ContentTier for use-case-change resets only (see Scenario 32), and
+        // `SET_ATTACH_DOCUMENTS` touches only `SettingsTier`.
+        await wizard.goBack(); // step 5 -> step 4 (Settings)
+        await wizard.toggleAttachDocuments();
+        await expect(wizard.attachDocumentsCheckbox).not.toBeChecked();
+        await wizard.step4NextButton.click();
+        await expect(wizard.columnToggleGroup.getByLabel('Usage')).not.toBeChecked();
+        await expect(wizard.usageHiddenAttachmentsWarning).toHaveCount(0);
+
+        // 4) Usage visible + attach off → no warning.
+        await wizard.columnToggleGroup.getByLabel('Usage').check();
+        await expect(wizard.columnToggleGroup.getByLabel('Usage')).toBeChecked();
+        await expect(wizard.usageHiddenAttachmentsWarning).toHaveCount(0);
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 32: Hidden columns reset on use-case change (AC 5.1, Issue #1973)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Runs at all three configured viewports (AC 7.3). Walks all the way back to step 1 via
+// `goBack()` (viewport-independent — the currently-mounted step's own Back button, not the
+// desktop-only stepper's `goToStep()`), switches use case from `claim` (6 columns) to
+// `budget-overview` (7 columns, adding Status), and re-walks forward — proving BOTH that the
+// hidden selection is cleared AND that the restored base set matches the NEW use case's own
+// column count, not the old one's.
+
+test.describe(
+  'Report wizard editable content — hidden columns reset on use-case change (Scenario 32, AC 5.1)',
+  { tag: '@responsive' },
+  () => {
+    test('Switching use case after hiding a column restores the full base set for the newly selected use case', async ({
+      page,
+      testPrefix,
+    }) => {
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Reset Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Reset Source`,
+          totalAmount: 5000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Reset` });
+        await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-RESET-001`,
+          amount: 225,
+          date: '2026-06-07',
+          status: 'pending',
+        });
+
+        await reachStep5(wizard, sourceId, 'claim');
+        await expect(wizard.columnToggleGroup.getByRole('checkbox')).toHaveCount(6);
+        await wizard.columnToggleGroup.getByLabel('Vendor').uncheck();
+        await expect(wizard.columnToggleGroup.getByLabel('Vendor')).not.toBeChecked();
+
+        // Walk all the way back to step 1 (5 -> 4 -> 3 -> 2 -> 1).
+        await wizard.goBack();
+        await wizard.goBack();
+        await wizard.goBack();
+        await wizard.goBack();
+        await expect(wizard.useCaseRadioGroup).toBeVisible();
+
+        await wizard.selectUseCase('budget-overview');
+        await wizard.goNextFromStep1();
+        await wizard.selectSource(sourceId);
+        await wizard.goNextFromStep2();
+        await wizard.goNextFromStep3();
+        await wizard.step4NextButton.click();
+
+        // Full base set for the NEW use case (7 columns incl. Status, not the old 6) — every
+        // checkbox checked, including the one that was hidden before the use-case switch.
+        const checkboxes = wizard.columnToggleGroup.getByRole('checkbox');
+        await expect(checkboxes).toHaveCount(7);
+        const count = await checkboxes.count();
+        for (let i = 0; i < count; i++) {
+          await expect(checkboxes.nth(i)).toBeChecked();
+        }
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 33: Hidden columns reset on reload / re-entry (AC 5.3, Issue #1973)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Runs at all three configured viewports (AC 7.3). Uses this app's established `?sourceId=`
+// deep-link resume pattern (`reportWizard.spec.ts` Scenario 7 / `ReportWizardPage.goto(sourceId)`)
+// rather than a fresh unparented navigation, so the reload genuinely re-enters the SAME
+// in-progress report rather than starting an unrelated one. `hiddenColumns` lives only in
+// in-memory `useReducer` state (R5 — never persisted), so a full page reload discards it the same
+// way it discards every other wizard-run-scoped field; this scenario proves that directly rather
+// than assuming it from the state architecture.
+
+test.describe(
+  'Report wizard editable content — hidden columns reset on reload (Scenario 33, AC 5.3)',
+  { tag: '@responsive' },
+  () => {
+    test('Reloading the wizard on the same ?sourceId= deep link restores the full base set instead of the previously-hidden state', async ({
+      page,
+      testPrefix,
+    }) => {
+      const wizard = new ReportWizardPage(page);
+
+      let vendorId = '';
+      let sourceId = '';
+      let workItemId = '';
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Reload Vendor` });
+        sourceId = await createBudgetSourceViaApi(page, {
+          name: `${testPrefix} Reload Source`,
+          totalAmount: 5000,
+        });
+        workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Reload` });
+        await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+          invoiceNumber: `${testPrefix}-RELOAD-001`,
+          amount: 235,
+          date: '2026-06-08',
+          status: 'pending',
+        });
+
+        // Reach step 5 via the ?sourceId= deep-link flow (goto(sourceId) keeps the query param
+        // in the URL across the reload below — see reportWizard.spec.ts Scenario 7).
+        await wizard.goto(sourceId);
+        await wizard.selectUseCase('claim');
+        await wizard.goNextFromStep1();
+        await wizard.goNextFromStep2();
+        await wizard.goNextFromStep3();
+        await wizard.step4NextButton.click();
+
+        await wizard.columnToggleGroup.getByLabel('Vendor').uncheck();
+        await expect(wizard.columnToggleGroup.getByLabel('Vendor')).not.toBeChecked();
+
+        // Reload the same URL (still carrying ?sourceId=) and re-walk the deep-link flow.
+        await page.reload();
+        await expect(wizard.useCaseRadioGroup).toBeVisible();
+        await wizard.selectUseCase('claim');
+        await wizard.goNextFromStep1();
+        await wizard.goNextFromStep2();
+        await wizard.goNextFromStep3();
+        await wizard.step4NextButton.click();
+
+        const checkboxes = wizard.columnToggleGroup.getByRole('checkbox');
+        await expect(checkboxes).toHaveCount(6);
+        const count = await checkboxes.count();
+        for (let i = 0; i < count; i++) {
+          await expect(checkboxes.nth(i)).toBeChecked();
+        }
+      } finally {
+        if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+        if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+        if (vendorId) await deleteVendorViaApi(page, vendorId);
+      }
+    });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 25: lang attribute on the report table <thead> when report language
+// differs from the UI locale (Issue #1910)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — lang attribute on thead when report language differs from UI locale (Scenario 25, #1910)', () => {
+  test('The report table <thead> carries lang="de" when the report language is set to Deutsch and the UI locale is "en"', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} LangAttr Vendor` });
+      // contactAddress + reference cause the cover letter to auto-enable so both
+      // <h3> elements are present in the DOM — relevant for Scenario 26's "all h3s"
+      // assertion, reused here so the seed is consistent across the three scenarios.
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} LangAttr Source`,
+        totalAmount: 10000,
+        contactAddress: '1 LangAttr St, Testville',
+        reference: 'Ref-LANGATTR',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI LangAttr` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANGATTR-001`,
+        amount: 175,
+        date: '2026-07-03',
+        status: 'pending',
+      });
+
+      // Navigate through steps 1-4 manually so we can change the language on step 4
+      // before advancing to step 5 — `reachStep5` skips step 4 interaction.
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await wizard.goNextFromStep3(); // now on step 4 (Settings)
+      await wizard.selectReportLanguage('de');
+      await wizard.step4NextButton.click(); // now on step 5
+
+      // Under Option A, lang is placed on the <thead> of the report table — the element
+      // that carries the translated column headings — rather than on the outer container
+      // div. This gives screen readers and spell-checkers a precise language boundary
+      // without over-tagging surrounding UI text (see Scenario 26).
+      const container = wizard.reportContentContainer();
+      await expect(container).toBeVisible();
+      const thead = container.locator('thead').first();
+      await expect(thead).toBeVisible();
+      expect(await thead.getAttribute('lang')).toBe('de');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 26: <thead> carries lang="de" when report language differs (Option A
+// surgical tagging); h3 headings carry NO lang attribute — (Issue #1910)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — thead carries report lang, h3 headings carry no lang under Option A (Scenario 26, #1910)', () => {
+  test('The <thead> inside the ReportContentEditor carries lang="de" when the report language is set to Deutsch — report-language content is surgically tagged', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} LangH3 Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} LangH3 Source`,
+        totalAmount: 10000,
+        contactAddress: '1 LangH3 St, Testville',
+        reference: 'Ref-LANGH3',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI LangH3` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANGH3-001`,
+        amount: 180,
+        date: '2026-07-04',
+        status: 'pending',
+      });
+
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await wizard.goNextFromStep3(); // now on step 4 (Settings)
+      await wizard.selectReportLanguage('de');
+      await wizard.step4NextButton.click(); // now on step 5
+
+      const container = wizard.reportContentContainer();
+      await expect(container).toBeVisible();
+
+      // Option A surgical tagging: <thead> carries lang="de" (report-language column headings).
+      const thead = container.locator('thead').first();
+      await expect(thead).toBeVisible();
+      expect(await thead.getAttribute('lang')).toBe('de');
+
+      // Regression guard: h3 headings must NOT carry a lang attribute under Option A.
+      const headings = container.locator('h3');
+      const headingCount = await headings.count();
+      expect(headingCount).toBeGreaterThan(0); // positive anchor
+      for (let i = 0; i < headingCount; i++) {
+        expect(
+          await headings.nth(i).getAttribute('lang'),
+          `<h3> at index ${i} must NOT carry a lang attribute under Option A`,
+        ).toBeNull();
+      }
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 27: No lang attribute on the report table <thead> when report language
+// matches UI locale (Issue #1910)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard editable content — no lang attribute on thead when report language matches UI locale (Scenario 27, #1910)', () => {
+  test('The report table <thead> has no lang attribute when report language matches UI locale (no redundant tagging)', async ({
+    page,
+    testPrefix,
+  }) => {
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} LangMatch Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} LangMatch Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI LangMatch` });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LANGMATCH-001`,
+        amount: 185,
+        date: '2026-07-05',
+        status: 'pending',
+      });
+
+      // Navigate to step 5 without touching the language picker — the default is "English"
+      // which matches the E2E test environment's UI locale ("en"). The `reachStep5` helper
+      // navigates all four preceding steps with the default settings.
+      await reachStep5(wizard, sourceId, 'claim');
+
+      // When `reportLanguage === resolvedLocale` (both "en"), the <thead> renders with no
+      // lang attribute — no redundant tagging is needed when the report language matches the
+      // page locale. Playwright's `getAttribute` returns `null` for absent attributes.
+      const container = wizard.reportContentContainer();
+      await expect(container).toBeVisible();
+      const thead = container.locator('thead').first();
+      await expect(thead).toBeVisible();
+      expect(await thead.getAttribute('lang')).toBeNull();
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);

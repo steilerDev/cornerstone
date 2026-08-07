@@ -45,6 +45,7 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
     allocatedAmount: 1000,
     lineKind: 'invoice',
     isSplit: false,
+    splitKind: null,
     documents: [],
     budgetLines: [],
     deposits: [],
@@ -134,14 +135,18 @@ const user: { displayName: string } = { displayName: 'Jane Doe' };
 describe('buildReportContent — top-level fields', () => {
   it('sets isOverview true for budget-overview and false for claim/proof-of-funds', () => {
     const report = makeReport([]);
-    expect(buildReportContent(report, new Set(), 'budget-overview', t).isOverview).toBe(true);
-    expect(buildReportContent(report, new Set(), 'claim', t).isOverview).toBe(false);
-    expect(buildReportContent(report, new Set(), 'proof-of-funds', t).isOverview).toBe(false);
+    expect(buildReportContent(report, new Set(), 'budget-overview', t, formatters).isOverview).toBe(
+      true,
+    );
+    expect(buildReportContent(report, new Set(), 'claim', t, formatters).isOverview).toBe(false);
+    expect(buildReportContent(report, new Set(), 'proof-of-funds', t, formatters).isOverview).toBe(
+      false,
+    );
   });
 
   it('resolves tableTitle via sourceReports.table.title.<useCase>', () => {
     const report = makeReport([]);
-    const content = buildReportContent(report, new Set(), 'proof-of-funds', t);
+    const content = buildReportContent(report, new Set(), 'proof-of-funds', t, formatters);
     expect(content.tableTitle).toBe('sourceReports.table.title.proof-of-funds');
   });
 
@@ -160,14 +165,8 @@ describe('buildReportContent — top-level fields', () => {
 
   it('sourceInfo.referenceText is null when source.reference is null', () => {
     const report = makeReport([], { reference: null });
-    const content = buildReportContent(report, new Set(), 'claim', t);
+    const content = buildReportContent(report, new Set(), 'claim', t, formatters);
     expect(content.sourceInfo.referenceText).toBeNull();
-  });
-
-  it('falls back to the raw ISO date string for generatedAtText when formatters is omitted', () => {
-    const report = makeReport([]);
-    const content = buildReportContent(report, new Set(), 'claim', t);
-    expect(content.sourceInfo.generatedAtText).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 
@@ -214,15 +213,6 @@ describe('buildReportContent — rows', () => {
     const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
     expect(content.rows[0]!.invoiceAmountText).toBe('€500.00');
     expect(content.rows[0]!.allocatedAmountValueText).toBe('€250.00');
-  });
-
-  it('falls back to "—" for amounts when formatters is omitted, and raw date string', () => {
-    const invoice = makeInvoice({ date: '2026-02-01' });
-    const report = makeReport([invoice]);
-    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t);
-    expect(content.rows[0]!.invoiceAmountText).toBe('—');
-    expect(content.rows[0]!.allocatedAmountValueText).toBe('—');
-    expect(content.rows[0]!.dateText).toBe('2026-02-01');
   });
 
   it('invoiceNumber falls back to "—" when null', () => {
@@ -304,6 +294,48 @@ describe('buildReportContent — rows', () => {
       );
     });
 
+    // #1912 item 1: ATTACHMENT_TYPE_KEYS (a Record<AttachmentType, string>) replaces the old
+    // template-literal key interpolation. These three tests fail if a map entry is deleted or its
+    // value is scrambled — verified via a local temporary edit to the map before writing this
+    // suite. They cannot (and do not attempt to) prove the compile-time "4th member" guard that
+    // the Record<AttachmentType, string> type itself provides — that's re-verified by tsc in CI
+    // Static Analysis, not by ts-jest.
+    it('maps attachmentType "quotation" to its dedicated i18n key', () => {
+      const invoice = makeInvoice({
+        documents: [makeDocument({ attachmentType: 'quotation' })],
+      });
+      const report = makeReport([invoice]);
+      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+      expect(content.rows[0]!.attachmentsNote).toBe(
+        'sourceReports.table.attachmentsNote_one::{"count":1,"types":"sourceReports.table.attachmentType.quotation"}',
+      );
+    });
+
+    it('maps attachmentType "deposit" to its dedicated i18n key (closes a pre-existing gap — "deposit" had zero coverage through getAttachmentNote anywhere in the repo)', () => {
+      const invoice = makeInvoice({
+        documents: [makeDocument({ attachmentType: 'deposit' })],
+      });
+      const report = makeReport([invoice]);
+      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+      expect(content.rows[0]!.attachmentsNote).toBe(
+        'sourceReports.table.attachmentsNote_one::{"count":1,"types":"sourceReports.table.attachmentType.deposit"}',
+      );
+    });
+
+    it('dedupes mixed attachment types and joins their translated labels in first-occurrence order', () => {
+      const invoice = makeInvoice({
+        documents: [
+          makeDocument({ attachmentType: 'invoice' }),
+          makeDocument({ documentId: 2, attachmentType: 'quotation' }),
+        ],
+      });
+      const report = makeReport([invoice]);
+      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+      expect(content.rows[0]!.attachmentsNote).toBe(
+        'sourceReports.table.attachmentsNote_other::{"count":2,"types":"sourceReports.table.attachmentType.invoice, sourceReports.table.attachmentType.quotation"}',
+      );
+    });
+
     it('uses the plural translated key for 2+ typed documents (count > 1 branch of the WITH-type path)', () => {
       const invoice = makeInvoice({
         documents: [
@@ -342,9 +374,16 @@ describe('buildReportContent — rows', () => {
     });
   });
 
-  describe('isSplit / isDepositReduced / isDeposit flags', () => {
-    it('sets isSplit=true when isSplit and budgetLines.length > 0, no deposits', () => {
+  // #1911: rewritten to derive isSplit/isDepositReduced/isDeposit from `splitKind` (§3), not from
+  // the old `invoice.isSplit && budgetLines.length > 0` / `isSplit && deposits.length > 0 &&
+  // !hasOwnTaggedDeposit` gates — those were unsound (claim reports drop zero-contribution budget
+  // lines, and a foreign-tagged deposit is invisible in deposits[] server-side; see PO AC §3.1/3.2).
+  // isDeposit's trigger is UNCHANGED (§3.3: invoice.isSplit && hasOwnTaggedDeposit, still read from
+  // the visible deposits[]) — only isSplit/isDepositReduced move onto splitKind.
+  describe('isSplit / isDepositReduced / isDeposit flags (#1911: driven by splitKind)', () => {
+    it('AC 3.1: splitKind "lines" → row.isSplit true, others false, WITH budget lines present', () => {
       const invoice = makeInvoice({
+        splitKind: 'lines',
         isSplit: true,
         budgetLines: [makeBudgetLine()],
         deposits: [],
@@ -356,11 +395,26 @@ describe('buildReportContent — rows', () => {
       expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
-    it('sets isDepositReduced=true when isSplit and the deposit is untagged (reduced), no budget lines', () => {
+    it('AC 3.1 (regression, #1898/claim zero-contribution-line drop): splitKind "lines" → row.isSplit true even with an EMPTY budgetLines array — the old array-length gate is gone, splitKind alone decides', () => {
       const invoice = makeInvoice({
+        splitKind: 'lines',
+        isSplit: true,
+        budgetLines: [], // claim reports drop zero-contribution lines (step h) — must not suppress isSplit
+        deposits: [],
+      });
+      const report = makeReport([invoice]);
+      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+      expect(content.rows[0]!.isSplit).toBe(true);
+      expect(content.rows[0]!.isDepositReduced).toBe(false);
+      expect(content.rows[0]!.isDeposit).toBe(false);
+    });
+
+    it('AC 1.2/3.2 (THE MOST IMPORTANT TEST IN THIS FILE — the filed #1911 bug, under-inclusive direction): splitKind "deposits" with deposits: [] (the exact AC 1.2 server shape — the foreign-tagged deposit is invisible) → isDepositReduced true, isSplit false. Provably impossible to satisfy under the pre-#1911 code (verified via git-stash technique, see PR notes)', () => {
+      const invoice = makeInvoice({
+        splitKind: 'deposits',
         isSplit: true,
         budgetLines: [],
-        deposits: [makeDeposit({ budgetSourceId: null })],
+        deposits: [], // the foreign-tagged deposit that CAUSED this never appears here — that's the bug
       });
       const report = makeReport([invoice], { id: 'src-1' });
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
@@ -369,21 +423,42 @@ describe('buildReportContent — rows', () => {
       expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
-    it('AC2.1: sets isDeposit=true (not isSplit/isDepositReduced) when the deposit is tagged to this report source (constituted)', () => {
+    it('AC 3.3: splitKind "deposits" with a deposit tagged to THIS report source → isDeposit true (constituted trigger unchanged: invoice.isSplit && hasOwnTaggedDeposit)', () => {
+      // Realistic shape: an own-tagged (S) deposit is visible AND a foreign-tagged deposit made
+      // splitKind "deposits" (that foreign one stays invisible, per AC 1.10 — not modeled here
+      // since deposits[] only ever carries untagged-or-this-source rows).
       const invoice = makeInvoice({
+        splitKind: 'deposits',
         isSplit: true,
         budgetLines: [],
         deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
       });
       const report = makeReport([invoice], { id: 'src-1' });
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.isSplit).toBe(false);
-      expect(content.rows[0]!.isDepositReduced).toBe(false);
       expect(content.rows[0]!.isDeposit).toBe(true);
+      // Structural consequence, not incidental: splitKind "deposits" still drives isDepositReduced
+      // regardless of the own-tagged deposit also being present — the two facts coexist (§3.4).
+      expect(content.rows[0]!.isDepositReduced).toBe(true);
+      expect(content.rows[0]!.isSplit).toBe(false);
     });
 
-    it('AC2.4: sets both isSplit and isDepositReduced when split budget lines and a reduced deposit are both present', () => {
+    it('AC 3.4 (the mixed case — resolves the #1911 wording nit): splitKind "both" with an own tagged deposit → isDeposit AND isDepositReduced BOTH true simultaneously. The old if/else made this impossible; this test is the direct proof the else is gone', () => {
       const invoice = makeInvoice({
+        splitKind: 'both',
+        isSplit: true,
+        budgetLines: [makeBudgetLine()],
+        deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
+      });
+      const report = makeReport([invoice], { id: 'src-1' });
+      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+      expect(content.rows[0]!.isDeposit).toBe(true);
+      expect(content.rows[0]!.isDepositReduced).toBe(true);
+      expect(content.rows[0]!.isSplit).toBe(true);
+    });
+
+    it('AC 3.2 (over-inclusive fix): splitKind "lines" with an UNTAGGED deposit present → isDepositReduced false. Untagged deposits are apportioned pro-rata back into THIS source (not claimed "separately") — pre-#1911 code fired isDepositReduced here, producing a false "claimed separately" legend sentence', () => {
+      const invoice = makeInvoice({
+        splitKind: 'lines',
         isSplit: true,
         budgetLines: [makeBudgetLine()],
         deposits: [makeDeposit({ budgetSourceId: null })],
@@ -391,24 +466,13 @@ describe('buildReportContent — rows', () => {
       const report = makeReport([invoice], { id: 'src-1' });
       const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
       expect(content.rows[0]!.isSplit).toBe(true);
-      expect(content.rows[0]!.isDepositReduced).toBe(true);
-    });
-
-    it('sets isSplit=true and isDeposit=true when split budget lines combined with a constituted (tagged) deposit', () => {
-      const invoice = makeInvoice({
-        isSplit: true,
-        budgetLines: [makeBudgetLine()],
-        deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
-      });
-      const report = makeReport([invoice], { id: 'src-1' });
-      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.isSplit).toBe(true);
       expect(content.rows[0]!.isDepositReduced).toBe(false);
-      expect(content.rows[0]!.isDeposit).toBe(true);
+      expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
-    it('all flags are false when isSplit is false, regardless of budgetLines/deposits content', () => {
+    it('AC 2.1/3: splitKind null → all three flags false, regardless of array contents (isSplit raw field kept false too, matching the real invariant splitKind !== null iff isSplit)', () => {
       const invoice = makeInvoice({
+        splitKind: null,
         isSplit: false,
         budgetLines: [makeBudgetLine()],
         deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
@@ -420,20 +484,13 @@ describe('buildReportContent — rows', () => {
       expect(content.rows[0]!.isDeposit).toBe(false);
     });
 
-    it('all flags are false when isSplit is true but budgetLines and deposits are both empty', () => {
-      const invoice = makeInvoice({ isSplit: true, budgetLines: [], deposits: [] });
-      const report = makeReport([invoice]);
-      const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-      expect(content.rows[0]!.isSplit).toBe(false);
-      expect(content.rows[0]!.isDepositReduced).toBe(false);
-      expect(content.rows[0]!.isDeposit).toBe(false);
-    });
-
-    it('never sets flags on an excluded invoice, even when isSplit with lines/deposits', () => {
+    it('never sets flags on an excluded invoice, even with splitKind "both" and a tagged deposit', () => {
       const invoice = makeInvoice({
         invoiceId: 'inv-excluded',
+        splitKind: 'both',
         isSplit: true,
         budgetLines: [makeBudgetLine()],
+        deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
       });
       const included = makeInvoice({ invoiceId: 'inv-1' });
       const report = makeReport([invoice, included]);
@@ -441,76 +498,168 @@ describe('buildReportContent — rows', () => {
       expect(content.rows).toHaveLength(1);
       expect(content.footnotes).toEqual([]);
     });
+
+    it('AC 5.5 (anti-vacuity, required): mutating a fixture from splitKind "deposits" to splitKind "lines" flips isSplit/isDepositReduced AND flips which legend footnote appears', () => {
+      const depositsShape = makeInvoice({
+        splitKind: 'deposits',
+        isSplit: true,
+        budgetLines: [],
+        deposits: [],
+      });
+      const linesShape = makeInvoice({
+        ...depositsShape,
+        splitKind: 'lines',
+        budgetLines: [makeBudgetLine()],
+      });
+
+      const depositsContent = buildReportContent(
+        makeReport([depositsShape], { id: 'src-1' }),
+        new Set(['inv-1']),
+        'claim',
+        t,
+        formatters,
+      );
+      const linesContent = buildReportContent(
+        makeReport([linesShape], { id: 'src-1' }),
+        new Set(['inv-1']),
+        'claim',
+        t,
+        formatters,
+      );
+
+      // Row flags flip.
+      expect(depositsContent.rows[0]!.isSplit).toBe(false);
+      expect(depositsContent.rows[0]!.isDepositReduced).toBe(true);
+      expect(linesContent.rows[0]!.isSplit).toBe(true);
+      expect(linesContent.rows[0]!.isDepositReduced).toBe(false);
+
+      // Legend membership flips accordingly — deposit-reduced footnote ONLY under "deposits",
+      // split footnote ONLY under "lines". An assertion that stayed green across this mutation
+      // would not be real coverage (this repo has a documented history of exactly that failure
+      // mode) — this test's whole point is that it does NOT stay green.
+      expect(depositsContent.footnotes.map((f) => f.id)).toEqual(['depositReduced']);
+      expect(linesContent.footnotes.map((f) => f.id)).toEqual(['split']);
+    });
   });
 });
 
-describe('buildReportContent — footnotes (always empty; split/deposit annotations are inline)', () => {
-  it('produces no footnotes when invoices are split with budget lines', () => {
+describe('buildReportContent — footnotes (legend sentences for split/depositReduced) (#1911: re-driven by splitKind)', () => {
+  it('AC 1.1 / §7.1 — split flag: one splitKind "lines" invoice included produces a footnote with id "split" and the correct keys', () => {
+    const inv = makeInvoice({
+      invoiceId: 'inv-1',
+      splitKind: 'lines',
+      isSplit: true,
+      budgetLines: [makeBudgetLine()],
+      deposits: [],
+    });
+    const report = makeReport([inv]);
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.footnotes).toHaveLength(1);
+    expect(content.footnotes[0]!.id).toBe('split');
+    expect(content.footnotes[0]!.marker).toBe('sourceReports.table.splitInlineLabel');
+    expect(content.footnotes[0]!.text).toBe('sourceReports.table.splitFootnote');
+  });
+
+  it('AC 1.2 / §7.1 — depositReduced flag: one splitKind "deposits" invoice (the AC 1.2 shape — deposits: []) produces a footnote with id "depositReduced"', () => {
+    const inv = makeInvoice({
+      invoiceId: 'inv-1',
+      splitKind: 'deposits',
+      isSplit: true,
+      budgetLines: [],
+      deposits: [],
+    });
+    const report = makeReport([inv], { id: 'src-1' });
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.footnotes).toHaveLength(1);
+    expect(content.footnotes[0]!.id).toBe('depositReduced');
+  });
+
+  it('AC 1.3 / §7.2 — both flags: splitKind "both" → footnotes length 2 (never 3 — no constituted legend sentence exists), split first, depositReduced second', () => {
+    const inv = makeInvoice({
+      invoiceId: 'inv-1',
+      splitKind: 'both',
+      isSplit: true,
+      budgetLines: [makeBudgetLine()],
+      deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
+    });
+    const report = makeReport([inv], { id: 'src-1' });
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.footnotes).toHaveLength(2);
+    expect(content.footnotes[0]!.id).toBe('split');
+    expect(content.footnotes[1]!.id).toBe('depositReduced');
+  });
+
+  it('AC 1.4 — neither flag: splitKind null invoice → footnotes is empty', () => {
+    const inv = makeInvoice({ invoiceId: 'inv-1', splitKind: null, isSplit: false });
+    const report = makeReport([inv]);
+    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    expect(content.footnotes).toEqual([]);
+  });
+
+  it('AC 1.5 — deduplication: two splitKind "lines" invoices produce only one footnote entry', () => {
     const inv1 = makeInvoice({
       invoiceId: 'inv-1',
+      splitKind: 'lines',
       isSplit: true,
       budgetLines: [makeBudgetLine()],
     });
     const inv2 = makeInvoice({
       invoiceId: 'inv-2',
+      splitKind: 'lines',
       isSplit: true,
       budgetLines: [makeBudgetLine()],
     });
     const report = makeReport([inv1, inv2]);
     const content = buildReportContent(report, new Set(['inv-1', 'inv-2']), 'claim', t, formatters);
-    expect(content.footnotes).toEqual([]);
-    expect(content.rows.every((r) => r.isSplit)).toBe(true);
+    expect(content.footnotes).toHaveLength(1);
+    expect(content.footnotes[0]!.id).toBe('split');
   });
 
-  it('produces no footnotes when all invoices are unsplit', () => {
-    const report = makeReport([makeInvoice({ isSplit: false })]);
-    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-    expect(content.footnotes).toEqual([]);
-    expect(content.rows[0]!.isSplit).toBe(false);
-  });
-
-  it('produces no footnotes for constituted (tagged) deposit — the row gets isDeposit instead', () => {
-    const invoice = makeInvoice({
-      isSplit: true,
-      budgetLines: [],
-      deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
-    });
-    const report = makeReport([invoice], { id: 'src-1' });
-    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-    expect(content.footnotes).toEqual([]);
-    expect(content.rows[0]!.isDeposit).toBe(true);
-  });
-
-  it('produces no footnotes when invoices have reduced (untagged) deposits — isDepositReduced is set instead', () => {
-    const invoice = makeInvoice({
-      isSplit: true,
-      budgetLines: [],
-      deposits: [makeDeposit({ budgetSourceId: null })],
-    });
-    const report = makeReport([invoice], { id: 'src-1' });
-    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-    expect(content.footnotes).toEqual([]);
-    expect(content.rows[0]!.isDepositReduced).toBe(true);
-  });
-
-  it('produces no footnotes when an invoice has both split lines and a reduced deposit', () => {
-    const combined = makeInvoice({
-      invoiceId: 'inv-1',
+  it('excluded split invoice does not contribute to footnotes', () => {
+    const excluded = makeInvoice({
+      invoiceId: 'inv-excluded',
+      splitKind: 'both',
       isSplit: true,
       budgetLines: [makeBudgetLine()],
-      deposits: [makeDeposit({ budgetSourceId: null })],
+      deposits: [makeDeposit({ budgetSourceId: 'src-1' })],
     });
-    const report = makeReport([combined], { id: 'src-1' });
-    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
+    const included = makeInvoice({
+      invoiceId: 'inv-included',
+      splitKind: null,
+      isSplit: false,
+    });
+    const report = makeReport([excluded, included], { id: 'src-1' });
+    const content = buildReportContent(report, new Set(['inv-included']), 'claim', t, formatters);
     expect(content.footnotes).toEqual([]);
-    expect(content.rows[0]!.isSplit).toBe(true);
-    expect(content.rows[0]!.isDepositReduced).toBe(true);
   });
 
-  it('produces no footnotes when no invoice is split or has a reduced deposit', () => {
-    const report = makeReport([makeInvoice()]);
-    const content = buildReportContent(report, new Set(['inv-1']), 'claim', t, formatters);
-    expect(content.footnotes).toEqual([]);
+  it('AC4 (#1980) — depositReduced dedup: two deposit-reduced invoices produce exactly one footnote entry', () => {
+    // Two invoices both splitKind "deposits" (deposits: [] — the AC 1.2 shape, not an untagged
+    // deposit, which after #1911 AC 3.2 no longer triggers depositReduced at all).
+    const inv1 = makeInvoice({
+      invoiceId: 'inv-dr-1',
+      splitKind: 'deposits',
+      isSplit: true,
+      budgetLines: [],
+      deposits: [],
+    });
+    const inv2 = makeInvoice({
+      invoiceId: 'inv-dr-2',
+      splitKind: 'deposits',
+      isSplit: true,
+      budgetLines: [],
+      deposits: [],
+    });
+    const report = makeReport([inv1, inv2], { id: 'src-1' });
+    const content = buildReportContent(
+      report,
+      new Set(['inv-dr-1', 'inv-dr-2']),
+      'claim',
+      t,
+      formatters,
+    );
+    expect(content.footnotes).toHaveLength(1);
+    expect(content.footnotes[0]!.id).toBe('depositReduced');
   });
 });
 
@@ -560,9 +709,13 @@ describe('buildReportContent — summaryRows (AC4: total-only summary)', () => {
 describe('buildReportContent — isClaim (AC3)', () => {
   it('is true only for the claim useCase, false for budget-overview and proof-of-funds', () => {
     const report = makeReport([]);
-    expect(buildReportContent(report, new Set(), 'claim', t).isClaim).toBe(true);
-    expect(buildReportContent(report, new Set(), 'budget-overview', t).isClaim).toBe(false);
-    expect(buildReportContent(report, new Set(), 'proof-of-funds', t).isClaim).toBe(false);
+    expect(buildReportContent(report, new Set(), 'claim', t, formatters).isClaim).toBe(true);
+    expect(buildReportContent(report, new Set(), 'budget-overview', t, formatters).isClaim).toBe(
+      false,
+    );
+    expect(buildReportContent(report, new Set(), 'proof-of-funds', t, formatters).isClaim).toBe(
+      false,
+    );
   });
 });
 
@@ -740,15 +893,6 @@ describe('buildReportContent — cover letter', () => {
     expect(content.coverLetter!.dateLine).toMatch(/^date\(\d{4}-\d{2}-\d{2}\)$/);
   });
 
-  it('dateLine falls back to the raw ISO date string when reportFormatters is omitted', () => {
-    const report = makeReport([]);
-    const content = buildReportContent(report, new Set(), 'claim', t, undefined, {
-      includeCoverLetter: true,
-      household,
-    });
-    expect(content.coverLetter!.dateLine).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  });
-
   it('coverLetter.reference and sourceInfo.referenceText share the same seed value but are independent fields', () => {
     const report = makeReport([], { reference: 'REF-42' });
     const content = buildReportContent(report, new Set(), 'claim', t, formatters, {
@@ -855,5 +999,35 @@ describe('buildReportContent — t() call tracking sanity', () => {
     // subtotal label) — not re-derived anywhere else.
     const statusCalls = calledKeys.filter((k) => k === 'sources.lines.invoiceStatus.paid');
     expect(statusCalls.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('buildReportContent — labels: 3 new fields (#2001)', () => {
+  // The identity-TFunction (`t = (key) => key`) is defined at the top of this file. Because
+  // buildReportContent calls reportT(key) for each label and `t` echoes the key verbatim, the
+  // returned label value equals the i18n key string — so these assertions verify which keys are
+  // being resolved, not the translated text (realRender.test.ts covers the latter end-to-end).
+  it('labels.coverLetterReferenceLabel is populated via reportT("sourceReports.coverLetter.reference")', () => {
+    const result = buildReportContent(makeReport([]), new Set(), 'claim', t, formatters);
+    expect(result.labels.coverLetterReferenceLabel).toBe('sourceReports.coverLetter.reference');
+  });
+
+  it('labels.coverLetterSubjectLabel is populated via reportT("sourceReports.coverLetter.subjectLabel")', () => {
+    const result = buildReportContent(makeReport([]), new Set(), 'claim', t, formatters);
+    expect(result.labels.coverLetterSubjectLabel).toBe('sourceReports.coverLetter.subjectLabel');
+  });
+
+  it('labels.skipReasonLabels.footnoteFetchFailed is populated via reportT("sourceReports.table.footnoteFetchFailed")', () => {
+    const result = buildReportContent(makeReport([]), new Set(), 'claim', t, formatters);
+    expect(result.labels.skipReasonLabels.footnoteFetchFailed).toBe(
+      'sourceReports.table.footnoteFetchFailed',
+    );
+  });
+
+  it('labels.skipReasonLabels.footnoteInvalidPdf is populated via reportT("sourceReports.table.footnoteInvalidPdf")', () => {
+    const result = buildReportContent(makeReport([]), new Set(), 'claim', t, formatters);
+    expect(result.labels.skipReasonLabels.footnoteInvalidPdf).toBe(
+      'sourceReports.table.footnoteInvalidPdf',
+    );
   });
 });

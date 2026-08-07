@@ -30,7 +30,7 @@
 - `getting-started/` -- index, docker-setup, first-login, configuration
 - `guides/work-items/` -- index, creating-work-items, tags, notes-and-subtasks, dependencies, keyboard-shortcuts
 - `guides/users/` -- index, oidc-setup, admin-panel
-- `guides/budget/` -- index, categories, financing-sources, work-item-budgets, vendors-and-invoices, subsidies, budget-overview
+- `guides/budget/` -- index, categories, financing-sources, work-item-budgets, vendors-and-invoices, subsidies, budget-overview, bank-reports (added PR #2041, see [Bank Report Wizard docs](bank-report-wizard-docs.md))
 - `guides/timeline/` -- index, gantt-chart, milestones, calendar-view
 - `guides/documents/` -- index, setup, browsing-documents, linking-documents
 - `guides/household-items/` -- index, creating-editing-items, budget-and-invoices, work-item-linking, delivery-and-dependencies
@@ -103,6 +103,20 @@ Three user-facing changes documented (no new pages, no sidebar changes):
 
 Pre-existing lint baseline in worktree: ~8 eslint ERRORS in production/test .ts across client/server/e2e (photoService OrientationSummary unused, usePaperless import() type, etc.) -- NOT introduced by docs changes (docs edits are markdown-only; eslint doesn't lint .md). Likely a local `npm install --ignore-scripts` artifact since beta CI requires lint green. Do NOT touch those files as docs-writer.
 
+## Release: PR #2041 (Bank Report Wizard docs gap, subsidies drift fix, .env.example drift fix)
+
+Full env-var scan (`grep` for `getValue('...')` in `server/src/`) confirmed 3 vars missing/wrong in `.env.example`: `AUTH_RATE_LIMIT_MAX` and `AUTH_RATE_LIMIT_WINDOW` (new, added commented-out under Server section near `TRUST_PROXY`/`EXTERNAL_URL`) and `VAT_RATE` (pre-existing gap, added commented-out under Localization near `CURRENCY`). `CLAUDE.md`'s env-var table was already current for all three (added in an earlier commit within the same 40-commit range) -- always diff `.env.example` against `server/src/plugins/config.ts` directly rather than assuming the two docs surfaces drift together.
+
+New page `guides/budget/bank-reports.md` closes a total docs gap for the Bank Report Wizard feature -- see [Bank Report Wizard docs](bank-report-wizard-docs.md) for what it covers and why the gap existed. Same pass also rewrote stale portions of `subsidies.md` (multi-category + "No Category" + real 5-status enum) -- same memory file has the detail.
+
 ## Build Note (still true)
 
 `npm run docs:build` fails in worktrees with webpack `ProgressPlugin` ValidationError (node_modules corruption, NOT content). Build reaches the webpack bundling stage, so MDX/content/link loading succeeded. Validate internal links/anchors statically with grep instead; CI does the real build.
+
+Update: in the `batch-develop-1973` worktree (2026-08), `npm run docs:build` completed successfully end-to-end (only the expected pre-existing screenshot-image warnings) -- the corruption is worktree-instance-specific, not universal. Still try the build first; fall back to static grep validation only if it actually fails.
+
+**CI is green-by-vacuity on docs-only PRs.** `Detect Changes` routes a docs-only diff so every real CI job (including the `onBrokenAnchors: 'throw'` docs build) skips, and the required wrapper gate still reports success. `Quality Gates` passing on a docs-only PR is NOT evidence the anchors/links resolve -- the real `docusaurus build` with strict broken-link/anchor checking only runs at release time. Always run `npm run docs:build` locally yourself after any edit touching links or headings; don't rely on CI for this on docs-only PRs.
+
+## configuration.md sections
+
+`docs/src/getting-started/configuration.md` has an `## Authentication Rate Limiting` section (added for #1990) documenting `AUTH_RATE_LIMIT_MAX`/`AUTH_RATE_LIMIT_WINDOW` (defaults 20 / `15 minutes`, `ms`-format window, startup-failure-on-invalid-value caveat, and household-NAT-vs-internet-exposed tuning guidance), cross-linked with the `## Reverse Proxy` section's `TRUST_PROXY` explanation (bucket-by-proxy-IP vs bucket-by-client-IP). The setup-endpoint's fixed 5/15min limit is mentioned as non-configurable, per issue Notes. This is the only general env-var reference table on the docs site -- `guides/users/oidc-setup.md` has a small OIDC-scoped var table but it's not a second general reference.

@@ -149,13 +149,7 @@
   margin-top: var(--spacing-0-5);
 }
 
-/* ---- Step 4: Layout ---- */
-
-.step4Body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-6);
-}
+/* ---- Step 4: Settings ---- */
 
 .settingsCard {
   background-color: var(--color-bg-secondary);
@@ -174,11 +168,17 @@
 }
 
 .settingsDivider {
+  composes: settingsSection;
   border-top: 1px solid var(--color-border);
   padding-top: var(--spacing-4);
+}
+
+/* ---- Step 5: Preview & Export ---- */
+
+.step5Body {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-3);
+  gap: var(--spacing-6);
 }
 
 .sectionTitle {

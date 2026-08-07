@@ -531,10 +531,8 @@ test.describe('Automatic mode API parameter (Scenario 9)', () => {
     page,
   }) => {
     const diaryPage = new DiaryPage(page);
-    const requests: URL[] = [];
 
     await page.route('**/api/diary-entries*', async (route) => {
-      requests.push(new URL(route.request().url()));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -547,22 +545,28 @@ test.describe('Automatic mode API parameter (Scenario 9)', () => {
       await diaryPage.waitForLoaded();
       await diaryPage.openFiltersIfCollapsed();
 
-      // Reset captured requests from initial load
-      requests.length = 0;
-
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
+      // Register the listener BEFORE clicking the chip, and predicate it on the response's OWN
+      // request URL containing an automatic-only marker type — not just "any diary-entries 200"
+      // (plus reading a separately captured requests[] array, reset just above). A generic
+      // predicate can resolve against a trailing response from the initial load landing after
+      // the reset, silently asserting on the wrong response — see #2030 (same bug, sibling
+      // diary-automatic-events.spec.ts test). 'work_item_status' is always present in the
+      // automatic-mode default type list (DiaryPage.tsx), so it is a safe marker here. Reading
+      // the type param straight off the resolved Response removes the shared-mutable-array
+      // request/response race entirely.
+      const responsePromise = page.waitForResponse((resp) => {
+        if (!resp.url().includes('/api/diary-entries') || resp.status() !== 200) return false;
+        const typeParam = new URL(resp.url()).searchParams.get('type');
+        return !!typeParam && typeParam.includes('work_item_status');
+      });
 
       const automaticChip = page.getByTestId('mode-filter-automatic');
       await automaticChip.waitFor({ state: 'visible' });
       await automaticChip.click();
-      await responsePromise;
+      const response = await responsePromise;
 
       // The API call should include automatic entry types in the type parameter
-      const lastRequest = requests[requests.length - 1];
-      expect(lastRequest).toBeDefined();
-      const typeParam = lastRequest?.searchParams.get('type');
+      const typeParam = new URL(response.url()).searchParams.get('type');
 
       // type parameter must be present and contain at least one automatic type
       expect(typeParam).toBeTruthy();
@@ -631,12 +635,17 @@ test.describe('Manual mode API parameter (Scenario 10)', () => {
       await allResponsePromise;
       await diaryPage.waitForLoaded();
 
-      // Register the listener BEFORE clicking Manual, and read the request straight
-      // off the resolved Response object — avoids any race with a shared mutable
-      // array that a stale in-flight response could otherwise still race against.
-      const responsePromise = page.waitForResponse(
-        (resp) => resp.url().includes('/api/diary-entries') && resp.status() === 200,
-      );
+      // Register the listener BEFORE clicking Manual, and read the request straight off the
+      // resolved Response object — avoids any race with a shared mutable array that a stale
+      // in-flight response could otherwise still race against. Hardened per #2030: also
+      // predicate out any stale "All" response specifically (recognizable because "all" mode
+      // sends no type param at all — see DiaryPage.tsx's queriableTypes logic — so a bare
+      // truthy check on the type param is enough to exclude it), rather than relying solely on
+      // the allResponsePromise/waitForLoaded sequencing above to rule it out.
+      const responsePromise = page.waitForResponse((resp) => {
+        if (!resp.url().includes('/api/diary-entries') || resp.status() !== 200) return false;
+        return !!new URL(resp.url()).searchParams.get('type');
+      });
 
       const manualChip = page.getByTestId('mode-filter-manual');
       await manualChip.waitFor({ state: 'visible' });

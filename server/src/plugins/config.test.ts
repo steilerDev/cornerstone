@@ -49,6 +49,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmProvider: 'generic',
         autoItemizeEnabled: false,
         llmEnabled: false,
+        authRateLimitMax: 20,
+        authRateLimitWindow: '15 minutes',
       });
     });
 
@@ -99,6 +101,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmProvider: 'generic',
         autoItemizeEnabled: false,
         llmEnabled: false,
+        authRateLimitMax: 20,
+        authRateLimitWindow: '15 minutes',
       });
     });
   });
@@ -151,6 +155,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmProvider: 'generic',
         autoItemizeEnabled: false,
         llmEnabled: false,
+        authRateLimitMax: 20,
+        authRateLimitWindow: '15 minutes',
       });
     });
 
@@ -198,6 +204,8 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         llmProvider: 'generic',
         autoItemizeEnabled: false,
         llmEnabled: false,
+        authRateLimitMax: 20,
+        authRateLimitWindow: '15 minutes',
       });
     });
   });
@@ -990,6 +998,303 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         const config = loadConfig(env);
         expect(config.llmEnabled).toBe(config.autoItemizeEnabled);
       }
+    });
+  });
+
+  // ─── Issue #1970: AUTH_RATE_LIMIT_MAX and AUTH_RATE_LIMIT_WINDOW ──────────
+
+  describe('AUTH_RATE_LIMIT_MAX and AUTH_RATE_LIMIT_WINDOW Configuration (Issue #1970)', () => {
+    it('AUTH_RATE_LIMIT_MAX unset → authRateLimitMax defaults to 20', () => {
+      const config = loadConfig({});
+      expect(config.authRateLimitMax).toBe(20);
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW unset → authRateLimitWindow defaults to "15 minutes"', () => {
+      const config = loadConfig({});
+      expect(config.authRateLimitWindow).toBe('15 minutes');
+    });
+
+    it('AUTH_RATE_LIMIT_MAX=50 → authRateLimitMax equals 50', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_MAX: '50' });
+      expect(config.authRateLimitMax).toBe(50);
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="1h" → authRateLimitWindow equals "1h"', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_WINDOW: '1h' });
+      expect(config.authRateLimitWindow).toBe('1h');
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="30 minutes" → authRateLimitWindow equals "30 minutes"', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_WINDOW: '30 minutes' });
+      expect(config.authRateLimitWindow).toBe('30 minutes');
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="30s" → authRateLimitWindow equals "30s"', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_WINDOW: '30s' });
+      expect(config.authRateLimitWindow).toBe('30s');
+    });
+
+    it('AUTH_RATE_LIMIT_MAX=abc → throws containing "AUTH_RATE_LIMIT_MAX must be a positive integer, got: abc"', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_MAX: 'abc' })).toThrow(
+        'AUTH_RATE_LIMIT_MAX must be a positive integer, got: abc',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_MAX=0 → throws containing "AUTH_RATE_LIMIT_MAX must be a positive integer, got: 0"', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_MAX: '0' })).toThrow(
+        'AUTH_RATE_LIMIT_MAX must be a positive integer, got: 0',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_MAX=-1 → throws containing "AUTH_RATE_LIMIT_MAX must be a positive integer, got: -1"', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_MAX: '-1' })).toThrow(
+        'AUTH_RATE_LIMIT_MAX must be a positive integer, got: -1',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW=not-a-duration → throws containing "AUTH_RATE_LIMIT_WINDOW must be a valid duration string"', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: 'not-a-duration' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must be a valid duration string',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="5 minutes foo" → throws containing "AUTH_RATE_LIMIT_WINDOW must be a valid duration string"', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '5 minutes foo' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must be a valid duration string',
+      );
+    });
+
+    it('empty string AUTH_RATE_LIMIT_MAX treated as missing → authRateLimitMax defaults to 20', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_MAX: '' });
+      expect(config.authRateLimitMax).toBe(20);
+    });
+
+    it('empty string AUTH_RATE_LIMIT_WINDOW treated as missing → authRateLimitWindow defaults to "15 minutes"', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_WINDOW: '' });
+      expect(config.authRateLimitWindow).toBe('15 minutes');
+    });
+
+    it('both invalid vars in one call → single throw listing both errors', () => {
+      expect(() =>
+        loadConfig({
+          AUTH_RATE_LIMIT_MAX: 'abc',
+          AUTH_RATE_LIMIT_WINDOW: 'not-a-duration',
+        }),
+      ).toThrow(
+        "Configuration validation failed:\n  - AUTH_RATE_LIMIT_MAX must be a positive integer, got: abc\n  - AUTH_RATE_LIMIT_WINDOW must be a valid duration string (e.g. '15 minutes', '1h'), got: not-a-duration",
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_MAX=1 (minimum valid) → authRateLimitMax equals 1', () => {
+      const config = loadConfig({ AUTH_RATE_LIMIT_MAX: '1' });
+      expect(config.authRateLimitMax).toBe(1);
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="0s" → throws containing zero magnitude error', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '0s' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must have a positive duration (zero magnitude is not allowed), got: 0s',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="0 minutes" → throws containing zero magnitude error', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '0 minutes' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must have a positive duration (zero magnitude is not allowed), got: 0 minutes',
+      );
+    });
+
+    it('AUTH_RATE_LIMIT_WINDOW="0.0h" → throws containing zero magnitude error (parseFloat gives 0)', () => {
+      expect(() => loadConfig({ AUTH_RATE_LIMIT_WINDOW: '0.0h' })).toThrow(
+        'AUTH_RATE_LIMIT_WINDOW must have a positive duration (zero magnitude is not allowed), got: 0.0h',
+      );
+    });
+  });
+
+  // ─── Issue #1991: Strict integer parsing for numeric environment variables ─
+
+  describe('Issue #1991: Strict Integer Parsing', () => {
+    describe('AC5: rejected input classes (AUTH_RATE_LIMIT_MAX)', () => {
+      it('rejects trailing garbage ("20abc") — names the variable and arrives via the aggregated throw', () => {
+        expect(() => loadConfig({ AUTH_RATE_LIMIT_MAX: '20abc' })).toThrow(
+          'Configuration validation failed:\n  - AUTH_RATE_LIMIT_MAX must be a positive integer, got: 20abc',
+        );
+      });
+
+      it('rejects a decimal ("20.9") — names the variable and arrives via the aggregated throw', () => {
+        expect(() => loadConfig({ AUTH_RATE_LIMIT_MAX: '20.9' })).toThrow(
+          'Configuration validation failed:\n  - AUTH_RATE_LIMIT_MAX must be a positive integer, got: 20.9',
+        );
+      });
+
+      it('rejects exponent notation ("1e3") — names the variable and arrives via the aggregated throw', () => {
+        expect(() => loadConfig({ AUTH_RATE_LIMIT_MAX: '1e3' })).toThrow(
+          'Configuration validation failed:\n  - AUTH_RATE_LIMIT_MAX must be a positive integer, got: 1e3',
+        );
+      });
+
+      it('rejects leading whitespace (" 20") — names the variable and arrives via the aggregated throw', () => {
+        const raw = ' 20';
+        expect(() => loadConfig({ AUTH_RATE_LIMIT_MAX: raw })).toThrow(
+          `Configuration validation failed:\n  - AUTH_RATE_LIMIT_MAX must be a positive integer, got: ${raw}`,
+        );
+      });
+    });
+
+    describe('AC2 spot-check: strict parsing applies at every one of the eight call sites', () => {
+      it.each([
+        ['PORT', 'PORT must be a valid number, got: 20abc'],
+        ['SESSION_DURATION', 'SESSION_DURATION must be a valid number, got: 20abc'],
+        ['PHOTO_MAX_FILE_SIZE_MB', 'PHOTO_MAX_FILE_SIZE_MB must be a valid number, got: 20abc'],
+        [
+          'DIARY_DRAFT_RETENTION_DAYS',
+          'DIARY_DRAFT_RETENTION_DAYS must be a non-negative integer, got: 20abc',
+        ],
+        ['BACKUP_RETENTION', 'BACKUP_RETENTION must be a positive integer, got: 20abc'],
+        ['LLM_REQUEST_TIMEOUT_MS', 'LLM_REQUEST_TIMEOUT_MS must be a positive integer, got: 20abc'],
+        ['LLM_MAX_TOKENS', 'LLM_MAX_TOKENS must be a positive integer, got: 20abc'],
+        ['AUTH_RATE_LIMIT_MAX', 'AUTH_RATE_LIMIT_MAX must be a positive integer, got: 20abc'],
+      ] as const)(
+        '%s="20abc" (trailing garbage) is rejected naming the offending variable',
+        (envVar, expectedMessage) => {
+          expect(() => loadConfig({ [envVar]: '20abc' })).toThrow(expectedMessage);
+        },
+      );
+    });
+
+    describe('AC3 spot-check: pre-existing range checks are preserved (two of the eight call sites had no direct test before this issue)', () => {
+      it('SESSION_DURATION="0" → throws containing "SESSION_DURATION must be greater than 0, got: 0"', () => {
+        expect(() => loadConfig({ SESSION_DURATION: '0' })).toThrow(
+          'SESSION_DURATION must be greater than 0, got: 0',
+        );
+      });
+
+      it('PHOTO_MAX_FILE_SIZE_MB="0" → throws containing "PHOTO_MAX_FILE_SIZE_MB must be greater than 0, got: 0"', () => {
+        expect(() => loadConfig({ PHOTO_MAX_FILE_SIZE_MB: '0' })).toThrow(
+          'PHOTO_MAX_FILE_SIZE_MB must be greater than 0, got: 0',
+        );
+      });
+
+      it('BACKUP_RETENTION="0" → throws containing "BACKUP_RETENTION must be a positive integer, got: 0"', () => {
+        expect(() => loadConfig({ BACKUP_RETENTION: '0' })).toThrow(
+          'BACKUP_RETENTION must be a positive integer, got: 0',
+        );
+      });
+    });
+
+    describe('AC6: every previously-valid value for all eight variables still loads unchanged', () => {
+      it('non-default valid values for all eight variables parse to the exact expected numbers', () => {
+        const config = loadConfig({
+          PORT: '8080',
+          SESSION_DURATION: '3600',
+          PHOTO_MAX_FILE_SIZE_MB: '50',
+          DIARY_DRAFT_RETENTION_DAYS: '15',
+          BACKUP_RETENTION: '7',
+          LLM_REQUEST_TIMEOUT_MS: '45000',
+          LLM_MAX_TOKENS: '8192',
+          AUTH_RATE_LIMIT_MAX: '100',
+        });
+
+        expect(config.port).toBe(8080);
+        expect(config.sessionDuration).toBe(3600);
+        expect(config.photoMaxFileSizeMb).toBe(50);
+        expect(config.diaryDraftRetentionDays).toBe(15);
+        expect(config.backupRetention).toBe(7);
+        expect(config.llmRequestTimeoutMs).toBe(45000);
+        expect(config.llmMaxTokens).toBe(8192);
+        expect(config.authRateLimitMax).toBe(100);
+      });
+
+      it('default values for all eight variables (unset) still load unchanged', () => {
+        const config = loadConfig({});
+
+        expect(config.port).toBe(3000);
+        expect(config.sessionDuration).toBe(604800);
+        expect(config.photoMaxFileSizeMb).toBe(20);
+        expect(config.diaryDraftRetentionDays).toBe(30);
+        expect(config.backupRetention).toBeUndefined();
+        expect(config.llmRequestTimeoutMs).toBe(30000);
+        expect(config.llmMaxTokens).toBe(16384);
+        expect(config.authRateLimitMax).toBe(20);
+      });
+    });
+
+    describe('DIARY_DRAFT_RETENTION_DAYS="0" remains valid (zero disables cleanup — not swept up by the stricter parser)', () => {
+      it('parses to exactly 0 on its own', () => {
+        const config = loadConfig({ DIARY_DRAFT_RETENTION_DAYS: '0' });
+        expect(config.diaryDraftRetentionDays).toBe(0);
+      });
+
+      it('parses to exactly 0 even when another numeric variable fails validation in the same call', () => {
+        let caught: Error | undefined;
+        try {
+          loadConfig({ DIARY_DRAFT_RETENTION_DAYS: '0', AUTH_RATE_LIMIT_MAX: 'bad' });
+        } catch (err) {
+          caught = err as Error;
+        }
+
+        expect(caught).toBeDefined();
+        expect(caught!.message).toContain(
+          'AUTH_RATE_LIMIT_MAX must be a positive integer, got: bad',
+        );
+        expect(caught!.message).not.toContain('DIARY_DRAFT_RETENTION_DAYS');
+
+        // Confirm it is genuinely accepted, not just silently absent from the
+        // error list — call it again in isolation and inspect the parsed value.
+        const config = loadConfig({ DIARY_DRAFT_RETENTION_DAYS: '0' });
+        expect(config.diaryDraftRetentionDays).toBe(0);
+      });
+    });
+
+    describe('AC4: error accumulation — multiple bad numeric variables are all reported in one throw', () => {
+      it('three simultaneously invalid numeric variables (from three different rejected classes) all appear in a single aggregated error, in declaration order', () => {
+        expect(() =>
+          loadConfig({
+            PORT: '20abc', // trailing garbage
+            SESSION_DURATION: '20.9', // decimal
+            AUTH_RATE_LIMIT_MAX: '1e3', // exponent notation
+          }),
+        ).toThrow(
+          'Configuration validation failed:\n' +
+            '  - PORT must be a valid number, got: 20abc\n' +
+            '  - SESSION_DURATION must be a valid number, got: 20.9\n' +
+            '  - AUTH_RATE_LIMIT_MAX must be a positive integer, got: 1e3',
+        );
+      });
+
+      it('all eight numeric variables invalid at once → every one of the eight is named in the single throw', () => {
+        let caught: Error | undefined;
+        try {
+          loadConfig({
+            PORT: '20abc',
+            SESSION_DURATION: '20abc',
+            PHOTO_MAX_FILE_SIZE_MB: '20abc',
+            DIARY_DRAFT_RETENTION_DAYS: '20abc',
+            BACKUP_RETENTION: '20abc',
+            LLM_REQUEST_TIMEOUT_MS: '20abc',
+            LLM_MAX_TOKENS: '20abc',
+            AUTH_RATE_LIMIT_MAX: '20abc',
+          });
+        } catch (err) {
+          caught = err as Error;
+        }
+
+        expect(caught).toBeDefined();
+        const message = caught!.message;
+        expect(message).toContain('PORT must be a valid number, got: 20abc');
+        expect(message).toContain('SESSION_DURATION must be a valid number, got: 20abc');
+        expect(message).toContain('PHOTO_MAX_FILE_SIZE_MB must be a valid number, got: 20abc');
+        expect(message).toContain(
+          'DIARY_DRAFT_RETENTION_DAYS must be a non-negative integer, got: 20abc',
+        );
+        expect(message).toContain('BACKUP_RETENTION must be a positive integer, got: 20abc');
+        expect(message).toContain('LLM_REQUEST_TIMEOUT_MS must be a positive integer, got: 20abc');
+        expect(message).toContain('LLM_MAX_TOKENS must be a positive integer, got: 20abc');
+        expect(message).toContain('AUTH_RATE_LIMIT_MAX must be a positive integer, got: 20abc');
+
+        // Sanity: exactly 8 bullet lines, proving none were dropped, merged, or
+        // duplicated by the switch away from bare parseInt.
+        const bulletCount = (message.match(/\n {2}- /g) ?? []).length;
+        expect(bulletCount).toBe(8);
+      });
     });
   });
 });

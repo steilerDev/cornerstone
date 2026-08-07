@@ -67,6 +67,7 @@ type EditingProgram = {
   notes: string;
   categoryIds: string[];
   maximumAmount: string;
+  includesNoCategoryItems: boolean;
 };
 
 function programToEditState(program: SubsidyProgram): EditingProgram {
@@ -84,6 +85,7 @@ function programToEditState(program: SubsidyProgram): EditingProgram {
     notes: program.notes ?? '',
     categoryIds: program.applicableCategories.map((c) => c.id),
     maximumAmount: program.maximumAmount != null ? String(program.maximumAmount) : '',
+    includesNoCategoryItems: program.includesNoCategoryItems,
   };
 }
 
@@ -113,6 +115,7 @@ export function SubsidyProgramsPage() {
   const [newNotes, setNewNotes] = useState('');
   const [newMaximumAmount, setNewMaximumAmount] = useState('');
   const [newCategoryIds, setNewCategoryIds] = useState<string[]>([]);
+  const [newIncludesNoCategoryItems, setNewIncludesNoCategoryItems] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string>('');
 
@@ -173,8 +176,9 @@ export function SubsidyProgramsPage() {
     setNewApplicationDeadline('');
     setNewNotes('');
     setNewMaximumAmount('');
-    // Default to all categories selected
+    // Default to all categories selected (including "No Category")
     setNewCategoryIds(allCategories.map((c) => c.id));
+    setNewIncludesNoCategoryItems(true);
     setCreateError('');
   };
 
@@ -185,19 +189,30 @@ export function SubsidyProgramsPage() {
   };
 
   const handleToggleAllNew = () => {
-    if (newCategoryIds.length === allCategories.length) {
+    const allSelected =
+      newCategoryIds.length === allCategories.length && newIncludesNoCategoryItems;
+    if (allSelected) {
       setNewCategoryIds([]);
+      setNewIncludesNoCategoryItems(false);
     } else {
       setNewCategoryIds(allCategories.map((c) => c.id));
+      setNewIncludesNoCategoryItems(true);
     }
   };
 
   const handleToggleAllEdit = () => {
     if (!editingProgram) return;
-    if (editingProgram.categoryIds.length === allCategories.length) {
-      setEditingProgram({ ...editingProgram, categoryIds: [] });
+    const allSelected =
+      editingProgram.categoryIds.length === allCategories.length &&
+      editingProgram.includesNoCategoryItems;
+    if (allSelected) {
+      setEditingProgram({ ...editingProgram, categoryIds: [], includesNoCategoryItems: false });
     } else {
-      setEditingProgram({ ...editingProgram, categoryIds: allCategories.map((c) => c.id) });
+      setEditingProgram({
+        ...editingProgram,
+        categoryIds: allCategories.map((c) => c.id),
+        includesNoCategoryItems: true,
+      });
     }
   };
 
@@ -247,6 +262,7 @@ export function SubsidyProgramsPage() {
         notes: newNotes.trim() || null,
         maximumAmount: newMaximumAmount.trim() ? parseFloat(newMaximumAmount) : null,
         categoryIds: newCategoryIds,
+        includesNoCategoryItems: newIncludesNoCategoryItems,
       });
       setPrograms([...programs, created]);
       resetCreateForm();
@@ -314,6 +330,7 @@ export function SubsidyProgramsPage() {
           ? parseFloat(editingProgram.maximumAmount)
           : null,
         categoryIds: editingProgram.categoryIds,
+        includesNoCategoryItems: editingProgram.includesNoCategoryItems,
       });
       setPrograms(programs.map((p) => (p.id === updated.id ? updated : p)));
       setEditingProgram(null);
@@ -414,6 +431,7 @@ export function SubsidyProgramsPage() {
             setShowCreateForm(true);
             setCreateError('');
             setNewCategoryIds(allCategories.map((c) => c.id));
+            setNewIncludesNoCategoryItems(true);
           }}
           disabled={showCreateForm}
         >
@@ -635,12 +653,31 @@ export function SubsidyProgramsPage() {
                     onClick={handleToggleAllNew}
                     disabled={isCreating}
                   >
-                    {newCategoryIds.length === allCategories.length
+                    {newCategoryIds.length === allCategories.length && newIncludesNoCategoryItems
                       ? t('subsidies.form.deselectAll')
                       : t('subsidies.form.selectAll')}
                   </button>
                 </div>
                 <div className={styles.categoryCheckboxList}>
+                  <label
+                    className={`${styles.categoryCheckboxItem} ${isCreating ? styles.categoryCheckboxItemDisabled : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className={styles.checkbox}
+                      checked={newIncludesNoCategoryItems}
+                      onChange={() => setNewIncludesNoCategoryItems((v) => !v)}
+                      disabled={isCreating}
+                    />
+                    <span
+                      className={styles.categoryDot}
+                      style={{ backgroundColor: '#9ca3af' }}
+                      aria-hidden="true"
+                    />
+                    <span className={styles.categoryCheckboxLabel}>
+                      {t('subsidies.form.noCategoryLabel')}
+                    </span>
+                  </label>
                   {allCategories.map((category) => (
                     <label
                       key={category.id}
@@ -938,12 +975,37 @@ export function SubsidyProgramsPage() {
                             onClick={handleToggleAllEdit}
                             disabled={isUpdating}
                           >
-                            {editingProgram.categoryIds.length === allCategories.length
+                            {editingProgram.categoryIds.length === allCategories.length &&
+                            editingProgram.includesNoCategoryItems
                               ? t('subsidies.form.deselectAll')
                               : t('subsidies.form.selectAll')}
                           </button>
                         </div>
                         <div className={styles.categoryCheckboxList}>
+                          <label
+                            className={`${styles.categoryCheckboxItem} ${isUpdating ? styles.categoryCheckboxItemDisabled : ''}`}
+                          >
+                            <input
+                              type="checkbox"
+                              className={styles.checkbox}
+                              checked={editingProgram.includesNoCategoryItems}
+                              onChange={() =>
+                                setEditingProgram({
+                                  ...editingProgram,
+                                  includesNoCategoryItems: !editingProgram.includesNoCategoryItems,
+                                })
+                              }
+                              disabled={isUpdating}
+                            />
+                            <span
+                              className={styles.categoryDot}
+                              style={{ backgroundColor: '#9ca3af' }}
+                              aria-hidden="true"
+                            />
+                            <span className={styles.categoryCheckboxLabel}>
+                              {t('subsidies.form.noCategoryLabel')}
+                            </span>
+                          </label>
                           {allCategories.map((category) => (
                             <label
                               key={category.id}
@@ -1040,8 +1102,19 @@ export function SubsidyProgramsPage() {
                         <p className={styles.programDescription}>{program.description}</p>
                       )}
 
-                      {program.applicableCategories.length > 0 && (
+                      {(program.applicableCategories.length > 0 ||
+                        program.includesNoCategoryItems) && (
                         <div className={styles.categoryPills}>
+                          {program.includesNoCategoryItems && (
+                            <span className={styles.categoryPill}>
+                              <span
+                                className={styles.categoryDot}
+                                style={{ backgroundColor: '#9ca3af' }}
+                                aria-hidden="true"
+                              />
+                              {t('subsidies.form.noCategoryLabel')}
+                            </span>
+                          )}
                           {program.applicableCategories.map((category) => (
                             <span key={category.id} className={styles.categoryPill}>
                               <span

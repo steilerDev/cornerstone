@@ -366,7 +366,12 @@ export function getInvoiceAggregates(
   db: DbType,
   budgetId: string,
   invoiceBudgetIdColumn: string,
-): { actualCost: number; actualCostPaid: number; invoiceCount: number } {
+): {
+  actualCost: number;
+  actualCostPaid: number;
+  invoiceCount: number;
+  hasClaimedInvoice: boolean;
+} {
   // Fetch (ibl, invoice, deposit?) tuples with deposit-aware split
   const rows = db.all<DepositAwareRow>(
     sql`SELECT
@@ -391,6 +396,9 @@ export function getInvoiceAggregates(
     actualCost,
     actualCostPaid,
     invoiceCount,
+    hasClaimedInvoice: rows.some(
+      (r) => r.invoice_status === 'claimed' || r.deposit_status === 'claimed',
+    ),
   };
 }
 

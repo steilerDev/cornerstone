@@ -12,6 +12,14 @@
  * merge.ts imports `PDF_STYLES` from here and re-exports it for its own consumers. This module
  * must never import from merge.ts — merge.ts already imports geometry from this file, and
  * reversing that edge would create a circular import.
+ *
+ * PDF_STYLES SPLIT TRIGGER (#1953): `letterSubject` (below) is the first `PDF_STYLES` entry with
+ * NO geometry consumer at all — nothing in this module's math reads its font size, unlike every
+ * other style here. That's not a problem by itself and does NOT warrant splitting `PDF_STYLES`
+ * out of this module yet. The trigger for when it does: the SECOND style entry with no geometry
+ * consumer. When that happens, move `PDF_STYLES` into its own `pdfStyles.ts` that imports geometry
+ * constants from this module and is re-exported by merge.ts — i.e. `pageGeometry <- pdfStyles <-
+ * merge`, preserving the edge direction fixed above. Until then, leave it here.
  */
 import type { Style } from 'pdfmake/build/pdfmake';
 
@@ -65,6 +73,19 @@ const SUBHEADER_MARGIN_TOP = 4; // PDF_STYLES.subheader margin, below
 const HEADER_BLOCK_BOTTOM_MARGIN = 20; // buildPageHeader's own margin: [0,0,0,20]
 const HEADER_TOP_GAP = 15; // visible separation kept above the computed footprint
 
+// --- Cover letter typography (#1953) — NOT page-geometry arithmetic; no geometry consumer ---
+/**
+ * Cover letter subject-line font size, pt — PDF_STYLES.letterSubject below, only. This equals
+ * SUBHEADER_FONT_SIZE (12) above by COINCIDENCE, not by design: it is deliberately its own
+ * literal, not derived from or aliased to SUBHEADER_FONT_SIZE, and changing one must NOT change
+ * the other (#1953). SUBHEADER_FONT_SIZE is load-bearing footprint arithmetic that feeds
+ * headerFootprint() and, through it, PAGE_TOP_MARGIN below; LETTER_SUBJECT_FONT_SIZE is plain
+ * letter typography with no geometry consumer. Reusing the header's constant here would silently
+ * couple a future header-spacing fix (or subject-line legibility tweak) to the other's page
+ * layout — see #1953 for the incident this constant exists to prevent.
+ */
+const LETTER_SUBJECT_FONT_SIZE = 12; // PDF_STYLES.letterSubject, below
+
 /**
  * Shared pdfmake document-definition style dictionary. Relocated here from merge.ts (#1939, AC8/
  * AC9) so its font-size literals (`tableHeader`, `tableCell`, `small`, `header`, `subheader`) are
@@ -109,7 +130,7 @@ export const PDF_STYLES: Record<string, Style> = {
     color: '#6b7280',
   },
   letterSubject: {
-    fontSize: SUBHEADER_FONT_SIZE, // 12pt — reuse the existing constant, don't add a new literal
+    fontSize: LETTER_SUBJECT_FONT_SIZE,
     bold: true,
     color: '#111827', // matches PDF_STYLES.header's color — same "this is important" dark tone
   },

@@ -35,12 +35,14 @@ export function createSubsidyPaybackService(
       name: string;
       reductionType: string;
       reductionValue: number;
+      includesNoCategoryItems: number;
     }>(
       sql`SELECT
-        sp.id              AS subsidyProgramId,
-        sp.name            AS name,
-        sp.reduction_type  AS reductionType,
-        sp.reduction_value AS reductionValue
+        sp.id                            AS subsidyProgramId,
+        sp.name                          AS name,
+        sp.reduction_type                AS reductionType,
+        sp.reduction_value               AS reductionValue,
+        sp.includes_no_category_items    AS includesNoCategoryItems
       FROM ${sql.raw(config.junctionTable)} ${sql.raw(config.junctionAlias)}
       INNER JOIN subsidy_programs sp ON sp.id = ${sql.raw(`${config.junctionAlias}.subsidy_program_id`)}
       WHERE ${sql.raw(`${config.junctionAlias}.${config.junctionEntityIdColumn}`)} = ${entityId}
@@ -103,6 +105,7 @@ export function createSubsidyPaybackService(
       name: row.name,
       reductionType: row.reductionType as 'percentage' | 'fixed',
       reductionValue: row.reductionValue,
+      includesNoCategoryItems: row.includesNoCategoryItems === 1,
     }));
 
     const subsidyIds = linkedRows.map((r) => r.subsidyProgramId);

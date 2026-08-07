@@ -13,16 +13,13 @@ export interface ReportContentRow {
   statusText: string | null; // null when useCase !== 'budget-overview'
   invoiceAmountText: string;
   allocatedAmountValueText: string; // formatted currency only — no markers/refund note
-  isSplit: boolean; // split invoice with budget lines → inline "partial" label
-  isDepositReduced: boolean; // split invoice reduced by untagged deposits → inline label
+  isSplit: boolean; // splitKind === 'lines' | 'both' → inline "(partial)" label
+  isDepositReduced: boolean; // splitKind === 'deposits' | 'both' → reduced by a deposit tagged to a DIFFERENT source; inline label. Untagged deposits are apportioned back into this source pro-rata and never set this flag.
   isDeposit: boolean; // constituted-deposit row → inline Deposit badge
   isRefund: boolean;
   refundNoteText: string; // shown only when isRefund
   usageText: string; // EDITABLE — key `row.<invoiceId>.usageText`
-  // READ-ONLY since #1959 moved it inline, with areaText, into the Usage cell's grey meta suffix:
-  // the editor renders both as static text and exposes no input for either. applyOverrides still
-  // honours `row.<invoiceId>.attachmentsNote`, but nothing can produce that key any more — it is
-  // unreachable from the UI. null = no docs, omitted entirely.
+  // READ-ONLY since #1959: rendered inline in the Usage cell's grey meta suffix. null = no attached documents.
   attachmentsNote: string | null;
   areaText: string | null; // read-only leaf area names, distinct comma-joined
 }
@@ -50,6 +47,8 @@ export interface ReportContentCoverLetter {
   closing: string; // READ-ONLY; reportT('sourceReports.coverLetter.closing'); part of the letter artifact, never rendered through the editor's interface t (artifact-content-vs-edit-affordance rule, #1909/#1924)
 }
 
+export type ReportSkipReason = 'footnoteFetchFailed' | 'footnoteInvalidPdf';
+
 export interface ReportContentLabels {
   vendor: string;
   invoiceNumber: string;
@@ -66,6 +65,10 @@ export interface ReportContentLabels {
   sourceType: string;
   reference: string;
   generatedAt: string;
+  pageLabel: string; // "Page N / M" label in the PDF footer, translated in report language
+  coverLetterReferenceLabel: string;
+  coverLetterSubjectLabel: string;
+  skipReasonLabels: Record<ReportSkipReason, string>;
 }
 
 export interface ReportContent {

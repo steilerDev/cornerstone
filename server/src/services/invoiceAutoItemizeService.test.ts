@@ -172,6 +172,8 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmProvider: 'openai',
     autoItemizeEnabled: true,
     llmEnabled: true,
+    authRateLimitMax: 20,
+    authRateLimitWindow: '15 minutes',
     ...overrides,
   };
 }
@@ -1610,7 +1612,7 @@ describe('invoiceAutoItemizeService', () => {
       ).rejects.toThrow();
     });
 
-    it('throws LlmNotConfiguredError when autoItemizeEnabled is false', async () => {
+    it('throws LlmNotConfiguredError when llmEnabled is false', async () => {
       const vendorId = insertVendor(db);
       const invoiceId = insertInvoice(db, vendorId, 500);
       linkDocument(db, invoiceId, 42);
@@ -1619,7 +1621,7 @@ describe('invoiceAutoItemizeService', () => {
         .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
         .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE));
 
-      const config = makeConfig({ autoItemizeEnabled: false });
+      const config = makeConfig({ llmEnabled: false });
 
       await expect(
         autoItemize(
@@ -1645,7 +1647,7 @@ describe('invoiceAutoItemizeService', () => {
         .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
         .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE));
 
-      const config = makeConfig({ autoItemizeEnabled: false });
+      const config = makeConfig({ llmEnabled: false });
       let caught: unknown;
 
       try {

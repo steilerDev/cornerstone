@@ -144,6 +144,14 @@ export function ReportInvoiceList({
         <div className={styles.headerTitle}>{t('sourceReports.invoicesHeading')}</div>
       </div>
 
+      {allocatedInvoices.length > 0 && (
+        <p className={styles.attachmentsNote}>
+          {t('sourceReports.attachmentsNote', {
+            reportType: t(`sourceReports.useCase.${report.type}`),
+          })}
+        </p>
+      )}
+
       {/* Allocated invoices list */}
       {allocatedInvoices.map((invoice) => {
         const isExcluded = excludedInvoiceIds.has(invoice.invoiceId);

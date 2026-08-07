@@ -4,7 +4,7 @@
  * The page renders:
  * - A SubNav with Budget tabs: Overview, Invoices, Vendors, Sources, Subsidies
  * - A page header with h1 "Budget" and an "Add Invoice" button (data-testid="new-invoice-button")
- * - Three summary cards: Pending, Paid, Quotation
+ * - Four summary cards: Pending, Claimable, Claimed, Quotation
  * - A DataTable with search and per-column filters:
  *   - Filterable columns: Vendor (enum), Date (date), Amount (number), Due Date (date), Status (enum)
  * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
@@ -61,7 +61,7 @@ export class InvoicesPage {
   // Summary cards
   readonly summaryGrid: Locator;
   readonly pendingSummary: Locator;
-  readonly paidSummary: Locator;
+  readonly claimableSummary: Locator;
   readonly quotationSummary: Locator;
   /**
    * Conditional 5th summary card — only rendered when at least one PENDING
@@ -121,18 +121,19 @@ export class InvoicesPage {
 
     // Summary cards grid
     this.summaryGrid = page.locator('[class*="summaryGrid"]');
-    // Exclude the overdue card from the four standard summary cards — its pluralized
+    // Exclude the overdue card from the standard summary cards — its pluralized
     // label text contains "pending invoices past due" which would otherwise match
     // the Pending locator and cause strict-mode violations.
+    // Use the summaryLabel child to match only the card title, not hint text.
     this.pendingSummary = this.summaryGrid
       .locator('[class*="summaryCard"]:not([data-testid="summary-card-overdue"])')
-      .filter({ hasText: /Pending/i });
-    this.paidSummary = this.summaryGrid
+      .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Pending$/i }) });
+    this.claimableSummary = this.summaryGrid
       .locator('[class*="summaryCard"]:not([data-testid="summary-card-overdue"])')
-      .filter({ hasText: /Paid/i });
+      .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Claimable$/i }) });
     this.quotationSummary = this.summaryGrid
       .locator('[class*="summaryCard"]:not([data-testid="summary-card-overdue"])')
-      .filter({ hasText: /Quotation/i });
+      .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Quotation$/i }) });
     // Overdue card (conditional) — rendered only when hasOverdue===true (Issue #1421)
     this.overdueCard = page.getByTestId('summary-card-overdue');
 
@@ -336,10 +337,10 @@ export class InvoicesPage {
   /**
    * Get the summary card count value for the given status type.
    */
-  async getSummaryCount(type: 'pending' | 'paid' | 'quotation'): Promise<number> {
+  async getSummaryCount(type: 'pending' | 'claimable' | 'quotation'): Promise<number> {
     let card: Locator;
     if (type === 'pending') card = this.pendingSummary;
-    else if (type === 'paid') card = this.paidSummary;
+    else if (type === 'claimable') card = this.claimableSummary;
     else card = this.quotationSummary;
     const countEl = card.locator('[class*="summaryCount"]');
     const text = await countEl.textContent();

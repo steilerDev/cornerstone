@@ -51,6 +51,13 @@ function makeLabels(): ReportContent['labels'] {
     sourceType: 'Source Type',
     reference: 'Reference',
     generatedAt: 'Generated At',
+    pageLabel: 'Page',
+    coverLetterReferenceLabel: 'Cover Letter Reference',
+    coverLetterSubjectLabel: 'Cover Letter Subject',
+    skipReasonLabels: {
+      footnoteFetchFailed: 'Footnote Fetch Failed',
+      footnoteInvalidPdf: 'Footnote Invalid PDF',
+    },
   };
 }
 

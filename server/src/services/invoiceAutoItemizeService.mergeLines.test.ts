@@ -66,6 +66,8 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     llmProvider: 'openai',
     autoItemizeEnabled: true,
     llmEnabled: true,
+    authRateLimitMax: 20,
+    authRateLimitWindow: '15 minutes',
     ...overrides,
   };
 }
@@ -250,9 +252,9 @@ describe('invoiceAutoItemizeService.mergeLines()', () => {
   // ─── Error propagation ────────────────────────────────────────────────────────
 
   describe('error propagation', () => {
-    it('throws LlmNotConfiguredError when autoItemizeEnabled is false', async () => {
+    it('throws LlmNotConfiguredError when llmEnabled is false', async () => {
       await expect(
-        mergeLines(db, makeConfig({ autoItemizeEnabled: false }), DEFAULT_REQUEST),
+        mergeLines(db, makeConfig({ llmEnabled: false }), DEFAULT_REQUEST),
       ).rejects.toThrow(LlmNotConfiguredError);
 
       // No fetch call should have been made

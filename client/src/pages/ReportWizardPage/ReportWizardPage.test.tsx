@@ -250,6 +250,7 @@ function makeReport(overrides: Partial<SourceReportResponse> = {}): SourceReport
         allocatedAmount: 1000,
         lineKind: 'invoice',
         isSplit: false,
+        splitKind: null,
         documents: [],
         budgetLines: [
           {
@@ -809,6 +810,7 @@ describe('ReportWizardPage', () => {
               allocatedAmount: 1000,
               lineKind: 'invoice',
               isSplit: false,
+              splitKind: null,
               documents: [],
               budgetLines: [
                 {
@@ -1138,6 +1140,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 1000,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [{ id: 'bl-a', description: 'A', allocatedPortion: 0, linkedItem: null }],
             deposits: [],
@@ -1158,6 +1161,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 2000,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [{ id: 'bl-b', description: 'B', allocatedPortion: 0, linkedItem: null }],
             deposits: [],
@@ -1229,6 +1233,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 2000,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [
               { id: 'bl-b2', description: 'B2', allocatedPortion: 0, linkedItem: null },
@@ -1298,7 +1303,8 @@ describe('ReportWizardPage', () => {
       expect(callArgs[0]).toEqual(expect.objectContaining({ type: 'claim' })); // report
       expect(callArgs[1]).toEqual(new Set(['inv-1'])); // includedInvoiceIds
       expect(callArgs[2]).toEqual(expect.objectContaining({ isOverview: false })); // effectiveContent
-      expect(callArgs[3]).toEqual({ attachDocuments: true }); // default attachDocuments
+      // #1973: options now also carries hiddenColumns (default: empty Set, nothing hidden).
+      expect(callArgs[3]).toEqual({ attachDocuments: true, hiddenColumns: new Set() });
     });
 
     it('opens the PDF preview modal and renders an iframe once generation succeeds', async () => {
@@ -1466,6 +1472,89 @@ describe('ReportWizardPage', () => {
         await waitFor(() => expect(document.querySelector('iframe')).toBeInTheDocument());
       },
     );
+  });
+
+  // ─── #1973: column visibility wired through to generateReportPdf ───────────────────────────────
+
+  describe('#1973 column visibility: toggles reach generateReportPdf, and reset on use-case change', () => {
+    function columnToggleGroup(): HTMLElement {
+      return screen.getByRole('group', { name: 'Show/hide columns' });
+    }
+
+    it('(scenario 37) toggling a column via the rendered ReportContentEditor, then Preview PDF, calls generateReportPdf with a hiddenColumns Set containing the toggled column', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user); // useCaseIndex=1 -> 'claim'
+
+      await user.click(within(columnToggleGroup()).getByLabelText('Vendor'));
+      await user.click(screen.getByRole('button', { name: 'Preview PDF' }));
+
+      await waitFor(() => expect(mockGenerateReportPdf).toHaveBeenCalledTimes(1));
+      const options = mockGenerateReportPdf.mock.calls[0]![3] as { hiddenColumns?: Set<string> };
+      expect(options.hiddenColumns).toBeInstanceOf(Set);
+      expect(options.hiddenColumns!.has('vendor')).toBe(true);
+    });
+
+    it('(AC5.2) toggling a column issues no PATCH (or any) request to /api/users/me/preferences — column visibility is per-session only, never persisted', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+
+      // Install the request-interception spy only AFTER reaching step 5 — the page's own mocked
+      // init fetches (config/household/paperless, none of which are preferences-related) already
+      // ran during mount via the jest.unstable_mockModule mocks above, and asserting "no fetch at
+      // all" would conflate those with the thing this AC actually pins: that a column TOGGLE
+      // specifically never reaches a persistence endpoint. Real backend calls unrelated to the
+      // toggle are allowed to no-op through; only a `/preferences` URL fails the test.
+      const originalFetch = globalThis.fetch;
+      const fetchSpy = jest.fn<typeof fetch>().mockImplementation(async (input) => {
+        if (String(input).includes('/api/users/me/preferences')) {
+          throw new Error('unexpected PATCH to the preferences endpoint from a column toggle');
+        }
+        return new Response('{}', { status: 200 });
+      });
+      globalThis.fetch = fetchSpy;
+      try {
+        for (const label of ['Vendor', 'Invoice No.', 'Usage']) {
+          await user.click(within(columnToggleGroup()).getByLabelText(label));
+        }
+
+        const preferencesCalls = fetchSpy.mock.calls.filter((call) =>
+          String(call[0]).includes('/api/users/me/preferences'),
+        );
+        expect(preferencesCalls).toHaveLength(0);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    it('(scenario 38, AC5.1 end-to-end) hiding a column on one use case, then switching use case and returning to step 5, shows every checkbox checked again', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user, 1); // 'claim'
+
+      const vendorBox = within(columnToggleGroup()).getByLabelText('Vendor') as HTMLInputElement;
+      await user.click(vendorBox);
+      expect(vendorBox).not.toBeChecked();
+
+      // Navigate back to step 1 via the desktop stepper nav (clickable up to maxReachedStep=5).
+      await user.click(screen.getByRole('button', { name: 'Report Type' }));
+      await waitFor(() => screen.getByRole('radiogroup'));
+
+      // Select a DIFFERENT use case ('budget-overview', index 0) and walk forward to step 5 again.
+      await goToStep5(user, 0);
+
+      const group = within(columnToggleGroup());
+      for (const box of group.getAllByRole('checkbox')) {
+        expect(box).toBeChecked();
+      }
+    });
   });
 
   // ─── Story #1900: on-demand generation — Download ──────────────────────────────────────────────
@@ -1794,6 +1883,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 500,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [],
             deposits: [],
@@ -1845,6 +1935,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 500,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [],
             deposits: [],
@@ -1954,6 +2045,7 @@ describe('ReportWizardPage', () => {
               allocatedAmount: 1000,
               lineKind: 'invoice',
               isSplit: false,
+              splitKind: null,
               documents: [],
               budgetLines: [
                 {
@@ -2064,6 +2156,7 @@ describe('ReportWizardPage', () => {
               allocatedAmount: 1000,
               lineKind: 'invoice',
               isSplit: false,
+              splitKind: null,
               documents: [],
               budgetLines: [
                 {
@@ -2236,6 +2329,7 @@ describe('ReportWizardPage', () => {
             allocatedAmount: 1000,
             lineKind: 'invoice',
             isSplit: false,
+            splitKind: null,
             documents: [],
             budgetLines: [
               {

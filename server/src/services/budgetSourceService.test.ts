@@ -3323,4 +3323,270 @@ describe('Budget Source Service', () => {
       });
     });
   });
+
+  // ─── #1897 deposit-aware drill-down via getBudgetSourceBudgetLines ──────────
+
+  describe('deposit-aware drill-down — getBudgetSourceBudgetLines (#1897)', () => {
+    /**
+     * Helper: insert a vendor + invoice + invoice_budget_line for a work item budget line.
+     * Uses workItemBudgetId FK. Returns the invoiceId.
+     */
+    function insertInvoiceForWILine(
+      budgetLineId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed',
+    ): string {
+      const ts = new Date(Date.now() + workItemCounter).toISOString();
+      const vendorId = `vendor-1897-wi-${++workItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `1897 WI Vendor ${vendorId}`, createdAt: ts, updatedAt: ts })
+        .run();
+      const invoiceId = `inv-1897-wi-${workItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount,
+          date: '2026-01-01',
+          status,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          workItemBudgetId: budgetLineId,
+          itemizedAmount: amount,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return invoiceId;
+    }
+
+    /**
+     * Helper: insert a deposit for a given invoice.
+     * budgetSourceId defaults to null (untagged), matching the deposit-blind repro scenario.
+     * Returns the deposit ID.
+     */
+    function insertDeposit(
+      invoiceId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed',
+    ): string {
+      const id = `dep-1897-${++workItemCounter}`;
+      const ts = new Date(Date.now() + workItemCounter).toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id,
+          invoiceId,
+          amount,
+          dueDate: '2026-03-01',
+          status,
+          entryType: 'deposit',
+          budgetSourceId: null,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return id;
+    }
+
+    /**
+     * Helper: insert a vendor + invoice + invoice_budget_line for a household item budget line.
+     * Uses householdItemBudgetId FK instead of workItemBudgetId. Returns the invoiceId.
+     */
+    function insertInvoiceForHILine(
+      budgetLineId: string,
+      amount: number,
+      status: 'pending' | 'paid' | 'claimed',
+    ): string {
+      const ts = new Date(Date.now() + householdItemCounter).toISOString();
+      const vendorId = `vendor-1897-hi-${++householdItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `1897 HI Vendor ${vendorId}`, createdAt: ts, updatedAt: ts })
+        .run();
+      const invoiceId = `inv-1897-hi-${householdItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount,
+          date: '2026-01-01',
+          status,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: randomUUID(),
+          invoiceId,
+          householdItemBudgetId: budgetLineId,
+          itemizedAmount: amount,
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      return invoiceId;
+    }
+
+    it('AC1 — reproduction: pending invoice with paid deposit → actualCostPaid = deposit amount (was 0 before fix)', () => {
+      // The broken case: pre-fix, buildWorkItemBudgetLine used deposit-blind SQL that ignored
+      // invoice_deposits entirely, so a pending invoice with a paid €400 deposit returned
+      // actualCostPaid = 0. The fix routes through getInvoiceAggregates (budgetServiceFactory)
+      // which uses computeDepositAwareAggregates.
+      const src = insertRawSource({ name: 'AC1 Pending+Deposit Source', totalAmount: 50000 });
+      const { budgetId } = insertRawWorkItemWithSource(src.id, 1000);
+      const invoiceId = insertInvoiceForWILine(budgetId, 1000, 'pending');
+      insertDeposit(invoiceId, 400, 'paid');
+
+      const result = budgetSourceService.getBudgetSourceBudgetLines(db, src.id);
+
+      expect(result.workItemLines).toHaveLength(1);
+      expect(result.workItemLines[0]!.actualCost).toBe(1000);
+      expect(result.workItemLines[0]!.actualCostPaid).toBeCloseTo(400);
+      expect(result.workItemLines[0]!.hasClaimedInvoice).toBe(false);
+    });
+
+    it('AC2 — pending invoice, no deposits: actualCostPaid = 0, actualCost = invoice amount (no regression)', () => {
+      const src = insertRawSource({ name: 'AC2 Pending No-Deposit Source', totalAmount: 50000 });
+      const { budgetId } = insertRawWorkItemWithSource(src.id, 500);
+      insertInvoiceForWILine(budgetId, 500, 'pending');
+
+      const result = budgetSourceService.getBudgetSourceBudgetLines(db, src.id);
+
+      expect(result.workItemLines[0]!.actualCost).toBe(500);
+      expect(result.workItemLines[0]!.actualCostPaid).toBe(0);
+      expect(result.workItemLines[0]!.hasClaimedInvoice).toBe(false);
+    });
+
+    it('AC3 — paid invoice, no deposits: actualCostPaid = invoice amount (no regression)', () => {
+      const src = insertRawSource({ name: 'AC3 Paid No-Deposit Source', totalAmount: 50000 });
+      const { budgetId } = insertRawWorkItemWithSource(src.id, 800);
+      insertInvoiceForWILine(budgetId, 800, 'paid');
+
+      const result = budgetSourceService.getBudgetSourceBudgetLines(db, src.id);
+
+      expect(result.workItemLines[0]!.actualCost).toBe(800);
+      expect(result.workItemLines[0]!.actualCostPaid).toBeCloseTo(800);
+      expect(result.workItemLines[0]!.hasClaimedInvoice).toBe(false);
+    });
+
+    it('AC4 — claimed invoice, no deposits: hasClaimedInvoice = true, actualCostPaid = invoice amount', () => {
+      // actualCostPaid includes both 'paid' and 'claimed' contributions per depositAggregateUtils.
+      const src = insertRawSource({ name: 'AC4 Claimed Source', totalAmount: 50000 });
+      const { budgetId } = insertRawWorkItemWithSource(src.id, 600);
+      insertInvoiceForWILine(budgetId, 600, 'claimed');
+
+      const result = budgetSourceService.getBudgetSourceBudgetLines(db, src.id);
+
+      expect(result.workItemLines[0]!.hasClaimedInvoice).toBe(true);
+      expect(result.workItemLines[0]!.actualCostPaid).toBeCloseTo(600);
+      expect(result.workItemLines[0]!.actualCost).toBe(600);
+    });
+
+    it('AC5 — pending invoice with claimed deposit: hasClaimedInvoice = true, actualCostPaid = deposit amount', () => {
+      // Deposit is claimed → the deposit fraction contributes to actualCostClaimed,
+      // flipping hasClaimedInvoice = true even though the invoice itself is pending.
+      const src = insertRawSource({ name: 'AC5 Claimed-Deposit Source', totalAmount: 50000 });
+      const { budgetId } = insertRawWorkItemWithSource(src.id, 1000);
+      const invoiceId = insertInvoiceForWILine(budgetId, 1000, 'pending');
+      insertDeposit(invoiceId, 300, 'claimed');
+
+      const result = budgetSourceService.getBudgetSourceBudgetLines(db, src.id);
+
+      expect(result.workItemLines[0]!.hasClaimedInvoice).toBe(true);
+      expect(result.workItemLines[0]!.actualCostPaid).toBeCloseTo(300);
+      expect(result.workItemLines[0]!.actualCost).toBe(1000);
+    });
+
+    it('AC6 — household item variant: pending invoice with paid deposit → actualCostPaid = deposit amount', () => {
+      // Verifies the deposit-aware path through buildHouseholdItemBudgetLine, which uses
+      // getInvoiceAggregates with 'household_item_budget_id' as the FK column.
+      const src = insertRawSource({ name: 'AC6 HI Source', totalAmount: 50000 });
+      const { budgetId } = insertRawHouseholdItemWithSource(src.id, 1200);
+      const invoiceId = insertInvoiceForHILine(budgetId, 1200, 'pending');
+      insertDeposit(invoiceId, 500, 'paid');
+
+      const result = budgetSourceService.getBudgetSourceBudgetLines(db, src.id);
+
+      expect(result.householdItemLines).toHaveLength(1);
+      expect(result.householdItemLines[0]!.actualCost).toBe(1200);
+      expect(result.householdItemLines[0]!.actualCostPaid).toBeCloseTo(500);
+      expect(result.householdItemLines[0]!.hasClaimedInvoice).toBe(false);
+    });
+
+    it('AC8 — claimed invoice fully covered by paid deposits still sets hasClaimedInvoice = true', () => {
+      // Edge case for the hasClaimedInvoice fix (issue #1897):
+      // When a claimed invoice is 100% covered by paid (not claimed) deposits,
+      // residualFraction = 0, so actualCostClaimed = 0.
+      // Old logic (actualCostClaimed > 0) would incorrectly return hasClaimedInvoice = false.
+      // New logic checks rows.some(r => r.invoice_status === 'claimed' || r.deposit_status === 'claimed'),
+      // which sees invoice_status = 'claimed' and correctly returns true.
+      const src = insertRawSource({ name: 'AC8 Claimed+PaidDeposit Source', totalAmount: 50000 });
+      const { budgetId } = insertRawWorkItemWithSource(src.id, 1000);
+      const invoiceId = insertInvoiceForWILine(budgetId, 1000, 'claimed');
+      insertDeposit(invoiceId, 1000, 'paid'); // fully covers the invoice → residualFraction = 0
+
+      const result = budgetSourceService.getBudgetSourceBudgetLines(db, src.id);
+
+      expect(result.workItemLines).toHaveLength(1);
+      // residualFraction = 0, so the residual portion contributes 0 to actualCostClaimed,
+      // but the paid deposit contributes its full amount to actualCostPaid.
+      expect(result.workItemLines[0]!.actualCost).toBe(1000);
+      expect(result.workItemLines[0]!.actualCostPaid).toBeCloseTo(1000);
+      // The invoice IS claimed — hasClaimedInvoice must be true regardless of actualCostClaimed.
+      expect(result.workItemLines[0]!.hasClaimedInvoice).toBe(true);
+    });
+
+    it('AC7 — rider regression: computeDiscretionaryInvoiceAmount passes status through correctly for status="paid"', () => {
+      // The rider fix changed `new Set([status === 'claimed' ? 'claimed' : 'paid'])` to
+      // `new Set([status])`. For the two caller-supplied values ('paid', 'claimed') the behavior
+      // is identical, so this is a regression guard only.
+      // Exercises Rail B of computeDiscretionaryInvoiceAmount via getBudgetSourceById on the
+      // seeded discretionary-system source with a pending invoice + paid tagged deposit.
+      // Additional coverage exists in 'Rail B — tagged deposits (Story #1891)' >
+      // 'discretionary variant: tagged deposit on the discretionary source'.
+      const ts = new Date(Date.now() + workItemCounter).toISOString();
+      const vendorId = `vendor-ac7-${++workItemCounter}`;
+      db.insert(schema.vendors)
+        .values({ id: vendorId, name: `AC7 Rider Vendor`, createdAt: ts, updatedAt: ts })
+        .run();
+      const invoiceId = `inv-ac7-${workItemCounter}`;
+      db.insert(schema.invoices)
+        .values({
+          id: invoiceId,
+          vendorId,
+          amount: 1000,
+          date: '2026-01-01',
+          status: 'pending',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+      const depositAmount = 250;
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id: `dep-ac7-${workItemCounter}`,
+          invoiceId,
+          amount: depositAmount,
+          dueDate: '2026-03-01',
+          status: 'paid',
+          entryType: 'deposit',
+          budgetSourceId: 'discretionary-system',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+
+      // getBudgetSourceById calls getSourceAmounts which, for the discretionary source,
+      // calls computeDiscretionaryInvoiceAmount(db, 'paid') → Rail B picks up the tagged deposit.
+      const disc = budgetSourceService.getBudgetSourceById(db, 'discretionary-system');
+      expect(disc.unclaimedAmount).toBeCloseTo(depositAmount);
+      expect(disc.claimedAmount).toBe(0);
+    });
+  });
 });

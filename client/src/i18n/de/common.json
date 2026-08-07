@@ -154,7 +154,8 @@
       "ariaLabel": "Spalteneinstellungen",
       "title": "Sichtbare Spalten",
       "resetToDefaults": "Standardeinstellungen wiederherstellen",
-      "dragHandleAriaLabel": "{{column}}-Spalte zum Neuanordnen ziehen"
+      "dragHandleAriaLabel": "{{column}}-Spalte zum Neuanordnen ziehen",
+      "saveError": "Spalteneinstellungen konnten nicht gespeichert werden"
     },
     "pagination": {
       "showing": "Zeige {{from}}–{{to}} von {{total}} Einträgen",
