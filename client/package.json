@@ -26,7 +26,7 @@
     "@babel/core": "7.29.7",
     "@babel/preset-react": "7.29.7",
     "@babel/preset-typescript": "7.29.7",
-    "@types/fontkit": "2.0.4",
+    "@types/fontkit": "2.0.9",
     "@types/pdfmake": "0.3.3",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
@@ -40,6 +40,6 @@
     "style-loader": "4.0.0",
     "webpack": "5.109.2",
     "webpack-cli": "7.2.2",
-    "webpack-dev-server": "6.0.0"
+    "webpack-dev-server": "^6.0.0"
   }
 }
