@@ -19,12 +19,12 @@
     "retryButton": "Erneut versuchen",
     "errorMessage": "Weitere Einträge konnten nicht geladen werden.",
     "endOfList": "Sie haben das Ende erreicht – keine weiteren Einträge vorhanden.",
-    "initialLoadAnnouncementSingular": "{{count}} Eintrag geladen",
-    "initialLoadAnnouncementPlural": "{{count}} Einträge geladen",
-    "batchAppendedAnnouncementSingular": "{{count}} weiterer Eintrag geladen",
-    "batchAppendedAnnouncementPlural": "{{count}} weitere Einträge geladen",
-    "batchAppendedAndEndAnnouncementSingular": "{{count}} weiterer Eintrag geladen. Sie haben das Ende erreicht.",
-    "batchAppendedAndEndAnnouncementPlural": "{{count}} weitere Einträge geladen. Sie haben das Ende erreicht."
+    "initialLoadAnnouncement_one": "{{count}} Eintrag geladen",
+    "initialLoadAnnouncement_other": "{{count}} Einträge geladen",
+    "batchAppendedAnnouncement_one": "{{count}} weiterer Eintrag geladen",
+    "batchAppendedAnnouncement_other": "{{count}} weitere Einträge geladen",
+    "batchAppendedAndEndAnnouncement_one": "{{count}} weiterer Eintrag geladen. Sie haben das Ende erreicht.",
+    "batchAppendedAndEndAnnouncement_other": "{{count}} weitere Einträge geladen. Sie haben das Ende erreicht."
   },
   "filterBar": {
     "search": "Einträge durchsuchen...",

@@ -19,12 +19,12 @@
     "retryButton": "Retry",
     "errorMessage": "Failed to load more entries.",
     "endOfList": "You've reached the end — no more entries to load.",
-    "initialLoadAnnouncementSingular": "{{count}} entry loaded",
-    "initialLoadAnnouncementPlural": "{{count}} entries loaded",
-    "batchAppendedAnnouncementSingular": "{{count}} more entry loaded",
-    "batchAppendedAnnouncementPlural": "{{count}} more entries loaded",
-    "batchAppendedAndEndAnnouncementSingular": "{{count}} more entry loaded. You've reached the end.",
-    "batchAppendedAndEndAnnouncementPlural": "{{count}} more entries loaded. You've reached the end."
+    "initialLoadAnnouncement_one": "{{count}} entry loaded",
+    "initialLoadAnnouncement_other": "{{count}} entries loaded",
+    "batchAppendedAnnouncement_one": "{{count}} more entry loaded",
+    "batchAppendedAnnouncement_other": "{{count}} more entries loaded",
+    "batchAppendedAndEndAnnouncement_one": "{{count}} more entry loaded. You've reached the end.",
+    "batchAppendedAndEndAnnouncement_other": "{{count}} more entries loaded. You've reached the end."
   },
   "filterBar": {
     "search": "Search entries...",

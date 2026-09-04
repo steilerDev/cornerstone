@@ -144,18 +144,16 @@ export default function DiaryPage() {
 
   useEffect(() => {
     if (fetchSequence === 0 || !announcementRef.current) return;
-    const suffix = lastBatchCount === 1 ? 'Singular' : 'Plural';
     if (fetchSequence === 1) {
-      announcementRef.current.textContent = t(`infiniteScroll.initialLoadAnnouncement${suffix}`, {
+      announcementRef.current.textContent = t('infiniteScroll.initialLoadAnnouncement', {
         count: lastBatchCount,
       });
     } else if (!hasMore) {
-      announcementRef.current.textContent = t(
-        `infiniteScroll.batchAppendedAndEndAnnouncement${suffix}`,
-        { count: lastBatchCount },
-      );
+      announcementRef.current.textContent = t('infiniteScroll.batchAppendedAndEndAnnouncement', {
+        count: lastBatchCount,
+      });
     } else {
-      announcementRef.current.textContent = t(`infiniteScroll.batchAppendedAnnouncement${suffix}`, {
+      announcementRef.current.textContent = t('infiniteScroll.batchAppendedAnnouncement', {
         count: lastBatchCount,
       });
     }
