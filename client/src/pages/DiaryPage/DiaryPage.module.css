@@ -69,21 +69,6 @@
   overflow: hidden;
 }
 
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-4);
-  margin-top: var(--spacing-6);
-}
-
-.pageInfo {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  min-width: 150px;
-  text-align: center;
-}
-
 /* Responsive */
 @media (max-width: 767px) {
   .page {
@@ -119,15 +104,6 @@
   .exportButton {
     width: 100%;
     min-height: 44px;
-  }
-
-  .pagination {
-    flex-direction: column;
-    gap: var(--spacing-2);
-  }
-
-  .pageInfo {
-    min-width: auto;
   }
 }
 

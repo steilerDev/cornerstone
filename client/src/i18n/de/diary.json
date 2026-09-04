@@ -12,10 +12,19 @@
   },
   "loading": "Einträge werden geladen...",
   "error": "Fehler beim Laden von Tagebucheinträgen. Bitte versuchen Sie es erneut.",
-  "pagination": {
-    "previous": "Zurück",
-    "next": "Weiter",
-    "pageInfo": "Seite {{currentPage}} von {{totalPages}}"
+  "infiniteScroll": {
+    "loadingMore": "Weitere Einträge werden geladen…",
+    "loadingMoreAriaLabel": "Weitere Tagebucheinträge werden geladen",
+    "loadMoreButton": "Mehr laden",
+    "retryButton": "Erneut versuchen",
+    "errorMessage": "Weitere Einträge konnten nicht geladen werden.",
+    "endOfList": "Sie haben das Ende erreicht – keine weiteren Einträge vorhanden.",
+    "initialLoadAnnouncement_one": "{{count}} Eintrag geladen",
+    "initialLoadAnnouncement_other": "{{count}} Einträge geladen",
+    "batchAppendedAnnouncement_one": "{{count}} weiterer Eintrag geladen",
+    "batchAppendedAnnouncement_other": "{{count}} weitere Einträge geladen",
+    "batchAppendedAndEndAnnouncement_one": "{{count}} weiterer Eintrag geladen. Sie haben das Ende erreicht.",
+    "batchAppendedAndEndAnnouncement_other": "{{count}} weitere Einträge geladen. Sie haben das Ende erreicht."
   },
   "filterBar": {
     "search": "Einträge durchsuchen...",

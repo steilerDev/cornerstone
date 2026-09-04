@@ -110,6 +110,10 @@ New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + depos
 
 - [Non-mandatory register](non-mandatory-register-1941.md) — no semicolon anywhere in de locale files, use en dash "–" as clause joiner instead; avoid "Grenze"/negated "müssen" when spec bans error-blame framing; sr-only strings have no pixel budget
 
+## Singular/Plural Key Splits
+
+- [Singular/plural announcement split #2060](singular-plural-announcement-split-2060.md) — German strong-declension rule ("weiterer Eintrag" vs "weitere Einträge") when splitting a count+adjective+noun string into *Singular/*Plural pairs
+
 ## Audit Protocol History
 
 - [Audit pitfalls](audit-pitfalls.md) — incident history behind the mandatory 4-step full-coverage audit protocol: a parity-only audit missed 13 code-referenced keys (Area UI raw-key bug); loose substring greps flagged 52 false positives
