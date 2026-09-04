@@ -123,6 +123,6 @@ describe('InfiniteScrollFooter', () => {
   it('the sentinel div has zero width/height via its CSS module class', () => {
     renderFooter({ status: 'idle' });
 
-    expect(screen.getByTestId('infinite-scroll-sentinel')).toHaveClass(styles.sentinel);
+    expect(screen.getByTestId('infinite-scroll-sentinel')).toHaveClass(styles.sentinel!);
   });
 });
