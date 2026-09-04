@@ -13,14 +13,16 @@
  * - A live region (role="status") that announces loaded entry count and batch-append/end-of-list
  *   status (Issue #2060)
  * - Infinite scroll (Issue #2060): the numbered pager is gone entirely (no `?page=` URL param, no
- *   prev/next buttons). `InfiniteScrollFooter` (data-testid="diary-infinite-scroll-footer") is
- *   rendered only when `entries.length > 0`, containing (in DOM order): a 0-dimension
- *   `aria-hidden` sentinel (data-testid="infinite-scroll-sentinel") observed via
- *   IntersectionObserver to auto-trigger the next batch; a `FormError` banner (role="alert") on
- *   `status === 'error'`; and either the always-present "Load more"/"Retry" button
- *   (data-testid="diary-load-more-button", same DOM node across idle/loading/error states, only
- *   unmounted once `status === 'done'`) or the end-of-list message
- *   (data-testid="diary-end-of-list") once done.
+ *   prev/next buttons). `InfiniteScrollFooter` is a generic component parameterized by a
+ *   `testIdPrefix` prop (`DiaryPage` passes `testIdPrefix="diary"`), so all its testids are
+ *   `diary-*`: root container `data-testid="diary-footer"`, rendered only when
+ *   `entries.length > 0`, containing (in DOM order): a 0-dimension `aria-hidden` sentinel
+ *   (data-testid="diary-sentinel") observed via IntersectionObserver to auto-trigger the next
+ *   batch; a `FormError` banner (role="alert") on `status === 'error'`; and either the
+ *   always-present "Load more"/"Retry" button (data-testid="diary-load-more-button", same DOM
+ *   node across idle/loading/error states, only unmounted once `status === 'done'` — its own
+ *   inline `Spinner` is the ONLY loading indicator now, the separate standalone loading status
+ *   row was removed) or the end-of-list message (data-testid="diary-end-of-list") once done.
  *
  * Key DOM observations from source:
  * - h1 has class styles.title (CSS module), not a data-testid; use role heading
@@ -113,12 +115,15 @@ export class DiaryPage {
     this.errorBanner = page.locator('[class*="bannerError"]');
 
     // Infinite scroll footer (Issue #2060) — replaces the numbered pager entirely.
+    // InfiniteScrollFooter is generic, parameterized by a `testIdPrefix` prop; DiaryPage passes
+    // testIdPrefix="diary", so its root container is data-testid="diary-footer" (NOT
+    // "diary-infinite-scroll-footer" — that was the pre-genericization hardcoded testid).
     // Rendered only when entries.length > 0; footerError is scoped to the footer's own
     // role="alert" banner so it never matches the page-level errorBanner above.
     this.loadMoreButton = page.getByTestId('diary-load-more-button');
     this.endOfListMessage = page.getByTestId('diary-end-of-list');
-    this.infiniteScrollSentinel = page.getByTestId('infinite-scroll-sentinel');
-    this.footerError = page.getByTestId('diary-infinite-scroll-footer').getByRole('alert');
+    this.infiniteScrollSentinel = page.getByTestId('diary-sentinel');
+    this.footerError = page.getByTestId('diary-footer').getByRole('alert');
   }
 
   /**

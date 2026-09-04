@@ -75,7 +75,9 @@ export default function DiaryPage() {
     });
   }, [debouncedSearchInput, setSearchParams]);
 
-  const fetchDiaryPage = async (page: number): Promise<InfiniteScrollPage<DiaryEntrySummary>> => {
+  const fetchDiaryPage = async (
+    page: number,
+  ): Promise<InfiniteScrollPage<DiaryEntrySummary, { totalItems: number }>> => {
     // Determine which types to query based on filter mode
     let queriableTypes: DiaryEntryType[] = activeTypes;
     if (filterMode === 'manual') {
@@ -98,24 +100,21 @@ export default function DiaryPage() {
             ] as const as unknown as DiaryEntryType[]);
     }
 
-    try {
-      const response = await listDiaryEntries({
-        page,
-        pageSize: PAGE_SIZE,
-        q: searchQuery || undefined,
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
-        type: queriableTypes.length > 0 ? queriableTypes.join(',') : undefined,
-        status: statusFilter || undefined,
-      });
+    const response = await listDiaryEntries({
+      page,
+      pageSize: PAGE_SIZE,
+      q: searchQuery || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      type: queriableTypes.length > 0 ? queriableTypes.join(',') : undefined,
+      status: statusFilter || undefined,
+    });
 
-      setTotalItems(response.pagination.totalItems);
-      setError('');
-      return { items: response.items, hasMore: page < response.pagination.totalPages };
-    } catch (err) {
-      setError(err instanceof ApiClientError ? err.error.message : t('error'));
-      throw err;
-    }
+    return {
+      items: response.items,
+      hasMore: page < response.pagination.totalPages,
+      meta: { totalItems: response.pagination.totalItems },
+    };
   };
 
   const resetKey = `${searchQuery}|${dateFrom}|${dateTo}|${filterMode}|${typeFilterStr}|${statusFilter}`;
@@ -129,22 +128,34 @@ export default function DiaryPage() {
     sentinelRef,
     loadMore,
     retry,
-  } = useInfiniteScroll<DiaryEntrySummary>({ fetchPage: fetchDiaryPage, resetKey });
+  } = useInfiniteScroll<DiaryEntrySummary, { totalItems: number }>({
+    fetchPage: fetchDiaryPage,
+    resetKey,
+    onPageApplied: (meta) => {
+      if (meta) setTotalItems(meta.totalItems);
+      setError('');
+    },
+    onPageFailed: (err) => {
+      setError(err instanceof ApiClientError ? err.error.message : t('error'));
+    },
+  });
 
   const showInitialLoading = status === 'loading' && entries.length === 0;
 
   useEffect(() => {
     if (fetchSequence === 0 || !announcementRef.current) return;
+    const suffix = lastBatchCount === 1 ? 'Singular' : 'Plural';
     if (fetchSequence === 1) {
-      announcementRef.current.textContent = t('infiniteScroll.initialLoadAnnouncement', {
+      announcementRef.current.textContent = t(`infiniteScroll.initialLoadAnnouncement${suffix}`, {
         count: lastBatchCount,
       });
     } else if (!hasMore) {
-      announcementRef.current.textContent = t('infiniteScroll.batchAppendedAndEndAnnouncement', {
-        count: lastBatchCount,
-      });
+      announcementRef.current.textContent = t(
+        `infiniteScroll.batchAppendedAndEndAnnouncement${suffix}`,
+        { count: lastBatchCount },
+      );
     } else {
-      announcementRef.current.textContent = t('infiniteScroll.batchAppendedAnnouncement', {
+      announcementRef.current.textContent = t(`infiniteScroll.batchAppendedAnnouncement${suffix}`, {
         count: lastBatchCount,
       });
     }
@@ -312,10 +323,16 @@ export default function DiaryPage() {
       {entries.length > 0 && (
         <InfiniteScrollFooter
           status={status}
-          hasMore={hasMore}
+          loadingLabel={t('infiniteScroll.loadingMore')}
+          loadingAriaLabel={t('infiniteScroll.loadingMoreAriaLabel')}
+          loadMoreLabel={t('infiniteScroll.loadMoreButton')}
+          retryLabel={t('infiniteScroll.retryButton')}
+          errorMessage={t('infiniteScroll.errorMessage')}
+          endOfListMessage={t('infiniteScroll.endOfList')}
           sentinelRef={sentinelRef}
           onLoadMore={loadMore}
           onRetry={retry}
+          testIdPrefix="diary"
         />
       )}
     </div>

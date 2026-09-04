@@ -378,6 +378,155 @@ describe('useInfiniteScroll', () => {
     expect(result.current.fetchSequence).toBe(1);
   });
 
+  it('resets fetchSequence to 1 (not accumulated) and lastBatchCount to the new batch size after a resetKey change', async () => {
+    const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+    fetchPage.mockResolvedValueOnce(page(['a', 'b', 'c'], true)); // k1 page 1: sequence -> 1, count -> 3
+    fetchPage.mockResolvedValueOnce(page(['x'], false)); // k2 page 1: should read as a fresh sequence 1
+
+    const { result, rerender } = renderHook(
+      ({ resetKey }: { resetKey: string }) => useInfiniteScroll({ fetchPage, resetKey }),
+      { initialProps: { resetKey: 'k1' } },
+    );
+    await waitFor(() => expect(result.current.fetchSequence).toBe(1));
+    expect(result.current.lastBatchCount).toBe(3);
+
+    rerender({ resetKey: 'k2' });
+
+    await waitFor(() => expect(result.current.items).toEqual(['x']));
+    // Not 2 — the reset zeroes fetchSequence/lastBatchCount before the new key's own
+    // first fetch is applied, so this reads as a genuine "first batch" again.
+    expect(result.current.fetchSequence).toBe(1);
+    expect(result.current.lastBatchCount).toBe(1);
+  });
+
+  // ─── onPageApplied / onPageFailed callbacks ──────────────────────────────────
+
+  describe('onPageApplied / onPageFailed', () => {
+    it('calls onPageApplied exactly once with (meta, page) on a normal, non-superseded success', async () => {
+      const fetchPage =
+        jest.fn<(p: number) => Promise<InfiniteScrollPage<string, { total: number }>>>();
+      fetchPage.mockResolvedValueOnce({ items: ['a'], hasMore: true, meta: { total: 42 } });
+      fetchPage.mockResolvedValueOnce({ items: ['b'], hasMore: false, meta: { total: 43 } });
+
+      const onPageApplied = jest.fn();
+      const { result } = renderHook(() =>
+        useInfiniteScroll({ fetchPage, resetKey: 'k', onPageApplied }),
+      );
+
+      await waitFor(() => expect(onPageApplied).toHaveBeenCalledTimes(1));
+      expect(onPageApplied).toHaveBeenNthCalledWith(1, { total: 42 }, 1);
+
+      act(() => result.current.loadMore());
+
+      await waitFor(() => expect(onPageApplied).toHaveBeenCalledTimes(2));
+      expect(onPageApplied).toHaveBeenNthCalledWith(2, { total: 43 }, 2);
+    });
+
+    it('calls onPageFailed exactly once with (error, page) on a normal, non-superseded failure', async () => {
+      const err = new Error('boom');
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockResolvedValueOnce(page(['a'], true));
+      fetchPage.mockRejectedValueOnce(err);
+
+      const onPageFailed = jest.fn();
+      const { result } = renderHook(() =>
+        useInfiniteScroll({ fetchPage, resetKey: 'k', onPageFailed }),
+      );
+      await waitFor(() => expect(result.current.status).toBe('idle'));
+
+      act(() => result.current.loadMore());
+      await waitFor(() => expect(result.current.status).toBe('error'));
+
+      expect(onPageFailed).toHaveBeenCalledTimes(1);
+      expect(onPageFailed).toHaveBeenCalledWith(err, 2);
+    });
+
+    it('works with onPageApplied/onPageFailed omitted — no throw on success or failure', async () => {
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockResolvedValueOnce(page(['a'], true));
+      fetchPage.mockRejectedValueOnce(new Error('boom'));
+
+      const { result } = renderHook(() => useInfiniteScroll({ fetchPage, resetKey: 'k' }));
+      await waitFor(() => expect(result.current.status).toBe('idle'));
+
+      act(() => result.current.loadMore());
+      await waitFor(() => expect(result.current.status).toBe('error'));
+    });
+
+    it('does not call onPageApplied for a stale fetch that resolves after a resetKey change', async () => {
+      let resolveStale: ((v: InfiniteScrollPage<string, { n: number }>) => void) | undefined;
+      const staleDeferred = new Promise<InfiniteScrollPage<string, { n: number }>>((resolve) => {
+        resolveStale = resolve;
+      });
+
+      const fetchPage =
+        jest.fn<(p: number) => Promise<InfiniteScrollPage<string, { n: number }>>>();
+      fetchPage.mockImplementationOnce(() => staleDeferred); // mount under k1, page 1, held open
+      fetchPage.mockResolvedValueOnce({ items: ['new-a'], hasMore: false, meta: { n: 2 } }); // k2 page 1
+
+      const onPageApplied = jest.fn();
+      const { result, rerender } = renderHook(
+        ({ resetKey }: { resetKey: string }) =>
+          useInfiniteScroll({ fetchPage, resetKey, onPageApplied }),
+        { initialProps: { resetKey: 'k1' } },
+      );
+
+      // Still loading under k1 — the deferred mount fetch hasn't resolved yet.
+      expect(result.current.status).toBe('loading');
+      expect(onPageApplied).not.toHaveBeenCalled();
+
+      rerender({ resetKey: 'k2' });
+
+      await waitFor(() => expect(result.current.status).toBe('done'));
+      expect(onPageApplied).toHaveBeenCalledTimes(1);
+      expect(onPageApplied).toHaveBeenCalledWith({ n: 2 }, 1);
+
+      // Now resolve the stale k1 fetch, with DIFFERENT meta.
+      await act(async () => {
+        resolveStale?.({ items: ['stale'], hasMore: true, meta: { n: 999 } });
+        await staleDeferred;
+      });
+
+      // onPageApplied must still have been called exactly once — never for the stale batch.
+      expect(onPageApplied).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not call onPageFailed for a stale fetch that rejects after a resetKey change, and the new key's own success is unaffected", async () => {
+      let rejectStale: ((err: unknown) => void) | undefined;
+      const staleDeferred = new Promise<InfiniteScrollPage<string>>((_resolve, reject) => {
+        rejectStale = reject;
+      });
+
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockImplementationOnce(() => staleDeferred); // mount under k1, page 1, held open
+      fetchPage.mockResolvedValueOnce(page(['new-a'], false)); // k2 page 1
+
+      const onPageApplied = jest.fn();
+      const onPageFailed = jest.fn();
+      const { result, rerender } = renderHook(
+        ({ resetKey }: { resetKey: string }) =>
+          useInfiniteScroll({ fetchPage, resetKey, onPageApplied, onPageFailed }),
+        { initialProps: { resetKey: 'k1' } },
+      );
+
+      rerender({ resetKey: 'k2' });
+
+      await waitFor(() => expect(result.current.status).toBe('done'));
+      expect(onPageApplied).toHaveBeenCalledTimes(1);
+      expect(result.current.items).toEqual(['new-a']);
+
+      await act(async () => {
+        rejectStale?.(new Error('stale failure'));
+        await staleDeferred.catch(() => undefined);
+      });
+
+      expect(onPageFailed).not.toHaveBeenCalled();
+      // The new key's own (already-applied) outcome must be unaffected by the stale rejection.
+      expect(result.current.status).toBe('done');
+      expect(result.current.items).toEqual(['new-a']);
+    });
+  });
+
   // ─── fetchPage identity stability ────────────────────────────────────────────
 
   it('a new fetchPage function identity on re-render (same resetKey) does not trigger a new fetch', async () => {

@@ -3,17 +3,24 @@
  *
  * Unit tests for InfiniteScrollFooter (Issue #2060 — Diary infinite-scroll rework).
  *
- * Real i18n is initialized (via import of app i18n setup) so useTranslation() resolves
- * actual copy from client/src/i18n/en/diary.json, matching the established pattern in
- * PhotoUpload.test.tsx.
+ * The component takes plain string label/message props (no useTranslation of its own —
+ * callers translate and pass the resolved strings), so no i18n bootstrap is needed here.
  */
 import { jest, describe, it, expect } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import '../../i18n/index.js';
 import { InfiniteScrollFooter } from './InfiniteScrollFooter.js';
 import styles from './InfiniteScrollFooter.module.css';
 import type { InfiniteScrollFooterProps } from './InfiniteScrollFooter.js';
+
+const LABELS = {
+  loadingLabel: 'Loading more entries…',
+  loadingAriaLabel: 'Loading more diary entries',
+  loadMoreLabel: 'Load more',
+  retryLabel: 'Retry',
+  errorMessage: 'Failed to load more entries.',
+  endOfListMessage: "You've reached the end — no more entries to load.",
+};
 
 function renderFooter(overrides: Partial<InfiniteScrollFooterProps> = {}) {
   const onLoadMore = jest.fn();
@@ -21,7 +28,7 @@ function renderFooter(overrides: Partial<InfiniteScrollFooterProps> = {}) {
   const sentinelRef = jest.fn();
   const props: InfiniteScrollFooterProps = {
     status: 'idle',
-    hasMore: true,
+    ...LABELS,
     sentinelRef,
     onLoadMore,
     onRetry,
@@ -41,7 +48,7 @@ describe('InfiniteScrollFooter', () => {
     expect(sentinel).toBeInTheDocument();
     expect(sentinel).toHaveAttribute('aria-hidden', 'true');
 
-    const button = screen.getByTestId('diary-load-more-button');
+    const button = screen.getByTestId('infinite-scroll-load-more-button');
     expect(button).toBeEnabled();
     expect(button).toHaveTextContent('Load more');
   });
@@ -50,7 +57,7 @@ describe('InfiniteScrollFooter', () => {
     const user = userEvent.setup();
     const { onLoadMore, onRetry } = renderFooter({ status: 'idle' });
 
-    await user.click(screen.getByTestId('diary-load-more-button'));
+    await user.click(screen.getByTestId('infinite-scroll-load-more-button'));
 
     expect(onLoadMore).toHaveBeenCalledTimes(1);
     expect(onRetry).not.toHaveBeenCalled();
@@ -58,21 +65,16 @@ describe('InfiniteScrollFooter', () => {
 
   // ─── loading ─────────────────────────────────────────────────────────────────
 
-  it('loading: the button is disabled and shows a spinner + "Loading more entries…" inside it', () => {
+  it('loading: the button is disabled and shows a spinner + loadingLabel inside it, with no separate status row', () => {
     renderFooter({ status: 'loading' });
 
-    const button = screen.getByTestId('diary-load-more-button');
+    const button = screen.getByTestId('infinite-scroll-load-more-button');
     expect(button).toBeDisabled();
     expect(button).toHaveTextContent('Loading more entries…');
-  });
 
-  it('loading: a separate status row also renders a spinner + "Loading more entries…"', () => {
-    renderFooter({ status: 'loading' });
-
-    // Two occurrences of the loading copy: one inside the button, one in the status row.
-    expect(screen.getAllByText('Loading more entries…')).toHaveLength(2);
-    // The status-row spinner carries the dedicated aria-label; the button's spinner
-    // uses the Spinner default label ("Loading").
+    // Exactly one occurrence of the loading copy — the standalone status row
+    // (duplicated rendering) was removed; only the button's own label remains.
+    expect(screen.getAllByText('Loading more entries…')).toHaveLength(1);
     expect(screen.getByRole('img', { name: 'Loading more diary entries' })).toBeInTheDocument();
   });
 
@@ -88,7 +90,7 @@ describe('InfiniteScrollFooter', () => {
   it('error: the button is enabled and labeled "Retry"', () => {
     renderFooter({ status: 'error' });
 
-    const button = screen.getByTestId('diary-load-more-button');
+    const button = screen.getByTestId('infinite-scroll-load-more-button');
     expect(button).toBeEnabled();
     expect(button).toHaveTextContent('Retry');
   });
@@ -97,7 +99,7 @@ describe('InfiniteScrollFooter', () => {
     const user = userEvent.setup();
     const { onLoadMore, onRetry } = renderFooter({ status: 'error' });
 
-    await user.click(screen.getByTestId('diary-load-more-button'));
+    await user.click(screen.getByTestId('infinite-scroll-load-more-button'));
 
     expect(onRetry).toHaveBeenCalledTimes(1);
     expect(onLoadMore).not.toHaveBeenCalled();
@@ -106,15 +108,15 @@ describe('InfiniteScrollFooter', () => {
   // ─── done ────────────────────────────────────────────────────────────────────
 
   it('done: the button is absent', () => {
-    renderFooter({ status: 'done', hasMore: false });
+    renderFooter({ status: 'done' });
 
-    expect(screen.queryByTestId('diary-load-more-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('infinite-scroll-load-more-button')).not.toBeInTheDocument();
   });
 
   it('done: renders the end-of-list row with the exact copy and testid', () => {
-    renderFooter({ status: 'done', hasMore: false });
+    renderFooter({ status: 'done' });
 
-    const endOfList = screen.getByTestId('diary-end-of-list');
+    const endOfList = screen.getByTestId('infinite-scroll-end-of-list');
     expect(endOfList).toHaveTextContent("You've reached the end — no more entries to load.");
   });
 
@@ -124,5 +126,32 @@ describe('InfiniteScrollFooter', () => {
     renderFooter({ status: 'idle' });
 
     expect(screen.getByTestId('infinite-scroll-sentinel')).toHaveClass(styles.sentinel!);
+  });
+
+  // ─── testIdPrefix ────────────────────────────────────────────────────────────
+
+  describe('testIdPrefix', () => {
+    it('defaults to "infinite-scroll" when omitted', () => {
+      renderFooter({ status: 'idle' });
+
+      expect(screen.getByTestId('infinite-scroll-footer')).toBeInTheDocument();
+      expect(screen.getByTestId('infinite-scroll-sentinel')).toBeInTheDocument();
+      expect(screen.getByTestId('infinite-scroll-load-more-button')).toBeInTheDocument();
+
+      renderFooter({ status: 'done' });
+      expect(screen.getByTestId('infinite-scroll-end-of-list')).toBeInTheDocument();
+    });
+
+    it('applies a custom prefix to all four testids, proving the component is reusable by a second consumer', () => {
+      renderFooter({ status: 'idle', testIdPrefix: 'widget' });
+
+      expect(screen.getByTestId('widget-footer')).toBeInTheDocument();
+      expect(screen.getByTestId('widget-sentinel')).toBeInTheDocument();
+      expect(screen.getByTestId('widget-load-more-button')).toBeInTheDocument();
+      expect(screen.queryByTestId('infinite-scroll-footer')).not.toBeInTheDocument();
+
+      renderFooter({ status: 'done', testIdPrefix: 'widget' });
+      expect(screen.getByTestId('widget-end-of-list')).toBeInTheDocument();
+    });
   });
 });

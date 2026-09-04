@@ -171,9 +171,12 @@ describe('DiaryPage', () => {
 
   it('uses singular "entry" when totalItems is 1', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('1')]));
-    renderPage();
+    // Scoped to the .subtitle element specifically: the infinite-scroll live region
+    // also announces "1 entry loaded" on the same page (initialLoadAnnouncementSingular),
+    // which would otherwise collide with a bare /1 entry/i text query.
+    const { container } = renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/1 entry/i)).toBeInTheDocument();
+      expect(container.querySelector('.subtitle')).toHaveTextContent(/1\s*entry\b/i);
     });
   });
 
@@ -494,7 +497,7 @@ describe('DiaryPage', () => {
       });
     });
 
-    it('announces via the "more entries loaded" copy (not the end-of-list copy) when hasMore remains true after an append', async () => {
+    it('announces via the singular "more entry loaded" copy (not the end-of-list copy) when hasMore remains true after an append', async () => {
       const user = userEvent.setup();
       mockListDiaryEntries.mockResolvedValueOnce({
         items: [makeSummary('p1-1')],
@@ -513,10 +516,96 @@ describe('DiaryPage', () => {
       await user.click(screen.getByTestId('diary-load-more-button'));
 
       await waitFor(() => {
-        expect(screen.getByRole('status')).toHaveTextContent('1 more entries loaded');
+        // count === 1 selects the singular grammar key ("entry", not "entries").
+        expect(screen.getByRole('status')).toHaveTextContent('1 more entry loaded');
       });
       // Still more pages after this batch — must not use the end-of-list announcement.
       expect(screen.getByRole('status')).not.toHaveTextContent(/reached the end/i);
+    });
+
+    it("after appending additional batches for one filter, changing filters announces the new filter's first batch via initial-load phrasing (not appended phrasing)", async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('f1-1'), makeSummary('f1-2')],
+        pagination: { page: 1, pageSize: 25, totalPages: 2, totalItems: 40 },
+      });
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('f1-3')],
+        pagination: { page: 2, pageSize: 25, totalPages: 2, totalItems: 40 },
+      });
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('f2-1'), makeSummary('f2-2')],
+        pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: 2 },
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-f1-1')).toBeInTheDocument();
+      });
+
+      // Append a second batch for the first filter — uses "appended" phrasing (covered above).
+      await user.click(screen.getByTestId('diary-load-more-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-f1-3')).toBeInTheDocument();
+      });
+      expect(screen.getByRole('status')).toHaveTextContent(/more entr(y|ies) loaded/i);
+
+      // Change filters (dateFrom) — resets fetchSequence, so the new filter's first
+      // successful load must read as fetchSequence === 1 again.
+      fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '2026-01-01' } });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-f2-1')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('diary-card-f2-2')).toBeInTheDocument();
+      expect(screen.queryByTestId('diary-card-f1-1')).not.toBeInTheDocument();
+
+      const status = screen.getByRole('status');
+      // initialLoadAnnouncementPlural: "{{count}} entries loaded" (count=2) — not "more ... loaded".
+      expect(status).toHaveTextContent('2 entries loaded');
+      expect(status).not.toHaveTextContent(/more entr(y|ies) loaded/i);
+    });
+
+    it("when a slow first (pre-filter-change) response resolves after a fast second (post-filter-change) response, the header subtitle reflects only the current filter's totalItems", async () => {
+      const user = userEvent.setup();
+      let resolveSlow: ((v: DiaryEntryListResponse) => void) | undefined;
+      const slowPromise = new Promise<DiaryEntryListResponse>((resolve) => {
+        resolveSlow = resolve;
+      });
+
+      // Initial mount fetch — held open, never resolves until we say so.
+      mockListDiaryEntries.mockImplementationOnce(() => slowPromise);
+      // Post-search-change fetch — resolves immediately, with a DIFFERENT totalItems.
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('new-1')],
+        pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: 7 },
+      });
+
+      const { container } = renderPage();
+
+      // Change filters before the slow initial-mount request resolves.
+      await user.type(screen.getByTestId('diary-search-input'), 'foo');
+
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('diary-card-new-1')).toBeInTheDocument();
+        },
+        { timeout: 2000 },
+      );
+      expect(container.querySelector('.subtitle')).toHaveTextContent(/7\s*entries/i);
+
+      // Now let the stale slow response resolve, with a totally different totalItems.
+      await act(async () => {
+        resolveSlow?.({
+          items: [makeSummary('old-1')],
+          pagination: { page: 1, pageSize: 25, totalPages: 1, totalItems: 999 },
+        });
+        await slowPromise;
+      });
+
+      // The stale (epoch-superseded) response must not clobber the current filter's count.
+      expect(container.querySelector('.subtitle')).toHaveTextContent(/7\s*entries/i);
+      expect(container.querySelector('.subtitle')).not.toHaveTextContent(/999/);
     });
 
     it('toggling an entry type chip while in manual mode restricts the query to the manual/type intersection and removes the page param', async () => {

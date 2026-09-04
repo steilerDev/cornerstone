@@ -5,25 +5,39 @@ const INFINITE_SCROLL_LOOKAHEAD_PX = 600;
 
 export type InfiniteScrollStatus = 'idle' | 'loading' | 'error' | 'done';
 
-export interface InfiniteScrollPage<T> {
+export interface InfiniteScrollPage<T, M = undefined> {
   items: T[];
   /** true if more pages remain after this one */
   hasMore: boolean;
+  /** Optional page-level metadata (e.g. a server-reported total item count). */
+  meta?: M;
 }
 
-export interface UseInfiniteScrollOptions<T> {
+export interface UseInfiniteScrollOptions<T, M = undefined> {
   /**
    * Fetches one batch for the given 1-based page number. Must reject (throw)
    * on failure. Read via a ref internally so a new function identity each
    * render does NOT retrigger a fetch — only `resetKey` changes do.
    */
-  fetchPage: (page: number) => Promise<InfiniteScrollPage<T>>;
+  fetchPage: (page: number) => Promise<InfiniteScrollPage<T, M>>;
   /**
    * Changing this value resets to a fresh first batch: clears items, resets
    * the page counter to 1, and re-fetches. Derive it from the active
    * filters/search (e.g. a `|`-joined string of the filter primitives).
    */
   resetKey: string;
+  /**
+   * Called once a successful fetch's result has been confirmed current (i.e. not
+   * superseded by a resetKey change) and applied to `items`/`hasMore`/`status`.
+   * Use this — not side effects inside `fetchPage` itself — for any state a stale,
+   * discarded batch must not be allowed to affect (e.g. a total-count display).
+   */
+  onPageApplied?: (meta: M | undefined, page: number) => void;
+  /**
+   * Called when a fetch for the given page fails, only if that failure is still
+   * current (i.e. not superseded by a resetKey change).
+   */
+  onPageFailed?: (error: unknown, page: number) => void;
 }
 
 export interface UseInfiniteScrollResult<T> {
@@ -42,10 +56,12 @@ export interface UseInfiniteScrollResult<T> {
   retry: () => void;
 }
 
-export function useInfiniteScroll<T>({
+export function useInfiniteScroll<T, M = undefined>({
   fetchPage,
   resetKey,
-}: UseInfiniteScrollOptions<T>): UseInfiniteScrollResult<T> {
+  onPageApplied,
+  onPageFailed,
+}: UseInfiniteScrollOptions<T, M>): UseInfiniteScrollResult<T> {
   const [items, setItems] = useState<T[]>([]);
   const [status, setStatus] = useState<InfiniteScrollStatus>('loading');
   const [hasMore, setHasMore] = useState(true);
@@ -55,6 +71,12 @@ export function useInfiniteScroll<T>({
 
   const fetchPageRef = useRef(fetchPage);
   fetchPageRef.current = fetchPage;
+
+  const onPageAppliedRef = useRef(onPageApplied);
+  onPageAppliedRef.current = onPageApplied;
+
+  const onPageFailedRef = useRef(onPageFailed);
+  onPageFailedRef.current = onPageFailed;
 
   const pageRef = useRef(1);
   const inFlightRef = useRef(false);
@@ -77,9 +99,11 @@ export function useInfiniteScroll<T>({
       pageRef.current = page + 1;
       setLastBatchCount(result.items.length);
       setFetchSequence((prev) => prev + 1);
-    } catch {
+      onPageAppliedRef.current?.(result.meta, page);
+    } catch (err) {
       if (epoch === epochRef.current) {
         setStatus('error');
+        onPageFailedRef.current?.(err, page);
       }
     } finally {
       inFlightRef.current = false;
@@ -112,6 +136,8 @@ export function useInfiniteScroll<T>({
     setItems([]);
     setHasMore(true);
     setStatus('loading');
+    setFetchSequence(0);
+    setLastBatchCount(0);
     void runFetch(1, epoch);
   }, [resetKey, runFetch]);
   /* eslint-enable @eslint-react/set-state-in-effect */
