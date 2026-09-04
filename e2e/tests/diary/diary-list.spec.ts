@@ -10,7 +10,9 @@
  * 4.  Entry created via API appears in the timeline
  * 5.  Date grouping — entries on different dates render separate date headers
  * 6.  Search filter finds a specific entry
- * 7.  "Next" pagination button fetches page 2 (mock API)
+ * 7.  Infinite scroll replaces the numbered pager (Issue #2060) — auto-load on scroll,
+ *     keyboard-only "Load more", full pager removal, dedupe under fast scroll, end-of-list,
+ *     empty state, filter/search reset, error+retry, legacy ?page= bookmarks, dark mode
  * 8.  Entry card click navigates to the detail page
  * 9.  Type switcher filters to manual-only entries (mock API)
  * 10. Responsive — no horizontal scroll on current viewport (@responsive)
@@ -360,50 +362,253 @@ test.describe('Search filter (Scenario 6)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7: "Next" pagination button fetches page 2 (mock API)
+// Scenario 7: Infinite scroll replaces the numbered pager (Issue #2060)
+//
+// The pager (prev/next buttons, ?page= URL param) is gone entirely. Older entries now
+// load via IntersectionObserver-driven auto-append (useInfiniteScroll) plus an always
+// -present keyboard-reachable "Load more"/"Retry" button (InfiniteScrollFooter). Both
+// paths call the same loadMore()/retry() functions from the hook, so there is exactly
+// one code path per action. See client/src/hooks/useInfiniteScroll.ts and
+// client/src/components/InfiniteScrollFooter/InfiniteScrollFooter.tsx.
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Pagination (Scenario 7)', () => {
-  test('Pagination controls are visible when totalPages > 1', async ({ page }) => {
+test.describe('Infinite scroll (Scenario 7)', () => {
+  test.describe('Auto-load on scroll', { tag: '@responsive' }, () => {
+    test(
+      'Scrolling near the bottom automatically loads and appends the next batch',
+      { tag: '@smoke' },
+      async ({ page }) => {
+        const diaryPage = new DiaryPage(page);
+
+        const page1Entries = Array.from({ length: 25 }, (_, i) =>
+          makeMockEntry({
+            id: `is-p1-${i}`,
+            title: `Batch 1 Entry ${String(i + 1).padStart(2, '0')}`,
+          }),
+        );
+        const page2Entries = Array.from({ length: 25 }, (_, i) =>
+          makeMockEntry({
+            id: `is-p2-${i}`,
+            title: `Batch 2 Entry ${String(i + 1).padStart(2, '0')}`,
+          }),
+        );
+
+        await page.route('**/api/diary-entries*', async (route) => {
+          if (route.request().method() !== 'GET') {
+            await route.continue();
+            return;
+          }
+          const requestedPage = new URL(route.request().url()).searchParams.get('page');
+          const body =
+            requestedPage === '2'
+              ? makePaginatedResponse(page2Entries, { page: 2, totalItems: 50, totalPages: 2 })
+              : makePaginatedResponse(page1Entries, { totalItems: 50, totalPages: 2 });
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(body),
+          });
+        });
+
+        try {
+          await diaryPage.goto();
+          await diaryPage.waitForLoaded();
+
+          await expect(diaryPage.entryCard('is-p1-0')).toBeVisible();
+          await expect(diaryPage.entryCard('is-p2-0')).toHaveCount(0);
+
+          const page2ResponsePromise = page.waitForResponse(
+            (resp) =>
+              resp.url().includes('/api/diary-entries') &&
+              new URL(resp.url()).searchParams.get('page') === '2',
+          );
+          await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+          await page2ResponsePromise;
+
+          // The original page-1 cards must remain mounted — appending never replaces them.
+          await expect(diaryPage.entryCard('is-p1-0')).toBeVisible();
+          await expect(diaryPage.entryCard('is-p2-0')).toBeVisible();
+          await expect(diaryPage.endOfListMessage).toBeVisible();
+
+          // No pagination-style URL state is ever introduced.
+          expect(new URL(page.url()).searchParams.has('page')).toBe(false);
+        } finally {
+          await page.unroute('**/api/diary-entries*');
+        }
+      },
+    );
+  });
+
+  test('"Load more" button loads the next batch via keyboard alone, with no scroll', async ({
+    page,
+  }) => {
     const diaryPage = new DiaryPage(page);
 
-    // Return a multi-page response so the pagination bar renders
-    const entries = Array.from({ length: 25 }, (_, i) =>
-      makeMockEntry({
-        id: `pag-entry-${i}`,
-        title: `Paginated Entry ${String(i + 1).padStart(2, '0')}`,
-      }),
-    );
+    const page1Entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `kbd-p1-${i}` }));
+    const page2Entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `kbd-p2-${i}` }));
 
     await page.route('**/api/diary-entries*', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify(makePaginatedResponse(entries, { totalItems: 50, totalPages: 2 })),
-        });
-      } else {
+      if (route.request().method() !== 'GET') {
         await route.continue();
+        return;
       }
+      const requestedPage = new URL(route.request().url()).searchParams.get('page');
+      const body =
+        requestedPage === '2'
+          ? makePaginatedResponse(page2Entries, { page: 2, totalItems: 50, totalPages: 2 })
+          : makePaginatedResponse(page1Entries, { totalItems: 50, totalPages: 2 });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
     });
 
     try {
       await diaryPage.goto();
       await diaryPage.waitForLoaded();
 
-      await expect(diaryPage.prevPageButton).toBeVisible();
-      await expect(diaryPage.nextPageButton).toBeVisible();
+      await expect(diaryPage.loadMoreButton).toBeVisible();
+      await diaryPage.loadMoreButton.focus();
+      await expect(diaryPage.loadMoreButton).toBeFocused();
 
-      // Previous button disabled on page 1
-      await expect(diaryPage.prevPageButton).toBeDisabled();
+      // A visible focus outline (box-shadow ring, per shared.btnSecondary:focus-visible) must be
+      // present in both light and dark mode — never a plain/missing outline.
+      const lightFocusBoxShadow = await diaryPage.loadMoreButton.evaluate(
+        (el) => getComputedStyle(el).boxShadow,
+      );
+      expect(lightFocusBoxShadow).not.toBe('none');
 
-      // Next button enabled on page 1
-      await expect(diaryPage.nextPageButton).toBeEnabled();
+      await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+      const darkFocusBoxShadow = await diaryPage.loadMoreButton.evaluate(
+        (el) => getComputedStyle(el).boxShadow,
+      );
+      expect(darkFocusBoxShadow).not.toBe('none');
+      await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+
+      // No mouse/scroll interaction at all — just focus + Enter.
+      const page2ResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/diary-entries') &&
+          new URL(resp.url()).searchParams.get('page') === '2',
+      );
+      await page.keyboard.press('Enter');
+      await page2ResponsePromise;
+
+      await expect(diaryPage.entryCard('kbd-p2-0')).toBeVisible();
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
   });
 
-  test('Pagination is not shown when all entries fit on one page', async ({ page }) => {
+  test('No pagination controls remain anywhere on the page — full removal, not just hidden', async ({
+    page,
+  }) => {
+    const diaryPage = new DiaryPage(page);
+
+    await diaryPage.goto();
+    await diaryPage.waitForLoaded();
+
+    await expect(page.getByTestId('prev-page-button')).toHaveCount(0);
+    await expect(page.getByTestId('next-page-button')).toHaveCount(0);
+  });
+
+  test('Fast repeated scrolling does not issue duplicate requests for the same batch (best-effort)', async ({
+    page,
+  }) => {
+    const diaryPage = new DiaryPage(page);
+
+    const page1Entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `dd-p1-${i}` }));
+    const page2Entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `dd-p2-${i}` }));
+    let pageTwoRequestCount = 0;
+
+    await page.route('**/api/diary-entries*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      const requestedPage = new URL(route.request().url()).searchParams.get('page');
+      if (requestedPage === '2') {
+        pageTwoRequestCount += 1;
+        // Artificial delay so multiple rapid scroll triggers land while the fetch is in flight.
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(
+            makePaginatedResponse(page2Entries, { page: 2, totalItems: 50, totalPages: 2 }),
+          ),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          makePaginatedResponse(page1Entries, { totalItems: 50, totalPages: 2 }),
+        ),
+      });
+    });
+
+    try {
+      await diaryPage.goto();
+      await diaryPage.waitForLoaded();
+
+      const page2ResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/diary-entries') &&
+          new URL(resp.url()).searchParams.get('page') === '2',
+      );
+
+      // Fire several scroll-to-bottom events in quick succession, well within the 500ms
+      // in-flight window for the page-2 request.
+      for (let i = 0; i < 5; i++) {
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await page.waitForTimeout(50);
+      }
+
+      await page2ResponsePromise;
+      expect(pageTwoRequestCount).toBe(1);
+      await expect(diaryPage.entryCard('dd-p2-0')).toBeVisible();
+    } finally {
+      await page.unroute('**/api/diary-entries*');
+    }
+  });
+
+  test('A dataset smaller than one batch reaches end-of-list immediately with no second request', async ({
+    page,
+  }) => {
+    const diaryPage = new DiaryPage(page);
+    let requestCount = 0;
+
+    await page.route('**/api/diary-entries*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      requestCount += 1;
+      const entries = Array.from({ length: 5 }, (_, i) => makeMockEntry({ id: `small-${i}` }));
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(makePaginatedResponse(entries, { totalItems: 5, totalPages: 1 })),
+      });
+    });
+
+    try {
+      await diaryPage.goto();
+      await diaryPage.waitForLoaded();
+
+      await expect(diaryPage.endOfListMessage).toBeVisible();
+      await expect(diaryPage.loadMoreButton).toHaveCount(0);
+      expect(requestCount).toBe(1);
+    } finally {
+      await page.unroute('**/api/diary-entries*');
+    }
+  });
+
+  test('Zero matching entries renders the empty state with no footer, sentinel, or load-more control', async ({
+    page,
+  }) => {
     const diaryPage = new DiaryPage(page);
 
     await page.route('**/api/diary-entries*', async (route) => {
@@ -411,9 +616,7 @@ test.describe('Pagination (Scenario 7)', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify(
-            makePaginatedResponse([makeMockEntry()], { totalItems: 1, totalPages: 1 }),
-          ),
+          body: JSON.stringify(makePaginatedResponse([])),
         });
       } else {
         await route.continue();
@@ -422,14 +625,346 @@ test.describe('Pagination (Scenario 7)', () => {
 
     try {
       await diaryPage.goto();
-      await diaryPage.waitForLoaded();
 
-      // Pagination buttons are not rendered when totalPages === 1
-      await expect(diaryPage.prevPageButton).not.toBeVisible();
-      await expect(diaryPage.nextPageButton).not.toBeVisible();
+      await expect(diaryPage.emptyState).toBeVisible();
+      await expect(diaryPage.loadMoreButton).toHaveCount(0);
+      await expect(diaryPage.infiniteScrollSentinel).toHaveCount(0);
+      await expect(diaryPage.endOfListMessage).toHaveCount(0);
     } finally {
       await page.unroute('**/api/diary-entries*');
     }
+  });
+
+  test('Changing a filter mid-scroll discards the old batches and loads a fresh first batch', async ({
+    page,
+  }) => {
+    const diaryPage = new DiaryPage(page);
+
+    const manualPage1 = Array.from({ length: 25 }, (_, i) =>
+      makeMockEntry({ id: `flt-man1-${i}` }),
+    );
+    const manualPage2 = Array.from({ length: 25 }, (_, i) =>
+      makeMockEntry({ id: `flt-man2-${i}` }),
+    );
+    const automaticEntries = [makeMockEntry({ id: 'flt-auto-0', entryType: 'work_item_status' })];
+
+    await page.route('**/api/diary-entries*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      const url = new URL(route.request().url());
+      const typeParam = url.searchParams.get('type') ?? '';
+      const requestedPage = url.searchParams.get('page');
+
+      if (typeParam.includes('work_item_status')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(
+            makePaginatedResponse(automaticEntries, { totalItems: 1, totalPages: 1 }),
+          ),
+        });
+        return;
+      }
+
+      const body =
+        requestedPage === '2'
+          ? makePaginatedResponse(manualPage2, { page: 2, totalItems: 50, totalPages: 2 })
+          : makePaginatedResponse(manualPage1, { totalItems: 50, totalPages: 2 });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
+    });
+
+    try {
+      await diaryPage.goto();
+      await diaryPage.waitForLoaded();
+      await diaryPage.scrollToLoadMore();
+
+      await expect(diaryPage.entryCard('flt-man1-0')).toBeVisible();
+      await expect(diaryPage.entryCard('flt-man2-0')).toBeVisible();
+
+      await diaryPage.openFiltersIfCollapsed();
+      const automaticResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/diary-entries') &&
+          new URL(resp.url()).searchParams.get('type')?.includes('work_item_status') === true,
+      );
+      await page.getByTestId('mode-filter-automatic').click();
+      await automaticResponsePromise;
+      await diaryPage.waitForLoaded();
+
+      // Old manual-mode batches are discarded, not just visually hidden.
+      await expect(diaryPage.entryCard('flt-man1-0')).toHaveCount(0);
+      await expect(diaryPage.entryCard('flt-man2-0')).toHaveCount(0);
+      await expect(diaryPage.entryCard('flt-auto-0')).toBeVisible();
+
+      const count = await diaryPage.getEntryCount();
+      expect(count).toBe(1);
+    } finally {
+      await page.unroute('**/api/diary-entries*');
+    }
+  });
+
+  test('Typing a search query resets the list and the URL never gains a page param', async ({
+    page,
+  }) => {
+    const diaryPage = new DiaryPage(page);
+
+    const page1Entries = Array.from({ length: 25 }, (_, i) =>
+      makeMockEntry({ id: `srch-p1-${i}` }),
+    );
+    const page2Entries = Array.from({ length: 25 }, (_, i) =>
+      makeMockEntry({ id: `srch-p2-${i}` }),
+    );
+
+    await page.route('**/api/diary-entries*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      const requestedPage = new URL(route.request().url()).searchParams.get('page');
+      const body =
+        requestedPage === '2'
+          ? makePaginatedResponse(page2Entries, { page: 2, totalItems: 50, totalPages: 2 })
+          : makePaginatedResponse(page1Entries, { totalItems: 50, totalPages: 2 });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
+    });
+
+    try {
+      await diaryPage.goto();
+      await diaryPage.waitForLoaded();
+      await diaryPage.scrollToLoadMore();
+
+      expect(new URL(page.url()).searchParams.has('page')).toBe(false);
+
+      await diaryPage.search('mock search query');
+
+      expect(page.url()).toContain('q=');
+      expect(new URL(page.url()).searchParams.has('page')).toBe(false);
+    } finally {
+      await page.unroute('**/api/diary-entries*');
+    }
+  });
+
+  test('A failed batch shows an error with retry at the footer, and retry appends the batch exactly once', async ({
+    page,
+  }) => {
+    const diaryPage = new DiaryPage(page);
+
+    const page1Entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `err-p1-${i}` }));
+    const page2Entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `err-p2-${i}` }));
+    let pageTwoRequestCount = 0;
+
+    await page.route('**/api/diary-entries*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      const requestedPage = new URL(route.request().url()).searchParams.get('page');
+      if (requestedPage === '2') {
+        pageTwoRequestCount += 1;
+        if (pageTwoRequestCount === 1) {
+          await route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'Server error' } }),
+          });
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(
+            makePaginatedResponse(page2Entries, { page: 2, totalItems: 50, totalPages: 2 }),
+          ),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(
+          makePaginatedResponse(page1Entries, { totalItems: 50, totalPages: 2 }),
+        ),
+      });
+    });
+
+    try {
+      await diaryPage.goto();
+      await diaryPage.waitForLoaded();
+
+      const failedResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/diary-entries') &&
+          new URL(resp.url()).searchParams.get('page') === '2',
+      );
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await failedResponsePromise;
+
+      await expect(diaryPage.footerError).toBeVisible();
+      // Every already-loaded entry remains on screen.
+      await expect(diaryPage.entryCard('err-p1-0')).toBeVisible();
+
+      // Scrolling again while errored must not re-issue the request (AC15).
+      const requestsBeforeExtraScroll = pageTwoRequestCount;
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await page.waitForTimeout(300);
+      expect(pageTwoRequestCount).toBe(requestsBeforeExtraScroll);
+
+      // Retry re-requests the same batch; on success it appends with no duplicates.
+      const retryResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/diary-entries') &&
+          new URL(resp.url()).searchParams.get('page') === '2' &&
+          resp.status() === 200,
+      );
+      await diaryPage.loadMoreButton.click();
+      await retryResponsePromise;
+
+      await expect(diaryPage.entryCard('err-p1-0')).toBeVisible();
+      await expect(diaryPage.entryCard('err-p2-0')).toHaveCount(1);
+      await expect(diaryPage.endOfListMessage).toBeVisible();
+      expect(pageTwoRequestCount).toBe(2);
+    } finally {
+      await page.unroute('**/api/diary-entries*');
+    }
+  });
+
+  test('An old /diary?page=3 bookmark loads normally from the first batch with no error', async ({
+    page,
+  }) => {
+    const diaryPage = new DiaryPage(page);
+    const entries = Array.from({ length: 5 }, (_, i) => makeMockEntry({ id: `bm-${i}` }));
+    const requestedPages: (string | null)[] = [];
+
+    await page.route('**/api/diary-entries*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      requestedPages.push(new URL(route.request().url()).searchParams.get('page'));
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(makePaginatedResponse(entries, { totalItems: 5, totalPages: 1 })),
+      });
+    });
+
+    try {
+      await page.goto(`${DIARY_ROUTE}?page=3`);
+      await diaryPage.heading.waitFor({ state: 'visible' });
+      await diaryPage.waitForLoaded();
+
+      await expect(diaryPage.heading).toBeVisible();
+      await expect(diaryPage.errorBanner).not.toBeVisible();
+      await expect(diaryPage.entryCard('bm-0')).toBeVisible();
+
+      // The internal batch counter always starts at 1, regardless of a stale ?page= value.
+      expect(requestedPages[0]).toBe('1');
+    } finally {
+      await page.unroute('**/api/diary-entries*');
+    }
+  });
+
+  test.describe('Dark mode', { tag: '@responsive' }, () => {
+    test('Loading-error and end-of-list footer states render correctly in dark mode', async ({
+      page,
+    }) => {
+      const diaryPage = new DiaryPage(page);
+
+      const page1Entries = Array.from({ length: 25 }, (_, i) =>
+        makeMockEntry({ id: `dm-p1-${i}` }),
+      );
+      const page2Entries = Array.from({ length: 25 }, (_, i) =>
+        makeMockEntry({ id: `dm-p2-${i}` }),
+      );
+      let pageTwoAttempts = 0;
+
+      await page.route('**/api/diary-entries*', async (route) => {
+        if (route.request().method() !== 'GET') {
+          await route.continue();
+          return;
+        }
+        const requestedPage = new URL(route.request().url()).searchParams.get('page');
+        if (requestedPage === '2') {
+          pageTwoAttempts += 1;
+          if (pageTwoAttempts === 1) {
+            await route.fulfill({
+              status: 500,
+              contentType: 'application/json',
+              body: JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'Server error' } }),
+            });
+            return;
+          }
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(
+              makePaginatedResponse(page2Entries, { page: 2, totalItems: 50, totalPages: 2 }),
+            ),
+          });
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(
+            makePaginatedResponse(page1Entries, { totalItems: 50, totalPages: 2 }),
+          ),
+        });
+      });
+
+      try {
+        await page.goto(DIARY_ROUTE);
+        await page.evaluate(() => {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        });
+        await diaryPage.heading.waitFor({ state: 'visible' });
+        await diaryPage.waitForLoaded();
+
+        const failedResponsePromise = page.waitForResponse(
+          (resp) =>
+            resp.url().includes('/api/diary-entries') &&
+            new URL(resp.url()).searchParams.get('page') === '2',
+        );
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+        await failedResponsePromise;
+
+        await expect(diaryPage.footerError).toBeVisible();
+        const loadMoreClass = await diaryPage.loadMoreButton.getAttribute('class');
+        expect(loadMoreClass).toContain('btnSecondary');
+
+        let hasHorizontalScroll = await page.evaluate(
+          () => document.documentElement.scrollWidth > window.innerWidth,
+        );
+        expect(hasHorizontalScroll).toBe(false);
+
+        const successResponsePromise = page.waitForResponse(
+          (resp) =>
+            resp.url().includes('/api/diary-entries') &&
+            new URL(resp.url()).searchParams.get('page') === '2' &&
+            resp.status() === 200,
+        );
+        await diaryPage.loadMoreButton.click();
+        await successResponsePromise;
+
+        await expect(diaryPage.endOfListMessage).toBeVisible();
+        hasHorizontalScroll = await page.evaluate(
+          () => document.documentElement.scrollWidth > window.innerWidth,
+        );
+        expect(hasHorizontalScroll).toBe(false);
+      } finally {
+        await page.unroute('**/api/diary-entries*');
+      }
+    });
   });
 });
 

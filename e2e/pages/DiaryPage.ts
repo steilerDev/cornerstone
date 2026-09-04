@@ -10,8 +10,17 @@
  * - A timeline of DiaryDateGroup sections (data-testid="date-group-{date}"), each containing
  *   DiaryEntryCard links (data-testid="diary-card-{id}")
  * - An empty state (class emptyState from shared.module.css) with a "Create your first entry" link
- * - A live region (role="status") that announces loaded entry count
- * - Pagination: "Previous"/"Next" buttons (data-testid: prev-page-button / next-page-button)
+ * - A live region (role="status") that announces loaded entry count and batch-append/end-of-list
+ *   status (Issue #2060)
+ * - Infinite scroll (Issue #2060): the numbered pager is gone entirely (no `?page=` URL param, no
+ *   prev/next buttons). `InfiniteScrollFooter` (data-testid="diary-infinite-scroll-footer") is
+ *   rendered only when `entries.length > 0`, containing (in DOM order): a 0-dimension
+ *   `aria-hidden` sentinel (data-testid="infinite-scroll-sentinel") observed via
+ *   IntersectionObserver to auto-trigger the next batch; a `FormError` banner (role="alert") on
+ *   `status === 'error'`; and either the always-present "Load more"/"Retry" button
+ *   (data-testid="diary-load-more-button", same DOM node across idle/loading/error states, only
+ *   unmounted once `status === 'done'`) or the end-of-list message
+ *   (data-testid="diary-end-of-list") once done.
  *
  * Key DOM observations from source:
  * - h1 has class styles.title (CSS module), not a data-testid; use role heading
@@ -22,7 +31,6 @@
  * - Search input: data-testid="diary-search-input" (also id="diary-search")
  * - Type chips: data-testid="type-filter-{type}"
  * - Clear filters: data-testid="clear-filters-button"
- * - Pagination buttons: data-testid="prev-page-button" / data-testid="next-page-button"
  * - Draft badge on entry card: data-testid="draft-badge-{id}"
  * - Draft entries link to /diary/:id/edit (not /diary/:id)
  * - Drafts chip: data-testid="status-filter-drafts" with aria-pressed="true" (default, shows all)
@@ -60,9 +68,11 @@ export class DiaryPage {
   // Error banner
   readonly errorBanner: Locator;
 
-  // Pagination
-  readonly prevPageButton: Locator;
-  readonly nextPageButton: Locator;
+  // Infinite scroll footer (Issue #2060) — replaces the numbered pager
+  readonly loadMoreButton: Locator;
+  readonly endOfListMessage: Locator;
+  readonly infiniteScrollSentinel: Locator;
+  readonly footerError: Locator;
 
   // "Drafts" toggle chip — data-testid="status-filter-drafts" (added in #1446)
   // aria-pressed="true"  → all entries shown (default)
@@ -102,8 +112,13 @@ export class DiaryPage {
 
     this.errorBanner = page.locator('[class*="bannerError"]');
 
-    this.prevPageButton = page.getByTestId('prev-page-button');
-    this.nextPageButton = page.getByTestId('next-page-button');
+    // Infinite scroll footer (Issue #2060) — replaces the numbered pager entirely.
+    // Rendered only when entries.length > 0; footerError is scoped to the footer's own
+    // role="alert" banner so it never matches the page-level errorBanner above.
+    this.loadMoreButton = page.getByTestId('diary-load-more-button');
+    this.endOfListMessage = page.getByTestId('diary-end-of-list');
+    this.infiniteScrollSentinel = page.getByTestId('infinite-scroll-sentinel');
+    this.footerError = page.getByTestId('diary-infinite-scroll-footer').getByRole('alert');
   }
 
   /**
@@ -137,6 +152,24 @@ export class DiaryPage {
       this.emptyState.waitFor({ state: 'visible' }),
       this.errorBanner.waitFor({ state: 'visible' }),
     ]);
+  }
+
+  /**
+   * Scroll to the bottom of the page to trigger the infinite-scroll sentinel
+   * (Issue #2060) and wait for either a new /api/diary-entries response or the
+   * end-of-list message to appear — whichever happens first. Mirrors the
+   * waitForLoaded() race pattern above. Does not assert anything itself; callers
+   * that need to inspect the specific response (e.g. asserting a page number or
+   * status code) should register their own `page.waitForResponse` before calling
+   * this, since this helper's own listener is not exposed.
+   * No explicit timeout — uses project-level actionTimeout.
+   */
+  async scrollToLoadMore(): Promise<void> {
+    const responsePromise = this.page
+      .waitForResponse((resp) => resp.url().includes('/api/diary-entries'))
+      .catch(() => null);
+    await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await Promise.race([responsePromise, this.endOfListMessage.waitFor({ state: 'visible' })]);
   }
 
   /**

@@ -2,12 +2,33 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, waitFor, render } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntrySummary } from '@cornerstone/shared';
 import type React from 'react';
+
+/** Renders the current URL's search string into the DOM so tests can assert on
+ * which query params are present/absent without reaching into router internals. */
+function LocationDisplay() {
+  const location = useLocation();
+  return <div data-testid="location-search">{location.search}</div>;
+}
+
+// ── IntersectionObserver stub ────────────────────────────────────────────────
+// jsdom does not implement IntersectionObserver, and useInfiniteScroll (used by
+// DiaryPage) attaches one to its sentinel unconditionally on mount. None of these
+// page-level tests drive the observer directly (that's covered in
+// useInfiniteScroll.test.tsx) — this is just a no-op stub so mounting doesn't throw.
+class NoopIntersectionObserver {
+  observe = jest.fn();
+  disconnect = jest.fn();
+  unobserve = jest.fn();
+  constructor(_cb: IntersectionObserverCallback) {}
+}
+
+let originalIntersectionObserver: typeof IntersectionObserver | undefined;
 
 // ── API mock ──────────────────────────────────────────────────────────────────
 
@@ -106,15 +127,21 @@ describe('DiaryPage', () => {
       DiaryPage = mod.default;
     }
     mockListDiaryEntries.mockReset();
+    originalIntersectionObserver = globalThis.IntersectionObserver;
+    (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
+      NoopIntersectionObserver;
   });
 
   afterEach(() => {
     localStorage.clear();
+    (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver =
+      originalIntersectionObserver;
   });
 
   const renderPage = (initialEntries = ['/diary']) =>
     render(
       <MemoryRouter initialEntries={initialEntries}>
+        <LocationDisplay />
         <DiaryPage />
       </MemoryRouter>,
     );
@@ -133,9 +160,12 @@ describe('DiaryPage', () => {
     mockListDiaryEntries.mockResolvedValueOnce(
       makeListResponse([makeSummary('1'), makeSummary('2')]),
     );
-    renderPage();
+    // Scoped to the .subtitle element specifically: the infinite-scroll live region
+    // also announces "Loaded 2 entries" on the same page, which would otherwise
+    // collide with a bare /2 entries/i text query.
+    const { container } = renderPage();
     await waitFor(() => {
-      expect(screen.getByText(/2 entries/i)).toBeInTheDocument();
+      expect(container.querySelector('.subtitle')).toHaveTextContent(/2\s*entries/i);
     });
   });
 
@@ -245,94 +275,351 @@ describe('DiaryPage', () => {
     });
   });
 
-  // ─── Pagination ──────────────────────────────────────────────────────────────
+  // ─── Infinite scroll (Issue #2060) ───────────────────────────────────────────
 
-  it('shows pagination controls when there are multiple pages', async () => {
-    mockListDiaryEntries.mockResolvedValueOnce({
-      items: [makeSummary('de-1')],
-      pagination: { page: 1, pageSize: 25, totalPages: 3, totalItems: 60 },
-    });
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByTestId('next-page-button')).toBeInTheDocument();
-      expect(screen.getByTestId('prev-page-button')).toBeInTheDocument();
-    });
-  });
+  describe('infinite scroll', () => {
+    it('renders the first batch on mount, and the load-more button is present when hasMore', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('p1-1'), makeSummary('p1-2')],
+        pagination: { page: 1, pageSize: 25, totalPages: 3, totalItems: 60 },
+      });
+      renderPage();
 
-  it('does not show pagination when there is only one page', async () => {
-    mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('de-1')]));
-    renderPage();
-    await waitFor(() => {
-      expect(screen.queryByTestId('next-page-button')).not.toBeInTheDocument();
-    });
-  });
-
-  it('disables the Previous button on the first page', async () => {
-    mockListDiaryEntries.mockResolvedValueOnce({
-      items: [makeSummary('de-1')],
-      pagination: { page: 1, pageSize: 25, totalPages: 3, totalItems: 60 },
-    });
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByTestId('prev-page-button')).toBeDisabled();
-    });
-  });
-
-  it('disables the Next button on the last page', async () => {
-    mockListDiaryEntries.mockResolvedValueOnce({
-      items: [makeSummary('de-1')],
-      pagination: { page: 3, pageSize: 25, totalPages: 3, totalItems: 60 },
-    });
-    // Render with URL param page=3
-    render(
-      <MemoryRouter initialEntries={['/diary?page=3']}>
-        <DiaryPage />
-      </MemoryRouter>,
-    );
-    await waitFor(() => {
-      expect(screen.getByTestId('next-page-button')).toBeDisabled();
-    });
-  });
-
-  // ─── useDebounce migration (#1816): page param not reset on mount ─────────
-  // Regression test for the `isFirstSearchSync` guard around the debounced
-  // search-sync effect. Without it, mounting with both `q` and `page` in the
-  // URL would fire the search-sync effect on mount (since useDebounce returns
-  // its initial value synchronously) and reset `page` back to '1', discarding
-  // the user's pagination position on page load/refresh.
-
-  it('does not reset the page URL param to 1 on initial mount when the URL has both q and page', async () => {
-    // NOTE: mounting with a `page` URL param already produces two fetches by
-    // design, unrelated to this guard: `currentPage` state initializes to 1,
-    // then a separate effect syncs it from the `page` URL param once `urlPage`
-    // is read, triggering a second fetch. That's pre-existing behavior. What
-    // this test guards against is a THIRD, spurious fetch/URL-rewrite from the
-    // debounced-search-sync effect resetting `page` back to '1' on mount
-    // (since useDebounce returns its initial value synchronously, that effect
-    // would otherwise treat the initial `q` value as a "change").
-    mockListDiaryEntries.mockResolvedValue({
-      items: [makeSummary('de-1')],
-      pagination: { page: 3, pageSize: 25, totalPages: 5, totalItems: 120 },
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('diary-card-p1-2')).toBeInTheDocument();
+      expect(screen.getByTestId('diary-load-more-button')).toBeInTheDocument();
     });
 
-    render(
-      <MemoryRouter initialEntries={['/diary?q=foo&page=3']}>
-        <DiaryPage />
-      </MemoryRouter>,
-    );
+    it('does not render the load-more button and shows the end-of-list row when there is only one page', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('de-1')], 1));
+      renderPage();
 
-    // Final rendered state must reflect page 3, not a reset to page 1.
-    await waitFor(() => {
-      expect(screen.getByText('Page 3 of 5')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-de-1')).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('diary-load-more-button')).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-end-of-list')).toBeInTheDocument();
     });
 
-    // The last API call must have requested page 3 with the search query intact
-    // — if the isFirstSearchSync guard were missing, the debounced-search-sync
-    // effect would have rewritten the URL's `page` param back to '1' on mount,
-    // and this final call/render would show page 1 instead.
-    const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
-    expect(lastCall?.[0]?.page).toBe(3);
-    expect(lastCall?.[0]?.q).toBe('foo');
+    it('changing the search query re-fetches from page 1 and discards previously-appended entries; the URL keeps q but never gains a page param', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('old-1')]));
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('new-1')]));
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-old-1')).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByTestId('diary-search-input'), 'foo');
+
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('diary-card-new-1')).toBeInTheDocument();
+        },
+        { timeout: 2000 },
+      );
+      expect(screen.queryByTestId('diary-card-old-1')).not.toBeInTheDocument();
+
+      const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
+      expect(lastCall?.[0]?.q).toBe('foo');
+      expect(lastCall?.[0]?.page).toBe(1);
+
+      const search = screen.getByTestId('location-search').textContent ?? '';
+      expect(search).toContain('q=foo');
+      expect(search).not.toContain('page=');
+    });
+
+    // Regression test for a finding surfaced alongside BUG-2060-1/2060-2: the
+    // debounced-search-sync effect only wrote/deleted the `q` param and did not
+    // delete a stale `page` param already present in the URL (e.g. from a
+    // pre-rework bookmark/shared link), unlike every other filter-change
+    // handler in this file, which all do `newParams.delete('page')`. Fixed by
+    // adding the same `newParams.delete('page')` to that effect.
+    it('typing a search query when the URL already has a stale page param removes it', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('old-1')]));
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('new-1')]));
+
+      renderPage(['/diary?page=3']);
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-old-1')).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByTestId('diary-search-input'), 'foo');
+
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('diary-card-new-1')).toBeInTheDocument();
+        },
+        { timeout: 2000 },
+      );
+
+      const search = screen.getByTestId('location-search').textContent ?? '';
+      expect(search).toContain('q=foo');
+      expect(search).not.toContain('page=');
+    });
+
+    it('clicking the load-more button in idle state fetches page 2 and appends its items below the first batch', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('p1-1')],
+        pagination: { page: 1, pageSize: 25, totalPages: 2, totalItems: 30 },
+      });
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('p2-1')],
+        pagination: { page: 2, pageSize: 25, totalPages: 2, totalItems: 30 },
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('diary-load-more-button'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-p2-1')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+
+      expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
+      expect(mockListDiaryEntries.mock.calls[1]?.[0]?.page).toBe(2);
+    });
+
+    it('shows the full-page error banner when listDiaryEntries rejects on the first call (no entries yet)', async () => {
+      mockListDiaryEntries.mockRejectedValueOnce(new Error('network down'));
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/failed to load diary entries/i)).toBeInTheDocument();
+      });
+      expect(screen.getByText(/failed to load diary entries/i)).toHaveClass('bannerError');
+    });
+
+    it('a failed append fetch shows the footer error banner (not the full-page banner) and keeps the first batch of cards', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('p1-1')],
+        pagination: { page: 1, pageSize: 25, totalPages: 2, totalItems: 30 },
+      });
+      mockListDiaryEntries.mockRejectedValueOnce(new Error('network blip'));
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('diary-load-more-button'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('Failed to load more entries.');
+      });
+      // The full-page banner must not render — entries are still present.
+      expect(screen.queryByText(/failed to load diary entries/i)).not.toBeInTheDocument();
+      expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+    });
+
+    it('visiting with ?page=3&q=foo in the URL loads page-1 semantics, honors q=foo, and does not error', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('foo-1')]));
+
+      render(
+        <MemoryRouter initialEntries={['/diary?page=3&q=foo']}>
+          <LocationDisplay />
+          <DiaryPage />
+        </MemoryRouter>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-foo-1')).toBeInTheDocument();
+      });
+
+      const callArg = mockListDiaryEntries.mock.calls[0]?.[0];
+      expect(callArg?.page).toBe(1);
+      expect(callArg?.q).toBe('foo');
+      expect(screen.queryByText(/failed to load/i)).not.toBeInTheDocument();
+    });
+
+    it('sets aria-busy=true on the timeline only while an append fetch is loading, and the timeline does not exist during the very first load', async () => {
+      let resolveFirst: ((v: DiaryEntryListResponse) => void) | undefined;
+      const firstPromise = new Promise<DiaryEntryListResponse>((resolve) => {
+        resolveFirst = resolve;
+      });
+      let resolveSecond: ((v: DiaryEntryListResponse) => void) | undefined;
+      const secondPromise = new Promise<DiaryEntryListResponse>((resolve) => {
+        resolveSecond = resolve;
+      });
+
+      mockListDiaryEntries.mockImplementationOnce(() => firstPromise);
+      mockListDiaryEntries.mockImplementationOnce(() => secondPromise);
+
+      renderPage();
+
+      // Initial load: entries.length === 0, so the timeline isn't rendered yet.
+      expect(screen.queryByRole('feed')).not.toBeInTheDocument();
+
+      await act(async () => {
+        resolveFirst?.({
+          items: [makeSummary('p1-1')],
+          pagination: { page: 1, pageSize: 25, totalPages: 2, totalItems: 30 },
+        });
+        await firstPromise;
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+      });
+      const timeline = screen.getByRole('feed');
+      expect(timeline).toHaveAttribute('aria-busy', 'false');
+
+      const user = userEvent.setup();
+      await user.click(screen.getByTestId('diary-load-more-button'));
+
+      await waitFor(() => {
+        expect(timeline).toHaveAttribute('aria-busy', 'true');
+      });
+
+      await act(async () => {
+        resolveSecond?.({
+          items: [makeSummary('p2-1')],
+          pagination: { page: 2, pageSize: 25, totalPages: 2, totalItems: 30 },
+        });
+        await secondPromise;
+      });
+
+      await waitFor(() => {
+        expect(timeline).toHaveAttribute('aria-busy', 'false');
+      });
+    });
+
+    it('announces via the "more entries loaded" copy (not the end-of-list copy) when hasMore remains true after an append', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('p1-1')],
+        pagination: { page: 1, pageSize: 25, totalPages: 3, totalItems: 60 },
+      });
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('p2-1')],
+        pagination: { page: 2, pageSize: 25, totalPages: 3, totalItems: 60 },
+      });
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-p1-1')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('diary-load-more-button'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('status')).toHaveTextContent('1 more entries loaded');
+      });
+      // Still more pages after this batch — must not use the end-of-list announcement.
+      expect(screen.getByRole('status')).not.toHaveTextContent(/reached the end/i);
+    });
+
+    it('toggling an entry type chip while in manual mode restricts the query to the manual/type intersection and removes the page param', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('m-1')]));
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('m-2')]));
+
+      renderPage(['/diary']); // default filterMode is 'manual'
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-m-1')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('type-filter-daily_log'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-m-2')).toBeInTheDocument();
+      });
+      const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
+      expect(lastCall?.[0]?.type).toBe('daily_log');
+
+      const search = screen.getByTestId('location-search').textContent ?? '';
+      expect(search).toContain('types=daily_log');
+      expect(search).not.toContain('page=');
+    });
+
+    it('toggling an entry type chip while in automatic mode restricts the query to the automatic/type intersection', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('a-1')]));
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('a-2')]));
+
+      renderPage(['/diary?filterMode=automatic']);
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-a-1')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('type-filter-work_item_status'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-a-2')).toBeInTheDocument();
+      });
+      const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
+      expect(lastCall?.[0]?.type).toBe('work_item_status');
+    });
+
+    it('changing the date-from filter removes the page param and re-fetches from page 1', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('d-1')]));
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('d-2')]));
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-d-1')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '2026-01-01' } });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-d-2')).toBeInTheDocument();
+      });
+      const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
+      expect(lastCall?.[0]?.dateFrom).toBe('2026-01-01');
+      const search = screen.getByTestId('location-search').textContent ?? '';
+      expect(search).not.toContain('page=');
+    });
+
+    it('changing the date-to filter removes the page param and re-fetches from page 1', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('d-1')]));
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('d-2')]));
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-d-1')).toBeInTheDocument();
+      });
+
+      fireEvent.change(screen.getByTestId('diary-date-to'), { target: { value: '2026-02-01' } });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-d-2')).toBeInTheDocument();
+      });
+      const lastCall = mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
+      expect(lastCall?.[0]?.dateTo).toBe('2026-02-01');
+      const search = screen.getByTestId('location-search').textContent ?? '';
+      expect(search).not.toContain('page=');
+    });
+
+    it('clicking a filter-mode chip removes the page param, updates the URL, and re-fetches', async () => {
+      const user = userEvent.setup();
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('fm-1')]));
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('fm-2')]));
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-fm-1')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('mode-filter-automatic'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-fm-2')).toBeInTheDocument();
+      });
+      const search = screen.getByTestId('location-search').textContent ?? '';
+      expect(search).toContain('filterMode=automatic');
+      expect(search).not.toContain('page=');
+    });
   });
 
   // ─── Filter mode changes call API ──────────────────────────────────────────

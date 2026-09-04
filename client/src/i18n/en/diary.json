@@ -12,10 +12,16 @@
   },
   "loading": "Loading entries...",
   "error": "Failed to load diary entries. Please try again.",
-  "pagination": {
-    "previous": "Previous",
-    "next": "Next",
-    "pageInfo": "Page {{currentPage}} of {{totalPages}}"
+  "infiniteScroll": {
+    "loadingMore": "Loading more entries…",
+    "loadingMoreAriaLabel": "Loading more diary entries",
+    "loadMoreButton": "Load more",
+    "retryButton": "Retry",
+    "errorMessage": "Failed to load more entries.",
+    "endOfList": "You've reached the end — no more entries to load.",
+    "initialLoadAnnouncement": "{{count}} entries loaded",
+    "batchAppendedAnnouncement": "{{count}} more entries loaded",
+    "batchAppendedAndEndAnnouncement": "{{count}} more entries loaded. You've reached the end."
   },
   "filterBar": {
     "search": "Search entries...",
