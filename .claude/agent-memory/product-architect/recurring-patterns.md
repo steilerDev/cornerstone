@@ -1307,7 +1307,7 @@ next agent away from it. Same page, same round: a quoted constant reference (`MA
 → per-subset `usageChunkChars`) and a "this function **hangs** on `maxChars <= 0`" claim that a prior
 fix had already turned into a throw.
 
-**How to apply:** on any PR that *removes* a limitation, grep the wiki for the limitation's own
+**How to apply:** on any PR that _removes_ a limitation, grep the wiki for the limitation's own
 statement — not just for the API/schema surface the diff touches. Constraint prose lives in ADR
 Consequences and "sharp edge" sections that no schema/contract diff would ever point you at. Bonus
 tell: if the issue body cites a wiki constraint as its motivation, that exact paragraph is the one
@@ -1333,13 +1333,12 @@ filter, which converts a silent omission into a compile error.
 
 Both auth env-var tables documented `OIDC_REDIRECT_URI`; `server/src/plugins/config.ts` never reads it.
 The gate is three vars (`config.ts:142`), and the redirect URI is built per request at
-`server/src/routes/oidc.ts:45` as `externalUrl || \`${request.protocol}://${request.host}\`` +
-`/api/auth/oidc/callback`. Fixed wiki-only.
+`server/src/routes/oidc.ts:45` as `externalUrl || \`${request.protocol}://${request.host}\``+`/api/auth/oidc/callback`. Fixed wiki-only.
 
 **The cheap sweep** (run it whenever you touch an env-var table, it is two commands):
 `grep -oE "getValue\('[A-Z0-9_]+'\)" server/src/plugins/config.ts` gives the authoritative read-set;
-`grep -oE '^\| \`[A-Z][A-Z0-9_]+\`' wiki/<page>.md` gives the documented set; `comm -23` the sorted
-pair. Then `grep -n "enabled when\|If unset\|If either is missing"` — **any sentence that states a
+`grep -oE '^\| \`[A-Z][A-Z0-9_]+\`' wiki/<page>.md`gives the documented set;`comm -23`the sorted
+pair. Then`grep -n "enabled when\|If unset\|If either is missing"` — **any sentence that states a
 variable count or an enablement gate is a second, independent drift surface** that the name-level diff
 cannot see. That is how the "all four OIDC variables" sentence survived.
 
@@ -1360,13 +1359,13 @@ cannot see. That is how the "all four OIDC variables" sentence survived.
   callback URL differently: `oidc.ts:45` uses `externalUrl || request-origin`, `oidc.ts:106` uses the
   request origin unconditionally. openid-client sends the **token-request** `redirect_uri` derived
   from the URL you hand `authorizationCodeGrant` (`index.js:974`, `redirectUri = stripParams(currentUrl)`),
-  so with `EXTERNAL_URL` set and `TRUST_PROXY` unset the two legs send *different* `redirect_uri`
+  so with `EXTERNAL_URL` set and `TRUST_PROXY` unset the two legs send _different_ `redirect_uri`
   values and the provider rejects the exchange with `invalid_grant` (RFC 6749 §4.1.3 requires them to
   be identical). **Backend fix, not a wiki fix** — the wiki paragraph deliberately documents only the
   login leg, because documenting leg 2's derivation as intended behaviour would enshrine the bug.
 
 **Wiki table mechanics (bit me, cost two rounds):** these tables are prettier-padded so every row is
-the *same character width* (auth tables 131; API-Contract Deviation Log 2153 = cells 10/74/780/1276).
+the _same character width_ (auth tables 131; API-Contract Deviation Log 2153 = cells 10/74/780/1276).
 Measure with python `len()`, **never `awk length()`** — awk counts bytes here, and the em-dashes that
 are everywhere in this wiki make a correctly-padded row read 2 bytes long per dash, which looks like a
 padding bug and isn't. Editing a Deviation Log cell means re-padding the cell to its exact column
@@ -1376,12 +1375,12 @@ width, not just swapping the sentence.
 
 Reviewed a docs-site-only PR for technical accuracy (no architecture surface). Everything structural
 checked out — defaults, the startup-failure chain, the setup route's hardcoded 5/15min. The defects
-were all in the gap between *what the prose promises* and *what the code validates*:
+were all in the gap between _what the prose promises_ and _what the code validates_:
 
 - **Hyperlinking a third-party library while enforcing a strict subset of it.** Copy said
   "`AUTH_RATE_LIMIT_WINDOW` in [`ms`](vercel/ms) duration format". `config.ts:364` is a hand-rolled
   regex that rejects `1y`, bare `900000`, `.5h`, `1 msec` — all valid `ms` input shown in that README.
-  Paired with a caution box promising a hard startup failure, the link *invites* the crash it warns
+  Paired with a caution box promising a hard startup failure, the link _invites_ the crash it warns
   about (and the library is named `ms`, so "ms format" reads as "milliseconds" to many). This is the
   reader-facing twin of the #1970 "regex mirroring a third-party grammar" trap: **when docs link the
   upstream spec, the regex's subset becomes a documentation bug, not just a code smell.** Same loose
@@ -1398,11 +1397,11 @@ were all in the gap between *what the prose promises* and *what the code validat
 - **The rate-limit key is per-/64 for IPv6**, not per-address (`rateLimitPlugin.ts` `IPV6_SUBNET = 64`),
   so "keys on the client's IP" is imprecise and shared-bucket guidance isn't NAT-only.
 
-**Method that worked:** execute the validator's regex against every example the prose gives *and*
+**Method that worked:** execute the validator's regex against every example the prose gives _and_
 against examples the linked upstream spec gives — the second set is where the mismatch lives. Verify a
 "fails at startup" claim by walking to the entrypoint (`server.ts` had no try/catch around
-`buildApp()`; the only `try` wrapped `app.listen`) and confirming intermediate `catch` blocks *push
-onto* the error array rather than swallow.
+`buildApp()`; the only `try` wrapped `app.listen`) and confirming intermediate `catch` blocks _push
+onto_ the error array rather than swallow.
 
 ## A guard applied to 1 of N sites of the same hazard — check the finding's own file first (#1912, PR #2028, 2026-08-06)
 
@@ -1425,7 +1424,7 @@ removed two functions above. Same `AttachmentType` union is also interpolated at
 - **Internal asymmetry is the tell:** the same PR argued (correctly, for the `toBcp47Locale` item)
   that "a fix covering two of six would not achieve the finding's stated purpose", then shipped 1 of 2
   for the key-map item. When one item in a batch widens scope on that reasoning, apply the reasoning
-  to the *other* items before approving.
+  to the _other_ items before approving.
 - **Don't ask for 15 hand-written `Record` maps.** The generalisation is one small generic
   (`unionKeyMap<T extends string>(prefix, Record<T, true>)`); leave the shape to the follow-up.
 - **Residual gap the `Record` does NOT close:** union↔map parity is enforced, map↔locale-JSON parity
@@ -1438,16 +1437,16 @@ removed two functions above. Same `AttachmentType` union is also interpolated at
 Making `reportFormatters` required on `buildReportContent` (deleting six dead silent fallbacks) is
 line 230's "when a hazard is enforced only by convention, remove the channel, not the individual
 call", applied to the formatters channel exactly as #2001 applied it to `TFunction`. A runtime throw
-would be worse than *both* alternatives — it converts a silently-degraded bank PDF into an
+would be worse than _both_ alternatives — it converts a silently-degraded bank PDF into an
 export-time crash with no compile-time signal either way. **ADR-034 line 248 already documented the
 6-arg signature with no optionality marker, so the change moved code toward the ADR — no Deviation
-Log row.** The ADR now *under-claims* (invariant 1 at line 206 describes injection as convention where
+Log row.** The ADR now _under-claims_ (invariant 1 at line 206 describes injection as convention where
 it is now compiler-enforced at the `buildReportContent` boundary). Under-claiming is the benign
 direction: note it for the next ADR-034 pass, don't request changes.
 
 **`toBcp47Locale` placement (the "is `formatters.ts` a grab-bag?" question).** Kept it there: all six
 consumers feed the tag straight into `Intl`-backed calls (`getMonthName`/`getDayName`/
-`formatDateForAria` in `calendarUtils`, `formatWeekdayMonthDay`, `createFormatters`), so it *is* the
+`formatDateForAria` in `calendarUtils`, `formatWeekdayMonthDay`, `createFormatters`), so it _is_ the
 boundary `formatters.ts` owns. `GanttHeader`/`CalendarView` already imported it; only `MonthGrid`/
 `WeekGrid` are new importers. The file is mildly grab-baggy already (`computeActualDuration`/
 `computeWorkDuration` are arithmetic, not formatting) and the long-term shape is
@@ -1460,14 +1459,14 @@ only mapper.
 **Checks worth repeating on refactor-only PRs:** `ReturnType<typeof X>` grep before approving a named
 return interface (proves nothing depended on the structural-only relation); `composes:` must be the
 first declaration in the rule and the composed class must not share properties with the composer
-(source order decides, both being single-class selectors); grep the *old* CSS-module class name across
+(source order decides, both being single-class selectors); grep the _old_ CSS-module class name across
 `e2e/` — a POM `[class*="step4Body"]` locator survives a rename as a zero-match locator with Jest green.
 
 ## Fuzz the verbatim ports when a doc comment carries a proof (#1940, PR #2032)
 
 When an AC's whole correctness rests on an induction argument written in a doc comment, a hand-trace
 (mine, plus the dev-team-lead's) is two reads of the same reasoning, not two independent checks.
-Copy the functions verbatim into a throwaway `.mjs` and fuzz the *stated postconditions* across a
+Copy the functions verbatim into a throwaway `.mjs` and fuzz the _stated postconditions_ across a
 parameter space that includes the degenerate guards — 400k cases took under a minute and covered
 the cascade, the mid-list runt, the hard-split path, and the meta-segment boundary at once.
 
@@ -1477,7 +1476,7 @@ author did not consider. Only randomized inputs do that.
 Write the ports, assert the postconditions, `rm` the file before committing. Note that the harness
 must be created with `Write` (the Bash tool refuses heredoc redirects inside a worktree session).
 
-## A safety argument phrased as a *ratio* is falsified by any clamp in the chain (#1940)
+## A safety argument phrased as a _ratio_ is falsified by any clamp in the chain (#1940)
 
 The #1940 ux spec argued the merge stays safe across all 96 subsets because "the threshold-to-ceiling
 ratio stays roughly constant." False: `usageChunkCharsForWidth`'s **one-sided clamp** pins the
@@ -1518,7 +1517,7 @@ optional object prop (`lengthLimit?: { max, hint, overHint?, reachedAnnouncement
 becomes a single discriminant and the compiler enforces the group.
 
 **Why:** same family as "the-prop-landed-is-not-the-prop-is-wired" (#1910/PR #2004), but arriving through
-the *type system* instead of a call site. Optional props that are only correct together are a latent
+the _type system_ instead of a call site. Optional props that are only correct together are a latent
 contract, not a flexible API.
 **How to apply:** when a shared component gains >1 optional prop for ONE feature, ask whether any subset is
 legal. If not, make it one object. Note this is NOT an argument for the component calling
@@ -1531,7 +1530,7 @@ should be kept; only the grouping is wrong.
 `MAX_SAFE_USAGE_CHUNK_CHARS` (650). Three things wrong with that framing: (1) 650 is **not a cliff** —
 `packUsageCellRows` splits the whole cell stream losslessly, so exceeding it costs a continuation row, not
 content; (2) the 150 is **unenforceable** — `areaText` is aggregate-unbounded and `attachmentsNote` has no
-`maxLength` at all, which is *why* the bound was moved to the whole cell; (3) since #1973 the budget is
+`maxLength` at all, which is _why_ the bound was moved to the whole cell; (3) since #1973 the budget is
 **computed** (`usageChunkCharsForWidth`), pinned at 650 only by a one-sided clamp against the narrowest
 subset. #1940's `'… '` marker is orthogonal: it's applied post-packing to rows `i >= 1` only, so a
 single-row cell never gets one and it cannot consume headroom.
@@ -1552,26 +1551,26 @@ Two findings from reviewing the split of `LETTER_SUBJECT_FONT_SIZE` out of `SUBH
 
 **(a) A new test whose assertions duplicate an existing test, under a title that claims more.**
 `pageGeometry.test.ts:98-101` was assertion-for-assertion identical to the pre-existing test at lines
-160-167 (`toBe(93)` + `toBe(Math.ceil(headerFootprint() + 15))`, order swapped) but titled *"PAGE_TOP_MARGIN
-does not depend on letterSubject.fontSize"* — a proposition its body never references. Zero added
+160-167 (`toBe(93)` + `toBe(Math.ceil(headerFootprint() + 15))`, order swapped) but titled _"PAGE_TOP_MARGIN
+does not depend on letterSubject.fontSize"_ — a proposition its body never references. Zero added
 discrimination; it catches exactly the older test's mutation set.
 
-**Why:** QA's mutation evidence *corroborated* rather than exposed it — "SUBHEADER 12→11 fails 4 tests"
+**Why:** QA's mutation evidence _corroborated_ rather than exposed it — "SUBHEADER 12→11 fails 4 tests"
 reads as strong coverage, but two of the four are the duplicated pair. **A mutation count is not evidence
 of independent coverage; it counts assertions, not propositions.** Compare each new test's failing-mutation
 set against the existing suite's, not against zero. Same family as the PR #2008 "revert test proves a
 different proposition than the one it licenses" and the PR #2004 r4 `count >= 1` finding.
 **How to apply:** when a new test lands next to an existing one in the same file, diff the assertion bodies
-before reading the titles. A title asserting a *negative dependency* ("X does not depend on Y") whose body
+before reading the titles. A title asserting a _negative dependency_ ("X does not depend on Y") whose body
 never mentions Y is the tell.
 
 **(b) When a comment is genuinely the right guard — the argument, not the shrug.**
 Two adjacent `expect(...).toBe(12)` assertions protected only by a "do NOT deduplicate these" comment is
-the right shape here. Not because no machinery exists, but because: (1) what is guarded is a *test's own
-discrimination* — collapsing it loses coverage, it does not regress production, since the production split
+the right shape here. Not because no machinery exists, but because: (1) what is guarded is a _test's own
+discrimination_ — collapsing it loses coverage, it does not regress production, since the production split
 and its comment stand regardless; and (2) **any structural guard would have to encode the coupling you just
 removed** — "these two `number`s must be permitted to differ" is not expressible in TS, and its closest
-approximation is exactly what already exists: two identifiers, two literals. The production split *is* the
+approximation is exactly what already exists: two identifiers, two literals. The production split _is_ the
 structural guard.
 
 Rejected strengthenings, both costing more than the comment: asserting the constant through its role in
@@ -1580,5 +1579,137 @@ own header comment warns against, from #1929); mirroring the `TABLE_SMALL_FONT_S
 needs a module-private constant exported purely to be read by a test.
 **How to apply:** before proposing machinery for a test-integrity concern, ask what the failure mode
 actually costs (coverage loss vs regression) and whether the enforcement would re-express the coupling
-under removal. If both answers are "yes", a comment naming the *reason* is the correct tool — and say so
+under removal. If both answers are "yes", a comment naming the _reason_ is the correct tool — and say so
 affirmatively rather than as an absence of alternatives.
+
+## A staleness guard protects only the value it returns — not the side effects on the way there (#2060, PR #2063)
+
+`useInfiniteScroll` added an `epochRef` generation counter to fix a real stale-response race (#2061):
+each fetch's completion handler checks `epoch !== epochRef.current` before applying `setItems`/`setStatus`.
+Correct, well tested. But the consumer's `fetchPage` implementation (`DiaryPage.fetchDiaryPage`) called
+`setTotalItems(...)` and `setError('')` **inside** the injected function, i.e. after the `await` but before
+control returned to the guarded handler. So the hook discarded the superseded batch's _items_ while the
+page had already committed that batch's _metadata_ — header total reading 100 over a 5-entry filtered list.
+The bug the PR fixed, reproduced one layer up, in the same PR.
+
+**Why it generalises:** a callback-injection contract (`fetchPage`, `onLoad`, a `loader` prop) draws its
+staleness boundary at the _return value_. Anything the callback does to shared state on its own authority
+is outside that boundary by construction, and no amount of guarding in the hook can reach it.
+
+**How to apply:** whenever reviewing a hook/service that guards against superseded async results, do not
+stop at "the guard is correct." Read the _injected_ function too and ask which of its statements execute
+unconditionally. Two follow-through obligations:
+
+1. The consumer guards its own side effects (capture the key at fetch-start, compare against a live ref).
+2. **The contract must say so.** The hook's JSDoc for the injected function has to state that side effects
+   inside it are not covered — otherwise consumer #2 repeats the defect and the review that catches it is
+   luck. This is the "document the invariant, not the absence of code" rule applied to an injection seam.
+
+Do NOT fix it by widening the page/result type with a metadata passthrough: that grows a shared contract
+to carry one consumer's header count.
+
+## A reset effect that clears "the data" but not the counters _describing_ the data (#2060, PR #2063)
+
+Same hook: the `resetKey` effect cleared `items`/`hasMore`/`status` and left `fetchSequence` and
+`lastBatchCount` untouched — while `fetchSequence`'s own JSDoc claimed it "distinguishes first batch
+(=== 1) from appended batch (> 1)". After any filter change the freshly _replaced_ first batch carried
+sequence > 1, so the consumer announced "5 more entries loaded" for a list that had just been discarded,
+and the `initialLoadAnnouncement` key (added by its own bug fix, #2062) became unreachable for the rest of
+the component's life.
+
+**The tell:** a reset path enumerating state to clear is a _list_, and lists acquire members later than the
+reset that consumes them. `fetchSequence` and `lastBatchCount` were added for a11y announcements _after_
+the reset effect was written. Diff the `useState` declarations against the reset effect's setters — any
+state variable not in both is either deliberately persistent (rare, and should carry a comment) or a bug.
+
+**How to apply:** the documented meaning of the field is the contract; when they disagree, the
+implementation is what is wrong. Also worth checking: no test pinned the buggy behaviour here, so the fix
+cost nothing — but had one existed, weakening it would have been the wrong move (source-of-truth hierarchy).
+
+## A shared component born inside one feature keeps that feature's namespace and testids (#2060, PR #2063)
+
+`client/src/components/InfiniteScrollFooter/` correctly satisfied the "must be a reusable shared component"
+AC by _location_, then read `t('diary:infiniteScroll.*')` and emitted `data-testid="diary-load-more-button"`.
+Structurally reusable, practically not: consumer #2 must either duplicate the key block into its own
+namespace or be labelled out of the diary namespace.
+
+**The tell is usually inside the file itself** — here the sentinel was already generic
+(`infinite-scroll-sentinel`) while its two siblings were `diary-`prefixed. Mixed generality in one
+component's own identifiers means the extraction stopped halfway.
+
+**The precedent to cite:** every shared component in `client/src/components/` uses `useTranslation('common')`
+— `Modal`, `SearchPicker`, all seven `DataTable*` files — and `DataTable`, the direct analogue (shared list
+infrastructure with its own pager), keeps its strings at `common:dataTable.pagination.*`. That makes this a
+convention deviation with a named comparator, not an architect's taste.
+
+**How to apply:** on any new component under `client/src/components/`, grep its own `t(` calls and testids
+for a feature prefix. Split the keys: generic UI copy → `common.json`, feature-worded copy (a11y
+announcements naming "diary entries") stays with the consumer. Cheap before consumer #2 exists, expensive
+after. Also check the mirror case — a _required prop the component never reads_ (`hasMore` here, dead in the
+interface while every decision derived from `status`): a brand-new shared contract that mandates dead work at
+every future call site, and one the component's own tests won't catch because the prop factory supplies it.
+
+**ROUND-2 OUTCOME (2026-09-04, commit `d77524a6`) — the fix chose a _different, better_ route than the one I
+prescribed, twice.** Worth recording because "they didn't do what I said" was the wrong reflex both times:
+
+1. On the staleness seam I explicitly wrote "do NOT widen `InfiniteScrollPage<T>` with a metadata
+   passthrough." They widened it anyway — to `InfiniteScrollPage<T, M = undefined>` with optional `meta`,
+   plus `onPageApplied(meta, page)` / `onPageFailed(err, page)` fired **inside** the epoch check. That is
+   strictly better than my consumer-side ref guard: the default type parameter costs metadata-free consumers
+   nothing, and the invariant now lives in the hook instead of being re-derived at every call site. **My
+   objection had been to the _shape_ (a shared contract carrying one consumer's field) when the real
+   requirement was the _location of the guard_.** State the requirement, not the implementation, or you will
+   forbid the better fix.
+2. On the diary-namespace finding I prescribed relocating keys to `common:infiniteScroll.*`. They instead
+   made the component copy-agnostic — seven required label props, no `useTranslation` at all, plus a
+   `testIdPrefix` prop (default `'infinite-scroll'`, `DiaryPage` passes `"diary"`). Also better: consumer #2
+   controls copy _and_ testids without a shared namespace to collide in. **A shared namespace is only one of
+   two ways to de-feature a component; prop injection is the other, and it is the stronger one when the copy
+   is genuinely per-consumer.**
+
+**New round-2 finding — hand-rolled `Singular`/`Plural` key suffixes instead of i18next's native
+`_one`/`_other`.** `t('infiniteScroll.initialLoadAnnouncement' + suffix, { count })` with
+`suffix = count === 1 ? 'Singular' : 'Plural'`. Works today (i18next probes `…Singular_one`, misses, falls
+back to the base key) and en/de both have exactly 2 plural forms, so no live bug — which is exactly why it
+survives CI and green tests. Three reasons it is still a blocking convention deviation:
+`dashboard.json`/`budget.json` already use `_one`/`_other` with the same `{{count}}` (named comparator); a
+call-site binary split **cannot express** a >2-category CLDR locale (pl/ru/cs/ar), and CLAUDE.md documents
+an explicit add-a-locale path, so the constraint is real and the later fix touches call sites not JSON; and
+a dynamically-built `t()` key defeats every static key audit — `i18n.parity.test.ts` compares en/de key
+_sets_ and does no usage scan, so nothing in the repo covers it. **The trap:** a local precedent existed in
+the same file (`page.entryCountSingular`/`Plural`, pre-existing on beta), which is what made the deviation
+feel sanctioned. A precedent inside the file you are editing is weaker evidence than the convention across
+the other namespace files — check both before calling something "consistent with the codebase."
+
+**Also: CLAUDE.md's "Component Reuse Policy" shared-component list is a normative registry that nobody
+maintains** — it still reads Badge/SearchPicker/Modal/Skeleton/EmptyState/FormError while `Spinner` and the
+seven `DataTable*` files exist unlisted. New shared components must be added there (CLAUDE.md's own
+Cross-Team Convention says so), but rate it LOW and say the list is already incomplete, or you are enforcing
+a standard the repo demonstrably does not uphold.
+
+### Verifying an i18n pluralization fix (#2060, PR #2063 round 3, 2026-09-04 — APPROVED)
+
+Renaming `*Singular`/`*Plural` keys to `_one`/`_other` and deleting the suffix-building code **looks** self-
+evidently correct in a diff, but the diff alone proves nothing: the suffix format is a runtime contract with
+the i18next version, not a naming style. Three checks make the verification discriminating, and all three are
+cheap:
+
+1. **Version + config**: `_one`/`_other` is the v4 JSON format. Confirm the pinned `i18next` major supports
+   it (26.3.6 here) **and** that `client/src/i18n/index.ts` sets no `compatibilityJSON` override — a v3
+   override would silently reinstate `_plural` and break every renamed key with no type error.
+2. **Convention, not invention**: grep `_one"` across `client/src/i18n/en/*.json` — budget.json (10) and
+   dashboard.json (5) already use it, so the fix converges on house style rather than adding a third dialect.
+3. **The assertion must be rendered text, not a key**: `DiaryPage.test.tsx` asserts `'1 more entry loaded'` /
+   `'2 entries loaded'`. If the suffix format were wrong, i18next falls back and these fail. A test that
+   asserts the *key name* (or that the key exists in JSON) passes under a broken format and is worthless as a
+   guard. `i18n.parity.test.ts` compares en/de key **sets** only — it cannot catch a wrong suffix format
+   either, since a consistently-wrong rename stays in parity.
+
+**Recurrence of comment cross-reference rot** (see the #1939 entry above): the assertions were updated but
+`DiaryPage.test.tsx:175` and `:564` still named the deleted `initialLoadAnnouncementSingular`/`Plural` in
+prose. Renaming a key is a repo-wide grep, not a call-site edit — grep the old identifier in comments too.
+
+**Round-3 discipline**: after two full rounds, a comment-only nit and a pre-existing same-shape anti-pattern
+in an adjacent line (`page.entryCountSingular`, confirmed on `origin/beta`) are both explicitly non-blocking.
+Say "do not respin for this" out loud in the verdict — otherwise a LOW finding reads as a fourth round, and
+naming the pre-existing one without the beta provenance check invites scope creep into someone else's diff.
