@@ -23,12 +23,31 @@ metadata:
 - `InfiniteScrollFooter` is rendered by `DiaryPage` **only when `entries.length > 0`** — for a
   zero-item response there is no footer, no sentinel, no button, no end-of-list message at all
   (confirms AC9 "empty state, no footer" behavior structurally, not just visually).
-- Inside the footer, in DOM order: sentinel (`data-testid="infinite-scroll-sentinel"`, 0×0,
-  `aria-hidden`) → `FormError` banner (`role="alert"`, only when `status==='error'`) → **either**
-  the button (`data-testid="diary-load-more-button"`) **or** the end-of-list row
+- Inside the footer, in DOM order: sentinel (`data-testid="diary-sentinel"`, 0×0, `aria-hidden`) →
+  `FormError` banner (`role="alert"`, only when `status==='error'`) → **either** the button
+  (`data-testid="diary-load-more-button"`) **or** the end-of-list row
   (`data-testid="diary-end-of-list"`) — button and end-of-list are mutually exclusive
   (`status === 'done' ? endOfList : button`), but the error banner and the button coexist
   simultaneously on `status==='error'` (button relabels to "Retry").
+- **PR follow-up for #2060 genericized `InfiniteScrollFooter` with a `testIdPrefix` prop**
+  (`DiaryPage` passes `testIdPrefix="diary"`, default `'infinite-scroll'`) so the component can be
+  reused by other list views later. All testids become `${testIdPrefix}-*`. `-load-more-button`,
+  `-end-of-list` happened to keep the exact same literal strings under the `diary` prefix, but the
+  **root footer container's testid changed from the old hardcoded `"diary-infinite-scroll-footer"`
+  to `"diary-footer"`**, and the sentinel from `"infinite-scroll-sentinel"` to `"diary-sentinel"`.
+  This was NOT what the coordinator's follow-up message described (it only flagged the sentinel
+  rename, and asserted the footer testid was "preserved exactly") — caught the footer-id
+  discrepancy by reading `InfiniteScrollFooter.tsx`'s actual `git diff` rather than trusting the
+  summary, since `DiaryPage.ts`'s `footerError` locator was scoped through that exact testid
+  (`getByTestId('diary-infinite-scroll-footer').getByRole('alert')`) and would have silently found
+  zero elements in every error/retry test otherwise. **Lesson: verify testid claims in ANY
+  handoff message (coordinator, dev-team-lead, frontend-developer) against the actual component
+  diff before updating a POM — a summary that's right about most of a rename can still be wrong
+  about one string.** Same standalone-loading-status-row removal check (`styles.statusRow` deleted,
+  now only the button's own inline `Spinner` indicates loading) was a true no-op for this spec —
+  confirmed via grep that no test ever referenced `statusRow` or asserted on a second loading
+  indicator; every loading-adjacent assertion in `diary-list.spec.ts` goes through
+  `diaryPage.loadMoreButton` itself.
 - **The button is the SAME DOM node across idle/loading/error** — never unmounted until `status`
   becomes `'done'`. It self-labels: idle→"Load more", loading→disabled+inline spinner, error→"Retry".
   This means `diaryPage.loadMoreButton` is a stable locator through an entire failure→retry cycle —
@@ -131,7 +150,7 @@ in this case), stub the OTHER trigger's browser API rather than fighting timing/
 about mock content height or CI viewport specifics.
 
 **Left un-hardened (deliberately, not currently failing)**: "Auto-load on scroll" (Scenario 7) and
-"Dark mode" (Scenario 7) both assert page-2-entry-count `toHaveCount(0)` or similar *before* their own
+"Dark mode" (Scenario 7) both assert page-2-entry-count `toHaveCount(0)` or similar _before_ their own
 explicit `scrollTo`/`scrollToLoadMore()` call — in principle exposed to the same "observer already fired
 at mount" race described above, since nothing prevents the sentinel from already being in view before
 those tests' own trigger runs. Not touched because they are not currently reported failing (their
