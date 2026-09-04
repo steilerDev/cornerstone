@@ -443,6 +443,31 @@ test.describe('Infinite scroll (Scenario 7)', () => {
   }) => {
     const diaryPage = new DiaryPage(page);
 
+    // Stub out IntersectionObserver for this test only. Without this, the sentinel can already
+    // be within the observer's 600px rootMargin the instant it mounts (page-1's mocked entries are
+    // short, and focusing/tabbing to an off-screen element also scrolls it into view as a normal
+    // part of browser/Playwright focus handling) — either way, the auto-scroll loadMore() path can
+    // fire and complete (the mock has no delay) before this test's own focus/keyboard assertions
+    // run, unmounting diary-load-more-button once hasMore flips to false and turning
+    // `toBeFocused()` into a deterministic "element(s) not found". This test's whole point is to
+    // prove the button's OWN click/keypress activation works independent of the auto-scroll
+    // observer, so isolate that path entirely rather than trying to out-race it.
+    await page.addInitScript(() => {
+      class StubIntersectionObserver implements IntersectionObserver {
+        readonly root: Element | Document | null = null;
+        readonly rootMargin = '';
+        readonly thresholds: ReadonlyArray<number> = [];
+        constructor(_callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {}
+        disconnect(): void {}
+        observe(): void {}
+        unobserve(): void {}
+        takeRecords(): IntersectionObserverEntry[] {
+          return [];
+        }
+      }
+      window.IntersectionObserver = StubIntersectionObserver;
+    });
+
     const page1Entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `kbd-p1-${i}` }));
     const page2Entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `kbd-p2-${i}` }));
 
@@ -485,7 +510,8 @@ test.describe('Infinite scroll (Scenario 7)', () => {
       expect(darkFocusBoxShadow).not.toBe('none');
       await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
 
-      // No mouse/scroll interaction at all — just focus + Enter.
+      // No mouse/scroll interaction at all — just focus + Enter. With IntersectionObserver
+      // stubbed above, this Enter press is the ONLY thing that can trigger the fetch below.
       const page2ResponsePromise = page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/diary-entries') &&

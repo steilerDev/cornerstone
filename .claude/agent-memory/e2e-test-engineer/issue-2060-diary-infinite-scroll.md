@@ -97,6 +97,50 @@ pager locators, explicitly out of scope per the issue and untouched).
     convention as the pervasive `[class*="..."]` locator idiom used everywhere else in this suite),
     and no horizontal overflow at each state transition.
 
+## CI-deterministic failure fixed: `IntersectionObserver` auto-fire races a keyboard-only test
+
+**Symptom**: "Load more button loads the next batch via keyboard alone, with no scroll" failed on
+both attempt and retry — `expect(locator).toBeFocused()` → "element(s) not found" for
+`diary-load-more-button`, immediately after `.focus()` succeeded on the same locator.
+
+**Root cause (reasoned from source, no live browser available to confirm empirically — see
+[sandbox-live-verification.md](sandbox-live-verification.md))**: the button can only vanish via
+`status === 'done'` unmounting it. Two independent mechanisms can each cause that to happen between
+`.focus()` and the very next assertion, given the test's undelayed 2-page mock: (1) `IntersectionObserver`
+evaluates its target's geometry immediately when `observer.observe()` runs in the hook's effect — it
+does not require an actual scroll event to fire, only that the sentinel is already within the 600px
+`rootMargin` at observe-time, which 25 minimal-content mock cards can easily satisfy on a 1920×1080
+viewport; and/or (2) focusing (or Tab-ing to) an off-screen element causes the browser/Playwright to
+scroll it into view as a normal part of standard focus handling, which can itself bring the adjacent
+sentinel into the observer's bounds. Either path calls the identical `loadMore()` the hook exposes,
+resolves the undelayed mock instantly, flips `hasMore` false (2-page mock), and unmounts the button —
+all before the test's own `toBeFocused()` assertion round-trips over CDP. This is **not** a production
+bug: both the auto-scroll path and the button's own activation intentionally share one `loadMore()`
+function per the ux-designer spec, so racing is an accepted (if here, test-inconvenient) consequence of
+that design, not a defect to file against `useInfiniteScroll`/`InfiniteScrollFooter`.
+
+**Fix (test-only)**: `page.addInitScript()` before `diaryPage.goto()` to replace `window.IntersectionObserver`
+with a no-op stub class (full interface implemented — `root`/`rootMargin`/`thresholds`/`disconnect`/
+`observe`/`unobserve`/`takeRecords` — so no `@ts-expect-error` needed) for the duration of that one test.
+This runs before any page script (CDP `addScriptToEvaluateOnNewDocument` semantics), so the hook's
+`useEffect` constructs the stub instead of a real observer, and `loadMore()` can **only** be triggered by
+the button's own click/Enter handler for the rest of the test — cleanly isolating the keyboard-activation
+code path from the auto-scroll path instead of trying to out-race it. General pattern: whenever a test
+needs to prove one trigger path of a hook that exposes multiple equivalent triggers (observer + button,
+in this case), stub the OTHER trigger's browser API rather than fighting timing/geometry assumptions
+about mock content height or CI viewport specifics.
+
+**Left un-hardened (deliberately, not currently failing)**: "Auto-load on scroll" (Scenario 7) and
+"Dark mode" (Scenario 7) both assert page-2-entry-count `toHaveCount(0)` or similar *before* their own
+explicit `scrollTo`/`scrollToLoadMore()` call — in principle exposed to the same "observer already fired
+at mount" race described above, since nothing prevents the sentinel from already being in view before
+those tests' own trigger runs. Not touched because they are not currently reported failing (their
+`waitForLoaded()` → immediate-next-assertion gap is apparently narrow enough in practice to not lose the
+race, unlike `.focus()`'s slower actionability-check path) and rewriting a passing test carries its own
+regression risk. If either ever starts failing with the same "element(s) not found"/"expected count 0,
+got N" signature, apply the same `IntersectionObserver` stub (but only where the test intends to drive
+the fetch via explicit action, not for tests whose whole point IS the auto-scroll path itself).
+
 ## i18n keys (`client/src/i18n/en/diary.json`, `infiniteScroll` namespace)
 
 `loadMoreButton` ("Load more"), `loadingMore` ("Loading more entries…"), `loadingMoreAriaLabel`,

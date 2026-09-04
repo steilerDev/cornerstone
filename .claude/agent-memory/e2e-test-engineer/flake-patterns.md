@@ -11,6 +11,19 @@ When interacting with a Konva `<canvas>` (or any element centered inside a flex 
 
 `test.slow()` triples the project-level `expect.timeout` (e.g. 15s → 45s), but an explicit `{ timeout: 15_000 }` override on an individual `expect(...).toBeVisible()` _negates_ that tripling, capping the wait at the literal value. Under heavy parallel CI load this causes intermittent failures even though the app and API are correct. When a test calls `test.slow()`, either omit per-assertion timeout overrides (let the tripled budget apply) or set them to the full tripled value (e.g. `45_000`). Prefer awaiting the gating network response (`waitForResponse` registered _before_ the triggering click) over a fixed wall-clock timeout.
 
+## Multiple equivalent triggers racing each other (IntersectionObserver + button)
+
+When a hook exposes one action reachable via two independent triggers (e.g. `useInfiniteScroll`'s
+`loadMore()`, callable both by an `IntersectionObserver` auto-firing and by a "Load more" button's own
+click/keypress — Issue #2060), a test that wants to isolate and prove ONE trigger path deterministically
+should stub out the OTHER trigger's browser API via `page.addInitScript()` before navigating, rather than
+trying to out-race it with careful sequencing. `IntersectionObserver` in particular evaluates its
+target's geometry the instant `observe()` is called — it does not need an actual scroll event, so a
+short/minimal mocked page (or an off-screen-focus auto-scroll-into-view) can make it fire before a
+slower Playwright action (like `.focus()`, which does its own actionability/scroll-into-view work) even
+completes, deterministically unmounting whatever the successful fetch causes to disappear. Full
+incident + fix in [issue-2060-diary-infinite-scroll.md](issue-2060-diary-infinite-scroll.md).
+
 ## Locale timing after page reload
 
 Do not use `page.waitForResponse(GET /api/users/me/preferences)` to gate assertions after `page.reload()` — the response may fire before `reload()` is called (from React's async post-load mounts), leaving the locale update unobserved. Use `await page.waitForLoadState('networkidle')` after `reload()` instead to ensure all async requests, including the preferences fetch, have settled before asserting on locale-dependent UI.
