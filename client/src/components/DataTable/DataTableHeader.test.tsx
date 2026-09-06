@@ -51,12 +51,16 @@ function renderHeader({
   tableState = makeTableState(),
   onSort = jest.fn(),
   onFilter = jest.fn(),
+  hasLeadingCell,
+  disabledFilterKeys,
 }: {
   columns?: ColumnDef<TestItem>[];
   visibleColumns?: Set<string>;
   tableState?: TableState;
   onSort?: jest.Mock;
   onFilter?: jest.Mock;
+  hasLeadingCell?: boolean;
+  disabledFilterKeys?: ReadonlyMap<string, string>;
 } = {}) {
   return render(
     <table>
@@ -66,6 +70,8 @@ function renderHeader({
         tableState={tableState}
         onSort={onSort}
         onFilter={onFilter}
+        hasLeadingCell={hasLeadingCell}
+        disabledFilterKeys={disabledFilterKeys}
       />
     </table>,
   );
@@ -314,6 +320,89 @@ describe('DataTableHeader', () => {
       const headers = container.querySelectorAll('th');
       // Actions should be the last header
       expect(headers[headers.length - 1]!.textContent?.trim()).toBe('Actions');
+    });
+  });
+
+  describe('hasLeadingCell (Story #2046)', () => {
+    it('renders exactly one extra leading <th aria-hidden="true"> before the first column header when true', () => {
+      const { container } = renderHeader({ hasLeadingCell: true });
+      const headers = container.querySelectorAll('th');
+      expect(headers).toHaveLength(DEFAULT_COLUMNS.length + 1);
+      const leading = headers[0]!;
+      expect(leading).toHaveAttribute('aria-hidden', 'true');
+      expect(leading).toHaveClass('expandCell');
+      expect(headers[1]!.textContent).toBe('Title');
+    });
+
+    it('renders no leading cell when false', () => {
+      const { container } = renderHeader({ hasLeadingCell: false });
+      expect(container.querySelectorAll('.expandCell')).toHaveLength(0);
+      expect(container.querySelectorAll('th')).toHaveLength(DEFAULT_COLUMNS.length);
+    });
+
+    it('renders no leading cell when omitted', () => {
+      const { container } = renderHeader();
+      expect(container.querySelectorAll('.expandCell')).toHaveLength(0);
+      expect(container.querySelectorAll('th')).toHaveLength(DEFAULT_COLUMNS.length);
+    });
+  });
+
+  describe('headerTitle (Story #2046)', () => {
+    it("renders headerTitle as the title attribute of that column's <th>", () => {
+      const columnsWithTitle: ColumnDef<TestItem>[] = [
+        ...DEFAULT_COLUMNS,
+        {
+          key: 'bonus',
+          label: 'Bonus',
+          headerTitle: 'Explains the figure',
+          render: () => 'x',
+        },
+      ];
+      const { container } = renderHeader({
+        columns: columnsWithTitle,
+        visibleColumns: new Set(columnsWithTitle.map((c) => c.key)),
+      });
+      const bonusTh = Array.from(container.querySelectorAll('th')).find(
+        (th) => th.textContent === 'Bonus',
+      )!;
+      expect(bonusTh).toHaveAttribute('title', 'Explains the figure');
+    });
+
+    it('does not set a title attribute when headerTitle is not provided', () => {
+      const { container } = renderHeader();
+      const titleTh = Array.from(container.querySelectorAll('th')).find((th) =>
+        th.textContent?.startsWith('Title'),
+      )!;
+      expect(titleTh).not.toHaveAttribute('title');
+    });
+  });
+
+  describe('disabledFilterKeys (Story #2046)', () => {
+    it('disables the targeted column filter trigger with the reason as its title and aria-label', () => {
+      renderHeader({
+        disabledFilterKeys: new Map([['title', 'Disabled while open items is on']]),
+      });
+      const btn = screen.getByRole('button', { name: 'Disabled while open items is on' });
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveAttribute('title', 'Disabled while open items is on');
+    });
+
+    it('clicking a disabled filter trigger does not open the filter popover', async () => {
+      const user = userEvent.setup();
+      renderHeader({
+        disabledFilterKeys: new Map([['title', 'Disabled while open items is on']]),
+      });
+      const btn = screen.getByRole('button', { name: 'Disabled while open items is on' });
+      await user.click(btn);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('leaves a column not present in disabledFilterKeys enabled', () => {
+      renderHeader({
+        disabledFilterKeys: new Map([['nonexistent-column', 'irrelevant']]),
+      });
+      const btn = screen.getByRole('button', { name: /filter by title/i });
+      expect(btn).not.toBeDisabled();
     });
   });
 });

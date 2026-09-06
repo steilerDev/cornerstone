@@ -476,6 +476,8 @@ describe('invoicesApi', () => {
         overdue: { count: 0, totalAmount: 0 },
         claimable: { count: 1, totalAmount: 2500.0 },
         quotationCoveredByDeposits: 0,
+        openPayable: { count: 0, totalAmount: 0 },
+        refundsDue: { count: 0, totalAmount: 0 },
       },
     };
 
@@ -596,6 +598,61 @@ describe('invoicesApi', () => {
       } as Response);
 
       await expect(fetchAllInvoices()).rejects.toThrow();
+    });
+
+    // ─── openOnly (Story #2046) ─────────────────────────────────────────────
+
+    it('sends openOnly=true (the literal string) when openOnly is true', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({ openOnly: true });
+
+      const call = mockFetch.mock.calls[0]!;
+      const url = call[0] as string;
+      expect(url).toContain('openOnly=true');
+    });
+
+    it('omits openOnly from the query string when openOnly is false', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({ openOnly: false });
+
+      const call = mockFetch.mock.calls[0]!;
+      const url = call[0] as string;
+      expect(url).not.toContain('openOnly');
+    });
+
+    it('omits openOnly from the query string when openOnly is undefined', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({ page: 1 });
+
+      const call = mockFetch.mock.calls[0]!;
+      const url = call[0] as string;
+      expect(url).not.toContain('openOnly');
+    });
+
+    it('composes openOnly with another param without either clobbering the other', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => samplePaginatedResponse,
+      } as Response);
+
+      await fetchAllInvoices({ openOnly: true, vendorId: 'vendor-1' });
+
+      const call = mockFetch.mock.calls[0]!;
+      const url = call[0] as string;
+      expect(url).toContain('openOnly=true');
+      expect(url).toContain('vendorId=vendor-1');
     });
   });
 

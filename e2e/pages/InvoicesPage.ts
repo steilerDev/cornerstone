@@ -4,9 +4,36 @@
  * The page renders:
  * - A SubNav with Budget tabs: Overview, Invoices, Vendors, Sources, Subsidies
  * - A page header with h1 "Budget" and an "Add Invoice" button (data-testid="new-invoice-button")
- * - Four summary cards: Pending, Claimable, Claimed, Quotation
+ * - Summary cards: Pending, Claimable, Claimed, Quotation, Open (payable) — always rendered —
+ *   plus two conditional cards: Refunds due to you (data-testid="summary-card-refunds-due",
+ *   rendered only when summary.refundsDue.count > 0) and Overdue
+ *   (data-testid="summary-card-overdue", rendered only when summary.overdue.count > 0).
+ *   The "Open (payable)" and "Refunds due to you" cards (Story #2046) are GLOBAL/filter-
+ *   independent figures — they do not change when the open-items toggle or any column
+ *   filter is applied.
  * - A DataTable with search and per-column filters:
  *   - Filterable columns: Vendor (enum), Date (date), Amount (number), Due Date (date), Status (enum)
+ *   - The Status column filter trigger is disabled (aria-disabled) while the open-items
+ *     toggle is ON (mutual exclusivity, Story #2046 AC7).
+ * - A "Show only open items" toggle (data-testid="open-items-toggle") rendered via the
+ *   DataTable's customFilters slot. When ON:
+ *   - The URL gains `openOnly=true`.
+ *   - The table renders one `<tbody id="row-group-{invoiceId}">` PER INVOICE ROW instead of
+ *     a single shared `<tbody>` — each group holds the parent `<tr>` plus its pending-deposit
+ *     child `<tr class*="childRow">` rows (present in the DOM at all times, toggled via the
+ *     `hidden` attribute, not conditional unmounting). A parent with pending deposits renders
+ *     an expand/collapse `<button aria-expanded aria-controls="row-group-{invoiceId}">`
+ *     inside a 44px leading cell; a parent with none gets an empty leading cell (no button).
+ *   - A "Still due" column appears (only in this mode).
+ *   - Overdue invoices/deposits get a `[data-testid="invoice-overdue-{id}"]` /
+ *     `[data-testid="deposit-overdue-{id}"]` badge (in addition to their normal status badge —
+ *     "Overdue" is a flag, never a replacement status). Invoices listed only because of a
+ *     pending deposit (their own status isn't 'pending') get a
+ *     `[data-testid="invoice-container-{id}"]` "container" badge instead.
+ *   - Mobile (cards): the same expand/collapse affordance renders in the card header; deposit
+ *     rows use `deposit-status-mobile-{id}` / `deposit-overdue-mobile-{id}` test ids (distinct
+ *     from the desktop table's `deposit-status-{id}` / `deposit-overdue-{id}`), since both the
+ *     table and card DOM trees are always mounted (CSS hides whichever doesn't match viewport).
  * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
  * - Pagination controls when totalPages > 1
  * - An empty state (EmptyState component) when no invoices exist or no items match filters
@@ -69,6 +96,20 @@ export class InvoicesPage {
    * data-testid="summary-card-overdue"
    */
   readonly overdueCard: Locator;
+
+  /**
+   * Story #2046 — global/filter-independent "open items" summary cards.
+   * openPayableCard is always rendered; refundsDueCard only when
+   * summary.refundsDue.count > 0.
+   */
+  readonly openPayableCard: Locator;
+  readonly refundsDueCard: Locator;
+
+  /**
+   * Story #2046 — "Show only open items" toggle (native checkbox inside a
+   * <label>, rendered via DataTable's customFilters slot).
+   */
+  readonly openItemsToggle: Locator;
 
   // Search
   readonly searchInput: Locator;
@@ -136,6 +177,13 @@ export class InvoicesPage {
       .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Quotation$/i }) });
     // Overdue card (conditional) — rendered only when hasOverdue===true (Issue #1421)
     this.overdueCard = page.getByTestId('summary-card-overdue');
+
+    // Story #2046 — open items summary cards (global/filter-independent)
+    this.openPayableCard = page.getByTestId('summary-card-open-payable');
+    this.refundsDueCard = page.getByTestId('summary-card-refunds-due');
+
+    // Story #2046 — "Show only open items" toggle
+    this.openItemsToggle = page.getByTestId('open-items-toggle');
 
     // DataTable search — aria-label="Search items" (generic DataTable search label)
     this.searchInput = page.getByLabel('Search items');
@@ -409,6 +457,23 @@ export class InvoicesPage {
    * original miss was ever transient.
    */
   async getColumnCellText(rowMatchText: string, columnLabel: string): Promise<string> {
+    const columnIndex = await this.resolveColumnIndex(columnLabel);
+    const row = this.tableBody.locator('tr').filter({ hasText: rowMatchText }).first();
+    const cell = row.locator('td').nth(columnIndex);
+    return ((await cell.textContent()) ?? '').trim();
+  }
+
+  /**
+   * Resolves a column's 0-based index among the CURRENT visible table headers
+   * (shared by getColumnCellText/stillDueCell/amountCell). See getColumnCellText's
+   * docblock for why the match is case-insensitive and prefix-based.
+   *
+   * When expandable rows are active (Story #2046 open-items mode), DataTableHeader
+   * renders an extra leading `<th class="expandCell">` (no text) at index 0 — this
+   * is harmless here since it never matches any label and DataTableRow emits a
+   * matching leading `<td>` at index 0 too, so header/cell indices stay aligned.
+   */
+  private async resolveColumnIndex(columnLabel: string): Promise<number> {
     const headers = this.tableContainer.locator('thead th');
     const normalizedLabel = columnLabel.toUpperCase();
     let columnIndex = -1;
@@ -426,9 +491,96 @@ export class InvoicesPage {
         throw new Error(`Column "${columnLabel}" not found among visible table headers`);
       }
     }).toPass({ timeout: 3_000 });
-    const row = this.tableBody.locator('tr').filter({ hasText: rowMatchText }).first();
-    const cell = row.locator('td').nth(columnIndex);
-    return ((await cell.textContent()) ?? '').trim();
+    return columnIndex;
+  }
+
+  /**
+   * Story #2046 — the "Still due" column's cell for the given invoice's PARENT row
+   * (only meaningful when the open-items toggle is ON; the column doesn't exist
+   * otherwise). Resolves the column position dynamically, same as getColumnCellText.
+   */
+  async stillDueCell(invoiceId: string): Promise<Locator> {
+    const columnIndex = await this.resolveColumnIndex('Still due');
+    return this.rowGroup(invoiceId).locator('tr').first().locator('td').nth(columnIndex);
+  }
+
+  /**
+   * Story #2046 — the "Amount" column's cell for the given invoice's PARENT row
+   * (the full, unchanged invoice total — always present, regardless of toggle state).
+   */
+  async amountCell(invoiceId: string): Promise<Locator> {
+    const columnIndex = await this.resolveColumnIndex('Amount');
+    return this.rowGroup(invoiceId).locator('tr').first().locator('td').nth(columnIndex);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Story #2046 — "Show only open items" toggle, expandable parent/child rows
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Checks/unchecks the "Show only open items" toggle (no-op if already in the
+   * requested state) and waits for the resulting GET /api/invoices list response,
+   * so callers never race the re-render against a synchronous read.
+   */
+  async setOpenItemsOnly(on: boolean): Promise<void> {
+    const checked = await this.openItemsToggle.isChecked();
+    if (checked === on) return;
+    const responsePromise = this.page.waitForResponse(
+      (resp) =>
+        resp.url().includes('/api/invoices') &&
+        resp.request().method() === 'GET' &&
+        resp.status() === 200,
+    );
+    await this.openItemsToggle.setChecked(on);
+    await responsePromise;
+  }
+
+  /**
+   * The `<tbody id="row-group-{invoiceId}">` wrapping an invoice's parent row and
+   * (when it has pending deposits) its child rows. Only rendered when the
+   * open-items toggle is ON.
+   */
+  rowGroup(invoiceId: string): Locator {
+    return this.page.locator(`#row-group-${invoiceId}`);
+  }
+
+  /**
+   * The parent row's expand/collapse `<button aria-expanded>` within an invoice's
+   * row group. Absent (zero elements) for a parent with no pending deposits.
+   */
+  expandButton(invoiceId: string): Locator {
+    return this.rowGroup(invoiceId).locator('button[aria-expanded]');
+  }
+
+  /**
+   * Currently-VISIBLE child `<tr>` elements inside an invoice's row group,
+   * excluding the parent row itself. Child rows stay in the DOM at all times and
+   * toggle via the `hidden` attribute (never unmounted) — `:visible` reflects that
+   * correctly since nothing overrides the browser's default `[hidden] { display:
+   * none }` behavior in this codebase's CSS.
+   */
+  childRows(invoiceId: string): Locator {
+    return this.rowGroup(invoiceId).locator('tr[class*="childRow"]:visible');
+  }
+
+  /** Desktop table-row "Overdue"/"Deposit overdue" flag badge on an invoice's parent row. */
+  overdueChip(invoiceId: string): Locator {
+    return this.page.getByTestId(`invoice-overdue-${invoiceId}`);
+  }
+
+  /** "Deposits only" container badge — invoice listed only because of a pending deposit. */
+  containerChip(invoiceId: string): Locator {
+    return this.page.getByTestId(`invoice-container-${invoiceId}`);
+  }
+
+  /** Desktop child-row "Overdue" flag badge on a deposit's due-date cell. */
+  depositOverdueChip(depositId: string): Locator {
+    return this.page.getByTestId(`deposit-overdue-${depositId}`);
+  }
+
+  /** Desktop child-row status badge (Pending/Paid/Claimed) for a single deposit. */
+  depositStatusBadge(depositId: string): Locator {
+    return this.page.getByTestId(`deposit-status-${depositId}`);
   }
 
   /**

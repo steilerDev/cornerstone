@@ -309,6 +309,21 @@
   color: var(--color-attachment-invoice-text);
 }
 
+/* Overdue flag (Story #2046) — a flag on top of a status badge, never a replacement.
+   Reuses the page's existing "orange = overdue" vocabulary (.summaryCardOverdue). */
+.overdue {
+  background-color: var(--color-warning-badge-bg);
+  color: var(--color-warning-text-on-light);
+}
+
+/* Container-only parent (Story #2046) — muted/italic "not really this bucket"
+   recipe, mirroring .iblUnassigned above. */
+.containerOnly {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {

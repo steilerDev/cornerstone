@@ -77,3 +77,16 @@ All visual properties map to existing Layer 2 semantic tokens.
 ## i18n Namespace
 
 All strings under `common:dataTable.*` namespace. See full key map in spec comment.
+
+## Expandable parent/child rows extension (Issue #2046)
+
+Spec posted at: https://github.com/steilerDev/cornerstone/issues/2046#issuecomment-5559158229
+
+- Must be opt-in/additive only — every existing `DataTable` consumer renders unchanged when the new prop isn't passed (no leading expand column, no extra markup at all, not just empty).
+- Leading pseudo-column, fixed `44px`, NOT one of the page's `ColumnDef`s (exempt from `DataTableColumnSettings`). Rows with no children still reserve the same 44px cell (empty) so column alignment never jumps within one table.
+- Reuse `InvoiceGroup.tsx`'s exact chevron recipe: `▼` text glyph (no icon asset), `.expandIconOpen { transform: rotate(-180deg) }`, `transition: transform var(--transition-normal)`.
+- Toggle button is a real `<button>` (not a hand-rolled `onKeyDown` div like `InvoiceGroup`) — gets Enter/Space + focus-visible for free. `aria-expanded` + `aria-controls` pointing at the `id` of a `<tbody>` wrapping that parent + its children (multiple `<tbody>` per `<table>` is valid HTML). Click must `stopPropagation()` (same requirement as `renderActions` cells).
+- Child `<tr>`s stay in the DOM always, toggled via the `hidden` attribute — never conditionally unmounted (keeps the `aria-controls` target always resolvable; matches the codebase's established "keep both in DOM, toggle with hidden" a11y pattern).
+- Child row visual recipe: `background: var(--color-bg-secondary)` tint (not `--color-primary-bg`, that's reserved for selected-row), first/label cell `padding-left: var(--spacing-8)` (double base), amount cells drop to `color: var(--color-text-secondary); font-weight: var(--font-weight-normal)` (parent stays `--color-text-primary` + medium) — this weight/color drop plus indentation is the anti-double-counting signal for "this is a subset, not an addition."
+- Mobile: same 44×44px expand button in `.cardHeader`; children nest *inside* the same card (not as separate top-level cards) via a `.childCardList` with `border-left: 2px solid var(--color-border-strong); padding-left: var(--spacing-3)` — kept modest at 320px specifically to avoid horizontal overflow.
+- Disabling a single column's filter control (needed when a page-level toggle makes that filter contradictory) needs a new opt-in `disabledFilterKeys`-shaped prop on `DataTableHeader`/`ColumnDef` — doesn't exist yet as of #2046.

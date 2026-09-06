@@ -92,10 +92,23 @@ export interface Invoice {
   budgetLines: InvoiceBudgetLineSummary[];
   /** Remaining amount: invoice total minus sum of itemized amounts across budget lines. */
   remainingAmount: number;
-  /** Deposits: staged partial payments for this invoice. */
+  /**
+   * Deposits: staged partial payments for this invoice.
+   * On GET /api/invoices (list): populated only when `openOnly=true`, otherwise always `[]`.
+   * On all other endpoints (detail, vendor-scoped list): always populated.
+   */
   deposits: InvoiceDeposit[];
   /** Final payment amount: invoice total minus sum of all deposit amounts (any status). */
   finalPaymentAmount: number;
+  /**
+   * Story #2046: per-invoice open (still-payable) amount:
+   *   (status === 'pending' ? max(0, amount − Σ deposit-type entries of ANY status) : 0)
+   *   + Σ (pending deposit-type entries)
+   * Pending refunds are EXCLUDED (reported separately via summary.refundsDue).
+   * Additive to — never a replacement for — finalPaymentAmount.
+   * Only populated by GET /api/invoices when openOnly=true; undefined everywhere else.
+   */
+  openAmount?: number;
   createdBy: UserSummary | null;
   createdAt: string;
   updatedAt: string;
@@ -166,6 +179,19 @@ export interface InvoiceStatusBreakdown {
   claimable: InvoiceStatusSummary;
   /** Sum of paid/claimed deposits on quotation invoices (i.e., already committed) */
   quotationCoveredByDeposits: number;
+  /**
+   * Story #2046 (AC16): global, filter-independent open payable total.
+   * totalAmount = Σ Invoice.openAmount over ALL invoices.
+   * count = number of invoices whose openAmount > 0.
+   */
+  openPayable: InvoiceStatusSummary;
+  /**
+   * Story #2046 (AC19): pending refund entries, reported separately and NEVER
+   * netted into openPayable.
+   * totalAmount = Σ amount of pending refund-type entries (POSITIVE number).
+   * count = number of distinct invoices carrying at least one pending refund.
+   */
+  refundsDue: InvoiceStatusSummary;
 }
 
 /**

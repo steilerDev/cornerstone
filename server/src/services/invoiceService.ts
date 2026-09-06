@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { eq, desc, and, asc, sql, gte, lte } from 'drizzle-orm';
+import { eq, desc, and, asc, sql, gte, lte, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { invoices, vendors, users, invoiceDeposits, budgetSources } from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
+  InvoiceDeposit,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
   UserSummary,
@@ -23,6 +24,7 @@ import {
   aggregateClaimableBreakdown,
   computeFinalPaymentAmount,
   computeFinalPaymentAmounts,
+  computeOpenAmounts,
   type InvoiceDepositRowWithDiscretionary,
 } from './shared/depositAggregateUtils.js';
 
@@ -181,6 +183,7 @@ export function listAllInvoices(
     dueDateTo?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    openOnly?: boolean;
   },
 ): {
   invoices: Invoice[];
@@ -191,6 +194,7 @@ export function listAllInvoices(
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortOrder = query.sortOrder ?? 'desc';
+  const openOnly = query.openOnly === true;
 
   // Build base conditions (excluding numeric amount range filter)
   const baseConditions = [];
@@ -216,6 +220,19 @@ export function listAllInvoices(
   }
   if (query.dueDateTo) {
     baseConditions.push(lte(invoices.dueDate, query.dueDateTo));
+  }
+  if (openOnly) {
+    // Story #2046 (AC1/AC2): an invoice is an "open item" if it is itself pending,
+    // OR it has at least one pending deposit (of either entryType) — a pending
+    // refund alone qualifies (AC18/AC20). Placed in baseConditions (not just
+    // `conditions`) so filterMeta's amount bounds reflect the open set being viewed,
+    // consistent with how `status` is already handled.
+    baseConditions.push(
+      sql`(${invoices.status} = 'pending' OR EXISTS (
+        SELECT 1 FROM invoice_deposits d
+        WHERE d.invoice_id = ${invoices.id} AND d.status = 'pending'
+      ))`,
+    );
   }
 
   const baseWhereClause = baseConditions.length > 0 ? and(...baseConditions) : undefined;
@@ -265,6 +282,20 @@ export function listAllInvoices(
             : invoices.date; // default: date
   const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
+  // Story #2046 (AC22/AC23): earliest-open-due ordering, used as the default order
+  // when openOnly=true and no explicit sortBy is given. SQLite's scalar MIN(a, b)
+  // returns NULL if either argument is NULL, whereas the aggregate MIN() in the
+  // subquery ignores NULLs — the '9999-12-31' sentinel makes both branches non-null
+  // so undated items sort last under ASC. ISO YYYY-MM-DD strings compare
+  // lexicographically, so no date casting is needed. invoice_deposits.due_date is
+  // NOT NULL, so the subquery is NULL only when there are no pending deposits.
+  const earliestOpenDue = sql<string>`MIN(
+    COALESCE(CASE WHEN ${invoices.status} = 'pending' THEN ${invoices.dueDate} END, '9999-12-31'),
+    COALESCE((SELECT MIN(d.due_date) FROM invoice_deposits d
+               WHERE d.invoice_id = ${invoices.id} AND d.status = 'pending'), '9999-12-31')
+  )`;
+  const useOpenDefaultOrder = openOnly && !query.sortBy;
+
   // Fetch page with JOIN for vendorName
   const offset = (page - 1) * pageSize;
   const rows = db
@@ -275,7 +306,7 @@ export function listAllInvoices(
     .from(invoices)
     .innerJoin(vendors, eq(invoices.vendorId, vendors.id))
     .where(whereClause)
-    .orderBy(orderBy)
+    .orderBy(...(useOpenDefaultOrder ? [asc(earliestOpenDue), asc(invoices.id)] : [orderBy]))
     .limit(pageSize)
     .offset(offset)
     .all();
@@ -303,6 +334,9 @@ export function listAllInvoices(
   const aggregated = aggregateInvoiceStatusBreakdown(summaryRawRows);
   const { claimable, quotationCoveredByDeposits } = aggregateClaimableBreakdown(summaryRawRows);
   const finalPaymentAmountsByInvoice = computeFinalPaymentAmounts(summaryRawRows);
+  // Story #2046 (AC14/AC16/AC19): the summaryRawRows query already spans every
+  // invoice, so it is a superset of InvoiceDepositRow and can be passed straight in.
+  const openAmounts = computeOpenAmounts(summaryRawRows);
 
   // Compute overdue count + total: pending invoices with due_date < today (global, unfiltered)
   const overdueRow = db
@@ -332,7 +366,55 @@ export function listAllInvoices(
     },
     claimable,
     quotationCoveredByDeposits,
+    openPayable: openAmounts.openPayable,
+    refundsDue: openAmounts.refundsDue,
   };
+
+  // Story #2046 (AC3/AC9): when openOnly, bulk-fetch full deposit rows for the
+  // invoices on the current page so the response can render pending deposits as
+  // child rows. Mapped exactly as toInvoice() does (ordering + createdBy resolution),
+  // since the client derives the "Deposit n/N" ordinal from this order.
+  const pageInvoiceIds = rows.map((r) => r.invoice.id);
+  const depositsByInvoice = new Map<string, InvoiceDeposit[]>();
+  if (openOnly && pageInvoiceIds.length > 0) {
+    const depositRows = db
+      .select()
+      .from(invoiceDeposits)
+      .where(inArray(invoiceDeposits.invoiceId, pageInvoiceIds))
+      .orderBy(asc(invoiceDeposits.dueDate), asc(invoiceDeposits.createdAt))
+      .all();
+
+    // Memoise createdBy user lookups (one query per distinct user id, not per row).
+    const userCache = new Map<string, UserSummary | null>();
+    const resolveCreatedBy = (createdBy: string | null): UserSummary | null => {
+      if (!createdBy) return null;
+      if (!userCache.has(createdBy)) {
+        const user = db.select().from(users).where(eq(users.id, createdBy)).get();
+        userCache.set(createdBy, toUserSummary(user));
+      }
+      return userCache.get(createdBy) ?? null;
+    };
+
+    for (const depositRow of depositRows) {
+      const list = depositsByInvoice.get(depositRow.invoiceId) ?? [];
+      list.push({
+        id: depositRow.id,
+        invoiceId: depositRow.invoiceId,
+        amount: depositRow.amount,
+        dueDate: depositRow.dueDate,
+        paidDate: depositRow.paidDate,
+        claimedDate: depositRow.claimedDate,
+        description: depositRow.description,
+        status: depositRow.status,
+        entryType: depositRow.entryType,
+        budgetSourceId: depositRow.budgetSourceId,
+        createdBy: resolveCreatedBy(depositRow.createdBy),
+        createdAt: depositRow.createdAt,
+        updatedAt: depositRow.updatedAt,
+      });
+      depositsByInvoice.set(depositRow.invoiceId, list);
+    }
+  }
 
   // Map rows directly (not using toInvoice()) to avoid fetching full deposits in list.
   // NOTE: List endpoints set deposits: [] but finalPaymentAmount is now refund-aware (still computed from summary query).
@@ -361,8 +443,9 @@ export function listAllInvoices(
       notes: row.notes,
       budgetLines,
       remainingAmount,
-      deposits: [],
+      deposits: openOnly ? (depositsByInvoice.get(row.id) ?? []) : [],
       finalPaymentAmount: finalPaymentAmountsByInvoice.get(row.id) ?? row.amount,
+      ...(openOnly ? { openAmount: openAmounts.byInvoice.get(row.id) ?? 0 } : {}),
       createdBy: toUserSummary(createdByUser),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,

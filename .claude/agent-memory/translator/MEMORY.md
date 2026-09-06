@@ -140,3 +140,7 @@ General rule: when a glossary term overshoots a measured PDF column, prefer the 
 - Rule of thumb: check the **call site**, not the JSON namespace path — both keys live under `sourceReports.*` but `t()` vs `reportT()` at the usage site is what actually decides chrome vs. content, per the established artifact-content-vs-edit-affordance convention from #1909/#1924.
 
 **Concurrent-worktree gotcha**: at spec time `closingLabel` didn't exist in `en/budget.json` yet (frontend-developer added it mid-session, confirmed via `git diff client/src/i18n/en/budget.json` showing the line appear between my two check-ins). When a spec says "check whether the en key already landed," re-check immediately before finalizing rather than trusting an earlier read — in a shared worktree the answer can flip within the same task.
+
+## Issue #2046: Open Items Translation (2026-09-06)
+
+- [Issue #2046 translation](issue-2046-open-items-translation.md) — 23 new keys for invoices open-items feature (deposits/refunds list); critical distinctions: `overdueLabel`/"Überfällig" vs `depositOverdueLabel`/"Abschlag überfällig", and `childIncludedCaption`/"...enthalten" vs `childExcludedCaption`/"...separat aufgeführt"; all glossary-compliant, no new glossary terms needed
