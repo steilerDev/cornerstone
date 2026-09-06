@@ -82,6 +82,53 @@ function calculateRemaining(invoice: Invoice): number {
   return invoice.amount - totalItemized;
 }
 
+/**
+ * Invoice # cell: link plus overdue/deposit-overdue and container-only flag badges.
+ * Shared between the desktop `render` and mobile `renderCard` paths — DataTable mounts
+ * both the desktop table and the mobile cards simultaneously (CSS hides whichever
+ * doesn't apply), so identical testids on both would create duplicate DOM nodes and
+ * break Playwright's strict-mode single-element locators. `idSuffix` disambiguates:
+ * '' for desktop, '-mobile' for the card-rendered instance.
+ */
+function renderInvoiceNumberCell(
+  inv: Invoice,
+  idSuffix: string,
+  openOnly: boolean,
+  today: string,
+  flagVariants: BadgeVariantMap,
+): ReactNode {
+  return (
+    <span className={styles.invoiceNumberCell}>
+      {inv.invoiceNumber ? (
+        <Link to={`/budget/invoices/${inv.id}`} className={styles.invoiceLink}>
+          {inv.invoiceNumber}
+        </Link>
+      ) : (
+        <Link
+          to={`/budget/invoices/${inv.id}`}
+          className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
+        >
+          —
+        </Link>
+      )}
+      {openOnly && (isInvoiceOverdue(inv, today) || hasOverdueOpenDeposit(inv, today)) && (
+        <Badge
+          variants={flagVariants}
+          value={isInvoiceOverdue(inv, today) ? 'overdue' : 'depositOverdue'}
+          testId={`invoice-overdue${idSuffix}-${inv.id}`}
+        />
+      )}
+      {openOnly && isContainerOnly(inv) && (
+        <Badge
+          variants={flagVariants}
+          value="containerOnly"
+          testId={`invoice-container${idSuffix}-${inv.id}`}
+        />
+      )}
+    </span>
+  );
+}
+
 export function InvoicesPage() {
   const { t } = useTranslation('budget');
   const navigate = useNavigate();
@@ -450,36 +497,8 @@ export function InvoicesPage() {
         label: t('invoices.tableHeaders.invoiceNumber')!,
         sortable: false,
         defaultVisible: true,
-        render: (inv) => (
-          <span className={styles.invoiceNumberCell}>
-            {inv.invoiceNumber ? (
-              <Link to={`/budget/invoices/${inv.id}`} className={styles.invoiceLink}>
-                {inv.invoiceNumber}
-              </Link>
-            ) : (
-              <Link
-                to={`/budget/invoices/${inv.id}`}
-                className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
-              >
-                —
-              </Link>
-            )}
-            {openOnly && (isInvoiceOverdue(inv, today) || hasOverdueOpenDeposit(inv, today)) && (
-              <Badge
-                variants={flagVariants}
-                value={isInvoiceOverdue(inv, today) ? 'overdue' : 'depositOverdue'}
-                testId={`invoice-overdue-${inv.id}`}
-              />
-            )}
-            {openOnly && isContainerOnly(inv) && (
-              <Badge
-                variants={flagVariants}
-                value="containerOnly"
-                testId={`invoice-container-${inv.id}`}
-              />
-            )}
-          </span>
-        ),
+        render: (inv) => renderInvoiceNumberCell(inv, '', openOnly, today, flagVariants),
+        renderCard: (inv) => renderInvoiceNumberCell(inv, '-mobile', openOnly, today, flagVariants),
       },
       {
         key: 'vendor',
@@ -580,6 +599,13 @@ export function InvoicesPage() {
             variants={invoiceStatusVariants}
             value={inv.status}
             testId={`invoice-status-${inv.id}`}
+          />
+        ),
+        renderCard: (inv) => (
+          <Badge
+            variants={invoiceStatusVariants}
+            value={inv.status}
+            testId={`invoice-status-mobile-${inv.id}`}
           />
         ),
       },

@@ -531,7 +531,19 @@ export class InvoicesPage {
         resp.request().method() === 'GET' &&
         resp.status() === 200,
     );
-    await this.openItemsToggle.setChecked(on);
+    try {
+      // This is a controlled checkbox (checked={openOnly}); Playwright's setChecked()
+      // clicks and then verifies input.checked exactly once, immediately. That single
+      // read can land in the window between the native click and React's re-render off
+      // the resulting URL update, seeing the stale value and failing spuriously. Click
+      // and then retry the checked-state assertion instead of a one-shot check.
+      await this.openItemsToggle.click();
+      await expect(this.openItemsToggle).toBeChecked({ checked: on });
+    } finally {
+      // Don't let the response wait dangle (or surface as an unhandled rejection) if
+      // the click/assertion above throws before we get to await it below.
+      responsePromise.catch(() => {});
+    }
     await responsePromise;
   }
 

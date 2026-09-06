@@ -1385,4 +1385,32 @@ describe('InvoicesPage', () => {
       }
     });
   });
+
+  // ─── Desktop/mobile duplicate-testid regression (fix/2046-e2e-toggle-flake) ─
+  // DataTable mounts the desktop table AND the mobile cards simultaneously (CSS
+  // picks one visually; jsdom applies no CSS), so a status column with no
+  // `renderCard` override used to emit the SAME `invoice-status-{id}` testid
+  // twice — invisible to jsdom-based unit assertions (which mostly used
+  // getAllByTestId(...)[0], tolerant of 1 or 2 matches) but a real Playwright
+  // strict-mode violation. The fix gives the renderCard-rendered instance a
+  // `-mobile-` suffixed testid. These tests pin that: exactly one match per
+  // testid (not two), and the two elements are genuinely distinct nodes.
+
+  describe('desktop/mobile testid disambiguation (fix/2046-e2e-toggle-flake)', () => {
+    it('the status badge renders exactly one desktop-testid element and one distinct mobile-testid element', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(populatedResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('invoice-status-inv-001').length).toBeGreaterThan(0);
+      });
+
+      const desktopBadges = screen.getAllByTestId('invoice-status-inv-001');
+      const mobileBadges = screen.getAllByTestId('invoice-status-mobile-inv-001');
+      expect(desktopBadges).toHaveLength(1);
+      expect(mobileBadges).toHaveLength(1);
+      expect(desktopBadges[0]).not.toBe(mobileBadges[0]);
+    });
+  });
 });

@@ -536,6 +536,56 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
     });
   });
 
+  // ─── Desktop/mobile duplicate-testid regression (fix/2046-e2e-toggle-flake) ─
+  // renderInvoiceNumberCell's overdue/container flag badges are shared between
+  // the desktop `render` and mobile `renderCard` paths via an `idSuffix` param
+  // ('' vs '-mobile'). Before this fix both paths emitted the identical testid,
+  // which is invisible to jsdom-based getAllByTestId(...)[0] assertions (they
+  // tolerate 1 or 2 matches either way) but is a real Playwright strict-mode
+  // violation. These tests pin exactly one match per (desktop, mobile) testid
+  // pair, and that the two are distinct DOM nodes.
+
+  describe('desktop/mobile testid disambiguation (fix/2046-e2e-toggle-flake)', () => {
+    it('the overdue flag badge renders exactly one desktop-testid element and one distinct mobile-testid element', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invA, invG]));
+      renderPageAt('/budget/invoices?openOnly=true');
+      await waitFor(() => expect(screen.getAllByText('INV-G').length).toBeGreaterThan(0));
+
+      // INV-G is overdue in its own right (not collapsed, no interaction needed).
+      const desktopOverdue = screen.getAllByTestId('invoice-overdue-inv-g');
+      const mobileOverdue = screen.getAllByTestId('invoice-overdue-mobile-inv-g');
+      expect(desktopOverdue).toHaveLength(1);
+      expect(mobileOverdue).toHaveLength(1);
+      expect(desktopOverdue[0]).not.toBe(mobileOverdue[0]);
+    });
+
+    it('the container-only flag badge renders exactly one desktop-testid element and one distinct mobile-testid element', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invC]));
+      renderPageAt('/budget/invoices?openOnly=true');
+      await waitFor(() => expect(screen.getAllByText('INV-C').length).toBeGreaterThan(0));
+
+      const desktopContainer = screen.getAllByTestId('invoice-container-inv-c');
+      const mobileContainer = screen.getAllByTestId('invoice-container-mobile-inv-c');
+      expect(desktopContainer).toHaveLength(1);
+      expect(mobileContainer).toHaveLength(1);
+      expect(desktopContainer[0]).not.toBe(mobileContainer[0]);
+    });
+
+    it('the status badge (unconditional renderCard override) renders exactly one desktop-testid and one distinct mobile-testid element', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invA]));
+      renderPageAt('/budget/invoices?openOnly=true');
+      await waitFor(() =>
+        expect(screen.getAllByTestId('invoice-status-inv-a').length).toBeGreaterThan(0),
+      );
+
+      const desktopStatus = screen.getAllByTestId('invoice-status-inv-a');
+      const mobileStatus = screen.getAllByTestId('invoice-status-mobile-inv-a');
+      expect(desktopStatus).toHaveLength(1);
+      expect(mobileStatus).toHaveLength(1);
+      expect(desktopStatus[0]).not.toBe(mobileStatus[0]);
+    });
+  });
+
   // ─── Badge className regression ─────────────────────────────────────────────
 
   describe('badge className regression', () => {

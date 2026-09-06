@@ -1055,7 +1055,17 @@ test.describe('Open items — keyboard operability of the expand control and tog
       await invoicesPage.setOpenItemsOnly(true);
 
       const button = invoicesPage.expandButton(a.id);
-      await button.focus();
+      // Real keyboard Tab navigation, not a programmatic `.focus()` call: Chromium's
+      // `:focus-visible` heuristic doesn't treat a script-triggered focus() as
+      // keyboard-originated, so the CSS `:focus-visible` focus-ring rule never
+      // applies in that case — the box-shadow assertion below needs the actual
+      // keyboard-focus code path to be meaningful. Bounded so an unreachable
+      // element fails fast instead of hanging.
+      let tabs = 0;
+      while (!(await button.evaluate((el) => el === document.activeElement)) && tabs < 40) {
+        await page.keyboard.press('Tab');
+        tabs++;
+      }
       await expect(button).toBeFocused();
 
       const focusBoxShadow = await button.evaluate((el) => getComputedStyle(el).boxShadow);
@@ -1158,7 +1168,12 @@ test.describe('Open items — toggle off behaves exactly as before (Scenario 19,
     await invoicesPage.waitForLoaded();
 
     await expect(invoicesPage.openItemsToggle).not.toBeChecked();
-    await expect(page.locator('[aria-expanded]')).toHaveCount(0);
+    // Scoped to the table (not a bare page-wide locator): DataTableColumnSettings'
+    // column-settings gear button also carries its own unrelated `aria-expanded`
+    // for its popover state and is always present regardless of this toggle — the
+    // same collision the Jest suite works around in DataTable.test.tsx by querying
+    // within `table` rather than the whole rendered output.
+    await expect(invoicesPage.tableContainer.locator('[aria-expanded]')).toHaveCount(0);
     await expect(page.getByRole('columnheader', { name: 'Still due' })).toHaveCount(0);
     await expect(statusFilterButton(page)).toBeEnabled();
   });
