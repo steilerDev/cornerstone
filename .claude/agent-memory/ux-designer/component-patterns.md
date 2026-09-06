@@ -19,6 +19,7 @@ metadata:
 - `.info` badge = neutral gray, reused for "disabled"/"auto-created" states; distinct semantic badges (`.success`, `.autoOrigin`, `iblUnassigned`, entity-type pills) should get their own variant only when the semantic meaning truly differs from `.info`/`.error`/`.warning`
 - Entity type pills: WI = `--color-status-in-progress-*`; HI = `--color-hi-status-scheduled-*`; use `--radius-full`
 - `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic`
+- **CONTRAST BUG in the `iblUnassigned` recipe**: `--color-text-muted` on `--color-status-not-started-bg` measures 3.90:1 (light) / 2.18:1 (dark) — fails WCAG AA (needs 4.5:1) at the badge's actual size (`--font-size-xs`/12px, weight 500, not "large text"). `.pending` uses the correct pairing for this same bg — `--color-status-not-started-text` (not `--color-text-muted`) — measuring 8.33:1 (light) / 4.04:1 (dark, still marginally short but far closer). When asked to add a new "muted/italic, not really this bucket" badge variant (PR #2066 added `.containerOnly` copying this same recipe verbatim), require `--color-status-not-started-text` instead of `--color-text-muted`, and flag (don't silently fix) any pre-existing sibling class using the bad pairing (`iblUnassigned` itself remains unfixed as of PR #2066 — file a follow-up issue rather than fixing out-of-scope files in an unrelated PR).
 
 ## SearchPicker / AreaPicker
 

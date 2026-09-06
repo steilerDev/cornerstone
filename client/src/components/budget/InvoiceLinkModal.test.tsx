@@ -127,6 +127,8 @@ function buildPaginatedResponse(invoices: Invoice[]): InvoiceListPaginatedRespon
       overdue: { count: 0, totalAmount: 0 },
       claimable: { count: invoices.length, totalAmount: 1000 },
       quotationCoveredByDeposits: 0,
+      openPayable: { count: 0, totalAmount: 0 },
+      refundsDue: { count: 0, totalAmount: 0 },
     },
   };
 }

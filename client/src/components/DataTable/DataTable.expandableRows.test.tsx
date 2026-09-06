@@ -156,10 +156,11 @@ describe('DataTable expandableRows', () => {
     const childRow = container.querySelector('#row-group-item-1 tr.childRow');
     expect(childRow).toBeInTheDocument();
     expect(childRow).toHaveAttribute('hidden');
-    // Not skipped by default RTL queries when explicitly asked to include hidden content
-    // Renders in both the desktop table body and the mobile card body (no CSS
-    // media-query filtering in jsdom) — at least one instance must be present.
-    expect(screen.getAllByText('Child A', { hidden: true }).length).toBeGreaterThan(0);
+    // `ByText` queries do no accessibility-tree filtering (unlike `ByRole`, where
+    // `hidden` is a valid option), so a `hidden` child <tr>/<div> is found either
+    // way. Renders in both the desktop table body and the mobile card body (no
+    // CSS media-query filtering in jsdom) — at least one instance must be present.
+    expect(screen.getAllByText('Child A').length).toBeGreaterThan(0);
   });
 
   it('keeps the same child DOM node identity across an expand → collapse cycle', async () => {

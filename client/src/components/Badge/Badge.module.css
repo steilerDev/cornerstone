@@ -317,10 +317,12 @@
 }
 
 /* Container-only parent (Story #2046) — muted/italic "not really this bucket"
-   recipe, mirroring .iblUnassigned above. */
+   recipe, mirroring .iblUnassigned above. Uses --color-status-not-started-text
+   (not --color-text-muted) to meet WCAG AA contrast on this background — the
+   same token .pending already uses here (8.33:1 light / 4.04:1 dark). */
 .containerOnly {
   background-color: var(--color-status-not-started-bg);
-  color: var(--color-text-muted);
+  color: var(--color-status-not-started-text);
   font-style: italic;
 }
 
