@@ -92,7 +92,7 @@ function calculateRemaining(invoice: Invoice): number {
  */
 function renderInvoiceNumberCell(
   inv: Invoice,
-  idSuffix: string,
+  idSuffix: '' | '-mobile',
   openOnly: boolean,
   today: string,
   flagVariants: BadgeVariantMap,

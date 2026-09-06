@@ -1713,3 +1713,45 @@ prose. Renaming a key is a repo-wide grep, not a call-site edit — grep the old
 in an adjacent line (`page.entryCountSingular`, confirmed on `origin/beta`) are both explicitly non-blocking.
 Say "do not respin for this" out loud in the verdict — otherwise a LOW finding reads as a fourth round, and
 naming the pre-existing one without the beta provenance check invites scope creep into someone else's diff.
+
+---
+
+## Always-mounted dual DOM makes `data-testid` a *pair*, not a name (#2046 / PR #2066 → #2068, 2026-09-06)
+
+`DataTable` renders the desktop `<table>` **and** the mobile card list at the same time; only CSS
+(`@media (max-width: 767px)`: `.tableContainer{display:none}` / `.cardsContainer{display:flex}`) picks one.
+So every `data-testid` emitted from a `ColumnDef.render` with no `renderCard` override — and from
+`renderActions`, which **both** `DataTableRow` and `DataTableCard` invoke — exists twice in the document.
+
+Four things to carry forward:
+
+1. **jsdom cannot see this class of bug, and the idiomatic assertion actively hides it.**
+   `getAllByTestId(x)[0]` is satisfied by one match *or* two, so a whole 46-test suite stayed green over a
+   Playwright strict-mode violation on every page-wide `getByTestId`. The assertion that works is
+   `expect(getAllByTestId(desktopId)).toHaveLength(1)` **plus** `...(mobileId)).toHaveLength(1)` **plus**
+   `expect(a[0]).not.toBe(b[0])`. Same family as the `count >= 1` finding from #1910/PR #2004 r4: a
+   tolerant-cardinality assertion is not coverage. Verify with a mutation — reverting the suffix must turn
+   the new tests red (it did: 4 failed, and the *old* `[0]` assertions stayed green under the same mutation).
+2. **`Quality Gates` on `beta` does not wait for the full E2E shards**, so an E2E suite can merge having only
+   been shown to *collect* cleanly. A suite that has never actually executed is not evidence. When reviewing
+   a PR that adds a large E2E spec, ask whether it was run against the built image, not whether it typechecks.
+3. **A partial fix on a systemic hazard needs the inventory written down.** The convention already existed
+   (`deposit-status-mobile-{id}`) but lived only in a page object's header comment — so five other DataTable
+   pages plus `renderActions` on the same page still carry it. Filed as #2069: settle the mechanism at the
+   `DataTable` level (`renderCardActions`, or card-subtree scoping), document it on Architecture.md, and add
+   a duplicate-testid guard. Do not let a per-call-site suffix become the documented answer.
+4. **The page object's header comment IS the contract, so it drifts like one.** `e2e/pages/InvoicesPage.ts`
+   explains the dual-mount rule for deposits and then omits the three invoice badges the PR just suffixed —
+   the next mobile assertion reaches for the documented name and gets a `display:none` node. Another instance
+   of documented-bound / cross-reference rot (#1939, #1910): when a fix changes an identifier a doc block
+   enumerates, the doc block is part of the diff.
+
+**Viewport-tag check when reviewing E2E changes**: `playwright.config.ts` gives `tablet` and `mobile`
+`grep: /@responsive/`. An untagged `describe` runs on `desktop` only — which is what makes a `Tab`-navigation
+loop or a `.tableContainer`-scoped locator safe despite the table being hidden below 768px. Check the tag
+before flagging a viewport hazard; and note `test.use`-free tests that build their own `browser.newContext`
+with an explicit viewport (Scenario 18) run redundantly on all three projects.
+
+**Positional `idSuffix: string`**: narrow to `'' | '-mobile'`. `string` accepts `'mobile'`/`'_mobile'`, which
+compiles, renders, and produces a testid nobody locates, with no failing test outside the three that pin the
+correct spelling. A literal union makes the convention compiler-enforced at both call sites.
