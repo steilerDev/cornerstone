@@ -442,4 +442,81 @@ describe('useTableState', () => {
       expect(result.current.tableState.page).toBe(1);
     });
   });
+
+  // ─── reservedParams (Story #2046) ───────────────────────────────────────────
+
+  // Hoisted so every renderHook() call passes the SAME array reference across
+  // re-renders — the hook's sync effect depends on `reservedParams` by
+  // identity (matching production callers like InvoicesPage's module-level
+  // OPEN_ONLY_RESERVED). An inline `['openOnly']` literal inside the
+  // renderHook callback is re-created on every render, which the effect sees
+  // as a changed dependency, re-runs, calls setTableState, triggers another
+  // render, and recreates the array again — an infinite render loop.
+  const RESERVED_PARAMS = ['openOnly'];
+
+  describe('reservedParams', () => {
+    it('excludes a reserved param from tableState.filters on initial state', () => {
+      const { result } = renderHook(() => useTableState({ reservedParams: RESERVED_PARAMS }), {
+        wrapper: makeWrapper(['/?openOnly=true&status=paid&q=x']),
+      });
+
+      expect(result.current.tableState.filters.has('openOnly')).toBe(false);
+      expect(result.current.tableState.filters.get('status')?.value).toBe('paid');
+    });
+
+    it('excludes a reserved param from tableState.filters after the URL-sync effect re-runs', () => {
+      const { result } = renderHook(() => useTableState({ reservedParams: RESERVED_PARAMS }), {
+        wrapper: makeWrapper(['/?openOnly=true&status=paid']),
+      });
+
+      act(() => {
+        result.current.setFilter('vendorId', 'vendor-1');
+      });
+
+      // The sync effect re-ran off the new searchParams; 'openOnly' must still
+      // be excluded, while the real filters (old and new) are present.
+      expect(result.current.tableState.filters.has('openOnly')).toBe(false);
+      expect(result.current.tableState.filters.get('status')?.value).toBe('paid');
+      expect(result.current.tableState.filters.get('vendorId')?.value).toBe('vendor-1');
+    });
+
+    it('resetFilters preserves a reserved param currently set in the URL', () => {
+      const { result } = renderHook(() => useTableState({ reservedParams: RESERVED_PARAMS }), {
+        wrapper: makeWrapper(['/?openOnly=true&status=paid&q=x']),
+      });
+
+      act(() => {
+        result.current.resetFilters();
+      });
+
+      // The real column filter is cleared...
+      expect(result.current.tableState.filters.has('status')).toBe(false);
+      // ...but the reserved param and the search query survive, and page resets to 1.
+      expect(result.current.searchInput).toBe('x');
+      expect(result.current.tableState.page).toBe(1);
+    });
+
+    it('resetFilters does not resurrect a reserved param that is not currently set', () => {
+      const { result } = renderHook(() => useTableState({ reservedParams: RESERVED_PARAMS }), {
+        wrapper: makeWrapper(['/?status=paid']),
+      });
+
+      act(() => {
+        result.current.resetFilters();
+      });
+
+      expect(result.current.tableState.filters.has('openOnly')).toBe(false);
+      expect(result.current.tableState.filters.has('status')).toBe(false);
+    });
+
+    it('default behaviour (reservedParams omitted) is unchanged: a same-named param IS treated as a filter', () => {
+      const { result } = renderHook(() => useTableState(), {
+        wrapper: makeWrapper(['/?openOnly=true&status=paid']),
+      });
+
+      // Without reservedParams, 'openOnly' is just another column filter.
+      expect(result.current.tableState.filters.get('openOnly')?.value).toBe('true');
+      expect(result.current.tableState.filters.get('status')?.value).toBe('paid');
+    });
+  });
 });

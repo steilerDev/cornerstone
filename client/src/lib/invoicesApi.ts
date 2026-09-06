@@ -55,6 +55,7 @@ export function fetchAllInvoices(params?: {
   dueDate?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  openOnly?: boolean;
 }): Promise<InvoiceListPaginatedResponse> {
   const queryParams = new URLSearchParams();
   if (params?.page !== undefined) queryParams.set('page', params.page.toString());
@@ -67,6 +68,8 @@ export function fetchAllInvoices(params?: {
   if (params?.dueDate) queryParams.set('dueDate', params.dueDate);
   if (params?.sortBy) queryParams.set('sortBy', params.sortBy);
   if (params?.sortOrder) queryParams.set('sortOrder', params.sortOrder);
+  // Send the literal 'true' — Fastify/AJV coerces "true"/"false" to boolean, but "1" does not.
+  if (params?.openOnly) queryParams.set('openOnly', 'true');
   const queryString = queryParams.toString();
   const path = queryString ? `/invoices?${queryString}` : '/invoices';
   return get<InvoiceListPaginatedResponse>(path);

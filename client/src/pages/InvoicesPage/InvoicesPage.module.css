@@ -66,6 +66,12 @@
   color: var(--color-success-badge-text);
 }
 
+/* Money still owed (Story #2046) — deliberately NOT summaryAmountPaid: green would
+   read as money received, this is still outstanding. */
+.summaryAmountOpen {
+  color: var(--color-text-primary);
+}
+
 .summaryHint {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
@@ -118,6 +124,14 @@
 
 .invoiceLinkNoNumber {
   color: var(--color-text-muted);
+}
+
+/* Invoice # cell wrapper (Story #2046) — link plus overdue/container flag badges. */
+.invoiceNumberCell {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
 }
 
 .vendorLink {
@@ -284,6 +298,68 @@
 
 .menuItem:last-child {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+/* ---- "Show only open items" toggle (Story #2046) ---- */
+
+.openItemsToggleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex-wrap: wrap;
+}
+
+.openItemsToggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: 44px;
+  padding: var(--spacing-1) 0;
+  cursor: pointer;
+}
+
+.openItemsCheckbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.openItemsCheckbox:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.openItemsLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.defaultSortHint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---- Open-deposit child rows (Story #2046) ---- */
+
+.childAmount {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.childAmountNegative {
+  color: var(--color-danger-text-on-light);
+}
+
+.childCaption {
+  display: block;
+  font-size: var(--font-size-2xs);
+  color: var(--color-text-muted);
+}
+
+.childCellMuted {
+  color: var(--color-text-muted);
 }
 
 /* ============================================================

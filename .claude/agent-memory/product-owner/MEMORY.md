@@ -34,6 +34,7 @@
 Detail in [standalone-bugs-and-stories.md](standalone-bugs-and-stories.md) (budget/invoice), [standalone-diary-bugs.md](standalone-diary-bugs.md), [standalone-photo-stories.md](standalone-photo-stories.md). Growing budget/invoice cluster (20+) → propose a "Budget/Invoice UX Polish" epic next planning cycle.
 
 - Budget/invoice batches: #1369-#1373, #1389-#1390, #1401, #1421-#1425, #1439-#1441, #1553
+- **#2046** open-items view (35 ACs) — PR #2066 reviewed 2026-09-06, APPROVE, no follow-ups; board In Progress until merge, then UAT (not Done-on-merge, real visual ACs). See [pr-review-patterns.md](pr-review-patterns.md) for the `reservedParams`/DataTable-extension pattern.
 - Auto-itemize (standalone, no parent epic): #1545-#1547 mini-epic, #1600, #1833 duplicate budget lines on commit retry
 - Diary: #1426 critical photo data loss | **#2060 pager→infinite scroll, In Progress, 23 ACs — PR #2063 APPROVED round 2 (all 5 R1 findings closed); spin-off bugs #2061/#2062 bundled and still open; `Refs #2060` not `Fixes`, stays In Progress → UAT; deferred follow-up #2065** | Photo: #1723 lightbox picker UX
 - **#1970 auth rate limits** — PR #1989 approved R3, all 7 ACs met, Done on merge; follow-ups #1990/#1991/#1992 open. See [auth-rate-limits-1970.md](auth-rate-limits-1970.md)

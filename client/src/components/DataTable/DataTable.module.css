@@ -365,6 +365,11 @@
   border-color: var(--color-primary);
 }
 
+.tableHeaderFilterButtonDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Table Rows */
 .table tbody tr {
   border-bottom: 1px solid var(--color-border);
@@ -394,6 +399,54 @@
 
 .tableRowSelected:hover {
   background-color: var(--color-primary-bg-hover);
+}
+
+/* Expandable rows (Story #2046) */
+.expandCell {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  text-align: center;
+}
+
+.expandButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+}
+
+.expandButton:hover {
+  color: var(--color-text-secondary);
+  background-color: var(--color-bg-tertiary);
+}
+
+.expandButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.expandIcon {
+  display: inline-block;
+  transition: transform var(--transition-normal);
+}
+
+.expandIconOpen {
+  transform: rotate(-180deg);
+}
+
+.childRow {
+  background-color: var(--color-bg-secondary);
+}
+
+.childRowCellIndent {
+  padding-left: var(--spacing-8);
 }
 
 /* Table Cells */
@@ -445,6 +498,38 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: var(--spacing-3);
+}
+
+.cardHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.cardChildren {
+  margin-top: var(--spacing-3);
+  padding: var(--spacing-3) 0 var(--spacing-3) var(--spacing-3);
+  border-left: 2px solid var(--color-border-strong);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+}
+
+/* The `hidden` attribute only hides via the UA rule `[hidden] { display: none }`,
+   which an author-level `display` declaration overrides. Restore it explicitly. */
+.cardChildren[hidden] {
+  display: none;
+}
+
+.cardChildRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
 }
 
 .cardContent {
@@ -704,7 +789,8 @@
   .resetButton,
   .columnSettingsButton,
   .pageSizeSelect,
-  .searchInput {
+  .searchInput,
+  .expandIcon {
     transition: none;
   }
 }

@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, useRef, type FormEvent, type ReactNode } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   Invoice,
+  InvoiceDeposit,
   CreateInvoiceRequest,
   InvoiceStatus,
   FilterMeta,
@@ -10,7 +11,11 @@ import type {
   PaperlessDocumentSearchResult,
   PaperlessStatusResponse,
 } from '@cornerstone/shared';
-import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
+import type {
+  ColumnDef,
+  TableState,
+  ExpandableRowsConfig,
+} from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
@@ -26,8 +31,22 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
+import {
+  todayIso,
+  isOverdue,
+  getOpenDeposits,
+  isContainerOnly,
+  isInvoiceOverdue,
+  hasOverdueOpenDeposit,
+  getDepositOrdinal,
+} from './openItemsUtils.js';
 import sharedStyles from '../../styles/shared.module.css';
+import badgeStyles from '../../components/Badge/Badge.module.css';
+import dtStyles from '../../components/DataTable/DataTable.module.css';
 import styles from './InvoicesPage.module.css';
+
+// URL params owned by this page's "open items" mode, not by useTableState's column filters.
+const OPEN_ONLY_RESERVED = ['openOnly'];
 
 interface InvoiceFormState {
   vendorId: string;
@@ -78,6 +97,8 @@ export function InvoicesPage() {
     overdue: { count: 0, totalAmount: 0 },
     claimable: { count: 0, totalAmount: 0 },
     quotationCoveredByDeposits: 0,
+    openPayable: { count: 0, totalAmount: 0 },
+    refundsDue: { count: 0, totalAmount: 0 },
   });
   const [filterMeta, setFilterMeta] = useState<FilterMeta>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -89,8 +110,11 @@ export function InvoicesPage() {
   // Table state management with URL sync
   const { tableState, toApiParams } = useTableState({
     defaultPageSize: 25,
+    reservedParams: OPEN_ONLY_RESERVED,
   });
   const [searchParams, setSearchParams] = useSearchParams();
+  const openOnly = searchParams.get('openOnly') === 'true';
+  const today = useMemo(() => todayIso(), []);
 
   // Vendor list for filter dropdown + create modal
   const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
@@ -145,6 +169,7 @@ export function InvoicesPage() {
     tableState.page,
     tableState.pageSize,
     tableState.filters,
+    openOnly,
   ]);
 
   // Load vendors on mount
@@ -188,9 +213,10 @@ export function InvoicesPage() {
     setError('');
 
     try {
-      const response = await fetchAllInvoices(
-        toApiParams() as Parameters<typeof fetchAllInvoices>[0],
-      );
+      const response = await fetchAllInvoices({
+        ...(toApiParams() as NonNullable<Parameters<typeof fetchAllInvoices>[0]>),
+        openOnly,
+      });
       setInvoices(response.invoices);
       setSummary(response.summary);
       setFilterMeta(response.filterMeta ?? {});
@@ -238,6 +264,23 @@ export function InvoicesPage() {
       }
     }
 
+    // Mutual exclusivity: choosing a status filter turns "open items" mode off.
+    if (newState.filters.has('status')) {
+      params.delete('openOnly');
+    }
+
+    setSearchParams(params);
+  };
+
+  const setOpenOnly = (next: boolean) => {
+    const params = new URLSearchParams(searchParams);
+    if (next) {
+      params.set('openOnly', 'true');
+      params.delete('status'); // mutual exclusivity: clear any active status filter
+    } else {
+      params.delete('openOnly');
+    }
+    params.set('page', '1');
     setSearchParams(params);
   };
 
@@ -349,11 +392,55 @@ export function InvoicesPage() {
     for (const status of statuses) {
       variants[status] = {
         label: t(`invoices.statusLabels.${status}`),
-        className: styles[status]!,
+        // Fix (Issue #2046): these classes live in Badge.module.css, not InvoicesPage.module.css —
+        // `styles[status]` resolved to undefined, so the invoice status badges rendered with no colour.
+        className: badgeStyles[status]!,
       };
     }
     return variants;
   }, [t]);
+
+  // Open-items badge variants (Story #2046)
+  const flagVariants = useMemo(
+    (): BadgeVariantMap => ({
+      overdue: { label: t('invoices.openItems.overdueLabel')!, className: badgeStyles.overdue! },
+      depositOverdue: {
+        label: t('invoices.openItems.depositOverdueLabel')!,
+        className: badgeStyles.overdue!,
+      },
+      containerOnly: {
+        label: t('invoices.openItems.containerLabel')!,
+        className: badgeStyles.containerOnly!,
+      },
+    }),
+    [t],
+  );
+
+  const depositStatusVariants = useMemo(
+    (): BadgeVariantMap => ({
+      pending: { label: t('invoiceDetail.statusLabels.pending')!, className: badgeStyles.pending! },
+      paid: { label: t('invoiceDetail.statusLabels.paid')!, className: badgeStyles.paid! },
+      claimed: { label: t('invoiceDetail.statusLabels.claimed')!, className: badgeStyles.claimed! },
+    }),
+    [t],
+  );
+
+  const entryTypeVariants = useMemo(
+    (): BadgeVariantMap => ({
+      refund: {
+        label: t('invoiceDetail.deposits.entryTypeLabels.refund')!,
+        className: badgeStyles.error!,
+      },
+    }),
+    [t],
+  );
+
+  // Disable the Status filter trigger while "open items" mode is on (mutually exclusive).
+  const disabledFilterKeys = useMemo(
+    () =>
+      openOnly ? new Map([['status', t('invoices.openItems.toggleDisabledHint')!]]) : undefined,
+    [openOnly, t],
+  );
 
   // Column definitions
   const columns = useMemo(
@@ -363,19 +450,36 @@ export function InvoicesPage() {
         label: t('invoices.tableHeaders.invoiceNumber')!,
         sortable: false,
         defaultVisible: true,
-        render: (inv) =>
-          inv.invoiceNumber ? (
-            <Link to={`/budget/invoices/${inv.id}`} className={styles.invoiceLink}>
-              {inv.invoiceNumber}
-            </Link>
-          ) : (
-            <Link
-              to={`/budget/invoices/${inv.id}`}
-              className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
-            >
-              —
-            </Link>
-          ),
+        render: (inv) => (
+          <span className={styles.invoiceNumberCell}>
+            {inv.invoiceNumber ? (
+              <Link to={`/budget/invoices/${inv.id}`} className={styles.invoiceLink}>
+                {inv.invoiceNumber}
+              </Link>
+            ) : (
+              <Link
+                to={`/budget/invoices/${inv.id}`}
+                className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
+              >
+                —
+              </Link>
+            )}
+            {openOnly && (isInvoiceOverdue(inv, today) || hasOverdueOpenDeposit(inv, today)) && (
+              <Badge
+                variants={flagVariants}
+                value={isInvoiceOverdue(inv, today) ? 'overdue' : 'depositOverdue'}
+                testId={`invoice-overdue-${inv.id}`}
+              />
+            )}
+            {openOnly && isContainerOnly(inv) && (
+              <Badge
+                variants={flagVariants}
+                value="containerOnly"
+                testId={`invoice-container-${inv.id}`}
+              />
+            )}
+          </span>
+        ),
       },
       {
         key: 'vendor',
@@ -418,6 +522,26 @@ export function InvoicesPage() {
         render: (inv) => formatCurrency(inv.amount),
         className: styles.amountCell!,
       },
+      ...(openOnly
+        ? [
+            {
+              key: 'stillDue',
+              label: t('invoices.tableHeaders.stillDue')!,
+              sortable: false,
+              defaultVisible: true,
+              alwaysVisible: true,
+              className: styles.amountCell!,
+              headerClassName: styles.amountCell!,
+              headerTitle: t('invoices.tableHeaders.stillDueHint')!,
+              render: (inv: Invoice) =>
+                isContainerOnly(inv) ? (
+                  <span title={t('invoices.tableHeaders.stillDueHint')!}>—</span>
+                ) : (
+                  formatCurrency(inv.openAmount ?? 0)
+                ),
+            } satisfies ColumnDef<Invoice>,
+          ]
+        : []),
       {
         key: 'allocated',
         label: t('invoices.tableHeaders.allocated')!,
@@ -489,8 +613,160 @@ export function InvoicesPage() {
         render: (inv) => formatCurrency(inv.finalPaymentAmount),
       },
     ],
-    [t, formatDate, formatCurrency, invoiceStatusVariants, vendors],
+    [t, formatDate, formatCurrency, invoiceStatusVariants, flagVariants, vendors, openOnly, today],
   );
+
+  // Expandable child rows: open (pending) deposits nested under each invoice (Story #2046)
+  const expandableRows = useMemo<ExpandableRowsConfig<Invoice, InvoiceDeposit> | undefined>(() => {
+    if (!openOnly) return undefined;
+
+    const renderDepositCell = (
+      key: string,
+      deposit: InvoiceDeposit,
+      invoice: Invoice,
+    ): ReactNode => {
+      switch (key) {
+        case 'invoiceNumber': {
+          const ordinal = getDepositOrdinal(invoice, deposit);
+          return (
+            <td key={key} className={`${dtStyles.tableCell} ${dtStyles.childRowCellIndent}`}>
+              <span className={sharedStyles.srOnly}>
+                {t('invoices.openItems.childOf', {
+                  invoiceNumber: invoice.invoiceNumber ?? t('invoices.noNumber'),
+                })}
+              </span>
+              {deposit.entryType === 'refund' ? (
+                <Badge variants={entryTypeVariants} value="refund" />
+              ) : (
+                ordinal &&
+                t('invoices.openItems.depositOrdinal', {
+                  index: ordinal.index,
+                  total: ordinal.total,
+                })
+              )}
+            </td>
+          );
+        }
+        case 'dueDate':
+          return (
+            <td key={key} className={dtStyles.tableCell}>
+              {formatDate(deposit.dueDate)}
+              {isOverdue(deposit.dueDate, today) && (
+                <Badge
+                  variants={flagVariants}
+                  value="overdue"
+                  testId={`deposit-overdue-${deposit.id}`}
+                />
+              )}
+            </td>
+          );
+        case 'amount':
+          return (
+            <td key={key} className={dtStyles.tableCell}>
+              <span
+                className={`${styles.childAmount} ${
+                  deposit.entryType === 'refund' ? styles.childAmountNegative : ''
+                }`}
+              >
+                {formatCurrency(deposit.entryType === 'refund' ? -deposit.amount : deposit.amount)}
+              </span>
+              <span className={styles.childCaption}>
+                {t(
+                  deposit.entryType === 'refund'
+                    ? 'invoices.openItems.childExcludedCaption'
+                    : 'invoices.openItems.childIncludedCaption',
+                )}
+              </span>
+            </td>
+          );
+        case 'status':
+          return (
+            <td key={key} className={dtStyles.tableCell}>
+              <Badge
+                variants={depositStatusVariants}
+                value={deposit.status}
+                testId={`deposit-status-${deposit.id}`}
+              />
+            </td>
+          );
+        case 'notes':
+          return (
+            <td key={key} className={dtStyles.tableCell}>
+              {deposit.description ?? '—'}
+            </td>
+          );
+        default:
+          return (
+            <td key={key} className={`${dtStyles.tableCell} ${styles.childCellMuted}`}>
+              —
+            </td>
+          );
+      }
+    };
+
+    const renderDepositCard = (deposit: InvoiceDeposit, invoice: Invoice): ReactNode => {
+      const ordinal = getDepositOrdinal(invoice, deposit);
+      return (
+        <>
+          {deposit.entryType === 'refund' ? (
+            <Badge variants={entryTypeVariants} value="refund" />
+          ) : (
+            ordinal &&
+            t('invoices.openItems.depositOrdinal', { index: ordinal.index, total: ordinal.total })
+          )}
+          <span>{formatDate(deposit.dueDate)}</span>
+          {isOverdue(deposit.dueDate, today) && (
+            <Badge
+              variants={flagVariants}
+              value="overdue"
+              testId={`deposit-overdue-mobile-${deposit.id}`}
+            />
+          )}
+          <span
+            className={`${styles.childAmount} ${
+              deposit.entryType === 'refund' ? styles.childAmountNegative : ''
+            }`}
+          >
+            {formatCurrency(deposit.entryType === 'refund' ? -deposit.amount : deposit.amount)}
+          </span>
+          <span className={styles.childCaption}>
+            {t(
+              deposit.entryType === 'refund'
+                ? 'invoices.openItems.childExcludedCaption'
+                : 'invoices.openItems.childIncludedCaption',
+            )}
+          </span>
+          <Badge
+            variants={depositStatusVariants}
+            value={deposit.status}
+            testId={`deposit-status-mobile-${deposit.id}`}
+          />
+        </>
+      );
+    };
+
+    return {
+      getChildren: (inv) => getOpenDeposits(inv),
+      getChildKey: (d) => d.id,
+      isDefaultExpanded: () => true,
+      getExpandLabel: (inv, expanded, count) =>
+        t(expanded ? 'invoices.openItems.collapseLabel' : 'invoices.openItems.expandLabel', {
+          invoiceNumber: inv.invoiceNumber ?? t('invoices.noNumber'),
+          count,
+        })!,
+      renderChildCells: (d, inv, keys) => keys.map((key) => renderDepositCell(key, d, inv)),
+      renderChildCard: (d, inv) => renderDepositCard(d, inv),
+    };
+  }, [
+    openOnly,
+    t,
+    today,
+    formatCurrency,
+    formatDate,
+    entryTypeVariants,
+    flagVariants,
+    depositStatusVariants,
+  ]);
 
   // Render actions menu
   const renderActions = (invoice: Invoice) => (
@@ -561,6 +837,25 @@ export function InvoicesPage() {
           </span>
         )}
       </div>
+      <div className={styles.summaryCard} data-testid="summary-card-open-payable">
+        <span className={styles.summaryLabel}>{t('invoices.openItems.summaryOpenPayable')}</span>
+        <span className={styles.summaryCount}>{summary.openPayable.count}</span>
+        <span className={`${styles.summaryAmount} ${styles.summaryAmountOpen}`}>
+          {formatCurrency(summary.openPayable.totalAmount)}
+        </span>
+      </div>
+      {summary.refundsDue.count > 0 && (
+        <div className={styles.summaryCard} data-testid="summary-card-refunds-due">
+          <span className={styles.summaryLabel}>{t('invoices.openItems.summaryRefundsDue')}</span>
+          <span className={styles.summaryCount}>{summary.refundsDue.count}</span>
+          <span className={`${styles.summaryAmount} ${styles.summaryAmountOpen}`}>
+            {formatCurrency(summary.refundsDue.totalAmount)}
+          </span>
+          <span className={styles.summaryHint}>
+            {t('invoices.openItems.summaryRefundsDueHint')}
+          </span>
+        </div>
+      )}
       {hasOverdue && (
         <div
           className={`${styles.summaryCard} ${styles.summaryCardOverdue}`}
@@ -609,7 +904,7 @@ export function InvoicesPage() {
       subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
     >
       {headerContent}
-      <DataTable<Invoice>
+      <DataTable<Invoice, InvoiceDeposit>
         pageKey="invoices"
         columns={columns}
         items={invoices}
@@ -624,14 +919,42 @@ export function InvoicesPage() {
         tableState={tableState}
         onStateChange={handleStateChange}
         filterMeta={filterMeta}
-        emptyState={{
-          message: t('invoices.noInvoicesTitle')!,
-          description: t('invoices.noInvoicesDescription')!,
-          action: {
-            label: t('invoices.addFirstInvoice')!,
-            onClick: openCreateModal,
-          },
-        }}
+        disabledFilterKeys={disabledFilterKeys}
+        expandableRows={expandableRows}
+        customFilters={
+          <div className={styles.openItemsToggleRow}>
+            <label className={styles.openItemsToggle}>
+              <input
+                type="checkbox"
+                className={styles.openItemsCheckbox}
+                checked={openOnly}
+                onChange={(e) => setOpenOnly(e.target.checked)}
+                data-testid="open-items-toggle"
+              />
+              <span className={styles.openItemsLabel}>{t('invoices.openItems.toggleLabel')}</span>
+            </label>
+            {openOnly && !tableState.sortBy && (
+              <span className={styles.defaultSortHint}>
+                {t('invoices.openItems.defaultSortHint')}
+              </span>
+            )}
+          </div>
+        }
+        emptyState={
+          openOnly
+            ? {
+                message: t('invoices.openItems.empty.message')!,
+                description: t('invoices.openItems.empty.description')!,
+              }
+            : {
+                message: t('invoices.noInvoicesTitle')!,
+                description: t('invoices.noInvoicesDescription')!,
+                action: {
+                  label: t('invoices.addFirstInvoice')!,
+                  onClick: openCreateModal,
+                },
+              }
+        }
       />
 
       {/* Paperless picker modal */}

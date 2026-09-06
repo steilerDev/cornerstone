@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import type { FilterMeta } from '@cornerstone/shared';
@@ -65,6 +65,14 @@ export interface ColumnDef<T> {
   renderCard?: (item: T) => ReactNode;
   className?: string;
   headerClassName?: string;
+  /**
+   * When true the column is always rendered regardless of stored column
+   * preferences, and is excluded from the column-settings popover.
+   * Use for columns whose presence is driven by page mode, not user choice.
+   */
+  alwaysVisible?: boolean;
+  /** Optional title attribute for the column header (e.g. explaining what the figure includes). */
+  headerTitle?: string;
 }
 
 /**
@@ -99,9 +107,32 @@ export interface TableApiParams {
 }
 
 /**
+ * Configuration enabling expandable parent/child rows on a DataTable.
+ *
+ * @typeParam T - Parent row item type
+ * @typeParam C - Child row item type
+ */
+export interface ExpandableRowsConfig<T, C> {
+  /** [] ⇒ no expand control at all for this row. */
+  getChildren: (item: T) => C[];
+  getChildKey: (child: C, parent: T) => string;
+  /**
+   * Desktop: must return exactly one <td> per key in `visibleColumnKeys`, in order.
+   * The 44px leading cell is rendered by DataTable — do not emit it here.
+   */
+  renderChildCells: (child: C, parent: T, visibleColumnKeys: string[]) => ReactNode;
+  /** Mobile: content rendered inside the parent card's children container. */
+  renderChildCard: (child: C, parent: T) => ReactNode;
+  /** Default: false. */
+  isDefaultExpanded?: (item: T) => boolean;
+  /** Already-translated aria-label for the toggle; must include the child count. */
+  getExpandLabel: (item: T, expanded: boolean, childCount: number) => string;
+}
+
+/**
  * Props for DataTable component
  */
-export interface DataTableProps<T> {
+export interface DataTableProps<T, C = unknown> {
   pageKey: string;
   columns: ColumnDef<T>[];
   items: T[];
@@ -124,6 +155,10 @@ export interface DataTableProps<T> {
   };
   filterMeta?: FilterMeta;
   className?: string;
+  /** Column key → already-translated reason a column's filter trigger is disabled. */
+  disabledFilterKeys?: ReadonlyMap<string, string>;
+  /** Enables parent/child expandable rows. */
+  expandableRows?: ExpandableRowsConfig<T, C>;
 }
 
 /**
@@ -141,7 +176,7 @@ export interface DataTableProps<T> {
  * @param props Component props
  * @returns Rendered DataTable
  */
-export function DataTable<T>({
+export function DataTable<T, C = unknown>({
   pageKey,
   columns,
   items,
@@ -160,13 +195,29 @@ export function DataTable<T>({
   emptyState,
   filterMeta,
   className,
-}: DataTableProps<T>) {
+  disabledFilterKeys,
+  expandableRows,
+}: DataTableProps<T, C>) {
   const { t } = useTranslation('common');
 
   // Client-side filter state for columns without server-side support
   const [clientFilters, setClientFilters] = useState<Map<string, { value: string }>>(
     () => new Map(),
   );
+
+  // Expansion state for parent/child rows — component-local, never persisted to
+  // TableState/URL. No effect resets it on `items` change: a real page reload
+  // remounts the component and restores defaults.
+  const [expandOverrides, setExpandOverrides] = useState<Map<string, boolean>>(() => new Map());
+  const isRowExpanded = (item: T, key: string): boolean =>
+    expandOverrides.get(key) ?? expandableRows?.isDefaultExpanded?.(item) ?? false;
+  const toggleExpanded = (key: string, next: boolean) => {
+    setExpandOverrides((prev) => {
+      const updated = new Map(prev);
+      updated.set(key, next);
+      return updated;
+    });
+  };
 
   // Load column visibility and ordering preferences
   const { visibleColumns, columnOrder, toggleColumn, moveColumn, resetToDefaults } =
@@ -193,6 +244,45 @@ export function DataTable<T>({
 
     return ordered;
   }, [columns, columnOrder]);
+
+  // Columns that must always render regardless of stored preferences (page-mode driven,
+  // not user choice), merged into the stored visibility set.
+  const effectiveVisibleColumns = useMemo(() => {
+    const next = new Set(visibleColumns);
+    for (const col of columns) {
+      if (col.alwaysVisible) next.add(col.key);
+    }
+    return next;
+  }, [visibleColumns, columns]);
+
+  // Always-visible columns are excluded from the column-settings popover — the user
+  // can never unset them, so offering the toggle would be misleading.
+  const settingsColumns = useMemo(
+    () => sortedColumns.filter((c) => !c.alwaysVisible),
+    [sortedColumns],
+  );
+
+  // DataTableColumnSettings emits indices into the columns array it was handed
+  // (settingsColumns, which excludes alwaysVisible columns), whereas
+  // useColumnPreferences.moveColumn splices columnOrder, which may still contain
+  // them (and may contain stale keys from a previous mode). Remap by key.
+  const handleMoveSettingsColumn = useCallback(
+    (from: number, to: number) => {
+      const fromKey = settingsColumns[from]?.key;
+      const toKey = settingsColumns[to]?.key;
+      if (!fromKey || !toKey) return;
+      const fromIndex = columnOrder.indexOf(fromKey);
+      const toIndex = columnOrder.indexOf(toKey);
+      if (fromIndex === -1 || toIndex === -1) return;
+      moveColumn(fromIndex, toIndex);
+    },
+    [settingsColumns, columnOrder, moveColumn],
+  );
+
+  const visibleColumnKeys = useMemo(
+    () => sortedColumns.filter((c) => effectiveVisibleColumns.has(c.key)).map((c) => c.key),
+    [sortedColumns, effectiveVisibleColumns],
+  );
 
   // Identify columns that filter client-side only (no filterParamKey)
   const clientOnlyFilterKeys = useMemo(() => {
@@ -376,10 +466,10 @@ export function DataTable<T>({
               </button>
             )}
             <DataTableColumnSettings<T>
-              columns={sortedColumns}
-              visibleColumns={visibleColumns}
+              columns={settingsColumns}
+              visibleColumns={effectiveVisibleColumns}
               onToggleColumn={toggleColumn}
-              onMoveColumn={moveColumn}
+              onMoveColumn={handleMoveSettingsColumn}
               onResetToDefaults={resetToDefaults}
             />
           </div>
@@ -394,25 +484,83 @@ export function DataTable<T>({
         <table className={styles.table}>
           <DataTableHeader<T>
             columns={sortedColumns}
-            visibleColumns={visibleColumns}
+            visibleColumns={effectiveVisibleColumns}
             tableState={{ ...tableState, filters: allFilters }}
             filterMeta={mergedFilterMeta}
             onSort={handleSort}
             onFilter={handleFilter}
             hasActions={!!renderActions}
+            disabledFilterKeys={disabledFilterKeys}
+            hasLeadingCell={!!expandableRows}
           />
-          <tbody>
-            {filteredItems.map((item) => (
-              <DataTableRow<T>
-                key={getRowKey(item)}
-                item={item}
-                columns={sortedColumns}
-                visibleColumns={visibleColumns}
-                onClick={() => onRowClick?.(item)}
-                renderActions={renderActions ? () => renderActions(item) : undefined}
-              />
-            ))}
-          </tbody>
+          {expandableRows ? (
+            filteredItems.map((item) => {
+              const rowKey = getRowKey(item);
+              const children = expandableRows.getChildren(item);
+              const expanded = children.length > 0 && isRowExpanded(item, rowKey);
+              return (
+                <tbody key={rowKey} id={`row-group-${rowKey}`}>
+                  <DataTableRow<T>
+                    item={item}
+                    columns={sortedColumns}
+                    visibleColumns={effectiveVisibleColumns}
+                    onClick={() => onRowClick?.(item)}
+                    renderActions={renderActions ? () => renderActions(item) : undefined}
+                    leadingCell={
+                      children.length > 0 ? (
+                        <button
+                          type="button"
+                          className={styles.expandButton}
+                          aria-expanded={expanded}
+                          aria-controls={`row-group-${rowKey}`}
+                          aria-label={expandableRows.getExpandLabel(
+                            item,
+                            expanded,
+                            children.length,
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpanded(rowKey, !expanded);
+                          }}
+                        >
+                          <span
+                            className={`${styles.expandIcon} ${expanded ? styles.expandIconOpen : ''}`}
+                            aria-hidden="true"
+                          >
+                            ▼
+                          </span>
+                        </button>
+                      ) : null
+                    }
+                  />
+                  {children.map((child) => (
+                    <tr
+                      key={expandableRows.getChildKey(child, item)}
+                      className={styles.childRow}
+                      hidden={!expanded}
+                    >
+                      <td className={styles.expandCell} aria-hidden="true" />
+                      {expandableRows.renderChildCells(child, item, visibleColumnKeys)}
+                      {renderActions && <td className={styles.tableActionsCell} />}
+                    </tr>
+                  ))}
+                </tbody>
+              );
+            })
+          ) : (
+            <tbody>
+              {filteredItems.map((item) => (
+                <DataTableRow<T>
+                  key={getRowKey(item)}
+                  item={item}
+                  columns={sortedColumns}
+                  visibleColumns={effectiveVisibleColumns}
+                  onClick={() => onRowClick?.(item)}
+                  renderActions={renderActions ? () => renderActions(item) : undefined}
+                />
+              ))}
+            </tbody>
+          )}
         </table>
       </div>
 
@@ -433,16 +581,74 @@ export function DataTable<T>({
         />
       ) : (
         <div className={styles.cardsContainer}>
-          {filteredItems.map((item) => (
-            <DataTableCard<T>
-              key={getRowKey(item)}
-              item={item}
-              columns={sortedColumns}
-              visibleColumns={visibleColumns}
-              onClick={() => onRowClick?.(item)}
-              renderActions={renderActions ? () => renderActions(item) : undefined}
-            />
-          ))}
+          {filteredItems.map((item) => {
+            const rowKey = getRowKey(item);
+            if (!expandableRows) {
+              return (
+                <DataTableCard<T>
+                  key={rowKey}
+                  item={item}
+                  columns={sortedColumns}
+                  visibleColumns={effectiveVisibleColumns}
+                  onClick={() => onRowClick?.(item)}
+                  renderActions={renderActions ? () => renderActions(item) : undefined}
+                />
+              );
+            }
+
+            const children = expandableRows.getChildren(item);
+            const expanded = children.length > 0 && isRowExpanded(item, rowKey);
+            const childrenId = `card-children-${rowKey}`;
+
+            return (
+              <DataTableCard<T>
+                key={rowKey}
+                item={item}
+                columns={sortedColumns}
+                visibleColumns={effectiveVisibleColumns}
+                onClick={() => onRowClick?.(item)}
+                renderActions={renderActions ? () => renderActions(item) : undefined}
+                expandButton={
+                  children.length > 0 ? (
+                    <button
+                      type="button"
+                      className={styles.expandButton}
+                      aria-expanded={expanded}
+                      aria-controls={childrenId}
+                      aria-label={expandableRows.getExpandLabel(item, expanded, children.length)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExpanded(rowKey, !expanded);
+                      }}
+                    >
+                      <span
+                        className={`${styles.expandIcon} ${expanded ? styles.expandIconOpen : ''}`}
+                        aria-hidden="true"
+                      >
+                        ▼
+                      </span>
+                    </button>
+                  ) : undefined
+                }
+                childrenId={children.length > 0 ? childrenId : undefined}
+                childrenExpanded={expanded}
+                childrenContent={
+                  children.length > 0 ? (
+                    <>
+                      {children.map((child) => (
+                        <div
+                          key={expandableRows.getChildKey(child, item)}
+                          className={styles.cardChildRow}
+                        >
+                          {expandableRows.renderChildCard(child, item)}
+                        </div>
+                      ))}
+                    </>
+                  ) : undefined
+                }
+              />
+            );
+          })}
         </div>
       )}
 

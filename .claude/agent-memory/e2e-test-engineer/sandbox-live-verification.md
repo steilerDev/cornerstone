@@ -123,6 +123,37 @@ Must live inside `e2e/` (not `/tmp`) so the relative `@playwright/test` / `./pla
 module resolution works — a file outside the workspace fails with `Cannot find module
 '@playwright/test'` even though the import looks correct.
 
+## Re-confirmed 2026-09-06 (Issue #2046 session) — browser download now WORKS, but docker build context transfer newly broken
+
+Both halves of the picture flipped again — re-check both independently every session, don't
+assume either from a prior note:
+
+1. **`npx playwright install chromium` succeeded** this session — no network-policy block at all
+   (downloaded ffmpeg-1011, chromium_headless_shell-1228, and chromium-1228 fully, all three
+   `cdn.playwright.dev`/`playwright.download.prss.microsoft.com` mirrors reachable). A real
+   browser binary is available in `~/.cache/ms-playwright/` for the rest of this session.
+2. **`docker build -t cornerstone:e2e .` failed immediately**, before even reaching the `dhi.io`
+   pull step, with a DIFFERENT error than the historical `401 Unauthorized`:
+   ```
+   #1 ERROR: error from sender: failed to xattr node_modules: too many levels of symbolic links
+   ```
+   This is the Docker CLI failing to walk the build context (this worktree's `node_modules/`)
+   while collecting file metadata — almost certainly the same class of issue as
+   `local-typecheck-unreliable-in-worktrees` (a dangling/circular symlink inside a worktree's
+   `node_modules`, this time breaking `docker build`'s context-sender instead of `tsc`). Did not
+   attempt to hunt down and remove the specific offending symlink — that risks destabilizing a
+   shared `node_modules` other sessions may be using concurrently, and is arguably a workspace
+   hygiene issue outside an E2E-test-engineer's remit to silently fix. If a future session needs
+   a live container build from a worktree and hits this again, the isolated next step would be
+   `find node_modules -xtype l` or `find node_modules -maxdepth 6 -type l -exec test ! -e {} \;
+-print` from the worktree root to identify the broken/circular link before deciding whether to
+   report it or repair it.
+
+Net effect this session: had a real browser binary but no app image, so still could not do a live
+containerized Playwright run — fell back to static verification (lint, prettier, `--list`, and a
+direct AC/type-shape diff read) for a same-shape mock-payload fix, which does not need a browser to
+validate correctness.
+
 ## Cleanup checklist after any live-verification attempt
 
 - `rm` any scratch `playwright.*.config.ts` file.

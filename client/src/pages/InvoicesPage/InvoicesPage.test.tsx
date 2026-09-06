@@ -204,6 +204,8 @@ const emptySummary = {
   overdue: { count: 0, totalAmount: 0 },
   claimable: { count: 0, totalAmount: 0 },
   quotationCoveredByDeposits: 0,
+  openPayable: { count: 0, totalAmount: 0 },
+  refundsDue: { count: 0, totalAmount: 0 },
 };
 
 const populatedSummary = {
@@ -214,6 +216,8 @@ const populatedSummary = {
   overdue: { count: 0, totalAmount: 0 },
   claimable: { count: 1, totalAmount: 15000 },
   quotationCoveredByDeposits: 0,
+  openPayable: { count: 1, totalAmount: 15000 },
+  refundsDue: { count: 0, totalAmount: 0 },
 };
 
 const emptyResponse: InvoiceListPaginatedResponse = {
@@ -732,6 +736,8 @@ describe('InvoicesPage', () => {
           overdue: { count: 0, totalAmount: 0 },
           claimable: { count: 1, totalAmount: 15000 },
           quotationCoveredByDeposits: 0,
+          openPayable: { count: 1, totalAmount: 15000 },
+          refundsDue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithClaimed);
@@ -758,6 +764,8 @@ describe('InvoicesPage', () => {
           overdue: { count: 0, totalAmount: 0 },
           claimable: { count: 0, totalAmount: 0 },
           quotationCoveredByDeposits: 0,
+          openPayable: { count: 0, totalAmount: 0 },
+          refundsDue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithZeroClaimed);
@@ -782,6 +790,8 @@ describe('InvoicesPage', () => {
           overdue: { count: 0, totalAmount: 0 },
           claimable: { count: 2, totalAmount: 12000 },
           quotationCoveredByDeposits: 0,
+          openPayable: { count: 1, totalAmount: 15000 },
+          refundsDue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithSeparateData);
@@ -1264,6 +1274,8 @@ describe('InvoicesPage', () => {
         overdue: { count: 0, totalAmount: 0 },
         claimable: { count: 1, totalAmount: 10000 },
         quotationCoveredByDeposits: 0,
+        openPayable: { count: 1, totalAmount: 10000 },
+        refundsDue: { count: 0, totalAmount: 0 },
       },
     };
 
@@ -1342,6 +1354,35 @@ describe('InvoicesPage', () => {
 
       const label = screen.getByLabelText('Effective Amount');
       expect(label).toBeInTheDocument();
+    });
+  });
+
+  // ─── Badge-fix regression (Story #2046) ───────────────────────────────────
+  // The status Badge's className must resolve to a real variant class
+  // (badgeStyles[status]), not silently drop to just the base "badge" class
+  // or interpolate a literal "undefined" string.
+
+  describe('status badge className regression (Story #2046)', () => {
+    it('the invoice status badge className includes the resolved variant class and never the literal "undefined"', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(populatedResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('invoice-status-inv-001')[0]).toBeInTheDocument();
+      });
+
+      const badges = screen.getAllByTestId('invoice-status-inv-001');
+      for (const badge of badges) {
+        expect(badge.className).toContain('pending');
+        expect(badge.className).not.toContain('undefined');
+      }
+
+      const paidBadges = screen.getAllByTestId('invoice-status-inv-002');
+      for (const badge of paidBadges) {
+        expect(badge.className).toContain('paid');
+        expect(badge.className).not.toContain('undefined');
+      }
     });
   });
 });
