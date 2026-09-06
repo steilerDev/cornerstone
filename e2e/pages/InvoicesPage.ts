@@ -30,10 +30,14 @@
  *     "Overdue" is a flag, never a replacement status). Invoices listed only because of a
  *     pending deposit (their own status isn't 'pending') get a
  *     `[data-testid="invoice-container-{id}"]` "container" badge instead.
- *   - Mobile (cards): the same expand/collapse affordance renders in the card header; deposit
- *     rows use `deposit-status-mobile-{id}` / `deposit-overdue-mobile-{id}` test ids (distinct
- *     from the desktop table's `deposit-status-{id}` / `deposit-overdue-{id}`), since both the
- *     table and card DOM trees are always mounted (CSS hides whichever doesn't match viewport).
+ *   - Mobile (cards): the same expand/collapse affordance renders in the card header; both the
+ *     parent invoice's own badges and deposit rows use `-mobile-` suffixed test ids, distinct
+ *     from their desktop-table counterparts, since both the table and card DOM trees are always
+ *     mounted (CSS hides whichever doesn't match viewport) — `invoice-status-mobile-{id}`,
+ *     `invoice-overdue-mobile-{id}`, `invoice-container-mobile-{id}` (vs. the desktop table's
+ *     `invoice-status-{id}`, `invoice-overdue-{id}`, `invoice-container-{id}`), and
+ *     `deposit-status-mobile-{id}` / `deposit-overdue-mobile-{id}` (vs. `deposit-status-{id}` /
+ *     `deposit-overdue-{id}`).
  * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
  * - Pagination controls when totalPages > 1
  * - An empty state (EmptyState component) when no invoices exist or no items match filters
@@ -55,7 +59,9 @@
  * - Page h1 is "Budget" (rendered by PageLayout with title={t('invoices.title')})
  * - "Add Invoice" button uses data-testid="new-invoice-button"
  * - Invoice row in table: click row navigates to /budget/invoices/:id
- * - Status badges use data-testid="invoice-status-{id}"
+ * - Status badges use data-testid="invoice-status-{id}" (desktop table) /
+ *   "invoice-status-mobile-{id}" (mobile card) — same dual-DOM pattern as the
+ *   invoice-overdue/invoice-container flag badges and the deposit-status/deposit-overdue badges
  * - Actions menu button: data-testid="invoice-menu-button-{id}"
  * - View button in dropdown: data-testid="invoice-view-{id}"
  * - Create form is in a Modal component (uses the shared Modal component)
@@ -531,7 +537,19 @@ export class InvoicesPage {
         resp.request().method() === 'GET' &&
         resp.status() === 200,
     );
-    await this.openItemsToggle.setChecked(on);
+    try {
+      // This is a controlled checkbox (checked={openOnly}); Playwright's setChecked()
+      // clicks and then verifies input.checked exactly once, immediately. That single
+      // read can land in the window between the native click and React's re-render off
+      // the resulting URL update, seeing the stale value and failing spuriously. Click
+      // and then retry the checked-state assertion instead of a one-shot check.
+      await this.openItemsToggle.click();
+      await expect(this.openItemsToggle).toBeChecked({ checked: on });
+    } finally {
+      // Don't let the response wait dangle (or surface as an unhandled rejection) if
+      // the click/assertion above throws before we get to await it below.
+      responsePromise.catch(() => {});
+    }
     await responsePromise;
   }
 
