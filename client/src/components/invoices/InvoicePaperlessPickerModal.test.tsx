@@ -190,6 +190,17 @@ afterEach(() => {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+// The two "loading and displaying correspondents" tests below open the SearchPicker
+// dropdown for the first time (mounting the @floating-ui/react FloatingPortal) and then
+// wait out a real 300ms debounce — legitimately slow under CI/sandbox CPU contention.
+// Confirmed via bisection against the pre-#2070 jest/testing-library versions (identical
+// timing, so not a dependency regression) and via a raised-timeout run (tests pass
+// reliably given enough wall time, so this is not a hang). Jest's 5000ms default is too
+// tight for this interaction; raise it file-wide rather than annotating each `it()`.
+// 60s gives comfortable margin above what was observed locally, while real CI hardware
+// should complete well under that.
+jest.setTimeout(60000);
+
 describe('InvoicePaperlessPickerModal', () => {
   describe('1. modal title', () => {
     it('renders modal title from budget:invoices.pickerModal.title key', async () => {
