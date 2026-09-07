@@ -7,7 +7,7 @@
 # Usage: ci-wait.sh <pr-number> [beta|main]
 #
 # Gate mode defaults to the PR's base branch: beta waits for "Quality Gates"
-# (timeout 600s), main waits for "Quality Gates" + "E2E Gates" (timeout 900s).
+# (timeout 2400s), main waits for "Quality Gates" + "E2E Gates" (timeout 3600s).
 # Override the timeout with CI_WAIT_TIMEOUT=<seconds>.
 #
 # NOTE: `gh pr checks --json` does not support the required-checks / Rulesets
@@ -37,12 +37,19 @@ if [ -z "$MODE" ]; then
   [ "$BASE" = "main" ] && MODE=main || MODE=beta
 fi
 
+# Timeout defaults are sized against observed worst-case Quality Gates duration,
+# not against a healthy run. The Jest shard carrying the picker-family suites is
+# routinely the critical path: on run 34154456691 it took 40m33s on its own, and
+# the CI-only --testTimeout raise in ci.yml (see the STOPGAP block there, #2078)
+# can push a failing shard toward ~50 min. The previous 600s/900s defaults were
+# below even a healthy run and reported "TIMEOUT" long before a verdict existed,
+# which reads as a CI fault rather than as "still running".
 if [ "$MODE" = "main" ]; then
   CHECKS=("Quality Gates" "E2E Gates")
-  TIMEOUT="${CI_WAIT_TIMEOUT:-900}"
+  TIMEOUT="${CI_WAIT_TIMEOUT:-3600}"
 else
   CHECKS=("Quality Gates")
-  TIMEOUT="${CI_WAIT_TIMEOUT:-600}"
+  TIMEOUT="${CI_WAIT_TIMEOUT:-2400}"
 fi
 
 SHA=$(gh pr view "$PR" --repo "$REPO" --json headRefOid -q '.headRefOid')
