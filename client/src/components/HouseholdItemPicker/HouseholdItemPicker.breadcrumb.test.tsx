@@ -8,8 +8,8 @@
  * Mocks are identical to HouseholdItemPicker.test.tsx to stay independent.
  */
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type { HouseholdItemSummary } from '@cornerstone/shared';
@@ -98,6 +98,10 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     }
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   function renderPicker(
     props: Partial<React.ComponentProps<typeof HouseholdItemPickerModule.HouseholdItemPicker>> = {},
   ) {
@@ -174,7 +178,8 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     });
 
     it('renders secondary breadcrumbs for multiple results with different areas', async () => {
-      const user = userEvent.setup();
+      jest.useFakeTimers();
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
       mockListHouseholdItems.mockResolvedValue({
         items: [
           makeItem({ id: 'hi-1', name: 'Sofa', area: areaWithAncestors }),
@@ -224,7 +229,8 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     });
 
     it('renders "No area" for every null-area item in the results', async () => {
-      const user = userEvent.setup();
+      jest.useFakeTimers();
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
       mockListHouseholdItems.mockResolvedValue({
         items: [
           makeItem({ id: 'hi-1', name: 'Sofa', area: null }),
@@ -303,7 +309,8 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
 
   describe('search-triggered results — area secondary line', () => {
     it('renders area breadcrumb secondary line after typing a search term', async () => {
-      const user = userEvent.setup();
+      jest.useFakeTimers();
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
       mockListHouseholdItems.mockResolvedValue({
         items: [makeItem({ id: 'hi-1', name: 'Sofa', area: areaWithAncestors })],
         pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
@@ -314,6 +321,10 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
       const input = screen.getByPlaceholderText('Search household items...');
       await user.type(input, 'Sofa');
 
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+
       await waitFor(() => {
         expect(screen.getByText('Sofa')).toBeInTheDocument();
       });
@@ -323,7 +334,8 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     });
 
     it('renders "No area" secondary line after typing when item has null area', async () => {
-      const user = userEvent.setup();
+      jest.useFakeTimers();
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
       mockListHouseholdItems.mockResolvedValue({
         items: [makeItem({ id: 'hi-1', name: 'Sofa', area: null })],
         pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
@@ -333,6 +345,10 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
 
       const input = screen.getByPlaceholderText('Search household items...');
       await user.type(input, 'Sofa');
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Sofa')).toBeInTheDocument();

@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 
@@ -19,6 +19,9 @@ describe('HouseholdItemPicker', () => {
   let HouseholdItemPickerModule: {
     HouseholdItemPicker: typeof HouseholdItemPickerType;
   };
+  // Shared across every test: fake timers remove the wall-clock dependency from
+  // userEvent's real-timer-driven click/type interactions (see afterEach cleanup below).
+  let user: ReturnType<typeof userEvent.setup>;
 
   const sampleItems = [
     {
@@ -94,6 +97,13 @@ describe('HouseholdItemPicker', () => {
     if (!HouseholdItemPickerModule) {
       HouseholdItemPickerModule = await import('./HouseholdItemPicker.js');
     }
+
+    jest.useFakeTimers();
+    user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   function renderPicker(
@@ -113,7 +123,6 @@ describe('HouseholdItemPicker', () => {
   // ── 2. onSelectItem adapter ───────────────────────────────────────────────
 
   it('onSelectItem receives { id, name } (not { id, label }) — adapter works', async () => {
-    const user = userEvent.setup();
     const onChange = jest.fn<(id: string) => void>();
     const onSelectItem = jest.fn<(item: { id: string; name: string }) => void>();
 
@@ -137,7 +146,6 @@ describe('HouseholdItemPicker', () => {
   // ── 3. showItemsOnFocus loads items ──────────────────────────────────────
 
   it('showItemsOnFocus loads items immediately on focus', async () => {
-    const user = userEvent.setup();
     renderPicker({ showItemsOnFocus: true });
 
     const input = screen.getByPlaceholderText('Search household items...');
@@ -154,7 +162,6 @@ describe('HouseholdItemPicker', () => {
   // ── 4. excludeIds filtering ───────────────────────────────────────────────
 
   it('excludeIds filtering works: excluded items not shown in results', async () => {
-    const user = userEvent.setup();
     renderPicker({ showItemsOnFocus: true, excludeIds: ['hi-1'] });
 
     const input = screen.getByPlaceholderText('Search household items...');
@@ -178,7 +185,6 @@ describe('HouseholdItemPicker', () => {
   });
 
   it('clicking clear from initialTitle state restores search input and calls onChange("")', async () => {
-    const user = userEvent.setup();
     const onChange = jest.fn<(id: string) => void>();
     renderPicker({
       value: 'hi-existing',
@@ -206,7 +212,6 @@ describe('HouseholdItemPicker', () => {
 
   it('error message reads "Failed to load household items"', async () => {
     mockListHouseholdItems.mockRejectedValue(new Error('Network error'));
-    const user = userEvent.setup();
     renderPicker({ showItemsOnFocus: true });
 
     const input = screen.getByPlaceholderText('Search household items...');
@@ -221,11 +226,14 @@ describe('HouseholdItemPicker', () => {
 
   it('no-results message reads "No matching household items found"', async () => {
     mockListHouseholdItems.mockResolvedValue(emptyListResponse);
-    const user = userEvent.setup();
     renderPicker();
 
     const input = screen.getByPlaceholderText('Search household items...');
     await user.type(input, 'XYZ');
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('No matching household items found')).toBeInTheDocument();
@@ -236,7 +244,6 @@ describe('HouseholdItemPicker', () => {
 
   it('does not open dropdown on focus without showItemsOnFocus', async () => {
     mockListHouseholdItems.mockResolvedValue(emptyListResponse);
-    const user = userEvent.setup();
     renderPicker();
 
     const input = screen.getByPlaceholderText('Search household items...');
@@ -249,7 +256,6 @@ describe('HouseholdItemPicker', () => {
   // ── 9. Clear selected item ────────────────────────────────────────────────
 
   it('clears selected item and calls onChange with empty string', async () => {
-    const user = userEvent.setup();
     const onChange = jest.fn<(id: string) => void>();
     renderPicker({
       showItemsOnFocus: true,
@@ -276,7 +282,6 @@ describe('HouseholdItemPicker', () => {
   // ── 10. External value reset ──────────────────────────────────────────────
 
   it('resets to search input when value is externally set to empty string', async () => {
-    const user = userEvent.setup();
     const onChange = jest.fn<(id: string) => void>();
     const { HouseholdItemPicker } = HouseholdItemPickerModule;
 
@@ -326,7 +331,6 @@ describe('HouseholdItemPicker', () => {
   // ── 11. Selected item display after selection ─────────────────────────────
 
   it('shows selected-display with item name after selection', async () => {
-    const user = userEvent.setup();
     renderPicker({ showItemsOnFocus: true });
 
     const input = screen.getByPlaceholderText('Search household items...');
@@ -344,11 +348,14 @@ describe('HouseholdItemPicker', () => {
   // ── 12. Search results show item names ───────────────────────────────────
 
   it('shows item names in search results after typing', async () => {
-    const user = userEvent.setup();
     renderPicker();
 
     const input = screen.getByPlaceholderText('Search household items...');
     await user.type(input, 'Sofa');
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
 
     // Wait on the debounced call settling with the FULL typed query, not just on "Sofa"
     // appearing in the DOM: the mock returns the same static item list regardless of the
