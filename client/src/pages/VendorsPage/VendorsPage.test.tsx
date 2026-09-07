@@ -13,6 +13,7 @@ import type { ReactNode } from 'react';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
+import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import type { Vendor } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 
@@ -26,14 +27,17 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
 }));
 
 // Mock preferencesApi — DataTable calls useColumnPreferences -> usePreferences -> listPreferences
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockListPreferencesVendors = jest.fn<any>().mockResolvedValue([]);
+const mockListPreferencesVendors = jest
+  .fn<typeof PreferencesApiTypes.listPreferences>()
+  .mockResolvedValue([]);
 jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
   listPreferences: mockListPreferencesVendors,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  upsertPreference: jest.fn<any>().mockResolvedValue({ key: '', value: '', updatedAt: '' }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  deletePreference: jest.fn<any>().mockResolvedValue(undefined),
+  upsertPreference: jest
+    .fn<typeof PreferencesApiTypes.upsertPreference>()
+    .mockResolvedValue({ key: '', value: '', updatedAt: '' }),
+  deletePreference: jest
+    .fn<typeof PreferencesApiTypes.deletePreference>()
+    .mockResolvedValue(undefined),
 }));
 
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();

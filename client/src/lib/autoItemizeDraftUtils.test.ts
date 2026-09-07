@@ -8,13 +8,22 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import type {
+  CreateBudgetLineRequest,
+  WorkItemBudgetLine,
+  HouseholdItemBudgetLine,
+} from '@cornerstone/shared';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockCreateWorkItem = jest.fn<any>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockCreateHouseholdItem = jest.fn<any>();
+// Mirrors the (unexported) CreateFn type in autoItemizeDraftUtils.ts.
+type CreateFn = (
+  itemId: string,
+  data: CreateBudgetLineRequest,
+) => Promise<WorkItemBudgetLine | HouseholdItemBudgetLine>;
+
+const mockCreateWorkItem = jest.fn<CreateFn>();
+const mockCreateHouseholdItem = jest.fn<CreateFn>();
 
 jest.unstable_mockModule('./errorTranslation.js', () => ({
   translateApiError: (_code: string) => 'Translated error',

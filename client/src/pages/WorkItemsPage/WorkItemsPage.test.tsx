@@ -10,6 +10,7 @@ import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as WorkItemsPageTypes from './WorkItemsPage.js';
+import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 
 // ─── Module-scope mock functions ─────────────────────────────────────────────
 
@@ -33,14 +34,17 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 
 // ─── preferencesApi mock — DataTable calls useColumnPreferences -> listPreferences ──
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockListPreferences = jest.fn<any>().mockResolvedValue([]);
+const mockListPreferences = jest
+  .fn<typeof PreferencesApiTypes.listPreferences>()
+  .mockResolvedValue([]);
 jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
   listPreferences: mockListPreferences,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  upsertPreference: jest.fn<any>().mockResolvedValue({ key: '', value: '', updatedAt: '' }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  deletePreference: jest.fn<any>().mockResolvedValue(undefined),
+  upsertPreference: jest
+    .fn<typeof PreferencesApiTypes.upsertPreference>()
+    .mockResolvedValue({ key: '', value: '', updatedAt: '' }),
+  deletePreference: jest
+    .fn<typeof PreferencesApiTypes.deletePreference>()
+    .mockResolvedValue(undefined),
 }));
 
 // ─── useTableState mock — prevents infinite useEffect re-renders ─────────────

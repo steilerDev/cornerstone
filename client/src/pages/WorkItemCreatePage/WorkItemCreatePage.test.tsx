@@ -10,6 +10,7 @@ import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
 import type * as WorkItemCreatePageTypes from './WorkItemCreatePage.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type { UseAreasResult } from '../../hooks/useAreas.js';
 
 const mockCreateWorkItem = jest.fn<typeof WorkItemsApiTypes.createWorkItem>();
@@ -32,8 +33,7 @@ jest.unstable_mockModule('../../lib/dependenciesApi.js', () => ({
 }));
 
 // WorkItemCreatePage now uses fetchVendors to populate AssignmentPicker
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchVendors = jest.fn<any>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
 }));
