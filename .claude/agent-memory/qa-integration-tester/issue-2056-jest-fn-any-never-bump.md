@@ -55,3 +55,28 @@ drifted from the real type for months can pass a naive first fix (narrow-typing 
 still be structurally wrong. Prefer the real type first; only fall back to a narrower inline type
 once you've confirmed the mismatch is a legitimately-intentional narrowing (fixture only exercises
 one field) rather than a stale/wrong fixture.
+
+**Round 2 (same day, after the first fix was already pushed as ae6b9912)**: a CI re-run surfaced two
+more failures the first pass missed, both worth remembering:
+
+1. **A 14th file with the identical bug, missed by the original grep** — `InvoicesPage.openItems.test.tsx`
+   didn't exist in the worktree at grep time because it (plus ~400 lines of production feature code in
+   `InvoicesPage.tsx`/`openItemsUtils.ts`) landed on `beta` *after* the dependabot branch was cut, and
+   GitHub's `pull_request` CI check tests the PR merged against the current base branch, not the
+   worktree's stale checkout. **Lesson**: when CI reports an error in a file that doesn't exist locally,
+   check `git log <branch-point>..origin/beta -- <path>` before assuming the grep was wrong — the fix
+   is to catch the branch up (a `git rebase origin/beta` was clean here, no conflicts even though two
+   other files — `InvoicesPage.test.tsx`, touched on both sides — auto-merged fine) and rebuild
+   `shared/dist` afterward (rebasing pulled in new `shared/src/` fields the stale dist didn't have,
+   producing a second, unrelated wave of `TS2339`/`TS2353` errors — not a real bug, just a stale
+   build). Fixed with the exact same pattern as file #13 (real `typeof` generic for `fetchVendors`/
+   `getPaperlessStatus`, narrower inline generic for `fetchConfig`'s `{ autoItemizeEnabled }`).
+2. **An unrelated `@types/fontkit` 2.0.4→2.0.9 bump** (same dev-dependencies group) changed
+   `fontkit.create()`'s declared return type from `Font` to `Font | FontCollection` — see
+   environment-setup.md for the node_modules saga this triggered. Fix: don't cast — use an
+   `in`-operator type guard (`if (!('glyphForCodePoint' in fontOrCollection)) throw ...`) to narrow to
+   `Font`, since `FontCollection` (`.fonts: Font[]`, `.getFont()`) is structurally distinct and has no
+   `glyphForCodePoint`. `fontkit` (the runtime package, not its types) stayed at 2.0.4 — this is a
+   types-only fix, verified against the published `@types/fontkit@2.0.9` d.ts via `curl unpkg.com`
+   rather than waiting on a broken local install. No production code imports `fontkit` at all
+   (`grep -rln fontkit client/src` outside tests is empty) — nothing to flag there.

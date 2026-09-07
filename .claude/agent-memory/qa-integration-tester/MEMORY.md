@@ -11,7 +11,7 @@
 
 - [test-infra-reference.md](test-infra-reference.md) — quick-reference conventions, key file locations, renderHook/Drizzle/auth/circular-dep patterns, test count history
 - [test-patterns-reference.md](test-patterns-reference.md) — Jest/ts-jest/Fastify/Drizzle infra patterns: sqlite sync errors, ESM mock shape, worktree jest execution, key file locations (overlaps test-infra-reference.md)
-- [environment-setup.md](environment-setup.md) — worktree/sandbox gotchas: ARM64 crashes, `@cornerstone/shared` symlink issues, definitive jest invocation pattern, schema quirks
+- [environment-setup.md](environment-setup.md) — worktree/sandbox gotchas: ARM64 crashes (older infra), `@cornerstone/shared` symlink issues, definitive jest invocation pattern, schema quirks; **2026-09-07: current sandbox has real per-worktree node_modules — never `rm -rf node_modules` for a single stale package, virtiofs ENOTDIR race on full reinstall, rsync-from-base-repo recovery fallback**
 
 ## Recent bug/story notes (2026-08)
 
