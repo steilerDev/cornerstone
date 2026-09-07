@@ -10,13 +10,14 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
 import type * as InvoicesPageTypes from './InvoicesPage.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
 const mockCreateInvoice = jest.fn<typeof InvoicesApiTypes.createInvoice>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchVendors = jest.fn<any>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchAllInvoices: mockFetchAllInvoices,
@@ -86,8 +87,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
 }));
 
 // ── Story #1679: paperlessApi mock ────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockGetPaperlessStatus = jest.fn<any>();
+const mockGetPaperlessStatus = jest.fn<typeof PaperlessApiTypes.getPaperlessStatus>();
 
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessStatus: mockGetPaperlessStatus,
@@ -100,8 +100,9 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 }));
 
 // ── Story #1679: configApi mock ───────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchConfig = jest.fn<any>();
+// Only autoItemizeEnabled is exercised by these tests — narrower than the real
+// fetchConfig's AppConfigResponse return type is intentional here.
+const mockFetchConfig = jest.fn<() => Promise<{ autoItemizeEnabled: boolean }>>();
 
 jest.unstable_mockModule('../../lib/configApi.js', () => ({
   fetchConfig: mockFetchConfig,
@@ -242,11 +243,10 @@ const vendorsResponse = {
     {
       id: 'v-1',
       name: 'ACME Construction',
-      tradeId: null,
       notes: null,
-      websiteUrl: null,
-      contactEmail: null,
-      contactPhone: null,
+      phone: null,
+      email: null,
+      address: null,
       trade: null,
       createdBy: null,
       createdAt: '2026-01-01T00:00:00.000Z',
@@ -255,11 +255,10 @@ const vendorsResponse = {
     {
       id: 'v-2',
       name: 'Quality Plumbing',
-      tradeId: null,
       notes: null,
-      websiteUrl: null,
-      contactEmail: null,
-      contactPhone: null,
+      phone: null,
+      email: null,
+      address: null,
       trade: null,
       createdBy: null,
       createdAt: '2026-01-01T00:00:00.000Z',
