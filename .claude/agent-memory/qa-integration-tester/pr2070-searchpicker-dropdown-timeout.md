@@ -1,6 +1,6 @@
 ---
 name: pr2070-searchpicker-dropdown-timeout
-description: WorkItemPicker/InvoicePaperlessPickerModal/HouseholdItemPicker tests exceeding jest's 5000ms default (or racing a real debounce) on the SearchPicker dropdown-open/type interaction — bisection method, the jest-circus per-project testTimeout gotcha, and a genuine debounce-assertion race distinct from the timeout issue
+description: WorkItemPicker/InvoicePaperlessPickerModal/HouseholdItemPicker tests exceeding jest's 5000ms default (or racing a real debounce) on the SearchPicker dropdown-open/type interaction — bisection method, the jest-circus per-project testTimeout gotcha, a genuine debounce-assertion race; issue #2076's fake-timer conversion (applied as safe-but-unproven, NOT a proven mechanism — the earlier "control group" causal inference was withdrawn after a full-file A/B found no timing difference) plus the still-open ~21s-per-test CPU cost and the cpu-prof diagnostic for #2077
 metadata:
   type: project
 ---
@@ -43,6 +43,79 @@ characteristics (same class of issue as the pre-existing `workerGracefulExitTime
 (proven via bisection). `WorkItemPicker.test.tsx` itself already carried a comment
 (from #1270, before this PR) calling out these exact test names as having "pre-existing test
 infrastructure failures" — this was a known-fragile spot before #2070 ever touched it.
+
+**CORRECTION (issue #2076, superseding the Verdict above)**. The "legitimate slowness, nothing to
+fix beyond raising the ceiling" verdict was wrong. The same two files hit the raised 60000ms ceiling
+again on the next promotion (PR #2075: shard wall-clock 8→26→45 min run-over-run with **no code
+change between runs** — a real dependency regression would step once and stay flat, not worsen
+monotonically). One finding below is solid (rules out the dependency bump, again); the other was an
+inference that a later measurement overturned — recorded here in full, including the withdrawal,
+because this file has now over-claimed a fix twice (#2070's "legitimate slowness, nothing to fix"
+above, and the control-group inference below) and a third time is not acceptable:
+
+1. **Fake-timer control group inference — WITHDRAWN, see the A/B measurement below.** The original
+   argument was: `SearchPicker.test.tsx`'s two pre-existing fake-timer tests (the 300ms-debounce
+   tests) mount the same `FloatingPortal` for the first time as the failing real-timer tests and
+   have never failed, so the cost must be real-timer scheduling latency, not CPU, and fake timers
+   should collapse it. **A full-file A/B measurement (below) falsifies this.** If fake timers
+   collapsed the dominant cost, the fully-converted file would be dramatically faster than the
+   unconverted one. It isn't — both run in the same ~1290-1352s band. So the two control tests were
+   never "immune" to a real cost; they simply never happened to cross a 60000ms ceiling that ~51 of
+   their real-timer siblings also never crossed locally. That is a two-sample coincidence, not
+   evidence of a mechanism. **Do not cite the control group as proof of anything going forward.**
+2. **Binary diff of the two `user-event` tarballs (14.6.1 vs 14.6.7)**, run independently of the
+   #2070 bisection above: the only substantive `dist/esm` changes are a key-repeat flag in
+   `keyboard/index.js` and a property-descriptor form change in `document/patchFocus.js`.
+   `utils/misc/wait.js` is byte-identical and `delay: 0` is unchanged in `setup/setup.js` — no
+   hot-path change capable of a 5x+ regression. This independently corroborates the #2070 bisection
+   below: **the dependency bump was never the cause, confirmed twice by two different methods.**
+   (This finding is unaffected by the withdrawal above — it rules out a dependency cause, it never
+   claimed to establish that fake timers are the fix.)
+
+**A/B measurement (#2076, the one that overturned finding 1 above)**. Full-file `SearchPicker.test.tsx`,
+local `--maxWorkers=1`, unloaded (no concurrent jest process):
+
+| Version | Result | Wall clock |
+| --- | --- | --- |
+| Original, unconverted (real timers) | 60/60 pass | 1331.6 s |
+| Converted (fake timers), run 1 | 60/60 pass | 1290.7 s |
+| Converted (fake timers), run 2 | 60/60 pass | 1352.0 s |
+
+The unconverted file **passes locally** — the sandbox does not reproduce the CI failure at all, so
+this A/B cannot even confirm the fix prevents the CI timeout, only that it costs the same wall clock
+either way locally. The ~21s-per-dropdown-test cost (see per-test durations captured via
+`--json --outputFile`, e.g. `after selection: input hidden...` at 31.5s, `FUI-2` at 28.8s) is
+**CPU-bound and currently unexplained** — real timers vs fake timers made no measurable difference to
+it.
+
+**`pointerEventsCheck` probe**: a 4-test subset with fake timers alone ran in 110.9s; the same subset
+with fake timers **and** `userEvent.setup({ pointerEventsCheck: PointerEventsCheckLevel.Never })`
+ran in 101.3s — a ~9% reduction. So the `getComputedStyle` ancestor walk that `pointerEventsCheck`
+performs is a real but minor contributor, not the dominant term either. **`pointerEventsCheck: Never`
+was rejected on correctness grounds, not just because the measurement was unimpressive**: it disables
+`userEvent`'s check that the target element isn't `pointer-events: none` before interacting — turning
+it off lets a test pass against a UI element a real user could not click. That is assertion-weakening
+relocated into harness config, not a legitimate performance lever, and should not be reintroduced as
+one even if profiling finds it saves more time elsewhere.
+
+**The decisive next diagnostic (do this before any further theorizing, and before #2077 converts
+anything else)**: run `node --cpu-prof` (or `--prof` + `node --prof-process`) around a single
+dropdown-open test in isolation. 21s of CPU inside jsdom is enough that a `--cpu-prof` capture will
+surface one or two dominant frames within minutes — that trace is what should drive the next fix,
+not another inference from an in-file comparison. #2077 has been re-scoped from "convert the
+remaining ~592 real-timer call sites" to "profile the 21s cost first," specifically because a
+mechanical rollout would chase a benefit that is not yet shown to exist.
+
+**Durable fix (#2076)**: convert the real-timer `userEvent.setup()` call sites in both files to the
+fake-timer idiom (a local `setupUser()` helper per file — do not extract a shared helper into
+`client/src/test/`, that would drag a `frontend-developer` trailer onto a test-only fix per CLAUDE.md
+Delegation Enforcement rule 3). This is applied as **safe and plausibly sufficient, not as a proven
+fix** — see the A/B measurement above; it does not regress correctness (fake timers don't skip any
+check `pointerEventsCheck: Never` would) and it does not add cost, so it ships regardless of whether
+it turns out to address the CI-specific failure mode. ~592 real-timer call sites remain across the
+rest of the client suite; per the re-scoped #2077, those are not converted until the CPU cost is
+profiled. `testTimeout: 60000` in `jest.config.ts` must stay until that work lands — do not lower it
+as part of a scoped fix.
 
 **Fix, round 1 (superseded — see round 2)**: `jest.setTimeout(60000);` placed once near the top of
 each file, not per-`it()`. Worked for these two files, but the SAME pattern then surfaced in two more
