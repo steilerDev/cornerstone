@@ -15,17 +15,6 @@ jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
 
 import type { WorkItemPicker as WorkItemPickerType } from './WorkItemPicker.js';
 
-// Tests that open the SearchPicker dropdown for the first time (mounting the
-// @floating-ui/react FloatingPortal + userEvent's real-timer event sequencing) are
-// legitimately slow under CI/sandbox CPU contention — confirmed via bisection against
-// the pre-#2070 jest/testing-library versions (identical timing, so not a dependency
-// regression) and via a raised-timeout run (tests pass reliably given enough wall time,
-// so this is not a hang). Jest's 5000ms default is too tight for this interaction; raise
-// it file-wide rather than annotating each affected `it()` individually. 60s gives
-// comfortable margin above the ~23-30s observed locally (with variance up to ~45s on
-// one test), while real CI hardware should complete well under that.
-jest.setTimeout(60000);
-
 describe('WorkItemPicker', () => {
   let WorkItemPickerModule: {
     WorkItemPicker: typeof WorkItemPickerType;

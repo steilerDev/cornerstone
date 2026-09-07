@@ -1,6 +1,6 @@
 ---
 name: pr2070-searchpicker-dropdown-timeout
-description: WorkItemPicker/InvoicePaperlessPickerModal tests exceeding jest's 5000ms default on the SearchPicker dropdown-open interaction — bisection method proving it's environment timing, not a code/dependency regression, and the fix (file-level jest.setTimeout)
+description: WorkItemPicker/InvoicePaperlessPickerModal/HouseholdItemPicker tests exceeding jest's 5000ms default (or racing a real debounce) on the SearchPicker dropdown-open/type interaction — bisection method, the jest-circus per-project testTimeout gotcha, and a genuine debounce-assertion race distinct from the timeout issue
 metadata:
   type: project
 ---
@@ -44,14 +44,66 @@ characteristics (same class of issue as the pre-existing `workerGracefulExitTime
 (from #1270, before this PR) calling out these exact test names as having "pre-existing test
 infrastructure failures" — this was a known-fragile spot before #2070 ever touched it.
 
-**Fix**: `jest.setTimeout(60000);` placed once near the top of each file (after mocks, before the
-top-level `describe`), not per-`it()` — simpler, and covers future tests added to the same
-dropdown-opening pattern without needing to remember a third `it()` argument. Verified: 32/32 tests
-pass reliably across 2 independent full runs of both files together with the file-level timeout (no
-`--testTimeout` CLI flag needed). Files: `client/src/components/WorkItemPicker/WorkItemPicker.test.tsx`,
-`client/src/components/invoices/InvoicePaperlessPickerModal.test.tsx`.
+**Fix, round 1 (superseded — see round 2)**: `jest.setTimeout(60000);` placed once near the top of
+each file, not per-`it()`. Worked for these two files, but the SAME pattern then surfaced in two more
+files in the NEXT CI shard (`DependencySentenceBuilder.test.tsx`, `HouseholdItemPicker.test.tsx`) —
+systemic across all ~16 files that render the shared `SearchPicker`, not isolated to any one file.
+Per-file whack-a-mole doesn't scale against CI-shard-by-CI-shard discovery.
 
-**Reusable lesson**: when CI reports a bare timeout (not an assertion failure) right after a dependency
-bump, resist fixing the newer library's *behavior* before bisecting whether the bump is even the cause
-— a scratch `npm install --no-save <pkg>@<old-version>` for just the suspect packages is fast and
-conclusive. See also environment-setup.md for the virtiofs `node_modules` workaround this relied on.
+**Fix, round 2 — the actual durable fix, and a real jest-circus gotcha**: raise `testTimeout` project-
+wide via `jest.config.ts`. First attempt put `testTimeout: 60000` *inside* the `client` project entry
+of the `projects: [...]` array (matching TypeScript's `ProjectConfig` type, which does list
+`testTimeout`, and matching what a maintainer would naturally suggest — "add it to the client project
+block"). **This silently does nothing at runtime** — verified: `--showConfig` correctly echoes
+`"testTimeout": 60000` for the project, but the actual test run still failed at the old 5000ms. Root
+cause, found by reading `node_modules/jest-circus/build/jestAdapterInit.js`:
+```js
+if (globalConfig.testTimeout) {
+  getState().testTimeout = globalConfig.testTimeout;
+}
+```
+jest-circus's test runner ONLY reads `testTimeout` off `globalConfig` (derived from the top-level
+config keys / CLI flags), never off the per-project config, despite `testTimeout` being a documented
+field on `ProjectConfig` too. **The fix must be at the top level of the main config object, outside
+`projects: [...]`** (alongside `workerGracefulExitTimeout`) — this then applies to `server`/`shared`
+too, not just `client`, which is an accepted trade-off (raising the ceiling can't slow down tests that
+already finish well within it) since per-project scoping isn't achievable here. Removed the two
+file-level `jest.setTimeout()` calls once the global default covered them (redundant, not harmful, but
+cleaner without). Verified against the full ~16-file SearchPicker-family suite (409 tests): 408 passed
+cleanly relying purely on the new global default, no `--testTimeout` CLI override needed.
+
+**A third, DIFFERENT bug surfaced by that full-suite run — not a timeout, a genuine race**:
+`HouseholdItemPicker.test.tsx`'s "shows item names in search results after typing" failed with a
+value mismatch (`mockListHouseholdItems` called with `q: "S"`, not `q: "Sofa"`), not a timeout. Root
+cause: the test types "Sofa" via `user.type()` (exercising `SearchPicker`'s real 300ms
+`useDebouncedCallback` debounce, not the focus-triggered immediate-fetch path the other passing tests
+use), then does `await waitFor(() => screen.getByText('Sofa'))` followed by a **synchronous**
+(non-waited) assertion that the mock was called with the full query. The test's own
+`mockListHouseholdItems.mockResolvedValue(...)` in `beforeEach` is query-agnostic — it returns the
+same static `sampleItems` list (which includes a "Sofa" item) regardless of what `q` it's called
+with. Under this environment's real-timer jitter (the same class of timing variance behind the
+dropdown-open cost above), the debounce can fire prematurely after just the "S" keystroke — before
+"o"/"f"/"a" arrive — and since the mock doesn't care what `q` was, that premature call ALSO renders
+"Sofa" in the DOM, satisfying the `waitFor` before the real, full-query debounce call has fired. The
+very next synchronous assertion then catches the mock mid-flight, still on its first (wrong) call.
+Confirmed reproducible on demand (first attempt, deterministic in this environment) and confirmed the
+debounce implementation itself (`client/src/hooks/useDebouncedCallback.ts`) is textbook-correct
+cancel-and-restart — no production bug. **Fix (test-only, not a timeout bump)**: move the mock-call
+assertion INSIDE the `waitFor`, alongside the DOM assertion, so the test waits on the condition it
+actually cares about (the debounce settling with the full query) instead of treating a query-agnostic
+mock's DOM output as a proxy for that. Verified reliable across 4 consecutive runs after the fix.
+
+**Reusable lessons**:
+1. When CI reports a bare timeout (not an assertion failure) right after a dependency bump, resist
+   fixing the newer library's *behavior* before bisecting whether the bump is even the cause — a
+   scratch `npm install --no-save <pkg>@<old-version>` for just the suspect packages is fast and
+   conclusive. See also environment-setup.md for the virtiofs `node_modules` workaround this relied on.
+2. `projects[].testTimeout` in `jest.config.ts` is a documented-but-non-functional no-op in jest-circus
+   (30.5.x, likely all versions using this circus internals path) — always set `testTimeout` at the
+   top level of the main config, never inside an individual project entry. `--showConfig` will NOT warn
+   you; it happily echoes the ignored value back.
+3. A bare "Exceeded timeout" failure and a "wrong value received" failure can share the exact same root
+   cause (real-timer jitter under CPU contention) while requiring completely different fixes — one a
+   timeout ceiling raise, the other a test-assertion-ordering fix. Don't assume every symptom from the
+   same environmental cause needs the same treatment; diagnose each on its own evidence (bisect, trace
+   the actual call sequence, read the mock setup) before choosing a fix.
