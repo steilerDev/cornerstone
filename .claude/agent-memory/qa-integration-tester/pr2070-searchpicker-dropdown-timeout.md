@@ -180,3 +180,67 @@ mock's DOM output as a proxy for that. Verified reliable across 4 consecutive ru
    timeout ceiling raise, the other a test-assertion-ordering fix. Don't assume every symptom from the
    same environmental cause needs the same treatment; diagnose each on its own evidence (bisect, trace
    the actual call sequence, read the mock setup) before choosing a fix.
+
+**#2076 extension round (2026-09-07, PR targeting v2.15.0 promotion) — two more files, plus a stale
+task-premise finding:**
+
+- Converted `WorkItemPicker.test.tsx` (10/10 `userEvent.setup()` call sites → local `setupUser()` +
+  describe-level `afterEach(() => jest.useRealTimers())`, copied verbatim from
+  `HouseholdItemPicker.breadcrumb.test.tsx`'s pattern). Green twice, 14/14, ~221s and ~220s.
+- **`HouseholdItemPicker.test.tsx` (the non-breadcrumb file) needed NO changes** — it was reported to
+  me as still failing in CI ("excludeIds filtering… 60s timeout, shard 6"), and `git log`/`git show`
+  showed it had *already* been fully converted by a same-day Dependabot commit (`a468c0cf`, already an
+  ancestor of both `origin/beta` and my branch — verified via `git fetch` + `git merge-base
+  --is-ancestor`, not a local artifact). That commit used a *different* shape than `setupUser()`: a
+  single shared `user` declared in the outer `describe` and assigned inside `beforeEach` alongside
+  `jest.useFakeTimers()`, with the matching `afterEach(() => jest.useRealTimers())` — functionally
+  equivalent (every real-timer call site removed, teardown present) but not the literal per-test
+  helper shape. That same commit also added two explicit `act(() => jest.advanceTimersByTime(300))`
+  calls to fix a *documented* debounce assertion-ordering race (see block above this one — the
+  "premature debounce fire" bug). I left the file untouched rather than rewriting it to the literal
+  `setupUser()` shape: doing so would mean stripping those two `advanceTimersByTime` calls to satisfy
+  "don't add explicit `advanceTimersByTime`", which would reintroduce the race the other commit was
+  written to fix. **That decision was correct, but my original justification for it was wrong and has
+  been corrected**: I originally wrote this off as "no evidence of currently failing" on the strength
+  of two local green runs. That is false. The file WAS failing in CI at `a468c0cf` itself — the very
+  commit that fully converted it — on shard 6, `excludeIds filtering works: excluded items not shown
+  in results`, a 60s timeout, in the promotion PR's latest run. The right justification for leaving it
+  alone was never "it's healthy" — it was "conversion is already complete and further edits would
+  reintroduce a fixed race for no gain," which holds regardless of CI health. See the correction below.
+- **CORRECTION — "green locally" is not evidence of health for this failure mode.** The local sandbox
+  never reproduces the CI timeout, converted or not: a full *unconverted* `SearchPicker.test.tsx` also
+  passes locally, 60/60, ~1330s. My two local runs of `HouseholdItemPicker.test.tsx` (14/14 each,
+  ~250s) proved nothing about its CI health — I should have said so, not implied the opposite. Anyone
+  checking picker-suite timing health must read the actual CI run for the commit in question; a local
+  `--maxWorkers=1` pass is not evidence, in either direction, for this specific failure class.
+- **CORRECTION — fake timers are not the fix; do not let a future reader convert more call sites
+  expecting it to resolve CI.** Tally from the promotion PR run at `a468c0cf`:
+
+  | File | Converted on `beta`? | CI result |
+  | --- | --- | --- |
+  | `SearchPicker.test.tsx` | Yes, fully | 3 tests timed out |
+  | `HouseholdItemPicker.test.tsx` | Yes, fully | 1 test timed out |
+  | `WorkItemPicker.test.tsx` | No (until this round) | 1 test timed out |
+
+  Two *fully converted* files still blew the 60s ceiling — conversion is neither necessary nor
+  sufficient to fix this. Local `--maxWorkers=1` passes regardless of conversion state; CI's
+  `--maxWorkers=2` fails regardless of conversion state. Worker count/CI concurrency is the variable
+  that actually separates pass from fail here, and a CI-concurrency change is the real remedy being
+  pursued, not further mechanical `userEvent.setup()` → `setupUser()` rollout. The fake-timer
+  conversion still removes a genuine wall-clock dependency and is worth keeping, but this is now the
+  third time this file's history has had to walk back an over-claimed fix (see the two earlier
+  corrections above) — do not add a fourth. Converting `WorkItemPicker.test.tsx` in this round was
+  still worth doing (removes real-timer scheduling, matches the established idiom, all assertions
+  intact) — just don't expect it, on its own, to turn CI green.
+- **Lesson**: when handed a "CI just failed on file X" task, check `git log -- <file>` (and
+  `git merge-base --is-ancestor <suspect-commit> HEAD`) for that file *before* touching it — a fast-
+  moving beta with concurrent Dependabot/dev-team-lead sessions can fix (or fail to fix — see above)
+  the reported failure between the CI run that generated the report and the session that picks it up.
+  Don't assume a file's current conversion state from the failure description; verify structurally
+  (git history) — and verify CI health via the actual CI run, never a local run (see above).
+- **Jest invocation gotcha (new, distinct from the worktree-node_modules notes below)**: running
+  `npx jest <file>` from inside `client/` (rather than the repo root) silently picks up a different
+  transform pipeline and fails on `import type * as X from '...'` with a raw Babel parser
+  `SyntaxError`, not a helpful "wrong config" message. Always invoke from the repo root
+  (`cd <repo-root> && NODE_OPTIONS=--experimental-vm-modules npx jest client/src/...`) so
+  `jest.config.ts`'s `ts-jest` preset is what actually runs.
