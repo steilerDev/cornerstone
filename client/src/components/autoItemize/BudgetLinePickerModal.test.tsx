@@ -23,8 +23,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 // Module-scope variable to capture the onChange callback fired by the ParentPicker mock.
 // This allows tests to invoke the onChange handler to exercise lines 50-51 of the component.
 let capturedParentPickerOnChange:
-  | ((type: 'work_item' | 'household_item', id: string) => Promise<void>)
-  | null = null;
+  ((type: 'work_item' | 'household_item', id: string) => Promise<void>) | null = null;
 
 jest.unstable_mockModule('../../components/ParentPicker/ParentPicker.js', () => ({
   ParentPicker: ({
@@ -64,7 +63,7 @@ jest.unstable_mockModule('../../lib/budgetConstants.js', () => ({
 
 import React from 'react';
 import type * as BudgetLinePickerModalModule from './BudgetLinePickerModal.js';
-import type { PickerState } from '../../hooks/useBudgetLinePicker.js';
+import type { PickerState, UseBudgetLinePickerReturn } from '../../hooks/useBudgetLinePicker.js';
 
 let BudgetLinePickerModal: (typeof BudgetLinePickerModalModule)['BudgetLinePickerModal'];
 
@@ -121,7 +120,8 @@ function renderModal(
   const createBudgetLineButtonRef = { current: null } as React.RefObject<HTMLButtonElement | null>;
 
   const handleSelectItem =
-    callbacks.handleSelectItem ?? jest.fn<any>().mockResolvedValue(undefined);
+    callbacks.handleSelectItem ??
+    jest.fn<UseBudgetLinePickerReturn['handleSelectItem']>().mockResolvedValue(undefined);
   const setPickerState = callbacks.setPickerState ?? jest.fn();
 
   return {
@@ -461,8 +461,9 @@ describe('BudgetLinePickerModal', () => {
   // ─── Coverage: ParentPicker onChange fires handleSelectItem (lines 50-51) ─────
 
   it('ParentPicker onChange calls handleSelectItem with id and type', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleSelectItem = jest.fn<any>().mockResolvedValue(undefined);
+    const handleSelectItem = jest
+      .fn<UseBudgetLinePickerReturn['handleSelectItem']>()
+      .mockResolvedValue(undefined);
     renderModal({ step: 1 }, { handleSelectItem });
 
     // Verify the ParentPicker mock captured the onChange callback

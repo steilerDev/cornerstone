@@ -28,6 +28,7 @@ import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
 import type * as InvoiceAutoItemizeApiModule from '../../lib/invoiceAutoItemizeApi.js';
 import type * as WorkItemBudgetsApiModule from '../../lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiModule from '../../lib/householdItemBudgetsApi.js';
+import type * as VendorsApiModule from '../../lib/vendorsApi.js';
 import type {
   PaperlessDocumentDetailResponse,
   AutoItemizePreviewResponse,
@@ -69,8 +70,7 @@ jest.unstable_mockModule('../../lib/invoiceAutoItemizeApi.js', () => ({
 
 // ─── Mock: vendorsApi ──────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchVendors = jest.fn<any>();
+const mockFetchVendors = jest.fn<typeof VendorsApiModule.fetchVendors>();
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
@@ -163,8 +163,11 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
 // ─── Mock: configApi + preferencesApi ────────────────────────────────────────
 
 jest.unstable_mockModule('../../lib/configApi.js', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  fetchConfig: jest.fn<any>().mockResolvedValue({ autoItemizeEnabled: true }),
+  // Only autoItemizeEnabled is exercised by these tests — narrower than the real
+  // fetchConfig's AppConfigResponse return type is intentional here.
+  fetchConfig: jest
+    .fn<() => Promise<{ autoItemizeEnabled: boolean }>>()
+    .mockResolvedValue({ autoItemizeEnabled: true }),
 }));
 
 jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
@@ -386,11 +389,10 @@ function makeVendorsResponse(vendors: Array<{ id: string; name: string }> = []) 
   return {
     vendors: vendors.map((v) => ({
       ...v,
-      tradeId: null,
       notes: null,
-      websiteUrl: null,
-      contactEmail: null,
-      contactPhone: null,
+      phone: null,
+      email: null,
+      address: null,
       trade: null,
       createdBy: null,
       createdAt: '2026-01-01T00:00:00Z',

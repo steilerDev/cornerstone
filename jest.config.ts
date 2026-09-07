@@ -46,6 +46,25 @@ const config: Config = {
   // gracefully" warnings; 2000 ms lets legitimate cleanup finish while still
   // bounding true hangs.
   workerGracefulExitTimeout: 2000,
+  // Tests that open the shared SearchPicker's dropdown for the first time (mounting
+  // @floating-ui/react's FloatingPortal + userEvent's real-timer event sequencing) are
+  // legitimately slow under CI/sandbox CPU contention — confirmed via bisection against
+  // pre-dependency-bump jest/testing-library versions (identical timing, so not a
+  // regression) and via raised-timeout runs (tests pass reliably given enough wall time,
+  // so this is not a hang). This pattern is systemic across every SearchPicker-family
+  // component (WorkItemPicker, HouseholdItemPicker, DependencySentenceBuilder, etc.), so
+  // the default is raised rather than patched file-by-file as CI shards happen to reveal
+  // fresh instances. See PR #2070 / qa-integration-tester agent memory.
+  //
+  // MUST be set here, at the top level — jest-circus only reads `testTimeout` from
+  // globalConfig (see node_modules/jest-circus/build/jestAdapterInit.js's
+  // `if (globalConfig.testTimeout) { getState().testTimeout = globalConfig.testTimeout; }`).
+  // A `projects[].testTimeout` entry is silently ignored at runtime despite being a
+  // documented ProjectConfig field and showing up correctly in `--showConfig` output.
+  // This therefore applies to server/shared too, not just client; that's an accepted
+  // trade-off since raising the ceiling cannot slow down tests that already finish well
+  // within it, and per-project scoping isn't achievable given jest-circus's behavior.
+  testTimeout: 60000,
   projects: [
     {
       ...baseConfig,

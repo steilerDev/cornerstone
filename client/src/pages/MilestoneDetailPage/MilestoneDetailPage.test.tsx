@@ -26,10 +26,8 @@ const mockFetchMilestoneLinkedHouseholdItems =
   jest.fn<typeof MilestonesApiTypes.fetchMilestoneLinkedHouseholdItems>();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockCreateHouseholdItemDep = jest.fn<any>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockDeleteHouseholdItemDep = jest.fn<any>();
+const mockCreateHouseholdItemDep = jest.fn();
+const mockDeleteHouseholdItemDep = jest.fn();
 
 jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
   getMilestone: mockGetMilestone,

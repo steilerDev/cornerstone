@@ -15,13 +15,14 @@ import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type { Invoice, InvoiceDeposit, InvoiceListPaginatedResponse } from '@cornerstone/shared';
 import type * as InvoicesPageTypes from './InvoicesPage.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
 const mockCreateInvoice = jest.fn<typeof InvoicesApiTypes.createInvoice>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchVendors = jest.fn<any>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchAllInvoices: mockFetchAllInvoices,
@@ -83,8 +84,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockGetPaperlessStatus = jest.fn<any>();
+const mockGetPaperlessStatus = jest.fn<typeof PaperlessApiTypes.getPaperlessStatus>();
 
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessStatus: mockGetPaperlessStatus,
@@ -96,8 +96,9 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   listPaperlessCorrespondents: jest.fn(),
 }));
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchConfig = jest.fn<any>();
+// Only autoItemizeEnabled is exercised by these tests — narrower than the real
+// fetchConfig's AppConfigResponse return type is intentional here.
+const mockFetchConfig = jest.fn<() => Promise<{ autoItemizeEnabled: boolean }>>();
 
 jest.unstable_mockModule('../../lib/configApi.js', () => ({
   fetchConfig: mockFetchConfig,

@@ -350,12 +350,17 @@ describe('HouseholdItemPicker', () => {
     const input = screen.getByPlaceholderText('Search household items...');
     await user.type(input, 'Sofa');
 
+    // Wait on the debounced call settling with the FULL typed query, not just on "Sofa"
+    // appearing in the DOM: the mock returns the same static item list regardless of the
+    // `q` it's called with, so a debounce firing prematurely mid-type (e.g. after just
+    // "S", under real-timer jitter between keystrokes) would already render "Sofa" and
+    // make a DOM-only wait pass before the debounce has actually settled on the full
+    // term. Asserting both together keeps the DOM check honest against that race.
     await waitFor(() => {
+      expect(mockListHouseholdItems).toHaveBeenCalledWith(
+        expect.objectContaining({ q: 'Sofa', pageSize: 15 }),
+      );
       expect(screen.getByText('Sofa')).toBeInTheDocument();
     });
-
-    expect(mockListHouseholdItems).toHaveBeenCalledWith(
-      expect.objectContaining({ q: 'Sofa', pageSize: 15 }),
-    );
   });
 });
