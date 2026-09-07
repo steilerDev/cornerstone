@@ -123,11 +123,16 @@ describe('SearchPicker', () => {
     });
 
     it('searchFn called with excludeIds as second argument', async () => {
-      const user = userEvent.setup();
+      jest.useFakeTimers();
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
       renderPicker({ excludeIds: ['item-1', 'item-2'], placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
       await user.type(input, 'Alpha');
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
 
       await waitFor(() => {
         expect(mockSearchFn).toHaveBeenCalledWith(expect.any(String), ['item-1', 'item-2']);
@@ -162,7 +167,8 @@ describe('SearchPicker', () => {
     });
 
     it('after selection: input hidden, selectedDisplay shown with label text', async () => {
-      const user = userEvent.setup();
+      jest.useFakeTimers();
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
       renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');

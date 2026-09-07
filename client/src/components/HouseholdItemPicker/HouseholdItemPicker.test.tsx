@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 
@@ -96,6 +96,10 @@ describe('HouseholdItemPicker', () => {
     }
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   function renderPicker(
     props: Partial<React.ComponentProps<typeof HouseholdItemPickerModule.HouseholdItemPicker>> = {},
   ) {
@@ -154,7 +158,8 @@ describe('HouseholdItemPicker', () => {
   // ── 4. excludeIds filtering ───────────────────────────────────────────────
 
   it('excludeIds filtering works: excluded items not shown in results', async () => {
-    const user = userEvent.setup();
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
     renderPicker({ showItemsOnFocus: true, excludeIds: ['hi-1'] });
 
     const input = screen.getByPlaceholderText('Search household items...');
@@ -221,11 +226,16 @@ describe('HouseholdItemPicker', () => {
 
   it('no-results message reads "No matching household items found"', async () => {
     mockListHouseholdItems.mockResolvedValue(emptyListResponse);
-    const user = userEvent.setup();
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
     renderPicker();
 
     const input = screen.getByPlaceholderText('Search household items...');
     await user.type(input, 'XYZ');
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
 
     await waitFor(() => {
       expect(screen.getByText('No matching household items found')).toBeInTheDocument();
@@ -344,11 +354,16 @@ describe('HouseholdItemPicker', () => {
   // ── 12. Search results show item names ───────────────────────────────────
 
   it('shows item names in search results after typing', async () => {
-    const user = userEvent.setup();
+    jest.useFakeTimers();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
     renderPicker();
 
     const input = screen.getByPlaceholderText('Search household items...');
     await user.type(input, 'Sofa');
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
 
     // Wait on the debounced call settling with the FULL typed query, not just on "Sofa"
     // appearing in the DOM: the mock returns the same static item list regardless of the
