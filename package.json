@@ -52,7 +52,7 @@
     "@testing-library/user-event": "14.6.7",
     "@types/jest": "30.0.0",
     "concurrently": "10.0.5",
-    "conventional-changelog-conventionalcommits": "10.4.0",
+    "conventional-changelog-conventionalcommits": "9.3.1",
     "eslint": "10.10.0",
     "eslint-config-prettier": "10.1.8",
     "identity-obj-proxy": "3.0.0",

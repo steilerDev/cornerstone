@@ -49,8 +49,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          OUTPUT=$(npx semantic-release 2>&1) || true
+          # Capture stdout+stderr for the tag/version parsing below, but keep the
+          # exit code: a crash and a clean "no relevant commits" run are otherwise
+          # indistinguishable, because both simply lack "Created tag v" in stdout.
+          # Swallowing the status with `|| true` let a hard generateNotes failure
+          # report success with new-release-published=false, silently skipping every
+          # downstream job — that is how v2.15.0 was never published (issue #2082).
+          # Never discard this status.
+          set +e
+          OUTPUT=$(npx semantic-release 2>&1)
+          STATUS=$?
+          set -e
           echo "$OUTPUT"
+
+          if [ "$STATUS" -ne 0 ]; then
+            echo "::error title=semantic-release failed::semantic-release exited with status ${STATUS}. No release was published; see the step log above for the failing plugin step."
+            exit "$STATUS"
+          fi
+
           if echo "$OUTPUT" | grep -q "Created tag v"; then
             VERSION=$(echo "$OUTPUT" | grep -oP 'Created tag v\K[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?' || echo "")
             echo "new-release-published=true" >> "$GITHUB_OUTPUT"
@@ -108,11 +124,21 @@ jobs:
               echo "| **Type** | ${RELEASE_TYPE} |"
               echo "| **GitHub Release** | [v${VERSION}](https://github.com/steilerDev/cornerstone/releases/tag/v${VERSION}) |"
             } >> "$GITHUB_STEP_SUMMARY"
-          else
+          elif [ "$PUBLISHED" = "false" ]; then
             {
               echo "### No Release"
               echo ""
               echo "No new release — commits since last tag did not trigger a version bump."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            # semantic-release did not complete, so "no version bump" is not a
+            # supported conclusion — the outputs were never set. Say so plainly
+            # rather than reporting a clean no-op (issue #2082).
+            {
+              echo "### Release Failed"
+              echo ""
+              echo "\`semantic-release\` did not complete successfully, so no release was published."
+              echo "This is **not** a \"no relevant commits\" run — check the \`Semantic Release\` step log for the failing plugin step."
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
