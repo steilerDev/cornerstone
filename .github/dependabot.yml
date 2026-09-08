@@ -34,6 +34,16 @@ updates:
       # (see PR #1882). Remove once ts-jest widens its peer range.
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # Hold conventional-changelog-conventionalcommits at v9 until semantic-release
+      # ships a release-notes-generator built on conventional-changelog-writer@9.
+      # The v10 preset emits JS-function partials for the writer@9 rendering engine,
+      # but @semantic-release/release-notes-generator@14 pins the handlebars-based
+      # writer@8. That mismatch produced header-only (empty) release notes silently
+      # from v10.0.0, and from v10.3.0 upstream added a deliberate guard that turns
+      # it into a hard `generateNotes` crash (see issue #2082). Remove this rule once
+      # @semantic-release/release-notes-generator@15 (writer@9) is released and adopted.
+      - dependency-name: 'conventional-changelog-conventionalcommits'
+        update-types: ['version-update:semver-major']
 
   # GitHub Actions
   - package-ecosystem: github-actions
