@@ -25,7 +25,7 @@
     "fastify-plugin": "6.0.0",
     "ical-generator": "11.1.1",
     "node-cron": "4.6.0",
-    "openid-client": "6.8.7",
+    "openid-client": "6.8.8",
     "sharp": "0.35.4",
     "tar": "^7.5.17",
     "vcard-creator": "1.0.0"
