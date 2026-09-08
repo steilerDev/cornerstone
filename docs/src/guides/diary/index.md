@@ -17,6 +17,7 @@ The diary provides:
 - **Photo Annotation** -- Mark up photos with rectangles, arrows, text, measurements, and more, directly in the browser (touch-enabled)
 - **Drafts** -- Pick an entry type and start drafting immediately; the entry is saved as a draft until you promote it to a full entry, with auto-save while you type
 - **Signature Capture** -- Collect digital signatures from users or vendors with a drawing canvas; signed entries become immutable
+- **Infinite Scroll** -- Entries load automatically as you scroll; a "Load more" button lets you fetch the next batch without scrolling
 - **Filtering** -- Filter the diary by Manual (the default), All, or Automatic entries with type-specific filter chips, plus a separate Drafts chip to show or hide unfinished work
 
 ## Entry Types
