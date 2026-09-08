@@ -2,26 +2,19 @@
 
 ## What's New
 
-This release is a reliability and polish pass on the bank report wizard -- the PDFs you hand to a lender now render correctly in every case that was previously fragile, from long German descriptions to multi-page tables. It also adds a configurable login rate limit, a "No Category" option for subsidies, and three security fixes.
+This release brings focused improvements to invoice management and diary navigation. You can now filter invoices to show only work-in-progress items with pending payments, visualize staged deposits as expandable rows, and load diary entries via infinite scroll for a smoother browsing experience.
 
 ### Highlights
 
-- **Report table columns now flow through to the exported PDF.** The Show/Hide columns you toggle in the wizard preview are respected in the downloaded document, not just the on-screen preview.
-- **Long rows are handled cleanly.** Descriptions that need to continue onto the next page are now clearly marked as continuations instead of reading like truncated or broken rows.
-- **Split invoices are footnoted correctly.** The report now distinguishes an invoice split across budget lines from one split via a deposit tagged to a different source, so the footnote on each row explains the right reason.
-- **Editable fields in the report editor have sensible length limits**, so cover letters and usage descriptions stay within what the PDF layout can safely render.
-- **Fixed German header word-breaks, a missing timestamp on later report pages, and the page footer's locale**, so multi-page German-language reports read correctly throughout.
-- **AI-assisted report generation is now guarded** against switching report type or source while a generation is still in progress, preventing content written for the wrong report from landing in your draft.
-- **Configurable login rate limiting.** New `AUTH_RATE_LIMIT_MAX` and `AUTH_RATE_LIMIT_WINDOW` settings let you tune the login endpoint's rate limit for your household's network setup -- see the [Configuration guide](https://cornerstone.steiler.dev/getting-started/configuration#authentication-rate-limiting).
-- **Subsidies can now include uncategorized items.** A subsidy program's applicable-categories picker gained a "No Category" option, so a subsidy can cover budget lines that have no category assigned.
-- **Budget source drill-down is deposit-aware.** Instalment-paid invoices now show the correct paid and outstanding split when viewed from a financing source.
-- **Failed column-preference saves now surface an error toast** in list views instead of failing silently.
+- **Invoices — Show only open items view** — A new toggle at the top of the invoice list narrows the view to pending invoices and invoices with pending deposits, sorted by earliest due date. Pending deposits appear as expandable child rows under their invoice for at-a-glance visibility of what is left to pay. The header shows open-payable and refunds-due totals so you always know your cash-flow position.
+- **Diary — Infinite scroll navigation** — Diary entries now load automatically as you scroll, with a "Load more" button for keyboard-accessible batch loading. Old bookmarked diary links continue to open the diary normally.
+- **Bug fixes** — Invoice status badges now display with correct color. Resolved stale-fetch races in the diary when filters or search are reset.
 
-### Security
+### Behind the Scenes
 
-- Fixed an IPv6 address-normalization bypass in the login rate limiter (CVE-2026-15144).
-- Remediated a credential-leak/SSRF vulnerability in the `undici` HTTP client (GHSA-g4rg-993r-mgx8).
-- Remediated a vulnerability in the `brace-expansion` dependency (GHSA-rhx6-c78j-4q9w).
+- Large dependency and security update sweep across production, development, and GitHub Actions packages
+- Addressed 15 orphan security advisories via package overrides and lockfile reconciliation
+- CI Jest timeout increase to improve reliability on resource-constrained runners
 
 ## Upgrade
 

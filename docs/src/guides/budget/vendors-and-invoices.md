@@ -38,9 +38,21 @@ Click a vendor to see their detail page, which shows the vendor's information, a
 Navigate to **Budget > Invoices** in the sidebar to see all invoices across all vendors. (Invoices remain in the Budget section; only the vendor records themselves moved to Settings.) The list supports:
 
 - **Search** -- Find invoices by number or vendor name
-- **Status Filter** -- Filter by Quotation, Pending, Paid, or Claimed
+- **Status Filter** -- Filter by Quotation, Pending, Paid, or Claimed (disabled while "Open Items" mode is active)
 - **Sorting** -- Sort by date, amount, or status
 - **Pagination** -- Browse through large invoice lists
+
+#### Show Only Open Items
+
+Click the **"Show only open items"** toggle at the top of the invoice list to focus on work-in-progress invoices. This view shows:
+
+- **Pending invoices** and invoices with pending deposits, sorted by earliest due date so your most urgent payables surface first
+- **Expandable deposit rows** -- Each invoice that has pending deposits shows a child row for each one, so you can see at a glance which deposits are still outstanding
+- **Open totals** in the header:
+  - **Payable** -- The total amount you still owe across all visible invoices and pending deposits
+  - **Refunds due** -- The total amount you are expecting back (when deposits exceed the final invoice amount)
+
+The "Open Items" mode is mutually exclusive with the Status filter (Status filtering is disabled while Open Items mode is on) and persists in the URL as `?openOnly=true`, so you can bookmark or share the focused view.
 
 ### Creating an Invoice
 
