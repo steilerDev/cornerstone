@@ -8,11 +8,24 @@
  * Mocks are identical to HouseholdItemPicker.test.tsx to stay independent.
  */
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type { HouseholdItemSummary } from '@cornerstone/shared';
+
+/**
+ * SearchPicker's dropdown-open interaction costs 20-45s on a contended CI runner
+ * (#2076). Fake timers remove real-timer macrotask scheduling from these tests;
+ * whether that is what fails in CI is UNPROVEN — a local unloaded A/B found no
+ * difference between converted and unconverted (see the agent-memory writeup for
+ * the measurements). This change is applied as safe and plausibly sufficient, not
+ * as a proven fix. Not a production issue - the component is identical either way.
+ */
+function setupUser() {
+  jest.useFakeTimers();
+  return userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
+}
 
 // ─── Mock modules BEFORE importing component ─────────────────────────────────
 
@@ -98,6 +111,10 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     }
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   function renderPicker(
     props: Partial<React.ComponentProps<typeof HouseholdItemPickerModule.HouseholdItemPicker>> = {},
   ) {
@@ -109,7 +126,7 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
 
   describe('search results — item with area set', () => {
     it('renders compact breadcrumb text for an item with a single ancestor', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListHouseholdItems.mockResolvedValue({
         items: [makeItem({ id: 'hi-1', name: 'Sofa', area: areaWithAncestors })],
         pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
@@ -130,7 +147,7 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     });
 
     it('renders compact breadcrumb text for a root-level area (no ancestors)', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListHouseholdItems.mockResolvedValue({
         items: [makeItem({ id: 'hi-1', name: 'Toolbox', area: areaRootLevel })],
         pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
@@ -150,7 +167,7 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     });
 
     it('does not render a role="tooltip" element for compact breadcrumb (plain span only)', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListHouseholdItems.mockResolvedValue({
         items: [makeItem({ id: 'hi-1', name: 'Chair', area: areaWithAncestors })],
         pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
@@ -174,7 +191,7 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     });
 
     it('renders secondary breadcrumbs for multiple results with different areas', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListHouseholdItems.mockResolvedValue({
         items: [
           makeItem({ id: 'hi-1', name: 'Sofa', area: areaWithAncestors }),
@@ -204,7 +221,7 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
 
   describe('search results — item with area: null', () => {
     it('renders "No area" secondary text when item area is null', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListHouseholdItems.mockResolvedValue({
         items: [makeItem({ id: 'hi-1', name: 'Sofa', area: null })],
         pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
@@ -224,7 +241,7 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     });
 
     it('renders "No area" for every null-area item in the results', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListHouseholdItems.mockResolvedValue({
         items: [
           makeItem({ id: 'hi-1', name: 'Sofa', area: null }),
@@ -249,7 +266,7 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     });
 
     it('does not render a nav element for null-area items in the dropdown', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListHouseholdItems.mockResolvedValue({
         items: [makeItem({ id: 'hi-1', name: 'Sofa', area: null })],
         pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
@@ -273,7 +290,7 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
 
   describe('search results — mixed area / no-area items', () => {
     it('renders breadcrumb for area items and "No area" for null-area items side by side', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListHouseholdItems.mockResolvedValue({
         items: [
           makeItem({ id: 'hi-1', name: 'Sofa', area: areaWithAncestors }),
@@ -303,7 +320,7 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
 
   describe('search-triggered results — area secondary line', () => {
     it('renders area breadcrumb secondary line after typing a search term', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListHouseholdItems.mockResolvedValue({
         items: [makeItem({ id: 'hi-1', name: 'Sofa', area: areaWithAncestors })],
         pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
@@ -323,7 +340,7 @@ describe('HouseholdItemPicker — AreaBreadcrumb secondary line (Story #1240)', 
     });
 
     it('renders "No area" secondary line after typing when item has null area', async () => {
-      const user = userEvent.setup();
+      const user = setupUser();
       mockListHouseholdItems.mockResolvedValue({
         items: [makeItem({ id: 'hi-1', name: 'Sofa', area: null })],
         pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },

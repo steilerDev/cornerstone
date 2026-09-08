@@ -15,6 +15,7 @@
 - [document-linking-and-photos-e2e.md](document-linking-and-photos-e2e.md) — document-linking (Paperless), photo picker/upload flows, orientations.
 - [photo-annotator-e2e.md](photo-annotator-e2e.md) — Konva canvas annotator (post-SVG-migration rewrite, touch/pointer-event handling).
 - [diary-e2e.md](diary-e2e.md) — Construction Diary feature: drafts, forms, list/detail, mode filters, UAT-fix history.
+- [issue-2060-diary-infinite-scroll.md](issue-2060-diary-infinite-scroll.md) — Diary pager → IntersectionObserver infinite scroll: footer DOM shape/render conditions, POM additions, 11-scenario test breakdown.
 - [print-and-i18n.md](print-and-i18n.md) — print-mode E2E and i18n locale-switch testing.
 - [milestones-e2e.md](milestones-e2e.md) — Milestones feature POM and selectors.
 - [searchpicker-mobile-1708.md](searchpicker-mobile-1708.md) — SearchPicker mobile dropdown-anchor regression (Issue #1708).

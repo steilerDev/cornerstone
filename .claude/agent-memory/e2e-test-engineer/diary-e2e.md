@@ -5,6 +5,13 @@ metadata:
   type: project
 ---
 
+## Diary pager removed → infinite scroll (Issue #2060, 2026-09-04) — `diary-list.spec.ts`
+
+`prevPageButton`/`nextPageButton` are GONE from `DiaryPage` POM (`?page=` URL param no longer read at
+all, even as a legacy bookmark). Replaced by `loadMoreButton`/`endOfListMessage`/
+`infiniteScrollSentinel`/`footerError` + `scrollToLoadMore()`. Full detail, DOM shape, and the
+11-scenario test breakdown: see [issue-2060-diary-infinite-scroll.md](issue-2060-diary-infinite-scroll.md).
+
 ## Diary default filter mode = 'manual' (fix/1781, 2026-06-22) — `diary-r2-uat.spec.ts`, `diary-list.spec.ts`
 
 - Default mode chip changed from `all` → `manual`. Test renamed: `'"Manual" mode chip is aria-pressed=true by default (no filterMode URL param)'`. Assertions flipped: `allChip` → `false`, `manualChip` → `true`, `automaticChip` → `false`.

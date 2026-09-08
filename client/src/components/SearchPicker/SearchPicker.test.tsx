@@ -41,9 +41,15 @@ function renderPicker(
 }
 
 describe('SearchPicker', () => {
+  // Shared across every test in this describe: fake timers remove the wall-clock
+  // dependency from userEvent's real-timer-driven click/type interactions.
+  let user: ReturnType<typeof userEvent.setup>;
+
   beforeEach(() => {
     mockSearchFn.mockReset();
     mockSearchFn.mockResolvedValue(sampleItems);
+    jest.useFakeTimers();
+    user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
   });
 
   afterEach(() => {
@@ -78,8 +84,6 @@ describe('SearchPicker', () => {
   describe('debounce behaviour', () => {
     it('typing triggers searchFn with typed query after 300ms debounce', async () => {
       // Use userEvent with fake timers via the advanceTimers option
-      jest.useFakeTimers();
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
       renderPicker({ placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
@@ -98,8 +102,6 @@ describe('SearchPicker', () => {
     });
 
     it('rapid typing only triggers one searchFn call after 300ms', async () => {
-      jest.useFakeTimers();
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
       renderPicker({ placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
@@ -123,11 +125,14 @@ describe('SearchPicker', () => {
     });
 
     it('searchFn called with excludeIds as second argument', async () => {
-      const user = userEvent.setup();
       renderPicker({ excludeIds: ['item-1', 'item-2'], placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
       await user.type(input, 'Alpha');
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
 
       await waitFor(() => {
         expect(mockSearchFn).toHaveBeenCalledWith(expect.any(String), ['item-1', 'item-2']);
@@ -139,7 +144,6 @@ describe('SearchPicker', () => {
 
   describe('item selection', () => {
     it('clicking a result calls onChange with item id and onSelectItem with { id, label }', async () => {
-      const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
       const onSelectItem = jest.fn<(item: { id: string; label: string }) => void>();
 
@@ -162,7 +166,6 @@ describe('SearchPicker', () => {
     });
 
     it('after selection: input hidden, selectedDisplay shown with label text', async () => {
-      const user = userEvent.setup();
       renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
@@ -182,7 +185,6 @@ describe('SearchPicker', () => {
 
   describe('showItemsOnFocus prop', () => {
     it('on focus, calls searchFn with empty string; results appear', async () => {
-      const user = userEvent.setup();
       renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
@@ -209,7 +211,6 @@ describe('SearchPicker', () => {
         }),
       );
 
-      const user = userEvent.setup();
       renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
@@ -228,7 +229,6 @@ describe('SearchPicker', () => {
   describe('error states', () => {
     it('loadErrorMessage shown when searchFn rejects on initial load', async () => {
       mockSearchFn.mockRejectedValue(new Error('Network failure'));
-      const user = userEvent.setup();
       renderPicker({
         showItemsOnFocus: true,
         placeholder: 'Search...',
@@ -245,7 +245,6 @@ describe('SearchPicker', () => {
 
     it('uses default loadErrorMessage "Failed to load items" when not specified', async () => {
       mockSearchFn.mockRejectedValue(new Error('Network failure'));
-      const user = userEvent.setup();
       renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
@@ -262,7 +261,6 @@ describe('SearchPicker', () => {
       // Second call (typed query) fails
       mockSearchFn.mockRejectedValueOnce(new Error('Search error'));
 
-      const user = userEvent.setup();
       renderPicker({
         showItemsOnFocus: true,
         placeholder: 'Search...',
@@ -277,6 +275,10 @@ describe('SearchPicker', () => {
       // Type to trigger search (second call fails)
       await user.type(input, 'A');
 
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+
       await waitFor(() => {
         expect(screen.getByText('Custom search error')).toBeInTheDocument();
       });
@@ -286,7 +288,6 @@ describe('SearchPicker', () => {
       mockSearchFn.mockResolvedValueOnce([]);
       mockSearchFn.mockRejectedValueOnce(new Error('Search error'));
 
-      const user = userEvent.setup();
       renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
@@ -294,6 +295,10 @@ describe('SearchPicker', () => {
       await waitFor(() => expect(screen.queryByText('Searching...')).not.toBeInTheDocument());
 
       await user.type(input, 'A');
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Failed to search items')).toBeInTheDocument();
@@ -306,7 +311,6 @@ describe('SearchPicker', () => {
   describe('empty states', () => {
     it('noResultsMessage shown when searchFn resolves with empty array after typing', async () => {
       mockSearchFn.mockResolvedValue([]);
-      const user = userEvent.setup();
       renderPicker({
         noResultsMessage: 'Nothing matches',
         placeholder: 'Search...',
@@ -315,6 +319,10 @@ describe('SearchPicker', () => {
       const input = screen.getByPlaceholderText('Search...');
       await user.type(input, 'XYZ');
 
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+
       await waitFor(() => {
         expect(screen.getByText('Nothing matches')).toBeInTheDocument();
       });
@@ -322,11 +330,14 @@ describe('SearchPicker', () => {
 
     it('uses default noResultsMessage "No matching items found" when not specified', async () => {
       mockSearchFn.mockResolvedValue([]);
-      const user = userEvent.setup();
       renderPicker({ placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
       await user.type(input, 'XYZ');
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('No matching items found')).toBeInTheDocument();
@@ -335,17 +346,25 @@ describe('SearchPicker', () => {
 
     it('emptyHint shown when no query, no results, and no specialOptions', async () => {
       mockSearchFn.mockResolvedValue([]);
-      const user = userEvent.setup();
       // Open dropdown via typing then clearing back to empty to show emptyHint
       renderPicker({ placeholder: 'Search...', emptyHint: 'Start typing to search' });
 
       const input = screen.getByPlaceholderText('Search...');
       await user.type(input, 'A');
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+
       // Wait for search to run
       await waitFor(() => expect(screen.queryByText('Searching...')).not.toBeInTheDocument());
 
       // Clear the input
       await user.clear(input);
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Start typing to search')).toBeInTheDocument();
@@ -354,13 +373,22 @@ describe('SearchPicker', () => {
 
     it('uses default emptyHint "Type to search items" when not specified', async () => {
       mockSearchFn.mockResolvedValue([]);
-      const user = userEvent.setup();
       renderPicker({ placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
       await user.type(input, 'A');
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
+
       await waitFor(() => expect(screen.queryByText('Searching...')).not.toBeInTheDocument());
+
       await user.clear(input);
+
+      await act(async () => {
+        jest.advanceTimersByTime(300);
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Type to search items')).toBeInTheDocument();
@@ -372,7 +400,6 @@ describe('SearchPicker', () => {
 
   describe('specialOptions prop', () => {
     it('specialOptions shown at top of dropdown on focus', async () => {
-      const user = userEvent.setup();
       const specialOptions = [{ id: '__SPECIAL__', label: 'Special Choice' }];
       renderPicker({ specialOptions, placeholder: 'Search...' });
 
@@ -385,7 +412,6 @@ describe('SearchPicker', () => {
     });
 
     it('divider present when both special options and results exist', async () => {
-      const user = userEvent.setup();
       const specialOptions = [{ id: '__SPECIAL__', label: 'Special Choice' }];
       renderPicker({ specialOptions, placeholder: 'Search...' });
 
@@ -402,7 +428,6 @@ describe('SearchPicker', () => {
     });
 
     it('selecting special option calls onChange(opt.id) and onSelectItem({ id, label })', async () => {
-      const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
       const onSelectItem = jest.fn<(item: { id: string; label: string }) => void>();
       const specialOptions = [{ id: '__SPECIAL__', label: 'Special Choice' }];
@@ -463,7 +488,6 @@ describe('SearchPicker', () => {
 
     it('emptyHint IS shown when specialOptions exist but no results (hint and special options coexist)', async () => {
       mockSearchFn.mockResolvedValue([]);
-      const user = userEvent.setup();
       const specialOptions = [{ id: '__SPECIAL__', label: 'Special Choice' }];
       // Since Story #1675, emptyHint renders regardless of whether specialOptions exist.
       // Both the special option and the hint appear at the same time.
@@ -492,7 +516,6 @@ describe('SearchPicker', () => {
     });
 
     it('empty-string special option: "All Areas" appears in dropdown on focus when value=""', async () => {
-      const user = userEvent.setup();
       const specialOptions = [{ id: '', label: 'All Areas' }];
       renderPicker({ specialOptions, value: '', placeholder: 'Search...' });
 
@@ -506,7 +529,6 @@ describe('SearchPicker', () => {
     });
 
     it('empty-string special option: selecting "All Areas" calls onChange("") and shows selected display', async () => {
-      const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
       const specialOptions = [{ id: '', label: 'All Areas' }];
       renderPicker({
@@ -534,7 +556,6 @@ describe('SearchPicker', () => {
     });
 
     it('empty-string special option: clearing after selection returns to input', async () => {
-      const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
       const specialOptions = [{ id: '', label: 'All Areas' }];
       renderPicker({
@@ -576,7 +597,6 @@ describe('SearchPicker', () => {
     });
 
     it('non-empty special option: clicking × on chip calls onChange("") and restores input', async () => {
-      const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
       const specialOptions = [{ id: 'all', label: 'All Items' }];
       renderPicker({
@@ -599,7 +619,6 @@ describe('SearchPicker', () => {
 
   describe('clear button', () => {
     it('after selecting, clicking × calls onChange("") and restores input', async () => {
-      const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
       renderPicker({
         showItemsOnFocus: true,
@@ -635,7 +654,6 @@ describe('SearchPicker', () => {
     });
 
     it('initialTitle clear: clicking × calls onChange("") and shows input', async () => {
-      const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
       renderPicker({
         value: 'item-existing',
@@ -672,7 +690,6 @@ describe('SearchPicker', () => {
     // inside `handleSelect`, which prevents the initialTitle branch from rendering.
 
     it('stale initialTitle bug: after clear then select, chip shows new item label, not old initialTitle', async () => {
-      const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
 
       renderPicker({
@@ -710,7 +727,6 @@ describe('SearchPicker', () => {
 
   describe('external value reset', () => {
     it('value changing to "" resets to input mode even after item selection', async () => {
-      const user = userEvent.setup();
       const onChange = jest.fn<(id: string) => void>();
 
       const { rerender } = render(
@@ -800,7 +816,6 @@ describe('SearchPicker', () => {
 
   describe('click outside', () => {
     it('mousedown outside the container closes the dropdown', async () => {
-      const user = userEvent.setup();
       renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
@@ -821,7 +836,6 @@ describe('SearchPicker', () => {
 
   describe('getStatusBorderColor prop', () => {
     it('after selection, selectedDisplay has borderLeftColor from callback', async () => {
-      const user = userEvent.setup();
       const getStatusBorderColor = (item: TestItem) =>
         item.status === 'active' ? 'rgb(0, 128, 0)' : undefined;
 
@@ -848,7 +862,6 @@ describe('SearchPicker', () => {
     });
 
     it('no borderLeftColor style when callback returns undefined', async () => {
-      const user = userEvent.setup();
       const getStatusBorderColor = (_item: TestItem) => undefined;
 
       renderPicker({
@@ -877,7 +890,6 @@ describe('SearchPicker', () => {
 
   describe('dropdown semantics', () => {
     it('dropdown has role="listbox" and result buttons have role="option"', async () => {
-      const user = userEvent.setup();
       renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
@@ -891,7 +903,6 @@ describe('SearchPicker', () => {
     });
 
     it('each result option shows the item label', async () => {
-      const user = userEvent.setup();
       renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
       const input = screen.getByPlaceholderText('Search...');
@@ -910,7 +921,6 @@ describe('SearchPicker', () => {
   describe('special options divider logic', () => {
     it('no divider rendered when specialOptions exist but results are empty', async () => {
       mockSearchFn.mockResolvedValue([]);
-      const user = userEvent.setup();
       const specialOptions = [{ id: '__SPECIAL__', label: 'Special Choice' }];
       renderPicker({ specialOptions, placeholder: 'Search...' });
 
@@ -935,6 +945,8 @@ describe('SearchPicker', () => {
 // Escape-key, click-outside, and click-result tests are kept unchanged.
 
 describe('portal rendering (Story #1600)', () => {
+  let user: ReturnType<typeof userEvent.setup>;
+
   beforeEach(() => {
     mockSearchFn.mockReset();
     mockSearchFn.mockResolvedValue(sampleItems);
@@ -943,6 +955,9 @@ describe('portal rendering (Story #1600)', () => {
     // removed. With Floating UI (#1708), FloatingPortal renders the dropdown
     // unconditionally when isOpen=true — there is no rect-gate. The portal renders
     // without any stub. See FUI-1 test in 'Floating UI portal (#1708)' describe block.
+
+    jest.useFakeTimers();
+    user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
   });
 
   afterEach(() => {
@@ -953,7 +968,6 @@ describe('portal rendering (Story #1600)', () => {
   // ── Test 9: portal element in document.body ──────────────────────────────
 
   it('dropdown is portalled to document.body — [data-search-picker-dropdown] present on body', async () => {
-    const user = userEvent.setup();
     const { container } = renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
     const input = screen.getByPlaceholderText('Search...');
@@ -983,7 +997,6 @@ describe('portal rendering (Story #1600)', () => {
   // ── Test 11: click outside closes dropdown ───────────────────────────────
 
   it('clicking outside both container and portal dropdown closes the dropdown', async () => {
-    const user = userEvent.setup();
     renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
     const input = screen.getByPlaceholderText('Search...');
@@ -1010,7 +1023,6 @@ describe('portal rendering (Story #1600)', () => {
   // portal-aware behavior survived the migration.
 
   it('clicking inside the portalled dropdown does not close it', async () => {
-    const user = userEvent.setup();
     renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
     const input = screen.getByPlaceholderText('Search...');
@@ -1033,7 +1045,6 @@ describe('portal rendering (Story #1600)', () => {
   // ── Test 12: Escape inside portal closes dropdown ────────────────────────
 
   it('pressing Escape inside the portalled dropdown closes the dropdown', async () => {
-    const user = userEvent.setup();
     renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
     const input = screen.getByPlaceholderText('Search...');
@@ -1058,7 +1069,6 @@ describe('portal rendering (Story #1600)', () => {
   // ── Test 13: keyboard navigation (Arrow/Enter) still works after portal change ──
 
   it('clicking a result in the portalled dropdown still calls onChange', async () => {
-    const user = userEvent.setup();
     const onChange = jest.fn<(id: string) => void>();
     renderPicker({
       showItemsOnFocus: true,
@@ -1084,9 +1094,13 @@ describe('portal rendering (Story #1600)', () => {
 // These use the same TestItem / mockSearchFn / renderPicker helpers defined above.
 
 describe('renderSecondary slot', () => {
+  let user: ReturnType<typeof userEvent.setup>;
+
   beforeEach(() => {
     mockSearchFn.mockReset();
     mockSearchFn.mockResolvedValue(sampleItems);
+    jest.useFakeTimers();
+    user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
   });
 
   afterEach(() => {
@@ -1096,7 +1110,6 @@ describe('renderSecondary slot', () => {
   // ── 9. Secondary renders per item ─────────────────────────────────────────
 
   it('renders one secondary element per result item', async () => {
-    const user = userEvent.setup();
     renderPicker({
       showItemsOnFocus: true,
       renderSecondary: (item: TestItem) => <span data-testid="secondary-line">{item.status}</span>,
@@ -1115,7 +1128,6 @@ describe('renderSecondary slot', () => {
   // ── 10. CSS classes applied (identity-obj-proxy) ──────────────────────────
 
   it('applies resultSecondary and resultContent CSS classes to each result', async () => {
-    const user = userEvent.setup();
     renderPicker({
       showItemsOnFocus: true,
       renderSecondary: (item: TestItem) => <span data-testid="secondary-line">{item.status}</span>,
@@ -1138,7 +1150,6 @@ describe('renderSecondary slot', () => {
   // ── 11. No secondary DOM when prop absent (regression guard) ──────────────
 
   it('renders no resultSecondary or resultContent elements when renderSecondary is absent', async () => {
-    const user = userEvent.setup();
     renderPicker({
       showItemsOnFocus: true,
       placeholder: 'Search...',
@@ -1159,7 +1170,6 @@ describe('renderSecondary slot', () => {
   // ── 11b. renderSecondary returning null → single-line rows (no secondary or content span) ──
 
   it('renderSecondary returning null renders single-line rows — no resultSecondary or resultContent', async () => {
-    const user = userEvent.setup();
     renderPicker({
       showItemsOnFocus: true,
       renderSecondary: (_item: TestItem) => null,
@@ -1180,7 +1190,6 @@ describe('renderSecondary slot', () => {
   // ── 11c. renderSecondary returning a string → title attribute equals that string ──
 
   it('renderSecondary returning a string sets title attribute equal to the string on each resultSecondary span', async () => {
-    const user = userEvent.setup();
     renderPicker({
       showItemsOnFocus: true,
       renderSecondary: (item: TestItem) => item.status,
@@ -1205,7 +1214,6 @@ describe('renderSecondary slot', () => {
   // ── 12. Secondary NOT in selectedDisplay ─────────────────────────────────
 
   it('secondary element is absent after an item is selected', async () => {
-    const user = userEvent.setup();
     renderPicker({
       showItemsOnFocus: true,
       renderSecondary: (item: TestItem) => <span data-testid="secondary-line">{item.status}</span>,
@@ -1233,9 +1241,13 @@ describe('renderSecondary slot', () => {
 // in the chip while still appearing in the dropdown list rows.
 
 describe('renderSelectedLabel prop', () => {
+  let user: ReturnType<typeof userEvent.setup>;
+
   beforeEach(() => {
     mockSearchFn.mockReset();
     mockSearchFn.mockResolvedValue(sampleItems);
+    jest.useFakeTimers();
+    user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
   });
 
   afterEach(() => {
@@ -1243,7 +1255,6 @@ describe('renderSelectedLabel prop', () => {
   });
 
   it('selected chip shows bare renderSelectedLabel, not decorated renderItem label', async () => {
-    const user = userEvent.setup();
     const decoratedRenderItem = (item: TestItem) => ({
       id: item.id,
       label: '— ' + item.label,
@@ -1285,7 +1296,6 @@ describe('renderSelectedLabel prop', () => {
   });
 
   it('dropdown option rows still show the decorated renderItem label after renderSelectedLabel is provided', async () => {
-    const user = userEvent.setup();
     const decoratedRenderItem = (item: TestItem) => ({
       id: item.id,
       label: '— ' + item.label,
@@ -1320,7 +1330,6 @@ describe('renderSelectedLabel prop', () => {
   });
 
   it('without renderSelectedLabel, chip shows the renderItem label (unchanged behaviour)', async () => {
-    const user = userEvent.setup();
     const decoratedRenderItem = (item: TestItem) => ({
       id: item.id,
       label: '— ' + item.label,
@@ -1363,12 +1372,17 @@ describe('renderSelectedLabel prop', () => {
 //          we cannot assert "never hidden" in jsdom due to non-deterministic timing)
 
 describe('Floating UI portal (#1708)', () => {
+  let user: ReturnType<typeof userEvent.setup>;
+
   beforeEach(() => {
     mockSearchFn.mockReset();
     mockSearchFn.mockResolvedValue(sampleItems);
+    jest.useFakeTimers();
+    user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
@@ -1378,7 +1392,6 @@ describe('Floating UI portal (#1708)', () => {
   // result to gate the createPortal call — that gate is gone.
 
   it('FUI-1 — portal renders without a getBoundingClientRect stub', async () => {
-    const user = userEvent.setup();
     renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
     const input = screen.getByPlaceholderText('Search...');
@@ -1406,7 +1419,6 @@ describe('Floating UI portal (#1708)', () => {
   //   (b) it is not hidden via display:none (which would prevent interaction entirely).
 
   it('FUI-2 — portal dropdown is in document.body and not display:none when open', async () => {
-    const user = userEvent.setup();
     renderPicker({ showItemsOnFocus: true, placeholder: 'Search...' });
 
     const input = screen.getByPlaceholderText('Search...');

@@ -1379,6 +1379,57 @@ describe('Invoice Service', () => {
     });
   });
 
+  // ─── listAllInvoices() summary carries openPayable/refundsDue (Story #2046) ──
+  //
+  // These new buckets are additive (AC35): the pre-existing pending/paid/claimed/
+  // quotation/overdue buckets tested above must be completely unaffected by their
+  // presence. The deep computeOpenAmounts arithmetic itself is covered exhaustively
+  // in depositAggregateUtils.openAmounts.test.ts and invoiceService.openItems.test.ts;
+  // this block only guards that listAllInvoices() wires the new buckets into
+  // `summary` without disturbing anything this file already asserted.
+
+  describe('listAllInvoices() summary carries openPayable/refundsDue (#2046)', () => {
+    it('with no invoices: openPayable and refundsDue are present and zero, alongside the pre-existing zero buckets', () => {
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.summary.openPayable).toEqual({ count: 0, totalAmount: 0 });
+      expect(result.summary.refundsDue).toEqual({ count: 0, totalAmount: 0 });
+      // Pre-existing buckets (asserted above in the '#no invoices' test) must still hold.
+      expect(result.summary.pending).toEqual({ count: 0, totalAmount: 0 });
+    });
+
+    it('openPayable/refundsDue are unaffected by openOnly/status/vendorId filters (global, per AC16) while pending/overdue stay exactly as before', () => {
+      const vendorId = createTestVendor('Global Open Summary Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 100 });
+      insertRawInvoice(vendorId, { status: 'paid', amount: 200 });
+
+      const unfiltered = invoiceService.listAllInvoices(db, {});
+      const openOnlyResult = invoiceService.listAllInvoices(db, { openOnly: true });
+      const statusFiltered = invoiceService.listAllInvoices(db, { status: 'paid' });
+
+      // Same global summary regardless of which view is requested.
+      expect(openOnlyResult.summary.openPayable).toEqual(unfiltered.summary.openPayable);
+      expect(openOnlyResult.summary.refundsDue).toEqual(unfiltered.summary.refundsDue);
+      expect(statusFiltered.summary.openPayable).toEqual(unfiltered.summary.openPayable);
+      expect(statusFiltered.summary.pending).toEqual(unfiltered.summary.pending);
+      expect(statusFiltered.summary.overdue).toEqual(unfiltered.summary.overdue);
+
+      // The one pending invoice (100) is the only open payable.
+      expect(unfiltered.summary.openPayable).toEqual({ count: 1, totalAmount: 100 });
+    });
+
+    it('list rows omit `openAmount` and keep `deposits: []` when openOnly is not requested (AC33 regression)', () => {
+      const vendorId = createTestVendor('Regression No OpenOnly Vendor');
+      insertRawInvoice(vendorId, { status: 'pending', amount: 500 });
+
+      const result = invoiceService.listAllInvoices(db, {});
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0]!.deposits).toEqual([]);
+      expect(result.invoices[0]!).not.toHaveProperty('openAmount');
+    });
+  });
+
   // ─── getInvoiceById() ───────────────────────────────────────────────────────
 
   describe('getInvoiceById()', () => {

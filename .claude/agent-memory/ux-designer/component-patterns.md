@@ -19,6 +19,7 @@ metadata:
 - `.info` badge = neutral gray, reused for "disabled"/"auto-created" states; distinct semantic badges (`.success`, `.autoOrigin`, `iblUnassigned`, entity-type pills) should get their own variant only when the semantic meaning truly differs from `.info`/`.error`/`.warning`
 - Entity type pills: WI = `--color-status-in-progress-*`; HI = `--color-hi-status-scheduled-*`; use `--radius-full`
 - `iblUnassigned` Badge class: `--color-status-not-started-bg` + `--color-text-muted` + `font-style:italic`
+- **CONTRAST BUG in the `iblUnassigned` recipe**: `--color-text-muted` on `--color-status-not-started-bg` measures 3.90:1 (light) / 2.18:1 (dark) — fails WCAG AA (needs 4.5:1) at the badge's actual size (`--font-size-xs`/12px, weight 500, not "large text"). `.pending` uses the correct pairing for this same bg — `--color-status-not-started-text` (not `--color-text-muted`) — measuring 8.33:1 (light) / 4.04:1 (dark, still marginally short but far closer). When asked to add a new "muted/italic, not really this bucket" badge variant (PR #2066 added `.containerOnly` copying this same recipe verbatim), require `--color-status-not-started-text` instead of `--color-text-muted`, and flag (don't silently fix) any pre-existing sibling class using the bad pairing (`iblUnassigned` itself remains unfixed as of PR #2066 — file a follow-up issue rather than fixing out-of-scope files in an unrelated PR).
 
 ## SearchPicker / AreaPicker
 
@@ -26,12 +27,17 @@ metadata:
 - AreaPicker: ancestor-path secondary line (reusing `.resultSecondary` from `SearchPicker.module.css`) is the sole hierarchy signal — drop em-dash indentation once ancestor path is shown; `title={ancestorPath}` for truncation disclosure; selected/collapsed chip shows bare name only
 - `PhotoMetadataSidepanel`-style raw `SearchPicker<T>` usages that need hierarchy should be switched to the dedicated `AreaPicker` wrapper for consistency
 
-## Pre-existing a11y gaps (do not request-changes on these — flag as pre-existing/refinement)
+## Refund / negative-money pattern (InvoiceDepositsSection — the canonical recipe)
+
+- `InvoiceDepositsSection.tsx`/`.module.css` already has the exact "this row is money owed back, not owed" treatment: `Badge` with a `refund` variant (`.refund { background: var(--color-status-blocked-bg); color: var(--color-status-blocked-text); }`) + a sibling `<span>` with `.amountNegative { color: var(--color-danger-text-on-light) }` + `formatCurrency(-amount)` (literal minus sign). Any new UI showing `InvoiceDeposit`-shaped data with `entryType: 'refund'` must reuse this exact recipe (same Badge variant, same i18n key `budget:invoiceDetail.deposits.entryTypeLabels.refund`) rather than re-deriving it — confirms the general rule already in this file's Quick-reference section (pair red text with a real Badge label + minus sign).
+
+## Pre-existing a11y/styling gaps (do not request-changes on these — flag as pre-existing/refinement)
 
 - `FormError variant="field"` renders a `<div>` with NO `role="alert"` (only `variant="banner"` gets it); `SearchPicker` has no `aria-invalid` prop. Consistent across `InvoiceLinkModal`, `PaperlessInvoiceReviewPage`, `InvoiceDetailPage` — established pattern, not a per-PR blocker
 - `role="status"` already implies `aria-live="polite"` — never add both; use `role="status" aria-atomic="true"`
 - `aria-controls` pointing at a conditionally-rendered target that's never in the DOM at the same time as the trigger — keep both in DOM, toggle with `hidden`, update `aria-expanded` dynamically (RECURRING A11Y BUG)
 - A raw `<p>`/other non-dt/dd element as a direct child of `<dl>` violates the HTML `dl` content model (only `dt`/`dd` groups, optionally `div`-wrapped, plus script-supporting elements are allowed) — low-severity/informational; browsers and most AT tolerate it but flag as a refinement (seen in BackupsPage scheduler status, PR #1834 — traced back to my own issue #1804 spec)
+- `InvoicesPage.tsx`'s `invoiceStatusVariants` sets `className: styles[status]!` where `styles` = `InvoicesPage.module.css` — but `.pending`/`.paid`/`.claimed`/`.quotation` are actually defined in `Badge.module.css`, not `InvoicesPage.module.css` (confirmed via grep — zero matches). So the invoice status badge on `/budget/invoices` renders with `className: undefined` today — bare `.badge`, no color at all — while the *same* statuses on `InvoiceDetailPage`/`InvoiceDepositsSection` correctly resolve local classes. Classic "missing className = dead on arrival" (PR #1548 pattern) that nobody caught because a colorless badge still renders *something*. Flagged in Issue #2046 spec as a recommended same-PR fix (not a hard blocker) since #2046 touches this exact render path and depends on the badge being legible.
 
 ## Related topic files
 

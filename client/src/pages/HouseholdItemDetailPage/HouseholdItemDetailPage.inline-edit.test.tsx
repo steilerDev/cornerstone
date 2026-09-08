@@ -19,6 +19,7 @@ import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as HouseholdItemDepsApiTypes from '../../lib/householdItemDepsApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
+import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type { HouseholdItemDepDetail } from '@cornerstone/shared';
 
 // ─── Mock function declarations ───────────────────────────────────────────────
@@ -195,8 +196,9 @@ jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js',
 }));
 
 // Mock householdItemCategoriesApi — HouseholdItemDetailPage loads categories to display badges
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchHICCategories = jest.fn<any>().mockResolvedValue({ categories: [] });
+const mockFetchHICCategories = jest
+  .fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>()
+  .mockResolvedValue({ categories: [] });
 jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
   fetchHouseholdItemCategories: mockFetchHICCategories,
   createHouseholdItemCategory: jest.fn(),

@@ -409,6 +409,131 @@ export function computeFinalPaymentAmounts(rows: InvoiceDepositRow[]): Map<strin
 }
 
 /**
+ * Rounds a monetary value to 2 decimal places (major units, e.g. euros/cents).
+ * Money in this codebase is stored in MAJOR units — a bare Math.round would
+ * round to whole currency units, which is a defect.
+ */
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * Result of computeOpenAmounts: per-invoice open amounts (AC14) plus the two
+ * global summary buckets (AC16/AC19) derived from the same per-invoice figures.
+ */
+export interface OpenAmountsResult {
+  /** invoiceId → AC14 open amount (>= 0). Includes invoices whose open amount is 0. */
+  byInvoice: Map<string, number>;
+  /** AC16: count of invoices with openAmount > 0, and their summed amount. */
+  openPayable: { count: number; totalAmount: number };
+  /** AC19: pending refunds, positive-signed, counted per distinct invoice. */
+  refundsDue: { count: number; totalAmount: number };
+}
+
+/**
+ * Story #2046: computes the per-invoice "open (still-payable) amount" (AC14),
+ * plus the two global summary buckets derived from it (AC16 openPayable, AC19
+ * refundsDue). This is the single source of truth for these figures — the
+ * per-invoice `openAmount` on list rows and the summary totals are computed
+ * from the exact same numbers, so AC15 (sum of per-invoice amounts equals the
+ * summary total) holds by construction. Never compute the summary total via a
+ * second, independent SQL aggregate.
+ *
+ * Reuses the row-dedup-by-deposit_id idiom from computeFinalPaymentAmounts,
+ * since the LEFT JOIN that produces `rows` fans one invoice row out per
+ * deposit.
+ *
+ * Per invoice, with `entries` = deduped deposit rows:
+ *   depositTypeSumAllStatuses = Σ entries where entryType !== 'refund' (any status)
+ *   pendingDepositSum         = Σ entries where entryType !== 'refund' && status === 'pending'
+ *   pendingRefundSum          = Σ entries where entryType === 'refund' && status === 'pending'
+ *   residual   = invoiceStatus === 'pending'
+ *                  ? max(0, invoiceAmount - depositTypeSumAllStatuses)
+ *                  : 0
+ *   openAmount = round2(residual + pendingDepositSum)
+ *
+ * Pending refunds are intentionally excluded from openAmount (reported
+ * separately via refundsDue) — see AC17/AC19/AC20.
+ */
+export function computeOpenAmounts(rows: InvoiceDepositRow[]): OpenAmountsResult {
+  const invoiceAmounts = new Map<string, { amount: number; status: string }>();
+  const entriesByInvoice = new Map<
+    string,
+    Array<{ depositId: string; amount: number; status: string; entryType: string }>
+  >();
+
+  for (const row of rows) {
+    if (!invoiceAmounts.has(row.invoice_id)) {
+      invoiceAmounts.set(row.invoice_id, {
+        amount: row.invoice_amount,
+        status: row.invoice_status,
+      });
+    }
+    if (row.deposit_id !== null && row.deposit_amount !== null && row.deposit_status !== null) {
+      const list = entriesByInvoice.get(row.invoice_id) ?? [];
+      if (!list.some((e) => e.depositId === row.deposit_id)) {
+        list.push({
+          depositId: row.deposit_id,
+          amount: row.deposit_amount,
+          status: row.deposit_status,
+          entryType: row.deposit_entry_type ?? 'deposit',
+        });
+        entriesByInvoice.set(row.invoice_id, list);
+      }
+    }
+  }
+
+  const byInvoice = new Map<string, number>();
+  let openPayableCount = 0;
+  let openPayableTotal = 0;
+  let refundsDueCount = 0;
+  let refundsDueTotal = 0;
+
+  for (const [invoiceId, invoice] of invoiceAmounts) {
+    const entries = entriesByInvoice.get(invoiceId) ?? [];
+
+    let depositTypeSumAllStatuses = 0;
+    let pendingDepositSum = 0;
+    let pendingRefundSum = 0;
+
+    for (const entry of entries) {
+      if (entry.entryType === 'refund') {
+        if (entry.status === 'pending') {
+          pendingRefundSum += entry.amount;
+        }
+      } else {
+        depositTypeSumAllStatuses += entry.amount;
+        if (entry.status === 'pending') {
+          pendingDepositSum += entry.amount;
+        }
+      }
+    }
+
+    const residual =
+      invoice.status === 'pending' ? Math.max(0, invoice.amount - depositTypeSumAllStatuses) : 0;
+    const openAmount = round2(residual + pendingDepositSum);
+
+    byInvoice.set(invoiceId, openAmount);
+
+    if (openAmount > 0) {
+      openPayableCount += 1;
+      openPayableTotal += openAmount;
+    }
+
+    if (pendingRefundSum > 0) {
+      refundsDueCount += 1;
+      refundsDueTotal += pendingRefundSum;
+    }
+  }
+
+  return {
+    byInvoice,
+    openPayable: { count: openPayableCount, totalAmount: round2(openPayableTotal) },
+    refundsDue: { count: refundsDueCount, totalAmount: round2(refundsDueTotal) },
+  };
+}
+
+/**
  * Raw row for (invoices LEFT JOIN invoice_deposits) jointures, used by the
  * InvoiceStatusBreakdown summary computation in invoiceService.listAllInvoices.
  */

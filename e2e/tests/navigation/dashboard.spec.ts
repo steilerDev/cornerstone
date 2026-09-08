@@ -990,6 +990,8 @@ function mockInvoicesFullSummary() {
       overdue: { count: 0, totalAmount: 0 },
       claimable: { count: 0, totalAmount: 0 },
       quotationCoveredByDeposits: 0,
+      openPayable: { count: 0, totalAmount: 0 },
+      refundsDue: { count: 0, totalAmount: 0 },
     },
   };
 }

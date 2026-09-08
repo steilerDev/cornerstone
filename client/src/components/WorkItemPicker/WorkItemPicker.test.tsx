@@ -1,10 +1,23 @@
 /**
  * @jest-environment jsdom
  */
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+
+/**
+ * SearchPicker's dropdown-open interaction costs 20-45s on a contended CI runner
+ * (#2076). Fake timers remove real-timer macrotask scheduling from these tests;
+ * whether that is what fails in CI is UNPROVEN — a local unloaded A/B found no
+ * difference between converted and unconverted (see the agent-memory writeup for
+ * the measurements). This change is applied as safe and plausibly sufficient, not
+ * as a proven fix. Not a production issue - the component is identical either way.
+ */
+function setupUser() {
+  jest.useFakeTimers();
+  return userEvent.setup({ advanceTimers: jest.advanceTimersByTime.bind(jest) });
+}
 
 // Mock the API module before any dynamic imports
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
@@ -72,6 +85,10 @@ describe('WorkItemPicker', () => {
     }
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   function renderPicker(
     props: Partial<React.ComponentProps<typeof WorkItemPickerModule.WorkItemPicker>> = {},
   ) {
@@ -89,7 +106,7 @@ describe('WorkItemPicker', () => {
   // ── 2. onSelectItem adapter ───────────────────────────────────────────────
 
   it('onSelectItem receives { id, title } (not { id, label }) — adapter works', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const onChange = jest.fn<(id: string) => void>();
     const onSelectItem = jest.fn<(item: { id: string; title: string }) => void>();
 
@@ -113,7 +130,7 @@ describe('WorkItemPicker', () => {
   // ── 3. specialOptions pass-through ───────────────────────────────────────
 
   it('specialOptions pass-through works: special option shown in dropdown', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const specialOptions = [{ id: '__THIS_ITEM__', label: 'This item' }];
     renderPicker({ specialOptions });
 
@@ -126,7 +143,7 @@ describe('WorkItemPicker', () => {
   });
 
   it('selecting special option calls onSelectItem with { id, title } (adapter applies)', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const onChange = jest.fn<(id: string) => void>();
     const onSelectItem = jest.fn<(item: { id: string; title: string }) => void>();
     const specialOptions = [{ id: '__THIS_ITEM__', label: 'This item' }];
@@ -153,7 +170,7 @@ describe('WorkItemPicker', () => {
   // ── 4. showItemsOnFocus loads items ──────────────────────────────────────
 
   it('showItemsOnFocus loads items immediately on focus', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderPicker({ showItemsOnFocus: true });
 
     const input = screen.getByPlaceholderText('Search work items...');
@@ -170,7 +187,7 @@ describe('WorkItemPicker', () => {
   // ── 5. excludeIds filtering ───────────────────────────────────────────────
 
   it('excludeIds filtering works: excluded items not shown in results', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     renderPicker({ showItemsOnFocus: true, excludeIds: ['wi-1'] });
 
     const input = screen.getByPlaceholderText('Search work items...');
@@ -194,7 +211,7 @@ describe('WorkItemPicker', () => {
   });
 
   it('clicking clear from initialTitle state restores search input and calls onChange("")', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const onChange = jest.fn<(id: string) => void>();
     renderPicker({
       value: 'wi-existing',
@@ -216,7 +233,7 @@ describe('WorkItemPicker', () => {
 
   it('error message reads "Failed to load work items"', async () => {
     mockListWorkItems.mockRejectedValue(new Error('Network error'));
-    const user = userEvent.setup();
+    const user = setupUser();
     renderPicker({ showItemsOnFocus: true });
 
     const input = screen.getByPlaceholderText('Search work items...');
@@ -231,7 +248,7 @@ describe('WorkItemPicker', () => {
 
   it('no-results message reads "No matching work items found"', async () => {
     mockListWorkItems.mockResolvedValue(emptyListResponse);
-    const user = userEvent.setup();
+    const user = setupUser();
     renderPicker();
 
     const input = screen.getByPlaceholderText('Search work items...');
@@ -246,7 +263,7 @@ describe('WorkItemPicker', () => {
 
   it('does not open dropdown on focus without showItemsOnFocus or specialOptions', async () => {
     mockListWorkItems.mockResolvedValue(emptyListResponse);
-    const user = userEvent.setup();
+    const user = setupUser();
     renderPicker();
 
     const input = screen.getByPlaceholderText('Search work items...');
@@ -259,7 +276,7 @@ describe('WorkItemPicker', () => {
   // ── 10. Clear selected item ───────────────────────────────────────────────
 
   it('clears selected item and calls onChange with empty string', async () => {
-    const user = userEvent.setup();
+    const user = setupUser();
     const onChange = jest.fn<(id: string) => void>();
     renderPicker({
       showItemsOnFocus: true,

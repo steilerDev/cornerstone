@@ -19,6 +19,7 @@ const listAllInvoicesSchema = {
       dueDateTo: { type: 'string' },
       sortBy: { type: 'string', enum: ['date', 'amount', 'status', 'vendor_name', 'due_date'] },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
+      openOnly: { type: 'boolean' },
     },
     additionalProperties: false,
   },
@@ -48,6 +49,7 @@ interface ListAllInvoicesQuery {
   dueDateTo?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  openOnly?: boolean;
 }
 
 export default async function standaloneInvoiceRoutes(fastify: FastifyInstance) {

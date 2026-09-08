@@ -339,4 +339,33 @@ describe('DataTable', () => {
       expect(screen.getByRole('button', { name: /column settings/i })).toBeInTheDocument();
     });
   });
+
+  describe('expandableRows inertness when not configured (Story #2046 regression)', () => {
+    it('renders exactly one <tbody> for the whole table, not one per row', () => {
+      const { container } = renderDataTable({ items: SAMPLE_ITEMS });
+      expect(container.querySelectorAll('tbody')).toHaveLength(1);
+    });
+
+    it('renders no elements with aria-expanded inside the table (the column-settings gear button legitimately has its own aria-expanded, unrelated to row expansion)', () => {
+      const { container } = renderDataTable({ items: SAMPLE_ITEMS });
+      const table = container.querySelector('table')!;
+      expect(table.querySelectorAll('[aria-expanded]')).toHaveLength(0);
+    });
+
+    it('renders no expand-cell leading column in the header or body', () => {
+      const { container } = renderDataTable({ items: SAMPLE_ITEMS });
+      expect(container.querySelectorAll('.expandCell')).toHaveLength(0);
+    });
+
+    it('header <th> count equals exactly the visible column count, with no extra leading cell', () => {
+      const { container } = renderDataTable({ items: SAMPLE_ITEMS });
+      expect(container.querySelectorAll('thead th')).toHaveLength(COLUMNS.length);
+    });
+
+    it('each body row <td> count equals exactly the visible column count', () => {
+      const { container } = renderDataTable({ items: SAMPLE_ITEMS });
+      const firstRow = container.querySelector('tbody tr')!;
+      expect(firstRow.querySelectorAll('td')).toHaveLength(COLUMNS.length);
+    });
+  });
 });

@@ -2,6 +2,40 @@
 
 > Gotchas specific to running tests inside a git worktree in this sandbox (ARM64 crashes, @cornerstone/shared symlink issues, definitive jest invocation pattern, schema quirks). Not dated — update in place.
 
+## 2026-09-07 update: current sandbox generation has REAL per-worktree node_modules — the ARM64/symlink notes below are from an older infra generation
+
+Directly observed on Issue #2056 (jest 30.5.0 fix): this worktree had its own full, independently
+`npm install`-ed `node_modules` (643M, ~1235 top-level entries, x86_64 Linux, no ARM64 SIGKILL/SIGILL
+issues at all) — **not** a symlink to the main repo's `node_modules` as the older notes below (lines
+"Worktrees have no node_modules" / "Never npm install in a worktree — ARM64-incompatible") describe.
+`shared/dist` can still go stale after a `git rebase origin/beta` pulls in new `shared/src/` types —
+fix unchanged: `cd shared && npx tsc`.
+
+**Do NOT `rm -rf node_modules` to fix one stale/missing package** — this is the costly mistake to
+avoid. When only a single package's installed version is wrong (e.g., a dev-dependency bump changed
+`@types/foo` but `npm install` wasn't re-run), the fix is `npm install` (or a scoped
+`npm install --no-save <pkg>@<version>`) — never a full wipe. A full `rm -rf node_modules` followed by
+`npm install` in this sandbox can hit a **persistent virtiofs ENOTDIR race** in npm's arborist
+`_createSparseTree` phase (confirmed by reading arborist's `reify.js` source: it does
+`promiseAllRejectLate(leaves.map(mkdir...))` — thousands of concurrent `mkdir` calls in one batch,
+and the virtiofs/overlay-mounted host filesystem drops/misorders some of them under that concurrency,
+throwing `ENOTDIR` on a path whose parent directory demonstrably already exists). Retrying does make
+slow, non-monotonic progress (a full monorepo install can take 10+ retries and never fully converge in
+a reasonable time budget) — it is not a reliable recovery path once the tree is fully wiped.
+**Why:** self-inflicted ~40 minutes of session time chasing this on Issue #2056 after a `rm -rf` that
+was only meant to fix one outdated `@types/fontkit` version.
+**How to apply:** for a single-package version mismatch, just run `npm install` (uses the existing
+lockfile) or `npm install --ignore-scripts --no-save <pkg>@<version>` scoped to that package. If
+`node_modules` is already broken/partial from a prior wipe, a working recovery fallback (used
+successfully here) is `rsync -a --ignore-existing <base-repo>/node_modules/ node_modules/` to backfill
+from the base repo's checkout (read-only source, not mutated) before running `npm install` again to
+reconcile the version delta — this drastically shrinks the number of directories the sparse-tree phase
+must create from scratch, making the ENOTDIR race far less likely to be hit. Even this can still leave
+the tree in a "hybrid" state (mismatched patch versions here and there) — treat a rsync-recovered
+`node_modules` as good enough for a quick `tsc`/`jest` sanity check, not as authoritative; a scratch
+clone with a genuinely fresh `npm install` (as the coordinator did) is the real validation of record
+when in doubt.
+
 ## Running Tests from a Worktree (Critical Pattern)
 
 Worktrees have no `node_modules`. To run tests from a worktree:

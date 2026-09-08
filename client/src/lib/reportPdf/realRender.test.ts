@@ -3401,7 +3401,18 @@ describe('#1940: continuation-row marker (AC5) and runt-avoidance (AC1/AC9), rea
         'Roboto-Regular.ttf not found in pdfmake vfs_fonts — loader.ts font wiring changed?',
       );
     }
-    const font = fontkit.create(Buffer.from(base64, 'base64'));
+    const fontOrCollection = fontkit.create(Buffer.from(base64, 'base64'));
+    // fontkit.create() returns `Font | FontCollection` (a collection for .ttc/.dfont files).
+    // Roboto-Regular.ttf is a plain TTF, so it always resolves to a single Font — but narrow with
+    // a runtime check (rather than an `as Font` cast) so a genuine regression here fails loudly
+    // instead of silently. `glyphForCodePoint` only exists on `Font`, not `FontCollection`.
+    if (!('glyphForCodePoint' in fontOrCollection)) {
+      throw new Error(
+        'Roboto-Regular.ttf resolved to a FontCollection, not a single Font — fontkit.create() ' +
+          'behavior changed, or the vfs asset is no longer a plain TTF.',
+      );
+    }
+    const font = fontOrCollection;
     const glyph = font.glyphForCodePoint(0x2026);
     expect(glyph.id).not.toBe(0);
 

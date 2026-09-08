@@ -462,6 +462,7 @@ Before creating a new UI component, check if an existing shared component can be
 - `Skeleton` — loading placeholder with configurable line count
 - `EmptyState` — empty data display with icon, message, and optional action
 - `FormError` — consistent error banner and field-level error display
+- `InfiniteScrollFooter` — scroll-driven batch loading footer: sentinel, loading/error/end-of-list states, load-more/retry button; parameterized by label props and `testIdPrefix`, no hardcoded namespace. Paired with the `useInfiniteScroll` hook (`client/src/hooks/`), which owns the `IntersectionObserver`/state-machine logic.
 
 **Rules:**
 

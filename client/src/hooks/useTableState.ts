@@ -2,9 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { TableState, TableApiParams, FilterType } from '../components/DataTable/DataTable.js';
 
+// Module-level constant so callers that don't pass `reservedParams` get a stable
+// reference — a fresh `[]` default would change identity every render and re-run
+// the sync effect (which depends on it) on every render.
+const EMPTY_RESERVED: string[] = [];
+
 export interface UseTableStateOptions {
   columns?: Array<{ filterParamKey?: string; filterType?: FilterType }>;
   defaultPageSize?: number;
+  /**
+   * URL params this table must NOT treat as column filters (page-owned modes that
+   * live in the URL but outside TableState). Default: none — existing callers unaffected.
+   */
+  reservedParams?: string[];
 }
 
 export interface UseTableStateResult {
@@ -34,7 +44,7 @@ export interface UseTableStateResult {
  * @returns Table state and control functions
  */
 export function useTableState(options: UseTableStateOptions = {}): UseTableStateResult {
-  const { defaultPageSize = 25 } = options;
+  const { defaultPageSize = 25, reservedParams = EMPTY_RESERVED } = options;
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -43,7 +53,11 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
     const filters = new Map<string, { value: string }>();
     // Collect all URL params that aren't standard table params
     for (const [key, value] of searchParams.entries()) {
-      if (!['q', 'sortBy', 'sortOrder', 'page', 'pageSize'].includes(key) && value) {
+      if (
+        !['q', 'sortBy', 'sortOrder', 'page', 'pageSize'].includes(key) &&
+        !reservedParams.includes(key) &&
+        value
+      ) {
         filters.set(key, { value });
       }
     }
@@ -74,7 +88,11 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
 
     // Collect filter params (anything not in the standard table params)
     for (const [key, value] of searchParams.entries()) {
-      if (!['q', 'sortBy', 'sortOrder', 'page', 'pageSize'].includes(key) && value) {
+      if (
+        !['q', 'sortBy', 'sortOrder', 'page', 'pageSize'].includes(key) &&
+        !reservedParams.includes(key) &&
+        value
+      ) {
         newState.filters.set(key, { value });
       }
     }
@@ -82,7 +100,7 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
     /* eslint-disable @eslint-react/set-state-in-effect -- syncing URL state changes to table state */
     setTableState(newState);
     /* eslint-enable @eslint-react/set-state-in-effect */
-  }, [searchParams, defaultPageSize]);
+  }, [searchParams, defaultPageSize, reservedParams]);
 
   const setSearch = useCallback(
     (q: string) => {
@@ -212,9 +230,17 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
     if (searchInput) {
       newParams.set('q', searchInput);
     }
+    // Preserve page-owned reserved params (e.g. a mode toggle) — "Clear filters" must
+    // not silently flip those off, only the real column filters.
+    for (const key of reservedParams) {
+      const value = searchParams.get(key);
+      if (value) {
+        newParams.set(key, value);
+      }
+    }
     newParams.set('page', '1');
     setSearchParams(newParams);
-  }, [searchInput, setSearchParams]);
+  }, [searchInput, reservedParams, searchParams, setSearchParams]);
 
   return {
     tableState,

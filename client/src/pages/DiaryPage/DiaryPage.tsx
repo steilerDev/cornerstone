@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -10,8 +10,10 @@ import type {
 import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useDebounce } from '../../hooks/useDebounce.js';
+import { useInfiniteScroll, type InfiniteScrollPage } from '../../hooks/useInfiniteScroll.js';
 import { DiaryFilterBar } from '../../components/diary/DiaryFilterBar/DiaryFilterBar.js';
 import { DiaryDateGroup } from '../../components/diary/DiaryDateGroup/DiaryDateGroup.js';
+import { InfiniteScrollFooter } from '../../components/InfiniteScrollFooter/InfiniteScrollFooter.js';
 import shared from '../../styles/shared.module.css';
 import styles from './DiaryPage.module.css';
 
@@ -29,18 +31,14 @@ const MANUAL_TYPES = new Set<ManualDiaryEntryType>([
   'general_note',
 ]);
 
+const PAGE_SIZE = 25;
+
 export default function DiaryPage() {
   const { t } = useTranslation('diary');
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [entries, setEntries] = useState<DiaryEntrySummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-  const pageSize = 25;
+  const [error, setError] = useState('');
 
   // Filter state from URL
   const searchQuery = searchParams.get('q') || '';
@@ -52,16 +50,9 @@ export default function DiaryPage() {
     ? (typeFilterStr.split(',') as DiaryEntryType[])
     : [];
   const statusFilter = (searchParams.get('status') as DiaryEntryStatus | null) || null;
-  const urlPage = parseInt(searchParams.get('page') || '1', 10);
 
   const [searchInput, setSearchInput] = useState(searchQuery);
   const announcementRef = useRef<HTMLDivElement>(null);
-
-  /* eslint-disable @eslint-react/set-state-in-effect -- synchronously sync URL page to component state on page param change */
-  useEffect(() => {
-    if (urlPage !== currentPage) setCurrentPage(urlPage);
-  }, [urlPage, currentPage]);
-  /* eslint-enable @eslint-react/set-state-in-effect */
 
   // Debounced search with URL sync
   const debouncedSearchInput = useDebounce(searchInput, 300);
@@ -72,75 +63,101 @@ export default function DiaryPage() {
       isFirstSearchSyncRef.current = false;
       return;
     }
-    const newParams = new URLSearchParams(searchParams);
-    if (debouncedSearchInput) {
-      newParams.set('q', debouncedSearchInput);
-    } else {
-      newParams.delete('q');
+    setSearchParams((prev) => {
+      const newParams = new URLSearchParams(prev);
+      if (debouncedSearchInput) {
+        newParams.set('q', debouncedSearchInput);
+      } else {
+        newParams.delete('q');
+      }
+      newParams.delete('page');
+      return newParams;
+    });
+  }, [debouncedSearchInput, setSearchParams]);
+
+  const fetchDiaryPage = async (
+    page: number,
+  ): Promise<InfiniteScrollPage<DiaryEntrySummary, { totalItems: number }>> => {
+    // Determine which types to query based on filter mode
+    let queriableTypes: DiaryEntryType[] = activeTypes;
+    if (filterMode === 'manual') {
+      queriableTypes =
+        activeTypes.length > 0
+          ? activeTypes.filter((type) => MANUAL_TYPES.has(type as ManualDiaryEntryType))
+          : (Array.from(MANUAL_TYPES) as DiaryEntryType[]);
+    } else if (filterMode === 'automatic') {
+      queriableTypes =
+        activeTypes.length > 0
+          ? activeTypes.filter((type) => !MANUAL_TYPES.has(type as ManualDiaryEntryType))
+          : ([
+              'work_item_status',
+              'invoice_status',
+              'invoice_created',
+              'milestone_delay',
+              'budget_breach',
+              'auto_reschedule',
+              'subsidy_status',
+            ] as const as unknown as DiaryEntryType[]);
     }
-    newParams.set('page', '1');
-    setSearchParams(newParams);
-  }, [debouncedSearchInput, searchParams, setSearchParams]);
+
+    const response = await listDiaryEntries({
+      page,
+      pageSize: PAGE_SIZE,
+      q: searchQuery || undefined,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      type: queriableTypes.length > 0 ? queriableTypes.join(',') : undefined,
+      status: statusFilter || undefined,
+    });
+
+    return {
+      items: response.items,
+      hasMore: page < response.pagination.totalPages,
+      meta: { totalItems: response.pagination.totalItems },
+    };
+  };
+
+  const resetKey = `${searchQuery}|${dateFrom}|${dateTo}|${filterMode}|${typeFilterStr}|${statusFilter}`;
+
+  const {
+    items: entries,
+    status,
+    hasMore,
+    lastBatchCount,
+    fetchSequence,
+    sentinelRef,
+    loadMore,
+    retry,
+  } = useInfiniteScroll<DiaryEntrySummary, { totalItems: number }>({
+    fetchPage: fetchDiaryPage,
+    resetKey,
+    onPageApplied: (meta) => {
+      if (meta) setTotalItems(meta.totalItems);
+      setError('');
+    },
+    onPageFailed: (err) => {
+      setError(err instanceof ApiClientError ? err.error.message : t('error'));
+    },
+  });
+
+  const showInitialLoading = status === 'loading' && entries.length === 0;
 
   useEffect(() => {
-    void loadEntries();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadEntries is defined in the component body; the filter primitives are the intended deps
-  }, [searchQuery, dateFrom, dateTo, filterMode, typeFilterStr, statusFilter, currentPage]);
-
-  const loadEntries = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-      // Determine which types to query based on filter mode
-      let queriableTypes: DiaryEntryType[] = activeTypes;
-      if (filterMode === 'manual') {
-        queriableTypes =
-          activeTypes.length > 0
-            ? activeTypes.filter((t) => MANUAL_TYPES.has(t as ManualDiaryEntryType))
-            : (Array.from(MANUAL_TYPES) as DiaryEntryType[]);
-      } else if (filterMode === 'automatic') {
-        queriableTypes =
-          activeTypes.length > 0
-            ? activeTypes.filter((t) => !MANUAL_TYPES.has(t as ManualDiaryEntryType))
-            : ([
-                'work_item_status',
-                'invoice_status',
-                'invoice_created',
-                'milestone_delay',
-                'budget_breach',
-                'auto_reschedule',
-                'subsidy_status',
-              ] as const as unknown as DiaryEntryType[]);
-      }
-
-      const response = await listDiaryEntries({
-        page: currentPage,
-        pageSize,
-        q: searchQuery || undefined,
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
-        type: queriableTypes.length > 0 ? queriableTypes.join(',') : undefined,
-        status: statusFilter || undefined,
+    if (fetchSequence === 0 || !announcementRef.current) return;
+    if (fetchSequence === 1) {
+      announcementRef.current.textContent = t('infiniteScroll.initialLoadAnnouncement', {
+        count: lastBatchCount,
       });
-
-      setEntries(response.items);
-      setTotalPages(response.pagination.totalPages);
-      setTotalItems(response.pagination.totalItems);
-
-      // Announce update
-      if (announcementRef.current) {
-        announcementRef.current.textContent = `Loaded ${response.items.length} entries`;
-      }
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(err.error.message);
-      } else {
-        setError(t('error'));
-      }
-    } finally {
-      setIsLoading(false);
+    } else if (!hasMore) {
+      announcementRef.current.textContent = t('infiniteScroll.batchAppendedAndEndAnnouncement', {
+        count: lastBatchCount,
+      });
+    } else {
+      announcementRef.current.textContent = t('infiniteScroll.batchAppendedAnnouncement', {
+        count: lastBatchCount,
+      });
     }
-  };
+  }, [fetchSequence, hasMore, lastBatchCount, t]);
 
   const groupedEntries = useMemo(() => {
     const grouped: GroupedEntries = {};
@@ -165,7 +182,7 @@ export default function DiaryPage() {
     } else {
       newParams.delete('dateFrom');
     }
-    newParams.set('page', '1');
+    newParams.delete('page');
     setSearchParams(newParams);
   };
 
@@ -176,7 +193,7 @@ export default function DiaryPage() {
     } else {
       newParams.delete('dateTo');
     }
-    newParams.set('page', '1');
+    newParams.delete('page');
     setSearchParams(newParams);
   };
 
@@ -187,7 +204,7 @@ export default function DiaryPage() {
     } else {
       newParams.delete('types');
     }
-    newParams.set('page', '1');
+    newParams.delete('page');
     setSearchParams(newParams);
   };
 
@@ -195,7 +212,7 @@ export default function DiaryPage() {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('filterMode', mode);
     newParams.delete('types');
-    newParams.set('page', '1');
+    newParams.delete('page');
     setSearchParams(newParams);
   };
 
@@ -208,7 +225,7 @@ export default function DiaryPage() {
     } else {
       newParams.set('status', 'saved');
     }
-    newParams.set('page', '1');
+    newParams.delete('page');
     setSearchParams(newParams);
   };
 
@@ -217,13 +234,6 @@ export default function DiaryPage() {
     const newParams = new URLSearchParams();
     newParams.set('filterMode', 'manual');
     setSearchParams(newParams);
-  };
-
-  const handlePageChange = (page: number) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('page', page.toString());
-    setSearchParams(newParams);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const sortedDates = Object.keys(groupedEntries).sort().reverse();
@@ -249,7 +259,7 @@ export default function DiaryPage() {
         </div>
       </header>
 
-      {error && <div className={shared.bannerError}>{error}</div>}
+      {error && entries.length === 0 && <div className={shared.bannerError}>{error}</div>}
 
       <DiaryFilterBar
         searchQuery={searchInput}
@@ -267,9 +277,9 @@ export default function DiaryPage() {
         onDraftsVisibleChange={handleDraftsVisibleChange}
       />
 
-      {isLoading && <div className={shared.loading}>{t('loading')}</div>}
+      {showInitialLoading && <div className={shared.loading}>{t('loading')}</div>}
 
-      {!isLoading && entries.length === 0 && (
+      {!showInitialLoading && entries.length === 0 && status !== 'error' && (
         <div
           className={shared.emptyState}
           style={{
@@ -286,8 +296,13 @@ export default function DiaryPage() {
         </div>
       )}
 
-      {!isLoading && entries.length > 0 && (
-        <div className={styles.timeline} role="feed" aria-label={t('page.timelineAriaLabel')}>
+      {entries.length > 0 && (
+        <div
+          className={styles.timeline}
+          role="feed"
+          aria-label={t('page.timelineAriaLabel')}
+          aria-busy={status === 'loading'}
+        >
           {sortedDates.map((date) => (
             <DiaryDateGroup key={date} date={date} entries={groupedEntries[date]!} />
           ))}
@@ -303,31 +318,20 @@ export default function DiaryPage() {
         aria-atomic="true"
       />
 
-      {/* Pagination */}
-      {!isLoading && totalPages > 1 && (
-        <div className={styles.pagination}>
-          <button
-            type="button"
-            className={shared.btnSecondary}
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            data-testid="prev-page-button"
-          >
-            {t('pagination.previous')}
-          </button>
-          <span className={styles.pageInfo}>
-            {t('pagination.pageInfo', { currentPage, totalPages })}
-          </span>
-          <button
-            type="button"
-            className={shared.btnSecondary}
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            data-testid="next-page-button"
-          >
-            {t('pagination.next')}
-          </button>
-        </div>
+      {entries.length > 0 && (
+        <InfiniteScrollFooter
+          status={status}
+          loadingLabel={t('infiniteScroll.loadingMore')}
+          loadingAriaLabel={t('infiniteScroll.loadingMoreAriaLabel')}
+          loadMoreLabel={t('infiniteScroll.loadMoreButton')}
+          retryLabel={t('infiniteScroll.retryButton')}
+          errorMessage={t('infiniteScroll.errorMessage')}
+          endOfListMessage={t('infiniteScroll.endOfList')}
+          sentinelRef={sentinelRef}
+          onLoadMore={loadMore}
+          onRetry={retry}
+          testIdPrefix="diary"
+        />
       )}
     </div>
   );

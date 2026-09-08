@@ -626,6 +626,69 @@ describe('Standalone Invoice Routes', () => {
       expect(body.invoices).toHaveLength(0);
       expect(body.pagination.totalItems).toBe(1);
     });
+
+    // ─── Story #2046: openOnly querystring param ─────────────────────────────
+
+    describe('openOnly querystring param (Story #2046)', () => {
+      it('AC5: accepts openOnly=true (200)', async () => {
+        const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+        const vendorId = createTestVendor('Vendor OpenOnly True');
+        createTestInvoice(vendorId, { status: 'pending', amount: 100 });
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/invoices?openOnly=true',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<{ invoices: Invoice[] }>();
+        expect(body.invoices).toHaveLength(1);
+      });
+
+      it('AC5: accepts openOnly=false (200) and behaves exactly as omitted', async () => {
+        const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+        const vendorId = createTestVendor('Vendor OpenOnly False');
+        createTestInvoice(vendorId, { status: 'pending', amount: 100 });
+        createTestInvoice(vendorId, { status: 'paid', amount: 200 });
+
+        const withFalse = await app.inject({
+          method: 'GET',
+          url: '/api/invoices?openOnly=false',
+          headers: { cookie },
+        });
+        const omitted = await app.inject({
+          method: 'GET',
+          url: '/api/invoices',
+          headers: { cookie },
+        });
+
+        expect(withFalse.statusCode).toBe(200);
+        const withFalseBody = withFalse.json<{ invoices: Invoice[] }>();
+        const omittedBody = omitted.json<{ invoices: Invoice[] }>();
+        expect(withFalseBody.invoices).toHaveLength(omittedBody.invoices.length);
+        expect(withFalseBody.invoices.map((i) => i.id).sort()).toEqual(
+          omittedBody.invoices.map((i) => i.id).sort(),
+        );
+      });
+
+      it('AC5: adding openOnly to the schema does not loosen additionalProperties handling — an unknown param is still stripped (200), not rejected', async () => {
+        // Fastify's AJV compiler defaults to removeAdditional:true, so unrecognised
+        // params are silently stripped rather than causing a 400 (see the
+        // pre-existing "strips unknown query parameters" test above). This test
+        // proves adding `openOnly` to the schema didn't change that behavior for a
+        // similarly-named-but-wrong param.
+        const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+
+        const response = await app.inject({
+          method: 'GET',
+          url: '/api/invoices?openOnlyTypo=1',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(200);
+      });
+    });
   });
 
   // ─── GET /api/invoices/:invoiceId ────────────────────────────────────────────

@@ -924,7 +924,9 @@
       "status": "Status",
       "notes": "Notizen",
       "remainingAmount": "Verbleibender Betrag",
-      "effectiveAmount": "Effektivbetrag"
+      "effectiveAmount": "Effektivbetrag",
+      "stillDue": "Noch fällig",
+      "stillDueHint": "Unbezahlte Schlusszahlung plus unbezahlte Abschlagszahlungen. Die Abschlagszahlungsbeträge in den nachstehenden Zeilen sind bereits in diesem Betrag enthalten, nicht zusätzlich."
     },
     "form": {
       "vendor": "Auftragnehmer",
@@ -995,6 +997,29 @@
       "title": "Rechnungsdokument auswählen",
       "manualEntry": "Rechnung manuell erfassen",
       "manualEntryAriaLabel": "Rechnung manuell erstellen ohne ein Dokument auszuwählen"
+    },
+    "openItems": {
+      "toggleLabel": "Nur offene Positionen anzeigen",
+      "toggleDisabledHint": "Nicht verfügbar, während \"Nur offene Positionen anzeigen\" aktiv ist",
+      "defaultSortHint": "Sortiert nach frühestem Fälligkeitsdatum",
+      "containerLabel": "Nur Abschlagszahlungen",
+      "overdueLabel": "Überfällig",
+      "depositOverdueLabel": "Abschlag überfällig",
+      "depositOrdinal": "Abschlag {{index}}/{{total}}",
+      "childOf": "Teil der Rechnung {{invoiceNumber}}: ",
+      "childIncludedCaption": "Im Rechnungstotal oben enthalten",
+      "childExcludedCaption": "Wird unten separat aufgeführt",
+      "expandLabel_one": "{{invoiceNumber}} aufklappen, {{count}} offene Abschlagszahlung",
+      "expandLabel_other": "{{invoiceNumber}} aufklappen, {{count}} offene Abschlagszahlungen",
+      "collapseLabel_one": "{{invoiceNumber}} einklappen, {{count}} offene Abschlagszahlung",
+      "collapseLabel_other": "{{invoiceNumber}} einklappen, {{count}} offene Abschlagszahlungen",
+      "summaryOpenPayable": "Offen (zu zahlen)",
+      "summaryRefundsDue": "Ihnen zustehende Rückerstattungen",
+      "summaryRefundsDueHint": "Ausstehende Rückerstattungen, nicht mit der offenen Summe verrechnet",
+      "empty": {
+        "message": "Derzeit nichts offen",
+        "description": "Jede Rechnung und Abschlagszahlung ist bezahlt, eingereicht oder anderweitig beglichen."
+      }
     }
   },
   "autoItemize": {

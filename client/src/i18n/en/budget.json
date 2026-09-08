@@ -503,7 +503,9 @@
       "status": "Status",
       "notes": "Notes",
       "remainingAmount": "Remaining Amount",
-      "effectiveAmount": "Effective Amount"
+      "effectiveAmount": "Effective Amount",
+      "stillDue": "Still due",
+      "stillDueHint": "Unpaid final payment plus unpaid deposits. Deposit amounts on the rows below are already included in this figure, not additional to it."
     },
     "form": {
       "vendor": "Vendor",
@@ -574,6 +576,29 @@
       "title": "Select Invoice Document",
       "manualEntry": "Enter invoice manually",
       "manualEntryAriaLabel": "Create invoice manually without selecting a document"
+    },
+    "openItems": {
+      "toggleLabel": "Show only open items",
+      "toggleDisabledHint": "Not available while \"Show only open items\" is active",
+      "defaultSortHint": "Sorted by earliest due date",
+      "containerLabel": "Deposits only",
+      "overdueLabel": "Overdue",
+      "depositOverdueLabel": "Deposit overdue",
+      "depositOrdinal": "Deposit {{index}}/{{total}}",
+      "childOf": "Part of invoice {{invoiceNumber}}: ",
+      "childIncludedCaption": "Included in the invoice total above",
+      "childExcludedCaption": "Reported separately below",
+      "expandLabel_one": "Expand {{invoiceNumber}}, {{count}} open deposit",
+      "expandLabel_other": "Expand {{invoiceNumber}}, {{count}} open deposits",
+      "collapseLabel_one": "Collapse {{invoiceNumber}}, {{count}} open deposit",
+      "collapseLabel_other": "Collapse {{invoiceNumber}}, {{count}} open deposits",
+      "summaryOpenPayable": "Open (payable)",
+      "summaryRefundsDue": "Refunds due to you",
+      "summaryRefundsDueHint": "Pending refunds, not netted against the open total",
+      "empty": {
+        "message": "Nothing open right now",
+        "description": "Every invoice and deposit is paid, claimed, or otherwise settled."
+      }
     }
   },
   "invoiceDetail": {

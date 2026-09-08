@@ -10,13 +10,14 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
 import type * as InvoicesPageTypes from './InvoicesPage.js';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
 const mockCreateInvoice = jest.fn<typeof InvoicesApiTypes.createInvoice>();
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchVendors = jest.fn<any>();
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchAllInvoices: mockFetchAllInvoices,
@@ -86,8 +87,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
 }));
 
 // ── Story #1679: paperlessApi mock ────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockGetPaperlessStatus = jest.fn<any>();
+const mockGetPaperlessStatus = jest.fn<typeof PaperlessApiTypes.getPaperlessStatus>();
 
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
   getPaperlessStatus: mockGetPaperlessStatus,
@@ -100,8 +100,9 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 }));
 
 // ── Story #1679: configApi mock ───────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFetchConfig = jest.fn<any>();
+// Only autoItemizeEnabled is exercised by these tests — narrower than the real
+// fetchConfig's AppConfigResponse return type is intentional here.
+const mockFetchConfig = jest.fn<() => Promise<{ autoItemizeEnabled: boolean }>>();
 
 jest.unstable_mockModule('../../lib/configApi.js', () => ({
   fetchConfig: mockFetchConfig,
@@ -204,6 +205,8 @@ const emptySummary = {
   overdue: { count: 0, totalAmount: 0 },
   claimable: { count: 0, totalAmount: 0 },
   quotationCoveredByDeposits: 0,
+  openPayable: { count: 0, totalAmount: 0 },
+  refundsDue: { count: 0, totalAmount: 0 },
 };
 
 const populatedSummary = {
@@ -214,6 +217,8 @@ const populatedSummary = {
   overdue: { count: 0, totalAmount: 0 },
   claimable: { count: 1, totalAmount: 15000 },
   quotationCoveredByDeposits: 0,
+  openPayable: { count: 1, totalAmount: 15000 },
+  refundsDue: { count: 0, totalAmount: 0 },
 };
 
 const emptyResponse: InvoiceListPaginatedResponse = {
@@ -238,11 +243,10 @@ const vendorsResponse = {
     {
       id: 'v-1',
       name: 'ACME Construction',
-      tradeId: null,
       notes: null,
-      websiteUrl: null,
-      contactEmail: null,
-      contactPhone: null,
+      phone: null,
+      email: null,
+      address: null,
       trade: null,
       createdBy: null,
       createdAt: '2026-01-01T00:00:00.000Z',
@@ -251,11 +255,10 @@ const vendorsResponse = {
     {
       id: 'v-2',
       name: 'Quality Plumbing',
-      tradeId: null,
       notes: null,
-      websiteUrl: null,
-      contactEmail: null,
-      contactPhone: null,
+      phone: null,
+      email: null,
+      address: null,
       trade: null,
       createdBy: null,
       createdAt: '2026-01-01T00:00:00.000Z',
@@ -732,6 +735,8 @@ describe('InvoicesPage', () => {
           overdue: { count: 0, totalAmount: 0 },
           claimable: { count: 1, totalAmount: 15000 },
           quotationCoveredByDeposits: 0,
+          openPayable: { count: 1, totalAmount: 15000 },
+          refundsDue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithClaimed);
@@ -758,6 +763,8 @@ describe('InvoicesPage', () => {
           overdue: { count: 0, totalAmount: 0 },
           claimable: { count: 0, totalAmount: 0 },
           quotationCoveredByDeposits: 0,
+          openPayable: { count: 0, totalAmount: 0 },
+          refundsDue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithZeroClaimed);
@@ -782,6 +789,8 @@ describe('InvoicesPage', () => {
           overdue: { count: 0, totalAmount: 0 },
           claimable: { count: 2, totalAmount: 12000 },
           quotationCoveredByDeposits: 0,
+          openPayable: { count: 1, totalAmount: 15000 },
+          refundsDue: { count: 0, totalAmount: 0 },
         },
       };
       mockFetchAllInvoices.mockResolvedValueOnce(responseWithSeparateData);
@@ -1264,6 +1273,8 @@ describe('InvoicesPage', () => {
         overdue: { count: 0, totalAmount: 0 },
         claimable: { count: 1, totalAmount: 10000 },
         quotationCoveredByDeposits: 0,
+        openPayable: { count: 1, totalAmount: 10000 },
+        refundsDue: { count: 0, totalAmount: 0 },
       },
     };
 
@@ -1342,6 +1353,63 @@ describe('InvoicesPage', () => {
 
       const label = screen.getByLabelText('Effective Amount');
       expect(label).toBeInTheDocument();
+    });
+  });
+
+  // ─── Badge-fix regression (Story #2046) ───────────────────────────────────
+  // The status Badge's className must resolve to a real variant class
+  // (badgeStyles[status]), not silently drop to just the base "badge" class
+  // or interpolate a literal "undefined" string.
+
+  describe('status badge className regression (Story #2046)', () => {
+    it('the invoice status badge className includes the resolved variant class and never the literal "undefined"', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(populatedResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('invoice-status-inv-001')[0]).toBeInTheDocument();
+      });
+
+      const badges = screen.getAllByTestId('invoice-status-inv-001');
+      for (const badge of badges) {
+        expect(badge.className).toContain('pending');
+        expect(badge.className).not.toContain('undefined');
+      }
+
+      const paidBadges = screen.getAllByTestId('invoice-status-inv-002');
+      for (const badge of paidBadges) {
+        expect(badge.className).toContain('paid');
+        expect(badge.className).not.toContain('undefined');
+      }
+    });
+  });
+
+  // ─── Desktop/mobile duplicate-testid regression (fix/2046-e2e-toggle-flake) ─
+  // DataTable mounts the desktop table AND the mobile cards simultaneously (CSS
+  // picks one visually; jsdom applies no CSS), so a status column with no
+  // `renderCard` override used to emit the SAME `invoice-status-{id}` testid
+  // twice — invisible to jsdom-based unit assertions (which mostly used
+  // getAllByTestId(...)[0], tolerant of 1 or 2 matches) but a real Playwright
+  // strict-mode violation. The fix gives the renderCard-rendered instance a
+  // `-mobile-` suffixed testid. These tests pin that: exactly one match per
+  // testid (not two), and the two elements are genuinely distinct nodes.
+
+  describe('desktop/mobile testid disambiguation (fix/2046-e2e-toggle-flake)', () => {
+    it('the status badge renders exactly one desktop-testid element and one distinct mobile-testid element', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(populatedResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('invoice-status-inv-001').length).toBeGreaterThan(0);
+      });
+
+      const desktopBadges = screen.getAllByTestId('invoice-status-inv-001');
+      const mobileBadges = screen.getAllByTestId('invoice-status-mobile-inv-001');
+      expect(desktopBadges).toHaveLength(1);
+      expect(mobileBadges).toHaveLength(1);
+      expect(desktopBadges[0]).not.toBe(mobileBadges[0]);
     });
   });
 });
