@@ -53,7 +53,7 @@ function mockJsonResponse(body: unknown, status = 200): Response {
 
 // ─── Paperless-ngx raw fixture ────────────────────────────────────────────────
 
-const RAW_TAG = { id: 5, name: 'invoice', colour: 6, document_count: 15 };
+const RAW_TAG = { id: 5, name: 'invoice', color: '#e31a1c', document_count: 15 };
 const RAW_TAGS_RESPONSE = { count: 1, results: [RAW_TAG] };
 
 const RAW_DOCUMENT = {

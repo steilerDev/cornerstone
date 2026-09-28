@@ -8,6 +8,8 @@
  * - listDocuments (basic, with search, with filters, pagination, sorting)
  * - getDocument (success, not found)
  * - listTags (success, empty)
+ * - API version 10 Accept header, hex tag colors, numeric/string search scores,
+ *   HTTP 406 (unsupported API version) handling
  *
  * Strategy: global.fetch is replaced with a jest mock in beforeEach.
  * The service calls fetch at invocation time (not import time), so the mock
@@ -40,7 +42,14 @@ function mockJsonResponse(body: unknown, status = 200): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
-    statusText: status === 200 ? 'OK' : status === 404 ? 'Not Found' : 'Error',
+    statusText:
+      status === 200
+        ? 'OK'
+        : status === 404
+          ? 'Not Found'
+          : status === 406
+            ? 'Not Acceptable'
+            : 'Error',
     json: () => Promise.resolve(body),
     headers: {
       get: (_key: string) => null,
@@ -67,8 +76,8 @@ function mockBinaryResponse(data: Buffer, contentType = 'image/webp'): Response 
 
 // ─── Raw fixture data ─────────────────────────────────────────────────────────
 
-const RAW_TAG_1 = { id: 5, name: 'invoice', colour: 6, document_count: 15 };
-const RAW_TAG_2 = { id: 12, name: 'contract', colour: 2, document_count: 8 };
+const RAW_TAG_1 = { id: 5, name: 'invoice', color: '#e31a1c', document_count: 15 };
+const RAW_TAG_2 = { id: 12, name: 'contract', color: '#1f78b4', document_count: 8 };
 
 const RAW_TAGS_RESPONSE = { count: 2, results: [RAW_TAG_1, RAW_TAG_2]! };
 
@@ -77,7 +86,7 @@ const RAW_DOCUMENT_1 = {
   title: 'Invoice from Builder Co',
   content: 'Full text content here.',
   tags: [5, 12],
-  created: '2026-01-15T00:00:00Z',
+  created: '2026-01-15',
   added: '2026-01-16T08:30:00Z',
   modified: '2026-01-16T08:30:00Z',
   correspondent: 3,
@@ -163,7 +172,7 @@ describe('getStatus()', () => {
     expect(result.error).not.toBeNull();
   });
 
-  it('includes Accept header with API version 5', async () => {
+  it('includes Accept header with API version 10', async () => {
     mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0 }));
 
     await paperlessService.getStatus(BASE_URL, TOKEN);
@@ -171,9 +180,19 @@ describe('getStatus()', () => {
     expect(mockFetch).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        headers: expect.objectContaining({ Accept: 'application/json; version=5' }),
+        headers: expect.objectContaining({ Accept: 'application/json; version=10' }),
       }),
     );
+  });
+
+  it('returns reachable=false with an API-version hint when Paperless returns 406', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ detail: 'Not acceptable' }, 406));
+
+    const result = await paperlessService.getStatus(BASE_URL, TOKEN);
+
+    expect(result.configured).toBe(true);
+    expect(result.reachable).toBe(false);
+    expect(result.error).toContain('API version 10');
   });
 
   describe('filter tag resolution', () => {
@@ -405,6 +424,40 @@ describe('listDocuments()', () => {
     });
   });
 
+  it.each([
+    ['numeric 0.95', 0.95, 0.95],
+    ['numeric 0', 0, 0],
+  ])('accepts a %s search score', async (_label, raw, expected) => {
+    const rawWithSearchHit = {
+      ...RAW_DOCUMENT_1,
+      __search_hit__: { score: raw, highlights: 'h', rank: 2 },
+    };
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [rawWithSearchHit] }));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
+
+    const result = await paperlessService.listDocuments(BASE_URL, TOKEN, { query: 'invoice' });
+
+    expect(result.documents[0]!.searchHit!.score).toBe(expected);
+  });
+
+  it('keeps only the date part when Paperless returns a datetime for created', async () => {
+    mockFetch.mockResolvedValueOnce(
+      mockJsonResponse({
+        count: 1,
+        results: [{ ...RAW_DOCUMENT_1, created: '2026-01-15T00:00:00Z' }],
+      }),
+    );
+    mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
+
+    const result = await paperlessService.listDocuments(BASE_URL, TOKEN, {});
+
+    expect(result.documents[0]!.created).toBe('2026-01-15');
+  });
+
   it('resolves each unique correspondent and document type only once (no N+1)', async () => {
     const doc2 = { ...RAW_DOCUMENT_1, id: 43, correspondent: 3, document_type: 7 };
     mockFetch.mockResolvedValueOnce(
@@ -455,31 +508,60 @@ describe('listDocuments()', () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
-  it('maps tag colors using PAPERLESS_COLOR_MAP', async () => {
+  it('passes valid hex tag colors through unchanged', async () => {
     setupListMocks();
 
     const result = await paperlessService.listDocuments(BASE_URL, TOKEN, {});
 
     const invoiceTag = result.documents[0]!.tags.find((t) => t.name === 'invoice');
-    expect(invoiceTag?.color).toBe('#e31a1c'); // colour=6 maps to #e31a1c
+    expect(invoiceTag?.color).toBe('#e31a1c');
 
     const contractTag = result.documents[0]!.tags.find((t) => t.name === 'contract');
-    expect(contractTag?.color).toBe('#1f78b4'); // colour=2 maps to #1f78b4
+    expect(contractTag?.color).toBe('#1f78b4');
   });
 
-  it('returns null color for unknown colour IDs', async () => {
-    const rawTagUnknownColor = { id: 20, name: 'misc', colour: 99, document_count: 3 };
-    const docWithUnknownColorTag = { ...RAW_DOCUMENT_1, tags: [20]! };
-    mockFetch.mockResolvedValueOnce(
-      mockJsonResponse({ count: 1, results: [docWithUnknownColorTag] }),
-    );
-    mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [rawTagUnknownColor] }));
-    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
-    mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
+  describe('tag color handling (API v10 hex strings)', () => {
+    async function colorFor(rawTag: Record<string, unknown>): Promise<string | null | undefined> {
+      const doc = { ...RAW_DOCUMENT_1, tags: [20] };
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [doc] }));
+      mockFetch.mockResolvedValueOnce(
+        mockJsonResponse({
+          count: 1,
+          results: [{ id: 20, name: 'misc', document_count: 3, ...rawTag }],
+        }),
+      );
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
 
-    const result = await paperlessService.listDocuments(BASE_URL, TOKEN, {});
+      const result = await paperlessService.listDocuments(BASE_URL, TOKEN, {});
+      return result.documents[0]!.tags[0]?.color;
+    }
 
-    expect(result.documents[0]!.tags[0]!.color).toBeNull();
+    it('passes uppercase hex colors through unchanged', async () => {
+      expect(await colorFor({ color: '#A6CEE3' })).toBe('#A6CEE3');
+    });
+
+    it('returns null when color is missing', async () => {
+      expect(await colorFor({})).toBeNull();
+    });
+
+    it('returns null when color is null', async () => {
+      expect(await colorFor({ color: null })).toBeNull();
+    });
+
+    it.each([
+      ['a color name', 'red'],
+      ['a 3-digit hex', '#fff'],
+      ['hex without a leading #', 'a6cee3'],
+      ['non-hex characters', '#zzzzzz'],
+      ['a numeric value', 6 as unknown],
+    ])('returns null (without throwing) for %s', async (_label, value) => {
+      expect(await colorFor({ color: value })).toBeNull();
+    });
+
+    it('returns null for legacy numeric colour with no color field (regression guard)', async () => {
+      expect(await colorFor({ colour: 6 })).toBeNull();
+    });
   });
 
   it('throws PAPERLESS_UNREACHABLE on network error', async () => {
@@ -712,13 +794,22 @@ describe('fetchBinary()', () => {
 // ─── listTags tests ───────────────────────────────────────────────────────────
 
 describe('listTags()', () => {
+  it('sends Accept header with API version 10', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+
+    await paperlessService.listTags(BASE_URL, TOKEN);
+
+    const init = mockFetch.mock.calls[0]![1] as { headers: Record<string, string> };
+    expect(init.headers['Accept']).toBe('application/json; version=10');
+  });
+
   it('returns tags sorted by ID ascending', async () => {
     const rawTags = {
       count: 3,
       results: [
-        { id: 12, name: 'contract', colour: 2, document_count: 8 },
-        { id: 5, name: 'invoice', colour: 6, document_count: 15 },
-        { id: 20, name: 'misc', colour: 3, document_count: 2 },
+        { id: 12, name: 'contract', color: '#1f78b4', document_count: 8 },
+        { id: 5, name: 'invoice', color: '#e31a1c', document_count: 15 },
+        { id: 20, name: 'misc', color: '#b2df8a', document_count: 2 },
       ],
     };
     mockFetch.mockResolvedValueOnce(mockJsonResponse(rawTags));
@@ -739,7 +830,7 @@ describe('listTags()', () => {
     expect(result.tags[0]).toEqual({
       id: 5,
       name: 'invoice',
-      color: '#e31a1c', // colour=6
+      color: '#e31a1c',
       documentCount: 15,
     });
   });
@@ -783,6 +874,15 @@ describe('listTags()', () => {
 // ─── listCorrespondents tests (Story #1679) ───────────────────────────────────
 
 describe('listCorrespondents()', () => {
+  it('sends Accept header with API version 10', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+
+    await paperlessService.listCorrespondents(BASE_URL, TOKEN);
+
+    const init = mockFetch.mock.calls[0]![1] as { headers: Record<string, string> };
+    expect(init.headers['Accept']).toBe('application/json; version=10');
+  });
+
   it('makes a single fetch to /api/correspondents/?page_size=1000', async () => {
     mockFetch.mockResolvedValueOnce(
       mockJsonResponse({
@@ -1028,6 +1128,43 @@ describe('getDocuments()', () => {
 
 // ─── AppError correctness ─────────────────────────────────────────────────────
 
+describe('HTTP 406 (unsupported API version)', () => {
+  it('fetchPaperless path (getDocument) → PAPERLESS_ERROR 502 mentioning API version 10', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({}, 406));
+
+    await expect(paperlessService.getDocument(BASE_URL, TOKEN, 42)).rejects.toMatchObject({
+      code: 'PAPERLESS_ERROR',
+      statusCode: 502,
+      message: expect.stringContaining('API version 10'),
+    });
+  });
+
+  it('fetchBinary → PAPERLESS_ERROR 502 mentioning API version 10', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({}, 406));
+
+    await expect(
+      paperlessService.fetchBinary(BASE_URL, TOKEN, '/api/documents/42/thumb/'),
+    ).rejects.toMatchObject({
+      code: 'PAPERLESS_ERROR',
+      statusCode: 502,
+      message: expect.stringContaining('API version 10'),
+    });
+  });
+
+  it('non-406 errors keep the plain message and do not mention API version', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({}, 500));
+
+    let caught: AppError | undefined;
+    try {
+      await paperlessService.getDocument(BASE_URL, TOKEN, 42);
+    } catch (err) {
+      caught = err as AppError;
+    }
+    expect(caught?.message).toBe('Paperless-ngx returned 500: Error');
+    expect(caught?.message).not.toContain('API version');
+  });
+});
+
 describe('Error codes and status codes', () => {
   it('PAPERLESS_UNREACHABLE has statusCode 502', async () => {
     mockFetch.mockRejectedValueOnce(new Error('Network failure'));
@@ -1103,6 +1240,19 @@ describe('uploadDocument()', () => {
     expect(String(uploadUrl)).toBe(`${BASE_URL}/api/documents/post_document/`);
     expect(uploadInit!.method).toBe('POST');
     expect((uploadInit!.headers as Record<string, string>)['Authorization']).toBe(`Token ${TOKEN}`);
+    expect((uploadInit!.headers as Record<string, string>)['Accept']).toBe(
+      'application/json; version=10',
+    );
+  });
+
+  it('upload on 406 → PAPERLESS_ERROR mentioning the required API version', async () => {
+    mockFetch.mockResolvedValueOnce(mockJsonResponse({ detail: 'nope' }, 406));
+
+    await expect(paperlessService.uploadDocument(BASE_URL, TOKEN, INPUT)).rejects.toMatchObject({
+      code: 'PAPERLESS_ERROR',
+      statusCode: 502,
+      message: expect.stringContaining('API version 10'),
+    });
   });
 
   it('scenario 32: unresolvable filter tag → no tags field, upload still succeeds', async () => {
