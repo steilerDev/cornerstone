@@ -35,7 +35,7 @@ let originalFetch: typeof fetch;
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-const RAW_TAG = { id: 5, name: 'invoice', colour: 6, document_count: 15 };
+const RAW_TAG = { id: 5, name: 'invoice', color: '#e31a1c', document_count: 15 };
 const RAW_TAGS_RESPONSE = { count: 1, results: [RAW_TAG] };
 
 const RAW_DOCUMENT = {
@@ -310,7 +310,12 @@ describe('Paperless Routes', () => {
 
         const { cookie } = await createUserWithSession();
 
-        const CORNERSTONE_TAG = { id: 10, name: 'cornerstone', colour: 3, document_count: 50 };
+        const CORNERSTONE_TAG = {
+          id: 10,
+          name: 'cornerstone',
+          color: '#b2df8a',
+          document_count: 50,
+        };
         const TAGS_WITH_CORNERSTONE = { count: 2, results: [RAW_TAG, CORNERSTONE_TAG] };
 
         // Status probe
@@ -507,7 +512,7 @@ describe('Paperless Routes', () => {
 
       const { cookie } = await createUserWithSession();
 
-      const CORNERSTONE_TAG = { id: 10, name: 'cornerstone', colour: 3, document_count: 50 };
+      const CORNERSTONE_TAG = { id: 10, name: 'cornerstone', color: '#b2df8a', document_count: 50 };
       const TAGS_WITH_CORNERSTONE = { count: 2, results: [RAW_TAG, CORNERSTONE_TAG] };
 
       // 1. Filter tag resolution (resolveFilterTagId runs first)
@@ -870,7 +875,7 @@ describe('Paperless Routes', () => {
       expect(body.tags).toHaveLength(1);
       expect(body.tags[0]!.id).toBe(5);
       expect(body.tags[0]!.name).toBe('invoice');
-      expect(body.tags[0]!.color).toBe('#e31a1c'); // colour=6
+      expect(body.tags[0]!.color).toBe('#e31a1c');
       expect(body.tags[0]!.documentCount).toBe(15);
     });
 

@@ -5,7 +5,7 @@ title: Setup
 
 # Paperless-ngx Setup
 
-To enable the document integration, configure two environment variables and restart Cornerstone.
+To enable the document integration, configure two environment variables and restart Cornerstone. Cornerstone requires a Paperless-ngx release that supports **API version 10** (verified with Paperless-ngx 3.1.3).
 
 ## Configuration
 
