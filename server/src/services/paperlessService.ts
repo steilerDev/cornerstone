@@ -142,7 +142,12 @@ export async function fetchBinary(baseUrl: string, token: string, path: string):
   }
 
   if (!response.ok) {
-    throw new AppError('PAPERLESS_ERROR', 502, upstreamErrorMessage(response));
+    // Plain message: no version is negotiated here, so a 406 is not an API-version mismatch.
+    throw new AppError(
+      'PAPERLESS_ERROR',
+      502,
+      `Paperless-ngx returned ${response.status}: ${response.statusText}`,
+    );
   }
 
   return response;

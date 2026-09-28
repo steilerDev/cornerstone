@@ -1139,16 +1139,19 @@ describe('HTTP 406 (unsupported API version)', () => {
     });
   });
 
-  it('fetchBinary → PAPERLESS_ERROR 502 mentioning API version 10', async () => {
+  it('fetchBinary (sends no version header) → plain 406 message without API version hint', async () => {
     mockFetch.mockResolvedValueOnce(mockJsonResponse({}, 406));
 
-    await expect(
-      paperlessService.fetchBinary(BASE_URL, TOKEN, '/api/documents/42/thumb/'),
-    ).rejects.toMatchObject({
-      code: 'PAPERLESS_ERROR',
-      statusCode: 502,
-      message: expect.stringContaining('API version 10'),
-    });
+    let caught: AppError | undefined;
+    try {
+      await paperlessService.fetchBinary(BASE_URL, TOKEN, '/api/documents/42/thumb/');
+    } catch (err) {
+      caught = err as AppError;
+    }
+    expect(caught?.code).toBe('PAPERLESS_ERROR');
+    expect(caught?.statusCode).toBe(502);
+    expect(caught?.message).toBe('Paperless-ngx returned 406: Not Acceptable');
+    expect(caught?.message).not.toContain('API version');
   });
 
   it('non-406 errors keep the plain message and do not mention API version', async () => {
