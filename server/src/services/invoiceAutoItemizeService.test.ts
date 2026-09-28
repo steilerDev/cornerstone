@@ -3190,7 +3190,7 @@ describe('invoiceAutoItemizeService', () => {
   /** Tags list response that resolves tag ID 101 to name 'Bau'. */
   const PAPERLESS_TAGS_WITH_BAU = {
     count: 1,
-    results: [{ id: 101, name: 'Bau', colour: 3, document_count: 5 }],
+    results: [{ id: 101, name: 'Bau', color: '#b2df8a', document_count: 5 }],
   };
 
   describe('paperlessMetadata enrichment (Story #1767)', () => {

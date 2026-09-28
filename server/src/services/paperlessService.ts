@@ -7,7 +7,8 @@
  * raw API responses into Cornerstone's own response shapes. The Paperless-ngx
  * API token is kept server-side and never exposed to the browser.
  *
- * All requests include `Accept: application/json; version=5` (ADR-015).
+ * JSON requests send `Accept: application/json; version=10` (ADR-015). Binary
+ * passthroughs (`fetchBinary`) send no Accept header.
  */
 
 import type {
@@ -23,20 +24,9 @@ import type {
 } from '@cornerstone/shared';
 import { AppError } from '../errors/AppError.js';
 
-// ─── Paperless color ID → hex mapping ────────────────────────────────────────
+const PAPERLESS_API_VERSION = 10;
 
-/**
- * Maps Paperless-ngx numeric colour IDs (1–7) to hex colour strings.
- */
-const PAPERLESS_COLOR_MAP: Record<number, string> = {
-  1: '#a6cee3',
-  2: '#1f78b4',
-  3: '#b2df8a',
-  4: '#33a02c',
-  5: '#fb9a99',
-  6: '#e31a1c',
-  7: '#fdbf6f',
-};
+const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
 
 // ─── Filter tag cache ────────────────────────────────────────────────────────
 
@@ -53,12 +43,12 @@ export function _resetFilterTagCache(): void {
 interface RawPaperlessTag {
   id: number;
   name: string;
-  colour: number;
+  color?: string | null;
   document_count: number;
 }
 
 interface RawSearchHit {
-  score: string;
+  score: string | number;
   highlights: string;
   rank: number;
 }
@@ -68,6 +58,7 @@ interface RawPaperlessDocument {
   title: string;
   content: string;
   tags: number[];
+  /** Date string (YYYY-MM-DD) in Paperless API v9+. */
   created: string | null;
   added: string | null;
   modified: string | null;
@@ -92,8 +83,18 @@ interface RawPaperlessListResponse {
 function makeHeaders(token: string): Record<string, string> {
   return {
     Authorization: `Token ${token}`,
-    Accept: 'application/json; version=5',
+    Accept: `application/json; version=${PAPERLESS_API_VERSION}`,
   };
+}
+
+/**
+ * Build the error message for a non-OK upstream Paperless-ngx response.
+ */
+function upstreamErrorMessage(response: Response): string {
+  if (response.status === 406) {
+    return `Paperless-ngx returned 406: ${response.statusText} — the server does not support API version ${PAPERLESS_API_VERSION} (Cornerstone requires a Paperless-ngx release that accepts API version ${PAPERLESS_API_VERSION})`;
+  }
+  return `Paperless-ngx returned ${response.status}: ${response.statusText}`;
 }
 
 /**
@@ -114,11 +115,7 @@ async function fetchPaperless<T>(baseUrl: string, token: string, path: string): 
   }
 
   if (!response.ok) {
-    throw new AppError(
-      'PAPERLESS_ERROR',
-      502,
-      `Paperless-ngx returned ${response.status}: ${response.statusText}`,
-    );
+    throw new AppError('PAPERLESS_ERROR', 502, upstreamErrorMessage(response));
   }
 
   return response.json() as Promise<T>;
@@ -131,6 +128,7 @@ async function fetchPaperless<T>(baseUrl: string, token: string, path: string): 
 export async function fetchBinary(baseUrl: string, token: string, path: string): Promise<Response> {
   let response: Response;
   try {
+    // Deliberately no Accept header: image/PDF endpoints; DRF falls back to DEFAULT_VERSION.
     response = await fetch(`${baseUrl}${path}`, {
       headers: { Authorization: `Token ${token}` },
     });
@@ -144,6 +142,7 @@ export async function fetchBinary(baseUrl: string, token: string, path: string):
   }
 
   if (!response.ok) {
+    // Plain message: no version is negotiated here, so a 406 is not an API-version mismatch.
     throw new AppError(
       'PAPERLESS_ERROR',
       502,
@@ -161,7 +160,7 @@ function mapTag(raw: RawPaperlessTag): PaperlessTag {
   return {
     id: raw.id,
     name: raw.name,
-    color: PAPERLESS_COLOR_MAP[raw.colour] ?? null,
+    color: typeof raw.color === 'string' && HEX_COLOR_RE.test(raw.color) ? raw.color : null,
     documentCount: raw.document_count,
   };
 }
@@ -242,7 +241,7 @@ function mapDocument(
     .map((tagId) => tagsMap.get(tagId))
     .filter((t): t is PaperlessTag => t !== undefined);
 
-  // Paperless returns created as ISO datetime (YYYY-MM-DDTHH:MM:SSZ); strip to date only
+  // Paperless API v9+ returns `created` as a date (YYYY-MM-DD); slice(0,10) is kept defensively in case a datetime is ever returned.
   const created = raw.created ? raw.created.slice(0, 10) : null;
 
   return {
@@ -444,7 +443,10 @@ export async function listDocuments(
 
     const searchHit = rawDoc.__search_hit__
       ? {
-          score: parseFloat(rawDoc.__search_hit__.score),
+          score:
+            typeof rawDoc.__search_hit__.score === 'number'
+              ? rawDoc.__search_hit__.score
+              : parseFloat(rawDoc.__search_hit__.score),
           highlights: rawDoc.__search_hit__.highlights,
           rank: rawDoc.__search_hit__.rank,
         }
@@ -600,7 +602,7 @@ export async function uploadDocument(
   try {
     response = await fetch(`${baseUrl}/api/documents/post_document/`, {
       method: 'POST',
-      headers: { Authorization: `Token ${token}` },
+      headers: makeHeaders(token),
       body: form,
     });
   } catch (err) {
@@ -609,11 +611,7 @@ export async function uploadDocument(
   }
 
   if (!response.ok) {
-    throw new AppError(
-      'PAPERLESS_ERROR',
-      502,
-      `Paperless-ngx returned ${response.status}: ${response.statusText}`,
-    );
+    throw new AppError('PAPERLESS_ERROR', 502, upstreamErrorMessage(response));
   }
 
   const taskId = await response.json();
