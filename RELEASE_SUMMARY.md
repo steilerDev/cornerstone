@@ -2,14 +2,14 @@
 
 ## What's New
 
-Paperless-ngx integration is now compatible with current server releases (API version 10). Previous versions targeted an outdated API endpoint, causing HTTP 406 errors. This patch restores Paperless document browsing and linking, adds proper tag color display, and handles modern date formats.
+The Paperless-ngx document browser now uses **infinite scroll** instead of page navigation, making it easier to browse and link large document collections. The load-more experience is accessible and responsive, with automatic batch loading when filters hide documents.
 
 ### Highlights
 
-- **Paperless-ngx compatibility restored** -- API version 10 support eliminates HTTP 406 errors on current Paperless-ngx servers
-- **Tag colors now display** -- Tag colors from Paperless-ngx are correctly mapped from the hex color field
-- **Modern server support** -- Handles current Paperless-ngx servers' date-only created dates and numeric search scores
-- **Clear error messages** -- If your server doesn't support API v10, Cornerstone shows a clear error message
+- **Infinite scroll for Paperless documents** -- Scroll to load more documents instead of clicking Previous/Next, providing a smoother browsing experience
+- **Automatic batch loading** -- When "Hide already-linked documents" hides an entire batch, new batches load automatically so you can always find documents
+- **Accessible load-more** -- Load-more button with focus handoff to newly loaded items and live-region announcements for screen readers
+- **Better document ordering** -- An `id` tiebreaker eliminates duplicate or skipped documents when batching
 
 ## Upgrade
 
@@ -17,4 +17,4 @@ Paperless-ngx integration is now compatible with current server releases (API ve
 docker pull steilerdev/cornerstone:latest
 ```
 
-Restart your container. Schema migrations run automatically on first boot.
+Restart your container. No schema migrations needed for this release.
