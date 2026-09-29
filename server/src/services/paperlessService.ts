@@ -396,7 +396,13 @@ export async function listDocuments(
     archive_serial_number: 'archive_serial_number',
   };
   const paperlessSortField = sortFieldMap[query.sortBy ?? ''] ?? 'created';
-  const ordering = `${query.sortOrder === 'asc' ? '' : '-'}${paperlessSortField}`;
+  const direction = query.sortOrder === 'asc' ? '' : '-';
+  // Unique tiebreaker: `created` is date-only since API v9, so ties are common and
+  // LIMIT/OFFSET paging over a non-unique key duplicates/skips documents across pages (#2101).
+  // Full-text queries (Whoosh) accept only a single sort field, so no tiebreaker there.
+  const ordering = query.query
+    ? `${direction}${paperlessSortField}`
+    : `${direction}${paperlessSortField},${direction}id`;
   params.set('ordering', ordering);
 
   const path = `/api/documents/?${params.toString()}`;

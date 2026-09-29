@@ -15,6 +15,7 @@
  * 6.  Linked documents count badge updates after linking
  * 7a. System-wide linked IDs hide filtered document when toggle checked
  * 7b. Toggle checked by default hides already-linked docs; unchecking shows all
+ * 8.  Link a document that only exists in the second infinite-scroll batch (#2101)
  *
  * Scenario 4 (overlay button, fix/1680-unlink-document-overlay):
  * 4a. Desktop: hover reveals the overlay unlink button; confirm removes the card
@@ -25,6 +26,8 @@
 import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import { mockPaginatedPaperless } from '../../fixtures/paperlessPaginatedMock.js';
+import { PaperlessPickerModal } from '../../pages/PaperlessPickerModal.js';
 
 // ─── Mock data ──────────────────────────────────────────────────────────────
 
@@ -790,3 +793,69 @@ test.describe('Document Linking — Unlink via Overlay Button (Scenario 4)', () 
     },
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 8: Link a document that only exists in the second scrolled batch
+// (Issue #2101, AC18/AC25)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Document Linking — after infinite scroll (Scenario 8)',
+  { tag: '@responsive' },
+  () => {
+    test.describe.configure({ timeout: 60_000 });
+
+    test('Selecting a document from the second batch links it by its Paperless id', async ({
+      page,
+      testPrefix,
+    }) => {
+      let createdId: string | null = null;
+      try {
+        createdId = await createWorkItemViaApi(page, {
+          title: `${testPrefix} DocLink Second Batch`,
+        });
+
+        // Linking mock first (document-links GET/POST tracking), then the page-aware documents mock:
+        // the most recently registered route wins, so it overrides the fixed one-document response.
+        await mockPaperlessForLinking(page, 'work_item', createdId);
+        const mock = await mockPaginatedPaperless(page, { total: 30 });
+
+        await page.goto(`/project/work-items/${createdId}`);
+        await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+        const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
+        await expect(addDocButton).toBeEnabled();
+        await addDocButton.click();
+
+        const picker = new PaperlessPickerModal(page, 'Add Document');
+        await picker.waitForVisible();
+        await picker.waitForDocumentsLoaded();
+        await expect(picker.documentItems).toHaveCount(25);
+
+        // Document 28 only exists in batch 2
+        await picker.scrollToBottom();
+        await expect(picker.documentItems).toHaveCount(30);
+        expect(mock.requestedPages).toEqual([1, 2]);
+
+        const linkRequestPromise = page.waitForRequest(
+          (req) => req.method() === 'POST' && new URL(req.url()).pathname === '/api/document-links',
+        );
+        await picker.getDocumentCard(mock.titleFor(28)).click();
+        const linkRequest = await linkRequestPromise;
+        expect(JSON.parse(linkRequest.postData() ?? '{}')).toMatchObject({
+          paperlessDocumentId: 28,
+          entityType: 'work_item',
+          entityId: createdId,
+        });
+
+        // Picker closes and the linked card appears
+        await expect(picker.modal).toBeHidden();
+        const linkedList = page.getByRole('list', { name: 'Linked documents' });
+        await expect(linkedList).toBeVisible();
+        await expect(linkedList.getByRole('listitem')).toHaveCount(1);
+      } finally {
+        await cleanupMocks(page);
+        if (createdId) await deleteWorkItemViaApi(page, createdId);
+      }
+    });
+  },
+);

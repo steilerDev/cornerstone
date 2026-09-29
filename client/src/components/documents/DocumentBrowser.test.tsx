@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import type { UsePaperlessResult } from '../../hooks/usePaperless.js';
 
@@ -53,28 +53,26 @@ const makeDoc = (id: number, title = `Document ${id}`) => ({
   searchHit: null,
 });
 
-const makePagination = (page = 1, totalPages = 1, totalItems = 2) => ({
-  page,
-  pageSize: 25,
-  totalItems,
-  totalPages,
-});
-
 const makeHook = (overrides: Partial<UsePaperlessResult> = {}): UsePaperlessResult => ({
   status: { configured: true, reachable: true, error: null, paperlessUrl: null, filterTag: null },
   documents: [makeDoc(1), makeDoc(2)],
   tags: [],
-  pagination: makePagination(),
-  isLoading: false,
+  listStatus: 'done',
+  hasMore: false,
+  lastBatchCount: 2,
+  fetchSequence: 1,
+  sentinelRef: jest.fn(),
+  loadMore: jest.fn(),
+  retry: jest.fn(),
   error: null,
   query: '',
   selectedTags: [],
   tagCountMap: new Map(),
+  resetKey: '|||0',
   search: jest.fn(),
   toggleTag: jest.fn(),
-  setPage: jest.fn(),
-  refresh: jest.fn(),
   setCorrespondent: jest.fn(),
+  refresh: jest.fn(),
   ...overrides,
 });
 
@@ -87,7 +85,7 @@ beforeEach(async () => {
 describe('DocumentBrowser', () => {
   describe('status states', () => {
     it('renders checking connection state when status is null', () => {
-      mockUsePaperless.mockReturnValue(makeHook({ status: null, isLoading: true }));
+      mockUsePaperless.mockReturnValue(makeHook({ status: null, listStatus: 'loading' }));
       render(<DocumentBrowser />);
       expect(screen.getByText(/Checking Paperless-ngx connection/i)).toBeInTheDocument();
     });
@@ -160,7 +158,9 @@ describe('DocumentBrowser', () => {
       render(<DocumentBrowser />);
 
       fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'invoice' } });
-      jest.advanceTimersByTime(350);
+      act(() => {
+        jest.advanceTimersByTime(350);
+      });
 
       await waitFor(() => expect(search).toHaveBeenCalledWith('invoice'));
       jest.useRealTimers();
@@ -248,15 +248,19 @@ describe('DocumentBrowser', () => {
   });
 
   describe('loading state', () => {
-    it('renders skeleton cards when isLoading=true', () => {
-      mockUsePaperless.mockReturnValue(makeHook({ isLoading: true }));
+    it('renders skeleton cards while the first batch is loading (no documents yet)', () => {
+      mockUsePaperless.mockReturnValue(
+        makeHook({ listStatus: 'loading', documents: [], fetchSequence: 0 }),
+      );
       const { container } = render(<DocumentBrowser />);
       const skeletons = container.querySelectorAll('[aria-hidden="true"]');
       expect(skeletons.length).toBeGreaterThan(0);
     });
 
-    it('grid has aria-busy="true" when isLoading=true', () => {
-      mockUsePaperless.mockReturnValue(makeHook({ isLoading: true }));
+    it('grid has aria-busy="true" while the first batch is loading', () => {
+      mockUsePaperless.mockReturnValue(
+        makeHook({ listStatus: 'loading', documents: [], fetchSequence: 0 }),
+      );
       render(<DocumentBrowser />);
       const grid = screen.getByRole('list', { name: 'Documents' });
       expect(grid).toHaveAttribute('aria-busy', 'true');
@@ -264,10 +268,9 @@ describe('DocumentBrowser', () => {
   });
 
   describe('error state', () => {
-    it('renders error message with retry button when error is set', () => {
-      const refresh = jest.fn();
+    it('renders error message with retry button when the first batch failed', () => {
       mockUsePaperless.mockReturnValue(
-        makeHook({ error: 'Something went wrong', documents: [], refresh }),
+        makeHook({ error: 'Something went wrong', listStatus: 'error', documents: [] }),
       );
       render(<DocumentBrowser />);
       expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -275,12 +278,24 @@ describe('DocumentBrowser', () => {
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
     });
 
-    it('calls refresh when Try Again is clicked in error state', () => {
+    it('calls retry (re-requests the failed page, not refresh) when Try Again is clicked', () => {
+      const retry = jest.fn();
       const refresh = jest.fn();
-      mockUsePaperless.mockReturnValue(makeHook({ error: 'Error', documents: [], refresh }));
+      mockUsePaperless.mockReturnValue(
+        makeHook({ error: 'Error', listStatus: 'error', documents: [], retry, refresh }),
+      );
       render(<DocumentBrowser />);
       fireEvent.click(screen.getByRole('button', { name: /try again/i }));
-      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(retry).toHaveBeenCalledTimes(1);
+      expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it('with documents already loaded, a failed later batch keeps the grid and shows the footer alert instead of the full-page error', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ error: 'later failure', listStatus: 'error' }));
+      render(<DocumentBrowser />);
+      expect(screen.getByRole('button', { name: /Document: Document 1/i })).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent(/failed to load more/i);
+      expect(screen.queryByText('later failure')).not.toBeInTheDocument();
     });
   });
 
@@ -608,57 +623,152 @@ describe('DocumentBrowser', () => {
     });
   });
 
-  describe('pagination', () => {
-    it('does not render pagination when totalPages <= 1', () => {
-      mockUsePaperless.mockReturnValue(makeHook({ pagination: makePagination(1, 1, 2) }));
+  describe('infinite scroll rendering', () => {
+    it('does not render any pager: no navigation role, no "Page N of M", no Previous/Next', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ listStatus: 'idle', hasMore: true }));
       render(<DocumentBrowser />);
-      expect(
-        screen.queryByRole('navigation', { name: /Document pagination/i }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+      expect(screen.queryByText(/page \d+ of/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /previous|next/i })).not.toBeInTheDocument();
     });
 
-    it('renders pagination nav when totalPages > 1', () => {
-      mockUsePaperless.mockReturnValue(makeHook({ pagination: makePagination(1, 3, 75) }));
+    it('renders the footer with a Load more button when idle and hasMore', () => {
+      const loadMore = jest.fn();
+      mockUsePaperless.mockReturnValue(makeHook({ listStatus: 'idle', hasMore: true, loadMore }));
       render(<DocumentBrowser />);
-      expect(screen.getByRole('navigation', { name: /Document pagination/i })).toBeInTheDocument();
+      expect(screen.getByTestId('paperless-documents-footer')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('paperless-documents-load-more-button'));
+      expect(loadMore).toHaveBeenCalledTimes(1);
     });
 
-    it('renders current page info', () => {
-      mockUsePaperless.mockReturnValue(makeHook({ pagination: makePagination(2, 5, 125) }));
-      render(<DocumentBrowser />);
-      expect(screen.getByText(/Page 2 of 5/i)).toBeInTheDocument();
-    });
-
-    it('calls setPage with page-1 when Previous is clicked', () => {
-      const setPage = jest.fn();
+    it('wires the hook sentinelRef to the footer sentinel', () => {
+      const sentinelRef = jest.fn();
       mockUsePaperless.mockReturnValue(
-        makeHook({ pagination: makePagination(2, 5, 125), setPage }),
+        makeHook({ listStatus: 'idle', hasMore: true, sentinelRef }),
       );
       render(<DocumentBrowser />);
-      fireEvent.click(screen.getByRole('button', { name: /previous page/i }));
-      expect(setPage).toHaveBeenCalledWith(1);
+      expect(sentinelRef).toHaveBeenCalledWith(screen.getByTestId('paperless-documents-sentinel'));
     });
 
-    it('calls setPage with page+1 when Next is clicked', () => {
-      const setPage = jest.fn();
+    it('shows the end-of-list message when the list is done', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ listStatus: 'done', hasMore: false }));
+      render(<DocumentBrowser />);
+      expect(screen.getByTestId('paperless-documents-end-of-list')).toBeInTheDocument();
+    });
+
+    it('footer Retry calls hook.retry when a later batch failed', () => {
+      const retry = jest.fn();
       mockUsePaperless.mockReturnValue(
-        makeHook({ pagination: makePagination(2, 5, 125), setPage }),
+        makeHook({ listStatus: 'error', hasMore: true, retry, error: 'x' }),
       );
       render(<DocumentBrowser />);
-      fireEvent.click(screen.getByRole('button', { name: /next page/i }));
-      expect(setPage).toHaveBeenCalledWith(3);
+      fireEvent.click(screen.getByTestId('paperless-documents-load-more-button'));
+      expect(retry).toHaveBeenCalledTimes(1);
     });
 
-    it('disables Previous button on first page', () => {
-      mockUsePaperless.mockReturnValue(makeHook({ pagination: makePagination(1, 3, 75) }));
+    it('renders no footer in the empty state (AC14)', () => {
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [], fetchSequence: 1 }));
       render(<DocumentBrowser />);
-      expect(screen.getByRole('button', { name: /previous page/i })).toBeDisabled();
+      expect(screen.queryByTestId('paperless-documents-footer')).not.toBeInTheDocument();
     });
 
-    it('disables Next button on last page', () => {
-      mockUsePaperless.mockReturnValue(makeHook({ pagination: makePagination(3, 3, 75) }));
+    it('auto-advances (calls loadMore) when every loaded document is hidden and more remain (AC11)', () => {
+      const loadMore = jest.fn();
+      mockUsePaperless.mockReturnValue(
+        makeHook({
+          listStatus: 'idle',
+          hasMore: true,
+          loadMore,
+          documents: [makeDoc(1), makeDoc(2)],
+        }),
+      );
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} defaultHideLinked />);
+      expect(loadMore).toHaveBeenCalled();
+    });
+
+    it('does not auto-advance when something is visible', () => {
+      const loadMore = jest.fn();
+      mockUsePaperless.mockReturnValue(makeHook({ listStatus: 'idle', hasMore: true, loadMore }));
+      render(<DocumentBrowser linkedDocumentIds={[1]} defaultHideLinked />);
+      expect(loadMore).not.toHaveBeenCalled();
+    });
+
+    it('does not auto-advance while a fetch is loading or when no more remain', () => {
+      const loadMore = jest.fn();
+      mockUsePaperless.mockReturnValue(
+        makeHook({ listStatus: 'loading', hasMore: true, loadMore }),
+      );
+      const { unmount } = render(<DocumentBrowser linkedDocumentIds={[1, 2]} defaultHideLinked />);
+      unmount();
+      mockUsePaperless.mockReturnValue(makeHook({ listStatus: 'done', hasMore: false, loadMore }));
+      render(<DocumentBrowser linkedDocumentIds={[1, 2]} defaultHideLinked />);
+      expect(loadMore).not.toHaveBeenCalled();
+    });
+
+    it('forwards the correspondentId prop to hook.setCorrespondent', () => {
+      const setCorrespondent = jest.fn();
+      mockUsePaperless.mockReturnValue(makeHook({ setCorrespondent }));
+      const { rerender } = render(<DocumentBrowser correspondentId={5} />);
+      expect(setCorrespondent).toHaveBeenLastCalledWith(5);
+      rerender(<DocumentBrowser correspondentId={null} />);
+      expect(setCorrespondent).toHaveBeenLastCalledWith(null);
+    });
+
+    it('passes a scrollRoot (nearest scrollable ancestor) to usePaperless', () => {
+      const scroller = document.createElement('div');
+      scroller.style.overflowY = 'auto';
+      document.body.appendChild(scroller);
+      render(<DocumentBrowser />, {
+        container: scroller.appendChild(document.createElement('div')),
+      });
+      const calls = mockUsePaperless.mock.calls as unknown as [{ scrollRoot: Element | null }][];
+      expect(calls[calls.length - 1]![0].scrollRoot).toBe(scroller);
+      scroller.remove();
+    });
+
+    it('resets the scroll container to the top when resetKey changes, but not on first render', () => {
+      const scroller = document.createElement('div');
+      scroller.style.overflowY = 'auto';
+      document.body.appendChild(scroller);
+      mockUsePaperless.mockReturnValue(makeHook({ resetKey: 'a' }));
+      const { rerender } = render(<DocumentBrowser />, {
+        container: scroller.appendChild(document.createElement('div')),
+      });
+      scroller.scrollTop = 120;
+      rerender(<DocumentBrowser />);
+      expect(scroller.scrollTop).toBe(120);
+
+      mockUsePaperless.mockReturnValue(makeHook({ resetKey: 'b' }));
+      rerender(<DocumentBrowser />);
+      expect(scroller.scrollTop).toBe(0);
+      scroller.remove();
+    });
+
+    it('scrolls the browser into view on reset when the viewport scrolls and the browser is above the fold', () => {
+      const scrollIntoView = jest.fn();
+      const original = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = scrollIntoView;
+      const rectSpy = jest
+        .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+        .mockReturnValue({ top: -50 } as DOMRect);
+      mockUsePaperless.mockReturnValue(makeHook({ resetKey: 'a' }));
+      const { rerender } = render(<DocumentBrowser />);
+      expect(scrollIntoView).not.toHaveBeenCalled();
+
+      mockUsePaperless.mockReturnValue(makeHook({ resetKey: 'b' }));
+      rerender(<DocumentBrowser />);
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start' });
+
+      rectSpy.mockRestore();
+      Element.prototype.scrollIntoView = original;
+    });
+
+    it('clear filters resets the search query', () => {
+      const search = jest.fn();
+      mockUsePaperless.mockReturnValue(makeHook({ documents: [], query: 'invoice', search }));
       render(<DocumentBrowser />);
-      expect(screen.getByRole('button', { name: /next page/i })).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: /Clear Filters/i }));
+      expect(search).toHaveBeenCalledWith('');
     });
   });
 });

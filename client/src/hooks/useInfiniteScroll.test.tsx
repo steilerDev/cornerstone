@@ -22,8 +22,10 @@ import { useInfiniteScroll } from './useInfiniteScroll.js';
 class MockIntersectionObserver {
   static instances: MockIntersectionObserver[] = [];
   callback: IntersectionObserverCallback;
-  constructor(cb: IntersectionObserverCallback) {
+  options: IntersectionObserverInit | undefined;
+  constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
     this.callback = cb;
+    this.options = options;
     MockIntersectionObserver.instances.push(this);
   }
   observe = jest.fn();
@@ -554,5 +556,170 @@ describe('useInfiniteScroll', () => {
     expect(fetchPageB).not.toHaveBeenCalled();
     expect(fetchPageA).toHaveBeenCalledTimes(1);
     expect(result.current.status).toBe('idle');
+  });
+
+  // ─── root option (#2101) ─────────────────────────────────────────────────────
+
+  describe('root option', () => {
+    it('passes root: null and the 600px lookahead to the IntersectionObserver when no root is given', async () => {
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockResolvedValue(page(['a'], true));
+      renderWithSentinel({ fetchPage, resetKey: 'k' });
+      await waitFor(() => expect(MockIntersectionObserver.instances.length).toBeGreaterThan(0));
+
+      const opts = MockIntersectionObserver.instances[0]!.options!;
+      expect(opts.root).toBeNull();
+      expect(opts.rootMargin).toBe('0px 0px 600px 0px');
+    });
+
+    it('passes the given root element to the IntersectionObserver options', async () => {
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockResolvedValue(page(['a'], true));
+      const rootEl = document.createElement('div');
+      function Harness() {
+        const hook = useInfiniteScroll<string>({ fetchPage, resetKey: 'k', root: rootEl });
+        return <div ref={hook.sentinelRef} />;
+      }
+      render(<Harness />);
+      await waitFor(() => expect(MockIntersectionObserver.instances.length).toBeGreaterThan(0));
+
+      expect(MockIntersectionObserver.instances[0]!.options!.root).toBe(rootEl);
+    });
+
+    it('recreates the observer (disconnecting the old one) when root changes', async () => {
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockResolvedValue(page(['a'], true));
+      const rootA = document.createElement('div');
+      const rootB = document.createElement('div');
+      function Harness({ root }: { root: Element | null }) {
+        const hook = useInfiniteScroll<string>({ fetchPage, resetKey: 'k', root });
+        return <div ref={hook.sentinelRef} />;
+      }
+      const view = render(<Harness root={rootA} />);
+      await waitFor(() => expect(MockIntersectionObserver.instances.length).toBe(1));
+      const first = MockIntersectionObserver.instances[0]!;
+
+      view.rerender(<Harness root={rootB} />);
+
+      await waitFor(() => expect(MockIntersectionObserver.instances.length).toBe(2));
+      expect(first.disconnect).toHaveBeenCalled();
+      expect(MockIntersectionObserver.instances[1]!.options!.root).toBe(rootB);
+    });
+
+    it('does not fetch again when only root changes', async () => {
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockResolvedValue(page(['a'], true));
+      function Harness({ root }: { root: Element | null }) {
+        const hook = useInfiniteScroll<string>({ fetchPage, resetKey: 'k', root });
+        return <div ref={hook.sentinelRef} />;
+      }
+      const view = render(<Harness root={null} />);
+      await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(1));
+      view.rerender(<Harness root={document.createElement('div')} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(fetchPage).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── enabled option (#2101) ──────────────────────────────────────────────────
+
+  describe('enabled option', () => {
+    it('enabled:false issues no fetch and holds status at "loading"', async () => {
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockResolvedValue(page(['a'], true));
+
+      const { result } = renderHook(() =>
+        useInfiniteScroll({ fetchPage, resetKey: 'k', enabled: false }),
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(fetchPage).not.toHaveBeenCalled();
+      expect(result.current.status).toBe('loading');
+      expect(result.current.items).toEqual([]);
+    });
+
+    it('flipping enabled to true fetches page 1 exactly once', async () => {
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      fetchPage.mockResolvedValue(page(['a', 'b'], true));
+
+      const { result, rerender } = renderHook(
+        ({ enabled }: { enabled: boolean }) =>
+          useInfiniteScroll({ fetchPage, resetKey: 'k', enabled }),
+        { initialProps: { enabled: false } },
+      );
+      expect(fetchPage).not.toHaveBeenCalled();
+
+      rerender({ enabled: true });
+
+      await waitFor(() => expect(result.current.status).toBe('idle'));
+      expect(fetchPage).toHaveBeenCalledTimes(1);
+      expect(fetchPage).toHaveBeenCalledWith(1);
+      expect(result.current.items).toEqual(['a', 'b']);
+    });
+
+    it('loadMore() while disabled is a no-op (status is "loading", not "idle")', () => {
+      const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+      const { result } = renderHook(() =>
+        useInfiniteScroll({ fetchPage, resetKey: 'k', enabled: false }),
+      );
+      act(() => result.current.loadMore());
+      expect(fetchPage).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── re-observe after each batch (#2101) ─────────────────────────────────────
+
+  it('after each applied batch, unobserve + observe are re-called on the sentinel', async () => {
+    const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+    fetchPage.mockResolvedValueOnce(page(['a'], true));
+    fetchPage.mockResolvedValueOnce(page(['b'], true));
+
+    const view = renderWithSentinel({ fetchPage, resetKey: 'k' });
+    await waitFor(() => expect(view.latest().status).toBe('idle'));
+
+    const observer =
+      MockIntersectionObserver.instances[MockIntersectionObserver.instances.length - 1]!;
+    const sentinel = view.getByTestId('sentinel');
+    expect(observer.unobserve).toHaveBeenCalledTimes(1);
+    expect(observer.unobserve).toHaveBeenLastCalledWith(sentinel);
+    // initial observe + one re-observe
+    expect(observer.observe).toHaveBeenCalledTimes(2);
+
+    act(() => view.latest().loadMore());
+    await waitFor(() => expect(view.latest().fetchSequence).toBe(2));
+
+    expect(observer.unobserve).toHaveBeenCalledTimes(2);
+    expect(observer.observe).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not re-observe before any batch has been applied', async () => {
+    const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+    fetchPage.mockReturnValue(new Promise(() => undefined));
+
+    renderWithSentinel({ fetchPage, resetKey: 'k' });
+    await waitFor(() => expect(MockIntersectionObserver.instances.length).toBe(1));
+
+    expect(MockIntersectionObserver.instances[0]!.unobserve).not.toHaveBeenCalled();
+    expect(MockIntersectionObserver.instances[0]!.observe).toHaveBeenCalledTimes(1);
+  });
+
+  // ─── IntersectionObserver unavailable (#2101) ────────────────────────────────
+
+  it('does not throw when IntersectionObserver is undefined and a sentinel is rendered', async () => {
+    (globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver = undefined;
+    const fetchPage = jest.fn<(p: number) => Promise<InfiniteScrollPage<string>>>();
+    fetchPage.mockResolvedValue(page(['a'], true));
+
+    const view = renderWithSentinel({ fetchPage, resetKey: 'k' });
+    await waitFor(() => expect(view.latest().status).toBe('idle'));
+
+    expect(MockIntersectionObserver.instances).toHaveLength(0);
+    // The "Load more" button path (loadMore) still works without an observer.
+    act(() => view.latest().loadMore());
+    await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2));
   });
 });

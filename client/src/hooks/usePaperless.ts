@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   PaperlessStatusResponse,
   PaperlessDocumentSearchResult,
   PaperlessTag,
-  PaginationMeta,
 } from '@cornerstone/shared';
 import {
   getPaperlessStatus,
@@ -11,48 +11,61 @@ import {
   listPaperlessTags,
 } from '../lib/paperlessApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { useInfiniteScroll } from './useInfiniteScroll.js';
+import type { InfiniteScrollStatus } from './useInfiniteScroll.js';
+
+/** Documents per batch (matches the server default page size). */
+export const PAPERLESS_DOCUMENT_BATCH_SIZE = 25;
 
 export interface UsePaperlessOptions {
   correspondentId?: number | null;
+  /** IntersectionObserver root for the document list sentinel (null = viewport). */
+  scrollRoot?: Element | null;
 }
 
 export interface UsePaperlessResult {
   status: PaperlessStatusResponse | null;
+  /** Accumulated documents across all loaded batches, de-duplicated by id (first occurrence wins). */
   documents: PaperlessDocumentSearchResult[];
   tags: PaperlessTag[];
-  pagination: PaginationMeta | null;
-  isLoading: boolean;
+  listStatus: InfiniteScrollStatus;
+  hasMore: boolean;
+  lastBatchCount: number;
+  fetchSequence: number;
+  sentinelRef: (node: HTMLDivElement | null) => void;
+  loadMore: () => void;
+  retry: () => void;
+  /** Message of the most recent current (non-stale) failed batch; null otherwise. */
   error: string | null;
   query: string;
   selectedTags: number[];
   tagCountMap: Map<number, number>;
+  /** Changes whenever the list resets to a fresh first batch. */
+  resetKey: string;
   search: (q: string) => void;
   toggleTag: (tagId: number) => void;
-  setPage: (page: number) => void;
   setCorrespondent: (id: number | null) => void;
   refresh: () => void;
 }
 
 /**
- * Manages Paperless-ngx connection status, document list, tags, search, and pagination.
+ * Manages Paperless-ngx connection status, the infinitely-scrolled document list, tags and search.
  *
  * Phase 1: fetches status on mount.
- * Phase 2: fetches documents + tags when status is configured + reachable, or when
- * query/selectedTags/page/correspondent/fetchCount changes.
+ * Phase 2 (once Paperless is configured + reachable):
+ *  - tags are fetched in their own effect (a tags failure is non-fatal and does not affect the list);
+ *  - documents are loaded in batches via `useInfiniteScroll`, which resets to a fresh first batch
+ *    whenever the query, selected tags, correspondent or refresh counter change.
  */
 export function usePaperless(options?: UsePaperlessOptions): UsePaperlessResult {
+  const { t } = useTranslation('documents');
   const [status, setStatus] = useState<PaperlessStatusResponse | null>(null);
-  const [documents, setDocuments] = useState<PaperlessDocumentSearchResult[]>([]);
   const [tags, setTags] = useState<PaperlessTag[]>([]);
-  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
-  const [page, setPage] = useState(1);
-  const [fetchCount, setFetchCount] = useState(0);
-  const [tagCountMap, setTagCountMap] = useState<Map<number, number>>(() => new Map());
-  const [correspondentId, setCorrespondentIdState] = useState<number | null>(
+  const [refreshCount, setRefreshCount] = useState(0);
+  const [correspondentId, setCorrespondentId] = useState<number | null>(
     options?.correspondentId ?? null,
   );
 
@@ -83,105 +96,127 @@ export function usePaperless(options?: UsePaperlessOptions): UsePaperlessResult 
     };
   }, []);
 
-  // Phase 2: fetch documents + tags when status changes or fetchCount triggers
+  const ready = status !== null && status.configured && status.reachable;
+
+  // Phase 2a: tags (independent of the document list; failure is non-fatal)
   useEffect(() => {
-    if (status === null) return;
-
-    if (!status.configured || !status.reachable) {
-      /* eslint-disable @eslint-react/set-state-in-effect -- clearing loading state when Paperless is not configured/reachable */
-      setIsLoading(false);
-      setTagCountMap(new Map());
-      /* eslint-enable @eslint-react/set-state-in-effect */
-      return;
-    }
-
+    if (!ready) return;
     let cancelled = false;
 
-    async function loadData() {
-      setIsLoading(true);
-      setError(null);
-
+    async function loadTags() {
       try {
-        const tagsStr = selectedTags.length > 0 ? selectedTags.join(',') : undefined;
-        const [docsResponse, tagsResponse] = await Promise.all([
-          listPaperlessDocuments({
-            query: query || undefined,
-            tags: tagsStr,
-            correspondent: correspondentId ?? undefined,
-            page,
-          }),
-          listPaperlessTags(),
-        ]);
-
-        if (!cancelled) {
-          setDocuments(docsResponse.documents);
-          setPagination(docsResponse.pagination);
-          setTags(tagsResponse.tags);
-
-          // Compute tag count map from returned documents
-          const countMap = new Map<number, number>();
-          for (const doc of docsResponse.documents) {
-            for (const tag of doc.tags) {
-              countMap.set(tag.id, (countMap.get(tag.id) ?? 0) + 1);
-            }
-          }
-          setTagCountMap(countMap);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          if (err instanceof ApiClientError) {
-            setError(err.error.message ?? 'Failed to load documents.');
-          } else if (err instanceof NetworkError) {
-            setError('Network error: Unable to connect to the server.');
-          } else {
-            setError('An unexpected error occurred.');
-          }
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
+        const res = await listPaperlessTags();
+        if (!cancelled) setTags(res.tags);
+      } catch {
+        if (!cancelled) setTags([]);
       }
     }
 
-    void loadData();
+    void loadTags();
     return () => {
       cancelled = true;
     };
-  }, [status, query, selectedTags, page, correspondentId, fetchCount]);
+  }, [ready, refreshCount]);
+
+  const resetKey = `${query}|${[...selectedTags].sort((a, b) => a - b).join(',')}|${correspondentId ?? ''}|${refreshCount}`;
+
+  // Pure: no setState here — fetchPage side effects are not epoch-guarded.
+  const fetchPage = useCallback(
+    async (page: number) => {
+      const res = await listPaperlessDocuments({
+        query: query || undefined,
+        tags: selectedTags.length > 0 ? selectedTags.join(',') : undefined,
+        correspondent: correspondentId ?? undefined,
+        page,
+        pageSize: PAPERLESS_DOCUMENT_BATCH_SIZE,
+      });
+      return {
+        items: res.documents,
+        hasMore: res.documents.length > 0 && page < res.pagination.totalPages,
+      };
+    },
+    [query, selectedTags, correspondentId],
+  );
+
+  const errorMessage = useCallback(
+    (err: unknown): string => {
+      if (err instanceof ApiClientError) {
+        return err.error.message ?? t('browser.loadErrorUnexpected');
+      }
+      if (err instanceof NetworkError) return t('browser.loadErrorNetwork');
+      return t('browser.loadErrorUnexpected');
+    },
+    [t],
+  );
+
+  const list = useInfiniteScroll<PaperlessDocumentSearchResult>({
+    fetchPage,
+    resetKey,
+    enabled: ready,
+    root: options?.scrollRoot ?? null,
+    onPageApplied: () => setError(null),
+    onPageFailed: (err) => setError(errorMessage(err)),
+  });
+
+  // Defence in depth against duplicates across batches (first occurrence wins).
+  const documents = useMemo(() => {
+    const seen = new Set<number>();
+    const result: PaperlessDocumentSearchResult[] = [];
+    for (const doc of list.items) {
+      if (seen.has(doc.id)) continue;
+      seen.add(doc.id);
+      result.push(doc);
+    }
+    return result;
+  }, [list.items]);
+
+  // Tag counts across the loaded documents
+  const tagCountMap = useMemo(() => {
+    const countMap = new Map<number, number>();
+    for (const doc of documents) {
+      for (const tag of doc.tags) {
+        countMap.set(tag.id, (countMap.get(tag.id) ?? 0) + 1);
+      }
+    }
+    return countMap;
+  }, [documents]);
 
   const search = useCallback((q: string) => {
     setQuery(q);
-    setPage(1);
   }, []);
 
   const toggleTag = useCallback((tagId: number) => {
     setSelectedTags((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
     );
-    setPage(1);
-  }, []);
-
-  const refresh = useCallback(() => {
-    setFetchCount((c) => c + 1);
   }, []);
 
   const setCorrespondent = useCallback((id: number | null) => {
-    setCorrespondentIdState(id);
-    setPage(1);
+    setCorrespondentId(id);
+  }, []);
+
+  const refresh = useCallback(() => {
+    setRefreshCount((c) => c + 1);
   }, []);
 
   return {
     status,
     documents,
     tags,
-    pagination,
-    isLoading,
+    listStatus: list.status,
+    hasMore: list.hasMore,
+    lastBatchCount: list.lastBatchCount,
+    fetchSequence: list.fetchSequence,
+    sentinelRef: list.sentinelRef,
+    loadMore: list.loadMore,
+    retry: list.retry,
     error,
     query,
     selectedTags,
     tagCountMap,
+    resetKey,
     search,
     toggleTag,
-    setPage,
     setCorrespondent,
     refresh,
   };
