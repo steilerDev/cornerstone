@@ -7,7 +7,7 @@
  * callers translate and pass the resolved strings), so no i18n bootstrap is needed here.
  */
 import { jest, describe, it, expect } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { InfiniteScrollFooter } from './InfiniteScrollFooter.js';
 import styles from './InfiniteScrollFooter.module.css';
@@ -65,17 +65,114 @@ describe('InfiniteScrollFooter', () => {
 
   // ─── loading ─────────────────────────────────────────────────────────────────
 
-  it('loading: the button is disabled and shows a spinner + loadingLabel inside it, with no separate status row', () => {
+  it('loading: the button is aria-disabled (not natively disabled, so focus is kept) and shows a spinner + loadingLabel inside it, with no separate status row', () => {
     renderFooter({ status: 'loading' });
 
     const button = screen.getByTestId('infinite-scroll-load-more-button');
-    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toHaveAttribute('disabled');
     expect(button).toHaveTextContent('Loading more entries…');
 
     // Exactly one occurrence of the loading copy — the standalone status row
     // (duplicated rendering) was removed; only the button's own label remains.
     expect(screen.getAllByText('Loading more entries…')).toHaveLength(1);
     expect(screen.getByRole('img', { name: 'Loading more diary entries' })).toBeInTheDocument();
+  });
+
+  it('loading: clicking the button calls neither onLoadMore nor onRetry', async () => {
+    const user = userEvent.setup();
+    const { onLoadMore, onRetry } = renderFooter({ status: 'loading' });
+
+    await user.click(screen.getByTestId('infinite-scroll-load-more-button'));
+
+    expect(onLoadMore).not.toHaveBeenCalled();
+    expect(onRetry).not.toHaveBeenCalled();
+  });
+
+  it('idle and error: the button has no aria-disabled attribute', () => {
+    const view = renderFooter({ status: 'idle' });
+    expect(screen.getByTestId('infinite-scroll-load-more-button')).not.toHaveAttribute(
+      'aria-disabled',
+    );
+    view.rerender(
+      <InfiniteScrollFooter
+        status="error"
+        {...LABELS}
+        sentinelRef={view.sentinelRef}
+        onLoadMore={view.onLoadMore}
+        onRetry={view.onRetry}
+      />,
+    );
+    expect(screen.getByTestId('infinite-scroll-load-more-button')).not.toHaveAttribute(
+      'aria-disabled',
+    );
+  });
+
+  // ─── focus handoff ───────────────────────────────────────────────────────────
+
+  describe('focus handoff', () => {
+    function rerenderWith(
+      view: ReturnType<typeof renderFooter>,
+      status: InfiniteScrollFooterProps['status'],
+    ) {
+      view.rerender(
+        <InfiniteScrollFooter
+          status={status}
+          {...LABELS}
+          sentinelRef={view.sentinelRef}
+          onLoadMore={view.onLoadMore}
+          onRetry={view.onRetry}
+        />,
+      );
+    }
+
+    it('a focused button stays focused while status flips idle -> loading (aria-disabled, not disabled)', () => {
+      const view = renderFooter({ status: 'idle' });
+      const button = screen.getByTestId('infinite-scroll-load-more-button');
+      act(() => button.focus());
+      expect(button).toHaveFocus();
+
+      rerenderWith(view, 'loading');
+
+      expect(screen.getByTestId('infinite-scroll-load-more-button')).toHaveFocus();
+    });
+
+    it('moves focus to the end-of-list element (tabIndex=-1) when the focused button unmounts on done', () => {
+      const view = renderFooter({ status: 'idle' });
+      act(() => screen.getByTestId('infinite-scroll-load-more-button').focus());
+
+      rerenderWith(view, 'done');
+
+      const end = screen.getByTestId('infinite-scroll-end-of-list');
+      expect(end).toHaveAttribute('tabindex', '-1');
+      expect(end).toHaveFocus();
+    });
+
+    it('does not steal focus when the button was not focused', () => {
+      const outside = document.createElement('input');
+      document.body.appendChild(outside);
+      const view = renderFooter({ status: 'idle' });
+      outside.focus();
+
+      rerenderWith(view, 'done');
+
+      expect(outside).toHaveFocus();
+      expect(screen.getByTestId('infinite-scroll-end-of-list')).not.toHaveFocus();
+      outside.remove();
+    });
+
+    it('does not steal focus after the button was blurred', () => {
+      const outside = document.createElement('input');
+      document.body.appendChild(outside);
+      const view = renderFooter({ status: 'idle' });
+      act(() => screen.getByTestId('infinite-scroll-load-more-button').focus());
+      act(() => outside.focus());
+
+      rerenderWith(view, 'done');
+
+      expect(outside).toHaveFocus();
+      outside.remove();
+    });
   });
 
   // ─── error ───────────────────────────────────────────────────────────────────

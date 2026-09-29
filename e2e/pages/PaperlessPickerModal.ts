@@ -66,11 +66,34 @@ export class PaperlessPickerModal {
    */
   readonly documentGrid: Locator;
 
-  constructor(page: Page) {
+  /** Document cards (listitems) currently rendered in the grid. */
+  readonly documentItems: Locator;
+
+  /** Infinite-scroll footer (testIdPrefix="paperless-documents"). */
+  readonly footer: Locator;
+
+  /** Zero-height IntersectionObserver sentinel inside the footer (aria-hidden). */
+  readonly sentinel: Locator;
+
+  /** "Load more" / "Retry" button; label switches with footer status. */
+  readonly loadMoreButton: Locator;
+
+  /** End-of-list message; receives focus when the last batch loads while Load more was focused. */
+  readonly endOfListMessage: Locator;
+
+  /** Footer error banner (FormError, role="alert") shown when an appended batch fails. */
+  readonly footerError: Locator;
+
+  /**
+   * @param page - Playwright page
+   * @param dialogName - Accessible name of the hosting dialog. Defaults to the invoice picker
+   *   ("Select Invoice Document"); pass 'Add Document' for the LinkedDocumentsSection picker.
+   */
+  constructor(page: Page, dialogName: RegExp | string = /Select Invoice Document/i) {
     this.page = page;
 
-    // Modal is identified by its title heading "Select Invoice Document"
-    this.modal = page.getByRole('dialog', { name: /Select Invoice Document/i });
+    // Modal is identified by its title heading (default: "Select Invoice Document")
+    this.modal = page.getByRole('dialog', { name: dialogName });
 
     // Manual entry escape button
     this.manualEntryButton = this.modal.getByRole('button', {
@@ -100,6 +123,38 @@ export class PaperlessPickerModal {
     // Document grid rendered by DocumentBrowser inside the modal
     // id="document-grid" is constant (GRID_ID in DocumentBrowser.tsx)
     this.documentGrid = this.modal.locator('#document-grid');
+    this.documentItems = this.documentGrid.getByRole('listitem');
+
+    // Infinite-scroll footer — data-testid prefix "paperless-documents" (DocumentBrowser.tsx)
+    this.footer = this.modal.getByTestId('paperless-documents-footer');
+    this.sentinel = this.modal.getByTestId('paperless-documents-sentinel');
+    this.loadMoreButton = this.modal.getByTestId('paperless-documents-load-more-button');
+    this.endOfListMessage = this.modal.getByTestId('paperless-documents-end-of-list');
+    this.footerError = this.footer.getByRole('alert');
+  }
+
+  /**
+   * Scroll the grid's nearest scrollable ancestor (the picker's own scroller: `.pickerBody` in
+   * LinkedDocumentsSection, `.modalBody` in InvoicePaperlessPickerModal) to its bottom, which
+   * brings the footer sentinel within the observer's lookahead. No-op when nothing scrolls.
+   */
+  async scrollToBottom(): Promise<void> {
+    await this.documentGrid.evaluate((grid) => {
+      let node: HTMLElement | null = grid.parentElement;
+      while (node && node !== document.body) {
+        const overflowY = getComputedStyle(node).overflowY;
+        if (
+          (overflowY === 'auto' || overflowY === 'scroll') &&
+          node.scrollHeight > node.clientHeight
+        ) {
+          node.scrollTop = node.scrollHeight;
+          return;
+        }
+        node = node.parentElement;
+      }
+      // No inner scroller (e.g. a full-screen modal on mobile): the document itself scrolls
+      window.scrollTo(0, document.body.scrollHeight);
+    });
   }
 
   /**
@@ -123,11 +178,11 @@ export class PaperlessPickerModal {
   async waitForDocumentsLoaded(): Promise<void> {
     // Step 1: wait for the grid element to appear in the DOM and become visible.
     // This covers stage 1 (status check) since the grid isn't mounted until status resolves.
-    // NOTE: the grid only mounts after usePaperless Phase 1 (status check) AND Phase 2
-    // (documents+tags fetch via Promise.all) complete. All three Paperless mock endpoints
-    // (/api/paperless/status, /api/paperless/documents, /api/paperless/tags) MUST be
-    // registered before the picker modal is opened, otherwise the Promise.all rejects and
-    // DocumentBrowser renders the error state instead of the grid.
+    // NOTE: the grid only mounts after usePaperless Phase 1 (status check) completes and the
+    // first documents batch resolves. Tags are fetched independently (no longer in a
+    // Promise.all with documents), so a failing tags request does not blank the grid — but
+    // register /api/paperless/status, /api/paperless/documents and /api/paperless/tags before
+    // opening the picker anyway to avoid unmocked requests hitting the real server.
     await this.documentGrid.waitFor({ state: 'visible' });
     // Step 2: wait for the loading state to clear (aria-busy transitions from "true" to "false").
     // This covers stage 2 (document fetch). 10s timeout is generous for a mocked endpoint.

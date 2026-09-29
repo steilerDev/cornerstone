@@ -18,11 +18,22 @@
  * 6.  Paperless not configured: "Not Configured" info state
  * 7.  Document detail panel opens when a card is clicked
  * 8.  Responsive: document browser renders without horizontal scroll
+ *
+ * Infinite scroll (Issue #2101), page-aware mock over a 30-document corpus:
+ * 9.  Linking modal loads a second batch on scroll (AC1, AC2, AC10, AC13; mobile project covers AC19)
+ * 10. Hide-linked auto-advance loads the next batch without user scroll (AC11)
+ * 11. Invoice picker (inner .modalBody scroller) loads a second batch (AC17)
+ * 12. Load-more keyboard flow: focus retained while loading, handed to end-of-list (AC20)
+ * 13. Append error shows a footer alert; Retry re-requests the same page (AC15)
+ * 14. The old pager is gone (AC5)
  */
 
 import type { Page, Route } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import { mockPaginatedPaperless } from '../../fixtures/paperlessPaginatedMock.js';
+import { PaperlessPickerModal } from '../../pages/PaperlessPickerModal.js';
+import { InvoicesPage } from '../../pages/InvoicesPage.js';
 
 // ─── Mock data ──────────────────────────────────────────────────────────────
 
@@ -405,6 +416,230 @@ test.describe('Document Browser — responsive (Scenario 8)', { tag: '@responsiv
       expect(hasHorizontalScroll).toBe(false);
     } finally {
       await cleanupPaperlessMocks(page);
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenarios 9–14: Infinite scroll (Issue #2101)
+// Routes are registered on the per-test `page`, so no unroute cleanup is needed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Navigate to a work item, open the "Add Document" picker, and return its POM. */
+async function openAddDocumentPicker(page: Page, workItemId: string) {
+  await page.goto(`/project/work-items/${workItemId}`);
+  await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
+  const addDocButton = page.getByRole('button', { name: '+ Add Document', exact: true });
+  await expect(addDocButton).toBeEnabled();
+  await addDocButton.click();
+  const picker = new PaperlessPickerModal(page, 'Add Document');
+  await picker.waitForVisible();
+  return picker;
+}
+
+test.describe('Document Browser — infinite scroll (Scenarios 9–14)', { tag: '@responsive' }, () => {
+  test.describe.configure({ timeout: 60_000 });
+
+  test('Scenario 9: scrolling the picker loads the second batch and shows the end of the list', async ({
+    page,
+    testPrefix,
+  }) => {
+    let createdId: string | null = null;
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} DocBrowser InfScroll Batch`,
+      });
+      const mock = await mockPaginatedPaperless(page, { total: 30 });
+
+      const picker = await openAddDocumentPicker(page, createdId);
+      await picker.waitForDocumentsLoaded();
+
+      // First batch is 25 cards; no end-of-list yet
+      await expect(picker.documentItems).toHaveCount(25);
+      await expect(picker.endOfListMessage).toHaveCount(0);
+      expect(mock.requestedPages).toEqual([1]);
+
+      // Scroll the picker's own scroll container to the bottom
+      await picker.scrollToBottom();
+
+      await expect(picker.documentItems).toHaveCount(30);
+      await expect(picker.endOfListMessage).toBeVisible();
+      expect(mock.requestedPages).toEqual([1, 2]);
+
+      // No duplicates and no gaps across batches (AC10): 30 distinct cards
+      const labels = await picker.documentItems
+        .getByRole('button')
+        .evaluateAll((els) => els.map((el) => el.getAttribute('aria-label') ?? ''));
+      expect(new Set(labels).size).toBe(30);
+      await expect(picker.getDocumentCard(mock.titleFor(30))).toBeVisible();
+
+      // The Load more button is gone once the list is complete
+      await expect(picker.loadMoreButton).toHaveCount(0);
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  test('Scenario 10: hide-linked auto-advances to the next batch without any scroll', async ({
+    page,
+    testPrefix,
+  }) => {
+    let createdId: string | null = null;
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} DocBrowser InfScroll AutoAdvance`,
+      });
+      // Every document of batch 1 (ids 1..25) is already linked elsewhere
+      const linkedIds = Array.from({ length: 25 }, (_, i) => i + 1);
+      const mock = await mockPaginatedPaperless(page, { total: 30, linkedIds });
+
+      const picker = await openAddDocumentPicker(page, createdId);
+
+      // Hide-linked is on by default: batch 1 is fully hidden, so batch 2 is requested on its own
+      await expect(picker.hideLinkedToggle).toBeChecked();
+      await expect(picker.documentItems).toHaveCount(5);
+      await expect(picker.getDocumentCard(mock.titleFor(26))).toBeVisible();
+      await expect(picker.getDocumentCard(mock.titleFor(1))).toHaveCount(0);
+      await expect(picker.endOfListMessage).toBeVisible();
+      expect(mock.requestedPages).toEqual([1, 2]);
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  test('Scenario 11: invoice picker modal loads the second batch on scroll', async ({ page }) => {
+    const mock = await mockPaginatedPaperless(page, { total: 30 });
+    // Enable auto-itemize so "New Invoice" opens the Paperless picker; keep the real config fields
+    await page.route('**/api/config', async (route: Route) => {
+      const realResp = await route.fetch();
+      const realBody = (await realResp.json()) as Record<string, unknown>;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ ...realBody, autoItemizeEnabled: true }),
+      });
+    });
+
+    const invoicesPage = new InvoicesPage(page);
+    await invoicesPage.goto();
+    await invoicesPage.waitForLoaded();
+    await invoicesPage.clickNewInvoice();
+    const picker = await invoicesPage.waitForPickerModal();
+    await picker.waitForDocumentsLoaded();
+
+    await expect(picker.documentItems).toHaveCount(25);
+    expect(mock.requestedPages).toEqual([1]);
+
+    await picker.scrollToBottom();
+
+    await expect(picker.documentItems).toHaveCount(30);
+    await expect(picker.endOfListMessage).toBeVisible();
+    expect(mock.requestedPages).toEqual([1, 2]);
+  });
+
+  test('Scenario 12: Load more keeps keyboard focus while loading and hands it to the end-of-list message', async ({
+    page,
+    testPrefix,
+  }) => {
+    // Stub IntersectionObserver so ONLY the button can trigger the next batch (same isolation
+    // technique as the Diary "Load more" keyboard test in diary-list.spec.ts).
+    await page.addInitScript(() => {
+      class StubIntersectionObserver implements IntersectionObserver {
+        readonly root: Element | Document | null = null;
+        readonly rootMargin = '';
+        readonly thresholds: ReadonlyArray<number> = [];
+        constructor(_callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {}
+        disconnect(): void {}
+        observe(): void {}
+        unobserve(): void {}
+        takeRecords(): IntersectionObserverEntry[] {
+          return [];
+        }
+      }
+      window.IntersectionObserver = StubIntersectionObserver;
+    });
+
+    let createdId: string | null = null;
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} DocBrowser InfScroll Keyboard`,
+      });
+      const mock = await mockPaginatedPaperless(page, { total: 30, delayPageGte2Ms: 300 });
+
+      const picker = await openAddDocumentPicker(page, createdId);
+      await picker.waitForDocumentsLoaded();
+      await expect(picker.documentItems).toHaveCount(25);
+      expect(mock.requestedPages).toEqual([1]);
+
+      await picker.loadMoreButton.focus();
+      await expect(picker.loadMoreButton).toBeFocused();
+      await page.keyboard.press('Enter');
+
+      // While the (delayed) batch loads the button stays focused: it uses aria-disabled rather
+      // than the disabled attribute (AC20).
+      await expect(picker.loadMoreButton).toHaveAttribute('aria-disabled', 'true');
+      await expect(picker.loadMoreButton).toBeFocused();
+
+      // Final batch lands: the button unmounts and focus moves to the end-of-list message
+      await expect(picker.documentItems).toHaveCount(30);
+      await expect(picker.endOfListMessage).toBeFocused();
+      const activeIsBody = await page.evaluate(() => document.activeElement === document.body);
+      expect(activeIsBody).toBe(false);
+      expect(mock.requestedPages).toEqual([1, 2]);
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  test('Scenario 13: a failed append shows an error with Retry that re-requests the same page', async ({
+    page,
+    testPrefix,
+  }) => {
+    let createdId: string | null = null;
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} DocBrowser InfScroll Retry`,
+      });
+      const mock = await mockPaginatedPaperless(page, { total: 30, failPage2Times: 1 });
+
+      const picker = await openAddDocumentPicker(page, createdId);
+      await picker.waitForDocumentsLoaded();
+      await expect(picker.documentItems).toHaveCount(25);
+
+      await picker.scrollToBottom();
+
+      // Page 2 answers 502: banner in the footer, loaded cards stay, button becomes Retry
+      await expect(picker.footerError).toHaveText('Failed to load more documents.');
+      await expect(picker.documentItems).toHaveCount(25);
+      await expect(picker.loadMoreButton).toHaveText('Retry');
+
+      await picker.loadMoreButton.click();
+
+      await expect(picker.documentItems).toHaveCount(30);
+      await expect(picker.endOfListMessage).toBeVisible();
+      expect(mock.requestedPages).toEqual([1, 2, 2]);
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+    }
+  });
+
+  test('Scenario 14: the old "Page N of M" pager is gone', async ({ page, testPrefix }) => {
+    let createdId: string | null = null;
+    try {
+      createdId = await createWorkItemViaApi(page, {
+        title: `${testPrefix} DocBrowser InfScroll NoPager`,
+      });
+      await mockPaginatedPaperless(page, { total: 30 });
+
+      const picker = await openAddDocumentPicker(page, createdId);
+      await picker.waitForDocumentsLoaded();
+      await expect(picker.documentItems).toHaveCount(25);
+
+      await expect(picker.modal.getByRole('navigation')).toHaveCount(0);
+      await expect(picker.modal.getByText(/Page \d+ of/)).toHaveCount(0);
+      await expect(picker.footer).toBeVisible();
+    } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
   });

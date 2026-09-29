@@ -265,43 +265,6 @@
   box-shadow: var(--shadow-focus-subtle);
 }
 
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-4);
-  padding: var(--spacing-3) 0;
-}
-
-.pageButton {
-  padding: var(--spacing-2) var(--spacing-4);
-  font-size: var(--font-size-sm);
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-}
-
-.pageButton:hover:not(:disabled) {
-  background-color: var(--color-bg-tertiary);
-}
-
-.pageButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.pageButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.pageInfo {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .tagChip {
     transition: none;
