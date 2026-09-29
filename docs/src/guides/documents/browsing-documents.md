@@ -32,9 +32,9 @@ Below the search bar, a tag strip shows all tags from your Paperless-ngx instanc
 
 Each tag chip shows the number of documents assigned to it. Active (selected) tags are visually highlighted.
 
-## Pagination
+## Scrolling Through Documents
 
-When your Paperless-ngx instance has more documents than fit on one page, pagination controls appear at the bottom of the grid. Use the **Previous** and **Next** buttons to navigate between pages.
+When your Paperless-ngx instance has many documents, the grid loads documents in batches as you scroll. Scroll down to the bottom of the grid and a **Load more** button appears. Click it to load additional documents, or continue scrolling to auto-load the next batch. If a batch is completely hidden by an active filter (e.g., when using **Hide already-linked documents**), new batches are loaded automatically so you can always find what you need.
 
 ## Document Detail Panel
 
