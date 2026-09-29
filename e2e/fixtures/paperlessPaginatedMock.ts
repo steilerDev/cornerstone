@@ -12,6 +12,14 @@
  */
 
 import type { Page, Route } from '@playwright/test';
+import type {
+  AllLinkedDocumentIdsResponse,
+  PaperlessCorrespondentListResponse,
+  PaperlessDocumentListResponse,
+  PaperlessDocumentSearchResult,
+  PaperlessStatusResponse,
+  PaperlessTagListResponse,
+} from '@cornerstone/shared';
 
 export const PAGINATED_STATUS_CONFIGURED = {
   configured: true,
@@ -19,7 +27,7 @@ export const PAGINATED_STATUS_CONFIGURED = {
   error: null,
   paperlessUrl: 'http://paperless.local:8000',
   filterTag: null,
-};
+} satisfies PaperlessStatusResponse;
 
 export interface PaginatedPaperlessMockOptions {
   /** Total documents in the synthetic corpus (ids 1..total). Default 30. */
@@ -44,7 +52,7 @@ const TRANSPARENT_PNG = Buffer.from(
   'base64',
 );
 
-function makeDocument(id: number, title: string) {
+function makeDocument(id: number, title: string): PaperlessDocumentSearchResult {
   return {
     id,
     title,
@@ -81,12 +89,14 @@ export async function mockPaginatedPaperless(
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
   await page.route('**/api/paperless/status', (route) => json(route, PAGINATED_STATUS_CONFIGURED));
-  await page.route('**/api/paperless/tags', (route) => json(route, { tags: [] }));
+  await page.route('**/api/paperless/tags', (route) =>
+    json(route, { tags: [] } satisfies PaperlessTagListResponse),
+  );
   await page.route('**/api/paperless/correspondents', (route) =>
-    json(route, { correspondents: [] }),
+    json(route, { correspondents: [] } satisfies PaperlessCorrespondentListResponse),
   );
   await page.route('**/api/document-links/linked-ids', (route) =>
-    json(route, { paperlessDocumentIds: linkedIds }),
+    json(route, { paperlessDocumentIds: linkedIds } satisfies AllLinkedDocumentIdsResponse),
   );
 
   await page.route(
@@ -126,7 +136,7 @@ export async function mockPaginatedPaperless(
           totalItems: total,
           totalPages: Math.ceil(total / pageSize),
         },
-      });
+      } satisfies PaperlessDocumentListResponse);
     },
   );
 

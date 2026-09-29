@@ -982,3 +982,13 @@ Verified sound and worth not re-deriving:
 Non-blocking: en-only worst-case token fixtures (#2003 asks for both locales); third forked
 `collectAllStrings`; `src/DocumentContext.js:528` vs ADR's `:490` citation drift (both correct — src vs
 js build — but name the file).
+
+## PR #2102 (#2101 Paperless infinite scroll) — 2026-09-29, REQUEST_CHANGES (own-token → comment)
+
+Second `useInfiniteScroll` consumer; hook gained `root`/`enabled` + re-observe-after-append. Server adds
+`ordering=<field>,id` tiebreaker EXCEPT for full-text (`query`) — Whoosh takes one sort field — so
+search pages remain unstable and the client dedups by id. That is a contract guarantee (and a
+non-guarantee): I wrote it into API-Contract.md myself (wiki `a994e1b`) and asked only for the
+submodule bump. Also asked for `satisfies` shared types on the new E2E page-aware mock. Deferred the
+forked live-region announcement logic (DiaryPage vs DocumentBrowser) as #2103. Lesson: a server
+ordering change made for pagination correctness is an API-contract item even with no new param.

@@ -39,6 +39,12 @@
   cursor: not-allowed;
 }
 
+/* aria-disabled is not natively disabled, so btnSecondary:hover:not(:disabled) still matches;
+   keep the resting background while loading. */
+.loadMoreButton[aria-disabled='true']:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
 @media (max-width: 767px) {
   .loadMoreButton {
     width: 100%;
