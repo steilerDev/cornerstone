@@ -18,6 +18,10 @@ export interface UseInfiniteScrollOptions<T, M = undefined> {
    * Fetches one batch for the given 1-based page number. Must reject (throw)
    * on failure. Read via a ref internally so a new function identity each
    * render does NOT retrigger a fetch — only `resetKey` changes do.
+   *
+   * Side effects inside `fetchPage` are NOT epoch-guarded: a stale (superseded) fetch
+   * still runs them. Use `onPageApplied` / `onPageFailed` for any state a discarded
+   * batch must not affect.
    */
   fetchPage: (page: number) => Promise<InfiniteScrollPage<T, M>>;
   /**
@@ -38,6 +42,10 @@ export interface UseInfiniteScrollOptions<T, M = undefined> {
    * current (i.e. not superseded by a resetKey change).
    */
   onPageFailed?: (error: unknown, page: number) => void;
+  /** Scroll container used as the IntersectionObserver root. null/undefined = viewport. */
+  root?: Element | null;
+  /** When false, no fetch is issued and state is held at the initial 'loading'. Flipping to true starts page 1. Default true. */
+  enabled?: boolean;
 }
 
 export interface UseInfiniteScrollResult<T> {
@@ -61,6 +69,8 @@ export function useInfiniteScroll<T, M = undefined>({
   resetKey,
   onPageApplied,
   onPageFailed,
+  root,
+  enabled = true,
 }: UseInfiniteScrollOptions<T, M>): UseInfiniteScrollResult<T> {
   const [items, setItems] = useState<T[]>([]);
   const [status, setStatus] = useState<InfiniteScrollStatus>('loading');
@@ -138,25 +148,42 @@ export function useInfiniteScroll<T, M = undefined>({
     setStatus('loading');
     setFetchSequence(0);
     setLastBatchCount(0);
+    if (!enabled) return;
     void runFetch(1, epoch);
-  }, [resetKey, runFetch]);
+  }, [resetKey, enabled, runFetch]);
   /* eslint-enable @eslint-react/set-state-in-effect */
 
   const sentinelRef = useCallback((node: HTMLDivElement | null) => {
     setSentinelNode(node);
   }, []);
 
+  const observerRef = useRef<IntersectionObserver | null>(null);
+
   useEffect(() => {
-    if (!sentinelNode) return;
+    if (!sentinelNode || typeof IntersectionObserver === 'undefined') return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) loadMore();
       },
-      { rootMargin: `0px 0px ${INFINITE_SCROLL_LOOKAHEAD_PX}px 0px` },
+      { root: root ?? null, rootMargin: `0px 0px ${INFINITE_SCROLL_LOOKAHEAD_PX}px 0px` },
     );
+    observerRef.current = observer;
     observer.observe(sentinelNode);
-    return () => observer.disconnect();
-  }, [sentinelNode, loadMore]);
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+    };
+  }, [sentinelNode, loadMore, root]);
+
+  // An IntersectionObserver only fires on threshold crossings. If an appended batch leaves the
+  // sentinel still inside root + lookahead, nothing would fire again and the list would stall.
+  // Re-observing forces a fresh initial callback with the current geometry.
+  useEffect(() => {
+    if (fetchSequence > 0 && observerRef.current && sentinelNode) {
+      observerRef.current.unobserve(sentinelNode);
+      observerRef.current.observe(sentinelNode);
+    }
+  }, [fetchSequence, sentinelNode]);
 
   return {
     items,

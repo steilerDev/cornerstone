@@ -405,6 +405,59 @@ describe('listDocuments()', () => {
     expect(callUrl).toContain('ordering=-archive_serial_number');
   });
 
+  describe('ordering id tiebreaker (#2101)', () => {
+    function orderingParam(): string | null {
+      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      return new URL(callUrl).searchParams.get('ordering');
+    }
+
+    it('appends a descending id tiebreaker to the default ordering (URL-encoded comma)', async () => {
+      setupListMocks();
+      await paperlessService.listDocuments(BASE_URL, TOKEN, {});
+
+      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      expect(callUrl).toContain('ordering=-created%2C-id');
+      expect(orderingParam()).toBe('-created,-id');
+    });
+
+    it('appends an ascending id tiebreaker when sortOrder=asc', async () => {
+      setupListMocks();
+      await paperlessService.listDocuments(BASE_URL, TOKEN, { sortBy: 'title', sortOrder: 'asc' });
+
+      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      expect(callUrl).toContain('ordering=title%2Cid');
+      expect(orderingParam()).toBe('title,id');
+    });
+
+    it('tiebreaker id follows the direction of a descending non-default sort field', async () => {
+      setupListMocks();
+      await paperlessService.listDocuments(BASE_URL, TOKEN, {
+        sortBy: 'archive_serial_number',
+        sortOrder: 'desc',
+      });
+      expect(orderingParam()).toBe('-archive_serial_number,-id');
+    });
+
+    it('omits the tiebreaker for full-text queries (single sort field only)', async () => {
+      setupListMocks();
+      await paperlessService.listDocuments(BASE_URL, TOKEN, { query: 'invoice' });
+
+      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
+      expect(orderingParam()).toBe('-created');
+      expect(callUrl).not.toContain('ordering=-created%2C');
+    });
+
+    it('omits the tiebreaker for full-text queries with ascending sort', async () => {
+      setupListMocks();
+      await paperlessService.listDocuments(BASE_URL, TOKEN, {
+        query: 'invoice',
+        sortBy: 'title',
+        sortOrder: 'asc',
+      });
+      expect(orderingParam()).toBe('title');
+    });
+  });
+
   it('includes searchHit when document has __search_hit__', async () => {
     const rawWithSearchHit = {
       ...RAW_DOCUMENT_1,

@@ -114,17 +114,22 @@ function makeHook(
     status: { configured: true, reachable: true, error: null, paperlessUrl: null, filterTag: null },
     documents: [makeDoc(1), makeDoc(2)],
     tags: [],
-    pagination: { page: 1, pageSize: 25, totalItems: 2, totalPages: 1 },
-    isLoading: false,
+    listStatus: 'done',
+    hasMore: false,
+    lastBatchCount: 2,
+    fetchSequence: 1,
+    sentinelRef: jest.fn(),
+    loadMore: jest.fn(),
+    retry: jest.fn(),
     error: null,
     query: '',
     selectedTags: [],
     tagCountMap: new Map(),
+    resetKey: '|||0',
     search: jest.fn(),
     toggleTag: jest.fn(),
-    setPage: jest.fn(),
-    refresh: jest.fn(),
     setCorrespondent: jest.fn(),
+    refresh: jest.fn(),
     ...overrides,
   };
 }
@@ -486,18 +491,15 @@ describe('InvoicePaperlessPickerModal', () => {
       });
 
       // DocumentBrowser is rendered in modal mode — clicking a card calls onSelect.
-      const docButton = screen.queryByRole('button', { name: /Document: Invoice 2026-01/i });
+      // react-i18next is mocked to return raw keys, so locate the card via its title heading.
+      const card = screen
+        .getByRole('heading', { name: 'Invoice 2026-01' })
+        .closest('[role="button"]');
+      expect(card).not.toBeNull();
+      fireEvent.click(card!);
 
-      if (docButton) {
-        fireEvent.click(docButton);
-        expect(onDocumentSelected).toHaveBeenCalledTimes(1);
-        expect(onDocumentSelected).toHaveBeenCalledWith(expect.objectContaining({ id: 10 }));
-      } else {
-        // Local Node 20 mock non-intercept path: DocumentBrowser uses real usePaperless
-        // which makes fetch calls that fail in JSDOM. Accept this known limitation.
-        // CI passes this case.
-        expect(true).toBe(true);
-      }
+      expect(onDocumentSelected).toHaveBeenCalledTimes(1);
+      expect(onDocumentSelected).toHaveBeenCalledWith(expect.objectContaining({ id: 10 }));
     });
 
     it('DocumentBrowser is wired with mode="modal" (onSelect callback not detail-panel)', async () => {

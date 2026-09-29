@@ -17,6 +17,14 @@
   min-height: var(--spacing-12);
 }
 
+.endOfList:focus {
+  outline: none;
+}
+
+.endOfList:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
 .loadMoreButton {
   display: flex;
   align-items: center;
@@ -24,6 +32,11 @@
   gap: var(--spacing-2);
   margin: 0 auto;
   min-height: var(--spacing-12);
+}
+
+.loadMoreButton[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 767px) {
