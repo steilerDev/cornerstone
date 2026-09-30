@@ -1583,7 +1583,7 @@ describe(
       expect(card.queryByLabelText(LABELS.attachmentsNote)).not.toBeInTheDocument();
     });
 
-    it('composes the mobile card allocated amount as valueText + refund note when isRefund, matching the desktop cell', () => {
+    it('composes the mobile card allocated amount as valueText + refund note when isRefund, matching the desktop cell (#2020: refund note last, matching the PDF)', () => {
       const rows = [
         makeRow({
           allocatedAmountValueText: '€-200.00',
@@ -1593,7 +1593,12 @@ describe(
       ];
       const { container } = renderEditor({ content: makeContent({ rows }) });
       const card = within(getMobileList(container));
-      expect(card.getByText('€-200.00 (refund)')).toBeInTheDocument();
+      const value = card.getByText('€-200.00');
+      expect(value).toHaveClass(styles.mobileCardValue!, styles.refundAmount!);
+      const note = card.getByText('(refund)');
+      expect(note).toHaveClass(styles.mobileCardValue!, styles.refundAmount!);
+      const allocated = container.querySelector(`.${styles.mobileCardAllocated}`);
+      expect(allocated?.lastElementChild).toBe(note);
     });
 
     it('wires the mobile card usage EditableField to the same onFieldChange key as the desktop table, and #1959 exposes no attachmentsNote control to wire', () => {

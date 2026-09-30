@@ -59,3 +59,18 @@ expect(screen.queryByText(/2025/)).not.toBeInTheDocument();
 // GOOD: only matches formatted date strings like "Mar 15, 2025"
 expect(screen.queryByText(/^[A-Z][a-z]+ \d+, \d{4}$/)).not.toBeInTheDocument();
 ```
+
+## Locale-matrix tests: hardcode expected literals per locale
+
+A {surface} x {locale} test that derives its expected strings from the same i18n bundle it renders
+with stays green when a locale string is mutated (both sides move together) — the real-bundle test
+is then as vacuous as a key-echo `t` mock. Expected label/legend strings must be literal per-locale
+constants (NBSP written as ` ` escapes), and the spec must name the locale-file mutation that
+proves one locale goes red while the other stays green (#2021 AC 1.4).
+
+## pdfmake post-render geometry is readable for non-table nodes too
+
+Leaf text nodes inside a `columns` node get `.positions[0].left` (column START x, not the aligned
+line x) and `._calcWidth` after a real `getBlob()` on the held content reference. Right edge of a
+column = `left + _calcWidth`. Use this for "block width matches table" style ACs instead of reading
+declared widths back (#2011).

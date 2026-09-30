@@ -425,7 +425,6 @@ export function ReportContentEditor({
                 {show('allocatedAmount') && (
                   <td className={`${styles.rightAlign} ${row.isRefund ? styles.refundAmount : ''}`}>
                     {row.allocatedAmountValueText}
-                    {row.isRefund && ` ${row.refundNoteText}`}
                     {row.isDeposit && (
                       <Badge
                         className={styles.depositLabel}
@@ -447,6 +446,7 @@ export function ReportContentEditor({
                         ({content.labels.depositReducedNote})
                       </span>
                     )}
+                    {row.isRefund && ` ${row.refundNoteText}`}
                   </td>
                 )}
                 {show('usage') && (
@@ -545,7 +545,6 @@ export function ReportContentEditor({
                     className={`${styles.mobileCardValue} ${row.isRefund ? styles.refundAmount : ''}`}
                   >
                     {row.allocatedAmountValueText}
-                    {row.isRefund && ` ${row.refundNoteText}`}
                   </span>
                   {row.isDeposit && (
                     <Badge
@@ -563,6 +562,11 @@ export function ReportContentEditor({
                   )}
                   {row.isDepositReduced && (
                     <span className={styles.inlineNote}>({content.labels.depositReducedNote})</span>
+                  )}
+                  {row.isRefund && (
+                    <span className={`${styles.mobileCardValue} ${styles.refundAmount}`}>
+                      {row.refundNoteText}
+                    </span>
                   )}
                 </span>
               </div>
