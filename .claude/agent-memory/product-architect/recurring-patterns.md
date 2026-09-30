@@ -1755,3 +1755,15 @@ with an explicit viewport (Scenario 18) run redundantly on all three projects.
 **Positional `idSuffix: string`**: narrow to `'' | '-mobile'`. `string` accepts `'mobile'`/`'_mobile'`, which
 compiles, renders, and produces a testid nobody locates, with no failing test outside the three that pin the
 correct spelling. A literal union makes the convention compiler-enforced at both call sites.
+
+---
+
+## A CI aggregator that accepts `skipped` is only as safe as every dependency's skip causes (#2043/#2111, PR #2119, 2026-09-30)
+
+When a gate job reads `needs.X.result` and treats `skipped` as passing, it is sound only if every way X can be
+skipped is either "nothing to test" or an upstream failure that the gate itself checks. A job-level `if:` that
+narrows beyond the path filter breaks this silently. Examples: a dependabot exclusion, or `app`-only on a job
+whose script also enforces `e2e/` rules. `trailer-check` (`if: app == 'true'`) skipped e2e-only PRs, so trailer
+Rule 5 was never checked in CI even after E2E Gates was fixed. When reviewing a gate: list each needed job's
+`if:` and ask whether any skip cause is neither a path-filter "no-op" nor a checked upstream. The robust pattern
+is E2E Gates' approach: derive the expected result from `detect-changes` outputs and compare against it exactly.

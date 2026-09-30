@@ -614,7 +614,6 @@ export function PaperlessInvoiceReviewPage() {
         >
           <BudgetLinePickerModal
             pickerState={picker.pickerState}
-            setPickerState={picker.setPickerState}
             handleSelectItem={picker.handleSelectItem}
             createBudgetLineButtonRef={picker.createBudgetLineButtonRef}
             onSelectBudgetLine={handlers.onSelectBudgetLine}

@@ -319,7 +319,7 @@ two places:
 
 1. **`/develop` step 6h / step 9** (orchestrator, before merging) — run it directly instead of
    hand-checking with grep.
-2. **CI's `trailer-check` job** (automated, on every PR touching production paths) — see
+2. **CI's `trailer-check` job** (automated, on every PR touching production paths, including `e2e/`) — see
    `.github/workflows/ci.yml`.
 
 Detection inside the script is case-insensitive and accepts both the current de-versioned trailer

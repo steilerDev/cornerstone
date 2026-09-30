@@ -10,7 +10,6 @@ import styles from './BudgetLinePickerModal.module.css';
 
 interface BudgetLinePickerModalProps {
   pickerState: UseBudgetLinePickerReturnType['pickerState'];
-  setPickerState: UseBudgetLinePickerReturnType['setPickerState'];
   handleSelectItem: UseBudgetLinePickerReturnType['handleSelectItem'];
   createBudgetLineButtonRef: React.RefObject<HTMLButtonElement | null>;
   onSelectBudgetLine: (line: WorkItemBudgetLine | HouseholdItemBudgetLine) => void;
