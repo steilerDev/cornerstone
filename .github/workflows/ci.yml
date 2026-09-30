@@ -95,12 +95,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 10 shards x 3 workers targets 5-10 min per job (~1m45s of setup plus
-        # ~6 min of tests). Shards are packed by recorded runtime, not path hash —
-        # see scripts/jest-shard-sequencer.mjs. If shards drift apart, refresh the
-        # weights: `node scripts/update-jest-timings.mjs <run-id>`.
-        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        shardTotal: [10]
+        # 12 shards x 2 workers targets 5-10 min per job (~1m45s of setup plus
+        # <=8 min of tests). Shards are packed by recorded runtime, not path hash —
+        # see scripts/jest-shard-sequencer.mjs. The floor is the largest single
+        # file (~8 min for the picker-family suites); adding shards cannot lower
+        # it, splitting that file can. If shards drift apart, refresh the weights
+        # from a green run: `node scripts/update-jest-timings.mjs <run-id>`.
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        shardTotal: [12]
 
     steps:
       - name: Checkout
@@ -168,9 +170,12 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
           JEST_TIMINGS_FILE: jest-timings/shard-${{ matrix.shardIndex }}.json
-        # --maxWorkers=3 on the 4-vCPU (2 cores x 2 threads) runner leaves one
-        # thread for the Jest parent process and coverage collection.
-        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json --maxWorkers=3 --workerIdleMemoryLimit=2048MB --testTimeout=240000 --reporters=default --reporters=./scripts/jest-timing-reporter.mjs
+        # --maxWorkers=2, not 3/4: the runner is 4 vCPU but only 2 physical cores
+        # (2 threads each). Measured on PR #2114 (run 36722807521): 3 workers
+        # inflated every file ~2x (server suites 25 s -> 70 s, SearchPicker parts
+        # ~450 s -> 630-810 s) and total worker-time 9.3k s -> 12.0k s, so the
+        # extra worker added contention, not throughput.
+        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json --maxWorkers=2 --workerIdleMemoryLimit=2048MB --testTimeout=240000 --reporters=default --reporters=./scripts/jest-timing-reporter.mjs
 
       - name: Rename coverage for merge
         if: ${{ always() }}
