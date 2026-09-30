@@ -8,6 +8,7 @@ import type {
   AutoItemizePreviewResponse,
   BudgetSourceListResponse,
   ConvertQuotationRequest,
+  ErrorCode,
   Invoice,
   InvoiceDeposit,
   PaperlessStatusResponse,
@@ -843,7 +844,7 @@ describe('useConvertQuotation', () => {
   });
 
   describe('scenario 40: submit error mapping', () => {
-    async function failWith(code: string, refresh = jest.fn<() => Promise<Invoice>>()) {
+    async function failWith(code: ErrorCode, refresh = jest.fn<() => Promise<Invoice>>()) {
       refresh.mockResolvedValue(makeInvoice());
       mockConvertQuotation.mockRejectedValue(new ApiClientError(400, { code, message: code }));
       const ctx = setup({ refreshInvoice: refresh });

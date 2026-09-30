@@ -613,7 +613,7 @@
     font-size: var(--font-size-2xl);
   }
 
-  .pageHeader {
+  .headerRow {
     flex-direction: column;
     align-items: stretch;
   }
