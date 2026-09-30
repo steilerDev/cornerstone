@@ -16,7 +16,7 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 
 ## Index
 
-- [Sandbox & worktree environment quirks](sandbox-environment.md) — node_modules corruption fixes, shared-package build order, prettier CWD, git index corruption recovery, gh CLI `--json` gap on `pr checks`, wiki submodule git-identity setup
+- [Sandbox & worktree environment quirks](sandbox-environment.md) — node_modules fixes, /tmp npm-ci workaround on mounted FS, no pre-commit hook, actionlint via docker, wiki submodule quirks
 - [Testing patterns (Jest/TS/React)](testing-patterns.md) — ThemeProvider over mocking ThemeContext, JSX.Element typing workaround, dynamic-import timing, matcher misuse, overly-broad absence regexes
 - [Code patterns confirmed during review](code-patterns.md) — drizzle-orm `sql.join` availability, intentional CSS cross-imports (AutosaveIndicator)
 - [Meta-skill reconciliation (issue #1819)](meta-skill-reconciliation.md) — gh project item-add pattern, CLAUDE.md drifts fast, orchestrator has no trailer, worktree cleanup sequence, count-every-occurrence self-check gap
@@ -25,4 +25,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Infinite-scroll consumer hazards](infinite-scroll-consumer-hazards.md) — per-consumer scroll root, IO re-observe after append, client-filter empty batches, disabled-button focus loss, jsdom IO guard
 - [Form prefill hazards](form-prefill-hazards.md) — seeded-from-entity fields are protected from AI overwrite; initial-state/cross-field errors must be visible when submit is disabled
 - [Review-round discipline](review-round-discipline.md) — re-derive "accepted deviation" severity yourself; a green Jest suite proves attributes, not rendering; E2E "collecting" ≠ passing
+- [CI gate design hazards](ci-gate-design.md) — repo-wide checks behind path filters let drift land; skipped!=passed; validate YAML via actionlint + truth table
 - [Dependency override pitfalls](dependency-overrides-pitfalls.md) — stale override pins, workspace deps silently overridden, bundled deps unoverridable, Dependabot never moves single-version pins

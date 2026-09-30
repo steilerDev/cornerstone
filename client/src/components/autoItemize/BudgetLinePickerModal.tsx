@@ -26,7 +26,6 @@ interface BudgetLinePickerModalProps {
 
 export function BudgetLinePickerModal({
   pickerState,
-  setPickerState,
   handleSelectItem,
   createBudgetLineButtonRef,
   onSelectBudgetLine,
