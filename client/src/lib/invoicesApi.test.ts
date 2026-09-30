@@ -6,6 +6,7 @@ import {
   deleteInvoice,
   fetchAllInvoices,
   fetchInvoiceById,
+  convertQuotation,
 } from './invoicesApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
 
@@ -732,6 +733,62 @@ describe('invoicesApi', () => {
       } as Response);
 
       await expect(fetchInvoiceById('invoice-1')).rejects.toThrow();
+    });
+  });
+  // ─── convertQuotation (Story #2107) ─────────────────────────────────────────
+
+  describe('convertQuotation', () => {
+    const body = {
+      amount: 10500,
+      date: '2026-03-01',
+      status: 'pending' as const,
+      conversionNote: 'Converted from quotation.',
+      budgetLines: [{ id: 'ibl-1', itemizedAmount: 6300 }],
+    };
+
+    it('sends POST to /api/invoices/:invoiceId/convert-quotation with the JSON body', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ invoice: sampleInvoice }),
+      } as Response);
+
+      await convertQuotation('invoice-1', body);
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [url, init] = mockFetch.mock.calls[0]!;
+      expect(url).toBe('/api/invoices/invoice-1/convert-quotation');
+      expect((init as RequestInit).method).toBe('POST');
+      expect(JSON.parse((init as RequestInit).body as string)).toEqual(body);
+    });
+
+    it('unwraps and returns the invoice from the response', async () => {
+      const converted = { ...sampleInvoice, status: 'pending' as const, amount: 10500 };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ invoice: converted }),
+      } as Response);
+
+      const result = await convertQuotation('invoice-1', body);
+
+      expect(result).toEqual(converted);
+      expect(result.amount).toBe(10500);
+    });
+
+    it('rejects with the API error on 409 INVOICE_NOT_QUOTATION', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          error: { code: 'INVOICE_NOT_QUOTATION', message: 'Only quotations can be converted' },
+        }),
+      } as Response);
+
+      await expect(convertQuotation('invoice-1', body)).rejects.toMatchObject({
+        statusCode: 409,
+        error: { code: 'INVOICE_NOT_QUOTATION' },
+      });
     });
   });
 });

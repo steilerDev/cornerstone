@@ -299,6 +299,16 @@ export class InvoicesNotClaimableError extends AppError {
   }
 }
 
+export class InvoiceNotQuotationError extends AppError {
+  constructor(
+    message = 'Only invoices with status quotation can be converted',
+    details?: Record<string, unknown>,
+  ) {
+    super('INVOICE_NOT_QUOTATION', 409, message, details);
+    this.name = 'InvoiceNotQuotationError';
+  }
+}
+
 export class DepositsExceedInvoiceTotalError extends AppError {
   constructor(
     message = 'Sum of deposit amounts would exceed the invoice total',

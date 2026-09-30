@@ -577,6 +577,41 @@ export class InvoiceDetailPage {
     await applyBtn.click();
   }
 
+  // ─── Quotation → final invoice conversion (Story #2107) ─────────────────
+  // All locators are data-testid based; ConvertQuotationModal renders in a portal.
+  readonly convertButton: Locator;
+  readonly convertForm: Locator;
+  readonly convertFinalAmount: Locator;
+  readonly convertDate: Locator;
+  readonly convertInvoiceNumber: Locator;
+  readonly convertDueDate: Locator;
+  readonly convertNotes: Locator;
+  readonly convertDelta: Locator;
+  readonly convertKeepExisting: Locator;
+  readonly convertResetProposal: Locator;
+  readonly convertRemainder: Locator;
+  readonly convertItemizedTotal: Locator;
+  readonly convertOverAllocated: Locator;
+  readonly convertOverpaidBanner: Locator;
+  readonly convertAddRefund: Locator;
+  readonly convertFinalPayment: Locator;
+  readonly convertStatusPending: Locator;
+  readonly convertStatusPaid: Locator;
+  readonly convertConfirm: Locator;
+  readonly convertCancel: Locator;
+  readonly convertSaveError: Locator;
+  readonly convertSelectDocument: Locator;
+  readonly convertSelectedDocument: Locator;
+  readonly convertAiPrefill: Locator;
+  readonly convertAiError: Locator;
+  readonly convertAiRetry: Locator;
+  readonly convertAiSuccess: Locator;
+  readonly convertAiMismatch: Locator;
+  readonly convertPaperlessUnavailable: Locator;
+  readonly convertLinesEmpty: Locator;
+  /** The convert modal dialog (only present while the form view is open). */
+  readonly convertDialog: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -854,6 +889,84 @@ export class InvoiceDetailPage {
     this.moveHintBanner = this.editBudgetLineModal
       .locator('[role="status"]')
       .filter({ hasText: /transfer/i });
+
+    // ─── Quotation conversion locators (Story #2107) ─────────────────────
+    this.convertButton = page.getByTestId('convert-quotation-button');
+    this.convertForm = page.getByTestId('convert-quotation-form');
+    this.convertFinalAmount = page.getByTestId('convert-final-amount');
+    this.convertDate = page.getByTestId('convert-date');
+    this.convertInvoiceNumber = page.getByTestId('convert-invoice-number');
+    this.convertDueDate = page.getByTestId('convert-due-date');
+    this.convertNotes = page.getByTestId('convert-notes');
+    this.convertDelta = page.getByTestId('convert-delta');
+    this.convertKeepExisting = page.getByTestId('convert-keep-existing');
+    this.convertResetProposal = page.getByTestId('convert-reset-proposal');
+    this.convertRemainder = page.getByTestId('convert-remainder');
+    this.convertItemizedTotal = page.getByTestId('convert-itemized-total');
+    this.convertOverAllocated = page.getByTestId('convert-over-allocated');
+    this.convertOverpaidBanner = page.getByTestId('convert-overpaid-banner');
+    this.convertAddRefund = page.getByTestId('convert-add-refund');
+    this.convertFinalPayment = page.getByTestId('convert-final-payment');
+    this.convertStatusPending = page.getByTestId('convert-status-pending');
+    this.convertStatusPaid = page.getByTestId('convert-status-paid');
+    this.convertConfirm = page.getByTestId('convert-confirm');
+    this.convertCancel = page.getByTestId('convert-cancel');
+    this.convertSaveError = page.getByTestId('convert-save-error');
+    this.convertSelectDocument = page.getByTestId('convert-select-document');
+    this.convertSelectedDocument = page.getByTestId('convert-selected-document');
+    this.convertAiPrefill = page.getByTestId('convert-ai-prefill');
+    this.convertAiError = page.getByTestId('convert-ai-error');
+    this.convertAiRetry = page.getByTestId('convert-ai-retry');
+    this.convertAiSuccess = page.getByTestId('convert-ai-success');
+    this.convertAiMismatch = page.getByTestId('convert-ai-mismatch');
+    this.convertPaperlessUnavailable = page.getByTestId('convert-paperless-unavailable');
+    this.convertLinesEmpty = page.getByTestId('convert-lines-empty');
+    this.convertDialog = page
+      .getByRole('dialog')
+      .filter({ has: page.getByTestId('convert-quotation-form') });
+  }
+
+  // ─── Quotation conversion helpers (Story #2107) ───────────────────────────
+
+  /** Proposed-amount input for an invoice budget line (table on desktop/tablet, card on mobile). */
+  lineInput(id: string, viewport: 'desktop' | 'mobile'): Locator {
+    return this.page.getByTestId(
+      viewport === 'mobile' ? `convert-line-input-mobile-${id}` : `convert-line-input-${id}`,
+    );
+  }
+
+  /** "Keep" checkbox for an invoice budget line (table on desktop/tablet, card on mobile). */
+  lineKeep(id: string, viewport: 'desktop' | 'mobile'): Locator {
+    return this.page.getByTestId(
+      viewport === 'mobile' ? `convert-line-keep-mobile-${id}` : `convert-line-keep-${id}`,
+    );
+  }
+
+  /** Mobile line card for an invoice budget line. */
+  lineCard(id: string): Locator {
+    return this.page.getByTestId(`convert-line-card-${id}`);
+  }
+
+  /** Desktop/tablet line table row for an invoice budget line. */
+  lineRow(id: string): Locator {
+    return this.page.getByTestId(`convert-line-row-${id}`);
+  }
+
+  /** Opens the conversion modal and waits for the form to be ready. */
+  async openConvert(): Promise<void> {
+    await this.convertButton.click();
+    await this.convertForm.waitFor({ state: 'visible' });
+    await this.convertFinalAmount.waitFor({ state: 'visible' });
+  }
+
+  /** Clicks Confirm and waits for the POST convert-quotation response. Returns its HTTP status. */
+  async confirmConvert(): Promise<number> {
+    const responsePromise = this.page.waitForResponse(
+      (resp) => resp.url().includes('/convert-quotation') && resp.request().method() === 'POST',
+    );
+    await this.convertConfirm.click();
+    const response = await responsePromise;
+    return response.status();
   }
 
   /**
