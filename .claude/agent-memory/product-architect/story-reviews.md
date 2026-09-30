@@ -1014,3 +1014,14 @@ Lessons:
    was one line.
 4. **A `str.index(anchor)` wiki insert can hit the wrong table.** It matched the per-endpoint
    deposit table before the central one. Anchor on the full row prefix, including the status column.
+
+### PR #2112 review (2026-09-30, REQUEST_CHANGES via verdict comment, own-token PR)
+
+Two low wiki-vs-code items, both fix-in-session:
+
+- **F1:** the contract says "every validation runs before any write", but the doc-link tier 409 runs after the invoice and line UPDATEs. Rollback keeps the result correct, so tests pass. Asked to hoist the lookup into a resolved action.
+- **F2:** a stated "validation order" omitted AJV schema and the 404, which both precede the status check.
+
+Also filed #2113: four forked `isValidIsoDate` copies, and only the new one round-trips.
+
+**Lesson:** an "all validation before writes" sentence is falsified by any throw placed after the first write. A passing rollback test hides this; read the step order.

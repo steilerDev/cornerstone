@@ -149,6 +149,35 @@ export function convertQuotation(
       );
     }
 
+    // g2. Decide document link outcome (validation before any write)
+    let linkAction: 'none' | 'create' | 'upgrade' = 'none';
+    let existingLinkId: string | null = null;
+    if (data.paperlessDocumentId !== undefined) {
+      const link = db
+        .select()
+        .from(documentLinks)
+        .where(
+          and(
+            eq(documentLinks.entityType, 'invoice'),
+            eq(documentLinks.entityId, invoiceId),
+            eq(documentLinks.paperlessDocumentId, data.paperlessDocumentId),
+          ),
+        )
+        .get();
+      if (!link) {
+        linkAction = 'create';
+      } else if (link.attachmentType === null) {
+        linkAction = 'upgrade';
+        existingLinkId = link.id;
+      } else if (link.attachmentType !== 'invoice') {
+        throw new AppError(
+          'DUPLICATE_DOCUMENT_LINK',
+          409,
+          'This document is already linked to this invoice as a quotation or deposit attachment',
+        );
+      }
+    }
+
     // h. Update invoice
     const now = new Date().toISOString();
     const newInvoiceNumber =
@@ -174,30 +203,11 @@ export function convertQuotation(
         .run();
     }
 
-    // j. Document link
-    if (data.paperlessDocumentId !== undefined) {
-      const link = db
-        .select()
-        .from(documentLinks)
-        .where(
-          and(
-            eq(documentLinks.entityType, 'invoice'),
-            eq(documentLinks.entityId, invoiceId),
-            eq(documentLinks.paperlessDocumentId, data.paperlessDocumentId),
-          ),
-        )
-        .get();
-      if (!link) {
-        createLink(db, 'invoice', invoiceId, data.paperlessDocumentId, userId, 'invoice');
-      } else if (link.attachmentType === null) {
-        updateAttachmentType(db, link.id, 'invoice');
-      } else if (link.attachmentType !== 'invoice') {
-        throw new AppError(
-          'DUPLICATE_DOCUMENT_LINK',
-          409,
-          'This document is already linked to this invoice as a quotation or deposit attachment',
-        );
-      }
+    // j. Apply document link outcome
+    if (linkAction === 'create' && data.paperlessDocumentId !== undefined) {
+      createLink(db, 'invoice', invoiceId, data.paperlessDocumentId, userId, 'invoice');
+    } else if (linkAction === 'upgrade' && existingLinkId) {
+      updateAttachmentType(db, existingLinkId, 'invoice');
     }
 
     return { invoiceNumber: newInvoiceNumber };
