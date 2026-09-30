@@ -113,6 +113,7 @@
     "siteVisitInspectorNameRequired": "Name des Inspektors ist erforderlich",
     "issueSeverityRequired": "Schweregrad ist erforderlich",
     "issueResolutionStatusRequired": "Lösungsstatus ist erforderlich",
+    "signatureIncomplete": "Akzeptieren oder entfernen Sie die unvollendete Unterschrift vor dem Speichern.",
     "submitButton": "Änderungen speichern",
     "submittingButton": "Wird gespeichert...",
     "cancelButton": "Abbrechen",

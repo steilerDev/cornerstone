@@ -803,4 +803,48 @@ describe('DiaryEntryForm', () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  // ─── Incomplete signature errors (#2088) ───────────────────────────────────
+
+  describe('signature validation errors (#2088)', () => {
+    it('renders #daily-log-signatures-error with role=alert for a daily_log', () => {
+      const { container } = render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'daily_log',
+            validationErrors: { dailyLogSignatures: 'Unfinished signature' },
+          })}
+        />,
+      );
+      const el = container.querySelector('#daily-log-signatures-error');
+      expect(el).not.toBeNull();
+      expect(el).toHaveAttribute('role', 'alert');
+      expect(el).toHaveTextContent('Unfinished signature');
+    });
+
+    it('does not render #daily-log-signatures-error when there is no error', () => {
+      const { container } = render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log' })} />);
+      expect(container.querySelector('#daily-log-signatures-error')).toBeNull();
+    });
+
+    it('renders #site-visit-signatures-error with role=alert for a site_visit', () => {
+      const { container } = render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'site_visit',
+            validationErrors: { siteVisitSignatures: 'Unfinished signature' },
+          })}
+        />,
+      );
+      const el = container.querySelector('#site-visit-signatures-error');
+      expect(el).not.toBeNull();
+      expect(el).toHaveAttribute('role', 'alert');
+      expect(el).toHaveTextContent('Unfinished signature');
+    });
+
+    it('does not render #site-visit-signatures-error when there is no error', () => {
+      const { container } = render(<DiaryEntryForm {...makeProps({ entryType: 'site_visit' })} />);
+      expect(container.querySelector('#site-visit-signatures-error')).toBeNull();
+    });
+  });
 });
