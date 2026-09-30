@@ -383,6 +383,41 @@ describe('DiaryPage', () => {
       expect(screen.getByTestId('diary-load-more-button')).toHaveTextContent('Retry');
       expect(screen.getByTestId('diary-load-more-button')).toHaveFocus();
     });
+
+    it('a filter change after a first-batch failure shows the normal initial loading state, not the footer button', async () => {
+      const user = userEvent.setup();
+      await renderFailedFirstBatch(new Error('boom'));
+      mockListDiaryEntries.mockImplementationOnce(() => new Promise(() => {}));
+
+      await user.type(screen.getByTestId('diary-search-input'), 'x');
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
+      });
+      expect(mockListDiaryEntries.mock.calls[1]?.[0]?.q).toBe('x');
+      expect(screen.getByText(/loading entries/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('diary-load-more-button')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('a filter change during a pending Retry does not steal focus from the search box when the new query is empty', async () => {
+      const user = userEvent.setup();
+      await renderFailedFirstBatch(new Error('boom'));
+      mockListDiaryEntries.mockImplementationOnce(() => new Promise(() => {}));
+      await user.click(screen.getByTestId('diary-load-more-button'));
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
+      });
+
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      const search = screen.getByTestId('diary-search-input');
+      await user.type(search, 'x');
+
+      const link = await screen.findByRole('link', { name: /create your first entry/i });
+      expect(mockListDiaryEntries.mock.calls[2]?.[0]?.q).toBe('x');
+      expect(link).not.toHaveFocus();
+      expect(search).toHaveFocus();
+    });
   });
 
   // ─── Infinite scroll (Issue #2060) ───────────────────────────────────────────

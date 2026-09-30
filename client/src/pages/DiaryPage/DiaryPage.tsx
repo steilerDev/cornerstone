@@ -143,6 +143,14 @@ export default function DiaryPage() {
 
   const showInitialLoading = status === 'loading' && entries.length === 0 && !firstBatchFailed;
 
+  // First-batch recovery state belongs to the current query: a filter change starts fresh.
+  useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- reset per-query state when the query changes */
+    setFirstBatchFailed(false);
+    /* eslint-enable @eslint-react/set-state-in-effect */
+    focusEmptyStateAfterRetryRef.current = false;
+  }, [resetKey]);
+
   const handleRetry = () => {
     if (entries.length === 0) focusEmptyStateAfterRetryRef.current = true;
     retry();

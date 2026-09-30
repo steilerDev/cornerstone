@@ -322,11 +322,11 @@
   margin-top: var(--spacing-2);
 }
 
-.assignSubmitButton:hover:not(:disabled) {
+.assignSubmitButton:hover:not(:disabled, [aria-disabled='true']) {
   background-color: var(--color-primary-hover);
 }
 
-.assignSubmitButton:active:not(:disabled) {
+.assignSubmitButton:active:not(:disabled, [aria-disabled='true']) {
   background-color: var(--color-primary-active);
 }
 
@@ -335,7 +335,8 @@
   box-shadow: var(--shadow-focus);
 }
 
-.assignSubmitButton:disabled {
+.assignSubmitButton:disabled,
+.assignSubmitButton[aria-disabled='true'] {
   opacity: 0.5;
   cursor: not-allowed;
 }

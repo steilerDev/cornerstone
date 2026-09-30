@@ -551,8 +551,12 @@ export function BudgetLineForm({
               <button
                 type="button"
                 className={styles.assignSubmitButton}
-                disabled={isMoving || !selectedParentId}
-                onClick={() => void handleMove()}
+                disabled={!selectedParentId}
+                aria-disabled={isMoving ? 'true' : undefined}
+                onClick={() => {
+                  if (isMoving) return;
+                  void handleMove();
+                }}
               >
                 {isMoving ? t('budgetLineForm.movingButton') : t('budgetLineForm.moveButton')}
               </button>

@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import userEvent from '@testing-library/user-event';
 import {
   render as rtlRender,
   screen,
@@ -512,9 +513,7 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
       expect(document.activeElement).not.toBe(document.body);
     });
 
-    it('a failed move keeps the picker open and does not steal focus to the Change button', async () => {
-      const onMove = jest.fn<OnMove>().mockRejectedValue(new Error('nope'));
-      renderWithParent(onMove);
+    async function openPickerAndSelect() {
       fireEvent.click(screen.getByRole('button', { name: /^Change$/i }));
       act(() => {
         capturedWorkItemPickerOnChange!('wi-2');
@@ -522,14 +521,64 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /Move to selected item/i })).not.toBeDisabled();
       });
+    }
+
+    it('with no target selected the Move button is natively disabled', () => {
+      renderWithParent(jest.fn<OnMove>());
+      fireEvent.click(screen.getByRole('button', { name: /^Change$/i }));
+
+      const move = screen.getByRole('button', { name: /Move to selected item/i });
+      expect(move).toBeDisabled();
+      expect(move).not.toHaveAttribute('aria-disabled');
+    });
+
+    it('while moving, the Move button is aria-disabled (not natively disabled) and a second click does not call onMove again', async () => {
+      let resolveMove: (() => void) | undefined;
+      const onMove = jest.fn<OnMove>().mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveMove = resolve;
+          }),
+      );
+      renderWithParent(onMove);
+      await openPickerAndSelect();
 
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /Move to selected item/i }));
       });
 
+      const moving = screen.getByRole('button', { name: /Moving/i });
+      expect(moving).toHaveAttribute('aria-disabled', 'true');
+      expect(moving).not.toBeDisabled();
+
+      await act(async () => {
+        fireEvent.click(moving);
+      });
+      expect(onMove).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        resolveMove?.();
+      });
+    });
+
+    it('a failed move activated by keyboard keeps the picker open and leaves focus on the Move button', async () => {
+      const user = userEvent.setup();
+      const onMove = jest.fn<OnMove>().mockRejectedValue(new Error('nope'));
+      renderWithParent(onMove);
+      await openPickerAndSelect();
+
+      const move = screen.getByRole('button', { name: /Move to selected item/i });
+      act(() => {
+        move.focus();
+      });
+      await user.keyboard('{Enter}');
+
+      await waitFor(() => {
+        expect(screen.getByText('nope')).toBeInTheDocument();
+      });
       expect(getParentRow()).toHaveAttribute('hidden');
-      expect(document.activeElement).not.toBe(
-        screen.getByRole('button', { name: /^Change$/i, hidden: true }),
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: /Move to selected item/i }),
       );
     });
   });
