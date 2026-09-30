@@ -381,7 +381,13 @@ describe('InvoiceDetailPage', () => {
       );
       renderPage();
 
-      await waitFor(() => expect(screen.getByText(/Internal server error/i)).toBeInTheDocument());
+      // #2113: API errors are shown via the errors namespace translation, never the raw message
+      await waitFor(() =>
+        expect(
+          screen.getByText('An unexpected error occurred. Please try again.'),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/Internal server error/i)).not.toBeInTheDocument();
     });
 
     it('renders generic error message on network failure', async () => {
@@ -909,6 +915,160 @@ describe('InvoiceDetailPage', () => {
       ).toBeInTheDocument();
       expect(screen.getByTestId('convert-quotation-form')).toBeInTheDocument();
       expect(budgetLinesMounts).toBe(1);
+    });
+  });
+
+  // ─── #2108 / #2109 / #2113: translated error surfaces ───────────────────────
+
+  describe('translated API errors (#2108, #2109, #2113)', () => {
+    async function openEditAndSave() {
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Edit$/i }));
+      });
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
+      });
+    }
+
+    it('scenario 19: ITEMIZED_SUM_EXCEEDS_INVOICE shows amountBelowItemized with formatted itemizedTotal and keeps the modal open', async () => {
+      mockUpdateInvoice.mockRejectedValue(
+        new MockApiClientError(400, {
+          code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
+          message: 'raw server text',
+          details: { invoiceTotal: 800, itemizedTotal: 900 },
+        } as never),
+      );
+
+      await openEditAndSave();
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(
+            'The amount cannot be lower than the itemized total of $900.00. Reduce the itemized budget lines first.',
+          ),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
+    });
+
+    it('scenario 20: DEPOSITS_EXCEED_INVOICE_TOTAL shows amountBelowNetDeposits with formatted netDeposits and keeps the modal open', async () => {
+      mockUpdateInvoice.mockRejectedValue(
+        new MockApiClientError(400, {
+          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
+          message: 'raw server text',
+          details: { netDeposits: 500, shortfall: 0.01 },
+        } as never),
+      );
+
+      await openEditAndSave();
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(
+            'The amount cannot be lower than the deposits net of refunds ($500.00). Add a refund entry or reduce the deposits first.',
+          ),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
+    });
+
+    it('falls back to a formatted zero when the error details are missing', async () => {
+      mockUpdateInvoice.mockRejectedValueOnce(
+        new MockApiClientError(400, { code: 'ITEMIZED_SUM_EXCEEDS_INVOICE', message: 'raw' }),
+      );
+      await openEditAndSave();
+      await waitFor(() =>
+        expect(screen.getByText(/itemized total of \$0\.00/)).toBeInTheDocument(),
+      );
+    });
+
+    it('falls back to a formatted zero net deposits when the error details are missing', async () => {
+      mockUpdateInvoice.mockRejectedValueOnce(
+        new MockApiClientError(400, { code: 'DEPOSITS_EXCEED_INVOICE_TOTAL', message: 'raw' }),
+      );
+      await openEditAndSave();
+      await waitFor(() => expect(screen.getByText(/refunds \(\$0\.00\)/)).toBeInTheDocument());
+    });
+
+    it('scenario 21: VALIDATION_ERROR shows the errors-namespace translation, not the raw server message', async () => {
+      mockUpdateInvoice.mockRejectedValue(
+        new MockApiClientError(400, { code: 'VALIDATION_ERROR', message: 'raw server text' }),
+      );
+
+      await openEditAndSave();
+
+      await waitFor(() =>
+        expect(
+          screen.getByText('The submitted data is invalid. Please check your input.'),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
+    });
+
+    it('a non-API update failure shows the generic updateError message', async () => {
+      mockUpdateInvoice.mockRejectedValue(new Error('boom'));
+
+      await openEditAndSave();
+
+      await waitFor(() =>
+        expect(screen.getByText('Failed to update invoice. Please try again.')).toBeInTheDocument(),
+      );
+    });
+
+    it('scenario 22: a delete failure shows the translated error, not the raw server message', async () => {
+      mockDeleteInvoice.mockRejectedValue(
+        new MockApiClientError(409, { code: 'CONFLICT', message: 'raw server text' }),
+      );
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
+      });
+      const confirm = await screen.findByRole('button', { name: 'Delete Invoice' });
+      await act(async () => {
+        fireEvent.click(confirm);
+      });
+
+      await waitFor(() =>
+        expect(
+          screen.getByText('A conflict occurred. The resource may already exist.'),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
+    });
+
+    it('a non-API delete failure shows the generic deleteError message', async () => {
+      mockDeleteInvoice.mockRejectedValue(new Error('boom'));
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
+      });
+      await act(async () => {
+        fireEvent.click(await screen.findByRole('button', { name: 'Delete Invoice' }));
+      });
+
+      await waitFor(() =>
+        expect(screen.getByText('Failed to delete invoice. Please try again.')).toBeInTheDocument(),
+      );
     });
   });
 });

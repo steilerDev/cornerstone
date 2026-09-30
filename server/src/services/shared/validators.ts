@@ -14,6 +14,19 @@ import type { ConfidenceLevel } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * True iff `value` is YYYY-MM-DD AND a real calendar date. Uses a UTC round-trip,
+ * so impossible dates such as 2026-02-31 (which `new Date` rolls over to 03-03)
+ * are rejected (#2113).
+ */
+export function isValidIsoDate(value: string): boolean {
+  if (!ISO_DATE_PATTERN.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
 /** Valid confidence level values */
 export const VALID_CONFIDENCE_LEVELS: ConfidenceLevel[] = [
   'own_estimate',

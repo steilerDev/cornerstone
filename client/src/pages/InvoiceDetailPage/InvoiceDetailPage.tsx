@@ -6,6 +6,7 @@ import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoic
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
 import { FormError } from '../../components/FormError/FormError.js';
@@ -38,6 +39,7 @@ export function InvoiceDetailPage() {
     formatDateTime: _formatDateTime,
   } = useFormatters();
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -114,7 +116,7 @@ export function InvoiceDetailPage() {
         if (err.statusCode === 404) {
           setError(t('invoiceDetail.invoiceNotFound'));
         } else {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setError(t('invoiceDetail.invoiceNotFound'));
@@ -184,8 +186,24 @@ export function InvoiceDetailPage() {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 404 && err.error.code === 'NOT_FOUND') {
           setEditError(t('invoiceDetail.messages.vendorNotFound'));
+        } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
+          const itemizedTotal =
+            (err.error.details as { itemizedTotal?: number } | undefined)?.itemizedTotal ?? 0;
+          setEditError(
+            t('invoiceDetail.messages.amountBelowItemized', {
+              itemizedTotal: formatCurrency(itemizedTotal),
+            }),
+          );
+        } else if (err.error.code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
+          const netDeposits =
+            (err.error.details as { netDeposits?: number } | undefined)?.netDeposits ?? 0;
+          setEditError(
+            t('invoiceDetail.messages.amountBelowNetDeposits', {
+              netDeposits: formatCurrency(netDeposits),
+            }),
+          );
         } else {
-          setEditError(err.error.message);
+          setEditError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setEditError(t('invoiceDetail.messages.updateError'));
@@ -216,7 +234,7 @@ export function InvoiceDetailPage() {
       navigate('/budget/invoices');
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDeleteError(err.error.message);
+        setDeleteError(translateApiError(err.error.code, tErrors));
       } else {
         setDeleteError(t('invoiceDetail.messages.deleteError'));
       }
