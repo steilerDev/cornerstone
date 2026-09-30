@@ -64,9 +64,22 @@ Restart your Cornerstone container. The login page will now show an OIDC login b
 4. Identity provider redirects back to `<EXTERNAL_URL>/api/auth/oidc/callback` with an authorization code
 5. Cornerstone exchanges the code for tokens and creates a session
 
-### Auto-Provisioning
+### Account Linking
 
-Users who log in via OIDC for the first time are automatically created in Cornerstone with the **Member** role. Admins can change their role later through the [admin panel](admin-panel).
+OIDC does not create accounts automatically. Instead, it links existing local accounts on first SSO login:
+
+1. **Admin creates the account first** -- use the [admin panel](admin-panel) to add users with their email address
+2. **First SSO login links the account** -- when a user logs in via their identity provider for the first time, Cornerstone matches the verified email (case-insensitive) to an existing local account and links them
+3. **Identity provider requirements** -- the identity provider must send `email_verified: true` with the user's email claim; unverified emails are rejected
+4. **Both login methods work** -- after linking, users can log in with either their local password or OIDC SSO
+5. **Unknown emails are rejected** -- if a user's verified email doesn't match any existing account, they are shown a clear error message and cannot proceed
+
+:::info Identity providers without email verification
+
+Some identity providers (e.g., certain Azure AD / Microsoft Entra configurations) don't send the `email_verified: true` claim. If your provider doesn't verify emails, new SSO login attempts will show an "email not verified" error and cannot establish a link. Accounts that were already linked before this issue will continue to work normally.
+
+When setting up an account for SSO, admins can optionally set a local password during creation. Users can ignore the password and simply use SSO to log in.
+:::
 
 ## Environment Variables Reference
 

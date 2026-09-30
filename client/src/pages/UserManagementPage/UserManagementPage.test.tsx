@@ -143,6 +143,75 @@ describe('UserManagementPage', () => {
     });
   });
 
+  describe('authentication column', () => {
+    const enableAuthColumn = () =>
+      mockListPreferencesUsers.mockResolvedValue([
+        {
+          key: 'table.users.columns',
+          value: JSON.stringify({
+            visible: ['displayName', 'email', 'authProvider'],
+            order: ['displayName', 'email', 'role', 'createdAt', 'authProvider', 'status'],
+          }),
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ]);
+
+    it('is hidden by default', async () => {
+      mockListUsers.mockResolvedValueOnce({
+        users: [makeUser({ displayName: 'Alice Admin', authProvider: 'local' })],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Alice Admin').length).toBeGreaterThan(0);
+      });
+      expect(screen.queryByText('Local + OIDC')).not.toBeInTheDocument();
+      expect(screen.queryByText('OIDC')).not.toBeInTheDocument();
+    });
+
+    it('shows "Local" for a local account without an OIDC link', async () => {
+      enableAuthColumn();
+      mockListUsers.mockResolvedValueOnce({
+        users: [makeUser({ authProvider: 'local', oidcLinked: false })],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Local').length).toBeGreaterThan(0);
+      });
+      expect(screen.queryByText('Local + OIDC')).not.toBeInTheDocument();
+    });
+
+    it('shows "Local + OIDC" for a local account linked to OIDC', async () => {
+      enableAuthColumn();
+      mockListUsers.mockResolvedValueOnce({
+        users: [makeUser({ authProvider: 'local', oidcLinked: true })],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Local + OIDC').length).toBeGreaterThan(0);
+      });
+    });
+
+    it('shows "OIDC" for an OIDC-origin account', async () => {
+      enableAuthColumn();
+      mockListUsers.mockResolvedValueOnce({
+        users: [makeUser({ authProvider: 'oidc', oidcLinked: true })],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('OIDC').length).toBeGreaterThan(0);
+      });
+      expect(screen.queryByText('Local + OIDC')).not.toBeInTheDocument();
+    });
+  });
+
   describe('data display', () => {
     it('calls listUsers on mount', async () => {
       renderPage();

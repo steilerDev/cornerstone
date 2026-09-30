@@ -22,6 +22,7 @@ import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type * as AppModule from '../app.js';
 import type * as UserServiceModule from '../services/userService.js';
+import type * as OidcRoutesModule from './oidc.js';
 
 // ─── Mock oidcService BEFORE importing app ─────────────────────────────────
 
@@ -48,6 +49,7 @@ jest.unstable_mockModule('../services/oidcService.js', () => ({
 
 let buildApp: typeof AppModule.buildApp;
 let userService: typeof UserServiceModule;
+let oidcRoutes: typeof OidcRoutesModule;
 
 describe('OIDC Routes', () => {
   let app: FastifyInstance;
@@ -73,6 +75,7 @@ describe('OIDC Routes', () => {
     if (!buildApp) {
       buildApp = (await import('../app.js')).buildApp;
       userService = await import('../services/userService.js');
+      oidcRoutes = await import('./oidc.js');
     }
 
     // Reset mocks before each test
@@ -214,7 +217,7 @@ describe('OIDC Routes', () => {
       mockHandleCallback.mockResolvedValue({
         sub: 'sub-match-1',
         email: user.email,
-        name: 'Match User',
+        emailVerified: true,
       });
 
       // When: The OIDC callback is invoked
@@ -243,7 +246,7 @@ describe('OIDC Routes', () => {
       mockHandleCallback.mockResolvedValue({
         sub: 'sub-no-match',
         email: 'nomatch@example.com',
-        name: 'No Match',
+        emailVerified: true,
       });
 
       // When: The OIDC callback is invoked
@@ -272,7 +275,7 @@ describe('OIDC Routes', () => {
       mockHandleCallback.mockResolvedValue({
         sub: 'sub-deactivated',
         email: user.email,
-        name: 'Deactivated User',
+        emailVerified: true,
       });
 
       // When: The OIDC callback is invoked
@@ -281,13 +284,314 @@ describe('OIDC Routes', () => {
         url: '/api/auth/oidc/callback?code=abc&state=xyz',
       });
 
-      // Then: Redirects to the deactivated-account error path (post-link — the account is
-      // still linked even though login is rejected)
+      // Then: Redirects to the deactivated-account error path, and the subject is NOT
+      // bound (a deactivated account is never linked)
       expect(response.statusCode).toBe(302);
       expect(response.headers.location).toBe('/login?error=account_deactivated');
 
       const linkedUser = userService.findById(app.db, user.id);
-      expect(linkedUser?.oidcSubject).toBe('sub-deactivated');
+      expect(linkedUser?.oidcSubject).toBeNull();
+    });
+
+    it('redirects to /login?error=oidc_email_unverified and does not link when the email is unverified', async () => {
+      const user = await userService.createLocalUser(
+        app.db,
+        'unverified@example.com',
+        'Unverified User',
+        'password123456',
+      );
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-unverified',
+        email: user.email,
+        emailVerified: false,
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/auth/oidc/callback?code=abc&state=xyz',
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe('/login?error=oidc_email_unverified');
+      const setCookie = response.headers['set-cookie'];
+      const cookies = Array.isArray(setCookie) ? setCookie.join(';') : (setCookie ?? '');
+      expect(cookies).not.toContain('cornerstone_session=');
+      expect(userService.findById(app.db, user.id)?.oidcSubject).toBeNull();
+    });
+
+    it('logs in an already-linked subject even when the email is unverified', async () => {
+      const user = await userService.createLocalUser(
+        app.db,
+        'linked@example.com',
+        'Linked User',
+        'password123456',
+      );
+      userService.findOrLinkOidcUser(app.db, {
+        sub: 'sub-linked',
+        email: user.email,
+        emailVerified: true,
+      });
+      mockConsumeState.mockReturnValue('/dashboard');
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-linked',
+        email: user.email,
+        emailVerified: false,
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/auth/oidc/callback?code=abc&state=xyz',
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe('/dashboard');
+      const setCookie = response.headers['set-cookie'];
+      const cookies = Array.isArray(setCookie) ? setCookie.join(';') : (setCookie ?? '');
+      expect(cookies).toContain('cornerstone_session=');
+    });
+
+    it('re-binds a changed subject for the same email and logs a warning', async () => {
+      const user = await userService.createLocalUser(
+        app.db,
+        'rebind@example.com',
+        'Rebind User',
+        'password123456',
+      );
+      userService.findOrLinkOidcUser(app.db, {
+        sub: 'sub-old',
+        email: user.email,
+        emailVerified: true,
+      });
+      const warnSpy = jest.spyOn(app.log, 'warn');
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-new',
+        email: user.email,
+        emailVerified: true,
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/auth/oidc/callback?code=abc&state=xyz',
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe('/');
+      expect(userService.findById(app.db, user.id)?.oidcSubject).toBe('sub-new');
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ previousSub: 'sub-old', sub: 'sub-new', userId: user.id }),
+        'OIDC subject re-bound for existing account',
+      );
+      warnSpy.mockRestore();
+    });
+
+    it('links case-insensitively when the IdP email differs only in case', async () => {
+      const user = await userService.createLocalUser(
+        app.db,
+        'Admin@Example.com',
+        'Admin User',
+        'password123456',
+      );
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-case',
+        email: 'admin@example.com',
+        emailVerified: true,
+      });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/auth/oidc/callback?code=abc&state=xyz',
+      });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe('/');
+      expect(userService.findById(app.db, user.id)?.oidcSubject).toBe('sub-case');
+    });
+
+    it('does not create a new user when linking an existing account', async () => {
+      const user = await userService.createLocalUser(
+        app.db,
+        'count@example.com',
+        'Count User',
+        'password123456',
+      );
+      const before = userService.countUsers(app.db);
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-count',
+        email: user.email,
+        emailVerified: true,
+      });
+
+      await app.inject({ method: 'GET', url: '/api/auth/oidc/callback?code=abc&state=xyz' });
+
+      expect(userService.countUsers(app.db)).toBe(before);
+    });
+  });
+
+  describe('GET /api/auth/oidc/callback — error paths', () => {
+    beforeEach(async () => {
+      process.env.OIDC_ISSUER = 'https://oidc.example.com';
+      process.env.OIDC_CLIENT_ID = 'client-123';
+      process.env.OIDC_CLIENT_SECRET = 'secret-456';
+      app = await buildApp();
+      mockDiscoverOidcConfig.mockResolvedValue({});
+      mockConsumeState.mockReturnValue('/');
+    });
+
+    async function callback(query: string) {
+      return app.inject({ method: 'GET', url: `/api/auth/oidc/callback${query}` });
+    }
+
+    it('redirects to oidc_error when the provider returns an error parameter', async () => {
+      const response = await callback('?error=access_denied');
+      expect(response.headers.location).toBe('/login?error=oidc_error');
+    });
+
+    it('redirects to invalid_state when the state parameter is missing', async () => {
+      const response = await callback('?code=abc');
+      expect(response.headers.location).toBe('/login?error=invalid_state');
+    });
+
+    it('redirects to invalid_state when the state is unknown or expired', async () => {
+      mockConsumeState.mockReturnValue(undefined);
+      const response = await callback('?code=abc&state=bad');
+      expect(response.headers.location).toBe('/login?error=invalid_state');
+    });
+
+    it('redirects to missing_email when an unlinked identity has no email claim', async () => {
+      mockHandleCallback.mockResolvedValue({ sub: 'sub-x', email: '', emailVerified: true });
+      const response = await callback('?code=abc&state=xyz');
+      expect(response.headers.location).toBe('/login?error=missing_email');
+    });
+
+    it('logs in a linked user even when the IdP returns no email claim', async () => {
+      const user = await userService.createLocalUser(
+        app.db,
+        'noemail@example.com',
+        'No Email',
+        'password123456',
+      );
+      userService.findOrLinkOidcUser(app.db, {
+        sub: 'sub-noemail',
+        email: user.email,
+        emailVerified: true,
+      });
+      mockConsumeState.mockReturnValue('/dashboard');
+      mockHandleCallback.mockResolvedValue({ sub: 'sub-noemail', email: '', emailVerified: false });
+
+      const response = await callback('?code=abc&state=xyz');
+
+      expect(response.headers.location).toBe('/dashboard');
+      const setCookie = response.headers['set-cookie'];
+      const cookies = Array.isArray(setCookie) ? setCookie.join(';') : (setCookie ?? '');
+      expect(cookies).toContain('cornerstone_session=');
+    });
+
+    it('redirects to oidc_error when the token exchange fails', async () => {
+      mockHandleCallback.mockRejectedValue(new Error('boom'));
+      const response = await callback('?code=abc&state=xyz');
+      expect(response.headers.location).toBe('/login?error=oidc_error');
+    });
+  });
+
+  describe('redirect_uri consistency across both legs (issue #2026)', () => {
+    beforeEach(async () => {
+      process.env.OIDC_ISSUER = 'https://oidc.example.com';
+      process.env.OIDC_CLIENT_ID = 'client-123';
+      process.env.OIDC_CLIENT_SECRET = 'secret-456';
+      mockDiscoverOidcConfig.mockResolvedValue({});
+      mockConsumeState.mockReturnValue('/');
+      mockBuildAuthorizationUrl.mockReturnValue({
+        authorizationUrl: 'https://idp/auth',
+        state: 's',
+      });
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-uri',
+        email: 'nobody@example.com',
+        emailVerified: true,
+      });
+    });
+
+    function stripped(u: URL): string {
+      const copy = new URL(u.href);
+      copy.search = '';
+      copy.hash = '';
+      return copy.href;
+    }
+
+    async function runBothLegs(host: string) {
+      await app.inject({ method: 'GET', url: '/api/auth/oidc/login', headers: { host } });
+      await app.inject({
+        method: 'GET',
+        url: '/api/auth/oidc/callback?code=abc&state=xyz&iss=https%3A%2F%2Foidc.example.com',
+        headers: { host },
+      });
+      const leg1 = mockBuildAuthorizationUrl.mock.calls[0][1] as string;
+      const leg2 = mockHandleCallback.mock.calls[0][1] as URL;
+      return { leg1, leg2 };
+    }
+
+    it('uses EXTERNAL_URL for both legs even when the request host is internal', async () => {
+      process.env.EXTERNAL_URL = 'https://cornerstone.example.com';
+      app = await buildApp();
+
+      const { leg1, leg2 } = await runBothLegs('internal.local:3000');
+
+      expect(leg1).toBe('https://cornerstone.example.com/api/auth/oidc/callback');
+      expect(stripped(leg2)).toBe(new URL(leg1).href);
+      expect(leg2.searchParams.get('code')).toBe('abc');
+      expect(leg2.searchParams.get('state')).toBe('xyz');
+      expect(leg2.searchParams.get('iss')).toBe('https://oidc.example.com');
+    });
+
+    it('falls back to the request origin for both legs when EXTERNAL_URL is unset', async () => {
+      delete process.env.EXTERNAL_URL;
+      app = await buildApp();
+
+      const { leg1, leg2 } = await runBothLegs('app.local:3000');
+
+      expect(leg1).toBe('http://app.local:3000/api/auth/oidc/callback');
+      expect(stripped(leg2)).toBe(leg1);
+    });
+  });
+
+  describe('buildOidcRedirectUri', () => {
+    it('exposes the callback path constant', () => {
+      expect(oidcRoutes.OIDC_CALLBACK_PATH).toBe('/api/auth/oidc/callback');
+    });
+
+    it('preserves a path prefix in EXTERNAL_URL', () => {
+      const uri = oidcRoutes.buildOidcRedirectUri(
+        'https://example.com/cornerstone',
+        'http://internal:3000',
+      );
+      expect(uri.href).toBe('https://example.com/cornerstone/api/auth/oidc/callback');
+    });
+
+    it('uses the request origin when no external URL is configured', () => {
+      const uri = oidcRoutes.buildOidcRedirectUri(undefined, 'http://app.local:3000');
+      expect(uri.href).toBe('http://app.local:3000/api/auth/oidc/callback');
+    });
+
+    it('treats an empty external URL as unset', () => {
+      const uri = oidcRoutes.buildOidcRedirectUri('', 'http://app.local:3000');
+      expect(uri.href).toBe('http://app.local:3000/api/auth/oidc/callback');
+    });
+
+    it('normalises an uppercase host identically on both legs', () => {
+      const a = oidcRoutes.buildOidcRedirectUri(undefined, 'https://APP.Example.COM');
+      const b = oidcRoutes.buildOidcRedirectUri('https://APP.Example.COM', 'http://x');
+      expect(a.href).toBe('https://app.example.com/api/auth/oidc/callback');
+      expect(b.href).toBe(a.href);
+    });
+
+    it('keeps a percent-encoded query intact when set via the URL setter', () => {
+      const uri = oidcRoutes.buildOidcRedirectUri(undefined, 'http://app.local:3000');
+      uri.search = new URL(
+        '/api/auth/oidc/callback?iss=https%3A%2F%2Fidp.example.com&code=a%20b',
+        'http://x',
+      ).search;
+      expect(uri.search).toBe('?iss=https%3A%2F%2Fidp.example.com&code=a%20b');
+      expect(uri.searchParams.get('iss')).toBe('https://idp.example.com');
     });
   });
 });

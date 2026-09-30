@@ -443,6 +443,28 @@ describe('Authentication Routes', () => {
       expect(body.user.displayName).toBe('Login User');
     });
 
+    it('still allows password login after the account is linked to OIDC (same user, oidcLinked true)', async () => {
+      // Given: A local account that has been linked to an OIDC identity
+      const email = 'linked-login@example.com';
+      const password = 'SecurePassword123';
+      const local = await userService.createLocalUser(app.db, email, 'Linked Login', password);
+      userService.findOrLinkOidcUser(app.db, { sub: 'linked-sub', email, emailVerified: true });
+
+      // When: Logging in with the original password
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { email, password },
+      });
+
+      // Then: Login succeeds for the same account, which reports itself as OIDC-linked
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body) as { user: UserResponse };
+      expect(body.user.id).toBe(local.id);
+      expect(body.user.authProvider).toBe('local');
+      expect(body.user.oidcLinked).toBe(true);
+    });
+
     it('fails with wrong password (401 INVALID_CREDENTIALS)', async () => {
       // Given: User exists
       const email = 'user@example.com';

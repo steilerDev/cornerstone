@@ -380,9 +380,11 @@ export function UserManagementPage() {
         filterable: false,
         defaultVisible: false,
         render: (u) =>
-          u.authProvider === 'local'
-            ? t('userManagement.authProviders.local')
-            : t('userManagement.authProviders.oidc')!,
+          u.authProvider === 'oidc'
+            ? t('userManagement.authProviders.oidc')
+            : u.oidcLinked
+              ? t('userManagement.authProviders.localAndOidc')
+              : t('userManagement.authProviders.local'),
       },
       {
         key: 'status',

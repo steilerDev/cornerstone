@@ -17,7 +17,7 @@ Cornerstone supports two authentication methods: local accounts (email/password)
 
 ### OIDC Single Sign-On
 
-Connect to your existing identity provider (Authentik, Keycloak, or any OpenID Connect provider) for seamless login. New users are automatically provisioned on their first OIDC login with the Member role.
+Connect to your existing identity provider (Authentik, Keycloak, or any OpenID Connect provider) for seamless login. Admins create accounts first, then users link them via OIDC SSO on their first login.
 
 See [OIDC Setup](oidc-setup) for detailed configuration instructions.
 

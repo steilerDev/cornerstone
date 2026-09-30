@@ -43,12 +43,25 @@ test.describe('OIDC SSO Flow', () => {
       storageState: 'test-results/.auth/admin.json',
     });
     const adminPage = await adminContext.newPage();
-    await createLocalUserViaApi(adminPage, {
-      email: TEST_MEMBER.email,
-      displayName: TEST_MEMBER.displayName,
-      password: TEST_MEMBER.localPassword,
-      role: 'member',
-    });
+    // Retry-safe: serial mode re-runs beforeAll when a test fails and the
+    // describe is retried, and the mock IdP identity is fixed (the account
+    // may already exist from the previous attempt), so only create the user
+    // if no user with exactly this email exists yet.
+    const existingResponse = await adminPage.request.get(
+      `${API.users}?q=${encodeURIComponent(TEST_MEMBER.email)}`,
+    );
+    expect(existingResponse.ok()).toBe(true);
+    const { users: existingUsers } = (await existingResponse.json()) as {
+      users: { email: string }[];
+    };
+    if (!existingUsers.some((u) => u.email === TEST_MEMBER.email)) {
+      await createLocalUserViaApi(adminPage, {
+        email: TEST_MEMBER.email,
+        displayName: TEST_MEMBER.displayName,
+        password: TEST_MEMBER.localPassword,
+        role: 'member',
+      });
+    }
     await adminContext.close();
   });
 
@@ -103,6 +116,42 @@ test.describe('OIDC SSO Flow', () => {
     expect(me.user.email).toBe(TEST_MEMBER.email);
   });
 
+  test('Local password login still works after SSO linking and resolves the same account', async ({
+    page,
+    browser,
+  }) => {
+    const loginPage = new LoginPage(page);
+
+    // Given: User signs in via SSO (links/resolves the local account)
+    await loginPage.goto();
+    await loginPage.clickSSO();
+    await expect(page).toHaveURL(ROUTES.home, { timeout: 15000 });
+    const ssoMeResponse = await page.request.get(API.authMe);
+    expect(ssoMeResponse.ok()).toBe(true);
+    const ssoMe = await ssoMeResponse.json();
+    expect(ssoMe.user).not.toBeNull();
+    const ssoUserId = ssoMe.user.id;
+
+    // When: A fresh, unauthenticated context signs in with the local password
+    const localContext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    try {
+      const localPage = await localContext.newPage();
+      const localLoginPage = new LoginPage(localPage);
+      await localLoginPage.goto();
+      await localLoginPage.login(TEST_MEMBER.email, TEST_MEMBER.localPassword);
+      await expect(localPage).toHaveURL(ROUTES.home, { timeout: 15000 });
+
+      // Then: /api/auth/me returns the same account as the SSO session
+      const localMeResponse = await localPage.request.get(API.authMe);
+      expect(localMeResponse.ok()).toBe(true);
+      const localMe = await localMeResponse.json();
+      expect(localMe.user).not.toBeNull();
+      expect(localMe.user.id).toBe(ssoUserId);
+    } finally {
+      await localContext.close();
+    }
+  });
+
   test('Linked OIDC user retains local account attributes', async ({ page }) => {
     const loginPage = new LoginPage(page);
 
@@ -123,6 +172,7 @@ test.describe('OIDC SSO Flow', () => {
     expect(me.user.displayName).toBe(TEST_MEMBER.displayName);
     expect(me.user.role).toBe('member');
     expect(me.user.authProvider).toBe('local');
+    expect(me.user.oidcLinked).toBe(true);
   });
 
   test('OIDC user appears in admin user management', async ({ page, browser }) => {
@@ -176,14 +226,11 @@ test.describe('OIDC SSO Flow', () => {
   // constraint, this test exercises the same URL-param -> translated-banner
   // code path a real rejection redirect produces (LoginPage.tsx reads
   // `?error=` on mount), without depending on a second container identity.
-  // The real backend rejection path (403 OidcNoMatchingAccountError, no user
-  // row created) is covered by qa-integration-tester's route-level test.
-  test('Login page shows the rejection banner for oidc_no_matching_account and creates no account', async ({
-    page,
-    browser,
-  }) => {
+  // The real backend rejection path (redirect to
+  // /login?error=oidc_no_matching_account, no user row created) is covered by
+  // server/src/routes/oidc.test.ts.
+  test('Login page renders the oidc_no_matching_account rejection banner', async ({ page }) => {
     const loginPage = new LoginPage(page);
-    const unmatchedEmail = 'no-such-oidc-user@e2e-test.local';
 
     // When: Browser lands on /login with the rejection error code — exactly
     // the redirect target the server uses for OidcNoMatchingAccountError
@@ -197,19 +244,5 @@ test.describe('OIDC SSO Flow', () => {
     await expect(loginPage.errorBanner).toContainText(
       'No account was found for your email address',
     );
-
-    // And: No account exists for an email that was never provisioned — sanity
-    // check that rejection never has the side effect of creating a user
-    const adminContext = await browser.newContext({
-      storageState: 'test-results/.auth/admin.json',
-    });
-    const adminPage = await adminContext.newPage();
-    const usersResponse = await adminPage.request.get(
-      `${API.users}?q=${encodeURIComponent(unmatchedEmail)}`,
-    );
-    expect(usersResponse.ok()).toBe(true);
-    const { users } = (await usersResponse.json()) as { users: { email: string }[] };
-    expect(users.find((u) => u.email === unmatchedEmail)).toBeUndefined();
-    await adminContext.close();
   });
 });

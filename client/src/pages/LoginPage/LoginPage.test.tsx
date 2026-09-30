@@ -140,14 +140,25 @@ describe('LoginPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows OIDC error message from URL query parameter (email_conflict)', async () => {
-    window.history.pushState({}, '', '/login?error=email_conflict');
+  it('shows OIDC error message from URL query parameter (oidc_email_unverified)', async () => {
+    window.history.pushState({}, '', '/login?error=oidc_email_unverified');
 
     renderWithAuth(<LoginPage />);
 
     expect(
-      await screen.findByText(/this email is already associated with a different account/i),
+      await screen.findByText(/did not confirm that your email address is verified/i),
     ).toBeInTheDocument();
+  });
+
+  it('no longer recognises the removed email_conflict error code', async () => {
+    window.history.pushState({}, '', '/login?error=email_conflict');
+
+    renderWithAuth(<LoginPage />);
+
+    await waitFor(() => {
+      expect(mockGetAuthMe).toHaveBeenCalled();
+    });
+    expect(screen.queryByText(/already associated with a different account/i)).toBeNull();
   });
 
   it('shows OIDC error message from URL query parameter (account_deactivated)', async () => {
@@ -164,7 +175,9 @@ describe('LoginPage', () => {
     renderWithAuth(<LoginPage />);
 
     expect(
-      await screen.findByText(/no account was found for your email address/i),
+      await screen.findByText(
+        /no account was found for your email address\. please contact an administrator to have an account created for you/i,
+      ),
     ).toBeInTheDocument();
   });
 

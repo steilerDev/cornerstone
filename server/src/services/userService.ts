@@ -6,7 +6,12 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { users } from '../db/schema.js';
 import type { UserResponse } from '@cornerstone/shared';
-import { ConflictError, OidcNoMatchingAccountError } from '../errors/AppError.js';
+import {
+  ConflictError,
+  OidcEmailUnverifiedError,
+  OidcMissingEmailError,
+  OidcNoMatchingAccountError,
+} from '../errors/AppError.js';
 
 // Re-export ConflictError for tests
 export { ConflictError };
@@ -95,6 +100,7 @@ export function toUserResponse(row: typeof users.$inferSelect): UserResponse {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     deactivatedAt: row.deactivatedAt,
+    oidcLinked: row.oidcSubject !== null,
   };
 }
 
@@ -190,47 +196,117 @@ export function findByOidcSubject(db: DbType, sub: string): typeof users.$inferS
   return db.select().from(users).where(eq(users.oidcSubject, sub)).get();
 }
 
+/** Identity asserted by the OIDC provider (server-internal). */
+export interface OidcIdentity {
+  sub: string;
+  email: string;
+  emailVerified: boolean;
+}
+
+export type OidcResolutionOutcome =
+  'matched_subject' | 'linked' | 'relinked' | 'deactivated_not_linked';
+
+export interface OidcResolution {
+  user: typeof users.$inferSelect;
+  outcome: OidcResolutionOutcome;
+  previousSubject: string | null;
+}
+
 /**
- * Find the local account matching an OIDC identity, linking it on first
- * successful login.
- *
- * OIDC is exclusively an alternate login method for accounts that already
- * exist — it never creates a new account. Resolution order:
- *   1. If `sub` is already linked to an account, return it.
- *   2. Otherwise, if an account exists whose email matches the verified
- *      email claim, link this OIDC subject to that account and return it.
- *      `authProvider` and `passwordHash` are left untouched.
- *   3. Otherwise, no account can be authorized for this identity.
+ * Find a user by email for OIDC linking, case-insensitively.
+ * An exact-case match wins; otherwise a single case-insensitive match is
+ * returned. Multiple case-variant matches with no exact match are ambiguous and
+ * fail closed (undefined).
  *
  * @param db - Database instance
- * @param sub - OIDC subject identifier
- * @param email - User email address
- * @returns The user row (existing or linked)
- * @throws OidcNoMatchingAccountError if no account exists for this email
+ * @param email - Email asserted by the identity provider
+ * @returns User row or undefined if none/ambiguous
  */
-export function findOrLinkOidcUser(
+export function findByEmailForOidc(
   db: DbType,
-  sub: string,
   email: string,
-): typeof users.$inferSelect {
-  const existingUser = findByOidcSubject(db, sub);
-  if (existingUser) {
-    return existingUser;
-  }
+): typeof users.$inferSelect | undefined {
+  const rows = db
+    .select()
+    .from(users)
+    .where(sql`lower(${users.email}) = lower(${email})`)
+    .all();
+  const exact = rows.find((r) => r.email === email);
+  if (exact) return exact;
+  return rows.length === 1 ? rows[0] : undefined;
+}
 
-  const emailUser = findByEmail(db, email);
-  if (!emailUser) {
-    throw new OidcNoMatchingAccountError();
-  }
+/**
+ * Resolve the local account for an OIDC identity, linking it on login.
+ *
+ * OIDC is exclusively an alternate login method for accounts that already
+ * exist — it never creates a new account. Runs in a single transaction.
+ * Resolution order:
+ *   1. `sub` already linked to an account: return it ('matched_subject').
+ *      No verified-email requirement (the subject is the correlation key).
+ *   2. Empty email (no email claim): throw OidcMissingEmailError. Only the link
+ *      path needs an email, so a linked user without an email claim still signs in.
+ *   3. Email not asserted as verified by the IdP: throw
+ *      OidcEmailUnverifiedError, BEFORE any email lookup (no account enumeration).
+ *   4. No account matches the email (case-insensitive, see findByEmailForOidc):
+ *      throw OidcNoMatchingAccountError.
+ *   5. Matching account is deactivated: return it ('deactivated_not_linked')
+ *      without writing anything.
+ *   6. Otherwise bind `sub` to the account. If the account already had a
+ *      different subject it is re-bound ('relinked') — this lets an IdP
+ *      migration self-heal, since there is no link/unlink UI. Otherwise
+ *      'linked'. `authProvider` and `passwordHash` are left untouched.
+ *
+ * @param db - Database instance
+ * @param identity - Subject, email and email-verified flag from the IdP
+ * @returns The resolved user, outcome and previous subject
+ * @throws OidcMissingEmailError, OidcEmailUnverifiedError, OidcNoMatchingAccountError
+ */
+export function findOrLinkOidcUser(db: DbType, identity: OidcIdentity): OidcResolution {
+  return db.transaction(() => {
+    const existingUser = findByOidcSubject(db, identity.sub);
+    if (existingUser) {
+      return {
+        user: existingUser,
+        outcome: 'matched_subject' as const,
+        previousSubject: existingUser.oidcSubject,
+      };
+    }
 
-  const now = new Date().toISOString();
-  db.update(users)
-    .set({ oidcSubject: sub, updatedAt: now })
-    .where(eq(users.id, emailUser.id))
-    .run();
+    if (!identity.email) {
+      throw new OidcMissingEmailError();
+    }
 
-  const row = db.select().from(users).where(eq(users.id, emailUser.id)).get();
-  return row!;
+    if (!identity.emailVerified) {
+      throw new OidcEmailUnverifiedError();
+    }
+
+    const emailUser = findByEmailForOidc(db, identity.email);
+    if (!emailUser) {
+      throw new OidcNoMatchingAccountError();
+    }
+
+    if (emailUser.deactivatedAt) {
+      return {
+        user: emailUser,
+        outcome: 'deactivated_not_linked' as const,
+        previousSubject: emailUser.oidcSubject,
+      };
+    }
+
+    const now = new Date().toISOString();
+    db.update(users)
+      .set({ oidcSubject: identity.sub, updatedAt: now })
+      .where(eq(users.id, emailUser.id))
+      .run();
+
+    const row = db.select().from(users).where(eq(users.id, emailUser.id)).get()!;
+    return {
+      user: row,
+      outcome: emailUser.oidcSubject ? ('relinked' as const) : ('linked' as const),
+      previousSubject: emailUser.oidcSubject,
+    };
+  });
 }
 
 /**
