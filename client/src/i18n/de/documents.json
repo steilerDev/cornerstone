@@ -60,7 +60,7 @@
     "selectDocumentSubtitle": "Wählen Sie ein Dokument aus Paperless-ngx aus, um es mit {{entity}} zu verknüpfen.",
     "closeDocumentPicker": "Dokumentauswahl schließen",
     "unlinkDocument": "Dokumentverknüpfung aufheben?",
-    "unlinkConfirmation": "\"{{title}}\" wird aus {{entity}} entfernt. Das Dokument bleibt in Paperless-ngx.",
+    "unlinkConfirmation": "„{{title}}“ wird aus {{entity}} entfernt. Das Dokument bleibt in Paperless-ngx.",
     "unlinkButton": "Verknüpfung aufheben",
     "unlinking": "Verknüpfung wird aufgehoben…",
     "workItemEntity": "dieses Arbeitspaket",

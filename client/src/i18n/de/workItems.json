@@ -75,7 +75,7 @@
     },
     "deleteModal": {
       "title": "Arbeitspaket löschen",
-      "confirmation": "Sind Sie sicher, dass Sie \"{{title}}\" löschen möchten?",
+      "confirmation": "Sind Sie sicher, dass Sie „{{title}}“ löschen möchten?",
       "warning": "Dadurch werden auch alle zugehörigen Teilaufgaben, Abhängigkeiten und Kommentare gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
       "cancel": "Abbrechen",
       "deletingLabel": "Wird gelöscht...",
@@ -126,8 +126,8 @@
     },
     "pendingDeps": {
       "ariaLabel": "Ausstehende Abhängigkeiten",
-      "thisItemPredecessor": "Dieses Element muss {{predecessorVerb}}, bevor \"{{otherItemTitle}}\" {{successorVerb}} kann",
-      "otherItemPredecessor": "\"{{otherItemTitle}}\" muss {{predecessorVerb}}, bevor dieses Element {{successorVerb}} kann",
+      "thisItemPredecessor": "Dieses Element muss {{predecessorVerb}}, bevor „{{otherItemTitle}}“ {{successorVerb}} kann",
+      "otherItemPredecessor": "„{{otherItemTitle}}“ muss {{predecessorVerb}}, bevor dieses Element {{successorVerb}} kann",
       "removeAriaLabel": "Abhängigkeit zu {{otherItemTitle}} entfernen"
     },
     "actions": {
@@ -295,7 +295,7 @@
     "modals": {
       "deleteWorkItem": {
         "title": "Arbeitspaket löschen?",
-        "text": "Sind Sie sicher, dass Sie \"{{title}}\" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "text": "Sind Sie sicher, dass Sie „{{title}}“ löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
         "cancel": "Abbrechen",
         "deleting": "Wird gelöscht...",
         "delete": "Löschen"
@@ -314,8 +314,8 @@
       },
       "removeDependency": {
         "title": "Abhängigkeit entfernen?",
-        "textPredecessor": "Dieses Element wird nicht mehr von \"{{title}}\" abhängen. Diese Aktion kann nicht rückgängig gemacht werden.",
-        "textSuccessor": "Dieses Element wird \"{{title}}\" nicht mehr blockieren. Diese Aktion kann nicht rückgängig gemacht werden.",
+        "textPredecessor": "Dieses Element wird nicht mehr von „{{title}}“ abhängen. Diese Aktion kann nicht rückgängig gemacht werden.",
+        "textSuccessor": "Dieses Element wird „{{title}}“ nicht mehr blockieren. Diese Aktion kann nicht rückgängig gemacht werden.",
         "cancel": "Abbrechen",
         "remove": "Entfernen"
       },

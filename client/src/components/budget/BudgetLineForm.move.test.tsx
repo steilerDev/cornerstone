@@ -3,7 +3,15 @@
  */
 import React from 'react';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render as rtlRender, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import {
+  render as rtlRender,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import type { BudgetLineFormProps } from './BudgetLineForm.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import type { BudgetLineAssignRequest } from '@cornerstone/shared';
@@ -425,6 +433,153 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
     // ("Network error") is displayed directly, not the translation key fallback.
     await waitFor(() => {
       expect(screen.getByText(/network error/i)).toBeInTheDocument();
+    });
+  });
+
+  // ─── #2067: collapsed row hides, and focus moves deliberately ───────────────
+
+  describe('focus management when toggling the picker (#2067)', () => {
+    type OnMove = (
+      newParentType: 'work_item' | 'household_item',
+      newParentId: string,
+    ) => Promise<void>;
+
+    function renderWithParent(onMove: jest.Mock<OnMove>) {
+      render(
+        React.createElement(
+          BudgetLineForm,
+          buildBaseProps({
+            currentParentType: 'work_item',
+            currentParentId: 'wi-1',
+            currentParentLabel: 'Test WI',
+            onMove,
+          }),
+        ),
+      );
+    }
+
+    function getParentRow(): HTMLElement {
+      const row = screen.getByText('Test WI').parentElement;
+      expect(row).not.toBeNull();
+      return row!;
+    }
+
+    function getPickerFieldset(): HTMLElement {
+      return screen.getByRole('group', { name: 'Linked item' });
+    }
+
+    it('clicking "Change" hides the current-parent row, reveals the picker body, and focuses the fieldset', () => {
+      renderWithParent(jest.fn<OnMove>());
+
+      expect(getParentRow()).not.toHaveAttribute('hidden');
+      fireEvent.click(screen.getByRole('button', { name: /^Change$/i }));
+
+      expect(getParentRow()).toHaveAttribute('hidden');
+      expect(document.getElementById('parent-picker-body')).not.toHaveAttribute('hidden');
+      expect(document.activeElement).toBe(getPickerFieldset());
+    });
+
+    it('cancelling the picker restores the row and returns focus to the collapsed "Change" button', () => {
+      renderWithParent(jest.fn<OnMove>());
+      fireEvent.click(screen.getByRole('button', { name: /^Change$/i }));
+
+      fireEvent.click(within(getPickerFieldset()).getByRole('button', { name: 'Cancel' }));
+
+      expect(getParentRow()).not.toHaveAttribute('hidden');
+      expect(document.getElementById('parent-picker-body')).toHaveAttribute('hidden');
+      const change = screen.getByRole('button', { name: /^Change$/i });
+      expect(change).toHaveAttribute('aria-expanded', 'false');
+      expect(document.activeElement).toBe(change);
+    });
+
+    it('a successful move returns focus to the "Change" button instead of <body>', async () => {
+      const onMove = jest.fn<OnMove>().mockResolvedValue(undefined);
+      renderWithParent(onMove);
+      fireEvent.click(screen.getByRole('button', { name: /^Change$/i }));
+      act(() => {
+        capturedWorkItemPickerOnChange!('wi-2');
+      });
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Move to selected item/i })).not.toBeDisabled();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Move to selected item/i }));
+      });
+
+      expect(onMove).toHaveBeenCalledWith('work_item', 'wi-2');
+      const change = screen.getByRole('button', { name: /^Change$/i });
+      expect(document.activeElement).toBe(change);
+      expect(document.activeElement).not.toBe(document.body);
+    });
+
+    async function openPickerAndSelect() {
+      fireEvent.click(screen.getByRole('button', { name: /^Change$/i }));
+      act(() => {
+        capturedWorkItemPickerOnChange!('wi-2');
+      });
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Move to selected item/i })).not.toBeDisabled();
+      });
+    }
+
+    it('with no target selected the Move button is natively disabled', () => {
+      renderWithParent(jest.fn<OnMove>());
+      fireEvent.click(screen.getByRole('button', { name: /^Change$/i }));
+
+      const move = screen.getByRole('button', { name: /Move to selected item/i });
+      expect(move).toBeDisabled();
+      expect(move).not.toHaveAttribute('aria-disabled');
+    });
+
+    it('while moving, the Move button is aria-disabled (not natively disabled) and a second click does not call onMove again', async () => {
+      let resolveMove: (() => void) | undefined;
+      const onMove = jest.fn<OnMove>().mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveMove = resolve;
+          }),
+      );
+      renderWithParent(onMove);
+      await openPickerAndSelect();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Move to selected item/i }));
+      });
+
+      const moving = screen.getByRole('button', { name: /Moving/i });
+      expect(moving).toHaveAttribute('aria-disabled', 'true');
+      expect(moving).not.toBeDisabled();
+
+      await act(async () => {
+        fireEvent.click(moving);
+      });
+      expect(onMove).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        resolveMove?.();
+      });
+    });
+
+    it('a failed move activated by keyboard keeps the picker open and leaves focus on the Move button', async () => {
+      const user = userEvent.setup();
+      const onMove = jest.fn<OnMove>().mockRejectedValue(new Error('nope'));
+      renderWithParent(onMove);
+      await openPickerAndSelect();
+
+      const move = screen.getByRole('button', { name: /Move to selected item/i });
+      act(() => {
+        move.focus();
+      });
+      await user.keyboard('{Enter}');
+
+      await waitFor(() => {
+        expect(screen.getByText('nope')).toBeInTheDocument();
+      });
+      expect(getParentRow()).toHaveAttribute('hidden');
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: /Move to selected item/i }),
+      );
     });
   });
 

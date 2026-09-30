@@ -132,14 +132,14 @@
     },
     "deleteModal": {
       "title": "Budgetquelle Löschen",
-      "confirm": "Sind Sie sicher, dass Sie die Budgetquelle \"{{name}}\" löschen möchten?",
+      "confirm": "Sind Sie sicher, dass Sie die Budgetquelle „{{name}}“ löschen möchten?",
       "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Die Quelle wird dauerhaft entfernt.",
       "conflictError": "Diese Budgetquelle kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Budgeteinträgen referenziert wird."
     },
     "messages": {
-      "created": "Budgetquelle \"{{name}}\" erfolgreich erstellt",
-      "updated": "Budgetquelle \"{{name}}\" erfolgreich aktualisiert",
-      "deleted": "Budgetquelle \"{{name}}\" erfolgreich gelöscht",
+      "created": "Budgetquelle „{{name}}“ erfolgreich erstellt",
+      "updated": "Budgetquelle „{{name}}“ erfolgreich aktualisiert",
+      "deleted": "Budgetquelle „{{name}}“ erfolgreich gelöscht",
       "createError": "Budgetquelle konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
       "updateError": "Budgetquelle konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
       "deleteError": "Budgetquelle konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
@@ -228,7 +228,7 @@
         "claimedWarningBody": "Die Neuzuordnung dieser Positionen hat keinen Einfluss auf den Rechnungsantrag. Bitte prüfen Sie die Auswirkungen mit Ihrem Steuerberater, bevor Sie fortfahren.",
         "understoodLabel": "Ich verstehe, dass hierdurch Positionen mit einer eingereichten Rechnung neu zugeordnet werden",
         "confirmButton": "Positionen verschieben",
-        "confirmDisabledHint": "Aktivieren Sie das Kontrollkästchen \u201eIch verstehe\u201c, um die Bestätigung zu ermöglichen",
+        "confirmDisabledHint": "Aktivieren Sie das Kontrollkästchen „Ich verstehe“, um die Bestätigung zu ermöglichen",
         "confirmDisabledNoTarget": "Wählen Sie eine Zielquelle aus, um die Bestätigung zu ermöglichen",
         "successToast_one": "{{count}} Position wurde nach {{targetName}} verschoben",
         "successToast_other": "{{count}} Positionen wurden nach {{targetName}} verschoben",
@@ -321,7 +321,7 @@
       "title": "Auftragnehmer Hinzufügen",
       "description": "Fügen Sie einen Auftragnehmer oder Unternehmer hinzu, der an Ihrem Bauprojekt beteiligt ist.",
       "deleteTitle": "Auftragnehmer Löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie \"{{name}}\" löschen möchten?",
+      "deleteConfirm": "Sind Sie sicher, dass Sie „{{name}}“ löschen möchten?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
       "deleteError": "Dieser Auftragnehmer kann nicht gelöscht werden, da er zugehörige Rechnungen oder Arbeitspakete hat. Entfernen Sie zuerst diese Verweise."
     },
@@ -344,7 +344,7 @@
     "addInvoice": "Rechnung Hinzufügen",
     "invoicesLoading": "Rechnungen werden geladen...",
     "noInvoicesYet": "Noch keine Rechnungen.",
-    "noInvoicesHint": "Klicken Sie auf \"Rechnung Hinzufügen\", um die erste Rechnung für diesen Auftragnehmer zu erfassen.",
+    "noInvoicesHint": "Klicken Sie auf „Rechnung Hinzufügen“, um die erste Rechnung für diesen Auftragnehmer zu erfassen.",
     "outstanding": "Ausstehend:",
     "createdBy": "Erstellt von",
     "detailFields": {
@@ -386,7 +386,7 @@
     },
     "deleteModal": {
       "title": "Auftragnehmer Löschen",
-      "confirm": "Sind Sie sicher, dass Sie \"{{name}}\" löschen möchten?",
+      "confirm": "Sind Sie sicher, dass Sie „{{name}}“ löschen möchten?",
       "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
       "delete": "Auftragnehmer Löschen",
       "deleting": "Wird gelöscht..."
@@ -873,7 +873,7 @@
     },
     "modal": {
       "deleteTitle": "Förderprogramm Löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie das Programm \"{{name}}\" löschen möchten?",
+      "deleteConfirm": "Sind Sie sicher, dass Sie das Programm „{{name}}“ löschen möchten?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Das Programm wird dauerhaft entfernt.",
       "deleteError": "Dieses Förderprogramm kann nicht gelöscht werden, da es derzeit von einem oder mehreren Budgeteinträgen referenziert wird."
     },
@@ -881,9 +881,9 @@
       "createError": "Förderprogramm konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
       "updateError": "Förderprogramm konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
       "deleteError": "Förderprogramm konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
-      "created": "Förderprogramm \"{{name}}\" erfolgreich erstellt",
-      "updated": "Förderprogramm \"{{name}}\" erfolgreich aktualisiert",
-      "deleted": "Förderprogramm \"{{name}}\" erfolgreich gelöscht"
+      "created": "Förderprogramm „{{name}}“ erfolgreich erstellt",
+      "updated": "Förderprogramm „{{name}}“ erfolgreich aktualisiert",
+      "deleted": "Förderprogramm „{{name}}“ erfolgreich gelöscht"
     },
     "docs": {
       "expand": "Dokumente einblenden",
@@ -1098,7 +1098,7 @@
     },
     "openItems": {
       "toggleLabel": "Nur offene Positionen anzeigen",
-      "toggleDisabledHint": "Nicht verfügbar, während \"Nur offene Positionen anzeigen\" aktiv ist",
+      "toggleDisabledHint": "Nicht verfügbar, während „Nur offene Positionen anzeigen“ aktiv ist",
       "defaultSortHint": "Sortiert nach frühestem Fälligkeitsdatum",
       "containerLabel": "Nur Abschlagszahlungen",
       "overdueLabel": "Überfällig",
@@ -1210,7 +1210,7 @@
     "inlineDraftCreateFailed": "Budgetposition konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
     "inlineDraftLinkFailed": "Budgetposition konnte nicht mit der Rechnung verknüpft werden.",
     "inlineDraftPartialFailure": "Budgetposition wurde erstellt, konnte aber nicht verknüpft werden: {{error}}. Bitte prüfen Sie dies und verknüpfen Sie es manuell.",
-    "selectForMergeAriaLabel": "„{{description}}\" zum Zusammenführen auswählen",
+    "selectForMergeAriaLabel": "„{{description}}“ zum Zusammenführen auswählen",
     "selectionDisabledAssignedAriaLabel": "Bereits zugewiesen – kann nicht zum Zusammenführen ausgewählt werden",
     "mergeSelectedCount_one": "{{count}} ausgewählt",
     "mergeSelectedCount_other": "{{count}} ausgewählt",
@@ -1350,7 +1350,7 @@
       "tableHeading": "Berichtstabelle",
       "columnVisibilityLabel": "Spalten ein-/ausblenden",
       "allocatedAmountRequiredHint": "Erforderlich – jeder Bericht enthält den zugeordneten Betrag.",
-      "usageHiddenAttachmentsWarning": "Anhänge sind aktiviert, aber wenn Sie „Verwendung\" ausblenden, fehlt in der PDF-Datei der Bezug zwischen den einzelnen Zeilen und den zugehörigen Anhängen.",
+      "usageHiddenAttachmentsWarning": "Anhänge sind aktiviert, aber wenn Sie „Verwendung“ ausblenden, fehlt in der PDF-Datei der Bezug zwischen den einzelnen Zeilen und den zugehörigen Anhängen.",
       "enhanceWithAi": "Mit KI verbessern",
       "enhanceWithAiDescription": "Ersetzt die unten stehenden Verwendungstexte und das Anschreiben durch KI-generierte Inhalte. Vorgenommene Bearbeitungen gehen dabei verloren.",
       "generating": "Generiere… ({{seconds}}s)",

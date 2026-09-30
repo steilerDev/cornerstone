@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -8,7 +8,6 @@ import type {
   ManualDiaryEntryType,
 } from '@cornerstone/shared';
 import { listDiaryEntries } from '../../lib/diaryApi.js';
-import { ApiClientError } from '../../lib/apiClient.js';
 import { useDebounce } from '../../hooks/useDebounce.js';
 import { useInfiniteScroll, type InfiniteScrollPage } from '../../hooks/useInfiniteScroll.js';
 import { DiaryFilterBar } from '../../components/diary/DiaryFilterBar/DiaryFilterBar.js';
@@ -38,7 +37,9 @@ export default function DiaryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [totalItems, setTotalItems] = useState(0);
-  const [error, setError] = useState('');
+  const [firstBatchFailed, setFirstBatchFailed] = useState(false);
+  const focusEmptyStateAfterRetryRef = useRef(false);
+  const emptyStateCtaRef = useRef<HTMLAnchorElement>(null);
 
   // Filter state from URL
   const searchQuery = searchParams.get('q') || '';
@@ -133,14 +134,35 @@ export default function DiaryPage() {
     resetKey,
     onPageApplied: (meta) => {
       if (meta) setTotalItems(meta.totalItems);
-      setError('');
+      setFirstBatchFailed(false);
     },
-    onPageFailed: (err) => {
-      setError(err instanceof ApiClientError ? err.error.message : t('error'));
+    onPageFailed: (_err, page) => {
+      if (page === 1) setFirstBatchFailed(true);
     },
   });
 
-  const showInitialLoading = status === 'loading' && entries.length === 0;
+  const showInitialLoading = status === 'loading' && entries.length === 0 && !firstBatchFailed;
+
+  // First-batch recovery state belongs to the current query: a filter change starts fresh.
+  useEffect(() => {
+    /* eslint-disable @eslint-react/set-state-in-effect -- reset per-query state when the query changes */
+    setFirstBatchFailed(false);
+    /* eslint-enable @eslint-react/set-state-in-effect */
+    focusEmptyStateAfterRetryRef.current = false;
+  }, [resetKey]);
+
+  const handleRetry = () => {
+    if (entries.length === 0) focusEmptyStateAfterRetryRef.current = true;
+    retry();
+  };
+
+  useLayoutEffect(() => {
+    if (status === 'loading') return;
+    if (focusEmptyStateAfterRetryRef.current && status === 'done' && entries.length === 0) {
+      emptyStateCtaRef.current?.focus();
+    }
+    focusEmptyStateAfterRetryRef.current = false;
+  }, [status, entries.length]);
 
   useEffect(() => {
     if (fetchSequence === 0 || !announcementRef.current) return;
@@ -259,8 +281,6 @@ export default function DiaryPage() {
         </div>
       </header>
 
-      {error && entries.length === 0 && <div className={shared.bannerError}>{error}</div>}
-
       <DiaryFilterBar
         searchQuery={searchInput}
         onSearchChange={handleSearchChange}
@@ -279,7 +299,7 @@ export default function DiaryPage() {
 
       {showInitialLoading && <div className={shared.loading}>{t('loading')}</div>}
 
-      {!showInitialLoading && entries.length === 0 && status !== 'error' && (
+      {!showInitialLoading && entries.length === 0 && !firstBatchFailed && status !== 'error' && (
         <div
           className={shared.emptyState}
           style={{
@@ -290,7 +310,7 @@ export default function DiaryPage() {
           }}
         >
           <p>{t('empty.title')}</p>
-          <Link to="/diary/new" className={shared.btnPrimary}>
+          <Link to="/diary/new" className={shared.btnPrimary} ref={emptyStateCtaRef}>
             {t('empty.createButton')}
           </Link>
         </div>
@@ -318,18 +338,18 @@ export default function DiaryPage() {
         aria-atomic="true"
       />
 
-      {entries.length > 0 && (
+      {(entries.length > 0 || firstBatchFailed) && (
         <InfiniteScrollFooter
           status={status}
           loadingLabel={t('infiniteScroll.loadingMore')}
           loadingAriaLabel={t('infiniteScroll.loadingMoreAriaLabel')}
           loadMoreLabel={t('infiniteScroll.loadMoreButton')}
           retryLabel={t('infiniteScroll.retryButton')}
-          errorMessage={t('infiniteScroll.errorMessage')}
+          errorMessage={entries.length === 0 ? t('error') : t('infiniteScroll.errorMessage')}
           endOfListMessage={t('infiniteScroll.endOfList')}
           sentinelRef={sentinelRef}
           onLoadMore={loadMore}
-          onRetry={retry}
+          onRetry={handleRetry}
           testIdPrefix="diary"
         />
       )}

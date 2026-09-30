@@ -259,22 +259,164 @@ describe('DiaryPage', () => {
 
   // ─── Error state ─────────────────────────────────────────────────────────────
 
-  it('shows an error banner when the API fails', async () => {
-    const { ApiClientError } = await import('../../lib/apiClient.js');
-    mockListDiaryEntries.mockRejectedValueOnce(
-      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server went down' }),
-    );
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByText('Server went down')).toBeInTheDocument();
-    });
-  });
+  // ─── First-batch failure (#2064): single footer alert + Retry, no raw server message ───
 
-  it('shows generic error message when non-ApiClientError is thrown', async () => {
-    mockListDiaryEntries.mockRejectedValueOnce(new Error('Network error'));
-    renderPage();
-    await waitFor(() => {
-      expect(screen.getByText(/failed to load diary entries/i)).toBeInTheDocument();
+  describe('first batch failure', () => {
+    const FAILED_TEXT = 'Failed to load diary entries. Please try again.';
+
+    async function renderFailedFirstBatch(rejection: Error) {
+      mockListDiaryEntries.mockRejectedValueOnce(rejection);
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+    }
+
+    async function makeApiError() {
+      const { ApiClientError } = await import('../../lib/apiClient.js');
+      return new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server went down' });
+    }
+
+    function expectFailedState() {
+      const alerts = screen.getAllByRole('alert');
+      expect(alerts).toHaveLength(1);
+      expect(alerts[0]).toHaveTextContent(FAILED_TEXT);
+      expect(document.querySelector('.bannerError')).toBeNull();
+      expect(screen.getByTestId('diary-load-more-button')).toHaveTextContent('Retry');
+      expect(screen.queryByText(/loading entries/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/create your first entry/i)).not.toBeInTheDocument();
+    }
+
+    it('shows one translated alert, a Retry button, and never the raw server message (ApiClientError)', async () => {
+      await renderFailedFirstBatch(await makeApiError());
+      expectFailedState();
+      expect(screen.queryByText('Server went down')).not.toBeInTheDocument();
+    });
+
+    it('shows the same single alert and Retry button for a plain Error', async () => {
+      await renderFailedFirstBatch(new Error('Network error'));
+      expectFailedState();
+    });
+
+    it('Retry re-requests page 1 and shows a disabled button without alert or loading text while pending', async () => {
+      const user = userEvent.setup();
+      await renderFailedFirstBatch(new Error('boom'));
+      mockListDiaryEntries.mockImplementationOnce(() => new Promise(() => {}));
+
+      await user.click(screen.getByTestId('diary-load-more-button'));
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
+      });
+      expect(mockListDiaryEntries.mock.calls[1]?.[0]?.page).toBe(1);
+      expect(screen.getByTestId('diary-load-more-button')).toHaveAttribute('aria-disabled', 'true');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByText(/loading entries/i)).not.toBeInTheDocument();
+    });
+
+    it('a successful retry with more pages renders cards, clears the alert, and keeps focus on the button', async () => {
+      const user = userEvent.setup();
+      await renderFailedFirstBatch(new Error('boom'));
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('r-1')],
+        pagination: { page: 1, pageSize: 25, totalPages: 2, totalItems: 30 },
+      });
+
+      const button = screen.getByTestId('diary-load-more-button');
+      act(() => {
+        button.focus();
+      });
+      await user.keyboard('{Enter}');
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-r-1')).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      const after = screen.getByTestId('diary-load-more-button');
+      expect(after).toHaveTextContent('Load more');
+      expect(after).toHaveFocus();
+    });
+
+    it('a successful retry with a single page moves focus to the end-of-list message', async () => {
+      const user = userEvent.setup();
+      await renderFailedFirstBatch(new Error('boom'));
+      mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('s-1')]));
+
+      await user.click(screen.getByTestId('diary-load-more-button'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-end-of-list')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('diary-end-of-list')).toHaveFocus();
+    });
+
+    it('a successful retry with no entries shows the empty state and focuses its create link', async () => {
+      const user = userEvent.setup();
+      await renderFailedFirstBatch(new Error('boom'));
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+
+      await user.click(screen.getByTestId('diary-load-more-button'));
+
+      const link = await screen.findByRole('link', { name: /create your first entry/i });
+      expect(link).toHaveFocus();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('a failed retry shows the alert once more and keeps focus on Retry', async () => {
+      const user = userEvent.setup();
+      await renderFailedFirstBatch(new Error('boom'));
+      mockListDiaryEntries.mockRejectedValueOnce(new Error('still down'));
+
+      const button = screen.getByTestId('diary-load-more-button');
+      act(() => {
+        button.focus();
+      });
+      await user.keyboard('{Enter}');
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
+      });
+      await waitFor(() => {
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+      });
+      expect(screen.getByRole('alert')).toHaveTextContent(FAILED_TEXT);
+      expect(screen.getByTestId('diary-load-more-button')).toHaveTextContent('Retry');
+      expect(screen.getByTestId('diary-load-more-button')).toHaveFocus();
+    });
+
+    it('a filter change after a first-batch failure shows the normal initial loading state, not the footer button', async () => {
+      const user = userEvent.setup();
+      await renderFailedFirstBatch(new Error('boom'));
+      mockListDiaryEntries.mockImplementationOnce(() => new Promise(() => {}));
+
+      await user.type(screen.getByTestId('diary-search-input'), 'x');
+
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
+      });
+      expect(mockListDiaryEntries.mock.calls[1]?.[0]?.q).toBe('x');
+      expect(screen.getByText(/loading entries/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('diary-load-more-button')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('a filter change during a pending Retry does not steal focus from the search box when the new query is empty', async () => {
+      const user = userEvent.setup();
+      await renderFailedFirstBatch(new Error('boom'));
+      mockListDiaryEntries.mockImplementationOnce(() => new Promise(() => {}));
+      await user.click(screen.getByTestId('diary-load-more-button'));
+      await waitFor(() => {
+        expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
+      });
+
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      const search = screen.getByTestId('diary-search-input');
+      await user.type(search, 'x');
+
+      const link = await screen.findByRole('link', { name: /create your first entry/i });
+      expect(mockListDiaryEntries.mock.calls[2]?.[0]?.q).toBe('x');
+      expect(link).not.toHaveFocus();
+      expect(search).toHaveFocus();
     });
   });
 
@@ -390,16 +532,6 @@ describe('DiaryPage', () => {
 
       expect(mockListDiaryEntries).toHaveBeenCalledTimes(2);
       expect(mockListDiaryEntries.mock.calls[1]?.[0]?.page).toBe(2);
-    });
-
-    it('shows the full-page error banner when listDiaryEntries rejects on the first call (no entries yet)', async () => {
-      mockListDiaryEntries.mockRejectedValueOnce(new Error('network down'));
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByText(/failed to load diary entries/i)).toBeInTheDocument();
-      });
-      expect(screen.getByText(/failed to load diary entries/i)).toHaveClass('bannerError');
     });
 
     it('a failed append fetch shows the footer error banner (not the full-page banner) and keeps the first batch of cards', async () => {

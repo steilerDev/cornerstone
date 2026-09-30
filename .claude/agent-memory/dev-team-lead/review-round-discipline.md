@@ -18,4 +18,7 @@ When a `[MODE: review]` handback arrives with "N/N tests passing" and a list of 
 
 - **Typecheck the workspaces whose test files changed.** On PR #2121 I approved after 416 green Jest tests, and CI's Static Analysis then failed with TS2532 on `mock.calls[0][1]`, because ts-jest does not enforce the strict tsc build. Run `npx tsc --noEmit -p server/tsconfig.json` (and client/shared as touched) before `[MODE: commit]`. In the `/tmp/cs-deps` symlinked sandbox, client tsc reports a spurious TS2883 in `client/src/test/testUtils.tsx` (non-portable inferred type through the symlink). Ignore it; it is environmental.
 
+- **Check typography deliverables by code point, not by eye.** On #2013, the locale data was correct (42 U+201E / 42 U+201C), but the translator's memory note (the AC5 deliverable) stated the rule with U+201D and showed the "ASCII" quote as U+201D. Its index hook used the very mixed form the story removed. A test guards only the locale files, so a wrong memory note would have reintroduced the bug through the next translation. Dump `hex(ord(c))` counts for every file that describes the rule, not just the files the test covers.
+- **Prettier-check every staged file before each commit, including `.md` under `.claude/`.** CI's Prettier gate covers `.claude/**`. On PR #2130, my own hand-edited memory file failed Static Analysis while every E2E shard was green. Run `npx prettier --check $(git diff --cached --name-only)` right before `git commit`, not just on the implementers' files.
+
 Related: [[shared-component-extension-specs]]

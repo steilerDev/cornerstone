@@ -1025,3 +1025,9 @@ Two low wiki-vs-code items, both fix-in-session:
 Also filed #2113: four forked `isValidIsoDate` copies, and only the new one round-trips.
 
 **Lesson:** an "all validation before writes" sentence is falsified by any throw placed after the first write. A passing rollback test hides this; read the step order.
+
+## PR #2130 (#2067/#2064/#2013/#2065 AC6), 2026-09-30: VERDICT REQUEST_CHANGES (comment; own-token PR)
+
+- F1: page-level "intent" state (`focusEmptyStateAfterRetryRef`, `firstBatchFailed`) describes the current resetKey generation's first batch, but a reset never clears it. Because the hook's reset `setStatus('loading')` is a no-op while already loading, a filter change during a pending retry lets the empty-state focus hand-off fire and steal focus from the search input. Rule: any consumer-side state keyed on "the batch I triggered" must be cleared on resetKey, the same as the hook's own counters.
+- F2: fixing the success-path focus drop while leaving the failure path on native `disabled` (focus-fixup drops to body); the "does not steal focus" test asserted only a negative, and jsdom `fireEvent.click` never moves focus. Demand a positive focus target plus keyboard activation.
+- Sandbox: DiaryPage.test.tsx ESM `unstable_mockModule` is NOT applied when run from the base checkout (0 mock calls, pre-existing tests fail too), so a local red there is not evidence.
