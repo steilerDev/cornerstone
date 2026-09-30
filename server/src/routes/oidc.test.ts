@@ -525,8 +525,12 @@ describe('OIDC Routes', () => {
         url: '/api/auth/oidc/callback?code=abc&state=xyz&iss=https%3A%2F%2Foidc.example.com',
         headers: { host },
       });
-      const leg1 = mockBuildAuthorizationUrl.mock.calls[0][1] as string;
-      const leg2 = mockHandleCallback.mock.calls[0][1] as URL;
+      const leg1Call = mockBuildAuthorizationUrl.mock.calls[0];
+      const leg2Call = mockHandleCallback.mock.calls[0];
+      expect(leg1Call).toBeDefined();
+      expect(leg2Call).toBeDefined();
+      const leg1 = (leg1Call as unknown[])[1] as string;
+      const leg2 = (leg2Call as unknown[])[1] as URL;
       return { leg1, leg2 };
     }
 
