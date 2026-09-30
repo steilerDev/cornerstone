@@ -80,19 +80,21 @@ export function buildAuthorizationUrl(
 
 /**
  * Validate state and exchange authorization code for tokens.
- * Returns the ID token claims (sub, email, name).
+ * Returns the ID token claims (sub, email, email_verified).
+ * An omitted `email_verified` claim is treated as unverified, deliberately
+ * (fail closed): only a boolean `true` counts.
  *
  * @param config - openid-client Configuration
  * @param callbackUrl - The full callback URL (includes code and state)
  * @param expectedState - The expected state parameter
- * @returns ID token claims
+ * @returns Subject, email and strict email-verified flag
  * @throws Error if validation fails or token exchange fails
  */
 export async function handleCallback(
   config: client.Configuration,
   callbackUrl: URL,
   expectedState: string,
-): Promise<{ sub: string; email: string; name: string }> {
+): Promise<{ sub: string; email: string; emailVerified: boolean }> {
   const tokenResponse = await client.authorizationCodeGrant(config, callbackUrl, {
     expectedState,
   });
@@ -105,14 +107,9 @@ export async function handleCallback(
 
   const sub = claims.sub;
   const email = typeof claims.email === 'string' ? claims.email : '';
-  const name =
-    typeof claims.name === 'string'
-      ? claims.name
-      : typeof claims.preferred_username === 'string'
-        ? claims.preferred_username
-        : '';
+  const emailVerified = claims.email_verified === true;
 
-  return { sub, email, name };
+  return { sub, email, emailVerified };
 }
 
 /**

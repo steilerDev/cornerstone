@@ -21,6 +21,9 @@ import { isNotNull } from 'drizzle-orm';
 /**
  * Users table - stores user accounts for authentication.
  * Supports both local (email+password) and OIDC authentication.
+ * `oidcSubject` non-null means the account can sign in via OIDC (it is the sole
+ * OIDC correlation key). `authProvider` records how the account was created and
+ * is not changed when a local account is later linked to an OIDC identity.
  */
 export const users = sqliteTable(
   'users',
@@ -43,7 +46,7 @@ export const users = sqliteTable(
   },
   (table) => ({
     oidcLookupIdx: uniqueIndex('idx_users_oidc_lookup')
-      .on(table.authProvider, table.oidcSubject)
+      .on(table.oidcSubject)
       .where(isNotNull(table.oidcSubject)),
     davTokenIdx: uniqueIndex('idx_users_dav_token')
       .on(table.davToken)

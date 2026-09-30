@@ -11,6 +11,7 @@
     "authentication": "Authentication",
     "authLocal": "Local Account",
     "authOidc": "Single Sign-On (OIDC)",
+    "authLocalAndOidc": "Local Account + Single Sign-On (OIDC)",
     "memberSince": "Member Since",
     "displayName": "Display Name",
     "displayNameDescription": "This is the name that will be displayed throughout the application.",
@@ -62,7 +63,8 @@
     },
     "authProviders": {
       "local": "Local",
-      "oidc": "OIDC"
+      "oidc": "OIDC",
+      "localAndOidc": "Local + OIDC"
     },
     "status": {
       "active": "Active",

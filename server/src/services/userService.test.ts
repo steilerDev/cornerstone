@@ -7,6 +7,11 @@ import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as userService from './userService.js';
 import { users } from '../db/schema.js';
+import {
+  OidcEmailUnverifiedError,
+  OidcMissingEmailError,
+  OidcNoMatchingAccountError,
+} from '../errors/AppError.js';
 
 describe('User Service', () => {
   let sqlite: Database.Database;
@@ -65,6 +70,7 @@ describe('User Service', () => {
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-02T00:00:00.000Z',
         deactivatedAt: null,
+        oidcLinked: false,
       });
 
       // And: passwordHash is not included
@@ -151,6 +157,48 @@ describe('User Service', () => {
 
       // Then: deactivatedAt is included
       expect(response.deactivatedAt).toBe('2024-06-01T10:00:00.000Z');
+    });
+  });
+
+  describe('toUserResponse() oidcLinked', () => {
+    const base: typeof schema.users.$inferSelect = {
+      id: 'u1',
+      email: 'u1@example.com',
+      displayName: 'U1',
+      role: 'member',
+      authProvider: 'local',
+      passwordHash: 'hash',
+      oidcSubject: null,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+      deactivatedAt: null,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      davToken: null,
+    };
+
+    it('is false when no OIDC subject is bound', () => {
+      expect(userService.toUserResponse(base).oidcLinked).toBe(false);
+    });
+
+    it('is true for a local account linked to an OIDC subject, without leaking the subject', () => {
+      const response = userService.toUserResponse({ ...base, oidcSubject: 'sub-1' });
+
+      expect(response.oidcLinked).toBe(true);
+      expect(response.authProvider).toBe('local');
+      expect(response).not.toHaveProperty('oidcSubject');
+    });
+
+    it('is true for an OIDC-origin account', () => {
+      const response = userService.toUserResponse({
+        ...base,
+        authProvider: 'oidc',
+        passwordHash: null,
+        oidcSubject: 'sub-2',
+      });
+
+      expect(response.oidcLinked).toBe(true);
+      expect(response.authProvider).toBe('oidc');
     });
   });
 
@@ -682,91 +730,104 @@ describe('User Service', () => {
       expect(foundUser).toBeUndefined();
     });
 
-    it('does not match local users (auth_provider=local)', async () => {
-      // Given: Local user in database (no oidcSubject)
+    it('does not match a local user whose oidcSubject is still null', async () => {
+      // Given: Local user in database with no linked oidcSubject
       await userService.createLocalUser(db, 'local@example.com', 'Local User', 'password123456');
 
       // When: Finding by any OIDC subject
       const foundUser = userService.findByOidcSubject(db, 'any-oidc-sub');
 
-      // Then: No user is found
+      // Then: No user is found — not because of an authProvider filter, but because
+      // oidcSubject is null for this row (the column itself doesn't match).
       expect(foundUser).toBeUndefined();
     });
 
-    it('only matches users with auth_provider=oidc', () => {
-      // Given: OIDC user and local user in database
-      const oidcSubject = 'oidc-sub-456';
+    it('matches a local user that has a linked oidcSubject', async () => {
+      // Given: A local-auth account that has already been linked to an OIDC identity
+      // (the key regression scenario for issue #1865 — findByOidcSubject must match on
+      // oidcSubject alone, regardless of authProvider).
+      const sub = 'linked-oidc-sub-789';
+      const localUser = await userService.createLocalUser(
+        db,
+        'linked-local@example.com',
+        'Linked Local User',
+        'password123456',
+      );
 
-      db.insert(schema.users)
-        .values({
-          id: 'oidc-user-2',
-          email: 'oidc2@example.com',
-          displayName: 'OIDC User Two',
-          role: 'member',
-          authProvider: 'oidc',
-          oidcSubject,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })
+      db.update(schema.users)
+        .set({ oidcSubject: sub })
+        .where(eq(schema.users.id, localUser.id))
         .run();
 
-      db.insert(schema.users)
-        .values({
-          id: 'local-user-2',
-          email: 'local2@example.com',
-          displayName: 'Local User Two',
-          role: 'member',
-          authProvider: 'local',
-          passwordHash: '$scrypt$n=16384,r=8,p=1$c29tZXNhbHQ=$c29tZWhhc2g=',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })
-        .run();
+      // When: Finding by the linked OIDC subject
+      const foundUser = userService.findByOidcSubject(db, sub);
 
-      // When: Finding by OIDC subject
-      const foundUser = userService.findByOidcSubject(db, oidcSubject);
-
-      // Then: Only OIDC user is found
+      // Then: The local-auth user is found
       expect(foundUser).toBeDefined();
-      expect(foundUser?.authProvider).toBe('oidc');
-      expect(foundUser?.id).toBe('oidc-user-2');
+      expect(foundUser?.id).toBe(localUser.id);
+      expect(foundUser?.authProvider).toBe('local');
+      expect(foundUser?.passwordHash).toBe(localUser.passwordHash);
+      expect(foundUser?.oidcSubject).toBe(sub);
     });
   });
 
-  describe('findOrCreateOidcUser()', () => {
-    it('creates a new user when no matching OIDC user exists', () => {
-      // Given: Empty database
-      const sub = 'new-oidc-sub-123';
-      const email = 'newoidc@example.com';
-      const displayName = 'New OIDC User';
+  describe('findByEmailForOidc()', () => {
+    function insertUser(id: string, email: string) {
+      db.insert(schema.users)
+        .values({
+          id,
+          email,
+          displayName: id,
+          role: 'member',
+          authProvider: 'local',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        })
+        .run();
+    }
 
-      // When: Finding or creating OIDC user
-      const user = userService.findOrCreateOidcUser(db, sub, email, displayName);
-
-      // Then: User is created
-      expect(user).toBeDefined();
-      expect(user.oidcSubject).toBe(sub);
-      expect(user.email).toBe(email);
-      expect(user.displayName).toBe(displayName);
-      expect(user.authProvider).toBe('oidc');
-      expect(user.role).toBe('member');
-      expect(user.passwordHash).toBeNull();
-      expect(user.createdAt).toBeDefined();
-      expect(user.updatedAt).toBeDefined();
-      expect(user.deactivatedAt).toBeNull();
+    it('returns the exact-case match', () => {
+      insertUser('a', 'user@example.com');
+      expect(userService.findByEmailForOidc(db, 'user@example.com')?.id).toBe('a');
     });
 
-    it('returns existing user when OIDC subject matches', () => {
-      // Given: Existing OIDC user
+    it('matches a single case variant case-insensitively (both directions)', () => {
+      insertUser('a', 'Admin@Example.com');
+      expect(userService.findByEmailForOidc(db, 'admin@example.com')?.id).toBe('a');
+      expect(userService.findByEmailForOidc(db, 'ADMIN@EXAMPLE.COM')?.id).toBe('a');
+    });
+
+    it('prefers the exact-case match when several case variants exist', () => {
+      insertUser('lower', 'user@example.com');
+      insertUser('mixed', 'User@Example.com');
+      expect(userService.findByEmailForOidc(db, 'User@Example.com')?.id).toBe('mixed');
+      expect(userService.findByEmailForOidc(db, 'user@example.com')?.id).toBe('lower');
+    });
+
+    it('fails closed (undefined) when multiple variants exist and none is exact', () => {
+      insertUser('lower', 'user@example.com');
+      insertUser('mixed', 'User@Example.com');
+      expect(userService.findByEmailForOidc(db, 'USER@EXAMPLE.COM')).toBeUndefined();
+    });
+
+    it('returns undefined when no account matches', () => {
+      insertUser('a', 'user@example.com');
+      expect(userService.findByEmailForOidc(db, 'other@example.com')).toBeUndefined();
+    });
+  });
+
+  describe('findOrLinkOidcUser()', () => {
+    const verified = (sub: string, email: string) => ({ sub, email, emailVerified: true });
+
+    it('returns existing user as matched_subject when the OIDC subject is already linked', () => {
       const sub = 'existing-oidc-sub';
       const email = 'existing@example.com';
-      const displayName = 'Existing User';
 
       db.insert(schema.users)
         .values({
           id: 'existing-oidc-user',
           email,
-          displayName,
+          displayName: 'Existing User',
           role: 'admin',
           authProvider: 'oidc',
           oidcSubject: sub,
@@ -775,105 +836,263 @@ describe('User Service', () => {
         })
         .run();
 
-      // When: Finding or creating with same OIDC subject
-      const user = userService.findOrCreateOidcUser(
+      const result = userService.findOrLinkOidcUser(db, verified(sub, 'different@example.com'));
+
+      expect(result.outcome).toBe('matched_subject');
+      expect(result.previousSubject).toBe(sub);
+      expect(result.user.id).toBe('existing-oidc-user');
+      expect(result.user.email).toBe(email);
+      expect(result.user.displayName).toBe('Existing User');
+      expect(result.user.role).toBe('admin');
+      expect(result.user.updatedAt).toBe('2024-01-01T00:00:00.000Z');
+    });
+
+    it('matches an already-linked subject even when the email is unverified', async () => {
+      const local = await userService.createLocalUser(db, 'l@example.com', 'L', 'password123456');
+      userService.findOrLinkOidcUser(db, verified('sub-l', local.email));
+
+      const result = userService.findOrLinkOidcUser(db, {
+        sub: 'sub-l',
+        email: local.email,
+        emailVerified: false,
+      });
+
+      expect(result.outcome).toBe('matched_subject');
+      expect(result.user.id).toBe(local.id);
+    });
+
+    it('links an existing local account by email on first OIDC login', async () => {
+      const email = 'firstlogin@example.com';
+      const localUser = await userService.createLocalUser(
         db,
-        sub,
-        'different@example.com',
-        'Different Name',
+        email,
+        'First Login User',
+        'password123456',
+        'admin',
+      );
+      expect(localUser.oidcSubject).toBeNull();
+
+      const result = userService.findOrLinkOidcUser(db, verified('first-login-sub', email));
+
+      expect(result.outcome).toBe('linked');
+      expect(result.previousSubject).toBeNull();
+      expect(result.user.id).toBe(localUser.id);
+      expect(result.user.oidcSubject).toBe('first-login-sub');
+      expect(result.user.authProvider).toBe('local');
+      expect(result.user.passwordHash).toBe(localUser.passwordHash);
+      expect(result.user.email).toBe(localUser.email);
+      expect(result.user.displayName).toBe(localUser.displayName);
+      expect(result.user.role).toBe(localUser.role);
+    });
+
+    it('keeps the local password working after linking (AC2)', async () => {
+      const password = 'password123456';
+      const localUser = await userService.createLocalUser(db, 'pw@example.com', 'PW', password);
+
+      const { user: linked } = userService.findOrLinkOidcUser(
+        db,
+        verified('pw-sub', 'pw@example.com'),
       );
 
-      // Then: Existing user is returned (email and displayName not updated)
-      expect(user).toBeDefined();
-      expect(user.id).toBe('existing-oidc-user');
-      expect(user.oidcSubject).toBe(sub);
-      expect(user.email).toBe(email); // Original email
-      expect(user.displayName).toBe(displayName); // Original displayName
-      expect(user.role).toBe('admin'); // Original role
+      expect(linked.id).toBe(localUser.id);
+      expect(linked.passwordHash).not.toBeNull();
+      expect(await userService.verifyPassword(linked.passwordHash!, password)).toBe(true);
     });
 
-    it('throws ConflictError when email is used by a different user (local)', async () => {
-      // Given: Local user with email
-      const email = 'conflict@example.com';
-      await userService.createLocalUser(db, email, 'Local User', 'password123456');
+    it('a second login for a linked account resolves by subject, not by email', async () => {
+      const email = 'repeatlogin@example.com';
+      const localUser = await userService.createLocalUser(db, email, 'Repeat', 'password123456');
 
-      // When/Then: Creating OIDC user with same email throws
-      expect(() => {
-        userService.findOrCreateOidcUser(db, 'new-oidc-sub', email, 'OIDC User');
-      }).toThrow(userService.ConflictError);
+      const first = userService.findOrLinkOidcUser(db, verified('repeat-sub', email));
+      const second = userService.findOrLinkOidcUser(db, verified('repeat-sub', email));
 
-      expect(() => {
-        userService.findOrCreateOidcUser(db, 'new-oidc-sub', email, 'OIDC User');
-      }).toThrow('Email already in use by another account');
+      expect(first.outcome).toBe('linked');
+      expect(second.outcome).toBe('matched_subject');
+      expect(second.user.id).toBe(localUser.id);
+      expect(second.user.oidcSubject).toBe('repeat-sub');
     });
 
-    it('throws ConflictError when email is used by different OIDC user', () => {
-      // Given: Existing OIDC user with email
-      const email = 'oidc-conflict@example.com';
-
-      db.insert(schema.users)
-        .values({
-          id: 'oidc-user-1',
-          email,
-          displayName: 'OIDC User One',
-          role: 'member',
-          authProvider: 'oidc',
-          oidcSubject: 'oidc-sub-1',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        })
-        .run();
-
-      // When/Then: Creating different OIDC user with same email throws
-      expect(() => {
-        userService.findOrCreateOidcUser(db, 'oidc-sub-2', email, 'OIDC User Two');
-      }).toThrow(userService.ConflictError);
-    });
-
-    it('created user has correct defaults (role=member, authProvider=oidc)', () => {
-      // Given: New OIDC user details
-      const sub = 'default-test-sub';
-      const email = 'defaults@example.com';
-      const displayName = 'Defaults User';
-
-      // When: Creating OIDC user
-      const user = userService.findOrCreateOidcUser(db, sub, email, displayName);
-
-      // Then: Defaults are applied
-      expect(user.role).toBe('member');
-      expect(user.authProvider).toBe('oidc');
-      expect(user.passwordHash).toBeNull();
-      expect(user.oidcSubject).toBe(sub);
-      expect(user.deactivatedAt).toBeNull();
-    });
-
-    it('generated user ID is a valid UUID', () => {
-      // Given: New OIDC user
-      const user = userService.findOrCreateOidcUser(
+    it('links case-insensitively', async () => {
+      const localUser = await userService.createLocalUser(
         db,
-        'uuid-test-sub',
-        'uuid@example.com',
-        'UUID User',
+        'Admin@Example.com',
+        'Admin',
+        'password123456',
       );
 
-      // Then: ID is a valid UUID
-      expect(user.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      const result = userService.findOrLinkOidcUser(db, verified('case-sub', 'admin@example.com'));
+
+      expect(result.outcome).toBe('linked');
+      expect(result.user.id).toBe(localUser.id);
     });
 
-    it('sets timestamps for newly created user', () => {
-      // Given: New OIDC user
-      const user = userService.findOrCreateOidcUser(
+    it('re-binds a different subject for the same account and reports previousSubject', async () => {
+      const localUser = await userService.createLocalUser(
         db,
-        'timestamp-test-sub',
-        'timestamp@example.com',
-        'Timestamp User',
+        'rebind@example.com',
+        'Rebind',
+        'password123456',
+      );
+      userService.findOrLinkOidcUser(db, verified('old-sub', 'rebind@example.com'));
+
+      const result = userService.findOrLinkOidcUser(db, verified('new-sub', 'rebind@example.com'));
+
+      expect(result.outcome).toBe('relinked');
+      expect(result.previousSubject).toBe('old-sub');
+      expect(result.user.id).toBe(localUser.id);
+      expect(result.user.oidcSubject).toBe('new-sub');
+      expect(userService.findByOidcSubject(db, 'old-sub')).toBeUndefined();
+    });
+
+    it('does not bind or write when the matching account is deactivated', async () => {
+      const localUser = await userService.createLocalUser(
+        db,
+        'deact@example.com',
+        'Deact',
+        'password123456',
+      );
+      userService.deactivateUser(db, localUser.id);
+      const before = userService.findById(db, localUser.id)!;
+
+      const result = userService.findOrLinkOidcUser(db, verified('deact-sub', 'deact@example.com'));
+
+      expect(result.outcome).toBe('deactivated_not_linked');
+      expect(result.previousSubject).toBeNull();
+      expect(result.user.deactivatedAt).not.toBeNull();
+      const after = userService.findById(db, localUser.id)!;
+      expect(after.oidcSubject).toBeNull();
+      expect(after.updatedAt).toBe(before.updatedAt);
+    });
+
+    it('reports the existing subject as previousSubject for a deactivated re-bind attempt', async () => {
+      const localUser = await userService.createLocalUser(
+        db,
+        'deact2@example.com',
+        'Deact2',
+        'password123456',
+      );
+      userService.findOrLinkOidcUser(db, verified('keep-sub', 'deact2@example.com'));
+      userService.deactivateUser(db, localUser.id);
+
+      const result = userService.findOrLinkOidcUser(
+        db,
+        verified('other-sub', 'deact2@example.com'),
       );
 
-      // Then: Timestamps are set
-      expect(user.createdAt).toBeDefined();
-      expect(user.updatedAt).toBeDefined();
-      expect(user.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
-      expect(user.updatedAt).toBe(user.createdAt);
+      expect(result.outcome).toBe('deactivated_not_linked');
+      expect(result.previousSubject).toBe('keep-sub');
+      expect(userService.findById(db, localUser.id)!.oidcSubject).toBe('keep-sub');
+    });
+
+    it('matches an already-linked subject even when the email is empty', async () => {
+      const local = await userService.createLocalUser(db, 'm@example.com', 'M', 'password123456');
+      userService.findOrLinkOidcUser(db, verified('sub-m', local.email));
+
+      const result = userService.findOrLinkOidcUser(db, {
+        sub: 'sub-m',
+        email: '',
+        emailVerified: false,
+      });
+
+      expect(result.outcome).toBe('matched_subject');
+      expect(result.user.id).toBe(local.id);
+    });
+
+    it('throws OidcMissingEmailError for an empty email on an unlinked subject', () => {
+      expect(() =>
+        userService.findOrLinkOidcUser(db, { sub: 'x-sub', email: '', emailVerified: true }),
+      ).toThrow(OidcMissingEmailError);
+    });
+
+    it('prefers OidcMissingEmailError over OidcEmailUnverifiedError when both apply', () => {
+      expect(() =>
+        userService.findOrLinkOidcUser(db, { sub: 'x-sub', email: '', emailVerified: false }),
+      ).toThrow(OidcMissingEmailError);
+    });
+
+    it('throws OidcEmailUnverifiedError for an unverified email and does not link', async () => {
+      const localUser = await userService.createLocalUser(
+        db,
+        'unv@example.com',
+        'Unv',
+        'password123456',
+      );
+
+      expect(() =>
+        userService.findOrLinkOidcUser(db, {
+          sub: 'unv-sub',
+          email: 'unv@example.com',
+          emailVerified: false,
+        }),
+      ).toThrow(OidcEmailUnverifiedError);
+      expect(userService.findById(db, localUser.id)!.oidcSubject).toBeNull();
+    });
+
+    it('throws OidcEmailUnverifiedError (not NoMatchingAccount) even when no account exists', () => {
+      // Verified-ness is checked BEFORE the email lookup: no account enumeration
+      expect(() =>
+        userService.findOrLinkOidcUser(db, {
+          sub: 'ghost-sub',
+          email: 'ghost@example.com',
+          emailVerified: false,
+        }),
+      ).toThrow(OidcEmailUnverifiedError);
+    });
+
+    it('throws OidcNoMatchingAccountError when no account matches by subject or email', () => {
+      expect(() =>
+        userService.findOrLinkOidcUser(db, verified('unknown-sub', 'nobody@example.com')),
+      ).toThrow(OidcNoMatchingAccountError);
+    });
+
+    it('throws OidcNoMatchingAccountError for ambiguous case-variant emails', async () => {
+      await userService.createLocalUser(db, 'dup@example.com', 'A', 'password123456');
+      await userService.createLocalUser(db, 'Dup@Example.com', 'B', 'password123456');
+
+      expect(() =>
+        userService.findOrLinkOidcUser(db, verified('dup-sub', 'DUP@EXAMPLE.COM')),
+      ).toThrow(OidcNoMatchingAccountError);
+    });
+
+    it('does not create a new user row when no account matches', () => {
+      const countBefore = userService.countUsers(db);
+
+      expect(() =>
+        userService.findOrLinkOidcUser(db, verified('no-match-sub', 'no-match@example.com')),
+      ).toThrow(OidcNoMatchingAccountError);
+
+      expect(userService.countUsers(db)).toBe(countBefore);
+    });
+
+    it('does not modify authProvider, passwordHash, displayName, or role when linking', async () => {
+      const localUser = await userService.createLocalUser(
+        db,
+        'fieldcheck@example.com',
+        'Field Check User',
+        'password123456',
+        'admin',
+      );
+
+      const { user: linked } = userService.findOrLinkOidcUser(
+        db,
+        verified('field-check-sub', 'fieldcheck@example.com'),
+      );
+
+      expect(linked.authProvider).toBe('local');
+      expect(linked.passwordHash).toBe(localUser.passwordHash);
+      expect(linked.displayName).toBe(localUser.displayName);
+      expect(linked.role).toBe('admin');
+    });
+
+    it('resolves a subject bound to another account by subject, never stealing it for a second email', async () => {
+      const a = await userService.createLocalUser(db, 'a@example.com', 'A', 'password123456');
+      await userService.createLocalUser(db, 'b@example.com', 'B', 'password123456');
+      userService.findOrLinkOidcUser(db, verified('shared-sub', a.email));
+
+      // shared-sub now resolves to A by subject, so B is never touched
+      const result = userService.findOrLinkOidcUser(db, verified('shared-sub', 'b@example.com'));
+      expect(result.user.id).toBe(a.id);
+      expect(result.outcome).toBe('matched_subject');
     });
   });
 

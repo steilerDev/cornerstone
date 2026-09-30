@@ -1,5 +1,5 @@
 /**
- * E2E tests for OIDC SSO flow (Stories #34, #35)
+ * E2E tests for OIDC SSO flow (Stories #34, #35; account-linking fix #1865)
  *
  * These tests verify the full OIDC authentication flow using a mock OIDC provider.
  * The Cornerstone server communicates with the OIDC provider via Docker network alias
@@ -9,19 +9,61 @@
  * redirects from the Docker network alias (http://oidc-server:8080/...) to
  * browser-accessible URLs (/oidc-proxy/...). The proxy forwards /oidc-proxy/* requests
  * to the OIDC server with Host: oidc-server:8080 to ensure the issuer claim matches.
+ *
+ * As of #1865, OIDC login is purely an alternate login method for accounts that
+ * ALREADY EXIST — it never creates a new account. The mock OIDC provider
+ * (e2e/containers/oidcContainer.ts) is hardcoded to always return a fixed identity
+ * (member@e2e-test.local). For the happy path below, that identity must already
+ * exist as a local account (created via the admin API in `beforeAll`) so the first
+ * SSO login can link it; subsequent logins are resolved by the linked oidcSubject.
  */
 
 import { test, expect } from '@playwright/test';
 import { LoginPage } from '../../pages/LoginPage.js';
 import { UserManagementPage } from '../../pages/UserManagementPage.js';
+import { createLocalUserViaApi } from '../../fixtures/apiHelpers.js';
 import { TEST_MEMBER, ROUTES, API } from '../../fixtures/testData.js';
 
-// Serial mode: test 3 creates the OIDC user, tests 4 and 5 verify it
+// Serial mode: beforeAll seeds the local account that gets linked on first SSO
+// login (test 3); tests 4 and 5 verify the linked account's state.
 test.describe.configure({ mode: 'serial' });
 
 test.describe('OIDC SSO Flow', () => {
   // Unauthenticated context for OIDC login tests
   test.use({ storageState: { cookies: [], origins: [] } });
+
+  test.beforeAll(async ({ browser }) => {
+    // Seed TEST_MEMBER as a local account via the admin-authenticated API.
+    // The mock OIDC provider always returns this email/identity, and (post
+    // #1865) OIDC can only link/log in to an account that already exists —
+    // it never creates one. Use an explicit admin-authenticated context here
+    // (rather than the `authenticatedPage` fixture) since `beforeAll` hooks
+    // don't participate in the describe-level `storageState` override above.
+    const adminContext = await browser.newContext({
+      storageState: 'test-results/.auth/admin.json',
+    });
+    const adminPage = await adminContext.newPage();
+    // Retry-safe: serial mode re-runs beforeAll when a test fails and the
+    // describe is retried, and the mock IdP identity is fixed (the account
+    // may already exist from the previous attempt), so only create the user
+    // if no user with exactly this email exists yet.
+    const existingResponse = await adminPage.request.get(
+      `${API.users}?q=${encodeURIComponent(TEST_MEMBER.email)}`,
+    );
+    expect(existingResponse.ok()).toBe(true);
+    const { users: existingUsers } = (await existingResponse.json()) as {
+      users: { email: string }[];
+    };
+    if (!existingUsers.some((u) => u.email === TEST_MEMBER.email)) {
+      await createLocalUserViaApi(adminPage, {
+        email: TEST_MEMBER.email,
+        displayName: TEST_MEMBER.displayName,
+        password: TEST_MEMBER.localPassword,
+        role: 'member',
+      });
+    }
+    await adminContext.close();
+  });
 
   test('Login page shows SSO button when OIDC is enabled', async ({ page }) => {
     const loginPage = new LoginPage(page);
@@ -55,10 +97,11 @@ test.describe('OIDC SSO Flow', () => {
   test('Full OIDC flow creates session', async ({ page }) => {
     const loginPage = new LoginPage(page);
 
-    // Given: User is on the login page
+    // Given: TEST_MEMBER already exists as a local account (seeded in beforeAll)
     await loginPage.goto();
 
-    // When: User completes the OIDC flow
+    // When: User completes the OIDC flow — this links the local account to the
+    // OIDC identity (oidcSubject is set; authProvider stays 'local')
     await loginPage.clickSSO();
 
     // Then: User should be redirected to dashboard (session created)
@@ -73,16 +116,54 @@ test.describe('OIDC SSO Flow', () => {
     expect(me.user.email).toBe(TEST_MEMBER.email);
   });
 
-  test('Auto-provisioned OIDC user has correct attributes', async ({ page }) => {
+  test('Local password login still works after SSO linking and resolves the same account', async ({
+    page,
+    browser,
+  }) => {
     const loginPage = new LoginPage(page);
 
-    // Given: OIDC user was created in the previous test
-    // When: User logs in via OIDC again
+    // Given: User signs in via SSO (links/resolves the local account)
+    await loginPage.goto();
+    await loginPage.clickSSO();
+    await expect(page).toHaveURL(ROUTES.home, { timeout: 15000 });
+    const ssoMeResponse = await page.request.get(API.authMe);
+    expect(ssoMeResponse.ok()).toBe(true);
+    const ssoMe = await ssoMeResponse.json();
+    expect(ssoMe.user).not.toBeNull();
+    const ssoUserId = ssoMe.user.id;
+
+    // When: A fresh, unauthenticated context signs in with the local password
+    const localContext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    try {
+      const localPage = await localContext.newPage();
+      const localLoginPage = new LoginPage(localPage);
+      await localLoginPage.goto();
+      await localLoginPage.login(TEST_MEMBER.email, TEST_MEMBER.localPassword);
+      await expect(localPage).toHaveURL(ROUTES.home, { timeout: 15000 });
+
+      // Then: /api/auth/me returns the same account as the SSO session
+      const localMeResponse = await localPage.request.get(API.authMe);
+      expect(localMeResponse.ok()).toBe(true);
+      const localMe = await localMeResponse.json();
+      expect(localMe.user).not.toBeNull();
+      expect(localMe.user.id).toBe(ssoUserId);
+    } finally {
+      await localContext.close();
+    }
+  });
+
+  test('Linked OIDC user retains local account attributes', async ({ page }) => {
+    const loginPage = new LoginPage(page);
+
+    // Given: The local account was linked to the OIDC identity in the previous test
+    // When: User logs in via OIDC again — resolved directly by the linked oidcSubject
     await loginPage.goto();
     await loginPage.clickSSO();
     await expect(page).toHaveURL(ROUTES.home, { timeout: 15000 });
 
-    // Then: /api/auth/me should return correct user details
+    // Then: /api/auth/me should return correct user details.
+    // Critically, authProvider stays 'local' — linking an existing account via
+    // OIDC never changes its auth provider or removes its password.
     const meResponse = await page.request.get(API.authMe);
     expect(meResponse.ok()).toBe(true);
     const me = await meResponse.json();
@@ -90,13 +171,15 @@ test.describe('OIDC SSO Flow', () => {
     expect(me.user.email).toBe(TEST_MEMBER.email);
     expect(me.user.displayName).toBe(TEST_MEMBER.displayName);
     expect(me.user.role).toBe('member');
-    expect(me.user.authProvider).toBe('oidc');
+    expect(me.user.authProvider).toBe('local');
+    expect(me.user.oidcLinked).toBe(true);
   });
 
   test('OIDC user appears in admin user management', async ({ page, browser }) => {
     const loginPage = new LoginPage(page);
 
-    // First: Complete OIDC login to ensure user exists
+    // First: Complete OIDC login (the account was already seeded + linked by
+    // earlier tests in this serial suite; this just re-confirms the session)
     await loginPage.goto();
     await loginPage.clickSSO();
     await expect(page).toHaveURL(ROUTES.home, { timeout: 15000 });
@@ -126,5 +209,40 @@ test.describe('OIDC SSO Flow', () => {
     }
 
     await adminContext.close();
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Rejection path (#1865): OIDC email matches no existing account
+  //
+  // Coverage note: the mock OIDC provider (e2e/containers/oidcContainer.ts) is
+  // hardcoded to a single fixed identity (member@e2e-test.local), which by this
+  // point in the serial suite above is already a linked local account. Getting
+  // a genuinely SECOND, never-seeded identity out of the real container would
+  // require either an interactive-login form-fill step (changing the flow shape
+  // of every other test in this file, which all rely on non-interactive
+  // auto-grant) or an unverifiable per-request claim-mapping trick — and the
+  // token exchange happens server-to-server over the Docker network, so
+  // page.route() in the browser cannot intercept/vary it either. Given that
+  // constraint, this test exercises the same URL-param -> translated-banner
+  // code path a real rejection redirect produces (LoginPage.tsx reads
+  // `?error=` on mount), without depending on a second container identity.
+  // The real backend rejection path (redirect to
+  // /login?error=oidc_no_matching_account, no user row created) is covered by
+  // server/src/routes/oidc.test.ts.
+  test('Login page renders the oidc_no_matching_account rejection banner', async ({ page }) => {
+    const loginPage = new LoginPage(page);
+
+    // When: Browser lands on /login with the rejection error code — exactly
+    // the redirect target the server uses for OidcNoMatchingAccountError
+    await page.goto(`${ROUTES.login}?error=oidc_no_matching_account`);
+
+    // Then: Browser stays on /login with the error code in the URL
+    await expect(page).toHaveURL(/\/login\?error=oidc_no_matching_account/);
+
+    // And: The translated rejection message is visible
+    await expect(loginPage.errorBanner).toBeVisible();
+    await expect(loginPage.errorBanner).toContainText(
+      'No account was found for your email address',
+    );
   });
 });

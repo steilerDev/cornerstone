@@ -11,7 +11,12 @@ export const TEST_ADMIN = {
 export const TEST_MEMBER = {
   email: 'member@e2e-test.local',
   displayName: 'E2E Member',
-  // Created via OIDC flow, no local password
+  // Pre-created as a local account (via the admin-authenticated POST /api/users
+  // API — see the `beforeAll` seed step in oidc.spec.ts), then linked to the
+  // mock OIDC provider's fixed identity on first SSO login. OIDC is purely an
+  // alternate login method for an already-existing account: authProvider stays
+  // 'local' after linking, and this password keeps working alongside SSO.
+  localPassword: 'e2e-member-password-456!',
 };
 
 export const ROUTES = {

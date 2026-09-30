@@ -183,6 +183,27 @@ export class AccountLockedError extends AppError {
   }
 }
 
+export class OidcNoMatchingAccountError extends AppError {
+  constructor(message = 'No existing account matches this identity provider email address') {
+    super('OIDC_NO_MATCHING_ACCOUNT', 403, message);
+    this.name = 'OidcNoMatchingAccountError';
+  }
+}
+
+export class OidcMissingEmailError extends AppError {
+  constructor(message = 'Identity provider did not supply an email address') {
+    super('OIDC_MISSING_EMAIL', 403, message);
+    this.name = 'OidcMissingEmailError';
+  }
+}
+
+export class OidcEmailUnverifiedError extends AppError {
+  constructor(message = 'Identity provider did not assert a verified email address') {
+    super('OIDC_EMAIL_UNVERIFIED', 403, message);
+    this.name = 'OidcEmailUnverifiedError';
+  }
+}
+
 export class InvalidMetadataError extends AppError {
   constructor(message = 'Metadata does not match schema for the entry type') {
     super('INVALID_METADATA', 400, message);
