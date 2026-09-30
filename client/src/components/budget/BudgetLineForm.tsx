@@ -95,6 +95,8 @@ export function BudgetLineForm({
   const [isAssigning, setIsAssigning] = useState(false);
   const [parentPickerError, setParentPickerError] = useState<string | null>(null);
   const parentPickerRef = useRef<HTMLFieldSetElement>(null);
+  const changeParentButtonRef = useRef<HTMLButtonElement>(null);
+  const pendingPickerFocusRef = useRef<'picker' | 'change' | null>(null);
 
   // Edit-move specific state
   const [isPickerExpanded, setIsPickerExpanded] = useState(false);
@@ -111,6 +113,15 @@ export function BudgetLineForm({
     }
     return undefined;
   }, [focusParentPicker]);
+
+  // Move focus deliberately when the collapsed row / picker body hides the focused control (#2067).
+  useEffect(() => {
+    const target = pendingPickerFocusRef.current;
+    if (!target) return;
+    pendingPickerFocusRef.current = null;
+    if (target === 'picker') parentPickerRef.current?.focus();
+    else changeParentButtonRef.current?.focus();
+  }, [isPickerExpanded]);
 
   // Initialize selectedParentType when editing an assigned line
   useEffect(() => {
@@ -149,6 +160,7 @@ export function BudgetLineForm({
     setIsMoving(true);
     try {
       await onMove(selectedParentType, selectedParentId);
+      pendingPickerFocusRef.current = 'change';
       setIsPickerExpanded(false);
       setSelectedParentId(null);
     } catch (err) {
@@ -498,9 +510,13 @@ export function BudgetLineForm({
               </span>
               <span className={styles.currentParentLabel}>{currentParentLabel ?? '—'}</span>
               <button
+                ref={changeParentButtonRef}
                 type="button"
                 className={styles.ghostChangeButton}
-                onClick={() => setIsPickerExpanded(true)}
+                onClick={() => {
+                  pendingPickerFocusRef.current = 'picker';
+                  setIsPickerExpanded(true);
+                }}
                 aria-expanded={isPickerExpanded}
                 aria-controls="parent-picker-body"
                 disabled={isSaving || isMoving}
@@ -544,6 +560,7 @@ export function BudgetLineForm({
                 type="button"
                 className={styles.ghostCancelButton}
                 onClick={() => {
+                  pendingPickerFocusRef.current = 'change';
                   setIsPickerExpanded(false);
                   setSelectedParentId(null);
                   setMovePickerError(null);

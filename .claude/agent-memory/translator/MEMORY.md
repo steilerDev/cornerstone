@@ -102,9 +102,9 @@ New `sourceReports.expand.*` (chevron-expand sub-tables for budget lines + depos
 - [NBSP for inline labels](nbsp-inline-labels.md) — multi-word inline PDF labels need U+00A0, not a regular space, or pdfmake wraps mid-bracket; includes the ad-hoc real-render/pdftoppm verification recipe
 - [Abschlag glossary short-form](abschlag-glossary-shortform.md) — PO-approved `Abschlag` short form recorded IN glossary.json (75pt column has no room for any qualifier); `split`'s 3 German forms deliberately un-pinned
 
-## Inline Label Quoting (Issue #1973, 2026-08-05)
+## Inline Label Quoting (Issue #1973, 2026-08-05; standardized Issue #2013, 2026-09-30)
 
-- [Inline label quoting](inline-label-quoting-1973.md) — „...\" (curly open, straight close) is the established codebase convention for naming a UI label inline in a sentence; cross-check the referenced label's own translation, don't re-translate the noun independently
+- [Inline label quoting](inline-label-quoting-1973.md) — German UI always quotes with „“ (proper German quotes); count instances before citing conventions; cross-check referenced label's own translation (e.g. column headers)
 
 ## Non-Mandatory Register / sr-only Hints (Issue #1941, 2026-08-06)
 
