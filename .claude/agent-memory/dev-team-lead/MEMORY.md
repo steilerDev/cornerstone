@@ -17,7 +17,7 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 ## Index
 
 - [Sandbox & worktree environment quirks](sandbox-environment.md) — node_modules fixes, /tmp npm-ci workaround on mounted FS, no pre-commit hook, actionlint via docker, wiki submodule quirks
-- [Testing patterns (Jest/TS/React)](testing-patterns.md) — ThemeProvider over mocking ThemeContext, JSX.Element typing workaround, dynamic-import timing, matcher misuse, overly-broad absence regexes
+- [Testing patterns (Jest/TS/React)](testing-patterns.md) — ThemeProvider over mocking ThemeContext, JSX.Element typing workaround, dynamic-import timing, matcher misuse, overly-broad absence regexes, locale-matrix literal expectations, pdfmake post-render geometry
 - [Code patterns confirmed during review](code-patterns.md) — drizzle-orm `sql.join` availability, intentional CSS cross-imports (AutosaveIndicator)
 - [Meta-skill reconciliation (issue #1819)](meta-skill-reconciliation.md) — gh project item-add pattern, CLAUDE.md drifts fast, orchestrator has no trailer, worktree cleanup sequence, count-every-occurrence self-check gap
 - [Trailer history (issue #1820)](trailer-history.md) — why [MODE: commit] derives trailers from the staged diff instead of trusting the orchestrator's list; 7 of 11 non-infra commits once shipped missing implementer trailers

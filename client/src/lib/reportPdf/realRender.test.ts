@@ -4028,3 +4028,144 @@ describe('#1973 AC2.7: single-column ({allocatedAmount} alone) real render', () 
     },
   );
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// #2011 — tier-3 summary block, measured from pdfmake's own post-render state. The declared
+// margin/widths are asserted in overviewPdf.test.ts; this block proves the LAID-OUT label/amount
+// columns actually land inside the rendered table's width (a 6-digit de total, "123.456,78 €",
+// must not overflow the narrow {allocatedAmount}-only block) via `.positions` / `._calcWidth`.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+describe('#2011: tier-3 summary block real render — measured from pdfmake post-render state', () => {
+  function makeBigTotalReport(useCase: 'budget-overview' | 'claim'): SourceReportResponse {
+    return {
+      type: useCase,
+      source: {
+        id: 'src-2011',
+        name: 'Source 2011',
+        sourceType: 'bank_loan',
+        reference: null,
+        contactAddress: null,
+      },
+      invoices: [
+        makeInvoice({
+          invoiceId: 'inv-2011',
+          invoiceAmount: 123456.78,
+          allocatedAmount: 123456.78,
+        }),
+      ],
+      totalAmount: 123456.78,
+      unallocatedInvoices: [],
+      generatedAt: '2026-03-01T00:00:00.000Z',
+    };
+  }
+
+  interface PositionedNode {
+    positions?: { left: number }[];
+    _calcWidth?: number;
+  }
+
+  // Renders and measures. `visibleExtra` lists additional (hideable) columns to keep visible.
+  async function measureSummary(
+    useCase: 'budget-overview' | 'claim',
+    t: TFunction,
+    locale: 'en-US' | 'de-DE',
+    visibleExtra: string[],
+  ): Promise<{
+    tableW: number;
+    labelLeft: number;
+    amountRight: number;
+    labelPositions: number;
+    amountPositions: number;
+    pageCount: number;
+  }> {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+    const { reportColumnsForUseCase, REQUIRED_REPORT_COLUMN } =
+      await import('../reportContent/columns.js');
+    const report = makeBigTotalReport(useCase);
+    const content = buildReportContent(
+      report,
+      new Set(['inv-2011']),
+      useCase,
+      t,
+      formattersFor(locale),
+      {
+        includeCoverLetter: false,
+        household: null,
+      },
+    );
+    const hidden = new Set(
+      reportColumnsForUseCase(content.isOverview).filter(
+        (c) => c !== REQUIRED_REPORT_COLUMN && !visibleExtra.includes(c),
+      ),
+    );
+    const pdfContent = buildOverviewContent(content, new Map(), hidden);
+    const blob = await renderOverviewPdfContent(
+      pdfContent,
+      { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+      t,
+    );
+
+    const tableIndex = pdfContent.findIndex(
+      (c) => typeof c === 'object' && c !== null && 'table' in c,
+    );
+    const tableItem = findTableItem(pdfContent);
+    const tableW =
+      calcWidthsOf(tableItem.table.widths).reduce((a, b) => a + b, 0) +
+      tableOffsetsTotal(tableItem.table.widths.length);
+
+    const summaryNode = pdfContent[tableIndex + 1] as
+      { stack?: { columns?: PositionedNode[] }[] } | undefined;
+    const columns = summaryNode?.stack?.[0]?.columns;
+    if (!columns || columns.length !== 2) {
+      throw new Error('Expected the tier-3 summary stack to hold a 2-column row');
+    }
+    const [labelNode, amountNode] = columns as [PositionedNode, PositionedNode];
+    if (!Array.isArray(labelNode.positions) || !Array.isArray(amountNode.positions)) {
+      throw new Error('summary columns have no .positions — was the tree rendered first?');
+    }
+    const labelPos = labelNode.positions[0];
+    const amountPos = amountNode.positions[0];
+    if (!labelPos || !amountPos || typeof amountNode._calcWidth !== 'number') {
+      throw new Error('summary columns have no measured position/_calcWidth');
+    }
+    const pdfDoc = await PDFDocument.load(await blob.arrayBuffer());
+    return {
+      tableW,
+      labelLeft: labelPos.left,
+      amountRight: amountPos.left + amountNode._calcWidth,
+      labelPositions: labelNode.positions.length,
+      amountPositions: amountNode.positions.length,
+      pageCount: pdfDoc.getPageCount(),
+    };
+  }
+
+  it.each([
+    ['budget-overview', 'en', 'budget-overview' as const, 'en-US' as const, () => tEn] as const,
+    ['budget-overview', 'de', 'budget-overview' as const, 'de-DE' as const, () => tDe] as const,
+    ['claim', 'en', 'claim' as const, 'en-US' as const, () => tEn] as const,
+    ['claim', 'de', 'claim' as const, 'de-DE' as const, () => tDe] as const,
+  ])(
+    '{allocatedAmount} alone, %s %s: the summary label/amount span exactly the table width starting at the left margin',
+    async (_uc, _loc, useCase, locale, getT) => {
+      const m = await measureSummary(useCase, getT(), locale, []);
+      expect(m.labelLeft).toBeCloseTo(PAGE_MARGIN_X, 2);
+      expect(m.amountRight - m.labelLeft).toBeCloseTo(m.tableW, 2);
+      expect(m.amountRight - m.labelLeft).toBeLessThanOrEqual(m.tableW + 1e-6);
+      expect(m.labelPositions).toBe(1);
+      expect(m.amountPositions).toBe(1);
+      expect(m.pageCount).toBeGreaterThanOrEqual(1);
+    },
+  );
+
+  it.each([
+    ['budget-overview', 'budget-overview' as const],
+    ['claim', 'claim' as const],
+  ])(
+    'AC3: {allocatedAmount, usage} %s (en): the summary spans the table, which fills the printable width',
+    async (_uc, useCase) => {
+      const m = await measureSummary(useCase, tEn, 'en-US', ['usage']);
+      expect(m.amountRight - m.labelLeft).toBeCloseTo(m.tableW, 2);
+      expect(m.tableW).toBeCloseTo(printableWidth(), 2);
+    },
+  );
+});

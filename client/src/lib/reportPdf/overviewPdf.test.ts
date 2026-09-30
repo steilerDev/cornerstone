@@ -2691,3 +2691,136 @@ describe('#1973 AC6.3: attachment-tier skip-footnote handling is unaffected by c
     expect(hiddenNotes.map((n) => n.text)).toEqual(baselineNotes.map((n) => n.text));
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// #2011 — the tier-3 summary block (no leading column, no invoiceAmount: visible ⊆ {allocatedAmount,
+// usage}) used to span the full printable width even when the table above it rendered narrower
+// ({allocatedAmount} alone is 84pt), leaving the total's amount ~431pt away from the table.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+describe('#2011: tier-3 summary block is width-constrained to the table above it', () => {
+  const TIER3_COLS: ReportColumnKey[] = ['allocatedAmount', 'usage'];
+
+  function tier3Content(isOverview: boolean): ReportContent {
+    return makeContent({
+      isOverview,
+      isClaim: !isOverview,
+      rows: [],
+      summaryRows: [{ key: 'total', label: 'TOTAL_LABEL', amountText: '€999.00' }],
+    });
+  }
+
+  function summaryNodeOf(result: unknown[]): {
+    stack: { columns: Record<string, unknown>[] }[];
+    margin: number[];
+  } | null {
+    const tableIndex = result.findIndex((c) => typeof c === 'object' && c !== null && 'table' in c);
+    const node = result[tableIndex + 1] as { stack?: unknown; margin?: number[] } | undefined;
+    if (!node || !Array.isArray(node.stack) || !Array.isArray(node.margin)) return null;
+    return node as { stack: { columns: Record<string, unknown>[] }[]; margin: number[] };
+  }
+
+  function blockWidth(node: { margin: number[] }): number {
+    return printableWidth() - node.margin[0]! - node.margin[2]!;
+  }
+
+  function isTier3(visible: ReportColumnKey[]): boolean {
+    return visible.every((c) => TIER3_COLS.includes(c));
+  }
+
+  it('AC1+AC3: for every tier-3 subset the block is as wide as the table (computed widths and declared widths agree); exactly 4 such subsets exist', () => {
+    let tier3Count = 0;
+    for (const isOverview of [true, false]) {
+      for (const hidden of allLegalHiddenSets(isOverview)) {
+        const visible = visibleReportColumns(isOverview, hidden) as ReportColumnKey[];
+        if (!isTier3(visible)) continue;
+        tier3Count++;
+        const result = buildOverviewContent(tier3Content(isOverview), new Map(), hidden);
+        const node = summaryNodeOf(result);
+        if (!node) throw new Error('tier-3 summary block missing');
+        const { widths } = computeColumnWidths(visible);
+        const expected =
+          visible.reduce((sum, c) => sum + widths[c]!, 0) + tableOffsetsTotal(visible.length);
+        expect(blockWidth(node)).toBeCloseTo(expected, 6);
+        const table = getTable(result);
+        const declared =
+          table.widths.reduce<number>((sum, w) => sum + (w as number), 0) +
+          tableOffsetsTotal(table.widths.length);
+        expect(blockWidth(node)).toBeCloseTo(declared, 6);
+      }
+    }
+    expect(tier3Count).toBe(4);
+  });
+
+  it.each([
+    ['budget-overview', true],
+    ['claim', false],
+  ])(
+    'AC2: {allocatedAmount} alone (%s) is narrower than the page — allocated width plus offsets, no 84 literal',
+    (_label, isOverview) => {
+      const hidden = new Set<ReportColumnKey>(
+        (reportColumnsForUseCase(isOverview) as ReportColumnKey[]).filter(
+          (c) => c !== 'allocatedAmount',
+        ),
+      );
+      const result = buildOverviewContent(tier3Content(isOverview), new Map(), hidden);
+      const node = summaryNodeOf(result);
+      if (!node) throw new Error('tier-3 summary block missing');
+      const { widths } = computeColumnWidths(['allocatedAmount']);
+      expect(blockWidth(node)).toBeCloseTo(widths.allocatedAmount! + tableOffsetsTotal(1), 6);
+      expect(blockWidth(node)).toBeLessThan(printableWidth());
+    },
+  );
+
+  it.each([
+    ['budget-overview', true],
+    ['claim', false],
+  ])(
+    'AC3: {allocatedAmount, usage} (%s) keeps the block at the full printable width with a non-negative right margin',
+    (_label, isOverview) => {
+      const hidden = new Set<ReportColumnKey>(
+        (reportColumnsForUseCase(isOverview) as ReportColumnKey[]).filter(
+          (c) => c !== 'allocatedAmount' && c !== 'usage',
+        ),
+      );
+      const result = buildOverviewContent(tier3Content(isOverview), new Map(), hidden);
+      const node = summaryNodeOf(result);
+      if (!node) throw new Error('tier-3 summary block missing');
+      expect(blockWidth(node)).toBeCloseTo(printableWidth(), 6);
+      expect(node.margin[2]!).toBeGreaterThanOrEqual(0);
+    },
+  );
+
+  it('AC4: every tier-3 summary row is a bold "*" label column plus a bold right-aligned "auto" amount column', () => {
+    let checked = 0;
+    for (const isOverview of [true, false]) {
+      for (const hidden of allLegalHiddenSets(isOverview)) {
+        const visible = visibleReportColumns(isOverview, hidden) as ReportColumnKey[];
+        if (!isTier3(visible)) continue;
+        const node = summaryNodeOf(
+          buildOverviewContent(tier3Content(isOverview), new Map(), hidden),
+        );
+        if (!node) throw new Error('tier-3 summary block missing');
+        for (const row of node.stack) {
+          const [label, amount] = row.columns;
+          expect(label).toMatchObject({ width: '*', bold: true });
+          expect(label).not.toHaveProperty('alignment');
+          expect(amount).toMatchObject({ width: 'auto', alignment: 'right', bold: true });
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBe(4);
+  });
+
+  it('AC5: across all 96 subsets the total label and amount each appear exactly once in the content tree', () => {
+    for (const isOverview of [true, false]) {
+      for (const hidden of allLegalHiddenSets(isOverview)) {
+        const json = JSON.stringify(
+          buildOverviewContent(tier3Content(isOverview), new Map(), hidden),
+        );
+        expect(json.split('TOTAL_LABEL').length - 1).toBe(1);
+        expect(json.split('€999.00').length - 1).toBe(1);
+      }
+    }
+  });
+});

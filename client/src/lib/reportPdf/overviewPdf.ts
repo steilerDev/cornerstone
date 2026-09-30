@@ -21,6 +21,8 @@ import {
   TABLE_HEADER_FONT_SIZE,
   DEFAULT_LINE_HEIGHT,
   usableColumnWidth,
+  printableWidth,
+  tableOffsetsTotal,
 } from './pageGeometry.js';
 
 // Fixed point widths (pt) for the narrow, bounded-content columns shared by both table shapes.
@@ -1042,16 +1044,33 @@ export function buildOverviewContent(
 
   // Tier 3 (usesSeparateSummaryBlock): summary rows render as their own stack block, matching
   // ReportContentEditor.tsx's preview which always renders summary rows separately from the
-  // table (R2 "preview parity").
+  // table (R2 "preview parity"), constrained to the rendered width of the table above it (#2011).
   if (usesSeparateSummaryBlock && reportContent.summaryRows.length > 0) {
+    // #2011: the block is exactly as wide as the table above it, not printableWidth(). R7 lets a
+    // no-absorber table render narrower than the page ({allocatedAmount} alone: 84pt); without this
+    // the total's amount lands ~431pt away from the table it summarises. One rule for all four
+    // tier-3 subsets: for {allocatedAmount, usage} the table is already printableWidth() wide and
+    // the right margin resolves to 0. A node's margin shrinks the available width its children
+    // lay out against, so each row's columns resolve inside renderedTableWidth.
+    const renderedTableWidth =
+      tableOffsetsTotal(visible.length) + visible.reduce((sum, col) => sum + colWidths[col]!, 0);
     content.push({
       stack: reportContent.summaryRows.map((row) => ({
         columns: [
-          { text: row.label, style: 'tableCell', bold: true },
-          { text: row.amountText, style: 'tableCell', bold: true, alignment: 'right' },
+          // '*' + 'auto', not two stars: two stars split 84pt 42/42 and a 6-digit de total
+          // ("123.456,78 €", 46.92pt at 8pt bold) would force both to their min width and
+          // overflow the block. 'auto' gives the amount its natural width; the label takes the rest.
+          { text: row.label, style: 'tableCell', bold: true, width: '*' },
+          {
+            text: row.amountText,
+            style: 'tableCell',
+            bold: true,
+            alignment: 'right',
+            width: 'auto',
+          },
         ],
       })),
-      margin: [0, 0, 0, 20],
+      margin: [0, 0, Math.max(0, printableWidth() - renderedTableWidth), 20],
     });
   }
 
