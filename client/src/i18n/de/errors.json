@@ -34,7 +34,7 @@
   "BUDGET_LINE_ALREADY_ASSIGNED": "Diese Budgetposition ist bereits einem Arbeitspaket oder Haushaltsartikel zugeordnet.",
   "RATE_LIMIT_EXCEEDED": "Zu viele Anfragen. Bitte kurz warten und erneut versuchen.",
   "ACCOUNT_LOCKED": "Dieses Konto wurde aufgrund zu vieler fehlgeschlagener Anmeldeversuche vorübergehend gesperrt.",
-  "INVALID_METADATA": "Einige Eintragsdetails sind ungültig oder unvollständig (beispielsweise eine unvollendete Unterschrift). Bitte überprüfen Sie den Eintrag und versuchen Sie es erneut.",
+  "INVALID_METADATA": "Einige Eintragsdetails sind ungültig oder unvollständig (beispielsweise eine nicht abgeschlossene Unterschrift). Bitte überprüfen Sie den Eintrag und versuchen Sie es erneut.",
   "INVALID_ENTRY_TYPE": "Dieser Tagebucheintrag-Typ ist für diese Operation nicht erlaubt.",
   "IMMUTABLE_ENTRY": "Dieser Tagebucheintrag kann nicht bearbeitet werden.",
   "BACKUP_NOT_CONFIGURED": "Sicherung ist nicht konfiguriert. Setzen Sie die Umgebungsvariable BACKUP_DIR.",

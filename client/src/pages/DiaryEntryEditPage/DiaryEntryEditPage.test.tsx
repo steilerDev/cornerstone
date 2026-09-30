@@ -1209,6 +1209,7 @@ describe('DiaryEntryEditPage', () => {
 
       await waitFor(() => expect(mockUpdateDiaryEntry).toHaveBeenCalled());
       expect(lastUpdateMetadata() ?? {}).not.toHaveProperty('signatures');
+      expect(screen.getByLabelText('Signature canvas')).toBeInTheDocument();
     });
 
     it('blocks promote for a site_visit with an unfinished signature', async () => {
@@ -1261,6 +1262,7 @@ describe('DiaryEntryEditPage', () => {
         expect.objectContaining({ inspectorName: 'Bob Inspector', outcome: 'pass' }),
       );
       expect(lastUpdateMetadata() ?? {}).not.toHaveProperty('signatures');
+      expect(screen.getByLabelText('Signature canvas')).toBeInTheDocument();
     });
 
     it('promote INVALID_METADATA shows the translated message, not the raw server text', async () => {
