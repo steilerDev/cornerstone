@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { eq, desc, and, asc, sql, gte, lte, inArray } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { invoices, vendors, users, invoiceDeposits, budgetSources } from '../db/schema.js';
+import {
+  invoices,
+  vendors,
+  users,
+  invoiceDeposits,
+  budgetSources,
+  invoiceBudgetLines,
+} from '../db/schema.js';
 import type {
   Invoice,
   InvoiceStatus,
@@ -15,7 +22,15 @@ import type {
   InvoiceStatusSummary,
   FilterMeta,
 } from '@cornerstone/shared';
-import { NotFoundError, ValidationError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  ItemizedSumExceedsInvoiceError,
+  DepositsExceedInvoiceTotalError,
+} from '../errors/AppError.js';
+import { exceedsAmount, toCents } from './shared/money.js';
+import { isValidIsoDate } from './shared/validators.js';
+import { getDepositEntryTotals } from './invoiceDepositService.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
 import { onInvoiceStatusChanged } from './diaryAutoEventService.js';
@@ -29,21 +44,6 @@ import {
 } from './shared/depositAggregateUtils.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
-
-/**
- * ISO 8601 date pattern: YYYY-MM-DD
- */
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * Validate an ISO date string (YYYY-MM-DD).
- * Returns true if the value is a valid ISO date string.
- */
-function isValidIsoDate(value: string): boolean {
-  if (!ISO_DATE_PATTERN.test(value)) return false;
-  const d = new Date(value);
-  return !isNaN(d.getTime());
-}
 
 /**
  * Convert a database user row to UserSummary shape.
@@ -539,6 +539,8 @@ export function createInvoice(
  * If vendorId is provided, reassigns the invoice to the new vendor.
  * @throws NotFoundError if vendor or invoice not found, or if invoice doesn't belong to vendor
  * @throws ValidationError if any provided field is invalid
+ * @throws ItemizedSumExceedsInvoiceError if a decreased amount is below the itemized total
+ * @throws DepositsExceedInvoiceTotalError if a decreased amount is below deposits net of refunds
  *
  * @param db - Database connection
  * @param vendorId - Vendor ID (source vendor, from path param)
@@ -629,7 +631,40 @@ export function updateInvoice(
   const now = new Date().toISOString();
   updates.updatedAt = now;
 
-  db.update(invoices).set(updates).where(eq(invoices.id, invoiceId)).run();
+  db.transaction((tx) => {
+    // Decreasing the amount must not strand itemized amounts or net deposits (#2108, #2109)
+    if (data.amount !== undefined && toCents(data.amount) < toCents(existing.amount)) {
+      const itemizedRow = tx
+        .select({ sum: sql<number>`COALESCE(SUM(${invoiceBudgetLines.itemizedAmount}), 0)` })
+        .from(invoiceBudgetLines)
+        .where(eq(invoiceBudgetLines.invoiceId, invoiceId))
+        .get();
+      const itemizedTotal = itemizedRow?.sum ?? 0;
+      if (exceedsAmount(itemizedTotal, data.amount)) {
+        throw new ItemizedSumExceedsInvoiceError(
+          `Sum of itemized amounts (${itemizedTotal}) would exceed invoice total (${data.amount})`,
+          { invoiceTotal: data.amount, itemizedTotal },
+        );
+      }
+
+      const { depositTotal, refundTotal } = getDepositEntryTotals(tx, invoiceId);
+      const net = depositTotal - refundTotal;
+      if (exceedsAmount(net, data.amount)) {
+        throw new DepositsExceedInvoiceTotalError(
+          'Deposits net of refunds exceed the new invoice amount; add a refund entry or keep a higher amount',
+          {
+            invoiceTotal: data.amount,
+            depositTotal,
+            refundTotal,
+            netDeposits: Math.round(net * 100) / 100,
+            shortfall: Math.round((net - data.amount) * 100) / 100,
+          },
+        );
+      }
+    }
+
+    tx.update(invoices).set(updates).where(eq(invoices.id, invoiceId)).run();
+  });
 
   // Log status change to diary if enabled
   if (statusChanged && previousStatus !== undefined && newStatus !== undefined) {

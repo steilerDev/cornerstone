@@ -3413,4 +3413,35 @@ describe('invoiceAutoItemizeService', () => {
       expect(result.suggestedVendorId).not.toBeNull();
     });
   });
+
+  describe('commitAutoItemizeCreate — impossible calendar dates (#2113)', () => {
+    it('rejects invoice.date 2026-02-31 with ValidationError and creates no invoice row', async () => {
+      const vendorId = insertVendor(db, 'Bad Date Vendor');
+
+      await expect(
+        commitAutoItemizeCreate(db, makeConfig(), 'user-1', {
+          paperlessDocumentId: 77,
+          vendorId,
+          invoice: { amount: 500, date: '2026-02-31' },
+          lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }] as never,
+        }),
+      ).rejects.toThrow(ValidationError);
+
+      expect(db.select().from(schema.invoices).all()).toHaveLength(0);
+    });
+
+    it('rejects invoice.dueDate 2026-02-30 with ValidationError', async () => {
+      const vendorId = insertVendor(db, 'Bad DueDate Vendor');
+
+      await expect(
+        commitAutoItemizeCreate(db, makeConfig(), 'user-1', {
+          paperlessDocumentId: 78,
+          vendorId,
+          invoice: { amount: 500, date: '2026-01-01', dueDate: '2026-02-30' },
+          lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }] as never,
+        }),
+      ).rejects.toThrow(ValidationError);
+      expect(db.select().from(schema.invoices).all()).toHaveLength(0);
+    });
+  });
 });

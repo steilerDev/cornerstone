@@ -665,7 +665,9 @@
     "messages": {
       "updateError": "Failed to update invoice. Please try again.",
       "deleteError": "Failed to delete invoice. Please try again.",
-      "vendorNotFound": "The selected vendor could not be found"
+      "vendorNotFound": "The selected vendor could not be found",
+      "amountBelowItemized": "The amount cannot be lower than the itemized total of {{itemizedTotal}}. Reduce the itemized budget lines first.",
+      "amountBelowNetDeposits": "The amount cannot be lower than the deposits net of refunds ({{netDeposits}}). Add a refund entry or reduce the deposits first."
     },
     "budgetLines": {
       "createFormLegend": "Create new budget line",
@@ -819,7 +821,7 @@
         "refund": "Refund"
       },
       "errors": {
-        "exceedsTotal": "Deposit amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
+        "exceedsTotal": "Deposits net of refunds would exceed the invoice total. Available headroom: {{availableHeadroom}}",
         "refundExceedsTotal": "Refund amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
         "invalidTransition": "Cannot transition from {{from}} to {{to}}",
         "invalidDate": "Invalid date for the selected status",

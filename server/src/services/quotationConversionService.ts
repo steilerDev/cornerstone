@@ -15,17 +15,11 @@ import { createLink, updateAttachmentType } from './documentLinkService.js';
 import { getInvoiceById } from './invoiceService.js';
 import { onInvoiceStatusChanged } from './diaryAutoEventService.js';
 import { exceedsAmount } from './shared/money.js';
+import { isValidIsoDate } from './shared/validators.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_NOTES_LENGTH = 10000;
-
-function isValidIsoDate(value: string): boolean {
-  if (!ISO_DATE_PATTERN.test(value)) return false;
-  const d = new Date(`${value}T00:00:00Z`);
-  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
-}
 
 /**
  * Convert a quotation into the final invoice in a single transaction (Story #2107).

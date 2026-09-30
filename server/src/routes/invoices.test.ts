@@ -7,7 +7,13 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
 import type { Invoice, ApiErrorResponse } from '@cornerstone/shared';
-import { vendors, invoices } from '../db/schema.js';
+import {
+  vendors,
+  invoices,
+  invoiceDeposits,
+  invoiceBudgetLines,
+  workItemBudgets,
+} from '../db/schema.js';
 
 describe('Invoice Routes', () => {
   let app: FastifyInstance;
@@ -997,6 +1003,138 @@ describe('Invoice Routes', () => {
       });
       const listABody = listA.json<{ invoices: Invoice[] }>();
       expect(listABody.invoices.find((inv) => inv.id === invoiceId)).toBeUndefined();
+    });
+  });
+
+  // ─── #2108 / #2109 / #2113 ───────────────────────────────────────────────────
+
+  describe('PATCH amount-decrease guards and calendar-date validation (#2108, #2109, #2113)', () => {
+    it('returns 400 ITEMIZED_SUM_EXCEEDS_INVOICE with details when lowering below itemized total', async () => {
+      const { cookie } = await createUserWithSession('u2108@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Itemized Route Vendor');
+      const invoiceId = createTestInvoice(vendorId, { amount: 1000 });
+      const now = new Date().toISOString();
+      app.db
+        .insert(workItemBudgets)
+        .values({ id: 'wib-route-1', plannedAmount: 0, createdAt: now, updatedAt: now })
+        .run();
+      app.db
+        .insert(invoiceBudgetLines)
+        .values({
+          id: 'ibl-route-1',
+          invoiceId,
+          workItemBudgetId: 'wib-route-1',
+          itemizedAmount: 900,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendorId}/invoices/${invoiceId}`,
+        headers: { cookie },
+        payload: { amount: 800 },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>().error;
+      expect(error.code).toBe('ITEMIZED_SUM_EXCEEDS_INVOICE');
+      expect(error.details).toEqual({ invoiceTotal: 800, itemizedTotal: 900 });
+    });
+
+    it('returns 400 DEPOSITS_EXCEED_INVOICE_TOTAL with details when lowering below net deposits', async () => {
+      const { userId, cookie } = await createUserWithSession('u2109@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Deposit Route Vendor');
+      const invoiceId = createTestInvoice(vendorId, { amount: 1000 });
+      const now = new Date().toISOString();
+      for (const [id, amount, entryType] of [
+        ['dep-route-1', 700, 'deposit'],
+        ['dep-route-2', 200, 'refund'],
+      ] as const) {
+        app.db
+          .insert(invoiceDeposits)
+          .values({
+            id,
+            invoiceId,
+            amount,
+            dueDate: '2026-02-01',
+            status: 'pending',
+            entryType,
+            createdBy: userId,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      }
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendorId}/invoices/${invoiceId}`,
+        headers: { cookie },
+        payload: { amount: 499.99 },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>().error;
+      expect(error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
+      expect(error.details).toEqual({
+        invoiceTotal: 499.99,
+        depositTotal: 700,
+        refundTotal: 200,
+        netDeposits: 500,
+        shortfall: 0.01,
+      });
+    });
+
+    it('POST with impossible date 2026-02-31 returns 400 VALIDATION_ERROR', async () => {
+      const { cookie } = await createUserWithSession('ud1@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Bad Date POST Vendor');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/vendors/${vendorId}/invoices`,
+        headers: { cookie },
+        payload: { amount: 100, date: '2026-02-31' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('PATCH with impossible date 2026-02-31 returns 400 VALIDATION_ERROR and leaves the invoice unchanged', async () => {
+      const { cookie } = await createUserWithSession('ud2@test.com', 'User', 'password');
+      const vendorId = createTestVendor('Bad Date PATCH Vendor');
+      const invoiceId = createTestInvoice(vendorId, {
+        date: '2026-01-01',
+        dueDate: '2026-01-31',
+        amount: 1000,
+        notes: 'original',
+      });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/vendors/${vendorId}/invoices/${invoiceId}`,
+        headers: { cookie },
+        payload: { date: '2026-02-31', amount: 500, notes: 'changed' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+
+      const reread = await app.inject({
+        method: 'GET',
+        url: `/api/vendors/${vendorId}/invoices`,
+        headers: { cookie },
+      });
+      const found = reread
+        .json<{ invoices: Invoice[] }>()
+        .invoices.find((inv) => inv.id === invoiceId);
+      expect(found).toBeDefined();
+      expect(found?.date).toBe('2026-01-01');
+      expect(found?.dueDate).toBe('2026-01-31');
+      expect(found?.amount).toBe(1000);
+      expect(found?.notes).toBe('original');
     });
   });
 });

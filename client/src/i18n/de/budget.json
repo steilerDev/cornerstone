@@ -517,7 +517,9 @@
     "messages": {
       "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
       "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
-      "vendorNotFound": "Der ausgewählte Auftragnehmer konnte nicht gefunden werden"
+      "vendorNotFound": "Der ausgewählte Auftragnehmer konnte nicht gefunden werden",
+      "amountBelowItemized": "Der Betrag kann nicht niedriger als der aufgeschlüsselte Gesamtbetrag von {{itemizedTotal}} sein. Reduzieren Sie zuerst die aufgeschlüsselten Budgetpositionen.",
+      "amountBelowNetDeposits": "Der Betrag kann nicht niedriger als die Abschlagszahlungen abzüglich Rückerstattungen ({{netDeposits}}) sein. Fügen Sie einen Rückerstattungseintrag hinzu oder reduzieren Sie die Abschlagszahlungen."
     },
     "budgetLines": {
       "createFormLegend": "Neue Budgetposition erstellen",
@@ -671,7 +673,7 @@
         "refund": "Rückerstattung"
       },
       "errors": {
-        "exceedsTotal": "Betrag der Abschlagszahlung überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{availableHeadroom}}",
+        "exceedsTotal": "Die Abschlagszahlungen abzüglich Rückerstattungen würden den Rechnungsgesamtbetrag übersteigen. Verfügbarer Spielraum: {{availableHeadroom}}",
         "refundExceedsTotal": "Rückerstattungsbetrag überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{availableHeadroom}}",
         "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
         "invalidDate": "Ungültiges Datum für den ausgewählten Status",

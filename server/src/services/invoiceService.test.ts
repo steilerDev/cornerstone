@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { eq } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as invoiceService from './invoiceService.js';
@@ -1960,6 +1961,206 @@ describe('Invoice Service', () => {
       expect(refetched.vendorId).toBe(vendorAId);
       expect(refetched.amount).toBe(1234);
       expect(refetched.status).toBe('pending');
+    });
+  });
+
+  // ─── #2108 / #2109 / #2113 — amount-decrease guards and real-date validation ─
+
+  describe('updateInvoice() — amount decrease guards (#2108, #2109)', () => {
+    let itemCounter = 0;
+
+    /** Insert an itemized invoice_budget_line (on an orphan work item budget) directly. */
+    function insertItemizedLine(invoiceId: string, itemizedAmount: number): void {
+      const now = new Date().toISOString();
+      const budgetId = `wib-${itemCounter++}`;
+      db.insert(schema.workItemBudgets)
+        .values({ id: budgetId, plannedAmount: 0, createdAt: now, updatedAt: now })
+        .run();
+      db.insert(schema.invoiceBudgetLines)
+        .values({
+          id: `ibl-${itemCounter++}`,
+          invoiceId,
+          workItemBudgetId: budgetId,
+          itemizedAmount,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    function insertEntry(invoiceId: string, entryType: 'deposit' | 'refund', amount: number) {
+      const now = new Date().toISOString();
+      db.insert(schema.invoiceDeposits)
+        .values({
+          id: `dep-${itemCounter++}`,
+          invoiceId,
+          amount,
+          dueDate: '2026-02-01',
+          status: 'pending',
+          entryType,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    function caught(fn: () => unknown): { name: string; details?: Record<string, unknown> } {
+      try {
+        fn();
+      } catch (e) {
+        return e as { name: string; details?: Record<string, unknown> };
+      }
+      throw new Error('expected function to throw');
+    }
+
+    it('scenario 4: rejects lowering below the itemized total and leaves the whole PATCH unapplied (atomic)', () => {
+      const vendorId = createTestVendor('Itemized Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000, notes: 'orig' });
+      insertItemizedLine(invoiceId, 600);
+      insertItemizedLine(invoiceId, 300);
+
+      const err = caught(() =>
+        invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 800, notes: 'x' }),
+      );
+
+      expect(err.name).toBe('ItemizedSumExceedsInvoiceError');
+      expect(err.details).toEqual({ invoiceTotal: 800, itemizedTotal: 900 });
+      const after = invoiceService.getInvoiceById(db, invoiceId);
+      expect(after.amount).toBe(1000);
+      expect(after.notes).toBe('orig');
+    });
+
+    it('scenario 5: lowering exactly to the itemized total succeeds', () => {
+      const vendorId = createTestVendor('Exact Itemized Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
+      insertItemizedLine(invoiceId, 600);
+      insertItemizedLine(invoiceId, 300);
+
+      expect(invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 900 }).amount).toBe(
+        900,
+      );
+    });
+
+    it('scenario 5: float-noise itemized sum (332.85+333.04+334.11) does not reject an equal amount but a 1-cent shortfall does', () => {
+      const vendorId = createTestVendor('Noise Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 2000 });
+      insertItemizedLine(invoiceId, 332.85);
+      insertItemizedLine(invoiceId, 333.04);
+      insertItemizedLine(invoiceId, 334.11);
+
+      expect(invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 1000 }).amount).toBe(
+        1000,
+      );
+      expect(
+        caught(() => invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 999.99 }))
+          .name,
+      ).toBe('ItemizedSumExceedsInvoiceError');
+    });
+
+    it('scenario 6: legacy invoice already below itemized total — same amount + status change ok, raise-but-still-below ok, lowering further rejected', () => {
+      const vendorId = createTestVendor('Legacy Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
+      insertItemizedLine(invoiceId, 900);
+      // Force the legacy state directly in the DB
+      db.update(schema.invoices)
+        .set({ amount: 500 })
+        .where(eq(schema.invoices.id, invoiceId))
+        .run();
+
+      const same = invoiceService.updateInvoice(db, vendorId, invoiceId, {
+        amount: 500,
+        status: 'paid',
+      });
+      expect(same.status).toBe('paid');
+
+      expect(invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 700 }).amount).toBe(
+        700,
+      );
+
+      expect(
+        caught(() => invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 600 })).name,
+      ).toBe('ItemizedSumExceedsInvoiceError');
+    });
+
+    it('scenario 7: net-of-refund deposit rule — 600 ok, 499.99 rejected with shortfall details', () => {
+      const vendorId = createTestVendor('Net Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
+      insertEntry(invoiceId, 'deposit', 700);
+      insertEntry(invoiceId, 'refund', 200);
+
+      expect(invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 600 }).amount).toBe(
+        600,
+      );
+
+      const err = caught(() =>
+        invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 499.99 }),
+      );
+      expect(err.name).toBe('DepositsExceedInvoiceTotalError');
+      expect(err.details).toEqual({
+        invoiceTotal: 499.99,
+        depositTotal: 700,
+        refundTotal: 200,
+        netDeposits: 500,
+        shortfall: 0.01,
+      });
+      expect(invoiceService.getInvoiceById(db, invoiceId).amount).toBe(600);
+    });
+
+    it('scenario 8: when both itemized and deposit rules are violated the itemized error wins', () => {
+      const vendorId = createTestVendor('Both Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
+      insertItemizedLine(invoiceId, 800);
+      insertEntry(invoiceId, 'deposit', 900);
+
+      expect(
+        caught(() => invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 500 })).name,
+      ).toBe('ItemizedSumExceedsInvoiceError');
+    });
+
+    it('scenario 9: invoice without lines or deposits can be lowered; raising never throws even with legacy data', () => {
+      const vendorId = createTestVendor('Plain Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
+      expect(invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 10 }).amount).toBe(10);
+
+      const legacyId = insertRawInvoice(vendorId, { amount: 100 });
+      insertItemizedLine(legacyId, 500);
+      insertEntry(legacyId, 'deposit', 500);
+      expect(invoiceService.updateInvoice(db, vendorId, legacyId, { amount: 150 }).amount).toBe(
+        150,
+      );
+    });
+  });
+
+  describe('createInvoice()/updateInvoice() — impossible calendar dates (#2113)', () => {
+    it('scenario 3: createInvoice rejects date 2026-02-31 and dueDate 2026-02-30', () => {
+      const vendorId = createTestVendor('Date Vendor');
+      const userId = createTestUser('dates@test.com', 'Dates');
+
+      expect(() =>
+        invoiceService.createInvoice(db, vendorId, { amount: 1, date: '2026-02-31' }, userId),
+      ).toThrow(ValidationError);
+      expect(() =>
+        invoiceService.createInvoice(
+          db,
+          vendorId,
+          { amount: 1, date: '2026-01-01', dueDate: '2026-02-30' },
+          userId,
+        ),
+      ).toThrow(ValidationError);
+      expect(db.select().from(schema.invoices).all()).toHaveLength(0);
+    });
+
+    it('scenario 3: updateInvoice rejects date 2026-02-31 and dueDate 2026-02-30', () => {
+      const vendorId = createTestVendor('Date Update Vendor');
+      const invoiceId = insertRawInvoice(vendorId, { date: '2026-01-01' });
+
+      expect(() =>
+        invoiceService.updateInvoice(db, vendorId, invoiceId, { date: '2026-02-31' }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        invoiceService.updateInvoice(db, vendorId, invoiceId, { dueDate: '2026-02-30' }),
+      ).toThrow(ValidationError);
+      expect(invoiceService.getInvoiceById(db, invoiceId).date).toBe('2026-01-01');
     });
   });
 });
