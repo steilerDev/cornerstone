@@ -498,7 +498,8 @@
       "save": "Änderungen Speichern",
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
-      "deleting": "Wird gelöscht..."
+      "deleting": "Wird gelöscht...",
+      "convertToFinal": "In Endrechnung umwandeln"
     },
     "statusLabels": {
       "pending": "Ausstehend",
@@ -684,6 +685,101 @@
       "stateConfirm": {
         "paidDateLabel": "Bezahlt am",
         "claimedDateLabel": "Eingereicht am"
+      }
+    },
+    "convertModal": {
+      "title": "Angebot in Endrechnung umwandeln",
+      "intro": "Überprüfen Sie den Endbetrag, die aufgeschlüsselten Positionen und die Abschlagszahlungen. Nichts wird gespeichert, bis Sie bestätigen.",
+      "confirm": "In Rechnung umwandeln",
+      "confirming": "Wird umgewandelt...",
+      "cancel": "Abbrechen",
+      "saveError": "Das Angebot konnte nicht umgewandelt werden. Keine Änderungen wurden vorgenommen.",
+      "history": {
+        "converted": "Umgewandelt von Angebot über {{amount}} am {{date}}."
+      },
+      "errors": {
+        "depositsExceed": "Die erfassten Abschlagszahlungen überschreiten den Endbetrag. Fügen Sie einen Rückerstattungseintrag hinzu oder erhöhen Sie den Endbetrag.",
+        "itemizedExceeds": "Die Summe der aufgeschlüsselten Beträge überschreitet den Endbetrag. Passen Sie die aufgeschlüsselten Positionen an.",
+        "notQuotation": "Diese Rechnung ist kein Angebot mehr. Die Seite wurde aktualisiert."
+      },
+      "source": {
+        "heading": "Quelldokument",
+        "select": "Paperless-Dokument auswählen",
+        "change": "Dokument ändern",
+        "remove": "Entfernen",
+        "none": "Kein Dokument ausgewählt. Ein ausgewähltes Dokument wird als Rechnungsanlage verknüpft.",
+        "paperlessUnavailable": "Paperless-ngx ist nicht konfiguriert, daher kann kein Dokument verknüpft werden. Sie können immer noch manuell umwandeln.",
+        "aiAnalyze": "Aus Dokument vorausfüllen",
+        "aiAnalyzing": "Wird analysiert...",
+        "aiUnavailable": "KI-Vorausfüllung ist nicht verfügbar, da KI-Unterstützung nicht konfiguriert ist.",
+        "aiNeedsDocument": "Wählen Sie ein Dokument aus, um die KI-Vorausfüllung zu aktivieren.",
+        "aiSuccess": "Aus Dokument vorausgefüllt. Überprüfen Sie die Werte vor dem Bestätigen.",
+        "aiError": "Analyse fehlgeschlagen. Ihre Einträge sind noch vorhanden. Fahren Sie manuell fort oder versuchen Sie es erneut.",
+        "aiRetry": "Erneut versuchen",
+        "aiTotalMismatch": "Die Dokumentensumme ({{extracted}}) unterscheidet sich um mehr als 1% vom angebotenen Betrag ({{quoted}}).",
+        "aiNoLines": "Im Dokument wurden keine Positionen erkannt, daher wurde der Endbetrag nicht vorausgefüllt."
+      },
+      "details": {
+        "heading": "Rechnungsdetails",
+        "finalAmount": "Endbetrag",
+        "date": "Rechnungsdatum",
+        "invoiceNumber": "Rechnungsnummer",
+        "dueDate": "Fälligkeitsdatum",
+        "notes": "Notizen",
+        "historyHint": "Eine Notiz mit dem angebotenen Betrag wird automatisch hinzugefügt.",
+        "quotedAmount": "Angebot {{quoted}} → Endbetrag {{final}}",
+        "deltaIncrease": "Erhöhung: +{{amount}} (+{{percent}})",
+        "deltaDecrease": "Reduktion: −{{amount}} (−{{percent}})",
+        "deltaNone": "Keine Änderung",
+        "errors": {
+          "amountRequired": "Geben Sie einen Endbetrag ein.",
+          "amountPositive": "Der Endbetrag muss größer als 0 sein.",
+          "dateRequired": "Geben Sie ein Rechnungsdatum ein.",
+          "dueDateBeforeDate": "Das Fälligkeitsdatum muss auf oder nach dem Rechnungsdatum liegen."
+        }
+      },
+      "lines": {
+        "heading": "Aufgeschlüsselte Positionen",
+        "caption": "Vorgeschlagene aufgeschlüsselte Beträge für die Endrechnung",
+        "proposalHint": "Vorgeschlagene Beträge werden proportional zum Endbetrag skaliert.",
+        "columns": {
+          "line": "Position",
+          "quoted": "Angebot",
+          "proposed": "Vorgeschlagen",
+          "keep": "Beibehalten"
+        },
+        "keepExisting": "Bestehende Aufschlüsselung beibehalten",
+        "reset": "Auf Vorschlag zurücksetzen",
+        "proposedAria": "Vorgeschlagener Betrag für {{name}}",
+        "keepAria": "Betrag beibehalten für {{name}}",
+        "itemizedTotal": "Aufgeschlüsselte Summe",
+        "remainderDiscretionary": "Verbleibend für Diskretionär",
+        "overAllocated": "Die aufgeschlüsselte Summe überschreitet den Endbetrag um {{amount}}.",
+        "lineInvalid": "Geben Sie einen Betrag größer als 0 ein.",
+        "empty": "Keine aufgeschlüsselten Positionen. Nichts zum Anpassen.",
+        "workItem": "Arbeitspaket",
+        "householdItem": "Haushaltsartikel"
+      },
+      "deposits": {
+        "heading": "Abschlagszahlungen und Schlusszahlung",
+        "unchangedNote": "Abschlagszahlungen bleiben unverändert.",
+        "empty": "Keine Abschlagszahlungen erfasst.",
+        "refund": "Rückerstattung",
+        "finalAmount": "Endbetrag",
+        "depositsSubtotal": "Abschlagszahlungen",
+        "finalPayment": "Schlusszahlung",
+        "noRemaining": "Keine verbleibende Zahlung."
+      },
+      "overpaid": {
+        "message": "Der Endbetrag ist {{shortfall}} niedriger als die erfassten Abschlagszahlungen ({{deposits}}). Fügen Sie einen Rückerstattungseintrag hinzu oder erhöhen Sie den Endbetrag.",
+        "addRefund": "Rückerstattung hinzufügen",
+        "resolved": "Prüfung der Abschlagszahlungen bestanden.",
+        "refundDescription": "Rückerstattung für Angebotsumwandlung"
+      },
+      "status": {
+        "heading": "Zahlungsstatus",
+        "pending": "Als ausstehend belassen",
+        "paid": "Bereits bezahlt"
       }
     }
   },

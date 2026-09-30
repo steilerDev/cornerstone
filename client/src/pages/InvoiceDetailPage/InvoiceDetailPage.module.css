@@ -101,6 +101,10 @@
   word-break: break-word;
 }
 
+.pageTitle:focus {
+  outline: none;
+}
+
 .pageActions {
   display: flex;
   gap: var(--spacing-2);
@@ -428,6 +432,10 @@
   cursor: not-allowed;
 }
 
+.convertButton {
+  composes: btnPrimary from '../../styles/shared.module.css';
+}
+
 .editButton {
   padding: var(--spacing-2-5) var(--spacing-4);
   background-color: var(--color-bg-tertiary);
@@ -612,7 +620,13 @@
 
   .pageActions {
     flex-direction: row;
+    flex-wrap: wrap;
     justify-content: stretch;
+  }
+
+  .convertButton {
+    flex: 1 1 100%;
+    min-height: 44px;
   }
 
   .editButton,

@@ -992,3 +992,25 @@ non-guarantee): I wrote it into API-Contract.md myself (wiki `a994e1b`) and aske
 submodule bump. Also asked for `satisfies` shared types on the new E2E page-aware mock. Deferred the
 forked live-region announcement logic (DiaryPage vs DocumentBrowser) as #2103. Lesson: a server
 ordering change made for pagination correctness is an API-contract item even with no new param.
+
+## #2107 quote-to-final-invoice: architect actions (2026-09-30, wiki `ff8c899`, then `8036ca9`)
+
+Documented `POST /api/invoices/:invoiceId/convert-quotation` (atomic; net-of-refunds deposit rule;
+D5 link-tier table; `paid` is a status only, with no paid-date column). Verified deviations against
+code: invoice PATCH never enforced itemized <= amount (#2108, contract is right); notes max was
+10000 in code since #144 while the wiki said 2000 (code is right); the central Error Codes table
+lacked 33 of 58 `ErrorCode` members (#2110). Consequence of the net rule: gross per-type deposit
+check blocks deposit amount edits (#2109).
+
+Lessons:
+
+1. **`additionalProperties: false` does NOT produce a 400 in this app.** Fastify's default AJV has
+   `removeAdditional: true`, so unknown properties are stripped and the request succeeds. Never
+   list "unknown field" as a `VALIDATION_ERROR` cause. I got this wrong in round 1.
+2. **`new Date()` accepts `2026-02-31` (it rolls to 03-03).** A round-trip check
+   (`toISOString().slice(0,10) === value`) is what makes "real calendar date" true.
+3. **When code and contract disagree on a gap you spotted, prescribe the contract.** Writing down
+   the code's current gap (an omitted `dueDate` not re-checked) got overruled in review. The fix
+   was one line.
+4. **A `str.index(anchor)` wiki insert can hit the wrong table.** It matched the per-endpoint
+   deposit table before the central one. Anchor on the full row prefix, including the status column.
