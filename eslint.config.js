@@ -8,7 +8,14 @@ export default tseslint.config(
   {
     // .claude/ holds agent/harness config (workflow scripts use runtime-injected
     // globals like `args`/`agent`/`parallel` that ESLint cannot resolve)
-    ignores: ['**/dist/**', '**/build/**', '**/node_modules/**', 'coverage/**', 'docs/**', '.claude/**'],
+    ignores: [
+      '**/dist/**',
+      '**/build/**',
+      '**/node_modules/**',
+      'coverage/**',
+      'docs/**',
+      '.claude/**',
+    ],
   },
 
   // Base JS rules

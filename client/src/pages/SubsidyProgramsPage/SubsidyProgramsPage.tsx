@@ -387,7 +387,11 @@ export function SubsidyProgramsPage() {
   const handleToggleProgramDocs = useCallback((programId: string) => {
     setExpandedDocsPrograms((prev) => {
       const next = new Set(prev);
-      next.has(programId) ? next.delete(programId) : next.add(programId);
+      if (next.has(programId)) {
+        next.delete(programId);
+      } else {
+        next.add(programId);
+      }
       return next;
     });
   }, []);

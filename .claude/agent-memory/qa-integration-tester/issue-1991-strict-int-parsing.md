@@ -38,5 +38,5 @@ into the expected-message template literal instead of hand-typing the double spa
 avoids an easy-to-miss whitespace-counting bug in the assertion itself.
 
 Coverage table gotcha (reconfirmed, see also [[test-patterns-reference]]): piping a `--coverage`
-run through `| tail -100` truncates the *coverage table*, not just log noise — the `plugins/`
+run through `| tail -100` truncates the _coverage table_, not just log noise — the `plugins/`
 section sorts alphabetically before `routes/`, so it's cut off first. Use `grep -E "config\.ts|Tests:|Test Suites:"` on the raw output instead of `tail`.

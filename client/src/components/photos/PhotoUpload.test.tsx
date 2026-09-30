@@ -16,7 +16,6 @@
  *   provided that works in BOTH environments:
  *     (a) CI path: capturedModalOnSave is set → call it directly
  *     (b) Real-modal path: click the "Save & upload" button in the DOM
- * - Similarly, cancelModal() works for both CI and local environments.
  * - For Scenarios 51–53, the XHR mock layer handles upload outcomes when the
  *   photoApi module mock does not intercept.
  */
@@ -161,25 +160,6 @@ async function saveModal(
     const saveBtn = await screen.findByRole('button', { name: /Save & upload/i });
     await act(async () => {
       fireEvent.click(saveBtn);
-    });
-  }
-}
-
-async function cancelModal(): Promise<void> {
-  if (capturedModalOnCancel) {
-    await act(async () => {
-      capturedModalOnCancel!();
-    });
-  } else {
-    // Real-modal path: find Cancel button (not the × Close dialog button)
-    const allButtons = screen.getAllByRole('button');
-    const cancelBtn = allButtons.find(
-      (btn) =>
-        btn.textContent?.trim() === 'Cancel' && btn.getAttribute('aria-label') !== 'Close dialog',
-    );
-    if (!cancelBtn) throw new Error('Cancel button not found in real modal');
-    await act(async () => {
-      fireEvent.click(cancelBtn);
     });
   }
 }

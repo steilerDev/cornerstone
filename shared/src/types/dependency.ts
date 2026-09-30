@@ -7,10 +7,7 @@
  * Dependency type enum - defines the relationship between predecessor and successor.
  */
 export type DependencyType =
-  | 'finish_to_start'
-  | 'start_to_start'
-  | 'finish_to_finish'
-  | 'start_to_finish';
+  'finish_to_start' | 'start_to_start' | 'finish_to_finish' | 'start_to_finish';
 
 /**
  * Dependency entity as stored in the database.

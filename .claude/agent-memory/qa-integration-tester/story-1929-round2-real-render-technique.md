@@ -40,19 +40,19 @@ test file; it's very likely wrong, verify against the installed pdfmake version'
 With worst-case content (long German vendor + legal suffix, deposit badge + multiple footnote
 markers + refund note in Allocated, German-compound-noun Usage override) and both locales:
 
-| Shape | fixed-column sum | Usage `_calcWidth` | floor (`USAGE_MIN_WIDTH_*COL`) | total rendered width |
-|---|---|---|---|---|
-| 7-col budget-overview | 317pt | **138.28pt** (en & de identical) | 130pt | 515.28pt (== printableWidth() exactly) |
-| 6-col claim/proof-of-funds | 277pt | **186.78pt** (en & de identical) | 175pt | 515.28pt (== printableWidth() exactly) |
+| Shape                      | fixed-column sum | Usage `_calcWidth`               | floor (`USAGE_MIN_WIDTH_*COL`) | total rendered width                   |
+| -------------------------- | ---------------- | -------------------------------- | ------------------------------ | -------------------------------------- |
+| 7-col budget-overview      | 317pt            | **138.28pt** (en & de identical) | 130pt                          | 515.28pt (== printableWidth() exactly) |
+| 6-col claim/proof-of-funds | 277pt            | **186.78pt** (en & de identical) | 175pt                          | 515.28pt (== printableWidth() exactly) |
 
 Both clear their floor comfortably and exactly match the code comment's own analytical derivation
 in `overviewPdf.ts` (138.28pt / 186.78pt) — because with **zero** `'auto'` columns in the design
 (all non-Usage columns are literal fixed widths), the single `'*'` Usage column always receives
 **exactly** `usableColumnWidth(n) - fixedSum`, regardless of content, as long as its own minimum
 width (its widest unbreakable word) doesn't exceed that share. Locale didn't move the number because
-none of the *fixed* columns' content differs enough between en/de to change their own widths in this
+none of the _fixed_ columns' content differs enough between en/de to change their own widths in this
 fixture. **Action for frontend-developer**: the `overviewPdf.ts` comment's "~138.28pt / ~186.78pt
-estimate" can be updated to state these as the *measured, confirmed* values, not an estimate.
+estimate" can be updated to state these as the _measured, confirmed_ values, not an estimate.
 
 AC12 measured ceiling: `MAX_SAFE_USAGE_CHUNK_CHARS` (1200) itself was verified via real render to
 still land as a single row on a single page (see realRender.test.ts's "[scenario 19, measured
@@ -142,7 +142,7 @@ test used a whole-document `collectAllStrings().toContain(multiWordString)` sear
 **always finds 0 occurrences** for any multi-word Usage text (each word is its own leaf) — this is
 not evidence of data loss, it's the search technique becoming wrong for this shape. Replace with a
 targeted read of the specific row's Usage cell + reconstruction; it's strictly more precise than the
-blanket search anyway (confirms text landed on the *correct* row, not just somewhere in the tree).
+blanket search anyway (confirms text landed on the _correct_ row, not just somewhere in the tree).
 When a `collectAllStrings()` helper in a describe block ends up with zero remaining callers after
 this kind of fix, delete it — don't leave a dead local function (eslint `no-unused-vars` catches it
 immediately, but it's easy to miss until you actually re-run).
@@ -191,7 +191,7 @@ structural issue the round-2 fix never addressed:
   fixture's incidental properties (case, glyph choice) can silently substitute for the true worst
   case — always check what property of the fixture is actually doing the work.**
 - **New thresholds**: `USAGE_SAFE_TOKEN_CHARS_7COL` 32→19, `_6COL` 44→26 (both `floor(width /
-  (8*0.89))`); new `VENDOR_SAFE_TOKEN_CHARS=6` (`floor(45/(8*0.89))`) — Vendor body cells now ALSO
+(8*0.89))`); new `VENDOR_SAFE_TOKEN_CHARS=6` (`floor(45/(8*0.89))`) — Vendor body cells now ALSO
   go through `buildUsageTextRuns` (free-form business names, e.g. "Elektroinstallationsbetrieb"
   measured 92.72pt against the 45pt column). **This means EVERY Vendor cell's `.text` is now always
   a run array too** (not just Usage) — any test doing `row[0].text === 'SomeVendorName'` breaks the
@@ -203,16 +203,16 @@ structural issue the round-2 fix never addressed:
   protection, both locales. Real German label measurements: "Auftragnehmer" 67.50pt vs 45pt column,
   "Rechnungsbetrag" 78.66pt vs 48pt — both genuinely wrap to 2+ real rendered lines (`.positions.length
   > 1`) since their REAL widths (not just the conservative estimate) exceed the column. But
-  "Zugeordneter Betrag" (two words, 60.42pt/29.42pt, both < the 75pt column) gets its first word
-  flagged (12 chars > the 8-char conservative threshold for that column) YET renders as exactly 2
-  lines (`.positions.length === 2`), never actually invoking a mid-character split — this is the
-  designed-harmless "over-flagged but doesn't need it" case, not a bug. **Lesson: a flagged run does
-  not necessarily visually wrap to multiple lines — whether it does depends on REAL glyph metrics,
-  which the conservative worst-case estimate deliberately doesn't reflect. Don't assert "every
-  flagged token must wrap" as a blanket rule; only the token whose REAL width also exceeds the
-  column will.** Confirmed empirically: of three round-3 worst-case fixtures (29-char all-caps
-  German, 30×'W', 31 digits), only the 'W' run reliably wrapped in both table shapes — the other two
-  fit on one line in the wider (6-col, 186.78pt) shape despite being correctly flagged.
+"Zugeordneter Betrag" (two words, 60.42pt/29.42pt, both < the 75pt column) gets its first word
+flagged (12 chars > the 8-char conservative threshold for that column) YET renders as exactly 2
+lines (`.positions.length === 2`), never actually invoking a mid-character split — this is the
+  > designed-harmless "over-flagged but doesn't need it" case, not a bug. **Lesson: a flagged run does
+  > not necessarily visually wrap to multiple lines — whether it does depends on REAL glyph metrics,
+  > which the conservative worst-case estimate deliberately doesn't reflect. Don't assert "every
+  > flagged token must wrap" as a blanket rule; only the token whose REAL width also exceeds the
+  > column will.** Confirmed empirically: of three round-3 worst-case fixtures (29-char all-caps
+  > German, 30×'W', 31 digits), only the 'W' run reliably wrapped in both table shapes — the other two
+  > fit on one line in the wider (6-col, 186.78pt) shape despite being correctly flagged.
 - **`MAX_SAFE_USAGE_CHUNK_CHARS`**: 1200→700 (measured true ceiling was 836 chars using a real
   'W'-only worst-case row, not the round-2 estimate's ~2000+; round 2's own value left ~0% real
   margin — a row at exactly 1200 chars already overflowed a page under real measurement).

@@ -205,8 +205,7 @@ function renderCard(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       tSettings: tSettings as any,
       onInlineDraftChange: callbacks.onInlineDraftChange as
-        | ((rowId: string, updates: Partial<BudgetLineFormState>) => void)
-        | undefined,
+        ((rowId: string, updates: Partial<BudgetLineFormState>) => void) | undefined,
       onQueueNewBudgetLine: callbacks.onQueueNewBudgetLine as ((rowId: string) => void) | undefined,
       confidenceLabels,
       vendors,

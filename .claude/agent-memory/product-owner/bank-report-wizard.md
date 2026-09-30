@@ -229,7 +229,7 @@ Limits, all anchored on a measured constant or an existing server cap: `usageTex
 
 The risk being guarded: `MAX_SAFE_USAGE_CHUNK_CHARS` (650) is **34 chars / 3 lines / 33.6pt over** its _derived_ `Ѹ` ceiling of 616 (`44 lines × 14 chars`). Accepted on **input reachability** (needs 650 unbroken chars of archaic Church Slavonic Uk in one Usage cell), and because a `Ѹ`-safe value must sit in `[600, 616]`, collapsing AC12's margin over its 600-char floor from 8.3% to ~2.7%. `MAX_SAFE_SMALL_CHUNK_CHARS` (450) is genuinely safe (11.2% under 507). **Not a request to change 650** — the architect is comfortable with the risk.
 
-**Rev 2 (2026-08-06, on PR #2038): AC 1.5 STRUCK, nothing replaces it.** `MAX_SAFE_SMALL_CHUNK_CHARS` was deleted by #1959 (`3cc89676`, 2026-08-03) — the day *after* #1950 was filed, so the AC was correct when written. The Usage cell now has **one** budget at `TABLE_BODY_FONT_SIZE`; there is no second ceiling to hold a margin against. Derived-507 computation retained as a `TABLE_SMALL_FONT_SIZE` **staleness pin only** (AC 1.2/1.7), asserting nothing about safety. No replacement assertion: drift is covered by that computation, deliberate 9pt re-adoption by the two doc comments (AC 2.1 protects them). **AC 1.4a/b/c added** for #1940's continuation rows — overage there is **36 / 4 / 44.8**, not 34 / 3 / 33.6, because the `'… '` marker is applied post-packing in `buildUsageCell` (`overviewPdf.ts:894-907`) and no budget counts it; 1.4b pins the marker-shorter-than-a-line precondition, 1.4c **prohibits** "fixing" it by counting the marker (would change I1 reconstruction). Existing AC numbers unchanged. Stale #1941 cross-ref in Notes withdrawn.
+**Rev 2 (2026-08-06, on PR #2038): AC 1.5 STRUCK, nothing replaces it.** `MAX_SAFE_SMALL_CHUNK_CHARS` was deleted by #1959 (`3cc89676`, 2026-08-03) — the day _after_ #1950 was filed, so the AC was correct when written. The Usage cell now has **one** budget at `TABLE_BODY_FONT_SIZE`; there is no second ceiling to hold a margin against. Derived-507 computation retained as a `TABLE_SMALL_FONT_SIZE` **staleness pin only** (AC 1.2/1.7), asserting nothing about safety. No replacement assertion: drift is covered by that computation, deliberate 9pt re-adoption by the two doc comments (AC 2.1 protects them). **AC 1.4a/b/c added** for #1940's continuation rows — overage there is **36 / 4 / 44.8**, not 34 / 3 / 33.6, because the `'… '` marker is applied post-packing in `buildUsageCell` (`overviewPdf.ts:894-907`) and no budget counts it; 1.4b pins the marker-shorter-than-a-line precondition, 1.4c **prohibits** "fixing" it by counting the marker (would change I1 reconstruction). Existing AC numbers unchanged. Stale #1941 cross-ref in Notes withdrawn.
 
 Three durable rulings, all written into the issue rather than left implicit:
 
@@ -755,7 +755,7 @@ with a supersession block so the old `<= 1` bullet isn't read as live spec.
    values from the same assertion and vacuity is ruled out without arguing about semantics.
 3. **When a fix removes a vacuous assertion, check whether it was REPLACED or merely deleted.** #1980 AC1
    went vacuous → **absent**; that is not progress on the AC, and it's easy to miss because the diff looks
-   like a cleanup. Carried M1 at Medium (unchanged severity — the *presence* half guards the #1959 channel,
+   like a cleanup. Carried M1 at Medium (unchanged severity — the _presence_ half guards the #1959 channel,
    and re-grading my own round-1 Medium upward would be moving goalposts).
 4. **Before demanding a measurement, probe that it exists** — the mirror of "a documented bar can be
    unmeasurable" (round 1's lesson #4). I probed the rendered legend nodes and found `_minWidth` /
@@ -763,21 +763,21 @@ with a supersession block so the old `<= 1` bullet isn't read as live spec.
    fix was 2 lines. `horizontalRatio: 0` on that very node re-confirmed C1's root cause for free.
 5. **To prove an E2E failure is a flake, find a green run whose subtree is byte-identical.**
    `git diff <green-sha> <red-sha> -- e2e/` empty **and** a fully-green 16-shard run 16 min earlier is
-   determinative — far stronger than "known flake" folklore or a rerun. Also check the *previous* round's
+   determinative — far stronger than "known flake" folklore or a rerun. Also check the _previous_ round's
    shard map: shard 3/16 was green at `664bf048` (shard 2/16 was the red one), which rules out a
    shard-boundary shift from the new fixture (the worker-hash hazard). Failure here was
    `diary-automatic-events.spec.ts:100`, unrelated. Still asked for a shard re-run before merge (#2005).
 
 **Documented-deviation loop closed end to end, worth reusing verbatim:** unmeasurable ADR bar → escalate as
-a *rule correction* to `product-architect` (not a pointer tweak) → ADR corrected with a Deviation Log entry
+a _rule correction_ to `product-architect` (not a pointer tweak) → ADR corrected with a Deviation Log entry
 → PO amends the **open** issue's body with a dated supersession block + inline `~~strikethrough~~` on the
-superseded step. The ADR's own new text carries the right lesson: *"a revert-test proves the helper can fire
-on some input, not that it can fire on the input the rule is about."*
+superseded step. The ADR's own new text carries the right lesson: _"a revert-test proves the helper can fire
+on some input, not that it can fire on the input the rule is about."_
 
 **Done gates:** #2003 → Done on merge (every AC machine-checked). **#1980 → Done only if M1 lands**, else I
 record a deviation on AC1 — the one criterion whose stated measurement exists in no form.
 Architect's Lows still open: `collectAllStrings` forked 3× (`:884`/`:1151`/`:3207`); helper comment header
-still says *"content overflowed the page horizontally"* (the framing the ADR corrects) and cites
+still says _"content overflowed the page horizontally"_ (the framing the ADR corrects) and cites
 `src/DocumentContext.js:528` vs the ADR's `DocumentContext.js:490`.
 
 ---
@@ -796,7 +796,7 @@ green on the head SHA.
   a silently-shrunk enumerator takes every downstream 96-subset assertion with it and nothing goes red.
   Every subset loop also asserts `checked === 96/72/24` rather than trusting the iteration.
 - **A positive control on a negative assertion.** E2E AC 5.2 fires a real PATCH via `page.evaluate()`,
-  asserts the interceptor caught it, resets the counter, *then* asserts the toggles produce zero. This is
+  asserts the interceptor caught it, resets the counter, _then_ asserts the toggles produce zero. This is
   the general fix for "assertions that pass on nothing" — demand it whenever an AC is "X never happens".
 - **A forced click as behavioural proof of `disabled`.** `uncheck({ force: true }).catch(() => {})` then
   re-assert `toBeChecked()` — genuinely different from restating `toBeDisabled()`.
@@ -804,10 +804,10 @@ green on the head SHA.
   "the toggle reached PDF generation". The bare-size shape is what let #1966 pass while preview-only.
 
 **Five Medium partials — all the same shape: an AC's second clause dropped while the first was met.**
-M1 AC 4.1 (cell *count* asserted, header *text in order* not). M2 AC 4.2 (continuation rows explicitly
+M1 AC 4.1 (cell _count_ asserted, header _text in order_ not). M2 AC 4.2 (continuation rows explicitly
 excluded from the 96-loop by fixture choice — the test comment says so). M3 AC 4.5 (96-loop checks
 `amountText` only, never the label — the exact half I'd flagged as most likely to be quietly unmet).
-M4 AC 3.3 (`expect(absorber).not.toBeNull()` would pass for *any* absorber; AC 3.5's loop `continue`s past
+M4 AC 3.3 (`expect(absorber).not.toBeNull()` would pass for _any_ absorber; AC 3.5's loop `continue`s past
 the absorber, so a wrong one is doubly unchecked). M5 AC 7.4 (PR body still says results "will be appended").
 **Lesson: when an AC is a compound sentence, tick each clause off separately — the first clause getting a
 test is what makes the second one invisible.**
@@ -818,13 +818,14 @@ below the 45pt pin — so M4 is a coverage hole, not a defect, and gets capped a
 `tableOffsetsTotal(n) = n*8.5 + 0.5`; `printableWidth() = 515.28`.
 
 **Two AC-text errors were mine** (posted as a dated correction comment on #1973, body left intact):
+
 1. **AC 4.6's "92 subsets" is wrong — Tier 1 is 88.** 92 = 96−4, which folded Tier 2 into Tier 1. Tier 2 is
    `{alloc, invoiceAmount}` and `{alloc, invoiceAmount, usage}` × 2 use cases = 4. 88+4+4 = 96. The tests
-   asserted the partition *behaviourally* (exact row arrays per tier) and never the count, which is why a
+   asserted the partition _behaviourally_ (exact row arrays per tier) and never the count, which is why a
    correct implementation didn't fail — **assert partitions behaviourally, not by cardinality.**
 2. **AC 5.3's "leaving and re-entering the step" over-reached R5.** R5 says the selection dies with the
-   *run*; `overrides` survive in-run step navigation, so `hiddenColumns` should too. The AC as written would
-   have mandated a *third* instance of the #1943/#1946 silent-state-loss class. Implementation resets on
+   _run_; `overrides` survive in-run step navigation, so `hiddenColumns` should too. The AC as written would
+   have mandated a _third_ instance of the #1943/#1946 silent-state-loss class. Implementation resets on
    reload + use-case change, preserves across step nav and `DISCARD_EDITS`, documents why. Corrected reading
    published; AC satisfied under it.
 
@@ -834,8 +835,8 @@ is structurally absent (`CLAIM_COLUMNS` has no `status`); and a test passes `hid
 `'status'` to a claim editor and still finds no checkbox.
 
 **Merge gate vs Done gate applied:** every AC is machine-checked (incl. the degenerate 1-column case through
-*real unmocked pdfmake* in `realRender.test.ts`), so nothing blocks merge. But R7's narrower-than-page table
-(84.00pt single column on a 515.28pt page) and R2's Tier-3 summary block are *visual* judgments no assertion
+_real unmocked pdfmake_ in `realRender.test.ts`), so nothing blocks merge. But R7's narrower-than-page table
+(84.00pt single column on a 515.28pt page) and R2's Tier-3 summary block are _visual_ judgments no assertion
 can make — **#1973 → UAT, stays In Progress, not Done-on-merge. If UAT rejects either, reopen #1973; the
 ruling would be what was wrong, not the implementation.**
 
@@ -874,7 +875,7 @@ raised on an already-green PR — file, don't expand.
 R7's narrow table and R2's tier-3 block are visual judgments. **Separated #2011 from a #1973 reopen
 explicitly, because #2011 is a live candidate for exactly that UAT rejection:** a **width** rejection is
 #2011; a **design** rejection ("the total should not have left the table at all, at any width") reopens
-#1973, because then the *ruling* was wrong. Worth reusing whenever a follow-up issue overlaps the same
+#1973, because then the _ruling_ was wrong. Worth reusing whenever a follow-up issue overlaps the same
 surface a parent issue is going to UAT on — say which rejection routes where, before UAT runs.
 
 ## #1911 `splitKind` — AC refinement (2026-08-05)
@@ -886,28 +887,28 @@ out). 7 AC sections + UAT determination + two corrections to the issue's own fra
 recorded as an explicit "Corrections to the issue's framing" section:
 
 1. The `†`/`‡` glyph markers **no longer exist** — #1959 replaced them with inline grey word labels
-   (`(partial)` / `(less deposit)` / `(Deposit)`), and #1965 AC 2.2 *forbids* reintroducing them.
+   (`(partial)` / `(less deposit)` / `(Deposit)`), and #1965 AC 2.2 _forbids_ reintroducing them.
 2. The `‡` "This is a deposit." constituted sentence **is absent from `client/src/i18n/`**. So the
    wording nit's stated premise cannot be fixed by editing that sentence.
 
 **Pattern: when the premise is real but its described mechanism is stale, correct the mechanism and
 keep the story.** The underlying defect (AC 1.2) was untouched by either correction. An issue filed by
-another agent from a review round is a snapshot of *that round's* codebase — re-verify the mechanism,
+another agent from a review round is a snapshot of _that round's_ codebase — re-verify the mechanism,
 not just the defect.
 
 ### The trap AC (1.5) — worth reusing
 
 The derivation predicate is **"this arm contains a source ≠ S"**, NOT "this arm contains ≥2 distinct
 sources". The headline case (lines all in A, deposit tagged B, requested A) has arm1=`{A}`, arm2=`{B}`
-— *one source each* — yet must yield `'deposits'`. The naive per-arm-count reading returns `null` and
+— _one source each_ — yet must yield `'deposits'`. The naive per-arm-count reading returns `null` and
 silently reproduces the exact bug the story fixes. **When an AC's correct predicate is one plausible
 misreading away from a no-op, write the misreading into the AC and demand a test pinning that shape.**
 
 ### Findings I added beyond what was filed
 
-- **A second, opposite defect in the same classifier.** Today `isDepositReduced` is *over*-inclusive:
+- **A second, opposite defect in the same classifier.** Today `isDepositReduced` is _over_-inclusive:
   it fires on a line-split invoice carrying an **untagged** deposit, whose legend sentence says
-  "claimed **separately**" — but untagged deposits are apportioned back *into* this source pro-rata
+  "claimed **separately**" — but untagged deposits are apportioned back _into_ this source pro-rata
   (`depositAggregateUtils.ts` L607-620). Given #1965 ruled `separately` audit-load-bearing, that is a
   **false statement to a report recipient shipping today**. Filed defect was under-inclusive; checking
   the other direction of the same boolean found the mirror.
@@ -918,14 +919,14 @@ misreading away from a no-op, write the misreading into the AC and demand a test
 
 ### Rulings I made rather than leaving to the implementer
 
-- **Constituted-wording nit: NO string change.** Precision is delivered *structurally* by removing the
+- **Constituted-wording nit: NO string change.** Precision is delivered _structurally_ by removing the
   `if/else` so `(Deposit)` and `(less deposit)` co-occur. Backed by `glossary.json`: the label lives in
   a **75pt** column where `Abschlagszahlung` alone already measures 72.85pt — **no qualifier of any
   length fits**, so "reword it more precisely" was never an available option. **A documented
   measurement can close a wording debate before it starts — check the glossary for a space budget
   before specifying any label change.**
 - **`splitKind` is `… | null`, REQUIRED not optional.** `null` matches the file's own `T | null`
-  convention; *required* because `splitKind?:` lets a construction site omit it → `undefined` → reads
+  convention; _required_ because `splitKind?:` lets a construction site omit it → `undefined` → reads
   as "not split" at the classifier. Required makes `tsc` enumerate the sites, which is the point.
 - **Non-goal stated explicitly:** decoupling `isDeposit` from `isSplit` (a real gap — a wholly
   single-source invoice funded by an S-tagged deposit gets no `(Deposit)` badge) is **out of scope**;
@@ -938,17 +939,17 @@ misreading away from a no-op, write the misreading into the AC and demand a test
 
 ### Privacy ruling (asked for explicitly)
 
-**No objection.** There is *no authorization boundary between budget sources* — `GET /api/source-reports`
+**No objection.** There is _no authorization boundary between budget sources_ — `GET /api/source-reports`
 requires only a session (`sourceReports.ts` L40-42), every `budgetSources` route is "both admin and
 member", no per-user scoping anywhere. So "a source the requester cannot see" **does not exist** in this
-app. The question that *does* matter is the PDF leaving the system: `(partial)` already discloses "funded
+app. The question that _does_ matter is the PDF leaving the system: `(partial)` already discloses "funded
 from >1 source", so `splitKind` only picks between two already-shipped sentences and adds no new fact
 class; AC 1.10 forbids ever carrying the other source's id/name/count. **Answer the boundary question
 about the artifact that leaves the system, not only about the API.**
 
 ### Legend ruling (#1965)
 
-**No new sentence.** The legend populates by set membership, so changing *which rows enter the sets* is
+**No new sentence.** The legend populates by set membership, so changing _which rows enter the sets_ is
 handled by existing machinery. AC 7.2 pins "two entries max, not three" — there is no constituted
 legend sentence and none is added.
 
@@ -988,7 +989,7 @@ line of its own" = `budgetLines.length > 0` under a new name, which re-breaks AC
 case. **When the only available narrowing is the removed gate wearing a hat, there is no narrowing —
 say so plainly instead of negotiating.**
 
-**Non-goal held:** my §3 non-goal was the `isDeposit` *trigger* (still `isSplit && hasOwnTaggedDeposit`,
+**Non-goal held:** my §3 non-goal was the `isDeposit` _trigger_ (still `isSplit && hasOwnTaggedDeposit`,
 AC 3.3, unchanged). This changed the `isSplit` trigger — the converse. **Check which side of a pair a
 "converse" escalation actually touches before conceding the non-goal was breached.**
 
@@ -996,7 +997,7 @@ AC 3.3, unchanged). This changed the `isSplit` trigger — the converse. **Check
 already-measured four-run maximum. **Saying "dominated by an existing measurement, do not re-measure"
 is as valuable as demanding the measurement** — it stops a reflexive second geometry pass.
 
-**UAT: extended the existing pass, didn't add one.** Assessed the new pair as *lower* risk than my
+**UAT: extended the existing pass, didn't add one.** Assessed the new pair as _lower_ risk than my
 original AC 4.4 flag — `(Abschlagszahlung) (Teilbetrag)` is two different roots, vs. the sharp
 `(Abschlagszahlung) (abzgl. Abschlag)` same-root-opposite-senses collision. Same reader, same pass,
 zero marginal cost. **Rank the flagged risks against each other rather than treating every new
@@ -1010,7 +1011,7 @@ code + docs + tests, that's one spec gap, not three bugs — and it's the argume
 down even though the code is already correct.**
 
 **Scenario 18 separately confirmed the over-inclusive defect was real and shipped:** its `invoice3`
-seeded an *untagged* deposit and asserted `isDepositReduced: true` — the E2E suite had encoded the
+seeded an _untagged_ deposit and asserted `isDepositReduced: true` — the E2E suite had encoded the
 bug as expected behaviour. QA also verified the new behaviour genuinely fails against pre-#1911 code
 (9 of 70 tests fail on restore), which is the anti-vacuity check AC 5.5 asked for.
 
@@ -1025,10 +1026,10 @@ mutation test flips legend membership, not just flags, and the whole-suite discr
 **B1 — the PR's own two E2E scenarios red, both stale assertions in the NEW test code, not product
 defects.** Deterministic (both retries, shards 2 + 9, desktop + tablet).
 
-- *Scenario 17*: asserted `'€150.00 (partial)'`, DOM is `'€150.00Deposit (partial)'` — the assertion
+- _Scenario 17_: asserted `'€150.00 (partial)'`, DOM is `'€150.00Deposit (partial)'` — the assertion
   was copied from a badge-less row and doesn't allow for the `Deposit` badge sitting between amount
   and note. **Told them not to loosen it to a bare `€150.00`**: the adjacency IS the AC.
-- *Scenario 18*: asserted `'€75.00 (partial)'`, got `'€56.25 (partial) (less deposit)'`. Labels
+- _Scenario 18_: asserted `'€75.00 (partial)'`, got `'€56.25 (partial) (less deposit)'`. Labels
   right, **amount stale**. Re-seeding invoice3's deposit untagged → tagged-to-other changed the
   arithmetic via the #1891 **redirect** rule: `75/200 × (200 − 50) = 56.25`. #1911 touches no money
   path. **Demanded the derivation go in a comment** — a bare number change reads as weakening a test.
@@ -1039,48 +1040,48 @@ defects.** Deterministic (both retries, shards 2 + 9, desktop + tablet).
 setup is right (unmocked, en+de, 7-col and 1-col endpoints of the #1973 subsets). But:
 `maxHorizontalRatio <= 1` **cannot fail on any input** — after #1929 round 4 there is no `'*'` column
 and `overviewPdf.ts:105` documents table width = `printableWidth()` for ANY input; `horizontalRatio`
-is recorded at each line's *start* x, derived from content-independent column offsets. And "all four
+is recorded at each line's _start_ x, derived from content-independent column offsets. And "all four
 labels present verbatim" reads the pdfmake **content tree** (the input), so it cannot observe drop,
 clip or wrap. `getPageCount() >= 1` adds nothing. Net: the named risk — #1959's wrap-mid-bracket in
 this exact column, live because `(abzgl. Abschlag)` has an internal space — is unguarded.
 
-**Fix spec given**: pdfmake writes one `positions` entry per rendered *line*, so assert the allocated
+**Fix spec given**: pdfmake writes one `positions` entry per rendered _line_, so assert the allocated
 cell's line count — (a) differential (maximal row vs. no-label row, strictly more lines: cannot go
 vacuous) and (b) a ceiling derived from `ALLOCATED_AMOUNT_WIDTH` + font constants, #1929/#1950 style,
 never a typed literal. Offered a documented deviation → fold 4.5 into UAT if neither is achievable.
 
 **Reusable: "real render" is not the same as "measured".** A genuinely unmocked render whose
 assertions read the input tree, or read a quantity fixed by construction, is still a vacuous
-assertion. Ask *what varies* in the assertion when the guarded content changes — not whether a
+assertion. Ask _what varies_ in the assertion when the guarded content changes — not whether a
 render happened. This is the fourth instance of the pattern in this cluster (cf. #2008 C1 "metric is
 a constant", the config-object checks, the never-failing alternations).
 
 **Severity note to self:** I enumerated AC 4.5 explicitly as "highest-risk — measure it" and named the
-#1959 precedent, so the enumeration-failure cap does *not* apply — it was fair to block on it.
+#1959 precedent, so the enumeration-failure cap does _not_ apply — it was fair to block on it.
 
-**Non-blocking, filed as observations:** (N1) preview emits `refundNoteText` *before* the three labels
-(`ReportContentEditor.tsx:331`) while the PDF emits it *after* (`overviewPdf.ts:856`) — AC 4.4's
+**Non-blocking, filed as observations:** (N1) preview emits `refundNoteText` _before_ the three labels
+(`ReportContentEditor.tsx:331`) while the PDF emits it _after_ (`overviewPdf.ts:856`) — AC 4.4's
 three-label order is identical on both surfaces so the AC is met, and it predates #1911, but the
 newly-reachable four-run row makes it visible; follow-up, do not expand the PR. (N2) AC 5.3's
 preview-DOM half is en-only. (N3) `Fixes #1911` auto-closes on `main` — the UAT pass must run before
 promotion or the UAT disposition evaporates silently.
 
 **PR body assessment (asked for explicitly).** Honest where it counts: it flags the over-inclusive
-defect as *not* in the original issue, and states plainly that the dev-team-lead's own E2E spec was
+defect as _not_ in the original issue, and states plainly that the dev-team-lead's own E2E spec was
 wrong to call the change "purely additive". Told them to keep that verbatim — a spec author marking
 their own error in the permanent record is worth more than a tidy body. One **overstatement** (AC 4.5
 "measured … all four labels present verbatim" — the render is real, the measurement isn't sensitive
 to the labels) and one **understatement** ("Both fixed" while CI shows both scenarios red).
 
 **UAT disposition reconfirmed; one leg of the routing was stale.** #1911 still goes to UAT, AC 4.7
-still folded into the existing pass. B2 *strengthens* the case — with the four-run geometry unguarded,
+still folded into the existing pass. B2 _strengthens_ the case — with the four-run geometry unguarded,
 the human pass is the only thing looking at that row. Corrected routing:
 
 - fix is to **what the labels say** → **reopen #1911** (its deliverable), unchanged;
 - fix is to **column geometry** → **new issue in the #1939 lineage**. My original "route width
   rejections to the already-filed issue" is **stale: #1937 is closed** and none of #2011–#2014 or
   #1950 covers the allocated column. #1911's scope boundary never included geometry — AC 4.5 only
-  *measured*, it never authorised a fix.
+  _measured_, it never authorised a fix.
 
 **General: check that the issue a routing rule points at is still open before restating the rule.**
 
@@ -1114,11 +1115,12 @@ All six Backlog + blocked-by #1911.
 from a scoped projection (impossible to do right — the projection discarded the needed rows).
 `hasOwnTaggedDeposit` derives a **scoped** predicate from a projection at **the same scope**, which is
 the correct and intended use, sound **by construction, not by accident**. Rated Could Have: guard test
-+ comment, no refactor. **Then fed the correction back into #2019 as AC 1.2 — the ADR must state the
-converse with equal prominence, or it will condemn correct code and be ignored.**
-**Reusable: when a review finding invokes a principle, check whether the principle actually condemns
-the code — a principle stated only in its prohibiting direction generates false positives, and the
-fix is to write the permission into the ADR alongside it.**
+
+- comment, no refactor. **Then fed the correction back into #2019 as AC 1.2 — the ADR must state the
+  converse with equal prominence, or it will condemn correct code and be ignored.**
+  **Reusable: when a review finding invokes a principle, check whether the principle actually condemns
+  the code — a principle stated only in its prohibiting direction generates false positives, and the
+  fix is to write the permission into the ADR alongside it.**
 
 ### Ruling: `Fixes` vs `Refs` for UAT-pending issues — **`Refs`**
 
@@ -1126,7 +1128,7 @@ Coordinator's premise ("UAT runs in `/epic-close` before promotion, so auto-clos
 is **true for epics and false for this cluster**. The Bank Report Wizard cluster is **parent-less**
 (#1965's body: "Parent Epic: none"), so `/epic-close` — the only skill with a UAT step (step 6) —
 **can never run for it**; promotion goes through standalone `/release`, whose step 2b is a
-"Manual Validation Checklist … spot-check" and which explicitly *omits* the UAT sections when no epic
+"Manual Validation Checklist … spot-check" and which explicitly _omits_ the UAT sections when no epic
 number is given.
 
 **Ruling: `Refs #N`, not `Fixes #N`, for any issue in a parent-less cluster carrying a UAT
@@ -1148,7 +1150,7 @@ that lifecycle.** A cluster with no parent epic silently skips every epic-scoped
 - Rejection about **column geometry** → **new issue in the #1939 lineage**. Verified #1937 and #1939
   are both **closed** and none of #2011-#2014 or #1950 covers the allocated-amount column — no open
   home exists.
-- The line between them: the first says my *ruling* was wrong (no string change, precision via
+- The line between them: the first says my _ruling_ was wrong (no string change, precision via
   co-occurrence); the second says the ruling was right but the column can't afford it. Only the first
   invalidates #1911.
 

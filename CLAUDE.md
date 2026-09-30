@@ -251,7 +251,7 @@ Cornerstone uses a two-tier release model:
 
 Both `main` and `beta` require PRs with passing `Quality Gates`. `main` additionally requires `E2E Gates`. Force pushes and deletions are blocked on both branches.
 
-Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers static analysis, unit tests, Docker build, and E2E smoke tests — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
+Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers ESLint (errors), the Prettier format check, typecheck, Stylelint, build, unit tests, Docker build, and E2E smoke tests — ESLint and the format check run on every PR regardless of path filter — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
 
 ### Local Validation Policy
 
@@ -260,10 +260,10 @@ Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Qualit
 ```bash
 npm run lint:fix    # auto-fix all fixable issues
 npm run format      # apply Prettier formatting
-npm run lint        # must report zero warnings or errors
+npm run lint        # must report zero errors (CI-enforced)
 ```
 
-If `npm run lint` still reports warnings or errors after auto-fix, they must be resolved before handback. The dev-team-lead validates lint cleanliness as part of `[MODE: review]` — work with outstanding lint issues is returned for fixes.
+If `npm run lint` still reports errors after auto-fix, they must be resolved before handback. Existing warnings are tracked in #2118; do not add new warnings in files you touch. Repo-wide `npm run format` is drift-free (`wiki/` is Prettier-ignored). The dev-team-lead validates lint cleanliness as part of `[MODE: review]` — work with outstanding lint issues is returned for fixes.
 
 **Do NOT run `npm test`, `npm run typecheck`, or `npm run build` manually.** CI Quality Gates (typecheck + test + build) run on every PR and own full validation.
 
@@ -319,7 +319,7 @@ two places:
 
 1. **`/develop` step 6h / step 9** (orchestrator, before merging) — run it directly instead of
    hand-checking with grep.
-2. **CI's `trailer-check` job** (automated, on every PR touching production paths) — see
+2. **CI's `trailer-check` job** (automated, on every PR touching production paths, including `e2e/`) — see
    `.github/workflows/ci.yml`.
 
 Detection inside the script is case-insensitive and accepts both the current de-versioned trailer

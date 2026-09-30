@@ -84,8 +84,7 @@ jest.unstable_mockModule('./BudgetLineForm.js', () => ({
     const onSubmit = props['onSubmit'] as ((e: React.FormEvent) => void) | undefined;
     const onCancel = props['onCancel'] as (() => void) | undefined;
     const onMove = props['onMove'] as
-      | ((type: 'work_item' | 'household_item', id: string) => Promise<void>)
-      | undefined;
+      ((type: 'work_item' | 'household_item', id: string) => Promise<void>) | undefined;
 
     return React.createElement(
       'form',

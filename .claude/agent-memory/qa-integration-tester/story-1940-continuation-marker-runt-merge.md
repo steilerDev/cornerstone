@@ -18,6 +18,7 @@ affected once the marker landed: **every existing test that reconstructs a Usage
 row known to be a continuation row**, in BOTH files. Found by grepping every `splitUsageCell(`/
 `rowTexts(`/`usageCellText(` call site and checking whether the row it read was ever index >= 1 of
 a packed group:
+
 - `overviewPdf.test.ts`: scenario 10, scenario 11, and the "[#1959 fix round] suffix gets a row of
   its own" test (3 existing tests).
 - `realRender.test.ts`: scenario 19c's reconstruction (`usageCellText` used directly, not
@@ -103,8 +104,9 @@ filter to non-empty cells or weaken the assertion.
 
 Backup/restore technique (per [story-1929-round2-real-render-technique.md](story-1929-round2-real-render-technique.md)):
 reverted `overviewPdf.ts` to `git show HEAD:...` (pre-#1940), ran the new test surface:
+
 - `overviewPdf.test.ts`: whole suite fails to even LOAD (`SyntaxError: ... does not provide an
-  export named 'packUsageCellRowsWithMinimum'`) — a clean, unambiguous module-resolution proof for
+export named 'packUsageCellRowsWithMinimum'`) — a clean, unambiguous module-resolution proof for
   the entire new Part A/B surface at once.
 - `realRender.test.ts`'s new `#1940` describe block: 2 of 4 tests fail with REAL assertion
   failures (not import errors, since the module still loads fine using only pre-existing exports)
@@ -122,13 +124,13 @@ pre-revert diff exactly (99 insertions / 5 deletions) before finishing.
   production transitive dependency via `pdfmake` -> `pdfkit`, so declaring it in
   `client/package.json` installs nothing new — the Docker runtime image is byte-identical.
 - **`TS2352` — Jest passing does NOT mean `tsc` is clean.** `(fontkitModule as { default?:
-  typeof fontkitModule }).default ?? fontkitModule` compiled fine under `ts-jest` (which runs no
+typeof fontkitModule }).default ?? fontkitModule` compiled fine under `ts-jest` (which runs no
   type diagnostics by default) but failed `npx tsc --noEmit -p client/tsconfig.json` — "neither
   type sufficiently overlaps with the other." Fix: route through `unknown` first, exactly like the
   `vfsModule` cast two lines below it already did: `(fontkitModule as unknown as { default?:
-  typeof fontkitModule }).default ?? fontkitModule`. **Lesson reinforced a third time in this
+typeof fontkitModule }).default ?? fontkitModule`. **Lesson reinforced a third time in this
   batch** (after #1911's missing factory field, #1912's ESM mock): run the scoped `npx tsc --noEmit
-  -p client/tsconfig.json` (or the server equivalent) before handback whenever a test file adds a
+-p client/tsconfig.json` (or the server equivalent) before handback whenever a test file adds a
   nontrivial type assertion — Jest green is not proof the build is green. Make this reflexive, not
   something that has to be asked for.
 - **Bare literal `20` retyped at 6 call sites — exactly the anti-pattern issue #1950 exists to
