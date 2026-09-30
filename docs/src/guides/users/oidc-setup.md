@@ -76,9 +76,9 @@ OIDC does not create accounts automatically. Instead, it links existing local ac
 
 :::info Identity providers without email verification
 
-Some identity providers (e.g., certain Azure AD / Microsoft Entra configurations) don't send the `email_verified: true` claim. If your provider doesn't verify emails, new SSO login attempts will show an "email not verified" error and cannot establish a link. Accounts that were already linked before this issue will continue to work normally.
+Some identity providers (e.g., certain Azure AD / Microsoft Entra configurations) don't send the `email_verified: true` claim. If your provider doesn't verify emails, new SSO login attempts will show an "email not verified" error and cannot establish a link. Users whose account is already linked can keep signing in even if the identity provider doesn't send a verified-email claim.
 
-When setting up an account for SSO, admins can optionally set a local password during creation. Users can ignore the password and simply use SSO to log in.
+Creating an account requires a password. For SSO-only users, admins can set a random password during creation; users can ignore it and simply use SSO to log in.
 :::
 
 ## Environment Variables Reference
