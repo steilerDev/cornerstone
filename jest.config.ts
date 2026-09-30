@@ -46,6 +46,9 @@ const config: Config = {
   // gracefully" warnings; 2000 ms lets legitimate cleanup finish while still
   // bounding true hangs.
   workerGracefulExitTimeout: 2000,
+  // Packs `--shard` buckets by recorded file runtime (scripts/jest-timings.json)
+  // instead of path hash, and starts the longest files first. See the file header.
+  testSequencer: '<rootDir>/scripts/jest-shard-sequencer.mjs',
   // Tests that open the shared SearchPicker's dropdown for the first time (mounting
   // @floating-ui/react's FloatingPortal + userEvent's real-timer event sequencing) are
   // legitimately slow under CI/sandbox CPU contention. CORRECTED diagnosis (#2076,

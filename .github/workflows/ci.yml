@@ -95,8 +95,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shardIndex: [1, 2, 3, 4, 5, 6]
-        shardTotal: [6]
+        # 10 shards x 3 workers targets 5-10 min per job (~1m45s of setup plus
+        # ~6 min of tests). Shards are packed by recorded runtime, not path hash —
+        # see scripts/jest-shard-sequencer.mjs. If shards drift apart, refresh the
+        # weights: `node scripts/update-jest-timings.mjs <run-id>`.
+        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        shardTotal: [10]
 
     steps:
       - name: Checkout
@@ -148,9 +152,11 @@ jobs:
       #     ALONE on the runner until 19:49:23 — 25m54s with zero contention — and
       #     still blew the 60 s ceiling on 3 tests. Serializing workers cannot fix
       #     a failure that already reproduced with the box to itself.
-      #   * Raising shardTotal. `--shard` splits by file, and one file was 2326 s
-      #     of that shard's 2366 s. More shards cannot subdivide a single file, so
-      #     the critical path is unchanged; it only buys more npm-ci overhead.
+      #   * Raising shardTotal ALONE. `--shard` splits by file, and one file was
+      #     2326 s of that shard's 2366 s. More shards cannot subdivide a single
+      #     file. (Later taken together with the prerequisites it lacked: the
+      #     SearchPicker suite was split into four files and shards are packed by
+      #     recorded runtime — see the matrix comment above.)
       #   * Dropping/retargeting --coverage. Measured A/B on the full
       #     WorkItemPicker suite: 223.7 s without coverage vs 224.4 s with. The
       #     babel/istanbul instrumentation costs 0.3%. Not the multiplier.
@@ -161,7 +167,10 @@ jobs:
       - name: Run tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json --maxWorkers=2 --workerIdleMemoryLimit=2048MB --testTimeout=240000
+          JEST_TIMINGS_FILE: jest-timings/shard-${{ matrix.shardIndex }}.json
+        # --maxWorkers=3 on the 4-vCPU (2 cores x 2 threads) runner leaves one
+        # thread for the Jest parent process and coverage collection.
+        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json --maxWorkers=3 --workerIdleMemoryLimit=2048MB --testTimeout=240000 --reporters=default --reporters=./scripts/jest-timing-reporter.mjs
 
       - name: Rename coverage for merge
         if: ${{ always() }}
@@ -177,6 +186,16 @@ jobs:
           name: coverage-shard-${{ matrix.shardIndex }}
           path: coverage/coverage-shard-${{ matrix.shardIndex }}.json
           retention-days: 1
+
+      # Per-file runtimes consumed by scripts/update-jest-timings.mjs.
+      - name: Upload test timings
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: jest-timings-shard-${{ matrix.shardIndex }}
+          path: jest-timings/shard-${{ matrix.shardIndex }}.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   coverage-report:
     name: Coverage Report
