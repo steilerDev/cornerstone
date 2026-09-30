@@ -95,14 +95,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 12 shards x 2 workers targets 5-10 min per job (~1m45s of setup plus
-        # <=8 min of tests). Shards are packed by recorded runtime, not path hash —
-        # see scripts/jest-shard-sequencer.mjs. The floor is the largest single
-        # file (~8 min for the picker-family suites); adding shards cannot lower
-        # it, splitting that file can. If shards drift apart, refresh the weights
-        # from a green run: `node scripts/update-jest-timings.mjs <run-id>`.
-        shardIndex: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        shardTotal: [12]
+        # 6 shards x 2 workers targets 5-10 min per job (~1m45s of setup plus
+        # ~6.5 min of tests). Shards are packed by recorded runtime, not path hash —
+        # see scripts/jest-shard-sequencer.mjs. If shards drift apart, refresh the
+        # weights from a green run: `node scripts/update-jest-timings.mjs <run-id>`.
+        shardIndex: [1, 2, 3, 4, 5, 6]
+        shardTotal: [6]
 
     steps:
       - name: Checkout
@@ -120,52 +118,6 @@ jobs:
       - name: Build shared package
         run: npm run build -w shared
 
-      # Records the runner's actual capacity so the "was it 2 or 4 vCPUs?"
-      # question stops being argued from assumption. Free, and #2078 needs it.
-      - name: Report runner capacity
-        run: |
-          echo "nproc: $(nproc)"
-          lscpu | grep -E '^(Model name|CPU\(s\)|Thread\(s\) per core|Core\(s\) per socket)' || true
-          free -m
-
-      # --- STOPGAP, NOT A FIX (issue #2078) -------------------------------------
-      # `--testTimeout` is raised HERE, in the CI invocation only, rather than in
-      # jest.config.ts. That split is deliberate:
-      #
-      #   * jest.config.ts's testTimeout (60000) stays tight. It is the *regression
-      #     detector* developers run against — a newly-pathological test must still
-      #     fail fast on a dev machine.
-      #   * This CI-only ceiling absorbs the fact that a GitHub-hosted runner is
-      #     ~1.8x slower single-threaded than the Apple-Silicon dev boxes the 60 s
-      #     figure was calibrated on. It buys headroom for a *machine-speed*
-      #     difference. It does not make anything faster and it explains nothing.
-      #
-      # The underlying defect is untouched and still open: picker-family component
-      # tests cost ~21 s of CPU *per test* on a dev box (~40 s here), for reasons
-      # nobody has explained. #2078 owns finding out, next step `node --cpu-prof`
-      # on a single dropdown test. Do not read a green Quality Gates as evidence
-      # that the slowness was solved — it was only given more room.
-      #
-      # Levers evaluated on the PR #2075 failure and deliberately NOT taken, so
-      # they don't get re-proposed (evidence: run 34154456691):
-      #
-      #   * --maxWorkers=1. Contention is not the mechanism. In shard 5, all 77
-      #     other suites finished at 19:23:29 and SearchPicker.test.tsx then ran
-      #     ALONE on the runner until 19:49:23 — 25m54s with zero contention — and
-      #     still blew the 60 s ceiling on 3 tests. Serializing workers cannot fix
-      #     a failure that already reproduced with the box to itself.
-      #   * Raising shardTotal ALONE. `--shard` splits by file, and one file was
-      #     2326 s of that shard's 2366 s. More shards cannot subdivide a single
-      #     file. (Later taken together with the prerequisites it lacked: the
-      #     SearchPicker suite was split into four files and shards are packed by
-      #     recorded runtime — see the matrix comment above.)
-      #   * Dropping/retargeting --coverage. Measured A/B on the full
-      #     WorkItemPicker suite: 223.7 s without coverage vs 224.4 s with. The
-      #     babel/istanbul instrumentation costs 0.3%. Not the multiplier.
-      #   * Fake timers. beta already ships SearchPicker.test.tsx fully converted
-      #     to jest.useFakeTimers() + advanceTimers; the run above IS the converted
-      #     file. It went from 9 failures to 3, not to 0.
-      # -------------------------------------------------------------------------
       - name: Run tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
         env:
           NODE_OPTIONS: --max-old-space-size=6144
@@ -174,8 +126,14 @@ jobs:
         # (2 threads each). Measured on PR #2114 (run 36722807521): 3 workers
         # inflated every file ~2x (server suites 25 s -> 70 s, SearchPicker parts
         # ~450 s -> 630-810 s) and total worker-time 9.3k s -> 12.0k s, so the
-        # extra worker added contention, not throughput.
-        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json --maxWorkers=2 --workerIdleMemoryLimit=2048MB --testTimeout=240000 --reporters=default --reporters=./scripts/jest-timing-reporter.mjs
+        # extra worker added contention, not throughput. (Those figures predate the
+        # nwsapi 2.2.28 fix below and are inflated, but the core count is not.)
+        #
+        # No --testTimeout override: the picker-family slowness that once needed
+        # 60-240 s ceilings (#2076/#2077/#2078) was nwsapi 2.2.27 (jsdom's selector
+        # engine) recursing on `:modal`, which floating-ui checks on every
+        # positioning pass — ~280 ms per call. Fixed upstream in nwsapi 2.2.28.
+        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json --maxWorkers=2 --workerIdleMemoryLimit=2048MB --reporters=default --reporters=./scripts/jest-timing-reporter.mjs
 
       - name: Rename coverage for merge
         if: ${{ always() }}
