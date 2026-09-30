@@ -25,3 +25,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Infinite-scroll consumer hazards](infinite-scroll-consumer-hazards.md) — per-consumer scroll root, IO re-observe after append, client-filter empty batches, disabled-button focus loss, jsdom IO guard
 - [Form prefill hazards](form-prefill-hazards.md) — seeded-from-entity fields are protected from AI overwrite; initial-state/cross-field errors must be visible when submit is disabled
 - [Review-round discipline](review-round-discipline.md) — re-derive "accepted deviation" severity yourself; a green Jest suite proves attributes, not rendering; E2E "collecting" ≠ passing
+- [Dependency override pitfalls](dependency-overrides-pitfalls.md) — stale override pins, workspace deps silently overridden, bundled deps unoverridable, Dependabot never moves single-version pins
