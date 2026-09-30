@@ -123,8 +123,7 @@ interface VendorContactRow {
 
 function getContact(db: Database.Database, id: string): VendorContactRow | undefined {
   return db.prepare('SELECT * FROM vendor_contacts WHERE id = ?').get(id) as
-    | VendorContactRow
-    | undefined;
+    VendorContactRow | undefined;
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────

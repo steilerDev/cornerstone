@@ -22,8 +22,7 @@ export function getSourceColorIndex(sourceId: string | null): number {
  * Pass sourceId === null for "Unassigned", or a source UUID string for named sources.
  */
 export type SourceBadgeStyleKey =
-  | `source${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}`
-  | 'sourceUnassigned';
+  `source${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9}` | 'sourceUnassigned';
 
 export function getSourceBadgeStyleKey(sourceId: string | null): SourceBadgeStyleKey {
   if (sourceId === null) return 'sourceUnassigned';

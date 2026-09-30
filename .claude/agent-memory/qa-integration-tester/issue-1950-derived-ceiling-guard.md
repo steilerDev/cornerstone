@@ -87,7 +87,7 @@ material (round-3 review of PR #1948) was written.
 Issue text anticipated needing to export `USAGE_TEXT_MAX_LENGTH` from `ReportContentEditor.tsx`
 (module-private) and said to flag it rather than do it myself. **Found a way to avoid the
 production change entirely**: `EditableField.tsx` forwards `maxLength` straight onto the native
-`<textarea maxLength={...}>` DOM attribute, so the *rendered* `maxlength` attribute IS the real
+`<textarea maxLength={...}>` DOM attribute, so the _rendered_ `maxlength` attribute IS the real
 runtime value — readable via `usageField.getAttribute('maxlength')` after `renderEditor()`, the
 exact technique the pre-existing #1941 test (`ReportContentEditor.test.tsx` ~line 1791) already
 uses to pin it at `'500'`. Compared that against `usageChunkCharsForWidth(USAGE_WIDTH_7COL)`

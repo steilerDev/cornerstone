@@ -45,7 +45,7 @@ filtered) → 56.25, allocation genuinely drops, so "claimed **separately**" is 
 residual 0.75 **plus** returned fraction 0.25 → 75.00, net zero, nothing claimed elsewhere, so the old
 `(less deposit)` was literally false to a bank. Use this table whenever the trigger is re-litigated.
 
-**UNION dedup:** adding the `origin` literal defeats *cross-arm* row dedup. Safe only because
+**UNION dedup:** adding the `origin` literal defeats _cross-arm_ row dedup. Safe only because
 `COUNT(DISTINCT source_id)` and `MAX(CASE …)` are multiplicity-insensitive. Pre-#1911, `COUNT(*)` and
 `COUNT(DISTINCT source_id)` were equivalent; **they are not anymore** — a future "simplification" to
 `COUNT(*) > 1` silently flips isSplit for every invoice with a line and a tagged deposit in the same
@@ -53,7 +53,7 @@ source. Guarded by the AC 1.9 fixture; I asked for a comment at the query itself
 semantically identical, cheaper, and more honest about multiplicity.
 
 **Keep `isSplit`, and for a better reason than back-compat:** it and `splitKind` come from two
-*independent* expressions over the same rows, which is what makes `expect(splitKind !== null).toBe(isSplit)`
+_independent_ expressions over the same rows, which is what makes `expect(splitKind !== null).toBe(isSplit)`
 a real cross-check instead of a tautology. Deriving one from the other destroys the only test that would
 catch the `COUNT(*)` regression from the other side.
 

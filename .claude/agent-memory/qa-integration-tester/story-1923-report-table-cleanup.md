@@ -13,6 +13,7 @@ statement/line coverage on buildReportContent.ts and sourceReportService.ts, 100
 ReportContentEditor.tsx, ~100%/98% branch on overviewPdf.ts.
 
 **New/changed behavior to remember for future report-content work:**
+
 - Split (`†`) and reduced-deposit (`‡`) markers are now UNNUMBERED and SHARED — at most one
   footnote entry each (`id: 'split'`/`'deposit-reduced'`, no vendor/invoice prefix). A constituted
   (tagged-to-this-source) deposit produces `isDeposit: true` on the row instead of a `‡` marker or
@@ -36,7 +37,7 @@ ReportContentEditor.tsx, ~100%/98% branch on overviewPdf.ts.
 **Worktree gotcha reconfirmed and clarified**: raw `npx tsc --noEmit -p client/tsconfig.json` (or
 server/tsconfig.json) in this worktree resolves `@cornerstone/shared` via `node_modules/@cornerstone/shared`,
 which is a symlink to the **base repo checkout** (`/Users/.../cornerstone/shared`), not the worktree's
-own `shared/`. If the base repo happens to be checked out on a *different, unrelated branch* (observed:
+own `shared/`. If the base repo happens to be checked out on a _different, unrelated branch_ (observed:
 base was on `fix/1895-1918-claim-deposit-scope` while this worktree was on `feat/1923-...`), that stale
 symlinked `dist/index.d.ts` produces convincing but FALSE-POSITIVE type errors (e.g. "Property 'areaId'
 does not exist on type 'SourceReportLinkedItem'") for types the current branch's `shared/src` genuinely
@@ -47,11 +48,13 @@ values** for the files I'd already fixed — client project's jest config has `m
 
 **Definitive fix applied this round** (repoint the worktree's own node_modules symlink instead of
 relying on jest's leniency, so raw `tsc -p` becomes trustworthy again for this session):
+
 ```bash
 rm node_modules/@cornerstone/shared
 ln -s /absolute/path/to/THIS/worktree/shared node_modules/@cornerstone/shared
 cd shared && npx tsc && cd ..   # rebuild worktree-local shared/dist
 ```
+
 After this, `npx tsc --noEmit -p client/tsconfig.json` and `-p server/tsconfig.json` both went from
 ~15-30 false-positive errors to 0, and stayed 0 after all real fixes. **Use this fix proactively at the
 start of any session that needs a real `tsc -p` sanity sweep** (e.g. when a coordinator reports a CI

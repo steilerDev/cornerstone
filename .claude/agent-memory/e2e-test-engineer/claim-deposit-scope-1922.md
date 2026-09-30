@@ -10,6 +10,7 @@ Fix-loop round 1 for PR #1922 (`fix/1895-1918-claim-deposit-scope`) landed a cla
 `e2e/tests/budget/reportWizardEditableContent.spec.ts` Scenario 10.
 
 **New semantics** (`client/src/pages/ReportWizardPage/ReportWizardPage.tsx`):
+
 - `handleMarkClaimed` submits TWO separate arrays: `invoiceIds` (included invoices with ZERO
   excluded lines — any excluded line drops the invoice out entirely) and `depositIds` (all
   non-`claimed` deposits of included invoices, deliberately INCLUDING deposits belonging to
@@ -23,7 +24,7 @@ Fix-loop round 1 for PR #1922 (`fix/1895-1918-claim-deposit-scope`) landed a cla
 - Otherwise the SERVER (`markInvoicesClaimed` in `server/src/services/sourceReportService.ts`)
   decides what actually flips: an invoice only flips to `claimed` if its status is
   pending/paid AND it has no OTHER-source budget-line interest (checked via a join query) —
-  an invoice can be validly *requested* in `invoiceIds` (e.g. a quotation invoice, or one with
+  an invoice can be validly _requested_ in `invoiceIds` (e.g. a quotation invoice, or one with
   cross-source funding) and still not appear in the response's `claimedInvoiceIds`. The success
   banner (`sourceReports.claimSuccess`, key `claimSuccessBanner`) reads
   `"{{invoices}} invoice(s) and {{deposits}} deposit(s) marked as claimed"` using the SERVER's
@@ -37,6 +38,7 @@ Fix-loop round 1 for PR #1922 (`fix/1895-1918-claim-deposit-scope`) landed a cla
 
 **Three distinct "deposit only surfaces the invoice" shapes** — don't conflate them when writing
 fixtures:
+
 1. Zero-line source (`reportWizardExpansion.spec.ts` Scenario 5/8): the reported source never had
    a budget line for this invoice at all — Rail B (tagged deposit) is the ONLY way the invoice
    enters the report.

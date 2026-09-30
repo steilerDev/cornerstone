@@ -49,7 +49,7 @@ exist on `beta`, a straight file swap fails at import resolution, not at the ass
 the current (fixed) `sourceReportService.ts` to `/tmp`, edit the working copy in place to inline
 the pre-#1930 stage-derivation logic (re-import `splitByDepositsExcludingTagged` from
 `depositAggregateUtils.js`, replace the `isDocumentIncludedForReportType` call site with the old
-`stages` Set computation copied from `git show origin/beta:...`), run *only* the new test via
+`stages` Set computation copied from `git show origin/beta:...`), run _only_ the new test via
 `npx jest ... -t "AC3 \(discriminating\)"`, confirm it fails with the exact wrong-inclusion
 diff, then `cp` the backup back over the working file and re-verify `git diff` is empty before
 re-running the full suite. This isolates one specific fixture's discriminating power without

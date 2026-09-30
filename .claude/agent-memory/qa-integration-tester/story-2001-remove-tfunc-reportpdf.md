@@ -19,8 +19,9 @@ coverLetterSubjectLabel: string;
 skipReasonLabels: {
   footnoteFetchFailed: string;
   footnoteInvalidPdf: string;
-};
+}
 ```
+
 Every fixture/`makeLabels()` helper that builds a `ReportContentLabels` object needs these 3 new
 fields. Missing them causes a typecheck failure even if Jest passes.
 

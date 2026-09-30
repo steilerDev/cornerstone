@@ -42,12 +42,7 @@ const PROJECT_TABS: SubNavTab[] = [
 ];
 
 type DataSourceKey =
-  | 'budgetOverview'
-  | 'budgetSources'
-  | 'timeline'
-  | 'invoices'
-  | 'subsidyPrograms'
-  | 'diaryEntries';
+  'budgetOverview' | 'budgetSources' | 'timeline' | 'invoices' | 'subsidyPrograms' | 'diaryEntries';
 
 type DashboardSection = 'primary' | 'timeline' | 'budget-details';
 

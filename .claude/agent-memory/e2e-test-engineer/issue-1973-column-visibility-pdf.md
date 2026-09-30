@@ -15,6 +15,7 @@ case and the locked column lives in `client/src/lib/reportContent/columns.ts`
 by both the editor UI and the PDF geometry engine (AC 2.1).
 
 Key reducer facts (`client/src/pages/ReportWizardPage/wizardReducer.ts`):
+
 - `SELECT_USE_CASE` spreads `freshContentTier()` → `hiddenColumns` resets to `new Set()` on every
   use-case change (AC 5.1). This is the SAME mechanism that already clears `overrides`/`aiContent`.
 - `DISCARD_EDITS` explicitly PRESERVES `hiddenColumns` (`hiddenColumns: state.hiddenColumns`

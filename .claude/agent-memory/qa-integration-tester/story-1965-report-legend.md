@@ -55,14 +55,18 @@ Three improvements landed in the same PR to tighten #1965 test assertions:
 The marker `'less deposit'` (which is `'less deposit'` from locale — NBSP encoded as `\xc2\xa0`)
 caused `getByText('less deposit:')` to FAIL because testing-library's `matches()` normalizes the
 **element text** (NBSP→space) but compares against the **raw un-normalized matcher string**:
+
 ```
 normalizedText === String(matcher)
 // 'less deposit:' === 'less deposit:'  → FALSE
 ```
+
 Fix: use a regex, which IS tested against the already-normalized text:
+
 ```ts
 expect(screen.getByText(/^less\sdeposit:$/)).toBeInTheDocument();
 ```
+
 The `\s` matches the plain space that NBSP normalizes to. This is a general pattern: whenever a
 marker or label contains NBSP (from a locale file), use a regex for the `getByText` assertion, not
 a plain string — they will never `===`-match the normalized element text.

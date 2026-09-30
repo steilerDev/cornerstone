@@ -709,8 +709,7 @@ describe('Migration 0017: Invoice-Budget-Line Junction Table', () => {
       runMigration0017(db);
 
       const inv = db.prepare(`SELECT * FROM invoices WHERE id = ?`).get('inv-preserve-1') as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
 
       expect(inv).toBeDefined();
       expect(inv!.amount).toBe(750.0);

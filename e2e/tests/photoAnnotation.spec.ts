@@ -1596,8 +1596,7 @@ test('Select tool — drag moves a committed rectangle', async ({
     // Capture original x position from state model
     const initialShapes19 = await viewer.getAnnotatorShapes();
     const initialRect19 = initialShapes19.find((s) => s.type === 'rectangle') as
-      | RectangleShape
-      | undefined;
+      RectangleShape | undefined;
     expect(initialRect19).toBeDefined();
     const initialX19 = initialRect19!.x;
 

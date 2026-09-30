@@ -191,8 +191,7 @@ describe('Migration 0028: Areas and Trades Rework', () => {
 
     for (const id of expectedIds) {
       const row = sqlite.prepare('SELECT id FROM trades WHERE id = ?').get(id) as
-        | { id: string }
-        | undefined;
+        { id: string } | undefined;
       expect(row).toBeDefined();
       expect(row?.id).toBe(id);
     }
@@ -423,8 +422,7 @@ describe('Migration 0028: Areas and Trades Rework', () => {
     const wi = sqlite
       .prepare('SELECT id, area_id, assigned_vendor_id FROM work_items WHERE id = ?')
       .get('wi-001') as
-      | { id: string; area_id: string | null; assigned_vendor_id: string | null }
-      | undefined;
+      { id: string; area_id: string | null; assigned_vendor_id: string | null } | undefined;
     expect(wi).toBeDefined();
     expect(wi?.area_id).toBeNull();
     expect(wi?.assigned_vendor_id).toBeNull();

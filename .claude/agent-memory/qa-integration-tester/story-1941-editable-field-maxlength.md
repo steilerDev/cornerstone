@@ -16,7 +16,7 @@ controlled `<input>`/`<textarea>`'s rendered `.value` against its `maxlength` at
 keystroke-level maxlength enforcement either (`onChange` receives the full over-limit string) — this
 is real-browser behavior too, not a jsdom gap: only `userEvent.type` (real keystroke simulation)
 would respect it; `fireEvent.change` sets `target.value` directly and always bypasses it. So AC1's
-test asserts native attribute *presence* (`toHaveAttribute('maxlength', '10')`) and documents the
+test asserts native attribute _presence_ (`toHaveAttribute('maxlength', '10')`) and documents the
 fireEvent.change bypass explicitly, rather than asserting truncation that would never happen at this
 call site.
 
@@ -24,7 +24,7 @@ call site.
 first pass updated the #1932-era structural assertion (`resetButton.parentElement === outerContainer`)
 to match production wrapping the reset button in `.metaRow` unconditionally whenever `isEdited` was
 true (even with no `maxLength` set). That was the wrong call. The reviewer traced it further:
-`.metaRow` carried `margin-top: var(--spacing-1)` (4px) *stacked on top of* `.container`'s flex
+`.metaRow` carried `margin-top: var(--spacing-1)` (4px) _stacked on top of_ `.container`'s flex
 `gap: var(--spacing-2)` (8px) — flex gap and a child's own margin are additive, not merged — so the
 ordinary case (a field edited but nowhere near its `maxLength`) silently gained 12px where #1932 had
 shipped and design-approved 8px. A 50% spacing regression to chrome nobody meant to touch. Production

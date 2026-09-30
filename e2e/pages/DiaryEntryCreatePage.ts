@@ -26,11 +26,7 @@ import type { Page, Locator } from '@playwright/test';
 export const DIARY_CREATE_ROUTE = '/diary/new';
 
 export type ManualDiaryEntryType =
-  | 'daily_log'
-  | 'site_visit'
-  | 'delivery'
-  | 'issue'
-  | 'general_note';
+  'daily_log' | 'site_visit' | 'delivery' | 'issue' | 'general_note';
 
 export class DiaryEntryCreatePage {
   readonly page: Page;

@@ -19,7 +19,7 @@ legitimate family retries can lock out login; internet-exposed instances want th
 6 of 7 ACs met. Blocking: `AUTH_RATE_LIMIT_WINDOW=0s` passed validation — `max` rejected
 `<= 0`, the window was pattern-matched with no bound on the resulting duration. Defeated AC2
 ("does not silently disable the limit") and AC7 ("no value that removes the limit entirely").
-Medium (M1): nothing proved the *window* reached the route.
+Medium (M1): nothing proved the _window_ reached the route.
 
 Rulings made in round 1:
 
@@ -66,23 +66,23 @@ Two things worth reusing:
 - **Verify a "proves X reached the route" assertion by mutation, not by reading it.** I deleted
   `timeWindow` from `auth.ts:147` locally, ran the one test file, got
   `Expected: "900" / Received: "60"`, then `git checkout -- server/src/routes/auth.ts`. That is
-  the only evidence that distinguishes a load-bearing assertion from one that merely *looks*
+  the only evidence that distinguishes a load-bearing assertion from one that merely _looks_
   specific. Reverting immediately keeps it inside PO boundaries — it is verification, not
   authoring. Generalized in [pr-review-patterns.md](pr-review-patterns.md).
 - **Check the header is deterministic before accepting it as an AC probe.** `LocalStore.incr`
-  sets `ttl: timeWindow` exactly on the *first* request of a fresh window
+  sets `ttl: timeWindow` exactly on the _first_ request of a fresh window
   (`store/LocalStore.js:17`), and each test builds its own app → fresh in-memory store. So `900`
-  is exact, not timing-sensitive. Had the assertion been on a *later* request, ttl would be
+  is exact, not timing-sensitive. Had the assertion been on a _later_ request, ttl would be
   `timeWindow - elapsed` (`LocalStore.js:38`) and the same assertion would have been a flake.
   When approving a numeric-header probe, ask which request in the window it observes.
 
 ## Follow-ups filed from this review
 
-| Issue | Kind | Status | Substance |
-| --- | --- | --- | --- |
-| **#1990** | user-story, Should Have | Todo | Docs-site rate-limit copy (docs-writer), must cross-reference `TRUST_PROXY` |
-| **#1991** | tech-debt, Could Have | Backlog | Uniform integer parsing across the 8 `parseInt` sites in `loadConfig()` — the tracked home for the leniency ruling |
-| **#1992** | documentation, Should Have | Todo | Wiki documents a nonexistent `OIDC_REDIRECT_URI` and a four-variable OIDC gate; `config.ts:142` gates on three |
+| Issue     | Kind                       | Status  | Substance                                                                                                          |
+| --------- | -------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| **#1990** | user-story, Should Have    | Todo    | Docs-site rate-limit copy (docs-writer), must cross-reference `TRUST_PROXY`                                        |
+| **#1991** | tech-debt, Could Have      | Backlog | Uniform integer parsing across the 8 `parseInt` sites in `loadConfig()` — the tracked home for the leniency ruling |
+| **#1992** | documentation, Should Have | Todo    | Wiki documents a nonexistent `OIDC_REDIRECT_URI` and a four-variable OIDC gate; `config.ts:142` gates on three     |
 
 **#1991 rationale:** the ruling stays "out of scope for #1970", but `product-architect`
 (Medium) and `security-engineer` (Low) both raised it independently, so a review comment alone

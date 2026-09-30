@@ -12,10 +12,12 @@ Completed translation of 23 new English keys into German for the invoices open-i
 ### Keys Translated
 
 **Under `invoices.tableHeaders`** (2 keys):
+
 - `stillDue`: "Noch fällig" — unpaid final payment plus unpaid deposits
 - `stillDueHint`: Full explanation that deposits are already included in the figure, not additional
 
 **Under `invoices.openItems`** (21 keys):
+
 - `toggleLabel`, `toggleDisabledHint`, `defaultSortHint` — UI control labels
 - `containerLabel`: "Nur Abschlagszahlungen" — badge label for deposits-only quotations (preserves "only" qualifier to signal row is a container, not itself an open item per AC10)
 - `overdueLabel`, `depositOverdueLabel` — critical distinction maintained:
@@ -32,6 +34,7 @@ Completed translation of 23 new English keys into German for the invoices open-i
 ### Glossary Compliance
 
 All domain terms verified:
+
 - **Deposit**: "Abschlagszahlung" / "Abschlagszahlungen" / "Abschlag" (short form) ✓
 - **Refund**: "Rückerstattung" / "Rückerstattungen" ✓
 - **Invoice**: "Rechnung" / "Rechnungen" ✓

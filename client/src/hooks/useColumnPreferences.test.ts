@@ -85,7 +85,6 @@ describe('useColumnPreferences', () => {
       expect(result.current.visibleColumns.has('name')).toBe(true);
       expect(result.current.visibleColumns.has('hidden')).toBe(false);
     });
-
   });
 
   describe('loading from preferences', () => {

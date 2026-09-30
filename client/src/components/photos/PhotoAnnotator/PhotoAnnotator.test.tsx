@@ -715,8 +715,7 @@ describe('PhotoAnnotator', () => {
   function getLiveRegion(): HTMLElement {
     // In the Konva-based component, the live region uses role="status"
     const el = document.querySelector('[role="status"][aria-live="polite"]') as
-      | HTMLElement
-      | undefined;
+      HTMLElement | undefined;
     if (!el) throw new Error('Live region not found (role="status" aria-live="polite")');
     return el;
   }
