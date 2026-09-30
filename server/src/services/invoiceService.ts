@@ -647,10 +647,7 @@ export function updateInvoice(
         );
       }
 
-      const { depositTotal, refundTotal } = getDepositEntryTotals(
-        tx as unknown as DbType,
-        invoiceId,
-      );
+      const { depositTotal, refundTotal } = getDepositEntryTotals(tx, invoiceId);
       const net = depositTotal - refundTotal;
       if (exceedsAmount(net, data.amount)) {
         throw new DepositsExceedInvoiceTotalError(

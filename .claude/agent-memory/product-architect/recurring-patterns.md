@@ -1767,3 +1767,8 @@ whose script also enforces `e2e/` rules. `trailer-check` (`if: app == 'true'`) s
 Rule 5 was never checked in CI even after E2E Gates was fixed. When reviewing a gate: list each needed job's
 `if:` and ask whether any skip cause is neither a path-filter "no-op" nor a checked upstream. The robust pattern
 is E2E Gates' approach: derive the expected result from `detect-changes` outputs and compare against it exactly.
+
+## Passing a drizzle `tx` to a helper: `Pick<DbType, 'select'>`, never `tx as unknown as DbType` (PR #2128, 2026-09-30)
+
+- A better-sqlite3 drizzle `tx` (SQLiteTransaction) is not assignable to `BetterSQLite3Database`, so authors reach for a double cast. Typing the helper param as the narrowest used surface (`Pick<DbType, 'select'>`) accepts both `db` and `tx` with zero casts (verified with `tsc --noEmit`) and makes the compiler flag a helper that later starts writing or nesting a transaction.
+- Also from #2128: `milestoneService`'s regex-only `DATE_RE` is NOT an impossible-date hole — the route schema's ajv `format: 'date'` rejects `2026-02-31` first. Check the route schema before filing a "sibling validator" bug.

@@ -1233,11 +1233,11 @@ test.describe('Refund entries — status lifecycle reuses deposit menu/badges (S
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 13 (#2108/#2109/#2113): deposit headroom is NET of refunds
+// Scenario 13 (#2109): deposit headroom is NET of refunds
 // (Σdeposit − Σrefund ≤ invoice amount, all statuses)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Deposits — headroom is net of refunds (Scenario 13, #2113)', () => {
+test.describe('Deposits — headroom is net of refunds (Scenario 13, #2109)', () => {
   test('With deposit 100 and refund 30 on a 100 invoice, adding a deposit of 30 succeeds', async ({
     page,
     testPrefix,

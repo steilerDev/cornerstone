@@ -1105,17 +1105,36 @@ describe('Invoice Routes', () => {
     it('PATCH with impossible date 2026-02-31 returns 400 VALIDATION_ERROR and leaves the invoice unchanged', async () => {
       const { cookie } = await createUserWithSession('ud2@test.com', 'User', 'password');
       const vendorId = createTestVendor('Bad Date PATCH Vendor');
-      const invoiceId = createTestInvoice(vendorId, { date: '2026-01-01' });
+      const invoiceId = createTestInvoice(vendorId, {
+        date: '2026-01-01',
+        dueDate: '2026-01-31',
+        amount: 1000,
+        notes: 'original',
+      });
 
       const response = await app.inject({
         method: 'PATCH',
         url: `/api/vendors/${vendorId}/invoices/${invoiceId}`,
         headers: { cookie },
-        payload: { date: '2026-02-31' },
+        payload: { date: '2026-02-31', amount: 500, notes: 'changed' },
       });
 
       expect(response.statusCode).toBe(400);
       expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+
+      const reread = await app.inject({
+        method: 'GET',
+        url: `/api/vendors/${vendorId}/invoices`,
+        headers: { cookie },
+      });
+      const found = reread
+        .json<{ invoices: Invoice[] }>()
+        .invoices.find((inv) => inv.id === invoiceId);
+      expect(found).toBeDefined();
+      expect(found?.date).toBe('2026-01-01');
+      expect(found?.dueDate).toBe('2026-01-31');
+      expect(found?.amount).toBe(1000);
+      expect(found?.notes).toBe('original');
     });
   });
 });

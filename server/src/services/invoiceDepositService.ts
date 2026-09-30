@@ -35,7 +35,7 @@ export interface DepositEntryTotals {
  * Optionally excludes one entry (used when updating that entry).
  */
 export function getDepositEntryTotals(
-  db: DbType,
+  db: Pick<DbType, 'select'>,
   invoiceId: string,
   excludeEntryId?: string,
 ): DepositEntryTotals {
@@ -69,7 +69,7 @@ export function getDepositEntryTotals(
  * would exceed the invoice amount.
  */
 function assertNetDepositsWithinInvoice(
-  db: DbType,
+  db: Pick<DbType, 'select'>,
   invoiceId: string,
   invoiceAmount: number,
   requestedAmount: number,
@@ -323,12 +323,7 @@ export function createDeposit(
       }
     } else {
       // Deposit rule: deposits net of refunds must not exceed the invoice total (#2109)
-      assertNetDepositsWithinInvoice(
-        tx as unknown as DbType,
-        invoiceId,
-        invoice.amount,
-        data.amount,
-      );
+      assertNetDepositsWithinInvoice(tx, invoiceId, invoice.amount, data.amount);
     }
 
     // Insert the deposit
@@ -529,13 +524,7 @@ export function updateDeposit(
           );
         }
       } else {
-        assertNetDepositsWithinInvoice(
-          tx as unknown as DbType,
-          invoiceId,
-          invoice.amount,
-          data.amount,
-          depositId,
-        );
+        assertNetDepositsWithinInvoice(tx, invoiceId, invoice.amount, data.amount, depositId);
       }
     }
 
