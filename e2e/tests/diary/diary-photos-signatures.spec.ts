@@ -15,13 +15,19 @@
  * 8.  Signature section is rendered when entry metadata contains signatures (mock API)
  * 9.  Edit/Delete buttons are hidden for a signed entry (mock API — isSigned=true)
  * 10. "Add photos" link is hidden for signed entries (isSigned=true)
+ * 11. Unfinished signature blocks promote client-side (#2088)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
+import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
 import { DiaryPage } from '../../pages/DiaryPage.js';
 import { API } from '../../fixtures/testData.js';
-import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createDiaryEntryViaApi,
+  createDraftDiaryEntryViaApi,
+  deleteDiaryEntryViaApi,
+} from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -560,6 +566,50 @@ test.describe('Photo section visibility (Scenario 10)', () => {
     } finally {
       await page.unroute(`${API.diaryEntries}/${mockId}`);
       await page.unroute('**/api/photos*');
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 11: Unfinished signature blocks promote (#2088)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Unfinished signature blocks promote (#2088)', () => {
+  test('promote is blocked client-side until the pending signature is removed', async ({
+    page,
+  }) => {
+    const editPage = new DiaryEntryEditPage(page);
+    const id = await createDraftDiaryEntryViaApi(page, { entryType: 'daily_log' });
+
+    // Promote is sent as PATCH /api/diary-entries/:id/promote
+    const promoteRequests: string[] = [];
+    page.on('request', (req) => {
+      if (req.url().includes(`/api/diary-entries/${id}/promote`)) {
+        promoteRequests.push(`${req.method()} ${req.url()}`);
+      }
+    });
+
+    try {
+      await editPage.goto(id);
+      await editPage.bodyTextarea.fill('Daily log with an unfinished signature');
+
+      await editPage.addSignatureButton.click();
+      await editPage.vendorSignerRadio.check();
+
+      await editPage.submitButton.click();
+
+      await expect(editPage.signatureValidationError).toHaveText(/unfinished signature/i);
+      await expect(page).toHaveURL(new RegExp(`/diary/${id}/edit$`));
+      expect(promoteRequests).toHaveLength(0);
+
+      // Removing the pending signature unblocks promote
+      await editPage.removePendingSignatureButton.click();
+      await editPage.submitButton.click();
+
+      await expect(page).toHaveURL(new RegExp(`/diary/${id}$`));
+      expect(promoteRequests.length).toBeGreaterThan(0);
+    } finally {
+      await deleteDiaryEntryViaApi(page, id);
     }
   });
 });

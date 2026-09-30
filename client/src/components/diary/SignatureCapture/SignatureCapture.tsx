@@ -292,7 +292,10 @@ export function SignatureCapture({
     const signedAt = now.toISOString();
 
     // Determine the display name for the signature
-    const displayName = signerType === 'vendor' ? `${vendorName} (${signatoryName})` : signerName;
+    const displayName =
+      signerType === 'vendor'
+        ? `${vendorName} (${signatoryName})`
+        : signerName.trim() || currentUserName?.trim() || '';
 
     // Burn signer info and timestamp onto the canvas
     const ctx = canvas.getContext('2d');
@@ -517,6 +520,14 @@ export function SignatureCapture({
       {sizeError && <div className={styles.errorText}>{sizeError}</div>}
 
       <div className={styles.buttonGroup}>
+        <button
+          type="button"
+          className={styles.clearButton}
+          onClick={handleRemove}
+          disabled={disabled}
+        >
+          {t('signature.removeButton')}
+        </button>
         <button
           type="button"
           className={styles.clearButton}

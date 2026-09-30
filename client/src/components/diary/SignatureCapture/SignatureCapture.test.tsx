@@ -167,6 +167,20 @@ describe('SignatureCapture', () => {
       expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeInTheDocument();
     });
 
+    it('renders a "Remove Signature" button in the unsigned view that clears the pending signature (#2088)', () => {
+      const onSignatureChange = jest.fn();
+      render(<SignatureCapture {...makeProps({ onSignatureChange })} />);
+      const removeBtn = screen.getByRole('button', { name: 'Remove Signature' });
+      expect(removeBtn).toBeEnabled();
+      fireEvent.click(removeBtn);
+      expect(onSignatureChange).toHaveBeenCalledWith(null);
+    });
+
+    it('unsigned-view "Remove Signature" button is disabled when disabled=true (#2088)', () => {
+      render(<SignatureCapture {...makeProps({ disabled: true })} />);
+      expect(screen.getByRole('button', { name: 'Remove Signature' })).toBeDisabled();
+    });
+
     it('Accept button is disabled when there are no strokes yet', () => {
       render(<SignatureCapture {...makeProps()} />);
       expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeDisabled();
@@ -339,6 +353,44 @@ describe('SignatureCapture', () => {
       expect(entry.signerType).toBe('self');
       expect(entry.signerName).toBe('Bob Smith');
       expect(typeof entry.signedAt).toBe('string');
+    });
+
+    it('falls back to a trimmed currentUserName when signerName is empty (#2088)', () => {
+      const onSignatureChange = jest.fn();
+      render(
+        <SignatureCapture
+          {...makeProps({ onSignatureChange, signerName: '', currentUserName: '  Bob  ' })}
+        />,
+      );
+      drawStroke(screen.getByLabelText('Signature canvas'));
+      fireEvent.click(screen.getByRole('button', { name: 'Accept Signature' }));
+
+      const [entry] = onSignatureChange.mock.calls[0] as [DiarySignatureEntry];
+      expect(entry.signerName).toBe('Bob');
+    });
+
+    it('prefers signerName over currentUserName when both are present (#2088)', () => {
+      const onSignatureChange = jest.fn();
+      render(
+        <SignatureCapture
+          {...makeProps({ onSignatureChange, signerName: 'Carol', currentUserName: 'Bob' })}
+        />,
+      );
+      drawStroke(screen.getByLabelText('Signature canvas'));
+      fireEvent.click(screen.getByRole('button', { name: 'Accept Signature' }));
+
+      const [entry] = onSignatureChange.mock.calls[0] as [DiarySignatureEntry];
+      expect(entry.signerName).toBe('Carol');
+    });
+
+    it('emits an empty signerName when neither signerName nor currentUserName is available', () => {
+      const onSignatureChange = jest.fn();
+      render(<SignatureCapture {...makeProps({ onSignatureChange, signerName: '' })} />);
+      drawStroke(screen.getByLabelText('Signature canvas'));
+      fireEvent.click(screen.getByRole('button', { name: 'Accept Signature' }));
+
+      const [entry] = onSignatureChange.mock.calls[0] as [DiarySignatureEntry];
+      expect(entry.signerName).toBe('');
     });
 
     it('does not call onSignatureChange when Accept is clicked with no strokes', () => {

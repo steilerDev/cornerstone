@@ -89,6 +89,12 @@ export class DiaryEntryEditPage {
   // id="work-time-error", role="alert" — shown when end ≤ start at save-attempt
   readonly workTimeValidationError: Locator;
 
+  // daily_log signatures (#2088)
+  readonly addSignatureButton: Locator;
+  readonly vendorSignerRadio: Locator;
+  readonly removePendingSignatureButton: Locator;
+  readonly signatureValidationError: Locator;
+
   // site_visit-specific fields
   readonly inspectorNameInput: Locator;
   readonly outcomeSelect: Locator;
@@ -158,6 +164,12 @@ export class DiaryEntryEditPage {
     this.workEndTimeInput = page.locator('#work-end-time');
     this.workDurationDisplay = page.locator('[role="status"][aria-atomic="true"]');
     this.workTimeValidationError = page.locator('#work-time-error');
+
+    // daily_log signatures (#2088)
+    this.addSignatureButton = page.getByRole('button', { name: /add signature/i });
+    this.vendorSignerRadio = page.getByRole('radio', { name: 'Vendor' });
+    this.removePendingSignatureButton = page.getByRole('button', { name: 'Remove Signature' });
+    this.signatureValidationError = page.locator('#daily-log-signatures-error');
 
     // site_visit fields
     this.inspectorNameInput = page.locator('#inspector-name');
