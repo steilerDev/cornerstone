@@ -124,6 +124,7 @@ Deterministic git/GitHub mechanics live in `scripts/` — skills and agents call
 | `scripts/squash-merge.sh <pr> "<subject>" [body-file]` | Squash merge with trailer preservation and skip-ci guard                                        |
 | `scripts/worktree-done.sh <path> [branch]`             | End-of-session worktree + branch cleanup (run from the base repo)                               |
 | `scripts/check-trailers.sh <base> <head>`              | Trailer verification for a commit range                                                         |
+| `scripts/update-jest-timings.mjs <run-id>`             | Refresh `scripts/jest-timings.json` (Jest shard balancing weights) from a CI run's artifacts    |
 
 ### Acceptance & Validation
 
@@ -505,7 +506,7 @@ The application supports multiple locales (English and German) via `i18next` and
 
 Coverage is enforced through three mechanisms:
 
-- **CI**: 6 Jest shards upload a `coverage-report` artifact (retained 30 days) — inspect via the CI run for per-file percentages.
+- **CI**: 6 Jest shards (2 workers each — the 4-vCPU runners have only 2 physical cores; 3 workers measured ~2x slower per file) upload a `coverage-report` artifact (retained 30 days) — inspect via the CI run for per-file percentages. Shards are packed by recorded per-file runtime (`scripts/jest-shard-sequencer.mjs` + `scripts/jest-timings.json`), not path hash. When shard durations drift apart (e.g. after adding or splitting a slow test file), refresh the weights from a green run with `node scripts/update-jest-timings.mjs <run-id>` and commit the JSON. Keep any single test file well under a shard's ~6 minute test budget — `--shard` cannot subdivide a file, so one slow file sets its shard's floor. CI uses Jest's default 5 s `testTimeout`; a test needing more is a performance bug to profile (`node --cpu-prof`), not a timeout to raise.
 - **Test file parity**: dev-team-lead `[MODE: review]` rejects production files without a corresponding test file (`VERDICT: CHANGES_REQUIRED` → routed to `qa-integration-tester`) — type-only files, pure re-export barrels, and configuration are exempt (see `.claude/checklists/implementation-checklist.md`).
 - **Local**: QA runs `npx jest path/to/file.test.ts --coverage --coverageReporters=text --maxWorkers=1` before committing; 95%+ required.
 
