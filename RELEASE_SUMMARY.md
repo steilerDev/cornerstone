@@ -11,7 +11,7 @@ This release hardens OIDC account linking, adds quotation-to-invoice conversion,
 - **Email-based linking** -- An OIDC login whose subject isn't already linked will match an existing account by email (case-insensitive), but only when the identity provider sends `email_verified: true`. If your provider doesn't verify emails, existing linked accounts can still sign in, but new users will be rejected.
 - **Unknown users rejected** -- If a verified email from your identity provider doesn't match any existing account, the user is rejected with a clear error message unless `OIDC_JIT_PROVISIONING=true` is set.
 - **New opt-in provisioning** -- Set `OIDC_JIT_PROVISIONING=true` to enable just-in-time account creation on first SSO login. New accounts are created with the `member` role only (never `admin`), and only after the first admin account exists. This feature requires a restricted identity provider -- only enable it if you trust who can sign in.
-- **Migration required** -- Migration `0046_users_oidc_subject_unique.sql` adds a unique index on `users.oidc_subject`. The upgrade will fail if two users share the same OIDC subject. Before upgrading, back up your database and check: `SELECT oidc_subject, COUNT(*) FROM users WHERE oidc_subject IS NOT NULL GROUP BY 1 HAVING COUNT(*) > 1;` -- if this returns any rows, contact support.
+- **Migration required** -- Migration `0046_users_oidc_subject_unique.sql` adds a unique index on `users.oidc_subject`. The upgrade will fail if two users share the same OIDC subject. Before upgrading, back up your database and check: `SELECT oidc_subject, COUNT(*) FROM users WHERE oidc_subject IS NOT NULL GROUP BY 1 HAVING COUNT(*) > 1;` -- if this returns any rows, resolve the duplicates first by clearing `oidc_subject` on all but one of the affected accounts.
 
 ### Quotation to Final Invoice Conversion
 
@@ -58,7 +58,7 @@ Report preview and PDF export now render identically (#2133):
 
 ## Migration Notes
 
-**Before upgrading:** Back up your database. Migration `0046_users_oidc_subject_unique.sql` adds a unique index on `users.oidc_subject` and will fail if two users share the same subject. Check: `SELECT oidc_subject, COUNT(*) FROM users WHERE oidc_subject IS NOT NULL GROUP BY 1 HAVING COUNT(*) > 1;` -- if this returns rows, contact support before upgrading.
+**Before upgrading:** Back up your database. Migration `0046_users_oidc_subject_unique.sql` adds a unique index on `users.oidc_subject` and will fail if two users share the same subject. Check: `SELECT oidc_subject, COUNT(*) FROM users WHERE oidc_subject IS NOT NULL GROUP BY 1 HAVING COUNT(*) > 1;` -- if this returns rows, resolve the duplicates first by clearing `oidc_subject` on all but one of the affected accounts.
 
 **After upgrading:** If you use OIDC:
 
@@ -74,7 +74,7 @@ No new required configuration. Optional:
 
 - `OIDC_JIT_PROVISIONING=true` -- Enable just-in-time account provisioning on first SSO login (off by default; member role only; requires verified emails and restricted IdP)
 
-See the [OIDC Setup](/guides/users/oidc-setup) guide for full details.
+See the [OIDC Setup](https://cornerstone.steiler.dev/guides/users/oidc-setup) guide for full details.
 
 ## Testing Checklist
 
